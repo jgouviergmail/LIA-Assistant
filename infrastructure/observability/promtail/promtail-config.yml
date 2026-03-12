@@ -1,0 +1,158 @@
+# Configuration Promtail pour LIA
+# Collecte les logs Docker, parse le JSON structlog, extrait les labels et envoie vers Loki
+# Optimisé pour Raspberry Pi avec SSD NVMe (réduction I/O)
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+  log_level: warn  # info -> warn (moins de logs internes)
+
+# Position de sauvegarde (évite la perte de logs en cas de restart)
+positions:
+  filename: /tmp/positions.yaml
+
+# Client Loki
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+    # SSD-friendly: batching plus agressif (moins d'écritures)
+    batchwait: 5s          # 1s -> 5s (batch plus de logs avant envoi)
+    batchsize: 2097152     # 1MB -> 2MB (batches plus gros)
+    # Retry en cas d'échec
+    backoff_config:
+      min_period: 1s       # 500ms -> 1s
+      max_period: 5m
+      max_retries: 10
+    # Timeout
+    timeout: 10s
+
+# Configuration de scraping des logs Docker
+scrape_configs:
+  # Scraping des logs de tous les conteneurs Docker
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        filters:
+          - name: label
+            values: ["com.docker.compose.project=lia"]
+
+    # Pipeline de traitement des logs
+    pipeline_stages:
+      # Stage 1: Extraction des labels Docker
+      - docker: {}
+
+      # Stage 2: Parsing JSON (logs structlog de l'API)
+      - json:
+          expressions:
+            # Extraction des champs JSON structlog
+            timestamp: timestamp
+            level: level
+            logger: logger
+            event: event
+            message: message
+
+            # Champs contextuels
+            run_id: run_id
+            user_id: user_id
+            session_id: session_id
+
+            # OpenTelemetry distributed tracing context
+            trace_id: trace_id
+            span_id: span_id
+            trace_flags: trace_flags
+
+            # Métriques agents
+            intention: intention
+            confidence: confidence
+            next_node: next_node
+            node_name: node_name
+            duration_ms: duration_ms
+
+            # Tokens & coûts
+            prompt_tokens: prompt_tokens
+            completion_tokens: completion_tokens
+            total_tokens: total_tokens
+            cost_usd: cost_usd
+
+            # Erreurs
+            error: error
+            error_type: error_type
+            exception: exception
+
+      # Stage 3: Extraction du timestamp ISO8601
+      - timestamp:
+          source: timestamp
+          format: RFC3339Nano
+          fallback_formats:
+            - RFC3339
+            - "2006-01-02T15:04:05.999999999Z07:00"
+
+      # Stage 4: Création des labels Loki (indexés)
+      - labels:
+          # Labels essentiels pour filtrage
+          level: level
+          logger: logger
+          event: event
+
+          # Labels agents
+          node_name: node_name
+          intention: intention
+
+          # Labels erreur
+          error_type: error_type
+
+          # OpenTelemetry trace context (for correlation)
+          trace_id: trace_id
+
+      # Stage 5: Ajout de labels statiques
+      - static_labels:
+          job: api
+          environment: development
+
+      # Stage 6: Output final (message formaté)
+      - output:
+          source: message
+
+    # Relabeling pour enrichissement
+    relabel_configs:
+      # Extraction du nom du conteneur
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container'
+
+      # Extraction du service depuis les labels Docker Compose
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
+        target_label: 'service'
+
+      # Extraction du projet Docker Compose
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_project']
+        target_label: 'project'
+
+      # Drop des conteneurs non-API (optionnel: garder tous pour observabilité complète)
+      # - source_labels: ['service']
+      #   regex: 'api'
+      #   action: keep
+
+  # Scraping des logs système Promtail (auto-monitoring)
+  - job_name: promtail
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: promtail
+          __path__: /var/log/promtail.log
+
+# Limites pour éviter la surcharge
+limits_config:
+  # Limite de débit (évite DoS si logs excessifs)
+  readline_rate: 10000
+  readline_burst: 20000
+
+  # Limite taille ligne (logs très longs)
+  max_line_size: 256KB
+  max_line_size_truncate: true
+
+# Configuration du serveur
+# SSD-friendly: sync moins fréquent
+target_config:
+  sync_period: 30s  # 10s -> 30s (moins de syncs disque)

@@ -1,0 +1,17 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Variation 2: Minimal geometric L+I+A -->
+  <defs>
+    <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <rect width="32" height="32" rx="8" fill="url(#grad2)"/>
+
+  <!-- Minimal LIA representation -->
+  <rect x="8" y="10" width="2" height="12" fill="white"/>
+  <rect x="8" y="20" width="6" height="2" fill="white"/>
+  <rect x="15" y="10" width="2" height="12" fill="white"/>
+  <path d="M21 22L24 10L27 22H25L24.5 20H23.5L23 22H21ZM23.7 18H24.3L24 14L23.7 18Z" fill="white"/>
+</svg>

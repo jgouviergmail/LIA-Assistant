@@ -1,0 +1,5696 @@
+/**
+ * LIA Components - Modern UI Component Library
+ *
+ * Design System 2025 - Professional & Cohesive
+ * - Unified design tokens
+ * - 3 breakpoints: mobile (<480px), tablet (480-1024px), desktop (>1024px)
+ * - Domain-specific aesthetic accents
+ * - Dark mode native support
+ * - Accessibility-first
+ */
+
+/* =============================================================================
+   CSS Variables - Unified Design Tokens
+   ============================================================================= */
+
+:root {
+  /* Colors - Light Mode (uses Tailwind theme colors) */
+  --lia-primary: var(--color-primary);
+  --lia-primary-light: color-mix(in oklch, var(--color-primary) 70%, white);
+  --lia-primary-dark: color-mix(in oklch, var(--color-primary) 100%, black 20%);
+  --lia-primary-subtle: color-mix(in srgb, var(--color-primary) 8%, transparent);
+
+  --lia-success: #10b981;
+  --lia-success-light: #34d399;
+  --lia-success-subtle: rgba(16, 185, 129, 0.08);
+  --lia-warning: #f59e0b;
+  --lia-warning-light: #fbbf24;
+  --lia-warning-subtle: rgba(245, 158, 11, 0.08);
+  --lia-danger: #ef4444;
+  --lia-danger-light: #f87171;
+  --lia-danger-subtle: rgba(239, 68, 68, 0.08);
+  --lia-info: #3b82f6;
+  --lia-info-light: #60a5fa;
+  --lia-info-subtle: rgba(59, 130, 246, 0.08);
+
+  /* Domain accent colors - all use user theme color */
+  --lia-email-accent: var(--lia-primary);
+  --lia-email-gradient: linear-gradient(135deg, var(--lia-primary), var(--lia-primary-light));
+  --lia-contact-accent: var(--lia-primary);
+  --lia-contact-gradient: linear-gradient(135deg, var(--lia-primary), var(--lia-primary-light));
+  --lia-calendar-accent: var(--lia-primary);
+  --lia-calendar-gradient: linear-gradient(135deg, var(--lia-primary), var(--lia-primary-light));
+  --lia-drive-accent: var(--lia-primary);
+  --lia-drive-gradient: linear-gradient(135deg, var(--lia-primary), var(--lia-primary-light));
+  --lia-task-accent: var(--lia-primary);
+  --lia-task-gradient: linear-gradient(135deg, var(--lia-primary), var(--lia-primary-light));
+  --lia-place-accent: var(--lia-primary);
+  --lia-place-gradient: linear-gradient(135deg, var(--lia-primary), var(--lia-primary-light));
+  --lia-weather-accent: var(--lia-primary);
+  --lia-reminder-accent: var(--lia-warning);
+  --lia-route-accent: var(--lia-primary);
+  --lia-route-gradient: linear-gradient(135deg, var(--lia-primary), var(--lia-primary-light));
+  --lia-weather-gradient: linear-gradient(135deg, var(--lia-primary), var(--lia-primary-light));
+
+  /* Weather condition gradients */
+  --lia-weather-sunny: linear-gradient(135deg, #ff9a56 0%, #ffcd38 100%);
+  --lia-weather-cloudy: linear-gradient(135deg, #8e9eab 0%, #b8c6db 100%);
+  --lia-weather-rainy: linear-gradient(135deg, #4b6cb7 0%, #6a85b6 100%);
+  --lia-weather-snowy: linear-gradient(135deg, #e8f4f8 0%, #d4e5ed 100%);
+  --lia-weather-stormy: linear-gradient(135deg, #373b44 0%, #4a569d 100%);
+  --lia-weather-default: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+
+  /* Surfaces */
+  --lia-surface: #ffffff;
+  --lia-surface-hover: #f9fafb;
+  --lia-surface-active: #f3f4f6;
+  --lia-surface-elevated: #ffffff;
+  --lia-background: #f8fafc;
+
+  /* Text */
+  --lia-text: #1f2937;
+  --lia-text-secondary: #6b7280;
+  --lia-text-muted: #9ca3af;
+  --lia-text-inverse: #ffffff;
+
+  /* Borders */
+  --lia-border: #e5e7eb;
+  --lia-border-light: #f3f4f6;
+  --lia-border-subtle: rgba(0, 0, 0, 0.06);  /* Very subtle for section separators */
+  --lia-border-focus: var(--lia-primary);
+
+  /* Unified Spacing Scale (4px base) */
+  --lia-space-2xs: 0.125rem;  /* 2px */
+  --lia-space-xs: 0.25rem;    /* 4px */
+  --lia-space-sm: 0.5rem;     /* 8px */
+  --lia-space-md: 0.75rem;    /* 12px */
+  --lia-space-lg: 1rem;       /* 16px */
+  --lia-space-xl: 1.5rem;     /* 24px */
+  --lia-space-2xl: 2rem;      /* 32px */
+
+  /* Border Radius */
+  --lia-radius-xs: 4px;
+  --lia-radius-sm: 6px;
+  --lia-radius-md: 10px;
+  --lia-radius-lg: 14px;
+  --lia-radius-xl: 20px;
+  --lia-radius-full: 9999px;
+
+  /* Shadows */
+  --lia-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --lia-shadow-md: 0 2px 8px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --lia-shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.04);
+  --lia-shadow-xl: 0 8px 32px rgba(0, 0, 0, 0.12);
+  --lia-shadow-focus: 0 0 0 3px rgba(99, 102, 241, 0.2);
+
+  /* Transitions */
+  --lia-transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --lia-transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --lia-transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Typography Scale */
+  --lia-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --lia-font-mono: "SF Mono", "Fira Code", "Monaco", monospace;
+
+  --lia-text-xs: 0.75rem;     /* 12px */
+  --lia-text-sm: 0.8125rem;   /* 13px */
+  --lia-text-base: 0.875rem;  /* 14px */
+  --lia-text-md: 0.9375rem;   /* 15px */
+  --lia-text-lg: 1rem;        /* 16px */
+  --lia-text-xl: 1.125rem;    /* 18px */
+  --lia-text-2xl: 1.25rem;    /* 20px */
+
+  --lia-leading-tight: 1.2;
+  --lia-leading-normal: 1.35;
+  --lia-leading-relaxed: 1.4;
+}
+
+/* =============================================================================
+   Dark Mode - Native Support
+   ============================================================================= */
+
+.dark {
+  --lia-surface: #1f2937;
+  --lia-surface-hover: #374151;
+  --lia-surface-active: #4b5563;
+  --lia-surface-elevated: #2d3748;
+  --lia-background: #111827;
+
+  --lia-text: #f9fafb;
+  --lia-text-secondary: #d1d5db;
+  --lia-text-muted: #9ca3af;
+
+  --lia-border: #374151;
+  --lia-border-light: #4b5563;
+  --lia-border-subtle: rgba(255, 255, 255, 0.08);  /* Very subtle for section separators (dark mode) */
+
+  --lia-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --lia-shadow-md: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --lia-shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.5);
+
+  /* Weather gradients for dark mode */
+  --lia-weather-sunny: linear-gradient(135deg, #c77a30 0%, #b8941f 100%);
+  --lia-weather-cloudy: linear-gradient(135deg, #4a5568 0%, #718096 100%);
+  --lia-weather-rainy: linear-gradient(135deg, #2c3e50 0%, #4a5568 100%);
+  --lia-weather-snowy: linear-gradient(135deg, #4a5568 0%, #718096 100%);
+  --lia-weather-stormy: linear-gradient(135deg, #1a1c2e 0%, #2d3561 100%);
+  --lia-weather-default: linear-gradient(135deg, #4c51bf 0%, #553c9a 100%);
+
+  --lia-primary-subtle: rgba(99, 102, 241, 0.15);
+  --lia-success-subtle: rgba(16, 185, 129, 0.15);
+  --lia-warning-subtle: rgba(245, 158, 11, 0.15);
+  --lia-danger-subtle: rgba(239, 68, 68, 0.15);
+}
+
+/* =============================================================================
+   Base Card Component - Foundation
+   ============================================================================= */
+
+.lia-card {
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--lia-surface);
+  border-radius: var(--lia-radius-lg);
+  box-shadow: var(--lia-shadow-md);
+  padding: var(--lia-space-lg);
+  margin-bottom: var(--lia-space-md);
+  border: 1px solid var(--lia-border-light);
+  font-family: var(--lia-font-sans);
+  font-size: var(--lia-text-base);
+  line-height: var(--lia-leading-normal);
+  color: var(--lia-text);
+  transition: transform var(--lia-transition-fast),
+              box-shadow var(--lia-transition-fast),
+              border-color var(--lia-transition-fast);
+}
+
+/* Hover effects disabled - cards should not change state on hover */
+
+/* focus-within disabled - no border change on collapsible click */
+
+/* =============================================================================
+   VIEWPORT CLASSES - LEGACY (DEPRECATED)
+   Prefer @media queries or @container queries for new components.
+   MIGRATION COMPLETED (2026-01-24):
+   - All responsive styles now use CSS Container Queries (@container card)
+   - Breakpoint: max-width: 430px (V3_DISPLAY_VIEWPORT_MOBILE_MAX_WIDTH)
+   - Legacy .lia--mobile/.lia--desktop classes have been REMOVED
+   - Backend no longer generates viewport-based classes
+   ============================================================================= */
+
+/* Domain accent strips - disabled (no hover effect on top border) */
+
+/* =============================================================================
+   Container Queries - Component-level Responsive (Progressive Enhancement)
+   Allows cards to adapt based on their container size, not viewport.
+   Fallback to media queries for browsers without support.
+   ============================================================================= */
+.lia-card {
+  container-type: inline-size;
+  container-name: card;
+}
+
+/* Responsive card header at small container sizes */
+@container card (max-width: 400px) {
+  .lia-card__header {
+    flex-direction: column;
+    gap: var(--lia-space-sm);
+  }
+
+  .lia-card__header-end {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+/* Hide badges on very small containers */
+@container card (max-width: 300px) {
+  .lia-card__header-end .lia-badges {
+    display: none;
+  }
+}
+
+/* Fallback for browsers without container query support */
+@supports not (container-type: inline-size) {
+  @media (max-width: 430px) {
+    .lia-card__header {
+      flex-direction: column;
+      gap: var(--lia-space-sm);
+    }
+
+    .lia-card__header-end {
+      width: 100%;
+      justify-content: flex-start;
+    }
+  }
+}
+
+/* =============================================================================
+   Card Utility Classes - Reusable Patterns
+   Extracted from domain-specific cards for DRY compliance
+   ============================================================================= */
+
+/* Card Header Layout - Standard structure for title + meta + badges */
+.lia-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--lia-space-md);
+}
+
+.lia-card__header-main {
+  flex: 1;
+  min-width: 0; /* Enable text-overflow */
+}
+
+.lia-card__header-end {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-sm);
+}
+
+.lia-card__title {
+  font-size: var(--lia-text-lg);
+  font-weight: 700;
+  color: var(--lia-text);
+  text-decoration: none;
+}
+
+.lia-card__subtitle {
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-secondary);
+  margin-top: var(--lia-space-2xs);
+}
+
+.lia-card__meta {
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-muted);
+}
+
+/* Title Underline Effect - Gradient underline on hover
+   Previously duplicated across 6+ domain cards */
+.lia-title-underline {
+  position: relative;
+}
+
+.lia-title-underline::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  width: 0;
+  height: 2px;
+  background: var(--lia-title-gradient, linear-gradient(135deg, var(--lia-primary), var(--lia-primary-light)));
+  border-radius: 1px;
+  transition: width var(--lia-transition-fast);
+}
+
+.lia-title-underline:hover::after {
+  width: 100%;
+}
+
+/* Domain-specific title gradients */
+.lia-email .lia-title-underline { --lia-title-gradient: var(--lia-email-gradient); }
+.lia-contact .lia-title-underline { --lia-title-gradient: var(--lia-contact-gradient); }
+.lia-event .lia-title-underline { --lia-title-gradient: var(--lia-calendar-gradient); }
+.lia-task .lia-title-underline { --lia-title-gradient: var(--lia-task-gradient); }
+.lia-place .lia-title-underline { --lia-title-gradient: var(--lia-place-gradient); }
+.lia-file .lia-title-underline { --lia-title-gradient: var(--lia-drive-gradient); }
+.lia-article .lia-title-underline { --lia-title-gradient: var(--lia-primary-gradient); }
+
+/* Extended Section - Collapsible content area
+   Previously duplicated across 6+ domain cards */
+.lia-card-extended {
+  margin-top: var(--lia-space-md);
+  padding-top: var(--lia-space-md);
+  border-top: 1px solid var(--lia-border-light);
+  display: flex;
+  flex-direction: column;
+  gap: var(--lia-space-md);
+}
+
+/* Detail Item - Icon + text pattern for addresses, phones, etc. */
+.lia-detail-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lia-space-sm);
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-secondary);
+  line-height: var(--lia-leading-normal);
+}
+
+.lia-detail-item .material-symbols-outlined {
+  flex-shrink: 0;
+  font-size: 18px;
+  margin-top: 1px;
+}
+
+.lia-detail-item a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.lia-detail-item a:hover {
+  color: var(--lia-primary);
+  text-decoration: underline;
+}
+
+/* Quote Block - Bordered text block for descriptions, bios, etc. */
+.lia-quote-block {
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-secondary);
+  line-height: var(--lia-leading-relaxed);
+  background: var(--lia-surface-hover);
+  padding: var(--lia-space-sm) var(--lia-space-md);
+  border-radius: var(--lia-radius-sm);
+  border-left: 3px solid var(--lia-primary);
+}
+
+/* Badges Container - Flexbox wrapper for badge lists */
+.lia-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lia-space-xs);
+  align-items: center;
+}
+
+.lia-card__header-end .lia-badges {
+  justify-content: flex-end;
+}
+
+/* =============================================================================
+   Material Symbols - Modern Icon System
+   ============================================================================= */
+
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 20px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  /* Default: Outlined style */
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 20;
+}
+
+/* Icon container for consistent sizing and alignment */
+.lia-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: var(--lia-text-secondary);
+  transition: color var(--lia-transition-fast);
+}
+
+.lia-icon .material-symbols-outlined {
+  font-size: 18px;
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 20;
+}
+
+/* Icon size variants */
+.lia-icon--xs { width: 14px; height: 14px; }
+.lia-icon--xs .material-symbols-outlined { font-size: 14px; font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20; }
+
+.lia-icon--sm { width: 16px; height: 16px; }
+.lia-icon--sm .material-symbols-outlined { font-size: 16px; font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20; }
+
+.lia-icon--md { width: 20px; height: 20px; }
+.lia-icon--md .material-symbols-outlined { font-size: 18px; }
+
+.lia-icon--lg { width: 24px; height: 24px; }
+.lia-icon--lg .material-symbols-outlined { font-size: 22px; font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+
+.lia-icon--xl { width: 32px; height: 32px; }
+.lia-icon--xl .material-symbols-outlined { font-size: 28px; font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 48; }
+
+/* Filled style variant */
+.lia-icon--filled .material-symbols-outlined {
+  font-variation-settings:
+    'FILL' 1,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 20;
+}
+
+/* Domain-colored icons */
+.lia-icon--email { color: var(--lia-email-accent); }
+.lia-icon--contact { color: var(--lia-contact-accent); }
+.lia-icon--calendar { color: var(--lia-calendar-accent); }
+.lia-icon--drive { color: var(--lia-drive-accent); }
+.lia-icon--task { color: var(--lia-task-accent); }
+.lia-icon--place { color: var(--lia-place-accent); }
+.lia-icon--weather { color: var(--lia-weather-accent); }
+.lia-icon--reminder { color: var(--lia-reminder-accent); }
+.lia-icon--route { color: var(--lia-route-accent); }
+
+/* Explicit color overrides (use !important to override domain/context colors) */
+.lia-icon--white { color: white !important; }
+.lia-icon--inherit { color: inherit !important; }
+.lia-icon--muted { color: var(--lia-text-muted) !important; }
+
+/* Action button icons - slightly smaller */
+.lia-action-btn__icon .material-symbols-outlined {
+  font-size: 16px;
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 500,
+    'GRAD' 0,
+    'opsz' 20;
+}
+
+/* Star rating with Material Symbols */
+.lia-rating .material-symbols-outlined {
+  font-size: 16px;
+  color: var(--lia-warning);
+}
+
+.lia-rating__star--full .material-symbols-outlined {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+}
+
+.lia-rating__star--half .material-symbols-outlined {
+  font-variation-settings: 'FILL' 0.5, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+}
+
+.lia-rating__star--empty .material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+  opacity: 0.4;
+}
+
+/* Weather icons - larger display */
+.lia-weather__icon .material-symbols-outlined {
+  font-size: 2.5rem;
+  font-variation-settings:
+    'FILL' 1,
+    'wght' 300,
+    'GRAD' 0,
+    'opsz' 48;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+/* =============================================================================
+   Typography Utilities
+   ============================================================================= */
+
+.lia-title {
+  font-weight: 700;
+  color: var(--lia-text);
+  text-decoration: none;
+  transition: color var(--lia-transition-fast);
+  line-height: var(--lia-leading-tight);
+}
+
+.lia-title:hover {
+  color: var(--lia-primary);
+}
+
+.lia-title--lg { font-size: var(--lia-text-2xl); }  /* +2px: 18px → 20px */
+.lia-title--md { font-size: var(--lia-text-xl); font-weight: 600; }  /* +2px: 16px → 18px */
+.lia-title--sm { font-size: var(--lia-text-lg); font-weight: 600; }  /* +2px: 14px → 16px */
+
+.lia-subtitle {
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-secondary);
+  margin-top: var(--lia-space-2xs);
+}
+
+.lia-meta {
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-muted);
+}
+
+.lia-body {
+  font-size: var(--lia-text-base);
+  line-height: var(--lia-leading-relaxed);
+  color: var(--lia-text-secondary);
+}
+
+/* =============================================================================
+   Layout Utilities (shared patterns for badge/title rows)
+   ============================================================================= */
+
+/* Badge row - first line with source badge (Internet, Wikipedia, etc.) */
+.lia-badge-row {
+  margin-bottom: var(--lia-space-sm);
+}
+
+/* Title row - second line with separator below */
+.lia-title-row {
+  margin-bottom: var(--lia-space-md);
+  padding-bottom: var(--lia-space-md);
+  border-bottom: 1px solid var(--lia-border-light);
+}
+
+/* Title text inside title row */
+.lia-title-row__text {
+  font-size: var(--lia-text-lg);
+  font-weight: 600;
+  color: var(--lia-text);
+}
+
+/* =============================================================================
+   Contact Card
+   ============================================================================= */
+
+.lia-contact__header {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-md);
+}
+
+.lia-contact__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.lia-contact__name {
+  font-size: var(--lia-text-xl);  /* +2px: 16px → 18px */
+  font-weight: 700;
+  color: var(--lia-text);
+  text-decoration: none;
+  display: block;
+  transition: all var(--lia-transition-fast);
+  position: relative;
+}
+
+.lia-contact__name:hover {
+  color: var(--lia-contact-accent);
+}
+
+/* DEPRECATED: Use .lia-title-underline utility class instead.
+   Kept for backward compatibility with existing HTML. */
+.lia-contact__name::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  width: 0;
+  height: 2px;
+  background: var(--lia-contact-gradient);
+  border-radius: 1px;
+  transition: width var(--lia-transition-fast);
+}
+
+.lia-contact__name:hover::after {
+  width: 100%;
+}
+
+.lia-contact__subtitle,
+.lia-contact__company {
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-secondary);
+  margin-top: var(--lia-space-2xs);
+}
+
+.lia-contact__details {
+  margin-top: var(--lia-space-md);
+  margin-left: calc(40px + var(--lia-space-md)); /* Align with name: avatar + gap */
+  display: flex;
+  flex-direction: column;
+  gap: var(--lia-space-2xs);
+}
+
+/* Align collapsible with name */
+.lia-contact .lia-collapsible {
+  margin-left: calc(40px + var(--lia-space-md)); /* Align with name: avatar + gap */
+}
+
+.lia-contact__item {
+  display: flex;
+  align-items: center; /* Vertically align icons with text */
+  gap: var(--lia-space-xs);
+  font-size: var(--lia-text-base);
+  padding: var(--lia-space-2xs) 0;
+}
+
+.lia-contact__item .lia-icon {
+  flex-shrink: 0; /* Prevent icon from shrinking */
+}
+
+.lia-contact__item a {
+  color: var(--lia-text);
+  text-decoration: none;
+  transition: color var(--lia-transition-fast);
+}
+
+.lia-contact__item a:hover {
+  color: var(--lia-contact-accent);
+}
+
+.lia-contact__meta {
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-secondary);
+  margin-top: var(--lia-space-sm);
+}
+
+.lia-contact__extra {
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-muted);
+  margin-top: var(--lia-space-xs);
+}
+
+/* Extended section - tight spacing like email card */
+.lia-contact__extended {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+  margin-left: calc(-1 * var(--lia-space-lg));
+  margin-right: calc(-1 * var(--lia-space-lg));
+  margin-bottom: calc(-1 * var(--lia-space-lg));
+  padding: var(--lia-space-lg);
+  border-radius: 0 0 var(--lia-radius-lg) var(--lia-radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--lia-space-sm);
+}
+
+.lia-contact__bio {
+  font-style: italic;
+  color: var(--lia-text-secondary);
+  background: var(--lia-surface);
+  padding: var(--lia-space-sm) var(--lia-space-md);
+  border-radius: var(--lia-radius-sm);
+  border-left: 3px solid var(--lia-contact-accent);
+}
+
+/* Reduce space after "Voir plus" trigger for contact card */
+.lia-contact .lia-collapsible__content {
+  padding-top: var(--lia-space-xs);
+}
+
+.lia-contact__action {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-xs);
+  color: var(--lia-text);
+  text-decoration: none;
+  font-size: var(--lia-text-sm);
+  padding: var(--lia-space-xs) 0;
+  transition: color var(--lia-transition-fast);
+}
+
+.lia-contact__action:hover {
+  color: var(--lia-contact-accent);
+}
+
+.lia-contact__address {
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-secondary);
+  margin-top: var(--lia-space-sm);
+}
+
+/* Avatar */
+.lia-avatar {
+  border-radius: var(--lia-radius-full);
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 2px solid var(--lia-border-light);
+}
+
+.lia-avatar--sm { width: 32px; height: 32px; }
+.lia-avatar--md { width: 40px; height: 40px; }
+.lia-avatar--lg { width: 56px; height: 56px; }
+
+.lia-avatar--initials {
+  background: var(--lia-contact-gradient);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: var(--lia-text-lg);
+  border: none;
+}
+
+.lia-avatar--md.lia-avatar--initials { font-size: var(--lia-text-base); }
+.lia-avatar--lg.lia-avatar--initials { font-size: var(--lia-text-xl); }
+
+/* =============================================================================
+   Email Card v3.1 - Gmail-inspired modern design
+   ============================================================================= */
+
+/* Base email card layout */
+.lia-email {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lia-space-md);
+  border-left: 4px solid transparent;
+  transition: all var(--lia-transition-fast);
+}
+
+/* Read email - standard border (same as card border) */
+.lia-email--read {
+  border-left-color: var(--lia-border);
+  background: none;
+}
+
+/* Important email (read) - orange border */
+.lia-email--read.lia-email--important {
+  border-left-color: var(--lia-warning);
+  background: linear-gradient(to right, var(--lia-warning-subtle), transparent 40%);
+}
+
+/* Unread email - green border */
+.lia-email--unread {
+  border-left-color: var(--lia-success);
+  background: linear-gradient(to right, var(--lia-success-subtle), transparent 40%);
+}
+
+.lia-email--unread .lia-email__subject {
+  font-weight: 700;
+}
+
+.lia-email--unread .lia-email__sender-name {
+  font-weight: 600;
+}
+
+/* Unread + important email - red border */
+.lia-email--unread.lia-email--important {
+  border-left-color: var(--lia-danger);
+  background: linear-gradient(to right, var(--lia-danger-subtle), transparent 40%);
+}
+
+/* Avatar container */
+.lia-email__avatar {
+  flex-shrink: 0;
+}
+
+.lia-email__avatar-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--lia-radius-full);
+  background: linear-gradient(135deg, var(--lia-primary), var(--lia-primary-light));
+  color: white;
+  font-size: var(--lia-text-sm);
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-transform: uppercase;
+}
+
+/* Content container */
+.lia-email__content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lia-space-xs);
+}
+
+/* Header row: sender + date */
+.lia-email__header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lia-space-sm);
+  /* Spacing below header to separate from subject line */
+  margin-bottom: var(--lia-space-sm);
+  /* Critical for truncation in flex containers */
+  min-width: 0;
+}
+
+.lia-email__sender {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.lia-email__sender-name {
+  font-size: var(--lia-text-sm);
+  font-weight: 500;
+  color: var(--lia-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+  text-decoration: none;
+  transition: color var(--lia-transition-fast);
+}
+
+a.lia-email__sender-name:hover {
+  color: var(--lia-primary);
+}
+
+.lia-email__sender-email {
+  font-size: var(--lia-text-xs);
+  color: var(--lia-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+  text-decoration: none;
+  transition: color var(--lia-transition-fast);
+}
+
+a.lia-email__sender-email:hover {
+  color: var(--lia-primary);
+}
+
+.lia-email__date {
+  font-size: var(--lia-text-xs);
+  color: var(--lia-text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Header right section (date + status icons) - desktop */
+.lia-email__header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--lia-space-2xs);
+  flex-shrink: 0;
+}
+
+/* Status icons container */
+.lia-email__status-icons {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-2xs);
+}
+
+/* Individual status icon */
+.lia-email__status-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lia-email__status-icon .lia-icon {
+  font-size: 16px;
+}
+
+/* Status icon colors */
+.lia-email__status-icon--unread {
+  color: var(--lia-success);
+}
+
+.lia-email__status-icon--important {
+  color: var(--lia-warning);
+}
+
+.lia-email__status-icon--urgent {
+  color: var(--lia-danger);
+}
+
+/* Subject line */
+.lia-email__subject {
+  font-size: var(--lia-text-base);
+  font-weight: 600;
+  color: var(--lia-text);
+  text-decoration: none;
+  display: block;
+  line-height: var(--lia-leading-tight);
+  transition: color var(--lia-transition-fast);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lia-email__subject:hover {
+  color: var(--lia-email-accent);
+}
+
+/* Recipients section */
+.lia-email__recipients {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lia-space-2xs);
+  margin-top: var(--lia-space-xs);
+}
+
+.lia-email__recipient-row {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-xs);
+  font-size: var(--lia-text-xs);
+  color: var(--lia-text-secondary);
+}
+
+.lia-email__recipient-row .lia-icon {
+  font-size: 14px;
+  color: var(--lia-text-muted);
+  flex-shrink: 0;
+}
+
+.lia-email__recipient-label {
+  font-weight: 500;
+  color: var(--lia-text-muted);
+  flex-shrink: 0;
+}
+
+.lia-email__recipient-list {
+  color: var(--lia-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Meta row: status badge + labels + badges */
+.lia-email__meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--lia-space-sm);
+  margin-top: var(--lia-space-xs);
+}
+
+/* Unread status badge */
+.lia-email__status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lia-space-2xs);
+  padding: 2px var(--lia-space-xs);
+  font-size: var(--lia-text-xs);
+  font-weight: 600;
+  border-radius: var(--lia-radius-sm);
+}
+
+.lia-email__status--unread {
+  background: var(--lia-danger-subtle);
+  color: var(--lia-email-accent);
+}
+
+.lia-email__status--unread .lia-icon {
+  font-size: 12px;
+}
+
+/* Labels */
+.lia-email__labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lia-space-2xs);
+  margin-top: var(--lia-space-sm);
+}
+
+.lia-email__label {
+  display: inline-block;
+  padding: 2px var(--lia-space-xs);
+  font-size: var(--lia-text-xs);
+  color: var(--lia-text-secondary);
+  background: var(--lia-surface-hover);
+  border-radius: var(--lia-radius-sm);
+  border: 1px solid var(--lia-border-light);
+}
+
+/* Badges container */
+.lia-email__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lia-space-xs);
+}
+
+/* Footer (mobile) */
+.lia-email__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lia-space-sm);
+  margin-top: var(--lia-space-xs);
+}
+
+/* Snippet */
+.lia-email__snippet {
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-secondary);
+  line-height: var(--lia-leading-relaxed);
+  margin-top: var(--lia-space-sm);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Body panel - responsive collapsible container */
+.lia-email__body-panel {
+  margin-top: var(--lia-space-lg);
+}
+
+.lia-email__body-header {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-xs);
+  font-size: var(--lia-text-sm);
+  font-weight: 500;
+  color: var(--lia-text-secondary);
+  margin-bottom: var(--lia-space-sm);
+}
+
+.lia-email__body-header .lia-icon {
+  font-size: var(--lia-text-base);
+}
+
+.lia-email__body {
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text);
+  line-height: var(--lia-leading-relaxed);
+  background: var(--lia-surface-hover);
+  padding: var(--lia-space-md);
+  border-radius: var(--lia-radius-md);
+  /* Responsive max-height */
+  max-height: 300px;
+  overflow-y: auto;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Email body links - styled for visibility */
+.lia-email__body a {
+  color: var(--lia-email-accent);
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.lia-email__body a:hover {
+  text-decoration: underline;
+}
+
+/* Read more link */
+.lia-email__read-more {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lia-space-xs);
+  margin-top: var(--lia-space-sm);
+  font-size: var(--lia-text-sm);
+  font-weight: 500;
+  color: var(--lia-email-accent);
+  text-decoration: none;
+  transition: all var(--lia-transition-fast);
+}
+
+.lia-email__read-more:hover {
+  color: var(--lia-danger);
+}
+
+.lia-email__read-more .lia-icon {
+  font-size: 14px;
+}
+
+/* Recipients section (inside collapsible) */
+.lia-email__recipients-section {
+  margin-top: var(--lia-space-md);
+  padding-top: var(--lia-space-md);
+  border-top: 1px solid var(--lia-border-light);
+}
+
+.lia-email__recipients-section:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.lia-email__recipients-header {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-xs);
+  font-size: var(--lia-text-sm);
+  font-weight: 600;
+  color: var(--lia-text);
+  margin-bottom: var(--lia-space-xs);
+  line-height: 1;
+}
+
+.lia-email__recipients-header .lia-icon {
+  color: var(--lia-text-muted);
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.lia-email__recipients-header span {
+  line-height: 1.3;
+}
+
+.lia-email__recipients-list {
+  margin-left: calc(var(--lia-text-base) + var(--lia-space-xs));
+  padding-left: 0;
+}
+
+.lia-email__recipient-item {
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-secondary);
+  padding: 2px 0;
+  line-height: 1.4;
+}
+
+.lia-email__recipient-item a {
+  color: var(--lia-text);
+  text-decoration: none;
+  transition: color var(--lia-transition-fast);
+}
+
+.lia-email__recipient-item a:hover {
+  color: var(--lia-primary);
+}
+
+/* Extended details section */
+.lia-email__extended {
+  margin-top: var(--lia-space-md);
+  padding-top: var(--lia-space-md);
+  border-top: 1px solid var(--lia-border-light);
+}
+
+/* Tighter collapsible spacing within email cards */
+.lia-email .lia-collapsible-wrapper {
+  margin-top: var(--lia-space-xs);
+}
+
+.lia-email .lia-separator--collapsible {
+  margin-bottom: var(--lia-space-2xs);
+}
+
+/* =============================================================================
+   Event Card
+   ============================================================================= */
+
+.lia-event {
+  display: flex;
+  gap: var(--lia-space-md);
+  border-left: 4px solid transparent;
+  transition: all var(--lia-transition-fast);
+}
+
+/* Response status indicator (left border) - like email cards */
+/* Green: accepted event - Google Green #34a853 */
+.lia-event--accepted {
+  border-left-color: #34a853;
+  background: linear-gradient(to right, rgba(52, 168, 83, 0.06), transparent 40%);
+}
+
+/* Orange: pending or tentative event - Google Yellow #fbbc04 */
+.lia-event--pending {
+  border-left-color: #fbbc04;
+  background: linear-gradient(to right, rgba(251, 188, 4, 0.06), transparent 40%);
+}
+
+/* Red: declined event - Google Red #ea4335 */
+.lia-event--declined {
+  border-left-color: #ea4335;
+  background: linear-gradient(to right, rgba(234, 67, 53, 0.06), transparent 40%);
+}
+
+.lia-event__time-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 65px;
+  flex-shrink: 0;
+  background: var(--lia-primary-subtle);
+  padding: var(--lia-space-sm);
+  border-radius: var(--lia-radius-md);
+}
+
+.lia-event__time-row {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-sm);
+  margin-top: var(--lia-space-xs);
+}
+
+.lia-event__time {
+  font-size: var(--lia-text-base);
+  font-weight: 600;
+  color: var(--lia-text-secondary);
+}
+
+.lia-event__date {
+  font-size: var(--lia-text-base);
+  font-weight: 600;
+  color: var(--lia-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lia-space-xs);
+  margin-top: var(--lia-space-sm);
+}
+
+/* Icon alignment: consistent width for calendar, clock, location icons */
+.lia-event__date > .lia-icon,
+.lia-event__time-row > .lia-icon,
+.lia-event__location > .lia-icon {
+  flex-shrink: 0;
+  width: 20px;
+  text-align: center;
+}
+
+.lia-event__duration {
+  font-size: var(--lia-text-base);
+  font-weight: 600;
+  color: var(--lia-text-secondary);
+}
+
+.lia-event__main,
+.lia-event__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.lia-event__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--lia-space-md);
+  flex-wrap: wrap;
+}
+
+.lia-event__header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-xs);
+  flex-shrink: 0;
+}
+
+.lia-event__title {
+  font-size: var(--lia-text-lg);  /* +2px: 14px → 16px */
+  font-weight: 700;
+  color: var(--lia-text);
+  text-decoration: none;
+  transition: all var(--lia-transition-fast);
+  position: relative;
+}
+
+.lia-event__title:hover {
+  color: var(--lia-calendar-accent);
+}
+
+/* DEPRECATED: Use .lia-title-underline utility class instead.
+   Kept for backward compatibility with existing HTML. */
+.lia-event__title::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  width: 0;
+  height: 2px;
+  background: var(--lia-calendar-gradient);
+  border-radius: 1px;
+  transition: width var(--lia-transition-fast);
+}
+
+.lia-event__title:hover::after {
+  width: 100%;
+}
+
+.lia-event__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-md);
+  margin-top: var(--lia-space-sm);
+  flex-wrap: wrap;
+}
+
+.lia-event__location {
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-secondary);
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-xs);
+}
+
+.lia-event__location a {
+  color: var(--lia-text-secondary);
+  text-decoration: none;
+  transition: color var(--lia-transition-fast);
+}
+
+.lia-event__location a:hover {
+  color: var(--lia-calendar-accent);
+}
+
+/* Extended section - no separator, tight spacing like email card */
+.lia-event__extended {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lia-space-md);
+}
+
+/* Reduce space after "Voir plus" trigger for calendar card */
+.lia-event .lia-collapsible__content {
+  padding-top: var(--lia-space-xs);
+}
+
+.lia-event__detail-item {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-xs);
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-secondary);
+  line-height: var(--lia-leading-normal);
+}
+
+.lia-event__description {
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-secondary);
+  line-height: var(--lia-leading-relaxed);
+  background: var(--lia-surface-hover);
+  padding: var(--lia-space-sm) var(--lia-space-md);
+  border-radius: var(--lia-radius-sm);
+  border-left: 3px solid var(--lia-calendar-accent);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lia-space-xs);
+}
+
+.lia-event__description span {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.lia-event__attendees-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lia-space-xs);
+}
+
+.lia-event__attendees-header {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-xs);
+  font-size: var(--lia-text-sm);
+  font-weight: 600;
+  color: var(--lia-text);
+}
+
+.lia-event__attendees-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lia-space-2xs);
+  margin-left: calc(var(--lia-text-base) + var(--lia-space-xs));
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-secondary);
+}
+
+.lia-event__attendee-item {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-xs);
+}
+
+/* =============================================================================
+   Task Item
+   ============================================================================= */
+
+.lia-task {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lia-space-md);
+}
+
+.lia-task__checkbox {
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--lia-border);
+  border-radius: var(--lia-radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all var(--lia-transition-fast);
+  margin-top: 2px;
+}
+
+.lia-task__checkbox--checked {
+  background: var(--lia-success);
+  border-color: var(--lia-success);
+  color: white;
+  font-size: var(--lia-text-xs);
+}
+
+.lia-task--completed .lia-task__title {
+  text-decoration: line-through;
+  color: var(--lia-text-muted);
+}
+
+.lia-task--overdue {
+  /* Use inset box-shadow instead of border to avoid width issues */
+  box-shadow: inset 3px 0 0 0 var(--lia-danger), var(--lia-shadow-md);
+}
+
+.lia-task__main,
+.lia-task__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.lia-task__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--lia-space-md);
+  flex-wrap: wrap;
+}
+
+.lia-task__title {
+  font-size: var(--lia-text-lg);  /* +2px: 14px → 16px */
+  font-weight: 700;
+  color: var(--lia-text);
+  text-decoration: none;
+  transition: all var(--lia-transition-fast);
+  position: relative;
+}
+
+.lia-task__title:hover {
+  color: var(--lia-task-accent);
+}
+
+/* DEPRECATED: Use .lia-title-underline utility class instead.
+   Kept for backward compatibility with existing HTML. */
+.lia-task__title::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  width: 0;
+  height: 2px;
+  background: var(--lia-task-gradient);
+  border-radius: 1px;
+  transition: width var(--lia-transition-fast);
+}
+
+.lia-task__title:hover::after {
+  width: 100%;
+}
+
+.lia-task__badges {
+  display: flex;
+  gap: var(--lia-space-xs);
+  flex-wrap: wrap;
+  margin-top: var(--lia-space-xs);
+}
+
+.lia-task__notes {
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-muted);
+  margin-top: var(--lia-space-sm);
+  line-height: var(--lia-leading-relaxed);
+}
+
+.lia-task__due--overdue {
+  color: var(--lia-danger) !important;
+}
+
+/* Extended section */
+.lia-task__extended {
+  margin-top: var(--lia-space-lg);
+  padding-top: var(--lia-space-lg);
+  border-top: 1px solid var(--lia-border-light);
+  display: flex;
+  flex-direction: column;
+  gap: var(--lia-space-md);
+}
+
+.lia-task__detail-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lia-space-sm);
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-secondary);
+  line-height: var(--lia-leading-normal);
+}
+
+.lia-task__full-notes {
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-secondary);
+  line-height: var(--lia-leading-relaxed);
+  background: var(--lia-surface-hover);
+  padding: var(--lia-space-sm) var(--lia-space-md);
+  border-radius: var(--lia-radius-sm);
+  border-left: 3px solid var(--lia-task-accent);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lia-space-sm);
+}
+
+.lia-task__full-notes span {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.lia-task__subtasks {
+  margin-top: var(--lia-space-sm);
+}
+
+.lia-task__subtasks-header {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-sm);
+  font-size: var(--lia-text-sm);
+  font-weight: 500;
+  color: var(--lia-text);
+  margin-bottom: var(--lia-space-sm);
+}
+
+.lia-task__subtasks-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lia-space-xs);
+  padding-left: var(--lia-space-lg);
+  border-left: 2px solid var(--lia-border-light);
+  margin-left: var(--lia-space-sm);
+}
+
+.lia-task__subtask {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-sm);
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-secondary);
+}
+
+.lia-task__subtask--done {
+  color: var(--lia-text-muted);
+}
+
+.lia-task__subtask--done s {
+  text-decoration: line-through;
+}
+
+/* =============================================================================
+   Reminder Card - Professional Design v3.2
+   Uses CSS Container Queries for responsive layout adaptation.
+   ============================================================================= */
+
+/* Base reminder card - Desktop (inline) layout by default */
+.lia-reminder {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-md);
+  padding: var(--lia-space-md) var(--lia-space-lg);
+  border-left: 3px solid var(--lia-warning);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.03) 0%, transparent 60%);
+  transition: all 0.2s ease;
+}
+
+.lia-reminder:hover {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.06) 0%, transparent 60%);
+}
+
+/* Imminent state - urgent styling */
+.lia-reminder--imminent {
+  border-left-color: var(--lia-danger);
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.04) 0%, transparent 60%);
+}
+
+.lia-reminder--imminent:hover {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, transparent 60%);
+}
+
+@keyframes lia-reminder-pulse {
+  0%, 100% { box-shadow: var(--lia-shadow-sm); }
+  50% { box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.12), var(--lia-shadow-md); }
+}
+
+/* Icon wrapper - circle background for desktop */
+.lia-reminder__icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(245, 158, 11, 0.1);
+  flex-shrink: 0;
+  transition: background 0.2s ease;
+  order: 1;
+}
+
+.lia-reminder--imminent .lia-reminder__icon-wrapper {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* Icon */
+.lia-reminder__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--lia-warning);
+  flex-shrink: 0;
+}
+
+.lia-reminder--imminent .lia-reminder__icon {
+  color: var(--lia-danger);
+}
+
+/* Bell ring animation */
+.lia-reminder__icon--pulse .lia-icon {
+  animation: lia-bell-ring 0.6s ease-in-out infinite;
+}
+
+@keyframes lia-bell-ring {
+  0%, 100% { transform: rotate(0); }
+  20% { transform: rotate(12deg); }
+  40% { transform: rotate(-12deg); }
+  60% { transform: rotate(8deg); }
+  80% { transform: rotate(-8deg); }
+}
+
+/* Label - content text */
+.lia-reminder__label {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--lia-text-base);
+  font-weight: 600;
+  color: var(--lia-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.4;
+  order: 2;
+}
+
+/* Actions container - LEGACY: No longer used in v3.2 HTML structure */
+.lia-reminder__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-md);
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+/* Meta text - subtle date info */
+.lia-reminder__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lia-space-2xs);
+  font-size: var(--lia-text-xs);
+  color: var(--lia-text-muted);
+  white-space: nowrap;
+  order: 3;
+}
+
+.lia-reminder__meta .lia-icon {
+  width: 12px;
+  height: 12px;
+  opacity: 0.7;
+}
+
+/* Trigger badge - prominent */
+.lia-reminder__trigger {
+  font-weight: 500;
+  order: 4;
+}
+
+.lia-reminder__trigger .lia-icon {
+  width: 14px;
+  height: 14px;
+}
+
+/* =============================================================================
+   Reminder Card - Mobile Layout (CSS Container Query)
+   Uses flex-wrap + order for 2-row layout on narrow containers.
+   Row 1: Bell icon + Created date + Trigger date
+   Row 2: Title (full width)
+   ============================================================================= */
+
+@container card (max-width: 430px) {
+  .lia-reminder {
+    flex-wrap: wrap;
+    gap: var(--lia-space-sm);
+    padding: var(--lia-space-md);
+  }
+
+  /* Row 1 elements - reorder via CSS order */
+  .lia-reminder__icon-wrapper {
+    order: 1;
+    width: auto;
+    height: auto;
+    background: transparent;
+    border-radius: 0;
+  }
+
+  .lia-reminder__icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  .lia-reminder__icon .lia-icon {
+    width: 16px;
+    height: 16px;
+  }
+
+  .lia-reminder__meta {
+    order: 2;
+  }
+
+  .lia-reminder__trigger {
+    order: 3;
+    font-size: var(--lia-text-xs);
+    padding: var(--lia-space-2xs) var(--lia-space-sm);
+  }
+
+  /* Row 2: Label takes full width, wraps to next line */
+  .lia-reminder__label {
+    order: 4;
+    flex: 0 0 100%; /* Override flex: 1 - no grow, no shrink, 100% width forces wrap */
+    width: 100%;
+    padding-top: var(--lia-space-xs);
+    border-top: 1px solid var(--lia-border-subtle);
+    margin-top: var(--lia-space-2xs);
+    font-size: var(--lia-text-sm);
+    white-space: normal;
+    overflow: visible;
+    text-overflow: unset;
+    line-height: 1.5;
+  }
+}
+
+/* =============================================================================
+   Reminder Card - LEGACY Classes (Deprecated)
+   Keep for backwards compatibility during migration.
+   Backend no longer generates these classes as of v3.2.
+   ============================================================================= */
+
+/* Legacy: Desktop inline variant - now default, kept for compatibility */
+.lia-reminder--inline {
+  flex-wrap: nowrap;
+}
+
+/* Legacy: Mobile stacked variant */
+.lia-reminder--stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--lia-space-sm);
+  padding: var(--lia-space-md);
+}
+
+.lia-reminder--stacked .lia-reminder__icon-wrapper {
+  display: none;
+}
+
+.lia-reminder--stacked .lia-reminder__actions {
+  order: 1;
+  margin-left: 0;
+  padding-bottom: var(--lia-space-xs);
+  border-bottom: 1px solid var(--lia-border-subtle);
+}
+
+.lia-reminder--stacked .lia-reminder__label {
+  order: 2;
+  font-size: var(--lia-text-sm);
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  line-height: 1.5;
+  padding-top: var(--lia-space-xs);
+}
+
+/* Legacy: Mobile dates row (for old HTML structure) */
+.lia-reminder__dates {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-sm);
+  flex-wrap: wrap;
+}
+
+.lia-reminder__dates .lia-reminder__meta {
+  order: 1;
+}
+
+.lia-reminder__dates .lia-badge {
+  order: 2;
+  font-size: var(--lia-text-xs);
+  padding: var(--lia-space-2xs) var(--lia-space-sm);
+}
+
+/* Legacy: Mobile content row (for old HTML structure) */
+.lia-reminder__content {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lia-space-sm);
+  padding-top: var(--lia-space-xs);
+  border-top: 1px solid var(--lia-border-subtle);
+}
+
+.lia-reminder--stacked .lia-reminder__content .lia-reminder__icon {
+  margin-top: 2px;
+}
+
+.lia-reminder--stacked .lia-reminder__content .lia-reminder__label {
+  font-size: var(--lia-text-sm);
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  line-height: 1.5;
+}
+
+/* Legacy: Mobile header (for old HTML structure) */
+.lia-reminder--stacked .lia-reminder__header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lia-space-sm);
+}
+
+.lia-reminder--stacked .lia-reminder__icon {
+  margin-top: 2px;
+}
+
+/* Legacy: Mobile footer (for old HTML structure) */
+.lia-reminder__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lia-space-sm);
+  padding-top: var(--lia-space-xs);
+  border-top: 1px solid var(--lia-border-subtle);
+}
+
+.lia-reminder__footer .lia-reminder__meta {
+  margin-left: auto;
+}
+
+.lia-reminder__footer .lia-badge {
+  font-size: var(--lia-text-xs);
+  padding: var(--lia-space-2xs) var(--lia-space-sm);
+}
+
+/* =============================================================================
+   Place Card
+   ============================================================================= */
+
+.lia-place {
+  border-left: 4px solid transparent;
+}
+
+/* Open place - green accent */
+.lia-place--open {
+  border-left-color: var(--lia-success);
+  background: linear-gradient(to right, rgba(16, 185, 129, 0.04), transparent 40%);
+}
+
+/* Closed place - red accent */
+.lia-place--closed {
+  border-left-color: var(--lia-danger);
+  background: linear-gradient(to right, rgba(239, 68, 68, 0.04), transparent 40%);
+}
+
+.lia-place__photo {
+  width: 100%;
+  height: 320px;
+  border-radius: var(--lia-radius-md);
+  overflow: hidden;
+  margin-bottom: var(--lia-space-md);
+  position: relative;
+}
+
+.lia-place__photo::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 40%;
+  background: linear-gradient(to top, rgba(0,0,0,0.3), transparent);
+}
+
+.lia-place__photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform var(--lia-transition-slow);
+}
+
+.lia-place__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--lia-space-md);
+}
+
+.lia-place__header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-xs);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+/* Uniform badge styling in header - inherits from base .lia-badge */
+
+.lia-place__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.lia-place__name {
+  font-size: var(--lia-text-xl);  /* +2px: 16px → 18px */
+  font-weight: 700;
+  color: var(--lia-text);
+  text-decoration: none;
+  transition: all var(--lia-transition-fast);
+  position: relative;
+}
+
+.lia-place__name:hover {
+  color: var(--lia-place-accent);
+}
+
+/* DEPRECATED: Use .lia-title-underline utility class instead.
+   Kept for backward compatibility with existing HTML. */
+.lia-place__name::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  width: 0;
+  height: 2px;
+  background: var(--lia-place-gradient);
+  border-radius: 1px;
+  transition: width var(--lia-transition-fast);
+}
+
+.lia-place__name:hover::after {
+  width: 100%;
+}
+
+.lia-place__rating-block {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-xs);
+  margin-top: var(--lia-space-sm);
+  flex-wrap: wrap;
+}
+
+.lia-place__rating-block .lia-rating {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+
+.lia-place__rating-value {
+  font-size: var(--lia-text-sm);
+  font-weight: 600;
+  color: var(--lia-text);
+  line-height: 1;
+}
+
+.lia-place__reviews {
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-muted);
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+}
+
+.lia-place__meta {
+  margin-top: var(--lia-space-md);
+}
+
+/* "Opens at" badge for closed places (mobile) */
+.lia-place__opens-at {
+  margin-bottom: var(--lia-space-sm);
+}
+
+.lia-place__badges {
+  display: flex;
+  gap: var(--lia-space-xs);
+  flex-wrap: wrap;
+  margin-bottom: var(--lia-space-lg);
+}
+
+.lia-place__address {
+  display: flex;
+  align-items: center; /* Vertically align icon with text */
+  gap: var(--lia-space-xs);
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-secondary);
+  margin-top: var(--lia-space-sm);
+}
+
+.lia-place__address a {
+  color: var(--lia-text-secondary);
+  text-decoration: none;
+  transition: color var(--lia-transition);
+}
+
+.lia-place__address a:hover {
+  color: var(--lia-primary);
+  text-decoration: underline;
+}
+
+.lia-place__address .lia-icon {
+  color: var(--lia-primary);
+  flex-shrink: 0;
+}
+
+.lia-place__content {
+  flex: 1;
+}
+
+.lia-place__actions {
+  display: flex;
+  gap: var(--lia-space-sm);
+  margin-top: var(--lia-space-lg);
+  flex-wrap: wrap;
+}
+
+/* Extended section */
+.lia-place__extended {
+  margin-top: var(--lia-space-sm);
+  padding-top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lia-space-md);
+}
+
+.lia-place__detail-item {
+  display: flex;
+  align-items: center; /* Vertically align icons with text */
+  gap: var(--lia-space-sm);
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-secondary);
+  line-height: var(--lia-leading-normal);
+}
+
+.lia-place__reviews-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lia-space-sm);
+  margin-bottom: var(--lia-space-md);
+}
+
+.lia-place__reviews-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lia-space-sm);
+  width: 100%;
+}
+
+.lia-place__review {
+  font-size: var(--lia-text-xs);
+  padding: var(--lia-space-sm);
+  background: var(--lia-surface);
+  border-radius: var(--lia-radius-sm);
+  border: 1px solid var(--lia-border-light);
+}
+
+.lia-place__review p {
+  margin-top: var(--lia-space-xs);
+  color: var(--lia-text-secondary);
+  font-style: italic;
+}
+
+.lia-place__review-time {
+  font-size: var(--lia-text-xs);
+  color: var(--lia-text-muted);
+  font-weight: normal;
+}
+
+.lia-place__features {
+  margin-top: var(--lia-space-sm);
+}
+
+.lia-place__features-header {
+  font-size: var(--lia-text-sm);
+  font-weight: 500;
+  color: var(--lia-text);
+  margin-bottom: var(--lia-space-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-xs);
+}
+
+.lia-place__features-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lia-space-xs);
+}
+
+.lia-place__summary {
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-secondary);
+  font-style: normal;
+  margin-top: var(--lia-space-md);
+  line-height: var(--lia-leading-relaxed);
+}
+
+.lia-place__phone {
+  display: flex;
+  align-items: center; /* Vertically align icon with text */
+  gap: var(--lia-space-xs);
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-secondary);
+  margin-top: var(--lia-space-sm);
+}
+
+.lia-place__phone a {
+  color: var(--lia-text-secondary);
+  text-decoration: none;
+  transition: color var(--lia-transition);
+}
+
+.lia-place__phone a:hover {
+  color: var(--lia-primary);
+}
+
+.lia-place__phone .lia-icon {
+  color: var(--lia-primary);
+  flex-shrink: 0;
+}
+
+/* Hours formatting - better layout */
+.lia-place__hours-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--lia-space-md);
+  padding: var(--lia-space-xs) 0;
+  border-bottom: 1px solid var(--lia-border-light);
+}
+
+.lia-place__hours-row:last-child {
+  border-bottom: none;
+}
+
+.lia-place__hours-day {
+  font-weight: 500;
+  color: var(--lia-text);
+  min-width: 80px;
+}
+
+.lia-place__hours-time {
+  color: var(--lia-text-secondary);
+  text-align: right;
+}
+
+/* Review header with stars */
+.lia-place__review-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--lia-space-xs);
+  color: var(--lia-text);
+}
+
+.lia-place__review-stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.lia-star--full .lia-icon { color: #fbbf24; }
+.lia-star--empty .lia-icon { color: var(--lia-border); opacity: 0.5; }
+
+/* Badges row under name (mobile layout) */
+.lia-place__badges-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lia-space-xs);
+  margin-top: var(--lia-space-xs);
+  margin-bottom: var(--lia-space-sm);
+}
+
+/* Section header in collapsible details */
+.lia-place__section-header {
+  font-size: var(--lia-text-sm);
+  font-weight: 500;
+  color: var(--lia-text);
+  margin-bottom: var(--lia-space-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-xs);
+}
+
+/* Description section in collapsible */
+.lia-place__description {
+  margin-bottom: var(--lia-space-md);
+}
+
+.lia-place__description p {
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-secondary);
+  line-height: var(--lia-leading-relaxed);
+  margin: 0;
+}
+
+/* Hours section with indented list */
+.lia-place__hours {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lia-space-xs);
+  margin-bottom: var(--lia-space-md);
+}
+
+.lia-place__hours-list {
+  font-size: var(--lia-text-xs);
+  color: var(--lia-text-secondary);
+  line-height: var(--lia-leading-relaxed);
+  margin-left: var(--lia-space-xl);
+}
+
+/* Place card icons colored */
+/* Card icons use theme primary color (user-defined) */
+.lia-place .lia-icon { color: var(--lia-primary); }
+.lia-contact .lia-icon { color: var(--lia-primary); }
+.lia-email .lia-icon { color: var(--lia-primary); }
+.lia-event .lia-icon { color: var(--lia-primary); }
+.lia-task .lia-icon { color: var(--lia-primary); }
+.lia-file .lia-icon { color: var(--lia-primary); }
+.lia-article .lia-icon { color: var(--lia-primary); }
+.lia-search .lia-icon { color: var(--lia-primary); }
+
+/* Weather icons stay colored (weather-specific) or white on dark background */
+.lia-weather .lia-icon { color: var(--lia-text-secondary); }
+
+/* Badge icons stay white */
+.lia-badge .lia-icon { color: inherit; }
+
+/* Stars keep their gold color */
+.lia-star--full .lia-icon { color: #fbbf24 !important; }
+.lia-star--empty .lia-icon { color: var(--lia-border) !important; opacity: 0.5; }
+
+/* =============================================================================
+   Inline Place Carousel - Carousel within place card photo area
+   ============================================================================= */
+
+.lia-place-carousel {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  touch-action: pan-y pinch-zoom;
+  user-select: none;
+}
+
+.lia-place-carousel__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: opacity 0.2s ease;
+}
+
+/* Navigation arrows */
+.lia-place-carousel__nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  padding: var(--lia-space-sm);
+  border-radius: 50%;
+  background: var(--lia-bg-primary);
+  border: 1px solid var(--lia-border);
+  color: var(--lia-text-primary);
+  cursor: pointer;
+  opacity: 0.85;
+  transition: all var(--lia-transition-fast);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.lia-place-carousel__nav:hover {
+  opacity: 1;
+  background: var(--lia-bg-secondary);
+  transform: translateY(-50%) scale(1.05);
+}
+
+.lia-place-carousel__nav--prev {
+  left: var(--lia-space-sm);
+}
+
+.lia-place-carousel__nav--next {
+  right: var(--lia-space-sm);
+}
+
+/* Dots indicator */
+.lia-place-carousel__dots {
+  position: absolute;
+  bottom: var(--lia-space-sm);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  display: flex;
+  gap: var(--lia-space-xs);
+  padding: var(--lia-space-xs) var(--lia-space-sm);
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: var(--lia-radius-full);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(4px);
+}
+
+.lia-place-carousel__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  transition: all var(--lia-transition-fast);
+  padding: 0;
+}
+
+.lia-place-carousel__dot:hover {
+  background: rgba(255, 255, 255, 0.8);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.lia-place-carousel__dot--active {
+  background: white;
+  border-color: white;
+  transform: scale(1.2);
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.5);
+}
+
+/* Counter badge */
+.lia-place-carousel__counter {
+  position: absolute;
+  top: var(--lia-space-sm);
+  right: var(--lia-space-sm);
+  z-index: 2;
+  padding: var(--lia-space-xs) var(--lia-space-sm);
+  background: rgba(0,0,0,0.6);
+  color: white;
+  border-radius: var(--lia-radius-sm);
+  font-size: var(--lia-text-xs);
+  font-weight: 500;
+}
+
+/* =============================================================================
+   Weather Card - Standard card styling (same as other cards)
+   ============================================================================= */
+
+.lia-weather {
+  background: var(--lia-surface);
+  color: var(--lia-text);
+  overflow: hidden;
+  text-align: center;
+}
+
+.lia-weather::before {
+  display: none;
+}
+
+/* Weather layout - 1/3 left (icon+temp+desc) + 2/3 right (date+location) */
+.lia-weather__layout {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-lg);
+  margin-bottom: var(--lia-space-md);
+}
+
+/* Left section (1/3) - centered, invariant (not responsive) */
+.lia-weather__left {
+  flex: 0 0 33.333%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+/* Right section (2/3) - left-aligned, responsive */
+.lia-weather__right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* Centered horizontally per spec */
+  justify-content: center;
+  gap: var(--lia-space-xs);
+}
+
+/* DEPRECATED: Old header row - kept for backward compatibility */
+.lia-weather__header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--lia-space-md);
+  margin-bottom: var(--lia-space-sm);
+}
+
+/* Header left: icon + date */
+.lia-weather__header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-xs);
+}
+
+/* City aligned right */
+.lia-weather__header-row .lia-weather__city {
+  text-align: right;
+}
+
+.lia-weather__main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--lia-space-md);
+}
+
+.lia-weather__icon {
+  font-size: 3rem;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+}
+
+.lia-weather__icon--lg {
+  font-size: 4rem;
+}
+
+.lia-weather__temp {
+  font-size: 3rem;
+  font-weight: 700;
+  line-height: 1;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Smaller temperature for desktop header row */
+.lia-weather__temp--sm {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+/* City in header row */
+.lia-weather__city {
+  font-size: var(--lia-text-base);
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+/* Weather icon coloring based on condition (main current weather icon) */
+.lia-weather--sunny .lia-weather__icon .lia-icon { color: #f59e0b; }
+.lia-weather--cloudy .lia-weather__icon .lia-icon,
+.lia-weather--overcast .lia-weather__icon .lia-icon { color: #94a3b8; }
+.lia-weather--partly-cloudy .lia-weather__icon .lia-icon { color: #60a5fa; }
+.lia-weather--rainy .lia-weather__icon .lia-icon,
+.lia-weather--light-rain .lia-weather__icon .lia-icon,
+.lia-weather--drizzle .lia-weather__icon .lia-icon { color: #3b82f6; }
+.lia-weather--snowy .lia-weather__icon .lia-icon,
+.lia-weather--light-snow .lia-weather__icon .lia-icon { color: #a5b4fc; }
+.lia-weather--stormy .lia-weather__icon .lia-icon { color: #6366f1; }
+
+.lia-weather__temp-block {
+  display: flex;
+  flex-direction: column;
+}
+
+.lia-weather__desc {
+  opacity: 0.9;
+  margin-top: var(--lia-space-xs);
+  font-size: var(--lia-text-base);
+  text-transform: capitalize;
+  text-align: center;
+}
+
+.lia-weather__location {
+  opacity: 0.85;
+  font-size: var(--lia-text-lg);
+  font-weight: 500;
+}
+
+/* Date in header row */
+.lia-weather__date {
+  opacity: 0.85;
+  font-size: var(--lia-text-sm);
+}
+
+.lia-weather__details {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--lia-space-lg);
+  margin-top: var(--lia-space-md);
+  padding-top: var(--lia-space-md);
+  border-top: 1px solid var(--lia-border-light); /* Separator line like desktop grid */
+  font-size: var(--lia-text-base);
+  opacity: 0.9;
+}
+
+/* Mobile: align icons with text in details row */
+.lia-weather__details > span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lia-space-xs);
+}
+
+.lia-weather__details .lia-icon {
+  font-size: 1em;
+  vertical-align: middle;
+}
+
+.lia-weather__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--lia-space-md);
+  margin-top: var(--lia-space-lg);
+  padding-top: var(--lia-space-lg);
+  border-top: 1px solid var(--lia-border-light);
+}
+
+/* Unified stats section (replaces grid/details for current weather) */
+.lia-weather__stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--lia-space-md);
+  margin-top: var(--lia-space-lg);
+  padding-top: var(--lia-space-lg);
+  border-top: 1px solid var(--lia-border-light);
+}
+
+.lia-weather__stat {
+  text-align: center;
+}
+
+.lia-weather__stat-icon {
+  display: none; /* Hidden on desktop - label has icon */
+}
+
+.lia-weather__stat-icon .lia-icon {
+  font-size: 1.1rem;
+  color: var(--lia-text-secondary);
+}
+
+.lia-weather__stat-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--lia-space-xs);
+  font-size: var(--lia-text-xs);
+  opacity: 0.7;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.lia-weather__stat-label .lia-icon {
+  font-size: 1.1em;
+}
+
+.lia-weather__stat-value {
+  display: block;
+  font-size: var(--lia-text-lg);
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+/* Weather Forecast - override base .lia-weather background */
+.lia-weather.lia-weather--forecast {
+  background: var(--lia-surface) !important;
+  color: var(--lia-text);
+  border: 1px solid var(--lia-border-light);
+}
+
+.lia-weather.lia-weather--hourly {
+  background: var(--lia-surface);
+  color: var(--lia-text);
+  border: 1px solid var(--lia-border-light);
+}
+
+.lia-weather--hourly::before {
+  background: var(--lia-weather-gradient);
+  display: block;
+}
+
+/* Forecast uses standard card background (no gradient) */
+.lia-weather--forecast::before {
+  display: none;
+}
+
+.lia-weather__forecast-header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--lia-space-sm);
+  margin-bottom: var(--lia-space-md);
+  font-weight: 500;
+  color: var(--lia-text);
+}
+
+.lia-weather__forecast-location {
+  margin-left: auto;
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-secondary);
+  font-weight: 400;
+}
+
+/* Mobile forecast header: city centered above, date centered below */
+.lia-weather__forecast-header-mobile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--lia-space-xs);
+  margin-bottom: var(--lia-space-md);
+}
+
+.lia-weather__city--centered,
+.lia-weather__date--centered {
+  text-align: center;
+}
+
+.lia-weather__city--centered {
+  font-weight: 600;
+  font-size: var(--lia-text-base);
+}
+
+.lia-weather__date--centered {
+  font-size: var(--lia-text-sm);
+  opacity: 0.85;
+}
+
+/* Desktop forecast title (centered in header row) */
+.lia-weather__forecast-title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lia-space-xs);
+  font-weight: 500;
+}
+
+.lia-weather__forecast-days,
+.lia-weather__hourly-strip {
+  display: flex;
+  gap: var(--lia-space-sm);
+  overflow-x: auto;
+  padding-bottom: var(--lia-space-sm);
+  scrollbar-width: thin;
+  /* Smooth scrolling on touch devices */
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+.lia-weather__day,
+.lia-weather__hour {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--lia-space-sm) var(--lia-space-md);
+  background: var(--lia-surface-hover);
+  border-radius: var(--lia-radius-md);
+  min-width: 70px;
+  flex-shrink: 0;
+  transition: all var(--lia-transition-fast);
+}
+
+.lia-weather__day:hover,
+.lia-weather__hour:hover {
+  background: var(--lia-primary-subtle);
+  transform: translateY(-2px);
+}
+
+.lia-weather__day-name,
+.lia-weather__hour-time {
+  font-size: var(--lia-text-xs);
+  color: var(--lia-text-secondary);
+  font-weight: 500;
+}
+
+.lia-weather__day-icon,
+.lia-weather__hour-icon {
+  font-size: 1.5rem;
+  margin: var(--lia-space-xs) 0;
+}
+
+.lia-weather__day-temp,
+.lia-weather__hour-temp {
+  font-weight: 600;
+  color: var(--lia-text);
+}
+
+.lia-weather__day-temp-min {
+  font-size: var(--lia-text-xs);
+  color: var(--lia-text-muted);
+}
+
+/* Weather icon colored variants */
+.lia-weather__day-icon--color,
+.lia-weather__hour-icon--color {
+  font-size: 2rem;
+}
+
+.lia-weather--sunny .lia-weather__day-icon--color .lia-icon,
+.lia-weather--sunny .lia-weather__hour-icon--color .lia-icon { color: #f59e0b; }
+
+.lia-weather--cloudy .lia-weather__day-icon--color .lia-icon,
+.lia-weather--cloudy .lia-weather__hour-icon--color .lia-icon,
+.lia-weather--overcast .lia-weather__day-icon--color .lia-icon,
+.lia-weather--overcast .lia-weather__hour-icon--color .lia-icon { color: #94a3b8; }
+
+.lia-weather--partly-cloudy .lia-weather__day-icon--color .lia-icon,
+.lia-weather--partly-cloudy .lia-weather__hour-icon--color .lia-icon { color: #60a5fa; }
+
+.lia-weather--rainy .lia-weather__day-icon--color .lia-icon,
+.lia-weather--rainy .lia-weather__hour-icon--color .lia-icon,
+.lia-weather--light-rain .lia-weather__day-icon--color .lia-icon,
+.lia-weather--light-rain .lia-weather__hour-icon--color .lia-icon,
+.lia-weather--drizzle .lia-weather__day-icon--color .lia-icon,
+.lia-weather--drizzle .lia-weather__hour-icon--color .lia-icon { color: #3b82f6; }
+
+.lia-weather--snowy .lia-weather__day-icon--color .lia-icon,
+.lia-weather--snowy .lia-weather__hour-icon--color .lia-icon,
+.lia-weather--light-snow .lia-weather__day-icon--color .lia-icon,
+.lia-weather--light-snow .lia-weather__hour-icon--color .lia-icon { color: #a5b4fc; }
+
+.lia-weather--stormy .lia-weather__day-icon--color .lia-icon,
+.lia-weather--stormy .lia-weather__hour-icon--color .lia-icon { color: #6366f1; }
+
+/* Day temps layout */
+.lia-weather__day-temps {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Weather extended details alignment fix */
+.lia-weather__extended {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lia-space-sm);
+  margin-top: var(--lia-space-md);
+}
+
+.lia-weather__detail-item {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-sm);
+  color: var(--lia-text-secondary);
+  font-size: var(--lia-text-sm);
+}
+
+.lia-weather__detail-item .lia-icon {
+  flex-shrink: 0;
+  width: 20px;
+  text-align: center;
+}
+
+/* Current weather icon size matching temperature */
+.lia-weather__icon--xl {
+  font-size: 3.5rem;
+}
+
+.lia-weather__icon--xl .material-symbols-outlined {
+  font-size: 3.5rem;
+}
+
+/* =============================================================================
+   File Item
+   ============================================================================= */
+
+.lia-file {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-md);
+}
+
+/* Icon-wrap DEPRECATED - badge type is now sufficient */
+.lia-file__icon-wrap {
+  display: none;
+}
+
+/* Thumbnail wrap for image previews only */
+.lia-file__thumb-wrap {
+  flex-shrink: 0;
+}
+
+.lia-file__icon {
+  font-size: 1.5rem;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.1));
+}
+
+.lia-file__icon--lg {
+  font-size: 2.5rem;
+}
+
+.lia-file__thumb {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--lia-radius-sm);
+  object-fit: cover;
+  border: 1px solid var(--lia-border-light);
+}
+
+.lia-file__info,
+.lia-file__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.lia-file__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--lia-space-md);
+  flex-wrap: wrap;
+}
+
+.lia-file__name {
+  font-size: var(--lia-text-lg);  /* +2px: 14px → 16px */
+  font-weight: 700;
+  color: var(--lia-text);
+  text-decoration: none;
+  transition: all var(--lia-transition-fast);
+  position: relative;
+}
+
+.lia-file__name:hover {
+  color: var(--lia-drive-accent);
+}
+
+/* DEPRECATED: Use .lia-title-underline utility class instead.
+   Kept for backward compatibility with existing HTML. */
+.lia-file__name::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  width: 0;
+  height: 2px;
+  background: var(--lia-drive-gradient);
+  border-radius: 1px;
+  transition: width var(--lia-transition-fast);
+}
+
+.lia-file__name:hover::after {
+  width: 100%;
+}
+
+.lia-file__path {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-xs);
+  font-size: var(--lia-text-xs);
+  font-weight: normal;
+  color: var(--lia-text-muted);
+}
+
+.lia-file__date {
+  font-size: var(--lia-text-xs);
+  color: var(--lia-text-muted);
+}
+
+.lia-file__meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lia-space-sm);
+  margin-top: var(--lia-space-xs);
+  font-size: var(--lia-text-xs);
+  color: var(--lia-text-muted);
+}
+
+.lia-file__size-owner {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-xs);
+}
+
+.lia-file__modified {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-xs);
+}
+
+.lia-file__footer {
+  margin-top: var(--lia-space-sm);
+  padding-top: var(--lia-space-xs);
+  border-top: 1px solid var(--lia-border-light);
+  font-size: var(--lia-text-xs);
+  color: var(--lia-text-muted);
+}
+
+.lia-file__created {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-xs);
+}
+
+.lia-file__badges {
+  display: flex;
+  gap: var(--lia-space-xs);
+  flex-wrap: wrap;
+}
+
+/* Extended section */
+.lia-file__extended {
+  margin-top: var(--lia-space-lg);
+  padding-top: var(--lia-space-lg);
+  border-top: 1px solid var(--lia-border-light);
+  display: flex;
+  flex-direction: column;
+  gap: var(--lia-space-md);
+}
+
+.lia-file__detail-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lia-space-sm);
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-secondary);
+  line-height: var(--lia-leading-normal);
+}
+
+.lia-file__content-preview {
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-secondary);
+  line-height: var(--lia-leading-relaxed);
+  padding: var(--lia-space-sm) var(--lia-space-md);
+  background: var(--lia-surface-hover);
+  border-radius: var(--lia-radius-sm);
+  border-left: 3px solid var(--lia-drive-accent);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lia-space-sm);
+}
+
+.lia-file__content-preview span {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* =============================================================================
+   Article Card (Wikipedia)
+   ============================================================================= */
+
+.lia-article {
+  display: flex;
+  gap: var(--lia-space-md);
+}
+
+.lia-article__thumb {
+  width: 120px;
+  height: 90px;
+  border-radius: var(--lia-radius-md);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.lia-article__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform var(--lia-transition-slow);
+}
+
+.lia-article__content {
+  flex: 1;
+  min-width: 0;
+}
+
+/* DEPRECATED: Old header (title + badge on same line) */
+.lia-article__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--lia-space-md);
+  flex-wrap: wrap;
+  margin-bottom: var(--lia-space-md);
+  padding-bottom: var(--lia-space-md);
+  border-bottom: 1px solid var(--lia-border-light);
+}
+
+/* Note: Badge/title rows now use shared .lia-badge-row and .lia-title-row utilities */
+
+.lia-article__title {
+  font-size: var(--lia-text-xl);  /* +2px: 16px → 18px */
+  font-weight: 700;
+  color: var(--lia-text);
+  text-decoration: none;
+  transition: all var(--lia-transition-fast);
+  position: relative;
+}
+
+.lia-article__title:hover {
+  color: var(--lia-primary);
+}
+
+/* DEPRECATED: Use .lia-title-underline utility class instead.
+   Kept for backward compatibility with existing HTML. */
+.lia-article__title::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  width: 0;
+  height: 2px;
+  background: linear-gradient(135deg, #666, #999);
+  border-radius: 1px;
+  transition: width var(--lia-transition-fast);
+}
+
+.lia-article__title:hover::after {
+  width: 100%;
+}
+
+.lia-article__summary {
+  font-size: var(--lia-text-base);
+  color: var(--lia-text-secondary);
+  line-height: var(--lia-leading-relaxed);
+  margin-top: var(--lia-space-sm);
+  /* Full content display - no clamp (truncation handled in Python) */
+  white-space: pre-wrap;
+}
+
+.lia-article__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lia-space-sm);
+}
+
+.lia-article__read-more {
+  color: var(--lia-primary);
+  font-size: var(--lia-text-sm);
+  font-weight: 500;
+  text-decoration: none;
+  margin-top: var(--lia-space-xs);
+}
+
+.lia-article__read-more:hover {
+  text-decoration: underline;
+}
+
+.lia-article__title-text {
+  font-size: var(--lia-text-xl);
+  font-weight: 700;
+  color: var(--lia-text);
+  flex: 1;
+}
+
+.lia-article__categories {
+  display: flex;
+  gap: var(--lia-space-xs);
+  flex-wrap: wrap;
+  margin-top: var(--lia-space-sm);
+}
+
+/* =============================================================================
+   Search Result Card (Perplexity)
+   ============================================================================= */
+
+.lia-search--answer {
+  border-left: 4px solid var(--lia-primary);
+}
+
+/* Note: Badge/title rows now use shared .lia-badge-row and .lia-title-row utilities */
+
+.lia-search__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--lia-space-md);
+  margin-bottom: var(--lia-space-md);
+  padding-bottom: var(--lia-space-md);
+  border-bottom: 1px solid var(--lia-border-light);
+}
+
+.lia-search__title {
+  font-size: var(--lia-text-lg);  /* +2px: 14px → 16px */
+  font-weight: 700;
+  color: var(--lia-text);
+  text-decoration: none;
+  transition: all var(--lia-transition-fast);
+  position: relative;
+}
+
+.lia-search__title:hover {
+  color: var(--lia-primary);
+}
+
+/* DEPRECATED: Use .lia-title-underline utility class instead.
+   Kept for backward compatibility with existing HTML. */
+.lia-search__title::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  width: 0;
+  height: 2px;
+  background: linear-gradient(135deg, #4285f4, #0f9d58);
+  border-radius: 1px;
+  transition: width var(--lia-transition-fast);
+}
+
+.lia-search__title:hover::after {
+  width: 100%;
+}
+
+.lia-search__domain {
+  font-size: var(--lia-text-xs);
+  color: var(--lia-text-muted);
+}
+
+.lia-search__answer {
+  line-height: var(--lia-leading-relaxed);
+}
+
+.lia-search__answer p {
+  margin-bottom: var(--lia-space-md);
+}
+
+.lia-search__snippet {
+  font-size: var(--lia-text-base);
+  color: var(--lia-text-secondary);
+  line-height: var(--lia-leading-relaxed);
+}
+
+.lia-search__sources {
+  margin-top: var(--lia-space-lg);
+  padding-top: var(--lia-space-md);
+  border-top: 1px solid var(--lia-border-light);
+}
+
+.lia-search__sources-label,
+.lia-search__related-label {
+  font-size: var(--lia-text-xs);
+  font-weight: 600;
+  color: var(--lia-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: var(--lia-space-md);
+  display: block;
+}
+
+/* DEPRECATED: Query title - now uses .lia-title-row__text utility */
+
+.lia-search__sources-list {
+  display: flex;
+  gap: var(--lia-space-xs);
+  flex-wrap: wrap;
+}
+
+.lia-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: var(--lia-space-xs) var(--lia-space-sm);
+  background: var(--lia-surface-hover);
+  border-radius: var(--lia-radius-full);
+  font-size: var(--lia-text-xs);
+  color: var(--lia-text-secondary);
+  text-decoration: none;
+  transition: all var(--lia-transition-fast);
+  border: 1px solid var(--lia-border-light);
+}
+
+.lia-source:hover {
+  background: var(--lia-primary);
+  color: white;
+  border-color: var(--lia-primary);
+}
+
+.lia-source__icon {
+  font-size: 0.7rem;
+}
+
+.lia-search__related {
+  margin-top: var(--lia-space-md);
+}
+
+.lia-search__related-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.lia-search__related-item {
+  padding: var(--lia-space-xs) 0;
+  color: var(--lia-text-secondary);
+  font-size: var(--lia-text-base);
+}
+
+.lia-search__related-item::before {
+  content: "→ ";
+  color: var(--lia-primary);
+}
+
+/* =============================================================================
+   Web Search Card (Unified Triple Source)
+   ============================================================================= */
+
+.lia-web-search {
+  border-left: 4px solid var(--lia-primary);
+}
+
+.lia-web-search__header {
+  margin-bottom: var(--lia-space-md);
+}
+
+/* Override: title-row inside web-search header already provides the separator */
+.lia-web-search__header .lia-title-row {
+  margin-bottom: 0;
+}
+
+.lia-web-search__header .lia-badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--lia-space-sm);
+  justify-content: space-between;
+}
+
+.lia-web-search__sources {
+  display: flex;
+  gap: var(--lia-space-xs);
+  flex-wrap: wrap;
+}
+
+.lia-web-search__source {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: var(--lia-space-2xs) var(--lia-space-xs);
+  background: var(--lia-surface-hover);
+  border-radius: var(--lia-radius-sm);
+  font-size: var(--lia-text-xs);
+  color: var(--lia-text-muted);
+  border: 1px solid var(--lia-border-light);
+  opacity: 0.5;
+  transition: all var(--lia-transition-fast);
+}
+
+.lia-web-search__source--active {
+  opacity: 1;
+  background: var(--lia-primary);
+  color: white;
+  border-color: var(--lia-primary);
+}
+
+.lia-web-search__section-label {
+  font-size: var(--lia-text-xs);
+  font-weight: 600;
+  color: var(--lia-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: var(--lia-space-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-xs);
+}
+
+/* Synthesis Section (Perplexity) - same style as Wikipedia */
+.lia-web-search__synthesis {
+  margin-bottom: var(--lia-space-lg);
+  padding: var(--lia-space-md);
+  background: linear-gradient(135deg, var(--lia-surface-hover), var(--lia-surface));
+  border-radius: var(--lia-radius-md);
+}
+
+.lia-web-search__synthesis-content {
+  line-height: var(--lia-leading-relaxed);
+  color: var(--lia-text);
+}
+
+.lia-web-search__synthesis-content p {
+  margin-bottom: var(--lia-space-sm);
+}
+
+.lia-web-search__synthesis-content p:last-child {
+  margin-bottom: 0;
+}
+
+/* Results Section (Brave) - last section, no bottom border */
+.lia-web-search__results {
+  padding-top: var(--lia-space-lg);
+}
+
+.lia-web-search__results-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lia-space-sm);
+}
+
+.lia-web-search__result {
+  padding: var(--lia-space-sm);
+  background: linear-gradient(135deg, var(--lia-surface-hover), var(--lia-surface));
+  border-radius: var(--lia-radius-sm);
+  transition: all var(--lia-transition-fast);
+}
+
+.lia-web-search__result:hover {
+  box-shadow: 0 2px 8px var(--lia-shadow);
+}
+
+.lia-web-search__result-title {
+  font-size: var(--lia-text-base);
+  font-weight: 600;
+  color: var(--lia-text);
+  text-decoration: none;
+  display: block;
+  margin-bottom: var(--lia-space-2xs);
+  transition: color var(--lia-transition-fast);
+}
+
+.lia-web-search__result-title:hover {
+  color: var(--lia-primary);
+}
+
+.lia-web-search__result-domain {
+  font-size: var(--lia-text-xs);
+  color: var(--lia-text-muted);
+  display: block;
+  margin-bottom: var(--lia-space-xs);
+}
+
+.lia-web-search__result-snippet {
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-secondary);
+  line-height: var(--lia-leading-relaxed);
+  margin: 0;
+}
+
+/* Wikipedia Section */
+.lia-web-search__wikipedia {
+  margin-bottom: var(--lia-space-lg);
+  padding: var(--lia-space-md);
+  padding-top: var(--lia-space-lg);
+  background: linear-gradient(135deg, var(--lia-surface-hover), var(--lia-surface));
+  border-radius: var(--lia-radius-md);
+  border-top: 1px solid var(--lia-border-light);
+  border-bottom: 1px solid var(--lia-border-light);
+}
+
+.lia-web-search__wikipedia-content {
+  margin-top: var(--lia-space-sm);
+}
+
+.lia-web-search__wikipedia-title {
+  font-size: var(--lia-text-lg);
+  font-weight: 700;
+  color: var(--lia-text);
+  text-decoration: none;
+  display: block;
+  margin-bottom: var(--lia-space-xs);
+  transition: color var(--lia-transition-fast);
+}
+
+.lia-web-search__wikipedia-title:hover {
+  color: var(--lia-primary);
+}
+
+.lia-web-search__wikipedia-summary {
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-secondary);
+  line-height: var(--lia-leading-relaxed);
+  margin: 0;
+}
+
+/* Citations Section */
+.lia-web-search__citations {
+  padding-top: var(--lia-space-lg);
+  padding-bottom: var(--lia-space-lg);
+  border-bottom: 1px solid var(--lia-border-light);
+}
+
+.lia-web-search__citations-list {
+  display: flex;
+  gap: var(--lia-space-xs);
+  flex-wrap: wrap;
+  margin-top: var(--lia-space-sm);
+}
+
+/* Related Questions */
+.lia-web-search__related {
+  padding-top: var(--lia-space-lg);
+  padding-bottom: var(--lia-space-lg);
+  border-bottom: 1px solid var(--lia-border-light);
+}
+
+.lia-web-search__related-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  margin-top: var(--lia-space-sm);
+}
+
+.lia-web-search__related-item {
+  padding: var(--lia-space-xs) 0;
+  color: var(--lia-text-secondary);
+  font-size: var(--lia-text-base);
+}
+
+.lia-web-search__related-item::before {
+  content: "→ ";
+  color: var(--lia-primary);
+}
+
+/* =============================================================================
+   Utility Components
+   ============================================================================= */
+
+/* Badges - Unified Design */
+.lia-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--lia-space-2xs);
+  height: 24px;
+  padding: 0 var(--lia-space-sm);
+  border-radius: var(--lia-radius-full);
+  font-size: var(--lia-text-xs);
+  font-weight: 500;
+  white-space: nowrap;
+  line-height: 1;
+  transition: all var(--lia-transition-fast);
+}
+
+.lia-badge--primary {
+  background: var(--lia-primary);
+  color: white;
+}
+
+.lia-badge--success {
+  background: var(--lia-success);
+  color: white;
+}
+
+.lia-badge--warning {
+  background: var(--lia-warning);
+  color: white;
+}
+
+.lia-badge--danger {
+  background: var(--lia-danger);
+  color: white;
+}
+
+.lia-badge--info {
+  background: var(--lia-info);
+  color: white;
+}
+
+.lia-badge--subtle {
+  background: var(--lia-surface-active);
+  color: var(--lia-text-secondary);
+}
+
+.lia-badge--accent {
+  background: linear-gradient(135deg, var(--lia-primary), var(--lia-primary-light));
+  color: white;
+}
+
+.lia-badge--accent .lia-icon {
+  color: white;
+}
+
+.lia-badge--label {
+  background: var(--lia-surface-hover);
+  color: var(--lia-text-secondary);
+  border: 1px solid var(--lia-border-light);
+}
+
+.lia-badge--outline {
+  background: transparent;
+  border: 1px solid currentColor;
+}
+
+/* Dot indicator */
+.lia-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--lia-radius-full);
+  flex-shrink: 0;
+}
+
+.lia-dot--primary { background: var(--lia-primary); }
+.lia-dot--success { background: var(--lia-success); }
+.lia-dot--warning { background: var(--lia-warning); }
+.lia-dot--danger { background: var(--lia-danger); }
+
+.lia-dot--pulse {
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Icon */
+.lia-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.lia-icon--xs { font-size: 0.75rem; }
+.lia-icon--sm { font-size: 0.875rem; }
+.lia-icon--md { font-size: 1rem; }
+.lia-icon--lg { font-size: 1.5rem; }
+.lia-icon--xl { font-size: 2rem; }
+
+/* Rating */
+.lia-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+}
+
+.lia-rating__star--full { color: #fbbf24; }
+.lia-rating__star--half { color: #fbbf24; opacity: 0.5; }
+.lia-rating__star--empty { color: var(--lia-border); }
+
+.lia-rating__value {
+  margin-left: var(--lia-space-xs);
+  font-size: var(--lia-text-base);
+  font-weight: 500;
+  color: var(--lia-text);
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Button */
+.lia-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--lia-space-xs);
+  padding: var(--lia-space-sm) var(--lia-space-md);
+  border-radius: var(--lia-radius-md);
+  font-size: var(--lia-text-sm);
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all var(--lia-transition-fast);
+  border: none;
+  font-family: inherit;
+}
+
+.lia-btn--sm {
+  padding: var(--lia-space-xs) var(--lia-space-sm);
+  font-size: var(--lia-text-xs);
+}
+
+.lia-btn--primary {
+  background: var(--lia-primary);
+  color: white;
+}
+
+.lia-btn--primary:hover {
+  background: var(--lia-primary-dark);
+  transform: translateY(-1px);
+  box-shadow: var(--lia-shadow-md);
+}
+
+.lia-btn--outline {
+  background: transparent;
+  border: 1px solid var(--lia-border);
+  color: var(--lia-text);
+}
+
+.lia-btn--outline:hover {
+  background: var(--lia-surface-hover);
+  border-color: var(--lia-primary);
+  color: var(--lia-primary);
+}
+
+.lia-btn--ghost {
+  background: transparent;
+  color: var(--lia-text-secondary);
+}
+
+.lia-btn--ghost:hover {
+  background: var(--lia-surface-hover);
+  color: var(--lia-text);
+}
+
+/* Link - Modern gradient underline style */
+.lia-link {
+  color: var(--lia-primary);
+  text-decoration: none;
+  font-weight: 500;
+  transition: all var(--lia-transition-fast);
+  position: relative;
+  display: inline-block;
+  padding-bottom: 2px;
+}
+
+.lia-link::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, var(--lia-primary), var(--lia-primary-light));
+  border-radius: 1px;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--lia-transition-fast);
+}
+
+.lia-link:hover {
+  color: var(--lia-primary-dark);
+}
+
+.lia-link:hover::after {
+  transform: scaleX(1);
+}
+
+.lia-link:focus-visible {
+  outline: 2px solid var(--lia-primary);
+  outline-offset: 2px;
+  border-radius: var(--lia-radius-xs);
+}
+
+/* Link variant - subtle (for secondary actions) */
+.lia-link--subtle {
+  color: var(--lia-text-secondary);
+}
+
+.lia-link--subtle::after {
+  background: linear-gradient(90deg, var(--lia-text-secondary), var(--lia-text-muted));
+}
+
+.lia-link--subtle:hover {
+  color: var(--lia-text);
+}
+
+/* Link variant - accent (domain-specific) */
+.lia-link--email::after { background: var(--lia-email-gradient); }
+.lia-link--contact::after { background: var(--lia-contact-gradient); }
+.lia-link--calendar::after { background: var(--lia-calendar-gradient); }
+.lia-link--drive::after { background: var(--lia-drive-gradient); }
+.lia-link--task::after { background: var(--lia-task-gradient); }
+.lia-link--place::after { background: var(--lia-place-gradient); }
+.lia-link--route::after { background: var(--lia-route-gradient); }
+
+/* =============================================================================
+   Layout Components
+   ============================================================================= */
+
+/* Multi-domain container */
+.lia-multi-domain {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lia-space-sm); /* Reduced from xl */
+}
+
+.lia-sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lia-space-sm); /* Reduced from xl */
+}
+
+.lia-section__title {
+  font-size: var(--lia-text-lg);
+  font-weight: 600;
+  color: var(--lia-text);
+  margin-bottom: var(--lia-space-xs); /* Reduced from md */
+  margin-top: 0; /* No space above */
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-xs); /* Tighter icon-title gap */
+  padding-bottom: var(--lia-space-xs);
+  border-bottom: 2px solid var(--lia-border-light);
+  line-height: 1.2; /* Ensure consistent line height for icon alignment */
+}
+
+/* Icons in section titles - ensure vertical alignment */
+.lia-section__title .lia-icon {
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+/* Correlated container (clusters + uncorrelated) */
+.lia-correlated {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lia-space-sm); /* Compact spacing */
+}
+
+/* Cluster (grouped related cards) */
+.lia-cluster {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lia-space-xs); /* Tight spacing within cluster */
+}
+
+/* Cluster section title (combined domains: "📅 Events / 🌤️ Weather") */
+.lia-section--cluster {
+  margin: 0;
+  padding: 0;
+}
+
+.lia-section--cluster .lia-section__title {
+  margin-bottom: 0; /* Remove extra margin - separator provides spacing */
+}
+
+/* Nested container */
+.lia-nested-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lia-space-md);
+}
+
+.lia-nested {
+  position: relative;
+}
+
+.lia-nested__children {
+  margin-left: var(--lia-space-xl);
+  margin-top: var(--lia-space-sm);
+  padding-left: var(--lia-space-md);
+  border-left: 2px solid var(--lia-primary);
+}
+
+.lia-nested--level-2 .lia-nested__children {
+  border-left-color: var(--lia-primary-light);
+}
+
+.lia-nested--level-3 .lia-nested__children {
+  border-left-color: var(--lia-border);
+}
+
+.lia-nested__children .lia-card {
+  padding: var(--lia-space-sm) var(--lia-space-md);
+  margin-bottom: var(--lia-space-sm);
+}
+
+/* Empty state */
+.lia-empty {
+  text-align: center;
+  padding: var(--lia-space-2xl);
+  color: var(--lia-text-muted);
+}
+
+.lia-empty__icon {
+  font-size: 2.5rem;
+  display: block;
+  margin-bottom: var(--lia-space-md);
+  opacity: 0.5;
+}
+
+.lia-empty__text {
+  font-size: var(--lia-text-base);
+}
+
+/* =============================================================================
+   Responsive Breakpoints
+   Server uses V3_DISPLAY_VIEWPORT_MOBILE_MAX_WIDTH=430 (mobile vs desktop)
+   CSS media queries provide additional responsive styling for browser resize
+   ============================================================================= */
+
+/* Medium screens (431px - 768px) */
+@media (min-width: 431px) and (max-width: 768px) {
+  .lia-card {
+    padding: var(--lia-space-lg);
+  }
+
+  .lia-weather__temp {
+    font-size: 2.5rem;
+  }
+
+  .lia-weather__icon--lg {
+    font-size: 3rem;
+  }
+
+  .lia-weather__grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .lia-place__photo {
+    height: 280px;
+  }
+
+  .lia-article {
+    flex-direction: row;
+  }
+
+  .lia-article__thumb {
+    width: 100px;
+    height: 75px;
+  }
+
+  .lia-email__header {
+    flex-wrap: wrap;
+  }
+
+  .lia-contact__details {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--lia-space-sm);
+  }
+
+  .lia-place__actions {
+    flex-wrap: wrap;
+  }
+
+  .lia-place__actions .lia-btn {
+    flex: 1 1 auto;
+    min-width: 120px;
+  }
+}
+
+/* Mobile (≤430px) - Global styles only (non-card elements)
+   Card-specific styles are in @container block below for dynamic responsiveness */
+@media (max-width: 430px) {
+  /* CSS Variables adjustment for mobile viewport */
+  :root {
+    --lia-space-lg: 0.875rem;
+    --lia-space-xl: 1.25rem;
+  }
+
+  /* Avatar sizing (used outside cards too) */
+  .lia-avatar--md {
+    width: 36px;
+    height: 36px;
+  }
+
+  /* Nested children (lists, not inside card container) */
+  .lia-nested__children {
+    margin-left: var(--lia-space-md);
+    padding-left: var(--lia-space-sm);
+  }
+
+  /* Section titles */
+  .lia-section__title {
+    font-size: var(--lia-text-md);
+  }
+
+  /* Extended sections (full-bleed on mobile) */
+  .lia-email__extended,
+  .lia-contact__extended,
+  .lia-event__extended,
+  .lia-task__extended,
+  .lia-file__extended,
+  .lia-place__extended {
+    margin-left: calc(-1 * var(--lia-space-md));
+    margin-right: calc(-1 * var(--lia-space-md));
+    margin-bottom: calc(-1 * var(--lia-space-md));
+    padding: var(--lia-space-md);
+    border-radius: 0 0 var(--lia-radius-md) var(--lia-radius-md);
+    background: transparent;
+  }
+
+  /* Response wrapper and action buttons (outside card containers) */
+  .lia-response-wrapper {
+    gap: var(--lia-space-xs);
+  }
+
+  .lia-assistant-comment {
+    padding: var(--lia-space-xs) var(--lia-space-sm);
+    font-size: var(--lia-text-xs);
+  }
+
+  .lia-suggested-actions {
+    gap: var(--lia-space-sm);
+    padding: var(--lia-space-md) var(--lia-space-sm) var(--lia-space-lg);
+    margin-top: var(--lia-space-xs);
+  }
+
+  .lia-action-btn {
+    padding: var(--lia-space-xs) var(--lia-space-md);
+    font-size: var(--lia-text-xs);
+  }
+}
+
+/* =============================================================================
+   Response Wrapper - Container with LLM zones (v3.0)
+   ============================================================================= */
+
+.lia-response-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lia-space-md);
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  animation: lia-fade-in var(--lia-transition-normal) ease-out;
+  /* Container for responsive card queries - allows @container card rules
+     to apply to descendant .lia-card elements */
+  container-type: inline-size;
+  container-name: card;
+}
+
+/* Add bottom spacing when action buttons are hidden */
+.lia-response-wrapper:not(:has(.lia-suggested-actions)) {
+  padding-bottom: var(--lia-space-lg);
+}
+
+/* Remove card margin-bottom when in wrapper (gap handles spacing) */
+.lia-response-wrapper > .lia-card {
+  margin-bottom: 0;
+}
+
+/* Assistant Comment Zone - Above card */
+.lia-assistant-comment {
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-secondary);
+  padding: var(--lia-space-sm) var(--lia-space-md);
+  line-height: var(--lia-leading-relaxed);
+  animation: lia-slide-down var(--lia-transition-normal) ease-out;
+}
+
+.lia-assistant-comment:empty {
+  display: none;
+}
+
+/* Suggested Actions Zone - Below card */
+.lia-suggested-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lia-space-sm);
+  margin: 0;  /* Gap in .lia-response-wrapper handles spacing */
+  /* Padding: sm top, md horizontal, lg bottom (more breathing room below) */
+  padding: var(--lia-space-sm) var(--lia-space-md) var(--lia-space-lg);
+  animation: lia-slide-up var(--lia-transition-normal) ease-out;
+  animation-delay: 100ms;
+  animation-fill-mode: backwards;
+}
+
+.lia-suggested-actions:empty {
+  display: none;
+}
+
+/* Action Button - LLM suggested actions */
+.lia-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lia-space-xs);
+  padding: var(--lia-space-xs) var(--lia-space-md);
+  font-size: var(--lia-text-sm);
+  font-weight: 500;
+  color: var(--lia-text-secondary);
+  background: var(--lia-surface);
+  border: 1px solid var(--lia-border);
+  border-radius: var(--lia-radius-full);
+  cursor: pointer;
+  transition: all var(--lia-transition-fast);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.lia-action-btn:hover {
+  color: var(--lia-text);
+  background: var(--lia-surface-hover);
+  border-color: var(--lia-border-focus);
+  box-shadow: var(--lia-shadow-sm);
+  transform: translateY(-1px);
+}
+
+.lia-action-btn:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.lia-action-btn__icon {
+  font-size: var(--lia-text-base);
+  line-height: 1;
+}
+
+/* Domain-specific action buttons */
+.lia-action-btn--email {
+  --btn-accent: var(--lia-email-accent);
+}
+.lia-action-btn--calendar {
+  --btn-accent: var(--lia-calendar-accent);
+}
+.lia-action-btn--contact {
+  --btn-accent: var(--lia-contact-accent);
+}
+.lia-action-btn--drive {
+  --btn-accent: var(--lia-drive-accent);
+}
+.lia-action-btn--task {
+  --btn-accent: var(--lia-task-accent);
+}
+.lia-action-btn--place {
+  --btn-accent: var(--lia-place-accent);
+}
+.lia-action-btn--weather {
+  --btn-accent: var(--lia-weather-accent);
+}
+.lia-action-btn--route {
+  --btn-accent: var(--lia-route-accent);
+}
+
+.lia-action-btn--email:hover,
+.lia-action-btn--calendar:hover,
+.lia-action-btn--contact:hover,
+.lia-action-btn--drive:hover,
+.lia-action-btn--task:hover,
+.lia-action-btn--place:hover,
+.lia-action-btn--weather:hover {
+  color: var(--btn-accent);
+  border-color: var(--btn-accent);
+}
+
+/* Primary action variant */
+.lia-action-btn--primary {
+  color: var(--lia-text-inverse);
+  background: var(--lia-primary);
+  border-color: var(--lia-primary);
+}
+
+.lia-action-btn--primary:hover {
+  background: var(--lia-primary-dark);
+  border-color: var(--lia-primary-dark);
+  color: var(--lia-text-inverse);
+}
+
+/* =============================================================================
+   Collapsible Component - Secondary Data Accordion
+   ============================================================================= */
+
+/* Wrapper with separator line */
+.lia-collapsible-wrapper {
+  margin-top: var(--lia-space-md);
+}
+
+.lia-separator--collapsible {
+  border: none;
+  border-top: 1px solid var(--lia-border-light);
+  margin: 0 0 var(--lia-space-sm) 0;
+}
+
+.lia-collapsible {
+  border-top: none;
+  margin-top: 0;
+  background: transparent;
+}
+
+.lia-collapsible__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0;
+  font-size: var(--lia-text-sm);
+  font-weight: 700;
+  color: var(--lia-text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color var(--lia-transition-fast);
+}
+
+.lia-collapsible__trigger:hover {
+  color: var(--lia-text);
+}
+
+.lia-collapsible__icon {
+  font-size: var(--lia-text-xs);
+  transition: transform var(--lia-transition-fast);
+}
+
+.lia-collapsible[open] .lia-collapsible__icon {
+  transform: rotate(180deg);
+}
+
+.lia-collapsible__content {
+  padding: var(--lia-space-md) 0 0;
+  animation: lia-expand var(--lia-transition-fast) ease-out;
+  background: transparent;
+}
+
+/* Collapsible as details/summary */
+details.lia-collapsible > summary {
+  list-style: none;
+}
+
+details.lia-collapsible > summary::-webkit-details-marker {
+  display: none;
+}
+
+details.lia-collapsible > summary::marker {
+  display: none;
+}
+
+/* =============================================================================
+   Enhanced Indicators & Badges (v3.0)
+   ============================================================================= */
+
+/* Unread/Important pulsing indicator */
+.lia-indicator-unread {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  background: var(--lia-email-accent);
+  border-radius: var(--lia-radius-full);
+  animation: lia-pulse-unread 2s infinite;
+  flex-shrink: 0;
+}
+
+/* Thread count badge */
+.lia-badge-thread {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px var(--lia-space-xs);
+  font-size: var(--lia-text-xs);
+  font-weight: 600;
+  color: var(--lia-text-secondary);
+  background: var(--lia-surface-hover);
+  border-radius: var(--lia-radius-sm);
+}
+
+/* Attachment badge */
+.lia-badge-attachment {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px var(--lia-space-xs);
+  font-size: var(--lia-text-xs);
+  color: var(--lia-text-muted);
+  background: var(--lia-surface-hover);
+  border-radius: var(--lia-radius-sm);
+}
+
+.lia-badge-attachment__icon {
+  font-size: 11px;
+}
+
+/* Importance indicator (gold border) */
+.lia-card--important {
+  border-left: 3px solid var(--lia-warning);
+  padding-left: calc(var(--lia-space-lg) - 3px);
+}
+
+/* Label chips */
+.lia-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lia-space-2xs);
+  margin-top: var(--lia-space-xs);
+}
+
+.lia-label {
+  display: inline-block;
+  padding: 1px var(--lia-space-xs);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  border-radius: var(--lia-radius-xs);
+  background: var(--lia-primary-subtle);
+  color: var(--lia-primary);
+}
+
+/* Label variants */
+.lia-label--important {
+  background: var(--lia-warning-subtle);
+  color: var(--lia-warning);
+}
+
+.lia-label--category {
+  background: var(--lia-info-subtle);
+  color: var(--lia-info);
+}
+
+.lia-label--social {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--lia-success);
+}
+
+.lia-label--promotions {
+  background: rgba(234, 67, 53, 0.1);
+  color: var(--lia-email-accent);
+}
+
+/* =============================================================================
+   Rich Animations & Keyframes (v3.0)
+   ============================================================================= */
+
+/* Fade in animation */
+@keyframes lia-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Slide animations */
+@keyframes lia-slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes lia-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes lia-slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Expand animation for collapsibles */
+@keyframes lia-expand {
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 500px;
+  }
+}
+
+/* Pulse animation for unread/important */
+@keyframes lia-pulse-unread {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.15);
+  }
+}
+
+/* Shake animation for attention */
+@keyframes lia-shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  10%, 30%, 50%, 70%, 90% {
+    transform: translateX(-2px);
+  }
+  20%, 40%, 60%, 80% {
+    transform: translateX(2px);
+  }
+}
+
+/* Glow animation for highlights */
+@keyframes lia-glow {
+  0%, 100% {
+    box-shadow: var(--lia-shadow-md);
+  }
+  50% {
+    box-shadow: var(--lia-shadow-lg), 0 0 20px rgba(99, 102, 241, 0.15);
+  }
+}
+
+/* Bounce in animation */
+@keyframes lia-bounce-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Weather-specific animations */
+@keyframes lia-float {
+  0%, 100% {
+    transform: translateY(0) translateX(0);
+  }
+  25% {
+    transform: translateY(-3px) translateX(2px);
+  }
+  50% {
+    transform: translateY(0) translateX(4px);
+  }
+  75% {
+    transform: translateY(3px) translateX(2px);
+  }
+}
+
+@keyframes lia-rain-drop {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+}
+
+@keyframes lia-sun-rays {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Animation utility classes */
+.lia-animate-in {
+  animation: lia-fade-in var(--lia-transition-normal) ease-out;
+}
+
+.lia-animate-bounce {
+  animation: lia-bounce-in 400ms cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.lia-animate-attention {
+  animation: lia-shake 500ms ease-in-out;
+}
+
+.lia-animate-glow {
+  animation: lia-glow 2s infinite;
+}
+
+/* Staggered children animations */
+.lia-stagger-children > * {
+  animation: lia-slide-in-left var(--lia-transition-normal) ease-out backwards;
+}
+
+.lia-stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.lia-stagger-children > *:nth-child(2) { animation-delay: 50ms; }
+.lia-stagger-children > *:nth-child(3) { animation-delay: 100ms; }
+.lia-stagger-children > *:nth-child(4) { animation-delay: 150ms; }
+.lia-stagger-children > *:nth-child(5) { animation-delay: 200ms; }
+
+/* Attachments list */
+.lia-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lia-space-xs);
+  margin-top: var(--lia-space-sm);
+}
+
+.lia-attachment {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lia-space-2xs);
+  padding: var(--lia-space-2xs) var(--lia-space-sm);
+  font-size: var(--lia-text-xs);
+  color: var(--lia-text-secondary);
+  background: var(--lia-surface-hover);
+  border-radius: var(--lia-radius-sm);
+  border: 1px solid var(--lia-border-light);
+  text-decoration: none;
+  transition: all var(--lia-transition-fast);
+}
+
+.lia-attachment:hover {
+  background: var(--lia-surface-active);
+  border-color: var(--lia-border);
+  color: var(--lia-text);
+}
+
+.lia-attachment__icon {
+  font-size: 12px;
+}
+
+.lia-attachment__name {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lia-attachment__size {
+  color: var(--lia-text-muted);
+}
+
+/* File type icons - all use theme color */
+.lia-attachment--pdf .lia-attachment__icon,
+.lia-attachment--doc .lia-attachment__icon,
+.lia-attachment--sheet .lia-attachment__icon,
+.lia-attachment--image .lia-attachment__icon,
+.lia-attachment--video .lia-attachment__icon,
+.lia-attachment--audio .lia-attachment__icon,
+.lia-attachment--archive .lia-attachment__icon { color: var(--lia-primary); }
+
+/* =============================================================================
+   Container Query Responsive - SINGLE SOURCE OF TRUTH
+   All mobile-specific styles for cards. Responds to actual container size.
+   Breakpoint: 430px (matches V3_DISPLAY_VIEWPORT_MOBILE_MAX_WIDTH)
+   ============================================================================= */
+@container card (max-width: 430px) {
+  /* ---------------------------------------------------------------------------
+     Base Card - reduced padding/margins on narrow containers
+     --------------------------------------------------------------------------- */
+  .lia-card {
+    padding: var(--lia-space-md);
+    margin-bottom: var(--lia-space-sm);
+    border-radius: var(--lia-radius-md);
+  }
+
+  /* ---------------------------------------------------------------------------
+     Contact Card
+     --------------------------------------------------------------------------- */
+  .lia-contact {
+    padding: var(--lia-space-md);
+  }
+
+  .lia-contact .lia-contact__header {
+    flex-direction: row-reverse;
+    justify-content: space-between;
+    gap: var(--lia-space-sm);
+  }
+
+  .lia-contact .lia-contact__name {
+    font-size: var(--lia-text-base);
+  }
+
+  .lia-contact .lia-contact__details {
+    margin-left: 0;
+  }
+
+  .lia-contact .lia-collapsible {
+    margin-left: 0;
+  }
+
+  .lia-contact .lia-contact__item--address .lia-badge {
+    display: none;
+  }
+
+  /* ---------------------------------------------------------------------------
+     Email Card
+     --------------------------------------------------------------------------- */
+  .lia-email {
+    flex-direction: column;
+    gap: var(--lia-space-xs);
+    padding: var(--lia-space-md);
+  }
+
+  .lia-email .lia-email__avatar {
+    display: none;
+  }
+
+  .lia-email .lia-email__content {
+    padding-top: 0;
+    width: 100%;
+  }
+
+  .lia-email .lia-email__header-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--lia-space-xs);
+  }
+
+  .lia-email .lia-email__header-right {
+    order: -1; /* Icons + date first (above sender) */
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start; /* Aligned LEFT */
+    gap: var(--lia-space-xs);
+    margin-bottom: var(--lia-space-xs); /* Vertical space below */
+  }
+
+  /* Explicit order: icons BEFORE date */
+  .lia-email .lia-email__status-icons {
+    order: 1;
+  }
+
+  .lia-email .lia-email__date {
+    order: 2;
+    font-size: var(--lia-text-xs);
+    display: inline-flex;
+    align-items: center;
+    line-height: 1; /* Align vertically with icon */
+  }
+
+  .lia-email .lia-email__sender-name {
+    font-size: var(--lia-text-sm);
+  }
+
+  .lia-email .lia-email__subject {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    font-size: var(--lia-text-base);
+  }
+
+  .lia-email .lia-email__snippet {
+    -webkit-line-clamp: 2;
+  }
+
+  .lia-email .lia-email__body-panel {
+    width: 100%;
+  }
+
+  .lia-email .lia-email__body {
+    font-size: var(--lia-text-sm);
+  }
+
+  .lia-email .lia-email__footer {
+    justify-content: flex-start;
+  }
+
+  /* ---------------------------------------------------------------------------
+     Event Card
+     --------------------------------------------------------------------------- */
+  .lia-event {
+    padding: var(--lia-space-md);
+  }
+
+  .lia-event .lia-event__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--lia-space-xs);
+  }
+
+  .lia-event .lia-event__datetime {
+    order: -1;
+  }
+
+  /* ---------------------------------------------------------------------------
+     Task Card
+     --------------------------------------------------------------------------- */
+  .lia-task {
+    padding: var(--lia-space-md);
+  }
+
+  .lia-task .lia-task__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--lia-space-xs);
+  }
+
+  .lia-task .lia-task__checkbox {
+    width: 18px;
+    height: 18px;
+  }
+
+  .lia-task .lia-task__due {
+    order: -1;
+  }
+
+  /* ---------------------------------------------------------------------------
+     Weather Card
+     --------------------------------------------------------------------------- */
+  .lia-weather {
+    padding: var(--lia-space-md);
+  }
+
+  /* Mobile: responsive right section */
+  .lia-weather .lia-weather__right {
+    font-size: var(--lia-text-sm);
+  }
+
+  .lia-weather .lia-weather__right .lia-weather__date {
+    font-size: var(--lia-text-base);
+    font-weight: 600;
+  }
+
+  .lia-weather .lia-weather__right .lia-weather__city {
+    font-size: var(--lia-text-sm);
+    color: var(--lia-text-secondary);
+  }
+
+  /* Mobile: smaller temp and icon in left section */
+  .lia-weather .lia-weather__left .lia-weather__temp {
+    font-size: 1.75rem;
+  }
+
+  .lia-weather .lia-weather__left .lia-weather__icon {
+    font-size: 2rem;
+    display: flex;
+    align-items: center;
+    margin-bottom: var(--lia-space-xs); /* Vertical space between icon and temp */
+  }
+
+  .lia-weather .lia-weather__left .lia-weather__desc {
+    font-size: var(--lia-text-xs);
+    margin-top: var(--lia-space-xs);
+  }
+
+  .lia-weather .lia-weather__grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--lia-space-sm);
+  }
+
+  /* Unified stats: horizontal inline layout on mobile */
+  .lia-weather .lia-weather__stats {
+    display: flex;
+    justify-content: space-around;
+    gap: var(--lia-space-md);
+    margin-top: var(--lia-space-md);
+    padding-top: var(--lia-space-md);
+  }
+
+  .lia-weather .lia-weather__stat {
+    display: flex;
+    align-items: center;
+    gap: var(--lia-space-xs);
+    text-align: left;
+  }
+
+  .lia-weather .lia-weather__stat-icon {
+    display: inline-flex; /* Show icons on mobile */
+  }
+
+  .lia-weather .lia-weather__stat-label {
+    display: none; /* Hide labels on mobile */
+  }
+
+  .lia-weather .lia-weather__stat-value {
+    display: inline;
+    font-size: var(--lia-text-sm);
+    margin-top: 0;
+  }
+
+  /* DEPRECATED: Old header row (kept for backward compat) */
+  .lia-weather .lia-weather__header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--lia-space-md);
+  }
+
+  .lia-weather .lia-weather__main {
+    margin-bottom: var(--lia-space-sm);
+  }
+
+  /* Weather forecast mobile */
+  .lia-weather--forecast .lia-weather__forecast-days {
+    flex-direction: column;
+    gap: var(--lia-space-xs);
+  }
+
+  .lia-weather--forecast .lia-weather__day {
+    flex-direction: row;
+    justify-content: space-between;
+    padding: var(--lia-space-xs);
+  }
+
+  /* Weather hourly mobile - horizontal scroll */
+  .lia-weather--hourly .lia-weather__hourly-strip {
+    display: flex;
+    gap: var(--lia-space-sm);
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: var(--lia-space-sm);
+  }
+
+  .lia-weather--hourly .lia-weather__hour {
+    scroll-snap-align: start;
+    flex-shrink: 0;
+    min-width: 60px;
+  }
+
+  .lia-weather--hourly .lia-weather__hour-time {
+    font-size: var(--lia-text-xs);
+  }
+
+  .lia-weather--hourly .lia-weather__hour-icon {
+    font-size: 1.25rem;
+  }
+
+  .lia-weather--hourly .lia-weather__hour-temp {
+    font-size: var(--lia-text-sm);
+  }
+
+  /* ---------------------------------------------------------------------------
+     File Card
+     --------------------------------------------------------------------------- */
+  .lia-file {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--lia-space-xs);
+    padding: var(--lia-space-sm);
+  }
+
+  .lia-file .lia-file__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--lia-space-xs);
+  }
+
+  .lia-file .lia-file__badges {
+    order: -1; /* Badges FIRST on mobile */
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--lia-space-xs);
+    margin-bottom: var(--lia-space-xs);
+  }
+
+  .lia-file .lia-file__name {
+    order: 0; /* Name SECOND on mobile */
+    font-size: var(--lia-text-base);
+    font-weight: 600;
+    line-height: 1.3;
+    margin-bottom: var(--lia-space-xs);
+    display: block;
+  }
+
+  .lia-file .lia-file__meta {
+    display: flex;
+    flex-direction: column;
+    gap: var(--lia-space-sm);
+    font-size: var(--lia-text-xs);
+    color: var(--lia-text-muted);
+  }
+
+  .lia-file .lia-file__size-owner {
+    display: flex;
+    align-items: center;
+    gap: var(--lia-space-xs);
+  }
+
+  .lia-file .lia-file__date {
+    display: flex;
+    align-items: center;
+    gap: var(--lia-space-xs);
+  }
+
+  /* ---------------------------------------------------------------------------
+     Article Card (Wikipedia)
+     --------------------------------------------------------------------------- */
+  .lia-article {
+    padding: var(--lia-space-md);
+  }
+
+  /* DEPRECATED: Old header */
+  .lia-article .lia-article__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--lia-space-xs);
+  }
+
+  /* Hide thumbnail on mobile */
+  .lia-article .lia-article__thumb {
+    display: none;
+  }
+
+  /* Hide categories on mobile */
+  .lia-article .lia-article__categories {
+    display: none;
+  }
+
+  .lia-article .lia-article__source {
+    order: -1;
+  }
+
+  /* Summary truncation on mobile */
+  .lia-article .lia-article__summary {
+    display: -webkit-box;
+    -webkit-line-clamp: 6;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* ---------------------------------------------------------------------------
+     Search Result Card
+     --------------------------------------------------------------------------- */
+  .lia-search .lia-search__title {
+    font-size: var(--lia-text-base);
+  }
+
+  .lia-search .lia-search__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--lia-space-xs);
+  }
+
+  .lia-search .lia-search__meta {
+    order: -1;
+  }
+
+  /* Hide related questions on mobile */
+  .lia-search .lia-search__related {
+    display: none;
+  }
+
+  /* Title truncation on mobile */
+  .lia-search .lia-search__title {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* ---------------------------------------------------------------------------
+     Place Card
+     --------------------------------------------------------------------------- */
+  .lia-place .lia-place__photo {
+    height: 240px;
+  }
+
+  .lia-place .lia-place__name {
+    /* Keep same font-size as desktop (no override) */
+    margin-top: var(--lia-space-sm);
+    margin-bottom: var(--lia-space-sm);
+  }
+
+  .lia-place .lia-place__header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--lia-space-xs);
+  }
+
+  .lia-place .lia-place__header-right {
+    order: -1;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .lia-place .lia-place__actions {
+    flex-direction: column;
+  }
+
+  .lia-place .lia-place__actions .lia-btn {
+    width: 100%;
+  }
+
+  .lia-place .lia-place__hours-list {
+    margin-left: 0;
+  }
+
+  /* ---------------------------------------------------------------------------
+     Route Card
+     --------------------------------------------------------------------------- */
+  .lia-route {
+    gap: var(--lia-space-sm);
+  }
+
+  .lia-route .lia-route__duration {
+    font-size: var(--lia-text-lg);
+  }
+
+  .lia-route .lia-route__endpoints {
+    font-size: var(--lia-text-sm);
+  }
+
+  .lia-route .lia-route__endpoint-label {
+    min-width: 50px;
+  }
+
+  .lia-route .lia-route__step {
+    font-size: var(--lia-text-sm);
+  }
+
+  .lia-route .lia-route__step-number {
+    width: 20px;
+    height: 20px;
+    font-size: var(--lia-text-xs);
+  }
+
+  .lia-route .lia-route__actions {
+    flex-direction: column;
+  }
+
+  .lia-route .lia-route__actions .lia-btn {
+    width: 100%;
+  }
+
+  /* Route map - smaller height on mobile */
+  .lia-route .lia-route__map-image {
+    max-height: 200px;
+  }
+
+  /* ---------------------------------------------------------------------------
+     Web Search Card (Unified Triple Source)
+     --------------------------------------------------------------------------- */
+  .lia-web-search {
+    padding: var(--lia-space-md);
+  }
+
+  .lia-web-search .lia-web-search__header .lia-badge-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--lia-space-xs);
+  }
+
+  .lia-web-search .lia-web-search__sources {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .lia-web-search .lia-web-search__source {
+    font-size: var(--lia-text-2xs);
+    padding: var(--lia-space-2xs) var(--lia-space-xs);
+  }
+
+  .lia-web-search .lia-web-search__synthesis {
+    padding: var(--lia-space-sm);
+    margin-bottom: var(--lia-space-md);
+  }
+
+  .lia-web-search .lia-web-search__synthesis-content {
+    font-size: var(--lia-text-sm);
+  }
+
+  .lia-web-search .lia-web-search__result {
+    padding: var(--lia-space-xs);
+  }
+
+  .lia-web-search .lia-web-search__result-title {
+    font-size: var(--lia-text-sm);
+  }
+
+  .lia-web-search .lia-web-search__result-snippet {
+    font-size: var(--lia-text-xs);
+    -webkit-line-clamp: 2;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .lia-web-search .lia-web-search__wikipedia {
+    padding: var(--lia-space-sm);
+    margin-bottom: var(--lia-space-md);
+  }
+
+  .lia-web-search .lia-web-search__wikipedia-title {
+    font-size: var(--lia-text-base);
+  }
+
+  .lia-web-search .lia-web-search__wikipedia-summary {
+    font-size: var(--lia-text-xs);
+    -webkit-line-clamp: 4;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Hide related questions on mobile */
+  .lia-web-search .lia-web-search__related {
+    display: none;
+  }
+
+  .lia-web-search .lia-web-search__citations-list {
+    gap: var(--lia-space-2xs);
+  }
+
+  /* ---------------------------------------------------------------------------
+     Shared components
+     --------------------------------------------------------------------------- */
+  .lia-collapsible__trigger {
+    padding: var(--lia-space-xs) 0;
+  }
+
+  .lia-attachment__name {
+    max-width: 80px;
+  }
+
+  /* Important card highlight */
+  .lia-card--important {
+    border-width: 2px;
+  }
+}
+
+@media (min-width: 431px) and (max-width: 768px) {
+  .lia-suggested-actions {
+    gap: var(--lia-space-sm);
+  }
+
+  .lia-email__snippet {
+    -webkit-line-clamp: 2;
+  }
+}
+
+/* =============================================================================
+   Accessibility
+   ============================================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Focus visible for keyboard navigation */
+.lia-card:focus-visible,
+.lia-btn:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--lia-primary);
+  outline-offset: 2px;
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .lia-card {
+    border-width: 2px;
+  }
+
+  .lia-badge {
+    border: 1px solid currentColor;
+  }
+}
+
+/* =============================================================================
+   Print Styles
+   ============================================================================= */
+
+/* =============================================================================
+   UI Fixes - Border and Collapsible Improvements
+   ============================================================================= */
+
+/* 1. Cards - no hover effects */
+
+/* 2. File card - more space under separator in extended section */
+.lia-file__extended {
+  margin-top: var(--lia-space-lg);
+  padding-top: var(--lia-space-lg);
+}
+
+/* 4. Weather sunrise/sunset - align icon and text properly */
+.lia-weather__detail-item span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lia-space-xs);
+}
+
+.lia-weather__detail-item .lia-icon {
+  flex-shrink: 0;
+  vertical-align: middle;
+}
+
+/* 6. HTML response separators */
+/* Bold separator - used at top/bottom of response blocks (visually distinct) */
+.lia-response-separator {
+  border: none;
+  border-top: 2px solid var(--lia-border);
+  margin: var(--lia-space-md) 0;
+}
+
+/* Simple separator - used between sections/clusters (subtle) */
+.lia-section-separator {
+  border: none;
+  border-top: 1px solid var(--lia-border-subtle);
+  margin: var(--lia-space-sm) 0;
+}
+
+/* =============================================================================
+   Route Card
+   Mobile-first design for route/directions display
+   ============================================================================= */
+
+.lia-route {
+  /* Use pseudo-element for left accent bar to preserve rounded corners */
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(to right, var(--lia-primary-subtle), transparent 40%);
+}
+
+/* Accent bar as pseudo-element (respects border-radius) */
+.lia-route::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--lia-route-accent);
+  border-radius: var(--lia-radius-lg) 0 0 var(--lia-radius-lg);
+}
+
+/* Map image styling with spacing */
+.lia-route__map-link,
+.lia-route__map {
+  display: block;
+  margin: calc(-1 * var(--lia-space-lg));
+  margin-bottom: var(--lia-space-md);
+  border-radius: var(--lia-radius-lg) var(--lia-radius-lg) 0 0;
+  overflow: hidden;
+}
+
+.lia-route__map-image {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: cover;
+  max-height: 400px; /* Desktop default, CSS Container Query overrides for mobile */
+}
+
+/* Traffic condition modifiers - using theme variables */
+.lia-route--traffic-normal {
+  background: linear-gradient(to right, var(--lia-success-subtle), transparent 40%);
+}
+
+.lia-route--traffic-normal::before {
+  background: var(--lia-success);
+}
+
+.lia-route--traffic-light {
+  background: linear-gradient(to right, var(--lia-success-subtle), transparent 40%);
+}
+
+.lia-route--traffic-light::before {
+  background: var(--lia-success-light);
+}
+
+.lia-route--traffic-moderate {
+  background: linear-gradient(to right, var(--lia-warning-subtle), transparent 40%);
+}
+
+.lia-route--traffic-moderate::before {
+  background: var(--lia-warning);
+}
+
+.lia-route--traffic-heavy {
+  background: linear-gradient(to right, var(--lia-danger-subtle), transparent 40%);
+}
+
+.lia-route--traffic-heavy::before {
+  background: var(--lia-danger);
+}
+
+/* Badge row - travel mode + badges */
+.lia-route__badges-row {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-xs);
+  flex-wrap: wrap;
+  margin-bottom: var(--lia-space-sm);
+}
+
+/* Badges in route card - inherits unified height from base .lia-badge */
+
+/* Main info block - duration prominent */
+.lia-route__main-info {
+  display: flex;
+  align-items: baseline;
+  gap: var(--lia-space-sm);
+  flex-wrap: wrap;
+  margin-bottom: var(--lia-space-sm);
+}
+
+.lia-route__duration-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--lia-space-2xs);
+  flex-wrap: wrap;
+}
+
+.lia-route__duration {
+  font-size: var(--lia-text-2xl);
+  font-weight: 700;
+  color: var(--lia-text);
+  line-height: 1.2;
+}
+
+.lia-route__eta {
+  font-size: var(--lia-text-base);
+  color: var(--lia-text-secondary);
+  font-weight: 500;
+}
+
+.lia-route__departure {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-2xs);
+  font-size: var(--lia-text-sm);
+  color: var(--lia-accent);
+  font-weight: 600;
+  /* Force full width to align with duration row start */
+  width: 100%;
+  flex-basis: 100%;
+  margin-top: var(--lia-space-2xs);
+}
+
+.lia-route__departure .lia-icon {
+  font-size: var(--lia-text-sm);
+}
+
+.lia-route__duration-traffic {
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lia-space-2xs);
+}
+
+.lia-route__duration-traffic--heavy {
+  color: var(--lia-danger);
+}
+
+.lia-route__distance {
+  font-size: var(--lia-text-base);
+  color: var(--lia-text-secondary);
+  font-weight: 500;
+}
+
+/* Header section (desktop) */
+.lia-route__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--lia-space-sm);
+}
+
+.lia-route__header-badges {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-xs);
+  flex-wrap: wrap;
+}
+
+/* Meta row - traffic, tolls, etc */
+.lia-route__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-md);
+  flex-wrap: wrap;
+  margin-top: var(--lia-space-xs);
+}
+
+.lia-route__meta-item {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-2xs);
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-secondary);
+}
+
+.lia-route__meta-item .lia-icon {
+  font-size: var(--lia-text-base);
+}
+
+/* Traffic condition badge */
+.lia-route__traffic {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lia-space-2xs);
+  padding: var(--lia-space-2xs) var(--lia-space-sm);
+  border-radius: var(--lia-radius-pill);
+  font-size: var(--lia-text-xs);
+  font-weight: 500;
+}
+
+.lia-route__traffic--normal {
+  background: var(--lia-success-subtle);
+  color: var(--lia-success);
+}
+
+.lia-route__traffic--light {
+  background: var(--lia-success-subtle);
+  color: var(--lia-success-light);
+}
+
+.lia-route__traffic--moderate {
+  background: var(--lia-warning-subtle);
+  color: var(--lia-warning);
+}
+
+.lia-route__traffic--heavy {
+  background: var(--lia-danger-subtle);
+  color: var(--lia-danger);
+}
+
+/* Endpoints section */
+.lia-route__endpoints {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lia-space-xs);
+  margin-top: var(--lia-space-md);
+  padding: var(--lia-space-sm) var(--lia-space-md);
+  background: var(--lia-surface-hover);
+  border-radius: var(--lia-radius-md);
+}
+
+.lia-route__endpoint {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lia-space-sm);
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-secondary);
+}
+
+.lia-route__endpoint .lia-icon {
+  color: var(--lia-route-accent);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.lia-route__endpoint-label {
+  font-weight: 500;
+  color: var(--lia-text-muted);
+  min-width: 60px;
+}
+
+.lia-route__endpoint-value {
+  flex: 1;
+  color: var(--lia-text);
+}
+
+/* Endpoint with icon (desktop) */
+.lia-route__endpoint-icon {
+  flex-shrink: 0;
+}
+
+.lia-route__endpoint-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lia-space-2xs);
+  flex: 1;
+}
+
+/* Traffic duration inline */
+.lia-route__traffic-duration {
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-secondary);
+  margin-left: var(--lia-space-xs);
+}
+
+/* Avoidances row */
+.lia-route__avoidances {
+  display: flex;
+  gap: var(--lia-space-xs);
+  flex-wrap: wrap;
+  margin-top: var(--lia-space-sm);
+}
+
+/* Waypoints */
+.lia-route__waypoints {
+  margin-top: var(--lia-space-md);
+}
+
+.lia-route__waypoints-header {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-xs);
+  font-size: var(--lia-text-sm);
+  font-weight: 500;
+  color: var(--lia-text);
+  margin-bottom: var(--lia-space-sm);
+}
+
+.lia-route__waypoints-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lia-space-xs);
+  margin-left: calc(var(--lia-text-base) + var(--lia-space-xs));
+  padding-left: var(--lia-space-sm);
+  border-left: 2px dashed var(--lia-border);
+}
+
+.lia-route__waypoint {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-xs);
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-secondary);
+}
+
+.lia-route__waypoint::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--lia-route-accent);
+  flex-shrink: 0;
+}
+
+/* Steps (turn-by-turn) */
+.lia-route__steps {
+  margin-top: var(--lia-space-md);
+}
+
+.lia-route__steps-header {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-xs);
+  font-size: var(--lia-text-sm);
+  font-weight: 500;
+  color: var(--lia-text);
+  margin-bottom: var(--lia-space-sm);
+}
+
+.lia-route__steps-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lia-space-xs);
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.lia-route__step {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lia-space-sm);
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-secondary);
+  padding: var(--lia-space-xs) var(--lia-space-sm);
+  background: var(--lia-surface);
+  border-radius: var(--lia-radius-sm);
+  border: 1px solid var(--lia-border-light);
+}
+
+.lia-route__step-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--lia-route-accent);
+  color: var(--lia-text-inverse);
+  font-size: var(--lia-text-xs);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.lia-route__step-instruction {
+  flex: 1;
+  line-height: var(--lia-leading-normal);
+}
+
+.lia-route__step-distance {
+  font-size: var(--lia-text-xs);
+  color: var(--lia-text-muted);
+  white-space: nowrap;
+}
+
+/* More steps indicator */
+.lia-route__step--more {
+  justify-content: center;
+  background: transparent;
+  border: 1px dashed var(--lia-border);
+}
+
+.lia-route__step-more {
+  font-size: var(--lia-text-xs);
+  color: var(--lia-text-muted);
+  font-style: italic;
+}
+
+/* Transit step specific styles */
+.lia-route__step--transit {
+  background: var(--lia-surface-elevated);
+}
+
+.lia-route__step--transit .lia-route__step-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lia-space-2xs);
+  flex: 1;
+}
+
+.lia-route__transit-header {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-xs);
+  flex-wrap: wrap;
+}
+
+.lia-route__transit-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lia-space-2xs);
+  padding: 2px 8px;
+  border-radius: var(--lia-radius-sm);
+  font-size: var(--lia-text-xs);
+  font-weight: 600;
+  background: var(--lia-route-accent);
+  color: white;
+}
+
+.lia-route__transit-badge .lia-icon {
+  color: inherit !important;
+}
+
+.lia-route__transit-headsign {
+  font-size: var(--lia-text-xs);
+  color: var(--lia-text-secondary);
+  font-weight: 500;
+}
+
+.lia-route__transit-stops {
+  font-size: var(--lia-text-xs);
+  color: var(--lia-text);
+}
+
+.lia-route__transit-count {
+  font-size: var(--lia-text-xs);
+  color: var(--lia-text-muted);
+}
+
+/* Walk step specific styles */
+.lia-route__step--walk .lia-route__step-content {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-xs);
+  flex: 1;
+}
+
+.lia-route__step--walk .lia-route__step-icon {
+  color: var(--lia-text-muted);
+}
+
+/* Actions */
+.lia-route__actions {
+  display: flex;
+  gap: var(--lia-space-sm);
+  margin-top: var(--lia-space-lg);
+  flex-wrap: wrap;
+}
+
+/* Extended section */
+.lia-route__extended {
+  margin-top: var(--lia-space-sm);
+  padding-top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--lia-space-md);
+}
+
+/* Icon color in route card */
+.lia-route .lia-icon {
+  color: var(--lia-route-accent);
+}
+
+/* Collapsible content spacing */
+.lia-route .lia-collapsible__content {
+  padding-top: var(--lia-space-xs);
+}
+
+@media print {
+  .lia-card {
+    box-shadow: none;
+    border: 1px solid #ccc;
+    break-inside: avoid;
+  }
+
+  .lia-weather {
+    background: #f0f0f0 !important;
+    color: #000 !important;
+  }
+
+  .lia-btn,
+  .lia-place__actions,
+  .lia-route__actions {
+    display: none;
+  }
+
+  .lia-route {
+    background: #f5f5f5 !important;
+  }
+
+  .lia-route::before {
+    background: #999 !important;
+  }
+}
+
+/* =============================================================================
+   MCP App Widget (evolution F2.5 — Interactive Widgets)
+   ============================================================================= */
+
+.lia-mcp-app-widget {
+  margin: var(--lia-space-lg) 0;
+  border-radius: var(--lia-radius);
+  overflow: hidden;
+  border: 1px solid var(--lia-border);
+  background: var(--lia-bg);
+}
+
+.lia-mcp-app-widget__header {
+  padding: var(--lia-space-sm) var(--lia-space-md);
+  background: var(--lia-bg-muted);
+  border-bottom: 1px solid var(--lia-border);
+}
+
+.lia-mcp-app-widget__iframe {
+  width: 100%;
+  height: 500px;
+  max-height: 80vh;
+  border: none;
+  background: var(--lia-bg);
+}
+
+@media (max-width: 640px) {
+  .lia-mcp-app-widget__iframe {
+    height: 350px;
+  }
+}
+
+.lia-mcp-app-widget__link-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-sm);
+  padding: var(--lia-space-xs) var(--lia-space-md);
+  background: var(--lia-bg-muted);
+  border-bottom: 1px solid var(--lia-border);
+  font-size: 0.85rem;
+}
+
+.lia-mcp-app-widget__link-banner a {
+  color: var(--lia-primary);
+  text-decoration: underline;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lia-mcp-app-widget__link-close {
+  background: none;
+  border: none;
+  color: var(--lia-text-muted);
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0 var(--lia-space-xs);
+}
+
+/* Server-rendered placeholder (before React hydration / fallback) */
+.lia-mcp-app__placeholder {
+  padding: var(--lia-space-lg);
+  text-align: center;
+}
+
+.lia-mcp-app__loading {
+  margin-top: var(--lia-space-sm);
+  color: var(--lia-text-muted);
+  font-size: var(--lia-text-sm);
+}

@@ -1,0 +1,72 @@
+graph TB
+    UserQuery["User Query:<br/>Email tous mes contacts de Paris"] --> SemanticPivot[SemanticPivotService<br/>Translate to English]
+
+    SemanticPivot --> Planner[SmartPlannerService]
+
+    Planner --> PatternLookup{Pattern Learner<br/>Redis Bayesian}
+    PatternLookup -->|"Hit ≥90%"| CachedPlan[Use Cached Pattern]
+    PatternLookup -->|Miss| LLMGenerate[LLM Generate Plan]
+
+    CachedPlan --> Plan
+    LLMGenerate --> Plan[ExecutionPlan DSL]
+
+    Plan --> Step1["Step 1: TOOL<br/>get_contacts_by_location<br/>location=Paris<br/>depends_on: none"]
+    Plan --> Step2["Step 2: FOR_EACH<br/>send_email to each contact<br/>depends_on: Step 1"]
+
+    Step1 --> WaveAnalysis{Dependency Graph<br/>Wave Analysis}
+    Step2 --> WaveAnalysis
+
+    WaveAnalysis --> Wave1["Wave 1<br/>Independent steps"]
+    WaveAnalysis --> Wave2["Wave 2<br/>Depends on Wave 1"]
+
+    Wave1 --> ParallelExecutor["ParallelExecutor<br/>asyncio.gather()"]
+
+    ParallelExecutor --> CatalogueFilter[SmartCatalogueService<br/>Filter tools per agent<br/>96% token reduction]
+    CatalogueFilter --> ProviderResolve[Provider Resolution<br/>Google / Apple / Microsoft]
+
+    ProviderResolve --> ContactsTool["contacts agent<br/>get_contacts_by_location"]
+
+    ContactsTool --> ContactsResult["Results: 50 contacts<br/>UnifiedToolOutput"]
+    ContactsResult --> Registry["Registry Update<br/>$steps.get_contacts.contacts"]
+
+    Registry --> Wave2Execute["Wave 2 Execute"]
+    Wave2Execute --> ForEachExpansion{FOR_EACH<br/>Expansion}
+
+    ForEachExpansion -->|"for_each_max=10"| ExpandSteps[Expand to 50 sub-steps]
+    ExpandSteps --> HITLBulkCheck{Bulk Mutation<br/>HITL Required}
+
+    HITLBulkCheck --> HITLApproval[hitl_dispatch_node<br/>ForEachConfirmation]
+
+    HITLApproval --> UserApproves{User<br/>Approves?}
+    UserApproves -->|Yes| EmailExecution[Execute Email Sends<br/>asyncio.gather per wave]
+    UserApproves -->|No| Cancelled[Cancelled]
+
+    EmailExecution --> EmailTool1[send_email #1]
+    EmailExecution --> EmailTool2[send_email #2]
+    EmailExecution --> EmailToolN[send_email #N...]
+    EmailExecution --> EmailTool50[send_email #50]
+
+    EmailTool1 --> Output1[UnifiedToolOutput<br/>summary_for_llm<br/>data_for_display]
+    EmailTool2 --> Output2[UnifiedToolOutput]
+    EmailToolN --> OutputN[UnifiedToolOutput]
+    EmailTool50 --> Output50[UnifiedToolOutput]
+
+    Output1 --> Aggregation
+    Output2 --> Aggregation
+    OutputN --> Aggregation
+    Output50 --> Aggregation
+
+    Aggregation[Aggregate Results<br/>+ Knowledge Enrichment] --> ResponseGeneration[response_node<br/>Intelligent Filtering<br/>Generate AI Response]
+
+    ResponseGeneration --> UserFinalResponse["Final Response to User:<br/>J'ai envoyé 50 emails<br/>à vos contacts de Paris"]
+
+    style Planner fill:#fff4e1
+    style ForEachExpansion fill:#e1f5ff
+    style HITLBulkCheck fill:#ffe1e1
+    style ParallelExecutor fill:#e1ffe1
+    style EmailExecution fill:#f0e1ff
+    style Output1 fill:#fff9e1
+    style CatalogueFilter fill:#e1ffe1
+    style ProviderResolve fill:#e1f5ff
+    style SemanticPivot fill:#fff4e1
+    style PatternLookup fill:#fff9e1

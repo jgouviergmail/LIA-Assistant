@@ -1,0 +1,664 @@
+# =============================================================================
+# LIA - Docker Compose Development
+# =============================================================================
+#
+# SANDBOX ALIGNMENT:
+#   The postgres and redis services inherit from compose.services.yml
+#   to ensure the same image versions as .devcontainer/sandbox
+#
+# =============================================================================
+
+services:
+  # PostgreSQL with pgvector - INHERITED FROM compose.services.yml
+  postgres:
+    extends:
+      file: infrastructure/docker/compose.services.yml
+      service: postgres-base
+    container_name: lia-postgres-dev
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/docker/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+    networks:
+      - lia-network
+
+  # pgAdmin for PostgreSQL administration
+  pgadmin:
+    image: dpage/pgadmin4:9.9
+    container_name: lia-pgadmin-dev
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: 'False'
+      PGADMIN_CONFIG_ALLOW_SPECIAL_EMAIL_DOMAINS: "['local']"
+    ports:
+      - "${PGADMIN_HOST_PORT:-5050}:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      - ./infrastructure/pgadmin/servers.json:/pgadmin4/servers.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - lia-network
+
+  # Redis for caching and sessions - INHERITED FROM compose.services.yml
+  redis:
+    extends:
+      file: infrastructure/docker/compose.services.yml
+      service: redis-base
+    container_name: lia-redis-dev
+    command: redis-server --appendonly yes --requirepass "${REDIS_PASSWORD}"
+    ports:
+      - "${REDIS_HOST_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - lia-network
+
+  # SSL Certificate Generator (runs once to create shared certs)
+  ssl-init:
+    image: alpine:latest
+    container_name: lia-ssl-init
+    volumes:
+      - ssl_certs:/certs
+      - ./infrastructure/ssl/generate-certs.sh:/generate-certs.sh:ro
+    command: sh /generate-certs.sh
+    networks:
+      - lia-network
+
+  # Backend API
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile.dev
+    container_name: lia-api-dev
+    security_opt:
+      - no-new-privileges:true
+    env_file:
+      - .env
+    environment:
+      # Only overrides - rest comes from .env via env_file
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - LANGFUSE_DEBUG=true
+      # Trust X-Forwarded-Proto from reverse proxies
+      - FORWARDED_ALLOW_IPS=*
+      # HuggingFace cache directory for E5 embedding model
+      - HF_HOME=/app/.cache/huggingface
+      - TRANSFORMERS_CACHE=/app/.cache/huggingface
+    ports:
+      - "${API_HOST_PORT:-8000}:8000"
+      - "${DEBUG_HOST_PORT:-5678}:5678"  # Debug port
+      - "${API_METRICS_HOST_PORT:-9091}:9091"  # Prometheus metrics (HTTP-only, no TLS)
+    volumes:
+      - ./apps/api:/app
+      - api_venv:/app/.venv
+      - ./.git:/app/.git:ro  # Mount .git for prompt versioning (read-only)
+      - ssl_certs:/certs:ro  # Shared SSL certificates (kept for future use)
+      # Persistent HuggingFace model cache (survives container restarts)
+      - huggingface_cache:/app/.cache/huggingface
+      # Persistent storage for file attachments (images, PDF)
+      - attachments_data:/app/data/attachments
+      # Skills directories (full bind-mount for dev — both system and user skills editable)
+      - ./data/skills:/app/data/skills
+      # Note: STT model is baked into Docker image (Dockerfile.dev multi-stage build)
+    # HTTPS required for Google OAuth callbacks
+    # Next.js proxy uses NODE_TLS_REJECT_UNAUTHORIZED=0 for self-signed certs
+    command: python -m debugpy --listen 0.0.0.0:5678 -m uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload --ssl-keyfile=/certs/key.pem --ssl-certfile=/certs/cert.pem
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ssl-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-k", "https://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s  # Increased for E5 model loading (~10s)
+    networks:
+      - lia-network
+
+  # Frontend Web
+  web:
+    build:
+      context: .  # Build from monorepo root (changed from ./apps/web)
+      dockerfile: apps/web/Dockerfile.dev  # Path to Dockerfile relative to context
+    container_name: lia-web-dev
+    security_opt:
+      - no-new-privileges:true
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=development
+      # Bind Next.js to all interfaces (required for Docker)
+      - HOSTNAME=0.0.0.0
+      # API_URL_SERVER uses Docker service name for container-to-container communication
+      # HTTPS required for Google OAuth callback
+      # NODE_TLS_REJECT_UNAUTHORIZED=0 handles self-signed certs (set in next.config.ts)
+      - API_URL_SERVER=https://api:8000
+      - NODE_TLS_REJECT_UNAUTHORIZED=0
+      # Other NEXT_PUBLIC_* variables are read from .env
+    ports:
+      - "${WEB_HOST_PORT:-3000}:3000"
+    volumes:
+      # Mount the entire web app directory for hot-reload
+      - ./apps/web:/monorepo/apps/web
+      # Use named volumes for node_modules and .next to avoid conflicts with host
+      - web_node_modules:/monorepo/apps/web/node_modules
+      - web_next_build:/monorepo/apps/web/.next
+    # Enable HTTPS for geolocation API (requires secure context)
+    command: ["pnpm", "run", "dev", "--experimental-https"]
+    depends_on:
+      - api
+    networks:
+      - lia-network
+
+  # Prometheus
+  prometheus:
+    image: prom/prometheus:v3.0.0
+    container_name: lia-prometheus-dev
+    security_opt:
+      - no-new-privileges:true
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=15d'
+      - '--storage.tsdb.retention.size=10GB'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-remote-write-receiver'  # Enable Tempo metrics-generator remote write
+    ports:
+      - "${PROMETHEUS_HOST_PORT:-9090}:9090"
+    volumes:
+      - ./infrastructure/observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./infrastructure/observability/prometheus/alerts.yml:/etc/prometheus/alerts.yml
+      - ./infrastructure/observability/prometheus/recording_rules.yml:/etc/prometheus/recording_rules.yml
+      - ./apps/api/monitoring/prometheus/alerts:/etc/prometheus/rules  # Alertes custom
+      - prometheus_data:/prometheus
+    depends_on:
+      - alertmanager
+    networks:
+      - lia-network
+
+  # Alertmanager (Prometheus Alert Notifications)
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: lia-alertmanager-dev
+    security_opt:
+      - no-new-privileges:true
+    entrypoint: /docker-entrypoint.sh
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:${ALERTMANAGER_HOST_PORT:-9094}'
+    ports:
+      - "${ALERTMANAGER_HOST_PORT:-9094}:9093"
+    volumes:
+      - ./apps/api/monitoring/alertmanager/docker-entrypoint.sh:/docker-entrypoint.sh:ro
+      - ./apps/api/monitoring/alertmanager/alertmanager.yml.template:/etc/alertmanager/alertmanager.yml.template:ro
+      - ./apps/api/monitoring/alertmanager/templates:/etc/alertmanager/templates:ro
+      - alertmanager_data:/alertmanager
+    env_file:
+      - .env
+    networks:
+      - lia-network
+
+  # Grafana
+  grafana:
+    image: grafana/grafana:11.3.0
+    container_name: lia-grafana-dev
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+      - GF_SERVER_ROOT_URL=http://localhost:${GRAFANA_HOST_PORT:-3001}
+      - GF_INSTALL_PLUGINS=grafana-clock-panel
+    ports:
+      - "${GRAFANA_HOST_PORT:-3001}:3000"
+    volumes:
+      - ./infrastructure/observability/grafana/provisioning:/etc/grafana/provisioning
+      - ./infrastructure/observability/grafana/dashboards:/var/lib/grafana/dashboards
+      - ./infrastructure/observability/grafana/grafana.ini:/etc/grafana/grafana.ini
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+      - loki
+      - tempo
+    networks:
+      - lia-network
+
+  # Loki (Logs)
+  loki:
+    image: grafana/loki:3.2.1
+    container_name: lia-loki-dev
+    security_opt:
+      - no-new-privileges:true
+    command: -config.file=/etc/loki/local-config.yaml
+    ports:
+      - "${LOKI_HOST_PORT:-3100}:3100"
+    volumes:
+      - ./infrastructure/observability/loki/loki-config.yml:/etc/loki/local-config.yaml
+      - loki_data:/loki
+    networks:
+      - lia-network
+
+  # Promtail (Log Collection Agent)
+  promtail:
+    image: grafana/promtail:3.2.1
+    container_name: lia-promtail-dev
+    security_opt:
+      - no-new-privileges:true
+    command: -config.file=/etc/promtail/promtail-config.yml
+    ports:
+      - "${PROMTAIL_HOST_PORT:-9080}:9080"  # Promtail metrics endpoint
+    volumes:
+      - ./infrastructure/observability/promtail/promtail-config.yml:/etc/promtail/promtail-config.yml
+      - /var/run/docker.sock:/var/run/docker.sock:ro  # Docker socket (read-only)
+      - promtail_positions:/tmp  # Position tracking (survive restarts)
+    depends_on:
+      - loki
+    networks:
+      - lia-network
+    restart: unless-stopped
+
+  # Tempo (Traces)
+  tempo:
+    image: grafana/tempo:2.6.1
+    container_name: lia-tempo-dev
+    security_opt:
+      - no-new-privileges:true
+    command: [ "-config.file=/etc/tempo/tempo.yml" ]
+    ports:
+      - "${TEMPO_HOST_PORT:-3200}:3200"   # Tempo HTTP
+      - "${OTLP_GRPC_HOST_PORT:-4317}:4317"   # OTLP gRPC
+      - "${OTLP_HTTP_HOST_PORT:-4318}:4318"   # OTLP HTTP
+    volumes:
+      - ./infrastructure/observability/tempo/tempo.yml:/etc/tempo/tempo.yml
+      - tempo_data:/var/tempo
+    networks:
+      - lia-network
+
+  # cAdvisor - Container metrics
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: lia-cadvisor-dev
+    privileged: true
+    ports:
+      - "${CADVISOR_HOST_PORT:-8080}:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    devices:
+      - /dev/kmsg
+    networks:
+      - lia-network
+
+  # PostgreSQL Exporter - Database metrics
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: lia-postgres-exporter-dev
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable"
+    ports:
+      - "${PG_EXPORTER_HOST_PORT:-9187}:9187"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - lia-network
+
+  # Redis Exporter - Cache metrics
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.62.0
+    container_name: lia-redis-exporter-dev
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      REDIS_ADDR: "redis:6379"
+      REDIS_PASSWORD: "${REDIS_PASSWORD}"
+    ports:
+      - "${REDIS_EXPORTER_HOST_PORT:-9121}:9121"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - lia-network
+
+  # Node Exporter - Host/system metrics (disk, filesystem, network)
+  # Note: On Windows/Docker Desktop, bind mount requires different configuration
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    container_name: lia-node-exporter-dev
+    security_opt:
+      - no-new-privileges:true
+    command:
+      - '--path.rootfs=/host'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+      - '--no-collector.hwmon'  # Disable hwmon on Windows
+    ports:
+      - "${NODE_EXPORTER_HOST_PORT:-9100}:9100"
+    volumes:
+      - /:/host:ro
+    networks:
+      - lia-network
+    restart: unless-stopped
+
+  # === Langfuse Self-Hosted v3 - LLM Observability ===
+
+  # MinIO - S3-compatible object storage for Langfuse
+  minio:
+    image: minio/minio:latest
+    container_name: lia-minio-dev
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    entrypoint: sh
+    command: -c 'mkdir -p /data/langfuse && minio server --address ":9000" --console-address ":9001" /data'
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "${MINIO_API_HOST_PORT:-9092}:9000"  # MinIO API
+      - "${MINIO_CONSOLE_HOST_PORT:-9093}:9001"  # MinIO Console
+    volumes:
+      - minio_data:/data
+    networks:
+      - lia-network
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  # Langfuse PostgreSQL Database
+  langfuse-db:
+    image: postgres:17
+    container_name: lia-langfuse-db-dev
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      POSTGRES_USER: ${LANGFUSE_DB_USER}
+      POSTGRES_PASSWORD: ${LANGFUSE_DB_PASSWORD}
+      POSTGRES_DB: langfuse
+      TZ: UTC
+      PGTZ: UTC
+    volumes:
+      - langfuse_db_data:/var/lib/postgresql/data
+    networks:
+      - lia-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${LANGFUSE_DB_USER}"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  # ClickHouse (OLAP database)
+  langfuse-clickhouse:
+    image: clickhouse/clickhouse-server
+    container_name: lia-langfuse-clickhouse-dev
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    user: "101:101"
+    environment:
+      CLICKHOUSE_DB: default
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+    volumes:
+      - langfuse_clickhouse_data:/var/lib/clickhouse
+      - langfuse_clickhouse_logs:/var/log/clickhouse-server
+    networks:
+      - lia-network
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 1s
+
+  # Redis (cache and queues)
+  langfuse-redis:
+    image: redis:7
+    container_name: lia-langfuse-redis-dev
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    command: --requirepass "${LANGFUSE_REDIS_PASSWORD}"
+    networks:
+      - lia-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${LANGFUSE_REDIS_PASSWORD}", "ping"]
+      interval: 3s
+      timeout: 10s
+      retries: 10
+
+  # Langfuse Web Application (v3)
+  langfuse-web:
+    image: langfuse/langfuse:latest  # v3.22.0+ required for OTLP support
+    container_name: lia-langfuse-web-dev
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      langfuse-db:
+        condition: service_healthy
+      langfuse-clickhouse:
+        condition: service_healthy
+      langfuse-redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    ports:
+      - "${LANGFUSE_HOST_PORT:-3002}:3000"
+    environment:
+      # Next.js Server Binding (CRITICAL for Docker healthcheck)
+      # Binds Next.js server to all network interfaces (0.0.0.0) instead of localhost only
+      # This allows healthcheck from inside container to work correctly
+      # Reference: https://github.com/vercel/next.js/discussions/16995
+      HOSTNAME: "0.0.0.0"
+
+      # NextAuth
+      NEXTAUTH_URL: http://localhost:${LANGFUSE_HOST_PORT:-3002}
+      NEXTAUTH_SECRET: ${LANGFUSE_NEXTAUTH_SECRET}
+
+      # PostgreSQL
+      DATABASE_URL: "postgresql://${LANGFUSE_DB_USER}:${LANGFUSE_DB_PASSWORD}@langfuse-db:5432/langfuse"
+
+      # Encryption
+      SALT: ${LANGFUSE_SALT}
+      ENCRYPTION_KEY: ${LANGFUSE_ENCRYPTION_KEY}
+
+      # ClickHouse (standalone mode)
+      CLICKHOUSE_MIGRATION_URL: clickhouse://langfuse-clickhouse:9000
+      CLICKHOUSE_URL: http://langfuse-clickhouse:8123
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      CLICKHOUSE_CLUSTER_ENABLED: "false"
+
+      # Redis
+      REDIS_HOST: langfuse-redis
+      REDIS_PORT: 6379
+      REDIS_AUTH: ${LANGFUSE_REDIS_PASSWORD}
+
+      # Telemetry
+      TELEMETRY_ENABLED: "false"
+
+      # Experimental features (OTLP support requires this in v3.22.0+)
+      LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES: "true"
+
+      # Initial user and project setup (dev only)
+      LANGFUSE_INIT_USER_EMAIL: admin@lia.local
+      LANGFUSE_INIT_USER_NAME: Admin
+      LANGFUSE_INIT_USER_PASSWORD: admin123
+      LANGFUSE_INIT_ORG_NAME: LIA
+      LANGFUSE_INIT_PROJECT_NAME: Development
+
+      # S3 Event Upload
+      LANGFUSE_S3_EVENT_UPLOAD_BUCKET: langfuse
+      LANGFUSE_S3_EVENT_UPLOAD_REGION: auto
+      LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://minio:9000
+      LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
+      LANGFUSE_S3_EVENT_UPLOAD_PREFIX: events/
+
+      # S3 Media Upload
+      LANGFUSE_S3_MEDIA_UPLOAD_BUCKET: langfuse
+      LANGFUSE_S3_MEDIA_UPLOAD_REGION: auto
+      LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT: http://minio:9000
+      LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE: "true"
+      LANGFUSE_S3_MEDIA_UPLOAD_PREFIX: media/
+
+      # S3 Batch Export
+      LANGFUSE_S3_BATCH_EXPORT_ENABLED: "false"
+      LANGFUSE_S3_BATCH_EXPORT_BUCKET: langfuse
+      LANGFUSE_S3_BATCH_EXPORT_PREFIX: exports/
+      LANGFUSE_S3_BATCH_EXPORT_REGION: auto
+      LANGFUSE_S3_BATCH_EXPORT_ENDPOINT: http://minio:9000
+      LANGFUSE_S3_BATCH_EXPORT_EXTERNAL_ENDPOINT: http://localhost:${MINIO_API_HOST_PORT:-9092}
+      LANGFUSE_S3_BATCH_EXPORT_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      LANGFUSE_S3_BATCH_EXPORT_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      LANGFUSE_S3_BATCH_EXPORT_FORCE_PATH_STYLE: "true"
+    networks:
+      - lia-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://0.0.0.0:3000/api/public/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ============================================================================
+  # Langfuse Worker (v3) - Async Trace Ingestion Processor
+  # ============================================================================
+  #
+  # Architecture:
+  #   Redis Queue → Worker → ClickHouse + MinIO (S3)
+  #   Processes trace batches asynchronously to prevent API timeouts
+  #
+  # Scaling (Production):
+  #   - Horizontal: Add workers based on CPU (target 50-70%)
+  #   - Vertical: 2 CPUs + 4GB RAM minimum per worker
+  #   - Concurrency: Adjust LANGFUSE_*_CONCURRENCY per worker
+  #
+  # References:
+  #   - https://langfuse.com/self-hosting/scaling
+  #   - https://langfuse.com/self-hosting/infrastructure/containers
+  #
+  # ============================================================================
+  langfuse-worker:
+    image: docker.io/langfuse/langfuse-worker:3
+    container_name: lia-langfuse-worker-dev
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      langfuse-db:
+        condition: service_healthy
+      langfuse-clickhouse:
+        condition: service_healthy
+      langfuse-redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    ports:
+      - "${LANGFUSE_WORKER_HOST_PORT:-3030}:3030"  # Health check and metrics endpoint
+    environment:
+      # Node.js memory configuration (match container memory)
+      NODE_OPTIONS: "--max-old-space-size=2048"
+
+      # Database connections
+      DATABASE_URL: "postgresql://${LANGFUSE_DB_USER}:${LANGFUSE_DB_PASSWORD}@langfuse-db:5432/langfuse"
+      CLICKHOUSE_MIGRATION_URL: clickhouse://langfuse-clickhouse:9000
+      CLICKHOUSE_URL: http://langfuse-clickhouse:8123
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      CLICKHOUSE_CLUSTER_ENABLED: "false"
+
+      # Redis queue
+      REDIS_HOST: langfuse-redis
+      REDIS_PORT: 6379
+      REDIS_AUTH: ${LANGFUSE_REDIS_PASSWORD}
+
+      # Security (CHANGE IN PRODUCTION)
+      SALT: ${LANGFUSE_SALT}
+      ENCRYPTION_KEY: ${LANGFUSE_ENCRYPTION_KEY}
+
+      # S3/MinIO event storage
+      LANGFUSE_S3_EVENT_UPLOAD_BUCKET: langfuse
+      LANGFUSE_S3_EVENT_UPLOAD_REGION: auto
+      LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      LANGFUSE_S3_EVENT_UPLOAD_ENDPOINT: http://minio:9000
+      LANGFUSE_S3_EVENT_UPLOAD_FORCE_PATH_STYLE: "true"
+      LANGFUSE_S3_EVENT_UPLOAD_PREFIX: events/
+
+      # S3/MinIO media storage
+      LANGFUSE_S3_MEDIA_UPLOAD_BUCKET: langfuse
+      LANGFUSE_S3_MEDIA_UPLOAD_REGION: auto
+      LANGFUSE_S3_MEDIA_UPLOAD_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      LANGFUSE_S3_MEDIA_UPLOAD_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      LANGFUSE_S3_MEDIA_UPLOAD_ENDPOINT: http://minio:9000
+      LANGFUSE_S3_MEDIA_UPLOAD_FORCE_PATH_STYLE: "true"
+      LANGFUSE_S3_MEDIA_UPLOAD_PREFIX: media/
+
+      # Feature flags
+      LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES: "true"
+      TELEMETRY_ENABLED: "false"
+    networks:
+      - lia-network
+
+volumes:
+  ssl_certs:  # Shared SSL certificates for HTTPS
+  postgres_data:
+  pgadmin_data:
+  redis_data:
+  api_venv:
+  web_node_modules:
+  web_next_build:
+  prometheus_data:
+  alertmanager_data:
+  grafana_data:
+  loki_data:
+  promtail_positions:
+  tempo_data:
+  langfuse_db_data:
+  langfuse_clickhouse_data:
+  langfuse_clickhouse_logs:
+  minio_data:
+  huggingface_cache:  # Persistent storage for E5 embedding model (~500MB)
+  attachments_data:  # Persistent storage for file attachments (images, PDF)
+
+networks:
+  lia-network:
+    driver: bridge

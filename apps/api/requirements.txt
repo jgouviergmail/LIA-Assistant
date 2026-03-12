@@ -1,0 +1,108 @@
+# Core Framework
+fastapi==0.128.0
+uvicorn[standard]==0.40.0
+
+# Database
+sqlalchemy[asyncio]==2.0.45
+asyncpg==0.30.0
+psycopg[binary]==3.2.10  # PostgreSQL adapter v3 (modern, for LangGraph checkpointer & SQLAlchemy)
+alembic==1.14.0
+pgvector==0.3.6
+
+# Cache & Session
+redis==7.1.0
+
+# Configuration
+python-dotenv==1.0.1
+pydantic==2.12.5
+jinja2==3.1.6  # Template engine for orchestration queries
+pydantic-settings==2.10.1
+pyyaml>=6.0  # YAML parsing for SKILL.md files (agentskills.io standard)
+email-validator==2.2.0
+python-dateutil==2.9.0.post0  # Date utilities for billing cycle calculations
+tzdata==2024.2  # IANA timezone database for Windows/Python 3.9+
+
+# Authentication & Security
+python-jose[cryptography]==3.4.0  # CVE-2024-33663 fix (algorithm confusion)
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.22  # CVE-2024-53981, CVE-2026-24486 fixes (DoS)
+cryptography==46.0.5  # CVE-2024-12797, CVE-2026-26007 fixes
+
+# Observability
+structlog==25.5.0
+geoip2==4.8.1  # IP geolocation (DB-IP Lite MMDB — free, CC-BY-4.0)
+opentelemetry-api==1.39.1
+opentelemetry-sdk==1.39.1
+opentelemetry-instrumentation-fastapi==0.60b1
+opentelemetry-exporter-otlp==1.39.1
+prometheus-client==0.21.0
+langfuse==3.14.5  # Phase 6 - LLM Observability
+
+# Rate Limiting
+slowapi==0.1.9
+
+# HTTP Client
+httpx==0.27.2
+
+# Web Page Content Extraction (evolution F1 — Web Fetch Tool)
+readability-lxml==0.8.1    # Mozilla Readability algorithm (article extraction)
+lxml_html_clean==0.4.4     # Required by readability-lxml (split from lxml 5.2+)
+markdownify==0.14.1        # HTML → Markdown conversion
+
+# Text-to-Speech (Edge TTS - Microsoft neural voices, free)
+edge-tts==7.2.7
+
+# Speech-to-Text (Sherpa-onnx - Offline, multi-language STT)
+# Uses SenseVoiceSmall model: FR/EN/DE/ES/IT/ZH/JA/KO in a single model
+# Precompiled wheels available for AMD64 (dev) and ARM64 (Raspberry Pi prod)
+sherpa-onnx>=1.10.0
+
+# Task Scheduling
+apscheduler==3.10.4
+
+# AI/ML Stack - LangChain/LangGraph 1.0.x ecosystem
+langchain-core==1.2.17
+langchain==1.2.10  # Updated 2026-03-09 for ecosystem upgrade (merge_lists fix, SummarizationMiddleware, ContextOverflowError)
+langchain-openai==1.1.10
+openai==2.20.0  # Requis par langchain-openai 1.1.10 (pin 2.14.0 levé — gardes adapter L229-239 protègent input_items)
+langgraph==1.0.10
+langgraph-checkpoint==4.0.1  # Pinné explicitement (transitif de langgraph, reproductibilité builds)
+langgraph-prebuilt==1.0.8  # Pinné explicitement (requis par langgraph 1.0.10)
+langgraph-checkpoint-postgres==3.0.4
+tiktoken==0.8.0
+
+# Local Embedding Model - E5 for semantic memory search
+# Replaces OpenAI text-embedding-3-small for better Q/A matching (0.90 vs 0.61 avg score)
+# PyTorch is pulled as dependency - pip installs CPU-only by default (no CUDA index)
+# ARM64 (Raspberry Pi): CPU-only wheels automatically (CUDA not supported on ARM)
+sentence-transformers==5.2.0  # HuggingFace E5 model (intfloat/multilingual-e5-small)
+
+# Hybrid Memory Search - BM25 keyword matching combined with semantic search
+rank-bm25==0.2.2  # Okapi BM25 algorithm for keyword-based retrieval
+
+# LLM Provider Integrations
+langchain-deepseek==1.0.1  # DeepSeek V3/R1 models
+langchain-anthropic==1.3.4  # Claude models (auto-compaction, effort="max" sans beta, cache_control fix)
+langchain-google-genai==3.2.0  # Gemini models
+anthropic==0.84.0  # Anthropic SDK (Claude Opus 4.6, structured outputs natifs, cache control GA)
+
+# MCP (Model Context Protocol) — evolution F2
+mcp>=1.20.0,<2.0.0  # MCP 1.20+ adds list_resources/read_resource (MCP Apps support). Compatible with FastAPI 0.128 via starlette 0.50.0
+
+# Push Notifications
+firebase-admin==6.8.0  # Firebase Cloud Messaging for push notifications
+pytz==2025.2  # Timezone handling for reminders
+
+# Channels — Multi-Channel Messaging (evolution F3)
+python-telegram-bot>=21.0  # Telegram Bot API (async, v21+)
+pydub>=0.25.1  # Audio format conversion for voice messages (OGG→PCM, requires ffmpeg)
+
+# Apple iCloud Connectors — Email (IMAP), Calendar (CalDAV), Contacts (CardDAV)
+caldav[async]>=3.0.1  # CalDAV client with async support (caldav.aio)
+imap-tools>=1.7.0  # IMAP email client (synchronous, wrapped via asyncio.to_thread)
+vobject>=0.9.8  # vCard/vCalendar parser (iCloud uses vCard 3.0)
+
+# Attachments — File Uploads & Vision Analysis (evolution F4)
+Pillow>=11.0.0  # Image validation, HEIC→JPEG conversion
+filetype>=1.2.0  # MIME detection by magic bytes (pure Python, ARM64 native)
+PyMuPDF>=1.25.0  # PDF text extraction (lightweight, ARM64 compatible)

@@ -1,0 +1,610 @@
+# Règles d'alerting pour LIA (TEMPLATE)
+#
+# Ce fichier est un template Jinja2. Les seuils sont externalisés dans .env.alerting.{environment}
+#
+# Pour générer alert_rules.yml:
+#   python render_alerts.py --env production --template alert_rules.yml.template --output alert_rules.yml
+#   python render_alerts.py --env staging --template alert_rules.yml.template --output alert_rules.yml
+#   python render_alerts.py --env development --template alert_rules.yml.template --output alert_rules.yml
+#
+# Variables disponibles: 87 seuils (voir .env.alerting.example)
+#
+# ============================================================================
+# Prometheus Alerting Rules for LIA
+# ============================================================================
+#
+# Alerting rules define conditions that trigger notifications when metrics
+# exceed defined thresholds, enabling proactive incident response.
+#
+# Alert Severity Levels:
+# - info: Informational, no immediate action required
+# - warning: Degraded performance, investigate within business hours
+# - critical: Service impact, immediate action required (PagerDuty)
+#
+# Best Practices:
+# - Set thresholds based on SLOs and baseline metrics
+# - Use multi-window evaluation (for: 5m, 10m, etc.) to avoid flapping
+# - Include actionable runbook links in annotations
+# - Route alerts to appropriate teams via labels
+#
+# References:
+# - https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/
+# - https://prometheus.io/docs/practices/alerting/
+# ============================================================================
+
+groups:
+  # ==========================================================================
+  # HITL QUALITY - Classifier and Proposal Quality Alerts
+  # ==========================================================================
+  - name: hitl_quality
+    interval: 30s
+    rules:
+      # ======================================================================
+      # HITL CLASSIFIER QUALITY
+      # ======================================================================
+
+      - alert: HITLClarificationFallbackHigh
+        expr: |
+          (
+            rate(hitl_clarification_fallback_total[5m])
+            /
+            rate(hitl_classification_method_total[5m])
+          ) > 0.3
+        for: 10m
+        labels:
+          severity: warning
+          component: hitl_classifier
+          team: ml
+        annotations:
+          summary: "HITL classifier falling back to clarification >20%"
+          description: |
+            HITL classifier is unable to make confident decisions in {{ $value | humanizePercentage }} of cases.
+            This indicates the classifier needs improvement or user responses are too ambiguous.
+
+            Current fallback rate: {{ $value | humanizePercentage }}
+            Threshold: 20%
+
+            Actions:
+            - Review recent AMBIGUOUS classifications in logs
+            - Check if prompt needs tuning
+            - Consider retraining classifier with more examples
+          dashboard: "http://grafana:3000/d/hitl/07-hitl-tool-approval"
+          runbook: "https://docs.company.com/runbooks/hitl-classifier-quality"
+
+      - alert: HITLClarificationFallbackCritical
+        expr: |
+          (
+            rate(hitl_clarification_fallback_total[5m])
+            /
+            rate(hitl_classification_method_total[5m])
+          ) > 0.6
+        for: 5m
+        labels:
+          severity: critical
+          component: hitl_classifier
+          team: ml
+          pagerduty: "true"
+        annotations:
+          summary: "HITL classifier failing >40% - CRITICAL"
+          description: |
+            HITL classifier is severely degraded with {{ $value | humanizePercentage }} fallback rate.
+            User experience is significantly impacted.
+
+            IMMEDIATE ACTIONS REQUIRED:
+            1. Check LLM provider status (OpenAI/Anthropic)
+            2. Review recent prompt changes
+            3. Consider rollback if recent deployment
+            4. Enable fallback to rule-based classification
+          dashboard: "http://grafana:3000/d/hitl/07-hitl-tool-approval"
+
+      # ======================================================================
+      # HITL EDIT QUALITY
+      # ======================================================================
+
+      - alert: HITLFullRewritesHigh
+        expr: |
+          (
+            sum(rate(hitl_edit_actions_total{edit_type="full_rewrite"}[1h]))
+            /
+            sum(rate(hitl_edit_actions_total[1h]))
+          ) > 0.45
+        for: 30m
+        labels:
+          severity: warning
+          component: agent_proposals
+          team: product
+        annotations:
+          summary: "Users doing full rewrites of agent proposals >30%"
+          description: |
+            {{ $value | humanizePercentage }} of HITL edits are full rewrites, indicating
+            agent proposals are significantly off-target.
+
+            Current full rewrite rate: {{ $value | humanizePercentage }}
+            Threshold: 30%
+
+            This suggests:
+            - Agent prompts need improvement
+            - Context extraction is poor
+            - Tool parameters are incorrectly inferred
+
+            Actions:
+            - Review recent full_rewrite examples in logs
+            - Analyze which agents/tools have highest rewrite rate
+            - Consider A/B testing improved prompts
+          dashboard: "http://grafana:3000/d/hitl/07-hitl-tool-approval"
+
+      - alert: HITLEditRateIncreasing
+        expr: |
+          (
+            rate(hitl_edit_actions_total[1h])
+            /
+            rate(hitl_classification_method_total[1h])
+          ) > 0.6
+        for: 1h
+        labels:
+          severity: info
+          component: agent_proposals
+          team: product
+        annotations:
+          summary: "HITL edit rate increasing - potential quality degradation"
+          description: |
+            {{ $value | humanizePercentage }} of HITL interactions result in edits.
+            This may indicate declining proposal quality or changing user expectations.
+
+            Monitor trend over 24h and investigate if sustained.
+
+      # ======================================================================
+      # HITL REJECTION QUALITY
+      # ======================================================================
+
+      - alert: HITLExplicitRejectionsHigh
+        expr: |
+          (
+            sum(rate(hitl_rejection_type_total{rejection_type="explicit_no"}[1h]))
+            /
+            sum(rate(hitl_rejection_type_total[1h]))
+          ) > 0.3
+        for: 30m
+        labels:
+          severity: warning
+          component: agent_proposals
+          team: product
+        annotations:
+          summary: "Users explicitly rejecting agent proposals >20%"
+          description: |
+            {{ $value | humanizePercentage }} of rejections are explicit "no/annule/stop" responses.
+            This indicates agents are proposing unwanted or inappropriate actions.
+
+            Current explicit rejection rate: {{ $value | humanizePercentage }}
+            Threshold: 20%
+
+            Actions:
+            - Review explicit rejection examples by agent type
+            - Check if specific tools have high rejection rates
+            - Consider making proposals more conservative
+            - Review user feedback and reasons for rejection
+          dashboard: "http://grafana:3000/d/hitl/07-hitl-tool-approval"
+
+      - alert: HITLRejectionRateSpike
+        expr: |
+          (
+            rate(hitl_rejection_type_total[5m])
+            /
+            rate(hitl_classification_method_total[5m])
+          ) > 0.75
+        for: 10m
+        labels:
+          severity: critical
+          component: agent_behavior
+          team: product
+          pagerduty: "true"
+        annotations:
+          summary: "HITL rejection rate spike >50% - investigate immediately"
+          description: |
+            Sudden spike in HITL rejections ({{ $value | humanizePercentage }}).
+            Possible causes:
+            - Recent agent deployment with bad behavior
+            - LLM model change causing different proposals
+            - Bug in tool argument construction
+
+            IMMEDIATE ACTIONS:
+            1. Check recent deployments (last 2h)
+            2. Review logs for error patterns
+            3. Consider rollback if correlated with deployment
+          dashboard: "http://grafana:3000/d/hitl/07-hitl-tool-approval"
+
+      # ======================================================================
+      # HITL USER ENGAGEMENT
+      # ======================================================================
+
+      - alert: HITLUserResponseTimeSlow
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le) (rate(hitl_user_response_time_seconds_bucket[5m]))
+          ) > 450.0
+        for: 15m
+        labels:
+          severity: warning
+          component: user_experience
+          team: product
+        annotations:
+          summary: "HITL user response time p95 >5min - UX friction"
+          description: |
+            Users are taking {{ $value | humanizeDuration }} (p95) to respond to HITL interrupts.
+            This indicates potential UX friction or unclear prompts.
+
+            Current p95: {{ $value | humanizeDuration }}
+            Target: < 60s (engaged users)
+            Acceptable: < 300s
+
+            Investigate:
+            - Are HITL questions clear and concise?
+            - Is interrupt timing appropriate (not spammy)?
+            - Are users abandoning after HITL prompts?
+          dashboard: "http://grafana:3000/d/hitl/07-hitl-tool-approval"
+
+      # ======================================================================
+      # HITL COMBINED METRICS
+      # ======================================================================
+
+      - alert: HITLQualityDegraded
+        expr: |
+          (
+            (rate(hitl_clarification_fallback_total[1h]) / rate(hitl_classification_method_total[1h])) > 0.22
+            and
+            (sum(rate(hitl_rejection_type_total{rejection_type="explicit_no"}[1h])) / sum(rate(hitl_rejection_type_total[1h]))) > 0.22
+          )
+        for: 1h
+        labels:
+          severity: warning
+          component: hitl_system
+          team: product
+        annotations:
+          summary: "Multiple HITL quality indicators degraded"
+          description: |
+            HITL system quality is degraded across multiple dimensions:
+            - High clarification fallback rate (>15%)
+            - High explicit rejection rate (>15%)
+
+            This suggests systemic issues with agent behavior or classifier quality.
+
+            Recommended actions:
+            1. Review recent changes to agents or classifier
+            2. Analyze user feedback patterns
+            3. Consider A/B test of previous agent version
+          dashboard: "http://grafana:3000/d/hitl/07-hitl-tool-approval"
+
+  # ==========================================================================
+  # BUSINESS METRICS - Phase 3.2 Alerts (Uses Recording Rules)
+  # ==========================================================================
+  - name: business_metrics_alerts
+    interval: 30s
+    rules:
+      # ======================================================================
+      # CONVERSATION ABANDONMENT
+      # ======================================================================
+
+      - alert: HighConversationAbandonmentRate
+        expr: |
+          business:abandonment_rate:5m_by_agent > 0.2
+        for: 10m
+        labels:
+          severity: warning
+          component: user_experience
+          team: product
+        annotations:
+          summary: "High conversation abandonment rate on {{ $labels.agent_type }} ({{ $value | humanizePercentage }})"
+          description: |
+            Agent {{ $labels.agent_type }} has abandonment rate >20% for 10 minutes.
+            This indicates UX friction or failing agent behavior.
+
+            Current abandonment rate: {{ $value | humanizePercentage }}
+            Threshold: 20%
+
+            Abandonment = conversations reset by user / total conversations.
+            High rate suggests users are frustrated and restarting conversations.
+
+            Actions:
+            - Check dashboard for abandonment reasons breakdown
+            - Review recent agent deployments
+            - Analyze conversation logs for error patterns
+            - Test agent workflow manually for UX issues
+          dashboard: "http://grafana:3000/d/app-performance/01-app-performance"
+
+      - alert: CriticalConversationAbandonmentRate
+        expr: |
+          business:abandonment_rate:5m_by_agent > 0.4
+        for: 5m
+        labels:
+          severity: critical
+          component: user_experience
+          team: product
+          pagerduty: "true"
+        annotations:
+          summary: "CRITICAL: Conversation abandonment rate >40% on {{ $labels.agent_type }}"
+          description: |
+            Agent {{ $labels.agent_type }} has {{ $value | humanizePercentage }} abandonment rate.
+            User experience is severely degraded.
+
+            IMMEDIATE ACTIONS REQUIRED:
+            1. Check agent health and error logs
+            2. Review recent deployments (last 2h)
+            3. Consider emergency rollback
+            4. Notify product team via Slack #incidents
+          dashboard: "http://grafana:3000/d/app-performance/01-app-performance"
+
+      # ======================================================================
+      # TOOL USAGE & SUCCESS RATE
+      # ======================================================================
+
+      - alert: LowToolSuccessRate
+        expr: |
+          business:tool_success_rate:5m_by_tool < 0.8
+        for: 15m
+        labels:
+          severity: warning
+          component: tool_integration
+          team: engineering
+        annotations:
+          summary: "Low tool success rate for {{ $labels.tool_name }} ({{ $value | humanizePercentage }})"
+          description: |
+            Tool {{ $labels.tool_name }} has success rate <80% for 15 minutes.
+            This indicates unreliable tool integration or API issues.
+
+            Current success rate: {{ $value | humanizePercentage }}
+            Threshold: 80%
+
+            Possible causes:
+            - External API downtime (Gmail, Google Contacts, etc.)
+            - OAuth token expiration
+            - Network connectivity issues
+            - Tool implementation bugs
+
+            Actions:
+            - Check external API status pages
+            - Review tool error logs
+            - Verify OAuth token validity
+            - Test tool manually
+          dashboard: "http://grafana:3000/d/agents-langgraph/04-agents-langgraph"
+
+      - alert: CriticalToolFailureRate
+        expr: |
+          business:tool_success_rate:5m_by_tool < 0.5
+        for: 5m
+        labels:
+          severity: critical
+          component: tool_integration
+          team: engineering
+          pagerduty: "true"
+        annotations:
+          summary: "CRITICAL: Tool {{ $labels.tool_name }} failing >50%"
+          description: |
+            Tool {{ $labels.tool_name }} has only {{ $value | humanizePercentage }} success rate.
+            Agent functionality is severely impacted.
+
+            IMMEDIATE ACTIONS:
+            1. Check external API status (Gmail, Contacts, Calendar)
+            2. Verify OAuth credentials
+            3. Review error logs for root cause
+            4. Consider disabling tool if fully broken
+          dashboard: "http://grafana:3000/d/agents-langgraph/04-agents-langgraph"
+
+      # ======================================================================
+      # HITL APPROVAL RATE (Business Metrics)
+      # ======================================================================
+
+      - alert: LowHITLApprovalRate
+        expr: |
+          business:hitl_approval_rate:1h_by_agent < 0.5
+        for: 30m
+        labels:
+          severity: warning
+          component: agent_proposals
+          team: product
+        annotations:
+          summary: "Low HITL approval rate for {{ $labels.agent_type }} ({{ $value | humanizePercentage }})"
+          description: |
+            Agent {{ $labels.agent_type }} has HITL approval rate <50% for 30 minutes.
+            Users are rejecting or editing most proposals, indicating poor quality.
+
+            Current approval rate: {{ $value | humanizePercentage }}
+            Threshold: 50%
+
+            Approval rate = proposals accepted without changes / total HITL interactions.
+
+            Actions:
+            - Review dashboard for rejection/edit patterns
+            - Analyze which tools/actions have low approval
+            - Check if prompts need improvement
+            - Consider making proposals more conservative
+          dashboard: "http://grafana:3000/d/hitl-tool-approval/07-hitl-tool-approval"
+
+      # ======================================================================
+      # TOKEN EFFICIENCY
+      # ======================================================================
+
+      - alert: HighTokenEfficiencyRatio
+        expr: |
+          business:token_efficiency:avg_5m_by_node > 1.5
+        for: 20m
+        labels:
+          severity: warning
+          component: llm_costs
+          team: engineering
+        annotations:
+          summary: "High token efficiency ratio on {{ $labels.node_name }} ({{ $value }})"
+          description: |
+            Node {{ $labels.node_name }} has token efficiency ratio > 1.5 for 20 minutes.
+            This indicates excessive verbosity and potential cost issues.
+
+            Current ratio: {{ $value }} (tokens/message)
+            Threshold: 1.5
+
+            Token efficiency = tokens_used / messages_exchanged.
+            Expected values:
+            - Router: ~0.2 (routing decisions only)
+            - Planner: ~0.5 (planning steps)
+            - Response: ~0.75 (detailed user responses)
+
+            High values indicate:
+            - Overly verbose prompts
+            - Redundant context in messages
+            - LLM generating too much output
+
+            Actions:
+            - Review prompts for unnecessary verbosity
+            - Check if context window is bloated
+            - Analyze token usage logs
+            - Consider prompt optimization
+          dashboard: "http://grafana:3000/d/llm-tokens-cost/05-llm-tokens-cost"
+  # ============================================================================
+  # PHASE 3.3 - CHECKPOINT OBSERVABILITY ALERTS
+  # ============================================================================
+  # Monitors LangGraph checkpoint persistence health:
+  # - Save/load latency (detect PostgreSQL slowdowns)
+  # - Checkpoint size (detect conversation bloat)
+  # - Operation failures (detect reliability issues)
+
+  - name: checkpoint_persistence_alerts
+    interval: 30s
+    rules:
+      # Alert 1: High checkpoint save latency
+      - alert: HighCheckpointSaveLatency
+        expr: |
+          histogram_quantile(0.95, sum(rate(checkpoint_save_duration_seconds_bucket[5m])) by (le)) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          component: checkpoint_persistence
+          team: engineering
+        annotations:
+          summary: "High checkpoint save latency detected (P95: {{ $value }}s)"
+          description: |
+            Checkpoint save P95 latency is >500ms for 5 minutes.
+            This indicates PostgreSQL performance degradation.
+
+            Current P95: {{ $value }}s
+            Threshold: 0.5s (500ms)
+
+            High latency indicates:
+            - PostgreSQL connection pool exhaustion
+            - Database slow queries
+            - Disk I/O bottleneck
+            - Network latency to database
+
+            Actions:
+            - Check PostgreSQL slow query log
+            - Verify connection pool size (current: SQLALCHEMY_POOL_SIZE)
+            - Monitor disk I/O usage
+            - Review checkpoint table indexes
+          dashboard: "http://grafana:3000/d/checkpoint-observability/15-checkpoint-observability"
+
+      # Alert 2: High checkpoint load latency
+      - alert: HighCheckpointLoadLatency
+        expr: |
+          histogram_quantile(0.95, sum(rate(checkpoint_load_duration_seconds_bucket[5m])) by (le)) > 0.25
+        for: 5m
+        labels:
+          severity: warning
+          component: checkpoint_persistence
+          team: engineering
+        annotations:
+          summary: "High checkpoint load latency detected (P95: {{ $value }}s)"
+          description: |
+            Checkpoint load P95 latency is >250ms for 5 minutes.
+            This impacts conversation resumption UX.
+
+            Current P95: {{ $value }}s
+            Threshold: 0.25s (250ms)
+
+            High load latency indicates:
+            - PostgreSQL query inefficiency
+            - Missing indexes on checkpoint tables
+            - Database lock contention
+            - Large checkpoint deserialization overhead
+
+            Actions:
+            - Analyze checkpoint query execution plan
+            - Verify indexes exist on (thread_id, checkpoint_id)
+            - Monitor PostgreSQL lock waits
+            - Review checkpoint size trends
+          dashboard: "http://grafana:3000/d/checkpoint-observability/15-checkpoint-observability"
+
+      # Alert 3: Large checkpoint size
+      - alert: LargeCheckpointSize
+        expr: |
+          histogram_quantile(0.95, sum(rate(checkpoint_size_bytes_bucket[5m])) by (le)) > 500000.0
+        for: 10m
+        labels:
+          severity: warning
+          component: checkpoint_persistence
+          team: product
+        annotations:
+          summary: "Large checkpoint payloads detected (P95: {{ $value | humanize }}B)"
+          description: |
+            Checkpoint P95 size is >500KB for 10 minutes.
+            This indicates conversation state bloat.
+
+            Current P95: {{ $value | humanize }}B
+            Threshold: 500KB
+
+            Large checkpoints cause:
+            - Slow save/load operations
+            - Increased database storage costs
+            - Network bandwidth consumption
+            - Memory pressure on API servers
+
+            Common causes:
+            - Long conversation history (>100 messages)
+            - Large tool outputs stored in state
+            - Redundant context accumulation
+            - Memory leaks in state management
+
+            Actions:
+            - Review message history pruning settings
+            - Check tool output sizes
+            - Analyze checkpoint content for duplicates
+            - Consider implementing state compression
+          dashboard: "http://grafana:3000/d/checkpoint-observability/15-checkpoint-observability"
+
+      # Alert 4: Checkpoint save failures
+      - alert: CheckpointSaveFailures
+        expr: |
+          100 * (sum(rate(checkpoint_operations_total{operation="save",status="error"}[5m])) /
+          sum(rate(checkpoint_operations_total{operation="save"}[5m]))) > 5.0
+        for: 3m
+        labels:
+          severity: critical
+          component: checkpoint_persistence
+          team: engineering
+          pagerduty: "true"
+        annotations:
+          summary: "Critical: Checkpoint save failure rate > 5.0% ({{ $value | humanizePercentage }})"
+          description: |
+            Checkpoint save error rate is > 5.0% for 3 minutes.
+            This is a CRITICAL issue affecting conversation persistence.
+
+            Current error rate: {{ $value | humanizePercentage }}
+            Threshold: 5%
+
+            Checkpoint save failures cause:
+            - Loss of conversation state
+            - Users unable to continue conversations
+            - Data integrity issues
+
+            Common causes (check checkpoint_errors_total):
+            - db_connection: PostgreSQL connection failures
+            - serialization: Unpicklable objects in state
+            - timeout: Database operation timeouts
+            - permission: Database permission issues
+
+            IMMEDIATE ACTIONS:
+            1. Check PostgreSQL health and connectivity
+            2. Review checkpoint_errors_total by error_type
+            3. Check API logs for detailed stack traces
+            4. Verify database connection pool availability
+            5. If serialization errors: review recent code changes
+
+            Dashboard: http://grafana:3000/d/checkpoint-observability/15-checkpoint-observability
+            Logs: kubectl logs -l app=api --tail=100 | grep checkpoint_save_failed
+          runbook: "https://github.com/YOUR_ORG/runbooks/blob/main/checkpoint_save_failures.md"

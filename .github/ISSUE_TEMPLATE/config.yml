@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions & Discussions
+    url: https://github.com/jgouviergmail/LIA-Assistant/discussions
+    about: Ask questions and discuss ideas with the community
+  - name: Security Vulnerability
+    url: https://github.com/jgouviergmail/LIA-Assistant/security/advisories/new
+    about: Report a security vulnerability (do NOT open a public issue)

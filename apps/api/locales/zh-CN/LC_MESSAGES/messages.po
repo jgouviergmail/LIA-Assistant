@@ -1,0 +1,453 @@
+# Simplified Chinese (zh-CN) translations for LIA API
+# Copyright (C) 2025
+# This file is distributed under the same license as LIA
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: LIA API 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-11-07 00:00+0200\n"
+"PO-Revision-Date: 2025-11-07 00:00+0200\n"
+"Last-Translator: Claude Code <noreply@anthropic.com>\n"
+"Language: zh-CN\n"
+"Language-Team: Simplified Chinese\n"
+"Plural-Forms: nplurals=1; plural=0\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+# Authentication errors
+msgid "Invalid credentials"
+msgstr "凭据无效"
+
+msgid "Account inactive"
+msgstr "账户未激活"
+
+msgid "Email already registered"
+msgstr "电子邮件已注册"
+
+msgid "Invalid token"
+msgstr "令牌无效"
+
+msgid "Token expired"
+msgstr "令牌已过期"
+
+msgid "Unauthorized"
+msgstr "未经授权"
+
+msgid "Access denied"
+msgstr "访问被拒绝"
+
+# Validation errors
+msgid "Invalid email format"
+msgstr "电子邮件格式无效"
+
+msgid "Password too short"
+msgstr "密码太短"
+
+msgid "Password must contain at least 8 characters"
+msgstr "密码必须至少包含8个字符"
+
+msgid "Passwords do not match"
+msgstr "密码不匹配"
+
+msgid "Email is required"
+msgstr "电子邮件是必需的"
+
+msgid "Password is required"
+msgstr "密码是必需的"
+
+msgid "Full name is required"
+msgstr "全名是必需的"
+
+# User errors
+msgid "User not found"
+msgstr "未找到用户"
+
+msgid "User already exists"
+msgstr "用户已存在"
+
+msgid "Cannot delete yourself"
+msgstr "您不能删除自己"
+
+# Connector errors
+msgid "Connector not found"
+msgstr "未找到连接器"
+
+msgid "Connector already enabled"
+msgstr "连接器已启用"
+
+msgid "Connector disabled"
+msgstr "连接器已禁用"
+
+msgid "OAuth flow failed"
+msgstr "OAuth认证失败"
+
+msgid "Please enable Google Contacts connector first"
+msgstr "请先启用Google通讯录连接器"
+
+# Generic errors
+msgid "Internal server error"
+msgstr "内部服务器错误"
+
+msgid "Not found"
+msgstr "未找到"
+
+msgid "Bad request"
+msgstr "请求无效"
+
+msgid "Forbidden"
+msgstr "禁止访问"
+
+msgid "Service unavailable"
+msgstr "服务不可用"
+
+# Success messages
+msgid "Login successful"
+msgstr "登录成功"
+
+msgid "Registration successful"
+msgstr "注册成功"
+
+msgid "Settings saved"
+msgstr "设置已保存"
+
+msgid "Connector enabled"
+msgstr "连接器已启用"
+
+msgid "Connector disabled successfully"
+msgstr "连接器已成功禁用"
+
+# Status messages
+msgid "Active"
+msgstr "活动"
+
+msgid "Inactive"
+msgstr "不活动"
+
+msgid "Online"
+msgstr "在线"
+
+msgid "Offline"
+msgstr "离线"
+
+msgid "Connected"
+msgstr "已连接"
+
+msgid "Disconnected"
+msgstr "已断开连接"
+
+# LLM Pricing messages
+msgid "Pricing updated successfully"
+msgstr "定价更新成功"
+
+msgid "Model pricing not found"
+msgstr "未找到模型定价"
+
+msgid "Invalid pricing data"
+msgstr "定价数据无效"
+
+msgid "Currency rate not found"
+msgstr "未找到汇率"
+
+# User activation/deactivation emails
+msgid "Failed to send deactivation email notification"
+msgstr "发送停用电子邮件通知失败"
+
+msgid "Failed to send activation email notification"
+msgstr "发送激活电子邮件通知失败"
+
+msgid "Your LIA account has been deactivated"
+msgstr "您的LIA账户已被停用"
+
+msgid "Account deactivated"
+msgstr "账户已停用"
+
+msgid "We inform you that your LIA account has been deactivated by an administrator."
+msgstr "我们通知您，您的LIA账户已被管理员停用。"
+
+msgid "You can no longer access the application."
+msgstr "您无法再访问该应用程序。"
+
+msgid "If you think this is an error, please contact the administrator."
+msgstr "如果您认为这是一个错误，请联系管理员。"
+
+msgid "Your LIA account has been reactivated"
+msgstr "您的LIA账户已被重新激活"
+
+msgid "Account reactivated"
+msgstr "账户已重新激活"
+
+msgid "We inform you that your LIA account has been reactivated."
+msgstr "我们通知您，您的LIA账户已被重新激活。"
+
+msgid "You can now access the application again."
+msgstr "您现在可以再次访问该应用程序。"
+
+msgid "Log in"
+msgstr "登录"
+
+msgid "Login link"
+msgstr "登录链接"
+
+msgid "Hello"
+msgstr "您好"
+
+msgid "Reason"
+msgstr "原因"
+
+msgid "This is an automated email, please do not reply."
+msgstr "这是一封自动发送的电子邮件，请勿回复。"
+
+# User pending activation email
+msgid "Your LIA account is pending activation"
+msgstr "您的LIA账户正在等待激活"
+
+msgid "Account pending activation"
+msgstr "账户等待激活"
+
+msgid "Welcome to LIA! Your account has been created successfully."
+msgstr "欢迎使用LIA！您的账户已成功创建。"
+
+msgid "Your account is currently pending activation by an administrator."
+msgstr "您的账户目前正在等待管理员激活。"
+
+msgid "You will receive an email once your account has been activated."
+msgstr "一旦您的账户被激活，您将收到一封电子邮件。"
+
+msgid "Thank you for your patience."
+msgstr "感谢您的耐心等待。"
+
+# Semantic Architecture - Context & Memory
+msgid "No previous conversation."
+msgstr "没有之前的对话。"
+
+msgid "No relevant memories."
+msgstr "没有相关记忆。"
+
+msgid "Error retrieving memories."
+msgstr "检索记忆时出错。"
+
+msgid "No memories available."
+msgstr "没有可用的记忆。"
+
+# Semantic Architecture - Tool Selection
+msgid "No tools available."
+msgstr "没有可用的工具。"
+
+msgid "Parameters:"
+msgstr "参数："
+
+msgid "(required)"
+msgstr "（必填）"
+
+msgid "(optional)"
+msgstr "（可选）"
+
+msgid "Internal error: registry not available."
+msgstr "内部错误：注册表不可用。"
+
+# Semantic Architecture - Agent Execution
+msgid "I've reached the action limit. Here's what I was able to accomplish."
+msgstr "我已达到操作限制。以下是我完成的内容。"
+
+msgid "I'm sorry, an error occurred. Please try again."
+msgstr "抱歉，发生了错误。请重试。"
+
+# Semantic Architecture - HITL Gate
+msgid "The action '{tool_name}' requires your approval. Do you want to continue?"
+msgstr "操作 '{tool_name}' 需要您的批准。是否继续？"
+
+msgid "The following actions require your approval: {tool_names}. Do you want to continue?"
+msgstr "以下操作需要您的批准：{tool_names}。是否继续？"
+
+msgid "Action cancelled: {reason}"
+msgstr "操作已取消：{reason}"
+
+msgid "Action cancelled by user."
+msgstr "用户已取消操作。"
+
+# ============================================================================
+# Context Tools (Phase 5 i18n - 2025-12-22)
+# ============================================================================
+
+msgid "No active domain. Please perform a search first."
+msgstr "没有活动域。请先执行搜索。"
+
+msgid "Domain '{domain}' not registered. Available domains: {available}"
+msgstr "域 '{domain}' 未注册。可用域：{available}"
+
+msgid "none"
+msgstr "无"
+
+msgid "No active '{domain}' list in memory. Please perform a search first to create a context."
+msgstr "内存中没有活动的 '{domain}' 列表。请先执行搜索以创建上下文。"
+
+msgid "Error retrieving domains: {error}"
+msgstr "检索域时出错：{error}"
+
+msgid "Item {index} marked as current in {domain}."
+msgstr "在 {domain} 中将项目 {index} 标记为当前项。"
+
+msgid "No active context for domain '{domain}'."
+msgstr "域 '{domain}' 没有活动上下文。"
+
+msgid "List truncated to {limit} items ({available} available)"
+msgstr "列表已截断为 {limit} 项（共有 {available} 项可用）"
+
+msgid "Error retrieving list: {error}"
+msgstr "检索列表时出错：{error}"
+
+# ============================================================================
+# Wikipedia Tools (Phase 5 i18n - 2025-12-22)
+# ============================================================================
+
+msgid "No article found for '{query}' on Wikipedia ({language})"
+msgstr "在维基百科 ({language}) 上未找到 '{query}' 的文章"
+
+msgid "Wikipedia search for '{query}' ({language}): {count} results"
+msgstr "维基百科搜索 '{query}' ({language})：{count} 个结果"
+
+msgid "Error during Wikipedia search: {error}"
+msgstr "维基百科搜索时出错：{error}"
+
+msgid "Article '{title}' not found on Wikipedia ({language})"
+msgstr "在维基百科 ({language}) 上未找到文章 '{title}'"
+
+msgid "Wikipedia summary: {title}"
+msgstr "维基百科摘要：{title}"
+
+msgid "Error retrieving summary: {error}"
+msgstr "检索摘要时出错：{error}"
+
+msgid "content truncated"
+msgstr "内容已截断"
+
+msgid "Wikipedia article: {title}"
+msgstr "维基百科文章：{title}"
+
+msgid "Sections"
+msgstr "章节"
+
+msgid "and {count} more sections"
+msgstr "还有 {count} 个章节"
+
+msgid "Content"
+msgstr "内容"
+
+msgid "{count} additional characters in registry"
+msgstr "注册表中还有 {count} 个字符"
+
+msgid "Error retrieving article: {error}"
+msgstr "检索文章时出错：{error}"
+
+msgid "No related article found for '{title}'"
+msgstr "未找到与 '{title}' 相关的文章"
+
+msgid "Articles related to '{title}' ({language}): {count} results"
+msgstr "与 '{title}' 相关的文章 ({language})：{count} 个结果"
+
+msgid "Error retrieving related articles: {error}"
+msgstr "检索相关文章时出错：{error}"
+
+# ============================================================================
+# Weather Tools (Phase 5 i18n - 2025-12-22)
+# ============================================================================
+
+msgid "Current location"
+msgstr "当前位置"
+
+msgid "Please specify a city or enable geolocation."
+msgstr "请指定城市或启用地理位置。"
+
+msgid "Unable to find location: {location}"
+msgstr "无法找到位置：{location}"
+
+# ============================================================================
+# Adaptive Replanner (Phase 5 i18n - 2025-12-22)
+# ============================================================================
+
+msgid "I couldn't find any results matching your request. Could you clarify or rephrase?"
+msgstr "我找不到与您请求匹配的结果。您能澄清或重新表述吗？"
+
+msgid "Sorry, some operations failed after multiple attempts: {operations}"
+msgstr "抱歉，多次尝试后某些操作仍失败：{operations}"
+
+msgid "The required data could not be found. Could you clarify your request?"
+msgstr "未能找到所需数据。您能澄清您的请求吗？"
+
+msgid "A dependency error occurred between steps."
+msgstr "步骤之间发生了依赖错误。"
+
+msgid "The operation is taking too long. Try a more specific request."
+msgstr "操作耗时过长。请尝试更具体的请求。"
+
+msgid "Unable to execute this request after multiple attempts. Errors: {errors}"
+msgstr "多次尝试后仍无法执行此请求。错误：{errors}"
+
+msgid "Unable to execute this request after multiple attempts."
+msgstr "多次尝试后仍无法执行此请求。"
+
+# ============================================================================
+# Response Node - Gmail Labels (Phase 5 i18n - 2025-12-22)
+# ============================================================================
+
+msgid "Inbox"
+msgstr "收件箱"
+
+msgid "Sent"
+msgstr "已发送"
+
+msgid "Drafts"
+msgstr "草稿"
+
+msgid "Trash"
+msgstr "垃圾箱"
+
+msgid "Spam"
+msgstr "垃圾邮件"
+
+msgid "Unread"
+msgstr "未读"
+
+msgid "Starred"
+msgstr "已加星标"
+
+msgid "Important"
+msgstr "重要"
+
+msgid "Personal"
+msgstr "个人"
+
+msgid "Social"
+msgstr "社交"
+
+msgid "Promotions"
+msgstr "促销"
+
+msgid "Updates"
+msgstr "更新"
+
+msgid "Forums"
+msgstr "论坛"
+
+msgid "Chat"
+msgstr "聊天"
+
+# ============================================================================
+# Response Node - Draft Execution (Phase 5 i18n - 2025-12-22)
+# ============================================================================
+
+msgid "Error during execution: {error}"
+msgstr "执行时出错：{error}"
+
+msgid "Link"
+msgstr "链接"
+
+msgid "Error"
+msgstr "错误"
+
+# Broadcast notifications
+msgid "Important message"
+msgstr "重要消息"
+

@@ -1,0 +1,234 @@
+groups:
+  - name: hitl_cache_alerts
+    interval: 1m
+    rules:
+      # Alert when HITL cache error rate is too high
+      - alert: HITLCacheErrorRateHigh
+        expr: |
+          sum(rate(llm_cache_errors_total{func_name=~".*hitl.*"}[5m]))
+          /
+          sum(rate(llm_cache_misses_total{func_name=~".*hitl.*"}[5m]))
+          > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          component: hitl_cache
+          team: backend
+        annotations:
+          summary: "HITL LLM cache error rate is above 5%"
+          description: |
+            {{ $value | humanizePercentage }} of HITL cache operations are failing.
+            This may indicate:
+            - Redis connection issues
+            - Serialization/deserialization errors
+            - Cache key generation problems
+
+            Check logs for 'llm_cache_error' entries.
+            Affected functions: {{ $labels.func_name }}
+          runbook_url: "https://docs.lia.ai/runbooks/hitl-cache-errors"
+
+      # Alert when HITL cache hit rate is unexpectedly low
+      - alert: HITLCacheHitRateLow
+        expr: |
+          sum(rate(llm_cache_hits_total{func_name=~".*hitl.*"}[1h]))
+          /
+          (sum(rate(llm_cache_hits_total{func_name=~".*hitl.*"}[1h]))
+           + sum(rate(llm_cache_misses_total{func_name=~".*hitl.*"}[1h])))
+          < 0.10
+        for: 1h
+        labels:
+          severity: info
+          component: hitl_cache
+          team: backend
+        annotations:
+          summary: "HITL cache hit rate is below 10% for 1 hour"
+          description: |
+            Current hit rate: {{ $value | humanizePercentage }}
+            Expected: >20% for typical usage patterns
+
+            Possible causes:
+            - High variability in HITL inputs (expected for diverse user queries)
+            - Cache TTL too short (current: 300s)
+            - Cache being frequently cleared/invalidated
+            - New deployment causing cache warming period
+
+            Monitor for 24h before investigating. Low hit rate is not critical,
+            but may indicate opportunity for TTL tuning.
+          runbook_url: "https://docs.lia.ai/runbooks/hitl-cache-hit-rate"
+
+      # Alert when HITL cache is completely unavailable
+      - alert: HITLCacheUnavailable
+        expr: |
+          absent(llm_cache_hits_total{func_name=~".*hitl.*"})
+          and
+          absent(llm_cache_misses_total{func_name=~".*hitl.*"})
+        for: 10m
+        labels:
+          severity: critical
+          component: hitl_cache
+          team: backend
+        annotations:
+          summary: "HITL cache metrics are completely absent"
+          description: |
+            No HITL cache metrics have been recorded for 10 minutes.
+            This indicates either:
+            - No HITL requests in last 10 minutes (normal during low traffic)
+            - Cache decorator not being executed (code issue)
+            - Prometheus scraping issue
+
+            Check:
+            1. Are there any HITL requests in logs?
+            2. Is Prometheus scraping the API successfully?
+            3. Are cache decorators applied correctly to HITL functions?
+          runbook_url: "https://docs.lia.ai/runbooks/hitl-cache-unavailable"
+
+      # Alert when HITL classifier latency is consistently high (cache not helping)
+      - alert: HITLClassifierLatencyHigh
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(hitl_classification_duration_seconds_bucket{method="llm"}[5m])) by (le)
+          ) > 0.5
+        for: 15m
+        labels:
+          severity: warning
+          component: hitl_classifier
+          team: backend
+        annotations:
+          summary: "HITL classifier P95 latency above 500ms for 15 minutes"
+          description: |
+            Current P95 latency: {{ $value | humanizeDuration }}
+            Expected: <300ms (with 30% cache hit rate)
+
+            Possible causes:
+            - Cache hit rate very low (check HITLCacheHitRateLow alert)
+            - LLM API experiencing high latency (check external dependencies)
+            - Network issues between API and LLM provider
+
+            Impact: Slower HITL response times for users
+          runbook_url: "https://docs.lia.ai/runbooks/hitl-classifier-latency"
+
+  # ============================================================================
+  # HITL Streaming Alerts (Phase 5 - TTFT Optimization)
+  # ============================================================================
+  - name: hitl_streaming_alerts
+    interval: 1m
+    rules:
+      # Alert when HITL question TTFT is too high (defeats streaming purpose)
+      - alert: HITLQuestionTTFTHigh
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(hitl_question_ttft_seconds_bucket[5m])) by (le)
+          ) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+          component: hitl_streaming
+          team: backend
+        annotations:
+          summary: "HITL question TTFT P95 above 500ms for 10 minutes"
+          description: |
+            Current P95 TTFT: {{ $value | humanizeDuration }}
+            Expected: <300ms (streaming optimization target)
+
+            TTFT (Time To First Token) measures perceived latency - the time
+            until the user sees the first character of the HITL question.
+
+            Possible causes:
+            - LLM provider latency increased (check provider status)
+            - Network latency between API and LLM provider
+            - Cold start issues (rarely called endpoints)
+            - Provider rate limiting or throttling
+
+            Impact: Poor user experience despite streaming (feels sluggish)
+
+            Action:
+            1. Check LLM provider status dashboard
+            2. Review hitl_question_generation_duration_seconds (total vs TTFT)
+            3. Consider switching to faster model for question generation
+          runbook_url: "https://docs.lia.ai/runbooks/hitl-streaming-ttft"
+
+      # Alert when HITL streaming total duration is too high
+      - alert: HITLQuestionGenerationSlow
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(hitl_question_generation_duration_seconds_bucket[5m])) by (le)
+          ) > 4.0
+        for: 15m
+        labels:
+          severity: warning
+          component: hitl_streaming
+          team: backend
+        annotations:
+          summary: "HITL question generation P95 above 4s for 15 minutes"
+          description: |
+            Current P95 duration: {{ $value | humanizeDuration }}
+            Expected: 2-4s total generation time
+
+            This measures the TOTAL duration of streaming question generation,
+            from first token to completion.
+
+            Note: High total duration is less critical than high TTFT, as
+            streaming provides progressive rendering. However, consistently
+            high duration may indicate:
+            - Questions are too long (review prompt)
+            - Model is too slow (consider gpt-4.1-mini-mini instead of gpt-4)
+            - Provider throttling
+
+            Impact: Delayed HITL workflow completion
+          runbook_url: "https://docs.lia.ai/runbooks/hitl-streaming-duration"
+
+      # Alert when token generation rate is too slow
+      - alert: HITLQuestionTokenRateLow
+        expr: |
+          histogram_quantile(0.50,
+            sum(rate(hitl_question_tokens_per_second_bucket[5m])) by (le)
+          ) < 10
+        for: 15m
+        labels:
+          severity: info
+          component: hitl_streaming
+          team: backend
+        annotations:
+          summary: "HITL question token generation rate below 10 tokens/sec"
+          description: |
+            Current P50 token rate: {{ $value | humanize }} tokens/sec
+            Expected: >20 tokens/sec for good streaming experience
+
+            Low token generation rate causes choppy, slow streaming that
+            negates the benefits of progressive rendering.
+
+            Possible causes:
+            - Provider API throttling
+            - Network congestion
+            - Underpowered model selected
+            - Provider infrastructure issues
+
+            Impact: Streaming feels sluggish despite working correctly
+          runbook_url: "https://docs.lia.ai/runbooks/hitl-streaming-token-rate"
+
+      # Alert when HITL streaming metrics are absent (feature not being used)
+      - alert: HITLStreamingMetricsAbsent
+        expr: |
+          absent(hitl_question_ttft_seconds_bucket)
+        for: 30m
+        labels:
+          severity: info
+          component: hitl_streaming
+          team: backend
+        annotations:
+          summary: "HITL streaming metrics absent for 30 minutes"
+          description: |
+            No HITL question streaming metrics recorded for 30 minutes.
+
+            This is normal if:
+            - No HITL workflows triggered in last 30 minutes (low traffic period)
+            - HITL is disabled in configuration
+            - No tool executions requiring approval
+
+            Check if unexpected:
+            1. Are HITL workflows being triggered? (check hitl_interrupt_total)
+            2. Is streaming enabled in question_generator.py?
+            3. Are there any errors in question generation? (check logs)
+
+            Impact: None if expected (low traffic), monitoring gap if unexpected
+          runbook_url: "https://docs.lia.ai/runbooks/hitl-streaming-metrics-absent"

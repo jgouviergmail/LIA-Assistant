@@ -1,0 +1,337 @@
+Analyzing D:\Developpement\LIA\infrastructure\observability\prometheus\alerts.yml...
+
+================================================================================
+ALERTS.YML THRESHOLD ANALYSIS REPORT
+================================================================================
+
+Total alerts: 54
+Alerts with thresholds: 50
+Total hardcoded thresholds: 50
+
+Thresholds by Severity:
+  CRITICAL       :  18 alerts
+  INFO           :   3 alerts
+  WARNING        :  29 alerts
+
+Thresholds by Component:
+  agents         :   5 thresholds
+  api            :   4 thresholds
+  auth           :   6 thresholds
+  compute        :   1 thresholds
+  container      :   2 thresholds
+  conversations  :   5 thresholds
+  cost           :   3 thresholds
+  llm            :   3 thresholds
+  memory         :   1 thresholds
+  postgresql     :   3 thresholds
+  redis          :  13 thresholds
+  storage        :   2 thresholds
+  tokens         :   2 thresholds
+
+================================================================================
+DETAILED THRESHOLD LISTING
+================================================================================
+
+1. Alert: HighErrorRate
+   Component: api | Severity: critical
+   Threshold: > 20.0 (percent)
+   Env Var: ALERT_API_ERROR_RATE_CRITICAL_PERCENT
+   Summary: Taux d'erreur élevé sur {{ $labels.service }}
+
+2. Alert: HighLatencyP95
+   Component: api | Severity: warning
+   Threshold: > 5.0 (seconds)
+   Env Var: ALERT_API_LATENCY_P95_WARNING_SECONDS
+   Summary: Latence P95 élevée sur {{ $labels.service }}
+
+3. Alert: CriticalLatencyP99
+   Component: api | Severity: critical
+   Threshold: > 10.0 (seconds)
+   Env Var: ALERT_API_LATENCY_P99_CRITICAL_SECONDS
+   Summary: Latence P99 critique sur {{ $labels.service }}
+
+4. Alert: HighRequestQueueing
+   Component: api | Severity: warning
+   Threshold: > 5000.0 (rate)
+   Env Var: ALERT_API_HIGH_REQUEST_QUEUEING_WARNING
+   Summary: Charge élevée sur {{ $labels.service }}
+
+5. Alert: HighDatabaseConnections
+   Component: postgresql | Severity: warning
+   Threshold: > 95.0 (percent)
+   Env Var: ALERT_POSTGRESQL_CONNECTIONS_WARNING_PERCENT
+   Summary: Utilisation élevée des connexions PostgreSQL
+
+6. Alert: CriticalDatabaseConnections
+   Component: postgresql | Severity: critical
+   Threshold: > 98.0 (percent)
+   Env Var: ALERT_POSTGRESQL_CONNECTIONS_CRITICAL_PERCENT
+   Summary: Utilisation critique des connexions PostgreSQL
+
+7. Alert: SlowQueries
+   Component: postgresql | Severity: warning
+   Threshold: > 500000.0 (rate)
+   Env Var: ALERT_POSTGRESQL_SLOW_QUERIES_WARNING
+   Summary: Requêtes PostgreSQL lentes détectées
+
+8. Alert: DiskSpaceHigh
+   Component: storage | Severity: warning
+   Threshold: > 95.0 (percent)
+   Env Var: ALERT_STORAGE_DISK_WARNING_PERCENT
+   Summary: Espace disque faible sur {{ $labels.mountpoint }}
+
+9. Alert: DiskSpaceCritical
+   Component: storage | Severity: critical
+   Threshold: > 98.0 (percent)
+   Env Var: ALERT_STORAGE_DISK_CRITICAL_PERCENT
+   Summary: Espace disque critique sur {{ $labels.mountpoint }}
+
+10. Alert: HighCPUUsage
+   Component: compute | Severity: warning
+   Threshold: > 95.0 (percent)
+   Env Var: ALERT_COMPUTE_CPU_WARNING_PERCENT
+   Summary: Utilisation CPU élevée sur {{ $labels.instance }}
+
+11. Alert: HighMemoryUsage
+   Component: memory | Severity: warning
+   Threshold: > 95.0 (percent)
+   Env Var: ALERT_MEMORY_MEMORY_WARNING_PERCENT
+   Summary: Utilisation mémoire élevée sur {{ $labels.instance }}
+
+12. Alert: ContainerDown
+   Component: container | Severity: critical
+   Threshold: > 300.0 ()
+   Env Var: ALERT_CONTAINER_CONTAINER_DOWN_CRITICAL
+   Summary: Container {{ $labels.name }} est down
+
+13. Alert: ContainerRestartingFrequently
+   Component: container | Severity: warning
+   Threshold: > 1.0 (seconds)
+   Env Var: ALERT_CONTAINER_CONTAINER_RESTARTING_FREQUENTLY_WARNING_SECONDS
+   Summary: Container {{ $labels.name }} redémarre fréquemment
+
+14. Alert: RedisMemoryHigh
+   Component: redis | Severity: warning
+   Threshold: > 95.0 (percent)
+   Env Var: ALERT_REDIS_MEMORY_WARNING_PERCENT
+   Summary: Utilisation mémoire Redis élevée
+
+15. Alert: RedisConnectionsHigh
+   Component: redis | Severity: warning
+   Threshold: > 500.0 ()
+   Env Var: ALERT_REDIS_CONNECTIONS_WARNING
+   Summary: Nombre de connexions Redis élevé
+
+16. Alert: RedisRateLimitHighHitRate
+   Component: redis | Severity: critical
+   Threshold: > 50.0 (percent)
+   Env Var: ALERT_REDIS_REDIS_RATE_LIMIT_HIGH_HIT_RATE_CRITICAL_PERCENT
+   Summary: Rate limit hit rate critique pour {{ $labels.key_prefix }}
+
+17. Alert: RedisRateLimitModerateHitRate
+   Component: redis | Severity: warning
+   Threshold: > 30.0 (percent)
+   Env Var: ALERT_REDIS_REDIS_RATE_LIMIT_MODERATE_HIT_RATE_WARNING_PERCENT
+   Summary: Rate limit hit rate élevé pour {{ $labels.key_prefix }}
+
+18. Alert: RedisRateLimitCheckLatencyHigh
+   Component: redis | Severity: critical
+   Threshold: > 50.0 (seconds)
+   Env Var: ALERT_REDIS_LATENCY_CRITICAL_SECONDS
+   Summary: Latence rate limit check critique pour {{ $labels.key_prefix }}
+
+19. Alert: RedisRateLimitCheckLatencyDegraded
+   Component: redis | Severity: warning
+   Threshold: > 10.0 (seconds)
+   Env Var: ALERT_REDIS_LATENCY_WARNING_SECONDS
+   Summary: Latence rate limit check dégradée pour {{ $labels.key_prefix }}
+
+20. Alert: RedisConnectionPoolExhaustion
+   Component: redis | Severity: critical
+   Threshold: > 95.0 ()
+   Env Var: ALERT_REDIS_REDIS_CONNECTION_POOL_EXHAUSTION_CRITICAL
+   Summary: Pool de connexions Redis saturé
+
+21. Alert: RedisConnectionPoolHighUtilization
+   Component: redis | Severity: warning
+   Threshold: > 80.0 ()
+   Env Var: ALERT_REDIS_REDIS_CONNECTION_POOL_HIGH_UTILIZATION_WARNING
+   Summary: Pool de connexions Redis fortement utilisé
+
+22. Alert: RedisRateLimitErrorsHigh
+   Component: redis | Severity: critical
+   Threshold: > 10.0 (rate)
+   Env Var: ALERT_REDIS_REDIS_RATE_LIMIT_ERRORS_HIGH_CRITICAL
+   Summary: Erreurs Redis rate limiting élevées: {{ $labels.error_type }}
+
+23. Alert: RedisRateLimitErrorsDetected
+   Component: redis | Severity: warning
+   Threshold: > 1.0 (rate)
+   Env Var: ALERT_REDIS_REDIS_RATE_LIMIT_ERRORS_DETECTED_WARNING
+   Summary: Erreurs Redis rate limiting détectées: {{ $labels.error_type }}
+
+24. Alert: RedisLuaScriptFailureRateHigh
+   Component: redis | Severity: critical
+   Threshold: > 5.0 (percent)
+   Env Var: ALERT_REDIS_REDIS_LUA_SCRIPT_FAILURE_RATE_HIGH_CRITICAL_PERCENT
+   Summary: Taux d'échec Lua script élevé
+
+25. Alert: RedisSlidingWindowSizeAbnormal
+   Component: redis | Severity: warning
+   Threshold: > 1000.0 ()
+   Env Var: ALERT_REDIS_REDIS_SLIDING_WINDOW_SIZE_ABNORMAL_WARNING
+   Summary: Taille sliding window anormalement élevée pour {{ $labels.key_prefix }}
+
+26. Alert: RedisRateLimitFrequentlyTriggered
+   Component: redis | Severity: info
+   Threshold: > 100.0 (rate)
+   Env Var: ALERT_REDIS_REDIS_RATE_LIMIT_FREQUENTLY_TRIGGERED_INFO
+   Summary: Rate limit fréquemment déclenché pour {{ $labels.key_prefix }}
+
+27. Alert: AgentsTTFTViolation
+   Component: agents | Severity: warning
+   Threshold: > 5000.0 (percent)
+   Env Var: ALERT_AGENTS_TTFT_P95_WARNING_PERCENT
+   Summary: SLA TTFT violé pour intention {{ $labels.intention }}
+
+28. Alert: AgentsTokensPerSecondLow
+   Component: agents | Severity: warning
+   Threshold: < 5.0 (seconds)
+   Env Var: ALERT_AGENTS_TOKEN_RATE_WARNING_SECONDS
+   Summary: SLA Tokens/sec violé pour intention {{ $labels.intention }}
+
+29. Alert: AgentsRouterLatencyHigh
+   Component: agents | Severity: critical
+   Threshold: > 3000.0 (percent)
+   Env Var: ALERT_AGENTS_LATENCY_CRITICAL_PERCENT
+   Summary: Latence router critique
+
+30. Alert: AgentsStreamingErrorRateHigh
+   Component: agents | Severity: critical
+   Threshold: > 25.0 (percent)
+   Env Var: ALERT_AGENTS_ERROR_RATE_CRITICAL_PERCENT
+   Summary: Taux d'erreur streaming élevé
+
+31. Alert: AgentsRouterLowConfidenceHigh
+   Component: agents | Severity: warning
+   Threshold: > 40.0 (percent)
+   Env Var: ALERT_AGENTS_AGENTS_ROUTER_LOW_CONFIDENCE_HIGH_WARNING_PERCENT
+   Summary: Taux de décisions router low confidence élevé
+
+32. Alert: CheckpointSaveSlowCritical
+   Component: conversations | Severity: critical
+   Threshold: > 10.0 (seconds)
+   Env Var: ALERT_CONVERSATIONS_CHECKPOINT_SAVE_SLOW_CRITICAL_CRITICAL_SECONDS
+   Summary: Checkpoint save p99 exceeds 2s
+
+33. Alert: CheckpointSaveSlowWarning
+   Component: conversations | Severity: warning
+   Threshold: > 5.0 (seconds)
+   Env Var: ALERT_CONVERSATIONS_CHECKPOINT_SAVE_SLOW_WARNING_WARNING_SECONDS
+   Summary: Checkpoint save p99 exceeds 1s
+
+34. Alert: HighConversationResetRate
+   Component: conversations | Severity: warning
+   Threshold: > 10.0 (rate)
+   Env Var: ALERT_CONVERSATIONS_HIGH_CONVERSATION_RESET_RATE_WARNING
+   Summary: High conversation reset rate detected
+
+35. Alert: CheckpointSizeGrowing
+   Component: conversations | Severity: info
+   Threshold: > 200000.0 (bytes)
+   Env Var: ALERT_CONVERSATIONS_CHECKPOINT_SIZE_GROWING_INFO_BYTES
+   Summary: Large checkpoint sizes detected
+
+36. Alert: ConversationCreationStalled
+   Component: conversations | Severity: warning
+   Threshold: > 1.0 (rate)
+   Env Var: ALERT_CONVERSATIONS_CONVERSATION_CREATION_STALLED_WARNING
+   Summary: Conversation creation stalled
+
+37. Alert: LLMAPIFailureRateHigh
+   Component: llm | Severity: critical
+   Threshold: > 0.3 (rate)
+   Env Var: ALERT_LLM_L_L_M_A_P_I_FAILURE_RATE_HIGH_CRITICAL
+   Summary: LLM API failure rate > 5%
+
+38. Alert: LLMAPISuccessRateLow
+   Component: llm | Severity: warning
+   Threshold: < 0.7 (rate)
+   Env Var: ALERT_LLM_L_L_M_A_P_I_SUCCESS_RATE_LOW_WARNING
+   Summary: LLM API success rate < 95%
+
+39. Alert: DailyCostBudgetExceeded
+   Component: cost | Severity: critical
+   Threshold: > 5.0 ()
+   Env Var: ALERT_COST_DAILY_BUDGET_CRITICAL_EUR
+   Summary: Daily LLM cost budget exceeded
+
+40. Alert: HourlyCostTrendingHigh
+   Component: cost | Severity: warning
+   Threshold: > 1.0 ()
+   Env Var: ALERT_COST_HOURLY_COST_TRENDING_HIGH_WARNING_EUR
+   Summary: Hourly LLM cost exceeds 5€
+
+41. Alert: LLMAPILatencyHigh
+   Component: llm | Severity: warning
+   Threshold: > 30.0 (seconds)
+   Env Var: ALERT_LLM_LATENCY_WARNING_SECONDS
+   Summary: LLM API latency p99 > 10s
+
+42. Alert: HighTokenConsumptionRate
+   Component: tokens | Severity: info
+   Threshold: > 10000.0 (rate)
+   Env Var: ALERT_TOKENS_TOKEN_RATE_INFO
+   Summary: High token consumption detected
+
+43. Alert: ModelCostBudgetExceeded
+   Component: cost | Severity: critical
+   Threshold: > 3.0 ()
+   Env Var: ALERT_COST_MODEL_BUDGET_CRITICAL_EUR
+   Summary: Model {{ $labels.model }} exceeded daily budget
+
+44. Alert: HighOutputTokenRatio
+   Component: tokens | Severity: warning
+   Threshold: > 20.0 (rate)
+   Env Var: ALERT_TOKENS_TOKEN_RATE_WARNING
+   Summary: High output/input token ratio
+
+45. Alert: HighOAuthFailureRate
+   Component: auth | Severity: warning
+   Threshold: > 50.0 (percent)
+   Env Var: ALERT_AUTH_HIGH_O_AUTH_FAILURE_RATE_WARNING_PERCENT
+   Summary: Taux d'échec OAuth élevé pour {{ $labels.provider }}
+
+46. Alert: PKCEValidationFailures
+   Component: auth | Severity: critical
+   Threshold: > 5.0 (rate)
+   Env Var: ALERT_AUTH_P_K_C_E_VALIDATION_FAILURES_CRITICAL
+   Summary: Échecs de validation PKCE détectés pour {{ $labels.provider }}
+
+47. Alert: StateTokenValidationFailures
+   Component: auth | Severity: critical
+   Threshold: > 5.0 (rate)
+   Env Var: ALERT_AUTH_TOKEN_RATE_CRITICAL
+   Summary: Échecs de validation state token pour {{ $labels.provider }}
+
+48. Alert: SlowOAuthCallback
+   Component: auth | Severity: warning
+   Threshold: > 30.0 (seconds)
+   Env Var: ALERT_AUTH_SLOW_O_AUTH_CALLBACK_WARNING_SECONDS
+   Summary: Callbacks OAuth lents pour {{ $labels.provider }}
+
+49. Alert: OAuthProviderErrors
+   Component: auth | Severity: warning
+   Threshold: > 10.0 (rate)
+   Env Var: ALERT_AUTH_O_AUTH_PROVIDER_ERRORS_WARNING
+   Summary: Erreurs API OAuth provider {{ $labels.provider }}
+
+50. Alert: OAuthCallbackSpike
+   Component: auth | Severity: warning
+   Threshold: > 100.0 (rate)
+   Env Var: ALERT_AUTH_O_AUTH_CALLBACK_SPIKE_WARNING
+   Summary: Pic de callbacks OAuth détecté
+
+================================================================================
+Analysis complete! Found 50 hardcoded thresholds.
+================================================================================

@@ -1,0 +1,10 @@
+# GOOGLE CALENDAR - Safe queries (READ ONLY)
+# Can be executed multiple times without side effects
+
+recherche mes 2 prochains rdv
+Qu'est-ce que j'ai prévu aujourd'hui
+Recherche mes rendez-vous de demain
+recherche mon agenda du 15 janvier
+Qu'ai-je prévu la semaine prochaine ?
+Mes réunions de cette semaine
+Trouve les rdv avec jean

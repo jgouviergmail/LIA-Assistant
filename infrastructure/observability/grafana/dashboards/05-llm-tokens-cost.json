@@ -1,0 +1,1349 @@
+{
+  "title": "05 - LLM Tokens & Cost",
+  "uid": "05-llm-tokens-cost",
+  "tags": ["lia", "llm", "tokens", "cost"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "1m",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [
+    {
+      "title": "LIA",
+      "type": "dashboards",
+      "tags": ["lia"],
+      "targetBlank": false
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {},
+        "hide": 0
+      },
+      {
+        "name": "datasource_loki",
+        "type": "datasource",
+        "query": "loki",
+        "current": {
+          "text": "Loki",
+          "value": "Loki"
+        },
+        "hide": 0
+      },
+      {
+        "name": "model",
+        "type": "query",
+        "datasource": "$datasource",
+        "query": "label_values(llm_api_calls_total, model)",
+        "multi": true,
+        "includeAll": true,
+        "refresh": 1,
+        "current": {},
+        "hide": 0
+      },
+      {
+        "name": "node_name",
+        "type": "query",
+        "datasource": "$datasource",
+        "query": "label_values(agent_node_executions_total, node_name)",
+        "multi": true,
+        "includeAll": true,
+        "refresh": 1,
+        "current": {},
+        "hide": 0
+      },
+      {
+        "name": "provider",
+        "type": "query",
+        "datasource": "$datasource",
+        "query": "label_values(llm_api_calls_total, provider)",
+        "multi": true,
+        "includeAll": true,
+        "refresh": 1,
+        "current": {},
+        "hide": 0
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "row",
+      "id": 100,
+      "title": "Cost Headlines",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "panels": []
+    },
+    {
+      "id": 1,
+      "title": "Cost Today",
+      "type": "stat",
+      "datasource": "$datasource",
+      "gridPos": { "h": 8, "w": 4, "x": 0, "y": 1 },
+      "targets": [
+        {
+          "expr": "llm_cost_last_24h",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "green" },
+              { "value": 5, "color": "yellow" },
+              { "value": 20, "color": "orange" },
+              { "value": 50, "color": "red" }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "textMode": "auto",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Cost This Week",
+      "type": "stat",
+      "datasource": "$datasource",
+      "gridPos": { "h": 8, "w": 4, "x": 4, "y": 1 },
+      "targets": [
+        {
+          "expr": "llm_cost_last_7d",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "green" }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "textMode": "auto",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Lifetime Cost (DB)",
+      "type": "stat",
+      "datasource": "$datasource",
+      "gridPos": { "h": 8, "w": 4, "x": 8, "y": 1 },
+      "targets": [
+        {
+          "expr": "sum(llm_cost_lifetime)",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "green" }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "textMode": "auto",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Cost/Request (1h avg)",
+      "type": "stat",
+      "datasource": "$datasource",
+      "gridPos": { "h": 8, "w": 4, "x": 12, "y": 1 },
+      "targets": [
+        {
+          "expr": "llm_cost_per_request:1h",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyEUR",
+          "decimals": 4,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "green" }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "textMode": "auto",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Tokens Today",
+      "type": "stat",
+      "datasource": "$datasource",
+      "gridPos": { "h": 8, "w": 4, "x": 16, "y": 1 },
+      "targets": [
+        {
+          "expr": "sum(llm_tokens_consumed_last_24h)",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "green" }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "textMode": "auto",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Lifetime Tokens (DB)",
+      "type": "stat",
+      "datasource": "$datasource",
+      "gridPos": { "h": 8, "w": 4, "x": 20, "y": 1 },
+      "targets": [
+        {
+          "expr": "sum(llm_tokens_consumed_lifetime)",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "green" }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "textMode": "auto",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "type": "row",
+      "id": 101,
+      "title": "Cost Breakdown",
+      "collapsed": true,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+      "panels": [
+        {
+          "id": 7,
+          "title": "Cost by Model (24h)",
+          "type": "piechart",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 6, "x": 0, "y": 10 },
+          "targets": [
+            {
+              "expr": "llm_cost_by_model_last_24h",
+              "legendFormat": "{{model}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyEUR"
+            },
+            "overrides": []
+          },
+          "options": {
+            "pieType": "donut",
+            "tooltip": { "mode": "single" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "right"
+            }
+          }
+        },
+        {
+          "id": 8,
+          "title": "Cost by Node (24h)",
+          "type": "piechart",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 6, "x": 6, "y": 10 },
+          "targets": [
+            {
+              "expr": "llm_cost_by_node_last_24h",
+              "legendFormat": "{{node_name}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyEUR"
+            },
+            "overrides": []
+          },
+          "options": {
+            "pieType": "donut",
+            "tooltip": { "mode": "single" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "right"
+            }
+          }
+        },
+        {
+          "id": 9,
+          "title": "Cost Trend by Model",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 6, "x": 12, "y": 10 },
+          "targets": [
+            {
+              "expr": "sum by (model) (rate(llm_cost_total{model=~\"$model\"}[$__rate_interval]))",
+              "legendFormat": "{{model}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyEUR",
+              "custom": {
+                "stacking": { "mode": "normal" },
+                "fillOpacity": 30,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 10,
+          "title": "Cost per Conversation",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 6, "x": 18, "y": 10 },
+          "targets": [
+            {
+              "expr": "business:conversation:cost_avg_usd:1h",
+              "legendFormat": "Avg Cost",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyEUR",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "single" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "id": 102,
+      "title": "Token Consumption",
+      "collapsed": true,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 18 },
+      "panels": [
+        {
+          "id": 11,
+          "title": "Tokens by Type",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 19 },
+          "targets": [
+            {
+              "expr": "sum by (token_type) (rate(llm_tokens_consumed_total{model=~\"$model\"}[$__rate_interval]))",
+              "legendFormat": "{{token_type}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "stacking": { "mode": "normal" },
+                "fillOpacity": 30,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 12,
+          "title": "Tokens by Model",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 19 },
+          "targets": [
+            {
+              "expr": "llm_tokens_rate:5m_by_model",
+              "legendFormat": "{{model}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "stacking": { "mode": "normal" },
+                "fillOpacity": 30,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 13,
+          "title": "Tokens by Node",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 19 },
+          "targets": [
+            {
+              "expr": "sum by (node_name) (rate(llm_tokens_consumed_total{node_name=~\"$node_name\"}[$__rate_interval]))",
+              "legendFormat": "{{node_name}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "stacking": { "mode": "normal" },
+                "fillOpacity": 30,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 14,
+          "title": "Token Type Distribution (24h)",
+          "type": "piechart",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 27 },
+          "targets": [
+            {
+              "expr": "llm_tokens_consumed_last_24h",
+              "legendFormat": "{{token_type}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "options": {
+            "pieType": "donut",
+            "tooltip": { "mode": "single" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "right"
+            }
+          }
+        },
+        {
+          "id": 15,
+          "title": "Cache Token Ratio",
+          "type": "stat",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 27 },
+          "targets": [
+            {
+              "expr": "llm_cached_tokens_ratio:1h * 100",
+              "legendFormat": " ",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "decimals": 1,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "value": null, "color": "green" }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "graphMode": "area",
+            "colorMode": "value",
+            "textMode": "auto",
+            "justifyMode": "auto",
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": false
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "id": 103,
+      "title": "Token Efficiency",
+      "collapsed": true,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 35 },
+      "panels": [
+        {
+          "id": 16,
+          "title": "Efficiency Ratio by Node",
+          "type": "bargauge",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 36 },
+          "targets": [
+            {
+              "expr": "business:token_efficiency:avg_5m_by_node",
+              "legendFormat": "{{node_name}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 2,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "value": null, "color": "green" }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "orientation": "horizontal",
+            "displayMode": "gradient",
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": false
+            }
+          }
+        },
+        {
+          "id": 17,
+          "title": "Efficiency Ratio by Agent",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 36 },
+          "targets": [
+            {
+              "expr": "business:token_efficiency:avg_5m_by_agent",
+              "legendFormat": "{{agent_type}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 2,
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 18,
+          "title": "P95 Efficiency by Node",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 36 },
+          "targets": [
+            {
+              "expr": "business:token_efficiency:p95_5m_by_node",
+              "legendFormat": "{{node_name}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 2,
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 19,
+          "title": "Catalogue Size (filtered vs full)",
+          "type": "bargauge",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 44 },
+          "targets": [
+            {
+              "expr": "filtering_applied:planner_catalogue_size_tools:p50_rate5m",
+              "legendFormat": "Filtered={{filtering_applied}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "value": null, "color": "green" }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "orientation": "horizontal",
+            "displayMode": "gradient",
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": false
+            }
+          }
+        },
+        {
+          "id": 20,
+          "title": "Catalogue Reduction Ratio",
+          "type": "stat",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 44 },
+          "targets": [
+            {
+              "expr": "planner_catalogue_reduction_ratio:1h * 100",
+              "legendFormat": " ",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "decimals": 1,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "value": null, "color": "red" },
+                  { "value": 20, "color": "yellow" },
+                  { "value": 50, "color": "green" },
+                  { "value": 70, "color": "blue" }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "graphMode": "area",
+            "colorMode": "value",
+            "textMode": "auto",
+            "justifyMode": "auto",
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": false
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "id": 104,
+      "title": "Per-User Token Tracking (Loki)",
+      "collapsed": true,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 52 },
+      "panels": [
+        {
+          "id": 21,
+          "title": "Tokens per User",
+          "type": "table",
+          "datasource": "$datasource_loki",
+          "gridPos": { "h": 10, "w": 8, "x": 0, "y": 53 },
+          "targets": [
+            {
+              "expr": "sum by (user_id) (sum_over_time({job=\"api\"} | json | unwrap total_tokens | __error__=\"\" [$__range]))",
+              "refId": "A",
+              "format": "table",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "options": {
+            "showHeader": true,
+            "sortBy": []
+          }
+        },
+        {
+          "id": 22,
+          "title": "Cost per User",
+          "type": "table",
+          "datasource": "$datasource_loki",
+          "gridPos": { "h": 10, "w": 8, "x": 8, "y": 53 },
+          "targets": [
+            {
+              "expr": "sum by (user_id) (sum_over_time({job=\"api\"} | json | unwrap cost_usd | __error__=\"\" [$__range]))",
+              "refId": "A",
+              "format": "table",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyEUR"
+            },
+            "overrides": []
+          },
+          "options": {
+            "showHeader": true,
+            "sortBy": []
+          }
+        },
+        {
+          "id": 23,
+          "title": "Top Users by Tokens (24h)",
+          "type": "barchart",
+          "datasource": "$datasource_loki",
+          "gridPos": { "h": 10, "w": 8, "x": 16, "y": 53 },
+          "targets": [
+            {
+              "expr": "topk(10, sum by (user_id) (sum_over_time({job=\"api\"} | json | unwrap total_tokens | __error__=\"\" [24h])))",
+              "legendFormat": "{{user_id}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "options": {
+            "orientation": "horizontal",
+            "barWidth": 0.8,
+            "groupWidth": 0.7,
+            "tooltip": { "mode": "single" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "id": 105,
+      "title": "LLM API Performance",
+      "collapsed": true,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 63 },
+      "panels": [
+        {
+          "id": 24,
+          "title": "API Call Rate by Model",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 64 },
+          "targets": [
+            {
+              "expr": "sum by (model) (rate(llm_api_calls_total{model=~\"$model\"}[$__rate_interval]))",
+              "legendFormat": "{{model}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 25,
+          "title": "API Success Rate by Provider",
+          "type": "bargauge",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 64 },
+          "targets": [
+            {
+              "expr": "llm:slo:availability:ratio_5m * 100",
+              "legendFormat": "{{provider}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "value": null, "color": "red" },
+                  { "value": 95, "color": "yellow" },
+                  { "value": 99, "color": "green" }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "orientation": "horizontal",
+            "displayMode": "gradient",
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": false
+            }
+          }
+        },
+        {
+          "id": 26,
+          "title": "API Latency P50/P95/P99",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 64 },
+          "targets": [
+            {
+              "expr": "model:llm_api_latency:p50_rate5m",
+              "legendFormat": "{{model}} p50",
+              "refId": "A"
+            },
+            {
+              "expr": "llm:latency:p95_5m",
+              "legendFormat": "{{model}} p95",
+              "refId": "B"
+            },
+            {
+              "expr": "model:llm_api_latency:p99_rate5m",
+              "legendFormat": "{{model}} p99",
+              "refId": "C"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 27,
+          "title": "API Errors by Provider",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 72 },
+          "targets": [
+            {
+              "expr": "sum by (provider, error_type) (rate(llm_api_calls_total{status=\"error\"}[$__rate_interval]))",
+              "legendFormat": "{{provider}} - {{error_type}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 28,
+          "title": "Rate Limit Hits",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 72 },
+          "targets": [
+            {
+              "expr": "sum by (provider) (rate(llm_api_calls_total{status=\"rate_limited\"}[$__rate_interval]))",
+              "legendFormat": "{{provider}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 29,
+          "title": "Context Length Exceeded",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 4, "x": 16, "y": 72 },
+          "targets": [
+            {
+              "expr": "sum by (model) (rate(llm_api_calls_total{status=\"context_exceeded\"}[$__rate_interval]))",
+              "legendFormat": "{{model}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "single" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 30,
+          "title": "Content Filter Violations",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 4, "x": 20, "y": 72 },
+          "targets": [
+            {
+              "expr": "sum by (provider) (rate(llm_api_calls_total{status=\"content_filtered\"}[$__rate_interval]))",
+              "legendFormat": "{{provider}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "single" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "id": 106,
+      "title": "Lifetime Metrics Health",
+      "collapsed": true,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 80 },
+      "panels": [
+        {
+          "id": 31,
+          "title": "Last Update Timestamp",
+          "type": "stat",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 81 },
+          "targets": [
+            {
+              "expr": "lifetime_metrics_last_update_timestamp",
+              "legendFormat": " ",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "dateTimeFromNow",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "value": null, "color": "green" }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "graphMode": "none",
+            "colorMode": "value",
+            "textMode": "auto",
+            "justifyMode": "auto",
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": false
+            }
+          }
+        },
+        {
+          "id": 32,
+          "title": "Update Duration",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 81 },
+          "targets": [
+            {
+              "expr": "lifetime_metrics_update_duration_seconds",
+              "legendFormat": "Duration",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "single" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 33,
+          "title": "Update Errors",
+          "type": "stat",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 81 },
+          "targets": [
+            {
+              "expr": "lifetime_metrics_error_total",
+              "legendFormat": " ",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "value": null, "color": "green" },
+                  { "value": 1, "color": "red" }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "graphMode": "none",
+            "colorMode": "value",
+            "textMode": "auto",
+            "justifyMode": "auto",
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": false
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "id": 107,
+      "title": "Vision Analysis",
+      "collapsed": true,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 89 },
+      "panels": [
+        {
+          "id": 34,
+          "title": "Vision LLM Requests (24h)",
+          "type": "stat",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 90 },
+          "targets": [
+            {
+              "expr": "sum(increase(vision_llm_requests_total[24h]))",
+              "legendFormat": " ",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "value": null, "color": "green" }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "graphMode": "area",
+            "colorMode": "value",
+            "textMode": "auto",
+            "justifyMode": "auto",
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": false
+            }
+          }
+        },
+        {
+          "id": 35,
+          "title": "Vision LLM Latency P95",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 90 },
+          "targets": [
+            {
+              "expr": "vision_llm_latency:p95_5m",
+              "legendFormat": "{{model}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 36,
+          "title": "Vision LLM Request Rate",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 90 },
+          "targets": [
+            {
+              "expr": "vision_llm_requests_rate:5m",
+              "legendFormat": "{{model}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {}
+}

@@ -1,0 +1,17 @@
+TASK: Detect and resolve personal references in query using memory facts.
+
+RULES (in priority order):
+1. ANTI-HALLUCINATION: ONLY use values EXPLICITLY in memory facts. If not found → keep original reference unchanged.
+2. COMPLETENESS: Resolve ALL personal references found (not just the first one).
+3. SCOPE: Personal references = possessive + relationship (my wife, my brother, my boss). NOT objects (my emails) or events (my event).
+4. CONTEXT: For location queries (to X, at X, near X, near from X) → extract address if complete, else name. For other queries → extract name.
+5. VERBATIM: Names must be copied exactly from memory. Never translate, reformulate, or infer.
+
+OUTPUT: Valid JSON with properly escaped special characters (apostrophes, quotes).
+{{"resolved_query": "<query with ALL references replaced>", "mappings": {{"<ref1>": "<name1>", "<ref2>": "<name2>"}}}}
+
+Memory facts: {memory_facts}
+
+Query: "{query}"
+
+JSON:

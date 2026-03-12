@@ -1,0 +1,137 @@
+# Configuration Loki pour LIA
+# Optimisé pour Raspberry Pi avec SSD NVMe (réduction I/O)
+auth_enabled: false
+
+# Configuration du serveur HTTP
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9096
+  log_level: warn  # Réduit les logs internes
+
+# Configuration de l'ingestion des logs
+ingester:
+  lifecycler:
+    address: 127.0.0.1
+    ring:
+      kvstore:
+        store: inmemory
+      replication_factor: 1
+    final_sleep: 0s
+  # SSD-friendly: chunks plus gros, moins d'écritures
+  chunk_idle_period: 2h        # 1h -> 2h (moins de flush)
+  max_chunk_age: 2h            # 1h -> 2h
+  chunk_target_size: 2097152   # 1MB -> 2MB (chunks plus gros)
+  chunk_retain_period: 1m      # 30s -> 1m
+  # WAL désactivé pour réduire les écritures (acceptable en single-node)
+  wal:
+    enabled: false
+    dir: /loki/wal
+
+# Configuration du stockage des index
+schema_config:
+  configs:
+    # Keep v11 for historical data (before schema upgrade)
+    - from: 2024-01-01
+      store: boltdb-shipper
+      object_store: filesystem
+      schema: v11
+      index:
+        prefix: index_
+        period: 24h
+    # New v13 schema with tsdb (required for structured metadata)
+    - from: 2025-11-07
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+# Configuration du stockage
+storage_config:
+  # Legacy boltdb-shipper for v11 schema (historical data)
+  boltdb_shipper:
+    active_index_directory: /loki/boltdb-shipper-active
+    cache_location: /loki/boltdb-shipper-cache
+    cache_ttl: 24h
+  # TSDB for v13 schema (new data with structured metadata)
+  tsdb_shipper:
+    active_index_directory: /loki/tsdb-index
+    cache_location: /loki/tsdb-cache
+  filesystem:
+    directory: /loki/chunks
+
+# Configuration des limites
+limits_config:
+  # Rétention des logs: 7 jours
+  retention_period: 168h
+
+  # Enable structured metadata for better log correlation (requires Loki 2.8+)
+  allow_structured_metadata: true
+
+  # Limites d'ingestion (augmentées pour dev avec Promtail)
+  ingestion_rate_mb: 16
+  ingestion_burst_size_mb: 32
+  max_streams_per_user: 10000
+  max_global_streams_per_user: 10000
+
+  # Limites de requête
+  max_query_length: 721h
+  max_query_parallelism: 32
+  max_entries_limit_per_query: 5000
+  max_streams_matchers_per_query: 1000
+  max_concurrent_tail_requests: 10
+
+  # Limites de chunks
+  max_chunks_per_query: 2000000
+  max_query_series: 500
+
+  # Split queries
+  split_queries_by_interval: 15m
+
+  # Reject old samples
+  reject_old_samples: true
+  reject_old_samples_max_age: 168h
+
+  # Per-stream rate limits
+  per_stream_rate_limit: 3MB
+  per_stream_rate_limit_burst: 15MB
+
+# Configuration du compacteur (nettoyage automatique)
+# SSD-friendly: compaction moins fréquente
+compactor:
+  working_directory: /loki/boltdb-shipper-compactor
+  compaction_interval: 30m    # 10m -> 30m (moins d'I/O)
+  retention_enabled: true
+  retention_delete_delay: 4h  # 2h -> 4h (batch les suppressions)
+  retention_delete_worker_count: 50  # 150 -> 50 (moins agressif)
+  delete_request_store: filesystem
+
+# Configuration de la table manager (gestion des index)
+table_manager:
+  retention_deletes_enabled: true
+  retention_period: 168h
+
+# Configuration du ruler (pour les alertes basées sur les logs)
+ruler:
+  storage:
+    type: local
+    local:
+      directory: /loki/rules
+  rule_path: /loki/rules-temp
+  alertmanager_url: http://alertmanager:9093
+  ring:
+    kvstore:
+      store: inmemory
+  enable_api: true
+  enable_alertmanager_v2: true
+
+# Configuration des analytics
+analytics:
+  reporting_enabled: false
+
+# Configuration des membres du cluster
+memberlist:
+  join_members:
+    - loki:7946
+  bind_port: 7946

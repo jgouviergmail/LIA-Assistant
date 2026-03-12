@@ -1,0 +1,13 @@
+# GOOGLE PLACES - Training queries
+# Pattern learner training for places domain
+
+où suis-je ?
+recherche 2 restaurants
+recherche 2 restaurants près d'ici
+recherche 2 restaurants près de chez moi
+recherche les pharmacies ouvertes maintenant
+Où est la station-service la plus proche ?
+Supermarchés à moins de 1 km
+Restaurants italiens dans le 6ème arrondissement de Paris
+Hôtels près de la Tour Eiffel
+Musées dans le centre de Lyon

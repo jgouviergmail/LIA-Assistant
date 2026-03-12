@@ -1,0 +1,7 @@
+# GOOGLE TASKS - Safe queries (READ ONLY)
+# Can be executed multiple times without side effects
+
+recherche mes taches
+Qu'est-ce que j'ai à faire ?
+Liste mes tâches en cours
+Liste mes tâches terminees

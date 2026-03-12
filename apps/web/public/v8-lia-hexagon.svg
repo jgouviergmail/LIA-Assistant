@@ -1,0 +1,22 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Variation 8: Hexagon tech style -->
+  <defs>
+    <linearGradient id="grad8" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2563eb;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <rect width="32" height="32" rx="8" fill="url(#grad8)"/>
+
+  <!-- Hexagon -->
+  <path d="M16 6L23 10V20L16 24L9 20V10L16 6Z" fill="white"/>
+
+  <!-- LIA text -->
+  <text x="16" y="18.5" font-family="Arial, sans-serif" font-size="9" font-weight="bold" fill="#2563eb" text-anchor="middle">LIA</text>
+
+  <!-- Small circuit lines -->
+  <line x1="16" y1="6" x2="16" y2="10" stroke="#60a5fa" stroke-width="1"/>
+  <line x1="23" y1="15" x2="27" y2="15" stroke="#60a5fa" stroke-width="1"/>
+  <line x1="9" y1="15" x2="5" y2="15" stroke="#60a5fa" stroke-width="1"/>
+</svg>

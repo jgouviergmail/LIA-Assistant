@@ -1,0 +1,14 @@
+# PERPLEXITY - Training queries
+# Pattern learner training for perplexity/web search domain
+
+recherche la derniere allocution de macron
+recherche sur internet la dernière allocution de macron
+recherche sur internet le programme télé de demain soir pour les 3 premières chaines de la tnt
+Quelles sont les dernières nouvelles sur l'IA ?
+Que s'est-il passé au dernier match de foot de l'équipe de france ?
+recherche l'Actualités tech de cette semaine
+Recherche les meilleurs smartphones 2026
+recherche un Comparatif des voitures électriques
+recherche les Avis sur le dernier iPhone
+recherche les Horaires du musée du Louvre
+recherche le Prix des billets d'avion Paris-New York

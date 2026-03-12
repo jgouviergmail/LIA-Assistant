@@ -1,0 +1,82 @@
+groups:
+  - name: conversations
+    interval: 30s
+    rules:
+      # CRITICAL: Checkpoint save performance degradation
+      - alert: CheckpointSaveSlowCritical
+        expr: |
+          histogram_quantile(0.99, sum(rate(checkpoint_save_duration_seconds_bucket[5m])) by (le, node_name)) > 2.0
+        for: 5m
+        labels:
+          severity: critical
+          component: conversations
+          type: performance
+        annotations:
+          summary: "Checkpoint save p99 exceeds 2s"
+          description: "Checkpoint save latency p99 is {{ $value }}s for node {{ $labels.node_name }}. Database performance issue or large payloads."
+          runbook_url: "https://docs.company.com/runbooks/checkpoint-slow"
+
+      # WARNING: Checkpoint save performance warning
+      - alert: CheckpointSaveSlowWarning
+        expr: |
+          histogram_quantile(0.99, sum(rate(checkpoint_save_duration_seconds_bucket[5m])) by (le, node_name)) > 1.0
+        for: 10m
+        labels:
+          severity: warning
+          component: conversations
+          type: performance
+        annotations:
+          summary: "Checkpoint save p99 exceeds 1s"
+          description: "Checkpoint save latency p99 is {{ $value }}s for node {{ $labels.node_name }}. Monitor for increasing trend."
+
+      # WARNING: High conversation reset rate
+      - alert: HighConversationResetRate
+        expr: |
+          sum(rate(conversation_resets_total[5m])) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+          component: conversations
+          type: business
+        annotations:
+          summary: "High conversation reset rate detected"
+          description: "Users are resetting conversations at {{ $value }} resets/sec. Possible UX issue or feature misuse."
+
+      # INFO: Checkpoint size growing
+      - alert: CheckpointSizeGrowing
+        expr: |
+          histogram_quantile(0.95, sum(rate(checkpoint_size_bytes_bucket[1h])) by (le, node_name)) > 50000
+        for: 30m
+        labels:
+          severity: info
+          component: conversations
+          type: capacity
+        annotations:
+          summary: "Large checkpoint sizes detected"
+          description: "Checkpoint size p95 is {{ $value }} bytes for node {{ $labels.node_name }}. Monitor for memory/storage impact."
+
+      # CRITICAL: No active users (system down)
+      - alert: NoActiveConversations
+        expr: |
+          conversation_active_users_total == 0
+        for: 15m
+        labels:
+          severity: critical
+          component: conversations
+          type: availability
+        annotations:
+          summary: "No active conversations detected"
+          description: "Zero active users for 15 minutes. Possible system outage or data collection issue."
+
+      # WARNING: Conversation creation failure
+      - alert: ConversationCreationStalled
+        expr: |
+          rate(conversation_created_total[10m]) == 0 and conversation_active_users_total > 10
+        for: 15m
+        labels:
+          severity: warning
+          component: conversations
+          type: functionality
+        annotations:
+          summary: "Conversation creation stalled"
+          description: "No new conversations created in 10 minutes despite {{ $value }} active users. Check database connectivity."

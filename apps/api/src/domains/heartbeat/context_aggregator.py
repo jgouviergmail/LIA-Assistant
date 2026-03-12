@@ -1,0 +1,759 @@
+"""
+Heartbeat Context Aggregator.
+
+Fetches context from multiple sources in parallel (asyncio.gather) for
+the LLM decision phase. Each source is independently failable — a single
+source failure does not block other sources.
+
+Sources:
+- Calendar: upcoming events (Google Calendar or Apple Calendar — dynamic resolution)
+- Tasks: pending/overdue Google Tasks (Google-only, no Apple equivalent)
+- Weather: current conditions + change detection (rain, temp, wind)
+- Interests: trending user interest topics
+- Memories: relevant entries from LangGraph Store
+- Activity: last user interaction timestamp
+- Recent heartbeats: anti-redundancy within heartbeat type
+- Recent interest notifications: cross-type dedup
+- Time: local time context (always available)
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+from datetime import UTC, datetime, timedelta
+from typing import Any
+from uuid import UUID
+from zoneinfo import ZoneInfo
+
+import structlog
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.core.config import get_settings
+from src.domains.connectors.models import ConnectorType
+from src.domains.connectors.service import ConnectorService
+from src.domains.conversations.models import Conversation, ConversationMessage
+from src.domains.heartbeat.repository import HeartbeatNotificationRepository
+from src.domains.heartbeat.schemas import HeartbeatContext, WeatherChange
+from src.domains.interests.models import InterestNotification, UserInterest
+
+logger = structlog.get_logger(__name__)
+
+
+class ContextAggregator:
+    """Aggregates context from multiple sources for heartbeat LLM decision.
+
+    Each source fetch is independent and failable. Sources are fetched
+    in parallel via asyncio.gather(return_exceptions=True).
+    """
+
+    def __init__(self, db: AsyncSession) -> None:
+        self._db = db
+
+    async def aggregate(
+        self,
+        user_id: UUID,
+        user: Any,
+    ) -> HeartbeatContext:
+        """Fetch all context sources in parallel and build HeartbeatContext.
+
+        Args:
+            user_id: User UUID.
+            user: User ORM model (for timezone, home_location, etc.).
+
+        Returns:
+            HeartbeatContext with all available data.
+        """
+        settings = get_settings()
+        context = HeartbeatContext()
+
+        # Always compute time context (no I/O, cannot fail)
+        self._compute_time_context(context, user)
+
+        # Parallel fetch of all I/O-bound sources
+        results = await asyncio.gather(
+            self._fetch_calendar(user_id, user, settings),
+            self._fetch_tasks(user_id, user, settings),
+            self._fetch_weather_with_changes(user_id, user, settings),
+            self._fetch_interests(user_id),
+            self._fetch_memories(user_id, settings),
+            self._fetch_activity(user_id),
+            self._fetch_recent_heartbeats(user_id),
+            self._fetch_recent_interest_notifications(user_id),
+            return_exceptions=True,
+        )
+
+        # Unpack results with stable ordering (matches gather order)
+        source_names = [
+            "calendar",
+            "tasks",
+            "weather",
+            "interests",
+            "memories",
+            "activity",
+            "recent_heartbeats",
+            "recent_interests",
+        ]
+
+        for name, result in zip(source_names, results, strict=True):
+            if isinstance(result, BaseException):
+                logger.warning(
+                    "heartbeat_source_failed",
+                    source=name,
+                    error=str(result),
+                    user_id=str(user_id),
+                )
+                context.failed_sources.append(name)
+                continue
+
+            if result is None:
+                continue
+
+            # Apply result to context based on source name
+            self._apply_source_result(context, name, result)
+
+        return context
+
+    def _apply_source_result(
+        self,
+        context: HeartbeatContext,
+        name: str,
+        result: Any,
+    ) -> None:
+        """Apply a source result to the appropriate context fields."""
+        if name == "calendar" and result:
+            context.calendar_events = result
+            context.available_sources.append("calendar")
+
+        elif name == "tasks" and result:
+            context.pending_tasks = result
+            context.available_sources.append("tasks")
+
+        elif name == "weather" and result:
+            weather_current, weather_changes = result
+            if weather_current:
+                context.weather_current = weather_current
+                context.available_sources.append("weather")
+            if weather_changes:
+                context.weather_changes = weather_changes
+
+        elif name == "interests" and result:
+            context.trending_interests = result
+            context.available_sources.append("interests")
+
+        elif name == "memories" and result:
+            context.user_memories = result
+            context.available_sources.append("memories")
+
+        elif name == "activity" and result:
+            last_at, hours_since = result
+            context.last_interaction_at = last_at
+            context.hours_since_last_interaction = hours_since
+
+        elif name == "recent_heartbeats" and result:
+            context.recent_heartbeats = result
+
+        elif name == "recent_interests" and result:
+            context.recent_interest_notifications = result
+
+    # ------------------------------------------------------------------
+    # Time context (synchronous, always succeeds)
+    # ------------------------------------------------------------------
+
+    def _compute_time_context(self, context: HeartbeatContext, user: Any) -> None:
+        """Compute local time context for the user."""
+        try:
+            user_tz = ZoneInfo(user.timezone)
+        except (KeyError, ValueError, AttributeError, TypeError):
+            user_tz = ZoneInfo("Europe/Paris")
+
+        now_local = datetime.now(user_tz)
+        context.user_local_time = now_local
+        context.day_of_week = now_local.strftime("%A")
+
+        hour = now_local.hour
+        if hour < 12:
+            context.time_of_day = "morning"
+        elif hour < 18:
+            context.time_of_day = "afternoon"
+        else:
+            context.time_of_day = "evening"
+
+    # ------------------------------------------------------------------
+    # Calendar source
+    # ------------------------------------------------------------------
+
+    async def _fetch_calendar(
+        self,
+        user_id: UUID,
+        user: Any,
+        settings: Any,
+    ) -> list[dict[str, Any]] | None:
+        """Fetch upcoming calendar events from the active provider (Google, Apple, or Microsoft).
+
+        Uses dynamic provider resolution to support both Google Calendar and
+        Apple Calendar. Resolves the user's preferred default calendar from
+        connector preferences.
+
+        Returns:
+            List of event dicts or None if unavailable.
+        """
+        from src.domains.connectors.clients.registry import ClientRegistry
+        from src.domains.connectors.preferences import ConnectorPreferencesService
+        from src.domains.connectors.preferences.resolver import resolve_calendar_name
+        from src.domains.connectors.provider_resolver import resolve_active_connector
+        from src.domains.connectors.repository import ConnectorRepository
+
+        connector_service = ConnectorService(self._db)
+
+        # Dynamically resolve the active calendar provider (Google, Apple, or Microsoft)
+        resolved_type = await resolve_active_connector(user_id, "calendar", connector_service)
+        if resolved_type is None:
+            return None
+
+        # Get credentials based on provider type
+        credentials: Any = None
+        if resolved_type.is_apple:
+            credentials = await connector_service.get_apple_credentials(user_id, resolved_type)
+        else:
+            credentials = await connector_service.get_connector_credentials(user_id, resolved_type)
+        if not credentials:
+            return None
+
+        # Instantiate the appropriate client
+        client_class = ClientRegistry.get_client_class(resolved_type)
+        if client_class is None:
+            return None
+        client = client_class(user_id, credentials, connector_service)
+
+        # Resolve default calendar from user preferences
+        calendar_id = "primary"
+        try:
+            repo = ConnectorRepository(self._db)
+            connector = await repo.get_by_user_and_type(user_id, resolved_type)
+            if connector and connector.preferences_encrypted:
+                default_name = ConnectorPreferencesService.get_preference_value(
+                    resolved_type.value,
+                    connector.preferences_encrypted,
+                    "default_calendar_name",
+                )
+                if default_name:
+                    calendar_id = await resolve_calendar_name(
+                        client=client,
+                        name=default_name,
+                        fallback="primary",
+                    )
+                    logger.debug(
+                        "heartbeat_calendar_using_preference",
+                        default_calendar_name=default_name,
+                        resolved_calendar_id=calendar_id,
+                        provider=resolved_type.value,
+                        user_id=str(user_id),
+                    )
+        except (ValueError, KeyError, AttributeError, TypeError) as e:
+            logger.warning("heartbeat_calendar_preference_resolution_failed", error=str(e))
+
+        hours = getattr(settings, "heartbeat_context_calendar_hours", 6)
+        now = datetime.now(UTC)
+        time_min = now.isoformat()
+        time_max = (now + timedelta(hours=hours)).isoformat()
+
+        result = await client.list_events(
+            time_min=time_min,
+            time_max=time_max,
+            max_results=10,
+            calendar_id=calendar_id,
+            fields=["id", "summary", "start", "end", "location"],
+        )
+
+        events = result.get("items", [])
+        if not events:
+            return None
+
+        # Extract minimal event data for the prompt
+        return [
+            {
+                "summary": e.get("summary", "Untitled"),
+                "start": (
+                    e.get("start", {}).get("dateTime") or e.get("start", {}).get("date", "?")
+                ),
+                "end": (e.get("end", {}).get("dateTime") or e.get("end", {}).get("date", "?")),
+                "location": e.get("location"),
+            }
+            for e in events
+        ]
+
+    # ------------------------------------------------------------------
+    # Tasks source (Google Tasks or Microsoft To Do)
+    # ------------------------------------------------------------------
+
+    async def _fetch_tasks(
+        self,
+        user_id: UUID,
+        user: Any,
+        settings: Any,
+    ) -> list[dict[str, Any]] | None:
+        """Fetch pending and overdue tasks from the active provider.
+
+        Uses dynamic provider resolution to support both Google Tasks and
+        Microsoft To Do. Resolves the user's preferred default task list
+        from connector preferences.
+
+        Returns:
+            List of task dicts or None if unavailable.
+        """
+        from src.domains.connectors.clients.registry import ClientRegistry
+        from src.domains.connectors.preferences import ConnectorPreferencesService
+        from src.domains.connectors.preferences.resolver import resolve_task_list_name
+        from src.domains.connectors.provider_resolver import resolve_active_connector
+        from src.domains.connectors.repository import ConnectorRepository
+
+        connector_service = ConnectorService(self._db)
+
+        # Dynamically resolve the active tasks provider (Google or Microsoft)
+        resolved_type = await resolve_active_connector(user_id, "tasks", connector_service)
+        if resolved_type is None:
+            return None
+
+        # Get credentials
+        credentials = await connector_service.get_connector_credentials(user_id, resolved_type)
+        if not credentials:
+            return None
+
+        # Instantiate the appropriate client
+        client_class = ClientRegistry.get_client_class(resolved_type)
+        if client_class is None:
+            return None
+        client = client_class(user_id, credentials, connector_service)
+
+        # Resolve default task list from user preferences
+        task_list_id = "@default"
+        try:
+            repo = ConnectorRepository(self._db)
+            connector = await repo.get_by_user_and_type(user_id, resolved_type)
+            if connector and connector.preferences_encrypted:
+                default_name = ConnectorPreferencesService.get_preference_value(
+                    resolved_type.value,
+                    connector.preferences_encrypted,
+                    "default_task_list_name",
+                )
+                if default_name:
+                    task_list_id = await resolve_task_list_name(
+                        client=client,
+                        name=default_name,
+                        fallback="@default",
+                    )
+                    logger.debug(
+                        "heartbeat_tasks_using_preference",
+                        default_task_list_name=default_name,
+                        resolved_task_list_id=task_list_id,
+                        provider=resolved_type.value,
+                        user_id=str(user_id),
+                    )
+        except (ValueError, KeyError, AttributeError, TypeError) as e:
+            logger.warning("heartbeat_tasks_preference_resolution_failed", error=str(e))
+
+        days = getattr(settings, "heartbeat_context_tasks_days", 2)
+        now = datetime.now(UTC)
+        # RFC 3339 timestamp for due_max filter.
+        due_max = (now + timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        result = await client.list_tasks(
+            task_list_id=task_list_id,
+            max_results=10,
+            show_completed=False,
+            due_max=due_max,
+        )
+
+        tasks = result.get("items", [])
+        if not tasks:
+            return None
+
+        # Extract minimal task data for the prompt, flag overdue tasks.
+        # Both Google Tasks and Microsoft To Do normalizers return "due" as
+        # RFC 3339 and "status" as "needsAction"/"completed" (normalized).
+        return [
+            {
+                "title": t.get("title", "Untitled"),
+                "due": t.get("due"),
+                "overdue": self._is_task_overdue(t, now),
+            }
+            for t in tasks
+            if t.get("status") == "needsAction"
+        ]
+
+    @staticmethod
+    def _is_task_overdue(task: dict[str, Any], now: datetime) -> bool:
+        """Check if a task is overdue by parsing the RFC 3339 due date.
+
+        Args:
+            task: Task dict (normalized format from any provider).
+            now: Current UTC datetime for comparison.
+
+        Returns:
+            True if the task is overdue (due date in the past and not completed).
+        """
+        due_str = task.get("due")
+        if not due_str or task.get("status") != "needsAction":
+            return False
+        try:
+            # Google Tasks returns "2026-03-03T00:00:00.000Z" (RFC 3339).
+            # datetime.fromisoformat handles both "Z" (Python 3.11+) and "+00:00".
+            due_dt = datetime.fromisoformat(due_str.replace("Z", "+00:00"))
+            return due_dt < now
+        except (ValueError, TypeError):
+            return False
+
+    # ------------------------------------------------------------------
+    # Weather source + change detection
+    # ------------------------------------------------------------------
+
+    async def _fetch_weather_with_changes(
+        self,
+        user_id: UUID,
+        user: Any,
+        settings: Any,
+    ) -> tuple[dict[str, Any] | None, list[WeatherChange] | None] | None:
+        """Fetch current weather and detect upcoming transitions.
+
+        Returns:
+            Tuple of (current_weather, changes) or None if unavailable.
+        """
+        # Check OpenWeatherMap connector
+        connector_service = ConnectorService(self._db)
+        credentials = await connector_service.get_api_key_credentials(
+            user_id, ConnectorType.OPENWEATHERMAP
+        )
+        if not credentials:
+            return None
+
+        # Decrypt home location
+        if not user.home_location_encrypted:
+            return None
+
+        from src.core.security.utils import decrypt_data
+
+        try:
+            location_json = decrypt_data(user.home_location_encrypted)
+            location = json.loads(location_json)
+            lat = location.get("lat")
+            lon = location.get("lon")
+            if lat is None or lon is None:
+                return None
+        except (ValueError, json.JSONDecodeError, KeyError):
+            logger.debug(
+                "heartbeat_weather_location_decrypt_failed",
+                user_id=str(user_id),
+            )
+            return None
+
+        from src.domains.connectors.clients.openweathermap_client import (
+            OpenWeatherMapClient,
+        )
+
+        client = OpenWeatherMapClient(api_key=credentials.api_key, user_id=user_id)
+
+        # Fetch current + forecast in parallel
+        results = await asyncio.gather(
+            client.get_current_weather(lat=lat, lon=lon, units="metric"),
+            client.get_forecast(lat=lat, lon=lon, units="metric", cnt=8),
+            return_exceptions=True,
+        )
+        current_result: dict[str, Any] | BaseException = results[0]
+        forecast_result: dict[str, Any] | BaseException = results[1]
+
+        current = None
+        if not isinstance(current_result, BaseException):
+            current = current_result
+
+        changes = None
+        if not isinstance(forecast_result, BaseException) and current:
+            try:
+                user_tz = ZoneInfo(user.timezone)
+            except (KeyError, ValueError, AttributeError):
+                user_tz = ZoneInfo("Europe/Paris")
+
+            hourly = forecast_result.get("list", [])
+            changes = self._detect_weather_changes(current, hourly, user_tz, settings)
+
+        return current, changes
+
+    def _detect_weather_changes(
+        self,
+        current: dict[str, Any],
+        hourly: list[dict[str, Any]],
+        user_tz: ZoneInfo,
+        settings: Any,
+    ) -> list[WeatherChange]:
+        """Detect notable weather transitions between now and forecast.
+
+        The current weather API (/data/2.5/weather) does NOT return 'pop'.
+        We use weather[0].main (e.g. "Rain", "Clear") for current state,
+        then forecast 'pop' values for predictions.
+
+        Args:
+            current: Current weather data from API.
+            hourly: Forecast entries (3-hour intervals).
+            user_tz: User's timezone for time display.
+            settings: App settings with threshold values.
+
+        Returns:
+            List of detected WeatherChange events.
+        """
+        changes: list[WeatherChange] = []
+
+        current_condition = current.get("weather", [{}])[0].get("main", "").lower()
+        is_currently_raining = current_condition in (
+            "rain",
+            "drizzle",
+            "thunderstorm",
+        )
+        current_temp = current.get("main", {}).get("temp", 0)
+
+        rain_high = getattr(settings, "heartbeat_weather_rain_threshold_high", 0.6)
+        rain_low = getattr(settings, "heartbeat_weather_rain_threshold_low", 0.3)
+        temp_threshold = getattr(settings, "heartbeat_weather_temp_change_threshold", 5.0)
+        wind_threshold = getattr(settings, "heartbeat_weather_wind_threshold", 14.0)
+
+        # Track detected types to avoid duplicate detections
+        detected_types: set[str] = set()
+
+        for entry in hourly:
+            entry_pop = entry.get("pop", 0)
+            entry_temp = entry.get("main", {}).get("temp", current_temp)
+            try:
+                entry_time = datetime.fromtimestamp(entry["dt"], tz=user_tz)
+            except (KeyError, ValueError, OSError):
+                continue
+
+            time_str = entry_time.strftime("%H:%M")
+
+            # Rain start: not raining now + high pop in forecast
+            if (
+                not is_currently_raining
+                and entry_pop > rain_high
+                and "rain_start" not in detected_types
+            ):
+                changes.append(
+                    WeatherChange(
+                        change_type="rain_start",
+                        expected_at=entry_time,
+                        description=f"Rain expected around {time_str}",
+                        severity="warning",
+                    )
+                )
+                detected_types.add("rain_start")
+                is_currently_raining = True
+
+            # Rain end: raining now + low pop in forecast
+            elif is_currently_raining and entry_pop < rain_low and "rain_end" not in detected_types:
+                changes.append(
+                    WeatherChange(
+                        change_type="rain_end",
+                        expected_at=entry_time,
+                        description=f"Rain clearing around {time_str}",
+                        severity="info",
+                    )
+                )
+                detected_types.add("rain_end")
+                is_currently_raining = False
+
+            # Temperature drop
+            temp_diff = current_temp - entry_temp
+            if temp_diff > temp_threshold and "temp_drop" not in detected_types:
+                severity = "warning" if temp_diff > temp_threshold * 1.6 else "info"
+                changes.append(
+                    WeatherChange(
+                        change_type="temp_drop",
+                        expected_at=entry_time,
+                        description=(f"Temperature dropping {temp_diff:.0f}°C by {time_str}"),
+                        severity=severity,
+                    )
+                )
+                detected_types.add("temp_drop")
+
+            # Wind alert
+            wind_speed = entry.get("wind", {}).get("speed", 0)
+            if wind_speed > wind_threshold and "wind_alert" not in detected_types:
+                changes.append(
+                    WeatherChange(
+                        change_type="wind_alert",
+                        expected_at=entry_time,
+                        description=f"Strong wind expected ({wind_speed:.0f} m/s)",
+                        severity="warning",
+                    )
+                )
+                detected_types.add("wind_alert")
+
+        return changes
+
+    # ------------------------------------------------------------------
+    # Interests source
+    # ------------------------------------------------------------------
+
+    async def _fetch_interests(
+        self,
+        user_id: UUID,
+    ) -> list[dict[str, str]] | None:
+        """Fetch trending user interest topics.
+
+        Returns:
+            List of {topic} dicts or None if unavailable.
+        """
+        from src.domains.interests.repository import InterestRepository
+
+        repo = InterestRepository(self._db)
+        interests = await repo.get_top_weighted_interests(
+            user_id=user_id,
+            top_percent=0.3,
+            exclude_in_cooldown=False,
+        )
+
+        if not interests:
+            return None
+
+        return [{"topic": interest.topic} for interest, _weight in interests]
+
+    # ------------------------------------------------------------------
+    # Memories source
+    # ------------------------------------------------------------------
+
+    async def _fetch_memories(
+        self,
+        user_id: UUID,
+        settings: Any,
+    ) -> list[str] | None:
+        """Fetch relevant user memories from LangGraph Store.
+
+        Returns:
+            List of memory content strings or None if unavailable.
+        """
+        from src.domains.agents.context.store import get_tool_context_store
+
+        limit = getattr(settings, "heartbeat_context_memory_limit", 5)
+
+        store = await get_tool_context_store()
+        results = await store.asearch(
+            (str(user_id), "memories"),
+            query="important upcoming events preferences routines",
+            limit=limit,
+        )
+
+        if not results:
+            return None
+
+        memories = []
+        for item in results:
+            value = item.value if hasattr(item, "value") else item
+            if isinstance(value, dict):
+                content = value.get("content", str(value))
+            else:
+                content = str(value)
+            if content:
+                memories.append(content[:200])  # Truncate to save tokens
+
+        return memories if memories else None
+
+    # ------------------------------------------------------------------
+    # Activity source
+    # ------------------------------------------------------------------
+
+    async def _fetch_activity(
+        self,
+        user_id: UUID,
+    ) -> tuple[datetime, float] | None:
+        """Get last user interaction time.
+
+        Returns:
+            Tuple of (last_interaction_at, hours_since) or None.
+        """
+        # Query last user message via Conversation JOIN
+        result = await self._db.execute(
+            select(ConversationMessage.created_at)
+            .join(Conversation, ConversationMessage.conversation_id == Conversation.id)
+            .where(
+                Conversation.user_id == user_id,
+                ConversationMessage.role == "user",
+            )
+            .order_by(ConversationMessage.created_at.desc())
+            .limit(1)
+        )
+        last_at = result.scalar_one_or_none()
+
+        if not last_at:
+            return None
+
+        now = datetime.now(UTC)
+        hours_since = (now - last_at).total_seconds() / 3600
+        return last_at, hours_since
+
+    # ------------------------------------------------------------------
+    # Recent heartbeats (anti-redundancy)
+    # ------------------------------------------------------------------
+
+    async def _fetch_recent_heartbeats(
+        self,
+        user_id: UUID,
+    ) -> list[dict[str, str]] | None:
+        """Fetch recent heartbeat notifications for anti-redundancy.
+
+        Returns:
+            List of {sources_used, decision_reason, created_at} dicts.
+        """
+        repo = HeartbeatNotificationRepository(self._db)
+        notifications = await repo.get_recent_by_user(user_id, limit=5)
+
+        if not notifications:
+            return None
+
+        return [
+            {
+                "sources_used": n.sources_used,
+                "decision_reason": n.decision_reason or "N/A",
+                "created_at": n.created_at.isoformat(),
+            }
+            for n in notifications
+        ]
+
+    # ------------------------------------------------------------------
+    # Recent interest notifications (cross-type dedup)
+    # ------------------------------------------------------------------
+
+    async def _fetch_recent_interest_notifications(
+        self,
+        user_id: UUID,
+    ) -> list[dict[str, str]] | None:
+        """Fetch recent interest notifications for cross-type dedup.
+
+        Direct SQL JOIN query since InterestNotificationRepository lacks
+        a suitable method combining topic name + created_at.
+
+        Returns:
+            List of {topic, created_at} dicts.
+        """
+        result = await self._db.execute(
+            select(
+                InterestNotification.created_at,
+                UserInterest.topic,
+            )
+            .join(
+                UserInterest,
+                InterestNotification.interest_id == UserInterest.id,
+            )
+            .where(InterestNotification.user_id == user_id)
+            .order_by(InterestNotification.created_at.desc())
+            .limit(5)
+        )
+        rows = result.all()
+
+        if not rows:
+            return None
+
+        return [
+            {
+                "topic": row.topic,
+                "created_at": row.created_at.isoformat(),
+            }
+            for row in rows
+        ]

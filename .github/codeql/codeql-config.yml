@@ -1,0 +1,30 @@
+name: "CodeQL Configuration"
+
+# Paths to ignore during analysis
+paths-ignore:
+  - '**/test/**'
+  - '**/tests/**'
+  - '**/node_modules/**'
+  - '**/dist/**'
+  - '**/build/**'
+  - '**/__pycache__/**'
+  - '**/migrations/**'
+  - '**/alembic/versions/**'
+
+# Paths to include during analysis
+paths:
+  - 'apps/api/src/**'
+  - 'apps/web/src/**'
+
+# Disable default query suites
+disable-default-queries: false
+
+# Query filters
+query-filters:
+  - exclude:
+      id: py/unused-import
+
+# Custom queries
+queries:
+  - uses: security-and-quality
+  - uses: security-extended

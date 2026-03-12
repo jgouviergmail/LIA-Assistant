@@ -1,0 +1,137 @@
+# Multi-stage Dockerfile for Next.js 15 in pnpm workspace monorepo
+# Handles pnpm symlinks correctly for standalone mode
+
+FROM node:20-alpine AS base
+RUN corepack enable && corepack prepare pnpm@10.18.3 --activate
+
+# ============================================================================
+# Stage 0: Download WASM models for voice mode
+# ============================================================================
+FROM alpine:latest AS model-downloader
+
+RUN apk add --no-cache curl
+
+WORKDIR /models
+
+# Download whisper-tiny.en model (English-only for wake word detection)
+# Source: HuggingFace csukuangfj/sherpa-onnx-whisper-tiny.en (~103MB total)
+ARG HF_WHISPER_URL=https://huggingface.co/csukuangfj/sherpa-onnx-whisper-tiny.en/resolve/main
+
+RUN mkdir -p whisper-tiny-en && \
+    curl -L -o whisper-tiny-en/encoder.onnx "${HF_WHISPER_URL}/tiny.en-encoder.int8.onnx" && \
+    curl -L -o whisper-tiny-en/decoder.onnx "${HF_WHISPER_URL}/tiny.en-decoder.int8.onnx" && \
+    curl -L -o whisper-tiny-en/tokens.txt "${HF_WHISPER_URL}/tiny.en-tokens.txt"
+
+# Create keywords file
+RUN echo -e "ok\nokay\nhey" > keywords.txt
+
+# ============================================================================
+# Stage 1: Install dependencies
+# ============================================================================
+FROM base AS deps
+RUN apk add --no-cache libc6-compat
+WORKDIR /monorepo
+
+# Copy workspace configuration and lockfile
+COPY .npmrc pnpm-workspace.yaml pnpm-lock.yaml package.json ./
+COPY apps/web/package.json ./apps/web/
+
+# Install all dependencies (including dev for build)
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile --filter=@lia-assistant/web...
+
+# ============================================================================
+# Stage 2: Build the application
+# ============================================================================
+FROM base AS builder
+WORKDIR /monorepo
+
+# Copy workspace config files
+COPY .npmrc pnpm-workspace.yaml pnpm-lock.yaml package.json ./
+
+# Copy web app source code FIRST (before node_modules)
+COPY apps/web ./apps/web
+
+# Copy node_modules from deps stage AFTER source code
+# This ensures symlinks in apps/web/node_modules are preserved
+COPY --from=deps /monorepo/node_modules ./node_modules
+COPY --from=deps /monorepo/apps/web/node_modules ./apps/web/node_modules
+
+# Build Next.js with standalone output
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# NEXT_PUBLIC_* variables must be set at build time
+ARG NEXT_PUBLIC_API_URL=http://localhost:8000
+ARG NEXT_PUBLIC_APP_URL=http://localhost:3000
+ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID
+ARG NEXT_PUBLIC_APP_NAME=Lia
+
+# Firebase Cloud Messaging (FCM) - Push Notifications
+ARG NEXT_PUBLIC_FIREBASE_API_KEY
+ARG NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+ARG NEXT_PUBLIC_FIREBASE_PROJECT_ID
+ARG NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+ARG NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+ARG NEXT_PUBLIC_FIREBASE_APP_ID
+ARG NEXT_PUBLIC_FIREBASE_VAPID_KEY
+
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
+ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=$NEXT_PUBLIC_GOOGLE_CLIENT_ID
+ENV NEXT_PUBLIC_APP_NAME=$NEXT_PUBLIC_APP_NAME
+ENV NEXT_PUBLIC_FIREBASE_API_KEY=$NEXT_PUBLIC_FIREBASE_API_KEY
+ENV NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=$NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+ENV NEXT_PUBLIC_FIREBASE_PROJECT_ID=$NEXT_PUBLIC_FIREBASE_PROJECT_ID
+ENV NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=$NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+ENV NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=$NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+ENV NEXT_PUBLIC_FIREBASE_APP_ID=$NEXT_PUBLIC_FIREBASE_APP_ID
+ENV NEXT_PUBLIC_FIREBASE_VAPID_KEY=$NEXT_PUBLIC_FIREBASE_VAPID_KEY
+
+WORKDIR /monorepo/apps/web
+RUN pnpm run build
+
+# ============================================================================
+# Stage 3: Production runtime
+# ============================================================================
+FROM node:20-alpine AS runner
+
+# Preserve the path structure for symlinks to work
+# Standalone symlinks: ../../../node_modules/.pnpm/
+# From: /monorepo/apps/web/.next/standalone/node_modules/next
+# To:   /monorepo/apps/web/node_modules/.pnpm/next@.../node_modules/next
+WORKDIR /monorepo/apps/web/.next/standalone
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+# Create non-root user
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+# Copy standalone output (server.js, package.json, node_modules symlinks, .next, locales)
+COPY --from=builder --chown=nextjs:nodejs /monorepo/apps/web/.next/standalone ./
+
+# Copy the .pnpm folder that symlinks reference (at the correct relative path)
+# Symlinks point to ../../../node_modules/.pnpm/ which resolves to /monorepo/apps/web/node_modules/.pnpm/
+# The real .pnpm store is at /monorepo/node_modules/.pnpm/ - copy it to the expected location
+COPY --from=builder --chown=nextjs:nodejs /monorepo/node_modules/.pnpm /monorepo/apps/web/node_modules/.pnpm
+
+# Copy static files (not included in standalone)
+# Next.js standalone looks for static files relative to server.js location (apps/web/)
+COPY --from=builder --chown=nextjs:nodejs /monorepo/apps/web/.next/static ./apps/web/.next/static
+COPY --from=builder --chown=nextjs:nodejs /monorepo/apps/web/public ./apps/web/public
+
+# Copy whisper-tiny.en model for wake word detection (downloaded in model-downloader stage)
+COPY --from=model-downloader --chown=nextjs:nodejs /models/whisper-tiny-en ./apps/web/public/models/whisper-tiny-en
+COPY --from=model-downloader --chown=nextjs:nodejs /models/keywords.txt ./apps/web/public/models/keywords.txt
+
+USER nextjs
+EXPOSE 3000
+
+# Health check (use 127.0.0.1 instead of localhost to avoid IPv6 issues in Alpine)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/ || exit 1
+
+CMD ["node", "apps/web/server.js"]

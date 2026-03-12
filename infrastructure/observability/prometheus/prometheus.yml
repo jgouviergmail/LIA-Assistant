@@ -1,0 +1,92 @@
+# Configuration Prometheus pour LIA
+# Optimisé pour Raspberry Pi avec SSD NVMe (réduction I/O)
+global:
+  scrape_interval: 30s       # 15s -> 30s (2x moins de données)
+  evaluation_interval: 30s   # 15s -> 30s
+  external_labels:
+    cluster: 'lia'
+    environment: 'production'
+
+# Configuration des Exemplars pour corrélation avec Tempo
+# Permet de lier les métriques Prometheus aux traces distribuées
+storage:
+  exemplars:
+    max_exemplars: 100000  # Max exemplars stored per series
+
+# Configuration des règles d'alerting - DISABLED 2026-01-16
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets:
+#           - 'alertmanager:9093'
+
+# Chargement des recording rules uniquement (alerting désactivé)
+rule_files:
+  # - "alerts.yml"                # DISABLED - alerting rules
+  - "recording_rules.yml"
+  # - "rules/*.yml"               # DISABLED - custom alert rules
+
+# Configuration du scraping des métriques
+scrape_configs:
+  # Monitoring de Prometheus lui-même
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Monitoring de l'API LIA
+  # Uses dedicated HTTP-only metrics server (port 9091) to avoid TLS
+  # handshake issues between Docker containers (uvicorn serves HTTPS on 8000)
+  - job_name: 'lia-api'
+    scrape_interval: 30s    # 15s -> 30s
+    scrape_timeout: 10s
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['api:9091']
+        labels:
+          service: 'api'
+          app: 'lia'
+    metric_relabel_configs:
+      # Ajout de labels pour mieux identifier les métriques
+      - source_labels: [__name__]
+        regex: 'http_.*'
+        target_label: 'metric_type'
+        replacement: 'http'
+
+  # Monitoring des conteneurs Docker via cAdvisor
+  - job_name: 'cadvisor'
+    scrape_interval: 60s    # 15s -> 60s (métriques containers moins critiques)
+    static_configs:
+      - targets: ['cadvisor:8080']
+        labels:
+          service: 'cadvisor'
+
+  # Monitoring de PostgreSQL via postgres_exporter
+  - job_name: 'postgresql'
+    scrape_interval: 30s    # 15s -> 30s
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+        labels:
+          service: 'postgresql'
+          database: 'lia'
+
+  # Monitoring de Redis via redis_exporter
+  - job_name: 'redis'
+    scrape_interval: 30s    # 15s -> 30s
+    static_configs:
+      - targets: ['redis-exporter:9121']
+        labels:
+          service: 'redis'
+
+  # Monitoring host/system metrics via node_exporter
+  # Provides disk space, filesystem, CPU, memory, network metrics
+  - job_name: 'node'
+    scrape_interval: 60s    # 15s -> 60s (métriques host moins urgentes)
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          service: 'node'
+          instance: 'docker-host'
+
+# Note: storage retention is configured via command-line flags in docker-compose
+# --storage.tsdb.retention.time=15d
+# --storage.tsdb.retention.size=10GB

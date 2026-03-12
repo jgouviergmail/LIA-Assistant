@@ -1,0 +1,27 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Variation 7: Cute minimalist robot -->
+  <defs>
+    <linearGradient id="grad7" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2563eb;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7c3aed;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <rect width="32" height="32" rx="8" fill="url(#grad7)"/>
+
+  <!-- Robot face rounded -->
+  <rect x="8" y="10" width="16" height="14" rx="4" fill="white"/>
+
+  <!-- Antennas (two) -->
+  <circle cx="12" cy="8" r="1.5" fill="#60a5fa"/>
+  <circle cx="20" cy="8" r="1.5" fill="#60a5fa"/>
+  <line x1="12" y1="9" x2="12" y2="10" stroke="white" stroke-width="1.5"/>
+  <line x1="20" y1="9" x2="20" y2="10" stroke="white" stroke-width="1.5"/>
+
+  <!-- Happy eyes -->
+  <path d="M12 15C12 15 12.5 16 13.5 16C14.5 16 15 15 15 15" stroke="#2563eb" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+  <path d="M17 15C17 15 17.5 16 18.5 16C19.5 16 20 15 20 15" stroke="#2563eb" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+
+  <!-- Big smile -->
+  <path d="M11 19C11 19 13 21.5 16 21.5C19 21.5 21 19 21 19" stroke="#2563eb" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+</svg>

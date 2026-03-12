@@ -1,0 +1,8 @@
+{
+  "fr": "Fournit un briefing complet de la journée en combinant les événements du calendrier, les tâches prioritaires et les prévisions météorologiques. À utiliser lorsque l'utilisateur demande un briefing, un résumé quotidien ou « ce que j'ai prévu aujourd'hui ».",
+  "en": "Generates a comprehensive today briefing combining calendar events, priority tasks, and weather forecast. Use when the user asks for a briefing, daily summary, or \"what's on my schedule today\".",
+  "es": "Genera un informe completo del día que combina eventos del calendario, tareas prioritarias y el pronóstico del tiempo. Úselo cuando el usuario solicite un informe, resumen diario o \"qué tengo en mi agenda hoy\".",
+  "de": "Erstellt eine umfassende Tagesübersicht, die Kalenderereignisse, Prioritätsaufgaben und Wettervorhersage kombiniert. Wird verwendet, wenn der Nutzer nach einem Briefing, einer Tageszusammenfassung oder „Was steht heute in meinem Kalender?“ fragt.",
+  "it": "Genera un briefing completo della giornata combinando eventi del calendario, attività prioritarie e previsioni meteo. Da usare quando l'utente chiede un briefing, un riepilogo giornaliero o \"cosa ho in programma oggi\".",
+  "zh": "生成包含日历事件、优先任务和天气预报的全面今日简报。用户请求简报、每日总结或“我今天的日程安排是什么”时使用。"
+}

@@ -1,0 +1,19 @@
+[tool.vulture]
+paths = ["src"]
+min_confidence = 80
+sort_by_size = true
+exclude = [
+    "alembic/",
+    "tests/",
+    ".venv/",
+    "__pycache__/",
+]
+ignore_names = [
+    # LangChain callback interface parameters
+    "serialized",
+    "prompts",
+    "parent_run_id",
+    "tags",
+    # Decorator parameters
+    "method_name",
+]

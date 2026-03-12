@@ -1,0 +1,1314 @@
+{
+  "title": "09 - Conversations & Users",
+  "uid": "09-conversations-users",
+  "tags": ["lia", "conversations", "users", "engagement"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "1m",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [
+    {
+      "title": "LIA",
+      "type": "dashboards",
+      "tags": ["lia"],
+      "targetBlank": false
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {},
+        "hide": 0
+      },
+      {
+        "name": "agent_type",
+        "type": "query",
+        "datasource": "$datasource",
+        "query": "label_values(agent_success_rate_total, agent_type)",
+        "multi": true,
+        "includeAll": true,
+        "refresh": 1,
+        "current": {},
+        "hide": 0
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "row",
+      "id": 100,
+      "title": "User Activity",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "panels": []
+    },
+    {
+      "id": 1,
+      "title": "DAU",
+      "type": "stat",
+      "datasource": "$datasource",
+      "gridPos": { "h": 8, "w": 4, "x": 0, "y": 1 },
+      "targets": [
+        {
+          "expr": "user_active_daily_gauge",
+          "legendFormat": "DAU",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "green" }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "textMode": "auto",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "WAU",
+      "type": "stat",
+      "datasource": "$datasource",
+      "gridPos": { "h": 8, "w": 4, "x": 4, "y": 1 },
+      "targets": [
+        {
+          "expr": "user_active_weekly_gauge",
+          "legendFormat": "WAU",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "green" }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "textMode": "auto",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "New Registrations (24h)",
+      "type": "stat",
+      "datasource": "$datasource",
+      "gridPos": { "h": 8, "w": 4, "x": 8, "y": 1 },
+      "targets": [
+        {
+          "expr": "users_registered_last_24h",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "green" }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "value",
+        "textMode": "auto",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Login Rate",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 1 },
+      "targets": [
+        {
+          "expr": "user_logins:rate1h",
+          "legendFormat": "Logins/h",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "showPoints": "auto",
+            "spanNulls": false
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "green" }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": { "mode": "single" },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Logins by Provider",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 1 },
+      "targets": [
+        {
+          "expr": "sum by (provider) (rate(user_logins_total{status=\"success\"}[$__rate_interval]))",
+          "legendFormat": "{{provider}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "showPoints": "auto",
+            "spanNulls": false
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "green" }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": { "mode": "single" },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Return Rate by Window",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 9 },
+      "targets": [
+        {
+          "expr": "sum by (time_window) (rate(user_return_rate_total[$__rate_interval]))",
+          "legendFormat": "{{time_window}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "showPoints": "auto",
+            "spanNulls": false
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "green" }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": { "mode": "single" },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "title": "Daily Conversations/User",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 9 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(user_daily_conversations_total_bucket[$__rate_interval])))",
+          "legendFormat": "P50",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "showPoints": "auto",
+            "spanNulls": false
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "green" }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": { "mode": "single" },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "type": "row",
+      "id": 101,
+      "title": "Conversation Lifecycle",
+      "collapsed": true,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 17 },
+      "panels": [
+        {
+          "id": 8,
+          "title": "Conversations Created",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 18 },
+          "targets": [
+            {
+              "expr": "conversations_created:rate1h",
+              "legendFormat": "Created",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "showPoints": "auto",
+                "spanNulls": false
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "value": null, "color": "green" }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "single" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 9,
+          "title": "Conversations Reactivated",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 18 },
+          "targets": [
+            {
+              "expr": "rate(conversation_reactivated_total[$__rate_interval])",
+              "legendFormat": "Reactivated",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "showPoints": "auto",
+                "spanNulls": false
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "value": null, "color": "green" }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "single" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 10,
+          "title": "Conversation Resets",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 18 },
+          "targets": [
+            {
+              "expr": "rate(conversation_resets_total[$__rate_interval])",
+              "legendFormat": "Resets",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "showPoints": "auto",
+                "spanNulls": false
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "value": null, "color": "green" }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "single" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 11,
+          "title": "Messages by Role",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 26 },
+          "targets": [
+            {
+              "expr": "sum by (role) (rate(conversation_message_archived_total[$__rate_interval]))",
+              "legendFormat": "{{role}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "mode": "normal",
+                  "group": "A"
+                }
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "value": null, "color": "green" }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "single" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 12,
+          "title": "Conversation Length Distribution",
+          "type": "heatmap",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 26 },
+          "targets": [
+            {
+              "expr": "sum by (le) (increase(conversation_length_messages_bucket[$__rate_interval]))",
+              "format": "heatmap",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "options": {
+            "calculate": false,
+            "yAxis": {
+              "axisPlacement": "left"
+            },
+            "color": {
+              "mode": "scheme",
+              "scheme": "Oranges"
+            },
+            "tooltip": {
+              "show": true
+            },
+            "cellGap": 1
+          }
+        },
+        {
+          "id": 13,
+          "title": "Conversation Turns by Agent",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 26 },
+          "targets": [
+            {
+              "expr": "sum by (agent_type) (rate(conversation_turns_total[$__rate_interval]))",
+              "legendFormat": "{{agent_type}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "showPoints": "auto",
+                "spanNulls": false
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "value": null, "color": "green" }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "single" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 14,
+          "title": "Conversation Repository Queries",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 34 },
+          "targets": [
+            {
+              "expr": "sum by (version) (rate(conversation_repository_queries_total[$__rate_interval]))",
+              "legendFormat": "v{{version}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "showPoints": "auto",
+                "spanNulls": false
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "value": null, "color": "green" }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "single" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 15,
+          "title": "Message Query Duration",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 34 },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(conversation_messages_query_duration_seconds_bucket[$__rate_interval])))",
+              "legendFormat": "P95",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "showPoints": "auto",
+                "spanNulls": false
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "value": null, "color": "green" }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "single" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "id": 102,
+      "title": "Abandonment Analysis",
+      "collapsed": true,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 42 },
+      "panels": [
+        {
+          "id": 16,
+          "title": "Abandonment Rate by Agent",
+          "type": "bargauge",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 43 },
+          "targets": [
+            {
+              "expr": "business:abandonment_rate:5m_by_agent",
+              "legendFormat": "{{agent_type}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "value": null, "color": "green" }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "orientation": "horizontal",
+            "displayMode": "gradient",
+            "showUnfilled": true,
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": false
+            }
+          }
+        },
+        {
+          "id": 17,
+          "title": "Abandonment by Reason",
+          "type": "piechart",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 43 },
+          "targets": [
+            {
+              "expr": "sum by (abandonment_reason) (increase(conversation_abandonment_total[24h]))",
+              "legendFormat": "{{abandonment_reason}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "options": {
+            "pieType": "donut",
+            "tooltip": { "mode": "single" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "right"
+            }
+          }
+        },
+        {
+          "id": 18,
+          "title": "Avg Messages at Abandonment",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 43 },
+          "targets": [
+            {
+              "expr": "business:abandonment_message_count:avg_5m",
+              "legendFormat": "Avg Messages",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "showPoints": "auto",
+                "spanNulls": false
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "value": null, "color": "green" }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "single" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 19,
+          "title": "P95 Messages at Abandonment",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 51 },
+          "targets": [
+            {
+              "expr": "business:abandonment_message_count:p95_5m",
+              "legendFormat": "P95",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "showPoints": "auto",
+                "spanNulls": false
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "value": null, "color": "green" }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "single" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 20,
+          "title": "Conversation Cost by Agent",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 51 },
+          "targets": [
+            {
+              "expr": "business:conversation_tokens:avg_1h_by_agent",
+              "legendFormat": "{{agent_type}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "showPoints": "auto",
+                "spanNulls": false
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "value": null, "color": "green" }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "single" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "id": 103,
+      "title": "Agent Success & Quality",
+      "collapsed": true,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 59 },
+      "panels": [
+        {
+          "id": 21,
+          "title": "Agent Success Rate",
+          "type": "bargauge",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 60 },
+          "targets": [
+            {
+              "expr": "agent:slo:success_rate:1h * 100",
+              "legendFormat": "{{agent_type}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "value": null, "color": "red" },
+                  { "value": 90, "color": "yellow" },
+                  { "value": 95, "color": "orange" },
+                  { "value": 99, "color": "green" }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "orientation": "horizontal",
+            "displayMode": "gradient",
+            "showUnfilled": true,
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": false
+            }
+          }
+        },
+        {
+          "id": 22,
+          "title": "Agent Error Rate by Type",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 60 },
+          "targets": [
+            {
+              "expr": "sum by (agent_type, error_type) (agent_error_rate)",
+              "legendFormat": "{{agent_type}} - {{error_type}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "showPoints": "auto",
+                "spanNulls": false
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "value": null, "color": "green" }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "single" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 23,
+          "title": "Routing Accuracy",
+          "type": "bargauge",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 60 },
+          "targets": [
+            {
+              "expr": "agent_routing_accuracy * 100",
+              "legendFormat": "{{agent_type}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "value": null, "color": "green" }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "orientation": "horizontal",
+            "displayMode": "gradient",
+            "showUnfilled": true,
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": false
+            }
+          }
+        },
+        {
+          "id": 24,
+          "title": "Connector Activation Rate",
+          "type": "bargauge",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 68 },
+          "targets": [
+            {
+              "expr": "connector_activation_rate * 100",
+              "legendFormat": "{{connector_type}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "value": null, "color": "green" }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "orientation": "horizontal",
+            "displayMode": "gradient",
+            "showUnfilled": true,
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": false
+            }
+          }
+        },
+        {
+          "id": 25,
+          "title": "Agent Latency P95",
+          "type": "bargauge",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 68 },
+          "targets": [
+            {
+              "expr": "agent_latency_p95_seconds",
+              "legendFormat": "{{agent_type}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "value": null, "color": "green" }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "orientation": "horizontal",
+            "displayMode": "gradient",
+            "showUnfilled": true,
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": false
+            }
+          }
+        },
+        {
+          "id": 26,
+          "title": "Cost per Successful Conversation",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 68 },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.5, sum by (le) (rate(cost_per_successful_conversation_usd_bucket[$__rate_interval])))",
+              "legendFormat": "P50 Cost",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "currencyEUR",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "showPoints": "auto",
+                "spanNulls": false
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "value": null, "color": "green" }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "single" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "id": 104,
+      "title": "Attachments",
+      "collapsed": true,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 76 },
+      "panels": [
+        {
+          "id": 27,
+          "title": "Attachments Uploaded (24h)",
+          "type": "stat",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 77 },
+          "targets": [
+            {
+              "expr": "sum(increase(attachments_uploaded_total{status=\"success\"}[24h]))",
+              "legendFormat": " ",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "value": null, "color": "green" }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "graphMode": "area",
+            "colorMode": "value",
+            "textMode": "auto",
+            "justifyMode": "auto",
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": false
+            }
+          }
+        },
+        {
+          "id": 28,
+          "title": "Attachment Types",
+          "type": "piechart",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 77 },
+          "targets": [
+            {
+              "expr": "sum by (content_type) (increase(attachments_uploaded_total{status=\"success\"}[24h]))",
+              "legendFormat": "{{content_type}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "options": {
+            "pieType": "donut",
+            "tooltip": { "mode": "single" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "right"
+            }
+          }
+        },
+        {
+          "id": 29,
+          "title": "Upload Rate",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 77 },
+          "targets": [
+            {
+              "expr": "attachments_upload_rate:5m",
+              "legendFormat": "Upload Rate",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "showPoints": "auto",
+                "spanNulls": false
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "value": null, "color": "green" }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "single" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 30,
+          "title": "Upload Size Distribution",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 85 },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.5, sum by (le, content_type) (rate(attachments_upload_size_bytes_bucket[5m])))",
+              "legendFormat": "P50 {{content_type}}",
+              "refId": "A"
+            },
+            {
+              "expr": "histogram_quantile(0.95, sum by (le, content_type) (rate(attachments_upload_size_bytes_bucket[5m])))",
+              "legendFormat": "P95 {{content_type}}",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "bytes",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "showPoints": "auto",
+                "spanNulls": false
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "value": null, "color": "green" }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "single" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 31,
+          "title": "Active Attachments",
+          "type": "stat",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 85 },
+          "targets": [
+            {
+              "expr": "attachments_active_count",
+              "legendFormat": " ",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "decimals": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "value": null, "color": "green" }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "graphMode": "area",
+            "colorMode": "value",
+            "textMode": "auto",
+            "justifyMode": "auto",
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": false
+            }
+          }
+        },
+        {
+          "id": 32,
+          "title": "Upload Errors",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 85 },
+          "targets": [
+            {
+              "expr": "attachments_upload_error_rate:5m",
+              "legendFormat": "Error Rate",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "showPoints": "auto",
+                "spanNulls": false
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "value": null, "color": "green" }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "single" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

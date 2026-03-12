@@ -1,0 +1,10 @@
+# GOOGLE GMAIL - Safe queries (READ ONLY)
+# Can be executed multiple times without side effects
+
+recherche mes 2 derniers emails recus
+recherche mes 3 derniers emails non lus
+Trouve les 3 derniers emails de ma femme
+3 derniers emails importants non lus
+3 derniers emails de marie concernant le budget
+3 derniers emails envoyés cette semaine
+recherche mes 3 derniers emails envoyés

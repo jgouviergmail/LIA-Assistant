@@ -1,0 +1,709 @@
+<p align="center">
+  <img src="docs/assets/logo.png" alt="LIA Logo" width="200" />
+</p>
+
+<h1 align="center">LIA</h1>
+
+<p align="center">
+  <strong>Intelligent multi-agent conversational assistant with LangGraph orchestration, Human-in-the-Loop, and enterprise-grade observability</strong>
+</p>
+
+<p align="center">
+  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.12%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.12+"></a>
+  <a href="https://fastapi.tiangolo.com/"><img src="https://img.shields.io/badge/FastAPI-0.128-009688?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI"></a>
+  <a href="https://nextjs.org/"><img src="https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=nextdotjs&logoColor=white" alt="Next.js"></a>
+  <a href="https://langchain-ai.github.io/langgraph/"><img src="https://img.shields.io/badge/LangGraph-1.0.10-FF6F00?style=flat-square" alt="LangGraph"></a>
+  <a href="https://python.langchain.com/"><img src="https://img.shields.io/badge/LangChain-1.2.17-4B8BBE?style=flat-square" alt="LangChain"></a>
+  <a href="#"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue?style=flat-square" alt="License"></a>
+</p>
+
+<p align="center">
+  <a href="#-features">Features</a> •
+  <a href="#-quick-start">Quick Start</a> •
+  <a href="#-architecture">Architecture</a> •
+  <a href="#-documentation">Documentation</a> •
+  <a href="#-contributing">Contributing</a>
+</p>
+
+<p align="center">
+  <strong>Version 6.2</strong> (Autonomous Heartbeat + Multi-Channel Telegram + Per-User MCP + MCP Apps + Excalidraw + Scheduled Actions + Skills + Landing Page + Web Fetch) — March 2026
+</p>
+
+---
+
+## Table of Contents
+
+- [Why LIA?](#-why-lia)
+- [Features](#-features)
+- [Quick Start](#-quick-start)
+- [Architecture](#-architecture)
+- [Technologies](#-technologies)
+- [Documentation](#-documentation)
+- [Tests](#-tests)
+- [Performance](#-performance)
+- [Security](#-security)
+- [Contributing](#-contributing)
+- [Support](#-support)
+- [License](#-license)
+- [Acknowledgments](#-acknowledgments)
+
+---
+
+## Why LIA?
+
+**LIA** solves the fundamental problems of today's AI assistants:
+
+| Problem | LIA Solution |
+|---------|---------------------|
+| **Unpredictable LLM costs** | Real-time token tracking, budget alerts, 93% optimization |
+| **Uncontrolled hallucinations** | Human-in-the-Loop (HITL) with 6 approval levels |
+| **Fragmented integrations** | Unified multi-domain orchestration (16 agents + MCP) |
+| **Limited observability** | 500+ Prometheus metrics, 17 Grafana dashboards, GeoIP analytics |
+| **Inconsistent performance** | Local E5 embeddings (~50ms), semantic routing +48% accuracy |
+
+### Primary Use Cases
+
+```
+📅 "Find my meetings for tomorrow and send a reminder to all participants"
+📧 "Summarize my unread emails from this week that have attachments"
+👥 "Update the companies of my contacts who work at startups"
+🔔 "Remind me tomorrow at 9am to call Marie for her birthday"
+```
+
+---
+
+## Features
+
+### Multi-Agent Intelligence (LangGraph 1.0)
+
+- **16+ Specialized Agents**: Contacts, Emails, Calendar, Drive, Tasks, Reminders, Places, Routes, Weather, Wikipedia, Perplexity, Brave, Web Search, Web Fetch, Context, Query + dynamic MCP agents
+- **MCP (Model Context Protocol)**: Per-user external tool servers with OAuth 2.1, SSRF protection, structured items parsing, MCP Apps (interactive iframe widgets), Excalidraw Iterative Builder
+- **Skills (agentskills.io)**: Open standard for expert instructions (SKILL.md), model-driven activation, progressive disclosure (L1/L2/L3), sandboxed scripts, marketplace import, auto-translated multi-language descriptions, ZIP download, admin management (description editing, deletion, translation in 6 languages)
+- **File Attachments (Images, PDF)**: Upload with client-side compression, configurable LLM vision analysis, PDF text extraction, strict per-user isolation
+- **Semantic Routing**: Binary classification with confidence scoring (high >0.85, medium >0.65)
+- **Multi-Step Planning**: ExecutionPlan DSL with dependencies and conditions
+- **Parallel Execution**: asyncio.gather for independent domains
+
+### Voice TTS Dual-Mode (v6.0)
+
+| Mode | Provider | Cost | Quality |
+|------|----------|------|---------|
+| **Standard** | Edge TTS (Microsoft Neural) | Free | High |
+| **HD** | OpenAI TTS | $15-30/1M chars | Premium |
+| **HD** | Gemini TTS | Variable | Premium |
+
+- **Factory Pattern**: Interchangeable implementations
+- **Admin Control**: Mode controlled via System Settings
+- **Graceful Degradation**: Automatic HD to Standard fallback
+
+### FOR_EACH Iteration Pattern (v6.0)
+
+```python
+# DSL Syntax
+ExecutionStep(
+    tool_name="send_email",
+    for_each="$steps.get_contacts.contacts",
+    for_each_max=10
+)
+```
+
+- **HITL Thresholds**: Mutations >= 1 trigger mandatory approval
+- **Bulk Operations**: Send emails, update contacts, mass deletions
+
+### Smart Services (Token Savings 89%)
+
+| Service | Role | Optimization |
+|---------|------|--------------|
+| QueryAnalyzerService | Routing decision | LRU Cache |
+| SmartPlannerService | ExecutionPlan generation | Pattern Learning |
+| SmartCatalogueService | Tool filtering | 96% token reduction |
+| PlanPatternLearner | Bayesian learning | Bypass >90% confidence |
+
+### Google Integrations (OAuth 2.1 + PKCE)
+
+- **Gmail**: Search, read, send, reply, trash
+- **Contacts**: Fuzzy search, list, details (14+ schemas)
+- **Calendar**: Search, create, update events
+- **Drive**: Search, file/folder listing
+- **Tasks**: Full CRUD with completion
+
+### Apple iCloud Integrations
+
+- **Apple Mail**: Search, read, send, reply, forward, trash (IMAP/SMTP)
+- **Apple Calendar**: Search, create, update, delete events (CalDAV)
+- **Apple Contacts**: Search, list, create, update, delete (CardDAV)
+
+### Microsoft 365 Integrations (OAuth 2.0 + PKCE)
+
+- **Outlook**: Search, read, send, reply, forward, trash (Graph API)
+- **Calendar**: Search, create, update, delete events (calendarView)
+- **Contacts**: Search, list, create, update, delete
+- **To Do**: Full CRUD with completion (task lists + tasks)
+- **Multi-tenant**: Personal accounts (outlook.com) and business accounts (Azure AD) via `tenant=common`
+
+### 3-Way Mutual Exclusivity
+
+- Only one provider per functional category (email, calendar, contacts, tasks)
+- 3 supported providers: Google, Apple, Microsoft
+- Activating a new provider automatically deactivates the active competitor
+
+### Human-in-the-Loop (HITL)
+
+| Type | Trigger | Severity |
+|------|---------|----------|
+| Plan Approval | Destructive actions | CRITICAL |
+| Clarification | Detected ambiguity | WARNING |
+| Draft Critique | Email/Event review | INFO |
+| Destructive Confirm | Deletion of >= 3 items | CRITICAL |
+| FOR_EACH Confirm | Bulk mutations | WARNING |
+| Modifier Review | Review and approve AI-suggested modifications to draft content | INFO |
+
+### Enterprise Observability
+
+- **Prometheus**: 500+ custom metrics (agents, LLM, infrastructure)
+- **Grafana**: 17 production-ready dashboards
+- **Langfuse**: LLM-specific tracing with prompt versions
+- **Loki**: Structured JSON logs with PII filtering
+- **Tempo**: Distributed cross-service tracing
+
+### Cost Tracking & Billing (v6.1)
+
+| Type | Tracking | Export |
+|------|----------|--------|
+| **LLM Tokens** | Per node, per provider | Detailed CSV |
+| **Google API** | Per endpoint, per user | Detailed CSV |
+| **Aggregated** | Per user, per period | CSV summary |
+
+- **Google Maps Platform**: Places, Routes, Geocoding, Static Maps
+- **Dynamic Pricing**: Admin UI for pricing CRUD
+- **ContextVar Pattern**: Implicit tracking without explicit parameter passing
+- **CSV Exports**: Token usage, Google API usage, Consumption summary
+
+### Security & Compliance
+
+- **OAuth 2.1**: PKCE (S256), single-use state token
+- **BFF Pattern**: HTTP-only cookies, Redis session with 24h TTL
+- **Encryption**: Fernet (credentials), bcrypt (passwords)
+- **GDPR**: Automatic PII filtering, pseudonymization
+
+### MCP (Model Context Protocol)
+
+- **Per-user external servers**: Each user connects their own MCP servers (third-party tools)
+- **Flexible authentication**: None, API Key, Bearer Token, OAuth 2.1 (DCR + PKCE S256)
+- **Enhanced security**: HTTPS-only, SSRF prevention (DNS resolution + IP blocklist), encrypted credentials (Fernet)
+- **Structured Items Parsing**: Automatic JSON array detection into individual items with McpResultCard HTML
+- **Auto-generated descriptions**: LLM analysis of discovered tools to generate domain descriptions optimized for intelligent routing
+- **Per-server rate limiting**: Redis sliding window per server/tool
+- **Feature flag**: `MCP_USER_ENABLED=true` to enable per-user
+
+### Multi-Channel Messaging (Telegram)
+
+- **Bidirectional Telegram**: Full chat with LIA via Telegram (text, voice, HITL)
+- **OTP Linking**: Secure account-to-Telegram linking via 6-digit OTP code (single-use, 5min TTL, brute-force protection)
+- **HITL Inline Keyboards**: Approval/rejection buttons localized in 6 languages directly in Telegram
+- **Voice Transcription**: Telegram voice messages to STT (Sherpa Whisper) to text processing
+- **Proactive Notifications**: Reminders and interest alerts also sent via Telegram
+- **Extensible Architecture**: `BaseChannelSender`/`BaseChannelWebhookHandler` abstraction for future channels (Discord, WhatsApp)
+- **Observability**: 12 dedicated Prometheus RED metrics (latency, errors, volumes)
+- **Feature flag**: `CHANNELS_ENABLED=true` to enable
+
+### Autonomous Heartbeat — Proactive Notifications
+
+- **LLM-driven proactivity**: LIA takes the initiative to inform you when relevant (weather, calendar, interests)
+- **Multi-source aggregation**: Calendar, Weather (with change detection), Tasks, Interests, Memories, Activity — parallel fetch
+- **2-phase LLM decision**: Phase 1 (structured output, cost-effective model) decides whether to notify, Phase 2 rewrites with user personality and language
+- **Intelligent anti-redundancy**: Recent history + cross-type dedup (heartbeat vs. interests) in the decision prompt
+- **User control**: Push notifications (FCM/Telegram) independently toggleable, configurable daily max (1-8), dedicated time windows (independent from interests)
+- **Weather change detection**: Rain start/end, temperature drops, wind alerts — truly actionable notifications
+- **Feature flag**: `HEARTBEAT_ENABLED=true` to enable
+
+### Scheduled Actions
+
+- **Recurring actions**: Schedule repetitive actions executed automatically (send emails, checks, reminders)
+- **Timezone-aware**: Correct timezone handling per user
+- **Retry logic**: Automatic retries on failure with back-off
+- **Auto-disable**: Automatic deactivation after N consecutive failures
+- **Multi-channel integration**: Result notifications via FCM, SSE, and Telegram
+- **Feature flag**: `SCHEDULED_ACTIONS_ENABLED=true` to enable
+
+### MCP Apps — Interactive Widgets (F2.6)
+
+- **Sandboxed iframes**: MCP applications rendered in secure iframes (CSP + COEP `credentialless`)
+- **JSON-RPC Bridge**: Bidirectional communication between iframe app and chat via PostMessage JSON-RPC 2.0
+- **Excalidraw Iterative Builder**: Diagram generation via a single LLM call (all elements) with automatic position correction
+- **`read_me` convention**: MCP servers exposing a `read_me` tool have their content auto-injected into the planner prompt
+- **Auto-generated descriptions**: LLM analysis of discovered tools for domain description optimized for routing
+- **App-only tools**: Tools with `visibility: ["app"]` filtered from the LLM catalogue (iframe only)
+
+### Landing Page
+
+- **Presentation page**: Responsive landing page with animated components (Hero, Features, Architecture, Security, Stats, Use Cases, How It Works, CTA)
+- **SEO & OpenGraph**: Dynamically generated OG image for social media previews
+- **Authenticated redirect**: Automatic redirect to dashboard if already logged in
+- **i18n**: Landing page translated in 6 languages
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+| Software | Version | Required |
+|----------|---------|----------|
+| Python | 3.12+ | Yes |
+| Node.js | 20+ | Yes |
+| Docker | 24+ | Yes |
+| pnpm | 10+ | Yes |
+
+This project uses [Task](https://taskfile.dev/) as its build tool. See `Taskfile.yml` for all available commands. Quick start: `task setup` then `task dev`.
+
+### Express Setup (5 minutes)
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/jgouviergmail/LIA-Assistant.git
+cd LIA-Assistant
+
+# 2. Start the infrastructure
+docker-compose up -d postgres redis prometheus grafana
+
+# 3. Backend setup
+cd apps/api
+python -m venv .venv && source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install -e ".[dev]"
+cp ../../.env.example .env  # Configure your API keys
+
+# 4. Database migrations
+alembic upgrade head
+
+# 5. Frontend setup
+cd ../web
+pnpm install
+
+# 6. Start the services
+# Terminal 1 - Backend:
+cd apps/api && uvicorn src.main:app --reload --port 8000
+
+# Terminal 2 - Frontend:
+cd apps/web && pnpm dev
+```
+
+### Development URLs
+
+| Service | URL | Credentials |
+|---------|-----|-------------|
+| Frontend | http://localhost:3000 | — |
+| API Docs | http://localhost:8000/docs | — |
+| Grafana | http://localhost:3001 | admin/admin |
+| Prometheus | http://localhost:9090 | — |
+
+### Minimal Configuration (.env)
+
+```bash
+# Database
+DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/lia
+REDIS_URL=redis://localhost:6379/0
+
+# Security (REQUIRED - change in production)
+SECRET_KEY=change-me-in-production-use-openssl-rand-base64-32
+FERNET_KEY=your-fernet-key-here
+
+# LLM Provider (at least one required)
+OPENAI_API_KEY=sk-...
+
+# Google OAuth (optional)
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+
+# Feature Flags (optional, disabled by default)
+MCP_ENABLED=false              # Admin MCP servers
+MCP_USER_ENABLED=false         # Per-user MCP (requires MCP_ENABLED)
+CHANNELS_ENABLED=false         # Multi-channel messaging (Telegram)
+HEARTBEAT_ENABLED=false        # Autonomous proactive notifications
+SCHEDULED_ACTIONS_ENABLED=false # Recurring scheduled actions
+SKILLS_ENABLED=false           # Skills system (agentskills.io standard)
+FCM_NOTIFICATIONS_ENABLED=false # Firebase push notifications
+```
+
+---
+
+## Architecture
+
+### Overview
+
+Production targets include Raspberry Pi (ARM64) via multi-arch Docker builds (`linux/amd64,linux/arm64`).
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        FRONTEND (Next.js 16 + React 19)                  │
+│    Chat UI • Settings • i18n (6 languages) • SSE Streaming • Voice Mode  │
+└─────────────────────────────┬───────────────────────────────────────────┘
+                              │ HTTP-only cookies (session_id, 24h TTL)
+┌─────────────────────────────┴───────────────────────────────────────────┐
+│                     BACKEND (FastAPI + LangGraph 1.0)                    │
+│                                                                          │
+│  ┌────────────────────────────────────────────────────────────────────┐ │
+│  │                 LangGraph Multi-Agent Orchestration                 │ │
+│  │                                                                      │ │
+│  │   Router → QueryAnalyzer → Planner → ApprovalGate → Orchestrator   │ │
+│  │      ↓                                        ↓                     │ │
+│  │   ┌─────────────────────────────────────────────────────────────┐  │ │
+│  │   │  Contacts │ Emails │ Calendar │ Drive │ Tasks │ Reminders  │  │ │
+│  │   │  Places │ Routes │ Weather │ Wikipedia │ Perplexity      │  │ │
+│  │   │  Brave │ Web Search │ Web Fetch │ Context │ Query Agent   │  │ │
+│  │   └─────────────────────────────────────────────────────────────┘  │ │
+│  │                              ↓                                      │ │
+│  │               MCP Tools (per-user external servers)                │ │
+│  │                              ↓                                      │ │
+│  │                       Response Node (synthesis)                     │ │
+│  └────────────────────────────────────────────────────────────────────┘ │
+│                                                                          │
+│  ┌─────────────────────────────────────────────────────────────────────┐│
+│  │  Domain Services: Auth, Users, Connectors, LLM Pricing, Voice       ││
+│  └─────────────────────────────────────────────────────────────────────┘│
+│                                                                          │
+│  ┌─────────────────────────────────────────────────────────────────────┐│
+│  │  Infrastructure: Redis (cache) • PostgreSQL (checkpoints) •         ││
+│  │  MCP Client Pool • Prometheus (metrics) • Langfuse (traces)       ││
+│  └─────────────────────────────────────────────────────────────────────┘│
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+### Conversation Flow
+
+```mermaid
+graph TD
+    A[User Message] --> B[Router Node]
+    B -->|conversation| C[Response Node]
+    B -->|actionable| D[Planner Node]
+    D --> E[Semantic Validator]
+    E --> F{Approval Gate}
+    F -->|approved| G[Task Orchestrator]
+    F -->|rejected| C
+    G --> H[Domain Agents]
+    H --> I[Google APIs]
+    I --> H
+    H --> G
+    G --> C
+    C --> J[SSE Stream → User]
+```
+
+### Code Structure (DDD)
+
+```
+apps/api/src/
+├── core/                    # Modular configuration (9 modules)
+│   ├── config/              # Settings per domain
+│   ├── constants.py         # Global constants
+│   └── bootstrap.py         # Initialization functions
+├── domains/                 # Bounded Contexts (DDD)
+│   ├── agents/              # LangGraph nodes, services, tools
+│   │   ├── nodes/           # 7 nodes (router, planner, response...)
+│   │   ├── services/        # Smart services, HITL
+│   │   ├── tools/           # Domain-specific tools
+│   │   └── orchestration/   # ExecutionPlan, parallel executor
+│   ├── auth/                # JWT, sessions, OAuth
+│   ├── connectors/          # Google + Apple + Microsoft clients, provider resolver
+│   ├── google_api/          # Google API pricing & usage tracking (v6.1)
+│   ├── user_mcp/            # Per-user MCP servers (CRUD, OAuth, domain routing)
+│   ├── voice/               # TTS factory, STT, Wake Word
+│   ├── interests/           # Interest Learning System
+│   ├── heartbeat/           # Autonomous Heartbeat (Proactive Notifications)
+│   └── users/               # User management
+└── infrastructure/          # Cross-cutting concerns
+    ├── cache/               # Redis sessions, LLM cache
+    ├── llm/                 # Factory, providers, embeddings
+    ├── mcp/                 # MCP client pool, auth, security, tool adapters
+    ├── rate_limiting/       # Distributed rate limiter
+    └── observability/       # Metrics, logging, tracing
+```
+
+---
+
+## Technologies
+
+### Backend
+
+| Technology | Version | Role |
+|------------|---------|------|
+| Python | 3.12+ | Primary runtime |
+| FastAPI | 0.128 | REST API + SSE framework |
+| LangGraph | 1.0.10 | Multi-agent orchestration |
+| LangChain | 1.2.10 | LLM abstraction + tools |
+| SQLAlchemy | 2.0.45 | Async ORM |
+| PostgreSQL | 16 + pgvector | Database + vector search |
+| Redis | 7.1.0 | Cache, sessions, rate limiting |
+| Pydantic | 2.12.5 | Validation + serialization |
+| sentence-transformers | 5.0+ | Local E5 embeddings |
+| Edge TTS | 6.1+ | Voice synthesis (free) |
+| mcp | 1.9+ | Model Context Protocol SDK (Streamable HTTP) |
+
+### Frontend
+
+| Technology | Version | Role |
+|------------|---------|------|
+| Next.js | 16.1.1 | React framework |
+| React | 19.2.3 | UI library |
+| TypeScript | 5.9.3 | Type safety |
+| TailwindCSS | 4.1.18 | Styling |
+| TanStack Query | 5.90.16 | Server state management |
+| react-i18next | 16.5.1 | i18n (6 languages) |
+| Radix UI | latest | Accessible UI primitives |
+
+### Supported LLM Providers
+
+| Provider | Models | Use Case |
+|----------|--------|----------|
+| OpenAI | GPT-4.1-mini, GPT-4.1-nano | Primary (prompt caching) |
+| Anthropic | Claude 3.5 Sonnet, Claude 3 Opus | Alternative |
+| Google | Gemini 2.0 Flash | Multimodal |
+| DeepSeek | V3, Reasoner (R1) | Cost-effective reasoning |
+| Perplexity | sonar-pro | Web-augmented responses |
+| Ollama | Self-hosted | Zero API cost |
+
+### Observability
+
+| Technology | Role |
+|------------|------|
+| Prometheus | 500+ metrics |
+| Grafana | 17 dashboards |
+| Loki | Aggregated logs |
+| Tempo | Distributed tracing |
+| Langfuse | LLM observability |
+| structlog | Structured JSON logs |
+
+---
+
+## Documentation
+
+### Main Documentation
+
+| Document | Description |
+|----------|-------------|
+| [GETTING_STARTED.md](./docs/GETTING_STARTED.md) | Detailed installation guide |
+| [ARCHITECTURE.md](./docs/ARCHITECTURE.md) | Complete system architecture |
+| [INDEX.md](./docs/INDEX.md) | Full documentation map (180+ docs) |
+
+### Technical Documentation
+
+| Domain | Documents |
+|--------|-----------|
+| **Agents & LLM** | [GRAPH_AND_AGENTS_ARCHITECTURE](./docs/technical/GRAPH_AND_AGENTS_ARCHITECTURE.md) • [PLANNER](./docs/technical/PLANNER.md) • [SEMANTIC_ROUTER](./docs/technical/SEMANTIC_ROUTER.md) |
+| **HITL** | [HITL](./docs/technical/HITL.md) • [PLAN_HITL_STREAMING_VALIDATION](./docs/technical/PLAN_HITL_STREAMING_VALIDATION.md) |
+| **Voice** | [VOICE](./docs/technical/VOICE.md) • [VOICE_MODE](./docs/technical/VOICE_MODE.md) |
+| **Memory** | [LONG_TERM_MEMORY](./docs/technical/LONG_TERM_MEMORY.md) • [MEMORY_RESOLUTION](./docs/technical/MEMORY_RESOLUTION.md) |
+| **MCP** | [MCP_INTEGRATION](./docs/technical/MCP_INTEGRATION.md) • [GUIDE_MCP_INTEGRATION](./docs/guides/GUIDE_MCP_INTEGRATION.md) |
+| **Heartbeat** | [HEARTBEAT_AUTONOME](./docs/technical/HEARTBEAT_AUTONOME.md) • [GUIDE_HEARTBEAT](./docs/guides/GUIDE_HEARTBEAT_PROACTIVE_NOTIFICATIONS.md) |
+| **Channels** | [CHANNELS_INTEGRATION](./docs/technical/CHANNELS_INTEGRATION.md) • [GUIDE_TELEGRAM](./docs/guides/GUIDE_TELEGRAM_INTEGRATION.md) |
+| **Scheduled Actions** | [SCHEDULED_ACTIONS](./docs/technical/SCHEDULED_ACTIONS.md) • [GUIDE_SCHEDULED_ACTIONS](./docs/guides/GUIDE_SCHEDULED_ACTIONS.md) |
+| **Skills** | [SKILLS_INTEGRATION](./docs/technical/SKILLS_INTEGRATION.md) |
+| **LLM Providers** | [LLM_PROVIDERS](./docs/technical/LLM_PROVIDERS.md) |
+| **Security** | [SECURITY](./docs/technical/SECURITY.md) • [OAUTH](./docs/technical/OAUTH.md) • [RATE_LIMITING](./docs/technical/RATE_LIMITING.md) |
+| **Observability** | [OBSERVABILITY_AGENTS](./docs/technical/OBSERVABILITY_AGENTS.md) • [METRICS_REFERENCE](./docs/technical/METRICS_REFERENCE.md) |
+| **Cost Tracking** | [LLM_PRICING_MANAGEMENT](./docs/technical/LLM_PRICING_MANAGEMENT.md) • [GOOGLE_API_TRACKING](./docs/technical/GOOGLE_API_TRACKING.md) |
+
+### Practical Guides
+
+| Guide | Description |
+|-------|-------------|
+| [GUIDE_DEVELOPPEMENT](./docs/guides/GUIDE_DEVELOPPEMENT.md) | Complete development workflow |
+| [GUIDE_AGENT_CREATION](./docs/guides/GUIDE_AGENT_CREATION.md) | How to create a new agent |
+| [GUIDE_TOOL_CREATION](./docs/guides/GUIDE_TOOL_CREATION.md) | How to create a new tool |
+| [GUIDE_TESTING](./docs/guides/GUIDE_TESTING.md) | Testing strategy (2,300+ tests) |
+| [GUIDE_DEBUGGING](./docs/guides/GUIDE_DEBUGGING.md) | LangGraph and log debugging |
+
+### Architecture Decision Records (ADR)
+
+55+ ADRs documenting major architectural decisions:
+
+- [ADR-001: LangGraph Multi-Agent System](./docs/architecture/ADR-001-LangGraph-Multi-Agent-System.md)
+- [ADR-048: Semantic Tool Router](./docs/architecture/ADR-048-Semantic-Tool-Router.md)
+- [ADR-051: Reminder & Notification System](./docs/architecture/ADR-051-Reminder-Notification-System.md)
+- [View all ADRs](./docs/architecture/ADR_INDEX.md)
+
+---
+
+## Tests
+
+### Running Tests
+
+```bash
+cd apps/api
+
+# Unit tests (fast, ~30s)
+pytest tests/unit -v
+
+# Integration tests (require PostgreSQL + Redis)
+pytest tests/integration -v
+
+# LangGraph agent tests
+pytest tests/agents -v
+
+# Full coverage
+pytest --cov=src --cov-report=html -v
+# Report: htmlcov/index.html
+```
+
+### Statistics
+
+| Metric | Value |
+|--------|-------|
+| Total tests | 2,300+ |
+| Reusable fixtures | 170+ |
+| Coverage target | 85% |
+| CI Workflows | 4 |
+
+---
+
+## Performance
+
+### Key Metrics (P95)
+
+| Metric | Value | SLO |
+|--------|-------|-----|
+| API Latency | 450ms | < 500ms |
+| TTFT (Time To First Token) | 380ms | < 500ms |
+| Router Latency | 800ms | < 2s |
+| Planner Latency | 2.5s | < 5s |
+| E5 Embedding (local) | ~50ms | < 100ms |
+| Token Reduction (Windowing) | 93% | > 80% |
+
+### Implemented Optimizations
+
+- **Message Windowing**: 5/10/20 turns depending on node
+- **Prompt Caching**: OpenAI/Anthropic (90% discount)
+- **Local Embeddings**: Multilingual E5 (zero API cost)
+- **Parallel Execution**: asyncio.gather for independent domains
+- **Redis O(1)**: Optimized operations (vs O(N) SCAN)
+- **Connection Pooling**: httpx persistent connections
+
+---
+
+## Security
+
+### Compliance
+
+| Standard | Status |
+|----------|--------|
+| GDPR | PII filtering, data minimization |
+| OWASP Top 10 | XSS, SQL injection, CSRF protection |
+| OAuth 2.1 | Mandatory PKCE |
+
+### Reporting a Vulnerability
+
+**DO NOT create a GitHub Issue for security vulnerabilities.**
+
+Send an email to **security@lia-assistant.dev** with:
+- Description of the vulnerability
+- Steps to reproduce
+- Potential impact
+
+We respond within 48 hours.
+
+---
+
+## Contributing
+
+We welcome all contributions! See our [Contributing Guide](./CONTRIBUTING.md) to get started.
+
+### Quick Start for Contributors
+
+```bash
+# 1. Fork and clone
+git clone https://github.com/YOUR-USERNAME/LIA-Assistant.git
+cd LIA-Assistant
+
+# 2. Create a branch
+git checkout -b feature/my-feature
+
+# 3. Install pre-commit hooks
+pre-commit install
+
+# 4. Develop and test
+pytest tests/unit -v
+
+# 5. Commit (Conventional Commits)
+git commit -m "feat(agents): add weather forecast agent"
+
+# 6. Push and create PR
+git push origin feature/my-feature
+```
+
+### Types of Contributions
+
+- Bug fixes
+- New features
+- Documentation
+- Tests
+- i18n translations (6 supported languages)
+- Performance optimizations
+
+### Standards
+
+- **Python**: Black + Ruff + MyPy (strict)
+- **TypeScript**: ESLint + Prettier
+- **Commits**: [Conventional Commits](https://www.conventionalcommits.org/)
+- **Coverage**: >= 80% for new code
+
+---
+
+## Support
+
+### Getting Help
+
+| Channel | Usage |
+|---------|-------|
+| [GitHub Issues](https://github.com/jgouviergmail/LIA-Assistant/issues) | Bugs, feature requests |
+| [GitHub Discussions](https://github.com/jgouviergmail/LIA-Assistant/discussions) | Questions, ideas |
+| contact@lia-assistant.dev | General inquiries |
+
+### Resources
+
+- [Full documentation](./docs/INDEX.md)
+- [Practical guides](./docs/guides/)
+- [Operational runbooks](./docs/runbooks/)
+
+---
+
+## License
+
+This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**.
+
+See [LICENSE](./LICENSE) for details.
+
+A commercial license is also available for organizations that cannot comply with AGPL-3.0 terms. Contact contact@lia-assistant.dev for details.
+
+---
+
+## Acknowledgments
+
+### Open Source Technologies
+
+This project builds on excellent open source technologies:
+
+- [LangGraph](https://github.com/langchain-ai/langgraph) - Multi-agent orchestration
+- [FastAPI](https://fastapi.tiangolo.com/) - Modern web framework
+- [Next.js](https://nextjs.org/) - React framework
+- [Prometheus](https://prometheus.io/) - Monitoring & alerting
+- [Grafana](https://grafana.com/) - Visualization
+- [sentence-transformers](https://www.sbert.net/) - Local embeddings
+
+### Inspirations
+
+- [LangChain Agents](https://python.langchain.com/docs/modules/agents/)
+- [OpenAI Assistants API](https://platform.openai.com/docs/assistants/overview)
+- [Anthropic Claude](https://www.anthropic.com/)
+
+---
+
+<p align="center">
+  <strong>LIA</strong> — Next-Generation Intelligent Conversational Assistant
+</p>
+
+<p align="center">
+  Built with ❤️ using Python, FastAPI, LangGraph, and Next.js
+</p>
+
+<p align="center">
+  <a href="#table-of-contents">Back to top</a>
+</p>

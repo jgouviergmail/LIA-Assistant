@@ -1,0 +1,14 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "LIA PostgreSQL",
+      "Group": "Development",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "lia",
+      "Username": "lia_admin",
+      "SSLMode": "prefer",
+      "Comment": "LIA development database with pgvector"
+    }
+  }
+}

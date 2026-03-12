@@ -1,0 +1,58 @@
+# Multi-stage Dockerfile for Next.js 15 development in pnpm monorepo
+# This Dockerfile is designed to work with the monorepo structure and properly
+# handle pnpm workspace dependencies and .npmrc configuration
+
+FROM node:20-alpine
+
+# Install pnpm and su-exec for user switching
+RUN corepack enable && corepack prepare pnpm@10.18.3 --activate && \
+    apk add --no-cache su-exec libc6-compat
+
+# Set up pnpm environment for BuildKit cache
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+
+# Create working directory for monorepo
+WORKDIR /monorepo
+
+# Set ownership to node user
+RUN chown -R node:node /monorepo
+
+# Switch to node user for dependency installation
+USER node
+
+# Copy monorepo configuration files (required for pnpm workspace)
+# IMPORTANT: These files must be copied BEFORE package.json files
+COPY --chown=node:node .npmrc pnpm-workspace.yaml pnpm-lock.yaml ./
+
+# Copy root package.json (monorepo root)
+COPY --chown=node:node package.json ./
+
+# Copy web app package.json
+COPY --chown=node:node apps/web/package.json ./apps/web/
+
+# Install dependencies using pnpm workspace filter
+# --filter @lia-assistant/web... installs dependencies for @lia-assistant/web and its workspace dependencies
+# BuildKit cache mount speeds up reinstallation when lockfile hasn't changed
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --filter @lia-assistant/web...
+
+# Copy web application source code
+COPY --chown=node:node apps/web ./apps/web
+
+# Set working directory to web app
+WORKDIR /monorepo/apps/web
+
+# Switch back to root for entrypoint (will drop to node user)
+USER root
+
+# Copy entrypoint script
+COPY --chown=root:root apps/web/docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# Expose port
+EXPOSE 3000
+
+# Use entrypoint to fix permissions then switch to node user
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["pnpm", "run", "dev"]

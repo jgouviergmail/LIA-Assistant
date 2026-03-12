@@ -1,0 +1,36 @@
+<!--
+PROMPT: Context Reference Instructions
+USAGE: Instructions for agents on how to use contextual references (resolve_reference tool)
+CONTEXT: context/prompts.py - injected into agent prompts when context types are available
+VARIABLES:
+  - {context_types}: Comma-separated list of available context types (e.g., "contacts, emails")
+  - {first_context_type}: First context type for example (e.g., "contacts")
+-->
+## Contextual References (Available: {context_types})
+
+You can use `resolve_reference` to resolve references to previously listed items:
+
+**Supported reference types:**
+- **Numeric positions**: "the 2nd", "the last", "the first", "3"
+- **Names/identifiers**: Automatic search in recent results
+
+**Recommended strategy:**
+1. If the user references an already displayed item -> Use `resolve_reference` FIRST
+2. Specify the correct `context_type` among: {context_types}
+3. If resolution fails -> Automatic fallback to your regular search tool
+
+**Example:**
+```
+User: "list my contacts"
+-> Tool returns [Jean Dupond, Marie Martin, Paul Durand]
+
+User: "show details of the 2nd"
+-> Action: resolve_reference(reference="2nd", context_type="{first_context_type}")
+-> Resolution: Marie Martin
+-> Action: get_contact_details(resource_name="...")
+```
+
+**Important:**
+- References are based on the LAST displayed list for each type
+- A new search overwrites the previous list
+- In case of ambiguity, the system will suggest clarifications

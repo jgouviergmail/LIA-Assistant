@@ -1,0 +1,1007 @@
+# ============================================================================
+# Prometheus Recording Rules for LIA
+# ============================================================================
+#
+# Recording rules pre-compute frequently used or computationally expensive
+# queries to improve dashboard performance and reduce Prometheus load.
+#
+# Benefits:
+# - Faster dashboard queries (pre-calculated every 30s)
+# - Reduced cardinality for complex aggregations
+# - Reusable metrics across dashboards and alerts
+#
+# Best Practices:
+# - Use `:suffix` naming convention (e.g., metric:aggregate:rate_interval)
+# - Group related rules by domain
+# - Set appropriate evaluation intervals (default: 30s)
+#
+# References:
+# - https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/
+# - https://prometheus.io/docs/practices/rules/
+# ============================================================================
+
+groups:
+  # ==========================================================================
+  # AGENT PERFORMANCE - Success Rates & Efficiency
+  # ==========================================================================
+  - name: agent_performance
+    interval: 30s
+    rules:
+      # Agent node success rate (5m rolling window)
+      # Usage: Track reliability of each agent node
+      - record: agent_node_success_rate:5m
+        expr: |
+          sum by (node_name) (rate(agent_node_executions_total{status="success"}[5m]))
+          /
+          sum by (node_name) (rate(agent_node_executions_total[5m]))
+
+      # Router decision distribution (1h aggregate)
+      # Usage: Understand intention patterns and routing quality
+      - record: router_decisions_by_intention:1h
+        expr: |
+          sum by (intention) (increase(router_decisions_total[1h]))
+
+      # Agent execution rate (requests/sec by node)
+      # Usage: Track load distribution across agent nodes
+      - record: agent_node_executions:rate5m
+        expr: |
+          sum by (node_name) (rate(agent_node_executions_total[5m]))
+
+  # ==========================================================================
+  # LLM COSTS & TOKEN EFFICIENCY
+  # ==========================================================================
+  - name: llm_costs
+    interval: 30s
+    rules:
+      # LLM cost per request (hourly average)
+      # Usage: Cost optimization and budget tracking
+      - record: llm_cost_per_request:1h
+        expr: |
+          sum(rate(llm_cost_total[1h]))
+          /
+          sum(rate(llm_api_calls_total[1h]))
+
+      # Tokens per request (all types)
+      # Usage: Context size optimization
+      - record: llm_tokens_per_request:1h
+        expr: |
+          sum(rate(llm_tokens_consumed_total[1h]))
+          /
+          sum(rate(llm_api_calls_total[1h]))
+
+      # Cached tokens ratio (cache efficiency)
+      # Usage: Cache hit rate monitoring
+      - record: llm_cached_tokens_ratio:1h
+        expr: |
+          sum(rate(llm_tokens_consumed_total{token_type="cached_tokens"}[1h]))
+          /
+          sum(rate(llm_tokens_consumed_total[1h]))
+
+      # Token consumption rate by model (tokens/sec)
+      # Usage: Model usage patterns
+      - record: llm_tokens_rate:5m_by_model
+        expr: |
+          sum by (model) (rate(llm_tokens_consumed_total[5m]))
+
+  # ==========================================================================
+  # HITL QUALITY & EFFICIENCY
+  # ==========================================================================
+  - name: hitl_quality
+    interval: 30s
+    rules:
+      # HITL LLM classification fallback ratio (1h)
+      # Usage: Measure fast-path effectiveness (lower = better)
+      - record: hitl_llm_fallback_ratio:1h
+        expr: |
+          sum(rate(hitl_classification_method_total{method="llm"}[1h]))
+          /
+          sum(rate(hitl_classification_method_total[1h]))
+
+      # HITL clarification request rate
+      # Usage: Track ambiguous interactions (lower = better classification)
+      - record: hitl_clarification_rate:1h
+        expr: |
+          sum(rate(hitl_clarification_requests_total[1h]))
+          /
+          sum(rate(hitl_classification_method_total[1h]))
+
+      # HITL approval rate (approve vs reject)
+      # Usage: Measure user trust in tool suggestions
+      - record: hitl_approval_rate:1h
+        expr: |
+          sum(rate(hitl_classification_method_total{decision="APPROVE"}[1h]))
+          /
+          sum(rate(hitl_classification_method_total{decision=~"APPROVE|REJECT"}[1h]))
+
+  # ==========================================================================
+  # HTTP & API PERFORMANCE
+  # ==========================================================================
+  - name: http_performance
+    interval: 30s
+    rules:
+      # HTTP error rate (5xx errors)
+      # Usage: SLI for availability
+      - record: http_error_rate:5m
+        expr: |
+          sum(rate(http_requests_total{status=~"5.."}[5m]))
+          /
+          sum(rate(http_requests_total[5m]))
+
+      # HTTP request rate (total req/sec)
+      # Usage: Traffic monitoring
+      - record: http_requests:rate5m
+        expr: |
+          sum(rate(http_requests_total[5m]))
+
+      # HTTP P95 latency (by endpoint)
+      # Usage: Performance monitoring
+      - record: http_request_duration:p95_5m
+        expr: |
+          histogram_quantile(0.95, sum by (endpoint, le) (rate(http_request_duration_seconds_bucket[5m])))
+
+  # ==========================================================================
+  # SSE STREAMING PERFORMANCE
+  # ==========================================================================
+  - name: sse_streaming
+    interval: 30s
+    rules:
+      # SSE streaming P95 duration by intention
+      # Usage: User experience monitoring
+      - record: sse_streaming_duration:p95_5m
+        expr: |
+          histogram_quantile(0.95, sum by (intention, le) (rate(sse_streaming_duration_seconds_bucket[5m])))
+
+      # SSE TTFT (Time to First Token) P95
+      # Usage: Responsiveness SLI
+      - record: sse_ttft:p95_5m
+        expr: |
+          histogram_quantile(0.95, sum by (intention, le) (rate(sse_time_to_first_token_seconds_bucket[5m])))
+
+      # SSE tokens generation rate (tokens/sec)
+      # Usage: Throughput monitoring
+      - record: sse_tokens_rate:5m
+        expr: |
+          sum(rate(sse_tokens_generated_total[5m]))
+
+  # ==========================================================================
+  # CHECKPOINT & CONVERSATION PERFORMANCE
+  # ==========================================================================
+  - name: checkpoint_performance
+    interval: 30s
+    rules:
+      # Checkpoint save P99 latency
+      # Usage: Database performance monitoring
+      - record: checkpoint_save_duration:p99_5m
+        expr: |
+          histogram_quantile(0.99, sum by (node_name, le) (rate(checkpoint_save_duration_seconds_bucket[5m])))
+
+      # Checkpoint load P95 latency
+      # Usage: Cold start performance
+      - record: checkpoint_load_duration:p95_5m
+        expr: |
+          histogram_quantile(0.95, sum by (conversation_exists, le) (rate(checkpoint_load_duration_seconds_bucket[5m])))
+
+      # Checkpoint size P90 (by node)
+      # Usage: Storage optimization
+      - record: checkpoint_size:p90_5m
+        expr: |
+          histogram_quantile(0.90, sum by (node_name, le) (rate(checkpoint_size_bytes_bucket[5m])))
+
+  # ==========================================================================
+  # BUSINESS METRICS - User Activity & Engagement
+  # ==========================================================================
+  - name: business_metrics
+    interval: 1m
+    rules:
+      # User registration rate (signups/hour) — includes password + OAuth
+      # Usage: Growth tracking
+      - record: user_registrations:rate1h
+        expr: |
+          (sum(rate(user_registrations_total{status="success"}[1h])) or vector(0)) + (sum(rate(oauth_user_creation_total[1h])) or vector(0))
+
+      # User login rate (logins/hour) — includes password + OAuth
+      # Usage: Engagement tracking
+      - record: user_logins:rate1h
+        expr: |
+          (sum(rate(user_logins_total{status="success"}[1h])) or vector(0)) + (sum(rate(oauth_user_login_total[1h])) or vector(0))
+
+      # Conversation creation rate
+      # Usage: Feature adoption
+      - record: conversations_created:rate1h
+        expr: |
+          sum(rate(conversation_created_total[1h]))
+
+      # =======================================================================
+      # PHASE 3.2 - BUSINESS METRICS (Part 2 - P1 High Priority)
+      # =======================================================================
+      # These recording rules pre-aggregate business metrics instrumented in
+      # Part 2 (Steps 2.1-2.4) for efficient dashboard queries and alerting.
+      #
+      # Metrics covered:
+      # - Conversation abandonment tracking (Step 2.1)
+      # - Tool usage patterns (Step 2.2)
+      # - HITL feature adoption (Step 2.3)
+      # - Token efficiency (Step 2.4)
+      # =======================================================================
+
+      # -----------------------------------------------------------------------
+      # ABANDONMENT METRICS (Step 2.1)
+      # -----------------------------------------------------------------------
+
+      # Conversation abandonment rate by agent type (5m rolling window)
+      # Usage: Product health indicator - identifies agents with high abandonment
+      # Alert threshold: >20% abandonment rate per agent
+      - record: business:abandonment_rate:5m_by_agent
+        expr: |
+          sum by (agent_type) (rate(conversation_abandonment_total[5m]))
+
+      # Conversation abandonment rate by reason (5m rolling window)
+      # Usage: Identify root causes of abandonment (user_reset, timeout, error)
+      # High user_reset rate indicates UX friction
+      - record: business:abandonment_rate:5m_by_reason
+        expr: |
+          sum by (abandonment_reason) (rate(conversation_abandonment_total[5m]))
+
+      # Average message count at abandonment by reason (5m window)
+      # Usage: Understand when users abandon (early vs late in conversation)
+      # Early abandonment (<3 messages) indicates onboarding issues
+      - record: business:abandonment_message_count:avg_5m
+        expr: |
+          sum by (abandonment_reason) (rate(conversation_abandonment_at_message_count_sum[5m]))
+          /
+          sum by (abandonment_reason) (rate(conversation_abandonment_at_message_count_count[5m]))
+
+      # P95 message count at abandonment (5m window)
+      # Usage: Detect outlier abandonment patterns
+      - record: business:abandonment_message_count:p95_5m
+        expr: |
+          histogram_quantile(0.95,
+            sum by (abandonment_reason, le) (
+              rate(conversation_abandonment_at_message_count_bucket[5m])
+            )
+          )
+
+      # Average tokens consumed per conversation by agent (1h window)
+      # Usage: Cost attribution per agent type
+      # High token usage may indicate inefficient prompts
+      - record: business:conversation_tokens:avg_1h_by_agent
+        expr: |
+          sum by (agent_type) (rate(conversation_tokens_total_sum[1h]))
+          /
+          sum by (agent_type) (rate(conversation_tokens_total_count[1h]))
+
+      # P95 tokens per conversation by agent (1h window)
+      # Usage: Identify agents with high token variance
+      - record: business:conversation_tokens:p95_1h_by_agent
+        expr: |
+          histogram_quantile(0.95,
+            sum by (agent_type, le) (
+              rate(conversation_tokens_total_bucket[1h])
+            )
+          )
+
+      # -----------------------------------------------------------------------
+      # TOOL USAGE METRICS (Step 2.2)
+      # -----------------------------------------------------------------------
+
+      # Tool usage rate by tool name (5m rolling window)
+      # Usage: Identify most-used tools for feature prioritization
+      # Top 10 tools guide development roadmap
+      - record: business:tool_usage:rate5m_by_tool
+        expr: |
+          sum by (tool_name) (rate(agent_tool_usage_total[5m]))
+
+      # Tool usage rate by agent type (5m rolling window)
+      # Usage: Understand which agents use which tools
+      - record: business:tool_usage:rate5m_by_agent
+        expr: |
+          sum by (agent_type) (rate(agent_tool_usage_total[5m]))
+
+      # Tool success rate by tool name (5m window)
+      # Usage: Identify unreliable tools (low success rate)
+      # Alert threshold: <80% success rate
+      - record: business:tool_success_rate:5m_by_tool
+        expr: |
+          sum by (tool_name) (rate(agent_tool_usage_total{outcome="success"}[5m]))
+          /
+          sum by (tool_name) (rate(agent_tool_usage_total[5m]))
+
+      # Tool success rate by agent type (5m window)
+      # Usage: Identify agents with poor tool integration
+      - record: business:tool_success_rate:5m_by_agent
+        expr: |
+          sum by (agent_type) (rate(agent_tool_usage_total{outcome="success"}[5m]))
+          /
+          sum by (agent_type) (rate(agent_tool_usage_total[5m]))
+
+      # Tool rejection rate (user_rejected outcome) by tool (1h window)
+      # Usage: Identify tools users don't trust (high rejection)
+      # High rejection rate indicates poor tool suggestions
+      - record: business:tool_rejection_rate:1h_by_tool
+        expr: |
+          sum by (tool_name) (rate(agent_tool_usage_total{outcome="user_rejected"}[1h]))
+          /
+          sum by (tool_name) (rate(agent_tool_usage_total[1h]))
+
+      # -----------------------------------------------------------------------
+      # HITL FEATURE ADOPTION METRICS (Step 2.3)
+      # -----------------------------------------------------------------------
+
+      # HITL feature usage rate by interaction type (5m window)
+      # Usage: Understand user engagement patterns (approval, edit, reject, clarification)
+      # High edit rate indicates users modify plans frequently
+      - record: business:hitl_usage:rate5m_by_interaction
+        expr: |
+          sum by (interaction_type) (rate(hitl_feature_usage_total[5m]))
+
+      # HITL feature usage rate by agent type (5m window)
+      # Usage: Identify which agents trigger most HITL interactions
+      - record: business:hitl_usage:rate5m_by_agent
+        expr: |
+          sum by (agent_type) (rate(hitl_feature_usage_total[5m]))
+
+      # HITL approval rate (approval vs total interactions) by agent (1h window)
+      # Usage: Measure user trust in agent proposals
+      # Alert threshold: <50% approval rate (low trust)
+      - record: business:hitl_approval_rate:1h_by_agent
+        expr: |
+          sum by (agent_type) (rate(hitl_feature_usage_total{interaction_type="approval"}[1h]))
+          /
+          sum by (agent_type) (rate(hitl_feature_usage_total[1h]))
+
+      # HITL rejection rate by agent (1h window)
+      # Usage: Identify agents with high rejection (poor proposals)
+      # High rejection rate (>30%) indicates agent needs improvement
+      - record: business:hitl_rejection_rate:1h_by_agent
+        expr: |
+          sum by (agent_type) (rate(hitl_feature_usage_total{interaction_type="reject"}[1h]))
+          /
+          sum by (agent_type) (rate(hitl_feature_usage_total[1h]))
+
+      # HITL edit rate by agent (1h window)
+      # Usage: Understand user modification patterns
+      # High edit rate indicates agent proposals need refinement
+      - record: business:hitl_edit_rate:1h_by_agent
+        expr: |
+          sum by (agent_type) (rate(hitl_feature_usage_total{interaction_type="edit"}[1h]))
+          /
+          sum by (agent_type) (rate(hitl_feature_usage_total[1h]))
+
+      # Average tool approval rate from HITL histogram by agent (1h window)
+      # Usage: Fine-grained approval rate tracking (0.0-1.0 scale)
+      # Complements hitl_approval_rate for detailed analysis
+      - record: business:tool_approval_rate:avg_1h_by_agent
+        expr: |
+          sum by (agent_type) (rate(agent_tool_approval_rate_sum[1h]))
+          /
+          sum by (agent_type) (rate(agent_tool_approval_rate_count[1h]))
+
+      # -----------------------------------------------------------------------
+      # TOKEN EFFICIENCY METRICS (Step 2.4)
+      # -----------------------------------------------------------------------
+
+      # Average token efficiency ratio by node (5m window)
+      # Usage: Identify verbose nodes (high ratio >1.5) for prompt optimization
+      # Low ratio (<0.5) = concise, High ratio (>1.5) = verbose (poor prompts)
+      - record: business:token_efficiency:avg_5m_by_node
+        expr: |
+          sum by (node_name) (rate(token_efficiency_ratio_sum[5m]))
+          /
+          sum by (node_name) (rate(token_efficiency_ratio_count[5m]))
+
+      # Average token efficiency ratio by agent type (5m window)
+      # Usage: Compare efficiency across agent types
+      - record: business:token_efficiency:avg_5m_by_agent
+        expr: |
+          sum by (agent_type) (rate(token_efficiency_ratio_sum[5m]))
+          /
+          sum by (agent_type) (rate(token_efficiency_ratio_count[5m]))
+
+      # Average token efficiency ratio by node and agent (5m window)
+      # Usage: Granular efficiency tracking (e.g., router for contacts agent)
+      - record: business:token_efficiency:avg_5m_by_node_agent
+        expr: |
+          sum by (node_name, agent_type) (rate(token_efficiency_ratio_sum[5m]))
+          /
+          sum by (node_name, agent_type) (rate(token_efficiency_ratio_count[5m]))
+
+      # P95 token efficiency ratio by node (5m window)
+      # Usage: Detect outlier verbose responses
+      # P95 >2.0 indicates significant verbosity issues
+      - record: business:token_efficiency:p95_5m_by_node
+        expr: |
+          histogram_quantile(0.95,
+            sum by (node_name, le) (
+              rate(token_efficiency_ratio_bucket[5m])
+            )
+          )
+
+      # P95 token efficiency ratio by agent (5m window)
+      # Usage: Identify agents with high verbosity variance
+      - record: business:token_efficiency:p95_5m_by_agent
+        expr: |
+          histogram_quantile(0.95,
+            sum by (agent_type, le) (
+              rate(token_efficiency_ratio_bucket[5m])
+            )
+          )
+
+  # ==========================================================================
+  # OAUTH & CONNECTORS HEALTH
+  # ==========================================================================
+  - name: oauth_health
+    interval: 30s
+    rules:
+      # OAuth callback success rate
+      # Usage: Integration reliability
+      - record: oauth_callback_success_rate:1h
+        expr: |
+          sum by (provider) (rate(oauth_callback_total{status="success"}[1h]))
+          /
+          sum by (provider) (rate(oauth_callback_total[1h]))
+
+      # Connector API success rate
+      # Usage: External service monitoring
+      # Note: Aggregates across all operations (google_contacts, gmail, etc.)
+      - record: connector_api_success_rate:5m
+        expr: |
+          sum by (connector_type) (rate(connector_api_requests_total{status="success"}[5m]))
+          /
+          sum by (connector_type) (rate(connector_api_requests_total[5m]))
+
+  # ==========================================================================
+  # DATABASE & INFRASTRUCTURE
+  # ==========================================================================
+  - name: infrastructure_health
+    interval: 30s
+    rules:
+      # Database pool utilization (%)
+      # Usage: Capacity planning
+      - record: db_pool_utilization:ratio
+        expr: |
+          db_connection_pool_checkedout / db_connection_pool_size
+
+      # Cache hit rate (global)
+      # Usage: Cache efficiency
+      - record: cache_hit_rate:5m
+        expr: |
+          sum(rate(cache_hit_total[5m]))
+          /
+          (sum(rate(cache_hit_total[5m])) + sum(rate(cache_miss_total[5m])))
+
+  # ==========================================================================
+  # SLO TRACKING - Service Level Objectives (Google SRE)
+  # ==========================================================================
+  - name: slo_tracking
+    interval: 30s
+    rules:
+      # =======================================================================
+      # API LATENCY SLOs
+      # =======================================================================
+
+      # API P95 latency by endpoint (5m window)
+      # Usage: Compare against SLO targets (e.g., p95 < 500ms)
+      - record: api:latency:p95_5m
+        expr: |
+          histogram_quantile(0.95,
+            sum by (endpoint, le) (rate(http_request_duration_seconds_bucket[5m]))
+          )
+
+      # API P99 latency by endpoint (5m window)
+      # Usage: SLO compliance for critical endpoints
+      - record: api:latency:p99_5m
+        expr: |
+          histogram_quantile(0.99,
+            sum by (endpoint, le) (rate(http_request_duration_seconds_bucket[5m]))
+          )
+
+      # API latency SLO compliance ratio (p95 < 500ms target)
+      # Usage: Dashboard showing % of requests meeting SLO
+      - record: api:slo:latency_p95_500ms:compliance_ratio
+        expr: |
+          (
+            sum by (endpoint) (rate(http_request_duration_seconds_bucket{le="0.5"}[5m]))
+            /
+            sum by (endpoint) (rate(http_request_duration_seconds_count[5m]))
+          ) >= 0.95  # 95% of requests must be < 500ms
+
+      # =======================================================================
+      # AVAILABILITY SLOs
+      # =======================================================================
+
+      # API availability (success rate)
+      # Usage: SLO target = 99.9% (3 nines)
+      - record: api:slo:availability:ratio_5m
+        expr: |
+          sum(rate(http_requests_total{status!~"5.."}[5m]))
+          /
+          sum(rate(http_requests_total[5m]))
+
+      # Error budget remaining (30-day rolling window)
+      # Usage: 99.9% SLO = 0.1% error budget (43.2 min/month)
+      - record: api:slo:error_budget:remaining_30d
+        expr: |
+          1 - (
+            (1 - (
+              sum(rate(http_requests_total{status!~"5.."}[30d]))
+              /
+              sum(rate(http_requests_total[30d]))
+            )) / 0.001
+          )  # 0.001 = 0.1% error budget for 99.9% SLO
+
+      # Error budget burn rate (1h window)
+      # Usage: Alerting on fast error budget consumption
+      # Critical: >10% budget consumed in 1h
+      - record: api:slo:error_budget:burn_rate_1h
+        expr: |
+          (
+            sum(rate(http_requests_total{status=~"5.."}[1h]))
+            /
+            sum(rate(http_requests_total[1h]))
+          ) / 0.001  # Normalize to error budget percentage
+
+      # =======================================================================
+      # AGENT LATENCY SLOs
+      # =======================================================================
+
+      # Agent execution P95 latency (by agent type)
+      # Usage: SLO target = p95 < 3000ms for agents
+      - record: agent:latency:p95_5m
+        expr: |
+          histogram_quantile(0.95,
+            sum by (intention, le) (rate(sse_streaming_duration_seconds_bucket[5m]))
+          )
+
+      # Agent execution P99 latency
+      # Usage: SLO target = p99 < 5000ms
+      - record: agent:latency:p99_5m
+        expr: |
+          histogram_quantile(0.99,
+            sum by (intention, le) (rate(sse_streaming_duration_seconds_bucket[5m]))
+          )
+
+      # Agent success rate (rolling 1h)
+      # Usage: SLO target = 95% success rate
+      - record: agent:slo:success_rate:1h
+        expr: |
+          sum by (agent_type) (rate(agent_success_rate_total{outcome="success"}[1h]))
+          /
+          sum by (agent_type) (rate(agent_success_rate_total[1h]))
+
+      # =======================================================================
+      # LLM PROVIDER SLOs
+      # =======================================================================
+
+      # LLM API availability by provider (rolling 5m)
+      # Usage: SLO target = 99% (provider SLA monitoring)
+      - record: llm:slo:availability:ratio_5m
+        expr: |
+          sum by (provider) (rate(llm_api_calls_total{status="success"}[5m]))
+          /
+          sum by (provider) (rate(llm_api_calls_total[5m]))
+
+      # LLM API P95 latency by provider
+      # Usage: SLO target = p95 < 2000ms
+      - record: llm:latency:p95_5m
+        expr: |
+          histogram_quantile(0.95,
+            sum by (provider, le) (rate(llm_api_latency_seconds_bucket[5m]))
+          )
+
+      # LLM rate limit hit frequency (per hour)
+      # Usage: Capacity planning and provider tier upgrades
+      - record: llm:rate_limits:hits_per_hour
+        expr: |
+          sum by (provider, limit_type) (rate(llm_rate_limit_hit_total[1h])) * 3600
+
+      # =======================================================================
+      # DATABASE SLOs
+      # =======================================================================
+
+      # Database query P95 latency by repository
+      # Usage: SLO target = p95 < 100ms for fast queries
+      - record: db:latency:p95_5m
+        expr: |
+          histogram_quantile(0.95,
+            sum by (repository, le) (rate(repository_query_duration_seconds_bucket[5m]))
+          )
+
+      # Database query P99 latency
+      # Usage: SLO target = p99 < 500ms
+      - record: db:latency:p99_5m
+        expr: |
+          histogram_quantile(0.99,
+            sum by (repository, le) (rate(repository_query_duration_seconds_bucket[5m]))
+          )
+
+      # Database error rate (rolling 5m)
+      # Usage: SLO target = <0.1% query errors
+      - record: db:slo:error_rate:5m
+        expr: |
+          sum by (repository) (rate(db_query_errors_total[5m]))
+          /
+          (
+            sum by (repository) (rate(repository_query_duration_seconds_count[5m]))
+            +
+            sum by (repository) (rate(db_query_errors_total[5m]))
+          )
+
+      # =======================================================================
+      # BUSINESS SLOs
+      # =======================================================================
+
+      # Conversation abandonment rate (rolling 24h)
+      # Usage: Product health indicator
+      - record: business:slo:abandonment_rate:24h
+        expr: |
+          sum(rate(conversation_abandonment_total[24h]))
+          /
+          sum(rate(conversation_created_total[24h]))
+
+      # Average conversation cost (rolling 1h)
+      # Usage: Cost efficiency SLO
+      - record: business:conversation:cost_avg_usd:1h
+        expr: |
+          sum(rate(conversation_cost_usd_sum[1h]))
+          /
+          sum(rate(conversation_cost_usd_count[1h]))
+
+      # HITL approval rate (rolling 1h)
+      # Usage: Agent trust SLO (target > 80%)
+      - record: business:hitl:approval_rate:1h
+        expr: |
+          sum(rate(hitl_classification_method_total{decision="APPROVE"}[1h]))
+          /
+          sum(rate(hitl_classification_method_total{decision=~"APPROVE|REJECT"}[1h]))
+
+  # ==========================================================================
+  # HITL USER BEHAVIOR - Quality Metrics (Sprint 1 - Phase 5)
+  # ==========================================================================
+  - name: hitl_user_behavior
+    interval: 30s
+    rules:
+      # Clarification fallback rate (1h rolling window)
+      # Usage: Classifier quality indicator (target < 10%, alert > 20%)
+      # High values indicate classifier needs improvement or ambiguous user responses
+      - record: hitl:clarification_fallback_rate:1h
+        expr: |
+          rate(hitl_clarification_fallback_total[1h])
+          /
+          rate(hitl_classification_method_total[1h])
+
+      # Edit actions rate by type (1h aggregate)
+      # Usage: Understand user modification patterns by agent
+      # High full_rewrite rate (>30%) indicates poor agent proposals
+      - record: hitl:edit_actions:rate1h
+        expr: |
+          sum by (edit_type, agent_type) (rate(hitl_edit_actions_total[1h]))
+
+      # Rejection rate by type (1h rolling window)
+      # Usage: Track rejection patterns to improve agent proposals
+      # High explicit_no rate (>20%) indicates unwanted/inappropriate proposals
+      - record: hitl:rejection_rate:1h
+        expr: |
+          sum by (rejection_type, agent_type) (rate(hitl_rejection_type_total[1h]))
+          /
+          sum(rate(hitl_classification_method_total[1h]))
+
+      # User response time p95 (5m window)
+      # Usage: UX friction indicator (target p95 < 60s, alert > 300s)
+      # Slow responses indicate unclear prompts or bad interrupt timing
+      - record: hitl:user_response_time:p95_5m
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le) (rate(hitl_user_response_time_seconds_bucket[5m]))
+          )
+
+  # ==========================================================================
+  # DOMAIN FILTERING PERFORMANCE - Phase 3 (2025-11-11)
+  # ==========================================================================
+  - name: domain_filtering_performance
+    interval: 60s
+    rules:
+      # Catalogue size reduction ratio (1h window)
+      # Usage: Track token optimization effectiveness (target: 55-70% for 10 domains)
+      # Formula: (full_size - filtered_size) / full_size
+      - record: planner_catalogue_reduction_ratio:1h
+        expr: |
+          (
+            histogram_quantile(0.5, rate(planner_catalogue_size_tools_bucket{filtering_applied="false"}[1h]))
+            -
+            histogram_quantile(0.5, rate(planner_catalogue_size_tools_bucket{filtering_applied="true"}[1h]))
+          ) / histogram_quantile(0.5, rate(planner_catalogue_size_tools_bucket{filtering_applied="false"}[1h]))
+
+      # Low confidence fallback rate (1h window)
+      # Usage: Track router confidence quality (target: < 10%)
+      # High rate indicates router v7 needs prompt optimization
+      - record: planner_domain_filtering_low_confidence_rate:1h
+        expr: |
+          sum(rate(planner_domain_confidence_score_count{fallback_triggered="true"}[1h]))
+          /
+          sum(rate(planner_domain_confidence_score_count[1h]))
+
+      # Filtered catalogue cache hit rate (5min window)
+      # Usage: Monitor cache effectiveness (target: > 30%)
+      # Low hit rate suggests TTL too short or high domain diversity
+      - record: planner_filtered_cache_hit_rate:5m
+        expr: |
+          sum(rate(planner_domain_filtering_cache_hits_total{cache_status="hit"}[5m]))
+          /
+          sum(rate(planner_domain_filtering_cache_hits_total[5m]))
+
+  # ==========================================================================
+  # DASHBOARD PERFORMANCE OPTIMIZATION - Phase 2.1 (2025-11-22)
+  # ==========================================================================
+  #
+  # Recording rules created from automated dashboard query analysis
+  # (infrastructure/observability/prometheus/analyze_dashboard_queries.py)
+  #
+  # Selected top 20 queries by: complexity_score × log(frequency + 1)
+  # - All queries are histogram_quantile (expensive operation)
+  # - Multi-label aggregations (2-3 dimensions)
+  # - Target: -70% dashboard load time
+  #
+  # Categories:
+  # - OAuth Security (3 rules) - Score: 83.18 / 41.59
+  # - HITL Quality (8 rules) - Score: 51.99
+  # - Redis Rate Limiting (3 rules) - Score: 51.99
+  # - LangGraph Framework (3 rules) - Score: 51.99 / 43.94
+  # - LLM Performance (3 rules) - Score: 51.99 / 41.59
+  #
+  # ==========================================================================
+
+  # OAuth Security - Pre-computed Latency Percentiles
+  # --------------------------------------------------
+  - name: oauth_security_optimized
+    interval: 30s
+    rules:
+      # OAuth Callback P95 Latency by Provider
+      # Complexity: 60 | Frequency: 3 dashboards | Score: 83.18
+      # Used in: 08-oauth-security.json (OAuth Callback P95 Latency)
+      - record: provider:oauth_callback_duration:p95_rate5m
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le, provider) (
+              rate(oauth_callback_duration_seconds_bucket[5m])
+            )
+          )
+
+      # OAuth Callback P50 Latency by Provider
+      # Complexity: 60 | Frequency: 1 | Score: 41.59
+      # Used in: 08-oauth-security.json (OAuth Callback Latency Distribution)
+      - record: provider:oauth_callback_duration:p50_rate5m
+        expr: |
+          histogram_quantile(0.50,
+            sum by (le, provider) (
+              rate(oauth_callback_duration_seconds_bucket[5m])
+            )
+          )
+
+      # OAuth Callback P99 Latency by Provider
+      # Complexity: 60 | Frequency: 1 | Score: 41.59
+      # Used in: 08-oauth-security.json (OAuth Callback Latency Distribution)
+      - record: provider:oauth_callback_duration:p99_rate5m
+        expr: |
+          histogram_quantile(0.99,
+            sum by (le, provider) (
+              rate(oauth_callback_duration_seconds_bucket[5m])
+            )
+          )
+
+  # HITL Quality - Pre-computed Latency Percentiles
+  # ------------------------------------------------
+  - name: hitl_quality_optimized
+    interval: 30s
+    rules:
+      # HITL Classification Latency (p50, p95, p99) by Method
+      # Complexity: 75 | Frequency: 1 each | Score: 51.99
+      # Used in: 07-hitl-tool-approval.json (Classification Latency)
+
+      - record: method:hitl_classification_duration:p50_rate5m
+        expr: |
+          histogram_quantile(0.50,
+            sum by (method, le) (
+              rate(hitl_classification_duration_seconds_bucket[5m])
+            )
+          )
+
+      - record: method:hitl_classification_duration:p95_rate5m
+        expr: |
+          histogram_quantile(0.95,
+            sum by (method, le) (
+              rate(hitl_classification_duration_seconds_bucket[5m])
+            )
+          )
+
+      - record: method:hitl_classification_duration:p99_rate5m
+        expr: |
+          histogram_quantile(0.99,
+            sum by (method, le) (
+              rate(hitl_classification_duration_seconds_bucket[5m])
+            )
+          )
+
+      # HITL Resumption Duration (p50, p95, p99) by Strategy
+      # Complexity: 75 | Frequency: 1 each | Score: 51.99
+      # Used in: 07-hitl-tool-approval.json (Resumption Duration)
+
+      - record: strategy:hitl_resumption_duration:p50_rate5m
+        expr: |
+          histogram_quantile(0.50,
+            sum by (strategy, le) (
+              rate(hitl_resumption_duration_seconds_bucket[5m])
+            )
+          )
+
+      - record: strategy:hitl_resumption_duration:p95_rate5m
+        expr: |
+          histogram_quantile(0.95,
+            sum by (strategy, le) (
+              rate(hitl_resumption_duration_seconds_bucket[5m])
+            )
+          )
+
+      - record: strategy:hitl_resumption_duration:p99_rate5m
+        expr: |
+          histogram_quantile(0.99,
+            sum by (strategy, le) (
+              rate(hitl_resumption_duration_seconds_bucket[5m])
+            )
+          )
+
+      # HITL User Response Time (p50, p99) by Decision
+      # Complexity: 75 | Frequency: 1 each | Score: 51.99
+      # Used in: 07-hitl-tool-approval.json (User Response Time)
+
+      - record: decision:hitl_user_response_time:p50_rate5m
+        expr: |
+          histogram_quantile(0.50,
+            sum by (decision, le) (
+              rate(hitl_user_response_time_seconds_bucket[5m])
+            )
+          )
+
+      - record: decision:hitl_user_response_time:p99_rate5m
+        expr: |
+          histogram_quantile(0.99,
+            sum by (decision, le) (
+              rate(hitl_user_response_time_seconds_bucket[5m])
+            )
+          )
+
+  # Redis Rate Limiting - Pre-computed Latency Percentiles
+  # -------------------------------------------------------
+  - name: redis_rate_limiting_optimized
+    interval: 30s
+    rules:
+      # Redis Rate Limit Check Latency (p50, p95, p99) by Key Prefix (milliseconds)
+      # Complexity: 75 | Frequency: 1 each | Score: 51.99
+      # Used in: 10-redis-rate-limiting.json (Rate Limit Check Latency Distribution)
+
+      - record: key_prefix:redis_rate_limit_check_duration_ms:p50_rate5m
+        expr: |
+          1000 * histogram_quantile(0.50,
+            sum by (le, key_prefix) (
+              rate(redis_rate_limit_check_duration_seconds_bucket[5m])
+            )
+          )
+
+      - record: key_prefix:redis_rate_limit_check_duration_ms:p95_rate5m
+        expr: |
+          1000 * histogram_quantile(0.95,
+            sum by (le, key_prefix) (
+              rate(redis_rate_limit_check_duration_seconds_bucket[5m])
+            )
+          )
+
+      - record: key_prefix:redis_rate_limit_check_duration_ms:p99_rate5m
+        expr: |
+          1000 * histogram_quantile(0.99,
+            sum by (le, key_prefix) (
+              rate(redis_rate_limit_check_duration_seconds_bucket[5m])
+            )
+          )
+
+  # LangGraph Framework - Pre-computed State & Duration Metrics
+  # ------------------------------------------------------------
+  - name: langgraph_framework_optimized
+    interval: 30s
+    rules:
+      # LangGraph State Size by Node - P95 (KB)
+      # Complexity: 75 | Frequency: 1 | Score: 51.99
+      # Used in: 11-langgraph-framework.json (State Size by Node)
+      - record: node_name:langgraph_state_size_kb:p95_rate5m
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le, node_name) (
+              rate(langgraph_state_size_bytes_bucket[5m])
+            )
+          ) / 1024
+
+      # LangGraph SubGraph Duration by Agent - P95
+      # Complexity: 75 | Frequency: 1 | Score: 51.99
+      # Used in: 11-langgraph-framework.json (SubGraph Duration by Agent)
+      - record: agent_name:langgraph_subgraph_duration:p95_rate5m
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le, agent_name) (
+              rate(langgraph_subgraph_duration_seconds_bucket[5m])
+            )
+          )
+
+      # LangGraph Graph P95 Latency
+      # Complexity: 40 | Frequency: 2 | Score: 43.94
+      # Used in: 11-langgraph-framework.json (Graph P95 Latency)
+      - record: job:langgraph_graph_duration:p95_rate5m
+        expr: |
+          histogram_quantile(0.95,
+            rate(langgraph_graph_duration_seconds_bucket[5m])
+          )
+
+  # LLM Performance - Pre-computed Latency & Catalogue Metrics
+  # -----------------------------------------------------------
+  - name: llm_performance_optimized
+    interval: 1m
+    rules:
+      # LLM Planner Catalogue Size Distribution (Filtered vs Full) - P50
+      # Complexity: 75 | Frequency: 1 | Score: 51.99
+      # Used in: 05-llm-tokens-cost.json (Catalogue Size Distribution)
+      - record: filtering_applied:planner_catalogue_size_tools:p50_rate5m
+        expr: |
+          histogram_quantile(0.5,
+            sum by (filtering_applied, le) (
+              rate(planner_catalogue_size_tools_bucket[5m])
+            )
+          )
+
+      # LLM API Latency (p50, p99) by Model
+      # Complexity: 60 | Frequency: 1 each | Score: 41.59
+      # Used in: 05-llm-tokens-cost.json (LLM API Latency)
+
+      - record: model:llm_api_latency:p50_rate5m
+        expr: |
+          histogram_quantile(0.50,
+            sum by (le, model) (
+              rate(llm_api_latency_seconds_bucket[5m])
+            )
+          )
+
+      - record: model:llm_api_latency:p99_rate5m
+        expr: |
+          histogram_quantile(0.99,
+            sum by (le, model) (
+              rate(llm_api_latency_seconds_bucket[5m])
+            )
+          )
+
+  # ==========================================================================
+  # ATTACHMENTS & VISION - File Upload & Vision LLM Metrics
+  # ==========================================================================
+  - name: attachments_metrics
+    interval: 30s
+    rules:
+      # Attachment upload success rate (5m rolling window)
+      # Usage: Track upload reliability
+      - record: attachments_upload_rate:5m
+        expr: |
+          sum(rate(attachments_uploaded_total{status="success"}[5m]))
+
+      # Attachment upload error rate (5m rolling window)
+      # Usage: Detect upload issues
+      - record: attachments_upload_error_rate:5m
+        expr: |
+          sum(rate(attachments_uploaded_total{status="error"}[5m]))
+
+      # Vision LLM P95 latency by model (5m rolling window)
+      # Usage: Performance monitoring for vision analysis
+      - record: vision_llm_latency:p95_5m
+        expr: |
+          histogram_quantile(0.95,
+            sum by (model, le) (rate(vision_llm_duration_seconds_bucket[5m]))
+          )
+
+      # Vision LLM request rate by model (5m rolling window)
+      # Usage: Track vision feature adoption
+      - record: vision_llm_requests_rate:5m
+        expr: |
+          sum by (model) (rate(vision_llm_requests_total[5m]))

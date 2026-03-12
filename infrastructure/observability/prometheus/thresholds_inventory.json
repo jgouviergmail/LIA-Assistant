@@ -1,0 +1,1297 @@
+{
+  "total_count": 80,
+  "categories": {
+    "hitl_quality": 11,
+    "business_metrics": 4,
+    "other": 25,
+    "reliability": 9,
+    "checkpoint_persistence": 7,
+    "performance": 4,
+    "infrastructure": 17,
+    "llm_costs": 3
+  },
+  "thresholds": [
+    {
+      "file": "alert_rules.yml",
+      "group": "hitl_quality",
+      "alert": "HITLClarificationFallbackHigh",
+      "value": 0.3,
+      "operator": "greater_than",
+      "context": "]) / rate(hitl_classification_method_total[5m]) ) > 0.30",
+      "severity": "warning",
+      "component": "hitl_classifier"
+    },
+    {
+      "file": "alert_rules.yml",
+      "group": "hitl_quality",
+      "alert": "HITLClarificationFallbackCritical",
+      "value": 0.6,
+      "operator": "greater_than",
+      "context": "]) / rate(hitl_classification_method_total[5m]) ) > 0.60",
+      "severity": "critical",
+      "component": "hitl_classifier"
+    },
+    {
+      "file": "alert_rules.yml",
+      "group": "hitl_quality",
+      "alert": "HITLFullRewritesHigh",
+      "value": 0.45,
+      "operator": "greater_than",
+      "context": "[1h])) / sum(rate(hitl_edit_actions_total[1h])) ) > 0.45",
+      "severity": "warning",
+      "component": "agent_proposals"
+    },
+    {
+      "file": "alert_rules.yml",
+      "group": "hitl_quality",
+      "alert": "HITLEditRateIncreasing",
+      "value": 0.6,
+      "operator": "greater_than",
+      "context": "]) / rate(hitl_classification_method_total[1h]) ) > 0.60",
+      "severity": "info",
+      "component": "agent_proposals"
+    },
+    {
+      "file": "alert_rules.yml",
+      "group": "hitl_quality",
+      "alert": "HITLExplicitRejectionsHigh",
+      "value": 0.3,
+      "operator": "greater_than",
+      "context": "h])) / sum(rate(hitl_rejection_type_total[1h])) ) > 0.30",
+      "severity": "warning",
+      "component": "agent_proposals"
+    },
+    {
+      "file": "alert_rules.yml",
+      "group": "hitl_quality",
+      "alert": "HITLRejectionRateSpike",
+      "value": 0.75,
+      "operator": "greater_than",
+      "context": "]) / rate(hitl_classification_method_total[5m]) ) > 0.75",
+      "severity": "critical",
+      "component": "agent_behavior"
+    },
+    {
+      "file": "alert_rules.yml",
+      "group": "hitl_quality",
+      "alert": "HITLUserResponseTimeSlow",
+      "value": 450.0,
+      "operator": "greater_than",
+      "context": "te(hitl_user_response_time_seconds_bucket[5m])) ) > 450.00",
+      "severity": "warning",
+      "component": "user_experience"
+    },
+    {
+      "file": "alert_rules.yml",
+      "group": "hitl_quality",
+      "alert": "HITLQualityDegraded",
+      "value": 0.22,
+      "operator": "greater_than",
+      "context": "h]) / rate(hitl_classification_method_total[1h])) > 0.22 and (sum(rate(hitl_rejection_type_total{rejection",
+      "severity": "warning",
+      "component": "hitl_system"
+    },
+    {
+      "file": "alert_rules.yml",
+      "group": "hitl_quality",
+      "alert": "HITLQualityDegraded",
+      "value": 0.22,
+      "operator": "greater_than",
+      "context": "1h])) / sum(rate(hitl_rejection_type_total[1h]))) > 0.22 )",
+      "severity": "warning",
+      "component": "hitl_system"
+    },
+    {
+      "file": "alert_rules.yml",
+      "group": "business_metrics_alerts",
+      "alert": "HighConversationAbandonmentRate",
+      "value": 0.2,
+      "operator": "greater_than",
+      "context": "business:abandonment_rate:5m_by_agent > 0.20",
+      "severity": "warning",
+      "component": "user_experience"
+    },
+    {
+      "file": "alert_rules.yml",
+      "group": "business_metrics_alerts",
+      "alert": "CriticalConversationAbandonmentRate",
+      "value": 0.4,
+      "operator": "greater_than",
+      "context": "business:abandonment_rate:5m_by_agent > 0.40",
+      "severity": "critical",
+      "component": "user_experience"
+    },
+    {
+      "file": "alert_rules.yml",
+      "group": "business_metrics_alerts",
+      "alert": "LowToolSuccessRate",
+      "value": 0.8,
+      "operator": "less_than",
+      "context": "business:tool_success_rate:5m_by_tool < 0.80",
+      "severity": "warning",
+      "component": "tool_integration"
+    },
+    {
+      "file": "alert_rules.yml",
+      "group": "business_metrics_alerts",
+      "alert": "CriticalToolFailureRate",
+      "value": 0.5,
+      "operator": "less_than",
+      "context": "business:tool_success_rate:5m_by_tool < 0.50",
+      "severity": "critical",
+      "component": "tool_integration"
+    },
+    {
+      "file": "alert_rules.yml",
+      "group": "business_metrics_alerts",
+      "alert": "LowHITLApprovalRate",
+      "value": 0.5,
+      "operator": "less_than",
+      "context": "business:hitl_approval_rate:1h_by_agent < 0.50",
+      "severity": "warning",
+      "component": "agent_proposals"
+    },
+    {
+      "file": "alert_rules.yml",
+      "group": "business_metrics_alerts",
+      "alert": "HighTokenEfficiencyRatio",
+      "value": 1.5,
+      "operator": "greater_than",
+      "context": "business:token_efficiency:avg_5m_by_node > 1.5",
+      "severity": "warning",
+      "component": "llm_costs"
+    },
+    {
+      "file": "alert_rules.yml",
+      "group": "checkpoint_persistence_alerts",
+      "alert": "HighCheckpointSaveLatency",
+      "value": 0.5,
+      "operator": "greater_than",
+      "context": "point_save_duration_seconds_bucket[5m])) by (le)) > 0.5",
+      "severity": "warning",
+      "component": "checkpoint_persistence"
+    },
+    {
+      "file": "alert_rules.yml",
+      "group": "checkpoint_persistence_alerts",
+      "alert": "HighCheckpointLoadLatency",
+      "value": 0.25,
+      "operator": "greater_than",
+      "context": "point_load_duration_seconds_bucket[5m])) by (le)) > 0.25",
+      "severity": "warning",
+      "component": "checkpoint_persistence"
+    },
+    {
+      "file": "alert_rules.yml",
+      "group": "checkpoint_persistence_alerts",
+      "alert": "LargeCheckpointSize",
+      "value": 500000.0,
+      "operator": "greater_than",
+      "context": "(rate(checkpoint_size_bytes_bucket[5m])) by (le)) > 500000",
+      "severity": "warning",
+      "component": "checkpoint_persistence"
+    },
+    {
+      "file": "alert_rules.yml",
+      "group": "checkpoint_persistence_alerts",
+      "alert": "CheckpointSaveFailures",
+      "value": 5.0,
+      "operator": "greater_than",
+      "context": "ckpoint_operations_total{operation=\"save\"}[5m]))) > 5",
+      "severity": "critical",
+      "component": "checkpoint_persistence"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "application_alerts",
+      "alert": "HighErrorRate",
+      "value": 30.0,
+      "operator": "greater_than",
+      "context": "te(http_requests_total[5m])) by (service) ) * 100 > 30.0",
+      "severity": "critical",
+      "component": "api"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "application_alerts",
+      "alert": "HighLatencyP95",
+      "value": 7.5,
+      "operator": "greater_than",
+      "context": "_duration_seconds_bucket[5m])) by (le, service) ) > 7.5",
+      "severity": "warning",
+      "component": "api"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "application_alerts",
+      "alert": "CriticalLatencyP99",
+      "value": 15.0,
+      "operator": "greater_than",
+      "context": "_duration_seconds_bucket[5m])) by (le, service) ) > 15.00",
+      "severity": "critical",
+      "component": "api"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "application_alerts",
+      "alert": "ServiceDown",
+      "value": 0.0,
+      "operator": "equal",
+      "context": "up{job=\"lia-api\"} == 0.00",
+      "severity": "critical",
+      "component": "api"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "application_alerts",
+      "alert": "HighRequestQueueing",
+      "value": 7500.0,
+      "operator": "greater_than",
+      "context": "sum(rate(http_requests_total[1m])) by (service) > 7500",
+      "severity": "warning",
+      "component": "api"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "database_alerts",
+      "alert": "HighDatabaseConnections",
+      "value": 142.5,
+      "operator": "greater_than",
+      "context": "ompagnon3\"} / pg_settings_max_connections ) * 100 > 142.5",
+      "severity": "warning",
+      "component": "postgresql"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "database_alerts",
+      "alert": "CriticalDatabaseConnections",
+      "value": 147.0,
+      "operator": "greater_than",
+      "context": "ompagnon3\"} / pg_settings_max_connections ) * 100 > 147.0",
+      "severity": "critical",
+      "component": "postgresql"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "database_alerts",
+      "alert": "DatabaseDown",
+      "value": 0.0,
+      "operator": "equal",
+      "context": "up{job=\"postgresql\"} == 0.00",
+      "severity": "critical",
+      "component": "postgresql"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "database_alerts",
+      "alert": "SlowQueries",
+      "value": 750000.0,
+      "operator": "greater_than",
+      "context": "t_database_tup_fetched{datname=\"lia\"}[5m]) > 750000",
+      "severity": "warning",
+      "component": "postgresql"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "infrastructure_alerts",
+      "alert": "DiskSpaceHigh",
+      "value": 142.5,
+      "operator": "greater_than",
+      "context": "e_filesystem_size_bytes{fstype!=\"tmpfs\"}) ) * 100 > 142.5",
+      "severity": "warning",
+      "component": "storage"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "infrastructure_alerts",
+      "alert": "DiskSpaceCritical",
+      "value": 147.0,
+      "operator": "greater_than",
+      "context": "e_filesystem_size_bytes{fstype!=\"tmpfs\"}) ) * 100 > 147.0",
+      "severity": "critical",
+      "component": "storage"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "infrastructure_alerts",
+      "alert": "HighCPUUsage",
+      "value": 142.5,
+      "operator": "greater_than",
+      "context": "(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100) > 142.5",
+      "severity": "warning",
+      "component": "compute"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "infrastructure_alerts",
+      "alert": "HighMemoryUsage",
+      "value": 142.5,
+      "operator": "greater_than",
+      "context": "lable_bytes / node_memory_MemTotal_bytes) ) * 100 > 142.5",
+      "severity": "warning",
+      "component": "memory"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "infrastructure_alerts",
+      "alert": "ContainerDown",
+      "value": 450.0,
+      "operator": "greater_than",
+      "context": "ime() - container_last_seen{name=~\"lia.*\"} > 450",
+      "severity": "critical",
+      "component": "container"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "infrastructure_alerts",
+      "alert": "ContainerRestartingFrequently",
+      "value": 1.5,
+      "operator": "greater_than",
+      "context": "er_start_time_seconds{name=~\"lia.*\"}[15m]) > 1.50",
+      "severity": "warning",
+      "component": "container"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "redis_alerts",
+      "alert": "RedisDown",
+      "value": 0.0,
+      "operator": "equal",
+      "context": "up{job=\"redis\"} == 0.00",
+      "severity": "critical",
+      "component": "redis"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "redis_alerts",
+      "alert": "RedisMemoryHigh",
+      "value": 142.5,
+      "operator": "greater_than",
+      "context": "memory_used_bytes / redis_memory_max_bytes) * 100 > 142.5",
+      "severity": "warning",
+      "component": "redis"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "redis_alerts",
+      "alert": "RedisConnectionsHigh",
+      "value": 750.0,
+      "operator": "greater_than",
+      "context": "redis_connected_clients > 750",
+      "severity": "warning",
+      "component": "redis"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "redis_rate_limiting_alerts",
+      "alert": "RedisRateLimitHighHitRate",
+      "value": 75.0,
+      "operator": "greater_than",
+      "context": "e_limit_hits_total[5m])) by (key_prefix)) ) * 100 > 75.0",
+      "severity": "critical",
+      "component": "redis"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "redis_rate_limiting_alerts",
+      "alert": "RedisRateLimitModerateHitRate",
+      "value": 45.0,
+      "operator": "greater_than",
+      "context": "e_limit_hits_total[5m])) by (key_prefix)) ) * 100 > 45.0",
+      "severity": "warning",
+      "component": "redis"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "redis_rate_limiting_alerts",
+      "alert": "RedisRateLimitCheckLatencyHigh",
+      "value": 75.0,
+      "operator": "greater_than",
+      "context": "ration_seconds_bucket[5m])) by (le, key_prefix) ) > 75.0",
+      "severity": "critical",
+      "component": "redis"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "redis_rate_limiting_alerts",
+      "alert": "RedisRateLimitCheckLatencyDegraded",
+      "value": 15.0,
+      "operator": "greater_than",
+      "context": "ration_seconds_bucket[5m])) by (le, key_prefix) ) > 15.00",
+      "severity": "warning",
+      "component": "redis"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "redis_rate_limiting_alerts",
+      "alert": "RedisConnectionPoolExhaustion",
+      "value": 142.5,
+      "operator": "greater_than",
+      "context": "le_current / redis_connection_pool_size_current)) > 142.5",
+      "severity": "critical",
+      "component": "redis"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "redis_rate_limiting_alerts",
+      "alert": "RedisConnectionPoolHighUtilization",
+      "value": 120.0,
+      "operator": "greater_than",
+      "context": "le_current / redis_connection_pool_size_current)) > 120",
+      "severity": "warning",
+      "component": "redis"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "redis_rate_limiting_alerts",
+      "alert": "RedisRateLimitErrorsHigh",
+      "value": 15.0,
+      "operator": "greater_than",
+      "context": "dis_rate_limit_errors_total[5m])) by (error_type) > 15.00",
+      "severity": "critical",
+      "component": "redis"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "redis_rate_limiting_alerts",
+      "alert": "RedisRateLimitErrorsDetected",
+      "value": 2.0,
+      "operator": "greater_than",
+      "context": "dis_rate_limit_errors_total[5m])) by (error_type) > 2",
+      "severity": "warning",
+      "component": "redis"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "redis_rate_limiting_alerts",
+      "alert": "RedisLuaScriptFailureRateHigh",
+      "value": 7.5,
+      "operator": "greater_than",
+      "context": "e(redis_lua_script_executions_total[5m])) ) * 100 > 7.5",
+      "severity": "critical",
+      "component": "redis"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "redis_rate_limiting_alerts",
+      "alert": "RedisSlidingWindowSizeAbnormal",
+      "value": 15.0,
+      "operator": "greater_than",
+      "context": "redis_sliding_window_requests_current > 15.0000",
+      "severity": "warning",
+      "component": "redis"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "redis_rate_limiting_alerts",
+      "alert": "RedisRateLimitFrequentlyTriggered",
+      "value": 15.0,
+      "operator": "greater_than",
+      "context": "redis_rate_limit_hits_total[1h])) by (key_prefix) > 15.000",
+      "severity": "info",
+      "component": "redis"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "agents_langgraph_alerts",
+      "alert": "AgentsTTFTViolation",
+      "value": 7500.0,
+      "operator": "greater_than",
+      "context": "_seconds_bucket[5m])) by (le, intention) ) * 1000 > 7500",
+      "severity": "warning",
+      "component": "agents"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "agents_langgraph_alerts",
+      "alert": "AgentsTokensPerSecondLow",
+      "value": 3.33,
+      "operator": "less_than",
+      "context": "aming_duration_seconds_sum[5m])) by (intention) ) < 3.33",
+      "severity": "warning",
+      "component": "agents"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "agents_langgraph_alerts",
+      "alert": "AgentsRouterLatencyHigh",
+      "value": 4500.0,
+      "operator": "greater_than",
+      "context": "ter_latency_seconds_bucket[5m])) by (le) ) * 1000 > 4500",
+      "severity": "critical",
+      "component": "agents"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "agents_langgraph_alerts",
+      "alert": "AgentsStreamingErrorRateHigh",
+      "value": 37.5,
+      "operator": "greater_than",
+      "context": "se_streaming_duration_seconds_count[5m])) ) * 100 > 37.5",
+      "severity": "critical",
+      "component": "agents"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "agents_langgraph_alerts",
+      "alert": "AgentsRouterLowConfidenceHigh",
+      "value": 60.0,
+      "operator": "greater_than",
+      "context": "/ sum(rate(router_decisions_total[10m])) ) * 100 > 60.0",
+      "severity": "warning",
+      "component": "agents"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "conversations",
+      "alert": "CheckpointSaveSlowCritical",
+      "value": 15.0,
+      "operator": "greater_than",
+      "context": "duration_seconds_bucket[5m])) by (le, node_name)) > 15.00",
+      "severity": "critical",
+      "component": "conversations"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "conversations",
+      "alert": "CheckpointSaveSlowWarning",
+      "value": 7.5,
+      "operator": "greater_than",
+      "context": "duration_seconds_bucket[5m])) by (le, node_name)) > 7.50",
+      "severity": "warning",
+      "component": "conversations"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "conversations",
+      "alert": "HighConversationResetRate",
+      "value": 15.0,
+      "operator": "greater_than",
+      "context": "sum(rate(conversation_resets_total[5m])) > 15.00",
+      "severity": "warning",
+      "component": "conversations"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "conversations",
+      "alert": "CheckpointSizeGrowing",
+      "value": 30.0,
+      "operator": "greater_than",
+      "context": "point_size_bytes_bucket[1h])) by (le, node_name)) > 30.00000",
+      "severity": "info",
+      "component": "conversations"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "conversations",
+      "alert": "NoActiveConversations",
+      "value": 0.0,
+      "operator": "equal",
+      "context": "conversation_active_users_total == 0.00",
+      "severity": "critical",
+      "component": "conversations"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "conversations",
+      "alert": "ConversationCreationStalled",
+      "value": 2.0,
+      "operator": "greater_than",
+      "context": "10m]) == 0.00 and conversation_active_users_total > 2",
+      "severity": "warning",
+      "component": "conversations"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "conversations",
+      "alert": "ConversationCreationStalled",
+      "value": 0.0,
+      "operator": "equal",
+      "context": "rate(conversation_created_total[10m]) == 0.00 and conversation_active_users_total > 2",
+      "severity": "warning",
+      "component": "conversations"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "tokens_and_cost",
+      "alert": "LLMAPIFailureRateHigh",
+      "value": 0.45,
+      "operator": "greater_than",
+      "context": "rror\"}[5m])) / sum(rate(llm_api_calls_total[5m])) > 0.450",
+      "severity": "critical",
+      "component": "llm"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "tokens_and_cost",
+      "alert": "LLMAPISuccessRateLow",
+      "value": 0.47,
+      "operator": "less_than",
+      "context": "cess\"}[5m])) / sum(rate(llm_api_calls_total[5m])) < 0.470",
+      "severity": "warning",
+      "component": "llm"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "tokens_and_cost",
+      "alert": "DailyCostBudgetExceeded",
+      "value": 7.5,
+      "operator": "greater_than",
+      "context": "um(increase(llm_cost_total{currency=\"EUR\"}[24h])) > 7.5",
+      "severity": "critical",
+      "component": "cost"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "tokens_and_cost",
+      "alert": "HourlyCostTrendingHigh",
+      "value": 2.0,
+      "operator": "greater_than",
+      "context": "sum(increase(llm_cost_total{currency=\"EUR\"}[1h])) > 2",
+      "severity": "warning",
+      "component": "cost"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "tokens_and_cost",
+      "alert": "LLMAPILatencyHigh",
+      "value": 45.0,
+      "operator": "greater_than",
+      "context": "_api_latency_seconds_bucket[5m])) by (le, model)) > 45.0",
+      "severity": "warning",
+      "component": "llm"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "tokens_and_cost",
+      "alert": "HighTokenConsumptionRate",
+      "value": 15.0,
+      "operator": "greater_than",
+      "context": "sum(rate(llm_tokens_consumed_total[5m])) > 15.00000",
+      "severity": "info",
+      "component": "tokens"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "tokens_and_cost",
+      "alert": "ModelCostBudgetExceeded",
+      "value": 4.0,
+      "operator": "greater_than",
+      "context": ") (increase(llm_cost_total{currency=\"EUR\"}[24h])) > 4",
+      "severity": "critical",
+      "component": "cost"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "tokens_and_cost",
+      "alert": "HighOutputTokenRatio",
+      "value": 30.0,
+      "operator": "greater_than",
+      "context": "consumed_total{token_type=\"prompt_tokens\"}[10m])) > 30.0",
+      "severity": "warning",
+      "component": "tokens"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "oauth_alerts",
+      "alert": "HighOAuthFailureRate",
+      "value": 75.0,
+      "operator": "greater_than",
+      "context": "(oauth_callback_total[5m])) by (provider) ) * 100 > 75.0",
+      "severity": "warning",
+      "component": "auth"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "oauth_alerts",
+      "alert": "PKCEValidationFailures",
+      "value": 7.5,
+      "operator": "greater_than",
+      "context": "oauth_pkce_validation_total{result=\"failed\"}[5m]) > 7.50",
+      "severity": "critical",
+      "component": "auth"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "oauth_alerts",
+      "alert": "StateTokenValidationFailures",
+      "value": 7.5,
+      "operator": "greater_than",
+      "context": "auth_state_validation_total{result=\"failed\"}[5m]) > 7.50",
+      "severity": "critical",
+      "component": "auth"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "oauth_alerts",
+      "alert": "SlowOAuthCallback",
+      "value": 45.0,
+      "operator": "greater_than",
+      "context": "duration_seconds_bucket[5m])) by (le, provider) ) > 45.0",
+      "severity": "warning",
+      "component": "auth"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "oauth_alerts",
+      "alert": "OAuthProviderErrors",
+      "value": 15.0,
+      "operator": "greater_than",
+      "context": "rate(oauth_provider_errors_total[5m]) > 15.00",
+      "severity": "warning",
+      "component": "auth"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "oauth_alerts",
+      "alert": "OAuthCallbackSpike",
+      "value": 15.0,
+      "operator": "greater_than",
+      "context": "rate(oauth_callback_total[1m]) > 15.000",
+      "severity": "warning",
+      "component": "auth"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "business_metrics_alerts",
+      "alert": "HighConversationAbandonmentRate",
+      "value": 0.2,
+      "operator": "greater_than",
+      "context": "business:abandonment_rate:5m_by_agent > 0.20",
+      "severity": "warning",
+      "component": "user_experience"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "business_metrics_alerts",
+      "alert": "CriticalConversationAbandonmentRate",
+      "value": 0.4,
+      "operator": "greater_than",
+      "context": "business:abandonment_rate:5m_by_agent > 0.40",
+      "severity": "critical",
+      "component": "user_experience"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "business_metrics_alerts",
+      "alert": "LowToolSuccessRate",
+      "value": 0.8,
+      "operator": "less_than",
+      "context": "business:tool_success_rate:5m_by_tool < 0.80",
+      "severity": "warning",
+      "component": "tool_integration"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "business_metrics_alerts",
+      "alert": "CriticalToolFailureRate",
+      "value": 0.5,
+      "operator": "less_than",
+      "context": "business:tool_success_rate:5m_by_tool < 0.50",
+      "severity": "critical",
+      "component": "tool_integration"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "business_metrics_alerts",
+      "alert": "LowHITLApprovalRate",
+      "value": 0.5,
+      "operator": "less_than",
+      "context": "business:hitl_approval_rate:1h_by_agent < 0.50",
+      "severity": "warning",
+      "component": "agent_proposals"
+    },
+    {
+      "file": "alerts.yml",
+      "group": "business_metrics_alerts",
+      "alert": "HighTokenEfficiencyRatio",
+      "value": 1.5,
+      "operator": "greater_than",
+      "context": "business:token_efficiency:avg_5m_by_node > 1.5",
+      "severity": "warning",
+      "component": "llm_costs"
+    }
+  ],
+  "env_mappings": [
+    {
+      "env_var": "ALERT_HITL_CLARIFICATION_FALLBACK_HIGH_THRESHOLD",
+      "value": 0.3,
+      "alert": "HITLClarificationFallbackHigh",
+      "category": "hitl_quality"
+    },
+    {
+      "env_var": "ALERT_HITL_CLARIFICATION_FALLBACK_CRITICAL_THRESHOLD",
+      "value": 0.6,
+      "alert": "HITLClarificationFallbackCritical",
+      "category": "hitl_quality"
+    },
+    {
+      "env_var": "ALERT_HITL_FULL_REWRITES_HIGH_THRESHOLD",
+      "value": 0.45,
+      "alert": "HITLFullRewritesHigh",
+      "category": "hitl_quality"
+    },
+    {
+      "env_var": "ALERT_HITL_EDIT_RATE_INCREASING_THRESHOLD",
+      "value": 0.6,
+      "alert": "HITLEditRateIncreasing",
+      "category": "hitl_quality"
+    },
+    {
+      "env_var": "ALERT_HITL_EXPLICIT_REJECTIONS_HIGH_THRESHOLD",
+      "value": 0.3,
+      "alert": "HITLExplicitRejectionsHigh",
+      "category": "hitl_quality"
+    },
+    {
+      "env_var": "ALERT_HITL_REJECTION_RATE_SPIKE_THRESHOLD",
+      "value": 0.75,
+      "alert": "HITLRejectionRateSpike",
+      "category": "hitl_quality"
+    },
+    {
+      "env_var": "ALERT_HITL_USER_RESPONSE_TIME_SLOW_THRESHOLD",
+      "value": 450.0,
+      "alert": "HITLUserResponseTimeSlow",
+      "category": "hitl_quality"
+    },
+    {
+      "env_var": "ALERT_HITL_QUALITY_DEGRADED_THRESHOLD",
+      "value": 0.22,
+      "alert": "HITLQualityDegraded",
+      "category": "hitl_quality"
+    },
+    {
+      "env_var": "ALERT_HITL_QUALITY_DEGRADED_THRESHOLD",
+      "value": 0.22,
+      "alert": "HITLQualityDegraded",
+      "category": "hitl_quality"
+    },
+    {
+      "env_var": "ALERT_HIGH_CONVERSATION_ABANDONMENT_RATE_THRESHOLD",
+      "value": 0.2,
+      "alert": "HighConversationAbandonmentRate",
+      "category": "business_metrics"
+    },
+    {
+      "env_var": "ALERT_CRITICAL_CONVERSATION_ABANDONMENT_RATE_THRESHOLD",
+      "value": 0.4,
+      "alert": "CriticalConversationAbandonmentRate",
+      "category": "business_metrics"
+    },
+    {
+      "env_var": "ALERT_LOW_TOOL_SUCCESS_RATE_THRESHOLD",
+      "value": 0.8,
+      "alert": "LowToolSuccessRate",
+      "category": "other"
+    },
+    {
+      "env_var": "ALERT_CRITICAL_TOOL_FAILURE_RATE_THRESHOLD",
+      "value": 0.5,
+      "alert": "CriticalToolFailureRate",
+      "category": "reliability"
+    },
+    {
+      "env_var": "ALERT_LOW_HITL_APPROVAL_RATE_THRESHOLD",
+      "value": 0.5,
+      "alert": "LowHITLApprovalRate",
+      "category": "hitl_quality"
+    },
+    {
+      "env_var": "ALERT_HIGH_TOKEN_EFFICIENCY_RATIO_THRESHOLD",
+      "value": 1.5,
+      "alert": "HighTokenEfficiencyRatio",
+      "category": "other"
+    },
+    {
+      "env_var": "ALERT_HIGH_CHECKPOINT_SAVE_LATENCY_THRESHOLD",
+      "value": 0.5,
+      "alert": "HighCheckpointSaveLatency",
+      "category": "checkpoint_persistence"
+    },
+    {
+      "env_var": "ALERT_HIGH_CHECKPOINT_LOAD_LATENCY_THRESHOLD",
+      "value": 0.25,
+      "alert": "HighCheckpointLoadLatency",
+      "category": "checkpoint_persistence"
+    },
+    {
+      "env_var": "ALERT_LARGE_CHECKPOINT_SIZE_THRESHOLD",
+      "value": 500000.0,
+      "alert": "LargeCheckpointSize",
+      "category": "checkpoint_persistence"
+    },
+    {
+      "env_var": "ALERT_CHECKPOINT_SAVE_FAILURES_THRESHOLD",
+      "value": 5.0,
+      "alert": "CheckpointSaveFailures",
+      "category": "checkpoint_persistence"
+    },
+    {
+      "env_var": "ALERT_HIGH_ERROR_RATE_THRESHOLD",
+      "value": 30.0,
+      "alert": "HighErrorRate",
+      "category": "reliability"
+    },
+    {
+      "env_var": "ALERT_HIGH_LATENCY_P_95_THRESHOLD",
+      "value": 7.5,
+      "alert": "HighLatencyP95",
+      "category": "performance"
+    },
+    {
+      "env_var": "ALERT_CRITICAL_LATENCY_P_99_THRESHOLD",
+      "value": 15.0,
+      "alert": "CriticalLatencyP99",
+      "category": "performance"
+    },
+    {
+      "env_var": "ALERT_SERVICE_DOWN_THRESHOLD",
+      "value": 0.0,
+      "alert": "ServiceDown",
+      "category": "other"
+    },
+    {
+      "env_var": "ALERT_HIGH_REQUEST_QUEUEING_THRESHOLD",
+      "value": 7500.0,
+      "alert": "HighRequestQueueing",
+      "category": "other"
+    },
+    {
+      "env_var": "ALERT_HIGH_DATABASE_CONNECTIONS_THRESHOLD",
+      "value": 142.5,
+      "alert": "HighDatabaseConnections",
+      "category": "infrastructure"
+    },
+    {
+      "env_var": "ALERT_CRITICAL_DATABASE_CONNECTIONS_THRESHOLD",
+      "value": 147.0,
+      "alert": "CriticalDatabaseConnections",
+      "category": "infrastructure"
+    },
+    {
+      "env_var": "ALERT_DATABASE_DOWN_THRESHOLD",
+      "value": 0.0,
+      "alert": "DatabaseDown",
+      "category": "infrastructure"
+    },
+    {
+      "env_var": "ALERT_SLOW_QUERIES_THRESHOLD",
+      "value": 750000.0,
+      "alert": "SlowQueries",
+      "category": "other"
+    },
+    {
+      "env_var": "ALERT_DISK_SPACE_HIGH_THRESHOLD",
+      "value": 142.5,
+      "alert": "DiskSpaceHigh",
+      "category": "other"
+    },
+    {
+      "env_var": "ALERT_DISK_SPACE_CRITICAL_THRESHOLD",
+      "value": 147.0,
+      "alert": "DiskSpaceCritical",
+      "category": "other"
+    },
+    {
+      "env_var": "ALERT_HIGH_CPU_USAGE_THRESHOLD",
+      "value": 142.5,
+      "alert": "HighCPUUsage",
+      "category": "other"
+    },
+    {
+      "env_var": "ALERT_HIGH_MEMORY_USAGE_THRESHOLD",
+      "value": 142.5,
+      "alert": "HighMemoryUsage",
+      "category": "other"
+    },
+    {
+      "env_var": "ALERT_CONTAINER_DOWN_THRESHOLD",
+      "value": 450.0,
+      "alert": "ContainerDown",
+      "category": "other"
+    },
+    {
+      "env_var": "ALERT_CONTAINER_RESTARTING_FREQUENTLY_THRESHOLD",
+      "value": 1.5,
+      "alert": "ContainerRestartingFrequently",
+      "category": "other"
+    },
+    {
+      "env_var": "ALERT_REDIS_DOWN_THRESHOLD",
+      "value": 0.0,
+      "alert": "RedisDown",
+      "category": "infrastructure"
+    },
+    {
+      "env_var": "ALERT_REDIS_MEMORY_HIGH_THRESHOLD",
+      "value": 142.5,
+      "alert": "RedisMemoryHigh",
+      "category": "infrastructure"
+    },
+    {
+      "env_var": "ALERT_REDIS_CONNECTIONS_HIGH_THRESHOLD",
+      "value": 750.0,
+      "alert": "RedisConnectionsHigh",
+      "category": "infrastructure"
+    },
+    {
+      "env_var": "ALERT_REDIS_RATE_LIMIT_HIGH_HIT_RATE_THRESHOLD",
+      "value": 75.0,
+      "alert": "RedisRateLimitHighHitRate",
+      "category": "infrastructure"
+    },
+    {
+      "env_var": "ALERT_REDIS_RATE_LIMIT_MODERATE_HIT_RATE_THRESHOLD",
+      "value": 45.0,
+      "alert": "RedisRateLimitModerateHitRate",
+      "category": "infrastructure"
+    },
+    {
+      "env_var": "ALERT_REDIS_RATE_LIMIT_CHECK_LATENCY_HIGH_THRESHOLD",
+      "value": 75.0,
+      "alert": "RedisRateLimitCheckLatencyHigh",
+      "category": "infrastructure"
+    },
+    {
+      "env_var": "ALERT_REDIS_RATE_LIMIT_CHECK_LATENCY_DEGRADED_THRESHOLD",
+      "value": 15.0,
+      "alert": "RedisRateLimitCheckLatencyDegraded",
+      "category": "infrastructure"
+    },
+    {
+      "env_var": "ALERT_REDIS_CONNECTION_POOL_EXHAUSTION_THRESHOLD",
+      "value": 142.5,
+      "alert": "RedisConnectionPoolExhaustion",
+      "category": "infrastructure"
+    },
+    {
+      "env_var": "ALERT_REDIS_CONNECTION_POOL_HIGH_UTILIZATION_THRESHOLD",
+      "value": 120.0,
+      "alert": "RedisConnectionPoolHighUtilization",
+      "category": "infrastructure"
+    },
+    {
+      "env_var": "ALERT_REDIS_RATE_LIMIT_ERRORS_HIGH_THRESHOLD",
+      "value": 15.0,
+      "alert": "RedisRateLimitErrorsHigh",
+      "category": "infrastructure"
+    },
+    {
+      "env_var": "ALERT_REDIS_RATE_LIMIT_ERRORS_DETECTED_THRESHOLD",
+      "value": 2.0,
+      "alert": "RedisRateLimitErrorsDetected",
+      "category": "infrastructure"
+    },
+    {
+      "env_var": "ALERT_REDIS_LUA_SCRIPT_FAILURE_RATE_HIGH_THRESHOLD",
+      "value": 7.5,
+      "alert": "RedisLuaScriptFailureRateHigh",
+      "category": "infrastructure"
+    },
+    {
+      "env_var": "ALERT_REDIS_SLIDING_WINDOW_SIZE_ABNORMAL_THRESHOLD",
+      "value": 15.0,
+      "alert": "RedisSlidingWindowSizeAbnormal",
+      "category": "infrastructure"
+    },
+    {
+      "env_var": "ALERT_REDIS_RATE_LIMIT_FREQUENTLY_TRIGGERED_THRESHOLD",
+      "value": 15.0,
+      "alert": "RedisRateLimitFrequentlyTriggered",
+      "category": "infrastructure"
+    },
+    {
+      "env_var": "ALERT_AGENTS_TTFT_VIOLATION_THRESHOLD",
+      "value": 7500.0,
+      "alert": "AgentsTTFTViolation",
+      "category": "other"
+    },
+    {
+      "env_var": "ALERT_AGENTS_TOKENS_PER_SECOND_LOW_THRESHOLD",
+      "value": 3.33,
+      "alert": "AgentsTokensPerSecondLow",
+      "category": "other"
+    },
+    {
+      "env_var": "ALERT_AGENTS_ROUTER_LATENCY_HIGH_THRESHOLD",
+      "value": 4500.0,
+      "alert": "AgentsRouterLatencyHigh",
+      "category": "performance"
+    },
+    {
+      "env_var": "ALERT_AGENTS_STREAMING_ERROR_RATE_HIGH_THRESHOLD",
+      "value": 37.5,
+      "alert": "AgentsStreamingErrorRateHigh",
+      "category": "reliability"
+    },
+    {
+      "env_var": "ALERT_AGENTS_ROUTER_LOW_CONFIDENCE_HIGH_THRESHOLD",
+      "value": 60.0,
+      "alert": "AgentsRouterLowConfidenceHigh",
+      "category": "other"
+    },
+    {
+      "env_var": "ALERT_CHECKPOINT_SAVE_SLOW_CRITICAL_THRESHOLD",
+      "value": 15.0,
+      "alert": "CheckpointSaveSlowCritical",
+      "category": "checkpoint_persistence"
+    },
+    {
+      "env_var": "ALERT_CHECKPOINT_SAVE_SLOW_WARNING_THRESHOLD",
+      "value": 7.5,
+      "alert": "CheckpointSaveSlowWarning",
+      "category": "checkpoint_persistence"
+    },
+    {
+      "env_var": "ALERT_HIGH_CONVERSATION_RESET_RATE_THRESHOLD",
+      "value": 15.0,
+      "alert": "HighConversationResetRate",
+      "category": "other"
+    },
+    {
+      "env_var": "ALERT_CHECKPOINT_SIZE_GROWING_THRESHOLD",
+      "value": 30.0,
+      "alert": "CheckpointSizeGrowing",
+      "category": "checkpoint_persistence"
+    },
+    {
+      "env_var": "ALERT_NO_ACTIVE_CONVERSATIONS_THRESHOLD",
+      "value": 0.0,
+      "alert": "NoActiveConversations",
+      "category": "other"
+    },
+    {
+      "env_var": "ALERT_CONVERSATION_CREATION_STALLED_THRESHOLD",
+      "value": 2.0,
+      "alert": "ConversationCreationStalled",
+      "category": "other"
+    },
+    {
+      "env_var": "ALERT_CONVERSATION_CREATION_STALLED_THRESHOLD",
+      "value": 0.0,
+      "alert": "ConversationCreationStalled",
+      "category": "other"
+    },
+    {
+      "env_var": "ALERT_LLMAPI_FAILURE_RATE_HIGH_THRESHOLD",
+      "value": 0.45,
+      "alert": "LLMAPIFailureRateHigh",
+      "category": "reliability"
+    },
+    {
+      "env_var": "ALERT_LLMAPI_SUCCESS_RATE_LOW_THRESHOLD",
+      "value": 0.47,
+      "alert": "LLMAPISuccessRateLow",
+      "category": "other"
+    },
+    {
+      "env_var": "ALERT_DAILY_COST_BUDGET_EXCEEDED_THRESHOLD",
+      "value": 7.5,
+      "alert": "DailyCostBudgetExceeded",
+      "category": "llm_costs"
+    },
+    {
+      "env_var": "ALERT_HOURLY_COST_TRENDING_HIGH_THRESHOLD",
+      "value": 2.0,
+      "alert": "HourlyCostTrendingHigh",
+      "category": "llm_costs"
+    },
+    {
+      "env_var": "ALERT_LLMAPI_LATENCY_HIGH_THRESHOLD",
+      "value": 45.0,
+      "alert": "LLMAPILatencyHigh",
+      "category": "performance"
+    },
+    {
+      "env_var": "ALERT_HIGH_TOKEN_CONSUMPTION_RATE_THRESHOLD",
+      "value": 15.0,
+      "alert": "HighTokenConsumptionRate",
+      "category": "other"
+    },
+    {
+      "env_var": "ALERT_MODEL_COST_BUDGET_EXCEEDED_THRESHOLD",
+      "value": 4.0,
+      "alert": "ModelCostBudgetExceeded",
+      "category": "llm_costs"
+    },
+    {
+      "env_var": "ALERT_HIGH_OUTPUT_TOKEN_RATIO_THRESHOLD",
+      "value": 30.0,
+      "alert": "HighOutputTokenRatio",
+      "category": "other"
+    },
+    {
+      "env_var": "ALERT_HIGH_O_AUTH_FAILURE_RATE_THRESHOLD",
+      "value": 75.0,
+      "alert": "HighOAuthFailureRate",
+      "category": "reliability"
+    },
+    {
+      "env_var": "ALERT_PKCE_VALIDATION_FAILURES_THRESHOLD",
+      "value": 7.5,
+      "alert": "PKCEValidationFailures",
+      "category": "reliability"
+    },
+    {
+      "env_var": "ALERT_STATE_TOKEN_VALIDATION_FAILURES_THRESHOLD",
+      "value": 7.5,
+      "alert": "StateTokenValidationFailures",
+      "category": "reliability"
+    },
+    {
+      "env_var": "ALERT_SLOW_O_AUTH_CALLBACK_THRESHOLD",
+      "value": 45.0,
+      "alert": "SlowOAuthCallback",
+      "category": "other"
+    },
+    {
+      "env_var": "ALERT_O_AUTH_PROVIDER_ERRORS_THRESHOLD",
+      "value": 15.0,
+      "alert": "OAuthProviderErrors",
+      "category": "reliability"
+    },
+    {
+      "env_var": "ALERT_O_AUTH_CALLBACK_SPIKE_THRESHOLD",
+      "value": 15.0,
+      "alert": "OAuthCallbackSpike",
+      "category": "other"
+    },
+    {
+      "env_var": "ALERT_HIGH_CONVERSATION_ABANDONMENT_RATE_THRESHOLD",
+      "value": 0.2,
+      "alert": "HighConversationAbandonmentRate",
+      "category": "business_metrics"
+    },
+    {
+      "env_var": "ALERT_CRITICAL_CONVERSATION_ABANDONMENT_RATE_THRESHOLD",
+      "value": 0.4,
+      "alert": "CriticalConversationAbandonmentRate",
+      "category": "business_metrics"
+    },
+    {
+      "env_var": "ALERT_LOW_TOOL_SUCCESS_RATE_THRESHOLD",
+      "value": 0.8,
+      "alert": "LowToolSuccessRate",
+      "category": "other"
+    },
+    {
+      "env_var": "ALERT_CRITICAL_TOOL_FAILURE_RATE_THRESHOLD",
+      "value": 0.5,
+      "alert": "CriticalToolFailureRate",
+      "category": "reliability"
+    },
+    {
+      "env_var": "ALERT_LOW_HITL_APPROVAL_RATE_THRESHOLD",
+      "value": 0.5,
+      "alert": "LowHITLApprovalRate",
+      "category": "hitl_quality"
+    },
+    {
+      "env_var": "ALERT_HIGH_TOKEN_EFFICIENCY_RATIO_THRESHOLD",
+      "value": 1.5,
+      "alert": "HighTokenEfficiencyRatio",
+      "category": "other"
+    }
+  ]
+}

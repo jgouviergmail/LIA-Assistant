@@ -1,0 +1,502 @@
+# French translations for LIA API
+# Copyright (C) 2025
+# This file is distributed under the same license as LIA
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: LIA API 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-10-24 14:00+0200\n"
+"PO-Revision-Date: 2025-10-24 14:00+0200\n"
+"Last-Translator: Claude Code <noreply@anthropic.com>\n"
+"Language: fr\n"
+"Language-Team: French\n"
+"Plural-Forms: nplurals=2; plural=(n > 1)\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+# Authentication errors
+msgid "Invalid credentials"
+msgstr "Identifiants invalides"
+
+msgid "Account inactive"
+msgstr "Compte inactif"
+
+msgid "Email already registered"
+msgstr "Email déjà enregistré"
+
+msgid "Invalid token"
+msgstr "Jeton invalide"
+
+msgid "Token expired"
+msgstr "Jeton expiré"
+
+msgid "Unauthorized"
+msgstr "Non autorisé"
+
+msgid "Access denied"
+msgstr "Accès refusé"
+
+# Validation errors
+msgid "Invalid email format"
+msgstr "Format d'email invalide"
+
+msgid "Password too short"
+msgstr "Mot de passe trop court"
+
+msgid "Password must contain at least 8 characters"
+msgstr "Le mot de passe doit contenir au moins 8 caractères"
+
+msgid "Passwords do not match"
+msgstr "Les mots de passe ne correspondent pas"
+
+msgid "Email is required"
+msgstr "L'email est requis"
+
+msgid "Password is required"
+msgstr "Le mot de passe est requis"
+
+msgid "Full name is required"
+msgstr "Le nom complet est requis"
+
+# User errors
+msgid "User not found"
+msgstr "Utilisateur introuvable"
+
+msgid "User already exists"
+msgstr "L'utilisateur existe déjà"
+
+msgid "Cannot delete yourself"
+msgstr "Vous ne pouvez pas vous supprimer vous-même"
+
+# Connector errors
+msgid "Connector not found"
+msgstr "Connecteur introuvable"
+
+msgid "Connector already enabled"
+msgstr "Connecteur déjà activé"
+
+msgid "Connector disabled"
+msgstr "Connecteur désactivé"
+
+msgid "OAuth flow failed"
+msgstr "Échec de l'authentification OAuth"
+
+msgid "Please enable Google Contacts connector first"
+msgstr "Veuillez d'abord activer le connecteur Google Contacts"
+
+# Generic errors
+msgid "Internal server error"
+msgstr "Erreur interne du serveur"
+
+msgid "Not found"
+msgstr "Introuvable"
+
+msgid "Bad request"
+msgstr "Requête invalide"
+
+msgid "Forbidden"
+msgstr "Interdit"
+
+msgid "Service unavailable"
+msgstr "Service indisponible"
+
+# Success messages
+msgid "Login successful"
+msgstr "Connexion réussie"
+
+msgid "Registration successful"
+msgstr "Inscription réussie"
+
+msgid "Settings saved"
+msgstr "Paramètres enregistrés"
+
+msgid "Connector enabled"
+msgstr "Connecteur activé"
+
+msgid "Connector disabled successfully"
+msgstr "Connecteur désactivé avec succès"
+
+# Status messages
+msgid "Active"
+msgstr "Actif"
+
+msgid "Inactive"
+msgstr "Inactif"
+
+msgid "Online"
+msgstr "En ligne"
+
+msgid "Offline"
+msgstr "Hors ligne"
+
+msgid "Connected"
+msgstr "Connecté"
+
+msgid "Disconnected"
+msgstr "Déconnecté"
+
+# LLM Pricing messages
+msgid "Pricing updated successfully"
+msgstr "Tarification mise à jour avec succès"
+
+msgid "Model pricing not found"
+msgstr "Tarification du modèle introuvable"
+
+msgid "Invalid pricing data"
+msgstr "Données de tarification invalides"
+
+msgid "Currency rate not found"
+msgstr "Taux de change introuvable"
+
+# User activation/deactivation emails
+msgid "Failed to send deactivation email notification"
+msgstr "Échec de l'envoi de la notification par email de désactivation"
+
+msgid "Failed to send activation email notification"
+msgstr "Échec de l'envoi de la notification par email d'activation"
+
+msgid "Your LIA account has been deactivated"
+msgstr "Votre compte LIA a été désactivé"
+
+msgid "Account deactivated"
+msgstr "Compte désactivé"
+
+msgid "We inform you that your LIA account has been deactivated by an administrator."
+msgstr "Nous vous informons que votre compte LIA a été désactivé par un administrateur."
+
+msgid "You can no longer access the application."
+msgstr "Vous ne pouvez plus accéder à l'application."
+
+msgid "If you think this is an error, please contact the administrator."
+msgstr "Si vous pensez qu'il s'agit d'une erreur, veuillez contacter l'administrateur."
+
+msgid "Your LIA account has been reactivated"
+msgstr "Votre compte LIA a été réactivé"
+
+msgid "Account reactivated"
+msgstr "Compte réactivé"
+
+msgid "We inform you that your LIA account has been reactivated."
+msgstr "Nous vous informons que votre compte LIA a été réactivé."
+
+msgid "You can now access the application again."
+msgstr "Vous pouvez à nouveau accéder à l'application."
+
+msgid "Log in"
+msgstr "Se connecter"
+
+msgid "Login link"
+msgstr "Lien de connexion"
+
+msgid "Hello"
+msgstr "Bonjour"
+
+msgid "Reason"
+msgstr "Raison"
+
+msgid "This is an automated email, please do not reply."
+msgstr "Ceci est un email automatique, merci de ne pas y répondre."
+
+# User pending activation email
+msgid "Your LIA account is pending activation"
+msgstr "Votre compte LIA est en attente d'activation"
+
+msgid "Account pending activation"
+msgstr "Compte en attente d'activation"
+
+msgid "Welcome to LIA! Your account has been created successfully."
+msgstr "Bienvenue sur LIA ! Votre compte a été créé avec succès."
+
+msgid "Your account is currently pending activation by an administrator."
+msgstr "Votre compte est actuellement en attente d'activation par un administrateur."
+
+msgid "You will receive an email once your account has been activated."
+msgstr "Vous recevrez un email dès que votre compte aura été activé."
+
+msgid "Thank you for your patience."
+msgstr "Merci de votre patience."
+
+# Semantic Architecture - Context Loader
+msgid "No previous conversation."
+msgstr "Aucune conversation précédente."
+
+msgid "No relevant memories."
+msgstr "Aucune mémoire pertinente."
+
+msgid "Error retrieving memories."
+msgstr "Erreur lors de la récupération des mémoires."
+
+# Semantic Architecture - Semantic Agent
+msgid "No memories available."
+msgstr "Aucune mémoire disponible."
+
+msgid "No tools available."
+msgstr "Aucun outil disponible."
+
+msgid "Parameters:"
+msgstr "Paramètres:"
+
+msgid "(required)"
+msgstr "(requis)"
+
+msgid "(optional)"
+msgstr "(optionnel)"
+
+msgid "Internal error: registry not available."
+msgstr "Erreur interne: registre non disponible."
+
+msgid "I've reached the action limit. Here's what I was able to accomplish."
+msgstr "J'ai atteint la limite d'actions. Voici ce que j'ai pu accomplir."
+
+msgid "I'm sorry, an error occurred. Please try again."
+msgstr "Je suis désolé, une erreur s'est produite. Veuillez réessayer."
+
+# Semantic Architecture - HITL Tool Gate
+msgid "The action '{tool_name}' requires your approval. Do you want to continue?"
+msgstr "L'action '{tool_name}' nécessite votre approbation. Voulez-vous continuer?"
+
+msgid "The following actions require your approval: {tool_names}. Do you want to continue?"
+msgstr "Les actions suivantes nécessitent votre approbation: {tool_names}. Voulez-vous continuer?"
+
+msgid "Action cancelled: {reason}"
+msgstr "Action annulée: {reason}"
+
+msgid "Action cancelled by user."
+msgstr "Action annulée par l'utilisateur."
+
+# ============================================================================
+# Context Tools (Phase 5 i18n - 2025-12-22)
+# ============================================================================
+
+msgid "No active domain. Please perform a search first."
+msgstr "Aucun domaine actif. Effectue d'abord une recherche."
+
+msgid "Domain '{domain}' not registered. Available domains: {available}"
+msgstr "Domaine '{domain}' non enregistré. Domaines disponibles: {available}"
+
+msgid "none"
+msgstr "aucun"
+
+msgid "No active '{domain}' list in memory. Please perform a search first to create a context."
+msgstr "Aucune liste '{domain}' active en mémoire. Effectue d'abord une recherche pour créer un contexte."
+
+msgid "Error retrieving domains: {error}"
+msgstr "Erreur lors de la récupération des domaines: {error}"
+
+msgid "Item {index} marked as current in {domain}."
+msgstr "Item {index} marqué comme courant dans {domain}."
+
+msgid "No active context for domain '{domain}'."
+msgstr "Aucun contexte actif pour le domaine '{domain}'."
+
+msgid "List truncated to {limit} items ({available} available)"
+msgstr "Liste tronquée à {limit} items ({available} disponibles)"
+
+msgid "Error retrieving list: {error}"
+msgstr "Erreur lors de la récupération de la liste: {error}"
+
+# ============================================================================
+# Wikipedia Tools (Phase 5 i18n - 2025-12-22)
+# ============================================================================
+
+msgid "No article found for '{query}' on Wikipedia ({language})"
+msgstr "Aucun article trouvé pour '{query}' sur Wikipedia ({language})"
+
+msgid "Wikipedia search for '{query}' ({language}): {count} results"
+msgstr "Recherche Wikipedia pour '{query}' ({language}): {count} résultats"
+
+msgid "Error during Wikipedia search: {error}"
+msgstr "Erreur lors de la recherche Wikipedia: {error}"
+
+msgid "Article '{title}' not found on Wikipedia ({language})"
+msgstr "Article '{title}' non trouvé sur Wikipedia ({language})"
+
+msgid "Wikipedia summary: {title}"
+msgstr "Résumé Wikipedia: {title}"
+
+msgid "Error retrieving summary: {error}"
+msgstr "Erreur lors de la récupération du résumé: {error}"
+
+msgid "content truncated"
+msgstr "contenu tronqué"
+
+msgid "Wikipedia article: {title}"
+msgstr "Article Wikipedia: {title}"
+
+msgid "Sections"
+msgstr "Sections"
+
+msgid "and {count} more sections"
+msgstr "et {count} autres sections"
+
+msgid "Content"
+msgstr "Contenu"
+
+msgid "{count} additional characters in registry"
+msgstr "{count} caractères supplémentaires dans le registre"
+
+msgid "Error retrieving article: {error}"
+msgstr "Erreur lors de la récupération de l'article: {error}"
+
+msgid "No related article found for '{title}'"
+msgstr "Aucun article lié trouvé pour '{title}'"
+
+msgid "Articles related to '{title}' ({language}): {count} results"
+msgstr "Articles liés à '{title}' ({language}): {count} résultats"
+
+msgid "Error retrieving related articles: {error}"
+msgstr "Erreur lors de la récupération des articles liés: {error}"
+
+# ============================================================================
+# Weather Tools (Phase 5 i18n - 2025-12-22)
+# ============================================================================
+
+msgid "Current location"
+msgstr "Position actuelle"
+
+msgid "Please specify a city or enable geolocation."
+msgstr "Précise une ville ou active la géolocalisation."
+
+msgid "Unable to find location: {location}"
+msgstr "Impossible de trouver la localisation: {location}"
+
+# ============================================================================
+# Adaptive Replanner (Phase 5 i18n - 2025-12-22)
+# ============================================================================
+
+msgid "I couldn't find any results matching your request. Could you clarify or rephrase?"
+msgstr "Je n'ai pas trouvé de résultats correspondant à ta demande. Peux-tu préciser ou reformuler ?"
+
+msgid "Sorry, some operations failed after multiple attempts: {operations}"
+msgstr "Désolé, certaines opérations ont échoué après plusieurs tentatives: {operations}"
+
+msgid "The required data could not be found. Could you clarify your request?"
+msgstr "Les données nécessaires n'ont pas pu être trouvées. Peux-tu préciser ta demande ?"
+
+msgid "A dependency error occurred between steps."
+msgstr "Une erreur de dépendance entre les étapes s'est produite."
+
+msgid "The operation is taking too long. Try a more specific request."
+msgstr "L'opération prend trop de temps. Essaye une demande plus spécifique."
+
+msgid "Unable to execute this request after multiple attempts. Errors: {errors}"
+msgstr "Impossible d'exécuter cette demande après plusieurs tentatives. Erreurs: {errors}"
+
+msgid "Unable to execute this request after multiple attempts."
+msgstr "Impossible d'exécuter cette demande après plusieurs tentatives."
+
+# ============================================================================
+# Response Node - Gmail Labels (Phase 5 i18n - 2025-12-22)
+# ============================================================================
+
+msgid "Inbox"
+msgstr "Boîte de réception"
+
+msgid "Sent"
+msgstr "Envoyés"
+
+msgid "Drafts"
+msgstr "Brouillons"
+
+msgid "Trash"
+msgstr "Corbeille"
+
+msgid "Spam"
+msgstr "Spam"
+
+msgid "Unread"
+msgstr "Non lu"
+
+msgid "Starred"
+msgstr "Favoris"
+
+msgid "Important"
+msgstr "Important"
+
+msgid "Personal"
+msgstr "Personnel"
+
+msgid "Social"
+msgstr "Réseaux sociaux"
+
+msgid "Promotions"
+msgstr "Promotions"
+
+msgid "Updates"
+msgstr "Mises à jour"
+
+msgid "Forums"
+msgstr "Forums"
+
+msgid "Chat"
+msgstr "Chat"
+
+# ============================================================================
+# Response Node - Draft Execution (Phase 5 i18n - 2025-12-22)
+# ============================================================================
+
+msgid "Error during execution: {error}"
+msgstr "Erreur lors de l'exécution: {error}"
+
+msgid "Link"
+msgstr "Lien"
+
+msgid "Error"
+msgstr "Erreur"
+
+# ============================================================================
+# Email Verification (2026-01-10)
+# ============================================================================
+
+msgid "Verify your LIA account email"
+msgstr "Vérifiez votre email LIA"
+
+msgid "Email verification"
+msgstr "Vérification de l'email"
+
+msgid "Welcome to LIA! Please verify your email address to activate your account."
+msgstr "Bienvenue sur LIA ! Veuillez vérifier votre adresse email pour activer votre compte."
+
+msgid "Verify my email"
+msgstr "Vérifier mon email"
+
+msgid "This link expires in 24 hours."
+msgstr "Ce lien expire dans 24 heures."
+
+msgid "If you did not create an account, you can ignore this email."
+msgstr "Si vous n'avez pas créé de compte, vous pouvez ignorer cet email."
+
+msgid "Verification link"
+msgstr "Lien de vérification"
+
+# ============================================================================
+# Password Reset (2026-01-10)
+# ============================================================================
+
+msgid "Reset your LIA password"
+msgstr "Réinitialisez votre mot de passe LIA"
+
+msgid "Password reset"
+msgstr "Réinitialisation du mot de passe"
+
+msgid "We received a request to reset your password."
+msgstr "Nous avons reçu une demande de réinitialisation de votre mot de passe."
+
+msgid "Reset my password"
+msgstr "Réinitialiser mon mot de passe"
+
+msgid "This link expires in 1 hour for security reasons."
+msgstr "Ce lien expire dans 1 heure pour des raisons de sécurité."
+
+msgid "If you did not request a password reset, you can ignore this email."
+msgstr "Si vous n'avez pas demandé de réinitialisation de mot de passe, vous pouvez ignorer cet email."
+
+msgid "Reset link"
+msgstr "Lien de réinitialisation"
+
+# Broadcast notifications
+msgid "Important message"
+msgstr "Message important"
+

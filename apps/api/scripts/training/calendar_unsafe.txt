@@ -1,0 +1,13 @@
+# GOOGLE CALENDAR - Unsafe queries (MUTATIONS)
+# WARNING: These queries CREATE, MODIFY, or DELETE real events
+# Execute manually or with caution
+
+Ajouter un événement testcalendart demain à 14h
+Modifie l'événement testcalendart, replanifie le demain à 15h
+Supprime l'événement testcalendart
+Crée un événement Réunion projet test demain de 14h à 16h dans la salle A
+Déplace ma réunion Réunion projet test demain de 14h à 15h
+Change le lieu de la réunion Réunion projet test en salle B
+Ajoute user@example.com comme participant à la réunion Réunion projet test
+Prolonge la réunion Réunion projet test d'une heure
+Annule la réunion Réunion projet test

@@ -1,0 +1,103 @@
+# ============================================
+# DEFAULT BEHAVIOR
+# ============================================
+# Automatically normalize line endings for all text files
+# Git will handle line endings automatically for text files
+* text=auto
+
+# ============================================
+# SCRIPTS
+# ============================================
+# Force bash scripts to always use LF (Unix/Linux/Mac)
+*.sh text eol=lf
+
+# Force Windows batch/cmd scripts to always use CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# ============================================
+# SOURCE CODE
+# ============================================
+# Python
+*.py text eol=lf
+*.pyx text eol=lf
+*.pyi text eol=lf
+
+# JavaScript/TypeScript
+*.js text eol=lf
+*.jsx text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.mjs text eol=lf
+*.cjs text eol=lf
+
+# JSON/YAML/TOML
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.toml text eol=lf
+
+# Web
+*.html text eol=lf
+*.css text eol=lf
+*.scss text eol=lf
+*.sass text eol=lf
+
+# Configuration files
+*.conf text eol=lf
+*.config text eol=lf
+*.ini text eol=lf
+.env* text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf
+.editorconfig text eol=lf
+.prettierrc text eol=lf
+.eslintrc text eol=lf
+
+# Docker
+Dockerfile text eol=lf
+*.dockerfile text eol=lf
+docker-compose*.yml text eol=lf
+.dockerignore text eol=lf
+
+# Markdown & Documentation
+*.md text eol=lf
+*.txt text eol=lf
+*.rst text eol=lf
+
+# ============================================
+# BINARY FILES
+# ============================================
+# Images
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.svg binary
+*.webp binary
+
+# Archives
+*.zip binary
+*.tar binary
+*.gz binary
+*.7z binary
+*.rar binary
+
+# Fonts
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.otf binary
+
+# Other binary formats
+*.pdf binary
+*.db binary
+*.sqlite binary
+*.sqlite3 binary
+*.exe binary
+*.dll binary
+*.so binary
+*.dylib binary

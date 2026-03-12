@@ -1,0 +1,288 @@
+{
+  "exported_at": "2026-01-14T14:49:33.186506",
+  "count": 19,
+  "patterns": [
+    {
+      "key": "get_weather_forecast→get_places→get_places",
+      "successes": 27,
+      "failures": 0,
+      "total": 27,
+      "confidence": 0.967,
+      "domains": [
+        "places",
+        "weather"
+      ],
+      "intent": "read",
+      "is_suggerable": true,
+      "can_bypass": true,
+      "last_update": 1768268169
+    },
+    {
+      "key": "get_contacts→get_places",
+      "successes": 23,
+      "failures": 0,
+      "total": 23,
+      "confidence": 0.962,
+      "domains": [
+        "contacts",
+        "places"
+      ],
+      "intent": "read",
+      "is_suggerable": true,
+      "can_bypass": true,
+      "last_update": 1768279659
+    },
+    {
+      "key": "get_contacts→send_email",
+      "successes": 22,
+      "failures": 0,
+      "total": 22,
+      "confidence": 0.96,
+      "domains": [
+        "contacts",
+        "emails"
+      ],
+      "intent": "mutation",
+      "is_suggerable": true,
+      "can_bypass": true,
+      "last_update": 1768336842
+    },
+    {
+      "key": "get_contacts→get_route",
+      "successes": 21,
+      "failures": 0,
+      "total": 21,
+      "confidence": 0.958,
+      "domains": [
+        "contacts",
+        "routes"
+      ],
+      "intent": "read",
+      "is_suggerable": true,
+      "can_bypass": true,
+      "last_update": 1768274390
+    },
+    {
+      "key": "get_places→get_route",
+      "successes": 18,
+      "failures": 0,
+      "total": 18,
+      "confidence": 0.952,
+      "domains": [
+        "places",
+        "routes"
+      ],
+      "intent": "read",
+      "is_suggerable": true,
+      "can_bypass": true,
+      "last_update": 1768325049
+    },
+    {
+      "key": "get_events→get_route",
+      "successes": 16,
+      "failures": 0,
+      "total": 16,
+      "confidence": 0.947,
+      "domains": [
+        "calendar",
+        "routes"
+      ],
+      "intent": "read",
+      "is_suggerable": true,
+      "can_bypass": true,
+      "last_update": 1768278994
+    },
+    {
+      "key": "get_emails→get_contacts",
+      "successes": 16,
+      "failures": 0,
+      "total": 16,
+      "confidence": 0.947,
+      "domains": [
+        "contacts",
+        "emails"
+      ],
+      "intent": "read",
+      "is_suggerable": true,
+      "can_bypass": true,
+      "last_update": 1768268276
+    },
+    {
+      "key": "get_events→get_weather_forecast",
+      "successes": 16,
+      "failures": 0,
+      "total": 16,
+      "confidence": 0.947,
+      "domains": [
+        "calendar",
+        "weather"
+      ],
+      "intent": "read",
+      "is_suggerable": true,
+      "can_bypass": true,
+      "last_update": 1768268256
+    },
+    {
+      "key": "get_contacts",
+      "successes": 10,
+      "failures": 0,
+      "total": 10,
+      "confidence": 0.923,
+      "domains": [
+        "contacts"
+      ],
+      "intent": "read",
+      "is_suggerable": true,
+      "can_bypass": true,
+      "last_update": 1768338776
+    },
+    {
+      "key": "get_current_location→get_route",
+      "successes": 9,
+      "failures": 0,
+      "total": 9,
+      "confidence": 0.917,
+      "domains": [
+        "places",
+        "routes"
+      ],
+      "intent": "read",
+      "is_suggerable": true,
+      "can_bypass": false,
+      "last_update": 1768266465
+    },
+    {
+      "key": "get_contacts→create_event",
+      "successes": 8,
+      "failures": 0,
+      "total": 8,
+      "confidence": 0.909,
+      "domains": [
+        "calendar",
+        "contacts"
+      ],
+      "intent": "mutation",
+      "is_suggerable": true,
+      "can_bypass": false,
+      "last_update": 1768337864
+    },
+    {
+      "key": "get_route",
+      "successes": 17,
+      "failures": 1,
+      "total": 18,
+      "confidence": 0.905,
+      "domains": [
+        "contacts",
+        "routes"
+      ],
+      "intent": "read",
+      "is_suggerable": true,
+      "can_bypass": true,
+      "last_update": 1768325923
+    },
+    {
+      "key": "send_email",
+      "successes": 44,
+      "failures": 4,
+      "total": 48,
+      "confidence": 0.902,
+      "domains": [
+        "emails"
+      ],
+      "intent": "mutation",
+      "is_suggerable": true,
+      "can_bypass": true,
+      "last_update": 1768337320
+    },
+    {
+      "key": "get_contacts→get_contacts→create_event",
+      "successes": 7,
+      "failures": 0,
+      "total": 7,
+      "confidence": 0.9,
+      "domains": [
+        "calendar",
+        "contacts"
+      ],
+      "intent": "mutation",
+      "is_suggerable": true,
+      "can_bypass": false,
+      "last_update": 1768338025
+    },
+    {
+      "key": "get_places",
+      "successes": 19,
+      "failures": 4,
+      "total": 23,
+      "confidence": 0.808,
+      "domains": [
+        "contacts",
+        "places"
+      ],
+      "intent": "read",
+      "is_suggerable": true,
+      "can_bypass": false,
+      "last_update": 1768325379
+    },
+    {
+      "key": "get_current_location→get_places→get_route_matrix",
+      "successes": 2,
+      "failures": 0,
+      "total": 2,
+      "confidence": 0.8,
+      "domains": [
+        "places",
+        "routes"
+      ],
+      "intent": "read",
+      "is_suggerable": false,
+      "can_bypass": false,
+      "last_update": 1768264387
+    },
+    {
+      "key": "get_contacts→get_route→get_places",
+      "successes": 1,
+      "failures": 0,
+      "total": 1,
+      "confidence": 0.75,
+      "domains": [
+        "contacts",
+        "places",
+        "routes"
+      ],
+      "intent": "read",
+      "is_suggerable": false,
+      "can_bypass": false,
+      "last_update": 1768277756
+    },
+    {
+      "key": "get_current_location→get_places",
+      "successes": 1,
+      "failures": 0,
+      "total": 1,
+      "confidence": 0.75,
+      "domains": [
+        "places"
+      ],
+      "intent": "read",
+      "is_suggerable": false,
+      "can_bypass": false,
+      "last_update": 1768325119
+    },
+    {
+      "key": "create_event",
+      "successes": 1,
+      "failures": 0,
+      "total": 1,
+      "confidence": 0.75,
+      "domains": [
+        "calendar"
+      ],
+      "intent": "mutation",
+      "is_suggerable": false,
+      "can_bypass": false,
+      "last_update": 1768337358
+    }
+  ]
+}

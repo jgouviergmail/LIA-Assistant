@@ -1,0 +1,997 @@
+# Règles d'alerting pour LIA (TEMPLATE)
+#
+# Ce fichier est un template Jinja2. Les seuils sont externalisés dans .env.alerting.{environment}
+#
+# Pour générer alerts.yml:
+#   python render_alerts.py --env production --template alerts.yml.template --output alerts.yml
+#   python render_alerts.py --env staging --template alerts.yml.template --output alerts.yml
+#   python render_alerts.py --env development --template alerts.yml.template --output alerts.yml
+#
+# Variables disponibles: 87 seuils (voir .env.alerting.example)
+#
+# Règles d'alerting pour LIA (TEMPLATE)
+#
+# Ce fichier est un template Jinja2. Les seuils sont externalisés dans .env.alerting.{environment}
+#
+# Pour générer alerts.yml:
+#   python render_alerts.py --env production
+#   python render_alerts.py --env staging
+#   python render_alerts.py --env development
+#
+# Variables disponibles: 39 seuils (voir .env.alerting.example)
+#
+groups:
+  # ===== ALERTES APPLICATION =====
+  - name: application_alerts
+    interval: 30s
+    rules:
+      # Taux d'erreur élevé
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{status=~"5.."}[5m])) by (service)
+            /
+            sum(rate(http_requests_total[5m])) by (service)
+          ) * 100 > <<<ALERT_HIGH_ERROR_RATE_THRESHOLD>>>
+        for: 5m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "Taux d'erreur élevé sur {{ $labels.service }}"
+          description: "Le taux d'erreur est de {{ $value | humanize }}% sur les 5 dernières minutes (seuil: 5%)"
+
+      # Latence P95 élevée
+      - alert: HighLatencyP95
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le, service)
+          ) > <<<ALERT_HIGH_LATENCY_P_95_THRESHOLD>>>
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "Latence P95 élevée sur {{ $labels.service }}"
+          description: "La latence P95 est de {{ $value | humanize }}s (seuil: 1s)"
+
+      # Latence P99 critique
+      - alert: CriticalLatencyP99
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le, service)
+          ) > <<<ALERT_CRITICAL_LATENCY_P_99_THRESHOLD>>>
+        for: 5m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "Latence P99 critique sur {{ $labels.service }}"
+          description: "La latence P99 est de {{ $value | humanize }}s (seuil: 2s)"
+
+      # Service down
+      - alert: ServiceDown
+        expr: up{job="lia-api"} == <<<ALERT_SERVICE_DOWN_THRESHOLD>>>
+        for: 1m
+        labels:
+          severity: critical
+          component: api
+        annotations:
+          summary: "Service {{ $labels.job }} est down"
+          description: "Le service {{ $labels.job }} ne répond plus depuis 1 minute"
+
+      # Requêtes en attente élevées
+      - alert: HighRequestQueueing
+        expr: |
+          sum(rate(http_requests_total[1m])) by (service) > <<<ALERT_HIGH_REQUEST_QUEUEING_THRESHOLD>>>
+        for: 5m
+        labels:
+          severity: warning
+          component: api
+        annotations:
+          summary: "Charge élevée sur {{ $labels.service }}"
+          description: "{{ $value | humanize }} requêtes/seconde sur les 5 dernières minutes"
+
+  # ===== ALERTES BASE DE DONNÉES =====
+  - name: database_alerts
+    interval: 30s
+    rules:
+      # Connexions DB élevées
+      - alert: HighDatabaseConnections
+        expr: |
+          (
+            pg_stat_database_numbackends{datname="lia"}
+            /
+            pg_settings_max_connections
+          ) * 100 > <<<ALERT_HIGH_DATABASE_CONNECTIONS_THRESHOLD>>>
+        for: 5m
+        labels:
+          severity: warning
+          component: postgresql
+        annotations:
+          summary: "Utilisation élevée des connexions PostgreSQL"
+          description: "{{ $value | humanize }}% des connexions sont utilisées (seuil: 80%)"
+
+      # Connexions DB critiques
+      - alert: CriticalDatabaseConnections
+        expr: |
+          (
+            pg_stat_database_numbackends{datname="lia"}
+            /
+            pg_settings_max_connections
+          ) * 100 > <<<ALERT_CRITICAL_DATABASE_CONNECTIONS_THRESHOLD>>>
+        for: 2m
+        labels:
+          severity: critical
+          component: postgresql
+        annotations:
+          summary: "Utilisation critique des connexions PostgreSQL"
+          description: "{{ $value | humanize }}% des connexions sont utilisées (seuil: 90%)"
+
+      # DB down
+      - alert: DatabaseDown
+        expr: up{job="postgresql"} == <<<ALERT_DATABASE_DOWN_THRESHOLD>>>
+        for: 1m
+        labels:
+          severity: critical
+          component: postgresql
+        annotations:
+          summary: "PostgreSQL est down"
+          description: "PostgreSQL ne répond plus depuis 1 minute"
+
+      # Requêtes lentes
+      - alert: SlowQueries
+        expr: |
+          rate(pg_stat_database_tup_fetched{datname="lia"}[5m]) > <<<ALERT_SLOW_QUERIES_THRESHOLD>>>
+        for: 5m
+        labels:
+          severity: warning
+          component: postgresql
+        annotations:
+          summary: "Requêtes PostgreSQL lentes détectées"
+          description: "{{ $value | humanize }} tuples/sec récupérés sur les 5 dernières minutes"
+
+  # ===== ALERTES INFRASTRUCTURE =====
+  - name: infrastructure_alerts
+    interval: 30s
+    rules:
+      # Disque plein
+      - alert: DiskSpaceHigh
+        expr: |
+          (
+            1 - (node_filesystem_avail_bytes{fstype!="tmpfs"} / node_filesystem_size_bytes{fstype!="tmpfs"})
+          ) * 100 > <<<ALERT_DISK_SPACE_HIGH_THRESHOLD>>>
+        for: 5m
+        labels:
+          severity: warning
+          component: storage
+        annotations:
+          summary: "Espace disque faible sur {{ $labels.mountpoint }}"
+          description: "{{ $value | humanize }}% du disque est utilisé (seuil: 85%)"
+
+      # Disque critique
+      - alert: DiskSpaceCritical
+        expr: |
+          (
+            1 - (node_filesystem_avail_bytes{fstype!="tmpfs"} / node_filesystem_size_bytes{fstype!="tmpfs"})
+          ) * 100 > <<<ALERT_DISK_SPACE_CRITICAL_THRESHOLD>>>
+        for: 2m
+        labels:
+          severity: critical
+          component: storage
+        annotations:
+          summary: "Espace disque critique sur {{ $labels.mountpoint }}"
+          description: "{{ $value | humanize }}% du disque est utilisé (seuil: 95%)"
+
+      # CPU élevé
+      - alert: HighCPUUsage
+        expr: |
+          100 - (avg by (instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > <<<ALERT_HIGH_CPU_USAGE_THRESHOLD>>>
+        for: 5m
+        labels:
+          severity: warning
+          component: compute
+        annotations:
+          summary: "Utilisation CPU élevée sur {{ $labels.instance }}"
+          description: "{{ $value | humanize }}% du CPU est utilisé (seuil: 80%)"
+
+      # Mémoire élevée
+      - alert: HighMemoryUsage
+        expr: |
+          (
+            1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)
+          ) * 100 > <<<ALERT_HIGH_MEMORY_USAGE_THRESHOLD>>>
+        for: 5m
+        labels:
+          severity: warning
+          component: memory
+        annotations:
+          summary: "Utilisation mémoire élevée sur {{ $labels.instance }}"
+          description: "{{ $value | humanize }}% de la mémoire est utilisée (seuil: 85%)"
+
+      # Container down
+      - alert: ContainerDown
+        expr: |
+          time() - container_last_seen{name=~"lia.*"} > <<<ALERT_CONTAINER_DOWN_THRESHOLD>>>
+        for: 1m
+        labels:
+          severity: critical
+          component: container
+        annotations:
+          summary: "Container {{ $labels.name }} est down"
+          description: "Le container {{ $labels.name }} ne répond plus"
+
+      # Container restart fréquent
+      - alert: ContainerRestartingFrequently
+        expr: |
+          rate(container_start_time_seconds{name=~"lia.*"}[15m]) > <<<ALERT_CONTAINER_RESTARTING_FREQUENTLY_THRESHOLD>>>
+        for: 5m
+        labels:
+          severity: warning
+          component: container
+        annotations:
+          summary: "Container {{ $labels.name }} redémarre fréquemment"
+          description: "Le container {{ $labels.name }} a redémarré {{ $value | humanize }} fois sur les 15 dernières minutes"
+
+  # ===== ALERTES REDIS =====
+  - name: redis_alerts
+    interval: 30s
+    rules:
+      # Redis down
+      - alert: RedisDown
+        expr: up{job="redis"} == <<<ALERT_REDIS_DOWN_THRESHOLD>>>
+        for: 1m
+        labels:
+          severity: critical
+          component: redis
+        annotations:
+          summary: "Redis est down"
+          description: "Redis ne répond plus depuis 1 minute"
+
+      # Mémoire Redis élevée
+      - alert: RedisMemoryHigh
+        expr: |
+          (redis_memory_used_bytes / redis_memory_max_bytes) * 100 > <<<ALERT_REDIS_MEMORY_HIGH_THRESHOLD>>>
+        for: 5m
+        labels:
+          severity: warning
+          component: redis
+        annotations:
+          summary: "Utilisation mémoire Redis élevée"
+          description: "{{ $value | humanize }}% de la mémoire Redis est utilisée (seuil: 80%)"
+
+      # Connexions Redis élevées
+      - alert: RedisConnectionsHigh
+        expr: redis_connected_clients > <<<ALERT_REDIS_CONNECTIONS_HIGH_THRESHOLD>>>
+        for: 5m
+        labels:
+          severity: warning
+          component: redis
+        annotations:
+          summary: "Nombre de connexions Redis élevé"
+          description: "{{ $value }} connexions actives (seuil: 100)"
+
+  # ===== ALERTES REDIS RATE LIMITING =====
+  - name: redis_rate_limiting_alerts
+    interval: 30s
+    rules:
+      # CRITICAL: Rate limit hit rate excessively high (> 75.0%)
+      - alert: RedisRateLimitHighHitRate
+        expr: |
+          (
+            sum(rate(redis_rate_limit_hits_total[5m])) by (key_prefix)
+            /
+            (sum(rate(redis_rate_limit_allows_total[5m])) by (key_prefix) + sum(rate(redis_rate_limit_hits_total[5m])) by (key_prefix))
+          ) * 100 > <<<ALERT_REDIS_RATE_LIMIT_HIGH_HIT_RATE_THRESHOLD>>>
+        for: 10m
+        labels:
+          severity: critical
+          component: redis
+          type: rate_limiting
+        annotations:
+          summary: "Rate limit hit rate critique pour {{ $labels.key_prefix }}"
+          description: "{{ $value | humanize }}% des requêtes sont rejetées (seuil: 30%). Utilisateurs fortement impactés."
+          runbook_url: "https://docs.company.com/runbooks/redis-rate-limit-high-hit-rate"
+
+      # WARNING: Rate limit hit rate moderately high (> 45.0%)
+      - alert: RedisRateLimitModerateHitRate
+        expr: |
+          (
+            sum(rate(redis_rate_limit_hits_total[5m])) by (key_prefix)
+            /
+            (sum(rate(redis_rate_limit_allows_total[5m])) by (key_prefix) + sum(rate(redis_rate_limit_hits_total[5m])) by (key_prefix))
+          ) * 100 > <<<ALERT_REDIS_RATE_LIMIT_MODERATE_HIT_RATE_THRESHOLD>>>
+        for: 15m
+        labels:
+          severity: warning
+          component: redis
+          type: rate_limiting
+        annotations:
+          summary: "Rate limit hit rate élevé pour {{ $labels.key_prefix }}"
+          description: "{{ $value | humanize }}% des requêtes sont rejetées (seuil: 10%). Surveiller tendance."
+
+      # CRITICAL: Rate limit check latency excessive (P95 > 75.0ms)
+      - alert: RedisRateLimitCheckLatencyHigh
+        expr: |
+          1000 * histogram_quantile(0.95,
+            sum(rate(redis_rate_limit_check_duration_seconds_bucket[5m])) by (le, key_prefix)
+          ) > <<<ALERT_REDIS_RATE_LIMIT_CHECK_LATENCY_HIGH_THRESHOLD>>>
+        for: 5m
+        labels:
+          severity: critical
+          component: redis
+          type: performance
+        annotations:
+          summary: "Latence rate limit check critique pour {{ $labels.key_prefix }}"
+          description: "P95 latency est {{ $value | humanize }}ms (seuil: 10ms). Impact performance global."
+          runbook_url: "https://docs.company.com/runbooks/redis-rate-limit-latency-high"
+
+      # WARNING: Rate limit check latency degraded (P95 > 15.00ms)
+      - alert: RedisRateLimitCheckLatencyDegraded
+        expr: |
+          1000 * histogram_quantile(0.95,
+            sum(rate(redis_rate_limit_check_duration_seconds_bucket[5m])) by (le, key_prefix)
+          ) > <<<ALERT_REDIS_RATE_LIMIT_CHECK_LATENCY_DEGRADED_THRESHOLD>>>
+        for: 10m
+        labels:
+          severity: warning
+          component: redis
+          type: performance
+        annotations:
+          summary: "Latence rate limit check dégradée pour {{ $labels.key_prefix }}"
+          description: "P95 latency est {{ $value | humanize }}ms (attendu: < 3.33ms). Surveiller tendance."
+
+      # CRITICAL: Redis connection pool exhaustion (> 142.5%)
+      - alert: RedisConnectionPoolExhaustion
+        expr: |
+          100 * (1 - (redis_connection_pool_available_current / redis_connection_pool_size_current)) > <<<ALERT_REDIS_CONNECTION_POOL_EXHAUSTION_THRESHOLD>>>
+        for: 5m
+        labels:
+          severity: critical
+          component: redis
+          type: capacity
+        annotations:
+          summary: "Pool de connexions Redis saturé"
+          description: "{{ $value | humanize }}% du pool est utilisé (seuil: 90%). Connexions bloquées."
+          runbook_url: "https://docs.company.com/runbooks/redis-connection-pool-exhaustion"
+
+      # WARNING: Redis connection pool high utilization (> 120%)
+      - alert: RedisConnectionPoolHighUtilization
+        expr: |
+          100 * (1 - (redis_connection_pool_available_current / redis_connection_pool_size_current)) > <<<ALERT_REDIS_CONNECTION_POOL_HIGH_UTILIZATION_THRESHOLD>>>
+        for: 10m
+        labels:
+          severity: warning
+          component: redis
+          type: capacity
+        annotations:
+          summary: "Pool de connexions Redis fortement utilisé"
+          description: "{{ $value | humanize }}% du pool est utilisé (seuil: 70%). Surveiller tendance."
+
+      # CRITICAL: Redis rate limit errors high (> 15.00 errors/s)
+      - alert: RedisRateLimitErrorsHigh
+        expr: |
+          sum(rate(redis_rate_limit_errors_total[5m])) by (error_type) > <<<ALERT_REDIS_RATE_LIMIT_ERRORS_HIGH_THRESHOLD>>>
+        for: 3m
+        labels:
+          severity: critical
+          component: redis
+          type: reliability
+        annotations:
+          summary: "Erreurs Redis rate limiting élevées: {{ $labels.error_type }}"
+          description: "{{ $value | humanize }} erreurs/s (type: {{ $labels.error_type }}). Service dégradé."
+          runbook_url: "https://docs.company.com/runbooks/redis-rate-limit-errors"
+
+      # WARNING: Redis rate limit errors detected
+      - alert: RedisRateLimitErrorsDetected
+        expr: |
+          sum(rate(redis_rate_limit_errors_total[5m])) by (error_type) > <<<ALERT_REDIS_RATE_LIMIT_ERRORS_DETECTED_THRESHOLD>>>
+        for: 10m
+        labels:
+          severity: warning
+          component: redis
+          type: reliability
+        annotations:
+          summary: "Erreurs Redis rate limiting détectées: {{ $labels.error_type }}"
+          description: "{{ $value | humanize }} erreurs/s (type: {{ $labels.error_type }}). Surveiller logs."
+
+      # CRITICAL: Lua script execution failures high (> 7.5%)
+      - alert: RedisLuaScriptFailureRateHigh
+        expr: |
+          (
+            sum(rate(redis_lua_script_executions_total{status="error"}[5m]))
+            /
+            sum(rate(redis_lua_script_executions_total[5m]))
+          ) * 100 > <<<ALERT_REDIS_LUA_SCRIPT_FAILURE_RATE_HIGH_THRESHOLD>>>
+        for: 5m
+        labels:
+          severity: critical
+          component: redis
+          type: reliability
+        annotations:
+          summary: "Taux d'échec Lua script élevé"
+          description: "{{ $value | humanize }}% des scripts Lua échouent (seuil: 1%). Rate limiting compromis."
+          runbook_url: "https://docs.company.com/runbooks/redis-lua-script-failures"
+
+      # WARNING: Sliding window size growing abnormally
+      - alert: RedisSlidingWindowSizeAbnormal
+        expr: |
+          redis_sliding_window_requests_current > <<<ALERT_REDIS_SLIDING_WINDOW_SIZE_ABNORMAL_THRESHOLD>>>
+        for: 15m
+        labels:
+          severity: warning
+          component: redis
+          type: capacity
+        annotations:
+          summary: "Taille sliding window anormalement élevée pour {{ $labels.key_prefix }}"
+          description: "{{ $value | humanize }} requêtes dans la fenêtre (attendu: <100). Possible fuite mémoire ou configuration incorrecte."
+
+      # INFO: Rate limit frequently triggered for specific endpoint
+      - alert: RedisRateLimitFrequentlyTriggered
+        expr: |
+          sum(rate(redis_rate_limit_hits_total[1h])) by (key_prefix) > <<<ALERT_REDIS_RATE_LIMIT_FREQUENTLY_TRIGGERED_THRESHOLD>>>
+        for: 30m
+        labels:
+          severity: info
+          component: redis
+          type: usage
+        annotations:
+          summary: "Rate limit fréquemment déclenché pour {{ $labels.key_prefix }}"
+          description: "{{ $value | humanize }} rejets/s sur 1h. Considérer ajustement limites ou optimisation client."
+
+  # ===== ALERTES AGENTS LANGGRAPH =====
+  - name: agents_langgraph_alerts
+    interval: 30s
+    rules:
+      # SLA 1: Time to First Token (TTFT) > <<<ALERT_REDIS_RATE_LIMIT_FREQUENTLY_TRIGGERED_THRESHOLD>>>.0000ms
+      - alert: AgentsTTFTViolation
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(sse_time_to_first_token_seconds_bucket[5m])) by (le, intention)
+          ) * 1000 > <<<ALERT_AGENTS_TTFT_VIOLATION_THRESHOLD>>>
+        for: 5m
+        labels:
+          severity: warning
+          component: agents
+          sla: ttft
+        annotations:
+          summary: "SLA TTFT violé pour intention {{ $labels.intention }}"
+          description: "Time to First Token P95 est {{ $value | humanize }}ms (SLA: < 1000ms). Les utilisateurs subissent une latence perceptible."
+          runbook: "1. Vérifier la latence router (< 3.3300ms)\n2. Vérifier l'API OpenAI (latency network)\n3. Vérifier context size (trop de messages history)\n4. Consulter dashboard 'LangGraph Agents Observability'"
+
+      # SLA 2: Tokens per Second < 20
+      - alert: AgentsTokensPerSecondLow
+        expr: |
+          (
+            sum(rate(sse_tokens_generated_total[5m])) by (intention)
+            /
+            sum(rate(sse_streaming_duration_seconds_sum[5m])) by (intention)
+          ) < <<<ALERT_AGENTS_TOKENS_PER_SECOND_LOW_THRESHOLD>>>
+        for: 5m
+        labels:
+          severity: warning
+          component: agents
+          sla: throughput
+        annotations:
+          summary: "SLA Tokens/sec violé pour intention {{ $labels.intention }}"
+          description: "Débit de génération de tokens est {{ $value | humanize }} tokens/sec (SLA: > 30.0). Expérience utilisateur dégradée."
+          runbook: "1. Vérifier model selection (gpt-4.1-mini > gpt-4.1-mini)\n2. Optimiser RESPONSE_LLM_TEMPERATURE (< 0.47 = plus rapide)\n3. Réduire RESPONSE_LLM_MAX_TOKENS\n4. Vérifier streaming buffer delays"
+
+      # SLA 3: Router Latency > 750ms (blocking users)
+      - alert: AgentsRouterLatencyHigh
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(router_latency_seconds_bucket[5m])) by (le)
+          ) * 1000 > <<<ALERT_AGENTS_ROUTER_LATENCY_HIGH_THRESHOLD>>>
+        for: 5m
+        labels:
+          severity: critical
+          component: agents
+          sla: router
+        annotations:
+          summary: "Latence router critique"
+          description: "Latence router P95 est {{ $value | humanize }}ms (seuil: 500ms). Bloque tous les utilisateurs."
+          runbook: "1. Vérifier ROUTER_LLM_TEMPERATURE (doit être ≤ 0.2)\n2. Vérifier ROUTER_LLM_MAX_TOKENS (500 suffisant)\n3. Vérifier router_fallback_total (échecs fréquents?)\n4. Vérifier OpenAI API status"
+
+      # SLA 4: High SSE Streaming Error Rate (> 7.5%)
+      - alert: AgentsStreamingErrorRateHigh
+        expr: |
+          (
+            sum(rate(sse_streaming_errors_total[5m]))
+            /
+            sum(rate(sse_streaming_duration_seconds_count[5m]))
+          ) * 100 > <<<ALERT_AGENTS_STREAMING_ERROR_RATE_HIGH_THRESHOLD>>>
+        for: 3m
+        labels:
+          severity: critical
+          component: agents
+          sla: reliability
+        annotations:
+          summary: "Taux d'erreur streaming élevé"
+          description: "{{ $value | humanize }}% des requêtes streaming échouent (seuil: 5%). Impact utilisateur majeur."
+          runbook: "1. Vérifier logs Loki: {job=\"api\", level=\"error\", logger_name=~\".*agents.*\"}\n2. Consulter 'Top 10 Most Frequent Errors' dans dashboard Logs & Traces\n3. Vérifier graph_exceptions_total par node_name\n4. Vérifier llm_api_calls_total{status=\"error\"}"
+
+      # SLA 5: Router Low Confidence Rate High (> 15.00%)
+      - alert: AgentsRouterLowConfidenceHigh
+        expr: |
+          (
+            sum(rate(router_decisions_total{confidence_bucket="low"}[10m]))
+            /
+            sum(rate(router_decisions_total[10m]))
+          ) * 100 > <<<ALERT_AGENTS_ROUTER_LOW_CONFIDENCE_HIGH_THRESHOLD>>>
+        for: 10m
+        labels:
+          severity: warning
+          component: agents
+          sla: quality
+        annotations:
+          summary: "Taux de décisions router low confidence élevé"
+          description: "{{ $value | humanize }}% des décisions router ont low confidence (< 0.6). Qualité routing dégradée."
+          runbook: "1. Analyser router_debug logs (reasoning field)\n2. Vérifier router prompt (manque contexte?)\n3. Consulter router_fallback_total (fallbacks fréquents?)\n4. Vérifier distribution intentions (nouveaux cas non couverts?)"
+
+  # ===== ALERTES CONVERSATIONS =====
+  - name: conversations
+    interval: 30s
+    rules:
+      # CRITICAL: Checkpoint save performance degradation
+      - alert: CheckpointSaveSlowCritical
+        expr: |
+          histogram_quantile(0.99, sum(rate(checkpoint_save_duration_seconds_bucket[5m])) by (le, node_name)) > <<<ALERT_CHECKPOINT_SAVE_SLOW_CRITICAL_THRESHOLD>>>
+        for: 5m
+        labels:
+          severity: critical
+          component: conversations
+          type: performance
+        annotations:
+          summary: "Checkpoint save p99 exceeds 2s"
+          description: "Checkpoint save latency p99 is {{ $value }}s for node {{ $labels.node_name }}. Database performance issue or large payloads."
+          runbook_url: "https://docs.company.com/runbooks/checkpoint-slow"
+
+      # WARNING: Checkpoint save performance warning
+      - alert: CheckpointSaveSlowWarning
+        expr: |
+          histogram_quantile(0.99, sum(rate(checkpoint_save_duration_seconds_bucket[5m])) by (le, node_name)) > <<<ALERT_CHECKPOINT_SAVE_SLOW_WARNING_THRESHOLD>>>
+        for: 10m
+        labels:
+          severity: warning
+          component: conversations
+          type: performance
+        annotations:
+          summary: "Checkpoint save p99 exceeds 1s"
+          description: "Checkpoint save latency p99 is {{ $value }}s for node {{ $labels.node_name }}. Monitor for increasing trend."
+
+      # WARNING: High conversation reset rate
+      - alert: HighConversationResetRate
+        expr: |
+          sum(rate(conversation_resets_total[5m])) > <<<ALERT_HIGH_CONVERSATION_RESET_RATE_THRESHOLD>>>
+        for: 10m
+        labels:
+          severity: warning
+          component: conversations
+          type: business
+        annotations:
+          summary: "High conversation reset rate detected"
+          description: "Users are resetting conversations at {{ $value }} resets/sec. Possible UX issue or feature misuse."
+
+      # INFO: Checkpoint size growing
+      - alert: CheckpointSizeGrowing
+        expr: |
+          histogram_quantile(0.95, sum(rate(checkpoint_size_bytes_bucket[1h])) by (le, node_name)) > <<<ALERT_CHECKPOINT_SIZE_GROWING_THRESHOLD>>>
+        for: 30m
+        labels:
+          severity: info
+          component: conversations
+          type: capacity
+        annotations:
+          summary: "Large checkpoint sizes detected"
+          description: "Checkpoint size p95 is {{ $value }} bytes for node {{ $labels.node_name }}. Monitor for memory/storage impact."
+
+      # CRITICAL: No active users (system down)
+      - alert: NoActiveConversations
+        expr: |
+          conversation_active_users_total == <<<ALERT_NO_ACTIVE_CONVERSATIONS_THRESHOLD>>>
+        for: 15m
+        labels:
+          severity: critical
+          component: conversations
+          type: availability
+        annotations:
+          summary: "No active conversations detected"
+          description: "Zero active users for 15 minutes. Possible system outage or data collection issue."
+
+      # WARNING: Conversation creation failure
+      - alert: ConversationCreationStalled
+        expr: |
+          rate(conversation_created_total[10m]) == 0.00 and conversation_active_users_total > <<<ALERT_CONVERSATION_CREATION_STALLED_THRESHOLD>>>
+        for: 15m
+        labels:
+          severity: warning
+          component: conversations
+          type: functionality
+        annotations:
+          summary: "Conversation creation stalled"
+          description: "No new conversations created in 10 minutes despite {{ $value }} active users. Check database connectivity."
+
+  # ===== ALERTES TOKENS & COÛTS =====
+  - name: tokens_and_cost
+    interval: 1m
+    rules:
+      # CRITICAL: LLM API success rate dropped
+      - alert: LLMAPIFailureRateHigh
+        expr: |
+          sum(rate(llm_api_calls_total{status="error"}[5m]))
+          /
+          sum(rate(llm_api_calls_total[5m])) > <<<ALERT_LLMAPI_FAILURE_RATE_HIGH_THRESHOLD>>>
+        for: 5m
+        labels:
+          severity: critical
+          component: llm
+          type: availability
+        annotations:
+          summary: "LLM API failure rate > 7.5%"
+          description: "LLM API error rate is {{ $value | humanizePercentage }}. Check OpenAI/Anthropic status page."
+          runbook_url: "https://docs.company.com/runbooks/llm-api-failures"
+
+      # WARNING: LLM API success rate degraded
+      - alert: LLMAPISuccessRateLow
+        expr: |
+          sum(rate(llm_api_calls_total{status="success"}[5m]))
+          /
+          sum(rate(llm_api_calls_total[5m])) < <<<ALERT_LLMAPI_SUCCESS_RATE_LOW_THRESHOLD>>>
+        for: 10m
+        labels:
+          severity: warning
+          component: llm
+          type: availability
+        annotations:
+          summary: "LLM API success rate < 95%"
+          description: "LLM API success rate is {{ $value | humanizePercentage }}. Monitor for degradation."
+
+      # CRITICAL: Daily cost budget exceeded
+      - alert: DailyCostBudgetExceeded
+        expr: |
+          llm_cost_last_24h > <<<ALERT_DAILY_COST_BUDGET_EXCEEDED_THRESHOLD>>>
+        for: 1m
+        labels:
+          severity: critical
+          component: cost
+          type: budget
+        annotations:
+          summary: "Daily LLM cost budget exceeded"
+          description: "Daily LLM cost is {{ $value | humanize }}€, exceeding 100€ budget. Review token usage."
+          runbook_url: "https://docs.company.com/runbooks/cost-alert"
+
+      # WARNING: Cost trending high
+      - alert: HourlyCostTrendingHigh
+        expr: |
+          sum(increase(llm_cost_lifetime[1h])) > <<<ALERT_HOURLY_COST_TRENDING_HIGH_THRESHOLD>>>
+        for: 30m
+        labels:
+          severity: warning
+          component: cost
+          type: budget
+        annotations:
+          summary: "Hourly LLM cost exceeds 5€"
+          description: "Hourly cost is {{ $value | humanize }}€. On track to exceed daily budget if sustained."
+
+      # WARNING: LLM API latency high
+      - alert: LLMAPILatencyHigh
+        expr: |
+          histogram_quantile(0.99, sum(rate(llm_api_latency_seconds_bucket[5m])) by (le, model)) > <<<ALERT_LLMAPI_LATENCY_HIGH_THRESHOLD>>>
+        for: 10m
+        labels:
+          severity: warning
+          component: llm
+          type: performance
+        annotations:
+          summary: "LLM API latency p99 > 15.00s"
+          description: "LLM API p99 latency is {{ $value }}s for model {{ $labels.model }}. Check provider status."
+
+      # INFO: High token consumption rate
+      - alert: HighTokenConsumptionRate
+        expr: |
+          sum(rate(llm_tokens_consumed_total[5m])) > <<<ALERT_HIGH_TOKEN_CONSUMPTION_RATE_THRESHOLD>>>
+        for: 15m
+        labels:
+          severity: info
+          component: tokens
+          type: usage
+        annotations:
+          summary: "High token consumption detected"
+          description: "Consuming {{ $value }} tokens/sec. Monitor for cost impact."
+
+      # CRITICAL: Specific model budget exceeded
+      - alert: ModelCostBudgetExceeded
+        expr: |
+          llm_cost_by_model_last_24h > <<<ALERT_MODEL_COST_BUDGET_EXCEEDED_THRESHOLD>>>
+        for: 1m
+        labels:
+          severity: critical
+          component: cost
+          type: budget
+        annotations:
+          summary: "Model {{ $labels.model }} exceeded daily budget"
+          description: "Model {{ $labels.model }} cost is {{ $value | humanize }}€/day, exceeding 50€ budget."
+
+      # WARNING: Token type imbalance (too many output tokens)
+      - alert: HighOutputTokenRatio
+        expr: |
+          sum(rate(llm_tokens_consumed_total{token_type="completion_tokens"}[10m]))
+          /
+          sum(rate(llm_tokens_consumed_total{token_type="prompt_tokens"}[10m])) > <<<ALERT_HIGH_OUTPUT_TOKEN_RATIO_THRESHOLD>>>
+        for: 30m
+        labels:
+          severity: warning
+          component: tokens
+          type: efficiency
+        annotations:
+          summary: "High output/input token ratio"
+          description: "Output tokens are {{ $value }}x input tokens. Review prompt efficiency and response length."
+
+  # ===== ALERTES OAUTH (Security & Performance - 2025) =====
+  - name: oauth_alerts
+    interval: 30s
+    rules:
+      # Taux d'échec OAuth élevé
+      - alert: HighOAuthFailureRate
+        expr: |
+          (
+            sum(rate(oauth_callback_total{status="failed"}[5m])) by (provider)
+            /
+            sum(rate(oauth_callback_total[5m])) by (provider)
+          ) * 100 > <<<ALERT_HIGH_O_AUTH_FAILURE_RATE_THRESHOLD>>>
+        for: 5m
+        labels:
+          severity: warning
+          component: auth
+          security: true
+        annotations:
+          summary: "Taux d'échec OAuth élevé pour {{ $labels.provider }}"
+          description: "{{ $value | humanize }}% d'échecs OAuth sur les 5 dernières minutes (seuil: 10%). Possible attaque ou problème de configuration."
+
+      # Échecs PKCE (sécurité critique)
+      - alert: PKCEValidationFailures
+        expr: |
+          rate(oauth_pkce_validation_total{result="failed"}[5m]) > <<<ALERT_PKCE_VALIDATION_FAILURES_THRESHOLD>>>
+        for: 2m
+        labels:
+          severity: critical
+          component: auth
+          security: true
+        annotations:
+          summary: "Échecs de validation PKCE détectés pour {{ $labels.provider }}"
+          description: "{{ $value | humanize }} échecs PKCE/s sur les 5 dernières minutes. Possible attaque CSRF ou problème de cache Redis."
+
+      # Échecs validation State token (CSRF)
+      - alert: StateTokenValidationFailures
+        expr: |
+          rate(oauth_state_validation_total{result="failed"}[5m]) > <<<ALERT_STATE_TOKEN_VALIDATION_FAILURES_THRESHOLD>>>
+        for: 2m
+        labels:
+          severity: critical
+          component: auth
+          security: true
+        annotations:
+          summary: "Échecs de validation state token pour {{ $labels.provider }}"
+          description: "{{ $value | humanize }} échecs state/s. Possible attaque CSRF ou problème de synchronisation."
+
+      # Durée OAuth callback excessive
+      - alert: SlowOAuthCallback
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(oauth_callback_duration_seconds_bucket[5m])) by (le, provider)
+          ) > <<<ALERT_SLOW_O_AUTH_CALLBACK_THRESHOLD>>>
+        for: 5m
+        labels:
+          severity: warning
+          component: auth
+        annotations:
+          summary: "Callbacks OAuth lents pour {{ $labels.provider }}"
+          description: "P95 de {{ $value | humanize }}s (seuil: 5s). Vérifier latence réseau vers Google API."
+
+      # Erreurs provider Google
+      - alert: OAuthProviderErrors
+        expr: |
+          rate(oauth_provider_errors_total[5m]) > <<<ALERT_O_AUTH_PROVIDER_ERRORS_THRESHOLD>>>
+        for: 3m
+        labels:
+          severity: warning
+          component: auth
+        annotations:
+          summary: "Erreurs API OAuth provider {{ $labels.provider }}"
+          description: "{{ $value | humanize }} erreurs/s depuis {{ $labels.endpoint }}. Vérifier quotas Google API."
+
+      # Pic de callbacks OAuth (possible attaque)
+      - alert: OAuthCallbackSpike
+        expr: |
+          rate(oauth_callback_total[1m]) > <<<ALERT_O_AUTH_CALLBACK_SPIKE_THRESHOLD>>>
+        for: 2m
+        labels:
+          severity: warning
+          component: auth
+          security: true
+        annotations:
+          summary: "Pic de callbacks OAuth détecté"
+          description: "{{ $value | humanize }} callbacks/s sur la dernière minute. Possible attaque ou bot."  # ==========================================================================
+  # BUSINESS METRICS - Phase 3.2 Alerts (Uses Recording Rules)
+  # ==========================================================================
+  - name: business_metrics_alerts
+    interval: 30s
+    rules:
+      # ======================================================================
+      # CONVERSATION ABANDONMENT
+      # ======================================================================
+
+      - alert: HighConversationAbandonmentRate
+        expr: |
+          business:abandonment_rate:5m_by_agent > <<<ALERT_HIGH_CONVERSATION_ABANDONMENT_RATE_THRESHOLD>>>
+        for: 10m
+        labels:
+          severity: warning
+          component: user_experience
+          team: product
+        annotations:
+          summary: "High conversation abandonment rate on {{ $labels.agent_type }} ({{ $value | humanizePercentage }})"
+          description: |
+            Agent {{ $labels.agent_type }} has abandonment rate >20% for 10 minutes.
+            This indicates UX friction or failing agent behavior.
+
+            Current abandonment rate: {{ $value | humanizePercentage }}
+            Threshold: 20%
+
+            Abandonment = conversations reset by user / total conversations.
+            High rate suggests users are frustrated and restarting conversations.
+
+            Actions:
+            - Check dashboard for abandonment reasons breakdown
+            - Review recent agent deployments
+            - Analyze conversation logs for error patterns
+            - Test agent workflow manually for UX issues
+          dashboard: "http://grafana:3000/d/app-performance/01-app-performance"
+
+      - alert: CriticalConversationAbandonmentRate
+        expr: |
+          business:abandonment_rate:5m_by_agent > <<<ALERT_CRITICAL_CONVERSATION_ABANDONMENT_RATE_THRESHOLD>>>
+        for: 5m
+        labels:
+          severity: critical
+          component: user_experience
+          team: product
+          pagerduty: "true"
+        annotations:
+          summary: "CRITICAL: Conversation abandonment rate >40% on {{ $labels.agent_type }}"
+          description: |
+            Agent {{ $labels.agent_type }} has {{ $value | humanizePercentage }} abandonment rate.
+            User experience is severely degraded.
+
+            IMMEDIATE ACTIONS REQUIRED:
+            1. Check agent health and error logs
+            2. Review recent deployments (last 2h)
+            3. Consider emergency rollback
+            4. Notify product team via Slack #incidents
+          dashboard: "http://grafana:3000/d/app-performance/01-app-performance"
+
+      # ======================================================================
+      # TOOL USAGE & SUCCESS RATE
+      # ======================================================================
+
+      - alert: LowToolSuccessRate
+        expr: |
+          business:tool_success_rate:5m_by_tool < <<<ALERT_LOW_TOOL_SUCCESS_RATE_THRESHOLD>>>
+        for: 15m
+        labels:
+          severity: warning
+          component: tool_integration
+          team: engineering
+        annotations:
+          summary: "Low tool success rate for {{ $labels.tool_name }} ({{ $value | humanizePercentage }})"
+          description: |
+            Tool {{ $labels.tool_name }} has success rate <80% for 15 minutes.
+            This indicates unreliable tool integration or API issues.
+
+            Current success rate: {{ $value | humanizePercentage }}
+            Threshold: 80%
+
+            Possible causes:
+            - External API downtime (Gmail, Google Contacts, etc.)
+            - OAuth token expiration
+            - Network connectivity issues
+            - Tool implementation bugs
+
+            Actions:
+            - Check external API status pages
+            - Review tool error logs
+            - Verify OAuth token validity
+            - Test tool manually
+          dashboard: "http://grafana:3000/d/agents-langgraph/04-agents-langgraph"
+
+      - alert: CriticalToolFailureRate
+        expr: |
+          business:tool_success_rate:5m_by_tool < <<<ALERT_CRITICAL_TOOL_FAILURE_RATE_THRESHOLD>>>
+        for: 5m
+        labels:
+          severity: critical
+          component: tool_integration
+          team: engineering
+          pagerduty: "true"
+        annotations:
+          summary: "CRITICAL: Tool {{ $labels.tool_name }} failing >50%"
+          description: |
+            Tool {{ $labels.tool_name }} has only {{ $value | humanizePercentage }} success rate.
+            Agent functionality is severely impacted.
+
+            IMMEDIATE ACTIONS:
+            1. Check external API status (Gmail, Contacts, Calendar)
+            2. Verify OAuth credentials
+            3. Review error logs for root cause
+            4. Consider disabling tool if fully broken
+          dashboard: "http://grafana:3000/d/agents-langgraph/04-agents-langgraph"
+
+      # ======================================================================
+      # HITL APPROVAL RATE (Business Metrics)
+      # ======================================================================
+
+      - alert: LowHITLApprovalRate
+        expr: |
+          business:hitl_approval_rate:1h_by_agent < <<<ALERT_LOW_HITL_APPROVAL_RATE_THRESHOLD>>>
+        for: 30m
+        labels:
+          severity: warning
+          component: agent_proposals
+          team: product
+        annotations:
+          summary: "Low HITL approval rate for {{ $labels.agent_type }} ({{ $value | humanizePercentage }})"
+          description: |
+            Agent {{ $labels.agent_type }} has HITL approval rate <50% for 30 minutes.
+            Users are rejecting or editing most proposals, indicating poor quality.
+
+            Current approval rate: {{ $value | humanizePercentage }}
+            Threshold: 50%
+
+            Approval rate = proposals accepted without changes / total HITL interactions.
+
+            Actions:
+            - Review dashboard for rejection/edit patterns
+            - Analyze which tools/actions have low approval
+            - Check if prompts need improvement
+            - Consider making proposals more conservative
+          dashboard: "http://grafana:3000/d/hitl-tool-approval/07-hitl-tool-approval"
+
+      # ======================================================================
+      # TOKEN EFFICIENCY
+      # ======================================================================
+
+      - alert: HighTokenEfficiencyRatio
+        expr: |
+          business:token_efficiency:avg_5m_by_node > <<<ALERT_HIGH_TOKEN_EFFICIENCY_RATIO_THRESHOLD>>>
+        for: 20m
+        labels:
+          severity: warning
+          component: llm_costs
+          team: engineering
+        annotations:
+          summary: "High token efficiency ratio on {{ $labels.node_name }} ({{ $value }})"
+          description: |
+            Node {{ $labels.node_name }} has token efficiency ratio > <<<ALERT_HIGH_TOKEN_EFFICIENCY_RATIO_THRESHOLD>>> for 20 minutes.
+            This indicates excessive verbosity and potential cost issues.
+
+            Current ratio: {{ $value }} (tokens/message)
+            Threshold: 1.5
+
+            Token efficiency = tokens_used / messages_exchanged.
+            Expected values:
+            - Router: ~0.2 (routing decisions only)
+            - Planner: ~0.5 (planning steps)
+            - Response: ~0.75 (detailed user responses)
+
+            High values indicate:
+            - Overly verbose prompts
+            - Redundant context in messages
+            - LLM generating too much output
+
+            Actions:
+            - Review prompts for unnecessary verbosity
+            - Check if context window is bloated
+            - Analyze token usage logs
+            - Consider prompt optimization
+          dashboard: "http://grafana:3000/d/llm-tokens-cost/05-llm-tokens-cost"

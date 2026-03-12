@@ -1,0 +1,11 @@
+# MULTI DOMAINES - Unsafe queries (MUTATIONS)
+# WARNING: These queries CREATE events, SEND emails, etc.
+# Execute manually or with EXTREME caution
+
+Crée un rdv avec mon épouse demain à 13h au sujet des tests à réaliser
+Planifie une réunion avec mon épouse après-demain à 13h au sujet des tests à réaliser
+Envoie un email à mon épouse pour lui dire que je l'aime
+Envoie par email un poeme d'amour sur le thème d'excel à ma femme
+Transférer le dernier email reçu à user@example.com
+Envoie un email à marie dupond
+Crée un événement demain à 12h au restaurant Le Bistrot, 10 rue de Paris

@@ -1,0 +1,4042 @@
+{
+  "total_queries": 201,
+  "recommended_count": 52,
+  "queries": [
+    {
+      "query": "sum(rate(http_requests_total{endpoint=~\"$endpoint\",method=~\"$method\",status=~\"$status\"}[5m])) by (endpoint, method, status)",
+      "query_hash": "7186152145582742376",
+      "dashboards": [
+        "01-app-performance.json"
+      ],
+      "panel_titles": [
+        "HTTP Request Rate"
+      ],
+      "frequency": 1,
+      "complexity_score": 30,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 3,
+      "estimated_cardinality": "medium",
+      "recommended_recording": false,
+      "recording_name": "endpoint:http_requests:rate5m"
+    },
+    {
+      "query": "http_request_duration:p95_5m{endpoint=~\"$endpoint\",method=~\"$method\"}",
+      "query_hash": "8645356626673760053",
+      "dashboards": [
+        "01-app-performance.json"
+      ],
+      "panel_titles": [
+        "HTTP Request Duration (p95)"
+      ],
+      "frequency": 1,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:http_request_duration:agg"
+    },
+    {
+      "query": "up{job=~\"$service\"}",
+      "query_hash": "-4654746587144763290",
+      "dashboards": [
+        "02-infra-resources.json"
+      ],
+      "panel_titles": [
+        "Service Uptime"
+      ],
+      "frequency": 1,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "custom:query:5m"
+    },
+    {
+      "query": "count(up{job=~\"$service\"} == 1)",
+      "query_hash": "-6963354899178738785",
+      "dashboards": [
+        "02-infra-resources.json"
+      ],
+      "panel_titles": [
+        "Services Status"
+      ],
+      "frequency": 1,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "custom:query:5m"
+    },
+    {
+      "query": "db_connection_pool_checkedout",
+      "query_hash": "-3199620193424897128",
+      "dashboards": [
+        "02-infra-resources.json",
+        "02-infra-resources.json"
+      ],
+      "panel_titles": [
+        "DB Connection Pool - Checked Out",
+        "DB Connection Pool Utilization Over Time"
+      ],
+      "frequency": 2,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:db_connection_pool_checkedout:agg"
+    },
+    {
+      "query": "db_connection_pool_size",
+      "query_hash": "8850330984577556061",
+      "dashboards": [
+        "02-infra-resources.json",
+        "02-infra-resources.json"
+      ],
+      "panel_titles": [
+        "DB Connection Pool - Size",
+        "DB Connection Pool Utilization Over Time"
+      ],
+      "frequency": 2,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:db_connection_pool_size:agg"
+    },
+    {
+      "query": "db_connection_pool_overflow",
+      "query_hash": "1237861091593044516",
+      "dashboards": [
+        "02-infra-resources.json",
+        "02-infra-resources.json"
+      ],
+      "panel_titles": [
+        "DB Connection Pool - Overflow",
+        "DB Connection Pool Utilization Over Time"
+      ],
+      "frequency": 2,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:db_connection_pool_overflow:agg"
+    },
+    {
+      "query": "db_connection_pool_waiting_total",
+      "query_hash": "-6924949158505166231",
+      "dashboards": [
+        "02-infra-resources.json",
+        "02-infra-resources.json"
+      ],
+      "panel_titles": [
+        "DB Connection Pool - Waiting (Saturation)",
+        "DB Pool Saturation Indicator"
+      ],
+      "frequency": 2,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:db_connection_pool_waiting:agg"
+    },
+    {
+      "query": "db_connection_pool_exhausted_total",
+      "query_hash": "-7557297500763265180",
+      "dashboards": [
+        "02-infra-resources.json"
+      ],
+      "panel_titles": [
+        "DB Pool Exhaustion Events (Cumulative)"
+      ],
+      "frequency": 1,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:db_connection_pool_exhausted:agg"
+    },
+    {
+      "query": "sum(rate(google_contacts_cache_hits_total[5m])) / (sum(rate(google_contacts_cache_hits_total[5m])) + sum(rate(google_contacts_cache_misses_total[5m]))) * 100",
+      "query_hash": "4203013321783684886",
+      "dashboards": [
+        "02-infra-resources.json",
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Google Contacts Cache Hit Rate",
+        "Contacts Cache Hit Rate"
+      ],
+      "frequency": 2,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:google_contacts_cache_hits:rate5m"
+    },
+    {
+      "query": "sum(rate(google_contacts_cache_hits_total[5m]))",
+      "query_hash": "9021105433432886750",
+      "dashboards": [
+        "02-infra-resources.json"
+      ],
+      "panel_titles": [
+        "Google Contacts Cache - Hits vs Misses Rate"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:google_contacts_cache_hits:rate5m"
+    },
+    {
+      "query": "sum(rate(google_contacts_cache_misses_total[5m]))",
+      "query_hash": "-5369683684575558990",
+      "dashboards": [
+        "02-infra-resources.json"
+      ],
+      "panel_titles": [
+        "Google Contacts Cache - Hits vs Misses Rate"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:google_contacts_cache_misses:rate5m"
+    },
+    {
+      "query": "up{job=\"redis\"}",
+      "query_hash": "496068897070479154",
+      "dashboards": [
+        "02-infra-resources.json"
+      ],
+      "panel_titles": [
+        "Redis Service Status"
+      ],
+      "frequency": 1,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "custom:query:5m"
+    },
+    {
+      "query": "rate(container_cpu_usage_seconds_total{name=~\"lia.*\"}[5m]) * 100",
+      "query_hash": "-8491562753359017858",
+      "dashboards": [
+        "02-infra-resources.json"
+      ],
+      "panel_titles": [
+        "CPU Usage by Service"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:container_cpu_usage:rate5m"
+    },
+    {
+      "query": "container_memory_rss{name=~\"lia.*\"} / 1024 / 1024",
+      "query_hash": "-2015173654335528008",
+      "dashboards": [
+        "02-infra-resources.json"
+      ],
+      "panel_titles": [
+        "Memory Usage by Service"
+      ],
+      "frequency": 1,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:container_memory_rss:agg"
+    },
+    {
+      "query": "(1 - (node_filesystem_avail_bytes{fstype!=\"tmpfs\"} / node_filesystem_size_bytes{fstype!=\"tmpfs\"})) * 100",
+      "query_hash": "112861502743422233",
+      "dashboards": [
+        "02-infra-resources.json"
+      ],
+      "panel_titles": [
+        "Disk Space Usage"
+      ],
+      "frequency": 1,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:node_filesystem_avail_bytes:agg"
+    },
+    {
+      "query": "rate(container_network_receive_bytes_total{name=~\"lia.*\"}[5m]) / 1024",
+      "query_hash": "4307500881515199859",
+      "dashboards": [
+        "02-infra-resources.json"
+      ],
+      "panel_titles": [
+        "Network I/O by Service"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:container_network_receive_bytes:rate5m"
+    },
+    {
+      "query": "rate(container_network_transmit_bytes_total{name=~\"lia.*\"}[5m]) / 1024",
+      "query_hash": "-4160487654511516082",
+      "dashboards": [
+        "02-infra-resources.json"
+      ],
+      "panel_titles": [
+        "Network I/O by Service"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:container_network_transmit_bytes:rate5m"
+    },
+    {
+      "query": "checkpoint_save_duration:p99_5m",
+      "query_hash": "-2097457871341557926",
+      "dashboards": [
+        "02-infra-resources.json"
+      ],
+      "panel_titles": [
+        "Checkpoint Save Duration (P95)"
+      ],
+      "frequency": 1,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:checkpoint_save_duration:agg"
+    },
+    {
+      "query": "checkpoint_load_duration:p95_5m",
+      "query_hash": "-670548876824712722",
+      "dashboards": [
+        "02-infra-resources.json"
+      ],
+      "panel_titles": [
+        "Checkpoint Load Duration (P95)"
+      ],
+      "frequency": 1,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:checkpoint_load_duration:agg"
+    },
+    {
+      "query": "sum(checkpoint_size_bytes_bucket) by (le, node_name)",
+      "query_hash": "-6236460086457904760",
+      "dashboards": [
+        "02-infra-resources.json"
+      ],
+      "panel_titles": [
+        "Checkpoint Size Distribution"
+      ],
+      "frequency": 1,
+      "complexity_score": 20,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "le:checkpoint_size_bytes:sum"
+    },
+    {
+      "query": "sum(rate(http_requests_total{endpoint=~\"$auth_endpoint\",status=~\"$status\"}[5m])) by (endpoint, status)",
+      "query_hash": "9145915614770494685",
+      "dashboards": [
+        "03-business-metrics.json"
+      ],
+      "panel_titles": [
+        "Authentication Requests"
+      ],
+      "frequency": 1,
+      "complexity_score": 30,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "endpoint:http_requests:rate5m"
+    },
+    {
+      "query": "sum(http_requests_total{endpoint=~\"$auth_endpoint\",status=~\"$status\"})",
+      "query_hash": "-108995906154582772",
+      "dashboards": [
+        "03-business-metrics.json"
+      ],
+      "panel_titles": [
+        "Total Authentication Requests"
+      ],
+      "frequency": 1,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:http_requests:sum"
+    },
+    {
+      "query": "sum(rate(sse_streaming_duration_seconds_count{intention=~\"$intention\"}[5m]))",
+      "query_hash": "-5187530965840703100",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Request Rate (req/s)"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:sse_streaming_duration_count:rate5m"
+    },
+    {
+      "query": "100 * sum(rate(sse_streaming_errors_total[5m])) / sum(rate(sse_streaming_duration_seconds_count[5m]))",
+      "query_hash": "-1209172558478663868",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Error Rate (%)"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:sse_streaming_errors:rate5m"
+    },
+    {
+      "query": "1000 * sse:ttft:p95_5m{intention=~\"$intention\"}",
+      "query_hash": "-4408941921580859144",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Average TTFT (ms)"
+      ],
+      "frequency": 1,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:p95_5m:agg"
+    },
+    {
+      "query": "sum(rate(sse_tokens_generated_total{intention=~\"$intention\"}[5m])) / sum(rate(sse_streaming_duration_seconds_sum{intention=~\"$intention\"}[5m]))",
+      "query_hash": "1212406469354648280",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Tokens/sec"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:sse_tokens_generated:rate5m"
+    },
+    {
+      "query": "sum by (intention) (increase(router_decisions_total[1h]))",
+      "query_hash": "-1570050763975588411",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Router Decisions by Intention"
+      ],
+      "frequency": 1,
+      "complexity_score": 30,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": true,
+      "time_range": "1h",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "intention:router_decisions:sum"
+    },
+    {
+      "query": "sum by (confidence_bucket) (increase(router_decisions_total[1h]))",
+      "query_hash": "1480239705242480921",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Router Confidence Distribution"
+      ],
+      "frequency": 1,
+      "complexity_score": 30,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": true,
+      "time_range": "1h",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "confidence_bucket:confidence:sum"
+    },
+    {
+      "query": "histogram_quantile(0.50, sum(rate(sse_streaming_duration_seconds_bucket{intention=~\"$intention\"}[5m])) by (le))",
+      "query_hash": "7877793901442472181",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "SSE Streaming Duration (P50, P95, P99)"
+      ],
+      "frequency": 1,
+      "complexity_score": 40,
+      "has_histogram_quantile": true,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "le:histogram_quantile:p50_rate5m"
+    },
+    {
+      "query": "sse_streaming_duration:p95_5m{intention=~\"$intention\"}",
+      "query_hash": "-4865561105538352010",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "SSE Streaming Duration (P50, P95, P99)"
+      ],
+      "frequency": 1,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:sse_streaming_duration:agg"
+    },
+    {
+      "query": "histogram_quantile(0.99, sum(rate(sse_streaming_duration_seconds_bucket{intention=~\"$intention\"}[5m])) by (le))",
+      "query_hash": "6450710787063959823",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "SSE Streaming Duration (P50, P95, P99)"
+      ],
+      "frequency": 1,
+      "complexity_score": 40,
+      "has_histogram_quantile": true,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "le:histogram_quantile:p99_rate5m"
+    },
+    {
+      "query": "1000 * sse:ttft:p95_5m",
+      "query_hash": "-3436957964808095256",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Time to First Token (TTFT) - P95 by Intention"
+      ],
+      "frequency": 1,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:p95_5m:agg"
+    },
+    {
+      "query": "1000 * histogram_quantile(0.50, sum(rate(router_latency_seconds_bucket[5m])) by (le))",
+      "query_hash": "5016112057532857755",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Router Latency (P50, P95, P99)"
+      ],
+      "frequency": 1,
+      "complexity_score": 40,
+      "has_histogram_quantile": true,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "le:histogram_quantile:p50_rate5m"
+    },
+    {
+      "query": "1000 * agent:latency:p95_5m{node_name=\"router\"}",
+      "query_hash": "-2311916367289353812",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Router Latency (P50, P95, P99)"
+      ],
+      "frequency": 1,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:p95_5m:agg"
+    },
+    {
+      "query": "1000 * agent:latency:p99_5m{node_name=\"router\"}",
+      "query_hash": "-7576119771864717834",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Router Latency (P50, P95, P99)"
+      ],
+      "frequency": 1,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:p99_5m:agg"
+    },
+    {
+      "query": "1000 * llm:latency:p95_5m{node_name=~\"$node_name\"}",
+      "query_hash": "8604450589926301571",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "LLM API Latency by Node"
+      ],
+      "frequency": 1,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:p95_5m:agg"
+    },
+    {
+      "query": "sum by (intention) (rate(sse_tokens_generated_total{intention=~\"$intention\"}[5m]))",
+      "query_hash": "2263961580010362595",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Tokens Generated per Second"
+      ],
+      "frequency": 1,
+      "complexity_score": 25,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "intention:sse_tokens_generated:rate5m"
+    },
+    {
+      "query": "sum by (error_type) (rate(sse_streaming_errors_total[5m]))",
+      "query_hash": "6691929387504113499",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "SSE Streaming Errors Rate"
+      ],
+      "frequency": 1,
+      "complexity_score": 25,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "error_type:error_type:rate5m"
+    },
+    {
+      "query": "sum by (node_name, status) (rate(agent_node_executions_total{node_name=~\"$node_name\"}[5m]))",
+      "query_hash": "3075024609353191445",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Agent Node Execution Status"
+      ],
+      "frequency": 1,
+      "complexity_score": 45,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "node_name:node_name:rate5m"
+    },
+    {
+      "query": "sum(increase(router_fallback_total[1h]))",
+      "query_hash": "-4029743443835493911",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Router Fallback Count (Low Confidence)"
+      ],
+      "frequency": 1,
+      "complexity_score": 15,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "1h",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:router_fallback:sum"
+    },
+    {
+      "query": "sum(rate(llm_api_calls_total{status=\"success\"}[5m]))",
+      "query_hash": "-1820258531441071027",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "LLM API Calls (Success vs Error)"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:llm_api_calls:rate5m"
+    },
+    {
+      "query": "sum(rate(llm_api_calls_total{status=\"error\"}[5m]))",
+      "query_hash": "-1984278164182620837",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "LLM API Calls (Success vs Error)"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:llm_api_calls:rate5m"
+    },
+    {
+      "query": "avg by (node_name) (agent_context_tokens_gauge{node_name=~\"$node_name\"})",
+      "query_hash": "-7322785484507116751",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Context Size (Tokens)"
+      ],
+      "frequency": 1,
+      "complexity_score": 15,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": true,
+      "time_range": "unknown",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "node_name:node_name:agg"
+    },
+    {
+      "query": "sum(rate(agent_messages_history_count_bucket[5m])) by (le)",
+      "query_hash": "318971650259052968",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Message History Count"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "le:agent_messages_history_count:rate5m"
+    },
+    {
+      "query": "100 * (sum(rate(planner_retries_total[5m])) / (sum(rate(planner_plans_created_total[5m])) + sum(rate(planner_plans_rejected_total[5m]))))",
+      "query_hash": "-8165914799989249925",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Planner Retry Rate (%)"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:planner_retries:rate5m"
+    },
+    {
+      "query": "100 * (sum(increase(planner_retry_success_total[1h])) / sum(increase(planner_retries_total[1h])))",
+      "query_hash": "2233444072396433056",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Retry Success Rate (%)"
+      ],
+      "frequency": 1,
+      "complexity_score": 15,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "1h",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:planner_retry_success:sum"
+    },
+    {
+      "query": "100 * (sum(increase(planner_retry_exhausted_total[1h])) / sum(increase(planner_retries_total[1h])))",
+      "query_hash": "719810700233859684",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Retry Exhausted Rate (%)"
+      ],
+      "frequency": 1,
+      "complexity_score": 15,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "1h",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:planner_retry_exhausted:sum"
+    },
+    {
+      "query": "sum(increase(planner_retries_total[1h]))",
+      "query_hash": "7402688682596009451",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Total Retries (1h)"
+      ],
+      "frequency": 1,
+      "complexity_score": 15,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "1h",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:planner_retries:sum"
+    },
+    {
+      "query": "sum by (retry_attempt) (rate(planner_retries_total[5m]))",
+      "query_hash": "-9037199639859679015",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Planner Retries by Attempt"
+      ],
+      "frequency": 1,
+      "complexity_score": 25,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "retry_attempt:retry_attempt:rate5m"
+    },
+    {
+      "query": "sum(rate(planner_plans_created_total[5m]))",
+      "query_hash": "-4043996407109968115",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Planner Plans Status"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:planner_plans_created:rate5m"
+    },
+    {
+      "query": "sum(rate(planner_plans_rejected_total{reason=\"validation_failed_will_retry\"}[5m]))",
+      "query_hash": "-6793807352967014068",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Planner Plans Status"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:planner_plans_rejected:rate5m"
+    },
+    {
+      "query": "sum(rate(planner_retry_exhausted_total[5m]))",
+      "query_hash": "3096185325513223110",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Planner Plans Status"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:planner_retry_exhausted:rate5m"
+    },
+    {
+      "query": "sum(rate(planner_plans_rejected_total{reason!=\"validation_failed_will_retry\"}[5m]))",
+      "query_hash": "-3657176505728901832",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Planner Plans Status"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:planner_plans_rejected:rate5m"
+    },
+    {
+      "query": "sum by (validation_error_type) (increase(planner_retries_total[1h]))",
+      "query_hash": "-6062447431220280523",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Validation Errors by Type"
+      ],
+      "frequency": 1,
+      "complexity_score": 30,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": true,
+      "time_range": "1h",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "validation_error_type:validation_error_type:sum"
+    },
+    {
+      "query": "sum by (error_type) (increase(planner_errors_total[1h]))",
+      "query_hash": "-3985429824158640078",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Planner Errors Detail"
+      ],
+      "frequency": 1,
+      "complexity_score": 30,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": true,
+      "time_range": "1h",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "error_type:error_type:sum"
+    },
+    {
+      "query": "max(llm_cost_lifetime{currency=\"USD\"})",
+      "query_hash": "1188889223081986090",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Cumulative LLM Cost (EUR) - Last 24h"
+      ],
+      "frequency": 1,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:llm_cost_lifetime:agg"
+    },
+    {
+      "query": "sum(rate(llm_cost_total{currency=\"USD\"}[5m])) / sum(rate(sse_streaming_duration_seconds_count[5m]))",
+      "query_hash": "-7933688609494680601",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Cost per Request (USD)"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:llm_cost:rate5m"
+    },
+    {
+      "query": "(max(llm_cost_lifetime{currency=\"USD\"}) - max(llm_cost_lifetime{currency=\"USD\"} offset 24h)) * 30",
+      "query_hash": "-5377214689579785174",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Projected Monthly Cost (USD)"
+      ],
+      "frequency": 1,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:llm_cost_lifetime:agg"
+    },
+    {
+      "query": "sum by (node_name, token_type) (rate(llm_tokens_consumed_total{node_name=~\"$node_name\"}[5m]))",
+      "query_hash": "-4344626922581890304",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Token Consumption by Node & Type"
+      ],
+      "frequency": 1,
+      "complexity_score": 45,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "node_name:node_name:rate5m"
+    },
+    {
+      "query": "sum by (model, node_name) (rate(llm_cost_total{currency=\"EUR\"}[5m]))",
+      "query_hash": "4256781248585788553",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Cost Breakdown by Model & Node"
+      ],
+      "frequency": 1,
+      "complexity_score": 45,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "model:node_name:rate5m"
+    },
+    {
+      "query": "topk(5, sum by (intention) (increase(sse_tokens_generated_total[1h])))",
+      "query_hash": "7446224128465701492",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Top 5 Intentions by Token Usage"
+      ],
+      "frequency": 1,
+      "complexity_score": 30,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "1h",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "intention:sse_tokens_generated:rate1h"
+    },
+    {
+      "query": "sum(rate(agent_node_executions_total{node_name=\"contacts_agent\"}[5m])) by (status)",
+      "query_hash": "4122126347251618569",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Contacts Agent Executions (Success/Error)"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "status:agent_node_executions:rate5m"
+    },
+    {
+      "query": "sum(rate(google_contacts_api_calls_total{operation=~\"$operation\"}[5m])) by (operation, status)",
+      "query_hash": "3467615592091806355",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Contacts API Calls by Operation"
+      ],
+      "frequency": 1,
+      "complexity_score": 30,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "operation:google_contacts_api_calls:rate5m"
+    },
+    {
+      "query": "histogram_quantile(0.95, sum(rate(google_contacts_api_latency_seconds_bucket{operation=~\"$operation\"}[5m])) by (le, operation))",
+      "query_hash": "-4245536013023441356",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Contacts API Latency P95"
+      ],
+      "frequency": 1,
+      "complexity_score": 60,
+      "has_histogram_quantile": true,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "le:histogram_quantile:p95_rate5m"
+    },
+    {
+      "query": "sum(google_contacts_results_count_bucket{operation=~\"$operation\"}) by (le, operation)",
+      "query_hash": "2291517501034203175",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Contacts Results Distribution"
+      ],
+      "frequency": 1,
+      "complexity_score": 20,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "le:google_contacts_results_count:sum"
+    },
+    {
+      "query": "sum(rate(agent_node_executions_total{node_name=\"gmail_agent\"}[5m])) by (status)",
+      "query_hash": "4644451795789728034",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Gmail Agent Executions (Success/Error)"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "status:agent_node_executions:rate5m"
+    },
+    {
+      "query": "sum(rate(gmail_api_calls_total{operation=~\"$gmail_operation\"}[5m])) by (operation, status)",
+      "query_hash": "-5329405811528458072",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Gmail API Calls by Operation"
+      ],
+      "frequency": 1,
+      "complexity_score": 30,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "operation:gmail_api_calls:rate5m"
+    },
+    {
+      "query": "histogram_quantile(0.95, sum(rate(gmail_api_latency_seconds_bucket{operation=~\"$gmail_operation\"}[5m])) by (le, operation))",
+      "query_hash": "1452819719862164432",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Gmail API Latency P95"
+      ],
+      "frequency": 1,
+      "complexity_score": 60,
+      "has_histogram_quantile": true,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "le:histogram_quantile:p95_rate5m"
+    },
+    {
+      "query": "sum(gmail_results_count{operation=~\"$gmail_operation\"}) by (le, operation)",
+      "query_hash": "-7741685400643865433",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Gmail Results Distribution"
+      ],
+      "frequency": 1,
+      "complexity_score": 20,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "le:gmail_results_count:sum"
+    },
+    {
+      "query": "sum(rate(gmail_cache_hits_total[5m])) / (sum(rate(gmail_cache_hits_total[5m])) + sum(rate(gmail_cache_misses_total[5m]))) * 100",
+      "query_hash": "-1504828351184795782",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Gmail Cache Hit Rate"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:gmail_cache_hits:rate5m"
+    },
+    {
+      "query": "sum(increase(task_orchestrator_plans_created_total[24h]))",
+      "query_hash": "4624990280600177623",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Task Orchestrator Plans Created (24h)"
+      ],
+      "frequency": 1,
+      "complexity_score": 15,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "24h",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:task_orchestrator_plans_created:sum"
+    },
+    {
+      "query": "sum(orchestration_plan_agents_count_bucket) by (le)",
+      "query_hash": "2234004125253956514",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Orchestrator Agents Count Distribution"
+      ],
+      "frequency": 1,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "le:orchestration_plan_agents_count:sum"
+    },
+    {
+      "query": "agent:latency:p95_5m{node_name=\"task_orchestrator\"}",
+      "query_hash": "-7888552085311442028",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Orchestrator Execution Duration P95"
+      ],
+      "frequency": 1,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:p95_5m:agg"
+    },
+    {
+      "query": "sum(rate(agent_tool_invocations_total{tool_name=~\"$tool_name\",agent_name=~\"$agent_name\"}[5m])) by (tool_name, success)",
+      "query_hash": "5581511419526799498",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Agent Tools Invocations (Success/Failure)"
+      ],
+      "frequency": 1,
+      "complexity_score": 30,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "tool_name:agent_tool_invocations:rate5m"
+    },
+    {
+      "query": "histogram_quantile(0.95, sum(rate(agent_tool_duration_seconds_bucket{tool_name=~\"$tool_name\",agent_name=~\"$agent_name\"}[5m])) by (le, tool_name))",
+      "query_hash": "-140853383411740702",
+      "dashboards": [
+        "04-agents-langgraph.json"
+      ],
+      "panel_titles": [
+        "Agent Tools Duration P95"
+      ],
+      "frequency": 1,
+      "complexity_score": 60,
+      "has_histogram_quantile": true,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "le:histogram_quantile:p95_rate5m"
+    },
+    {
+      "query": "sum(increase(llm_tokens_consumed_total[24h]))",
+      "query_hash": "5894779701844749300",
+      "dashboards": [
+        "05-llm-tokens-cost.json"
+      ],
+      "panel_titles": [
+        "Total Tokens Consumed (24h)"
+      ],
+      "frequency": 1,
+      "complexity_score": 15,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "24h",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:llm_tokens_consumed:sum"
+    },
+    {
+      "query": "sum(increase(llm_cost_total{currency=\"USD\"}[24h]))",
+      "query_hash": "-3670256300226404688",
+      "dashboards": [
+        "05-llm-tokens-cost.json"
+      ],
+      "panel_titles": [
+        "Estimated Cost (24h)"
+      ],
+      "frequency": 1,
+      "complexity_score": 15,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "24h",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:llm_cost:sum"
+    },
+    {
+      "query": "sum(rate(llm_tokens_consumed_total[5m])) by (model)",
+      "query_hash": "1921033567241859432",
+      "dashboards": [
+        "05-llm-tokens-cost.json"
+      ],
+      "panel_titles": [
+        "Tokens/sec by Model"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "model:llm_tokens_consumed:rate5m"
+    },
+    {
+      "query": "sum by (token_type) (increase(llm_tokens_consumed_total[1h]))",
+      "query_hash": "4402721506602350205",
+      "dashboards": [
+        "05-llm-tokens-cost.json"
+      ],
+      "panel_titles": [
+        "Token Type Distribution"
+      ],
+      "frequency": 1,
+      "complexity_score": 30,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": true,
+      "time_range": "1h",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "token_type:token_type:sum"
+    },
+    {
+      "query": "sum(rate(llm_api_calls_total{status=\"success\"}[5m])) / sum(rate(llm_api_calls_total[5m])) * 100",
+      "query_hash": "1437887624402913653",
+      "dashboards": [
+        "05-llm-tokens-cost.json"
+      ],
+      "panel_titles": [
+        "LLM API Calls Success Rate"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:llm_api_calls:rate5m"
+    },
+    {
+      "query": "sum by (model) (increase(llm_cost_total{currency=\"EUR\"}[1h]))",
+      "query_hash": "-8996534406872491560",
+      "dashboards": [
+        "05-llm-tokens-cost.json"
+      ],
+      "panel_titles": [
+        "Cost by Model (1h)"
+      ],
+      "frequency": 1,
+      "complexity_score": 30,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": true,
+      "time_range": "1h",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "model:llm_cost:sum"
+    },
+    {
+      "query": "histogram_quantile(0.50, sum(rate(llm_api_latency_seconds_bucket[5m])) by (le, model))",
+      "query_hash": "4114354278279836947",
+      "dashboards": [
+        "05-llm-tokens-cost.json"
+      ],
+      "panel_titles": [
+        "LLM API Latency (p50, p95, p99)"
+      ],
+      "frequency": 1,
+      "complexity_score": 60,
+      "has_histogram_quantile": true,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "le:histogram_quantile:p50_rate5m"
+    },
+    {
+      "query": "llm:latency:p95_5m",
+      "query_hash": "-8023873677833309749",
+      "dashboards": [
+        "05-llm-tokens-cost.json"
+      ],
+      "panel_titles": [
+        "LLM API Latency (p50, p95, p99)"
+      ],
+      "frequency": 1,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:p95_5m:agg"
+    },
+    {
+      "query": "histogram_quantile(0.99, sum(rate(llm_api_latency_seconds_bucket[5m])) by (le, model))",
+      "query_hash": "6314215407799122554",
+      "dashboards": [
+        "05-llm-tokens-cost.json"
+      ],
+      "panel_titles": [
+        "LLM API Latency (p50, p95, p99)"
+      ],
+      "frequency": 1,
+      "complexity_score": 60,
+      "has_histogram_quantile": true,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "le:histogram_quantile:p99_rate5m"
+    },
+    {
+      "query": "sum(rate(llm_tokens_consumed_total[5m])) by (node_name)",
+      "query_hash": "-8555257473099274511",
+      "dashboards": [
+        "05-llm-tokens-cost.json"
+      ],
+      "panel_titles": [
+        "Tokens per Node"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "node_name:llm_tokens_consumed:rate5m"
+    },
+    {
+      "query": "planner_domain_filtering_active",
+      "query_hash": "-5262733414670966851",
+      "dashboards": [
+        "05-llm-tokens-cost.json"
+      ],
+      "panel_titles": [
+        "Domain Filtering Status"
+      ],
+      "frequency": 1,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:planner_domain_filtering_active:agg"
+    },
+    {
+      "query": "histogram_quantile(0.5, sum by (filtering_applied, le) (rate(planner_catalogue_size_tools_bucket[5m])))",
+      "query_hash": "-3327739308412620302",
+      "dashboards": [
+        "05-llm-tokens-cost.json"
+      ],
+      "panel_titles": [
+        "Catalogue Size Distribution (Filtered vs Full)"
+      ],
+      "frequency": 1,
+      "complexity_score": 75,
+      "has_histogram_quantile": true,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "filtering_applied:histogram_quantile:p50_rate5m"
+    },
+    {
+      "query": "sum by (le) (rate(planner_domain_confidence_score_bucket[5m]))",
+      "query_hash": "5021368781770704549",
+      "dashboards": [
+        "05-llm-tokens-cost.json"
+      ],
+      "panel_titles": [
+        "Router Confidence Score Distribution"
+      ],
+      "frequency": 1,
+      "complexity_score": 25,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "le:planner_domain_confidence_score:rate5m"
+    },
+    {
+      "query": "sum(rate(planner_domain_filtering_cache_hits_total{cache_status=\"hit\"}[5m])) / sum(rate(planner_domain_filtering_cache_hits_total[5m])) * 100",
+      "query_hash": "8343942184499051081",
+      "dashboards": [
+        "05-llm-tokens-cost.json"
+      ],
+      "panel_titles": [
+        "Filtered Catalogue Cache Hit Rate"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:planner_domain_filtering_cache_hits:rate5m"
+    },
+    {
+      "query": "planner_catalogue_reduction_ratio:1h * 100",
+      "query_hash": "-6090733200833106147",
+      "dashboards": [
+        "05-llm-tokens-cost.json"
+      ],
+      "panel_titles": [
+        "Token Savings (Estimated)"
+      ],
+      "frequency": 1,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:planner_catalogue_reduction_ratio:agg"
+    },
+    {
+      "query": "rate(conversation_created_total[5m])",
+      "query_hash": "-4752283609257505679",
+      "dashboards": [
+        "06-conversations.json"
+      ],
+      "panel_titles": [
+        "Conversations Created (Rate)"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:conversation_created:rate5m"
+    },
+    {
+      "query": "sum(increase(conversation_resets_total[24h]))",
+      "query_hash": "-3216068035301982664",
+      "dashboards": [
+        "06-conversations.json"
+      ],
+      "panel_titles": [
+        "Conversation Resets (24h)"
+      ],
+      "frequency": 1,
+      "complexity_score": 15,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "24h",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:conversation_resets:sum"
+    },
+    {
+      "query": "histogram_quantile(0.50, sum(rate(conversation_length_messages_bucket[5m])) by (le))",
+      "query_hash": "-4098488072628434412",
+      "dashboards": [
+        "06-conversations.json"
+      ],
+      "panel_titles": [
+        "Messages per Conversation (Distribution)"
+      ],
+      "frequency": 1,
+      "complexity_score": 40,
+      "has_histogram_quantile": true,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "le:histogram_quantile:p50_rate5m"
+    },
+    {
+      "query": "histogram_quantile(0.90, sum(rate(conversation_length_messages_bucket[5m])) by (le))",
+      "query_hash": "-4970340509286577217",
+      "dashboards": [
+        "06-conversations.json"
+      ],
+      "panel_titles": [
+        "Messages per Conversation (Distribution)"
+      ],
+      "frequency": 1,
+      "complexity_score": 40,
+      "has_histogram_quantile": true,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "le:histogram_quantile:p90_rate5m"
+    },
+    {
+      "query": "histogram_quantile(0.99, sum(rate(conversation_length_messages_bucket[5m])) by (le))",
+      "query_hash": "-4764584784961850775",
+      "dashboards": [
+        "06-conversations.json"
+      ],
+      "panel_titles": [
+        "Messages per Conversation (Distribution)"
+      ],
+      "frequency": 1,
+      "complexity_score": 40,
+      "has_histogram_quantile": true,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "le:histogram_quantile:p99_rate5m"
+    },
+    {
+      "query": "sum by (method) (rate(hitl_classification_method_total[5m]))",
+      "query_hash": "5631948956252658914",
+      "dashboards": [
+        "07-hitl-tool-approval.json"
+      ],
+      "panel_titles": [
+        "Classification Method Distribution (Fast-Path vs LLM)"
+      ],
+      "frequency": 1,
+      "complexity_score": 25,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "method:hitl_classification_method:rate5m"
+    },
+    {
+      "query": "sum by (decision) (rate(hitl_classification_method_total[5m]))",
+      "query_hash": "-8091790340690823860",
+      "dashboards": [
+        "07-hitl-tool-approval.json"
+      ],
+      "panel_titles": [
+        "Classification Decisions Distribution"
+      ],
+      "frequency": 1,
+      "complexity_score": 25,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "decision:hitl_classification_method:rate5m"
+    },
+    {
+      "query": "histogram_quantile(0.50, sum by (method, le) (rate(hitl_classification_duration_seconds_bucket[5m])))",
+      "query_hash": "4384889323212516939",
+      "dashboards": [
+        "07-hitl-tool-approval.json"
+      ],
+      "panel_titles": [
+        "Classification Latency (p50, p95, p99)"
+      ],
+      "frequency": 1,
+      "complexity_score": 75,
+      "has_histogram_quantile": true,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "method:histogram_quantile:p50_rate5m"
+    },
+    {
+      "query": "histogram_quantile(0.95, sum by (method, le) (rate(hitl_classification_duration_seconds_bucket[5m])))",
+      "query_hash": "3729410428622622579",
+      "dashboards": [
+        "07-hitl-tool-approval.json"
+      ],
+      "panel_titles": [
+        "Classification Latency (p50, p95, p99)"
+      ],
+      "frequency": 1,
+      "complexity_score": 75,
+      "has_histogram_quantile": true,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "method:histogram_quantile:p95_rate5m"
+    },
+    {
+      "query": "histogram_quantile(0.99, sum by (method, le) (rate(hitl_classification_duration_seconds_bucket[5m])))",
+      "query_hash": "5053456612382590450",
+      "dashboards": [
+        "07-hitl-tool-approval.json"
+      ],
+      "panel_titles": [
+        "Classification Latency (p50, p95, p99)"
+      ],
+      "frequency": 1,
+      "complexity_score": 75,
+      "has_histogram_quantile": true,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "method:histogram_quantile:p99_rate5m"
+    },
+    {
+      "query": "sum by (decision, le) (rate(hitl_classification_confidence_bucket[5m]))",
+      "query_hash": "-4514102336124819798",
+      "dashboards": [
+        "07-hitl-tool-approval.json"
+      ],
+      "panel_titles": [
+        "Classification Confidence Distribution"
+      ],
+      "frequency": 1,
+      "complexity_score": 45,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "decision:hitl_classification_confidence:rate5m"
+    },
+    {
+      "query": "sum by (reason) (rate(hitl_clarification_requests_total[5m]))",
+      "query_hash": "505872836433616141",
+      "dashboards": [
+        "07-hitl-tool-approval.json"
+      ],
+      "panel_titles": [
+        "Clarification Requests Rate"
+      ],
+      "frequency": 1,
+      "complexity_score": 25,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "reason:hitl_clarification_requests:rate5m"
+    },
+    {
+      "query": "sum(rate(hitl_resumption_total{status=\"success\"}[5m])) / sum(rate(hitl_resumption_total[5m])) * 100",
+      "query_hash": "463573421129651354",
+      "dashboards": [
+        "07-hitl-tool-approval.json"
+      ],
+      "panel_titles": [
+        "Resumption Success Rate"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:hitl_resumption:rate5m"
+    },
+    {
+      "query": "sum by (strategy, status) (rate(hitl_resumption_total[5m]))",
+      "query_hash": "-2170457018565424154",
+      "dashboards": [
+        "07-hitl-tool-approval.json"
+      ],
+      "panel_titles": [
+        "Resumption Rate by Strategy"
+      ],
+      "frequency": 1,
+      "complexity_score": 45,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "strategy:hitl_resumption:rate5m"
+    },
+    {
+      "query": "histogram_quantile(0.50, sum by (strategy, le) (rate(hitl_resumption_duration_seconds_bucket[5m])))",
+      "query_hash": "-8152335347339529691",
+      "dashboards": [
+        "07-hitl-tool-approval.json"
+      ],
+      "panel_titles": [
+        "Resumption Duration (p50, p95, p99)"
+      ],
+      "frequency": 1,
+      "complexity_score": 75,
+      "has_histogram_quantile": true,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "strategy:histogram_quantile:p50_rate5m"
+    },
+    {
+      "query": "histogram_quantile(0.95, sum by (strategy, le) (rate(hitl_resumption_duration_seconds_bucket[5m])))",
+      "query_hash": "-2517803675683264524",
+      "dashboards": [
+        "07-hitl-tool-approval.json"
+      ],
+      "panel_titles": [
+        "Resumption Duration (p50, p95, p99)"
+      ],
+      "frequency": 1,
+      "complexity_score": 75,
+      "has_histogram_quantile": true,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "strategy:histogram_quantile:p95_rate5m"
+    },
+    {
+      "query": "histogram_quantile(0.99, sum by (strategy, le) (rate(hitl_resumption_duration_seconds_bucket[5m])))",
+      "query_hash": "-3877192994832015938",
+      "dashboards": [
+        "07-hitl-tool-approval.json"
+      ],
+      "panel_titles": [
+        "Resumption Duration (p50, p95, p99)"
+      ],
+      "frequency": 1,
+      "complexity_score": 75,
+      "has_histogram_quantile": true,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "strategy:histogram_quantile:p99_rate5m"
+    },
+    {
+      "query": "histogram_quantile(0.50, sum by (decision, le) (rate(hitl_user_response_time_seconds_bucket[5m])))",
+      "query_hash": "7828501824575213419",
+      "dashboards": [
+        "07-hitl-tool-approval.json"
+      ],
+      "panel_titles": [
+        "User Response Time (p50, p95, p99)"
+      ],
+      "frequency": 1,
+      "complexity_score": 75,
+      "has_histogram_quantile": true,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "decision:histogram_quantile:p50_rate5m"
+    },
+    {
+      "query": "hitl:user_response_time:p95_5m",
+      "query_hash": "4959224876578786829",
+      "dashboards": [
+        "07-hitl-tool-approval.json"
+      ],
+      "panel_titles": [
+        "User Response Time (p50, p95, p99)"
+      ],
+      "frequency": 1,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:user_response_time:agg"
+    },
+    {
+      "query": "histogram_quantile(0.99, sum by (decision, le) (rate(hitl_user_response_time_seconds_bucket[5m])))",
+      "query_hash": "-2772095622349551446",
+      "dashboards": [
+        "07-hitl-tool-approval.json"
+      ],
+      "panel_titles": [
+        "User Response Time (p50, p95, p99)"
+      ],
+      "frequency": 1,
+      "complexity_score": 75,
+      "has_histogram_quantile": true,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "decision:histogram_quantile:p99_rate5m"
+    },
+    {
+      "query": "sum by (tool_name, param_modified) (rate(hitl_edit_decisions_total[5m]))",
+      "query_hash": "9058443090640663494",
+      "dashboards": [
+        "07-hitl-tool-approval.json"
+      ],
+      "panel_titles": [
+        "Tool Edit Decisions by Parameter"
+      ],
+      "frequency": 1,
+      "complexity_score": 45,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "tool_name:tool_name:rate5m"
+    },
+    {
+      "query": "sum by (tool_name, rejection_type) (rate(hitl_tool_rejections_by_reason_total[5m]))",
+      "query_hash": "-6211699225036189354",
+      "dashboards": [
+        "07-hitl-tool-approval.json"
+      ],
+      "panel_titles": [
+        "Tool Rejections by Reason"
+      ],
+      "frequency": 1,
+      "complexity_score": 45,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "tool_name:tool_name:rate5m"
+    },
+    {
+      "query": "(rate(hitl_clarification_fallback_total[5m]) / rate(hitl_classification_method_total[5m])) * 100",
+      "query_hash": "2113470156274505428",
+      "dashboards": [
+        "07-hitl-tool-approval.json"
+      ],
+      "panel_titles": [
+        "HITL Clarification Fallback Rate (%)"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:hitl_clarification_fallback:rate5m"
+    },
+    {
+      "query": "sum by (edit_type) (rate(hitl_edit_actions_total[1h]))",
+      "query_hash": "3928803096694694236",
+      "dashboards": [
+        "07-hitl-tool-approval.json"
+      ],
+      "panel_titles": [
+        "HITL Edit Actions Distribution"
+      ],
+      "frequency": 1,
+      "complexity_score": 40,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "1h",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "edit_type:edit_type:rate1h"
+    },
+    {
+      "query": "sum by (rejection_type) (rate(hitl_rejection_type_total[1h]))",
+      "query_hash": "-248442000791040429",
+      "dashboards": [
+        "07-hitl-tool-approval.json"
+      ],
+      "panel_titles": [
+        "HITL Rejection Types Distribution"
+      ],
+      "frequency": 1,
+      "complexity_score": 40,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "1h",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "rejection_type:rejection_type:rate1h"
+    },
+    {
+      "query": "(sum(rate(oauth_callback_total{status=\"success\"}[5m])) / sum(rate(oauth_callback_total[5m]))) * 100",
+      "query_hash": "1512893609735755971",
+      "dashboards": [
+        "08-oauth-security.json"
+      ],
+      "panel_titles": [
+        "OAuth Success Rate (5m)"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:oauth_callback:rate5m"
+    },
+    {
+      "query": "sum(increase(oauth_callback_total[24h]))",
+      "query_hash": "3438533569440401107",
+      "dashboards": [
+        "08-oauth-security.json"
+      ],
+      "panel_titles": [
+        "OAuth Callbacks (Total)"
+      ],
+      "frequency": 1,
+      "complexity_score": 15,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "24h",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:oauth_callback:sum"
+    },
+    {
+      "query": "(sum(rate(oauth_pkce_validation_total{result=\"success\"}[5m])) / sum(rate(oauth_pkce_validation_total[5m]))) * 100",
+      "query_hash": "3200467593487172623",
+      "dashboards": [
+        "08-oauth-security.json"
+      ],
+      "panel_titles": [
+        "PKCE Validation Rate"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:oauth_pkce_validation:rate5m"
+    },
+    {
+      "query": "histogram_quantile(0.95, sum(rate(oauth_callback_duration_seconds_bucket[5m])) by (le, provider))",
+      "query_hash": "1327067042541713955",
+      "dashboards": [
+        "08-oauth-security.json",
+        "08-oauth-security.json",
+        "08-oauth-security.json"
+      ],
+      "panel_titles": [
+        "OAuth Callback P95 Latency",
+        "OAuth Callback Latency Distribution",
+        "OAuth Provider Performance"
+      ],
+      "frequency": 3,
+      "complexity_score": 60,
+      "has_histogram_quantile": true,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "le:histogram_quantile:p95_rate5m"
+    },
+    {
+      "query": "sum(rate(oauth_callback_total{status=\"success\"}[5m])) by (provider)",
+      "query_hash": "4730079295515492501",
+      "dashboards": [
+        "08-oauth-security.json"
+      ],
+      "panel_titles": [
+        "OAuth Callbacks Over Time"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "provider:oauth_callback:rate5m"
+    },
+    {
+      "query": "sum(rate(oauth_callback_total{status=\"failed\"}[5m])) by (provider)",
+      "query_hash": "-250375541847016667",
+      "dashboards": [
+        "08-oauth-security.json"
+      ],
+      "panel_titles": [
+        "OAuth Callbacks Over Time"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "provider:oauth_callback:rate5m"
+    },
+    {
+      "query": "histogram_quantile(0.50, sum(rate(oauth_callback_duration_seconds_bucket[5m])) by (le, provider))",
+      "query_hash": "-8271538552996658107",
+      "dashboards": [
+        "08-oauth-security.json"
+      ],
+      "panel_titles": [
+        "OAuth Callback Latency Distribution"
+      ],
+      "frequency": 1,
+      "complexity_score": 60,
+      "has_histogram_quantile": true,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "le:histogram_quantile:p50_rate5m"
+    },
+    {
+      "query": "histogram_quantile(0.99, sum(rate(oauth_callback_duration_seconds_bucket[5m])) by (le, provider))",
+      "query_hash": "6179194169024485002",
+      "dashboards": [
+        "08-oauth-security.json"
+      ],
+      "panel_titles": [
+        "OAuth Callback Latency Distribution"
+      ],
+      "frequency": 1,
+      "complexity_score": 60,
+      "has_histogram_quantile": true,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "le:histogram_quantile:p99_rate5m"
+    },
+    {
+      "query": "sum(rate(oauth_pkce_validation_total{result=\"success\"}[5m])) by (provider)",
+      "query_hash": "5000374242072093693",
+      "dashboards": [
+        "08-oauth-security.json"
+      ],
+      "panel_titles": [
+        "Security: PKCE & State Validation"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "provider:oauth_pkce_validation:rate5m"
+    },
+    {
+      "query": "sum(rate(oauth_pkce_validation_total{result=\"failed\"}[5m])) by (provider)",
+      "query_hash": "-8921863004805184859",
+      "dashboards": [
+        "08-oauth-security.json"
+      ],
+      "panel_titles": [
+        "Security: PKCE & State Validation"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "provider:oauth_pkce_validation:rate5m"
+    },
+    {
+      "query": "sum(rate(oauth_state_validation_total{result=\"failed\"}[5m])) by (provider)",
+      "query_hash": "-4000889026489472259",
+      "dashboards": [
+        "08-oauth-security.json"
+      ],
+      "panel_titles": [
+        "Security: PKCE & State Validation"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "provider:oauth_state_validation:rate5m"
+    },
+    {
+      "query": "sum(increase(oauth_callback_errors_total[1h])) by (error_type)",
+      "query_hash": "-4102086970037688536",
+      "dashboards": [
+        "08-oauth-security.json"
+      ],
+      "panel_titles": [
+        "OAuth Errors by Type"
+      ],
+      "frequency": 1,
+      "complexity_score": 15,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "1h",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "error_type:oauth_callback_errors:sum"
+    },
+    {
+      "query": "sum(increase(oauth_user_creation_total[24h])) by (provider)",
+      "query_hash": "5593899779888650272",
+      "dashboards": [
+        "08-oauth-security.json"
+      ],
+      "panel_titles": [
+        "User Activity: New vs Returning (OAuth)"
+      ],
+      "frequency": 1,
+      "complexity_score": 15,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "24h",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "provider:oauth_user_creation:sum"
+    },
+    {
+      "query": "sum(increase(oauth_user_login_total[24h])) by (provider)",
+      "query_hash": "5842818351424819225",
+      "dashboards": [
+        "08-oauth-security.json"
+      ],
+      "panel_titles": [
+        "User Activity: New vs Returning (OAuth)"
+      ],
+      "frequency": 1,
+      "complexity_score": 15,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "24h",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "provider:oauth_user_login:sum"
+    },
+    {
+      "query": "sum(rate(oauth_callback_total[5m])) by (provider, status)",
+      "query_hash": "7838039396045617690",
+      "dashboards": [
+        "08-oauth-security.json"
+      ],
+      "panel_titles": [
+        "OAuth Provider Performance"
+      ],
+      "frequency": 1,
+      "complexity_score": 30,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "provider:oauth_callback:rate5m"
+    },
+    {
+      "query": "sum by (level) (count_over_time({job=\"api\", level=~\"$log_level\"}[1m]))",
+      "query_hash": "5051384444381494588",
+      "dashboards": [
+        "09-logs-traces.json"
+      ],
+      "panel_titles": [
+        "Log Volume by Level"
+      ],
+      "frequency": 1,
+      "complexity_score": 15,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": true,
+      "time_range": "1m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "level:count_over_time:sum"
+    },
+    {
+      "query": "sum by (logger) (count_over_time({job=\"api\", level=\"error\", logger=~\".*agents.*\"}[1m]))",
+      "query_hash": "-1766976948107235069",
+      "dashboards": [
+        "09-logs-traces.json"
+      ],
+      "panel_titles": [
+        "Error Rate by Node"
+      ],
+      "frequency": 1,
+      "complexity_score": 15,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": true,
+      "time_range": "1m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "logger:count_over_time:sum"
+    },
+    {
+      "query": "{job=\"api\", logger=~\".*agents.*\", level=~\"$log_level\"} | json | line_format \"{{.timestamp}} [{{.level}}] {{.logger}} | {{.event}} | run_id={{.run_id}} | {{.message}}\"",
+      "query_hash": "-8987601132163762128",
+      "dashboards": [
+        "09-logs-traces.json"
+      ],
+      "panel_titles": [
+        "Agent Logs Stream (Filterable)"
+      ],
+      "frequency": 1,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:log_level:agg"
+    },
+    {
+      "query": "1000 * histogram_quantile(0.50, sum(rate(agent_node_duration_seconds_bucket{node_name=~\"router|response\"}[5m])) by (le, node_name))",
+      "query_hash": "1692158319407497968",
+      "dashboards": [
+        "09-logs-traces.json"
+      ],
+      "panel_titles": [
+        "Trace Duration Distribution (P50, P95, P99)"
+      ],
+      "frequency": 1,
+      "complexity_score": 60,
+      "has_histogram_quantile": true,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "le:histogram_quantile:p50_rate5m"
+    },
+    {
+      "query": "1000 * agent:latency:p95_5m{node_name=~\"router|response\"}",
+      "query_hash": "4345265064232459200",
+      "dashboards": [
+        "09-logs-traces.json"
+      ],
+      "panel_titles": [
+        "Trace Duration Distribution (P50, P95, P99)"
+      ],
+      "frequency": 1,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:p95_5m:agg"
+    },
+    {
+      "query": "1000 * agent:latency:p99_5m{node_name=~\"router|response\"}",
+      "query_hash": "7023658428533856329",
+      "dashboards": [
+        "09-logs-traces.json"
+      ],
+      "panel_titles": [
+        "Trace Duration Distribution (P50, P95, P99)"
+      ],
+      "frequency": 1,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:p99_5m:agg"
+    },
+    {
+      "query": "sum by (node_name) (increase(agent_node_executions_total{node_name=~\"router|response\"}[1h]))",
+      "query_hash": "2898832297255607244",
+      "dashboards": [
+        "09-logs-traces.json"
+      ],
+      "panel_titles": [
+        "Agent Node Executions per Operation"
+      ],
+      "frequency": 1,
+      "complexity_score": 30,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": true,
+      "time_range": "1h",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "node_name:node_name:sum"
+    },
+    {
+      "query": "{job=\"api\", logger=~\".*agents.nodes\"} | json | event=\"router_decision\" | line_format \"{{.timestamp}} | Intention: {{.intention}} | Confidence: {{.confidence}} | Next: {{.next_node}} | TraceID: {{.trace_id}}\"",
+      "query_hash": "980165416055308280",
+      "dashboards": [
+        "09-logs-traces.json"
+      ],
+      "panel_titles": [
+        "Router Decision Events (with Trace Links)"
+      ],
+      "frequency": 1,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 0,
+      "estimated_cardinality": "high",
+      "recommended_recording": false,
+      "recording_name": "job:router_decision:agg"
+    },
+    {
+      "query": "{job=\"api\", logger=~\".*agents.*\", level=\"error\"} | json | line_format \"{{.timestamp}} | {{.event}} | Error: {{.error}} | TraceID: {{.trace_id}}\"",
+      "query_hash": "3741826326366969584",
+      "dashboards": [
+        "09-logs-traces.json"
+      ],
+      "panel_titles": [
+        "Error Events (with Trace Links)"
+      ],
+      "frequency": 1,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 0,
+      "estimated_cardinality": "high",
+      "recommended_recording": false,
+      "recording_name": "job:line_format:agg"
+    },
+    {
+      "query": "{job=\"api\", logger=~\".*agents.*\"} | json | run_id=~\"$run_id\" | line_format \"{{.timestamp}} [{{.level}}] {{.event}} | {{.message}}\"",
+      "query_hash": "2493233133896914344",
+      "dashboards": [
+        "09-logs-traces.json"
+      ],
+      "panel_titles": [
+        "Search by Run ID"
+      ],
+      "frequency": 1,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:run_id:agg"
+    },
+    {
+      "query": "{job=\"api\", logger=~\".*agents.*\"} | json | user_id=~\"$user_id\" | line_format \"{{.timestamp}} [{{.level}}] {{.event}} | run_id={{.run_id}}\"",
+      "query_hash": "-1202959040378750997",
+      "dashboards": [
+        "09-logs-traces.json"
+      ],
+      "panel_titles": [
+        "Search by User ID"
+      ],
+      "frequency": 1,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 0,
+      "estimated_cardinality": "high",
+      "recommended_recording": false,
+      "recording_name": "job:user_id:agg"
+    },
+    {
+      "query": "topk(10, sum by (event, error_type) (count_over_time({job=\"api\", level=\"error\", logger=~\".*agents.*\"} | json [1h])))",
+      "query_hash": "-1903791351629533012",
+      "dashboards": [
+        "09-logs-traces.json"
+      ],
+      "panel_titles": [
+        "Top 10 Most Frequent Errors"
+      ],
+      "frequency": 1,
+      "complexity_score": 50,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": true,
+      "time_range": "1h",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "event:error_type:sum"
+    },
+    {
+      "query": "100 * sum(rate(redis_rate_limit_hits_total{key_prefix=~\"$key_prefix\"}[5m])) / (sum(rate(redis_rate_limit_allows_total{key_prefix=~\"$key_prefix\"}[5m])) + sum(rate(redis_rate_limit_hits_total{key_prefix=~\"$key_prefix\"}[5m])))",
+      "query_hash": "3810725928981525561",
+      "dashboards": [
+        "10-redis-rate-limiting.json"
+      ],
+      "panel_titles": [
+        "Rate Limit Hit Rate (%)"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:redis_rate_limit_hits:rate5m"
+    },
+    {
+      "query": "sum(rate(redis_rate_limit_allows_total{key_prefix=~\"$key_prefix\"}[5m])) + sum(rate(redis_rate_limit_hits_total{key_prefix=~\"$key_prefix\"}[5m]))",
+      "query_hash": "4220332582909883054",
+      "dashboards": [
+        "10-redis-rate-limiting.json"
+      ],
+      "panel_titles": [
+        "Total Requests (req/s)"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:redis_rate_limit_allows:rate5m"
+    },
+    {
+      "query": "1000 * histogram_quantile(0.95, sum by (le) (rate(redis_rate_limit_check_duration_seconds_bucket{key_prefix=~\"$key_prefix\"}[5m])))",
+      "query_hash": "-2754208572993906135",
+      "dashboards": [
+        "10-redis-rate-limiting.json"
+      ],
+      "panel_titles": [
+        "Rate Limit Check Latency P95 (ms)"
+      ],
+      "frequency": 1,
+      "complexity_score": 55,
+      "has_histogram_quantile": true,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "le:histogram_quantile:p95_rate5m"
+    },
+    {
+      "query": "100 * (1 - (redis_connection_pool_available_current / redis_connection_pool_size_current))",
+      "query_hash": "5627178737600678694",
+      "dashboards": [
+        "10-redis-rate-limiting.json"
+      ],
+      "panel_titles": [
+        "Redis Connection Pool Utilization (%)"
+      ],
+      "frequency": 1,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:redis_connection_pool_available_current:agg"
+    },
+    {
+      "query": "sum by (key_prefix) (rate(redis_rate_limit_allows_total{key_prefix=~\"$key_prefix\"}[5m]))",
+      "query_hash": "6672530125855031012",
+      "dashboards": [
+        "10-redis-rate-limiting.json"
+      ],
+      "panel_titles": [
+        "Requests Allowed vs Rejected (req/s)"
+      ],
+      "frequency": 1,
+      "complexity_score": 25,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "key_prefix:key_prefix:rate5m"
+    },
+    {
+      "query": "sum by (key_prefix) (rate(redis_rate_limit_hits_total{key_prefix=~\"$key_prefix\"}[5m]))",
+      "query_hash": "-8158967104678261366",
+      "dashboards": [
+        "10-redis-rate-limiting.json"
+      ],
+      "panel_titles": [
+        "Requests Allowed vs Rejected (req/s)"
+      ],
+      "frequency": 1,
+      "complexity_score": 25,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "key_prefix:key_prefix:rate5m"
+    },
+    {
+      "query": "100 * rate(redis_rate_limit_hits_total{key_prefix=~\"$key_prefix\"}[5m]) / (rate(redis_rate_limit_allows_total{key_prefix=~\"$key_prefix\"}[5m]) + rate(redis_rate_limit_hits_total{key_prefix=~\"$key_prefix\"}[5m]))",
+      "query_hash": "-6937994283147940707",
+      "dashboards": [
+        "10-redis-rate-limiting.json"
+      ],
+      "panel_titles": [
+        "Hit Rate by Endpoint (%)"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:redis_rate_limit_hits:rate5m"
+    },
+    {
+      "query": "1000 * histogram_quantile(0.50, sum by (le, key_prefix) (rate(redis_rate_limit_check_duration_seconds_bucket{key_prefix=~\"$key_prefix\"}[5m])))",
+      "query_hash": "4167241961617132505",
+      "dashboards": [
+        "10-redis-rate-limiting.json"
+      ],
+      "panel_titles": [
+        "Rate Limit Check Latency Distribution (ms)"
+      ],
+      "frequency": 1,
+      "complexity_score": 75,
+      "has_histogram_quantile": true,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "le:histogram_quantile:p50_rate5m"
+    },
+    {
+      "query": "1000 * histogram_quantile(0.95, sum by (le, key_prefix) (rate(redis_rate_limit_check_duration_seconds_bucket{key_prefix=~\"$key_prefix\"}[5m])))",
+      "query_hash": "6236449114339697303",
+      "dashboards": [
+        "10-redis-rate-limiting.json"
+      ],
+      "panel_titles": [
+        "Rate Limit Check Latency Distribution (ms)"
+      ],
+      "frequency": 1,
+      "complexity_score": 75,
+      "has_histogram_quantile": true,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "le:histogram_quantile:p95_rate5m"
+    },
+    {
+      "query": "1000 * histogram_quantile(0.99, sum by (le, key_prefix) (rate(redis_rate_limit_check_duration_seconds_bucket{key_prefix=~\"$key_prefix\"}[5m])))",
+      "query_hash": "7252557646178826303",
+      "dashboards": [
+        "10-redis-rate-limiting.json"
+      ],
+      "panel_titles": [
+        "Rate Limit Check Latency Distribution (ms)"
+      ],
+      "frequency": 1,
+      "complexity_score": 75,
+      "has_histogram_quantile": true,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "le:histogram_quantile:p99_rate5m"
+    },
+    {
+      "query": "redis_sliding_window_requests_current{key_prefix=~\"$key_prefix\"}",
+      "query_hash": "-5967132591979805436",
+      "dashboards": [
+        "10-redis-rate-limiting.json"
+      ],
+      "panel_titles": [
+        "Sliding Window Sizes (requests)"
+      ],
+      "frequency": 1,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:redis_sliding_window_requests_current:agg"
+    },
+    {
+      "query": "redis_connection_pool_size_current",
+      "query_hash": "7749441097652355983",
+      "dashboards": [
+        "10-redis-rate-limiting.json"
+      ],
+      "panel_titles": [
+        "Redis Connection Pool Status"
+      ],
+      "frequency": 1,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:redis_connection_pool_size_current:agg"
+    },
+    {
+      "query": "redis_connection_pool_available_current",
+      "query_hash": "3095522103435937821",
+      "dashboards": [
+        "10-redis-rate-limiting.json"
+      ],
+      "panel_titles": [
+        "Redis Connection Pool Status"
+      ],
+      "frequency": 1,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:redis_connection_pool_available_current:agg"
+    },
+    {
+      "query": "redis_connection_pool_size_current - redis_connection_pool_available_current",
+      "query_hash": "5327360315299147537",
+      "dashboards": [
+        "10-redis-rate-limiting.json"
+      ],
+      "panel_titles": [
+        "Redis Connection Pool Status"
+      ],
+      "frequency": 1,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:redis_connection_pool_size_current:agg"
+    },
+    {
+      "query": "sum by (script_name, status) (rate(redis_lua_script_executions_total[5m]))",
+      "query_hash": "7713413097870410690",
+      "dashboards": [
+        "10-redis-rate-limiting.json"
+      ],
+      "panel_titles": [
+        "Lua Script Executions (exec/s)"
+      ],
+      "frequency": 1,
+      "complexity_score": 45,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "script_name:script_name:rate5m"
+    },
+    {
+      "query": "sum by (error_type) (rate(redis_rate_limit_errors_total{error_type=~\"$error_type\"}[5m]))",
+      "query_hash": "3008310080413204351",
+      "dashboards": [
+        "10-redis-rate-limiting.json"
+      ],
+      "panel_titles": [
+        "Redis Errors by Type (errors/s)"
+      ],
+      "frequency": 1,
+      "complexity_score": 25,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "error_type:error_type:rate5m"
+    },
+    {
+      "query": "topk(10, sum by (key_prefix) (rate(redis_rate_limit_hits_total[5m])))",
+      "query_hash": "3421337007245099390",
+      "dashboards": [
+        "10-redis-rate-limiting.json"
+      ],
+      "panel_titles": [
+        "Top Endpoints by Rate Limit Hits"
+      ],
+      "frequency": 1,
+      "complexity_score": 25,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "key_prefix:key_prefix:rate5m"
+    },
+    {
+      "query": "sum by (key_prefix) (rate(redis_rate_limit_allows_total[5m]))",
+      "query_hash": "2194148121293274309",
+      "dashboards": [
+        "10-redis-rate-limiting.json"
+      ],
+      "panel_titles": [
+        "Rate Limit Statistics by Endpoint"
+      ],
+      "frequency": 1,
+      "complexity_score": 25,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "key_prefix:key_prefix:rate5m"
+    },
+    {
+      "query": "sum by (key_prefix) (rate(redis_rate_limit_hits_total[5m]))",
+      "query_hash": "-872676594147111613",
+      "dashboards": [
+        "10-redis-rate-limiting.json"
+      ],
+      "panel_titles": [
+        "Rate Limit Statistics by Endpoint"
+      ],
+      "frequency": 1,
+      "complexity_score": 25,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "key_prefix:key_prefix:rate5m"
+    },
+    {
+      "query": "100 * sum by (key_prefix) (rate(redis_rate_limit_hits_total[5m])) / (sum by (key_prefix) (rate(redis_rate_limit_allows_total[5m])) + sum by (key_prefix) (rate(redis_rate_limit_hits_total[5m])))",
+      "query_hash": "-1264126343311574888",
+      "dashboards": [
+        "10-redis-rate-limiting.json"
+      ],
+      "panel_titles": [
+        "Rate Limit Statistics by Endpoint"
+      ],
+      "frequency": 1,
+      "complexity_score": 25,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "key_prefix:key_prefix:rate5m"
+    },
+    {
+      "query": "1000 * histogram_quantile(0.95, sum by (le, key_prefix) (rate(redis_rate_limit_check_duration_seconds_bucket[5m])))",
+      "query_hash": "2881253951114998741",
+      "dashboards": [
+        "10-redis-rate-limiting.json"
+      ],
+      "panel_titles": [
+        "Rate Limit Statistics by Endpoint"
+      ],
+      "frequency": 1,
+      "complexity_score": 75,
+      "has_histogram_quantile": true,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "le:histogram_quantile:p95_rate5m"
+    },
+    {
+      "query": "redis_sliding_window_requests_current",
+      "query_hash": "-3001600686428441565",
+      "dashboards": [
+        "10-redis-rate-limiting.json"
+      ],
+      "panel_titles": [
+        "Rate Limit Statistics by Endpoint"
+      ],
+      "frequency": 1,
+      "complexity_score": 0,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": false,
+      "time_range": "unknown",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:redis_sliding_window_requests_current:agg"
+    },
+    {
+      "query": "100 * sum(rate(langgraph_graph_executions_total{status=\"success\"}[5m])) / sum(rate(langgraph_graph_executions_total[5m]))",
+      "query_hash": "7580187999503289631",
+      "dashboards": [
+        "11-langgraph-framework.json"
+      ],
+      "panel_titles": [
+        "Graph Success Rate (%)"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:langgraph_graph_executions:rate5m"
+    },
+    {
+      "query": "sum(rate(langgraph_graph_executions_total[5m]))",
+      "query_hash": "-8475620146511751993",
+      "dashboards": [
+        "11-langgraph-framework.json"
+      ],
+      "panel_titles": [
+        "Graph Throughput (req/s)"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:langgraph_graph_executions:rate5m"
+    },
+    {
+      "query": "histogram_quantile(0.95, rate(langgraph_graph_duration_seconds_bucket[5m]))",
+      "query_hash": "2886094820219375968",
+      "dashboards": [
+        "11-langgraph-framework.json",
+        "11-langgraph-framework.json"
+      ],
+      "panel_titles": [
+        "Graph P95 Latency (s)",
+        "Graph Latency Distribution (s)"
+      ],
+      "frequency": 2,
+      "complexity_score": 40,
+      "has_histogram_quantile": true,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "job:histogram_quantile:p95_rate5m"
+    },
+    {
+      "query": "sum(rate(langgraph_graph_executions_total{status=\"error\"}[5m]))",
+      "query_hash": "879107225239411321",
+      "dashboards": [
+        "11-langgraph-framework.json"
+      ],
+      "panel_titles": [
+        "Graph Error Rate (errors/s)"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:langgraph_graph_executions:rate5m"
+    },
+    {
+      "query": "sum by (status) (rate(langgraph_graph_executions_total[5m]))",
+      "query_hash": "-9114503854199976807",
+      "dashboards": [
+        "11-langgraph-framework.json"
+      ],
+      "panel_titles": [
+        "Graph Executions by Status (req/s)"
+      ],
+      "frequency": 1,
+      "complexity_score": 25,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "status:langgraph_graph_executions:rate5m"
+    },
+    {
+      "query": "histogram_quantile(0.50, rate(langgraph_graph_duration_seconds_bucket[5m]))",
+      "query_hash": "-8535520808504826178",
+      "dashboards": [
+        "11-langgraph-framework.json"
+      ],
+      "panel_titles": [
+        "Graph Latency Distribution (s)"
+      ],
+      "frequency": 1,
+      "complexity_score": 40,
+      "has_histogram_quantile": true,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "job:histogram_quantile:p50_rate5m"
+    },
+    {
+      "query": "histogram_quantile(0.99, rate(langgraph_graph_duration_seconds_bucket[5m]))",
+      "query_hash": "-6126003245932117897",
+      "dashboards": [
+        "11-langgraph-framework.json"
+      ],
+      "panel_titles": [
+        "Graph Latency Distribution (s)"
+      ],
+      "frequency": 1,
+      "complexity_score": 40,
+      "has_histogram_quantile": true,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "job:histogram_quantile:p99_rate5m"
+    },
+    {
+      "query": "sum by (error_type) (rate(langgraph_graph_errors_total{error_type=~\"$error_type\"}[5m]))",
+      "query_hash": "6057062338685269146",
+      "dashboards": [
+        "11-langgraph-framework.json"
+      ],
+      "panel_titles": [
+        "Graph Errors by Type (errors/s)"
+      ],
+      "frequency": 1,
+      "complexity_score": 25,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "error_type:error_type:rate5m"
+    },
+    {
+      "query": "topk(5, sum by (error_type) (increase(langgraph_graph_errors_total[5m])))",
+      "query_hash": "-5813583534004939832",
+      "dashboards": [
+        "11-langgraph-framework.json"
+      ],
+      "panel_titles": [
+        "Top 5 Error Types (5m total)"
+      ],
+      "frequency": 1,
+      "complexity_score": 15,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "error_type:error_type:sum"
+    },
+    {
+      "query": "sum(rate(langgraph_node_transitions_total[5m]))",
+      "query_hash": "4811001958879213947",
+      "dashboards": [
+        "11-langgraph-framework.json"
+      ],
+      "panel_titles": [
+        "Node Transition Rate (transitions/s)"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:langgraph_node_transitions:rate5m"
+    },
+    {
+      "query": "sum(rate(langgraph_conditional_edges_total[5m]))",
+      "query_hash": "-1767229473109691337",
+      "dashboards": [
+        "11-langgraph-framework.json"
+      ],
+      "panel_titles": [
+        "Conditional Routing Decisions (decisions/s)"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:langgraph_conditional_edges:rate5m"
+    },
+    {
+      "query": "100 * sum(rate(langgraph_conditional_edges_total{edge_name=\"route_from_router\", decision=\"planner\"}[5m])) / sum(rate(langgraph_conditional_edges_total{edge_name=\"route_from_router\"}[5m]))",
+      "query_hash": "3466789458134692988",
+      "dashboards": [
+        "11-langgraph-framework.json"
+      ],
+      "panel_titles": [
+        "Router \u2192 Planner Rate (%)"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:langgraph_conditional_edges:rate5m"
+    },
+    {
+      "query": "100 * sum(rate(langgraph_conditional_edges_total{edge_name=\"route_from_router\", decision=\"response\"}[5m])) / sum(rate(langgraph_conditional_edges_total{edge_name=\"route_from_router\"}[5m]))",
+      "query_hash": "-3909542419814588098",
+      "dashboards": [
+        "11-langgraph-framework.json"
+      ],
+      "panel_titles": [
+        "Router \u2192 Response Rate (%)"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:langgraph_conditional_edges:rate5m"
+    },
+    {
+      "query": "topk(10, sum by (from_node, to_node) (rate(langgraph_node_transitions_total[5m])))",
+      "query_hash": "7551225805291939765",
+      "dashboards": [
+        "11-langgraph-framework.json"
+      ],
+      "panel_titles": [
+        "Top 10 Node Transitions (transitions/s)"
+      ],
+      "frequency": 1,
+      "complexity_score": 45,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "from_node:from_node:rate5m"
+    },
+    {
+      "query": "sum by (edge_name, decision) (rate(langgraph_conditional_edges_total[5m]))",
+      "query_hash": "-4609231491356294928",
+      "dashboards": [
+        "11-langgraph-framework.json"
+      ],
+      "panel_titles": [
+        "Conditional Edge Decisions by Edge (decisions/s)"
+      ],
+      "frequency": 1,
+      "complexity_score": 45,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "edge_name:edge_name:rate5m"
+    },
+    {
+      "query": "sum(rate(langgraph_state_updates_total[5m]))",
+      "query_hash": "-5099970425893917400",
+      "dashboards": [
+        "11-langgraph-framework.json"
+      ],
+      "panel_titles": [
+        "State Update Rate (updates/s)"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:langgraph_state_updates:rate5m"
+    },
+    {
+      "query": "histogram_quantile(0.95, sum by (le) (rate(langgraph_state_size_bytes_bucket[5m]))) / 1024",
+      "query_hash": "8238969419288277491",
+      "dashboards": [
+        "11-langgraph-framework.json"
+      ],
+      "panel_titles": [
+        "P95 State Size (KB)"
+      ],
+      "frequency": 1,
+      "complexity_score": 55,
+      "has_histogram_quantile": true,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "le:histogram_quantile:p95_rate5m"
+    },
+    {
+      "query": "topk(7, sum by (node_name) (rate(langgraph_state_updates_total{node_name=~\"$node_name\"}[5m])))",
+      "query_hash": "-8994826256826684151",
+      "dashboards": [
+        "11-langgraph-framework.json"
+      ],
+      "panel_titles": [
+        "Most Active Nodes (updates/s)"
+      ],
+      "frequency": 1,
+      "complexity_score": 25,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "node_name:node_name:rate5m"
+    },
+    {
+      "query": "sum by (node_name) (rate(langgraph_state_updates_total{node_name=~\"$node_name\"}[5m]))",
+      "query_hash": "-2925992262626205155",
+      "dashboards": [
+        "11-langgraph-framework.json"
+      ],
+      "panel_titles": [
+        "State Updates by Node (updates/s)"
+      ],
+      "frequency": 1,
+      "complexity_score": 25,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "node_name:node_name:rate5m"
+    },
+    {
+      "query": "histogram_quantile(0.95, sum by (le, node_name) (rate(langgraph_state_size_bytes_bucket{node_name=~\"$node_name\"}[5m]))) / 1024",
+      "query_hash": "2139922213764461373",
+      "dashboards": [
+        "11-langgraph-framework.json"
+      ],
+      "panel_titles": [
+        "State Size by Node - P95 (KB)"
+      ],
+      "frequency": 1,
+      "complexity_score": 75,
+      "has_histogram_quantile": true,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "le:histogram_quantile:p95_rate5m"
+    },
+    {
+      "query": "topk(10, sum by (key) (rate(langgraph_state_updates_total[5m])))",
+      "query_hash": "2997113126846623713",
+      "dashboards": [
+        "11-langgraph-framework.json"
+      ],
+      "panel_titles": [
+        "Most Updated State Keys (updates/s)"
+      ],
+      "frequency": 1,
+      "complexity_score": 25,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "key:langgraph_state_updates:rate5m"
+    },
+    {
+      "query": "sum by (node_name, key) (rate(langgraph_state_updates_total{node_name=~\"$node_name\"}[5m]))",
+      "query_hash": "-3395757642614753324",
+      "dashboards": [
+        "11-langgraph-framework.json"
+      ],
+      "panel_titles": [
+        "State Updates Heatmap (node \u00d7 key)"
+      ],
+      "frequency": 1,
+      "complexity_score": 45,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "node_name:node_name:rate5m"
+    },
+    {
+      "query": "100 * sum(rate(langgraph_subgraph_invocations_total{status=\"success\"}[5m])) / sum(rate(langgraph_subgraph_invocations_total[5m]))",
+      "query_hash": "-4761110720843548371",
+      "dashboards": [
+        "11-langgraph-framework.json"
+      ],
+      "panel_titles": [
+        "SubGraph Success Rate (%)"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:langgraph_subgraph_invocations:rate5m"
+    },
+    {
+      "query": "sum(rate(langgraph_subgraph_invocations_total[5m]))",
+      "query_hash": "7327235243347488004",
+      "dashboards": [
+        "11-langgraph-framework.json"
+      ],
+      "panel_titles": [
+        "SubGraph Invocation Rate (req/s)"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:langgraph_subgraph_invocations:rate5m"
+    },
+    {
+      "query": "histogram_quantile(0.95, sum by (le) (rate(langgraph_subgraph_duration_seconds_bucket[5m])))",
+      "query_hash": "-7486123630900330929",
+      "dashboards": [
+        "11-langgraph-framework.json"
+      ],
+      "panel_titles": [
+        "SubGraph P95 Duration (s)"
+      ],
+      "frequency": 1,
+      "complexity_score": 55,
+      "has_histogram_quantile": true,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "le:histogram_quantile:p95_rate5m"
+    },
+    {
+      "query": "sum(rate(langgraph_subgraph_tool_calls_total[5m])) / sum(rate(langgraph_subgraph_invocations_total[5m]))",
+      "query_hash": "-6964858616313572161",
+      "dashboards": [
+        "11-langgraph-framework.json"
+      ],
+      "panel_titles": [
+        "Avg Tools per Invocation"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:langgraph_subgraph_tool_calls:rate5m"
+    },
+    {
+      "query": "sum by (agent_name, status) (rate(langgraph_subgraph_invocations_total{agent_name=~\"$agent_name\"}[5m]))",
+      "query_hash": "2335698432513242163",
+      "dashboards": [
+        "11-langgraph-framework.json"
+      ],
+      "panel_titles": [
+        "SubGraph Invocations by Agent (req/s)"
+      ],
+      "frequency": 1,
+      "complexity_score": 45,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "agent_name:agent_name:rate5m"
+    },
+    {
+      "query": "histogram_quantile(0.95, sum by (le, agent_name) (rate(langgraph_subgraph_duration_seconds_bucket{agent_name=~\"$agent_name\"}[5m])))",
+      "query_hash": "7269222814130551585",
+      "dashboards": [
+        "11-langgraph-framework.json"
+      ],
+      "panel_titles": [
+        "SubGraph Duration by Agent - P95 (s)"
+      ],
+      "frequency": 1,
+      "complexity_score": 75,
+      "has_histogram_quantile": true,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "le:histogram_quantile:p95_rate5m"
+    },
+    {
+      "query": "sum by (agent_name, tool_name) (rate(langgraph_subgraph_tool_calls_total{agent_name=~\"$agent_name\"}[5m]))",
+      "query_hash": "-1473539183674863513",
+      "dashboards": [
+        "11-langgraph-framework.json"
+      ],
+      "panel_titles": [
+        "Tool Usage by Agent (calls/s)"
+      ],
+      "frequency": 1,
+      "complexity_score": 45,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 2,
+      "estimated_cardinality": "low",
+      "recommended_recording": true,
+      "recording_name": "agent_name:agent_name:rate5m"
+    },
+    {
+      "query": "topk(10, sum by (tool_name) (increase(langgraph_subgraph_tool_calls_total[5m])))",
+      "query_hash": "-4956778061027640295",
+      "dashboards": [
+        "11-langgraph-framework.json"
+      ],
+      "panel_titles": [
+        "Top 10 Tools by Usage (5m total)"
+      ],
+      "frequency": 1,
+      "complexity_score": 15,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "tool_name:tool_name:sum"
+    },
+    {
+      "query": "sum(rate(langgraph_streaming_chunks_total[5m]))",
+      "query_hash": "2653411390401928081",
+      "dashboards": [
+        "11-langgraph-framework.json"
+      ],
+      "panel_titles": [
+        "Total Streaming Chunks (chunks/s)"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:langgraph_streaming_chunks:rate5m"
+    },
+    {
+      "query": "sum(rate(langgraph_streaming_chunks_total{event_type=\"STREAM_TOKEN\"}[5m]))",
+      "query_hash": "7658406068188208248",
+      "dashboards": [
+        "11-langgraph-framework.json"
+      ],
+      "panel_titles": [
+        "Token Chunks (chunks/s)"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:langgraph_streaming_chunks:rate5m"
+    },
+    {
+      "query": "sum(rate(langgraph_streaming_chunks_total{event_type=\"STREAM_INTERRUPT\"}[5m]))",
+      "query_hash": "-2203039212336272502",
+      "dashboards": [
+        "11-langgraph-framework.json"
+      ],
+      "panel_titles": [
+        "HITL Interrupts (chunks/s)"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:langgraph_streaming_chunks:rate5m"
+    },
+    {
+      "query": "sum(rate(langgraph_streaming_chunks_total{event_type=\"STREAM_ERROR\"}[5m]))",
+      "query_hash": "-1930042236371128085",
+      "dashboards": [
+        "11-langgraph-framework.json"
+      ],
+      "panel_titles": [
+        "Error Chunks (chunks/s)"
+      ],
+      "frequency": 1,
+      "complexity_score": 10,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": false,
+      "time_range": "5m",
+      "label_dimensions": 0,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "job:langgraph_streaming_chunks:rate5m"
+    },
+    {
+      "query": "sum by (event_type) (rate(langgraph_streaming_chunks_total{event_type=~\"$event_type\"}[5m]))",
+      "query_hash": "3998707990059700958",
+      "dashboards": [
+        "11-langgraph-framework.json"
+      ],
+      "panel_titles": [
+        "Streaming Chunks by Event Type (chunks/s)"
+      ],
+      "frequency": 1,
+      "complexity_score": 25,
+      "has_histogram_quantile": false,
+      "has_rate": true,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "event_type:event_type:rate5m"
+    },
+    {
+      "query": "sum by (event_type) (increase(langgraph_streaming_chunks_total[5m]))",
+      "query_hash": "1653859890895522304",
+      "dashboards": [
+        "11-langgraph-framework.json"
+      ],
+      "panel_titles": [
+        "Streaming Event Type Distribution (%)"
+      ],
+      "frequency": 1,
+      "complexity_score": 15,
+      "has_histogram_quantile": false,
+      "has_rate": false,
+      "has_aggregation": true,
+      "time_range": "5m",
+      "label_dimensions": 1,
+      "estimated_cardinality": "low",
+      "recommended_recording": false,
+      "recording_name": "event_type:event_type:sum"
+    }
+  ]
+}

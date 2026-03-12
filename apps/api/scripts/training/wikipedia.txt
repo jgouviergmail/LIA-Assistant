@@ -1,0 +1,11 @@
+# WIKIPEDIA - Training queries
+# Pattern learner training for wikipedia domain
+
+recherche un atricle wikipedia sur emmanuel macron
+Cherche sur Wikipedia la Tour Eiffel
+Qu'est-ce que la photosynthèse ?
+Parle-moi de la Révolution française
+Qui est Marie Curie ?
+Donne-moi l'article complet de Wikipedia sur Napoléon
+Montre-moi les articles liés à l'exploration spatiale
+Quels sont les sujets connexes à la Renaissance ?

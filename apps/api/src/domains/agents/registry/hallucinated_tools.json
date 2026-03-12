@@ -1,0 +1,43 @@
+{
+  "patterns": [
+    "resolve_reference",
+    "get_reference",
+    "resolve_context",
+    "get_context",
+    "resolve_item",
+    "get_resolved",
+    "lookup_reference",
+    "dereference"
+  ],
+  "exact_tools": [
+    "resolve_reference_tool",
+    "get_reference_tool"
+  ],
+  "history": [
+    {
+      "tool": "get_context_list",
+      "domain": "general",
+      "query_preview": "Comment aller chez mon frère",
+      "timestamp": "2026-01-07T08:50:37.326919",
+      "was_new": false
+    },
+    {
+      "tool": "get_context_list",
+      "domain": "general",
+      "query_preview": "recherche les contacts jean",
+      "timestamp": "2026-01-07T09:38:31.279033",
+      "was_new": false
+    },
+    {
+      "tool": "get_context_list",
+      "domain": "email",
+      "query_preview": "Envoie un email à tous mes contacts",
+      "timestamp": "2026-01-18T00:29:46.672607",
+      "was_new": false
+    }
+  ],
+  "stats": {
+    "total_detections": 3,
+    "last_updated": "2026-01-18T00:29:46.672622"
+  }
+}

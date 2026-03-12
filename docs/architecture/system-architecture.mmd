@@ -1,0 +1,135 @@
+graph TB
+    subgraph Frontend["Frontend Layer"]
+        WebApp["Next.js 16 + React 19<br/>TypeScript 5 + Tailwind 4"]
+        PWA["PWA + FCM Push"]
+        I18n["i18n: 6 Languages"]
+    end
+
+    subgraph API["API Layer"]
+        FastAPI["FastAPI 0.128<br/>Python 3.12+"]
+        BFF["BFF Session Auth<br/>HTTP-only Cookies"]
+        SSE["SSE Streaming"]
+        WebSocket["WebSocket STT"]
+    end
+
+    subgraph AI["AI / ML Layer"]
+        LangGraph["LangGraph 1.0.10<br/>Agent Orchestration"]
+        LLMProviders["6 LLM Providers<br/>OpenAI, Anthropic, Gemini<br/>DeepSeek, Perplexity, Ollama"]
+        Embeddings["E5 Multilingual<br/>Embeddings"]
+        Voice["Voice: Sherpa-onnx STT<br/>+ Edge/OpenAI/Gemini TTS"]
+    end
+
+    subgraph Orchestration["Orchestration Layer"]
+        SmartPlanner["SmartPlannerService"]
+        SmartCatalogue["SmartCatalogueService"]
+        PatternLearner["PlanPatternLearner"]
+        ParallelExecutor["ParallelExecutor"]
+        HITL["HITL — 6 Types"]
+        Skills["Skills System"]
+    end
+
+    subgraph Data["Data Layer"]
+        PostgreSQL[("PostgreSQL 16<br/>+ pgvector")]
+        Redis[("Redis 7<br/>Sessions + Cache<br/>+ Patterns")]
+    end
+
+    subgraph Connectors["Connectors & Channels"]
+        GoogleAPIs["Google APIs<br/>Gmail, Calendar, Contacts<br/>Drive, Tasks"]
+        AppleAPIs["Apple iCloud<br/>Email, Calendar<br/>Contacts"]
+        MicrosoftAPIs["Microsoft 365<br/>Outlook, Calendar<br/>Contacts, Tasks"]
+        Telegram["Telegram Bot"]
+        MCP["MCP Servers<br/>Admin + Per-User"]
+    end
+
+    subgraph External["External Services"]
+        WeatherAPI["OpenWeatherMap"]
+        BraveSearch["Brave Search"]
+        WikiAPI["Wikipedia"]
+        PerplexityAPI["Perplexity"]
+        WebFetch["Web Fetch"]
+        PlacesRoutes["Google Places & Routes"]
+    end
+
+    subgraph Observability["Observability"]
+        Prometheus["Prometheus"] --> Grafana["Grafana"]
+        Loki["Loki"] --> Grafana
+        Tempo["Tempo"] --> Grafana
+        OpenTelemetry["OpenTelemetry"]
+        Langfuse["Langfuse 3.x"]
+        GeoIP["GeoIP DB-IP"]
+    end
+
+    subgraph Deploy["Deployment"]
+        Docker["Docker Compose<br/>amd64 + arm64"]
+        RaspberryPi["Raspberry Pi 5"]
+        Nginx["Nginx + SSL"]
+        SOPS["SOPS + Age"]
+    end
+
+    %% Frontend → API
+    Frontend --> BFF
+    BFF --> FastAPI
+    WebSocket --> FastAPI
+    SSE --> FastAPI
+
+    %% API → AI
+    FastAPI --> LangGraph
+    FastAPI --> Voice
+    FastAPI --> Langfuse
+
+    %% AI → Orchestration
+    LangGraph --> SmartPlanner
+    LangGraph --> SmartCatalogue
+    LangGraph --> ParallelExecutor
+    LangGraph --> HITL
+    SmartPlanner --> PatternLearner
+    SmartPlanner --> Skills
+    LangGraph --> LLMProviders
+    LangGraph --> Embeddings
+
+    %% Orchestration → Data
+    ParallelExecutor --> PostgreSQL
+    ParallelExecutor --> Redis
+    PatternLearner --> Redis
+
+    %% Orchestration → Connectors
+    ParallelExecutor --> GoogleAPIs
+    ParallelExecutor --> AppleAPIs
+    ParallelExecutor --> MicrosoftAPIs
+    ParallelExecutor --> MCP
+    FastAPI --> Telegram
+
+    %% Orchestration → External
+    ParallelExecutor --> WeatherAPI
+    ParallelExecutor --> BraveSearch
+    ParallelExecutor --> WikiAPI
+    ParallelExecutor --> PerplexityAPI
+    ParallelExecutor --> WebFetch
+    ParallelExecutor --> PlacesRoutes
+
+    %% Observability
+    FastAPI --> OpenTelemetry
+    OpenTelemetry --> Prometheus
+    OpenTelemetry --> Loki
+    OpenTelemetry --> Tempo
+    FastAPI --> GeoIP
+    LangGraph --> Langfuse
+
+    %% Deployment
+    RaspberryPi --> Docker
+    SOPS --> Docker
+    Docker --> Nginx
+    Nginx --> Frontend
+    Nginx --> FastAPI
+
+    style FastAPI fill:#e1f5ff
+    style LangGraph fill:#fff4e1
+    style PostgreSQL fill:#e1ffe1
+    style Redis fill:#ffe1e1
+    style Prometheus fill:#f0e1ff
+    style Grafana fill:#fff9e1
+    style SmartPlanner fill:#fff4e1
+    style ParallelExecutor fill:#e1ffe1
+    style HITL fill:#ffcccc
+    style Telegram fill:#e1f5ff
+    style MCP fill:#f0e1ff

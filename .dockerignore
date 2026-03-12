@@ -1,0 +1,26 @@
+# Node modules (all workspaces)
+**/node_modules
+
+# Build outputs
+**/.next
+**/dist
+**/out
+
+# Git
+.git
+
+# Python
+**/__pycache__
+**/*.pyc
+**/.venv
+
+# Logs
+**/*.log
+
+# Large ML models (built into image separately)
+apps/api/models/sensevoice
+
+# Dev files
+**/JGO
+**/.pytest_cache
+**/coverage

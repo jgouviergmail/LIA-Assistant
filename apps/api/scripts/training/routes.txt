@@ -1,0 +1,11 @@
+# GOOGLE ROUTES - Training queries
+# Pattern learner training for routes domain
+
+Comment aller à Créteil ?
+Itinéraire de Paris à Nogent
+Combien de temps pour aller à Paris ?
+Aller à Vincennes
+Aller à la Bastille en transports à 09h
+Aller à Lyon sans péage
+Paris-Metz sans péage ni autoroute
+Temps de trajet vers Paris maintenant

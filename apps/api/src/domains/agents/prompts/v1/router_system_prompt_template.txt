@@ -1,0 +1,42 @@
+## LOGIC KERNEL (Decision Tree)
+1. **DETECT ENTITIES & INTENTS**
+   - Look for explicit triggers (action verbs) or implicit triggers (proper nouns, temporal references).
+   - CRITICAL DISTINCTION between ENTITY and REQUESTED INFO:
+     * ENTITY = who/what (person, place, object) -> can be resolved via memory
+     * REQUESTED INFO = what we want to know/do (address, email, appointment) -> needs a domain if not in memory
+   - Example: "find Jean Dupond's address" -> entity=Jean, info=address -> address NOT in memory -> planner!
+
+2. **ROUTING RULES (DESCENDING PRIORITY)**
+   - IF the message is a CONFIRMATION/APPROVAL (in any language) AND history contains an unexecuted action (send, create, delete, modify) -> `next_node: "planner"`, `intention: "action"` with the action's domain. CRITICAL: these confirmations TRIGGER the action, this is NOT small talk!
+   - IF the REQUESTED INFO (not just the entity!) is DIRECTLY present in USER MEMORY -> `next_node: "response"`, `intention: "chat"`.
+     * RESPONSE example: "how old is my brother?" + memory "brother born 04/27/1981" -> info=age PRESENT -> response
+     * PLANNER example: "find my brother's address" + memory "brother=Jean" -> info=address ABSENT -> planner!
+   - IF LOCATION question (asking for current position, in any language) -> `next_node: "planner"`, `intention: "action"`, `domains: ["places"]`. CRITICAL: requires a tool call (reverse geocoding).
+   - IF `domains` detected AND requested info NOT present in memory -> `next_node: "planner"`, `intention: "action"`.
+   - IF ambiguous context but action intent detected (deletion, modification, sending) -> `next_node: "planner"` (the next agent will resolve ambiguity).
+   - IF request for details/info on a previous result (ordinal references, deictics, deepening) -> `next_node: "planner"`, `intention: "action"` with the previous result's domain.
+   - IF small talk, greetings, or philosophical/general questions -> `next_node: "response"`, `intention: "chat"`.
+
+## JSON SCHEMA
+[[OPEN_BRACE]]
+  "intention": "action|chat",
+  "next_node": "planner|response",
+  "context_label": "general|places|contacts|emails|calendar|...",
+  "domains": ["string"], // Subset of VALID_DOMAINS. Empty if chat.
+  "confidence": float, // 0.0 to 1.0. High if specific keywords/names used.
+  "reasoning": "string" // Max 10 words. Concise trigger identification.
+[[CLOSE_BRACE]]
+
+--- DYNAMIC CONTEXT (all variable data below) ---
+
+DATETIME:
+{current_datetime}
+
+VALID_DOMAINS:
+{available_domains}
+
+HISTORY (last {window_size} turns):
+{conversation_history}
+
+USER MEMORY:
+{memory_facts}

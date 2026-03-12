@@ -1,0 +1,1033 @@
+@import "tailwindcss";
+
+/* V3 Display Architecture: Modern HTML components */
+/* Note: Material Symbols font is loaded via <link> in layout.tsx for better reliability */
+@import "./lia-components.css";
+
+/* Enable dark: variant for .dark class */
+@variant dark (.dark &);
+
+@theme {
+  /* Custom breakpoints - Mobile ends at 880px */
+  --breakpoint-mobile: 880px;
+
+  /* Font family */
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+
+  /* Animations */
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+
+  /* Color Palette - Professional Theme in OKLCH format for Tailwind 4.0 */
+  /* Light mode colors - Soft & comfortable for eyes */
+  --color-background: oklch(95% 0.008 80);  /* Soft warm off-white */
+  --color-foreground: oklch(35% 0.02 250);  /* Darker gray-blue for better contrast */
+
+  --color-card: oklch(97.5% 0.006 80);  /* Warm off-white cards */
+  --color-card-foreground: oklch(35% 0.02 250);  /* Dark gray-blue */
+
+  --color-popover: oklch(97.5% 0.006 80);
+  --color-popover-foreground: oklch(35% 0.02 250);
+
+  /* Primary - Professional slate blue (#5383B8 ≈ hsl(217 33% 52%)) */
+  --color-primary: oklch(55% 0.13 240);
+  --color-primary-foreground: oklch(98% 0.005 80);
+
+  /* Secondary - Soft warm gray */
+  --color-secondary: oklch(93% 0.008 80);
+  --color-secondary-foreground: oklch(35% 0.02 250);
+
+  /* Muted - Soft warm gray */
+  --color-muted: oklch(93% 0.008 80);
+  --color-muted-foreground: oklch(55% 0.015 250);
+
+  /* Accent - Subtle warm gray */
+  --color-accent: oklch(93% 0.008 80);
+  --color-accent-foreground: oklch(35% 0.02 250);
+
+  /* Success - Professional green (#22C55E ≈ hsl(142 71% 45%)) */
+  --color-success: oklch(65% 0.20 150);
+  --color-success-foreground: oklch(98% 0.005 80);
+
+  /* Warning - Professional orange (#F97316 ≈ hsl(38 92% 50%)) */
+  --color-warning: oklch(70% 0.18 50);
+  --color-warning-foreground: oklch(25% 0.02 50);
+
+  /* Destructive - Professional red (#EF4444 ≈ hsl(0 84% 60%)) */
+  --color-destructive: oklch(58% 0.22 27);
+  --color-destructive-foreground: oklch(98% 0.005 80);
+
+  /* Border & Input */
+  --color-border: oklch(88% 0.01 80);
+  --color-input: oklch(88% 0.01 80);
+  --color-ring: oklch(55% 0.13 240);
+}
+
+@layer theme {
+  .dark {
+    /* Dark Mode - Professional Theme (nearly achromatic backgrounds) */
+    --color-background: oklch(18% 0.004 250);
+    --color-foreground: oklch(95% 0.004 250);
+
+    --color-card: oklch(22% 0.004 250);
+    --color-card-foreground: oklch(95% 0.004 250);
+
+    --color-popover: oklch(22% 0.004 250);
+    --color-popover-foreground: oklch(95% 0.004 250);
+
+    /* Primary - Bright professional blue for dark mode */
+    --color-primary: oklch(68% 0.20 250);
+    --color-primary-foreground: oklch(18% 0.004 250);
+
+    /* Secondary - Dark gray */
+    --color-secondary: oklch(28% 0.005 250);
+    --color-secondary-foreground: oklch(95% 0.004 250);
+
+    /* Muted */
+    --color-muted: oklch(28% 0.005 250);
+    --color-muted-foreground: oklch(65% 0.006 250);
+
+    /* Accent */
+    --color-accent: oklch(28% 0.005 250);
+    --color-accent-foreground: oklch(95% 0.004 250);
+
+    /* Success - Professional green for dark mode */
+    --color-success: oklch(70% 0.22 150);
+    --color-success-foreground: oklch(95% 0.004 150);
+
+    /* Warning - Professional orange for dark mode */
+    --color-warning: oklch(73% 0.19 50);
+    --color-warning-foreground: oklch(18% 0.004 50);
+
+    /* Destructive - Professional red for dark mode */
+    --color-destructive: oklch(63% 0.24 27);
+    --color-destructive-foreground: oklch(95% 0.004 27);
+
+    /* Border & Input */
+    --color-border: oklch(32% 0.005 250);
+    --color-input: oklch(32% 0.005 250);
+    --color-ring: oklch(68% 0.20 250);
+  }
+
+  /* ========================================
+     THEME 2: OCEAN - Deep Teal (Sophisticated & Calming)
+     Neutral backgrounds with teal accents (liserets, badges)
+     ======================================== */
+  [data-theme='ocean'] {
+    /* Light mode - Neutral backgrounds (same as default) */
+    --color-background: oklch(95% 0.008 80);
+    --color-foreground: oklch(35% 0.02 250);
+    --color-card: oklch(97.5% 0.006 80);
+    --color-card-foreground: oklch(35% 0.02 250);
+    --color-popover: oklch(97.5% 0.006 80);
+    --color-popover-foreground: oklch(35% 0.02 250);
+
+    /* Primary - Deep teal for accents (liserets, badges) */
+    --color-primary: oklch(58% 0.14 185);
+    --color-primary-foreground: oklch(98% 0.005 185);
+
+    --color-secondary: oklch(93% 0.008 80);
+    --color-secondary-foreground: oklch(35% 0.02 250);
+    --color-muted: oklch(93% 0.008 80);
+    --color-muted-foreground: oklch(55% 0.015 250);
+    --color-accent: oklch(93% 0.008 80);
+    --color-accent-foreground: oklch(35% 0.02 250);
+
+    --color-success: oklch(65% 0.20 150);
+    --color-success-foreground: oklch(98% 0.005 150);
+    --color-warning: oklch(70% 0.18 50);
+    --color-warning-foreground: oklch(25% 0.02 50);
+    --color-destructive: oklch(58% 0.22 27);
+    --color-destructive-foreground: oklch(98% 0.005 27);
+
+    --color-border: oklch(88% 0.01 80);
+    --color-input: oklch(88% 0.01 80);
+    --color-ring: oklch(58% 0.14 185);
+  }
+
+  [data-theme='ocean'].dark {
+    /* Dark mode - Nearly achromatic backgrounds for comfort */
+    --color-background: oklch(18% 0.004 240);
+    --color-foreground: oklch(95% 0.005 240);
+    --color-card: oklch(22% 0.004 240);
+    --color-card-foreground: oklch(95% 0.005 240);
+    --color-popover: oklch(22% 0.004 240);
+    --color-popover-foreground: oklch(95% 0.005 240);
+
+    /* Primary - Bright teal for dark mode */
+    --color-primary: oklch(72% 0.16 185);
+    --color-primary-foreground: oklch(18% 0.004 185);
+
+    --color-secondary: oklch(28% 0.005 240);
+    --color-secondary-foreground: oklch(95% 0.005 240);
+    --color-muted: oklch(28% 0.005 240);
+    --color-muted-foreground: oklch(65% 0.008 240);
+    --color-accent: oklch(28% 0.005 240);
+    --color-accent-foreground: oklch(95% 0.005 240);
+
+    --color-success: oklch(70% 0.22 150);
+    --color-success-foreground: oklch(95% 0.005 150);
+    --color-warning: oklch(73% 0.19 50);
+    --color-warning-foreground: oklch(18% 0.004 50);
+    --color-destructive: oklch(63% 0.24 27);
+    --color-destructive-foreground: oklch(95% 0.005 27);
+
+    --color-border: oklch(32% 0.005 240);
+    --color-input: oklch(32% 0.005 240);
+    --color-ring: oklch(72% 0.16 185);
+  }
+
+  /* ========================================
+     THEME 3: FOREST - Sage Green (Modern & Organic)
+     Neutral backgrounds with sage green accents (liserets, badges)
+     ======================================== */
+  [data-theme='forest'] {
+    /* Light mode - Neutral backgrounds (same as default) */
+    --color-background: oklch(95% 0.008 80);
+    --color-foreground: oklch(35% 0.02 250);
+    --color-card: oklch(97.5% 0.006 80);
+    --color-card-foreground: oklch(35% 0.02 250);
+    --color-popover: oklch(97.5% 0.006 80);
+    --color-popover-foreground: oklch(35% 0.02 250);
+
+    /* Primary - Sage green for accents (liserets, badges) */
+    --color-primary: oklch(52% 0.10 145);
+    --color-primary-foreground: oklch(98% 0.005 145);
+
+    --color-secondary: oklch(93% 0.008 80);
+    --color-secondary-foreground: oklch(35% 0.02 250);
+    --color-muted: oklch(93% 0.008 80);
+    --color-muted-foreground: oklch(55% 0.015 250);
+    --color-accent: oklch(93% 0.008 80);
+    --color-accent-foreground: oklch(35% 0.02 250);
+
+    --color-success: oklch(60% 0.18 145);
+    --color-success-foreground: oklch(98% 0.005 145);
+    --color-warning: oklch(70% 0.18 50);
+    --color-warning-foreground: oklch(25% 0.02 50);
+    --color-destructive: oklch(58% 0.22 27);
+    --color-destructive-foreground: oklch(98% 0.005 27);
+
+    --color-border: oklch(88% 0.01 80);
+    --color-input: oklch(88% 0.01 80);
+    --color-ring: oklch(52% 0.10 145);
+  }
+
+  [data-theme='forest'].dark {
+    /* Dark mode - Nearly achromatic backgrounds for comfort */
+    --color-background: oklch(18% 0.004 240);
+    --color-foreground: oklch(95% 0.004 240);
+    --color-card: oklch(22% 0.004 240);
+    --color-card-foreground: oklch(95% 0.004 240);
+    --color-popover: oklch(22% 0.004 240);
+    --color-popover-foreground: oklch(95% 0.004 240);
+
+    /* Primary - Brighter sage for dark mode */
+    --color-primary: oklch(68% 0.14 145);
+    --color-primary-foreground: oklch(18% 0.004 145);
+
+    --color-secondary: oklch(28% 0.005 240);
+    --color-secondary-foreground: oklch(95% 0.004 240);
+    --color-muted: oklch(28% 0.005 240);
+    --color-muted-foreground: oklch(65% 0.006 240);
+    --color-accent: oklch(28% 0.005 240);
+    --color-accent-foreground: oklch(95% 0.004 240);
+
+    --color-success: oklch(68% 0.18 145);
+    --color-success-foreground: oklch(95% 0.004 145);
+    --color-warning: oklch(73% 0.19 50);
+    --color-warning-foreground: oklch(18% 0.004 50);
+    --color-destructive: oklch(63% 0.24 27);
+    --color-destructive-foreground: oklch(95% 0.004 27);
+
+    --color-border: oklch(32% 0.005 240);
+    --color-input: oklch(32% 0.005 240);
+    --color-ring: oklch(68% 0.14 145);
+  }
+
+  /* ========================================
+     THEME 4: SUNSET - Rose (Elegant & Warm)
+     Neutral backgrounds with rose accents (liserets, badges)
+     ======================================== */
+  [data-theme='sunset'] {
+    /* Light mode - Neutral backgrounds (same as default) */
+    --color-background: oklch(95% 0.008 80);
+    --color-foreground: oklch(35% 0.02 250);
+    --color-card: oklch(97.5% 0.006 80);
+    --color-card-foreground: oklch(35% 0.02 250);
+    --color-popover: oklch(97.5% 0.006 80);
+    --color-popover-foreground: oklch(35% 0.02 250);
+
+    /* Primary - Dusty rose for accents (liserets, badges) */
+    --color-primary: oklch(58% 0.12 10);
+    --color-primary-foreground: oklch(98% 0.005 10);
+
+    --color-secondary: oklch(93% 0.008 80);
+    --color-secondary-foreground: oklch(35% 0.02 250);
+    --color-muted: oklch(93% 0.008 80);
+    --color-muted-foreground: oklch(55% 0.015 250);
+    --color-accent: oklch(93% 0.008 80);
+    --color-accent-foreground: oklch(35% 0.02 250);
+
+    --color-success: oklch(65% 0.20 150);
+    --color-success-foreground: oklch(98% 0.005 150);
+    --color-warning: oklch(70% 0.18 70);
+    --color-warning-foreground: oklch(25% 0.02 70);
+    --color-destructive: oklch(55% 0.22 27);
+    --color-destructive-foreground: oklch(98% 0.005 27);
+
+    --color-border: oklch(88% 0.01 80);
+    --color-input: oklch(88% 0.01 80);
+    --color-ring: oklch(58% 0.12 10);
+  }
+
+  [data-theme='sunset'].dark {
+    /* Dark mode - Pure neutral backgrounds (no warm tint) */
+    --color-background: oklch(18% 0.003 240);
+    --color-foreground: oklch(95% 0.004 240);
+    --color-card: oklch(22% 0.003 240);
+    --color-card-foreground: oklch(95% 0.004 240);
+    --color-popover: oklch(22% 0.003 240);
+    --color-popover-foreground: oklch(95% 0.004 240);
+
+    /* Primary - Bright rose for dark mode */
+    --color-primary: oklch(72% 0.15 10);
+    --color-primary-foreground: oklch(18% 0.003 10);
+
+    --color-secondary: oklch(28% 0.004 240);
+    --color-secondary-foreground: oklch(95% 0.004 240);
+    --color-muted: oklch(28% 0.004 240);
+    --color-muted-foreground: oklch(65% 0.006 240);
+    --color-accent: oklch(28% 0.004 240);
+    --color-accent-foreground: oklch(95% 0.004 240);
+
+    --color-success: oklch(70% 0.22 150);
+    --color-success-foreground: oklch(95% 0.004 150);
+    --color-warning: oklch(73% 0.19 50);
+    --color-warning-foreground: oklch(18% 0.003 50);
+    --color-destructive: oklch(60% 0.24 27);
+    --color-destructive-foreground: oklch(95% 0.004 27);
+
+    --color-border: oklch(32% 0.004 240);
+    --color-input: oklch(32% 0.004 240);
+    --color-ring: oklch(72% 0.15 10);
+  }
+
+  /* ========================================
+     THEME 5: SLATE - Lavender (Refined & Calm)
+     Neutral backgrounds with lavender accents (liserets, badges)
+     ======================================== */
+  [data-theme='slate'] {
+    /* Light mode - Neutral backgrounds (same as default) */
+    --color-background: oklch(95% 0.008 80);
+    --color-foreground: oklch(35% 0.02 250);
+    --color-card: oklch(97.5% 0.006 80);
+    --color-card-foreground: oklch(35% 0.02 250);
+    --color-popover: oklch(97.5% 0.006 80);
+    --color-popover-foreground: oklch(35% 0.02 250);
+
+    /* Primary - Soft lavender for accents (liserets, badges) */
+    --color-primary: oklch(55% 0.12 290);
+    --color-primary-foreground: oklch(98% 0.005 290);
+
+    --color-secondary: oklch(93% 0.008 80);
+    --color-secondary-foreground: oklch(35% 0.02 250);
+    --color-muted: oklch(93% 0.008 80);
+    --color-muted-foreground: oklch(55% 0.015 250);
+    --color-accent: oklch(93% 0.008 80);
+    --color-accent-foreground: oklch(35% 0.02 250);
+
+    --color-success: oklch(65% 0.20 150);
+    --color-success-foreground: oklch(98% 0.005 150);
+    --color-warning: oklch(70% 0.18 50);
+    --color-warning-foreground: oklch(25% 0.02 50);
+    --color-destructive: oklch(58% 0.22 27);
+    --color-destructive-foreground: oklch(98% 0.005 27);
+
+    --color-border: oklch(88% 0.01 80);
+    --color-input: oklch(88% 0.01 80);
+    --color-ring: oklch(55% 0.12 290);
+  }
+
+  [data-theme='slate'].dark {
+    /* Dark mode - Nearly achromatic backgrounds for comfort */
+    --color-background: oklch(18% 0.004 260);
+    --color-foreground: oklch(95% 0.004 260);
+    --color-card: oklch(22% 0.004 260);
+    --color-card-foreground: oklch(95% 0.004 260);
+    --color-popover: oklch(22% 0.004 260);
+    --color-popover-foreground: oklch(95% 0.004 260);
+
+    /* Primary - Bright lavender for dark mode */
+    --color-primary: oklch(72% 0.14 290);
+    --color-primary-foreground: oklch(18% 0.004 290);
+
+    --color-secondary: oklch(28% 0.005 260);
+    --color-secondary-foreground: oklch(95% 0.004 260);
+    --color-muted: oklch(28% 0.005 260);
+    --color-muted-foreground: oklch(65% 0.006 260);
+    --color-accent: oklch(28% 0.005 260);
+    --color-accent-foreground: oklch(95% 0.004 260);
+
+    --color-success: oklch(70% 0.22 150);
+    --color-success-foreground: oklch(95% 0.004 150);
+    --color-warning: oklch(73% 0.19 50);
+    --color-warning-foreground: oklch(18% 0.004 50);
+    --color-destructive: oklch(63% 0.24 27);
+    --color-destructive-foreground: oklch(95% 0.004 27);
+
+    --color-border: oklch(32% 0.005 260);
+    --color-input: oklch(32% 0.005 260);
+    --color-ring: oklch(72% 0.14 290);
+  }
+
+  /* ========================================
+     FONT FAMILY SELECTION
+     Applied via data-font attribute on <html>
+     ======================================== */
+  [data-font='noto-sans'] {
+    --font-sans: var(--font-noto-sans), system-ui, sans-serif;
+  }
+
+  [data-font='plus-jakarta-sans'] {
+    --font-sans: var(--font-plus-jakarta), system-ui, sans-serif;
+  }
+
+  [data-font='ibm-plex-sans'] {
+    --font-sans: var(--font-ibm-plex), system-ui, sans-serif;
+  }
+
+  [data-font='geist'] {
+    --font-sans: var(--font-geist-sans), system-ui, sans-serif;
+  }
+
+  [data-font='source-sans-pro'] {
+    --font-sans: var(--font-source-sans), system-ui, sans-serif;
+  }
+
+  [data-font='merriweather'] {
+    --font-sans: var(--font-merriweather), Georgia, serif;
+  }
+
+  [data-font='libre-baskerville'] {
+    --font-sans: var(--font-libre-baskerville), Georgia, serif;
+  }
+
+  [data-font='fira-code'] {
+    --font-sans: var(--font-fira-code), monospace;
+  }
+  /* system = default, no data-font attribute, uses --font-inter */
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html,
+  body {
+    overflow-x: hidden;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Accordion animations */
+  @keyframes accordion-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-accordion-content-height);
+    }
+  }
+
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height);
+    }
+    to {
+      height: 0;
+    }
+  }
+
+  /* Elevation System - Inspired by Material Design & Josh Comeau's Shadow Palette */
+  .shadow-xs {
+    box-shadow:
+      0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  }
+
+  .shadow-sm {
+    box-shadow:
+      0 1px 3px 0 rgba(0, 0, 0, 0.08),
+      0 1px 2px -1px rgba(0, 0, 0, 0.08);
+  }
+
+  .shadow-md {
+    box-shadow:
+      0 4px 6px -1px rgba(0, 0, 0, 0.08),
+      0 2px 4px -2px rgba(0, 0, 0, 0.08);
+  }
+
+  .shadow-lg {
+    box-shadow:
+      0 10px 15px -3px rgba(0, 0, 0, 0.08),
+      0 4px 6px -4px rgba(0, 0, 0, 0.08);
+  }
+
+  .shadow-xl {
+    box-shadow:
+      0 20px 25px -5px rgba(0, 0, 0, 0.08),
+      0 8px 10px -6px rgba(0, 0, 0, 0.08);
+  }
+
+  /* Dark mode elevation adjustments */
+  .dark .shadow-xs {
+    box-shadow:
+      0 1px 2px 0 rgba(0, 0, 0, 0.25);
+  }
+
+  .dark .shadow-sm {
+    box-shadow:
+      0 1px 3px 0 rgba(0, 0, 0, 0.3),
+      0 1px 2px -1px rgba(0, 0, 0, 0.3);
+  }
+
+  .dark .shadow-md {
+    box-shadow:
+      0 4px 6px -1px rgba(0, 0, 0, 0.35),
+      0 2px 4px -2px rgba(0, 0, 0, 0.35);
+  }
+
+  .dark .shadow-lg {
+    box-shadow:
+      0 10px 15px -3px rgba(0, 0, 0, 0.4),
+      0 4px 6px -4px rgba(0, 0, 0, 0.4);
+  }
+
+  .dark .shadow-xl {
+    box-shadow:
+      0 20px 25px -5px rgba(0, 0, 0, 0.45),
+      0 8px 10px -6px rgba(0, 0, 0, 0.45);
+  }
+
+  /* Gradient utilities for subtle backgrounds */
+  .bg-gradient-primary {
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(217 91% 70%) 100%);
+  }
+
+  .bg-gradient-accent {
+    background: linear-gradient(135deg, hsl(var(--accent)) 0%, hsl(45 90% 92%) 100%);
+  }
+
+  .bg-gradient-card {
+    background: linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--muted)) 100%);
+  }
+
+  /* Radial gradient utility for profile photos glow effect */
+  .bg-gradient-radial {
+    background-image: radial-gradient(circle, var(--tw-gradient-stops));
+  }
+
+  /* Contact Photos Gallery - Horizontal Layout */
+  .contact-photos-gallery {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 1rem;
+    margin: 1rem 0;
+    flex-wrap: wrap;
+    min-height: 127px;
+    /* Anti-flicker: isolate this container from parent repaints */
+    isolation: isolate;
+  }
+
+  .contact-photo {
+    width: 127px;
+    height: 127px;
+    min-width: 127px;
+    min-height: 127px;
+    object-fit: cover;
+    border-radius: 0.75rem;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+    /* Subtle vignette - elliptical to follow rectangular edges, soft fade */
+    -webkit-mask-image: radial-gradient(ellipse 90% 85% at center, black 60%, rgba(0,0,0,0.5) 80%, transparent 100%);
+    mask-image: radial-gradient(ellipse 90% 85% at center, black 60%, rgba(0,0,0,0.5) 80%, transparent 100%);
+    /* Anti-flicker: create compositing layer + prevent repaints */
+    transform: translate3d(0, 0, 0);
+    backface-visibility: hidden;
+  }
+
+  .contact-photo:hover {
+    transform: scale(1.05);
+    /* Reduce vignette on hover for better visibility */
+    -webkit-mask-image: radial-gradient(ellipse 95% 90% at center, black 70%, rgba(0,0,0,0.6) 85%, transparent 100%);
+    mask-image: radial-gradient(ellipse 95% 90% at center, black 70%, rgba(0,0,0,0.6) 85%, transparent 100%);
+  }
+
+  /* Contact Photo Placeholder - When no photo available */
+  .contact-photo-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 127px;
+    height: 127px;
+    border-radius: 0.75rem;
+    background: linear-gradient(135deg, hsl(var(--muted)) 0%, hsl(var(--muted-foreground) / 0.2) 100%);
+    font-size: 4rem;
+    color: hsl(var(--muted-foreground));
+    /* Subtle vignette - elliptical to follow rectangular edges */
+    -webkit-mask-image: radial-gradient(ellipse 90% 85% at center, black 60%, rgba(0,0,0,0.5) 80%, transparent 100%);
+    mask-image: radial-gradient(ellipse 90% 85% at center, black 60%, rgba(0,0,0,0.5) 80%, transparent 100%);
+  }
+
+  .dark .contact-photo-placeholder {
+    background: linear-gradient(135deg, hsl(var(--muted)) 0%, hsl(var(--muted-foreground) / 0.3) 100%);
+  }
+
+  /* Place Photo - For Google Places images (left-aligned like contact photos) */
+  .place-photo {
+    display: block;
+    width: 200px;
+    height: 200px;
+    min-width: 200px;
+    min-height: 200px;
+    object-fit: cover;
+    border-radius: 0.75rem;
+    margin: 0.75rem auto 0.75rem 0; /* Force left alignment */
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    /* Anti-flicker: create compositing layer */
+    transform: translate3d(0, 0, 0);
+    backface-visibility: hidden;
+  }
+
+  .place-photo:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  .dark .place-photo {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  }
+
+  .dark .place-photo:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  }
+
+  /* ============================================
+     Dynamic Message Bubbles
+     2 modes: Mobile (<880px) / Tablet & Desktop (≥880px)
+     ============================================ */
+
+  /* Mobile: no width limit for bubbles, but prevent overflow */
+  .message-bubble {
+    max-width: 100%;
+    overflow: hidden;
+    transition: max-width 0.2s ease, width 0.2s ease;
+  }
+
+  .message-bubble-assistant {
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  /* Tablet & Desktop (≥880px): bubbles stop before avatar width (3rem = avatar + gap) */
+  @media (min-width: 880px) {
+    .message-bubble { max-width: calc(100% - 3rem); }
+    .message-bubble-assistant { max-width: calc(100% - 3rem); }
+  }
+
+  /* Tableau → bulle s'étend à 95% */
+  .message-bubble:has(table) {
+    flex: 0 0 95%;
+    max-width: 95%;
+  }
+
+  .message-bubble:has(pre) {
+    max-width: min(95%, 56rem);
+  }
+
+  /* ============================================
+     Tables Responsive
+     ============================================ */
+
+  .table-wrapper {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Tighter paragraph spacing inside list items — groups related content visually */
+  .markdown-content li > p {
+    margin-bottom: 0.25rem; /* ~mb-1, tighter than default mb-3 */
+  }
+  .markdown-content li > p:last-child {
+    margin-bottom: 0;
+  }
+
+  .markdown-content table {
+    font-size: 0.625rem; /* 10px */
+    width: auto; /* Colonnes ajustées au contenu */
+    border-collapse: collapse;
+  }
+
+  .markdown-content th,
+  .markdown-content td {
+    white-space: nowrap; /* Évite retours à la ligne, colonnes compactes */
+  }
+
+  .markdown-content th {
+    font-size: 0.5625rem; /* 9px */
+  }
+
+  /* Colonnes avec contenu long (emails, adresses) peuvent wrapper */
+  .markdown-content td:nth-child(n+4) {
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  /* ============================================
+     Chat Scrollbar - Thin & Modern
+     ============================================ */
+  .chat-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
+  }
+
+  .chat-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .chat-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .chat-scrollbar::-webkit-scrollbar-thumb {
+    background-color: var(--color-border);
+    border-radius: 2px;
+  }
+
+  .chat-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-muted-foreground);
+  }
+
+  .dark .chat-scrollbar::-webkit-scrollbar-thumb {
+    background-color: var(--color-border);
+  }
+
+  .dark .chat-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-muted-foreground);
+  }
+
+  /* ============================================
+     Message Glow Effect on Hover
+     ============================================ */
+  .message-bubble {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .message-bubble:hover {
+    box-shadow:
+      0 4px 12px -2px rgba(0, 0, 0, 0.1),
+      0 0 20px -5px var(--color-primary);
+  }
+
+  .message-bubble-assistant:hover {
+    box-shadow:
+      0 4px 12px -2px rgba(0, 0, 0, 0.1),
+      0 0 25px -5px var(--color-primary);
+  }
+
+  .dark .message-bubble:hover {
+    box-shadow:
+      0 4px 12px -2px rgba(0, 0, 0, 0.3),
+      0 0 25px -5px var(--color-primary);
+  }
+
+  /* ============================================
+     Enhanced Message Entry Animation (Spring)
+     ============================================ */
+  @keyframes message-enter {
+    0% {
+      opacity: 0;
+      transform: translateY(20px) scale(0.95);
+    }
+    50% {
+      transform: translateY(-3px) scale(1.01);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .animate-message-enter {
+    animation: message-enter 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+
+  /* ============================================
+     Header Gradient Animation
+     ============================================ */
+  @keyframes gradient-shift {
+    0%, 100% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+  }
+
+  .animate-gradient {
+    background-size: 200% 200%;
+    animation: gradient-shift 8s ease infinite;
+  }
+
+  /* Subtle shimmer effect for header - very subtle to not interfere with buttons */
+  @keyframes shimmer {
+    0% {
+      opacity: 0.3;
+    }
+    50% {
+      opacity: 0.5;
+    }
+    100% {
+      opacity: 0.3;
+    }
+  }
+
+  .header-shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      var(--color-primary) 50%,
+      transparent 100%
+    );
+    opacity: 0.015;
+    animation: shimmer 6s ease-in-out infinite;
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  /* ============================================
+     Micro-interactions
+     ============================================ */
+
+  /* Button scale effect */
+  .btn-scale {
+    transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .btn-scale:active {
+    transform: scale(0.97);
+  }
+
+  /* Ripple effect base */
+  .ripple-container {
+    position: relative;
+    overflow: hidden;
+  }
+
+  @keyframes ripple {
+    0% {
+      transform: scale(0);
+      opacity: 0.5;
+    }
+    100% {
+      transform: scale(4);
+      opacity: 0;
+    }
+  }
+
+  .ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.3;
+    animation: ripple 0.6s ease-out;
+    pointer-events: none;
+  }
+
+  /* Interactive element hover lift */
+  .hover-lift {
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s ease;
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.15);
+  }
+
+  /* Focus ring animation */
+  @keyframes focus-ring-pulse {
+    0%, 100% {
+      box-shadow: 0 0 0 2px var(--color-primary);
+    }
+    50% {
+      box-shadow: 0 0 0 4px var(--color-primary);
+    }
+  }
+
+  .focus-ring-animated:focus-visible {
+    outline: none;
+    animation: focus-ring-pulse 1.5s ease-in-out infinite;
+  }
+
+  /* ============================================
+     Landing Page - Animations & Utilities
+     ============================================ */
+
+  /* Constellation node pulse */
+  @keyframes constellation-pulse {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.6; }
+  }
+
+  /* Fade in from below */
+  @keyframes fade-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(24px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Scroll hint chevron bounce */
+  @keyframes bounce-scroll {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(8px); }
+  }
+
+  /* Chat bubble appear */
+  @keyframes chat-bubble-appear {
+    from {
+      opacity: 0;
+      transform: translateY(12px) scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  /* Counter count up (used with JS) */
+  @keyframes counter-up {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .animate-fade-in-up {
+    animation: fade-in-up 0.6s ease-out both;
+  }
+
+  .animate-bounce-scroll {
+    animation: bounce-scroll 2s ease-in-out infinite;
+  }
+
+  .animate-constellation-pulse {
+    animation: constellation-pulse 4s ease-in-out infinite;
+  }
+
+  .animate-chat-bubble {
+    animation: chat-bubble-appear 0.4s ease-out both;
+  }
+
+  /* Staggered delays for cascade effect */
+  .delay-100 { animation-delay: 100ms; }
+  .delay-200 { animation-delay: 200ms; }
+  .delay-300 { animation-delay: 300ms; }
+  .delay-400 { animation-delay: 400ms; }
+  .delay-500 { animation-delay: 500ms; }
+  .delay-600 { animation-delay: 600ms; }
+  .delay-700 { animation-delay: 700ms; }
+  .delay-800 { animation-delay: 800ms; }
+  .delay-1000 { animation-delay: 1000ms; }
+  .delay-1200 { animation-delay: 1200ms; }
+  .delay-1500 { animation-delay: 1500ms; }
+  .delay-2000 { animation-delay: 2000ms; }
+  .delay-2500 { animation-delay: 2500ms; }
+  .delay-3000 { animation-delay: 3000ms; }
+
+  /* Landing glassmorphism */
+  .glass {
+    background: color-mix(in oklch, var(--color-card) 80%, transparent);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid color-mix(in oklch, var(--color-border) 50%, transparent);
+  }
+
+  /* Landing gradient text (brand blue→purple) */
+  .text-gradient-brand {
+    background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* Landing hover glow on cards */
+  .hover-glow {
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+  }
+
+  .hover-glow:hover {
+    box-shadow: 0 0 30px -10px var(--color-primary);
+  }
+
+  /* Landing section scroll offset for sticky header */
+  .landing-section {
+    scroll-margin-top: 5rem;
+  }
+
+  /* Smooth scroll for landing page */
+  html:has(.landing-page) {
+    scroll-behavior: smooth;
+  }
+
+  /* Reduced motion: disable all landing animations */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-fade-in-up,
+    .animate-bounce-scroll,
+    .animate-constellation-pulse {
+      animation: none !important;
+    }
+
+    /* Chat bubble: remove animation but show content */
+    .animate-chat-bubble {
+      animation: none !important;
+      opacity: 1 !important;
+    }
+
+    .hover-glow:hover {
+      box-shadow: none;
+    }
+
+    .hover-lift:hover {
+      transform: none;
+    }
+
+    html:has(.landing-page) {
+      scroll-behavior: auto;
+    }
+  }
+
+}

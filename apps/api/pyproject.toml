@@ -1,0 +1,228 @@
+[project]
+name = "lia-api"
+version = "1.0.0"
+description = "LIA Assistant - AI conversational assistant with multi-agent orchestration"
+license = "AGPL-3.0-or-later"
+authors = [
+    {name = "LIA Contributors"},
+]
+requires-python = ">=3.12"
+# NOTE: Dependencies are managed in requirements.txt (single source of truth)
+# This pyproject.toml file is only used for dev tools (black, ruff, mypy, pytest)
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/jgouviergmail/LIA-Assistant"
+Repository = "https://github.com/jgouviergmail/LIA-Assistant"
+
+[project.optional-dependencies]
+# NOTE: These versions must be synchronized with requirements-dev.txt
+dev = [
+    # Linting & Formatting
+    "black==24.10.0",
+    "ruff==0.8.4",
+    "mypy==1.13.0",
+    # Testing
+    "pytest==8.3.3",
+    "pytest-asyncio==0.24.0",
+    "pytest-cov==6.0.0",
+    "pytest-mock==3.14.0",
+    "httpx==0.27.2",
+    "testcontainers==4.8.2",
+    # Debugging
+    "debugpy==1.8.9",
+    # Security Scanning
+    "safety==3.2.11",
+    "bandit[toml]==1.8.0",
+    # Type Stubs
+    "types-passlib==1.7.7.20240819",
+    "types-python-jose==3.3.4.20240106",
+]
+
+[tool.black]
+line-length = 100
+target-version = ['py312']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+  | alembic/versions
+)/
+'''
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.format]
+# Make Ruff format compatible with Black
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+]
+ignore = [
+    "E501",  # line too long (handled by black)
+    "B008",  # do not perform function calls in argument defaults
+    "C901",  # too complex
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"alembic/*" = ["F401", "E501", "I001"]  # Alembic migrations - ignore import order
+"alembic/versions/*" = ["F401", "E501", "I001"]
+"src/domains/*/models.py" = ["F821"]  # SQLAlchemy forward references
+"tests/**/*.py" = ["B017"]  # pytest.raises(Exception) is acceptable in tests
+"scripts/**/*.py" = ["E402", "B007", "F401"]  # Scripts may have late imports and unused vars
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = false
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+follow_imports = "normal"
+strict_optional = true
+
+[[tool.mypy.overrides]]
+module = [
+    "passlib.*",
+    "slowapi.*",
+    "prometheus_client.*",
+    "pgvector.*",
+    "langchain.agents.middleware.*",
+    "anthropic.*",
+    "langfuse.*",
+    "langchain_deepseek.*",
+    "apscheduler.*",
+    "scipy.*",
+    "jinja2.*",
+    "torch.*",
+    "transformers.*",
+    "sentence_transformers.*",
+    "pytz.*",
+    "edge_tts.*",
+    "networkx.*",
+    "firebase_admin.*",
+    "rank_bm25.*",
+    "readability.*",
+    "markdownify.*",
+    "telegram.*",
+    "pydub.*",
+    "geoip2.*",
+    "caldav.*",
+    "imap_tools.*",
+    "vobject.*",
+    "lxml.*",
+    "mcp.*",
+    "sherpa_onnx.*",
+    "yaml.*",
+]
+ignore_missing_imports = true
+follow_imports = "skip"
+
+[[tool.mypy.overrides]]
+module = ["src.domains.*.models"]
+disable_error_code = ["name-defined"]
+
+[[tool.mypy.overrides]]
+module = [
+    "src.domains.agents.nodes.*",
+    "src.domains.agents.graph",
+    "src.domains.agents.orchestration.*",
+]
+# LangGraph TypedDict access patterns trigger false positives
+# Plan executor uses dynamic typing for step execution
+# call-overload/type-var from LangGraph API usage
+disable_error_code = ["literal-required", "index", "arg-type", "operator", "attr-defined", "no-untyped-def", "typeddict-item", "typeddict-unknown-key", "no-any-return", "var-annotated", "misc", "union-attr", "dict-item", "return-value", "call-overload", "type-var", "truthy-function", "assignment"]
+
+[[tool.mypy.overrides]]
+module = [
+    "src.domains.agents.context.*",
+    "src.domains.agents.utils.*",
+    "src.domains.agents.middleware.*",
+    "src.domains.agents.tools.*",
+    "src.domains.skills.tools",
+    "src.domains.agents.nodes.decorators",
+    "src.domains.agents.nodes.planner_node",
+    "src.domains.agents.nodes.response_node",
+    "src.domains.agents.nodes.draft_critique_node",
+    "src.domains.agents.api.service",
+    "src.domains.agents.graphs.base_agent_builder",
+    "src.domains.agents.services.hitl_classifier",
+    "src.domains.agents.services.hitl.*",
+    "src.domains.agents.services.draft_executor",
+    "src.domains.agents.services.streaming.*",
+    "src.domains.agents.services.orchestration.*",
+    "src.domains.agents.registry.*",
+    "src.domains.conversations.service",
+    "src.domains.conversations.repository",
+    "src.domains.llm.pricing_service",
+    "src.domains.personalities.*",
+    "src.domains.connectors.preferences.*",
+    "src.domains.connectors.clients.*",
+    "src.core.decorators",
+    "src.core.service",
+    "src.core.security.*",
+    "src.infrastructure.cache.redis",
+    "src.infrastructure.llm.*",
+    "src.infrastructure.rate_limiting.*",
+]
+# Decorators and utilities use Any for flexibility (acceptable in framework code)
+# List/Sequence variance issues are false positives (SystemMessage IS-A BaseMessage)
+# Context system uses dynamic typing for flexible domain resolution
+# LangChain v1.0 API changes may cause operator/override issues with middleware/tools
+# redis-py async methods return Awaitable[T] | T which causes false positive misc errors
+# LLM infrastructure and HITL services use dynamic provider/callback patterns
+disable_error_code = ["no-any-return", "no-untyped-def", "arg-type", "misc", "call-arg", "assignment", "dict-item", "return-value", "var-annotated", "index", "operator", "override", "union-attr", "unused-ignore", "attr-defined"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-ra -q --strict-markers --cov=src --cov-report=term-missing --cov-report=html --cov-fail-under=75"
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+pythonpath = ["."]
+markers = [
+    "e2e: End-to-end integration tests (deselect with '-m \"not e2e\"')",
+    "integration: Integration tests requiring external services (Redis, DB)",
+    "multiprocess: Multi-process tests for horizontal scaling simulation",
+    "benchmark: Performance benchmark tests",
+    "slow: Slow tests excluded from pre-commit hooks",
+]
+# Profiling configuration
+log_cli = true
+log_cli_level = "INFO"
+log_cli_format = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+log_cli_date_format = "%Y-%m-%d %H:%M:%S"
+log_file = "tests/profiling.log"
+log_file_level = "INFO"
+log_file_format = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"

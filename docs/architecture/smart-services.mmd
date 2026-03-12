@@ -1,0 +1,76 @@
+graph TB
+    subgraph Nodes["LangGraph Nodes"]
+        Router[router_node_v3] --> Planner[planner_node_v3]
+        Planner --> Validator[semantic_validator_node]
+        Validator --> Orchestrator[task_orchestrator_node]
+        Orchestrator --> Response["response_node<br/>Intelligent Filtering"]
+    end
+
+    subgraph SmartLayer["Smart Services"]
+        SemanticPivot["SemanticPivotService<br/>Query → English"]
+        QueryAnalyzer["QueryAnalyzerService<br/>Domain Detection"]
+        SmartPlannerSvc["SmartPlannerService<br/>ExecutionPlan DSL"]
+        SmartCatalogueSvc["SmartCatalogueService<br/>96% Token Reduction"]
+        PatternLearnerSvc["PlanPatternLearner<br/>Bayesian Learning"]
+        SkillBypassSvc["SkillBypassStrategy<br/>Deterministic Routing"]
+    end
+
+    subgraph Core["Core Components"]
+        LLMFactory["LLM Factory<br/>37 Types · 6 Providers"]
+        LLMConfigCache["LLMConfigOverrideCache<br/>DB Override + Fernet Keys"]
+        RedisCache["Redis Cache<br/>Beta Distribution"]
+        ToolRegistry["Tool Registry<br/>ToolManifest"]
+        SkillsCache["SkillsCache<br/>SKILL.md In-Memory"]
+        ProviderResolver["Provider Resolver<br/>Google / Apple / Microsoft"]
+    end
+
+    subgraph Proactive["Proactive Intelligence"]
+        Heartbeat["HeartbeatProactiveTask<br/>LLM-driven Decisions"]
+        ContextAgg["ContextAggregator<br/>8 Sources · asyncio.gather"]
+        Interests["InterestsProactiveTask<br/>Topic Monitoring"]
+        Eligibility["EligibilityChecker<br/>Time Windows + Quotas"]
+        Dispatcher["NotificationDispatcher<br/>SSE + FCM + Telegram"]
+    end
+
+    %% Nodes → Smart Services
+    Router --> SemanticPivot
+    SemanticPivot --> QueryAnalyzer
+    QueryAnalyzer --> LLMFactory
+
+    Router --> SkillBypassSvc
+    SkillBypassSvc --> SkillsCache
+    SkillBypassSvc -->|"Match → Skip Planner"| Orchestrator
+
+    Planner --> SmartPlannerSvc
+    SmartPlannerSvc --> PatternLearnerSvc
+    PatternLearnerSvc --> RedisCache
+    SmartPlannerSvc --> LLMFactory
+
+    Orchestrator --> SmartCatalogueSvc
+    SmartCatalogueSvc --> ToolRegistry
+    Orchestrator --> ProviderResolver
+
+    Response -->|"Knowledge Enrichment"| LLMFactory
+
+    %% LLM Factory → Config
+    LLMFactory --> LLMConfigCache
+
+    %% Proactive
+    Heartbeat --> ContextAgg
+    ContextAgg --> LLMFactory
+    Heartbeat --> Eligibility
+    Interests --> Eligibility
+    Eligibility --> Dispatcher
+
+    style SemanticPivot fill:#e1f5ff
+    style QueryAnalyzer fill:#e1f5ff
+    style SmartPlannerSvc fill:#fff4e1
+    style SmartCatalogueSvc fill:#e1ffe1
+    style PatternLearnerSvc fill:#fff9e1
+    style SkillBypassSvc fill:#fff9e1
+    style RedisCache fill:#ffe1e1
+    style LLMFactory fill:#f0e1ff
+    style LLMConfigCache fill:#f0e1ff
+    style Heartbeat fill:#ffe1f5
+    style ContextAgg fill:#ffe1f5
+    style ProviderResolver fill:#e1f5ff

@@ -1,0 +1,10 @@
+# Never commit SMTP credentials
+.env
+
+# Alertmanager runtime data (stored in Docker volume)
+data/
+*.db
+
+# Backup files
+*.bak
+*.backup

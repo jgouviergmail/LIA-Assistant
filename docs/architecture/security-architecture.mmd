@@ -1,0 +1,102 @@
+graph TB
+    subgraph Auth["Authentication — Session-based BFF"]
+        Login["User Login<br/>Email/Password"] --> SessionCreate["Session Creation<br/>HTTP-only Cookie"]
+        SessionCreate --> RedisSession["Redis DB1<br/>Session Store"]
+        RedisSession --> SessionRotation["Session Rotation"]
+        SessionRotation --> OldSession["Old Session Invalidated"]
+    end
+
+    subgraph OAuthProviders["OAuth Providers"]
+        GoogleOAuth["Google OAuth2<br/>Gmail, Calendar, Drive, Tasks"]
+        MicrosoftOAuth["Microsoft MSAL<br/>Outlook, Calendar, Contacts, Tasks"]
+        AppleAuth["Apple iCloud<br/>App-specific Password"]
+    end
+
+    subgraph AuthZ["Authorization"]
+        Request["API Request"] --> CookieExtract["Extract Session Cookie"]
+        CookieExtract --> SessionValid{Session Valid?}
+        SessionValid -->|Yes| PermCheck["Permission Check"]
+        SessionValid -->|No| Unauth["401 Unauthorized"]
+        PermCheck --> RateLimit["Rate Limiting<br/>SlowAPI + Per-provider"]
+        RateLimit --> Authorized["Authorized"]
+    end
+
+    subgraph WSAuth["WebSocket Auth"]
+        WSConnect["WebSocket STT"] --> TicketAuth["Ticket-based<br/>Session → 60s Ticket"]
+        TicketAuth --> WSValid{Valid?}
+        WSValid -->|Yes| WSAuth2["WS Authorized"]
+        WSValid -->|No| WSReject["WS Rejected"]
+    end
+
+    subgraph TokenSec["OAuth Token Security"]
+        OAuthTokens["OAuth Tokens"] --> FernetEnc["Fernet Encryption<br/>At Rest in DB"]
+        FernetEnc --> DistLock["Redis Distributed Lock<br/>Token Refresh"]
+        DistLock --> HealthCheck["OAuth Health Check<br/>Scheduler Job"]
+        HealthCheck --> Status{OK?}
+        Status -->|ERROR| Notify["SSE + FCM + Telegram"]
+        Status -->|OK| Continue["Continue"]
+    end
+
+    subgraph Resilience["Resilience"]
+        CircuitBreaker["Circuit Breaker<br/>3 fail → open · 10s timeout"]
+        CircuitBreaker --> Retry["Retry with Backoff"]
+    end
+
+    subgraph Secrets["Secrets Management"]
+        EnvFiles[".env Files"] --> SOPSAge["SOPS + Age Encryption"]
+        SOPSAge --> RuntimeDecrypt["Decrypt at Boot"]
+        RuntimeDecrypt --> LLMKeys["LLM API Keys<br/>DB (Fernet) or .env"]
+        RuntimeDecrypt --> OAuthCreds["OAuth Credentials"]
+        RuntimeDecrypt --> Firebase["Firebase SA"]
+        RuntimeDecrypt --> SMTP["SMTP Credentials"]
+    end
+
+    subgraph DockerSec["Docker Security"]
+        DockerBuild["Multi-stage Build"] --> NonRoot["Non-root appuser:1000"]
+        DockerBuild --> Patches["Security Patches<br/>Floating Tags"]
+        DockerBuild --> Ignore[".dockerignore<br/>*.pem, *.key, .env*"]
+    end
+
+    subgraph DepSec["Dependency Security"]
+        Reqs["requirements.txt"] --> PipAudit["pip-audit"]
+        PipAudit --> CVE{CVEs?}
+        CVE -->|Yes| Fix["Update or Exclude"]
+        CVE -->|No| Build["Build Image"]
+        Fix --> Reqs
+        Build --> Trivy["Trivy Scan<br/>HIGH + CRITICAL"]
+        Trivy --> SBOM["CycloneDX SBOM<br/>→ GitHub Release"]
+    end
+
+    subgraph ProdSec["Production"]
+        NginxProxy["Nginx Reverse Proxy"] --> SSL["SSL/TLS"]
+        SSL --> HTTPS["HTTPS Only"]
+        HTTPS --> CSP["CSP + COEP<br/>credentialless"]
+    end
+
+    subgraph PreCommit["Pre-commit Hooks"]
+        Hooks["Git Hooks"] --> SecretDetect["Secret Detection"]
+        Hooks --> BakDetect[".bak Detection"]
+        Hooks --> AsyncCheck["LangGraph Store<br/>Async Enforcement"]
+    end
+
+    %% Cross-links
+    Login --> GoogleOAuth
+    Login --> MicrosoftOAuth
+    Login --> AppleAuth
+    GoogleOAuth --> OAuthTokens
+    MicrosoftOAuth --> OAuthTokens
+    Authorized --> CSP
+    Authorized --> CircuitBreaker
+
+    style SessionCreate fill:#e1f5ff
+    style FernetEnc fill:#e1f5ff
+    style SOPSAge fill:#e1ffe1
+    style HealthCheck fill:#ffe1e1
+    style CircuitBreaker fill:#ffe1e1
+    style DistLock fill:#fff4e1
+    style Trivy fill:#f0e1ff
+    style SSL fill:#fff9e1
+    style CVE fill:#ffcccc
+    style Fix fill:#ccffcc
+    style SecretDetect fill:#ffcccc
+    style NonRoot fill:#e1ffe1

@@ -1,0 +1,7 @@
+# GOOGLE DRIVE - Training queries
+# Pattern learner training for drive domain
+
+recherche mes fichiers
+recherche mes dossiers
+Montre mes fichiers PDF
+recherche mes fichiers récents

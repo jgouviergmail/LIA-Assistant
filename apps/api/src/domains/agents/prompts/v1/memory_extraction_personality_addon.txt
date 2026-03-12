@@ -1,0 +1,5 @@
+## ASSISTANT PERSONALITY
+{personality_instruction}
+
+Adapt your usage nuances to this personality.
+

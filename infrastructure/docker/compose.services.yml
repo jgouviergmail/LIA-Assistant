@@ -1,0 +1,55 @@
+# =============================================================================
+# SERVICES DE BASE PARTAGES - PostgreSQL & Redis
+# =============================================================================
+#
+# Ce fichier definit les services de base utilises par :
+#   - docker-compose.dev.yml (environnement de dev complet)
+#   - .devcontainer/docker-compose.sandbox.yml (sandbox Claude)
+#
+# IMPORTANT: Toute modification ici affecte les DEUX environnements.
+# C'est volontaire pour garantir l'alignement des versions.
+#
+# Usage dans un compose :
+#   include:
+#     - path: infrastructure/docker/compose.services.yml
+#       project_directory: .
+#
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL avec pgvector
+  # ---------------------------------------------------------------------------
+  # NOTE: Le volume postgres-init.sql doit etre defini dans chaque compose
+  # car le chemin relatif differe selon l'emplacement du fichier appelant.
+  # ---------------------------------------------------------------------------
+  postgres-base:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    command: >
+      postgres
+      -c max_connections=200
+      -c shared_buffers=256MB
+      -c effective_cache_size=512MB
+      -c work_mem=16MB
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # Redis
+  # ---------------------------------------------------------------------------
+  redis-base:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5

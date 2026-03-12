@@ -1,0 +1,505 @@
+{
+  "title": "12 - Channels / Telegram",
+  "uid": "12-channels",
+  "description": "Monitoring des channels de messagerie externe (Telegram). Requiert CHANNELS_ENABLED=true.",
+  "tags": ["lia", "channels", "telegram"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [
+    {
+      "title": "LIA",
+      "type": "dashboards",
+      "tags": ["lia"],
+      "targetBlank": false
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {},
+        "hide": 0
+      },
+      {
+        "name": "channel_type",
+        "type": "query",
+        "datasource": "$datasource",
+        "query": "label_values(channel_messages_received_total, channel_type)",
+        "multi": true,
+        "includeAll": true,
+        "refresh": 1,
+        "current": {},
+        "hide": 0
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "row",
+      "id": 100,
+      "title": "Message Flow",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "panels": []
+    },
+    {
+      "id": 1,
+      "title": "Messages Received",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 1 },
+      "targets": [
+        {
+          "expr": "sum by (message_type) (rate(channel_messages_received_total{channel_type=~\"$channel_type\"}[$__rate_interval]))",
+          "legendFormat": "{{message_type}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "lineWidth": 1
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Messages Sent",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 1 },
+      "targets": [
+        {
+          "expr": "sum by (message_type) (rate(channel_messages_sent_total{channel_type=~\"$channel_type\"}[$__rate_interval]))",
+          "legendFormat": "{{message_type}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "lineWidth": 1
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Messages Rejected",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 1 },
+      "targets": [
+        {
+          "expr": "sum by (reason) (rate(channel_messages_rejected_total{channel_type=~\"$channel_type\"}[$__rate_interval]))",
+          "legendFormat": "{{reason}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "lineWidth": 1
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Processing Duration P95",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 9 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(channel_message_processing_duration_seconds_bucket{channel_type=~\"$channel_type\"}[$__rate_interval])))",
+          "legendFormat": "Processing P95",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "lineWidth": 1
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Send Errors",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 9 },
+      "targets": [
+        {
+          "expr": "sum by (error_type) (rate(channel_send_errors_total{channel_type=~\"$channel_type\"}[$__rate_interval]))",
+          "legendFormat": "{{error_type}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "lineWidth": 1
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "type": "row",
+      "id": 101,
+      "title": "Bindings & Security",
+      "collapsed": true,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 17 },
+      "panels": [
+        {
+          "id": 6,
+          "title": "Active Bindings",
+          "type": "stat",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 18 },
+          "targets": [
+            {
+              "expr": "channel_active_bindings{channel_type=~\"$channel_type\"}",
+              "legendFormat": " ",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "value": null, "color": "green" }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "graphMode": "none",
+            "colorMode": "value",
+            "textMode": "auto",
+            "justifyMode": "auto",
+            "reduceOptions": {
+              "calcs": ["lastNotNull"],
+              "fields": "",
+              "values": false
+            }
+          }
+        },
+        {
+          "id": 7,
+          "title": "OTP Generated",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 18 },
+          "targets": [
+            {
+              "expr": "rate(channel_otp_generated_total{channel_type=~\"$channel_type\"}[$__rate_interval])",
+              "legendFormat": "OTP Rate",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 8,
+          "title": "OTP Verified",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 18 },
+          "targets": [
+            {
+              "expr": "sum by (status) (rate(channel_otp_verified_total{channel_type=~\"$channel_type\"}[$__rate_interval]))",
+              "legendFormat": "{{status}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "id": 102,
+      "title": "Channel Features",
+      "collapsed": true,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 26 },
+      "panels": [
+        {
+          "id": 9,
+          "title": "HITL Decisions via Channel",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 27 },
+          "targets": [
+            {
+              "expr": "sum by (decision) (rate(channel_hitl_decisions_total{channel_type=~\"$channel_type\"}[$__rate_interval]))",
+              "legendFormat": "{{decision}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 10,
+          "title": "Voice Transcriptions",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 27 },
+          "targets": [
+            {
+              "expr": "sum by (status) (rate(channel_voice_transcriptions_total{channel_type=~\"$channel_type\"}[$__rate_interval]))",
+              "legendFormat": "{{status}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 11,
+          "title": "Voice Message Duration",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 27 },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(channel_voice_duration_seconds_bucket[$__rate_interval])))",
+              "legendFormat": "Duration P95",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 12,
+          "title": "Notifications Sent",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 35 },
+          "targets": [
+            {
+              "expr": "sum by (task_type) (rate(channel_notifications_sent_total{channel_type=~\"$channel_type\"}[$__rate_interval]))",
+              "legendFormat": "{{task_type}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 13,
+          "title": "Notification Errors",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 35 },
+          "targets": [
+            {
+              "expr": "sum by (error_type) (rate(channel_notification_errors_total{channel_type=~\"$channel_type\"}[$__rate_interval]))",
+              "legendFormat": "{{error_type}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

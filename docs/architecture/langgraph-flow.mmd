@@ -1,0 +1,93 @@
+graph TB
+    User[User Query] --> Router[router_node_v3]
+
+    Router --> RouterDecision{Routing Decision<br/>Binary Classification}
+
+    RouterDecision -->|"response"<br/>Conversational| ResponseNode[response_node]
+    RouterDecision -->|"planner"<br/>Actionable| SkillCheck{Skill Match?}
+
+    SkillCheck -->|"Yes — deterministic<br/>SkillBypassStrategy"| TaskOrchestrator
+    SkillCheck -->|"No"| PlannerNode[planner_node_v3]
+
+    PlannerNode --> SmartPlanner[SmartPlannerService<br/>Generate ExecutionPlan]
+    SmartPlanner --> PatternCheck{Pattern Learner<br/>Confidence ≥90%?}
+
+    PatternCheck -->|"Yes — Bypass<br/>Semantic Validation"| PlanReady
+    PatternCheck -->|No| PlanReady{Plan Analysis}
+
+    PlanReady -->|Empty Plan| ResponseNode
+    PlanReady -->|Requires Validation| SemanticValidator[semantic_validator_node]
+    PlanReady -->|Direct Execution| TaskOrchestrator[task_orchestrator_node]
+
+    SemanticValidator --> ValidationCheck{Validation Result}
+    ValidationCheck -->|Requires Clarification| Clarification[clarification_node<br/>HITL Interrupt]
+    ValidationCheck -->|Needs Replan| PlannerNode
+    ValidationCheck -->|Max Iterations| ApprovalGate[approval_gate_node]
+    ValidationCheck -->|Valid| ApprovalGate
+
+    Clarification --> UserClarifies{User<br/>Clarifies}
+    UserClarifies --> SemanticValidator
+
+    ApprovalGate --> ApprovalDecision{User Decision}
+    ApprovalDecision -->|Approved| TaskOrchestrator
+    ApprovalDecision -->|Replan| PlannerNode
+    ApprovalDecision -->|Rejected| ResponseNode
+
+    TaskOrchestrator --> ExecutePlan[ParallelExecutor<br/>Wave-by-wave asyncio.gather]
+    ExecutePlan --> DraftCheck{Pending<br/>Draft/HITL?}
+
+    DraftCheck -->|Yes| HITLDispatch[hitl_dispatch_node<br/>Draft Critique / Modifier Review]
+    DraftCheck -->|No| ResponseFinal[response_node]
+
+    HITLDispatch --> DraftDecision{User Decision}
+    DraftDecision -->|Confirm / Edit / Cancel| ResponseFinal
+
+    ExecutePlan --> DomainAgents
+
+    subgraph DomainAgents["16+ Domain Agents"]
+        direction LR
+        subgraph "Google / Apple / Microsoft"
+            ContactAgent[contacts]
+            EmailAgent[email]
+            EventAgent[calendar]
+            FileAgent[drive]
+            TaskAgent[tasks]
+        end
+        subgraph "Search & Knowledge"
+            WeatherAgent[weather]
+            WikiAgent[wikipedia]
+            PerplexityAgent[perplexity]
+            BraveAgent[brave]
+            WebSearchAgent[web_search]
+            WebFetchAgent[web_fetch]
+        end
+        subgraph "Utilities"
+            PlaceAgent[places]
+            RouteAgent[routes]
+            ReminderAgent[reminders]
+            ContextAgent[context]
+            QueryAgent[query]
+        end
+        subgraph "Dynamic"
+            MCPAgents["MCP Agents<br/>(admin + per-user)"]
+        end
+    end
+
+    DomainAgents --> ResponseFinal
+
+    ResponseNode --> UserResponse[AI Response to User]
+    ResponseFinal --> UserResponse
+
+    UserResponse --> End([END])
+
+    style Router fill:#e1f5ff
+    style SmartPlanner fill:#fff4e1
+    style SemanticValidator fill:#e1ffe1
+    style Clarification fill:#ffe1e1
+    style ApprovalGate fill:#ffcccc
+    style TaskOrchestrator fill:#e1ffe1
+    style HITLDispatch fill:#ffe1e1
+    style DomainAgents fill:#f0e1ff
+    style PatternCheck fill:#fff9e1
+    style SkillCheck fill:#fff9e1
+    style MCPAgents fill:#f0e1ff

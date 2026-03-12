@@ -1,0 +1,115 @@
+groups:
+  - name: tokens_and_cost
+    interval: 1m
+    rules:
+      # CRITICAL: LLM API success rate dropped
+      - alert: LLMAPIFailureRateHigh
+        expr: |
+          sum(rate(llm_api_calls_total{status="error"}[5m]))
+          /
+          sum(rate(llm_api_calls_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          component: llm
+          type: availability
+        annotations:
+          summary: "LLM API failure rate > 5%"
+          description: "LLM API error rate is {{ $value | humanizePercentage }}. Check OpenAI/Anthropic status page."
+          runbook_url: "https://docs.company.com/runbooks/llm-api-failures"
+
+      # WARNING: LLM API success rate degraded
+      - alert: LLMAPISuccessRateLow
+        expr: |
+          sum(rate(llm_api_calls_total{status="success"}[5m]))
+          /
+          sum(rate(llm_api_calls_total[5m])) < 0.95
+        for: 10m
+        labels:
+          severity: warning
+          component: llm
+          type: availability
+        annotations:
+          summary: "LLM API success rate < 95%"
+          description: "LLM API success rate is {{ $value | humanizePercentage }}. Monitor for degradation."
+
+      # CRITICAL: Daily cost budget exceeded
+      - alert: DailyCostBudgetExceeded
+        expr: |
+          sum(increase(llm_cost_total[24h])) > 100
+        for: 1m
+        labels:
+          severity: critical
+          component: cost
+          type: budget
+        annotations:
+          summary: "Daily LLM cost budget exceeded"
+          description: "Daily LLM cost is {{ $value | humanize }}€, exceeding 100€ budget. Review token usage."
+          runbook_url: "https://docs.company.com/runbooks/cost-alert"
+
+      # WARNING: Cost trending high
+      - alert: HourlyCostTrendingHigh
+        expr: |
+          sum(increase(llm_cost_total[1h])) > 5
+        for: 30m
+        labels:
+          severity: warning
+          component: cost
+          type: budget
+        annotations:
+          summary: "Hourly LLM cost exceeds 5€"
+          description: "Hourly cost is {{ $value | humanize }}€. On track to exceed daily budget if sustained."
+
+      # WARNING: LLM API latency high
+      - alert: LLMAPILatencyHigh
+        expr: |
+          histogram_quantile(0.99, sum(rate(llm_api_latency_seconds_bucket[5m])) by (le, model)) > 10
+        for: 10m
+        labels:
+          severity: warning
+          component: llm
+          type: performance
+        annotations:
+          summary: "LLM API latency p99 > 10s"
+          description: "LLM API p99 latency is {{ $value }}s for model {{ $labels.model }}. Check provider status."
+
+      # INFO: High token consumption rate
+      - alert: HighTokenConsumptionRate
+        expr: |
+          sum(rate(llm_tokens_consumed_total[5m])) > 1000
+        for: 15m
+        labels:
+          severity: info
+          component: tokens
+          type: usage
+        annotations:
+          summary: "High token consumption detected"
+          description: "Consuming {{ $value }} tokens/sec. Monitor for cost impact."
+
+      # CRITICAL: Specific model budget exceeded
+      - alert: ModelCostBudgetExceeded
+        expr: |
+          sum by (model) (increase(llm_cost_total[24h])) > 50
+        for: 1m
+        labels:
+          severity: critical
+          component: cost
+          type: budget
+        annotations:
+          summary: "Model {{ $labels.model }} exceeded daily budget"
+          description: "Model {{ $labels.model }} cost is {{ $value | humanize }}€/day, exceeding 50€ budget."
+
+      # WARNING: Token type imbalance (too many output tokens)
+      - alert: HighOutputTokenRatio
+        expr: |
+          sum(rate(llm_tokens_consumed_total{token_type="completion_tokens"}[10m]))
+          /
+          sum(rate(llm_tokens_consumed_total{token_type="prompt_tokens"}[10m])) > 5
+        for: 30m
+        labels:
+          severity: warning
+          component: tokens
+          type: efficiency
+        annotations:
+          summary: "High output/input token ratio"
+          description: "Output tokens are {{ $value }}x input tokens. Review prompt efficiency and response length."

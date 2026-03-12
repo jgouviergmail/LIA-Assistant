@@ -1,0 +1,7 @@
+# GOOGLE CONTACTS - Unsafe queries (MUTATIONS)
+# WARNING: These queries CREATE, MODIFY, or DELETE real data
+# Execute manually or with caution
+
+crée un contact test1nom test1prénom avec l'adresse email test@test.com et le téléphone 0606060606
+modifie le téléphone du contact test1nom en remplacant par 0101010101
+supprime le contact test1nom

@@ -1,0 +1,1034 @@
+version: '3'
+
+# Load environment variables from .env file
+dotenv:
+  - .env
+
+# Global variables
+vars:
+  API_DIR: ./apps/api
+  WEB_DIR: ./apps/web
+  PYTHON: python
+  UV: uv  # Optional: faster pip alternative
+  # Pattern training settings (change these for different environments)
+  PATTERNS_BASE_URL: https://localhost:8000/api/v1
+  PATTERNS_SSL_FLAG: --insecure  # Use --insecure for self-signed certs, empty for valid certs
+
+tasks:
+  # ============================================================================
+  # Setup & Installation
+  # ============================================================================
+
+  setup:
+    desc: Install all dependencies (backend + frontend + git hooks)
+    deps:
+      - setup:backend
+      - setup:frontend
+      - setup:hooks
+
+  setup:backend:
+    desc: Install backend Python dependencies
+    dir: "{{.API_DIR}}"
+    cmds:
+      - "{{.PYTHON}} -m venv .venv"
+      - cmd: .venv/Scripts/pip install -r requirements.txt -r requirements-dev.txt
+        platforms: [windows]
+      - cmd: .venv/bin/pip install -r requirements.txt -r requirements-dev.txt
+        platforms: [linux, darwin]
+    status:
+      - test -d {{.API_DIR}}/.venv
+
+  setup:frontend:
+    desc: Install frontend Node dependencies
+    dir: "{{.WEB_DIR}}"
+    cmds:
+      - pnpm install
+    status:
+      - test -d {{.WEB_DIR}}/node_modules
+
+  setup:hooks:
+    desc: Install Git pre-commit hooks (uses core.hooksPath)
+    cmds:
+      - cmd: bash ./scripts/install-hooks.sh
+        platforms: [windows, linux, darwin]
+    status:
+      - git config core.hooksPath | grep -q ".github/hooks"
+
+  # ============================================================================
+  # Development
+  # ============================================================================
+
+  dev:
+    desc: Start development environment (Docker Compose)
+    cmds:
+      - docker compose -f docker-compose.dev.yml up --build
+
+  dev:detach:
+    desc: Start development environment in background
+    cmds:
+      - docker compose -f docker-compose.dev.yml up -d --build
+
+  dev:api:
+    desc: Run API standalone (requires PostgreSQL + Redis running)
+    dir: "{{.API_DIR}}"
+    cmds:
+      - cmd: .venv/Scripts/python -m uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
+        platforms: [windows]
+      - cmd: .venv/bin/python -m uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
+        platforms: [linux, darwin]
+
+  dev:web:
+    desc: Run frontend standalone
+    dir: "{{.WEB_DIR}}"
+    cmds:
+      - pnpm dev
+
+  stop:
+    desc: Stop development environment
+    cmds:
+      - docker compose -f docker-compose.dev.yml down
+
+  restart:
+    desc: Restart development environment
+    cmds:
+      - task: stop
+      - task: dev:detach
+
+  # ============================================================================
+  # Linting & Formatting
+  # ============================================================================
+
+  lint:
+    desc: Run all linters
+    deps:
+      - lint:backend
+      - lint:frontend
+
+  lint:backend:
+    desc: Lint backend code
+    dir: "{{.API_DIR}}"
+    cmds:
+      - cmd: .venv/Scripts/ruff check src tests
+        platforms: [windows]
+      - cmd: .venv/bin/ruff check src tests
+        platforms: [linux, darwin]
+      - cmd: .venv/Scripts/black --check src tests
+        platforms: [windows]
+      - cmd: .venv/bin/black --check src tests
+        platforms: [linux, darwin]
+      - cmd: .venv/Scripts/mypy src --config-file=pyproject.toml
+        platforms: [windows]
+      - cmd: .venv/bin/mypy src --config-file=pyproject.toml
+        platforms: [linux, darwin]
+
+  lint:frontend:
+    desc: Lint frontend code
+    dir: "{{.WEB_DIR}}"
+    cmds:
+      - pnpm lint
+      - pnpm type-check
+
+  format:
+    desc: Auto-format all code
+    deps:
+      - format:backend
+      - format:frontend
+
+  format:backend:
+    desc: Format backend code
+    dir: "{{.API_DIR}}"
+    cmds:
+      - cmd: .venv/Scripts/black src tests
+        platforms: [windows]
+      - cmd: .venv/bin/black src tests
+        platforms: [linux, darwin]
+      - cmd: .venv/Scripts/ruff check --fix src tests
+        platforms: [windows]
+      - cmd: .venv/bin/ruff check --fix src tests
+        platforms: [linux, darwin]
+
+  format:frontend:
+    desc: Format frontend code
+    dir: "{{.WEB_DIR}}"
+    cmds:
+      - pnpm format
+
+  # ============================================================================
+  # Testing
+  # ============================================================================
+
+  test:
+    desc: Run all tests
+    deps:
+      - test:backend
+      - test:frontend
+
+  test:backend:
+    desc: Run backend tests
+    dir: "{{.API_DIR}}"
+    cmds:
+      - cmd: .venv/Scripts/pytest tests/ --cov=src --cov-report=term-missing --cov-report=html
+        platforms: [windows]
+      - cmd: .venv/bin/pytest tests/ --cov=src --cov-report=term-missing --cov-report=html
+        platforms: [linux, darwin]
+
+  test:backend:unit:
+    desc: Run backend unit tests only (all, including slow)
+    dir: "{{.API_DIR}}"
+    cmds:
+      - cmd: .venv/Scripts/pytest tests/unit/ -v
+        platforms: [windows]
+      - cmd: .venv/bin/pytest tests/unit/ -v
+        platforms: [linux, darwin]
+
+  test:backend:unit:fast:
+    desc: Run fast unit tests only (excludes DB/integration tests) - used by pre-commit
+    dir: "{{.API_DIR}}"
+    cmds:
+      - cmd: .venv/Scripts/pytest tests/unit/ -v -m "not integration"
+        platforms: [windows]
+      - cmd: .venv/bin/pytest tests/unit/ -v -m "not integration"
+        platforms: [linux, darwin]
+
+  test:backend:integration:
+    desc: Run backend integration tests only
+    dir: "{{.API_DIR}}"
+    cmds:
+      - cmd: .venv/Scripts/pytest tests/integration/ -v
+        platforms: [windows]
+      - cmd: .venv/bin/pytest tests/integration/ -v
+        platforms: [linux, darwin]
+
+  test:backend:exhaustive:
+    desc: Run ALL backend tests (unit + integration + agents + e2e) - FULL test suite
+    dir: "{{.API_DIR}}"
+    cmds:
+      - echo "=== Running EXHAUSTIVE test suite (this may take several minutes) ==="
+      - cmd: .venv/Scripts/pytest tests/ -v --tb=short --cov=src --cov-report=term-missing --durations=20
+        platforms: [windows]
+      - cmd: .venv/bin/pytest tests/ -v --tb=short --cov=src --cov-report=term-missing --durations=20
+        platforms: [linux, darwin]
+      - echo "=== Exhaustive test suite completed ==="
+
+  test:backend:slow:
+    desc: Run ONLY slow tests (integration, slow, e2e, benchmark, multiprocess)
+    dir: "{{.API_DIR}}"
+    cmds:
+      - cmd: .venv/Scripts/pytest tests/ -v -m "integration or slow or e2e or benchmark or multiprocess" --tb=short
+        platforms: [windows]
+      - cmd: .venv/bin/pytest tests/ -v -m "integration or slow or e2e or benchmark or multiprocess" --tb=short
+        platforms: [linux, darwin]
+
+  test:backend:agents:
+    desc: Run agent-specific tests only
+    dir: "{{.API_DIR}}"
+    cmds:
+      - cmd: .venv/Scripts/pytest tests/agents/ -v --tb=short
+        platforms: [windows]
+      - cmd: .venv/bin/pytest tests/agents/ -v --tb=short
+        platforms: [linux, darwin]
+
+  test:frontend:
+    desc: Run frontend tests
+    dir: "{{.WEB_DIR}}"
+    cmds:
+      - pnpm test
+
+  test:watch:
+    desc: Run backend tests in watch mode
+    dir: "{{.API_DIR}}"
+    cmds:
+      - cmd: .venv/Scripts/pytest-watch
+        platforms: [windows]
+      - cmd: .venv/bin/pytest-watch
+        platforms: [linux, darwin]
+
+  # ============================================================================
+  # Database
+  # ============================================================================
+
+  db:migrate:
+    desc: Run database migrations
+    dir: "{{.API_DIR}}"
+    cmds:
+      - cmd: .venv/Scripts/alembic upgrade head
+        platforms: [windows]
+      - cmd: .venv/bin/alembic upgrade head
+        platforms: [linux, darwin]
+
+  db:migrate:create:
+    desc: Create a new migration
+    dir: "{{.API_DIR}}"
+    cmds:
+      - cmd: .venv/Scripts/alembic revision --autogenerate -m "{{.CLI_ARGS}}"
+        platforms: [windows]
+      - cmd: .venv/bin/alembic revision --autogenerate -m "{{.CLI_ARGS}}"
+        platforms: [linux, darwin]
+    requires:
+      vars: [CLI_ARGS]
+
+  db:migrate:down:
+    desc: Rollback last migration
+    dir: "{{.API_DIR}}"
+    cmds:
+      - cmd: .venv/Scripts/alembic downgrade -1
+        platforms: [windows]
+      - cmd: .venv/bin/alembic downgrade -1
+        platforms: [linux, darwin]
+
+  db:seed:
+    desc: Seed database with dev data
+    dir: "{{.API_DIR}}"
+    cmds:
+      - cmd: .venv/Scripts/python scripts/seed_dev.py
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/seed_dev.py
+        platforms: [linux, darwin]
+
+  db:reset:
+    desc: Reset database (drop all + migrate + seed)
+    cmds:
+      - docker compose -f docker-compose.dev.yml down -v postgres
+      - docker compose -f docker-compose.dev.yml up -d postgres
+      - sleep 5
+      - task: db:migrate
+      - task: db:create-admin
+      - task: db:seed
+      - task: db:seed:sql
+
+  db:create-admin:
+    desc: Create admin user for first-time setup
+    cmds:
+      - docker compose -f docker-compose.dev.yml exec -T api python -m scripts.data.create_admin {{.CLI_ARGS}}
+
+  db:seed:sql:
+    desc: Apply SQL seed files (personalities, pricing, etc.)
+    cmds:
+      - cmd: bash -c 'for f in infrastructure/database/seeds/*.sql; do echo "Applying $f..."; cat "$f" | docker exec -i lia-postgres-dev psql -U lia_admin -d lia; done'
+        platforms: [windows, linux, darwin]
+
+  db:seed:sql:personalities:
+    desc: Apply personalities seed only
+    cmds:
+      - cmd: bash -c 'cat infrastructure/database/seeds/personalities_seed.sql | docker exec -i lia-postgres-dev psql -U lia_admin -d lia'
+        platforms: [windows, linux, darwin]
+
+  db:seed:sql:pricing:
+    desc: Apply LLM pricing seed only
+    cmds:
+      - cmd: bash -c 'cat infrastructure/database/seeds/llm_pricing_seed.sql | docker exec -i lia-postgres-dev psql -U lia_admin -d lia'
+        platforms: [windows, linux, darwin]
+
+  # ============================================================================
+  # Build & Deploy
+  # ============================================================================
+
+  build:
+    desc: Build all Docker images for production
+    cmds:
+      - docker compose -f docker-compose.prod.yml build
+
+  build:api:
+    desc: Build API Docker image
+    dir: "{{.API_DIR}}"
+    cmds:
+      - docker build -f Dockerfile.prod -t lia-api:latest .
+
+  build:web:
+    desc: Build web Docker image
+    dir: "{{.WEB_DIR}}"
+    cmds:
+      - docker build -f Dockerfile.prod -t lia-web:latest .
+
+  push:
+    desc: Push Docker images to registry
+    cmds:
+      - docker compose -f docker-compose.prod.yml push
+
+  deploy:
+    desc: Deploy to production (local docker-compose)
+    cmds:
+      - echo "Deploying to production..."
+      - docker compose -f docker-compose.prod.yml up -d
+
+  deploy:prod:
+    desc: Full deployment to Raspberry Pi (encrypt + prepare + scp + deploy)
+    cmds:
+      - cmd: powershell -ExecutionPolicy Bypass -File ./scripts/deploy/deploy-prod.ps1
+        platforms: [windows]
+      - cmd: pwsh -File ./scripts/deploy/deploy-prod.ps1
+        platforms: [linux, darwin]
+
+  deploy:prod:dry-run:
+    desc: Simulate deployment without executing (dry run)
+    cmds:
+      - cmd: powershell -ExecutionPolicy Bypass -File ./scripts/deploy/deploy-prod.ps1 -DryRun
+        platforms: [windows]
+      - cmd: pwsh -File ./scripts/deploy/deploy-prod.ps1 -DryRun
+        platforms: [linux, darwin]
+
+  deploy:prepare:
+    desc: Prepare PROD folder only (without deployment)
+    cmds:
+      - cmd: powershell -ExecutionPolicy Bypass -File ./scripts/deploy/prepare-prod.ps1 -Clean
+        platforms: [windows]
+      - cmd: pwsh -File ./scripts/deploy/prepare-prod.ps1 -Clean
+        platforms: [linux, darwin]
+
+  # ============================================================================
+  # Security & Quality
+  # ============================================================================
+
+  security:scan:
+    desc: Run security scans
+    deps:
+      - security:scan:backend
+      - security:scan:docker
+
+  security:scan:backend:
+    desc: Scan backend dependencies for vulnerabilities
+    dir: "{{.API_DIR}}"
+    cmds:
+      # --ignore-vuln: ecdsa CVE-2024-23342 is a timing attack on ECDSA *signing* (P-256 nonce leak).
+      # LIA uses python-jose only for JWT *verification*, which is explicitly unaffected.
+      # The ecdsa maintainer has declared side-channel attacks out of scope with no planned fix.
+      - cmd: python -m pip_audit -r requirements.txt --ignore-vuln CVE-2024-23342
+        platforms: [windows]
+      - cmd: python3 -m pip_audit -r requirements.txt --ignore-vuln CVE-2024-23342
+        platforms: [linux, darwin]
+
+  security:scan:docker:
+    desc: Scan Docker images with Trivy (using Docker)
+    cmds:
+      - cmd: docker run --rm -v //var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --severity HIGH,CRITICAL lia-api:latest
+        platforms: [windows]
+      - cmd: docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --severity HIGH,CRITICAL lia-api:latest
+        platforms: [linux, darwin]
+      - cmd: docker run --rm -v //var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --severity HIGH,CRITICAL lia-web:latest
+        platforms: [windows]
+      - cmd: docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy image --severity HIGH,CRITICAL lia-web:latest
+        platforms: [linux, darwin]
+
+  sbom:generate:
+    desc: Generate SBOM (Software Bill of Materials) - Requires 'pip install cyclonedx-bom'
+    dir: "{{.API_DIR}}"
+    cmds:
+      - cmd: pip install cyclonedx-bom && python -m cyclonedx_py requirements requirements.txt --of json -o ../../sbom-backend.json
+        platforms: [windows]
+      - cmd: pip3 install cyclonedx-bom && python3 -m cyclonedx_py requirements requirements.txt --of json -o ../../sbom-backend.json
+        platforms: [linux, darwin]
+      - echo "SBOM generated at sbom-backend.json"
+
+  # ============================================================================
+  # Logs & Monitoring
+  # ============================================================================
+
+  logs:
+    desc: Tail logs from all services
+    cmds:
+      - docker compose -f docker-compose.dev.yml logs -f
+
+  logs:api:
+    desc: Tail API logs
+    cmds:
+      - docker compose -f docker-compose.dev.yml logs -f api
+
+  logs:web:
+    desc: Tail web logs
+    cmds:
+      - docker compose -f docker-compose.dev.yml logs -f web
+
+  logs:db:
+    desc: Tail PostgreSQL logs
+    cmds:
+      - docker compose -f docker-compose.dev.yml logs -f postgres
+
+  logs:redis:
+    desc: Tail Redis logs
+    cmds:
+      - docker compose -f docker-compose.dev.yml logs -f redis
+
+  health:
+    desc: Check health of all services
+    cmds:
+      - curl -f http://localhost:8000/health || echo "API down"
+      - curl -f http://localhost:3000/ || echo "Web down"
+      - curl -f http://localhost:9090/-/healthy || echo "Prometheus down"
+      - curl -f http://localhost:3001/api/health || echo "Grafana down"
+
+  # ============================================================================
+  # Cleanup
+  # ============================================================================
+
+  clean:
+    desc: Clean all build artifacts and caches
+    deps:
+      - clean:backend
+      - clean:frontend
+      - clean:docker
+
+  clean:backend:
+    desc: Clean backend artifacts
+    dir: "{{.API_DIR}}"
+    cmds:
+      - cmd: powershell -Command "Remove-Item -Recurse -Force -ErrorAction SilentlyContinue .venv, __pycache__, .pytest_cache, .mypy_cache, .ruff_cache, htmlcov, .coverage; Get-ChildItem -Recurse -Directory -Filter __pycache__ | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue; Get-ChildItem -Recurse -File -Filter *.pyc | Remove-Item -Force -ErrorAction SilentlyContinue"
+        platforms: [windows]
+      - cmd: rm -rf .venv __pycache__ .pytest_cache .mypy_cache .ruff_cache htmlcov .coverage && find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true && find . -type f -name "*.pyc" -delete 2>/dev/null || true
+        platforms: [linux, darwin]
+
+  clean:frontend:
+    desc: Clean frontend artifacts
+    dir: "{{.WEB_DIR}}"
+    cmds:
+      - cmd: powershell -Command "Remove-Item -Recurse -Force -ErrorAction SilentlyContinue node_modules, .next, out, coverage"
+        platforms: [windows]
+      - cmd: rm -rf node_modules .next out coverage
+        platforms: [linux, darwin]
+
+  clean:docker:
+    desc: Stop containers and prune unused images (preserves data)
+    cmds:
+      - docker compose -f docker-compose.dev.yml down
+      - docker system prune -f
+
+  clean:docker:full:
+    desc: "DESTRUCTIVE: Stop containers AND delete all volumes (database, redis...)"
+    cmds:
+      - echo "WARNING - This will DELETE ALL DATA (PostgreSQL, Redis volumes)"
+      - echo "Press Ctrl+C within 5 seconds to cancel..."
+      - cmd: "timeout /t 5"
+        platforms: [windows]
+      - cmd: "sleep 5"
+        platforms: [linux, darwin]
+      - docker compose -f docker-compose.dev.yml down -v
+      - docker system prune -f
+
+  # ============================================================================
+  # Documentation
+  # ============================================================================
+
+  docs:diagrams:
+    desc: Generate architecture diagrams from Mermaid
+    vars:
+      MMD_FILES:
+        sh: find docs/architecture -name "*.mmd" 2>/dev/null || true
+    cmds:
+      - |
+        {{- if .MMD_FILES}}
+        {{range $file := splitList "\n" .MMD_FILES}}
+        {{- if $file}}
+        mmdc -i "{{$file}}" -o "{{trimSuffix ".mmd" $file}}.svg"
+        mmdc -i "{{$file}}" -o "{{trimSuffix ".mmd" $file}}.png" -s 4 -w 2400
+        {{end}}
+        {{- end}}
+        {{- else}}
+        echo "No .mmd files found in docs/architecture/"
+        {{- end}}
+
+  docs:serve:
+    desc: Serve documentation locally
+    cmds:
+      - echo "Open README.md and ARCHITECTURE.md in your browser"
+
+  # ============================================================================
+  # Utilities
+  # ============================================================================
+
+  claude:repair:
+    desc: "Repair Claude session (fix thinking blocks, API errors, etc). Usage: task claude:repair -- SESSION_ID"
+    cmds:
+      - python ./scripts/utils/repair_session.py {{.CLI_ARGS}}
+
+  claude:repair:backup:
+    desc: "Repair Claude session with backup. Usage: task claude:repair:backup -- SESSION_ID"
+    cmds:
+      - python ./scripts/utils/repair_session.py {{.CLI_ARGS}} --backup
+
+  claude:repair:dry-run:
+    desc: "Preview Claude session repair without modifying. Usage: task claude:repair:dry-run -- SESSION_ID"
+    cmds:
+      - python ./scripts/utils/repair_session.py {{.CLI_ARGS}} --dry-run
+
+  claude:list:
+    desc: List all Claude sessions for current project
+    cmds:
+      - python ./scripts/utils/repair_session.py --list
+
+  claude:list:problems:
+    desc: List only Claude sessions with problems (thinking blocks, API errors, etc)
+    cmds:
+      - python ./scripts/utils/repair_session.py --list --problems
+
+  shell:api:
+    desc: Open shell in API container
+    cmds:
+      - docker compose -f docker-compose.dev.yml exec api /bin/bash
+
+  shell:db:
+    desc: Open PostgreSQL shell
+    cmds:
+      - docker compose -f docker-compose.dev.yml exec postgres psql -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-lia}
+
+  shell:redis:
+    desc: Open Redis CLI
+    cmds:
+      - docker compose -f docker-compose.dev.yml exec redis redis-cli
+
+  status:
+    desc: Show status of all services
+    cmds:
+      - docker compose -f docker-compose.dev.yml ps
+
+  # ============================================================================
+  # Plan Pattern Learning (Planner optimization via learned patterns)
+  # ============================================================================
+  # Manages learned planning patterns stored in Redis.
+  # Patterns are learned from planner validation outcomes (success/failure).
+  # High-confidence patterns are suggested to the planner to reduce replanification.
+
+  patterns:list:
+    desc: List all learned planning patterns (sorted by confidence)
+    dir: "{{.API_DIR}}"
+    cmds:
+      - cmd: .venv/Scripts/python scripts/manage_plan_patterns.py list
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/manage_plan_patterns.py list
+        platforms: [linux, darwin]
+
+  patterns:list:suggerable:
+    desc: List only patterns eligible for suggestion (confidence >= 75%)
+    dir: "{{.API_DIR}}"
+    cmds:
+      - cmd: .venv/Scripts/python scripts/manage_plan_patterns.py list --suggerable
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/manage_plan_patterns.py list --suggerable
+        platforms: [linux, darwin]
+
+  patterns:list:bypassable:
+    desc: List patterns that can bypass validation (confidence >= 90%)
+    dir: "{{.API_DIR}}"
+    cmds:
+      - cmd: .venv/Scripts/python scripts/manage_plan_patterns.py list --bypassable
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/manage_plan_patterns.py list --bypassable
+        platforms: [linux, darwin]
+
+  patterns:stats:
+    desc: Show global statistics for plan pattern learning
+    dir: "{{.API_DIR}}"
+    cmds:
+      - cmd: .venv/Scripts/python scripts/manage_plan_patterns.py stats
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/manage_plan_patterns.py stats
+        platforms: [linux, darwin]
+
+  patterns:show:
+    desc: "Show details of a specific pattern. Usage: task patterns:show -- PATTERN_KEY"
+    dir: "{{.API_DIR}}"
+    cmds:
+      - cmd: .venv/Scripts/python scripts/manage_plan_patterns.py show "{{.CLI_ARGS}}"
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/manage_plan_patterns.py show "{{.CLI_ARGS}}"
+        platforms: [linux, darwin]
+    requires:
+      vars: [CLI_ARGS]
+
+  patterns:delete:
+    desc: "Delete a specific pattern. Usage: task patterns:delete -- PATTERN_KEY"
+    dir: "{{.API_DIR}}"
+    cmds:
+      - cmd: .venv/Scripts/python scripts/manage_plan_patterns.py delete "{{.CLI_ARGS}}" --confirm
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/manage_plan_patterns.py delete "{{.CLI_ARGS}}" --confirm
+        platforms: [linux, darwin]
+    requires:
+      vars: [CLI_ARGS]
+
+  patterns:reset:
+    desc: Delete ALL patterns (reset learning). Requires confirmation.
+    dir: "{{.API_DIR}}"
+    cmds:
+      - cmd: .venv/Scripts/python scripts/manage_plan_patterns.py reset --confirm
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/manage_plan_patterns.py reset --confirm
+        platforms: [linux, darwin]
+
+  patterns:export:
+    desc: "Export all patterns to JSON file. Usage: task patterns:export -- OUTPUT_FILE"
+    dir: "{{.API_DIR}}"
+    cmds:
+      - cmd: .venv/Scripts/python scripts/manage_plan_patterns.py export -o "{{.CLI_ARGS}}"
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/manage_plan_patterns.py export -o "{{.CLI_ARGS}}"
+        platforms: [linux, darwin]
+    requires:
+      vars: [CLI_ARGS]
+
+  patterns:import:
+    desc: "Import patterns from JSON file. Usage: task patterns:import -- INPUT_FILE"
+    dir: "{{.API_DIR}}"
+    cmds:
+      - cmd: .venv/Scripts/python scripts/manage_plan_patterns.py import "{{.CLI_ARGS}}" --confirm
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/manage_plan_patterns.py import "{{.CLI_ARGS}}" --confirm
+        platforms: [linux, darwin]
+    requires:
+      vars: [CLI_ARGS]
+
+  patterns:seed:
+    desc: "Seed a pattern with initial values. Usage: task patterns:seed -- 'PATTERN_KEY --domains d1,d2 --intent mutation'"
+    dir: "{{.API_DIR}}"
+    cmds:
+      - cmd: .venv/Scripts/python scripts/manage_plan_patterns.py seed {{.CLI_ARGS}}
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/manage_plan_patterns.py seed {{.CLI_ARGS}}
+        platforms: [linux, darwin]
+    requires:
+      vars: [CLI_ARGS]
+
+  patterns:golden:list:
+    desc: List all predefined golden patterns (without seeding)
+    dir: "{{.API_DIR}}"
+    cmds:
+      - cmd: .venv/Scripts/python scripts/manage_plan_patterns.py seed-golden --list
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/manage_plan_patterns.py seed-golden --list
+        platforms: [linux, darwin]
+
+  patterns:golden:seed:
+    desc: Seed golden patterns (preserves existing patterns)
+    dir: "{{.API_DIR}}"
+    cmds:
+      - cmd: .venv/Scripts/python scripts/manage_plan_patterns.py seed-golden --confirm
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/manage_plan_patterns.py seed-golden --confirm
+        platforms: [linux, darwin]
+
+  patterns:golden:reset:
+    desc: Reset to golden patterns (DELETES ALL existing patterns first)
+    dir: "{{.API_DIR}}"
+    cmds:
+      - cmd: .venv/Scripts/python scripts/manage_plan_patterns.py seed-golden --reset --confirm
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/manage_plan_patterns.py seed-golden --reset --confirm
+        platforms: [linux, darwin]
+
+  patterns:train:
+    desc: "Train pattern learner by sending queries to API. Usage: task patterns:train -- -q 'query1' -q 'query2' --repeat 20"
+    dir: "{{.API_DIR}}"
+    cmds:
+      - cmd: .venv/Scripts/python scripts/train_pattern_learner.py --base-url {{.PATTERNS_BASE_URL}} {{.PATTERNS_SSL_FLAG}} {{.CLI_ARGS}}
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/train_pattern_learner.py --base-url {{.PATTERNS_BASE_URL}} {{.PATTERNS_SSL_FLAG}} {{.CLI_ARGS}}
+        platforms: [linux, darwin]
+    requires:
+      vars: [CLI_ARGS]
+
+  patterns:train:file:
+    desc: "Train pattern learner from a queries file. Usage: task patterns:train:file -- queries.txt [--repeat N]"
+    dir: "{{.API_DIR}}"
+    cmds:
+      - cmd: .venv/Scripts/python scripts/train_pattern_learner.py --base-url {{.PATTERNS_BASE_URL}} {{.PATTERNS_SSL_FLAG}} --file {{.CLI_ARGS}}
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/train_pattern_learner.py --base-url {{.PATTERNS_BASE_URL}} {{.PATTERNS_SSL_FLAG}} --file {{.CLI_ARGS}}
+        platforms: [linux, darwin]
+    requires:
+      vars: [CLI_ARGS]
+
+  # --------------------------------------------------------------------------
+  # Pattern Training by Domain
+  # --------------------------------------------------------------------------
+  # SAFE = read-only queries (can be repeated without side effects)
+  # UNSAFE = mutations (create, modify, delete, send emails) - use with caution
+  #
+  # AUTHENTICATION REQUIRED:
+  #   1. Open app in browser, login
+  #   2. DevTools (F12) > Application > Cookies > copy 'lia_session'
+  #   3. Set environment variable:
+  #      PowerShell: $env:LIA_SESSION = "your_cookie_value"
+  #      CMD:        set LIA_SESSION=your_cookie_value
+  #      Linux/Mac:  export LIA_SESSION=your_cookie_value
+  # --------------------------------------------------------------------------
+
+  patterns:train:auth:
+    desc: "Check authentication setup for pattern training"
+    cmds:
+      - |
+        python -c "
+        import os
+        s = os.environ.get('LIA_SESSION', '')
+        if s:
+            print(f'[OK] LIA_SESSION is set (first 20 chars: {s[:20]}...)')
+        else:
+            print('[ERROR] LIA_SESSION not set!')
+            print()
+            print('How to set it:')
+            print('  1. Open app in browser and login')
+            print('  2. DevTools F12 > Application > Cookies')
+            print('  3. Copy lia_session cookie value')
+            print('  4. Run:')
+            print('       PowerShell: $env:LIA_SESSION = \"value\"')
+            print('       CMD:        set LIA_SESSION=value')
+            print('       Linux/Mac:  export LIA_SESSION=value')
+        "
+    silent: true
+
+  patterns:train:all:
+    desc: "Train ALL domains (SAFE queries only). Usage: task patterns:train:all [-- --repeat N]"
+    dir: "{{.API_DIR}}"
+    vars:
+      REPEAT: '{{.CLI_ARGS | default "--repeat 20"}}'
+    cmds:
+      - task: patterns:train:contacts
+        vars: { CLI_ARGS: "{{.REPEAT}}" }
+      - task: patterns:train:emails
+        vars: { CLI_ARGS: "{{.REPEAT}}" }
+      - task: patterns:train:calendar
+        vars: { CLI_ARGS: "{{.REPEAT}}" }
+      - task: patterns:train:tasks
+        vars: { CLI_ARGS: "{{.REPEAT}}" }
+      - task: patterns:train:drive
+        vars: { CLI_ARGS: "{{.REPEAT}}" }
+      - task: patterns:train:places
+        vars: { CLI_ARGS: "{{.REPEAT}}" }
+      - task: patterns:train:routes
+        vars: { CLI_ARGS: "{{.REPEAT}}" }
+      - task: patterns:train:weather
+        vars: { CLI_ARGS: "{{.REPEAT}}" }
+      - task: patterns:train:perplexity
+        vars: { CLI_ARGS: "{{.REPEAT}}" }
+      - task: patterns:train:wikipedia
+        vars: { CLI_ARGS: "{{.REPEAT}}" }
+      - task: patterns:train:multi
+        vars: { CLI_ARGS: "{{.REPEAT}}" }
+
+  patterns:train:all:unsafe:
+    desc: "⚠️  Train ALL domains INCLUDING mutations. WARNING: Creates/modifies/deletes real data!"
+    dir: "{{.API_DIR}}"
+    vars:
+      REPEAT: '{{.CLI_ARGS | default "--repeat 1"}}'
+    cmds:
+      - echo "⚠️  WARNING - This will execute MUTATION queries (create, modify, delete, send emails)"
+      - echo "⚠️  Press Ctrl+C to cancel within 5 seconds..."
+      - cmd: timeout /t 5
+        platforms: [windows]
+      - cmd: sleep 5
+        platforms: [linux, darwin]
+      - task: patterns:train:contacts:unsafe
+        vars: { CLI_ARGS: "{{.REPEAT}}" }
+      - task: patterns:train:calendar:unsafe
+        vars: { CLI_ARGS: "{{.REPEAT}}" }
+      - task: patterns:train:tasks:unsafe
+        vars: { CLI_ARGS: "{{.REPEAT}}" }
+      - task: patterns:train:multi:unsafe
+        vars: { CLI_ARGS: "{{.REPEAT}}" }
+
+  patterns:train:mono:
+    desc: "Train all mono-domain patterns (SAFE only). Usage: task patterns:train:mono [-- --repeat N]"
+    dir: "{{.API_DIR}}"
+    vars:
+      REPEAT: '{{.CLI_ARGS | default "--repeat 20"}}'
+    cmds:
+      - task: patterns:train:contacts
+        vars: { CLI_ARGS: "{{.REPEAT}}" }
+      - task: patterns:train:emails
+        vars: { CLI_ARGS: "{{.REPEAT}}" }
+      - task: patterns:train:calendar
+        vars: { CLI_ARGS: "{{.REPEAT}}" }
+      - task: patterns:train:tasks
+        vars: { CLI_ARGS: "{{.REPEAT}}" }
+      - task: patterns:train:drive
+        vars: { CLI_ARGS: "{{.REPEAT}}" }
+      - task: patterns:train:places
+        vars: { CLI_ARGS: "{{.REPEAT}}" }
+      - task: patterns:train:routes
+        vars: { CLI_ARGS: "{{.REPEAT}}" }
+      - task: patterns:train:weather
+        vars: { CLI_ARGS: "{{.REPEAT}}" }
+      - task: patterns:train:perplexity
+        vars: { CLI_ARGS: "{{.REPEAT}}" }
+      - task: patterns:train:wikipedia
+        vars: { CLI_ARGS: "{{.REPEAT}}" }
+
+  patterns:train:contacts:
+    desc: "Train contacts domain (SAFE queries). Usage: task patterns:train:contacts [-- --repeat N]"
+    dir: "{{.API_DIR}}"
+    vars:
+      REPEAT: '{{.CLI_ARGS | default "--repeat 20"}}'
+    cmds:
+      - cmd: .venv/Scripts/python scripts/train_pattern_learner.py --base-url {{.PATTERNS_BASE_URL}} {{.PATTERNS_SSL_FLAG}} --file scripts/training/contacts_safe.txt {{.REPEAT}}
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/train_pattern_learner.py --base-url {{.PATTERNS_BASE_URL}} {{.PATTERNS_SSL_FLAG}} --file scripts/training/contacts_safe.txt {{.REPEAT}}
+        platforms: [linux, darwin]
+
+  patterns:train:contacts:unsafe:
+    desc: "⚠️  Train contacts MUTATIONS. WARNING: Creates/modifies/deletes contacts!"
+    dir: "{{.API_DIR}}"
+    vars:
+      REPEAT: '{{.CLI_ARGS | default "--repeat 1"}}'
+    cmds:
+      - cmd: .venv/Scripts/python scripts/train_pattern_learner.py --base-url {{.PATTERNS_BASE_URL}} {{.PATTERNS_SSL_FLAG}} --file scripts/training/contacts_unsafe.txt {{.REPEAT}}
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/train_pattern_learner.py --base-url {{.PATTERNS_BASE_URL}} {{.PATTERNS_SSL_FLAG}} --file scripts/training/contacts_unsafe.txt {{.REPEAT}}
+        platforms: [linux, darwin]
+
+  patterns:train:emails:
+    desc: "Train emails domain (SAFE queries). Usage: task patterns:train:emails [-- --repeat N]"
+    dir: "{{.API_DIR}}"
+    vars:
+      REPEAT: '{{.CLI_ARGS | default "--repeat 20"}}'
+    cmds:
+      - cmd: .venv/Scripts/python scripts/train_pattern_learner.py --base-url {{.PATTERNS_BASE_URL}} {{.PATTERNS_SSL_FLAG}} --file scripts/training/emails_safe.txt {{.REPEAT}}
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/train_pattern_learner.py --base-url {{.PATTERNS_BASE_URL}} {{.PATTERNS_SSL_FLAG}} --file scripts/training/emails_safe.txt {{.REPEAT}}
+        platforms: [linux, darwin]
+
+  patterns:train:calendar:
+    desc: "Train calendar domain (SAFE queries). Usage: task patterns:train:calendar [-- --repeat N]"
+    dir: "{{.API_DIR}}"
+    vars:
+      REPEAT: '{{.CLI_ARGS | default "--repeat 20"}}'
+    cmds:
+      - cmd: .venv/Scripts/python scripts/train_pattern_learner.py --base-url {{.PATTERNS_BASE_URL}} {{.PATTERNS_SSL_FLAG}} --file scripts/training/calendar_safe.txt {{.REPEAT}}
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/train_pattern_learner.py --base-url {{.PATTERNS_BASE_URL}} {{.PATTERNS_SSL_FLAG}} --file scripts/training/calendar_safe.txt {{.REPEAT}}
+        platforms: [linux, darwin]
+
+  patterns:train:calendar:unsafe:
+    desc: "⚠️  Train calendar MUTATIONS. WARNING: Creates/modifies/deletes events!"
+    dir: "{{.API_DIR}}"
+    vars:
+      REPEAT: '{{.CLI_ARGS | default "--repeat 1"}}'
+    cmds:
+      - cmd: .venv/Scripts/python scripts/train_pattern_learner.py --base-url {{.PATTERNS_BASE_URL}} {{.PATTERNS_SSL_FLAG}} --file scripts/training/calendar_unsafe.txt {{.REPEAT}}
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/train_pattern_learner.py --base-url {{.PATTERNS_BASE_URL}} {{.PATTERNS_SSL_FLAG}} --file scripts/training/calendar_unsafe.txt {{.REPEAT}}
+        platforms: [linux, darwin]
+
+  patterns:train:tasks:
+    desc: "Train tasks domain (SAFE queries). Usage: task patterns:train:tasks [-- --repeat N]"
+    dir: "{{.API_DIR}}"
+    vars:
+      REPEAT: '{{.CLI_ARGS | default "--repeat 20"}}'
+    cmds:
+      - cmd: .venv/Scripts/python scripts/train_pattern_learner.py --base-url {{.PATTERNS_BASE_URL}} {{.PATTERNS_SSL_FLAG}} --file scripts/training/tasks_safe.txt {{.REPEAT}}
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/train_pattern_learner.py --base-url {{.PATTERNS_BASE_URL}} {{.PATTERNS_SSL_FLAG}} --file scripts/training/tasks_safe.txt {{.REPEAT}}
+        platforms: [linux, darwin]
+
+  patterns:train:tasks:unsafe:
+    desc: "⚠️  Train tasks MUTATIONS. WARNING: Creates/modifies tasks!"
+    dir: "{{.API_DIR}}"
+    vars:
+      REPEAT: '{{.CLI_ARGS | default "--repeat 1"}}'
+    cmds:
+      - cmd: .venv/Scripts/python scripts/train_pattern_learner.py --base-url {{.PATTERNS_BASE_URL}} {{.PATTERNS_SSL_FLAG}} --file scripts/training/tasks_unsafe.txt {{.REPEAT}}
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/train_pattern_learner.py --base-url {{.PATTERNS_BASE_URL}} {{.PATTERNS_SSL_FLAG}} --file scripts/training/tasks_unsafe.txt {{.REPEAT}}
+        platforms: [linux, darwin]
+
+  patterns:train:drive:
+    desc: "Train drive domain. Usage: task patterns:train:drive [-- --repeat N]"
+    dir: "{{.API_DIR}}"
+    vars:
+      REPEAT: '{{.CLI_ARGS | default "--repeat 20"}}'
+    cmds:
+      - cmd: .venv/Scripts/python scripts/train_pattern_learner.py --base-url {{.PATTERNS_BASE_URL}} {{.PATTERNS_SSL_FLAG}} --file scripts/training/drive.txt {{.REPEAT}}
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/train_pattern_learner.py --base-url {{.PATTERNS_BASE_URL}} {{.PATTERNS_SSL_FLAG}} --file scripts/training/drive.txt {{.REPEAT}}
+        platforms: [linux, darwin]
+
+  patterns:train:places:
+    desc: "Train places domain. Usage: task patterns:train:places [-- --repeat N]"
+    dir: "{{.API_DIR}}"
+    vars:
+      REPEAT: '{{.CLI_ARGS | default "--repeat 20"}}'
+    cmds:
+      - cmd: .venv/Scripts/python scripts/train_pattern_learner.py --base-url {{.PATTERNS_BASE_URL}} {{.PATTERNS_SSL_FLAG}} --file scripts/training/places.txt {{.REPEAT}}
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/train_pattern_learner.py --base-url {{.PATTERNS_BASE_URL}} {{.PATTERNS_SSL_FLAG}} --file scripts/training/places.txt {{.REPEAT}}
+        platforms: [linux, darwin]
+
+  patterns:train:routes:
+    desc: "Train routes domain. Usage: task patterns:train:routes [-- --repeat N]"
+    dir: "{{.API_DIR}}"
+    vars:
+      REPEAT: '{{.CLI_ARGS | default "--repeat 20"}}'
+    cmds:
+      - cmd: .venv/Scripts/python scripts/train_pattern_learner.py --base-url {{.PATTERNS_BASE_URL}} {{.PATTERNS_SSL_FLAG}} --file scripts/training/routes.txt {{.REPEAT}}
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/train_pattern_learner.py --base-url {{.PATTERNS_BASE_URL}} {{.PATTERNS_SSL_FLAG}} --file scripts/training/routes.txt {{.REPEAT}}
+        platforms: [linux, darwin]
+
+  patterns:train:weather:
+    desc: "Train weather domain. Usage: task patterns:train:weather [-- --repeat N]"
+    dir: "{{.API_DIR}}"
+    vars:
+      REPEAT: '{{.CLI_ARGS | default "--repeat 20"}}'
+    cmds:
+      - cmd: .venv/Scripts/python scripts/train_pattern_learner.py --base-url {{.PATTERNS_BASE_URL}} {{.PATTERNS_SSL_FLAG}} --file scripts/training/weather.txt {{.REPEAT}}
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/train_pattern_learner.py --base-url {{.PATTERNS_BASE_URL}} {{.PATTERNS_SSL_FLAG}} --file scripts/training/weather.txt {{.REPEAT}}
+        platforms: [linux, darwin]
+
+  patterns:train:perplexity:
+    desc: "Train perplexity domain. Usage: task patterns:train:perplexity [-- --repeat N]"
+    dir: "{{.API_DIR}}"
+    vars:
+      REPEAT: '{{.CLI_ARGS | default "--repeat 20"}}'
+    cmds:
+      - cmd: .venv/Scripts/python scripts/train_pattern_learner.py --base-url {{.PATTERNS_BASE_URL}} {{.PATTERNS_SSL_FLAG}} --file scripts/training/perplexity.txt {{.REPEAT}}
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/train_pattern_learner.py --base-url {{.PATTERNS_BASE_URL}} {{.PATTERNS_SSL_FLAG}} --file scripts/training/perplexity.txt {{.REPEAT}}
+        platforms: [linux, darwin]
+
+  patterns:train:wikipedia:
+    desc: "Train wikipedia domain. Usage: task patterns:train:wikipedia [-- --repeat N]"
+    dir: "{{.API_DIR}}"
+    vars:
+      REPEAT: '{{.CLI_ARGS | default "--repeat 20"}}'
+    cmds:
+      - cmd: .venv/Scripts/python scripts/train_pattern_learner.py --base-url {{.PATTERNS_BASE_URL}} {{.PATTERNS_SSL_FLAG}} --file scripts/training/wikipedia.txt {{.REPEAT}}
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/train_pattern_learner.py --base-url {{.PATTERNS_BASE_URL}} {{.PATTERNS_SSL_FLAG}} --file scripts/training/wikipedia.txt {{.REPEAT}}
+        platforms: [linux, darwin]
+
+  patterns:train:multi:
+    desc: "Train multi-domain patterns (SAFE queries). Usage: task patterns:train:multi [-- --repeat N]"
+    dir: "{{.API_DIR}}"
+    vars:
+      REPEAT: '{{.CLI_ARGS | default "--repeat 20"}}'
+    cmds:
+      - cmd: .venv/Scripts/python scripts/train_pattern_learner.py --base-url {{.PATTERNS_BASE_URL}} {{.PATTERNS_SSL_FLAG}} --file scripts/training/multi_domain_safe.txt {{.REPEAT}}
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/train_pattern_learner.py --base-url {{.PATTERNS_BASE_URL}} {{.PATTERNS_SSL_FLAG}} --file scripts/training/multi_domain_safe.txt {{.REPEAT}}
+        platforms: [linux, darwin]
+
+  patterns:train:multi:unsafe:
+    desc: "⚠️  Train multi-domain MUTATIONS. WARNING: Creates events, SENDS EMAILS!"
+    dir: "{{.API_DIR}}"
+    vars:
+      REPEAT: '{{.CLI_ARGS | default "--repeat 1"}}'
+    cmds:
+      - cmd: .venv/Scripts/python scripts/train_pattern_learner.py --base-url {{.PATTERNS_BASE_URL}} {{.PATTERNS_SSL_FLAG}} --file scripts/training/multi_domain_unsafe.txt {{.REPEAT}}
+        platforms: [windows]
+      - cmd: .venv/bin/python scripts/train_pattern_learner.py --base-url {{.PATTERNS_BASE_URL}} {{.PATTERNS_SSL_FLAG}} --file scripts/training/multi_domain_unsafe.txt {{.REPEAT}}
+        platforms: [linux, darwin]
+
+  # ============================================================================
+  # CI/CD Helpers
+  # ============================================================================
+
+  ci:
+    desc: Run CI pipeline locally (lint + test)
+    cmds:
+      - task: lint
+      - task: test
+      - task: security:scan
+
+  pre-commit:
+    desc: Run pre-commit checks (fast tests only)
+    cmds:
+      - task: format
+      - task: lint
+      - task: test:backend:unit:fast

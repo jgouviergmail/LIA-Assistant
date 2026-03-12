@@ -1,0 +1,423 @@
+# ============================================================================
+# Docker Compose - PRODUCTION
+# Raspberry Pi 5 deployment (4 CPU, 16GB RAM, NVMe SSD)
+# ============================================================================
+
+services:
+  # PostgreSQL with pgvector
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: lia-postgres-prod
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    # Increase max_connections to handle SQLAlchemy pool (60) + checkpointer + store + overhead
+    command: >
+      postgres
+      -c max_connections=200
+      -c shared_buffers=512MB
+      -c effective_cache_size=1GB
+      -c work_mem=32MB
+      -c maintenance_work_mem=128MB
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"  # Exposed for external DB management (DBeaver, pgAdmin, etc.)
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/docker/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - lia-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+        reservations:
+          cpus: '0.25'
+          memory: 512M
+
+  # Redis for caching and sessions
+  redis:
+    image: redis:7.4-alpine
+    container_name: lia-redis-prod
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    command: redis-server --appendonly yes --requirepass "${REDIS_PASSWORD}"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - lia-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+        reservations:
+          cpus: '0.1'
+          memory: 256M
+
+  # Backend API
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile.prod
+    container_name: lia-api-prod
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    env_file:
+      - .env
+    environment:
+      - ENVIRONMENT=production
+      - DEBUG=false
+      - LANGFUSE_DEBUG=false
+      # Trust X-Forwarded-Proto from Cloudflare (Flexible SSL sends HTTP to origin)
+      - FORWARDED_ALLOW_IPS=*
+      # HuggingFace cache directory for E5 embedding model
+      - HF_HOME=/app/.cache/huggingface
+      - TRANSFORMERS_CACHE=/app/.cache/huggingface
+    # tmpfs mount for tiktoken and other libs that need writable temp directory
+    # Increased to 500M to handle model operations
+    tmpfs:
+      - /tmp:mode=1777,size=500M
+    volumes:
+      # Persistent HuggingFace model cache (survives container restarts)
+      - huggingface_cache:/app/.cache/huggingface
+      # Firebase service account credentials (FCM push notifications)
+      - ./apps/api/config:/app/config:ro
+      # Persistent storage for file attachments (images, PDF)
+      - attachments_data:/app/data/attachments
+      # System skills (read-only, shipped with the app)
+      - ./data/skills/system:/app/data/skills/system:ro
+      # User-imported skills (persisted across deploys)
+      - skills_data:/app/data/skills/users
+    ports:
+      - "8000:8000"
+      - "9091:9091"  # Prometheus metrics (HTTP-only, no TLS)
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s  # Increased for E5 model loading (~10s)
+    networks:
+      - lia-network
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+
+  # Frontend Web
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile.prod
+      args:
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+        - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+        - NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}
+        - NEXT_PUBLIC_APP_NAME=${NEXT_PUBLIC_APP_NAME:-Lia}
+        # Firebase Cloud Messaging (FCM) - Push Notifications
+        - NEXT_PUBLIC_FIREBASE_API_KEY=${NEXT_PUBLIC_FIREBASE_API_KEY}
+        - NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN}
+        - NEXT_PUBLIC_FIREBASE_PROJECT_ID=${NEXT_PUBLIC_FIREBASE_PROJECT_ID}
+        - NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET}
+        - NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID}
+        - NEXT_PUBLIC_FIREBASE_APP_ID=${NEXT_PUBLIC_FIREBASE_APP_ID}
+        - NEXT_PUBLIC_FIREBASE_VAPID_KEY=${NEXT_PUBLIC_FIREBASE_VAPID_KEY}
+    container_name: lia-web-prod
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - API_URL_SERVER=http://api:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    networks:
+      - lia-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+        reservations:
+          cpus: '0.25'
+          memory: 512M
+
+  # Prometheus
+  prometheus:
+    image: prom/prometheus:v3.0.0
+    container_name: lia-prometheus-prod
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=7d'
+      - '--storage.tsdb.retention.size=2GB'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infrastructure/observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./infrastructure/observability/prometheus/alerts.yml:/etc/prometheus/alerts.yml
+      - ./infrastructure/observability/prometheus/recording_rules.yml:/etc/prometheus/recording_rules.yml
+      - prometheus_data:/prometheus
+    networks:
+      - lia-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+        reservations:
+          cpus: '0.1'
+          memory: 256M
+
+  # Grafana
+  grafana:
+    image: grafana/grafana:11.3.0
+    container_name: lia-grafana-prod
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+      - GF_SERVER_ROOT_URL=${GF_SERVER_ROOT_URL:-http://localhost:3001}
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./infrastructure/observability/grafana/provisioning:/etc/grafana/provisioning
+      - ./infrastructure/observability/grafana/dashboards:/var/lib/grafana/dashboards
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - lia-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+        reservations:
+          cpus: '0.1'
+          memory: 256M
+
+  # Loki (Logs)
+  loki:
+    image: grafana/loki:3.2.1
+    container_name: lia-loki-prod
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    command: -config.file=/etc/loki/local-config.yaml
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./infrastructure/observability/loki/loki-config.yml:/etc/loki/local-config.yaml
+      - loki_data:/loki
+    networks:
+      - lia-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 1G
+        reservations:
+          cpus: '0.1'
+          memory: 256M
+
+  # Promtail (Log Collection Agent)
+  promtail:
+    image: grafana/promtail:3.2.1
+    container_name: lia-promtail-prod
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    command: -config.file=/etc/promtail/promtail-config.yml
+    volumes:
+      - ./infrastructure/observability/promtail/promtail-config.yml:/etc/promtail/promtail-config.yml
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - promtail_positions:/tmp
+    depends_on:
+      - loki
+    networks:
+      - lia-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 512M
+        reservations:
+          cpus: '0.05'
+          memory: 128M
+
+  # Node Exporter - Host/system metrics (CPU, memory, disk, network)
+  # Required for Dashboard 01 CPU/Memory panels and Dashboard 03 Infrastructure
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    container_name: lia-node-exporter-prod
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    command:
+      - '--path.rootfs=/host'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    ports:
+      - "9100:9100"
+    volumes:
+      - /:/host:ro
+    networks:
+      - lia-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+        reservations:
+          cpus: '0.05'
+          memory: 64M
+
+  # cAdvisor - Container metrics (CPU, memory, network per container)
+  # Required for Dashboard 03 container resource panels
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    container_name: lia-cadvisor-prod
+    restart: unless-stopped
+    privileged: true
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    devices:
+      - /dev/kmsg
+    networks:
+      - lia-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 512M
+        reservations:
+          cpus: '0.05'
+          memory: 128M
+
+  # PostgreSQL Exporter - Database metrics
+  # Required for Dashboard 03 DB panels
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: lia-postgres-exporter-prod
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable"
+    ports:
+      - "9187:9187"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - lia-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+        reservations:
+          cpus: '0.05'
+          memory: 64M
+
+  # Redis Exporter - Cache metrics
+  # Required for Dashboard 03 Redis panels
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.62.0
+    container_name: lia-redis-exporter-prod
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      REDIS_ADDR: "redis:6379"
+      REDIS_PASSWORD: "${REDIS_PASSWORD}"
+    ports:
+      - "9121:9121"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - lia-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+        reservations:
+          cpus: '0.05'
+          memory: 64M
+
+  # Portainer (Docker Management UI)
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: lia-portainer-prod
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "9000:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    networks:
+      - lia-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+  loki_data:
+  promtail_positions:
+  huggingface_cache:  # Persistent storage for E5 embedding model (~500MB)
+  attachments_data:  # Persistent storage for file attachments (images, PDF)
+  skills_data:  # Persistent storage for user-imported skills
+  portainer_data:
+
+networks:
+  lia-network:
+    driver: bridge

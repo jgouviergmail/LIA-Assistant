@@ -1,0 +1,80 @@
+graph TB
+    ExecutionPlan[ExecutionPlan Generated] --> ApprovalGate[approval_gate_node]
+
+    ApprovalGate --> Analyzer{Analyze Plan<br/>6 HITL Types}
+
+    Analyzer --> CheckPlan{Plan Approval<br/>Required?}
+    Analyzer --> CheckClarification{Clarification<br/>Needed?}
+    Analyzer --> CheckDestructive{Destructive<br/>Actions? ≥3 items}
+    Analyzer --> CheckForEach{FOR_EACH<br/>Bulk Mutation?}
+    Analyzer --> CheckDraft{Email/Event<br/>Draft?}
+    Analyzer --> CheckModifier{Modifier<br/>Review?}
+
+    CheckPlan -->|Yes| PlanApproval[Plan Approval<br/>Show plan summary]
+    CheckClarification -->|Yes| ClarificationService[Clarification<br/>Missing info detected]
+    CheckDestructive -->|Yes| DestructiveConfirm[DestructiveConfirmation<br/>Severity: CRITICAL]
+    CheckForEach -->|Yes| ForEachConfirm[ForEachConfirmation<br/>Severity: WARNING]
+    CheckDraft -->|Yes| DraftCritique[DraftCritique<br/>Email/Event preview]
+    CheckModifier -->|Yes| ModifierReview[ModifierReview<br/>Parameter changes]
+
+    CheckPlan -->|No| DirectExecution
+    CheckClarification -->|No| DirectExecution
+    CheckDestructive -->|No| DirectExecution
+    CheckForEach -->|No| DirectExecution
+    CheckDraft -->|No| DirectExecution
+    CheckModifier -->|No| DirectExecution
+
+    PlanApproval --> HITLDispatch
+    ClarificationService --> HITLDispatch
+    DestructiveConfirm --> HITLDispatch
+    ForEachConfirm --> HITLDispatch
+    DraftCritique --> HITLDispatch
+    ModifierReview --> HITLDispatch
+
+    HITLDispatch[hitl_dispatch_node<br/>GraphInterrupt]
+
+    HITLDispatch --> SeverityCheck{Severity Level}
+
+    SeverityCheck -->|INFO| UserNotification[User Notification<br/>Can Skip]
+    SeverityCheck -->|WARNING| UserConfirm[User Confirmation<br/>Required]
+    SeverityCheck -->|CRITICAL| UserMustReview[User Must Review<br/>& Approve]
+
+    UserNotification --> UserDecision
+    UserConfirm --> UserDecision
+    UserMustReview --> UserDecision
+
+    UserDecision{User Decision}
+
+    UserDecision -->|Approved| TaskExecution[task_orchestrator_node<br/>Execute Plan]
+    UserDecision -->|Rejected| Cancelled[End: Cancelled]
+    UserDecision -->|Modified / Edited| Replanning[Back to planner_node_v3]
+    UserDecision -->|Clarification Provided| Replanning
+
+    Replanning --> ApprovalGate
+
+    DirectExecution[Direct Execution<br/>No HITL Required] --> TaskExecution
+
+    TaskExecution --> ExecutionComplete[Execution Complete<br/>→ response_node]
+
+    subgraph "Multi-Channel Delivery"
+        direction LR
+        WebSSE[Web SSE<br/>Always]
+        TelegramKB[Telegram<br/>Inline Keyboard]
+        FCMPush[FCM Push<br/>If enabled]
+    end
+
+    HITLDispatch --> WebSSE
+    HITLDispatch --> TelegramKB
+    HITLDispatch --> FCMPush
+
+    style ApprovalGate fill:#ffe1e1
+    style DestructiveConfirm fill:#ffcccc
+    style ForEachConfirm fill:#ffcccc
+    style DraftCritique fill:#fff4e1
+    style ModifierReview fill:#fff4e1
+    style ClarificationService fill:#e1f5ff
+    style PlanApproval fill:#e1f5ff
+    style HITLDispatch fill:#ffe1e1
+    style UserMustReview fill:#ff9999
+    style TaskExecution fill:#e1ffe1
+    style DirectExecution fill:#e1ffe1

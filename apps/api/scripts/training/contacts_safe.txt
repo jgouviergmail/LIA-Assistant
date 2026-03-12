@@ -1,0 +1,9 @@
+# GOOGLE CONTACTS - Safe queries (READ ONLY)
+# Can be executed multiple times without side effects
+
+recherche les contacts marie
+recherche le numéro de marie dupond
+recherche le contact avec le numero 0606060606
+recherche où habitent les dupond
+recherche les dupond qui habitent ensemble
+recherche les dupond qui habitent en ile de france

@@ -1,0 +1,152 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: LIA API 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-10-24 14:00+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+# Authentication errors
+msgid "Invalid credentials"
+msgstr ""
+
+msgid "Account inactive"
+msgstr ""
+
+msgid "Email already registered"
+msgstr ""
+
+msgid "Invalid token"
+msgstr ""
+
+msgid "Token expired"
+msgstr ""
+
+msgid "Unauthorized"
+msgstr ""
+
+msgid "Access denied"
+msgstr ""
+
+# Validation errors
+msgid "Invalid email format"
+msgstr ""
+
+msgid "Password too short"
+msgstr ""
+
+msgid "Password must contain at least 8 characters"
+msgstr ""
+
+msgid "Passwords do not match"
+msgstr ""
+
+msgid "Email is required"
+msgstr ""
+
+msgid "Password is required"
+msgstr ""
+
+msgid "Full name is required"
+msgstr ""
+
+# User errors
+msgid "User not found"
+msgstr ""
+
+msgid "User already exists"
+msgstr ""
+
+msgid "Cannot delete yourself"
+msgstr ""
+
+# Connector errors
+msgid "Connector not found"
+msgstr ""
+
+msgid "Connector already enabled"
+msgstr ""
+
+msgid "Connector disabled"
+msgstr ""
+
+msgid "OAuth flow failed"
+msgstr ""
+
+msgid "Please enable Google Contacts connector first"
+msgstr ""
+
+# Generic errors
+msgid "Internal server error"
+msgstr ""
+
+msgid "Not found"
+msgstr ""
+
+msgid "Bad request"
+msgstr ""
+
+msgid "Forbidden"
+msgstr ""
+
+msgid "Service unavailable"
+msgstr ""
+
+# Success messages
+msgid "Login successful"
+msgstr ""
+
+msgid "Registration successful"
+msgstr ""
+
+msgid "Settings saved"
+msgstr ""
+
+msgid "Connector enabled"
+msgstr ""
+
+msgid "Connector disabled successfully"
+msgstr ""
+
+# Status messages
+msgid "Active"
+msgstr ""
+
+msgid "Inactive"
+msgstr ""
+
+msgid "Online"
+msgstr ""
+
+msgid "Offline"
+msgstr ""
+
+msgid "Connected"
+msgstr ""
+
+msgid "Disconnected"
+msgstr ""
+
+# LLM Pricing messages
+msgid "Pricing updated successfully"
+msgstr ""
+
+msgid "Model pricing not found"
+msgstr ""
+
+msgid "Invalid pricing data"
+msgstr ""
+
+msgid "Currency rate not found"
+msgstr ""

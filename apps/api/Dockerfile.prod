@@ -1,0 +1,110 @@
+FROM python:3.12-slim-bookworm AS builder
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /build
+
+# Install build dependencies and security patches
+RUN apt-get update && apt-get upgrade -y && apt-get install -y \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install dependencies
+COPY requirements.txt .
+RUN pip install --user --no-cache-dir -r requirements.txt
+
+# =============================================================================
+# Model download stage - Downloads Sherpa-onnx Whisper Small INT8 STT model
+# =============================================================================
+FROM python:3.12-slim-bookworm AS model-downloader
+
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /models/whisper-small
+
+# Download Whisper Small INT8 model files (~375MB total)
+# Multi-language: 99+ languages including French
+# Source: HuggingFace csukuangfj/sherpa-onnx-whisper-small
+ARG HF_BASE_URL=https://huggingface.co/csukuangfj/sherpa-onnx-whisper-small/resolve/main
+
+RUN curl -L -o encoder.onnx "${HF_BASE_URL}/small-encoder.int8.onnx" && \
+    curl -L -o decoder.onnx "${HF_BASE_URL}/small-decoder.int8.onnx" && \
+    curl -L -o tokens.txt "${HF_BASE_URL}/small-tokens.txt"
+
+# =============================================================================
+# GeoIP database download stage - DB-IP Lite City (free, CC-BY-4.0)
+# =============================================================================
+FROM python:3.12-slim-bookworm AS geoip-downloader
+
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /data/geoip
+
+# DB-IP Lite City database — free, no account needed, updated monthly
+ARG DBIP_DATE=2026-03
+RUN curl -L -o dbip-city-lite.mmdb.gz \
+        "https://download.db-ip.com/free/dbip-city-lite-${DBIP_DATE}.mmdb.gz" && \
+    gunzip dbip-city-lite.mmdb.gz
+
+# =============================================================================
+# Runtime stage
+# =============================================================================
+FROM python:3.12-slim-bookworm
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PATH=/home/appuser/.local/bin:$PATH
+
+# Install runtime dependencies and security patches
+RUN apt-get update && apt-get upgrade -y && apt-get install -y \
+    postgresql-client \
+    curl \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
+RUN useradd -m -u 1000 -s /bin/bash appuser
+
+# Set working directory
+WORKDIR /app
+
+# Copy installed dependencies from builder
+COPY --from=builder --chown=appuser:appuser /root/.local /home/appuser/.local
+
+# Copy STT model from model-downloader stage
+COPY --from=model-downloader --chown=appuser:appuser /models/whisper-small /models/whisper-small
+
+# Copy GeoIP database from geoip-downloader stage
+COPY --from=geoip-downloader --chown=appuser:appuser /data/geoip /data/geoip
+
+# Copy entrypoint script and fix Windows CRLF line endings
+COPY --chown=appuser:appuser docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN sed -i 's/\r$//' /app/docker-entrypoint.sh && \
+    chmod +x /app/docker-entrypoint.sh
+
+# Copy application code
+COPY --chown=appuser:appuser . .
+
+# Create data directories for volumes (owned by appuser before USER switch)
+RUN mkdir -p /app/data/attachments && chown -R appuser:appuser /app/data
+
+# Switch to non-root user
+USER appuser
+
+# Expose ports (8000: API HTTPS, 9091: Prometheus metrics HTTP)
+EXPOSE 8000 9091
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Set entrypoint to run migrations before starting app
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
+
+# Run application
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]

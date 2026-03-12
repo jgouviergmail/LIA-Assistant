@@ -1,0 +1,888 @@
+{
+  "title": "11 - Voice & WebSocket",
+  "uid": "11-voice-websocket",
+  "tags": ["lia", "voice", "tts", "stt", "websocket"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [
+    {
+      "title": "LIA",
+      "type": "dashboards",
+      "tags": ["lia"],
+      "targetBlank": false
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {},
+        "hide": 0
+      },
+      {
+        "name": "voice_name",
+        "type": "query",
+        "datasource": "$datasource",
+        "query": "label_values(voice_tts_requests_total, voice_name)",
+        "multi": true,
+        "includeAll": true,
+        "refresh": 1,
+        "current": {},
+        "hide": 0
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "row",
+      "id": 100,
+      "title": "TTS (Text-to-Speech)",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "panels": []
+    },
+    {
+      "id": 1,
+      "title": "TTS Requests Rate",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 1 },
+      "targets": [
+        {
+          "expr": "sum by (status, voice_name) (rate(voice_tts_requests_total{voice_name=~\"$voice_name\"}[$__rate_interval]))",
+          "legendFormat": "{{voice_name}} ({{status}})",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "lineWidth": 1
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "TTS Latency P95",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 1 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (voice_name, le) (rate(voice_tts_latency_seconds_bucket[$__rate_interval])))",
+          "legendFormat": "{{voice_name}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "lineWidth": 1
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "TTS Error Rate",
+      "type": "stat",
+      "datasource": "$datasource",
+      "gridPos": { "h": 8, "w": 4, "x": 16, "y": 1 },
+      "targets": [
+        {
+          "expr": "sum(rate(voice_tts_requests_total{status=\"error\"}[$__rate_interval])) / sum(rate(voice_tts_requests_total[$__rate_interval])) * 100",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "green" },
+              { "value": 5, "color": "yellow" },
+              { "value": 10, "color": "red" }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "textMode": "auto",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "TTS Errors by Type",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": { "h": 8, "w": 4, "x": 20, "y": 1 },
+      "targets": [
+        {
+          "expr": "sum by (error_type) (rate(voice_tts_errors_total[$__rate_interval]))",
+          "legendFormat": "{{error_type}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "lineWidth": 1
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Voice Comment Tokens",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 9 },
+      "targets": [
+        {
+          "expr": "sum by (token_type) (rate(voice_comment_tokens_total[$__rate_interval]))",
+          "legendFormat": "{{token_type}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "lineWidth": 1,
+            "stacking": { "mode": "normal" }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Comment Generation Duration P95",
+      "type": "timeseries",
+      "datasource": "$datasource",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 9 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(voice_comment_generation_duration_seconds_bucket[$__rate_interval])))",
+          "legendFormat": "Duration P95",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "fillOpacity": 10,
+            "lineWidth": 1
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "title": "Sentences per Comment",
+      "type": "stat",
+      "datasource": "$datasource",
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 9 },
+      "targets": [
+        {
+          "expr": "rate(voice_comment_sentences_total[$__rate_interval]) / rate(voice_comment_generation_duration_seconds_count[$__rate_interval])",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "value": null, "color": "green" }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "area",
+        "colorMode": "value",
+        "textMode": "auto",
+        "justifyMode": "auto",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": false
+        }
+      }
+    },
+    {
+      "type": "row",
+      "id": 101,
+      "title": "Audio Streaming",
+      "collapsed": true,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 17 },
+      "panels": [
+        {
+          "id": 8,
+          "title": "Audio Bytes Rate",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 18 },
+          "targets": [
+            {
+              "expr": "sum(rate(voice_audio_bytes_total[$__rate_interval]))",
+              "legendFormat": "Audio Bytes",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "Bps",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 9,
+          "title": "Time to First Audio P95",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 18 },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(voice_time_to_first_audio_seconds_bucket[$__rate_interval])))",
+              "legendFormat": "TTFA P95",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 10,
+          "title": "Streaming Duration P95",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 18 },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(voice_streaming_duration_seconds_bucket[$__rate_interval])))",
+              "legendFormat": "Duration P95",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 11,
+          "title": "Audio Chunks Rate",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 6, "x": 0, "y": 26 },
+          "targets": [
+            {
+              "expr": "rate(voice_audio_chunks_total[$__rate_interval])",
+              "legendFormat": "Chunks/s",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 12,
+          "title": "Voice Preference Toggles",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 6, "x": 6, "y": 26 },
+          "targets": [
+            {
+              "expr": "sum by (action) (rate(voice_preference_toggles_total[$__rate_interval]))",
+              "legendFormat": "{{action}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 13,
+          "title": "Voice Sessions by Gender",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 6, "x": 12, "y": 26 },
+          "targets": [
+            {
+              "expr": "sum by (lia_gender) (rate(voice_sessions_total[$__rate_interval]))",
+              "legendFormat": "{{lia_gender}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 14,
+          "title": "Fallbacks",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 3, "x": 18, "y": 26 },
+          "targets": [
+            {
+              "expr": "sum by (reason) (rate(voice_fallback_total[$__rate_interval]))",
+              "legendFormat": "{{reason}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 15,
+          "title": "Interruptions",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 3, "x": 21, "y": 26 },
+          "targets": [
+            {
+              "expr": "sum by (trigger) (rate(voice_interruptions_total[$__rate_interval]))",
+              "legendFormat": "{{trigger}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "id": 102,
+      "title": "STT (Speech-to-Text)",
+      "collapsed": true,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 34 },
+      "panels": [
+        {
+          "id": 16,
+          "title": "Transcription Rate",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 6, "x": 0, "y": 35 },
+          "targets": [
+            {
+              "expr": "sum by (status) (rate(voice_stt_transcriptions_total[$__rate_interval]))",
+              "legendFormat": "{{status}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 17,
+          "title": "Transcription Duration P95",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 6, "x": 6, "y": 35 },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(voice_stt_transcription_duration_seconds_bucket[$__rate_interval])))",
+              "legendFormat": "Duration P95",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 18,
+          "title": "Audio Duration (input)",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 6, "x": 12, "y": 35 },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.5, sum by (le) (rate(voice_stt_audio_duration_seconds_bucket[$__rate_interval])))",
+              "legendFormat": "Audio P50",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 19,
+          "title": "STT Errors",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 6, "x": 18, "y": 35 },
+          "targets": [
+            {
+              "expr": "sum by (error_type) (rate(voice_stt_errors_total[$__rate_interval]))",
+              "legendFormat": "{{error_type}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "id": 103,
+      "title": "WebSocket",
+      "collapsed": true,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 43 },
+      "panels": [
+        {
+          "id": 20,
+          "title": "Active Connections",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 6, "x": 0, "y": 44 },
+          "targets": [
+            {
+              "expr": "voice_websocket_connections_active",
+              "legendFormat": "Active",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 21,
+          "title": "Total Connections Rate",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 6, "x": 6, "y": 44 },
+          "targets": [
+            {
+              "expr": "sum by (status) (rate(voice_websocket_connections_total[$__rate_interval]))",
+              "legendFormat": "{{status}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 22,
+          "title": "Bytes Received Rate",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 6, "x": 12, "y": 44 },
+          "targets": [
+            {
+              "expr": "rate(voice_websocket_audio_bytes_received_total[$__rate_interval])",
+              "legendFormat": "Bytes/s",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "Bps",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 23,
+          "title": "Connection Duration P95",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 6, "x": 18, "y": 44 },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(voice_websocket_connection_duration_seconds_bucket[$__rate_interval])))",
+              "legendFormat": "Duration P95",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 24,
+          "title": "Ticket Issued vs Validated",
+          "type": "timeseries",
+          "datasource": "$datasource",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 52 },
+          "targets": [
+            {
+              "expr": "rate(voice_websocket_tickets_issued_total[$__rate_interval])",
+              "legendFormat": "Issued",
+              "refId": "A"
+            },
+            {
+              "expr": "sum by (status) (rate(voice_websocket_tickets_validated_total[$__rate_interval]))",
+              "legendFormat": "Validated ({{status}})",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "smooth",
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

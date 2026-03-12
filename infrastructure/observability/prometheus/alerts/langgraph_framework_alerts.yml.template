@@ -1,0 +1,429 @@
+# Règles d'alerting pour LIA (TEMPLATE)
+#
+# Ce fichier est un template Jinja2. Les seuils sont externalisés dans .env.alerting.{environment}
+#
+# Pour générer langgraph_framework_alerts.yml:
+#   python render_alerts.py --env production --template langgraph_framework_alerts.yml.template --output langgraph_framework_alerts.yml
+#   python render_alerts.py --env staging --template langgraph_framework_alerts.yml.template --output langgraph_framework_alerts.yml
+#   python render_alerts.py --env development --template langgraph_framework_alerts.yml.template --output langgraph_framework_alerts.yml
+#
+# Variables disponibles: 87 seuils (voir .env.alerting.example)
+#
+# Règles d'alerting pour LangGraph Framework Observability (Phase 2.5)
+#
+# Alertes critiques pour graph execution, node transitions, state management,
+# subgraphs (ReAct loops), et streaming events.
+#
+# Créé: 2025-11-22
+# Phase: 2.5 - LangGraph Framework Observability
+#
+groups:
+  # ===== P1: GRAPH EXECUTION ALERTS =====
+  - name: langgraph_graph_execution
+    interval: 30s
+    rules:
+      # Graph success rate critique (< <<<ALERT_LANGGRAPH_LANG_GRAPH_LOW_SUCCESS_RATE_CRITICAL_PERCENT>>>%)
+      - alert: LangGraphLowSuccessRate
+        expr: |
+          (
+            sum(rate(langgraph_graph_executions_total{status="success"}[5m]))
+            /
+            sum(rate(langgraph_graph_executions_total[5m]))
+          ) * 100 < <<<ALERT_LANGGRAPH_LANG_GRAPH_LOW_SUCCESS_RATE_CRITICAL_PERCENT>>>
+        for: 5m
+        labels:
+          severity: critical
+          component: langgraph
+          priority: p1
+          phase: "2.5"
+        annotations:
+          summary: "LangGraph graph success rate critique"
+          description: "Taux de succès: {{ $value | humanize }}% (seuil: 90%). Vérifier les logs pour identifier les erreurs récurrentes."
+          runbook: "runbooks/langgraph/low-success-rate.md"
+          dashboard: "11-langgraph-framework"
+
+      # Graph success rate warning (< <<<ALERT_LANGGRAPH_LANG_GRAPH_LOW_SUCCESS_RATE_WARNING_PERCENT>>>%)
+      - alert: LangGraphLowSuccessRateWarning
+        expr: |
+          (
+            sum(rate(langgraph_graph_executions_total{status="success"}[5m]))
+            /
+            sum(rate(langgraph_graph_executions_total[5m]))
+          ) * 100 < <<<ALERT_LANGGRAPH_LANG_GRAPH_LOW_SUCCESS_RATE_WARNING_PERCENT>>>
+        for: 10m
+        labels:
+          severity: warning
+          component: langgraph
+          priority: p1
+          phase: "2.5"
+        annotations:
+          summary: "LangGraph graph success rate en baisse"
+          description: "Taux de succès: {{ $value | humanize }}% (target: 95%). Surveiller la tendance."
+          dashboard: "11-langgraph-framework"
+
+      # Graph latency P95 élevée (> <<<ALERT_LANGGRAPH_LANG_GRAPH_HIGH_LATENCY_P95_CRITICAL_SECONDS>>>s)
+      - alert: LangGraphHighLatencyP95
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(langgraph_graph_duration_seconds_bucket[5m])) by (le)
+          ) > <<<ALERT_LANGGRAPH_LANG_GRAPH_HIGH_LATENCY_P95_CRITICAL_SECONDS>>>
+        for: 5m
+        labels:
+          severity: critical
+          component: langgraph
+          priority: p1
+          phase: "2.5"
+        annotations:
+          summary: "LangGraph latence P95 critique"
+          description: "Latence P95: {{ $value | humanize }}s (seuil: 30s). Vérifier les agents lents et la charge LLM."
+          runbook: "runbooks/langgraph/high-latency.md"
+          dashboard: "11-langgraph-framework"
+
+      # Graph latency P95 warning (> <<<ALERT_LANGGRAPH_LANG_GRAPH_HIGH_LATENCY_P95_WARNING_SECONDS>>>s)
+      - alert: LangGraphHighLatencyP95Warning
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(langgraph_graph_duration_seconds_bucket[5m])) by (le)
+          ) > <<<ALERT_LANGGRAPH_LANG_GRAPH_HIGH_LATENCY_P95_WARNING_SECONDS>>>
+        for: 10m
+        labels:
+          severity: warning
+          component: langgraph
+          priority: p1
+          phase: "2.5"
+        annotations:
+          summary: "LangGraph latence P95 élevée"
+          description: "Latence P95: {{ $value | humanize }}s (target: <10s). Optimisation recommandée."
+          dashboard: "11-langgraph-framework"
+
+      # Graph error rate élevé (> <<<ALERT_LANGGRAPH_LANG_GRAPH_HIGH_ERROR_RATE_CRITICAL_RATE>>>/s)
+      - alert: LangGraphHighErrorRate
+        expr: |
+          sum(rate(langgraph_graph_executions_total{status="error"}[5m])) > <<<ALERT_LANGGRAPH_LANG_GRAPH_HIGH_ERROR_RATE_CRITICAL_RATE>>>
+        for: 5m
+        labels:
+          severity: critical
+          component: langgraph
+          priority: p1
+          phase: "2.5"
+        annotations:
+          summary: "LangGraph taux d'erreur élevé"
+          description: "Erreurs: {{ $value | humanize }}/s (seuil: 0.5/s). Vérifier les types d'erreurs dans langgraph_graph_errors_total."
+          runbook: "runbooks/langgraph/high-error-rate.md"
+          dashboard: "11-langgraph-framework"
+
+      # GraphRecursionError détecté (boucle infinie)
+      - alert: LangGraphRecursionError
+        expr: |
+          sum(rate(langgraph_graph_errors_total{error_type="GraphRecursionError"}[5m])) > 0
+        for: 2m
+        labels:
+          severity: critical
+          component: langgraph
+          priority: p1
+          phase: "2.5"
+        annotations:
+          summary: "LangGraph récursion infinie détectée"
+          description: "GraphRecursionError: {{ $value | humanize }}/s. Boucle infinie dans le graph. Vérifier les conditional edges."
+          runbook: "runbooks/langgraph/recursion-error.md"
+          dashboard: "11-langgraph-framework"
+
+      # Interrupts fréquents (HITL abuse potentiel)
+      - alert: LangGraphHighInterruptRate
+        expr: |
+          sum(rate(langgraph_graph_executions_total{status="interrupted"}[5m])) > <<<ALERT_LANGGRAPH_LANG_GRAPH_HIGH_INTERRUPT_RATE_WARNING_RATE>>>
+        for: 10m
+        labels:
+          severity: warning
+          component: langgraph
+          priority: p1
+          phase: "2.5"
+        annotations:
+          summary: "LangGraph interruptions fréquentes (HITL)"
+          description: "Interrupts: {{ $value | humanize }}/s (seuil: 1/s). Vérifier config HITL (tool_approval_enabled)."
+          dashboard: "11-langgraph-framework"
+
+  # ===== P2: NODE TRANSITIONS ALERTS =====
+  - name: langgraph_node_transitions
+    interval: 30s
+    rules:
+      # Router → Response trop fréquent (fallback path abuse)
+      - alert: LangGraphRouterFallbackAbuse
+        expr: |
+          (
+            sum(rate(langgraph_conditional_edges_total{edge_name="route_from_router", decision="response"}[5m]))
+            /
+            sum(rate(langgraph_conditional_edges_total{edge_name="route_from_router"}[5m]))
+          ) * 100 > <<<ALERT_LANGGRAPH_LANG_GRAPH_ROUTER_FALLBACK_ABUSE_WARNING_PERCENT>>>
+        for: 10m
+        labels:
+          severity: warning
+          component: langgraph
+          priority: p2
+          phase: "2.5"
+        annotations:
+          summary: "LangGraph router fallback path abuse"
+          description: "{{ $value | humanize }}% des requêtes bypassed le planner (seuil: 50%). Vérifier la qualité des prompts router."
+          runbook: "runbooks/langgraph/router-fallback-abuse.md"
+          dashboard: "11-langgraph-framework"
+
+      # Transition rate anormalement faible (graph freeze)
+      - alert: LangGraphLowTransitionRate
+        expr: |
+          sum(rate(langgraph_node_transitions_total[5m])) < <<<ALERT_LANGGRAPH_LANG_GRAPH_LOW_TRANSITION_RATE_WARNING_RATE>>>
+        for: 5m
+        labels:
+          severity: warning
+          component: langgraph
+          priority: p2
+          phase: "2.5"
+        annotations:
+          summary: "LangGraph transition rate anormalement faible"
+          description: "Transitions: {{ $value | humanize }}/s (seuil: 0.1/s). Vérifier si le graph est gelé."
+          dashboard: "11-langgraph-framework"
+
+  # ===== P3: STATE MANAGEMENT ALERTS =====
+  - name: langgraph_state_management
+    interval: 30s
+    rules:
+      # State size critique (> <<<ALERT_LANGGRAPH_LANG_GRAPH_HIGH_INTERRUPT_RATE_WARNING_RATE>>>MB checkpoint performance)
+      - alert: LangGraphStateSizeCritical
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(langgraph_state_size_bytes_bucket[5m])) by (le, node_name)
+          ) > <<<ALERT_LANGGRAPH_LANG_GRAPH_HIGH_LATENCY_P95_WARNING_SECONDS>>>48576
+        for: 10m
+        labels:
+          severity: critical
+          component: langgraph
+          priority: p3
+          phase: "2.5"
+        annotations:
+          summary: "LangGraph state size critique sur {{ $labels.node_name }}"
+          description: "State P95: {{ $value | humanize1024 }}B (seuil: 1MB). Performance checkpoints dégradée. Vérifier cleanup."
+          runbook: "runbooks/langgraph/state-size-critical.md"
+          dashboard: "11-langgraph-framework"
+
+      # State size warning (> <<<ALERT_LANGGRAPH_LANG_GRAPH_ROUTER_FALLBACK_ABUSE_WARNING_PERCENT>>>0KB)
+      - alert: LangGraphStateSizeWarning
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(langgraph_state_size_bytes_bucket[5m])) by (le, node_name)
+          ) > <<<ALERT_LANGGRAPH_LANG_GRAPH_STATE_SIZE_WARNING_BYTES>>>
+        for: 15m
+        labels:
+          severity: warning
+          component: langgraph
+          priority: p3
+          phase: "2.5"
+        annotations:
+          summary: "LangGraph state size élevée sur {{ $labels.node_name }}"
+          description: "State P95: {{ $value | humanize1024 }}B (warning: 500KB). Vérifier croissance state."
+          dashboard: "11-langgraph-framework"
+
+      # State pollution détectée (même clé modifiée par multiple nodes)
+      - alert: LangGraphStatePollution
+        expr: |
+          count by (key) (
+            sum by (node_name, key) (rate(langgraph_state_updates_total[5m])) > <<<ALERT_LANGGRAPH_LANG_GRAPH_STATE_POLLUTION_WARNING_RATE>>>
+          ) > <<<ALERT_LANGGRAPH_LANG_GRAPH_STATE_POLLUTION_WARNING_RATE>>>
+        for: 10m
+        labels:
+          severity: warning
+          component: langgraph
+          priority: p3
+          phase: "2.5"
+        annotations:
+          summary: "LangGraph state pollution potentielle sur {{ $labels.key }}"
+          description: "Clé '{{ $labels.key }}' modifiée par {{ $value }} nodes différents (seuil: 3). Risque de conflits."
+          runbook: "runbooks/langgraph/state-pollution.md"
+          dashboard: "11-langgraph-framework"
+
+  # ===== P4: SUBGRAPH (REACT LOOPS) ALERTS =====
+  - name: langgraph_subgraphs
+    interval: 30s
+    rules:
+      # SubGraph success rate critique (< <<<ALERT_LANGGRAPH_LANG_GRAPH_SUB_GRAPH_LOW_SUCCESS_RATE_CRITICAL_PERCENT>>>%)
+      - alert: LangGraphSubGraphLowSuccessRate
+        expr: |
+          (
+            sum by (agent_name) (rate(langgraph_subgraph_invocations_total{status="success"}[5m]))
+            /
+            sum by (agent_name) (rate(langgraph_subgraph_invocations_total[5m]))
+          ) * 100 < <<<ALERT_LANGGRAPH_LANG_GRAPH_SUB_GRAPH_LOW_SUCCESS_RATE_CRITICAL_PERCENT>>>
+        for: 10m
+        labels:
+          severity: critical
+          component: langgraph
+          priority: p4
+          phase: "2.5"
+        annotations:
+          summary: "LangGraph subgraph {{ $labels.agent_name }} success rate critique"
+          description: "Taux de succès: {{ $value | humanize }}% (seuil: 85%). Vérifier les erreurs agent-level."
+          runbook: "runbooks/langgraph/subgraph-low-success.md"
+          dashboard: "11-langgraph-framework"
+
+      # SubGraph latency P95 critique (> <<<ALERT_LANGGRAPH_LANG_GRAPH_HIGH_LATENCY_P95_CRITICAL_SECONDS>>>s)
+      - alert: LangGraphSubGraphHighLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le, agent_name) (rate(langgraph_subgraph_duration_seconds_bucket[5m]))
+          ) > <<<ALERT_LANGGRAPH_LANG_GRAPH_HIGH_LATENCY_P95_CRITICAL_SECONDS>>>
+        for: 10m
+        labels:
+          severity: critical
+          component: langgraph
+          priority: p4
+          phase: "2.5"
+        annotations:
+          summary: "LangGraph subgraph {{ $labels.agent_name }} latence critique"
+          description: "Latence P95: {{ $value | humanize }}s (seuil: 30s). Vérifier ReAct loop efficiency."
+          runbook: "runbooks/langgraph/subgraph-high-latency.md"
+          dashboard: "11-langgraph-framework"
+
+      # ReAct loop excessive iterations (> <<<ALERT_LANGGRAPH_LANG_GRAPH_HIGH_LATENCY_P95_WARNING_SECONDS>>> tools/invocation)
+      - alert: LangGraphReActLoopExcessiveIterations
+        expr: |
+          (
+            sum by (agent_name) (rate(langgraph_subgraph_tool_calls_total[5m]))
+            /
+            sum by (agent_name) (rate(langgraph_subgraph_invocations_total[5m]))
+          ) > <<<ALERT_LANGGRAPH_LANG_GRAPH_HIGH_LATENCY_P95_WARNING_SECONDS>>>
+        for: 15m
+        labels:
+          severity: warning
+          component: langgraph
+          priority: p4
+          phase: "2.5"
+        annotations:
+          summary: "LangGraph agent {{ $labels.agent_name }} ReAct loop inefficient"
+          description: "Moyenne: {{ $value | humanize }} tools/invocation (seuil: 10). Vérifier prompts agent."
+          runbook: "runbooks/langgraph/react-loop-excessive.md"
+          dashboard: "11-langgraph-framework"
+
+      # SubGraph error rate élevé (> <<<ALERT_LANGGRAPH_LANG_GRAPH_STATE_POLLUTION_WARNING_RATE>>>/s)
+      - alert: LangGraphSubGraphHighErrorRate
+        expr: |
+          sum by (agent_name) (rate(langgraph_subgraph_invocations_total{status="error"}[5m])) > <<<ALERT_LANGGRAPH_LANG_GRAPH_STATE_POLLUTION_WARNING_RATE>>>
+        for: 5m
+        labels:
+          severity: critical
+          component: langgraph
+          priority: p4
+          phase: "2.5"
+        annotations:
+          summary: "LangGraph subgraph {{ $labels.agent_name }} erreur rate élevé"
+          description: "Erreurs: {{ $value | humanize }}/s (seuil: 0.1/s). Vérifier logs agent."
+          dashboard: "11-langgraph-framework"
+
+  # ===== P5: STREAMING EVENTS ALERTS =====
+  - name: langgraph_streaming
+    interval: 30s
+    rules:
+      # Streaming error chunks détectés
+      - alert: LangGraphStreamingErrors
+        expr: |
+          sum(rate(langgraph_streaming_chunks_total{event_type="STREAM_ERROR"}[5m])) > <<<ALERT_LANGGRAPH_LANG_GRAPH_RECURSION_ERROR_CRITICAL_RATE>>> <<<ALERT_LANGGRAPH_LANG_GRAPH_HIGH_INTERRUPT_RATE_WARNING_RATE>>>
+        for: 5m
+        labels:
+          severity: critical
+          component: langgraph
+          priority: p5
+          phase: "2.5"
+        annotations:
+          summary: "LangGraph streaming error chunks détectés"
+          description: "Erreurs: {{ $value | humanize }}/s (seuil: 0.01/s). Vérifier service.py streaming pipeline."
+          runbook: "runbooks/langgraph/streaming-errors.md"
+          dashboard: "11-langgraph-framework"
+
+      # HITL interrupt chunks anormalement élevés
+      - alert: LangGraphStreamingHighHITLRate
+        expr: |
+          (
+            sum(rate(langgraph_streaming_chunks_total{event_type="STREAM_INTERRUPT"}[5m]))
+            /
+            sum(rate(langgraph_streaming_chunks_total[5m]))
+          ) * 100 > <<<ALERT_LANGGRAPH_LANG_GRAPH_STREAMING_HIGH_H_I_T_L_RATE_WARNING_PERCENT>>>
+        for: 15m
+        labels:
+          severity: warning
+          component: langgraph
+          priority: p5
+          phase: "2.5"
+        annotations:
+          summary: "LangGraph streaming HITL interrupt rate élevé"
+          description: "HITL chunks: {{ $value | humanize }}% (seuil: 20%). Vérifier config tool_approval."
+          dashboard: "11-langgraph-framework"
+
+      # Streaming chunk rate anormalement faible
+      - alert: LangGraphStreamingLowChunkRate
+        expr: |
+          sum(rate(langgraph_streaming_chunks_total[5m])) < <<<ALERT_LANGGRAPH_LANG_GRAPH_STREAMING_LOW_CHUNK_RATE_WARNING_RATE>>>
+        for: 10m
+        labels:
+          severity: warning
+          component: langgraph
+          priority: p5
+          phase: "2.5"
+        annotations:
+          summary: "LangGraph streaming chunk rate anormalement faible"
+          description: "Chunks: {{ $value | humanize }}/s (seuil: 0.5/s). Vérifier si streaming fonctionne."
+          dashboard: "11-langgraph-framework"
+
+  # ===== ALERTES COMPOSITES (MULTI-PRIORITÉS) =====
+  - name: langgraph_composite_alerts
+    interval: 30s
+    rules:
+      # Système LangGraph dégradé (multiple métriques)
+      - alert: LangGraphSystemDegraded
+        expr: |
+          (
+            (
+              sum(rate(langgraph_graph_executions_total{status="success"}[5m]))
+              /
+              sum(rate(langgraph_graph_executions_total[5m]))
+            ) * 100 < <<<ALERT_LANGGRAPH_LANG_GRAPH_LOW_SUCCESS_RATE_CRITICAL_PERCENT>>>
+          )
+          and
+          (
+            histogram_quantile(0.95,
+              sum(rate(langgraph_graph_duration_seconds_bucket[5m])) by (le)
+            ) > <<<ALERT_LANGGRAPH_LANG_GRAPH_STREAMING_HIGH_H_I_T_L_RATE_WARNING_PERCENT>>>
+          )
+        for: 5m
+        labels:
+          severity: critical
+          component: langgraph
+          priority: p0
+          phase: "2.5"
+        annotations:
+          summary: "LangGraph système dégradé - SUCCESS RATE & LATENCY"
+          description: "Success rate < <<<ALERT_LANGGRAPH_LANG_GRAPH_LOW_SUCCESS_RATE_CRITICAL_PERCENT>>>% ET latence P95 > <<<ALERT_LANGGRAPH_LANG_GRAPH_STREAMING_HIGH_H_I_T_L_RATE_WARNING_PERCENT>>>s. Incident majeur en cours."
+          runbook: "runbooks/langgraph/system-degraded.md"
+          dashboard: "11-langgraph-framework"
+
+      # Performance dégradée (latence + subgraphs)
+      - alert: LangGraphPerformanceDegraded
+        expr: |
+          (
+            histogram_quantile(0.95,
+              sum(rate(langgraph_graph_duration_seconds_bucket[5m])) by (le)
+            ) > <<<ALERT_LANGGRAPH_LANG_GRAPH_HIGH_INTERRUPT_RATE_WARNING_RATE>>>5
+          )
+          and
+          (
+            histogram_quantile(0.95,
+              sum(rate(langgraph_subgraph_duration_seconds_bucket[5m])) by (le)
+            ) > <<<ALERT_LANGGRAPH_LANG_GRAPH_STREAMING_HIGH_H_I_T_L_RATE_WARNING_PERCENT>>>
+          )
+        for: 10m
+        labels:
+          severity: warning
+          component: langgraph
+          priority: p1
+          phase: "2.5"
+        annotations:
+          summary: "LangGraph performance dégradée - GRAPH & SUBGRAPHS"
+          description: "Graph P95 > <<<ALERT_LANGGRAPH_LANG_GRAPH_HIGH_INTERRUPT_RATE_WARNING_RATE>>>5s ET SubGraph P95 > <<<ALERT_LANGGRAPH_LANG_GRAPH_STREAMING_HIGH_H_I_T_L_RATE_WARNING_PERCENT>>>s. Optimisation urgente requise."
+          runbook: "runbooks/langgraph/performance-degraded.md"
+          dashboard: "11-langgraph-framework"

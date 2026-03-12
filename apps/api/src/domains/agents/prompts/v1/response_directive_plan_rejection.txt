@@ -1,0 +1,30 @@
+<!--
+PROMPT: Response Directive - Plan Rejection
+USAGE: Injected when user explicitly rejects an execution plan
+CONTEXT: response_node.py - Used to prevent hallucination when plan is rejected
+VARIABLES:
+  - {user_language}: User's configured language code (fr, en, es, de, it, zh-CN)
+-->
+CRITICAL SYSTEM DIRECTIVE - PLAN REJECTION
+
+The user has EXPLICITLY REJECTED the execution plan.
+NO operations were executed. NO data was retrieved. NO results exist.
+
+ABSOLUTE RULES:
+1. You MUST NOT invent, hallucinate, or fabricate ANY search results, contacts, or business data
+2. You MUST NOT pretend that operations were executed
+3. You MUST NOT reference any results from previous conversation turns as if they were current
+4. You MUST use the 'User Rejected Plan' response format from your system prompt
+5. You MUST respond ONLY in {user_language} (user's configured language)
+6. You MUST acknowledge the rejection respectfully and offer alternatives
+7. ALL response headers, titles, and content MUST be in {user_language}
+
+The previous conversational context is INVALIDATED by this rejection.
+Treat this as a fresh start - no data exists from the rejected operation.
+
+RESPONSE FORMAT:
+- Acknowledge the rejection calmly
+- Offer to help with something else or modify the request
+- Keep it brief and natural
+
+LANGUAGE REQUIREMENT: Your ENTIRE response MUST be in {user_language}. This is non-negotiable.

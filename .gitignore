@@ -1,0 +1,250 @@
+# ============================================================================
+# LIA - Git Ignore Configuration
+# ============================================================================
+
+# ============================================
+# PYTHON
+# ============================================
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+.ENV/
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+/lib/
+/lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Pytest / Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+
+# Linters & type checkers
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.ruff_cache/
+
+# ============================================
+# NODE.JS / NEXT.JS
+# ============================================
+
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# pnpm workspace — keep root lockfile, ignore workspace-specific ones
+apps/*/pnpm-lock.yaml
+!pnpm-lock.yaml
+
+# Next.js build output
+.next/
+out/
+
+# TypeScript build info
+*.tsbuildinfo
+next-env.d.ts
+
+# Vercel
+.vercel
+
+# ============================================
+# ENVIRONMENT & SECRETS
+# ============================================
+# Tracked templates: .env.example, .env.min.prod, .env.prod.example
+
+# Runtime environment files (contain real secrets)
+.env
+.env.local
+.env.local.*
+.env.*.local
+.env.prod
+.env.prod.backup.*
+.env.development
+.env.staging
+.env.production
+
+# Legacy env aliases
+.env_PCWIFI
+.env_RASPETH
+
+# Per-environment alerting configs
+.env.alerting.*
+
+# SOPS encrypted files (secrets at rest)
+*.encrypted
+
+# SOPS / Age encryption keys (CRITICAL — NEVER COMMIT)
+keys/
+*age-key*
+
+# Firebase service account
+firebase-service-account*.json
+serviceAccount*.json
+apps/api/config/
+
+# SSL certificates & keys
+*.pem
+*.key
+*.crt
+
+# Generic secrets
+secrets/
+credentials/
+*.secrets
+
+# ============================================
+# DOCKER
+# ============================================
+
+docker-compose.override.yml
+
+# ============================================
+# DATABASE
+# ============================================
+
+# SQLite (local dev)
+*.db
+*.sqlite
+*.sqlite3
+
+# Redis dump
+dump.rdb
+
+# PostgreSQL compressed backups
+*.sql.gz
+
+# ============================================
+# MONITORING (local data volumes)
+# ============================================
+
+prometheus_data/
+grafana_data/
+tempo_data/
+loki_data/
+
+# ============================================
+# IDE / EDITORS
+# ============================================
+
+# JetBrains (PyCharm, WebStorm)
+.idea/
+*.iml
+
+# VS Code
+.vscode/
+
+# Claude Code
+.claude/
+CLAUDE.md
+
+# Vim / Emacs
+*.swp
+*.swo
+*~
+
+# ============================================
+# OS
+# ============================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+.directory
+
+# ============================================
+# ML MODELS (downloaded at setup)
+# ============================================
+
+# Sherpa-onnx Whisper STT model (~150MB)
+apps/api/models/
+
+# ============================================
+# BUILD & TEMPORARY
+# ============================================
+
+# Build output
+build/
+dist/
+
+# SBOM (generated via `task sbom:generate`)
+sbom-*.json
+
+# Logs
+logs/
+*.log
+
+# Backup files
+*.bak
+*.backup
+*.backup.*
+
+# Debug and temporary scripts
+debug_*.py
+fix_*.py
+tmpclaude-*
+test_*.sh
+
+# Temporary reports
+*_REPORT.md
+*_logs_*.txt
+
+# ============================================
+# PERSONAL / LOCAL-ONLY
+# ============================================
+
+# Personal development notes
+JGO/
+
+# Open-source transition tracking (internal only)
+OPENSOURCE.md
+
+# Local deploy config (personal SSH values)
+scripts/deploy/deploy.local.ps1
+
+# Internal ADRs (deployment-specific)
+docs/architecture/ADR-033-Deployment-Architecture.md
+
+# Obsidian
+.obsidian/
+
+# Continue AI extension
+.continue/
+
+# Smart Environment
+.smart-env/

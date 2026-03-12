@@ -1,0 +1,918 @@
+{
+  "title": "10 - OAuth, Connectors & MCP",
+  "uid": "10-oauth-connectors-mcp",
+  "tags": ["lia", "oauth", "connectors", "mcp"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [
+    {
+      "title": "LIA",
+      "type": "dashboards",
+      "tags": ["lia"],
+      "targetBlank": false
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": { "text": "Prometheus", "value": "Prometheus" }
+      },
+      {
+        "name": "provider",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "$datasource" },
+        "query": "label_values(oauth_callback_total, provider)",
+        "multi": true,
+        "includeAll": true,
+        "refresh": 1,
+        "current": { "text": "All", "value": "$__all" }
+      },
+      {
+        "name": "connector_type",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "$datasource" },
+        "query": "label_values(connector_api_requests_total, connector_type)",
+        "multi": true,
+        "includeAll": true,
+        "refresh": 1,
+        "current": { "text": "All", "value": "$__all" }
+      },
+      {
+        "name": "mcp_server",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "$datasource" },
+        "query": "label_values(mcp_tool_invocations_total, server_name)",
+        "multi": true,
+        "includeAll": true,
+        "refresh": 1,
+        "current": { "text": "All", "value": "$__all" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "row",
+      "title": "OAuth Flow",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "panels": []
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Callbacks (success/failure)",
+      "datasource": { "type": "prometheus", "uid": "$datasource" },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 1 },
+      "targets": [
+        {
+          "expr": "sum by (provider, status) (rate(oauth_callback_total{provider=~\"$provider\"}[$__rate_interval]))",
+          "legendFormat": "{{provider}} ({{status}})",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "stacking": { "mode": "normal" },
+            "fillOpacity": 30
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Callback Latency P50/P95/P99",
+      "datasource": { "type": "prometheus", "uid": "$datasource" },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 1 },
+      "targets": [
+        {
+          "expr": "provider:oauth_callback_duration:p50_rate5m",
+          "legendFormat": "{{provider}} P50",
+          "refId": "A"
+        },
+        {
+          "expr": "provider:oauth_callback_duration:p95_rate5m",
+          "legendFormat": "{{provider}} P95",
+          "refId": "B"
+        },
+        {
+          "expr": "provider:oauth_callback_duration:p99_rate5m",
+          "legendFormat": "{{provider}} P99",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "OAuth Initiate by Flow Type",
+      "datasource": { "type": "prometheus", "uid": "$datasource" },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 1 },
+      "targets": [
+        {
+          "expr": "sum by (flow_type) (rate(oauth_initiate_total[$__rate_interval]))",
+          "legendFormat": "{{flow_type}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "PKCE Validation Success Rate",
+      "datasource": { "type": "prometheus", "uid": "$datasource" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 9 },
+      "targets": [
+        {
+          "expr": "sum(rate(oauth_pkce_validation_total{result=\"success\"}[$__rate_interval])) / sum(rate(oauth_pkce_validation_total[$__rate_interval])) * 100",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 90 },
+              { "color": "green", "value": 99 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "area",
+        "textMode": "auto",
+        "colorMode": "value"
+      }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "State Validation Success Rate",
+      "datasource": { "type": "prometheus", "uid": "$datasource" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 9 },
+      "targets": [
+        {
+          "expr": "sum(rate(oauth_state_validation_total{result=\"success\"}[$__rate_interval])) / sum(rate(oauth_state_validation_total[$__rate_interval])) * 100",
+          "legendFormat": " ",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 90 },
+              { "color": "green", "value": 99 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "graphMode": "area",
+        "textMode": "auto",
+        "colorMode": "value"
+      }
+    },
+    {
+      "id": 7,
+      "type": "row",
+      "title": "OAuth Performance",
+      "collapsed": true,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 17 },
+      "panels": [
+        {
+          "id": 8,
+          "type": "timeseries",
+          "title": "Token Exchange Duration P95",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 18 },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (provider, le) (rate(oauth_token_exchange_duration_seconds_bucket[$__rate_interval])))",
+              "legendFormat": "{{provider}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": { "displayMode": "list", "placement": "bottom" }
+          }
+        },
+        {
+          "id": 9,
+          "type": "timeseries",
+          "title": "User Info Fetch Duration P95",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 18 },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (provider, le) (rate(oauth_user_info_fetch_duration_seconds_bucket[$__rate_interval])))",
+              "legendFormat": "{{provider}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": { "displayMode": "list", "placement": "bottom" }
+          }
+        },
+        {
+          "id": 10,
+          "type": "timeseries",
+          "title": "Provider Errors",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 18 },
+          "targets": [
+            {
+              "expr": "sum by (provider, endpoint) (rate(oauth_provider_errors_total[$__rate_interval]))",
+              "legendFormat": "{{provider}} - {{endpoint}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": { "displayMode": "list", "placement": "bottom" }
+          }
+        },
+        {
+          "id": 11,
+          "type": "timeseries",
+          "title": "Lock Wait Duration P95",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 26 },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(oauth_lock_wait_duration_seconds_bucket[$__rate_interval])))",
+              "legendFormat": "Lock Wait P95",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": { "displayMode": "list", "placement": "bottom" }
+          }
+        },
+        {
+          "id": 12,
+          "type": "timeseries",
+          "title": "Lock Contention/Timeout",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 26 },
+          "targets": [
+            {
+              "expr": "rate(oauth_lock_contention_total[$__rate_interval])",
+              "legendFormat": "Contention",
+              "refId": "A"
+            },
+            {
+              "expr": "rate(oauth_lock_timeout_total[$__rate_interval])",
+              "legendFormat": "Timeout",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": { "displayMode": "list", "placement": "bottom" }
+          }
+        },
+        {
+          "id": 13,
+          "type": "timeseries",
+          "title": "User Creation vs Login",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 26 },
+          "targets": [
+            {
+              "expr": "sum by (provider) (rate(oauth_user_creation_total[$__rate_interval]))",
+              "legendFormat": "Create {{provider}}",
+              "refId": "A"
+            },
+            {
+              "expr": "sum by (provider) (rate(oauth_user_login_total[$__rate_interval]))",
+              "legendFormat": "Login {{provider}}",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "stacking": { "mode": "normal" },
+                "fillOpacity": 30
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": { "displayMode": "list", "placement": "bottom" }
+          }
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "type": "row",
+      "title": "Connector Health",
+      "collapsed": true,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 34 },
+      "panels": [
+        {
+          "id": 15,
+          "type": "bargauge",
+          "title": "API Success Rate",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 35 },
+          "targets": [
+            {
+              "expr": "connector_api_success_rate:5m * 100",
+              "legendFormat": "{{connector_type}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "thresholds": {
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "yellow", "value": 95 },
+                  { "color": "green", "value": 99 }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "orientation": "horizontal",
+            "displayMode": "gradient",
+            "reduceOptions": {
+              "calcs": ["lastNotNull"]
+            }
+          }
+        },
+        {
+          "id": 16,
+          "type": "timeseries",
+          "title": "API Duration P95",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 35 },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (connector_type, le) (rate(connector_api_duration_seconds_bucket{connector_type=~\"$connector_type\"}[$__rate_interval])))",
+              "legendFormat": "{{connector_type}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": { "displayMode": "list", "placement": "bottom" }
+          }
+        },
+        {
+          "id": 17,
+          "type": "timeseries",
+          "title": "API Errors by Type",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 35 },
+          "targets": [
+            {
+              "expr": "sum by (connector_type, error_type) (rate(connector_api_errors_total[$__rate_interval]))",
+              "legendFormat": "{{connector_type}} - {{error_type}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": { "displayMode": "list", "placement": "bottom" }
+          }
+        },
+        {
+          "id": 18,
+          "type": "timeseries",
+          "title": "Token Refresh",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 43 },
+          "targets": [
+            {
+              "expr": "sum by (connector_type, status) (rate(connector_token_refresh_total[$__rate_interval]))",
+              "legendFormat": "{{connector_type}} ({{status}})",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": { "displayMode": "list", "placement": "bottom" }
+          }
+        },
+        {
+          "id": 19,
+          "type": "timeseries",
+          "title": "Connector Activation",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 43 },
+          "targets": [
+            {
+              "expr": "sum by (connector_type, status) (rate(oauth_connector_activation_total[$__rate_interval]))",
+              "legendFormat": "{{connector_type}} ({{status}})",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": { "displayMode": "list", "placement": "bottom" }
+          }
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "type": "row",
+      "title": "Google APIs",
+      "collapsed": true,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 51 },
+      "panels": [
+        {
+          "id": 21,
+          "type": "timeseries",
+          "title": "Contacts API Calls",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 52 },
+          "targets": [
+            {
+              "expr": "sum by (operation, status) (rate(contacts_api_calls[$__rate_interval]))",
+              "legendFormat": "{{operation}} ({{status}})",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": { "displayMode": "list", "placement": "bottom" }
+          }
+        },
+        {
+          "id": 22,
+          "type": "timeseries",
+          "title": "Contacts API Latency P95",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 52 },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (operation, le) (rate(contacts_api_latency_bucket[$__rate_interval])))",
+              "legendFormat": "{{operation}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": { "displayMode": "list", "placement": "bottom" }
+          }
+        },
+        {
+          "id": 23,
+          "type": "stat",
+          "title": "Contacts Cache Hit Rate",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 52 },
+          "targets": [
+            {
+              "expr": "sum(rate(contacts_cache_hits[$__rate_interval])) / (sum(rate(contacts_cache_hits[$__rate_interval])) + sum(rate(contacts_cache_misses[$__rate_interval]))) * 100",
+              "legendFormat": " ",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "thresholds": {
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "yellow", "value": 50 },
+                  { "color": "green", "value": 80 }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "graphMode": "area",
+            "textMode": "auto",
+            "colorMode": "value"
+          }
+        },
+        {
+          "id": 24,
+          "type": "timeseries",
+          "title": "Email API Calls",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 60 },
+          "targets": [
+            {
+              "expr": "sum by (operation, status) (rate(email_api_calls[$__rate_interval]))",
+              "legendFormat": "{{operation}} ({{status}})",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": { "displayMode": "list", "placement": "bottom" }
+          }
+        },
+        {
+          "id": 25,
+          "type": "timeseries",
+          "title": "Email API Latency P95",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 60 },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (operation, le) (rate(email_api_latency_bucket[$__rate_interval])))",
+              "legendFormat": "{{operation}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": { "displayMode": "list", "placement": "bottom" }
+          }
+        },
+        {
+          "id": 26,
+          "type": "stat",
+          "title": "Email Cache Hit Rate",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 60 },
+          "targets": [
+            {
+              "expr": "sum(rate(email_cache_hits[$__rate_interval])) / (sum(rate(email_cache_hits[$__rate_interval])) + sum(rate(email_cache_misses[$__rate_interval]))) * 100",
+              "legendFormat": " ",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "thresholds": {
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "yellow", "value": 50 },
+                  { "color": "green", "value": 80 }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "graphMode": "area",
+            "textMode": "auto",
+            "colorMode": "value"
+          }
+        },
+        {
+          "id": 27,
+          "type": "timeseries",
+          "title": "External Service Errors",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 68 },
+          "targets": [
+            {
+              "expr": "sum by (connector_type, error_type) (rate(connector_api_errors_total{connector_type=~\"$connector_type\"}[$__rate_interval]))",
+              "legendFormat": "{{connector_type}} - {{error_type}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": { "displayMode": "list", "placement": "bottom" }
+          }
+        },
+        {
+          "id": 28,
+          "type": "timeseries",
+          "title": "External Service Timeouts",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 68 },
+          "targets": [
+            {
+              "expr": "sum by (connector_type) (rate(connector_api_errors_total{error_type=\"timeout\", connector_type=~\"$connector_type\"}[$__rate_interval]))",
+              "legendFormat": "{{connector_type}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": { "displayMode": "list", "placement": "bottom" }
+          }
+        }
+      ]
+    },
+    {
+      "id": 29,
+      "type": "row",
+      "title": "MCP Servers",
+      "collapsed": true,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 76 },
+      "panels": [
+        {
+          "id": 30,
+          "type": "stat",
+          "title": "Server Health Status",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 6, "x": 0, "y": 77 },
+          "targets": [
+            {
+              "expr": "mcp_server_health",
+              "legendFormat": "{{server_name}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "mappings": [
+                { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+              ],
+              "thresholds": {
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "green", "value": 1 }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "graphMode": "none",
+            "textMode": "auto",
+            "colorMode": "background"
+          }
+        },
+        {
+          "id": 31,
+          "type": "timeseries",
+          "title": "Tool Invocations Rate",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 6, "x": 6, "y": 77 },
+          "targets": [
+            {
+              "expr": "sum by (tool_name, status) (rate(mcp_tool_invocations_total{server_name=~\"$mcp_server\"}[$__rate_interval]))",
+              "legendFormat": "{{tool_name}} ({{status}})",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": { "displayMode": "list", "placement": "bottom" }
+          }
+        },
+        {
+          "id": 32,
+          "type": "timeseries",
+          "title": "Tool Duration P95",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 6, "x": 12, "y": 77 },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (server_name, le) (rate(mcp_tool_duration_seconds_bucket{server_name=~\"$mcp_server\"}[$__rate_interval])))",
+              "legendFormat": "{{server_name}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": { "displayMode": "list", "placement": "bottom" }
+          }
+        },
+        {
+          "id": 33,
+          "type": "timeseries",
+          "title": "Connection Errors",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 6, "x": 18, "y": 77 },
+          "targets": [
+            {
+              "expr": "sum by (server_name, error_type) (rate(mcp_connection_errors_total{server_name=~\"$mcp_server\"}[$__rate_interval]))",
+              "legendFormat": "{{server_name}} - {{error_type}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": { "displayMode": "list", "placement": "bottom" }
+          }
+        }
+      ]
+    }
+  ]
+}

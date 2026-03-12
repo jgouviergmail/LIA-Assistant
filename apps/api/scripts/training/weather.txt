@@ -1,0 +1,16 @@
+# METEO - Training queries
+# Pattern learner training for weather domain
+
+recherche la météo
+recherche la météo demain
+recherche la météo la semaine prochaine
+recherche la météo pour les 3 prochains jours
+recherche la météo par heure
+recherche la météo chez moi
+recherche la météo demain chez moi
+recherche la météo la semaine prochaine chez moi
+recherche la météo par heure chez moi
+recherche la météo à paris
+recherche la météo à paris demain
+recherche la météo à paris la semaine prochaine
+recherche la météo à paris par heure

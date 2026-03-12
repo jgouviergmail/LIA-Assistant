@@ -1,0 +1,9 @@
+# GOOGLE TASKS - Unsafe queries (MUTATIONS)
+# WARNING: These queries CREATE or MODIFY real tasks
+# Execute manually or with caution
+
+Ajoute une tâche : appeler la banque
+Crée une tâche 'Préparer la présentation' pour vendredi
+Rappelle-moi d'envoyer le rapport demain
+Marque la tâche 'appeler la banque' comme terminée
+J'ai fini la première tâche

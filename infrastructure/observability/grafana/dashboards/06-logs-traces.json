@@ -1,0 +1,847 @@
+{
+  "title": "06 - Logs, Traces & Correlations",
+  "uid": "06-logs-traces",
+  "tags": ["lia", "logs", "traces", "debug"],
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "30s",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [
+    {
+      "title": "LIA",
+      "type": "dashboards",
+      "tags": ["lia"],
+      "targetBlank": false
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "options": [],
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false
+      },
+      {
+        "name": "datasource_loki",
+        "type": "datasource",
+        "query": "loki",
+        "current": {
+          "text": "Loki",
+          "value": "Loki"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "options": [],
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false
+      },
+      {
+        "name": "datasource_tempo",
+        "type": "datasource",
+        "query": "tempo",
+        "current": {
+          "text": "Tempo",
+          "value": "Tempo"
+        },
+        "hide": 0,
+        "includeAll": false,
+        "multi": false,
+        "options": [],
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false
+      },
+      {
+        "name": "log_level",
+        "type": "custom",
+        "query": "debug,info,warning,error,critical",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "options": [],
+        "skipUrlSync": false
+      },
+      {
+        "name": "service",
+        "type": "custom",
+        "query": "api,web,prometheus,grafana,loki,tempo",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "hide": 0,
+        "includeAll": true,
+        "multi": true,
+        "options": [],
+        "skipUrlSync": false
+      },
+      {
+        "name": "user_id",
+        "type": "textbox",
+        "label": "User ID (optional)",
+        "current": {
+          "text": "",
+          "value": ""
+        },
+        "hide": 0,
+        "skipUrlSync": false
+      },
+      {
+        "name": "run_id",
+        "type": "textbox",
+        "label": "Run ID (optional)",
+        "current": {
+          "text": "",
+          "value": ""
+        },
+        "hide": 0,
+        "skipUrlSync": false
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "row",
+      "title": "Log Overview",
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "panels": []
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Log Volume by Level",
+      "datasource": {
+        "type": "loki",
+        "uid": "$datasource_loki"
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 1 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "$datasource_loki"
+          },
+          "expr": "sum by (level) (rate({job=\"api\", level=~\"$log_level\"}[1m]))",
+          "legendFormat": "{{level}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "fillOpacity": 50,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            },
+            "showPoints": "never",
+            "spanNulls": false
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "error" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "warning" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "info" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Error Rate by Logger",
+      "datasource": {
+        "type": "loki",
+        "uid": "$datasource_loki"
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 1 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "$datasource_loki"
+          },
+          "expr": "sum by (logger) (rate({job=\"api\", level=\"error\"}[1m]))",
+          "legendFormat": "{{logger}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      }
+    },
+    {
+      "id": 4,
+      "type": "logs",
+      "title": "Error Logs (live tail)",
+      "datasource": {
+        "type": "loki",
+        "uid": "$datasource_loki"
+      },
+      "gridPos": { "h": 12, "w": 12, "x": 0, "y": 9 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "$datasource_loki"
+          },
+          "expr": "{job=\"api\", level=~\"error|critical\"} | json | line_format \"{{.timestamp}} [{{.level}}] {{.logger}} | {{.event}} | {{.error}}\""
+        }
+      ],
+      "options": {
+        "showLabels": true,
+        "showTime": true,
+        "wrapLogMessage": true,
+        "enableLogDetails": true,
+        "sortOrder": "Descending"
+      }
+    },
+    {
+      "id": 5,
+      "type": "logs",
+      "title": "Warning Logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "$datasource_loki"
+      },
+      "gridPos": { "h": 12, "w": 12, "x": 12, "y": 9 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "loki",
+            "uid": "$datasource_loki"
+          },
+          "expr": "{job=\"api\", level=\"warning\"} | json | line_format \"{{.timestamp}} [{{.level}}] {{.logger}} | {{.event}} | {{.message}}\""
+        }
+      ],
+      "options": {
+        "showLabels": true,
+        "showTime": true,
+        "wrapLogMessage": true,
+        "enableLogDetails": true,
+        "sortOrder": "Descending"
+      }
+    },
+    {
+      "id": 6,
+      "type": "row",
+      "title": "Trace Overview",
+      "collapsed": true,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 21 },
+      "panels": [
+        {
+          "id": 7,
+          "type": "timeseries",
+          "title": "Trace Duration P50/P95/P99",
+          "datasource": {
+            "type": "tempo",
+            "uid": "$datasource_tempo"
+          },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 22 },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "tempo",
+                "uid": "$datasource_tempo"
+              },
+              "queryType": "traceql",
+              "query": "{name=~\"router.*|response.*\"} | quantile_over_time(duration, 0.5) by (name)",
+              "legendFormat": "{{name}} P50"
+            },
+            {
+              "refId": "B",
+              "datasource": {
+                "type": "tempo",
+                "uid": "$datasource_tempo"
+              },
+              "queryType": "traceql",
+              "query": "{name=~\"router.*|response.*\"} | quantile_over_time(duration, 0.95) by (name)",
+              "legendFormat": "{{name}} P95"
+            },
+            {
+              "refId": "C",
+              "datasource": {
+                "type": "tempo",
+                "uid": "$datasource_tempo"
+              },
+              "queryType": "traceql",
+              "query": "{name=~\"router.*|response.*\"} | quantile_over_time(duration, 0.99) by (name)",
+              "legendFormat": "{{name}} P99"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ms",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "linear",
+                "fillOpacity": 10,
+                "showPoints": "never",
+                "spanNulls": false
+              },
+              "color": {
+                "mode": "palette-classic"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": { "displayMode": "list", "placement": "bottom" }
+          }
+        },
+        {
+          "id": 8,
+          "type": "barchart",
+          "title": "Trace Spans per Operation",
+          "datasource": {
+            "type": "tempo",
+            "uid": "$datasource_tempo"
+          },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 22 },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "tempo",
+                "uid": "$datasource_tempo"
+              },
+              "queryType": "traceql",
+              "query": "{name=~\"router.*|response.*\"} | count() by (name)",
+              "legendFormat": "{{name}}"
+            }
+          ],
+          "options": {
+            "orientation": "horizontal",
+            "legend": { "displayMode": "list", "placement": "bottom" }
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 9,
+          "type": "traces",
+          "title": "Traces Search (Recent 100)",
+          "datasource": {
+            "type": "tempo",
+            "uid": "$datasource_tempo"
+          },
+          "gridPos": { "h": 12, "w": 24, "x": 0, "y": 30 },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "tempo",
+                "uid": "$datasource_tempo"
+              },
+              "queryType": "traceql",
+              "query": "{name=~\"router.*|response.*\"}",
+              "limit": 100
+            }
+          ],
+          "options": {
+            "sortBy": "startTime",
+            "sortOrder": "desc"
+          }
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "row",
+      "title": "Metric-to-Log Correlation",
+      "collapsed": true,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 42 },
+      "panels": [
+        {
+          "id": 11,
+          "type": "timeseries",
+          "title": "HTTP 5xx + Error Logs",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 43 },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$datasource"
+              },
+              "expr": "sum(rate(http_requests_total{status=~\"5..\"}[$__rate_interval]))",
+              "legendFormat": "5xx Rate"
+            },
+            {
+              "refId": "B",
+              "datasource": {
+                "type": "loki",
+                "uid": "$datasource_loki"
+              },
+              "expr": "sum(rate({job=\"api\", level=\"error\"} | json | status_code >= 500 [1m]))",
+              "legendFormat": "Error Logs"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "linear",
+                "fillOpacity": 10,
+                "showPoints": "never",
+                "spanNulls": false
+              },
+              "color": {
+                "mode": "palette-classic"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": { "displayMode": "list", "placement": "bottom" }
+          }
+        },
+        {
+          "id": 12,
+          "type": "timeseries",
+          "title": "LLM Errors + Logs",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 43 },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$datasource"
+              },
+              "expr": "sum by (provider) (rate(llm_api_calls_total{status=\"error\"}[$__rate_interval]))",
+              "legendFormat": "{{provider}}"
+            },
+            {
+              "refId": "B",
+              "datasource": {
+                "type": "loki",
+                "uid": "$datasource_loki"
+              },
+              "expr": "sum(rate({job=\"api\", level=\"error\"} | json | logger=~\".*llm.*|.*adapter.*\" [1m]))",
+              "legendFormat": "LLM Error Logs"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "linear",
+                "fillOpacity": 10,
+                "showPoints": "never",
+                "spanNulls": false
+              },
+              "color": {
+                "mode": "palette-classic"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": { "displayMode": "list", "placement": "bottom" }
+          }
+        },
+        {
+          "id": 13,
+          "type": "timeseries",
+          "title": "Graph Exceptions + Logs",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 51 },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$datasource"
+              },
+              "expr": "sum by (exception_type) (rate(graph_exceptions_total[$__rate_interval]))",
+              "legendFormat": "{{exception_type}}"
+            },
+            {
+              "refId": "B",
+              "datasource": {
+                "type": "loki",
+                "uid": "$datasource_loki"
+              },
+              "expr": "sum(rate({job=\"api\", level=\"error\"} | json | event=~\"graph_exception.*\" [1m]))",
+              "legendFormat": "Exception Logs"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "linear",
+                "fillOpacity": 10,
+                "showPoints": "never",
+                "spanNulls": false
+              },
+              "color": {
+                "mode": "palette-classic"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": { "displayMode": "list", "placement": "bottom" }
+          }
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "type": "row",
+      "title": "Correlated View (Logs \u2192 Traces)",
+      "collapsed": true,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 59 },
+      "panels": [
+        {
+          "id": 15,
+          "type": "logs",
+          "title": "Router Decisions (with trace links)",
+          "datasource": {
+            "type": "loki",
+            "uid": "$datasource_loki"
+          },
+          "gridPos": { "h": 12, "w": 12, "x": 0, "y": 60 },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "loki",
+                "uid": "$datasource_loki"
+              },
+              "expr": "{job=\"api\", event=\"router_decision\"} | json | line_format \"Intention: {{.intention}} | Confidence: {{.confidence}} | TraceID: {{.trace_id}}\""
+            }
+          ],
+          "options": {
+            "showLabels": true,
+            "showTime": true,
+            "wrapLogMessage": true,
+            "enableLogDetails": true,
+            "sortOrder": "Descending"
+          },
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Line" },
+                "properties": [
+                  {
+                    "id": "links",
+                    "value": [
+                      {
+                        "title": "View Trace in Tempo",
+                        "url": "/explore?left=%7B%22datasource%22:%22Tempo%22,%22queries%22:%5B%7B%22queryType%22:%22traceql%22,%22query%22:%22%7Btrace_id%3D%5C%22${__data.fields.trace_id}%5C%22%7D%22%7D%5D%7D",
+                        "targetBlank": true
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": 16,
+          "type": "logs",
+          "title": "Error Events (with trace links)",
+          "datasource": {
+            "type": "loki",
+            "uid": "$datasource_loki"
+          },
+          "gridPos": { "h": 12, "w": 12, "x": 12, "y": 60 },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "loki",
+                "uid": "$datasource_loki"
+              },
+              "expr": "{job=\"api\", level=\"error\"} | json | line_format \"{{.event}} | Error: {{.error}} | TraceID: {{.trace_id}}\""
+            }
+          ],
+          "options": {
+            "showLabels": true,
+            "showTime": true,
+            "wrapLogMessage": true,
+            "enableLogDetails": true,
+            "sortOrder": "Descending"
+          },
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": [
+              {
+                "matcher": { "id": "byName", "options": "Line" },
+                "properties": [
+                  {
+                    "id": "links",
+                    "value": [
+                      {
+                        "title": "View Trace in Tempo",
+                        "url": "/explore?left=%7B%22datasource%22:%22Tempo%22,%22queries%22:%5B%7B%22queryType%22:%22traceql%22,%22query%22:%22%7Btrace_id%3D%5C%22${__data.fields.trace_id}%5C%22%7D%22%7D%5D%7D",
+                        "targetBlank": true
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "type": "row",
+      "title": "Background Jobs",
+      "collapsed": true,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 72 },
+      "panels": [
+        {
+          "id": 18,
+          "type": "timeseries",
+          "title": "Job Duration",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 73 },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$datasource"
+              },
+              "expr": "sum by (job_name) (rate(background_job_duration_seconds_sum[$__rate_interval]) / rate(background_job_duration_seconds_count[$__rate_interval]))",
+              "legendFormat": "{{job_name}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "linear",
+                "fillOpacity": 10,
+                "showPoints": "never",
+                "spanNulls": false
+              },
+              "color": {
+                "mode": "palette-classic"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": { "displayMode": "list", "placement": "bottom" }
+          }
+        },
+        {
+          "id": 19,
+          "type": "timeseries",
+          "title": "Job Errors",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 73 },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "prometheus",
+                "uid": "$datasource"
+              },
+              "expr": "sum by (job_name) (rate(background_job_errors_total[$__rate_interval]))",
+              "legendFormat": "{{job_name}}"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "drawStyle": "line",
+                "lineInterpolation": "linear",
+                "fillOpacity": 10,
+                "showPoints": "never",
+                "spanNulls": false
+              },
+              "color": {
+                "mode": "palette-classic"
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": { "mode": "multi" },
+            "legend": { "displayMode": "list", "placement": "bottom" }
+          }
+        },
+        {
+          "id": 20,
+          "type": "logs",
+          "title": "Job Logs",
+          "datasource": {
+            "type": "loki",
+            "uid": "$datasource_loki"
+          },
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 73 },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "loki",
+                "uid": "$datasource_loki"
+              },
+              "expr": "{job=\"api\"} | json | logger=~\"scheduler.*|apscheduler.*\" | line_format \"{{.timestamp}} [{{.level}}] {{.event}} | {{.message}}\""
+            }
+          ],
+          "options": {
+            "showLabels": true,
+            "showTime": true,
+            "wrapLogMessage": true,
+            "enableLogDetails": true,
+            "sortOrder": "Descending"
+          }
+        }
+      ]
+    },
+    {
+      "id": 21,
+      "type": "row",
+      "title": "Search & Filter Helpers",
+      "collapsed": true,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 81 },
+      "panels": [
+        {
+          "id": 22,
+          "type": "logs",
+          "title": "Filterable Agent Logs",
+          "datasource": {
+            "type": "loki",
+            "uid": "$datasource_loki"
+          },
+          "gridPos": { "h": 14, "w": 24, "x": 0, "y": 82 },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "loki",
+                "uid": "$datasource_loki"
+              },
+              "expr": "{job=\"api\", logger=~\".*agents.*\", level=~\"$log_level\"} | json | line_format \"{{.timestamp}} [{{.level}}] {{.logger}} | {{.event}} | run_id={{.run_id}} | {{.message}}\""
+            }
+          ],
+          "options": {
+            "showLabels": true,
+            "showTime": true,
+            "wrapLogMessage": true,
+            "enableLogDetails": true,
+            "sortOrder": "Descending"
+          }
+        },
+        {
+          "id": 23,
+          "type": "logs",
+          "title": "User-specific Logs",
+          "description": "Filter by user_id using the template variable at the top",
+          "datasource": {
+            "type": "loki",
+            "uid": "$datasource_loki"
+          },
+          "gridPos": { "h": 14, "w": 24, "x": 0, "y": 96 },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "loki",
+                "uid": "$datasource_loki"
+              },
+              "expr": "{job=\"api\"} | json | user_id=~\"$user_id\" | line_format \"{{.timestamp}} [{{.level}}] {{.logger}} | {{.event}} | {{.message}}\""
+            }
+          ],
+          "options": {
+            "showLabels": true,
+            "showTime": true,
+            "wrapLogMessage": true,
+            "enableLogDetails": true,
+            "sortOrder": "Descending"
+          }
+        }
+      ]
+    }
+  ]
+}

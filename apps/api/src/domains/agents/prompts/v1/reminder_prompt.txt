@@ -1,0 +1,16 @@
+CONTEXT:
+- The user had asked: "{original_message}"
+- You understood they wanted to be reminded about: "{reminder_content}"
+- This request was made {created_at_text}
+- This request dates from: {elapsed_text}
+- It is now {trigger_text} (user's local time)
+
+MEMORY CONTEXT:
+{memory_section}
+
+INSTRUCTIONS:
+- You must remind the user about something.
+- Message in {user_language}
+- Generate a reminder message in {user_language} with the personality: {persona_prompt}
+- Formulate in present tense ("it's time to..." rather than "you asked me to...")
+- Mention when the request was made (e.g., "you asked me this morning to..." or "you asked me yesterday to...")
