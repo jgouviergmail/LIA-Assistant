@@ -1,7 +1,7 @@
 # Multi-stage Dockerfile for Next.js 15 in pnpm workspace monorepo
 # Handles pnpm symlinks correctly for standalone mode
 
-FROM node:20-alpine AS base
+FROM node:25-alpine AS base
 RUN corepack enable && corepack prepare pnpm@10.18.3 --activate
 
 # ============================================================================
@@ -93,7 +93,7 @@ RUN pnpm run build
 # ============================================================================
 # Stage 3: Production runtime
 # ============================================================================
-FROM node:20-alpine AS runner
+FROM node:25-alpine AS runner
 
 # Preserve the path structure for symlinks to work
 # Standalone symlinks: ../../../node_modules/.pnpm/
