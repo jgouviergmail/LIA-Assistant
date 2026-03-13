@@ -91,7 +91,7 @@ mcp>=1.20.0,<2.0.0  # MCP 1.20+ adds list_resources/read_resource (MCP Apps supp
 
 # Push Notifications
 firebase-admin==6.8.0  # Firebase Cloud Messaging for push notifications
-pytz==2025.2  # Timezone handling for reminders
+pytz==2026.1.post1  # Timezone handling for reminders
 
 # Channels — Multi-Channel Messaging (evolution F3)
 python-telegram-bot>=21.0  # Telegram Bot API (async, v21+)
