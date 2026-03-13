@@ -30,7 +30,7 @@ cryptography==46.0.5  # CVE-2024-12797, CVE-2026-26007 fixes
 
 # Observability
 structlog==25.5.0
-geoip2==4.8.1  # IP geolocation (DB-IP Lite MMDB — free, CC-BY-4.0)
+geoip2==5.2.0  # IP geolocation (DB-IP Lite MMDB — free, CC-BY-4.0)
 opentelemetry-api==1.39.1
 opentelemetry-sdk==1.39.1
 opentelemetry-instrumentation-fastapi==0.60b1
