@@ -39,7 +39,7 @@
     "clsx": "^2.1.1",
     "firebase": "^12.7.0",
     "geist": "^1.5.1",
-    "i18next": "^25.7.4",
+    "i18next": "^25.8.18",
     "i18next-resources-to-backend": "^1.2.1",
     "libphonenumber-js": "^1.12.33",
     "lucide-react": "^0.562.0",
