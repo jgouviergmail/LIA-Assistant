@@ -1080,17 +1080,17 @@ async def list_contacts_tool(
     force_refresh: bool = False,
 ) -> UnifiedToolOutput:
     """
-    Liste tous les contacts Google de l'utilisateur (avec pagination automatique).
+    List all Google contacts for the user (with automatic pagination).
 
-    Récupère jusqu'à 10 contacts par défaut. Si plus de 10 contacts existent,
-    seuls les 10 premiers sont retournés pour éviter la surcharge.
+    Retrieves up to 10 contacts by default. If more than 10 contacts exist,
+    only the first 10 are returned to avoid overload.
 
-    Si un query est fourni, filtre les résultats pour ne retourner que les contacts
-    dont le nom contient le terme de recherche (case-insensitive).
+    If a query is provided, filters results to return only contacts
+    whose name contains the search term (case-insensitive).
 
-    Migration LangChain v1.0 avec RunnableConfig pattern:
-    - user_id extrait de config.configurable["user_id"]
-    - store injecté automatiquement via InjectedStore() (graph.compile(store=store))
+    LangChain v1.0 migration with RunnableConfig pattern:
+    - user_id extracted from config.configurable["user_id"]
+    - store automatically injected via InjectedStore() (graph.compile(store=store))
 
     **Data Registry Mode (LOT 5):** Returns UnifiedToolOutput with registry items.
     LIAToolNode handles extraction and SSE streaming.
@@ -1781,19 +1781,19 @@ async def _fetch_single_contact_details(
     force_refresh: bool = False,
 ) -> dict[str, Any]:
     """
-    Logique métier pour récupérer les détails d'un seul contact.
+    Business logic to retrieve details for a single contact.
 
-    Cette fonction contient la logique réutilisable pour fetch un contact.
-    Elle est utilisée à la fois par le mode single ET le mode batch.
+    This function contains the reusable logic to fetch a contact.
+    It is used by both single mode AND batch mode.
 
     Args:
-        resource_name: Identifiant Google du contact
-        runtime: ToolRuntime avec config, store, deps
-        fields: Champs à récupérer (user-friendly names ou API field masks)
+        resource_name: Google contact identifier
+        runtime: ToolRuntime with config, store, deps
+        fields: Fields to retrieve (user-friendly names or API field masks)
         force_refresh: Bypass cache
 
     Returns:
-        Dict avec contact data (pas de JSON string, pas de wrapping "success")
+        Dict with contact data (no JSON string, no "success" wrapping)
 
     Raises:
         Exception: Si erreur lors du fetch
@@ -1950,14 +1950,14 @@ async def get_contact_details_tool(
     force_refresh: bool = False,
 ) -> UnifiedToolOutput:
     """
-    Récupère les détails d'un ou plusieurs contacts à partir de leurs identifiants Google Contacts.
+    Retrieve details for one or more contacts from their Google Contacts identifiers.
 
-    Utilise le resource_name (identifiant Google) pour récupérer toutes les informations
-    disponibles : nom, emails, téléphones, adresses, organisation, anniversaire, etc.
+    Uses the resource_name (Google identifier) to retrieve all available information:
+    name, emails, phones, addresses, organization, birthday, etc.
 
-    Migration LangChain v1.0 avec RunnableConfig pattern:
-    - user_id extrait de config.configurable["user_id"]
-    - store injecté automatiquement via InjectedStore() (graph.compile(store=store))
+    LangChain v1.0 migration with RunnableConfig pattern:
+    - user_id extracted from config.configurable["user_id"]
+    - store automatically injected via InjectedStore() (graph.compile(store=store))
 
     **Data Registry Mode (LOT 5):** Returns UnifiedToolOutput with registry items.
     LIAToolNode handles extraction and SSE streaming.

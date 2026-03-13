@@ -4,7 +4,7 @@ HTML Renderer - Modern Response Rendering Engine.
 Orchestrates all components to render tool outputs as modern HTML.
 Supports single domain, multi-domain, and nested (hierarchical) data.
 
-Architecture v3 - Intelligence, Autonomie, Pertinence.
+Architecture v3 - Intelligence, Autonomy, Relevance.
 """
 
 from __future__ import annotations

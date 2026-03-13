@@ -1,7 +1,7 @@
 """
 AutonomousExecutor - Self-Healing Execution with Safeguards.
 
-Architecture v3 - Intelligence, Autonomie, Pertinence.
+Architecture v3 - Intelligence, Autonomy, Relevance.
 
 This executor provides:
 1. Self-healing: If a tool fails, tries alternatives

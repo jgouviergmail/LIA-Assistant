@@ -10,7 +10,7 @@ Key Features:
 - Configurable limits per key
 - Support for horizontal scaling
 
-Phase: PHASE 2.4 - Rate Limiting Distribué Redis
+Phase: PHASE 2.4 - Distributed Redis Rate Limiting
 Created: 2025-11-20
 """
 

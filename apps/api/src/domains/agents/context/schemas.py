@@ -84,7 +84,7 @@ class ContextMetadata(BaseModel):
 
 class ToolContextList(BaseModel):
     """
-    Liste d'items pour un domaine spécifique.
+    List of items for a specific domain.
 
     Stored in LangGraph BaseStore under:
         Namespace: (user_id, "context", domain)

@@ -431,12 +431,12 @@ WEB_FETCH_AGENT_MANIFEST = AgentManifest(
 
 def initialize_catalogue(registry: AgentRegistry) -> None:
     """
-    Initialise le catalogue avec les manifestes Phase 5 + LOT 9/10.
+    Initialize the catalogue with Phase 5 + LOT 9/10 manifests.
 
     NAMING CONVENTION: domain=entity(singular), result_key=domain+"s", agent=domain+"_agent"
 
-    Cette fonction charge et enregistre :
-    - 14 agent manifests :
+    This function loads and registers:
+    - 14 agent manifests:
       * contact_agent (Google Contacts)
       * context_agent (Cross-domain utilities)
       * email_agent (Gmail)
@@ -455,7 +455,7 @@ def initialize_catalogue(registry: AgentRegistry) -> None:
     - 30+ tool manifests across all domains
 
     Args:
-        registry: Instance d'AgentRegistry
+        registry: AgentRegistry instance
 
     Example:
         >>> from .agent_registry import AgentRegistry

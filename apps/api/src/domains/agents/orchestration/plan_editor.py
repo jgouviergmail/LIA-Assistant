@@ -316,14 +316,14 @@ class PlanEditor:
     @staticmethod
     def generate_diff(original: ExecutionPlan, modified: ExecutionPlan) -> dict[str, Any]:
         """
-        Génère un diff entre deux plans.
+        Generate a diff between two plans.
 
         Args:
-            original: Plan original
-            modified: Plan modifié
+            original: Original plan
+            modified: Modified plan
 
         Returns:
-            Dict contenant les différences
+            Dict containing the differences
         """
         diff: dict[str, Any] = {
             "steps_added": [],

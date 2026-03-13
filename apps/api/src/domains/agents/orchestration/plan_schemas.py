@@ -687,12 +687,12 @@ class PlanValidationError(Exception):
         self, message: str, code: str | None = None, details: dict[str, Any] | None = None
     ) -> None:
         """
-        Initialise l'erreur de validation.
+        Initialize the validation error.
 
         Args:
-            message: Message d'erreur descriptif
-            code: Code d'erreur standardisé (ex: "INVALID_STRUCTURE")
-            details: Détails additionnels pour debugging
+            message: Descriptive error message
+            code: Standardized error code (e.g., "INVALID_STRUCTURE")
+            details: Additional details for debugging
         """
         self.message = message
         self.code = code or "VALIDATION_ERROR"

@@ -1,7 +1,7 @@
 """
 Planner Node - Smart Planning with Filtered Catalogue.
 
-Architecture v3 - Intelligence, Autonomie, Pertinence.
+Architecture v3 - Intelligence, Autonomy, Relevance.
 
 DIFFERENCES with legacy HierarchicalPlannerService:
 1. ONE LLM call (not 3 stages)

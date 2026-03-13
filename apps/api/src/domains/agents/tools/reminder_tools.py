@@ -273,10 +273,10 @@ async def create_reminder_tool(
     ] = None,
 ) -> UnifiedToolOutput:
     """
-    Crée un rappel pour l'utilisateur.
+    Create a reminder for the user.
 
-    Le rappel sera envoyé sous forme de notification push (FCM)
-    et enregistré dans l'historique de conversation.
+    The reminder will be sent as a push notification (FCM)
+    and recorded in the conversation history.
 
     IMPORTANT - Deux modes de déclenchement (mutuellement exclusifs):
 
@@ -431,10 +431,10 @@ async def list_reminders_tool(
     runtime: Annotated[ToolRuntime, InjectedToolArg],
 ) -> UnifiedToolOutput:
     """
-    Liste les rappels en attente de l'utilisateur.
+    List pending reminders for the user.
 
-    Retourne tous les rappels avec statut "pending" (en attente),
-    triés par date de déclenchement croissante.
+    Returns all reminders with "pending" status,
+    sorted by trigger date in ascending order.
 
     Returns:
         UnifiedToolOutput with reminders list and formatted message

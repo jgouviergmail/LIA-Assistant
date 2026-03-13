@@ -1,7 +1,7 @@
 """
 SmartPlannerService - Intelligent planning with filtered catalogue.
 
-Architecture v3 - Intelligence, Autonomie, Pertinence.
+Architecture v3 - Intelligence, Autonomy, Relevance.
 
 This service generates execution plans using a filtered catalogue,
 dramatically reducing token consumption while maintaining functionality.

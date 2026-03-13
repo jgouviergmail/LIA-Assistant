@@ -1,7 +1,7 @@
 """
 LangGraph agent nodes.
 
-Architecture v3 - Intelligence, Autonomie, Pertinence.
+Architecture v3 - Intelligence, Autonomy, Relevance.
 
 Note: contacts_agent is now a compiled subgraph (not a node function).
 See src.domains.agents.graphs.contacts_agent_graph for the subgraph builder.

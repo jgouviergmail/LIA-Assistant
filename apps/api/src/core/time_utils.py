@@ -2,48 +2,48 @@
 Time utilities for datetime handling and timezone conversion.
 
 =============================================================================
-DATETIME DOCTRINE - RÈGLES OBLIGATOIRES POUR TOUTE L'APPLICATION
+DATETIME DOCTRINE - MANDATORY RULES FOR THE ENTIRE APPLICATION
 =============================================================================
 
-PRINCIPE FONDAMENTAL:
-    Ce module (time_utils.py) est la SEULE source de vérité pour le traitement
-    des dates/heures. Aucun autre module ne doit manipuler directement les
-    datetimes sans passer par ces utilitaires.
+FUNDAMENTAL PRINCIPLE:
+    This module (time_utils.py) is the SINGLE source of truth for all
+    date/time handling. No other module should manipulate datetimes directly
+    without going through these utilities.
 
-RÈGLE 1 - STOCKAGE:
-    Toutes les dates sont stockées en UTC (ISO 8601 avec 'Z' ou '+00:00').
-    Jamais de datetime naive en base de données ou en cache.
+RULE 1 - STORAGE:
+    All dates are stored in UTC (ISO 8601 with 'Z' or '+00:00').
+    Never store naive datetimes in the database or cache.
 
-RÈGLE 2 - TRAITEMENT:
-    Toute manipulation de datetime DOIT utiliser des datetimes AWARE (avec tzinfo).
-    Utiliser datetime.now(UTC) au lieu de datetime.now().
+RULE 2 - PROCESSING:
+    All datetime manipulation MUST use AWARE datetimes (with tzinfo).
+    Use datetime.now(UTC) instead of datetime.now().
 
-RÈGLE 3 - AFFICHAGE:
-    Toute date affichée à l'utilisateur DOIT être convertie vers son fuseau
-    horaire configuré via convert_to_user_timezone() ou format_datetime_for_display().
+RULE 3 - DISPLAY:
+    All dates shown to the user MUST be converted to their configured
+    timezone via convert_to_user_timezone() or format_datetime_for_display().
 
-RÈGLE 4 - COMPARAISONS:
-    Ne JAMAIS comparer datetime aware avec datetime naive.
-    Utiliser is_past(), is_future(), ou comparer deux datetimes aware.
+RULE 4 - COMPARISONS:
+    NEVER compare aware datetimes with naive datetimes.
+    Use is_past(), is_future(), or compare two aware datetimes.
 
-RÈGLE 5 - PARSING:
-    Utiliser parse_datetime() pour parser n'importe quel format.
-    Cette fonction retourne TOUJOURS un datetime aware (UTC par défaut).
+RULE 5 - PARSING:
+    Use parse_datetime() to parse any format.
+    This function ALWAYS returns an aware datetime (UTC by default).
 
-ANTI-PATTERNS À ÉVITER:
-    ❌ datetime.now() - utiliser datetime.now(UTC)
-    ❌ dt.replace(tzinfo=None) - perte d'information timezone
-    ❌ dt.replace(tzinfo=tz) sur datetime aware - utiliser dt.astimezone(tz)
-    ❌ pytz.localize() - utiliser ZoneInfo + replace(tzinfo=) sur naive uniquement
-    ❌ Manipulation directe sans passer par ce module
+ANTI-PATTERNS TO AVOID:
+    ❌ datetime.now() - use datetime.now(UTC)
+    ❌ dt.replace(tzinfo=None) - loses timezone information
+    ❌ dt.replace(tzinfo=tz) on aware datetime - use dt.astimezone(tz)
+    ❌ pytz.localize() - use ZoneInfo + replace(tzinfo=) on naive only
+    ❌ Direct manipulation without going through this module
 
-FONCTIONS PRINCIPALES:
-    - parse_datetime(input) → datetime aware (UTC)
-    - convert_to_user_timezone(input, tz) → datetime aware (user tz)
-    - format_datetime_for_display(input, tz, locale) → str localisé
-    - format_datetime_iso(input, tz) → str ISO avec offset
+MAIN FUNCTIONS:
+    - parse_datetime(input) → aware datetime (UTC)
+    - convert_to_user_timezone(input, tz) → aware datetime (user tz)
+    - format_datetime_for_display(input, tz, locale) → localized str
+    - format_datetime_iso(input, tz) → ISO str with offset
     - now_utc() → datetime.now(UTC)
-    - is_past(dt) / is_future(dt) → comparaison safe
+    - is_past(dt) / is_future(dt) → safe comparison
 =============================================================================
 """
 

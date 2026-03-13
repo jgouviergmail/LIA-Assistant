@@ -1,5 +1,5 @@
 """
-Architecture v3.2 - Intelligence, Autonomie, Pertinence.
+Architecture v3.2 - Intelligence, Autonomy, Relevance.
 
 This module contains all v3 components for the agent system.
 V3 is now the DEFAULT and ONLY implementation.

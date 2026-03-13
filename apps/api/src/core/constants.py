@@ -1675,7 +1675,7 @@ DEFAULT_LOCALE = "en-US"
 # Note: LANGUAGE_TO_LOCALE_MAP removed (dead code - never imported)
 
 # ============================================================================
-# ARCHITECTURE V3 - Intelligence, Autonomie, Pertinence (NOW DEFAULT)
+# ARCHITECTURE V3 - Intelligence, Autonomy, Relevance (NOW DEFAULT)
 # ============================================================================
 # V3 is now the default and only implementation.
 # No feature flags needed - legacy nodes have been removed.

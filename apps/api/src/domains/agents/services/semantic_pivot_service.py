@@ -1,7 +1,7 @@
 """
 Semantic Pivot Service - Centralized Query Translation.
 
-Architecture v3 - Intelligence, Autonomie, Pertinence.
+Architecture v3 - Intelligence, Autonomy, Relevance.
 
 The Semantic Pivot translates user queries from any language to English
 for optimal LLM and embedding processing efficiency. English is the

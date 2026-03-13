@@ -1,7 +1,7 @@
 """
 SmartCatalogueService - Intelligent tool catalogue filtering.
 
-Architecture v3 - Intelligence, Autonomie, Pertinence.
+Architecture v3 - Intelligence, Autonomy, Relevance.
 
 This service filters the tool catalogue based on query analysis,
 dramatically reducing token consumption while maintaining functionality.

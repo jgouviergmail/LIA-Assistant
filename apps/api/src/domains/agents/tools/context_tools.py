@@ -95,26 +95,26 @@ async def resolve_reference(
     domain: str | None = None,
 ) -> UnifiedToolOutput:
     """
-    Résout une référence contextuelle en un identifiant.
+    Resolve a contextual reference to an identifier.
 
-    Cet outil est 100% générique - fonctionne pour contacts, emails, events, etc.
-    La résolution est automatiquement adaptée selon le ContextTypeDefinition.
+    This tool is 100% generic - works for contacts, emails, events, etc.
+    Resolution is automatically adapted based on the ContextTypeDefinition.
 
-    Migration LangChain v1.0 best practices:
-    - Utilise ToolRuntime pour accès unifié aux ressources (config, store, state, etc.)
-    - runtime.config contient user_id dans configurable
-    - runtime.store permet l'accès au store persistant
+    LangChain v1.0 best practices migration:
+    - Uses ToolRuntime for unified resource access (config, store, state, etc.)
+    - runtime.config contains user_id in configurable
+    - runtime.store provides access to persistent store
 
     Args:
-        reference: Référence utilisateur ("2", "2ème", "dernier", "Jean Dupond", etc.)
-        runtime: ToolRuntime injecté automatiquement (accès config, store, etc.)
-        domain: Domaine à interroger ("contacts", "emails", "events").
-                Optionnel - si non fourni, auto-détection basée sur domaines actifs.
+        reference: User reference ("2", "2nd", "last", "Jean Dupond", etc.)
+        runtime: Automatically injected ToolRuntime (config, store, etc.)
+        domain: Domain to query ("contacts", "emails", "events").
+                Optional - if not provided, auto-detection based on active domains.
 
     Returns:
-        JSON string avec résultat ou erreur.
+        JSON string with result or error.
 
-    Formats de retour:
+    Return formats:
         Success:
             {
                 "success": true,
@@ -390,15 +390,15 @@ async def list_active_domains(
     runtime: Annotated[ToolRuntime, InjectedToolArg],
 ) -> UnifiedToolOutput:
     """
-    Liste tous les domaines actifs disponibles pour l'utilisateur.
+    List all active domains available for the user.
 
-    Utile pour debugging ou pour informer l'utilisateur des références disponibles.
+    Useful for debugging or informing the user about available references.
 
     Args:
-        runtime: ToolRuntime injecté automatiquement (accès config, store, etc.)
+        runtime: Automatically injected ToolRuntime (config, store, etc.)
 
     Returns:
-        UnifiedToolOutput avec liste des domaines actifs.
+        UnifiedToolOutput with list of active domains.
 
     Note:
         This tool is READ-ONLY and provides visibility into available contexts.
@@ -463,22 +463,22 @@ async def set_current_item(
     runtime: Annotated[ToolRuntime, InjectedToolArg],
 ) -> UnifiedToolOutput:
     """
-    Marque un item comme "courant" pour un domaine spécifique.
+    Mark an item as "current" for a specific domain.
 
-    Permet à l'utilisateur de sélectionner explicitement un item dans une liste,
-    qui devient alors la référence implicite pour les commandes suivantes.
+    Allows the user to explicitly select an item from a list,
+    which then becomes the implicit reference for subsequent commands.
 
     Args:
-        reference: Référence à l'item ("2", "dernier", "Jean Dupond").
-        domain: Domaine concerné ("contacts", "emails", "events").
-        runtime: ToolRuntime injecté automatiquement (accès config, store, etc.)
+        reference: Reference to the item ("2", "last", "Jean Dupond").
+        domain: Target domain ("contacts", "emails", "events").
+        runtime: Automatically injected ToolRuntime (config, store, etc.)
 
     Returns:
-        UnifiedToolOutput avec l'item courant ou erreur.
+        UnifiedToolOutput with the current item or error.
 
     Note:
-        Cet outil résout d'abord la référence via resolve_reference,
-        puis marque l'item résolu comme "courant" (set_by="explicit").
+        This tool first resolves the reference via resolve_reference,
+        then marks the resolved item as "current" (set_by="explicit").
     """
     try:
         # Validate runtime config using helper
@@ -561,20 +561,20 @@ async def get_context_state(
     runtime: Annotated[ToolRuntime, InjectedToolArg],
 ) -> UnifiedToolOutput:
     """
-    Récupère l'état contextuel actuel pour un domaine.
+    Retrieve the current contextual state for a domain.
 
-    Fournit un résumé de la liste active et de l'item courant (si défini).
+    Provides a summary of the active list and the current item (if set).
 
     Args:
-        domain: Domaine concerné ("contacts", "emails", "events").
-        runtime: ToolRuntime injecté automatiquement (accès config, store, etc.)
+        domain: Target domain ("contacts", "emails", "events").
+        runtime: Automatically injected ToolRuntime (config, store, etc.)
 
     Returns:
-        UnifiedToolOutput avec état contextuel.
+        UnifiedToolOutput with contextual state.
 
     Note:
-        Cet outil est en lecture seule et permet à l'agent de consulter
-        l'état sans modifier quoi que ce soit.
+        This tool is read-only and allows the agent to inspect
+        the state without modifying anything.
     """
     try:
         # Validate runtime config using helper
@@ -641,17 +641,17 @@ async def get_context_list(
     runtime: Annotated[ToolRuntime, InjectedToolArg],
 ) -> UnifiedToolOutput:
     """
-    Récupère la liste complète des items pour un domaine depuis le contexte.
+    Retrieve the full list of items for a domain from the context.
 
-    Cet outil permet d'accéder à TOUS les items d'une liste active (contacts, emails, etc.)
-    issue d'une recherche précédente. Retourne le tableau complet (limité à MAX_CONTEXT_BATCH_SIZE).
+    This tool provides access to ALL items in an active list (contacts, emails, etc.)
+    from a previous search. Returns the complete array (limited to MAX_CONTEXT_BATCH_SIZE).
 
     Args:
-        domain: Domaine à interroger ("contacts", "emails", "events").
-        runtime: ToolRuntime injecté automatiquement (accès config, store, etc.)
+        domain: Domain to query ("contacts", "emails", "events").
+        runtime: Automatically injected ToolRuntime (config, store, etc.)
 
     Returns:
-        UnifiedToolOutput avec items et metadata.
+        UnifiedToolOutput with items and metadata.
 
     Note:
         - READ-ONLY (pas d'approbation HITL requise)

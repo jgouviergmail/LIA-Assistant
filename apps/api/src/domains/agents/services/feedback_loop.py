@@ -1,7 +1,7 @@
 """
 FeedbackLoopService - Learning from Recovery Patterns.
 
-Architecture v3 - Intelligence, Autonomie, Pertinence.
+Architecture v3 - Intelligence, Autonomy, Relevance.
 
 This service provides:
 1. Recording of recovery attempts (success/failure)

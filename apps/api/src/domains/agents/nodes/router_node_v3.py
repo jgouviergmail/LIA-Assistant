@@ -1,7 +1,7 @@
 """
 Router Node - INTELLIGENT.
 
-Architecture v3.2 - Intelligence, Autonomie, Pertinence.
+Architecture v3.2 - Intelligence, Autonomy, Relevance.
 
 Responsibilities:
 1. Call QueryAnalyzerService.analyze_full()

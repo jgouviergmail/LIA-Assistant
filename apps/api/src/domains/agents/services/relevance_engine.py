@@ -1,7 +1,7 @@
 """
 RelevanceEngine - Intelligent Results Ranking and Filtering.
 
-Architecture v3 - Intelligence, Autonomie, Pertinence.
+Architecture v3 - Intelligence, Autonomy, Relevance.
 
 This engine provides:
 1. Filter non-relevant results

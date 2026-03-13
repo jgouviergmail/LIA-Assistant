@@ -1,7 +1,7 @@
 """
 QueryIntelligence - Intelligent query analysis dataclass.
 
-Architecture v3 - Intelligence, Autonomie, Pertinence.
+Architecture v3 - Intelligence, Autonomy, Relevance.
 
 This module defines the core data structures for intelligent query analysis,
 going beyond simple pattern matching to understand the user's true intent.

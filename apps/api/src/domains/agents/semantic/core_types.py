@@ -1004,15 +1004,15 @@ DEGREE_OF_OPENNESS = SemanticType(
 
 def load_core_types(registry: TypeRegistry) -> None:
     """
-    Charge tous les types core dans le registry.
+    Load all core types into the registry.
 
-    Cette fonction doit être appelée au démarrage de l'application
-    pour peupler le registry global avec les 96+ types définis.
+    This function must be called at application startup
+    to populate the global registry with the 96+ defined types.
 
     Args:
-        registry: Instance du TypeRegistry à peupler
+        registry: TypeRegistry instance to populate
 
-    Exemple:
+    Example:
         >>> registry = get_registry()
         >>> load_core_types(registry)
         >>> len(registry)

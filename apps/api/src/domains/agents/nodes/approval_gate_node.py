@@ -88,16 +88,16 @@ logger = structlog.get_logger(__name__)
 
 def _extract_agent_types_from_plan(plan: ExecutionPlan) -> list[str]:
     """
-    Extrait les agent_types uniques depuis un ExecutionPlan.
+    Extract unique agent_types from an ExecutionPlan.
 
-    Convertit agent_name (e.g., "contacts_agent") → agent_type (e.g., "contacts")
-    en utilisant le pattern de suppression du suffixe "_agent".
+    Converts agent_name (e.g., "contacts_agent") → agent_type (e.g., "contacts")
+    using the "_agent" suffix removal pattern.
 
     Args:
-        plan: ExecutionPlan contenant les steps avec agent_name
+        plan: ExecutionPlan containing steps with agent_name
 
     Returns:
-        Liste des agent_types uniques (sans doublons)
+        List of unique agent_types (no duplicates)
 
     Example:
         >>> plan = ExecutionPlan(steps=[
@@ -130,14 +130,14 @@ def _extract_agent_types_from_plan(plan: ExecutionPlan) -> list[str]:
 
 def _build_plan_summary(plan: ExecutionPlan, validation_result: Any) -> PlanSummary:
     """
-    Construit un résumé du plan pour présentation à l'utilisateur.
+    Build a plan summary for user presentation.
 
     Args:
-        plan: Plan d'exécution complet
-        validation_result: Résultat de validation avec coûts et flags
+        plan: Complete execution plan
+        validation_result: Validation result with costs and flags
 
     Returns:
-        PlanSummary pour affichage UI
+        PlanSummary for UI display
     """
     registry = get_global_registry()
     steps = []
@@ -218,25 +218,25 @@ async def _build_approval_request(
     skip_question_generation: bool = True,
 ) -> PlanApprovalRequest:
     """
-    Construit une requête d'approbation complète.
+    Build a complete approval request.
 
     Phase 1 HITL Streaming (OPTIMPLAN):
     When skip_question_generation=True (default), the question is NOT generated here.
     Instead, StreamingService generates it lazily via LLM streaming for better TTFT.
 
     Args:
-        plan_summary: Résumé du plan
-        validation_result: Résultat de validation
-        approval_evaluation: Résultat de l'évaluation des stratégies (optional)
-        user_language: Langue de l'utilisateur pour la question (default: "fr")
+        plan_summary: Plan summary
+        validation_result: Validation result
+        approval_evaluation: Strategy evaluation result (optional)
+        user_language: User language for the question (default: "fr")
         user_timezone: User's IANA timezone for datetime context (default: "Europe/Paris")
-        config: RunnableConfig LangGraph pour extraire le TokenTrackingCallback (optional)
+        config: LangGraph RunnableConfig to extract TokenTrackingCallback (optional)
         skip_question_generation: If True, skip LLM question generation here.
             The question will be generated via streaming in StreamingService.
             Default: True (Phase 1 HITL Streaming)
 
     Returns:
-        PlanApprovalRequest à envoyer à l'utilisateur
+        PlanApprovalRequest to send to the user
     """
     # Extract reasons and strategies
     reasons = []

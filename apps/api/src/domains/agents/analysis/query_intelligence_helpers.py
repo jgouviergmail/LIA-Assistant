@@ -1,7 +1,7 @@
 """
 QueryIntelligence Helpers - Centralized utilities for QueryIntelligence access.
 
-Architecture v3 - Intelligence, Autonomie, Pertinence.
+Architecture v3 - Intelligence, Autonomy, Relevance.
 
 This module provides utilities for accessing QueryIntelligence from LangGraph state,
 handling both object and dict formats transparently.

@@ -321,28 +321,28 @@ class SemanticExpansionService:
         query: str = "",
     ) -> list[str]:
         """
-        Expansion sémantique INTELLIGENTE des domaines.
+        INTELLIGENT semantic domain expansion.
 
-        Contrairement à expand_domains_iso_functional(), cette méthode:
-        - Vérifie TOUS les domaines providers (pas seulement "contacts")
-        - Ajoute les providers qui fournissent les types requis (via source_domains)
+        Unlike expand_domains_iso_functional(), this method:
+        - Checks ALL provider domains (not just "contacts")
+        - Adds providers that supply the required types (via source_domains)
 
-        Le threshold contrôle l'ajout de providers:
-        - threshold < 1.0: Ajoute tous les providers listés dans source_domains du type
-        - threshold = 1.0: N'ajoute aucun provider (désactive l'expansion)
+        The threshold controls provider addition:
+        - threshold < 1.0: Adds all providers listed in the type's source_domains
+        - threshold = 1.0: Adds no provider (disables expansion)
 
-        Note: Le threshold est un toggle simple (< 1.0 = on, = 1.0 = off).
-        Une future évolution pourrait utiliser la distance Wu & Palmer pour un
-        filtrage plus granulaire basé sur la similarité sémantique.
+        Note: The threshold is a simple toggle (< 1.0 = on, = 1.0 = off).
+        A future evolution could use the Wu & Palmer distance for more
+        granular filtering based on semantic similarity.
 
         Args:
-            primary_domains: Domaines déjà sélectionnés par le router
-            required_semantic_types: Types sémantiques requis par les tools
-            threshold: Seuil pour ajouter providers. < 1.0 = active, 1.0 = désactivé
-            query: Query originale (pour logging)
+            primary_domains: Domains already selected by the router
+            required_semantic_types: Semantic types required by the tools
+            threshold: Threshold for adding providers. < 1.0 = active, 1.0 = disabled
+            query: Original query (for logging)
 
         Returns:
-            Liste de domaines (originaux + providers ajoutés)
+            List of domains (original + added providers)
 
         Example:
             >>> service = SemanticExpansionService()

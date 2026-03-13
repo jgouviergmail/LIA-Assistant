@@ -1717,7 +1717,7 @@ class AgentsSettings(BaseSettings):
     # ========================================================================
     # V3 ARCHITECTURE CONFIGURATION
     # ========================================================================
-    # Configurable parameters for v3 components: Intelligence, Autonomie, Pertinence
+    # Configurable parameters for v3 components: Intelligence, Autonomy, Relevance
     # All defaults are imported from src.core.constants (V3_* constants)
     # These can be overridden via .env for tuning without code changes.
 

@@ -325,16 +325,16 @@ def create_success_response(
     metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
-    Crée une réponse succès standardisée.
+    Create a standardized success response.
 
-    Utility function pour simplifier création de ToolResponse succès.
+    Utility function to simplify ToolResponse success creation.
 
     Args:
-        data: Données à retourner
-        metadata: Métadonnées optionnelles
+        data: Data to return
+        metadata: Optional metadata
 
     Returns:
-        Dict compatible ToolResponse
+        ToolResponse-compatible dict
 
     Examples:
         >>> result = {"contacts": [...]}
@@ -357,18 +357,18 @@ def create_error_response(
     recoverable: bool = False,
 ) -> dict[str, Any]:
     """
-    Crée une réponse erreur standardisée.
+    Create a standardized error response.
 
-    Utility function pour simplifier création de ToolResponse erreur.
+    Utility function to simplify ToolResponse error creation.
 
     Args:
-        message: Message d'erreur
-        code: Code d'erreur
-        context: Contexte additionnel
-        recoverable: Si erreur récupérable
+        message: Error message
+        code: Error code
+        context: Additional context
+        recoverable: Whether the error is recoverable
 
     Returns:
-        Dict compatible ToolResponse
+        ToolResponse-compatible dict
 
     Examples:
         >>> return create_error_response(
@@ -396,7 +396,7 @@ def safe_parse_json(
     context: str = "response",
 ) -> dict[str, Any] | list[Any]:
     """
-    Parse JSON avec gestion d'erreur standardisee.
+    Parse JSON with standardized error handling.
 
     Eliminates 30+ duplicated try-except blocks across tools, clients, and cache.
 
@@ -465,17 +465,17 @@ def parse_list_field(
     required_key: str | None = None,
 ) -> list[M]:
     """
-    Factory generique pour parser les listes vers des modeles Pydantic.
+    Generic factory to parse lists into Pydantic models.
 
-    Elimine les 6+ fonctions _parse_contact_* quasi-identiques.
+    Eliminates 6+ nearly-identical _parse_contact_* functions.
 
     Args:
-        data: Liste de dicts bruts (peut etre None)
-        model_class: Classe Pydantic cible (ex: ContactEmail, ContactPhone)
-        required_key: Cle requise dans chaque item (ex: "value"). Si None, accepte tous les dicts.
+        data: List of raw dicts (can be None)
+        model_class: Target Pydantic class (e.g., ContactEmail, ContactPhone)
+        required_key: Required key in each item (e.g., "value"). If None, accepts all dicts.
 
     Returns:
-        Liste d'instances du model, vide si data est None
+        List of model instances, empty if data is None
 
     Examples:
         >>> from pydantic import BaseModel

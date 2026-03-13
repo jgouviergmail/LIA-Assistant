@@ -37,7 +37,7 @@ def check_resource_ownership(
     hide_existence: bool = False,
 ) -> None:
     """
-    Vérifie que l'utilisateur courant possède la ressource.
+    Check that the current user owns the resource.
 
     Best Practices:
     - Fail-secure: Raises exception if resource is None
@@ -46,15 +46,15 @@ def check_resource_ownership(
     - OWASP-compliant: Supports both 403 and 404 strategies
 
     Args:
-        resource: Ressource à vérifier (doit avoir user_id attribute)
-        current_user: Utilisateur authentifié (doit avoir id et is_superuser)
-        resource_name: Nom pour logging/erreurs (e.g., "connector", "user")
-        allow_superuser: Si True, les superusers contournent la vérification
-        hide_existence: Si True, utilise 404 au lieu de 403 (ressources privées)
+        resource: Resource to check (must have user_id attribute)
+        current_user: Authenticated user (must have id and is_superuser)
+        resource_name: Name for logging/errors (e.g., "connector", "user")
+        allow_superuser: If True, superusers bypass the check
+        hide_existence: If True, uses 404 instead of 403 (private resources)
 
     Raises:
-        HTTPException 404: Si la ressource n'existe pas OU (hide_existence=True) non autorisée
-        HTTPException 403: Si (hide_existence=False) l'utilisateur n'est pas propriétaire
+        HTTPException 404: If resource does not exist OR (hide_existence=True) not authorized
+        HTTPException 403: If (hide_existence=False) user is not the owner
 
     HTTP Status Strategy:
         - hide_existence=False (default): PUBLIC resources (user profiles)
@@ -115,7 +115,7 @@ def check_resource_ownership(
 
 def require_superuser(current_user: Any, action: str = "perform this action") -> None:
     """
-    Vérifie que l'utilisateur est superuser.
+    Check that the user is a superuser.
 
     Best Practices:
     - Explicit permission check
@@ -123,11 +123,11 @@ def require_superuser(current_user: Any, action: str = "perform this action") ->
     - Clear error message
 
     Args:
-        current_user: Utilisateur authentifié (doit avoir is_superuser)
-        action: Description de l'action pour le message d'erreur
+        current_user: Authenticated user (must have is_superuser)
+        action: Action description for the error message
 
     Raises:
-        HTTPException 403: Si l'utilisateur n'est pas superuser
+        HTTPException 403: If the user is not a superuser
 
     Example:
         >>> require_superuser(current_user, "access admin dashboard")
@@ -144,7 +144,7 @@ def require_superuser(current_user: Any, action: str = "perform this action") ->
 
 def check_user_active(user: Any) -> None:
     """
-    Vérifie que le compte utilisateur est actif.
+    Check that the user account is active.
 
     Best Practices:
     - Soft-delete awareness
@@ -152,10 +152,10 @@ def check_user_active(user: Any) -> None:
     - Audit logging
 
     Args:
-        user: Utilisateur à vérifier (doit avoir is_active)
+        user: User to check (must have is_active)
 
     Raises:
-        HTTPException 403: Si le compte est inactif
+        HTTPException 403: If the account is inactive
 
     Example:
         >>> user = await repo.get_by_id(user_id)
@@ -171,7 +171,7 @@ def check_user_ownership_or_superuser(
     action: str = "perform this action",
 ) -> None:
     """
-    Vérifie que l'utilisateur accède à ses propres données OU est superuser.
+    Check that the user accesses their own data OR is a superuser.
 
     Best Practices:
     - Common pattern extraction
@@ -179,12 +179,12 @@ def check_user_ownership_or_superuser(
     - Clear intent
 
     Args:
-        target_user_id: UUID de l'utilisateur cible
-        current_user: Utilisateur authentifié
-        action: Description de l'action pour logging
+        target_user_id: UUID of the target user
+        current_user: Authenticated user
+        action: Action description for logging
 
     Raises:
-        HTTPException 403: Si ni propriétaire ni superuser
+        HTTPException 403: If neither owner nor superuser
 
     Example:
         >>> check_user_ownership_or_superuser(
@@ -209,11 +209,11 @@ def check_resource_ownership_by_user_id(
     hide_existence: bool = True,
 ) -> None:
     """
-    Vérifie que la ressource appartient à l'utilisateur spécifié par user_id.
+    Check that the resource belongs to the user specified by user_id.
 
-    Variante simplifiée de check_resource_ownership() pour les services qui reçoivent
-    user_id (UUID) au lieu de current_user (objet User). Cette fonction ne supporte
-    pas le bypass superuser car nous n'avons pas accès à current_user.
+    Simplified variant of check_resource_ownership() for services that receive
+    user_id (UUID) instead of current_user (User object). This function does not
+    support superuser bypass since we don't have access to current_user.
 
     Best Practices:
     - Fail-secure: Raises exception if resource is None
@@ -221,13 +221,13 @@ def check_resource_ownership_by_user_id(
     - OWASP-compliant: Uses 404 by default for private resources
 
     Args:
-        resource: Ressource à vérifier (doit avoir user_id attribute)
-        user_id: UUID de l'utilisateur qui demande l'accès
-        resource_name: Nom pour logging/erreurs (e.g., "connector", "user")
-        hide_existence: Si True (default), utilise 404 (ressources privées)
+        resource: Resource to check (must have user_id attribute)
+        user_id: UUID of the user requesting access
+        resource_name: Name for logging/errors (e.g., "connector", "user")
+        hide_existence: If True (default), uses 404 (private resources)
 
     Raises:
-        HTTPException 404: Si la ressource n'existe pas OU non autorisée
+        HTTPException 404: If resource does not exist OR not authorized
 
     HTTP Status Strategy:
         - hide_existence=True (default): PRIVATE resources (connectors, credentials)

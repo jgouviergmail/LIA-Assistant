@@ -9,7 +9,7 @@ Implements comprehensive observability for Redis-based distributed rate limiter:
 - Lua script execution
 - Error tracking
 
-Phase: PHASE 2.4 - Redis Rate Limiter Observabilité
+Phase: PHASE 2.4 - Redis Rate Limiter Observability
 Created: 2025-11-22
 """
 

@@ -24,7 +24,7 @@ Usage:
     intro = V3Messages.get_warm_intro("fr", context="found_many", count=5)
 
 Created: 2025-12-30
-Architecture v3 - Intelligence, Autonomie, Pertinence
+Architecture v3 - Intelligence, Autonomy, Relevance
 """
 
 from typing import Any
