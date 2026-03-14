@@ -2,6 +2,7 @@
 Database session management using SQLAlchemy async engine.
 """
 
+import asyncio
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
@@ -65,7 +66,13 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
             logger.error("database_session_error", error=str(exc), exc_info=True)
             raise
         finally:
-            await session.close()
+            # Shield session.close() from CancelledError to prevent connection
+            # pool leaks. Without this, client disconnections during SSE streaming
+            # cancel the close() call, leaving connections checked out from the pool.
+            try:
+                await asyncio.shield(session.close())
+            except asyncio.CancelledError:
+                pass
 
 
 @asynccontextmanager
@@ -106,7 +113,11 @@ async def get_db_context() -> AsyncGenerator[AsyncSession, None]:
             )
             raise
         finally:
-            await session.close()
+            # Shield session.close() from CancelledError (see get_db_session)
+            try:
+                await asyncio.shield(session.close())
+            except asyncio.CancelledError:
+                pass
 
 
 async def init_db() -> None:

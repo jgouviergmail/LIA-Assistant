@@ -12,44 +12,9 @@ import pytest
 from src.core.bootstrap import (
     log_event_loop_configuration,
     log_rate_limiting_status,
-    patch_starlette_utf8,
     validate_critical_configuration,
     validate_llm_configuration,
 )
-
-
-class TestPatchStarletteUtf8:
-    def test_patch_applies_successfully(self):
-        patch_starlette_utf8()
-        from starlette.config import Config
-
-        assert hasattr(Config, "_read_file")
-        assert callable(Config._read_file)
-
-    def test_patched_read_file_with_none_filename(self):
-        """Test _read_file_utf8 returns empty dict when filename is None (Line 44)."""
-        patch_starlette_utf8()
-        from starlette.config import Config
-
-        config = Config()
-        # Call _read_file with None
-        result = config._read_file(None)
-
-        # Line 44 executed: return {}
-        assert result == {}
-
-    def test_patched_read_file_handles_file_not_found(self, tmp_path):
-        """Test _read_file_utf8 handles FileNotFoundError (Lines 64-65)."""
-        patch_starlette_utf8()
-        from starlette.config import Config
-
-        config = Config()
-        # Call _read_file with non-existent file
-        non_existent = str(tmp_path / "does_not_exist.env")
-        result = config._read_file(non_existent)
-
-        # Lines 64-65 executed: except FileNotFoundError: return {}
-        assert result == {}
 
 
 class TestValidateLLMConfiguration:

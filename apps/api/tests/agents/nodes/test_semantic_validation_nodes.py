@@ -286,7 +286,8 @@ class TestClarificationNode:
                 # Verify state updates
                 assert result["clarification_response"] == "Tous les contacts"
                 assert result["needs_replan"] is True
-                assert result["planner_iteration"] == 1
+                # NOTE: planner_iteration is no longer returned by clarification_node
+                # (BUG FIX 2026-01-14: user clarifications don't increment iteration)
 
     @pytest.mark.asyncio
     async def test_interrupt_payload_format(self, state_with_clarification):
@@ -344,8 +345,9 @@ class TestClarificationNode:
                 # Should have called model_dump()
                 mock_validation.model_dump.assert_called_once()
 
-                # Verify iteration incremented
-                assert result["planner_iteration"] == 2
+                # planner_iteration is no longer returned by clarification_node
+                # (BUG FIX 2026-01-14: user clarifications don't increment iteration)
+                assert "planner_iteration" not in result
 
     @pytest.mark.asyncio
     async def test_string_resume_data(self, state_with_clarification):
@@ -404,8 +406,12 @@ class TestRouteFromSemanticValidator:
 
         assert result == "planner"
 
-    def test_route_to_approval_on_max_iterations(self, mock_metrics):
-        """Test routing to approval_gate when max iterations reached."""
+    def test_route_to_planner_on_needs_replan_even_at_max_iterations(self, mock_metrics):
+        """Test that needs_replan=True takes priority over max iterations.
+
+        BUG FIX 2026-01-14: User's clarification response must always be processed,
+        even if max_iterations is reached. Max iterations only prevents auto-replans.
+        """
         from src.domains.agents.nodes.routing import route_from_semantic_validator
 
         state = {
@@ -418,8 +424,8 @@ class TestRouteFromSemanticValidator:
 
         result = route_from_semantic_validator(state)
 
-        # Should bypass clarification and go to approval
-        assert result == "approval_gate"
+        # needs_replan=True has priority: user's response must be processed
+        assert result == "planner"
 
     def test_route_to_approval_on_no_validation(self, mock_metrics):
         """Test routing to approval_gate when no validation result."""
@@ -490,7 +496,11 @@ class TestRouteFromSemanticValidator:
         mock_validation.model_dump.assert_called_once()
 
     def test_feedback_loop_protection(self, mock_metrics):
-        """Test feedback loop protection (respects planner_max_replans setting)."""
+        """Test feedback loop protection (respects planner_max_replans setting).
+
+        BUG FIX 2026-01-14: needs_replan=True (user response) always routes to planner.
+        Max iterations only blocks auto-replans (needs_replan=False with requires_clarification).
+        """
         from src.domains.agents.nodes.routing import route_from_semantic_validator
 
         # Patch settings to use max_replans=3 for this test
@@ -499,21 +509,25 @@ class TestRouteFromSemanticValidator:
             mock_settings.planner_max_replans = 3
             mock_get_settings.return_value = mock_settings
 
-            # First 3 iterations should allow replan
-            for iteration in range(3):
+            # All iterations with needs_replan=True should route to planner
+            # (user's response always takes priority)
+            for iteration in range(4):
                 state = {
                     STATE_KEY_SEMANTIC_VALIDATION: {"requires_clarification": False},
                     STATE_KEY_PLANNER_ITERATION: iteration,
                     "needs_replan": True,
                 }
                 result = route_from_semantic_validator(state)
-                assert result == "planner", f"Iteration {iteration} should route to planner"
+                assert (
+                    result == "planner"
+                ), f"Iteration {iteration} should route to planner (needs_replan)"
 
-            # 4th iteration (index 3) should bypass
+            # Max iterations only blocks when needs_replan=False (auto-replan scenario)
+            # With max_replans=3, iteration must be > 3 to trigger bypass
             state = {
                 STATE_KEY_SEMANTIC_VALIDATION: {"requires_clarification": True},
-                STATE_KEY_PLANNER_ITERATION: 3,
-                "needs_replan": True,
+                STATE_KEY_PLANNER_ITERATION: 4,
+                "needs_replan": False,
             }
             result = route_from_semantic_validator(state)
             assert result == "approval_gate"

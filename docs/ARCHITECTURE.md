@@ -3134,63 +3134,12 @@ rate(llm_tokens_consumed_total{model="gpt-4-turbo"}[5m])
 
 ### Bootstrap & Event Loop Configuration
 
-#### UTF-8 Patch (Windows Compatibility)
+#### UTF-8 Encoding (Starlette 0.50+)
 
-```python
-# src/core/bootstrap.py
-def patch_starlette_utf8() -> None:
-    """
-    Monkey patch Starlette Config to read .env files with UTF-8 encoding.
+Since Starlette 0.50.0, `Config.__init__` accepts an `encoding` parameter defaulting to `"utf-8"`.
+This makes the previous `patch_starlette_utf8()` monkey-patch obsolete — it was removed in v1.3.0.
 
-    Problem:
-        .env file contains Unicode characters (→, ✅) which are valid UTF-8
-        but cannot be decoded with Windows cp1252 encoding.
-
-        Error: UnicodeDecodeError: 'charmap' codec can't decode byte 0x90 in position 4597
-
-    Solution:
-        Patch Starlette Config._read_file to force UTF-8 encoding.
-
-    Critical:
-        This MUST be called BEFORE any Starlette/FastAPI imports that trigger
-        Config instantiation (e.g., slowapi Limiter).
-    """
-    from starlette.config import Config as StarletteConfig
-
-    def _read_file_utf8(self: StarletteConfig, filename: str | None = None) -> dict[str, Any]:
-        """Patched version forcing UTF-8 encoding."""
-        if filename is None:
-            return {}
-
-        try:
-            # Force UTF-8 encoding (instead of system default cp1252 on Windows)
-            with open(filename, encoding="utf-8") as input_file:
-                content = input_file.read()
-
-            # Parse .env content
-            file_values: dict[str, str] = {}
-            for line in content.splitlines():
-                line = line.strip()
-                if not line or line.startswith("#"):
-                    continue
-                if "=" in line:
-                    key, _, value = line.partition("=")
-                    key = key.strip()
-                    value = value.strip().strip("\"'")
-                    file_values[key] = value
-
-            return file_values
-        except FileNotFoundError:
-            return {}
-
-    # Apply monkey patch
-    StarletteConfig._read_file = _read_file_utf8
-    logger.debug("starlette_utf8_patch_applied")
-
-# In main.py (BEFORE any imports):
-patch_starlette_utf8()  # CRITICAL - must be first
-from slowapi import Limiter  # Now safe - Config reads .env with UTF-8
-```
+No special import ordering or patching is needed in `main.py` anymore.
 
 #### LLM Configuration Validation
 
