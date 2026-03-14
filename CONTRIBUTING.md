@@ -30,7 +30,7 @@
 
 ## Welcome
 
-Thank you for your interest in contributing to **LIA**! This project is a multi-agent conversational platform built on **LangGraph 1.0**, **FastAPI 0.128**, and **Next.js 16**, with a complete DDD (Domain-Driven Design) architecture.
+Thank you for your interest in contributing to **LIA**! This project is a multi-agent conversational platform built on **LangGraph 1.0**, **FastAPI 0.135.1**, and **Next.js 16**, with a complete DDD (Domain-Driven Design) architecture.
 
 ### Accepted Contribution Types
 

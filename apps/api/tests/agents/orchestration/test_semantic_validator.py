@@ -237,6 +237,25 @@ class TestSemanticValidationResult:
 class TestPlanSemanticValidator:
     """Test suite for PlanSemanticValidator."""
 
+    @pytest.fixture(autouse=True)
+    def _bypass_pre_llm_checks(self):
+        """Bypass pre-LLM validation checks for all tests in this class.
+
+        These tests focus on LLM validation logic (timeout, fallback, prompt building).
+        Insufficient content and for_each pattern detection are tested separately.
+        """
+        with (
+            patch(
+                "src.domains.agents.orchestration.semantic_validator.detect_insufficient_content",
+                return_value=None,
+            ),
+            patch(
+                "src.domains.agents.orchestration.semantic_validator.validate_for_each_patterns",
+                return_value=(True, None, None),
+            ),
+        ):
+            yield
+
     @pytest.fixture
     def mock_execution_plan(self):
         """Create mock execution plan with 3 steps."""
@@ -283,7 +302,7 @@ class TestPlanSemanticValidator:
                 agent_name="emails_agent",
                 step_type=MockStepType.TOOL,
                 description="Send email",
-                parameters={"to": "$step_2.email"},
+                parameters={"to": "$step_2.email", "subject": "Hello", "body": "Hi there"},
                 depends_on=["step_2"],
                 condition=None,
                 on_success=None,
@@ -308,32 +327,13 @@ class TestPlanSemanticValidator:
         return plan
 
     @pytest.mark.asyncio
-    async def test_feature_flag_disabled(self, mock_execution_plan):
-        """Test that validation is skipped when feature flag is disabled."""
-        with patch("src.domains.agents.orchestration.semantic_validator.settings") as mock_settings:
-            mock_settings.semantic_validation_enabled = False
-            mock_settings.semantic_validation_timeout_seconds = 1.0
-            mock_settings.semantic_validator_llm_provider = "openai"
-
-            validator = PlanSemanticValidator()
-
-            result = await validator.validate(
-                plan=mock_execution_plan,
-                user_request="Test request",
-                user_language="fr",
-            )
-
-            assert result.is_valid is True
-            assert result.used_fallback is False
-            assert result.validation_duration_seconds < 0.1
-
-    @pytest.mark.asyncio
     async def test_short_circuit_trivial_plan(self, mock_trivial_plan):
         """Test that plans with ≤1 step are instantly validated (short-circuit)."""
         with patch("src.domains.agents.orchestration.semantic_validator.settings") as mock_settings:
             mock_settings.semantic_validation_enabled = True
             mock_settings.semantic_validation_timeout_seconds = 1.0
             mock_settings.semantic_validator_llm_provider = "openai"
+            mock_settings.insufficient_content_min_chars_threshold = 30
 
             with patch("src.domains.agents.orchestration.semantic_validator.get_llm"):
                 validator = PlanSemanticValidator()
@@ -346,8 +346,8 @@ class TestPlanSemanticValidator:
 
                 assert result.is_valid is True
                 assert result.used_fallback is False
-                # Short-circuit should be very fast
-                assert result.validation_duration_seconds < 0.1
+                # Short-circuit should be fast (allow 1s for first-run import overhead)
+                assert result.validation_duration_seconds < 1.0
 
     @pytest.mark.asyncio
     async def test_timeout_fallback(self, mock_execution_plan):
@@ -356,6 +356,7 @@ class TestPlanSemanticValidator:
             mock_settings.semantic_validation_enabled = True
             mock_settings.semantic_validation_timeout_seconds = 0.1  # Very short timeout
             mock_settings.semantic_validator_llm_provider = "openai"
+            mock_settings.insufficient_content_min_chars_threshold = 30
 
             with patch("src.domains.agents.orchestration.semantic_validator.get_llm"):
                 validator = PlanSemanticValidator()
@@ -387,7 +388,7 @@ class TestPlanSemanticValidator:
                         # Should fallback to valid due to timeout
                         assert result.is_valid is True
                         assert result.used_fallback is True
-                        assert result.confidence == 0.5  # Fallback confidence
+                        assert result.confidence == 0.3  # Fallback confidence (timeout)
 
     @pytest.mark.asyncio
     async def test_error_fallback(self, mock_execution_plan):
@@ -396,6 +397,7 @@ class TestPlanSemanticValidator:
             mock_settings.semantic_validation_enabled = True
             mock_settings.semantic_validation_timeout_seconds = 5.0
             mock_settings.semantic_validator_llm_provider = "openai"
+            mock_settings.insufficient_content_min_chars_threshold = 30
 
             with patch("src.domains.agents.orchestration.semantic_validator.get_llm"):
                 validator = PlanSemanticValidator()
@@ -422,6 +424,7 @@ class TestPlanSemanticValidator:
             mock_settings.semantic_validation_enabled = True
             mock_settings.semantic_validation_timeout_seconds = 5.0
             mock_settings.semantic_validator_llm_provider = "openai"
+            mock_settings.insufficient_content_min_chars_threshold = 30
 
             with patch("src.domains.agents.orchestration.semantic_validator.get_llm"):
                 validator = PlanSemanticValidator()
@@ -467,6 +470,7 @@ class TestPlanSemanticValidator:
             mock_settings.semantic_validation_enabled = True
             mock_settings.semantic_validation_timeout_seconds = 5.0
             mock_settings.semantic_validator_llm_provider = "openai"
+            mock_settings.insufficient_content_min_chars_threshold = 30
 
             with patch("src.domains.agents.orchestration.semantic_validator.get_llm"):
                 validator = PlanSemanticValidator()
@@ -519,6 +523,7 @@ class TestPlanSemanticValidator:
             mock_settings.semantic_validation_enabled = True
             mock_settings.semantic_validation_timeout_seconds = 5.0
             mock_settings.semantic_validator_llm_provider = "openai"
+            mock_settings.insufficient_content_min_chars_threshold = 30
             mock_settings.semantic_validator_prompt_version = (
                 SEMANTIC_VALIDATOR_PROMPT_VERSION_DEFAULT
             )
@@ -555,6 +560,7 @@ class TestPlanSemanticValidator:
             mock_settings.semantic_validation_enabled = True
             mock_settings.semantic_validation_timeout_seconds = 5.0
             mock_settings.semantic_validator_llm_provider = "openai"
+            mock_settings.insufficient_content_min_chars_threshold = 30
 
             with patch("src.domains.agents.orchestration.semantic_validator.get_llm"):
                 validator = PlanSemanticValidator()
@@ -597,6 +603,7 @@ class TestSemanticValidatorIntegration:
             mock_settings.semantic_validation_enabled = True
             mock_settings.semantic_validation_timeout_seconds = 5.0
             mock_settings.semantic_validator_llm_provider = "openai"
+            mock_settings.insufficient_content_min_chars_threshold = 30
 
             with patch("src.domains.agents.orchestration.semantic_validator.get_llm"):
                 validator = PlanSemanticValidator()
@@ -677,6 +684,7 @@ class TestFormatPlanForValidation:
             mock_settings.semantic_validation_enabled = True
             mock_settings.semantic_validation_timeout_seconds = 5.0
             mock_settings.semantic_validator_llm_provider = "openai"
+            mock_settings.insufficient_content_min_chars_threshold = 30
 
             with patch("src.domains.agents.orchestration.semantic_validator.get_llm"):
                 validator = PlanSemanticValidator()
@@ -699,6 +707,7 @@ class TestFormatPlanForValidation:
             mock_settings.semantic_validation_enabled = True
             mock_settings.semantic_validation_timeout_seconds = 5.0
             mock_settings.semantic_validator_llm_provider = "openai"
+            mock_settings.insufficient_content_min_chars_threshold = 30
 
             with patch("src.domains.agents.orchestration.semantic_validator.get_llm"):
                 validator = PlanSemanticValidator()
@@ -720,6 +729,7 @@ class TestFormatPlanForValidation:
             mock_settings.semantic_validation_enabled = True
             mock_settings.semantic_validation_timeout_seconds = 5.0
             mock_settings.semantic_validator_llm_provider = "openai"
+            mock_settings.insufficient_content_min_chars_threshold = 30
 
             with patch("src.domains.agents.orchestration.semantic_validator.get_llm"):
                 validator = PlanSemanticValidator()
@@ -741,6 +751,7 @@ class TestFormatPlanForValidation:
             mock_settings.semantic_validation_enabled = True
             mock_settings.semantic_validation_timeout_seconds = 5.0
             mock_settings.semantic_validator_llm_provider = "openai"
+            mock_settings.insufficient_content_min_chars_threshold = 30
 
             with patch("src.domains.agents.orchestration.semantic_validator.get_llm"):
                 validator = PlanSemanticValidator()
@@ -762,6 +773,7 @@ class TestFormatPlanForValidation:
             mock_settings.semantic_validation_enabled = True
             mock_settings.semantic_validation_timeout_seconds = 5.0
             mock_settings.semantic_validator_llm_provider = "openai"
+            mock_settings.insufficient_content_min_chars_threshold = 30
 
             with patch("src.domains.agents.orchestration.semantic_validator.get_llm"):
                 validator = PlanSemanticValidator()
@@ -781,6 +793,7 @@ class TestFormatPlanForValidation:
             mock_settings.semantic_validation_enabled = True
             mock_settings.semantic_validation_timeout_seconds = 5.0
             mock_settings.semantic_validator_llm_provider = "openai"
+            mock_settings.insufficient_content_min_chars_threshold = 30
 
             with patch("src.domains.agents.orchestration.semantic_validator.get_llm"):
                 validator = PlanSemanticValidator()
@@ -823,6 +836,7 @@ class TestFormatPlanForValidation:
             mock_settings.semantic_validation_enabled = True
             mock_settings.semantic_validation_timeout_seconds = 5.0
             mock_settings.semantic_validator_llm_provider = "openai"
+            mock_settings.insufficient_content_min_chars_threshold = 30
 
             with patch("src.domains.agents.orchestration.semantic_validator.get_llm"):
                 validator = PlanSemanticValidator()

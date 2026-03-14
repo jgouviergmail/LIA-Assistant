@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.12%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.12+"></a>
-  <a href="https://fastapi.tiangolo.com/"><img src="https://img.shields.io/badge/FastAPI-0.128-009688?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI"></a>
+  <a href="https://fastapi.tiangolo.com/"><img src="https://img.shields.io/badge/FastAPI-0.135.1-009688?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI"></a>
   <a href="https://nextjs.org/"><img src="https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=nextdotjs&logoColor=white" alt="Next.js"></a>
   <a href="https://langchain-ai.github.io/langgraph/"><img src="https://img.shields.io/badge/LangGraph-1.0.10-FF6F00?style=flat-square" alt="LangGraph"></a>
   <a href="https://python.langchain.com/"><img src="https://img.shields.io/badge/LangChain-1.2.17-4B8BBE?style=flat-square" alt="LangChain"></a>
@@ -427,7 +427,7 @@ apps/api/src/
 | Technology | Version | Role |
 |------------|---------|------|
 | Python | 3.12+ | Primary runtime |
-| FastAPI | 0.128 | REST API + SSE framework |
+| FastAPI | 0.135.1 | REST API + SSE framework |
 | LangGraph | 1.0.10 | Multi-agent orchestration |
 | LangChain | 1.2.10 | LLM abstraction + tools |
 | SQLAlchemy | 2.0.45 | Async ORM |

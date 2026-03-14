@@ -12,6 +12,7 @@ from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Header, Request
 from fastapi.responses import StreamingResponse
+from starlette.requests import ClientDisconnect
 
 from src.core.config import settings
 from src.core.exceptions import raise_user_id_mismatch
@@ -597,6 +598,17 @@ async def stream_chat(
                 session_id=request.session_id,
             )
             raise
+
+        except ClientDisconnect:
+            # Starlette 0.42+: raised when client disconnects during streaming.
+            # This is a graceful termination, not an error.
+            logger.info(
+                "sse_client_disconnected",
+                user_id=str(current_user.id),
+                session_id=request.session_id,
+                duration_seconds=time.time() - request_start_time,
+            )
+            return
 
         except Exception as e:
             # E2E metrics: Record request duration even on error (PHASE 1.2)

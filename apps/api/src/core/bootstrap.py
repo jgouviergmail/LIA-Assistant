@@ -2,7 +2,6 @@
 Application bootstrap functions.
 
 Provides testable initialization functions for:
-- Starlette UTF-8 encoding patch
 - LLM configuration validation
 - Rate limiter configuration
 - Environment validation
@@ -13,60 +12,11 @@ These functions are extracted from main.py to enable:
 3. Clear separation of concerns
 """
 
-from typing import Any
-
 import structlog
 
 from src.core.config import settings
 
 logger = structlog.get_logger(__name__)
-
-
-def patch_starlette_utf8() -> None:
-    """
-    Patch Starlette Config to read .env files with UTF-8 encoding.
-
-    The .env file contains Unicode characters (arrows →, checkmarks ✅) which
-    are valid UTF-8 but cannot be decoded with Windows cp1252 encoding.
-    Starlette's Config class uses system default encoding, causing:
-    UnicodeDecodeError: 'charmap' codec can't decode byte 0x90 in position 4597
-
-    This monkey patch must be called BEFORE any Starlette/FastAPI imports that
-    trigger Config instantiation (e.g., Limiter from slowapi).
-
-    Note: This function modifies the Starlette Config class in place.
-    """
-    from starlette.config import Config as StarletteConfig
-
-    def _read_file_utf8(self: StarletteConfig, filename: str | None = None) -> dict[str, Any]:
-        """Patched version of Starlette Config._read_file that forces UTF-8 encoding."""
-        if filename is None:
-            return {}
-
-        try:
-            # Force UTF-8 encoding for .env file reading
-            with open(filename, encoding="utf-8") as input_file:
-                content = input_file.read()
-
-            # Parse .env content (borrowed from Starlette's implementation)
-            file_values: dict[str, str] = {}
-            for line in content.splitlines():
-                line = line.strip()
-                if not line or line.startswith("#"):
-                    continue
-                if "=" in line:
-                    key, _, value = line.partition("=")
-                    key = key.strip()
-                    value = value.strip().strip("\"'")
-                    file_values[key] = value
-
-            return file_values
-        except FileNotFoundError:
-            return {}
-
-    # Apply monkey patch
-    StarletteConfig._read_file = _read_file_utf8  # type: ignore[method-assign,assignment]
-    logger.debug("starlette_utf8_patch_applied")
 
 
 def validate_llm_configuration() -> None:

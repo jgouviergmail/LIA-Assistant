@@ -119,7 +119,15 @@ class OrchestrationService:
                 # Yield graph event
                 yield GraphChunk(event_type=event_type, data=data)
 
-        except (TimeoutError, RuntimeError, ValueError, asyncio.CancelledError, OSError) as e:
+        except asyncio.CancelledError:
+            # Client disconnected — not an error, just log and re-raise
+            logger.info(
+                "graph_execution_cancelled",
+                thread_id=runnable_config.get("configurable", {}).get("thread_id"),
+            )
+            raise
+
+        except (TimeoutError, RuntimeError, ValueError, OSError) as e:
             logger.error(
                 "graph_execution_error",
                 exc_info=True,
@@ -1435,10 +1443,24 @@ class OrchestrationService:
             )
             raise
 
-        except (TimeoutError, RuntimeError, ValueError, asyncio.CancelledError, OSError) as e:
-            # Generic error
+        except asyncio.CancelledError:
+            # Client disconnected during streaming — graceful termination, not an error
             duration = time.perf_counter() - start_time
-            if not graph_completed:  # Only observe duration if not already done
+            if not graph_completed:
+                langgraph_graph_duration_seconds.observe(duration)
+            langgraph_graph_executions_total.labels(status="cancelled").inc()
+
+            logger.info(
+                "graph_stream_cancelled",
+                run_id=run_id,
+                duration_seconds=duration,
+            )
+            raise
+
+        except (TimeoutError, RuntimeError, ValueError, OSError) as e:
+            # Actual errors
+            duration = time.perf_counter() - start_time
+            if not graph_completed:
                 langgraph_graph_duration_seconds.observe(duration)
 
             error_type = type(e).__name__
@@ -1456,10 +1478,20 @@ class OrchestrationService:
             raise
 
         finally:
-            # GUARANTEE: Persist tracked tokens even on exception
-            # Without this, tokens are lost if graph fails mid-execution
+            # GUARANTEE: Persist tracked tokens even on exception.
+            # Shield from cancellation to prevent DB connection leaks:
+            # without shield, CancelledError interrupts the DB session context
+            # manager, leaving connections checked out from the pool.
             try:
-                await tracker.commit()
+                await asyncio.shield(tracker.commit())
+            except asyncio.CancelledError:
+                # shield() re-raises CancelledError to the caller after the
+                # shielded coroutine completes — safe to suppress here since
+                # the original CancelledError is already being propagated.
+                logger.info(
+                    "tracker_commit_completed_after_cancellation",
+                    run_id=run_id,
+                )
             except (
                 RuntimeError,
                 ValueError,

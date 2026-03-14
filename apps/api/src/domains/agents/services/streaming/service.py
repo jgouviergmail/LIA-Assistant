@@ -692,7 +692,16 @@ class StreamingService:
                 content_length=len(response_content),
             )
 
-        except (TimeoutError, RuntimeError, ValueError, asyncio.CancelledError, OSError) as e:
+        except asyncio.CancelledError:
+            # Client disconnected during streaming — graceful termination
+            logger.info(
+                "streaming_cancelled",
+                run_id=run_id,
+                conversation_id=str(conversation_id),
+            )
+            raise
+
+        except (TimeoutError, RuntimeError, ValueError, OSError) as e:
             logger.error(
                 "streaming_error",
                 exc_info=True,
@@ -1362,7 +1371,11 @@ class StreamingService:
                     run_id=run_id,
                 )
 
-            except (TimeoutError, asyncio.CancelledError, RuntimeError, ValueError, OSError) as e:
+            except asyncio.CancelledError:
+                # Client disconnected — no point falling back, just propagate
+                raise
+
+            except (TimeoutError, RuntimeError, ValueError, OSError) as e:
                 # Phase 1 HITL Streaming: Fallback on error
                 error_type = type(e).__name__
                 hitl_streaming_fallback_total.labels(type=action_type, error_type=error_type).inc()
