@@ -20,7 +20,7 @@ pydantic-settings==2.10.1
 pyyaml>=6.0  # YAML parsing for SKILL.md files (agentskills.io standard)
 email-validator==2.2.0
 python-dateutil==2.9.0.post0  # Date utilities for billing cycle calculations
-tzdata==2024.2  # IANA timezone database for Windows/Python 3.9+
+tzdata==2025.3  # IANA timezone database for Windows/Python 3.9+
 
 # Authentication & Security
 python-jose[cryptography]==3.4.0  # CVE-2024-33663 fix (algorithm confusion)
