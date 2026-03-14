@@ -10,7 +10,7 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -205,52 +205,12 @@ class ChatRepository(BaseRepository[MessageTokenSummary]):
             ...     summary_data={FIELD_TOKENS_IN: 100, FIELD_TOKENS_OUT: 50, ...}
             ... )
         """
-        from sqlalchemy import update
+        from sqlalchemy.dialects.postgresql import insert as pg_insert
 
         try:
-            # Step 1: Try atomic UPDATE first (if record exists)
-            # This prevents race conditions by incrementing values directly in SQL
-            stmt = (
-                update(MessageTokenSummary)
-                .where(MessageTokenSummary.run_id == run_id)
-                .values(
-                    total_prompt_tokens=MessageTokenSummary.total_prompt_tokens
-                    + summary_data[FIELD_TOKENS_IN],
-                    total_completion_tokens=MessageTokenSummary.total_completion_tokens
-                    + summary_data[FIELD_TOKENS_OUT],
-                    total_cached_tokens=MessageTokenSummary.total_cached_tokens
-                    + summary_data[FIELD_TOKENS_CACHE],
-                    total_cost_eur=MessageTokenSummary.total_cost_eur
-                    + Decimal(str(summary_data[FIELD_COST_EUR])),
-                    # Google API tracking
-                    google_api_requests=MessageTokenSummary.google_api_requests
-                    + summary_data.get(FIELD_GOOGLE_API_REQUESTS, 0),
-                    google_api_cost_eur=MessageTokenSummary.google_api_cost_eur
-                    + Decimal(str(summary_data.get(FIELD_GOOGLE_API_COST_EUR, 0))),
-                )
-            )
-
-            result = await self.db.execute(stmt)
-            await self.db.flush()
-
-            if result.rowcount > 0:  # type: ignore[attr-defined]
-                # Update succeeded - fetch and return updated record
-                updated = await self.get_token_summary_by_run_id(run_id)
-
-                # Safety: Should always exist after UPDATE, but handle edge case
-                if updated is None:
-                    raise RuntimeError(f"Token summary not found after UPDATE: {run_id}")
-
-                logger.info(
-                    "token_summary_updated_atomic",
-                    run_id=run_id,
-                    tokens_added=summary_data[FIELD_TOKENS_IN] + summary_data[FIELD_TOKENS_OUT],
-                )
-
-                return updated
-
-            # Step 2: INSERT if UPDATE affected 0 rows (record didn't exist)
-            message_summary = MessageTokenSummary(
+            # Use PostgreSQL native INSERT ... ON CONFLICT DO UPDATE (true upsert)
+            # This is atomic and eliminates race conditions between concurrent calls
+            stmt = pg_insert(MessageTokenSummary).values(
                 user_id=user_id,
                 session_id=session_id,
                 run_id=run_id,
@@ -259,20 +219,45 @@ class ChatRepository(BaseRepository[MessageTokenSummary]):
                 total_completion_tokens=summary_data[FIELD_TOKENS_OUT],
                 total_cached_tokens=summary_data[FIELD_TOKENS_CACHE],
                 total_cost_eur=Decimal(str(summary_data[FIELD_COST_EUR])),
-                # Google API tracking
                 google_api_requests=summary_data.get(FIELD_GOOGLE_API_REQUESTS, 0),
                 google_api_cost_eur=Decimal(str(summary_data.get(FIELD_GOOGLE_API_COST_EUR, 0))),
             )
-            self.db.add(message_summary)
-            await self.db.flush()
-            await self.db.refresh(message_summary)
 
-            logger.info(
-                "token_summary_created",
-                run_id=run_id,
+            stmt = stmt.on_conflict_do_update(
+                index_elements=["run_id"],
+                set_={
+                    "total_prompt_tokens": MessageTokenSummary.total_prompt_tokens
+                    + stmt.excluded.total_prompt_tokens,
+                    "total_completion_tokens": MessageTokenSummary.total_completion_tokens
+                    + stmt.excluded.total_completion_tokens,
+                    "total_cached_tokens": MessageTokenSummary.total_cached_tokens
+                    + stmt.excluded.total_cached_tokens,
+                    "total_cost_eur": MessageTokenSummary.total_cost_eur
+                    + stmt.excluded.total_cost_eur,
+                    "google_api_requests": MessageTokenSummary.google_api_requests
+                    + stmt.excluded.google_api_requests,
+                    "google_api_cost_eur": MessageTokenSummary.google_api_cost_eur
+                    + stmt.excluded.google_api_cost_eur,
+                    "updated_at": func.now(),
+                },
             )
 
-            return message_summary
+            await self.db.execute(stmt)
+            await self.db.flush()
+
+            # Fetch the upserted record
+            result = await self.get_token_summary_by_run_id(run_id)
+            if result is None:
+                raise RuntimeError(f"Token summary not found after upsert: {run_id}")
+
+            logger.info(
+                "token_summary_upserted",
+                run_id=run_id,
+                tokens_in=summary_data[FIELD_TOKENS_IN],
+                tokens_out=summary_data[FIELD_TOKENS_OUT],
+            )
+
+            return result
 
         except (SQLAlchemyError, IntegrityError, OperationalError) as e:
             logger.error(

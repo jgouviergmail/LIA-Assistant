@@ -73,9 +73,12 @@ services:
       - lia-network
 
   # SSL Certificate Generator (runs once to create shared certs)
+  # SSL_DOMAIN is read from .env (e.g., 192.168.1.100.nip.io for LAN access)
   ssl-init:
     image: alpine:latest
     container_name: lia-ssl-init
+    environment:
+      - SSL_DOMAIN=${SSL_DOMAIN:-localhost}
     volumes:
       - ssl_certs:/certs
       - ./infrastructure/ssl/generate-certs.sh:/generate-certs.sh:ro
@@ -166,10 +169,15 @@ services:
       # Use named volumes for node_modules and .next to avoid conflicts with host
       - web_node_modules:/monorepo/apps/web/node_modules
       - web_next_build:/monorepo/apps/web/.next
-    # Enable HTTPS for geolocation API (requires secure context)
-    command: ["pnpm", "run", "dev", "--experimental-https"]
+      # Shared SSL certificates from ssl-init (covers configured SSL_DOMAIN)
+      - ssl_certs:/certs:ro
+    # Enable HTTPS with ssl-init certificates (covers nip.io domain for LAN access)
+    command: ["pnpm", "run", "dev", "--experimental-https", "--experimental-https-key", "/certs/key.pem", "--experimental-https-cert", "/certs/cert.pem"]
     depends_on:
-      - api
+      api:
+        condition: service_started
+      ssl-init:
+        condition: service_completed_successfully
     networks:
       - lia-network
 
