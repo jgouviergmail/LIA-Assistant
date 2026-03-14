@@ -47,7 +47,7 @@
 
 | Layer | Technologies | Versions |
 |-------|--------------|----------|
-| **Backend** | FastAPI + LangGraph + SQLAlchemy | FastAPI 0.128.0, LangGraph 1.0.10 |
+| **Backend** | FastAPI + LangGraph + SQLAlchemy | FastAPI 0.135.1, LangGraph 1.0.10 |
 | **Frontend** | Next.js + React + TailwindCSS | Next.js 16.1.1, React 19.2.3 |
 | **Database** | PostgreSQL + pgvector | PostgreSQL 16 |
 | **Cache/Sessions** | Redis | Redis 7.4 |
@@ -232,7 +232,7 @@ venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
 
 # Verify the installation
-pip list | grep fastapi     # fastapi 0.128.0
+pip list | grep fastapi     # fastapi 0.135.1
 pip list | grep langgraph   # langgraph 1.0.10
 
 # Install pre-commit hooks (recommended)

@@ -78,7 +78,7 @@ version = "6.0.0"
 requires-python = ">=3.12"
 
 dependencies = [
-    "fastapi==0.128.0",
+    "fastapi==0.135.1",
     "langgraph==1.0.10",
     "langchain==1.2.10",
     "langchain-core==1.2.17",

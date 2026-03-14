@@ -10,19 +10,6 @@ import structlog
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
-
-# ============================================================================
-# CRITICAL FIX: Patch Starlette Config to read .env files with UTF-8 encoding
-# ============================================================================
-# Apply UTF-8 patch BEFORE imports that trigger Config instantiation
-# (e.g., Limiter from slowapi). See bootstrap.patch_starlette_utf8() for details.
-# ============================================================================
-from src.core.bootstrap import patch_starlette_utf8
-
-patch_starlette_utf8()
-
-# Now safe to import Limiter (which instantiates Config internally)
-# ruff: noqa: E402 - Imports must come after patch to ensure UTF-8 encoding
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address

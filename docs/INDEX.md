@@ -10,7 +10,7 @@
 
 ## Vue d'Ensemble
 
-Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA conversationnel multi-agent basé sur **LangGraph 1.0.10**, **FastAPI 0.128**, et **Next.js 16**.
+Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA conversationnel multi-agent basé sur **LangGraph 1.0.10**, **FastAPI 0.135.1**, et **Next.js 16**.
 
 | Métrique | Valeur |
 |----------|--------|
@@ -352,7 +352,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Technologie | Version | Usage |
 |-------------|---------|-------|
 | Python | ≥3.12 | Runtime |
-| FastAPI | 0.128.0 | Framework API |
+| FastAPI | 0.135.1 | Framework API |
 | LangGraph | 1.0.10 | Orchestration multi-agents |
 | langchain-core | 1.2.17 | Core abstractions |
 | SQLAlchemy | 2.0.45 | ORM async |

@@ -11,7 +11,6 @@ import pytest
 from src.core.bootstrap import (
     log_event_loop_configuration,
     log_rate_limiting_status,
-    patch_starlette_utf8,
     validate_critical_configuration,
     validate_llm_configuration,
 )
@@ -20,21 +19,6 @@ from src.core.bootstrap import (
 @pytest.mark.integration
 class TestBootstrapStartup:
     """Tests for bootstrap functions during application startup."""
-
-    def test_patch_starlette_utf8_is_idempotent(self):
-        """Test that UTF-8 patch can be applied multiple times safely."""
-        # Apply patch multiple times - should not raise
-        patch_starlette_utf8()
-        patch_starlette_utf8()
-        patch_starlette_utf8()
-
-        # Should not raise any errors
-        # Starlette should still work correctly
-        from starlette.responses import Response
-
-        response = Response("test", media_type="text/plain")
-        # The patch modifies charset handling, verify response works
-        assert response.media_type is not None
 
     def test_validate_llm_configuration_with_real_settings(self):
         """Test LLM validation with actual application settings."""
