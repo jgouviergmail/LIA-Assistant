@@ -19,6 +19,7 @@
 
 <p align="center">
   <a href="#-features">Features</a> •
+  <a href="#-administration--monitoring">Admin & Monitoring</a> •
   <a href="#-quick-start">Quick Start</a> •
   <a href="#-architecture">Architecture</a> •
   <a href="#-documentation">Documentation</a> •
@@ -35,6 +36,7 @@
 
 - [Why LIA?](#-why-lia)
 - [Features](#-features)
+- [Administration & Monitoring](#-administration--monitoring)
 - [Quick Start](#-quick-start)
 - [Architecture](#-architecture)
 - [Technologies](#-technologies)
@@ -241,6 +243,46 @@ ExecutionStep(
 - **SEO & OpenGraph**: Dynamically generated OG image for social media previews
 - **Authenticated redirect**: Automatic redirect to dashboard if already logged in
 - **i18n**: Landing page translated in 6 languages
+
+---
+
+## Administration & Monitoring
+
+LIA includes a **full-featured administration interface** — giving operators complete control and real-time visibility over the system without touching configuration files or the database.
+
+### Admin Dashboard
+
+A web-based administration panel covering every operational aspect:
+
+| Section | Capabilities |
+|---------|-------------|
+| **LLM Configuration** | Model selection per node, provider parameters, temperature/token limits, prompt versions |
+| **Personalities** | Create and manage assistant personalities (tone, language, behavior rules) |
+| **User Management** | User accounts, roles, permissions, connector status overview |
+| **Connector Management** | Google/Apple/Microsoft OAuth status, token health, per-user provider activation |
+| **Skills Management** | Enable/disable skills, edit descriptions, translate in 6 languages, delete |
+| **MCP Servers** | Admin-level MCP server configuration, tool discovery, domain descriptions |
+| **LLM Pricing** | CRUD for per-model pricing (input/output/cache tokens), used for cost tracking |
+| **Google API Pricing** | Per-endpoint pricing configuration for Google Maps Platform services |
+| **Voice Settings** | TTS mode selection (Standard/HD), provider configuration |
+| **Broadcasting** | Send system-wide notifications to all users or targeted groups |
+| **Debug Settings** | Toggle debug panel visibility, configure diagnostic verbosity per user |
+| **Consumption Export** | CSV export of token usage, Google API usage, and aggregated consumption per user/period |
+
+### Real-Time Debug Panel
+
+A multi-section debug panel embedded in the chat interface, providing real-time introspection into every aspect of a conversation turn:
+
+| Category | Sections |
+|----------|----------|
+| **Intent Analysis** | Intent classification, Domain detection, Routing decision (with confidence scores) |
+| **Execution Pipeline** | Planner output, Execution waves, Tool calls (inputs/outputs), ForEach analysis |
+| **LLM Internals** | LLM call details (model, tokens, latency), Token budget tracking, Google API calls |
+| **Context & Memory** | Context resolution, Memory injection, Knowledge enrichment, Interest profile |
+| **Intelligence** | Intelligent mechanisms (cache hits, pattern learning, semantic expansion) |
+| **Lifecycle** | Full request lifecycle with timing breakdown per phase |
+
+> The debug panel is designed for **developers and operators** to diagnose issues, optimize prompts, and understand the agent's decision-making process in real time — without needing external tools or log access.
 
 ---
 
