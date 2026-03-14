@@ -26,7 +26,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 6.2</strong> (Autonomous Heartbeat + Multi-Channel Telegram + Per-User MCP + MCP Apps + Excalidraw + Scheduled Actions + Skills + Landing Page + Web Fetch) — March 2026
+  <strong>Version 1.0.0</strong> — First public open-source release — March 2026
 </p>
 
 ---

@@ -335,6 +335,11 @@ export default function SettingsPage({ params }: SettingsPageProps) {
           </TabsContent>
         </Tabs>
       )}
+
+      {/* Version */}
+      <p className="text-xs text-muted-foreground/50 text-center pt-4">
+        v{process.env.NEXT_PUBLIC_APP_VERSION}
+      </p>
     </div>
   );
 }

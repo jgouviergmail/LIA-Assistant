@@ -3583,7 +3583,7 @@
     },
     "footer": {
       "copyright": "© {{year}} LIA. Todos los derechos reservados.",
-      "version": "v6.2",
+      "version": "v1.0.0",
       "docs": "Documentación",
       "privacy": "Privacidad"
     }

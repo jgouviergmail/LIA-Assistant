@@ -3493,7 +3493,7 @@
     },
     "footer": {
       "copyright": "© {{year}} LIA. All rights reserved.",
-      "version": "v6.2",
+      "version": "v1.0.0",
       "docs": "Documentation",
       "privacy": "Privacy"
     }
