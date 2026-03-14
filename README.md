@@ -251,7 +251,7 @@ ExecutionStep(
 | Software | Version | Required |
 |----------|---------|----------|
 | Python | 3.12+ | Yes |
-| Node.js | 20+ | Yes |
+| Node.js | 22+ | Yes |
 | Docker | 24+ | Yes |
 | pnpm | 10+ | Yes |
 
