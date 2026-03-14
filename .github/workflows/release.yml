@@ -23,7 +23,7 @@ jobs:
             context: ./apps/api
             dockerfile: ./apps/api/Dockerfile.prod
           - app: web
-            context: ./apps/web
+            context: .
             dockerfile: ./apps/web/Dockerfile.prod
 
     steps:
