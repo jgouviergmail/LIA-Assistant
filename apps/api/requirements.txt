@@ -6,7 +6,7 @@ uvicorn[standard]==0.40.0
 sqlalchemy[asyncio]==2.0.48
 asyncpg==0.30.0
 psycopg[binary]==3.2.10  # PostgreSQL adapter v3 (modern, for LangGraph checkpointer & SQLAlchemy)
-alembic==1.14.0
+alembic==1.18.4
 pgvector==0.3.6
 
 # Cache & Session
