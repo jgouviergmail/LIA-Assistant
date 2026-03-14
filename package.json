@@ -1,6 +1,6 @@
 {
   "name": "lia",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "private": true,
   "license": "AGPL-3.0-or-later",
   "description": "LIA - AI-powered personal assistant monorepo",
@@ -25,7 +25,7 @@
     "test:web": "pnpm --filter @lia-assistant/web test"
   },
   "engines": {
-    "node": ">=20.0.0",
+    "node": ">=22.0.0",
     "pnpm": ">=10.0.0"
   },
   "packageManager": "pnpm@10.18.3"

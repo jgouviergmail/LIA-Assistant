@@ -147,7 +147,7 @@ Proactive connector monitoring with:
 | Tool | Minimum Version | Installation | Verification |
 |------|-----------------|--------------|--------------|
 | **Python** | 3.12+ | [python.org](https://www.python.org/) | `python --version` |
-| **Node.js** | 20.x+ | [nodejs.org](https://nodejs.org/) | `node --version` |
+| **Node.js** | 22.x+ (LTS) | [nodejs.org](https://nodejs.org/) | `node --version` |
 | **pnpm** | 10.x+ | `npm install -g pnpm` | `pnpm --version` |
 | **Docker** | 24.x+ | [docker.com](https://www.docker.com/) | `docker --version` |
 | **Docker Compose** | 2.x+ | Included with Docker Desktop | `docker compose version` |
