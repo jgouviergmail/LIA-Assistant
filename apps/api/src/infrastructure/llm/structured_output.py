@@ -294,9 +294,7 @@ class StructuredOutputError(Exception):
         self.original_error = original_error
 
 
-async def get_structured_output[
-    T: BaseModel
-](
+async def get_structured_output[T: BaseModel](
     llm: BaseChatModel,
     messages: list[BaseMessage] | ChatPromptTemplate,
     schema: type[T],
@@ -454,9 +452,7 @@ async def get_structured_output[
         raise
 
 
-async def _get_native_structured_output[
-    T: BaseModel
-](
+async def _get_native_structured_output[T: BaseModel](
     llm: BaseChatModel,
     messages: list[BaseMessage],
     schema: type[T],
@@ -577,9 +573,7 @@ async def _get_native_structured_output[
         ) from e
 
 
-async def _get_json_mode_fallback[
-    T: BaseModel
-](
+async def _get_json_mode_fallback[T: BaseModel](
     llm: BaseChatModel,
     messages: list[BaseMessage],
     schema: type[T],
@@ -767,9 +761,7 @@ Begin your response now with ONLY the JSON object:"""
 # ============================================================================
 
 
-async def get_structured_output_with_retry[
-    T: BaseModel
-](
+async def get_structured_output_with_retry[T: BaseModel](
     llm: BaseChatModel,
     messages: list[BaseMessage] | ChatPromptTemplate,
     schema: type[T],

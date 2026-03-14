@@ -201,8 +201,7 @@ class EmailCard(BaseComponent):
         # Status icons (important/unread) - under date on desktop
         status_icons_html = self._render_status_icons(is_unread, is_important)
 
-        return compact_html(
-            f"""
+        return compact_html(f"""
             <div class="lia-card lia-email {unread_class} {important_class} {nested_class}">
                 <div class="lia-email__avatar">{avatar_html}</div>
                 <div class="lia-email__content">
@@ -228,8 +227,7 @@ class EmailCard(BaseComponent):
                     {collapsible_html}
                 </div>
             </div>
-        """
-        )
+        """)
 
     # =========================================================================
     # Rendering Helpers
@@ -373,9 +371,7 @@ class EmailCard(BaseComponent):
         if to_recipients:
             to_label = V3Messages.get_to(ctx.language)
             to_list_html = self._render_recipients_vertical(to_recipients)
-            content_parts.append(
-                compact_html(
-                    f"""
+            content_parts.append(compact_html(f"""
                 <div class="lia-email__recipients-section">
                     <div class="lia-email__recipients-header">
                         {icon(Icons.PERSON, size="sm")}
@@ -383,18 +379,14 @@ class EmailCard(BaseComponent):
                     </div>
                     <div class="lia-email__recipients-list">{to_list_html}</div>
                 </div>
-            """
-                )
-            )
+            """))
 
         # Add CC recipients section - with icon, aligned with title
         cc_recipients = data.get("cc", [])
         if cc_recipients:
             cc_label = V3Messages.get_cc(ctx.language)
             cc_list_html = self._render_recipients_vertical(cc_recipients)
-            content_parts.append(
-                compact_html(
-                    f"""
+            content_parts.append(compact_html(f"""
                 <div class="lia-email__recipients-section">
                     <div class="lia-email__recipients-header">
                         {icon(Icons.PERSON, size="sm")}
@@ -402,9 +394,7 @@ class EmailCard(BaseComponent):
                     </div>
                     <div class="lia-email__recipients-list">{cc_list_html}</div>
                 </div>
-            """
-                )
-            )
+            """))
 
         # Add body content AFTER recipients
         if body:
@@ -436,9 +426,7 @@ class EmailCard(BaseComponent):
 
             # Body content inside responsive container with header
             email_content_label = V3Messages.get_email_content(ctx.language)
-            content_parts.append(
-                compact_html(
-                    f"""
+            content_parts.append(compact_html(f"""
                 <div class="lia-email__body-panel">
                     <div class="lia-email__body-header">
                         {icon(Icons.DESCRIPTION)}
@@ -447,9 +435,7 @@ class EmailCard(BaseComponent):
                     <div class="lia-email__body">{body_formatted}</div>
                     {read_more_html}
                 </div>
-            """
-                )
-            )
+            """))
 
         # If we have content, wrap in collapsible
         if content_parts:

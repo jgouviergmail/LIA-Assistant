@@ -302,13 +302,11 @@ class HtmlRenderer:
         # 2. Add combined title for correlated clusters (icon + domain1 / icon + domain2 / ...)
         if clusters:
             cluster_title = self._build_cluster_title(clusters, ctx.language)
-            html_parts.append(
-                f"""{separator_simple()}
+            html_parts.append(f"""{separator_simple()}
 <div class="lia-section lia-section--cluster">
   <h3 class="lia-section__title">{cluster_title}</h3>
   {separator_simple()}
-</div>"""
-            )
+</div>""")
 
         # 3. Render correlated clusters (first cluster has no separator - already in title section)
         for idx, cluster in enumerate(clusters):
@@ -340,12 +338,10 @@ class HtmlRenderer:
 
                 # Cluster: separator before (except first - already in title section)
                 separator = separator_simple() if idx > 0 else ""
-                html_parts.append(
-                    f"""{separator}
+                html_parts.append(f"""{separator}
 <div class="lia-cluster" data-cluster-id="{cluster.cluster_id}">
   {cluster_html}
-</div>"""
-                )
+</div>""")
 
         if not html_parts:
             return ""

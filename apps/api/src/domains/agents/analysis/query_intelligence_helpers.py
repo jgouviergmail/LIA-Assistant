@@ -39,9 +39,11 @@ STATE_KEY_QUERY_INTELLIGENCE = "query_intelligence"
 STATE_KEY_QUERY_INTELLIGENCE_OBJ = "_query_intelligence_obj"
 
 
-def get_qi_attr[
-    T
-](state: dict[str, Any], attr: str, default: T = None,) -> T:  # type: ignore
+def get_qi_attr[T](
+    state: dict[str, Any],
+    attr: str,
+    default: T | None = None,
+) -> T | None:
     """
     Get an attribute from QueryIntelligence in state (object or dict).
 

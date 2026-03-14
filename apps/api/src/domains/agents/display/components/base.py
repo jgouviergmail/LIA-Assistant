@@ -1039,8 +1039,7 @@ def render_collapsible(
     open_attr = " open" if initially_open else ""
     escaped_trigger = escape_html(trigger_text)
 
-    return compact_html(
-        f"""
+    return compact_html(f"""
         <div class="lia-collapsible-wrapper">
             <hr class="lia-separator lia-separator--collapsible" />
             <details class="lia-collapsible"{open_attr}>
@@ -1053,8 +1052,7 @@ def render_collapsible(
                 </div>
             </details>
         </div>
-    """
-    )
+    """)
 
 
 # =============================================================================
@@ -1183,15 +1181,13 @@ def render_attachment(
         f"</span>"
     )
 
-    return compact_html(
-        f"""
+    return compact_html(f"""
         <{tag} class="lia-attachment lia-attachment--{type_class}" {href}>
             {icon_html}
             <span class="lia-attachment__name" title="{escaped_name}">{escaped_name}</span>
             {size_html}
         </{tag}>
-    """
-    )
+    """)
 
 
 def render_attachments(
@@ -1364,8 +1360,7 @@ def render_card_header(
     meta_html = f'<span class="lia-card__meta">{escape_html(meta)}</span>' if meta else ""
     badges_html = render_badges(badges) if badges else ""
 
-    return compact_html(
-        f"""
+    return compact_html(f"""
         <div class="lia-card__header">
             <div class="lia-card__header-main">
                 {title_tag}
@@ -1376,8 +1371,7 @@ def render_card_header(
                 {badges_html}
             </div>
         </div>
-    """
-    )
+    """)
 
 
 def render_detail_item(
@@ -1407,12 +1401,10 @@ def render_detail_item(
     else:
         content_html = escape_html(content)
 
-    return compact_html(
-        f"""<div class="lia-detail-item">
+    return compact_html(f"""<div class="lia-detail-item">
         {icon(icon_name)}
         <span>{content_html}</span>
-    </div>"""
-    )
+    </div>""")
 
 
 def render_quote_block(

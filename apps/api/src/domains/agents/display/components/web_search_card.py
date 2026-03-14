@@ -171,15 +171,13 @@ class WebSearchCard(BaseComponent):
             snippet = result.get("snippet", "")
             domain = self._extract_domain(url)
 
-            result_items.append(
-                f"""<div class="lia-web-search__result">
+            result_items.append(f"""<div class="lia-web-search__result">
   <a href="{escape_html(url)}" class="lia-web-search__result-title" target="_blank" rel="noopener">
     {escape_html(title)}
   </a>
   <span class="lia-web-search__result-domain">{escape_html(domain)}</span>
   <p class="lia-web-search__result-snippet">{escape_html(truncate(snippet, 120))}</p>
-</div>"""
-            )
+</div>""")
 
         results_label = V3Messages.get_web_results(ctx.language)
 

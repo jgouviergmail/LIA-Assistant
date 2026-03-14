@@ -86,15 +86,13 @@ def registered_tool(
 ) -> Callable[[F], StructuredTool]: ...
 
 
-def registered_tool[
-    F: Callable[..., Any]
-](
+def registered_tool[F: Callable[..., Any]](
     func: F | None = None,
     *,
     return_direct: bool = False,
     args_schema: type | None = None,
     infer_schema: bool = True,
-) -> (StructuredTool | Callable[[F], StructuredTool]):
+) -> StructuredTool | Callable[[F], StructuredTool]:
     """
     Decorator that creates a LangChain tool AND auto-registers it.
 

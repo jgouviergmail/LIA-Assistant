@@ -398,16 +398,14 @@ class WeatherCard(BaseComponent):
             desc = day.get("description", "")
             icon_name, weather_class = self._get_weather_visual(desc)
 
-            days_html.append(
-                f"""<div class="lia-weather__day lia-weather--{weather_class}">
+            days_html.append(f"""<div class="lia-weather__day lia-weather--{weather_class}">
 <span class="lia-weather__day-name">{escape_html(day_name)}</span>
 <span class="lia-weather__day-icon lia-weather__day-icon--color">{icon(icon_name, size="lg")}</span>
 <div class="lia-weather__day-temps">
 <span class="lia-weather__day-temp">{escape_html(temp_max)}</span>
 <span class="lia-weather__day-temp-min">{escape_html(temp_min)}</span>
 </div>
-</div>"""
-            )
+</div>""")
 
         V3Messages.get_forecast(ctx.language)
 
@@ -453,13 +451,11 @@ class WeatherCard(BaseComponent):
             desc = hour.get("description", "")
             icon_name, weather_class = self._get_weather_visual(desc)
 
-            hours_html.append(
-                f"""<div class="lia-weather__hour lia-weather--{weather_class}">
+            hours_html.append(f"""<div class="lia-weather__hour lia-weather--{weather_class}">
 <span class="lia-weather__hour-time">{escape_html(time)}</span>
 <span class="lia-weather__hour-icon lia-weather__hour-icon--color">{icon(icon_name)}</span>
 <span class="lia-weather__hour-temp">{escape_html(temp)}</span>
-</div>"""
-            )
+</div>""")
 
         # Unified layout for ALL viewports: icon + date (left), city (right)
         # No "hourly" label, no separator

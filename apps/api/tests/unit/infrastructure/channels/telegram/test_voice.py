@@ -250,7 +250,7 @@ class TestOggToPcmFloat:
     def test_normalizes_samples(self) -> None:
         """Samples should be normalized to [-1.0, 1.0] range."""
         # Max positive: 0x7FFF = 32767
-        _setup_mock_audio_segment(b"\xFF\x7F")
+        _setup_mock_audio_segment(b"\xff\x7f")
 
         result = _ogg_to_pcm_float(b"fake_ogg")
 
