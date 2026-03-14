@@ -642,15 +642,23 @@ class TrackingContext:
             )
             return
 
-        # Persist pending records
-        await self._persist_to_database()
-        logger.info(
-            "tracking_context_manually_committed",
-            run_id=self.run_id,
-            node_records_count=pending_records,
-            total_committed=self._total_committed_records,
-            message_count=self._message_count,
-        )
+        # Persist pending records — don't let tracking failure break the chat flow
+        try:
+            await self._persist_to_database()
+            logger.info(
+                "tracking_context_manually_committed",
+                run_id=self.run_id,
+                node_records_count=pending_records,
+                total_committed=self._total_committed_records,
+                message_count=self._message_count,
+            )
+        except Exception as e:
+            logger.error(
+                "tracking_context_manual_commit_failed",
+                run_id=self.run_id,
+                error=str(e),
+                exc_info=True,
+            )
 
     async def _persist_to_database(self) -> None:
         """
