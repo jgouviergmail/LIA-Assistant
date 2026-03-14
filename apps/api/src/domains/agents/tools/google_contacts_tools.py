@@ -801,13 +801,13 @@ async def search_contacts_tool(
     LIAToolNode handles extraction and SSE streaming.
 
     Args:
-        query: Terme de recherche (nom, email, ou numéro de téléphone).
+        query: Search term (name, email, or phone number).
         runtime: Runtime dependencies (config, store) injected automatically by LangGraph.
-        max_results: Nombre maximum de résultats (défaut 10, max 50).
-        fields: Liste des champs à récupérer (optionnel). Si omis, récupère
-                nom, email et téléphone par défaut.
-        force_refresh: Force le bypass du cache et récupère des données fraîches depuis l'API
-                      (défaut False).
+        max_results: Maximum number of results (default 10, max 50).
+        fields: List of fields to retrieve (optional). If omitted, retrieves
+                name, email and phone by default.
+        force_refresh: Force cache bypass and retrieve fresh data from the API
+                      (default False).
 
     Returns:
         UnifiedToolOutput with registry items containing contact data

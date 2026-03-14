@@ -100,9 +100,7 @@ def _detect_environment() -> tuple[bool, str | None]:
                 # Use a dedicated test database to avoid conflicts with dev data
                 _pg_user = os.environ.get("POSTGRES_USER", "lia_admin")
                 _pg_pass = os.environ.get("POSTGRES_PASSWORD", "change_me_test_password")
-                external_db = (
-                    f"postgresql+asyncpg://{_pg_user}:{_pg_pass}@localhost:5432/lia_test"
-                )
+                external_db = f"postgresql+asyncpg://{_pg_user}:{_pg_pass}@localhost:5432/lia_test"
         except Exception:
             pass  # No postgres on localhost, will use testcontainers
 

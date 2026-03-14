@@ -77,9 +77,7 @@ class TestUserRegistration:
         assert data["user"]["email"] == "rememberme@example.com"
 
         # Verify cookie is set with extended TTL (30 days = 2592000 seconds)
-        assert_cookie_set(
-            response, "lia_session", httponly=True, samesite="lax", max_age=2592000
-        )
+        assert_cookie_set(response, "lia_session", httponly=True, samesite="lax", max_age=2592000)
 
     @pytest.mark.asyncio
     async def test_register_without_remember_me(self, async_client: AsyncClient):
@@ -97,9 +95,7 @@ class TestUserRegistration:
         assert response.status_code == 201
 
         # Verify cookie is set with standard TTL (7 days = 604800 seconds)
-        assert_cookie_set(
-            response, "lia_session", httponly=True, samesite="lax", max_age=604800
-        )
+        assert_cookie_set(response, "lia_session", httponly=True, samesite="lax", max_age=604800)
 
     @pytest.mark.asyncio
     async def test_register_duplicate_email(self, async_client: AsyncClient, test_user: User):
@@ -191,9 +187,7 @@ class TestUserLogin:
         assert data["user"]["email"] == test_user.email
 
         # Verify cookie has extended TTL (30 days = 2592000 seconds)
-        assert_cookie_set(
-            response, "lia_session", httponly=True, samesite="lax", max_age=2592000
-        )
+        assert_cookie_set(response, "lia_session", httponly=True, samesite="lax", max_age=2592000)
 
     @pytest.mark.asyncio
     async def test_login_with_remember_me_false(self, async_client: AsyncClient, test_user: User):
@@ -210,9 +204,7 @@ class TestUserLogin:
         assert response.status_code == 200
 
         # Verify cookie has standard TTL (7 days = 604800 seconds)
-        assert_cookie_set(
-            response, "lia_session", httponly=True, samesite="lax", max_age=604800
-        )
+        assert_cookie_set(response, "lia_session", httponly=True, samesite="lax", max_age=604800)
 
     @pytest.mark.asyncio
     async def test_login_default_remember_me(self, async_client: AsyncClient, test_user: User):
@@ -229,9 +221,7 @@ class TestUserLogin:
         assert response.status_code == 200
 
         # Should use standard TTL (7 days) by default
-        assert_cookie_set(
-            response, "lia_session", httponly=True, samesite="lax", max_age=604800
-        )
+        assert_cookie_set(response, "lia_session", httponly=True, samesite="lax", max_age=604800)
 
     @pytest.mark.asyncio
     async def test_login_wrong_password(self, async_client: AsyncClient, test_user: User):

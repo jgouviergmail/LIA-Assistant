@@ -76,9 +76,7 @@ class TestStringInputResolution:
             "src.domains.agents.tools.runtime_helpers.resolve_contact_to_email",
             side_effect=mock_resolve,
         ):
-            result = await resolve_recipients_to_emails(
-                runtime, "Jane Smith, John Smith", "to"
-            )
+            result = await resolve_recipients_to_emails(runtime, "Jane Smith, John Smith", "to")
 
         assert result == "Jane Smith <jane.smith@example.com>, John Smith <john.smith@example.com>"
 
@@ -139,9 +137,7 @@ class TestStringInputResolution:
             "src.domains.agents.tools.runtime_helpers.resolve_contact_to_email",
             side_effect=mock_resolve,
         ):
-            result = await resolve_recipients_to_emails(
-                runtime, "Jane Smith, Unknown Person", "to"
-            )
+            result = await resolve_recipients_to_emails(runtime, "Jane Smith, Unknown Person", "to")
 
         assert "Jane Smith <jane.smith@example.com>" in result
         assert "Unknown Person" in result

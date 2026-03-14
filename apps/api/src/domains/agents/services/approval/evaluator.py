@@ -1,8 +1,8 @@
 """
-Évaluateur d'approbation pour plans d'exécution.
+Approval evaluator for execution plans.
 
-Ce module orchestre l'évaluation de plusieurs stratégies d'approbation
-pour déterminer si un plan nécessite une approbation utilisateur.
+This module orchestrates the evaluation of multiple approval strategies
+to determine whether a plan requires user approval.
 """
 
 import structlog
@@ -17,10 +17,10 @@ logger = structlog.get_logger(__name__)
 
 class ApprovalEvaluator:
     """
-    Évaluateur d'approbation pour plans d'exécution.
+    Approval evaluator for execution plans.
 
-    Exécute une liste de stratégies d'approbation et agrège les résultats
-    pour déterminer si un plan nécessite approbation.
+    Runs a list of approval strategies and aggregates results
+    to determine whether a plan requires approval.
     """
 
     def __init__(self, strategies: list[ApprovalStrategy]):
@@ -28,23 +28,23 @@ class ApprovalEvaluator:
         Initialize evaluator.
 
         Args:
-            strategies: Liste de stratégies à évaluer
+            strategies: List of approval strategies to evaluate
         """
         self.strategies = strategies
 
     def evaluate(self, plan: ExecutionPlan, context: ValidationContext) -> ApprovalEvaluation:
         """
-        Évalue si le plan nécessite approbation.
+        Evaluate whether the plan requires approval.
 
-        Exécute toutes les stratégies et combine les résultats.
-        Si au moins une stratégie se déclenche, approbation requise.
+        Runs all strategies and combines results.
+        If at least one strategy triggers, approval is required.
 
         Args:
-            plan: Plan d'exécution à évaluer
-            context: Contexte de validation
+            plan: Execution plan to evaluate
+            context: Validation context
 
         Returns:
-            ApprovalEvaluation avec décision et détails
+            ApprovalEvaluation with decision and details
         """
         reasons = []
         strategies_triggered = []

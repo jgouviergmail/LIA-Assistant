@@ -2216,7 +2216,6 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         # Uses safe_fire_and_forget to prevent GC issues with background tasks.
         # Non-blocking: extraction runs after response is returned to user.
         # GUARD: Same automated source filter as memory extraction above.
-        # Reference: C:\Users\jgouv\.claude\plans\radiant-weaving-simon.md
         try:
             if _is_automated_source:
                 logger.info(

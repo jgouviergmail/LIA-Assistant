@@ -141,6 +141,7 @@ module = [
     "mcp.*",
     "sherpa_onnx.*",
     "yaml.*",
+    "dateutil.*",
 ]
 ignore_missing_imports = true
 follow_imports = "skip"

@@ -19,7 +19,9 @@ class StepSummary(BaseModel):
     tool_name: str = Field(..., description="Name of the tool to execute")
     description: str = Field(..., description="Description of the action")
     parameters: dict[str, Any] = Field(default_factory=dict, description="Tool parameters")
-    estimated_cost_usd: float = Field(default=0.0, description="Estimated cost for this step in USD")
+    estimated_cost_usd: float = Field(
+        default=0.0, description="Estimated cost for this step in USD"
+    )
     hitl_required: bool = Field(
         default=False, description="This step requires HITL (from manifest)"
     )
@@ -80,12 +82,8 @@ class PlanModification(BaseModel):
     step_id: str | None = Field(
         None, description="ID of the affected step (edit_params, remove_step)"
     )
-    new_parameters: dict[str, Any] | None = Field(
-        None, description="New parameters (edit_params)"
-    )
-    new_order: list[str] | None = Field(
-        None, description="New step_id order (reorder_steps)"
-    )
+    new_parameters: dict[str, Any] | None = Field(None, description="New parameters (edit_params)")
+    new_order: list[str] | None = Field(None, description="New step_id order (reorder_steps)")
 
 
 class PlanApprovalDecision(BaseModel):
@@ -117,9 +115,7 @@ class ApprovalEvaluation(BaseModel):
     """
 
     requires_approval: bool = Field(..., description="Does the plan require approval?")
-    reasons: list[str] = Field(
-        default_factory=list, description="Reasons why approval is required"
-    )
+    reasons: list[str] = Field(default_factory=list, description="Reasons why approval is required")
     strategies_triggered: list[str] = Field(
         default_factory=list, description="Names of triggered strategies"
     )

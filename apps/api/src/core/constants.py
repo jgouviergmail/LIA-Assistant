@@ -20,6 +20,11 @@ References:
 import os
 
 # ============================================================================
+# APPLICATION IDENTITY
+# ============================================================================
+ASSISTANT_NAME = "LIA"
+
+# ============================================================================
 # GEOIP
 # ============================================================================
 GEOIP_DB_PATH_DEFAULT = "/data/geoip/dbip-city-lite.mmdb"
@@ -1272,7 +1277,6 @@ DEBUG_PIPELINE_NODE_ORDER: tuple[str, ...] = (
 # ============================================================================
 # Constants for the proactive interest learning and notification system.
 # Used by: domains/interests/, infrastructure/proactive/
-# Reference: C:\Users\jgouv\.claude\plans\radiant-weaving-simon.md
 
 # Bayesian prior constants (same as plan_pattern_learner.py)
 # Beta(α=2, β=1) = 67% initial confidence (optimistic start)

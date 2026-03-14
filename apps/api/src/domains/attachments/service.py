@@ -485,7 +485,7 @@ class AttachmentService:
         """Convert HEIC/HEIF image to JPEG using Pillow."""
         import io
 
-        from PIL import Image  # type: ignore[import-untyped]
+        from PIL import Image
 
         image: Image.Image = Image.open(io.BytesIO(file_bytes))
         if image.mode in ("RGBA", "P"):
@@ -507,7 +507,7 @@ class AttachmentService:
     def _extract_pdf_text(file_bytes: bytes, max_chars: int) -> str | None:
         """Extract text from PDF using PyMuPDF (fitz)."""
         try:
-            import fitz  # type: ignore[import-not-found]  # PyMuPDF
+            import fitz  # type: ignore[import-untyped]  # PyMuPDF
 
             doc = fitz.open(stream=file_bytes, filetype="pdf")
             text_parts: list[str] = []
