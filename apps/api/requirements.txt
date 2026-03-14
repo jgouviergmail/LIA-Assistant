@@ -69,7 +69,7 @@ langgraph==1.0.10
 langgraph-checkpoint==4.0.1  # Pinné explicitement (transitif de langgraph, reproductibilité builds)
 langgraph-prebuilt==1.0.8  # Pinné explicitement (requis par langgraph 1.0.10)
 langgraph-checkpoint-postgres==3.0.4
-tiktoken==0.8.0
+tiktoken==0.12.0
 
 # Local Embedding Model - E5 for semantic memory search
 # Replaces OpenAI text-embedding-3-small for better Q/A matching (0.90 vs 0.61 avg score)
