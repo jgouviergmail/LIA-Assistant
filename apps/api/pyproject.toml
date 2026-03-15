@@ -35,7 +35,7 @@ dev = [
     "safety==3.2.11",
     "bandit[toml]==1.8.0",
     # Type Stubs
-    "types-passlib==1.7.7.20240819",
+    "types-passlib==1.7.7.20260211",
     "types-python-jose==3.3.4.20240106",
 ]
 
