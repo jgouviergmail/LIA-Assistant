@@ -718,7 +718,7 @@ pytest --cov=src --cov-report=html -v
 
 **DO NOT create a GitHub Issue for security vulnerabilities.**
 
-Send an email to **security@lia-assistant.dev** with:
+Send an email to **liamyassistant@gmail.com** with:
 - Description of the vulnerability
 - Steps to reproduce
 - Potential impact
@@ -780,7 +780,7 @@ git push origin feature/my-feature
 |---------|-------|
 | [GitHub Issues](https://github.com/jgouviergmail/LIA-Assistant/issues) | Bugs, feature requests |
 | [GitHub Discussions](https://github.com/jgouviergmail/LIA-Assistant/discussions) | Questions, ideas |
-| contact@lia-assistant.dev | General inquiries |
+| liamyassistant@gmail.com | General inquiries |
 
 ### Resources
 
