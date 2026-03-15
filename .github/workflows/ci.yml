@@ -31,20 +31,28 @@ jobs:
           cache: pip
           cache-dependency-path: apps/api/requirements.txt
 
-      - name: Install dependencies
+      - name: Create venv and install dependencies
         run: |
+          python -m venv .venv
+          source .venv/bin/activate
           pip install --upgrade pip
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
 
       - name: Ruff check
-        run: ruff check src/ tests/
+        run: |
+          source .venv/bin/activate
+          ruff check src/ tests/
 
       - name: Black check
-        run: black --check src/ tests/
+        run: |
+          source .venv/bin/activate
+          black --check src/ tests/
 
       - name: MyPy
-        run: mypy src/ --config-file=pyproject.toml
+        run: |
+          source .venv/bin/activate
+          mypy src/ --config-file=pyproject.toml
 
   lint-frontend:
     name: Lint Frontend
@@ -125,32 +133,35 @@ jobs:
           cache: pip
           cache-dependency-path: apps/api/requirements.txt
 
-      - name: Install dependencies
+      - name: Create venv and install dependencies
         run: |
+          python -m venv .venv
+          source .venv/bin/activate
           pip install --upgrade pip
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
 
       - name: Run fast unit tests with coverage
-        run: >-
-          pytest tests/unit/
-          -v
-          --tb=short
-          -m "not integration and not slow and not e2e and not benchmark and not multiprocess"
-          --ignore=tests/unit/test_base_repository.py
-          --ignore=tests/unit/test_auth_service_refactored.py
-          --ignore=tests/unit/test_conversation_repository.py
-          --ignore=tests/unit/test_pricing_service.py
-          --ignore=tests/unit/test_metrics_agents.py
-          --ignore=tests/unit/test_conversation_service_v2.py
-          --ignore=tests/unit/test_conversations_service.py
-          --ignore=tests/unit/test_connectors_service.py
-          --ignore=tests/unit/test_conversation_service.py
-          --ignore=tests/unit/domains/conversations/test_conversation_abandonment_metrics.py
-          --cov=src
-          --cov-report=xml
-          --cov-report=term-missing
-          --cov-fail-under=75
+        run: |
+          source .venv/bin/activate
+          pytest tests/unit/ \
+            -v \
+            --tb=short \
+            -m "not integration and not slow and not e2e and not benchmark and not multiprocess" \
+            --ignore=tests/unit/test_base_repository.py \
+            --ignore=tests/unit/test_auth_service_refactored.py \
+            --ignore=tests/unit/test_conversation_repository.py \
+            --ignore=tests/unit/test_pricing_service.py \
+            --ignore=tests/unit/test_metrics_agents.py \
+            --ignore=tests/unit/test_conversation_service_v2.py \
+            --ignore=tests/unit/test_conversations_service.py \
+            --ignore=tests/unit/test_connectors_service.py \
+            --ignore=tests/unit/test_conversation_service.py \
+            --ignore=tests/unit/domains/conversations/test_conversation_abandonment_metrics.py \
+            --cov=src \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            --cov-fail-under=75
 
       - name: Upload coverage
         if: always()
