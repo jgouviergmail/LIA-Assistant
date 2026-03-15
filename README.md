@@ -1,29 +1,35 @@
 <p align="center">
-  <img src="docs/assets/logo.png" alt="LIA Logo" width="200" />
+  <img src="docs/assets/logo.png" alt="LIA — Your life. Your AI. Your rules." width="600" />
 </p>
 
 <h1 align="center">LIA</h1>
 
 <p align="center">
-  <strong>Intelligent multi-agent conversational assistant with LangGraph orchestration, Human-in-the-Loop, and enterprise-grade observability</strong>
+  <strong>Intelligent multi-agent conversational assistant with LangGraph orchestration, Human-in-the-Loop, enterprise-grade observability, and full i18n support (6 languages)</strong>
+</p>
+
+<p align="center">
+  <a href="https://lia.jeyswork.com/"><img src="https://img.shields.io/badge/🚀_Try_LIA-lia.jeyswork.com-0EA5E9?style=for-the-badge" alt="Try LIA"></a>
 </p>
 
 <p align="center">
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.12%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.12+"></a>
+  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-22%20LTS-5FA04E?style=flat-square&logo=nodedotjs&logoColor=white" alt="Node.js 22 LTS"></a>
   <a href="https://fastapi.tiangolo.com/"><img src="https://img.shields.io/badge/FastAPI-0.135.1-009688?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI"></a>
-  <a href="https://nextjs.org/"><img src="https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=nextdotjs&logoColor=white" alt="Next.js"></a>
+  <a href="https://nextjs.org/"><img src="https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=nextdotjs&logoColor=white" alt="Next.js 16"></a>
   <a href="https://langchain-ai.github.io/langgraph/"><img src="https://img.shields.io/badge/LangGraph-1.0.10-FF6F00?style=flat-square" alt="LangGraph"></a>
   <a href="https://python.langchain.com/"><img src="https://img.shields.io/badge/LangChain-1.2.17-4B8BBE?style=flat-square" alt="LangChain"></a>
+  <a href="#internationalization-i18n--6-languages"><img src="https://img.shields.io/badge/i18n-6%20languages-E040FB?style=flat-square" alt="6 languages"></a>
   <a href="#"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue?style=flat-square" alt="License"></a>
 </p>
 
 <p align="center">
-  <a href="#-features">Features</a> •
-  <a href="#-administration--monitoring">Admin & Monitoring</a> •
-  <a href="#-quick-start">Quick Start</a> •
-  <a href="#-architecture">Architecture</a> •
-  <a href="#-documentation">Documentation</a> •
-  <a href="#-contributing">Contributing</a>
+  <a href="#features">Features</a> •
+  <a href="#administration--monitoring">Admin & Monitoring</a> •
+  <a href="#quick-start">Quick Start</a> •
+  <a href="#architecture">Architecture</a> •
+  <a href="#documentation">Documentation</a> •
+  <a href="#contributing">Contributing</a>
 </p>
 
 <p align="center">
@@ -34,20 +40,21 @@
 
 ## Table of Contents
 
-- [Why LIA?](#-why-lia)
-- [Features](#-features)
-- [Administration & Monitoring](#-administration--monitoring)
-- [Quick Start](#-quick-start)
-- [Architecture](#-architecture)
-- [Technologies](#-technologies)
-- [Documentation](#-documentation)
-- [Tests](#-tests)
-- [Performance](#-performance)
-- [Security](#-security)
-- [Contributing](#-contributing)
-- [Support](#-support)
-- [License](#-license)
-- [Acknowledgments](#-acknowledgments)
+- [Why LIA?](#why-lia)
+- [Screenshots](#screenshots)
+- [Features](#features)
+- [Administration & Monitoring](#administration--monitoring)
+- [Quick Start](#quick-start)
+- [Architecture](#architecture)
+- [Technologies](#technologies)
+- [Documentation](#documentation)
+- [Tests](#tests)
+- [Performance](#performance)
+- [Security](#security)
+- [Contributing](#contributing)
+- [Support](#support)
+- [License](#license)
+- [Acknowledgments](#acknowledgments)
 
 ---
 
@@ -71,6 +78,50 @@
 👥 "Update the companies of my contacts who work at startups"
 🔔 "Remind me tomorrow at 9am to call Marie for her birthday"
 ```
+
+---
+
+## Screenshots
+
+<p align="center">
+  <img src="docs/assets/screenshot-homepage.png" alt="Dashboard — Homepage with usage statistics" width="800" />
+  <br /><em>Dashboard — Homepage with quick access, usage statistics, and personalized greeting</em>
+</p>
+
+<p align="center">
+  <img src="docs/assets/screenshot-chat.png" alt="Chat — Multi-agent conversation with debug panel" width="800" />
+  <br /><em>Chat — Multi-agent conversation with real-time debug panel (right sidebar)</em>
+</p>
+
+<details>
+<summary><strong>More screenshots</strong></summary>
+
+<p align="center">
+  <img src="docs/assets/screenshot-settings-preferences.png" alt="Settings — Preferences (connectors, MCP, themes)" width="800" />
+  <br /><em>Settings — Preferences: connectors, MCP servers, language, timezone, and themes</em>
+</p>
+
+<p align="center">
+  <img src="docs/assets/screenshot-settings-features.png" alt="Settings — Features (memory, interests, notifications)" width="800" />
+  <br /><em>Settings — Features: LIA Style, long-term memory, interests, proactive notifications, scheduled actions, channels</em>
+</p>
+
+<p align="center">
+  <img src="docs/assets/screenshot-settings-administration.png" alt="Settings — Administration panel" width="800" />
+  <br /><em>Settings — Administration: LLM config, RAG Spaces, users, connectors, pricing, skills, voice, broadcast, debug</em>
+</p>
+
+<p align="center">
+  <img src="docs/assets/screenshot-settings-administration-llm.png" alt="Settings — LLM Configuration with multi-provider support" width="800" />
+  <br /><em>Administration — LLM Configuration: 6 providers (OpenAI, Anthropic, DeepSeek, Perplexity, Ollama, Gemini), per-node model selection</em>
+</p>
+
+<p align="center">
+  <img src="docs/assets/screenshot-faq.png" alt="FAQ — Searchable help center" width="800" />
+  <br /><em>FAQ — Searchable help center with categorized Q&A sections</em>
+</p>
+
+</details>
 
 ---
 
@@ -163,7 +214,7 @@ ExecutionStep(
 ### Enterprise Observability
 
 - **Prometheus**: 500+ custom metrics (agents, LLM, infrastructure)
-- **Grafana**: 17 production-ready dashboards
+- **Grafana**: 18 production-ready dashboards
 - **Langfuse**: LLM-specific tracing with prompt versions
 - **Loki**: Structured JSON logs with PII filtering
 - **Tempo**: Distributed cross-service tracing
@@ -247,12 +298,22 @@ ExecutionStep(
 - **Auto-generated descriptions**: LLM analysis of discovered tools for domain description optimized for routing
 - **App-only tools**: Tools with `visibility: ["app"]` filtered from the LLM catalogue (iframe only)
 
+### Internationalization (i18n) — 6 Languages
+
+LIA is fully translated in **6 languages**: English, French, German, Spanish, Italian, and Chinese.
+
+- **Complete UI coverage**: All interfaces, dialogs, notifications, error messages, FAQ, and landing page
+- **HITL localized**: Human-in-the-Loop approval prompts adapted per language
+- **Proactive notifications**: Heartbeat and reminders delivered in the user's language
+- **Telegram**: Inline keyboards and messages localized
+- **Skills**: Auto-translated descriptions in all 6 languages
+- **react-i18next**: Namespace-based translations with `locales/{lang}/translation.json`
+
 ### Landing Page
 
 - **Presentation page**: Responsive landing page with animated components (Hero, Features, Architecture, Security, Stats, Use Cases, How It Works, CTA)
 - **SEO & OpenGraph**: Dynamically generated OG image for social media previews
 - **Authenticated redirect**: Automatic redirect to dashboard if already logged in
-- **i18n**: Landing page translated in 6 languages
 
 ---
 
@@ -298,7 +359,15 @@ A multi-section debug panel embedded in the chat interface, providing real-time 
 
 ## Quick Start
 
-### Prerequisites
+### Try LIA Online (SaaS)
+
+LIA is available as a hosted service — no installation required:
+
+> **https://lia.jeyswork.com/**
+
+Create an account and start chatting immediately.
+
+### Self-Hosted Prerequisites
 
 | Software | Version | Required |
 |----------|---------|----------|
@@ -496,6 +565,7 @@ apps/api/src/
 
 | Technology | Version | Role |
 |------------|---------|------|
+| Node.js | 22 LTS | JavaScript runtime |
 | Next.js | 16.1.1 | React framework |
 | React | 19.2.3 | UI library |
 | TypeScript | 5.9.3 | Type safety |
@@ -520,7 +590,7 @@ apps/api/src/
 | Technology | Role |
 |------------|------|
 | Prometheus | 500+ metrics |
-| Grafana | 17 dashboards |
+| Grafana | 18 dashboards |
 | Loki | Aggregated logs |
 | Tempo | Distributed tracing |
 | Langfuse | LLM observability |
@@ -571,7 +641,7 @@ apps/api/src/
 
 56+ ADRs documenting major architectural decisions:
 
-- [ADR-001: LangGraph Multi-Agent System](./docs/architecture/ADR-001-LangGraph-Multi-Agent-System.md)
+- [ADR-007: Service Layer Pattern for Node Complexity](./docs/architecture/ADR-007-Service-Layer-Pattern-For-Node-Complexity.md)
 - [ADR-048: Semantic Tool Router](./docs/architecture/ADR-048-Semantic-Tool-Router.md)
 - [ADR-051: Reminder & Notification System](./docs/architecture/ADR-051-Reminder-Notification-System.md)
 - [View all ADRs](./docs/architecture/ADR_INDEX.md)
@@ -756,9 +826,9 @@ This project builds on excellent open source technologies:
 </p>
 
 <p align="center">
-  Built with ❤️ using Python, FastAPI, LangGraph, and Next.js
+  Built with ❤️ using Python, Node.js, FastAPI, LangGraph, and Next.js
 </p>
 
 <p align="center">
-  <a href="#table-of-contents">Back to top</a>
+  <a href="#lia">Back to top</a>
 </p>

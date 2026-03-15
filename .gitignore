@@ -243,6 +243,9 @@ scripts/deploy/deploy.local.ps1
 # Internal ADRs (deployment-specific)
 docs/architecture/ADR-033-Deployment-Architecture.md
 
+# Infrastructure runbook (contains server IPs, tunnel IDs, internal hostnames)
+docs/runbooks/CLOUDFLARE_TUNNEL.md
+
 # Obsidian
 .obsidian/
 
@@ -251,3 +254,6 @@ docs/architecture/ADR-033-Deployment-Architecture.md
 
 # Smart Environment
 .smart-env/
+
+# Source screenshots (originals — cleaned copies in docs/assets/)
+LIA Pics/
