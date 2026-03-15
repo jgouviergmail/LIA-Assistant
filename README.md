@@ -41,6 +41,7 @@
 ## Table of Contents
 
 - [Why LIA?](#why-lia)
+- [Try LIA Online](#try-lia-online)
 - [Screenshots](#screenshots)
 - [Features](#features)
 - [Administration & Monitoring](#administration--monitoring)
@@ -78,6 +79,18 @@
 👥 "Update the companies of my contacts who work at startups"
 🔔 "Remind me tomorrow at 9am to call Marie for her birthday"
 ```
+
+---
+
+## Try LIA Online
+
+<p align="center">
+  <a href="https://lia.jeyswork.com/"><img src="https://img.shields.io/badge/🚀_Try_LIA-lia.jeyswork.com-0EA5E9?style=for-the-badge" alt="Try LIA"></a>
+</p>
+
+LIA is available as a hosted service at **https://lia.jeyswork.com/** — no installation required.
+
+> **Closed beta**: Access is currently limited to a restricted number of users, at the administrator's discretion. To request an invitation, contact **liamyassistant@gmail.com**.
 
 ---
 
@@ -360,15 +373,7 @@ A multi-section debug panel embedded in the chat interface, providing real-time 
 
 ## Quick Start
 
-### Try LIA Online (SaaS)
-
-LIA is available as a hosted service — no installation required:
-
-> **https://lia.jeyswork.com/**
-
-Create an account and start chatting immediately.
-
-### Self-Hosted Prerequisites
+### Prerequisites
 
 | Software | Version | Required |
 |----------|---------|----------|
