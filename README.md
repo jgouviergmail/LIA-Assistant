@@ -808,6 +808,7 @@ This project builds on excellent open source technologies:
 
 - [LangGraph](https://github.com/langchain-ai/langgraph) - Multi-agent orchestration
 - [FastAPI](https://fastapi.tiangolo.com/) - Modern web framework
+- [Node.js](https://nodejs.org/) - JavaScript runtime
 - [Next.js](https://nextjs.org/) - React framework
 - [Prometheus](https://prometheus.io/) - Monitoring & alerting
 - [Grafana](https://grafana.com/) - Visualization
