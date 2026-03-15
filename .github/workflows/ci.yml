@@ -293,10 +293,13 @@ jobs:
 
           versions_dir = pathlib.Path('apps/api/alembic/versions')
           revisions = {}
+          # Match both 'revision = \"val\"' and 'revision: str = \"val\"' formats
+          rev_re = re.compile(r'^revision[^=]*=\s*[\"\\']([^\"\\' ]+)', re.MULTILINE)
+          down_re = re.compile(r'^down_revision[^=]*=\s*[\"\\']([^\"\\' ]+)', re.MULTILINE)
 
           for f in sorted(versions_dir.glob('*.py')):
               content = f.read_text(encoding='utf-8')
-              rev_match = re.search(r'^revision\s*[=:]\s*[\"\\']([^\"\\' ]+)', content, re.MULTILINE)
+              rev_match = rev_re.search(content)
               if rev_match:
                   revisions[rev_match.group(1)] = f.name
 
@@ -304,7 +307,7 @@ jobs:
           referenced_as_parent = set()
           for f in sorted(versions_dir.glob('*.py')):
               content = f.read_text(encoding='utf-8')
-              down_match = re.search(r'^down_revision\s*[=:]\s*[\"\\']([^\"\\' ]+)', content, re.MULTILINE)
+              down_match = down_re.search(content)
               if down_match:
                   referenced_as_parent.add(down_match.group(1))
 
