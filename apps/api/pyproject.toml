@@ -142,6 +142,7 @@ module = [
     "sherpa_onnx.*",
     "yaml.*",
     "dateutil.*",
+    "docx.*",
 ]
 ignore_missing_imports = true
 follow_imports = "skip"

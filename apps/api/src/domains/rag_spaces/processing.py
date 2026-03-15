@@ -72,7 +72,7 @@ def extract_text_pdf(file_path: Path) -> str:
 
 def extract_text_docx(file_path: Path) -> str:
     """Extract text from DOCX using python-docx."""
-    from docx import Document  # type: ignore[import-not-found]
+    from docx import Document
 
     doc = Document(str(file_path))
     return "\n".join(para.text for para in doc.paragraphs if para.text.strip())
