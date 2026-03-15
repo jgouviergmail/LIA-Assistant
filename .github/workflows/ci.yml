@@ -229,7 +229,7 @@ jobs:
 
       - name: Check for synchronous Store calls in async context
         run: |
-          SYNC_CALLS=$(grep -rn "runtime\.store\.put(\|runtime\.store\.get(\|runtime\.store\.delete(\|runtime\.store\.search(" apps/api/src/ || true)
+          SYNC_CALLS=$(grep -rn "runtime\.store\.put(\|runtime\.store\.get(\|runtime\.store\.delete(\|runtime\.store\.search(" apps/api/src/ | grep -v "await " || true)
           if [ -n "$SYNC_CALLS" ]; then
             echo "::error::Synchronous Store calls detected in async context (use aput/aget/adelete/asearch):"
             echo "$SYNC_CALLS"

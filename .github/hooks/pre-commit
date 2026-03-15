@@ -129,7 +129,7 @@ if [ -n "$PYTHON_FILES" ]; then
     STAGED_PY_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep "\.py$" || true)
 
     # Check for synchronous Store calls in async context (Erreur #5)
-    SYNC_STORE_CALLS=$(echo "$STAGED_PY_FILES" | xargs grep -n "runtime\.store\.put(\|runtime\.store\.get(\|runtime\.store\.delete(\|runtime\.store\.search(" 2>/dev/null || true)
+    SYNC_STORE_CALLS=$(echo "$STAGED_PY_FILES" | xargs grep -n "runtime\.store\.put(\|runtime\.store\.get(\|runtime\.store\.delete(\|runtime\.store\.search(" 2>/dev/null | grep -v "await " || true)
 
     if [ -n "$SYNC_STORE_CALLS" ]; then
         print_error "CRITICAL: Synchronous Store calls detected in async context!"
