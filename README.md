@@ -796,7 +796,7 @@ This project is licensed under the **GNU Affero General Public License v3.0 (AGP
 
 See [LICENSE](./LICENSE) for details.
 
-A commercial license is also available for organizations that cannot comply with AGPL-3.0 terms. Contact contact@lia-assistant.dev for details.
+A commercial license is also available for organizations that cannot comply with AGPL-3.0 terms. Contact liamyassistant@gmail.com for details.
 
 ---
 
@@ -806,19 +806,43 @@ A commercial license is also available for organizations that cannot comply with
 
 This project builds on excellent open source technologies:
 
+**Backend & Infrastructure**
+- [Python](https://www.python.org/) - Primary runtime
+- [FastAPI](https://fastapi.tiangolo.com/) - Modern async web framework
 - [LangGraph](https://github.com/langchain-ai/langgraph) - Multi-agent orchestration
-- [FastAPI](https://fastapi.tiangolo.com/) - Modern web framework
+- [LangChain](https://python.langchain.com/) - LLM abstraction & tools
+- [SQLAlchemy](https://www.sqlalchemy.org/) - Async ORM
+- [Pydantic](https://docs.pydantic.dev/) - Data validation & settings
+- [Alembic](https://alembic.sqlalchemy.org/) - Database migrations
+- [PostgreSQL](https://www.postgresql.org/) + [pgvector](https://github.com/pgvector/pgvector) - Database & vector search
+- [Redis](https://redis.io/) - Cache, sessions, rate limiting
+- [sentence-transformers](https://www.sbert.net/) - Local E5 embeddings
+- [Edge TTS](https://github.com/rany2/edge-tts) - Free neural voice synthesis
+- [structlog](https://www.structlog.org/) - Structured JSON logging
+- [Docker](https://www.docker.com/) - Containerization & multi-arch builds
+
+**Frontend**
 - [Node.js](https://nodejs.org/) - JavaScript runtime
 - [Next.js](https://nextjs.org/) - React framework
-- [Prometheus](https://prometheus.io/) - Monitoring & alerting
-- [Grafana](https://grafana.com/) - Visualization
-- [sentence-transformers](https://www.sbert.net/) - Local embeddings
+- [React](https://react.dev/) - UI library
+- [TypeScript](https://www.typescriptlang.org/) - Type safety
+- [TailwindCSS](https://tailwindcss.com/) - Utility-first styling
+- [Radix UI](https://www.radix-ui.com/) - Accessible UI primitives
+- [TanStack Query](https://tanstack.com/query/) - Server state management
+- [react-i18next](https://react.i18next.com/) - Internationalization (6 languages)
+
+**Observability**
+- [Prometheus](https://prometheus.io/) - Metrics & alerting
+- [Grafana](https://grafana.com/) - Dashboards & visualization
+- [Loki](https://grafana.com/oss/loki/) - Log aggregation
+- [Tempo](https://grafana.com/oss/tempo/) - Distributed tracing
+- [Langfuse](https://langfuse.com/) - LLM observability & prompt management
 
 ### Inspirations
 
-- [LangChain Agents](https://python.langchain.com/docs/modules/agents/)
 - [OpenAI Assistants API](https://platform.openai.com/docs/assistants/overview)
 - [Anthropic Claude](https://www.anthropic.com/)
+- [Model Context Protocol](https://modelcontextprotocol.io/)
 
 ---
 
