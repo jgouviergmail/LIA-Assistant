@@ -85,9 +85,9 @@ The `ContextAggregator` fetches all sources in parallel via `asyncio.gather(retu
 
 | Source | Method | Dependency | Fallback |
 |--------|--------|------------|----------|
-| Calendar | Google Calendar API | Active connector | None |
+| Calendar | Google/Apple/Microsoft Calendar API | Active connector | None |
 | Weather + Changes | OpenWeatherMap API | Connector + home_location | None |
-| Tasks | Google Tasks API | Active connector | None |
+| Tasks | Google Tasks / Microsoft To Do API | Active connector | None |
 | Interests | InterestRepository | Active interests | None |
 | Memories | LangGraph Store | memory_enabled | None |
 | Activity | Last message query | Always available | None |
@@ -227,7 +227,7 @@ Index: `ix_heartbeat_notifications_user_created` on (user_id, created_at)
 | File | Tests |
 |------|-------|
 | `tests/unit/domains/heartbeat/test_schemas.py` | 38 tests |
-| `tests/unit/domains/heartbeat/test_context_aggregator.py` | 25 tests |
+| `tests/unit/domains/heartbeat/test_context_aggregator.py` | 52 tests |
 | `tests/unit/domains/heartbeat/test_proactive_task.py` | 17 tests |
 | `tests/unit/infrastructure/proactive/test_eligibility.py` | 7 tests |
 

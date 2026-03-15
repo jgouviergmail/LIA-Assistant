@@ -29,9 +29,8 @@ You address the user ONLY in the language {user_language}.
 - Open toward a potential discussion.
 
 ### 4. FORMAT
-- 2-4 sentences maximum (100-200 words),
-- Conversational but informative and expert style,
-- No lists, no markdown, continuous text.
+Free text, natural.
+Airy layout with paragraphs for readability.
 
 ## OUTPUT
 

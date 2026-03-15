@@ -27,6 +27,7 @@ from src.domains.interests.services.content_sources.base import ContentResult
 from src.domains.llm_config.constants import LLM_DEFAULTS
 from src.infrastructure.llm import get_llm
 from src.infrastructure.llm.invoke_helpers import invoke_with_instrumentation
+from src.infrastructure.llm.token_utils import extract_llm_tokens
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -137,6 +138,9 @@ class LLMReflectionContentSource:
             if len(content) > 500:
                 content = content[:500] + "..."
 
+            # Extract token usage from LLM response
+            tokens_in, tokens_out = extract_llm_tokens(result)
+
             if user_id:
                 await self._persist_tokens(
                     user_id=user_id,
@@ -151,6 +155,8 @@ class LLMReflectionContentSource:
                 content_length=len(content),
                 language=user_language,
                 user_id=user_id,
+                tokens_in=tokens_in,
+                tokens_out=tokens_out,
             )
 
             return ContentResult(
@@ -158,6 +164,8 @@ class LLMReflectionContentSource:
                 source=self.source_name,
                 raw_content=content,
                 citations=[],
+                tokens_in=tokens_in,
+                tokens_out=tokens_out,
                 metadata={
                     "model": LLM_DEFAULTS["interest_content"].model,
                     "language": user_language,

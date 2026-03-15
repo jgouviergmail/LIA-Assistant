@@ -38,6 +38,8 @@ class ContentResult:
         citations: Source citations/URLs if available
         embedding: Content embedding for deduplication (384 dims, E5-small)
         metadata: Additional source-specific metadata
+        tokens_in: Input tokens consumed by LLM (0 for non-LLM sources)
+        tokens_out: Output tokens consumed by LLM (0 for non-LLM sources)
     """
 
     content: str
@@ -46,6 +48,9 @@ class ContentResult:
     citations: list[str] = field(default_factory=list)
     embedding: list[float] | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
+    # Token usage from LLM-based sources (0 for non-LLM sources like Brave/Perplexity)
+    tokens_in: int = 0
+    tokens_out: int = 0
 
     def __post_init__(self) -> None:
         """Validate content result."""

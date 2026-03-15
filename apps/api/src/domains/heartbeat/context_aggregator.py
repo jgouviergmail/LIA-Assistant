@@ -31,6 +31,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import get_settings
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.service import ConnectorService
 from src.domains.conversations.models import Conversation, ConversationMessage
@@ -39,6 +40,110 @@ from src.domains.heartbeat.schemas import HeartbeatContext, WeatherChange
 from src.domains.interests.models import InterestNotification, UserInterest
 
 logger = structlog.get_logger(__name__)
+
+
+def _format_event_time(dt_field: dict[str, Any] | None, user_tz: ZoneInfo) -> str:
+    """Convert a calendar event start/end dict to a human-readable local time.
+
+    Handles all three providers:
+    - Google:    {"dateTime": "2026-03-15T14:00:00+01:00"}  (offset in string)
+    - Microsoft: {"dateTime": "2026-03-15T10:00:00", "timeZone": "Europe/Paris"}
+    - Apple:     {"dateTime": "2026-03-15T15:00:00"}  (CalDAV: may be naive)
+    - All-day:   {"date": "2026-03-15"}
+
+    Naive datetimes (no offset, no timeZone field) are assumed to be in the
+    user's local timezone, which is the correct default for CalDAV servers that
+    return local times without TZID.
+
+    Returns a compact string in the user's timezone:
+    - Today's events: '15:00'
+    - Other days: '2026-03-16 09:00'
+    - All-day: '2026-03-15 (all day)'
+    - Missing data: '?'
+    """
+    if not dt_field:
+        return "?"
+
+    # All-day event
+    date_str = dt_field.get("date")
+    if date_str and not dt_field.get("dateTime"):
+        return f"{date_str} (all day)"
+
+    raw = dt_field.get("dateTime")
+    if not raw:
+        return "?"
+
+    try:
+        dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+
+        # Naive datetime: use explicit timeZone field (Microsoft) or user tz (CalDAV)
+        if dt.tzinfo is None:
+            event_tz_str = dt_field.get("timeZone")
+            if event_tz_str:
+                try:
+                    event_tz = ZoneInfo(event_tz_str)
+                except (KeyError, ValueError):
+                    event_tz = user_tz
+            else:
+                event_tz = user_tz
+            dt = dt.replace(tzinfo=event_tz)
+
+        local_dt = dt.astimezone(user_tz)
+        now_local = datetime.now(user_tz)
+        # Include date when the event is not today
+        if local_dt.date() != now_local.date():
+            return local_dt.strftime("%Y-%m-%d %H:%M")
+        return local_dt.strftime("%H:%M")
+    except (ValueError, TypeError):
+        return str(raw)
+
+
+def _extract_due_date(due_str: str | None) -> str:
+    """Extract a human-readable date from an RFC 3339 task due string.
+
+    Task due dates are conceptually dates, not datetimes (Google Tasks always
+    uses midnight UTC). Extracting the date portion avoids misleading timezone
+    conversions that could shift the date by one day.
+
+    Examples:
+        '2026-03-15T00:00:00.000Z' → '2026-03-15'
+        '2026-03-15' → '2026-03-15'
+        None → 'no date'
+    """
+    if not due_str:
+        return "no date"
+    # Extract YYYY-MM-DD from ISO/RFC 3339 string
+    return due_str[:10] if len(due_str) >= 10 else due_str
+
+
+def _format_utc_datetime(dt: datetime | None, user_tz: ZoneInfo) -> str:
+    """Convert a UTC-aware datetime to a compact user-local string.
+
+    Used for timestamps from the database (created_at fields) that are
+    stored in UTC and need user-friendly display in the LLM prompt.
+
+    Returns:
+        Formatted string like '2026-03-15 15:30' or '?' if None.
+    """
+    if dt is None:
+        return "?"
+    try:
+        local_dt = dt.astimezone(user_tz)
+        return local_dt.strftime("%Y-%m-%d %H:%M")
+    except (ValueError, TypeError, AttributeError):
+        return str(dt)
+
+
+def _resolve_user_tz(user: Any) -> ZoneInfo:
+    """Resolve the user's timezone with safe fallback.
+
+    Falls back to DEFAULT_USER_DISPLAY_TIMEZONE if the user's timezone
+    attribute is missing, None, or invalid.
+    """
+    try:
+        return ZoneInfo(user.timezone)
+    except (KeyError, ValueError, AttributeError, TypeError):
+        return ZoneInfo(DEFAULT_USER_DISPLAY_TIMEZONE)
 
 
 class ContextAggregator:
@@ -79,8 +184,8 @@ class ContextAggregator:
             self._fetch_interests(user_id),
             self._fetch_memories(user_id, settings),
             self._fetch_activity(user_id),
-            self._fetch_recent_heartbeats(user_id),
-            self._fetch_recent_interest_notifications(user_id),
+            self._fetch_recent_heartbeats(user_id, user),
+            self._fetch_recent_interest_notifications(user_id, user),
             return_exceptions=True,
         )
 
@@ -163,10 +268,7 @@ class ContextAggregator:
 
     def _compute_time_context(self, context: HeartbeatContext, user: Any) -> None:
         """Compute local time context for the user."""
-        try:
-            user_tz = ZoneInfo(user.timezone)
-        except (KeyError, ValueError, AttributeError, TypeError):
-            user_tz = ZoneInfo("Europe/Paris")
+        user_tz = _resolve_user_tz(user)
 
         now_local = datetime.now(user_tz)
         context.user_local_time = now_local
@@ -271,14 +373,15 @@ class ContextAggregator:
         if not events:
             return None
 
-        # Extract minimal event data for the prompt
+        # Resolve user timezone for display (same source as _compute_time_context)
+        user_tz = _resolve_user_tz(user)
+
+        # Extract minimal event data for the prompt, converting times to user timezone
         return [
             {
                 "summary": e.get("summary", "Untitled"),
-                "start": (
-                    e.get("start", {}).get("dateTime") or e.get("start", {}).get("date", "?")
-                ),
-                "end": (e.get("end", {}).get("dateTime") or e.get("end", {}).get("date", "?")),
+                "start": _format_event_time(e.get("start"), user_tz),
+                "end": _format_event_time(e.get("end"), user_tz),
                 "location": e.get("location"),
             }
             for e in events
@@ -373,10 +476,11 @@ class ContextAggregator:
         # Extract minimal task data for the prompt, flag overdue tasks.
         # Both Google Tasks and Microsoft To Do normalizers return "due" as
         # RFC 3339 and "status" as "needsAction"/"completed" (normalized).
+        # Due dates are conceptually dates (not datetimes) — extract date only.
         return [
             {
                 "title": t.get("title", "Untitled"),
-                "due": t.get("due"),
+                "due": _extract_due_date(t.get("due")),
                 "overdue": self._is_task_overdue(t, now),
             }
             for t in tasks
@@ -469,10 +573,7 @@ class ContextAggregator:
 
         changes = None
         if not isinstance(forecast_result, BaseException) and current:
-            try:
-                user_tz = ZoneInfo(user.timezone)
-            except (KeyError, ValueError, AttributeError):
-                user_tz = ZoneInfo("Europe/Paris")
+            user_tz = _resolve_user_tz(user)
 
             hourly = forecast_result.get("list", [])
             changes = self._detect_weather_changes(current, hourly, user_tz, settings)
@@ -695,11 +796,13 @@ class ContextAggregator:
     async def _fetch_recent_heartbeats(
         self,
         user_id: UUID,
+        user: Any,
     ) -> list[dict[str, str]] | None:
         """Fetch recent heartbeat notifications for anti-redundancy.
 
         Returns:
-            List of {sources_used, decision_reason, created_at} dicts.
+            List of {sources_used, decision_reason, created_at} dicts
+            with created_at converted to the user's local timezone.
         """
         repo = HeartbeatNotificationRepository(self._db)
         notifications = await repo.get_recent_by_user(user_id, limit=5)
@@ -707,11 +810,12 @@ class ContextAggregator:
         if not notifications:
             return None
 
+        user_tz = _resolve_user_tz(user)
         return [
             {
                 "sources_used": n.sources_used,
                 "decision_reason": n.decision_reason or "N/A",
-                "created_at": n.created_at.isoformat(),
+                "created_at": _format_utc_datetime(n.created_at, user_tz),
             }
             for n in notifications
         ]
@@ -723,6 +827,7 @@ class ContextAggregator:
     async def _fetch_recent_interest_notifications(
         self,
         user_id: UUID,
+        user: Any,
     ) -> list[dict[str, str]] | None:
         """Fetch recent interest notifications for cross-type dedup.
 
@@ -730,7 +835,8 @@ class ContextAggregator:
         a suitable method combining topic name + created_at.
 
         Returns:
-            List of {topic, created_at} dicts.
+            List of {topic, created_at} dicts with created_at converted
+            to the user's local timezone.
         """
         result = await self._db.execute(
             select(
@@ -750,10 +856,11 @@ class ContextAggregator:
         if not rows:
             return None
 
+        user_tz = _resolve_user_tz(user)
         return [
             {
                 "topic": row.topic,
-                "created_at": row.created_at.isoformat(),
+                "created_at": _format_utc_datetime(row.created_at, user_tz),
             }
             for row in rows
         ]

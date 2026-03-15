@@ -58,6 +58,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Document | Description |
 |----------|-------------|
 | [GETTING_STARTED.md](./GETTING_STARTED.md) | Déploiement Docker |
+| [CI_CD.md](./technical/CI_CD.md) | Pipeline CI, pre-commit, branch protection |
 | [OBSERVABILITY_AGENTS.md](./technical/OBSERVABILITY_AGENTS.md) | Stack observabilité complète |
 | [README_OBSERVABILITY.md](./readme/README_OBSERVABILITY.md) | Guide observabilité quickstart |
 | [runbooks/](./runbooks/) | Runbooks opérationnels (34+ procédures) |
@@ -177,10 +178,11 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [README_PROMETHEUS_ALERTMANAGER.md](./readme/README_PROMETHEUS_ALERTMANAGER.md) | Configuration AlertManager | ✅ |
 | [README_PROMETHEUS_THRESHOLDS.md](./readme/README_PROMETHEUS_THRESHOLDS.md) | Seuils alertes par environnement | ✅ |
 
-### Déploiement
+### CI/CD & Déploiement
 
 | Document | Description | Statut |
 |----------|-------------|--------|
+| [CI_CD.md](./technical/CI_CD.md) | Pipeline CI, pre-commit hook, branch protection, Dependabot | ✅ |
 | [DEPLOYMENT_INSTRUCTIONS.md](./technical/DEPLOYMENT_INSTRUCTIONS.md) | Instructions déploiement production | ✅ |
 
 ---

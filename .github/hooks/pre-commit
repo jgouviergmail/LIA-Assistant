@@ -192,7 +192,143 @@ else
     print_info "No Python files staged, skipping backend checks"
 fi
 
-# 3. Frontend checks (only if TS/TSX files are staged)
+# 3. i18n keys sync (only if locale files are staged)
+I18N_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep "apps/web/locales/" || true)
+
+if [ -n "$I18N_FILES" ]; then
+    echo ""
+    print_info "Checking i18n keys sync..."
+
+    REFERENCE_LANG="en"
+    LOCALES_DIR="apps/web/locales"
+    I18N_FAILED=0
+
+    if [ -f "$LOCALES_DIR/$REFERENCE_LANG/translation.json" ]; then
+        for lang_dir in "$LOCALES_DIR"/*/; do
+            lang=$(basename "$lang_dir")
+            [ "$lang" = "$REFERENCE_LANG" ] && continue
+            target_file="$lang_dir/translation.json"
+            [ ! -f "$target_file" ] && continue
+
+            # Compare keys using Python (handles nested JSON)
+            DIFF_OUTPUT=$(python -c "
+import json, sys
+
+def get_keys(d, prefix=''):
+    keys = set()
+    for k, v in d.items():
+        full = f'{prefix}.{k}' if prefix else k
+        if isinstance(v, dict):
+            keys |= get_keys(v, full)
+        else:
+            keys.add(full)
+    return keys
+
+with open('$LOCALES_DIR/$REFERENCE_LANG/translation.json', encoding='utf-8') as f:
+    ref = get_keys(json.load(f))
+with open('$target_file', encoding='utf-8') as f:
+    tgt = get_keys(json.load(f))
+
+missing = sorted(ref - tgt)
+extra = sorted(tgt - ref)
+if missing:
+    print(f'MISSING in $lang ({len(missing)}):')
+    for k in missing[:10]:
+        print(f'  - {k}')
+    if len(missing) > 10:
+        print(f'  ... and {len(missing) - 10} more')
+if extra:
+    print(f'EXTRA in $lang ({len(extra)}):')
+    for k in extra[:10]:
+        print(f'  - {k}')
+    if len(extra) > 10:
+        print(f'  ... and {len(extra) - 10} more')
+if missing or extra:
+    sys.exit(1)
+" 2>&1) || I18N_FAILED=1
+
+            if [ -n "$DIFF_OUTPUT" ]; then
+                echo "$DIFF_OUTPUT"
+            fi
+        done
+
+        if [ "$I18N_FAILED" -eq 1 ]; then
+            print_error "i18n keys are out of sync with '$REFERENCE_LANG'"
+            FAILED=1
+        else
+            print_success "i18n keys are in sync"
+        fi
+    fi
+else
+    print_info "No i18n files staged, skipping i18n sync check"
+fi
+
+# 4. Alembic migration conflict detection
+MIGRATION_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep "apps/api/alembic/versions/" || true)
+
+if [ -n "$MIGRATION_FILES" ]; then
+    echo ""
+    print_info "Checking for Alembic migration conflicts..."
+
+    # Detect multiple migrations with the same date prefix (potential branch conflict)
+    MIGRATION_DIR="apps/api/alembic/versions"
+    DUPLICATE_PREFIXES=$(ls "$MIGRATION_DIR"/*.py 2>/dev/null | xargs -I{} basename {} | sed 's/-.*//' | sort | uniq -d || true)
+
+    if [ -n "$DUPLICATE_PREFIXES" ]; then
+        print_error "Potential Alembic migration conflict detected!"
+        echo "    Multiple migrations share the same date prefix:"
+        for prefix in $DUPLICATE_PREFIXES; do
+            echo "    $prefix:"
+            ls "$MIGRATION_DIR"/${prefix}-*.py 2>/dev/null | sed 's/^/      /'
+        done
+        echo ""
+        echo "    This may cause 'Multiple heads' errors. Check revision chains."
+        FAILED=1
+    else
+        print_success "No migration conflicts detected"
+    fi
+else
+    print_info "No migration files staged, skipping migration check"
+fi
+
+# 5. .env.example sync check (only if Python files are staged)
+if [ -n "$PYTHON_FILES" ]; then
+    echo ""
+    print_info "Checking .env.example completeness..."
+
+    if [ -f ".env.example" ]; then
+        # Extract setting names from .env.example (lines like KEY=value, ignoring comments)
+        ENV_KEYS=$(grep -E "^[A-Z_]+=" .env.example | sed 's/=.*//' | sort -u)
+
+        # Search for os.environ / os.getenv references in staged Python files that use new env vars
+        NEW_ENV_REFS=$(echo "$PYTHON_FILES" | xargs grep -ohE '(os\.environ\[|os\.getenv\(|environ\.get\()"?([A-Z_]+)"?' 2>/dev/null | grep -oE '[A-Z][A-Z_]+[A-Z]' | sort -u || true)
+
+        if [ -n "$NEW_ENV_REFS" ]; then
+            MISSING_VARS=""
+            for var in $NEW_ENV_REFS; do
+                if ! echo "$ENV_KEYS" | grep -q "^${var}$"; then
+                    MISSING_VARS="$MISSING_VARS $var"
+                fi
+            done
+
+            if [ -n "$MISSING_VARS" ]; then
+                print_error "Environment variables referenced in code but missing from .env.example:"
+                for var in $MISSING_VARS; do
+                    echo "    - $var"
+                done
+                echo ""
+                echo "    Add them to .env.example with a default or placeholder value."
+                FAILED=1
+            else
+                print_success ".env.example is up to date"
+            fi
+        else
+            print_success ".env.example check passed (no new env refs)"
+        fi
+    fi
+fi
+
+# 6. Frontend checks (only if TS/TSX files are staged)
 FRONTEND_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E "\.(ts|tsx)$" || true)
 
 if [ -n "$FRONTEND_FILES" ]; then
@@ -201,7 +337,7 @@ if [ -n "$FRONTEND_FILES" ]; then
 
     cd apps/web
 
-    # 3.1 ESLint
+    # 6.1 ESLint
     echo "  Running ESLint..."
     if ! pnpm lint 2>&1; then
         print_error "ESLint check failed"
@@ -210,7 +346,7 @@ if [ -n "$FRONTEND_FILES" ]; then
         print_success "ESLint passed"
     fi
 
-    # 3.2 TypeScript
+    # 6.2 TypeScript
     echo "  Running TypeScript check..."
     if ! pnpm type-check 2>&1; then
         print_error "TypeScript check failed"
@@ -224,7 +360,7 @@ else
     print_info "No TypeScript files staged, skipping frontend checks"
 fi
 
-# 4. Final verdict
+# 7. Final verdict
 echo ""
 if [ $FAILED -eq 1 ]; then
     print_error "Pre-commit checks failed! Commit aborted."

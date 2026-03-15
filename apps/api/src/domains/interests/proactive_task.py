@@ -34,6 +34,7 @@ from src.domains.interests.services.content_sources import (
     InterestContentGenerator,
 )
 from src.infrastructure.database import get_db_context
+from src.infrastructure.llm.token_utils import extract_llm_tokens
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.proactive.base import ContentSource, ProactiveTaskResult
 
@@ -245,9 +246,9 @@ class InterestProactiveTask:
 
             content_source = self._map_source(content_result.source)
 
-            # Calculate total tokens (content generation may also have tokens)
-            total_tokens_in = presentation_tokens_in
-            total_tokens_out = presentation_tokens_out
+            # Accumulate tokens from both phases: generation + presentation
+            total_tokens_in = content_result.tokens_in + presentation_tokens_in
+            total_tokens_out = content_result.tokens_out + presentation_tokens_out
 
             logger.info(
                 "interest_task_content_generated",
@@ -344,6 +345,7 @@ class InterestProactiveTask:
             )
 
             content_config = LLMAgentConfig(
+                provider=settings.interest_content_llm_provider,
                 model=settings.interest_content_llm_model,
                 temperature=settings.interest_content_llm_temperature,
                 max_tokens=settings.interest_content_llm_max_tokens,
@@ -366,11 +368,7 @@ class InterestProactiveTask:
             presented = result.content if isinstance(result.content, str) else str(result.content)
 
             # Extract token usage from LLM response
-            tokens_in = 0
-            tokens_out = 0
-            if hasattr(result, "usage_metadata") and result.usage_metadata:
-                tokens_in = result.usage_metadata.get("input_tokens", 0)
-                tokens_out = result.usage_metadata.get("output_tokens", 0)
+            tokens_in, tokens_out = extract_llm_tokens(result)
 
             return presented.strip(), tokens_in, tokens_out
 

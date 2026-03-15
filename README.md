@@ -50,6 +50,7 @@
 - [Technologies](#technologies)
 - [Documentation](#documentation)
 - [Tests](#tests)
+- [CI/CD](#cicd)
 - [Performance](#performance)
 - [Security](#security)
 - [Contributing](#contributing)
@@ -654,6 +655,7 @@ apps/api/src/
 | **Skills** | [SKILLS_INTEGRATION](./docs/technical/SKILLS_INTEGRATION.md) |
 | **RAG Spaces** | [GUIDE_RAG_SPACES](./docs/guides/GUIDE_RAG_SPACES.md) • [ADR-055](./docs/architecture/ADR-055-RAG-Spaces-Architecture.md) |
 | **LLM Providers** | [LLM_PROVIDERS](./docs/technical/LLM_PROVIDERS.md) |
+| **CI/CD** | [CI_CD](./docs/technical/CI_CD.md) |
 | **Security** | [SECURITY](./docs/technical/SECURITY.md) • [OAUTH](./docs/technical/OAUTH.md) • [RATE_LIMITING](./docs/technical/RATE_LIMITING.md) |
 | **Observability** | [OBSERVABILITY_AGENTS](./docs/technical/OBSERVABILITY_AGENTS.md) • [METRICS_REFERENCE](./docs/technical/METRICS_REFERENCE.md) |
 | **Cost Tracking** | [LLM_PRICING_MANAGEMENT](./docs/technical/LLM_PRICING_MANAGEMENT.md) • [GOOGLE_API_TRACKING](./docs/technical/GOOGLE_API_TRACKING.md) |
@@ -706,8 +708,54 @@ pytest --cov=src --cov-report=html -v
 |--------|-------|
 | Total tests | 2,300+ |
 | Reusable fixtures | 170+ |
-| Coverage target | 85% |
-| CI Workflows | 4 |
+| Coverage target | 75% |
+| CI Workflows | 3 (CI, Security, Release) |
+
+---
+
+## CI/CD
+
+LIA uses a two-layer quality gate: a **local pre-commit hook** (fast, on staged files only) and a **GitHub Actions CI pipeline** (comprehensive, on every push/PR to `main`).
+
+### Pipeline Overview
+
+```
+Pre-commit (local)              GitHub Actions CI
+===================             ==================
+.bak files check                Lint Backend (Ruff + Black + MyPy)
+Secrets grep                    Lint Frontend (ESLint + TypeScript)
+Ruff + Black + MyPy             Fast unit tests + coverage (75%)
+Fast unit tests                 Code Hygiene (i18n, Alembic, .env.example, patterns)
+Critical pattern detection      Docker build smoke test
+i18n keys sync                  Secret scan (Gitleaks)
+Alembic migration conflicts     ──────────────────────
+.env.example completeness       Security workflow (weekly)
+ESLint + TypeScript check         CodeQL (Python + JS)
+                                  Dependency audit (pip-audit + pnpm audit)
+                                  Trivy filesystem scan
+                                  SBOM generation
+```
+
+### Key Practices
+
+| Practice | Implementation |
+|----------|---------------|
+| **SHA-pinned Actions** | All GitHub Actions pinned by commit SHA (supply-chain security) |
+| **Least privilege** | `permissions: contents: read` on CI workflow |
+| **Branch protection** | PR required (external contributors), 7 status checks, force push forbidden |
+| **Dependabot** | Weekly updates for pip, npm, Docker, Actions — minor/patch grouped |
+| **Pre-commit / CI alignment** | CI covers everything the pre-commit does (and more) |
+| **Coverage threshold** | 75% minimum enforced in CI |
+
+### Workflows
+
+| Workflow | Trigger | Jobs |
+|----------|---------|------|
+| **CI** (`ci.yml`) | Push to `main`, PR | 7 jobs: lint, test, code hygiene, docker build, secret scan |
+| **Security** (`security.yml`) | PR, weekly schedule, manual | CodeQL, dependency audit, Trivy, SBOM |
+| **Release** (`release.yml`) | Tag `v*` | Docker multi-arch build + push (ghcr.io), GitHub Release |
+
+> Full details: [CI/CD Documentation](./docs/technical/CI_CD.md)
 
 ---
 
@@ -799,7 +847,9 @@ git push origin feature/my-feature
 - **Python**: Black + Ruff + MyPy (strict)
 - **TypeScript**: ESLint + Prettier
 - **Commits**: [Conventional Commits](https://www.conventionalcommits.org/)
-- **Coverage**: >= 80% for new code
+- **Coverage**: >= 75% enforced in CI
+- **Pre-commit hook**: Installed via `task setup` — runs linters + tests on staged files
+- **CI**: All PRs must pass 7 status checks before merge (see [CI/CD](#cicd))
 
 ---
 

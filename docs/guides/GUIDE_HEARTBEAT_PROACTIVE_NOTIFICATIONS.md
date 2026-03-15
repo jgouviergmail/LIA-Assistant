@@ -368,9 +368,9 @@ results = await asyncio.gather(
 
 | Source | Methode | Dependance | Fallback |
 |--------|---------|------------|----------|
-| Calendar | Google Calendar API | Connector actif | `None` |
+| Calendar | Google/Apple/Microsoft Calendar API | Connector actif | `None` |
 | Weather + Changes | OpenWeatherMap API | Connector + home_location | `None` |
-| Tasks | Google Tasks API | Connector actif | `None` |
+| Tasks | Google Tasks / Microsoft To Do API | Connector actif | `None` |
 | Interests | `InterestRepository` | Centres d'interet actifs | `None` |
 | Memories | LangGraph Store | `memory_enabled` | `None` |
 | Activity | Query dernier message | Toujours disponible | `None` |
@@ -398,18 +398,21 @@ Si aucun contexte significatif n'est disponible, le heartbeat est skip avant mem
 
 ### Serialisation pour le prompt LLM
 
-`context.to_prompt_context()` genere un bloc texte structure pour le LLM, n'incluant que les sections avec des donnees :
+`context.to_prompt_context()` genere un bloc texte structure pour le LLM, n'incluant que les sections avec des donnees. Les heures de calendrier et de taches sont converties dans le fuseau horaire de l'utilisateur avant serialisation (voir `_format_event_time()` et `_extract_due_date()` dans `context_aggregator.py`) :
 
 ```
 TIME: Monday, 14:30 (afternoon)
 
-UPCOMING CALENDAR EVENTS:
-  - Team standup (2026-03-08T15:00:00 -> 2026-03-08T15:30:00)
+UPCOMING CALENDAR EVENTS (times in user's local timezone):
+  - Team standup (15:00 → 15:30)
 
 CURRENT WEATHER: light rain, 12°C, wind 5 m/s
 
 WEATHER CHANGES DETECTED:
   - [INFO] Rain clearing around 17:00
+
+PENDING TASKS:
+  - Buy groceries (due: 2026-03-08)
 
 LAST INTERACTION: 3.5 hours ago
 ```
@@ -707,7 +710,7 @@ total_in, total_out, total_cache = accumulator.get_totals()
 | Fichier | Nb tests | Couverture |
 |---------|----------|------------|
 | `tests/unit/domains/heartbeat/test_schemas.py` | 38 | Schemas, validation, serialisation |
-| `tests/unit/domains/heartbeat/test_context_aggregator.py` | 25 | Sources, weather detection, parallel fetch |
+| `tests/unit/domains/heartbeat/test_context_aggregator.py` | 52 | Sources, weather detection, timezone conversion, parallel fetch |
 | `tests/unit/domains/heartbeat/test_proactive_task.py` | 17 | Protocol compliance, token capture |
 | `tests/unit/infrastructure/proactive/test_eligibility.py` | 7 | Time window, quota, cooldowns |
 

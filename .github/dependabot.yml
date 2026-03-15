@@ -11,6 +11,11 @@ updates:
     labels:
       - dependencies
       - python
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
 
   # Node.js frontend dependencies
   - package-ecosystem: npm
@@ -22,6 +27,11 @@ updates:
     labels:
       - dependencies
       - javascript
+    groups:
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
 
   # Docker images
   - package-ecosystem: docker
@@ -48,3 +58,7 @@ updates:
     labels:
       - dependencies
       - ci
+    groups:
+      actions:
+        patterns:
+          - "*"

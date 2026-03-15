@@ -511,14 +511,14 @@ Plusieurs mecanismes empechent l'envoi de notifications en double :
 
 ### 2.5.10 Tokens et couts
 
-Les tokens LLM consommes sont trackes et associes a chaque notification :
+Les tokens LLM consommes sont trackes et associes a chaque notification. Les tokens sont accumules des deux phases — generation de contenu (LLM reflection) et formatage de presentation :
 
 ```python
 ProactiveTaskResult(
     content="...",
-    tokens_in=639,      # Tokens prompt (presentation LLM)
-    tokens_out=189,     # Tokens reponse
-    model_name="gpt-4.1-mini",
+    tokens_in=975,      # Generation + presentation input tokens
+    tokens_out=498,     # Generation + presentation output tokens
+    model_name="claude-sonnet-4-6",
 )
 ```
 

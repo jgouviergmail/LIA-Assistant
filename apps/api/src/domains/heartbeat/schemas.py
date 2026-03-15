@@ -151,7 +151,9 @@ class HeartbeatContext:
                 + (f" @ {e['location']}" if e.get("location") else "")
                 for e in self.calendar_events
             )
-            sections.append(f"UPCOMING CALENDAR EVENTS:\n{events_text}")
+            sections.append(
+                f"UPCOMING CALENDAR EVENTS (times in user's local timezone):\n{events_text}"
+            )
 
         if self.pending_tasks:
             tasks_text = "\n".join(

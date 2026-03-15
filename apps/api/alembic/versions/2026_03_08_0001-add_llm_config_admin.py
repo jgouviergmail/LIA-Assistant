@@ -7,8 +7,6 @@ Create Date: 2026-03-08
 Add tables for dynamic LLM configuration management:
 - provider_api_keys: Encrypted API keys per LLM provider
 - llm_config_overrides: Per-LLM-type config overrides
-
-Phase: LLM Admin Configuration (NanoBot evolution)
 """
 
 from collections.abc import Sequence

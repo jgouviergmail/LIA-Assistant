@@ -12,7 +12,12 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from src.domains.heartbeat.context_aggregator import ContextAggregator
+from src.domains.heartbeat.context_aggregator import (
+    ContextAggregator,
+    _extract_due_date,
+    _format_event_time,
+    _format_utc_datetime,
+)
 from src.domains.heartbeat.schemas import HeartbeatContext, WeatherChange
 
 # ---------------------------------------------------------------------------
@@ -502,3 +507,206 @@ class TestDetectWeatherChanges:
         changes = aggregator._detect_weather_changes(current, hourly, user_tz, settings)
 
         assert changes == []
+
+
+# ---------------------------------------------------------------------------
+# _format_event_time (timezone conversion for calendar events)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestFormatEventTime:
+    """Tests for _format_event_time helper.
+
+    The function accepts a start/end dict (Google/Microsoft/Apple format)
+    and converts to a human-readable local time string.
+    """
+
+    def test_google_utc_to_paris(self):
+        """Test Google format (offset in dateTime) converts to user timezone."""
+        user_tz = ZoneInfo("Europe/Paris")
+        # 14:00 UTC in winter = 15:00 CET (+1h)
+        result = _format_event_time({"dateTime": "2026-01-15T14:00:00Z"}, user_tz)
+        assert result == "2026-01-15 15:00"
+
+    def test_google_summer_time(self):
+        """Test conversion during summer time (CEST, +2h)."""
+        user_tz = ZoneInfo("Europe/Paris")
+        result = _format_event_time({"dateTime": "2026-07-15T14:00:00Z"}, user_tz)
+        assert result == "2026-07-15 16:00"
+
+    def test_google_offset_to_new_york(self):
+        """Test dateTime with explicit offset converted to another timezone."""
+        user_tz = ZoneInfo("America/New_York")
+        # 14:00 UTC = 09:00 EST (winter, -5h)
+        result = _format_event_time({"dateTime": "2026-01-15T14:00:00+00:00"}, user_tz)
+        assert result == "2026-01-15 09:00"
+
+    def test_google_same_timezone_no_shift(self):
+        """Test dateTime already in user timezone shows correct time."""
+        user_tz = ZoneInfo("Europe/Paris")
+        result = _format_event_time({"dateTime": "2026-01-15T15:00:00+01:00"}, user_tz)
+        assert result == "2026-01-15 15:00"
+
+    def test_microsoft_naive_datetime_with_timezone_field(self):
+        """Test Microsoft format (naive dateTime + separate timeZone field)."""
+        user_tz = ZoneInfo("America/New_York")
+        # Microsoft: 10:00 in Europe/Paris = 04:00 EST
+        result = _format_event_time(
+            {"dateTime": "2026-01-15T10:00:00", "timeZone": "Europe/Paris"}, user_tz
+        )
+        assert result == "2026-01-15 04:00"
+
+    def test_microsoft_naive_datetime_same_timezone(self):
+        """Test Microsoft format when user is in the same timezone as event."""
+        user_tz = ZoneInfo("Europe/Paris")
+        result = _format_event_time(
+            {"dateTime": "2026-01-15T10:00:00", "timeZone": "Europe/Paris"}, user_tz
+        )
+        assert result == "2026-01-15 10:00"
+
+    def test_naive_datetime_no_timezone_assumes_user_tz(self):
+        """Test naive dateTime without timeZone field assumes user's local timezone.
+
+        CalDAV servers often return local times without TZID. Assuming UTC would
+        shift the time by the user's UTC offset, causing wrong display.
+        """
+        user_tz = ZoneInfo("Europe/Paris")
+        # Naive 15:00 assumed Europe/Paris → displayed as 15:00 (no shift)
+        result = _format_event_time({"dateTime": "2026-01-15T15:00:00"}, user_tz)
+        assert result == "2026-01-15 15:00"
+
+    def test_today_event_shows_time_only(self):
+        """Test event happening today shows only HH:MM without date."""
+        user_tz = ZoneInfo("Europe/Paris")
+        now = datetime.now(user_tz)
+        # Build a dateTime for today at 18:00 UTC
+        today_str = now.strftime("%Y-%m-%d")
+        result = _format_event_time({"dateTime": f"{today_str}T18:00:00+01:00"}, user_tz)
+        assert result == "18:00"
+
+    def test_all_day_event(self):
+        """Test all-day event (date only) returns formatted date."""
+        user_tz = ZoneInfo("Europe/Paris")
+        result = _format_event_time({"date": "2026-03-15"}, user_tz)
+        assert result == "2026-03-15 (all day)"
+
+    def test_all_day_event_with_empty_datetime(self):
+        """Test all-day event where dateTime is absent but date is present."""
+        user_tz = ZoneInfo("Europe/Paris")
+        result = _format_event_time({"date": "2026-03-15", "dateTime": None}, user_tz)
+        assert result == "2026-03-15 (all day)"
+
+    def test_none_returns_question_mark(self):
+        """Test None input returns '?'."""
+        user_tz = ZoneInfo("Europe/Paris")
+        result = _format_event_time(None, user_tz)
+        assert result == "?"
+
+    def test_empty_dict_returns_question_mark(self):
+        """Test empty dict returns '?'."""
+        user_tz = ZoneInfo("Europe/Paris")
+        result = _format_event_time({}, user_tz)
+        assert result == "?"
+
+    def test_invalid_datetime_returns_raw(self):
+        """Test unparseable dateTime returns the raw string."""
+        user_tz = ZoneInfo("Europe/Paris")
+        result = _format_event_time({"dateTime": "not-a-datetime"}, user_tz)
+        assert result == "not-a-datetime"
+
+    def test_cross_day_event_includes_date(self):
+        """Test event crossing midnight in user timezone includes date."""
+        user_tz = ZoneInfo("Pacific/Auckland")
+        # 23:00 UTC on Jan 15 = 12:00 NZDT on Jan 16 (next day!)
+        result = _format_event_time({"dateTime": "2026-01-15T23:00:00Z"}, user_tz)
+        assert result == "2026-01-16 12:00"
+
+    def test_microsoft_invalid_timezone_falls_back_to_user_tz(self):
+        """Test Microsoft format with invalid timeZone falls back to user timezone."""
+        user_tz = ZoneInfo("Europe/Paris")
+        # Invalid timezone → assume user tz → 14:00 in Europe/Paris = 14:00 CET
+        result = _format_event_time(
+            {"dateTime": "2026-01-15T14:00:00", "timeZone": "Invalid/Zone"}, user_tz
+        )
+        assert result == "2026-01-15 14:00"
+
+
+# ---------------------------------------------------------------------------
+# _extract_due_date (task due date formatting)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestExtractDueDate:
+    """Tests for _extract_due_date helper."""
+
+    def test_rfc3339_google_format(self):
+        """Test Google Tasks RFC 3339 format extracts date only."""
+        assert _extract_due_date("2026-03-15T00:00:00.000Z") == "2026-03-15"
+
+    def test_rfc3339_microsoft_format(self):
+        """Test Microsoft To Do format extracts date only."""
+        assert _extract_due_date("2026-03-15T00:00:00Z") == "2026-03-15"
+
+    def test_plain_date(self):
+        """Test plain date passes through unchanged."""
+        assert _extract_due_date("2026-03-15") == "2026-03-15"
+
+    def test_none_returns_no_date(self):
+        """Test None returns 'no date'."""
+        assert _extract_due_date(None) == "no date"
+
+    def test_empty_string_returns_no_date(self):
+        """Test empty string returns 'no date'."""
+        assert _extract_due_date("") == "no date"
+
+    def test_short_string_passthrough(self):
+        """Test short string returns as-is."""
+        assert _extract_due_date("soon") == "soon"
+
+
+# ---------------------------------------------------------------------------
+# _format_utc_datetime (DB timestamp to user-local display)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestFormatUtcDatetime:
+    """Tests for _format_utc_datetime helper."""
+
+    def test_utc_to_paris(self):
+        """Test UTC datetime converted to Europe/Paris."""
+        user_tz = ZoneInfo("Europe/Paris")
+        dt = datetime(2026, 1, 15, 14, 30, tzinfo=UTC)
+        # 14:30 UTC = 15:30 CET
+        assert _format_utc_datetime(dt, user_tz) == "2026-01-15 15:30"
+
+    def test_utc_to_new_york(self):
+        """Test UTC datetime converted to America/New_York."""
+        user_tz = ZoneInfo("America/New_York")
+        dt = datetime(2026, 1, 15, 14, 30, tzinfo=UTC)
+        # 14:30 UTC = 09:30 EST
+        assert _format_utc_datetime(dt, user_tz) == "2026-01-15 09:30"
+
+    def test_cross_day_conversion(self):
+        """Test conversion that crosses midnight."""
+        user_tz = ZoneInfo("Pacific/Auckland")
+        dt = datetime(2026, 1, 15, 23, 0, tzinfo=UTC)
+        # 23:00 UTC = 12:00 NZDT next day (+13h)
+        assert _format_utc_datetime(dt, user_tz) == "2026-01-16 12:00"
+
+    def test_none_returns_question_mark(self):
+        """Test None input returns '?'."""
+        user_tz = ZoneInfo("Europe/Paris")
+        assert _format_utc_datetime(None, user_tz) == "?"
+
+    def test_naive_datetime_fallback(self):
+        """Test naive datetime is returned as string."""
+        user_tz = ZoneInfo("Europe/Paris")
+        dt = datetime(2026, 1, 15, 14, 30)
+        # Naive datetime — astimezone assumes system local tz, result varies
+        # Just verify it returns a string without crashing
+        result = _format_utc_datetime(dt, user_tz)
+        assert isinstance(result, str)
+        assert len(result) > 0

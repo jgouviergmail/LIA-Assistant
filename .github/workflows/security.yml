@@ -22,19 +22,19 @@ jobs:
         language: [python, javascript]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
+        uses: github/codeql-action/init@dd677812177e0c29f9c970a6c58d8607ae1bfefd # v4
         with:
           languages: ${{ matrix.language }}
           queries: +security-and-quality
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@v4
+        uses: github/codeql-action/autobuild@dd677812177e0c29f9c970a6c58d8607ae1bfefd # v4
 
       - name: Perform Analysis
-        uses: github/codeql-action/analyze@v4
+        uses: github/codeql-action/analyze@dd677812177e0c29f9c970a6c58d8607ae1bfefd # v4
         with:
           category: "/language:${{ matrix.language }}"
 
@@ -43,10 +43,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
           python-version: "3.12"
 
@@ -61,10 +61,10 @@ jobs:
         run: pip-audit --desc --fix --dry-run
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@5b4374b04084dc1f9032b52464284b769ac5059e # v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version: "22"
           cache: pnpm
@@ -83,10 +83,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Run Trivy filesystem scan
-        uses: aquasecurity/trivy-action@0.29.0
+        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947b394f2dd8c87dbb0 # 0.29.0
         with:
           scan-type: fs
           scan-ref: "."
@@ -95,7 +95,7 @@ jobs:
           severity: CRITICAL,HIGH
 
       - name: Upload Trivy results
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@dd677812177e0c29f9c970a6c58d8607ae1bfefd # v4
         if: always()
         with:
           sarif_file: trivy-results.sarif
@@ -105,14 +105,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Generate SBOM (CycloneDX)
-        uses: CycloneDX/gh-dotnet-generate-sbom@v1
+        uses: CycloneDX/gh-dotnet-generate-sbom@697f83d4a29dcc3fb5d78ecb1843d1ee4532a390 # v1
         continue-on-error: true
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
           python-version: "3.12"
 
@@ -124,7 +124,7 @@ jobs:
           cyclonedx-py environment -o sbom-backend.json --output-format json
 
       - name: Upload SBOM
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: sbom-backend
           path: ./apps/api/sbom-backend.json
