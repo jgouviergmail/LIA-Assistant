@@ -18,9 +18,9 @@
   <a href="https://fastapi.tiangolo.com/"><img src="https://img.shields.io/badge/FastAPI-0.135.1-009688?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI"></a>
   <a href="https://nextjs.org/"><img src="https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=nextdotjs&logoColor=white" alt="Next.js 16"></a>
   <a href="https://langchain-ai.github.io/langgraph/"><img src="https://img.shields.io/badge/LangGraph-1.0.10-FF6F00?style=flat-square" alt="LangGraph"></a>
-  <a href="https://python.langchain.com/"><img src="https://img.shields.io/badge/LangChain-1.2.17-4B8BBE?style=flat-square" alt="LangChain"></a>
+  <a href="https://python.langchain.com/"><img src="https://img.shields.io/badge/LangChain-1.2.10-4B8BBE?style=flat-square" alt="LangChain"></a>
   <a href="#internationalization-i18n--6-languages"><img src="https://img.shields.io/badge/i18n-6%20languages-E040FB?style=flat-square" alt="6 languages"></a>
-  <a href="#"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue?style=flat-square" alt="License"></a>
+  <a href="#license"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue?style=flat-square" alt="License"></a>
 </p>
 
 <p align="center">
@@ -328,6 +328,7 @@ A web-based administration panel covering every operational aspect:
 | Section | Capabilities |
 |---------|-------------|
 | **LLM Configuration** | Model selection per node, provider parameters, temperature/token limits, prompt versions |
+| **RAG Knowledge Spaces** | Manage document spaces and embedding configuration, reindex operations |
 | **Personalities** | Create and manage assistant personalities (tone, language, behavior rules) |
 | **User Management** | User accounts, roles, permissions, connector status overview |
 | **Connector Management** | Google/Apple/Microsoft OAuth status, token health, per-user provider activation |
@@ -349,7 +350,7 @@ A multi-section debug panel embedded in the chat interface, providing real-time 
 | **Intent Analysis** | Intent classification, Domain detection, Routing decision (with confidence scores) |
 | **Execution Pipeline** | Planner output, Execution waves, Tool calls (inputs/outputs), ForEach analysis |
 | **LLM Internals** | LLM call details (model, tokens, latency), Token budget tracking, Google API calls |
-| **Context & Memory** | Context resolution, Memory injection, Knowledge enrichment, Interest profile |
+| **Context & Memory** | Context resolution, Memory injection, Knowledge enrichment, RAG injection (scores), Interest profile |
 | **Intelligence** | Intelligent mechanisms (cache hits, pattern learning, semantic expansion) |
 | **Lifecycle** | Full request lifecycle with timing breakdown per phase |
 
@@ -503,7 +504,7 @@ graph TD
     F -->|approved| G[Task Orchestrator]
     F -->|rejected| C
     G --> H[Domain Agents]
-    H --> I[Google APIs]
+    H --> I[External APIs\nGoogle • Apple • Microsoft • MCP]
     I --> H
     H --> G
     G --> C
@@ -526,12 +527,17 @@ apps/api/src/
 │   │   └── orchestration/   # ExecutionPlan, parallel executor
 │   ├── auth/                # JWT, sessions, OAuth
 │   ├── connectors/          # Google + Apple + Microsoft clients, provider resolver
+│   ├── conversations/       # Conversation CRUD & history
 │   ├── google_api/          # Google API pricing & usage tracking (v6.1)
 │   ├── rag_spaces/          # RAG Knowledge Spaces (upload, embed, retrieve)
 │   ├── user_mcp/            # Per-user MCP servers (CRUD, OAuth, domain routing)
 │   ├── voice/               # TTS factory, STT, Wake Word
+│   ├── skills/              # Skills system (agentskills.io standard)
 │   ├── interests/           # Interest Learning System
 │   ├── heartbeat/           # Autonomous Heartbeat (Proactive Notifications)
+│   ├── channels/            # Multi-channel messaging (Telegram)
+│   ├── reminders/           # Reminder & notification scheduling
+│   ├── scheduled_actions/   # Recurring scheduled actions
 │   └── users/               # User management
 └── infrastructure/          # Cross-cutting concerns
     ├── cache/               # Redis sessions, LLM cache
@@ -554,12 +560,15 @@ apps/api/src/
 | LangGraph | 1.0.10 | Multi-agent orchestration |
 | LangChain | 1.2.10 | LLM abstraction + tools |
 | SQLAlchemy | 2.0.45 | Async ORM |
+| Alembic | latest | Database migrations |
 | PostgreSQL | 16 + pgvector | Database + vector search |
 | Redis | 7.1.0 | Cache, sessions, rate limiting |
 | Pydantic | 2.12.5 | Validation + serialization |
+| structlog | latest | Structured JSON logging |
 | sentence-transformers | 5.0+ | Local E5 embeddings |
 | Edge TTS | 6.1+ | Voice synthesis (free) |
 | mcp | 1.9+ | Model Context Protocol SDK (Streamable HTTP) |
+| Docker | 24+ | Containerization (multi-arch amd64/arm64) |
 
 ### Frontend
 
@@ -741,11 +750,11 @@ cd LIA-Assistant
 # 2. Create a branch
 git checkout -b feature/my-feature
 
-# 3. Install pre-commit hooks
-pre-commit install
+# 3. Full setup (backend + frontend + git hooks)
+task setup
 
 # 4. Develop and test
-pytest tests/unit -v
+cd apps/api && .venv/Scripts/pytest tests/unit -v
 
 # 5. Commit (Conventional Commits)
 git commit -m "feat(agents): add weather forecast agent"
