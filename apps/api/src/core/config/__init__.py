@@ -38,6 +38,7 @@ from .llm import (
 from .mcp import MCPSettings
 from .notifications import NotificationSettings
 from .observability import ObservabilitySettings
+from .rag_spaces import RAGSpacesSettings
 from .security import SecuritySettings
 from .skills import SkillsSettings
 from .voice import VoiceSettings
@@ -80,6 +81,7 @@ class Settings(
     MCPSettings,
     ChannelsSettings,
     AttachmentsSettings,
+    RAGSpacesSettings,
     SkillsSettings,
     BaseSettings,
 ):
@@ -101,8 +103,9 @@ class Settings(
         10. MCPSettings (MCP external tool servers)
         11. ChannelsSettings (multi-channel messaging: Telegram, etc.)
         12. AttachmentsSettings (file uploads in chat: images, PDF)
-        13. SkillsSettings (Agent Skills: agentskills.io standard)
-        14. BaseSettings (Pydantic base class)
+        13. RAGSpacesSettings (user knowledge spaces: upload, embed, retrieve)
+        14. SkillsSettings (Agent Skills: agentskills.io standard)
+        15. BaseSettings (Pydantic base class)
 
     All settings can be overridden via .env file or environment variables.
     """
@@ -335,4 +338,5 @@ __all__ = [
     "ChannelsSettings",
     "AttachmentsSettings",
     "SkillsSettings",
+    "RAGSpacesSettings",
 ]

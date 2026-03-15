@@ -2026,6 +2026,27 @@ class StreamingService:
             )
 
         # =================================================================
+        # RAG Injection: Injected RAG chunks with scores for debug panel
+        # =================================================================
+        try:
+            rag_debug = state.get("rag_injection_debug") if state else None
+            if rag_debug:
+                debug_metrics["rag_injection"] = rag_debug
+                logger.debug(
+                    "debug_metrics_rag_injection_added",
+                    run_id=run_id,
+                    spaces_searched=rag_debug.get("spaces_searched", 0),
+                    chunks_injected=rag_debug.get("chunks_injected", 0),
+                )
+        except (KeyError, TypeError, AttributeError) as rag_err:
+            logger.debug(
+                "debug_metrics_rag_injection_failed",
+                run_id=run_id,
+                error=str(rag_err),
+                error_type=type(rag_err).__name__,
+            )
+
+        # =================================================================
         # Skills: Skill activation details for debug panel
         # =================================================================
         try:

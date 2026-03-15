@@ -2,7 +2,7 @@
 
 **Document de reference technique - Observabilite Production avec Grafana**
 
-> **Version 4.0** | 2026-03-09 | 17 dashboards, 291+ panels
+> **Version 4.0** | 2026-03-09 | 18 dashboards, 312+ panels
 
 ---
 
@@ -23,7 +23,7 @@
 
 ### Objectifs
 
-Les **17 dashboards Grafana** fournissent une observabilite complete pour :
+Les **18 dashboards Grafana** fournissent une observabilite complete pour :
 
 1. **Monitoring production** : Sante applicative, SLOs, performance HTTP, ressources infrastructure
 2. **Agent debugging** : Pipeline d'orchestration LangGraph, router, planner, outils, HITL
@@ -36,8 +36,8 @@ Les **17 dashboards Grafana** fournissent une observabilite complete pour :
 
 | Indicateur | Valeur |
 |------------|--------|
-| Dashboards | 17 |
-| Panels total | 291+ |
+| Dashboards | 18 |
+| Panels total | 312+ |
 | Recording rules | 70+ |
 | Schema version | 38 (Grafana 11.3) |
 | graphTooltip | 1 (shared crosshair) sur tous les dashboards |
@@ -71,7 +71,7 @@ OpenTelemetry OTLP --> Tempo --> Grafana
 
 | Datasource | UID | Type | Dashboards |
 |------------|-----|------|------------|
-| Prometheus | `prometheus` | Metriques + recording rules | Tous (01-17) |
+| Prometheus | `prometheus` | Metriques + recording rules | Tous (01-18) |
 | Loki | `loki` | Logs structures | 05, 06, 17 |
 | Tempo | `tempo` | Traces distribuees | 06 |
 
@@ -81,7 +81,7 @@ OpenTelemetry OTLP --> Tempo --> Grafana
 |---------|---------|
 | `infrastructure/observability/prometheus/prometheus.yml` | Configuration scrape Prometheus |
 | `infrastructure/observability/prometheus/recording_rules.yml` | 70+ recording rules |
-| `infrastructure/observability/grafana/dashboards/*.json` | 17 fichiers JSON de dashboards |
+| `infrastructure/observability/grafana/dashboards/*.json` | 18 fichiers JSON de dashboards |
 | `infrastructure/observability/grafana/provisioning/` | Provisioning datasources et dashboards |
 
 ---
@@ -107,6 +107,7 @@ OpenTelemetry OTLP --> Tempo --> Grafana
 | 15 | LangGraph Framework Deep Dive | `15-langgraph-deep` | lia, langgraph, framework | 21 | Execution graphe, gestion d'etat, integration Langfuse |
 | 16 | Recording Rules & Alerts Health | `16-meta-health` | lia, meta, operational | 10 | Sante des recording rules, sante des alertes, validation et securite |
 | 17 | User Analytics & Geo | `17-user-analytics-geo` | lia, users, analytics, geo | 27 | Vue geographique (Geomap), engagement utilisateur, patterns d'activite, usage outils et agents, qualite et cout conversations, logs geo detailles |
+| 18 | RAG Spaces / Knowledge Documents | `18-rag-spaces` | lia, rag, spaces, knowledge | 21 | Vue d'ensemble RAG, pipeline de traitement documents, performance retrieval, couts embedding, reindexation |
 
 ---
 
@@ -188,6 +189,14 @@ Vue geographique via Geomap (DB-IP Lite City, compteur `http_requests_by_country
 
 ---
 
+### 18 - RAG Spaces / Knowledge Documents (21 panels)
+
+Vue d'ensemble des espaces de connaissances RAG : espaces actifs, documents traites, taux de succes, requetes de retrieval, tokens embedding. Pipeline de traitement documents (rate, duree percentiles, distribution chunks, tailles uploads). Performance retrieval (rate, latence percentiles, chunks retournes, raisons de skip). Couts embedding (tokens par operation, distribution statuts documents). Section reindexation (historique runs, succes/echecs).
+
+**Datasources** : Prometheus.
+
+---
+
 ## Variables et Datasources
 
 ### Variables de template
@@ -196,7 +205,7 @@ Tous les dashboards declarent au minimum :
 
 | Variable | Type | Description | Dashboards |
 |----------|------|-------------|------------|
-| `$datasource` | Datasource (Prometheus) | Source de metriques principale | Tous (01-17) |
+| `$datasource` | Datasource (Prometheus) | Source de metriques principale | Tous (01-18) |
 | `$datasource_loki` | Datasource (Loki) | Source de logs | 05, 06, 17 |
 | `$datasource_tempo` | Datasource (Tempo) | Source de traces | 06 |
 
@@ -313,6 +322,7 @@ infrastructure/observability/grafana/dashboards/
   15-langgraph-deep.json
   16-meta-health.json
   17-user-analytics-geo.json
+  18-rag-spaces.json
 ```
 
 ### Ajouter un panel
@@ -399,4 +409,4 @@ docker compose restart grafana
 **Version** : 4.0
 **Date** : 2026-03-09
 **Auteur** : Equipe LIA
-**Statut** : Production (17 dashboards, 291+ panels)
+**Statut** : Production (18 dashboards, 312+ panels)

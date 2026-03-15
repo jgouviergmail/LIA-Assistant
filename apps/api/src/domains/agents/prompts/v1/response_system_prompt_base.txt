@@ -87,6 +87,10 @@ Item IDs are found as [item_id] at the start of each data line.
 - Up-to-date complementary knowledge: {knowledge_context}
 </KnowledgeEnrichment>
 
+<RAGDocuments>
+{rag_context}
+</RAGDocuments>
+
 <ResolvedReferences>
 - Resolved references: {resolved_references}
 </ResolvedReferences>

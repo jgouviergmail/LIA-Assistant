@@ -1197,6 +1197,59 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                     )
 
         # =====================================================================
+        # RAG SPACES CONTEXT INJECTION
+        # =====================================================================
+        rag_context: str | None = None
+        rag_injection_debug: dict[str, Any] | None = None
+        if getattr(settings, "rag_spaces_enabled", False):
+            try:
+                from uuid import UUID as _UUID
+
+                from src.domains.rag_spaces.retrieval import retrieve_rag_context
+                from src.infrastructure.database.session import get_db_context
+
+                user_id_for_rag = config.get("configurable", {}).get("langgraph_user_id")
+                thread_id_for_rag = config.get("configurable", {}).get("thread_id")
+                if user_id_for_rag and last_user_message:
+                    async with get_db_context() as rag_db:
+                        rag_result = await retrieve_rag_context(
+                            user_id=_UUID(user_id_for_rag),
+                            query=last_user_message,
+                            db=rag_db,
+                            session_id=thread_id_for_rag,
+                            conversation_id=thread_id_for_rag,
+                            run_id=run_id,
+                        )
+                    if rag_result and rag_result.chunks:
+                        rag_context = rag_result.to_prompt_context()
+                        rag_injection_debug = {
+                            "spaces_searched": rag_result.spaces_searched,
+                            "chunks_found": rag_result.total_results,
+                            "chunks_injected": len(rag_result.chunks),
+                            "chunks": [
+                                {
+                                    "space": c.space_name,
+                                    "file": c.original_filename,
+                                    "score": c.score,
+                                }
+                                for c in rag_result.chunks
+                            ],
+                        }
+                        logger.info(
+                            "rag_injection_completed",
+                            run_id=run_id,
+                            user_id=user_id_for_rag,
+                            chunks_injected=len(rag_result.chunks),
+                            spaces_searched=rag_result.spaces_searched,
+                        )
+            except Exception as e:
+                logger.warning(
+                    "rag_injection_failed",
+                    run_id=run_id,
+                    error=str(e),
+                )
+
+        # =====================================================================
         # AWAIT KNOWLEDGE ENRICHMENT (if task was launched)
         # =====================================================================
         knowledge_context = ""
@@ -1353,6 +1406,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             window_size=settings.response_message_window_size,
             psychological_profile=psychological_profile,
             knowledge_context=knowledge_context,  # Brave Search enrichment
+            rag_context=rag_context or "",  # RAG Spaces user documents
             user_query=user_query_for_prompt,
             enriched_query=enriched_query,
             data_for_filtering=data_for_filtering,
@@ -1977,6 +2031,8 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         state_update["knowledge_enrichment_result"] = knowledge_enrichment_result
         # Memory Injection: Store debug details for debug panel (memory tuning)
         state_update["memory_injection_debug"] = memory_injection_debug
+        # RAG Spaces: Store debug details for debug panel
+        state_update["rag_injection_debug"] = rag_injection_debug
 
         # ===================================================================
         # PHASE 3.2 - BUSINESS METRICS INSTRUMENTATION

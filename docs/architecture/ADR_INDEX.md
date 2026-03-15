@@ -1957,6 +1957,42 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 
 ---
 
+### ADR-054: Voice Input Architecture
+
+**Status**: ✅ IMPLEMENTED (2026-02-02)
+**Fichier**: `docs/architecture/ADR-054-Voice-Input-Architecture.md`
+
+**Décision**: Architecture Voice Input avec STT offline (Sherpa-ONNX Whisper), Wake Word detection, et Push-to-Talk.
+
+---
+
+### ADR-055: RAG Spaces Architecture
+
+**Status**: ✅ IMPLEMENTED (2026-03-14)
+**Fichier**: `docs/architecture/ADR-055-RAG-Spaces-Architecture.md`
+
+**Décision**: Implémenter des **espaces de connaissances RAG** avec table dédiée `rag_chunks` (pgvector), **hybrid search** (semantic + BM25), et injection dans le Response Node.
+
+**Problème résolu**:
+- ❌ Pas de contexte documentaire personnel dans les conversations
+- ❌ `AsyncPostgresStore` incompatible (dimensions E5 384 vs OpenAI 1536)
+- ❌ Pas de recherche hybride sur documents utilisateur
+
+**Solution**:
+- ✅ Table dédiée `rag_chunks` avec colonne `Vector(1536)` pgvector
+- ✅ Hybrid search : `score = α × semantic + (1-α) × BM25`
+- ✅ `TrackedOpenAIEmbeddings` pour tracking automatique coûts
+- ✅ Pipeline background : extract → chunk → embed → persist
+- ✅ Admin reindexation (changement modèle embedding)
+
+**Impact**:
+- ✅ Espaces personnels activables/désactivables par utilisateur
+- ✅ Formats supportés : PDF, TXT, MD, DOCX
+- ✅ Coûts RAG intégrés dans le tracking existant
+- ✅ 14 métriques Prometheus + dashboard Grafana dédié
+
+---
+
 ## ADRs Archivés
 
 ### ADR-005 (Version Originale): Workflow-Based HITL

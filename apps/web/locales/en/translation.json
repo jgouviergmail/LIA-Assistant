@@ -30,7 +30,9 @@
     "back_to_dashboard": "Back to dashboard",
     "days": "days",
     "on": "On",
-    "off": "Off"
+    "off": "Off",
+    "enabled": "Enabled",
+    "disabled": "Disabled"
   },
   "broadcast": {
     "modal": {
@@ -1335,6 +1337,28 @@
         "userAccessEnabledSuccess": "User debug panel access enabled",
         "userAccessDisabledSuccess": "User debug panel access disabled"
       },
+      "ragSpaces": {
+        "title": "RAG Knowledge Spaces",
+        "subtitle": "Manage RAG document spaces and embedding configuration",
+        "featureStatus": "Feature Status",
+        "embeddingModel": "Embedding Model",
+        "embeddingModelDescription": "OpenAI model used to generate document embeddings. Configured via the RAG_SPACES_EMBEDDING_MODEL environment variable.",
+        "reindexTitle": "Reindex Documents",
+        "reindexDescription": "Reindex all documents across all users. Required after changing the embedding model.",
+        "reindexButton": "Reindex All",
+        "reindexStarted": "Reindexation started for {{count}} document(s)",
+        "reindexError": "Failed to start reindexation",
+        "reindexProgress": "{{processed}} / {{total}} documents processed",
+        "reindexFailed": "{{count}} document(s) failed",
+        "reindexConfirmTitle": "Reindex All Documents",
+        "reindexConfirmWarning": "This will reindex all RAG documents for all users with the current embedding model.",
+        "reindexConfirmCost": "All documents will be re-embedded (OpenAI API cost)",
+        "reindexConfirmDowntime": "RAG search will be temporarily unavailable during reindexation",
+        "reindexConfirmAction": "Start Reindexation",
+        "whatItDoes": "What it does",
+        "description": "RAG Knowledge Spaces allow users to upload documents (PDF, TXT, MD, DOCX) that are indexed and used to enrich AI responses with relevant context.",
+        "enableHint": "To enable this feature, set the RAG_SPACES_ENABLED=true environment variable and restart the server."
+      },
       "llmConfig": {
         "title": "LLM Configuration",
         "description": "Manage provider API keys and configuration for each LLM type",
@@ -1637,11 +1661,73 @@
       "otp_success": "Telegram account linked successfully!",
       "otp_error": "Error generating code.",
       "unlink_success": "Channel unlinked successfully."
+    },
+    "rag_spaces": {
+      "title": "Knowledge Spaces (RAG)",
+      "description": "Manage your RAG document spaces to enrich AI conversations.",
+      "no_spaces": "No knowledge spaces created yet.",
+      "create_first": "Create your first space",
+      "manage_all": "Manage all spaces →"
+    }
+  },
+  "spaces": {
+    "title": "Knowledge Spaces",
+    "subtitle": "Upload documents to enrich LIA's responses with your own knowledge.",
+    "create_title": "Create Space",
+    "create_description": "Create a new knowledge space to organize your documents.",
+    "create_button": "Create Space",
+    "create_success": "Space \"{{name}}\" created successfully.",
+    "create_error": "Failed to create space.",
+    "edit_title": "Edit Space",
+    "edit_description": "Update the name and description of this space.",
+    "edit_success": "Space updated successfully.",
+    "edit_error": "Failed to update space.",
+    "delete_title": "Delete Space?",
+    "delete_description": "Space \"{{name}}\" and all its documents will be permanently deleted. This action cannot be undone.",
+    "delete_success": "Space \"{{name}}\" deleted.",
+    "delete_error": "Failed to delete space.",
+    "toggle_activated": "Space \"{{name}}\" activated.",
+    "toggle_deactivated": "Space \"{{name}}\" deactivated.",
+    "activate": "Activate space",
+    "deactivate": "Deactivate space",
+    "name_label": "Name",
+    "name_placeholder": "e.g. Work Projects, Research Notes...",
+    "name_too_short": "Name must be at least 2 characters.",
+    "name_too_long": "Name must be at most 200 characters.",
+    "description_label": "Description",
+    "description_placeholder": "Optional description for this space...",
+    "empty_title": "No knowledge spaces yet",
+    "empty_description": "Create your first space to start uploading documents and enriching LIA's responses.",
+    "not_found": "Space not found.",
+    "back_to_spaces": "Back to Spaces",
+    "doc_singular": "doc",
+    "docs_plural": "docs",
+    "indicator": "{{count}} RAG space(s) active",
+    "indicator_tooltip": "{{count}} knowledge space(s) enriching responses",
+    "documents": {
+      "upload_button": "Upload Document",
+      "upload_hint": "Drag & drop files here, or click to browse",
+      "upload_success": "\"{{name}}\" uploaded successfully.",
+      "upload_error": "Failed to upload \"{{name}}\".",
+      "delete_success": "Document deleted.",
+      "delete_error": "Failed to delete document.",
+      "empty": "No documents yet. Upload files to start indexing.",
+      "status": {
+        "processing": "Processing...",
+        "ready": "Ready",
+        "error": "Error",
+        "reindexing": "Reindexing..."
+      },
+      "upload_formats": "PDF, TXT, MD, DOCX — max {{maxSize}}MB",
+      "chunk_count": "{{count}} chunks",
+      "embedding_tokens": "{{count}} tokens",
+      "file_too_large": "\"{{name}}\" is too large (max {{maxSize}} MB)"
     }
   },
   "navigation": {
     "dashboard": "Home",
     "chat": "Chat",
+    "spaces": "Knowledge",
     "settings": "Settings",
     "logout": "Sign out",
     "profile": "Profile",
@@ -1680,6 +1766,10 @@
     "settings": {
       "title": "An error occurred",
       "message": "Unable to load settings. Please try again."
+    },
+    "spaces": {
+      "title": "Spaces Error",
+      "message": "An error occurred while loading knowledge spaces."
     }
   },
   "validation": {
@@ -1994,6 +2084,10 @@
         "skills": {
           "title": "Skills",
           "description": "Supercharge LIA with custom expert skills for your business or personal needs. Compatible with the open Anthropic standard used by Claude Code, Cursor, VS Code, and 30+ tools."
+        },
+        "ragSpaces": {
+          "title": "📚 RAG Knowledge Spaces",
+          "description": "Create personal knowledge spaces and upload your own documents (PDF, TXT, MD, DOCX). Documents are automatically processed (text extraction, chunking, OpenAI embedding). Active spaces enrich assistant responses via hybrid search combining semantic similarity (pgvector cosine) and BM25 keyword matching. Full cost transparency with per-document and per-query embedding tracking. Admin reindexation endpoint for embedding model changes."
         }
       },
       "diagram_alt": "LIA architecture diagram"
@@ -2528,6 +2622,37 @@
           "q6": {
             "question": "Can I download or share a skill?",
             "answer": "<p>Yes. Hover over any skill in settings and click the <strong>download</strong> icon (⬇️). You will get a <code>.zip</code> file containing SKILL.md and all associated files (references/, scripts/, assets/).</p><p>Share this zip with other users or publish it on agentskills.io-compatible marketplaces.</p>"
+          }
+        }
+      },
+      "rag_spaces": {
+        "title": "Knowledge Spaces (RAG)",
+        "description": "Upload and use your own documents to enrich AI responses",
+        "count": "6",
+        "questions": {
+          "q1": {
+            "question": "What are Knowledge Spaces?",
+            "answer": "<p>Knowledge Spaces (RAG — Retrieval-Augmented Generation) allow you to upload your own documents to create personal knowledge bases. When you ask a question, LIA automatically searches these documents and enriches its responses with relevant content.</p><p><strong>Key features:</strong><ul><li>Upload PDF, TXT, Markdown, and DOCX files</li><li>Automatic chunking and indexing via OpenAI embeddings</li><li>Hybrid search (semantic + BM25 keyword) for optimal relevance</li><li>Source citations in responses</li></ul></p>"
+          },
+          "q2": {
+            "question": "What file formats are supported?",
+            "answer": "<p>Knowledge Spaces accept the following formats:</p><ul><li><strong>PDF</strong> — text extraction via PyMuPDF</li><li><strong>TXT</strong> — plain text files</li><li><strong>Markdown (.md)</strong> — documentation and notes</li><li><strong>DOCX</strong> — Microsoft Word documents</li></ul><p><strong>Limits:</strong> maximum 20 MB per file, up to 50 documents per space, and 10 spaces per user.</p>"
+          },
+          "q3": {
+            "question": "How does document processing work?",
+            "answer": "<p>When you upload a document, LIA processes it in the background:</p><ol><li><strong>Text extraction</strong> — content is extracted based on file type</li><li><strong>Chunking</strong> — text is split into overlapping segments (1000 characters with 200 overlap)</li><li><strong>Embedding</strong> — each chunk is converted to a vector using OpenAI's embedding model</li><li><strong>Indexing</strong> — vectors are stored in PostgreSQL (pgvector) for fast similarity search</li></ol><p>The document status changes from <em>processing</em> to <em>ready</em> when complete. If an error occurs, the status shows <em>error</em> with details.</p>"
+          },
+          "q4": {
+            "question": "How do I activate or deactivate a space?",
+            "answer": "<p>Each space has an <strong>activation toggle</strong>. When a space is active, its documents are included in RAG searches during conversations.</p><p><strong>Tips:</strong><ul><li>Only activate spaces relevant to your current work to improve relevance</li><li>An indicator in the chat header shows how many spaces are active</li><li>Click the indicator to quickly manage your spaces</li><li>Deactivating a space does not delete any data — you can reactivate it anytime</li></ul></p>"
+          },
+          "q5": {
+            "question": "How does hybrid search work?",
+            "answer": "<p>LIA uses a <strong>hybrid search</strong> combining two complementary techniques:</p><ul><li><strong>Semantic search</strong> — finds content with similar meaning using vector embeddings (cosine similarity)</li><li><strong>BM25 keyword search</strong> — finds content with matching keywords (exact term matching)</li></ul><p>Results are merged using a weighted fusion formula. This ensures both conceptually relevant and keyword-accurate results are surfaced.</p><p><strong>Quality controls:</strong> minimum relevance score threshold, token budget limit (2000 tokens max), and configurable number of chunks per query.</p>"
+          },
+          "q6": {
+            "question": "How much does RAG cost?",
+            "answer": "<p>RAG uses OpenAI embeddings, which have a small cost:</p><ul><li><strong>Indexing</strong> (upload) — one-time cost per document, using <code>text-embedding-3-small</code> ($0.02/million tokens)</li><li><strong>Search</strong> (each query) — embedding of your question (~few tokens per query)</li></ul><p>Costs are <strong>fully tracked</strong> and visible in the assistant message cost breakdown and your usage dashboard. The RAG embedding cost appears under the <code>text-embedding-3-small</code> model.</p><p><strong>Tip:</strong> For a typical 10-page PDF, indexing costs less than $0.001.</p>"
           }
         }
       },
@@ -3389,6 +3514,10 @@
       "skills": {
         "title": "Skills",
         "description": "Specialize LIA for your business or personal needs with ready-to-use expert instructions. Compatible with the open Anthropic standard shared by Claude Code, Cursor, VS Code, and 30+ tools."
+      },
+      "rag_spaces": {
+        "title": "Knowledge Spaces",
+        "description": "Upload your own documents (PDF, TXT, MD, DOCX) into personal knowledge spaces. LIA automatically enriches its responses with relevant content via hybrid search (semantic + keyword)."
       }
     },
     "use_cases": {
@@ -3493,7 +3622,6 @@
     },
     "footer": {
       "copyright": "© {{year}} LIA. All rights reserved.",
-      "version": "v1.0.0",
       "docs": "Documentation",
       "privacy": "Privacy"
     }

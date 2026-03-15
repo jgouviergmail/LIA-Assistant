@@ -348,6 +348,7 @@ def get_response_prompt(
     resolved_references: dict[str, str] | None = None,
     anticipated_needs: list[str] | None = None,
     skills_context: str = "",
+    rag_context: str = "",
 ) -> str:
     """Get the formatted system prompt for the response node.
 
@@ -386,6 +387,8 @@ def get_response_prompt(
         skills_context: Skills content per activation route.
             Routes 1+2 (planner/bypass): L2 <skill_content> structured wrapping.
             Route 3 (conversation): L1 catalogue with activate_skill_tool instruction.
+        rag_context: RAG Spaces context from user's knowledge documents.
+            Injected from RAG retrieval service (hybrid semantic + BM25 search).
 
     Returns:
         Formatted system prompt string ready for ChatPromptTemplate construction.
@@ -440,6 +443,7 @@ def get_response_prompt(
 
     # Skills context: escape braces for ChatPromptTemplate safety
     safe_skills_context = escape_braces(skills_context) if skills_context else ""
+    safe_rag_context = escape_braces(rag_context) if rag_context else ""
 
     formatted_system_prompt = response_system_prompt_template.format(
         fewshot_examples=fewshot_examples,
@@ -450,6 +454,7 @@ def get_response_prompt(
         window_size=window_size,
         psychological_profile=psychological_profile or "",
         knowledge_context=safe_knowledge_context,
+        rag_context=safe_rag_context,
         user_query=safe_user_query,
         enriched_query=safe_enriched_query,
         data_for_filtering=safe_data_for_filtering,

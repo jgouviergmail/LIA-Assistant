@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-03-14
+
+### Added
+
+- **RAG Knowledge Spaces**: Users can create personal knowledge spaces containing their own documents (PDF, TXT, MD, DOCX) to enrich AI assistant responses
+  - **Space management**: Create, edit, delete, and toggle activation of knowledge spaces per user
+  - **Document processing pipeline**: Background processing with text extraction, chunking (RecursiveCharacterTextSplitter), and embedding (OpenAI `text-embedding-3-small` via TrackedOpenAIEmbeddings)
+  - **Hybrid search retrieval**: Semantic similarity (pgvector cosine) + BM25 keyword matching with configurable alpha fusion
+  - **Response Node injection**: RAG context automatically injected into assistant responses when active spaces exist
+  - **Full cost transparency**: Embedding costs tracked per document (indexing) and per query (retrieval) in TokenUsageLog, MessageTokenSummary, and UserStatistics
+  - **Admin reindexation**: Endpoint to reindex all documents after embedding model change, with Redis flag to disable RAG during migration and automatic vector dimension ALTER
+  - **14 Prometheus metrics**: Document processing RED, retrieval performance, space lifecycle Gauges, reindex tracking
+  - **Grafana dashboard**: Dedicated RAG Spaces dashboard (18th) with 21 panels
+  - **Full frontend**: Space list, detail, document upload (drag & drop + progress), processing status polling, activation toggle, active spaces indicator in chat, settings section
+  - **i18n**: Full translation support in 6 languages (en, fr, de, es, it, zh)
+  - **Feature flag**: `RAG_SPACES_ENABLED=true` to enable (default: true)
+
 ## [1.3.0] - 2026-03-14
 
 ### Changed
@@ -86,7 +103,8 @@ First public open-source release of LIA.
 - Circuit breaker, rate limiting, and distributed locks
 - SOPS/Age encryption for secrets management
 
-[Unreleased]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.0.0...v1.1.0

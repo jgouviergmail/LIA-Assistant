@@ -4,8 +4,8 @@
 >
 > Version: 1.3
 > Date: 2026-03-09
-> Architecture: Prometheus + Grafana (17 dashboards, 291+ panels)
-> Total métriques: 530+ métriques (135 instrumentées + 390 recording rules)
+> Architecture: Prometheus + Grafana (18 dashboards, 312+ panels)
+> Total métriques: 545+ métriques (149 instrumentées + 390 recording rules)
 > Compliance: OpenTelemetry conventions, Google SRE best practices
 
 ---
@@ -2308,6 +2308,66 @@ sum(rate(memory_bm25_cache_hits_total[5m])) /
 ```promql
 # Cache utilization
 memory_bm25_cache_size / 100  # Assuming max 100 users
+```
+
+---
+
+## RAG Spaces (14 métriques)
+
+Métriques pour les espaces de connaissances RAG (upload, processing, retrieval, embedding, reindex).
+Source: `apps/api/src/infrastructure/observability/metrics_rag_spaces.py`
+
+### Document Processing
+
+| Métrique | Type | Labels | Description |
+|----------|------|--------|-------------|
+| `rag_documents_processed_total` | Counter | `status` (success/error) | Documents processed through pipeline |
+| `rag_document_processing_duration_seconds` | Histogram | — | Processing pipeline duration |
+| `rag_document_chunks_total` | Histogram | — | Chunks produced per document |
+| `rag_document_upload_size_bytes` | Histogram | `content_type` | Upload file sizes |
+
+### Retrieval
+
+| Métrique | Type | Labels | Description |
+|----------|------|--------|-------------|
+| `rag_retrieval_requests_total` | Counter | `has_results` (true/false) | Retrieval requests |
+| `rag_retrieval_duration_seconds` | Histogram | — | Retrieval latency (embed + search + fusion) |
+| `rag_retrieval_chunks_returned` | Histogram | — | Chunks returned per query |
+| `rag_retrieval_skipped_total` | Counter | `reason` (no_active_spaces/reindex_in_progress/error) | Skipped retrievals |
+
+### Embedding
+
+| Métrique | Type | Labels | Description |
+|----------|------|--------|-------------|
+| `rag_embedding_tokens_total` | Counter | `operation` (index) | RAG embedding tokens consumed |
+
+### Space Lifecycle
+
+| Métrique | Type | Labels | Description |
+|----------|------|--------|-------------|
+| `rag_spaces_active_count` | Gauge | — | Current active RAG spaces |
+| `rag_spaces_total_count` | Gauge | — | Total RAG spaces |
+| `rag_documents_total_count` | Gauge | `status` (processing/ready/error/reindexing) | Total RAG documents by status |
+
+### Reindex
+
+| Métrique | Type | Labels | Description |
+|----------|------|--------|-------------|
+| `rag_reindex_runs_total` | Counter | `status` (started/completed/failed) | Reindex runs |
+| `rag_reindex_documents_total` | Counter | `status` (success/error) | Documents reindexed |
+
+**Query PromQL:**
+
+```promql
+# Document processing success rate
+sum(rate(rag_documents_processed_total{status="success"}[1h])) /
+sum(rate(rag_documents_processed_total[1h]))
+
+# Retrieval P95 latency
+histogram_quantile(0.95, sum(rate(rag_retrieval_duration_seconds_bucket[5m])) by (le))
+
+# Embedding cost (tokens/hour by operation)
+sum by (operation) (rate(rag_embedding_tokens_total[1h]))
 ```
 
 ---

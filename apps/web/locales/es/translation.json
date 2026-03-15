@@ -30,7 +30,9 @@
     "later": "Más tarde",
     "optional": "Opcional",
     "off": "Desactivado",
-    "on": "Activado"
+    "on": "Activado",
+    "enabled": "Activado",
+    "disabled": "Desactivado"
   },
   "theme": {
     "toggle": "Cambiar tema"
@@ -1199,6 +1201,28 @@
         "userAccessEnabledSuccess": "Acceso de usuarios al panel de depuración activado",
         "userAccessDisabledSuccess": "Acceso de usuarios al panel de depuración desactivado"
       },
+      "ragSpaces": {
+        "title": "Espacios de conocimiento RAG",
+        "subtitle": "Gestionar los espacios documentales RAG y la configuración de embeddings",
+        "featureStatus": "Estado de la funcionalidad",
+        "embeddingModel": "Modelo de embedding",
+        "embeddingModelDescription": "Modelo OpenAI utilizado para generar embeddings de documentos. Configurado mediante la variable de entorno RAG_SPACES_EMBEDDING_MODEL.",
+        "reindexTitle": "Reindexar documentos",
+        "reindexDescription": "Reindexa todos los documentos de todos los usuarios. Necesario después de cambiar el modelo de embedding.",
+        "reindexButton": "Reindexar todo",
+        "reindexStarted": "Reindexación iniciada para {{count}} documento(s)",
+        "reindexError": "Error al iniciar la reindexación",
+        "reindexProgress": "{{processed}} / {{total}} documentos procesados",
+        "reindexFailed": "{{count}} documento(s) fallidos",
+        "reindexConfirmTitle": "Reindexar todos los documentos",
+        "reindexConfirmWarning": "Esta acción reindexará todos los documentos RAG de todos los usuarios con el modelo de embedding actual.",
+        "reindexConfirmCost": "Todos los documentos se re-codificarán (coste API OpenAI)",
+        "reindexConfirmDowntime": "La búsqueda RAG estará temporalmente no disponible durante la reindexación",
+        "reindexConfirmAction": "Iniciar reindexación",
+        "whatItDoes": "Funcionamiento",
+        "description": "Los espacios de conocimiento RAG permiten a los usuarios subir documentos (PDF, TXT, MD, DOCX) que se indexan y utilizan para enriquecer las respuestas de la IA con contexto relevante.",
+        "enableHint": "Para activar esta funcionalidad, defina la variable de entorno RAG_SPACES_ENABLED=true y reinicie el servidor."
+      },
       "llmConfig": {
         "title": "Configuración LLM",
         "description": "Gestione las claves API de los proveedores y la configuración de cada tipo LLM",
@@ -1708,11 +1732,73 @@
       "otp_success": "¡Cuenta de Telegram vinculada con éxito!",
       "otp_error": "Error al generar el código.",
       "unlink_success": "Canal desvinculado con éxito."
+    },
+    "rag_spaces": {
+      "title": "Espacios de conocimiento (RAG)",
+      "description": "Gestione sus espacios de documentos RAG para enriquecer las conversaciones con IA.",
+      "no_spaces": "Aún no se han creado espacios de conocimiento.",
+      "create_first": "Cree su primer espacio",
+      "manage_all": "Gestionar todos los espacios →"
+    }
+  },
+  "spaces": {
+    "title": "Espacios de conocimiento",
+    "subtitle": "Suba documentos para enriquecer las respuestas de LIA con sus propios conocimientos.",
+    "create_title": "Crear espacio",
+    "create_description": "Cree un nuevo espacio de conocimiento para organizar sus documentos.",
+    "create_button": "Crear espacio",
+    "create_success": "Espacio \"{{name}}\" creado con éxito.",
+    "create_error": "Error al crear el espacio.",
+    "edit_title": "Editar espacio",
+    "edit_description": "Actualizar el nombre y la descripción de este espacio.",
+    "edit_success": "Espacio actualizado con éxito.",
+    "edit_error": "Error al actualizar el espacio.",
+    "delete_title": "¿Eliminar espacio?",
+    "delete_description": "El espacio \"{{name}}\" y todos sus documentos se eliminarán permanentemente. Esta acción no se puede deshacer.",
+    "delete_success": "Espacio \"{{name}}\" eliminado.",
+    "delete_error": "Error al eliminar el espacio.",
+    "toggle_activated": "Espacio \"{{name}}\" activado.",
+    "toggle_deactivated": "Espacio \"{{name}}\" desactivado.",
+    "activate": "Activar espacio",
+    "deactivate": "Desactivar espacio",
+    "name_label": "Nombre",
+    "name_placeholder": "ej. Proyectos de trabajo, Notas de investigación...",
+    "name_too_short": "El nombre debe tener al menos 2 caracteres.",
+    "name_too_long": "El nombre no debe superar los 200 caracteres.",
+    "description_label": "Descripción",
+    "description_placeholder": "Descripción opcional de este espacio...",
+    "empty_title": "Aún no hay espacios de conocimiento",
+    "empty_description": "Cree su primer espacio para empezar a subir documentos y enriquecer las respuestas de LIA.",
+    "not_found": "Espacio no encontrado.",
+    "back_to_spaces": "Volver a espacios",
+    "doc_singular": "doc",
+    "docs_plural": "docs",
+    "indicator": "{{count}} espacio(s) RAG activo(s)",
+    "indicator_tooltip": "{{count}} espacio(s) de conocimiento enriquecen las respuestas",
+    "documents": {
+      "upload_button": "Subir documento",
+      "upload_hint": "Arrastre y suelte archivos aquí o haga clic para buscar",
+      "upload_success": "\"{{name}}\" subido con éxito.",
+      "upload_error": "Error al subir \"{{name}}\".",
+      "delete_success": "Documento eliminado.",
+      "delete_error": "Error al eliminar el documento.",
+      "empty": "Sin documentos. Suba archivos para comenzar la indexación.",
+      "status": {
+        "processing": "Procesando...",
+        "ready": "Listo",
+        "error": "Error",
+        "reindexing": "Reindexando..."
+      },
+      "upload_formats": "PDF, TXT, MD, DOCX — máx. {{maxSize}} MB",
+      "chunk_count": "{{count}} fragmentos",
+      "embedding_tokens": "{{count}} tokens",
+      "file_too_large": "\"{{name}}\" es demasiado grande (máx. {{maxSize}} MB)"
     }
   },
   "navigation": {
     "dashboard": "Inicio",
     "chat": "Chat",
+    "spaces": "Conocimiento",
     "settings": "Ajustes",
     "logout": "Cerrar sesión",
     "profile": "Perfil",
@@ -1751,6 +1837,10 @@
     "settings": {
       "title": "Se produjo un error",
       "message": "No se pudo cargar la configuración. Por favor, inténtelo de nuevo."
+    },
+    "spaces": {
+      "title": "Error de Espacios",
+      "message": "Se produjo un error al cargar los espacios de conocimiento."
     }
   },
   "validation": {
@@ -2076,6 +2166,10 @@
         "skills": {
           "title": "Skills",
           "description": "Especializa LIA con habilidades expertas a medida para tus necesidades personales o de negocio. Compatible con el estándar abierto Anthropic de Claude Code, Cursor, VS Code y 30+ herramientas."
+        },
+        "ragSpaces": {
+          "title": "📚 Espacios de conocimiento RAG",
+          "description": "Crea espacios de conocimiento personales y sube tus propios documentos (PDF, TXT, MD, DOCX). Los documentos se procesan automáticamente (extracción de texto, fragmentación, embedding OpenAI). Los espacios activos enriquecen las respuestas del asistente mediante búsqueda híbrida que combina similitud semántica (pgvector coseno) y coincidencia por palabras clave BM25. Transparencia total de costos con seguimiento por documento y por consulta. Endpoint de reindexación admin para cambios de modelo de embedding."
         }
       },
       "diagram_alt": "Diagrama de arquitectura de LIA"
@@ -2610,6 +2704,37 @@
           "q6": {
             "question": "¿Puedo descargar o compartir una skill?",
             "answer": "<p>Sí. Pasa el cursor sobre cualquier skill en ajustes y haz clic en el icono de descarga (⬇️). Obtendrás un <code>.zip</code> con SKILL.md y todos los archivos asociados.</p>"
+          }
+        }
+      },
+      "rag_spaces": {
+        "title": "Espacios de conocimiento (RAG)",
+        "description": "Sube y utiliza tus propios documentos para enriquecer las respuestas de la IA",
+        "count": "6",
+        "questions": {
+          "q1": {
+            "question": "¿Qué son los Espacios de conocimiento?",
+            "answer": "<p>Los Espacios de conocimiento (RAG — Retrieval-Augmented Generation) te permiten subir tus propios documentos para crear bases de conocimiento personales. Cuando haces una pregunta, LIA busca automáticamente en estos documentos y enriquece sus respuestas con contenido relevante.</p><p><strong>Características principales:</strong><ul><li>Subida de archivos PDF, TXT, Markdown y DOCX</li><li>Fragmentación e indexación automática vía embeddings de OpenAI</li><li>Búsqueda híbrida (semántica + palabras clave BM25) para una relevancia óptima</li><li>Citas de fuentes en las respuestas</li></ul></p>"
+          },
+          "q2": {
+            "question": "¿Qué formatos de archivo se soportan?",
+            "answer": "<p>Los Espacios de conocimiento aceptan los siguientes formatos:</p><ul><li><strong>PDF</strong> — extracción de texto vía PyMuPDF</li><li><strong>TXT</strong> — archivos de texto plano</li><li><strong>Markdown (.md)</strong> — documentación y notas</li><li><strong>DOCX</strong> — documentos de Microsoft Word</li></ul><p><strong>Límites:</strong> máximo 20 MB por archivo, hasta 50 documentos por espacio y 10 espacios por usuario.</p>"
+          },
+          "q3": {
+            "question": "¿Cómo funciona el procesamiento de documentos?",
+            "answer": "<p>Cuando subes un documento, LIA lo procesa en segundo plano:</p><ol><li><strong>Extracción de texto</strong> — el contenido se extrae según el tipo de archivo</li><li><strong>Fragmentación</strong> — el texto se divide en segmentos con solapamiento (1000 caracteres con 200 de superposición)</li><li><strong>Embedding</strong> — cada segmento se convierte en un vector usando el modelo de embedding de OpenAI</li><li><strong>Indexación</strong> — los vectores se almacenan en PostgreSQL (pgvector) para búsqueda rápida por similitud</li></ol><p>El estado del documento cambia de <em>procesando</em> a <em>listo</em> cuando termina. Si ocurre un error, el estado muestra <em>error</em> con detalles.</p>"
+          },
+          "q4": {
+            "question": "¿Cómo activar o desactivar un espacio?",
+            "answer": "<p>Cada espacio tiene un <strong>interruptor de activación</strong>. Cuando un espacio está activo, sus documentos se incluyen en las búsquedas RAG durante las conversaciones.</p><p><strong>Consejos:</strong><ul><li>Activa solo los espacios relevantes para tu trabajo actual para mejorar la relevancia</li><li>Un indicador en el encabezado del chat muestra cuántos espacios están activos</li><li>Haz clic en el indicador para gestionar rápidamente tus espacios</li><li>Desactivar un espacio no elimina ningún dato — puedes reactivarlo en cualquier momento</li></ul></p>"
+          },
+          "q5": {
+            "question": "¿Cómo funciona la búsqueda híbrida?",
+            "answer": "<p>LIA utiliza una <strong>búsqueda híbrida</strong> que combina dos técnicas complementarias:</p><ul><li><strong>Búsqueda semántica</strong> — encuentra contenido con significado similar usando embeddings vectoriales (similitud coseno)</li><li><strong>Búsqueda por palabras clave BM25</strong> — encuentra contenido con palabras coincidentes (coincidencia exacta de términos)</li></ul><p>Los resultados se fusionan mediante una fórmula de fusión ponderada. Esto asegura que tanto los resultados conceptualmente relevantes como los textualmente precisos aparezcan.</p><p><strong>Controles de calidad:</strong> umbral mínimo de puntuación de relevancia, límite de presupuesto de tokens (máximo 2000 tokens) y número configurable de fragmentos por consulta.</p>"
+          },
+          "q6": {
+            "question": "¿Cuánto cuesta el RAG?",
+            "answer": "<p>El RAG utiliza embeddings de OpenAI, que tienen un coste reducido:</p><ul><li><strong>Indexación</strong> (subida) — coste único por documento usando <code>text-embedding-3-small</code> ($0,02/millón de tokens)</li><li><strong>Búsqueda</strong> (cada consulta) — embedding de tu pregunta (unos pocos tokens por consulta)</li></ul><p>Los costes se <strong>rastrean completamente</strong> y son visibles en el desglose de costes de los mensajes del asistente y en tu panel de uso. El coste de embedding RAG aparece bajo el modelo <code>text-embedding-3-small</code>.</p><p><strong>Consejo:</strong> para un PDF típico de 10 páginas, la indexación cuesta menos de $0,001.</p>"
           }
         }
       },
@@ -3479,6 +3604,10 @@
       "skills": {
         "title": "Skills",
         "description": "Especializa LIA para tus necesidades personales o de negocio con instrucciones expertas listas para usar. Compatible con el estándar abierto Anthropic de Claude Code, Cursor, VS Code y 30+ herramientas."
+      },
+      "rag_spaces": {
+        "title": "Espacios de conocimiento",
+        "description": "Sube tus propios documentos (PDF, TXT, MD, DOCX) a espacios de conocimiento personales. LIA enriquece automáticamente sus respuestas con contenido relevante mediante búsqueda híbrida (semántica + palabras clave)."
       }
     },
     "use_cases": {
@@ -3583,7 +3712,6 @@
     },
     "footer": {
       "copyright": "© {{year}} LIA. Todos los derechos reservados.",
-      "version": "v1.0.0",
       "docs": "Documentación",
       "privacy": "Privacidad"
     }

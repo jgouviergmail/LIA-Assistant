@@ -1,7 +1,7 @@
 # Architecture LIA
 
 > Architecture complète du système multi-agents avec LangGraph, observabilité enterprise et sécurité GDPR
-> **Version**: 6.2 (Architecture v3.3 + evolution Features: Web Fetch, MCP Per-User, MCP Admin Per-Server, Multi-Channel Telegram, Heartbeat Autonome) - 2026-03-04
+> **Version**: 6.2 (Architecture v3.4 + evolution Features: Web Fetch, MCP Per-User, MCP Admin Per-Server, Multi-Channel Telegram, Heartbeat Autonome, RAG Spaces) - 2026-03-14
 
 ## 📋 Table des Matières
 
@@ -82,7 +82,7 @@ Chaque domaine est un **bounded context** isolé avec :
 - Son service layer (business logic)
 - Ses schemas Pydantic (API contracts)
 
-**16 Domaines** :
+**17 Domaines** :
 1. **agents** - Orchestration multi-agents, 10 agents actifs, 50+ tools (cœur du système)
 2. **auth** - Authentification et autorisation
 3. **users** - Gestion utilisateurs
@@ -99,6 +99,7 @@ Chaque domaine est un **bounded context** isolé avec :
 14. **scheduled_actions** - Actions planifiées récurrentes (APScheduler CronTrigger)
 15. **user_mcp** - Serveurs MCP utilisateur (CRUD per-user, Model Context Protocol, auto-génération de description LLM)
 16. **channels** - Canaux de messagerie externes (Telegram) avec OTP linking, HITL inline keyboards, voice STT
+17. **rag_spaces** - Espaces de connaissances RAG (upload, embedding OpenAI, recherche hybride, injection Response Node)
 
 ### 2. Async-First
 
@@ -3755,6 +3756,33 @@ async with TrackingContext(user_id, run_id) as tracker:
 
 > Voir [HEARTBEAT_AUTONOME.md](./technical/HEARTBEAT_AUTONOME.md) pour la documentation complète.
 
+### RAG Knowledge Spaces (evolution F6)
+
+**Espaces de connaissances personnels** : les utilisateurs créent des espaces, importent des documents (PDF, TXT, MD, DOCX), et LIA enrichit automatiquement ses réponses avec le contenu pertinent.
+
+**Architecture** :
+
+| Couche | Composant | Rôle |
+|--------|-----------|------|
+| Domain | `domains/rag_spaces/` | Models, Repository, Service, Schemas, Router (CRUD spaces + documents) |
+| Processing | `domains/rag_spaces/processing.py` | Pipeline background : extraction texte → chunking → embedding OpenAI → bulk insert pgvector |
+| Retrieval | `domains/rag_spaces/retrieval.py` | Recherche hybride sémantique (pgvector cosine) + BM25 avec fusion alpha configurable |
+| Injection | `response_node.py` | Contexte RAG injecté dans le prompt de réponse (après mémoire, avant enrichment) |
+| Embedding | `infrastructure/llm/tracked_embeddings.py` | `TrackedOpenAIEmbeddings` avec tracking automatique tokens/coûts |
+| Observabilité | `metrics_rag_spaces.py` | 14 métriques Prometheus (processing RED, retrieval, lifecycle Gauges, reindex) |
+
+**Fonctionnalités** :
+
+- **Table dédiée `rag_chunks`** : colonne pgvector `Vector(1536)` avec index HNSW — séparée de `store_vectors` (dimensions incompatibles E5 384 vs OpenAI 1536)
+- **Recherche hybride** : `final_score = alpha * semantic + (1 - alpha) * bm25`, BM25 via `BM25IndexManager` existant
+- **Tracking coûts** : intégré dans `TokenUsageLog`, `MessageTokenSummary`, `UserStatistics` via `EmbeddingTrackingContext`
+- **Ré-indexation admin** : `POST /rag-spaces/admin/reindex` avec Redis mutex, ALTER TABLE dynamique des dimensions, flag `rag_reindex_in_progress`
+- **Feature flag** : `RAG_SPACES_ENABLED=true` (default: true)
+
+**Tables** : `rag_spaces`, `rag_documents`, `rag_chunks` avec FKs cascade et indexes optimisés.
+
+> Voir [GUIDE_RAG_SPACES.md](./guides/GUIDE_RAG_SPACES.md) et [ADR-055](./architecture/ADR-055-RAG-Spaces-Architecture.md) pour la documentation complète.
+
 ---
 
 ## 📚 Références
@@ -3796,6 +3824,7 @@ async with TrackingContext(user_id, run_id) as tracker:
 - [MCP_INTEGRATION.md](./technical/MCP_INTEGRATION.md) — MCP Per-User (evolution F2/F2.1) + Admin Per-Server Routing (F2.5)
 - [CHANNELS_INTEGRATION.md](./technical/CHANNELS_INTEGRATION.md) — Multi-Channel Telegram (evolution F3)
 - [HEARTBEAT_AUTONOME.md](./technical/HEARTBEAT_AUTONOME.md) — Heartbeat Autonome (evolution F5)
+- [GUIDE_RAG_SPACES.md](./guides/GUIDE_RAG_SPACES.md) — RAG Knowledge Spaces (evolution F6)
 
 ### Documentation Externe
 

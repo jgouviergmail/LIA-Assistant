@@ -84,7 +84,7 @@ export function useMcpAppBridge(
               id: msg.id,
               result: {
                 protocolVersion: MCP_APPS_PROTOCOL_VERSION,
-                hostInfo: { name: 'LIA', version: '1.0.0' },
+                hostInfo: { name: 'LIA', version: process.env.NEXT_PUBLIC_APP_VERSION || '0.0.0' },
                 hostCapabilities: {
                   serverTools: {},
                   serverResources: {},

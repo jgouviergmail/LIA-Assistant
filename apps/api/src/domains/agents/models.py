@@ -340,6 +340,10 @@ class MessagesState(TypedDict):
     # Contains: memories list (content, score, category), emotional_state, settings used
     memory_injection_debug: dict[str, Any] | None
 
+    # RAG Spaces: Stores injected RAG chunk details from response_node for debug panel.
+    # Contains: spaces_searched, chunks_found, chunks_injected, chunks list
+    rag_injection_debug: dict[str, Any] | None
+
 
 class AgentMessagesState(TypedDict):
     """
@@ -490,6 +494,8 @@ def create_initial_state(
         knowledge_enrichment_result=None,  # Enrichment result for debug panel
         # Memory Injection debug (debug panel tuning)
         memory_injection_debug=None,  # Memory injection metrics for debug panel
+        # RAG Spaces debug (debug panel)
+        rag_injection_debug=None,  # RAG injection metrics for debug panel
     )
 
 

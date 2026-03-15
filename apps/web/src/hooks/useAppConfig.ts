@@ -27,6 +27,8 @@ export interface AppConfig {
   features: {
     tool_approval_enabled: boolean;
     attachments_enabled: boolean;
+    rag_spaces_enabled: boolean;
+    rag_spaces_embedding_model: string;
   };
   api_version: string;
 }

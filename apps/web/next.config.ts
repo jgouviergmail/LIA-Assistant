@@ -1,7 +1,8 @@
 import type { NextConfig } from 'next';
 import { readFileSync } from 'fs';
 
-const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'));
+// Read version from monorepo root package.json (single source of truth)
+const pkg = JSON.parse(readFileSync('../../package.json', 'utf-8'));
 
 // Allow self-signed certificates for internal Docker HTTPS communication
 // Required because API uses HTTPS for Google OAuth callbacks (redirect URI)
@@ -40,6 +41,12 @@ const nextConfig: NextConfig = {
 
   // Turbopack configuration (default in Next.js 16)
   turbopack: {},
+
+  experimental: {
+    // Increase proxy body size limit for RAG document uploads (default: 10MB)
+    // Must match RAG_SPACES_MAX_FILE_SIZE_MB (20MB) + overhead for multipart encoding
+    proxyClientMaxBodySize: '25mb',
+  },
 
   // Environment variables
   env: {

@@ -27,7 +27,6 @@ import {
 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { proxyGoogleImageUrl } from '@/lib/utils';
-
 interface DashboardLayoutProps {
   children: React.ReactNode;
   params: Promise<{ lng: string }>;
@@ -39,7 +38,6 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
   const { user, isLoading, logout } = useAuth();
   const lng = useLanguageParam(params);
   const { t } = useTranslation(lng);
-
   // Onboarding tutorial state
   const [showOnboarding, setShowOnboarding] = useState(false);
 

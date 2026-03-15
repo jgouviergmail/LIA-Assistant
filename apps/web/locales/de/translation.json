@@ -30,7 +30,9 @@
     "later": "Später",
     "optional": "Optional",
     "off": "Aus",
-    "on": "An"
+    "on": "An",
+    "enabled": "Aktiviert",
+    "disabled": "Deaktiviert"
   },
   "theme": {
     "toggle": "Thema wechseln"
@@ -1199,6 +1201,28 @@
         "userAccessEnabledSuccess": "Debug-Panel-Zugriff für Benutzer aktiviert",
         "userAccessDisabledSuccess": "Debug-Panel-Zugriff für Benutzer deaktiviert"
       },
+      "ragSpaces": {
+        "title": "RAG-Wissensräume",
+        "subtitle": "RAG-Dokumenträume und Embedding-Konfiguration verwalten",
+        "featureStatus": "Funktionsstatus",
+        "embeddingModel": "Embedding-Modell",
+        "embeddingModelDescription": "OpenAI-Modell zur Generierung von Dokument-Embeddings. Konfiguriert über die Umgebungsvariable RAG_SPACES_EMBEDDING_MODEL.",
+        "reindexTitle": "Dokumente neu indexieren",
+        "reindexDescription": "Alle Dokumente aller Benutzer neu indexieren. Erforderlich nach Änderung des Embedding-Modells.",
+        "reindexButton": "Alles neu indexieren",
+        "reindexStarted": "Neuindexierung für {{count}} Dokument(e) gestartet",
+        "reindexError": "Neuindexierung konnte nicht gestartet werden",
+        "reindexProgress": "{{processed}} / {{total}} Dokumente verarbeitet",
+        "reindexFailed": "{{count}} Dokument(e) fehlgeschlagen",
+        "reindexConfirmTitle": "Alle Dokumente neu indexieren",
+        "reindexConfirmWarning": "Diese Aktion indexiert alle RAG-Dokumente aller Benutzer mit dem aktuellen Embedding-Modell neu.",
+        "reindexConfirmCost": "Alle Dokumente werden neu eingebettet (OpenAI-API-Kosten)",
+        "reindexConfirmDowntime": "Die RAG-Suche ist während der Neuindexierung vorübergehend nicht verfügbar",
+        "reindexConfirmAction": "Neuindexierung starten",
+        "whatItDoes": "Funktionsweise",
+        "description": "RAG-Wissensräume ermöglichen Benutzern das Hochladen von Dokumenten (PDF, TXT, MD, DOCX), die indexiert und zur Anreicherung von KI-Antworten mit relevantem Kontext verwendet werden.",
+        "enableHint": "Um diese Funktion zu aktivieren, setzen Sie die Umgebungsvariable RAG_SPACES_ENABLED=true und starten Sie den Server neu."
+      },
       "llmConfig": {
         "title": "LLM-Konfiguration",
         "description": "Verwalten Sie die API-Schlüssel der Anbieter und die Konfiguration jedes LLM-Typs",
@@ -1708,11 +1732,73 @@
       "otp_success": "Telegram-Konto erfolgreich verknüpft!",
       "otp_error": "Fehler beim Generieren des Codes.",
       "unlink_success": "Kanal erfolgreich entknüpft."
+    },
+    "rag_spaces": {
+      "title": "Wissensräume (RAG)",
+      "description": "Verwalten Sie Ihre RAG-Dokumentenräume, um KI-Gespräche zu bereichern.",
+      "no_spaces": "Noch keine Wissensräume erstellt.",
+      "create_first": "Erstellen Sie Ihren ersten Raum",
+      "manage_all": "Alle Räume verwalten →"
+    }
+  },
+  "spaces": {
+    "title": "Wissensräume",
+    "subtitle": "Laden Sie Dokumente hoch, um LIAs Antworten mit Ihrem eigenen Wissen zu bereichern.",
+    "create_title": "Raum erstellen",
+    "create_description": "Erstellen Sie einen neuen Wissensraum, um Ihre Dokumente zu organisieren.",
+    "create_button": "Raum erstellen",
+    "create_success": "Raum \"{{name}}\" erfolgreich erstellt.",
+    "create_error": "Fehler beim Erstellen des Raums.",
+    "edit_title": "Raum bearbeiten",
+    "edit_description": "Name und Beschreibung dieses Raums aktualisieren.",
+    "edit_success": "Raum erfolgreich aktualisiert.",
+    "edit_error": "Fehler beim Aktualisieren des Raums.",
+    "delete_title": "Raum löschen?",
+    "delete_description": "Raum \"{{name}}\" und alle seine Dokumente werden dauerhaft gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.",
+    "delete_success": "Raum \"{{name}}\" gelöscht.",
+    "delete_error": "Fehler beim Löschen des Raums.",
+    "toggle_activated": "Raum \"{{name}}\" aktiviert.",
+    "toggle_deactivated": "Raum \"{{name}}\" deaktiviert.",
+    "activate": "Raum aktivieren",
+    "deactivate": "Raum deaktivieren",
+    "name_label": "Name",
+    "name_placeholder": "z.B. Arbeitsprojekte, Forschungsnotizen...",
+    "name_too_short": "Der Name muss mindestens 2 Zeichen lang sein.",
+    "name_too_long": "Der Name darf maximal 200 Zeichen lang sein.",
+    "description_label": "Beschreibung",
+    "description_placeholder": "Optionale Beschreibung für diesen Raum...",
+    "empty_title": "Noch keine Wissensräume",
+    "empty_description": "Erstellen Sie Ihren ersten Raum, um Dokumente hochzuladen und LIAs Antworten zu bereichern.",
+    "not_found": "Raum nicht gefunden.",
+    "back_to_spaces": "Zurück zu den Räumen",
+    "doc_singular": "Dok.",
+    "docs_plural": "Dok.",
+    "indicator": "{{count}} RAG-Raum/-Räume aktiv",
+    "indicator_tooltip": "{{count}} Wissensraum/-räume bereichern die Antworten",
+    "documents": {
+      "upload_button": "Dokument hochladen",
+      "upload_hint": "Dateien hierher ziehen oder klicken zum Durchsuchen",
+      "upload_success": "\"{{name}}\" erfolgreich hochgeladen.",
+      "upload_error": "Fehler beim Hochladen von \"{{name}}\".",
+      "delete_success": "Dokument gelöscht.",
+      "delete_error": "Fehler beim Löschen des Dokuments.",
+      "empty": "Noch keine Dokumente. Laden Sie Dateien hoch, um die Indexierung zu starten.",
+      "status": {
+        "processing": "Verarbeitung...",
+        "ready": "Bereit",
+        "error": "Fehler",
+        "reindexing": "Neuindexierung..."
+      },
+      "upload_formats": "PDF, TXT, MD, DOCX — max. {{maxSize}} MB",
+      "chunk_count": "{{count}} Fragmente",
+      "embedding_tokens": "{{count}} Token",
+      "file_too_large": "\"{{name}}\" ist zu groß (max. {{maxSize}} MB)"
     }
   },
   "navigation": {
     "dashboard": "Startseite",
     "chat": "Chat",
+    "spaces": "Wissen",
     "settings": "Einstellungen",
     "logout": "Abmelden",
     "profile": "Profil",
@@ -1751,6 +1837,10 @@
     "settings": {
       "title": "Ein Fehler ist aufgetreten",
       "message": "Die Einstellungen konnten nicht geladen werden. Bitte versuchen Sie es erneut."
+    },
+    "spaces": {
+      "title": "Spaces-Fehler",
+      "message": "Beim Laden der Wissensräume ist ein Fehler aufgetreten."
     }
   },
   "validation": {
@@ -2076,6 +2166,10 @@
         "skills": {
           "title": "Skills",
           "description": "Spezialisiere LIA mit maßgeschneiderten Experten-Skills für deine beruflichen oder persönlichen Anforderungen. Kompatibel mit dem offenen Anthropic-Standard von Claude Code, Cursor, VS Code und 30+ Tools."
+        },
+        "ragSpaces": {
+          "title": "📚 RAG-Wissensräume",
+          "description": "Erstelle persönliche Wissensräume und lade deine eigenen Dokumente hoch (PDF, TXT, MD, DOCX). Dokumente werden automatisch verarbeitet (Textextraktion, Chunking, OpenAI-Embedding). Aktive Räume reichern die Antworten des Assistenten über hybride Suche an — semantische Ähnlichkeit (pgvector Cosine) und BM25-Stichwortabgleich. Volle Kostentransparenz mit Tracking pro Dokument und pro Anfrage. Admin-Reindexierung bei Änderung des Embedding-Modells."
         }
       },
       "diagram_alt": "LIA-Architekturdiagramm"
@@ -2610,6 +2704,37 @@
           "q6": {
             "question": "Kann ich eine Skill herunterladen oder teilen?",
             "answer": "<p>Ja. Bewege den Mauszeiger über eine Skill und klicke auf das Download-Symbol (⬇️). Du erhältst eine <code>.zip</code>-Datei mit SKILL.md und allen zugehörigen Dateien.</p>"
+          }
+        }
+      },
+      "rag_spaces": {
+        "title": "Wissensräume (RAG)",
+        "description": "Laden Sie eigene Dokumente hoch, um KI-Antworten zu bereichern",
+        "count": "6",
+        "questions": {
+          "q1": {
+            "question": "Was sind Wissensräume?",
+            "answer": "<p>Wissensräume (RAG — Retrieval-Augmented Generation) ermöglichen es Ihnen, eigene Dokumente hochzuladen und persönliche Wissensdatenbanken zu erstellen. Wenn Sie eine Frage stellen, durchsucht LIA automatisch diese Dokumente und bereichert seine Antworten mit relevanten Inhalten.</p><p><strong>Hauptfunktionen:</strong><ul><li>Upload von PDF-, TXT-, Markdown- und DOCX-Dateien</li><li>Automatisches Chunking und Indexierung über OpenAI-Embeddings</li><li>Hybride Suche (semantisch + BM25-Schlüsselwörter) für optimale Relevanz</li><li>Quellenangaben in den Antworten</li></ul></p>"
+          },
+          "q2": {
+            "question": "Welche Dateiformate werden unterstützt?",
+            "answer": "<p>Wissensräume akzeptieren folgende Formate:</p><ul><li><strong>PDF</strong> — Textextraktion über PyMuPDF</li><li><strong>TXT</strong> — Klartext-Dateien</li><li><strong>Markdown (.md)</strong> — Dokumentation und Notizen</li><li><strong>DOCX</strong> — Microsoft Word-Dokumente</li></ul><p><strong>Limits:</strong> maximal 20 MB pro Datei, bis zu 50 Dokumente pro Raum und 10 Räume pro Benutzer.</p>"
+          },
+          "q3": {
+            "question": "Wie funktioniert die Dokumentenverarbeitung?",
+            "answer": "<p>Wenn Sie ein Dokument hochladen, verarbeitet LIA es im Hintergrund:</p><ol><li><strong>Textextraktion</strong> — Inhalt wird je nach Dateityp extrahiert</li><li><strong>Chunking</strong> — Text wird in überlappende Segmente aufgeteilt (1000 Zeichen mit 200 Überlappung)</li><li><strong>Embedding</strong> — jedes Segment wird über das OpenAI-Embedding-Modell in einen Vektor umgewandelt</li><li><strong>Indexierung</strong> — Vektoren werden in PostgreSQL (pgvector) für schnelle Ähnlichkeitssuche gespeichert</li></ol><p>Der Dokumentenstatus wechselt von <em>Verarbeitung</em> zu <em>Bereit</em>, wenn abgeschlossen. Bei einem Fehler zeigt der Status <em>Fehler</em> mit Details an.</p>"
+          },
+          "q4": {
+            "question": "Wie aktiviere oder deaktiviere ich einen Raum?",
+            "answer": "<p>Jeder Raum hat einen <strong>Aktivierungsschalter</strong>. Wenn ein Raum aktiv ist, werden seine Dokumente bei RAG-Suchen während Gesprächen einbezogen.</p><p><strong>Tipps:</strong><ul><li>Aktivieren Sie nur Räume, die für Ihre aktuelle Arbeit relevant sind, um die Relevanz zu verbessern</li><li>Ein Indikator in der Chat-Kopfzeile zeigt, wie viele Räume aktiv sind</li><li>Klicken Sie auf den Indikator, um Ihre Räume schnell zu verwalten</li><li>Das Deaktivieren eines Raums löscht keine Daten — Sie können ihn jederzeit wieder aktivieren</li></ul></p>"
+          },
+          "q5": {
+            "question": "Wie funktioniert die hybride Suche?",
+            "answer": "<p>LIA verwendet eine <strong>hybride Suche</strong>, die zwei komplementäre Techniken kombiniert:</p><ul><li><strong>Semantische Suche</strong> — findet Inhalte mit ähnlicher Bedeutung über Vektor-Embeddings (Kosinus-Ähnlichkeit)</li><li><strong>BM25-Schlüsselwortsuche</strong> — findet Inhalte mit übereinstimmenden Schlüsselwörtern (exakte Termübereinstimmung)</li></ul><p>Die Ergebnisse werden mittels einer gewichteten Fusionsformel zusammengeführt. Dies stellt sicher, dass sowohl konzeptionell relevante als auch schlüsselwortgenaue Ergebnisse angezeigt werden.</p><p><strong>Qualitätskontrollen:</strong> Mindest-Relevanzschwelle, Token-Budgetlimit (max. 2000 Token) und konfigurierbare Anzahl von Chunks pro Abfrage.</p>"
+          },
+          "q6": {
+            "question": "Was kostet RAG?",
+            "answer": "<p>RAG verwendet OpenAI-Embeddings, die geringe Kosten verursachen:</p><ul><li><strong>Indexierung</strong> (Upload) — einmalige Kosten pro Dokument mit <code>text-embedding-3-small</code> (0,02 $/Million Token)</li><li><strong>Suche</strong> (jede Abfrage) — Embedding Ihrer Frage (wenige Token pro Abfrage)</li></ul><p>Die Kosten werden <strong>vollständig erfasst</strong> und sind in der Kostenaufschlüsselung der Assistenznachrichten und in Ihrem Nutzungs-Dashboard sichtbar. Die RAG-Embedding-Kosten erscheinen unter dem Modell <code>text-embedding-3-small</code>.</p><p><strong>Tipp:</strong> Für ein typisches 10-Seiten-PDF kostet die Indexierung weniger als 0,001 $.</p>"
           }
         }
       },
@@ -3479,6 +3604,10 @@
       "skills": {
         "title": "Skills",
         "description": "Spezialisiere LIA für deine beruflichen oder persönlichen Bedürfnisse mit gebrauchsfertigen Experten-Skills. Kompatibel mit dem offenen Anthropic-Standard von Claude Code, Cursor, VS Code und 30+ Tools."
+      },
+      "rag_spaces": {
+        "title": "Wissensräume",
+        "description": "Lade deine eigenen Dokumente (PDF, TXT, MD, DOCX) in persönliche Wissensräume hoch. LIA reichert seine Antworten automatisch mit relevanten Inhalten über hybride Suche (semantisch + Stichwort) an."
       }
     },
     "use_cases": {
@@ -3583,7 +3712,6 @@
     },
     "footer": {
       "copyright": "© {{year}} LIA. Alle Rechte vorbehalten.",
-      "version": "v1.0.0",
       "docs": "Dokumentation",
       "privacy": "Datenschutz"
     }

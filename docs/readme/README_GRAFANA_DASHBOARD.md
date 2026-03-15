@@ -2,7 +2,7 @@
 
 **Derniere mise a jour** : 2026-03-09
 **Version** : 4.0
-**Total Dashboards** : 17
+**Total Dashboards** : 18
 **Total Panels** : 388
 **Compatibilite** : Grafana 11.3, schemaVersion 38
 
@@ -36,7 +36,7 @@
 
 ### Architecture en Tiers
 
-Les 17 dashboards sont organises en 5 tiers selon l'audience cible :
+Les 18 dashboards sont organises en 5 tiers selon l'audience cible :
 
 | Tier | Audience | Dashboards | Objectif |
 |------|----------|------------|----------|
@@ -244,7 +244,7 @@ Application (FastAPI)
 | **Loki** | Agrgation des logs | Labels: service, level, user_id |
 | **Tempo** | Stockage des traces distribuees | Integration OpenTelemetry |
 | **Promtail** | Agent de collecte de logs | Pipeline JSON, extraction de labels |
-| **Grafana 11.3** | Visualisation et alerting | 17 dashboards, schemaVersion 38 |
+| **Grafana 11.3** | Visualisation et alerting | 18 dashboards, schemaVersion 38 |
 
 ### Recording Rules
 
@@ -332,4 +332,4 @@ task restart
 
 ---
 
-*Document genere pour LIA v4.0 - 17 dashboards, 388 panels, 3 datasources.*
+*Document genere pour LIA v4.0 - 18 dashboards, 409 panels, 3 datasources.*

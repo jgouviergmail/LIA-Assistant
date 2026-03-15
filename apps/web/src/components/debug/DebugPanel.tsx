@@ -50,6 +50,8 @@ import {
   KnowledgeEnrichmentSection,
   // Memory Injection (debug tuning)
   MemoryInjectionSection,
+  // RAG Injection (Knowledge Spaces)
+  RAGInjectionSection,
   // Skills activation
   SkillsSection,
 } from './components/sections';
@@ -129,6 +131,7 @@ function MetricsSections({ metrics }: { metrics: DebugMetrics }) {
     interest_profile,
     knowledge_enrichment,
     memory_injection,
+    rag_injection,
     skills,
   } = metrics;
 
@@ -148,6 +151,7 @@ function MetricsSections({ metrics }: { metrics: DebugMetrics }) {
       <MemoryInjectionSection data={memory_injection} />
       <InterestProfileSection data={interest_profile} />
       <KnowledgeEnrichmentSection data={knowledge_enrichment} />
+      <RAGInjectionSection data={rag_injection} />
       <TokenBudgetSection data={token_budget} />
       <PlannerSection data={planner_intelligence} />
       <ExecutionSection data={execution_timeline} />

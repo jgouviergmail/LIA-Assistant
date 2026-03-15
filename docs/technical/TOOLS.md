@@ -1747,4 +1747,4 @@ client = httpx.AsyncClient(
 
 **TOOLS.md** - Version 2.2 - Mars 2026
 
-*Système d'Outils Extensible - Architecture 5 Couches - 16 Domaines Natifs + MCP*
+*Système d'Outils Extensible - Architecture 5 Couches - 17 Domaines Natifs + MCP*

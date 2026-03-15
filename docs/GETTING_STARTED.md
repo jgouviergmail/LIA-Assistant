@@ -2,9 +2,9 @@
 
 > Complete guide to install, configure, and get started with LIA - Multi-Agent AI Assistant v6.2
 
-**Version**: 3.0
-**Last Updated**: 2026-03-13
-**Compatibility**: LIA v6.2.x (+ evolution Features: Web Fetch, MCP Per-User, Multi-Channel Telegram, Heartbeat Autonome)
+**Version**: 3.1
+**Last Updated**: 2026-03-14
+**Compatibility**: LIA v6.2.x (+ evolution Features: Web Fetch, MCP Per-User, Multi-Channel Telegram, Heartbeat Autonome, RAG Spaces)
 
 ## Table of Contents
 
@@ -41,6 +41,7 @@
 | **Voice TTS Dual** | Standard (free Edge TTS) or HD (paid OpenAI) |
 | **Interest Learning** | Automatic interest extraction via LLM |
 | **OAuth Health Check** | Proactive connector monitoring with notifications |
+| **RAG Knowledge Spaces** | Personal document spaces (PDF, TXT, MD, DOCX) with hybrid search enrichment (v1.4) |
 | **Hybrid Search** | Combined BM25 + semantic search (alpha=0.6) |
 
 ### Technical Architecture

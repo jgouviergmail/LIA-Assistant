@@ -27,6 +27,7 @@ import { FeatureErrorBoundary } from '@/components/errors';
 
 import { useDebugPanelEnabled } from '@/hooks/useDebugPanelEnabled';
 import { useAppConfig } from '@/hooks/useAppConfig';
+import { ActiveSpacesIndicator } from '@/components/spaces/ActiveSpacesIndicator';
 
 export default function ChatPage() {
   const { user, isLoading } = useAuth();
@@ -408,6 +409,9 @@ export default function ChatPage() {
               disabled={!apiAvailable || isTyping}
             />
           </div>
+
+          {/* RAG Spaces Indicator */}
+          <ActiveSpacesIndicator />
 
           {/* Right side: Delete/New chat */}
           <div className="flex items-center gap-2">

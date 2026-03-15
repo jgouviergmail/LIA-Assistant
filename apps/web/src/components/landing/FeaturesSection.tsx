@@ -4,7 +4,7 @@ import {
   MessageCircle, Puzzle, Smile, Lock, LayoutGrid,
   Globe, Palette, MessageSquareText, Compass,
   CalendarClock, MousePointerClick, Star,
-  AppWindow, PenTool, Paperclip, Blocks,
+  AppWindow, PenTool, Paperclip, Blocks, Library,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -48,6 +48,7 @@ const FUNCTIONAL_FEATURES: FeatureItem[] = [
   { key: 'excalidraw', icon: PenTool },
   { key: 'attachments', icon: Paperclip },
   { key: 'skills', icon: Blocks },
+  { key: 'rag_spaces', icon: Library },
 ];
 
 // Responsible & simple

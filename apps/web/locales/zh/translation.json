@@ -30,7 +30,9 @@
     "later": "稍后",
     "optional": "可选",
     "off": "关闭",
-    "on": "开启"
+    "on": "开启",
+    "enabled": "已启用",
+    "disabled": "已禁用"
   },
   "theme": {
     "toggle": "切换主题"
@@ -1205,6 +1207,28 @@
         "userAccessEnabledSuccess": "已启用用户调试面板访问",
         "userAccessDisabledSuccess": "已禁用用户调试面板访问"
       },
+      "ragSpaces": {
+        "title": "RAG 知识空间",
+        "subtitle": "管理 RAG 文档空间和嵌入配置",
+        "featureStatus": "功能状态",
+        "embeddingModel": "嵌入模型",
+        "embeddingModelDescription": "用于生成文档嵌入的 OpenAI 模型。通过 RAG_SPACES_EMBEDDING_MODEL 环境变量配置。",
+        "reindexTitle": "重新索引文档",
+        "reindexDescription": "重新索引所有用户的所有文档。更改嵌入模型后需要执行此操作。",
+        "reindexButton": "全部重新索引",
+        "reindexStarted": "已开始重新索引 {{count}} 个文档",
+        "reindexError": "无法启动重新索引",
+        "reindexProgress": "已处理 {{processed}} / {{total}} 个文档",
+        "reindexFailed": "{{count}} 个文档失败",
+        "reindexConfirmTitle": "重新索引所有文档",
+        "reindexConfirmWarning": "此操作将使用当前嵌入模型重新索引所有用户的所有 RAG 文档。",
+        "reindexConfirmCost": "所有文档将重新编码（OpenAI API 费用）",
+        "reindexConfirmDowntime": "重新索引期间 RAG 搜索将暂时不可用",
+        "reindexConfirmAction": "开始重新索引",
+        "whatItDoes": "功能说明",
+        "description": "RAG 知识空间允许用户上传文档（PDF、TXT、MD、DOCX），这些文档将被索引并用于为 AI 响应提供相关上下文。",
+        "enableHint": "要启用此功能，请设置环境变量 RAG_SPACES_ENABLED=true 并重启服务器。"
+      },
       "llmConfig": {
         "title": "LLM 配置",
         "description": "管理供应商 API 密钥和每种 LLM 类型的配置",
@@ -1714,11 +1738,73 @@
       "otp_success": "Telegram账户关联成功！",
       "otp_error": "生成验证码时出错。",
       "unlink_success": "通道取消关联成功。"
+    },
+    "rag_spaces": {
+      "title": "知识空间 (RAG)",
+      "description": "管理您的RAG文档空间以丰富AI对话。",
+      "no_spaces": "尚未创建知识空间。",
+      "create_first": "创建您的第一个空间",
+      "manage_all": "管理所有空间 →"
+    }
+  },
+  "spaces": {
+    "title": "知识空间",
+    "subtitle": "上传文档，用您自己的知识丰富LIA的回答。",
+    "create_title": "创建空间",
+    "create_description": "创建一个新的知识空间来组织您的文档。",
+    "create_button": "创建空间",
+    "create_success": "空间\"{{name}}\"创建成功。",
+    "create_error": "创建空间失败。",
+    "edit_title": "编辑空间",
+    "edit_description": "更新此空间的名称和描述。",
+    "edit_success": "空间更新成功。",
+    "edit_error": "更新空间失败。",
+    "delete_title": "删除空间？",
+    "delete_description": "空间\"{{name}}\"及其所有文档将被永久删除。此操作无法撤消。",
+    "delete_success": "空间\"{{name}}\"已删除。",
+    "delete_error": "删除空间失败。",
+    "toggle_activated": "空间\"{{name}}\"已激活。",
+    "toggle_deactivated": "空间\"{{name}}\"已停用。",
+    "activate": "激活空间",
+    "deactivate": "停用空间",
+    "name_label": "名称",
+    "name_placeholder": "例如：工作项目、研究笔记...",
+    "name_too_short": "名称至少需要2个字符。",
+    "name_too_long": "名称不得超过200个字符。",
+    "description_label": "描述",
+    "description_placeholder": "此空间的可选描述...",
+    "empty_title": "暂无知识空间",
+    "empty_description": "创建您的第一个空间，开始上传文档并丰富LIA的回答。",
+    "not_found": "未找到空间。",
+    "back_to_spaces": "返回空间",
+    "doc_singular": "文档",
+    "docs_plural": "文档",
+    "indicator": "{{count}}个RAG空间已激活",
+    "indicator_tooltip": "{{count}}个知识空间正在丰富回答",
+    "documents": {
+      "upload_button": "上传文档",
+      "upload_hint": "将文件拖放到此处，或点击浏览",
+      "upload_success": "\"{{name}}\"上传成功。",
+      "upload_error": "上传\"{{name}}\"失败。",
+      "delete_success": "文档已删除。",
+      "delete_error": "删除文档失败。",
+      "empty": "暂无文档。上传文件以开始索引。",
+      "status": {
+        "processing": "处理中...",
+        "ready": "就绪",
+        "error": "错误",
+        "reindexing": "重新索引中..."
+      },
+      "upload_formats": "PDF、TXT、MD、DOCX — 最大 {{maxSize}}MB",
+      "chunk_count": "{{count}} 个片段",
+      "embedding_tokens": "{{count}} 个令牌",
+      "file_too_large": "\"{{name}}\" 文件过大（最大 {{maxSize}} MB）"
     }
   },
   "navigation": {
     "dashboard": "首页",
     "chat": "聊天",
+    "spaces": "知识",
     "settings": "设置",
     "logout": "注销",
     "profile": "个人资料",
@@ -1757,6 +1843,10 @@
     "settings": {
       "title": "发生错误",
       "message": "无法加载设置。请重试。"
+    },
+    "spaces": {
+      "title": "空间错误",
+      "message": "加载知识空间时发生错误。"
     }
   },
   "validation": {
@@ -2071,6 +2161,10 @@
         "skills": {
           "title": "Skills",
           "description": "为您的业务或个人需求量身定制专家技能，让LIA更强大。兼容Anthropic开放标准，与Claude Code、Cursor、VS Code及30+工具共享同一格式。"
+        },
+        "ragSpaces": {
+          "title": "📚 RAG知识空间",
+          "description": "创建个人知识空间并上传您的文档（PDF、TXT、MD、DOCX）。文档自动处理（文本提取、分块、OpenAI嵌入）。活跃空间通过混合搜索（pgvector余弦语义相似度 + BM25关键词匹配）丰富助手回答。完全的成本透明度，按文档和按查询跟踪嵌入费用。管理员重新索引端点用于嵌入模型变更。"
         }
       },
       "diagram_alt": "LIA架构图"
@@ -2605,6 +2699,37 @@
           "q6": {
             "question": "我可以下载或分享技能吗？",
             "answer": "<p>可以。将光标悬停在设置中的任意技能上，点击下载图标（⬇️），即可获得包含SKILL.md及所有相关文件（references/、scripts/、assets/）的 <code>.zip</code> 文件。</p>"
+          }
+        }
+      },
+      "rag_spaces": {
+        "title": "知识空间 (RAG)",
+        "description": "上传和使用您的文档来丰富AI回答",
+        "count": "6",
+        "questions": {
+          "q1": {
+            "question": "什么是知识空间？",
+            "answer": "<p>知识空间（RAG — 检索增强生成）允许您上传自己的文档来创建个人知识库。当您提问时，LIA会自动搜索这些文档，并用相关内容丰富其回答。</p><p><strong>主要功能：</strong><ul><li>上传 PDF、TXT、Markdown 和 DOCX 文件</li><li>通过 OpenAI embeddings 自动分块和索引</li><li>混合搜索（语义 + BM25 关键词）实现最佳相关性</li><li>回答中标注来源引用</li></ul></p>"
+          },
+          "q2": {
+            "question": "支持哪些文件格式？",
+            "answer": "<p>知识空间接受以下格式：</p><ul><li><strong>PDF</strong> — 通过 PyMuPDF 提取文本</li><li><strong>TXT</strong> — 纯文本文件</li><li><strong>Markdown (.md)</strong> — 文档和笔记</li><li><strong>DOCX</strong> — Microsoft Word 文档</li></ul><p><strong>限制：</strong>每个文件最大 20 MB，每个空间最多 50 个文档，每个用户最多 10 个空间。</p>"
+          },
+          "q3": {
+            "question": "文档处理是如何工作的？",
+            "answer": "<p>当您上传文档时，LIA会在后台处理：</p><ol><li><strong>文本提取</strong> — 根据文件类型提取内容</li><li><strong>分块</strong> — 将文本分割为重叠片段（1000字符，200字符重叠）</li><li><strong>嵌入</strong> — 每个片段通过 OpenAI 嵌入模型转换为向量</li><li><strong>索引</strong> — 向量存储在 PostgreSQL (pgvector) 中用于快速相似性搜索</li></ol><p>文档状态从<em>处理中</em>变为<em>就绪</em>。如果出错，状态显示<em>错误</em>及详细信息。</p>"
+          },
+          "q4": {
+            "question": "如何激活或停用空间？",
+            "answer": "<p>每个空间都有一个<strong>激活开关</strong>。当空间处于激活状态时，其文档将被纳入对话中的 RAG 搜索。</p><p><strong>提示：</strong><ul><li>仅激活与当前工作相关的空间以提高相关性</li><li>聊天标题中的指示器显示有多少个空间处于激活状态</li><li>点击指示器可快速管理您的空间</li><li>停用空间不会删除任何数据 — 您可以随时重新激活</li></ul></p>"
+          },
+          "q5": {
+            "question": "混合搜索是如何工作的？",
+            "answer": "<p>LIA使用<strong>混合搜索</strong>，结合两种互补技术：</p><ul><li><strong>语义搜索</strong> — 使用向量嵌入（余弦相似度）查找含义相似的内容</li><li><strong>BM25关键词搜索</strong> — 查找包含匹配关键词的内容（精确术语匹配）</li></ul><p>结果通过加权融合公式合并。这确保了概念相关和关键词准确的结果都能被呈现。</p><p><strong>质量控制：</strong>最低相关性分数阈值、token预算限制（最多2000 token）和每次查询可配置的片段数量。</p>"
+          },
+          "q6": {
+            "question": "RAG 的费用是多少？",
+            "answer": "<p>RAG 使用 OpenAI 嵌入，费用很低：</p><ul><li><strong>索引</strong>（上传）— 每个文档一次性费用，使用 <code>text-embedding-3-small</code>（$0.02/百万 token）</li><li><strong>搜索</strong>（每次查询）— 对您的问题进行嵌入（每次查询仅需几个 token）</li></ul><p>费用<strong>完全可追踪</strong>，在助手消息的费用明细和您的使用仪表板中可见。RAG 嵌入费用显示在 <code>text-embedding-3-small</code> 模型下。</p><p><strong>提示：</strong>对于典型的10页PDF，索引费用不到 $0.001。</p>"
           }
         }
       },
@@ -3474,6 +3599,10 @@
       "skills": {
         "title": "Skills",
         "description": "为您的业务或个人需求量身定制LIA专家技能，即用即得。兼容Anthropic开放标准，与Claude Code、Cursor、VS Code及30+工具共享同一格式。"
+      },
+      "rag_spaces": {
+        "title": "知识空间",
+        "description": "将您的文档（PDF、TXT、MD、DOCX）上传到个人知识空间。LIA通过混合搜索（语义+关键词）自动用相关内容丰富其回答。"
       }
     },
     "use_cases": {
@@ -3578,7 +3707,6 @@
     },
     "footer": {
       "copyright": "© {{year}} LIA. 保留所有权利。",
-      "version": "v1.0.0",
       "docs": "文档",
       "privacy": "隐私政策"
     }

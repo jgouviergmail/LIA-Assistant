@@ -23,7 +23,7 @@ export async function LandingFooter({ lng }: LandingFooterProps) {
               className="rounded-md"
             />
             <span className="text-sm text-muted-foreground">
-              {t('landing.footer.copyright', { year })} · {t('landing.footer.version')}
+              {t('landing.footer.copyright', { year })} · v{process.env.NEXT_PUBLIC_APP_VERSION}
             </span>
           </div>
 

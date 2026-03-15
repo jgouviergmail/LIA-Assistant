@@ -194,6 +194,9 @@ $RECYCLE.BIN/
 # Sherpa-onnx Whisper STT model (~150MB)
 apps/api/models/
 
+# RAG Spaces uploaded documents (user data, never commit)
+apps/api/data/rag_uploads/
+
 # ============================================
 # BUILD & TEMPORARY
 # ============================================

@@ -27,7 +27,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.0.0</strong> — First public open-source release — March 2026
+  <strong>Version 1.4.0</strong> — RAG Knowledge Spaces — March 2026
 </p>
 
 ---
@@ -60,7 +60,7 @@
 | **Unpredictable LLM costs** | Real-time token tracking, budget alerts, 93% optimization |
 | **Uncontrolled hallucinations** | Human-in-the-Loop (HITL) with 6 approval levels |
 | **Fragmented integrations** | Unified multi-domain orchestration (16 agents + MCP) |
-| **Limited observability** | 500+ Prometheus metrics, 17 Grafana dashboards, GeoIP analytics |
+| **Limited observability** | 500+ Prometheus metrics, 18 Grafana dashboards, GeoIP analytics |
 | **Inconsistent performance** | Local E5 embeddings (~50ms), semantic routing +48% accuracy |
 
 ### Primary Use Cases
@@ -228,6 +228,16 @@ ExecutionStep(
 - **Multi-channel integration**: Result notifications via FCM, SSE, and Telegram
 - **Feature flag**: `SCHEDULED_ACTIONS_ENABLED=true` to enable
 
+### RAG Knowledge Spaces (v1.4)
+
+- **Personal knowledge bases**: Create spaces, upload documents (PDF, TXT, MD, DOCX), automatic chunking and embedding
+- **Hybrid search**: Semantic similarity (pgvector cosine) + BM25 keyword matching with configurable alpha fusion
+- **Response enrichment**: RAG context automatically injected into assistant responses when active spaces exist
+- **Full cost transparency**: Embedding costs tracked per document and per query, visible in chat bubbles and dashboard
+- **Admin reindexation**: Full reindex when embedding model changes, with Redis mutual exclusion and automatic dimension ALTER
+- **Observability**: 14 Prometheus metrics, dedicated Grafana dashboard
+- **Feature flag**: `RAG_SPACES_ENABLED=true` to enable (default: true)
+
 ### MCP Apps — Interactive Widgets (F2.6)
 
 - **Sandboxed iframes**: MCP applications rendered in secure iframes (CSP + COEP `credentialless`)
@@ -364,6 +374,7 @@ CHANNELS_ENABLED=false         # Multi-channel messaging (Telegram)
 HEARTBEAT_ENABLED=false        # Autonomous proactive notifications
 SCHEDULED_ACTIONS_ENABLED=false # Recurring scheduled actions
 SKILLS_ENABLED=false           # Skills system (agentskills.io standard)
+RAG_SPACES_ENABLED=true        # RAG Knowledge Spaces (document upload & retrieval)
 FCM_NOTIFICATIONS_ENABLED=false # Firebase push notifications
 ```
 
@@ -447,6 +458,7 @@ apps/api/src/
 │   ├── auth/                # JWT, sessions, OAuth
 │   ├── connectors/          # Google + Apple + Microsoft clients, provider resolver
 │   ├── google_api/          # Google API pricing & usage tracking (v6.1)
+│   ├── rag_spaces/          # RAG Knowledge Spaces (upload, embed, retrieve)
 │   ├── user_mcp/            # Per-user MCP servers (CRUD, OAuth, domain routing)
 │   ├── voice/               # TTS factory, STT, Wake Word
 │   ├── interests/           # Interest Learning System
@@ -539,6 +551,7 @@ apps/api/src/
 | **Channels** | [CHANNELS_INTEGRATION](./docs/technical/CHANNELS_INTEGRATION.md) • [GUIDE_TELEGRAM](./docs/guides/GUIDE_TELEGRAM_INTEGRATION.md) |
 | **Scheduled Actions** | [SCHEDULED_ACTIONS](./docs/technical/SCHEDULED_ACTIONS.md) • [GUIDE_SCHEDULED_ACTIONS](./docs/guides/GUIDE_SCHEDULED_ACTIONS.md) |
 | **Skills** | [SKILLS_INTEGRATION](./docs/technical/SKILLS_INTEGRATION.md) |
+| **RAG Spaces** | [GUIDE_RAG_SPACES](./docs/guides/GUIDE_RAG_SPACES.md) • [ADR-055](./docs/architecture/ADR-055-RAG-Spaces-Architecture.md) |
 | **LLM Providers** | [LLM_PROVIDERS](./docs/technical/LLM_PROVIDERS.md) |
 | **Security** | [SECURITY](./docs/technical/SECURITY.md) • [OAUTH](./docs/technical/OAUTH.md) • [RATE_LIMITING](./docs/technical/RATE_LIMITING.md) |
 | **Observability** | [OBSERVABILITY_AGENTS](./docs/technical/OBSERVABILITY_AGENTS.md) • [METRICS_REFERENCE](./docs/technical/METRICS_REFERENCE.md) |
@@ -556,7 +569,7 @@ apps/api/src/
 
 ### Architecture Decision Records (ADR)
 
-55+ ADRs documenting major architectural decisions:
+56+ ADRs documenting major architectural decisions:
 
 - [ADR-001: LangGraph Multi-Agent System](./docs/architecture/ADR-001-LangGraph-Multi-Agent-System.md)
 - [ADR-048: Semantic Tool Router](./docs/architecture/ADR-048-Semantic-Tool-Router.md)

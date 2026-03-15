@@ -30,7 +30,9 @@
     "back_to_dashboard": "Retour au tableau de bord",
     "days": "jours",
     "on": "Activé",
-    "off": "Désactivé"
+    "off": "Désactivé",
+    "enabled": "Activé",
+    "disabled": "Désactivé"
   },
   "broadcast": {
     "modal": {
@@ -1425,6 +1427,28 @@
         "userAccessEnabledSuccess": "Accès utilisateurs au debug activé",
         "userAccessDisabledSuccess": "Accès utilisateurs au debug désactivé"
       },
+      "ragSpaces": {
+        "title": "Espaces de connaissances RAG",
+        "subtitle": "Gérer les espaces documentaires RAG et la configuration des embeddings",
+        "featureStatus": "Statut de la fonctionnalité",
+        "embeddingModel": "Modèle d'embedding",
+        "embeddingModelDescription": "Modèle OpenAI utilisé pour générer les embeddings des documents. Configuré via la variable d'environnement RAG_SPACES_EMBEDDING_MODEL.",
+        "reindexTitle": "Ré-indexer les documents",
+        "reindexDescription": "Ré-indexe tous les documents de tous les utilisateurs. Nécessaire après un changement de modèle d'embedding.",
+        "reindexButton": "Tout ré-indexer",
+        "reindexStarted": "Ré-indexation lancée pour {{count}} document(s)",
+        "reindexError": "Échec du lancement de la ré-indexation",
+        "reindexProgress": "{{processed}} / {{total}} documents traités",
+        "reindexFailed": "{{count}} document(s) en échec",
+        "reindexConfirmTitle": "Ré-indexer tous les documents",
+        "reindexConfirmWarning": "Cette action va ré-indexer tous les documents RAG de tous les utilisateurs avec le modèle d'embedding actuel.",
+        "reindexConfirmCost": "Tous les documents seront ré-encodés (coût API OpenAI)",
+        "reindexConfirmDowntime": "La recherche RAG sera temporairement indisponible pendant la ré-indexation",
+        "reindexConfirmAction": "Lancer la ré-indexation",
+        "whatItDoes": "Fonctionnement",
+        "description": "Les espaces de connaissances RAG permettent aux utilisateurs de télécharger des documents (PDF, TXT, MD, DOCX) qui sont indexés et utilisés pour enrichir les réponses de l'IA avec du contexte pertinent.",
+        "enableHint": "Pour activer cette fonctionnalité, définissez la variable d'environnement RAG_SPACES_ENABLED=true et redémarrez le serveur."
+      },
       "llmConfig": {
         "title": "Configuration LLM",
         "description": "Gérez les clés API des providers et la configuration de chaque type LLM",
@@ -1639,11 +1663,73 @@
       "otp_success": "Compte Telegram lié avec succès !",
       "otp_error": "Erreur lors de la génération du code.",
       "unlink_success": "Canal délié avec succès."
+    },
+    "rag_spaces": {
+      "title": "Espaces de connaissances (RAG)",
+      "description": "Gérez vos espaces documentaires RAG pour enrichir les conversations IA.",
+      "no_spaces": "Aucun espace de connaissances créé.",
+      "create_first": "Créer votre premier espace",
+      "manage_all": "Gérer tous les espaces →"
+    }
+  },
+  "spaces": {
+    "title": "Espaces de connaissances",
+    "subtitle": "Téléchargez des documents pour enrichir les réponses de LIA avec vos propres connaissances.",
+    "create_title": "Créer un espace",
+    "create_description": "Créez un nouvel espace de connaissances pour organiser vos documents.",
+    "create_button": "Créer un espace",
+    "create_success": "Espace \"{{name}}\" créé avec succès.",
+    "create_error": "Erreur lors de la création de l'espace.",
+    "edit_title": "Modifier l'espace",
+    "edit_description": "Modifier le nom et la description de cet espace.",
+    "edit_success": "Espace modifié avec succès.",
+    "edit_error": "Erreur lors de la modification de l'espace.",
+    "delete_title": "Supprimer l'espace ?",
+    "delete_description": "L'espace \"{{name}}\" et tous ses documents seront définitivement supprimés. Cette action est irréversible.",
+    "delete_success": "Espace \"{{name}}\" supprimé.",
+    "delete_error": "Erreur lors de la suppression de l'espace.",
+    "toggle_activated": "Espace \"{{name}}\" activé.",
+    "toggle_deactivated": "Espace \"{{name}}\" désactivé.",
+    "activate": "Activer l'espace",
+    "deactivate": "Désactiver l'espace",
+    "name_label": "Nom",
+    "name_placeholder": "ex. Projets professionnels, Notes de recherche...",
+    "name_too_short": "Le nom doit contenir au moins 2 caractères.",
+    "name_too_long": "Le nom ne doit pas dépasser 200 caractères.",
+    "description_label": "Description",
+    "description_placeholder": "Description optionnelle de cet espace...",
+    "empty_title": "Aucun espace de connaissances",
+    "empty_description": "Créez votre premier espace pour commencer à télécharger des documents et enrichir les réponses de LIA.",
+    "not_found": "Espace non trouvé.",
+    "back_to_spaces": "Retour aux espaces",
+    "doc_singular": "doc",
+    "docs_plural": "docs",
+    "indicator": "{{count}} espace(s) RAG actif(s)",
+    "indicator_tooltip": "{{count}} espace(s) de connaissances enrichissent les réponses",
+    "documents": {
+      "upload_button": "Télécharger un document",
+      "upload_hint": "Glissez-déposez des fichiers ici ou cliquez pour parcourir",
+      "upload_success": "\"{{name}}\" téléchargé avec succès.",
+      "upload_error": "Erreur lors du téléchargement de \"{{name}}\".",
+      "delete_success": "Document supprimé.",
+      "delete_error": "Erreur lors de la suppression du document.",
+      "empty": "Aucun document. Téléchargez des fichiers pour commencer l'indexation.",
+      "status": {
+        "processing": "Traitement...",
+        "ready": "Prêt",
+        "error": "Erreur",
+        "reindexing": "Réindexation..."
+      },
+      "upload_formats": "PDF, TXT, MD, DOCX — max {{maxSize}} Mo",
+      "chunk_count": "{{count}} fragments",
+      "embedding_tokens": "{{count}} tokens",
+      "file_too_large": "\"{{name}}\" est trop volumineux (max {{maxSize}} Mo)"
     }
   },
   "navigation": {
     "dashboard": "Accueil",
     "chat": "Chat",
+    "spaces": "Connaissances",
     "settings": "Réglages",
     "logout": "Déconnexion",
     "profile": "Profil",
@@ -1682,6 +1768,10 @@
     "settings": {
       "title": "Une erreur est survenue",
       "message": "Impossible de charger les paramètres. Veuillez réessayer."
+    },
+    "spaces": {
+      "title": "Erreur Espaces",
+      "message": "Une erreur est survenue lors du chargement des espaces de connaissances."
     }
   },
   "validation": {
@@ -1996,6 +2086,10 @@
         "skills": {
           "title": "Skills",
           "description": "Spécialisez LIA avec des compétences expertes sur mesure pour vos usages métier ou personnels. Compatible avec le standard ouvert Anthropic utilisé par Claude Code, Cursor, VS Code et 30+ outils."
+        },
+        "ragSpaces": {
+          "title": "📚 Espaces de connaissances RAG",
+          "description": "Créez des espaces de connaissances personnels et importez vos propres documents (PDF, TXT, MD, DOCX). Les documents sont automatiquement traités (extraction texte, découpage, embedding OpenAI). Les espaces actifs enrichissent les réponses de l'assistant via recherche hybride combinant similarité sémantique (pgvector cosine) et correspondance par mots-clés BM25. Transparence totale des coûts avec suivi par document et par requête. Endpoint admin de ré-indexation en cas de changement de modèle d'embedding."
         }
       },
       "diagram_alt": "Schéma d'architecture de LIA"
@@ -2530,6 +2624,37 @@
           "q6": {
             "question": "Puis-je télécharger ou partager une skill ?",
             "answer": "<p>Oui. Survolez n'importe quelle skill dans les réglages et cliquez sur l'icône <strong>télécharger</strong> (⬇️). Vous obtiendrez un fichier <code>.zip</code> contenant SKILL.md et tous ses fichiers associés (references/, scripts/, assets/).</p><p>Vous pouvez partager ce zip avec d'autres utilisateurs ou le publier sur des marketplaces compatibles agentskills.io.</p>"
+          }
+        }
+      },
+      "rag_spaces": {
+        "title": "Espaces de connaissances (RAG)",
+        "description": "Téléchargez et utilisez vos propres documents pour enrichir les réponses de l'IA",
+        "count": "6",
+        "questions": {
+          "q1": {
+            "question": "Que sont les Espaces de connaissances ?",
+            "answer": "<p>Les Espaces de connaissances (RAG — Retrieval-Augmented Generation) vous permettent de télécharger vos propres documents pour créer des bases de connaissances personnelles. Lorsque vous posez une question, LIA recherche automatiquement dans ces documents et enrichit ses réponses avec le contenu pertinent.</p><p><strong>Fonctionnalités clés :</strong><ul><li>Upload de fichiers PDF, TXT, Markdown et DOCX</li><li>Découpage et indexation automatiques via les embeddings OpenAI</li><li>Recherche hybride (sémantique + mots-clés BM25) pour une pertinence optimale</li><li>Citations des sources dans les réponses</li></ul></p>"
+          },
+          "q2": {
+            "question": "Quels formats de fichiers sont supportés ?",
+            "answer": "<p>Les Espaces de connaissances acceptent les formats suivants :</p><ul><li><strong>PDF</strong> — extraction de texte via PyMuPDF</li><li><strong>TXT</strong> — fichiers texte brut</li><li><strong>Markdown (.md)</strong> — documentation et notes</li><li><strong>DOCX</strong> — documents Microsoft Word</li></ul><p><strong>Limites :</strong> maximum 20 Mo par fichier, jusqu'à 50 documents par espace et 10 espaces par utilisateur.</p>"
+          },
+          "q3": {
+            "question": "Comment fonctionne le traitement des documents ?",
+            "answer": "<p>Lorsque vous téléchargez un document, LIA le traite en arrière-plan :</p><ol><li><strong>Extraction du texte</strong> — le contenu est extrait selon le type de fichier</li><li><strong>Découpage</strong> — le texte est divisé en segments avec recouvrement (1000 caractères avec 200 de chevauchement)</li><li><strong>Embedding</strong> — chaque segment est converti en vecteur via le modèle d'embedding OpenAI</li><li><strong>Indexation</strong> — les vecteurs sont stockés dans PostgreSQL (pgvector) pour une recherche par similarité rapide</li></ol><p>Le statut du document passe de <em>en traitement</em> à <em>prêt</em> une fois terminé. En cas d'erreur, le statut affiche <em>erreur</em> avec les détails.</p>"
+          },
+          "q4": {
+            "question": "Comment activer ou désactiver un espace ?",
+            "answer": "<p>Chaque espace dispose d'un <strong>bouton d'activation</strong>. Lorsqu'un espace est actif, ses documents sont inclus dans les recherches RAG pendant les conversations.</p><p><strong>Conseils :</strong><ul><li>N'activez que les espaces pertinents pour votre travail actuel afin d'améliorer la pertinence</li><li>Un indicateur dans l'en-tête du chat montre combien d'espaces sont actifs</li><li>Cliquez sur l'indicateur pour gérer rapidement vos espaces</li><li>Désactiver un espace ne supprime aucune donnée — vous pouvez le réactiver à tout moment</li></ul></p>"
+          },
+          "q5": {
+            "question": "Comment fonctionne la recherche hybride ?",
+            "answer": "<p>LIA utilise une <strong>recherche hybride</strong> combinant deux techniques complémentaires :</p><ul><li><strong>Recherche sémantique</strong> — trouve du contenu au sens similaire via les embeddings vectoriels (similarité cosinus)</li><li><strong>Recherche par mots-clés BM25</strong> — trouve du contenu avec des mots correspondants (correspondance exacte des termes)</li></ul><p>Les résultats sont fusionnés via une formule de fusion pondérée. Cela garantit que les résultats à la fois conceptuellement pertinents et textuellement précis sont remontés.</p><p><strong>Contrôles qualité :</strong> seuil de score de pertinence minimum, limite de budget tokens (2000 tokens max) et nombre configurable de segments par requête.</p>"
+          },
+          "q6": {
+            "question": "Combien coûte le RAG ?",
+            "answer": "<p>Le RAG utilise les embeddings OpenAI, qui ont un coût modique :</p><ul><li><strong>Indexation</strong> (upload) — coût unique par document, utilisant <code>text-embedding-3-small</code> (0,02 $/million de tokens)</li><li><strong>Recherche</strong> (chaque requête) — embedding de votre question (quelques tokens par requête)</li></ul><p>Les coûts sont <strong>entièrement tracés</strong> et visibles dans le détail de coût des messages de l'assistant et dans votre tableau de bord d'utilisation. Le coût d'embedding RAG apparaît sous le modèle <code>text-embedding-3-small</code>.</p><p><strong>Astuce :</strong> pour un PDF typique de 10 pages, l'indexation coûte moins de 0,001 $.</p>"
           }
         }
       },
@@ -3391,6 +3516,10 @@
       "skills": {
         "title": "Skills",
         "description": "Spécialisez LIA pour vos besoins métier ou personnels avec des instructions expertes prêtes à l'emploi. Compatible avec le standard ouvert Anthropic partagé par Claude Code, Cursor, VS Code et 30+ outils."
+      },
+      "rag_spaces": {
+        "title": "Espaces de connaissances",
+        "description": "Importez vos propres documents (PDF, TXT, MD, DOCX) dans des espaces personnels. LIA enrichit automatiquement ses réponses avec le contenu pertinent via recherche hybride (sémantique + mots-clés)."
       }
     },
     "use_cases": {
@@ -3495,7 +3624,6 @@
     },
     "footer": {
       "copyright": "© {{year}} LIA. Tous droits réservés.",
-      "version": "v1.0.0",
       "docs": "Documentation",
       "privacy": "Confidentialité"
     }

@@ -1,6 +1,6 @@
 [project]
 name = "lia-api"
-version = "1.3.0"
+version = "1.4.0"
 description = "LIA Assistant - AI conversational assistant with multi-agent orchestration"
 license = "AGPL-3.0-or-later"
 authors = [

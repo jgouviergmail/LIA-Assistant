@@ -2467,6 +2467,38 @@ ATTACHMENTS_TTL_HOURS_DEFAULT = 24
 ATTACHMENTS_MAX_PDF_TEXT_CHARS_DEFAULT = 50000
 
 # ============================================================================
+# RAG SPACES (Knowledge Spaces with Document Upload)
+# ============================================================================
+# Phase: evolution — RAG Spaces (User Knowledge Documents)
+
+# Storage
+RAG_SPACES_STORAGE_PATH_DEFAULT = "/app/data/rag_uploads"
+RAG_SPACES_MAX_FILE_SIZE_MB_DEFAULT = 20
+RAG_SPACES_MAX_SPACES_PER_USER_DEFAULT = 10
+RAG_SPACES_MAX_DOCS_PER_SPACE_DEFAULT = 50
+
+# Chunking
+RAG_SPACES_CHUNK_SIZE_DEFAULT = 1000
+RAG_SPACES_CHUNK_OVERLAP_DEFAULT = 200
+RAG_SPACES_MAX_CHUNKS_PER_DOCUMENT_DEFAULT = 500
+
+# Retrieval
+RAG_SPACES_RETRIEVAL_LIMIT_DEFAULT = 5
+RAG_SPACES_RETRIEVAL_MIN_SCORE_DEFAULT = 0.5
+RAG_SPACES_MAX_CONTEXT_TOKENS_DEFAULT = 2000
+RAG_SPACES_HYBRID_ALPHA_DEFAULT = 0.7  # Weight for semantic vs BM25
+
+# MIME types (comma-separated)
+RAG_SPACES_ALLOWED_TYPES_DEFAULT = (
+    "text/plain,text/markdown,application/pdf,"
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+)
+
+# Embedding
+RAG_SPACES_EMBEDDING_MODEL_DEFAULT = "text-embedding-3-small"
+RAG_SPACES_EMBEDDING_DIMENSIONS_DEFAULT = 1536
+
+# ============================================================================
 # SKILLS (agentskills.io standard)
 # ============================================================================
 # Reference: docs/technical/SKILLS_INTEGRATION.md

@@ -20,6 +20,7 @@ import AdminBroadcastSection from '@/components/settings/AdminBroadcastSection';
 import AdminConsumptionExportSection from '@/components/settings/AdminConsumptionExportSection';
 import AdminDebugSettingsSection from '@/components/settings/AdminDebugSettingsSection';
 import AdminLLMConfigSection from '@/components/settings/AdminLLMConfigSection';
+import AdminRAGSpacesSection from '@/components/settings/AdminRAGSpacesSection';
 import { ThemeSelector } from '@/components/theme-selector';
 import { FontSettings } from '@/components/settings/FontSettings';
 import { TimezoneSelector } from '@/components/settings/TimezoneSelector';
@@ -35,6 +36,7 @@ import { ChannelSettings } from '@/components/settings/ChannelSettings';
 import { HeartbeatSettings } from '@/components/settings/HeartbeatSettings';
 import { SkillsSettings } from '@/components/settings/SkillsSettings';
 import { AdminSkillsSection } from '@/components/settings/AdminSkillsSection';
+import { SpacesSettingsSection } from '@/components/spaces/SpacesSettingsSection';
 import { VoiceModeSettings } from '@/components/settings/VoiceModeSettings';
 import { UserDebugSettings } from '@/components/settings/UserDebugSettings';
 import { useDebugPanelEnabled } from '@/hooks/useDebugPanelEnabled';
@@ -235,6 +237,9 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               <FeatureErrorBoundary feature="skills">
                 <SkillsSettings lng={lng} />
               </FeatureErrorBoundary>
+              <FeatureErrorBoundary feature="rag-spaces">
+                <SpacesSettingsSection lng={lng} />
+              </FeatureErrorBoundary>
               <VoiceModeSettings lng={lng} />
             </Accordion>
           </TabsContent>
@@ -249,6 +254,9 @@ export default function SettingsPage({ params }: SettingsPageProps) {
             >
               <FeatureErrorBoundary feature="llm-config">
                 <AdminLLMConfigSection lng={lng} />
+              </FeatureErrorBoundary>
+              <FeatureErrorBoundary feature="rag-spaces-admin">
+                <AdminRAGSpacesSection lng={lng} />
               </FeatureErrorBoundary>
               <AdminUsersSection lng={lng} />
               <AdminConnectorsSection lng={lng} />
@@ -329,6 +337,9 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               </FeatureErrorBoundary>
               <FeatureErrorBoundary feature="skills">
                 <SkillsSettings lng={lng} />
+              </FeatureErrorBoundary>
+              <FeatureErrorBoundary feature="rag-spaces">
+                <SpacesSettingsSection lng={lng} />
               </FeatureErrorBoundary>
               <VoiceModeSettings lng={lng} />
             </Accordion>

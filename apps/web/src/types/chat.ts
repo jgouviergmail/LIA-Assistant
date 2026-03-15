@@ -831,6 +831,26 @@ export interface MemoryInjectionMetrics {
 }
 
 /**
+ * RAGInjectionChunk - Single injected RAG chunk with score for debug panel
+ */
+export interface RAGInjectionChunk {
+  space: string;
+  file: string;
+  score: number;
+}
+
+/**
+ * RAGInjectionMetrics - Debug details for injected RAG document chunks
+ * Used for tuning retrieval parameters and verifying RAG behavior
+ */
+export interface RAGInjectionMetrics {
+  spaces_searched: number;
+  chunks_found: number;
+  chunks_injected: number;
+  chunks: RAGInjectionChunk[];
+}
+
+/**
  * DebugMetrics - Complete debug metrics from QueryIntelligence
  * Emitted via SSE when DEBUG=true in backend
  */
@@ -862,6 +882,8 @@ export interface DebugMetrics {
   knowledge_enrichment?: KnowledgeEnrichmentMetrics; // Optional: Brave Search knowledge enrichment
   // Memory Injection (debug tuning)
   memory_injection?: MemoryInjectionMetrics; // Optional: injected memories with scores for tuning
+  // RAG Injection (Knowledge Spaces)
+  rag_injection?: RAGInjectionMetrics; // Optional: injected RAG chunks with scores
   // Skills activation
   skills?: SkillsMetrics; // Optional: skill activated for this turn
 }

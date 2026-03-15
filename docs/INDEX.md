@@ -171,7 +171,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 |----------|-------------|--------|
 | [OBSERVABILITY_AGENTS.md](./technical/OBSERVABILITY_AGENTS.md) | Stack Prometheus/Grafana/Loki/Tempo | ✅ |
 | [METRICS_REFERENCE.md](./technical/METRICS_REFERENCE.md) | 500+ métriques documentées | ✅ |
-| [GRAFANA_DASHBOARDS.md](./technical/GRAFANA_DASHBOARDS.md) | 15 dashboards Grafana | ✅ |
+| [GRAFANA_DASHBOARDS.md](./technical/GRAFANA_DASHBOARDS.md) | 18 dashboards Grafana | ✅ |
 | [README_OBSERVABILITY.md](./readme/README_OBSERVABILITY.md) | Guide observabilité quickstart | ✅ |
 | [README_GRAFANA_LANGFUSE.md](./readme/README_GRAFANA_LANGFUSE.md) | Intégration Grafana + Langfuse | ✅ |
 | [README_PROMETHEUS_ALERTMANAGER.md](./readme/README_PROMETHEUS_ALERTMANAGER.md) | Configuration AlertManager | ✅ |
@@ -206,6 +206,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [GUIDE_TELEGRAM_INTEGRATION.md](./guides/GUIDE_TELEGRAM_INTEGRATION.md) | Guide pratique Telegram (bot, webhook, OTP, HITL) | ✅ |
 | [GUIDE_HEARTBEAT_PROACTIVE_NOTIFICATIONS.md](./guides/GUIDE_HEARTBEAT_PROACTIVE_NOTIFICATIONS.md) | Guide pratique Heartbeat (ProactiveTask, ContextAggregator) | ✅ |
 | [GUIDE_SCHEDULED_ACTIONS.md](./guides/GUIDE_SCHEDULED_ACTIONS.md) | Guide pratique Actions Planifiees (recurrentes, timezone, retry) | ✅ |
+| [GUIDE_RAG_SPACES.md](./guides/GUIDE_RAG_SPACES.md) | Guide RAG Spaces (espaces de connaissances, upload, hybrid search) | ✅ |
 
 ### Operations
 
@@ -236,6 +237,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Titre | Date |
 |-----|-------|------|
+| ADR-055 | RAG Spaces Architecture | 2026-03 |
 | ADR-054 | Voice Input Architecture | 2026-01 |
 | ADR-053 | Interest Learning System | 2026-01 |
 | ADR-052 | Union Validation Strategy AgentResult | 2026-01 |
@@ -380,7 +382,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Technologie | Usage |
 |-------------|-------|
 | Prometheus | 500+ métriques |
-| Grafana | 15 dashboards |
+| Grafana | 18 dashboards |
 | Loki | Logs agrégés |
 | Tempo | Traces distribuées |
 | Langfuse | LLM observability |

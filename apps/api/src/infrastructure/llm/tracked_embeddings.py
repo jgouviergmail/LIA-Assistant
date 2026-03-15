@@ -107,7 +107,7 @@ def _count_tokens(texts: list[str], encoding_name: str = EMBEDDING_ENCODING) -> 
         return sum(len(t) // 4 for t in texts if t)
 
 
-def _estimate_embedding_cost_sync(model: str, token_count: int) -> float:
+def estimate_embedding_cost_sync(model: str, token_count: int) -> float:
     """
     Estimate cost for embedding tokens (synchronous fallback-only version).
 
@@ -148,7 +148,7 @@ async def _estimate_embedding_cost(model: str, token_count: int) -> float:
     # Use synchronous fallback for reliability
     # The async version with database lookup was causing import errors
     # that broke memory storage operations
-    return _estimate_embedding_cost_sync(model, token_count)
+    return estimate_embedding_cost_sync(model, token_count)
 
 
 class TrackedOpenAIEmbeddings(OpenAIEmbeddings):
@@ -222,8 +222,9 @@ class TrackedOpenAIEmbeddings(OpenAIEmbeddings):
 
             # Convert to EUR if configured
             if settings.default_currency.upper() == "EUR":
-                # Use approximate rate (or get from service)
-                cost_eur = cost_usd * 0.94  # Approximate EUR rate
+                from src.infrastructure.cache.pricing_cache import get_cached_usd_eur_rate
+
+                cost_eur = cost_usd * get_cached_usd_eur_rate()
                 embedding_cost_total.labels(
                     model=model_name,
                     currency="EUR",
@@ -308,7 +309,9 @@ class TrackedOpenAIEmbeddings(OpenAIEmbeddings):
             ).inc(cost_usd)
 
             if settings.default_currency.upper() == "EUR":
-                cost_eur = cost_usd * 0.94
+                from src.infrastructure.cache.pricing_cache import get_cached_usd_eur_rate
+
+                cost_eur = cost_usd * get_cached_usd_eur_rate()
                 embedding_cost_total.labels(
                     model=model_name,
                     currency="EUR",
@@ -382,7 +385,7 @@ class TrackedOpenAIEmbeddings(OpenAIEmbeddings):
             embedding_api_latency_seconds.labels(model=model_name).observe(latency)
 
             # Estimate cost with fallback pricing
-            cost_usd = _estimate_embedding_cost_sync(model_name, token_count)
+            cost_usd = estimate_embedding_cost_sync(model_name, token_count)
 
             embedding_cost_total.labels(
                 model=model_name,
@@ -442,7 +445,7 @@ class TrackedOpenAIEmbeddings(OpenAIEmbeddings):
             embedding_api_latency_seconds.labels(model=model_name).observe(latency)
 
             # Estimate cost with fallback pricing
-            cost_usd = _estimate_embedding_cost_sync(model_name, token_count)
+            cost_usd = estimate_embedding_cost_sync(model_name, token_count)
 
             embedding_cost_total.labels(
                 model=model_name,

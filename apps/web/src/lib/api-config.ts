@@ -237,6 +237,44 @@ export const API_ENDPOINTS = {
   },
 
   // ============================================================================
+  // RAG SPACES (Knowledge Documents)
+  // ============================================================================
+  RAG_SPACES: {
+    /** GET /rag-spaces - List user spaces */
+    LIST: `${API_URL}/rag-spaces`,
+
+    /** POST /rag-spaces - Create a space */
+    CREATE: `${API_URL}/rag-spaces`,
+
+    /** GET /rag-spaces/:spaceId - Get space detail with documents */
+    BY_ID: `${API_URL}/rag-spaces/:spaceId`,
+
+    /** PATCH /rag-spaces/:spaceId - Update space */
+    UPDATE: `${API_URL}/rag-spaces/:spaceId`,
+
+    /** DELETE /rag-spaces/:spaceId - Delete space and all documents */
+    DELETE: `${API_URL}/rag-spaces/:spaceId`,
+
+    /** PATCH /rag-spaces/:spaceId/toggle - Toggle space activation */
+    TOGGLE: `${API_URL}/rag-spaces/:spaceId/toggle`,
+
+    /** POST /rag-spaces/:spaceId/documents - Upload document (multipart) */
+    UPLOAD_DOCUMENT: `${API_URL}/rag-spaces/:spaceId/documents`,
+
+    /** DELETE /rag-spaces/:spaceId/documents/:documentId - Delete document */
+    DELETE_DOCUMENT: `${API_URL}/rag-spaces/:spaceId/documents/:documentId`,
+
+    /** GET /rag-spaces/:spaceId/documents/:documentId/status - Polling status */
+    DOCUMENT_STATUS: `${API_URL}/rag-spaces/:spaceId/documents/:documentId/status`,
+
+    /** POST /rag-spaces/admin/reindex - Admin: reindex all (admin) */
+    ADMIN_REINDEX: `${API_URL}/rag-spaces/admin/reindex`,
+
+    /** GET /rag-spaces/admin/reindex/status - Admin: reindex status (admin) */
+    ADMIN_REINDEX_STATUS: `${API_URL}/rag-spaces/admin/reindex/status`,
+  },
+
+  // ============================================================================
   // LLM ADMIN (Pricing & Models)
   // ============================================================================
   LLM: {

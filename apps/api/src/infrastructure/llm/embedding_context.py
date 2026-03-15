@@ -78,6 +78,7 @@ class EmbeddingTrackingContext:
     user_id: str
     session_id: str
     conversation_id: str | None = None
+    run_id: str | None = None
 
 
 # Global ContextVar for embedding tracking
@@ -92,6 +93,7 @@ def set_embedding_context(
     user_id: str,
     session_id: str,
     conversation_id: str | None = None,
+    run_id: str | None = None,
 ) -> None:
     """
     Set embedding tracking context for the current async context.
@@ -104,11 +106,15 @@ def set_embedding_context(
         user_id: User ID for statistics
         session_id: Session ID for logging
         conversation_id: Optional conversation UUID
+        run_id: Optional run ID to merge costs into an existing
+            TrackingContext (e.g. the main conversation run_id).
+            If None, persist_embedding_tokens generates its own.
     """
     context = EmbeddingTrackingContext(
         user_id=user_id,
         session_id=session_id,
         conversation_id=conversation_id,
+        run_id=run_id,
     )
     _embedding_context.set(context)
 
@@ -117,6 +123,7 @@ def set_embedding_context(
         user_id=user_id,
         session_id=session_id,
         conversation_id=conversation_id,
+        run_id=run_id,
     )
 
 
@@ -182,13 +189,16 @@ async def persist_embedding_tokens(
         # Import here to avoid circular dependencies
         from src.domains.chat.service import TrackingContext
 
-        # Convert cost to EUR
-        cost_eur = cost_usd * 0.94  # Approximate rate
+        # Convert cost to EUR via pricing cache (dynamic ECB rate)
+        from src.infrastructure.cache.pricing_cache import get_cached_usd_eur_rate
 
-        # Generate unique run_id for this embedding operation
+        cost_eur = cost_usd * get_cached_usd_eur_rate()
+
+        # Use run_id from context if provided (merges into existing
+        # conversation MessageTokenSummary), otherwise generate unique one
         import uuid
 
-        run_id = f"embed_{uuid.uuid4().hex[:12]}"
+        run_id = context.run_id or f"embed_{uuid.uuid4().hex[:12]}"
 
         # Parse conversation_id if provided
         conv_uuid: UUID | None = None

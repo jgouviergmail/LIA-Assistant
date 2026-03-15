@@ -26,5 +26,7 @@ export { InterestProfileSection, type InterestProfileSectionProps } from './Inte
 export { KnowledgeEnrichmentSection, type KnowledgeEnrichmentSectionProps } from './KnowledgeEnrichmentSection';
 // Memory Injection (debug tuning)
 export { MemoryInjectionSection, type MemoryInjectionSectionProps } from './MemoryInjectionSection';
+// RAG Injection (Knowledge Spaces)
+export { RAGInjectionSection, type RAGInjectionSectionProps } from './RAGInjectionSection';
 // Skills activation
 export { SkillsSection, type SkillsSectionProps } from './SkillsSection';

@@ -57,6 +57,25 @@ export function formatEuro(
 }
 
 /**
+ * Format a file size in bytes to a human-readable string.
+ *
+ * @param bytes File size in bytes
+ * @returns Formatted string (e.g., "1.5 MB", "256 KB", "0 B")
+ *
+ * @example
+ * formatFileSize(0) // "0 B"
+ * formatFileSize(512) // "512 B"
+ * formatFileSize(1536) // "1.5 KB"
+ * formatFileSize(2621440) // "2.5 MB"
+ */
+export function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 B';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/**
  * Format a date with locale-appropriate formatting.
  *
  * @param date Date to format (Date object, ISO string, or timestamp)

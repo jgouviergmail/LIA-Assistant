@@ -1990,12 +1990,19 @@ Le `response_node` orchestre la génération de la réponse finale en combinant 
 │     _format_registry_mode_results(agent_results, registry)              │
 │     → Blocs ```json { "domain": "contacts", ... } ```                   │
 │                                                                          │
-│  6. Construction du prompt complet                                       │
+│  6. Injection de contexte                                                │
+│     ↓                                                                    │
+│     Memory injection (psychological profile, long-term memory)          │
+│     RAG Spaces injection (retrieve_rag_context → hybrid search)         │
+│     Knowledge enrichment (domain-specific)                               │
+│     → Contexte additionnel injecté dans le prompt                       │
+│                                                                          │
+│  7. Construction du prompt complet                                       │
 │     ↓                                                                    │
 │     get_response_prompt(timezone, language, domain_operations)          │
-│     → System prompt + few-shots + agent_results                         │
+│     → System prompt + context + few-shots + agent_results               │
 │                                                                          │
-│  7. Génération LLM (streaming)                                          │
+│  8. Génération LLM (streaming)                                          │
 │     ↓                                                                    │
 │     chain.ainvoke({messages, rejection_override, agent_results})        │
 │     → Réponse Markdown formatée selon few-shots                         │
@@ -2003,7 +2010,9 @@ Le `response_node` orchestre la génération de la réponse finale en combinant 
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Note**: L'étape 2 (Exécution Draft) n'est déclenchée que si un draft a été confirmé via HITL. Les types de drafts supportés sont : EMAIL, EVENT, EVENT_UPDATE, EVENT_DELETE, CONTACT, TASK, etc.
+**Notes**:
+- L'étape 2 (Exécution Draft) n'est déclenchée que si un draft a été confirmé via HITL. Les types de drafts supportés sont : EMAIL, EVENT, EVENT_UPDATE, EVENT_DELETE, CONTACT, TASK, etc.
+- L'étape 6 (Injection de contexte) inclut l'injection RAG Spaces : si l'utilisateur a des espaces actifs, `retrieve_rag_context()` effectue une recherche hybride (semantic + BM25) et injecte les chunks pertinents dans le prompt. Le coût d'embedding de la requête est tracké via `TrackedOpenAIEmbeddings`.
 
 ### 13.2 Formatage des Résultats du Registry
 

@@ -359,6 +359,11 @@ export function VoiceModeBadge({
     }
   };
 
+  // Hide badge entirely when voice mode is disabled (user can re-enable from Settings)
+  if (!isEnabled) {
+    return null;
+  }
+
   const isDisabled = disabled || !isSupported || isProcessing;
 
   return (

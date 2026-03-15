@@ -64,6 +64,10 @@ if getattr(settings, "skills_enabled", False):
     from src.domains.skills.router import router as skills_router
 
     api_router.include_router(skills_router)
+if getattr(settings, "rag_spaces_enabled", False):
+    from src.domains.rag_spaces.router import router as rag_spaces_router
+
+    api_router.include_router(rag_spaces_router)
 api_router.include_router(voice_router)
 api_router.include_router(system_settings_public_router)
 
@@ -143,6 +147,10 @@ async def get_client_config() -> dict:
         "features": {
             "tool_approval_enabled": True,  # NOTE: Tool approval is always enabled
             "attachments_enabled": getattr(settings, "attachments_enabled", False),
+            "rag_spaces_enabled": getattr(settings, "rag_spaces_enabled", False),
+            "rag_spaces_embedding_model": getattr(
+                settings, "rag_spaces_embedding_model", "text-embedding-3-small"
+            ),
         },
         "api_version": constants.API_VERSION,  # PHASE 2.1: Use constant instead of hardcoded value
     }
