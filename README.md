@@ -137,7 +137,7 @@
 - **Multi-Step Planning**: ExecutionPlan DSL with dependencies and conditions
 - **Parallel Execution**: asyncio.gather for independent domains
 
-### Voice TTS Dual-Mode (v6.0)
+### Voice TTS Dual-Mode
 
 | Mode | Provider | Cost | Quality |
 |------|----------|------|---------|
@@ -149,7 +149,7 @@
 - **Admin Control**: Mode controlled via System Settings
 - **Graceful Degradation**: Automatic HD to Standard fallback
 
-### FOR_EACH Iteration Pattern (v6.0)
+### FOR_EACH Iteration Pattern
 
 ```python
 # DSL Syntax
@@ -219,7 +219,7 @@ ExecutionStep(
 - **Loki**: Structured JSON logs with PII filtering
 - **Tempo**: Distributed cross-service tracing
 
-### Cost Tracking & Billing (v6.1)
+### Cost Tracking & Billing
 
 | Type | Tracking | Export |
 |------|----------|--------|
@@ -279,7 +279,7 @@ ExecutionStep(
 - **Multi-channel integration**: Result notifications via FCM, SSE, and Telegram
 - **Feature flag**: `SCHEDULED_ACTIONS_ENABLED=true` to enable
 
-### RAG Knowledge Spaces (v1.4)
+### RAG Knowledge Spaces
 
 - **Personal knowledge bases**: Create spaces, upload documents (PDF, TXT, MD, DOCX), automatic chunking and embedding
 - **Hybrid search**: Semantic similarity (pgvector cosine) + BM25 keyword matching with configurable alpha fusion
@@ -289,7 +289,7 @@ ExecutionStep(
 - **Observability**: 14 Prometheus metrics, dedicated Grafana dashboard
 - **Feature flag**: `RAG_SPACES_ENABLED=true` to enable (default: true)
 
-### MCP Apps — Interactive Widgets (F2.6)
+### MCP Apps — Interactive Widgets
 
 - **Sandboxed iframes**: MCP applications rendered in secure iframes (CSP + COEP `credentialless`)
 - **JSON-RPC Bridge**: Bidirectional communication between iframe app and chat via PostMessage JSON-RPC 2.0
@@ -373,11 +373,12 @@ Create an account and start chatting immediately.
 | Software | Version | Required |
 |----------|---------|----------|
 | Python | 3.12+ | Yes |
-| Node.js | 22+ | Yes |
+| Node.js | 22 LTS | Yes |
 | Docker | 24+ | Yes |
 | pnpm | 10+ | Yes |
+| [Task](https://taskfile.dev/) | 3+ | Yes (build tool) |
 
-This project uses [Task](https://taskfile.dev/) as its build tool. See `Taskfile.yml` for all available commands. Quick start: `task setup` then `task dev`.
+All commands are defined in `Taskfile.yml`. Quick start: `task setup` then `task dev`.
 
 ### Express Setup (5 minutes)
 
@@ -386,29 +387,45 @@ This project uses [Task](https://taskfile.dev/) as its build tool. See `Taskfile
 git clone https://github.com/jgouviergmail/LIA-Assistant.git
 cd LIA-Assistant
 
-# 2. Start the infrastructure
-docker-compose up -d postgres redis prometheus grafana
+# 2. Configure environment
+cp .env.example .env  # Edit with your API keys
 
-# 3. Backend setup
+# 3. Full setup (backend + frontend + git hooks)
+task setup
+
+# 4. Start all services (API + Web + PostgreSQL + Redis + observability)
+task dev
+```
+
+<details>
+<summary><strong>Manual setup (without Task)</strong></summary>
+
+```bash
+# 1. Start the infrastructure
+docker compose up -d postgres redis prometheus grafana
+
+# 2. Backend setup
 cd apps/api
 python -m venv .venv && source .venv/bin/activate  # Windows: .venv\Scripts\activate
-pip install -e ".[dev]"
+pip install -r requirements.txt
 cp ../../.env.example .env  # Configure your API keys
 
-# 4. Database migrations
+# 3. Database migrations
 alembic upgrade head
 
-# 5. Frontend setup
+# 4. Frontend setup
 cd ../web
 pnpm install
 
-# 6. Start the services
+# 5. Start the services
 # Terminal 1 - Backend:
 cd apps/api && uvicorn src.main:app --reload --port 8000
 
 # Terminal 2 - Frontend:
 cd apps/web && pnpm dev
 ```
+
+</details>
 
 ### Development URLs
 
@@ -482,7 +499,7 @@ Production targets include Raspberry Pi (ARM64) via multi-arch Docker builds (`l
 │  └────────────────────────────────────────────────────────────────────┘ │
 │                                                                          │
 │  ┌─────────────────────────────────────────────────────────────────────┐│
-│  │  Domain Services: Auth, Users, Connectors, LLM Pricing, Voice       ││
+│  │  Domain Services: Auth, Users, Connectors, RAG, Voice, Skills...    ││
 │  └─────────────────────────────────────────────────────────────────────┘│
 │                                                                          │
 │  ┌─────────────────────────────────────────────────────────────────────┐│
@@ -528,7 +545,7 @@ apps/api/src/
 │   ├── auth/                # JWT, sessions, OAuth
 │   ├── connectors/          # Google + Apple + Microsoft clients, provider resolver
 │   ├── conversations/       # Conversation CRUD & history
-│   ├── google_api/          # Google API pricing & usage tracking (v6.1)
+│   ├── google_api/          # Google API pricing & usage tracking
 │   ├── rag_spaces/          # RAG Knowledge Spaces (upload, embed, retrieve)
 │   ├── user_mcp/            # Per-user MCP servers (CRUD, OAuth, domain routing)
 │   ├── voice/               # TTS factory, STT, Wake Word
@@ -754,7 +771,7 @@ git checkout -b feature/my-feature
 task setup
 
 # 4. Develop and test
-cd apps/api && .venv/Scripts/pytest tests/unit -v
+task test:backend:unit:fast
 
 # 5. Commit (Conventional Commits)
 git commit -m "feat(agents): add weather forecast agent"
