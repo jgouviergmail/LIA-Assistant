@@ -296,10 +296,10 @@ class MCPSettings(BaseSettings):
     )
 
     mcp_excalidraw_llm_temperature: float = Field(
-        default=0.2,
+        default=0.3,
         ge=0.0,
         le=2.0,
-        description="Temperature for Excalidraw LLM (low for consistent JSON output).",
+        description="Temperature for Excalidraw LLM (0.3 for balanced creativity/consistency).",
     )
 
     mcp_excalidraw_llm_top_p: float = Field(
@@ -335,10 +335,9 @@ class MCPSettings(BaseSettings):
     mcp_excalidraw_llm_reasoning_effort: (
         Literal["none", "minimal", "low", "medium", "high"] | None
     ) = Field(
-        default=None,
+        default="low",
         description=(
-            "Reasoning effort for Excalidraw LLM (OpenAI o-series/GPT-5 only). "
-            "None = not applicable for non-reasoning models."
+            "Reasoning effort for Excalidraw LLM. " "'low' for balanced diagram generation quality."
         ),
     )
 

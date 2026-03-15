@@ -781,7 +781,7 @@ class AgentsSettings(BaseSettings):
     # ========================================================================
     hitl_question_generator_llm_provider: Literal[
         "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini"
-    ] = Field(default="openai", description="LLM provider for HITL question generator")
+    ] = Field(default="anthropic", description="LLM provider for HITL question generator")
     hitl_question_generator_llm_provider_config: str = Field(
         default="{}",
         description="Advanced provider-specific config for HITL question generator (JSON string)",
@@ -998,11 +998,11 @@ class AgentsSettings(BaseSettings):
     )
     planner_llm_reasoning_effort: Literal["none", "minimal", "low", "medium", "high"] | None = (
         Field(
-            default=None,
+            default="medium",
             description=(
                 "Reasoning effort for planner LLM (OpenAI o-series/GPT-5 only). "
                 "Controls reasoning depth: minimal=sub-second (GPT-5), low=1-3s, medium=5-15s, high=30+s. "
-                "Recommended: 'low' for planner (multi-agent orchestration, prioritize speed over deep reasoning)."
+                "Recommended: 'medium' for planner (thorough multi-agent orchestration)."
             ),
         )
     )
@@ -1675,8 +1675,8 @@ class AgentsSettings(BaseSettings):
         description="Advanced provider-specific config for broadcast translator (JSON string)",
     )
     broadcast_translator_llm_model: str = Field(
-        default="gpt-4.1-nano",
-        description="LLM model for broadcast translation. gpt-4.1-nano recommended for cost efficiency.",
+        default="gpt-5-mini",
+        description="LLM model for broadcast translation. gpt-5-mini for quality + reasoning.",
     )
     broadcast_translator_llm_temperature: float = Field(
         default=0.3,
@@ -1710,7 +1710,7 @@ class AgentsSettings(BaseSettings):
     broadcast_translator_llm_reasoning_effort: (
         Literal["none", "minimal", "low", "medium", "high"] | None
     ) = Field(
-        default=None,
+        default="minimal",
         description="Reasoning effort for broadcast translator LLM (OpenAI o-series/GPT-5 only).",
     )
 
@@ -2203,15 +2203,15 @@ class AgentsSettings(BaseSettings):
         description="LLM provider for heartbeat decision phase (structured output).",
     )
     heartbeat_decision_llm_model: str = Field(
-        default="gpt-4.1-mini",
-        description="LLM model for heartbeat decision phase (cheap/fast).",
+        default="gpt-5-mini",
+        description="LLM model for heartbeat decision phase (reasoning-capable).",
     )
     heartbeat_message_llm_provider: str = Field(
-        default="openai",
+        default="anthropic",
         description="LLM provider for heartbeat message generation phase.",
     )
     heartbeat_message_llm_model: str = Field(
-        default="gpt-4.1-mini",
+        default="claude-sonnet-4-6",
         description="LLM model for heartbeat message generation (personality-aware).",
     )
 

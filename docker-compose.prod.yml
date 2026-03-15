@@ -393,7 +393,7 @@ services:
 
   # Portainer (Docker Management UI)
   portainer:
-    image: portainer/portainer-ce:latest
+    image: portainer/portainer-ce:2.39.0
     container_name: lia-portainer-prod
     restart: unless-stopped
     security_opt:

@@ -39,6 +39,7 @@ from src.domains.auth.schemas import (
 )
 from src.domains.users.models import User
 from src.infrastructure.cache.redis import SessionService, get_redis_session
+from src.infrastructure.cache.session_store import SessionStore
 
 logger = structlog.get_logger(__name__)
 
@@ -275,10 +276,10 @@ class AuthService:
         if jti:
             await mark_token_used(jti, "password_reset")
 
-        # Revoke all refresh tokens (force re-login on all devices)
+        # Invalidate all active sessions (force re-login on all devices)
         redis = await get_redis_session()
-        session_service = SessionService(redis)
-        await session_service.remove_all_sessions(str(user.id))
+        session_store = SessionStore(redis)
+        await session_store.delete_all_user_sessions(str(user.id))
 
         logger.info("password_reset_completed", user_id=str(user.id), email=email)
 

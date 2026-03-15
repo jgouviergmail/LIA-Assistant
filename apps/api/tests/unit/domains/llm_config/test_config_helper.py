@@ -100,6 +100,6 @@ class TestGetLLMConfigForAgent:
         config = get_llm_config_for_agent(settings, "response")
 
         assert config.temperature == 0.9
-        assert config.model == "gpt-4.1-mini"  # Default preserved
+        assert config.model == "claude-sonnet-4-6"  # Default preserved
         assert config.max_tokens == 5000  # Default preserved
-        assert config.provider == "openai"  # Default preserved
+        assert config.provider == "anthropic"  # Default preserved

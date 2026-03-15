@@ -1,5 +1,5 @@
 -- SQL script to create a benchmark test user
--- Password: BenchmarkPassword123!
+-- Password must be set via BENCHMARK_PASSWORD environment variable before running.
 -- This script can be run with:
 -- docker compose -f docker-compose.dev.yml exec postgres psql -U postgres -d lia -f /path/to/create_benchmark_user.sql
 
@@ -7,8 +7,7 @@
 DELETE FROM users WHERE email = 'benchmark@example.com';
 
 -- Insert the benchmark user with a bcrypt-hashed password
--- Password: BenchmarkPassword123!
--- Hashed using bcrypt with salt rounds = 12
+-- To regenerate: python -c "import bcrypt; print(bcrypt.hashpw(b'YOUR_PASSWORD', bcrypt.gensalt(12)).decode())"
 INSERT INTO users (
     id,
     email,

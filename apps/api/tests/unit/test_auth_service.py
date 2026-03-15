@@ -579,15 +579,15 @@ class TestResetPassword:
         mock_repository.update_password.return_value = sample_user
 
         mock_redis = AsyncMock()
-        mock_session_service = AsyncMock()
-        mock_session_service.remove_all_sessions = AsyncMock()
+        mock_session_store = AsyncMock()
+        mock_session_store.delete_all_user_sessions = AsyncMock()
 
         with (
             patch("src.domains.auth.service.verify_single_use_token") as mock_verify,
             patch("src.domains.auth.service.mark_token_used") as mock_mark_used,
             patch("src.domains.auth.service.get_password_hash") as mock_hash,
             patch("src.domains.auth.service.get_redis_session", return_value=mock_redis),
-            patch("src.domains.auth.service.SessionService", return_value=mock_session_service),
+            patch("src.domains.auth.service.SessionStore", return_value=mock_session_store),
         ):
             # verify_single_use_token returns (payload, jti) tuple
             mock_verify.return_value = (
@@ -609,7 +609,7 @@ class TestResetPassword:
         mock_repository.update_password.assert_called_once_with(sample_user, "new_hashed_password")
         mock_db.commit.assert_called_once()
         mock_mark_used.assert_called_once_with("test-jti-reset", "password_reset")
-        mock_session_service.remove_all_sessions.assert_called_once_with(str(sample_user.id))
+        mock_session_store.delete_all_user_sessions.assert_called_once_with(str(sample_user.id))
         assert result.email == sample_user.email
 
     async def test_reset_password_invalid_token(self, service):
@@ -690,7 +690,7 @@ class TestInitiateGoogleOAuth:
         """Test successful Google OAuth flow initiation."""
         # Arrange
         mock_redis = AsyncMock()
-        mock_session_service = AsyncMock()
+        mock_session_store = AsyncMock()
         mock_provider = MagicMock()
         mock_flow_handler = AsyncMock()
         mock_flow_handler.initiate_flow = AsyncMock(
@@ -698,9 +698,7 @@ class TestInitiateGoogleOAuth:
         )
 
         with patch("src.domains.auth.service.get_redis_session", return_value=mock_redis):
-            with patch(
-                "src.domains.auth.service.SessionService", return_value=mock_session_service
-            ):
+            with patch("src.domains.auth.service.SessionService", return_value=mock_session_store):
                 with patch("src.core.oauth.GoogleOAuthProvider") as mock_provider_class:
                     with patch("src.core.oauth.OAuthFlowHandler", return_value=mock_flow_handler):
                         mock_provider_class.for_authentication.return_value = mock_provider
@@ -745,18 +743,16 @@ class TestLogout:
         refresh_token = "refresh-token-123"
 
         mock_redis = AsyncMock()
-        mock_session_service = AsyncMock()
-        mock_session_service.remove_session = AsyncMock()
+        mock_session_store = AsyncMock()
+        mock_session_store.remove_session = AsyncMock()
 
         with patch("src.domains.auth.service.get_redis_session", return_value=mock_redis):
-            with patch(
-                "src.domains.auth.service.SessionService", return_value=mock_session_service
-            ):
+            with patch("src.domains.auth.service.SessionService", return_value=mock_session_store):
                 # Act
                 await service.logout(user_id, refresh_token)
 
         # Assert
-        mock_session_service.remove_session.assert_called_once_with(user_id, refresh_token)
+        mock_session_store.remove_session.assert_called_once_with(user_id, refresh_token)
 
 
 # ============================================================================
@@ -1012,8 +1008,8 @@ class TestIntegrationScenarios:
         mock_repository.update_password.return_value = sample_user
 
         mock_redis = AsyncMock()
-        mock_session_service = AsyncMock()
-        mock_session_service.remove_all_sessions = AsyncMock()
+        mock_session_store = AsyncMock()
+        mock_session_store.delete_all_user_sessions = AsyncMock()
 
         with (
             patch("src.domains.auth.service.create_password_reset_token", return_value=reset_token),
@@ -1022,7 +1018,7 @@ class TestIntegrationScenarios:
             patch("src.domains.auth.service.mark_token_used"),
             patch("src.domains.auth.service.get_password_hash", return_value="new_hash"),
             patch("src.domains.auth.service.get_redis_session", return_value=mock_redis),
-            patch("src.domains.auth.service.SessionService", return_value=mock_session_service),
+            patch("src.domains.auth.service.SessionStore", return_value=mock_session_store),
         ):
             # verify_single_use_token returns (payload, jti) tuple
             mock_verify.return_value = (
@@ -1042,7 +1038,7 @@ class TestIntegrationScenarios:
         # Assert
         mock_send.assert_called_once()
         mock_repository.update_password.assert_called_once()
-        mock_session_service.remove_all_sessions.assert_called_once_with(str(sample_user.id))
+        mock_session_store.delete_all_user_sessions.assert_called_once_with(str(sample_user.id))
         assert result.email == email
 
 

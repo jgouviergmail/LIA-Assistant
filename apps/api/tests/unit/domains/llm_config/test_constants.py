@@ -44,8 +44,8 @@ class TestLLMDefaults:
         "llm_type,expected_provider,expected_model",
         [
             ("router", "openai", "gpt-5-mini"),
-            ("response", "openai", "gpt-4.1-mini"),
-            ("planner", "openai", "gpt-5.1"),
+            ("response", "anthropic", "claude-sonnet-4-6"),
+            ("planner", "openai", "gpt-5.2"),
             ("mcp_excalidraw", "anthropic", "claude-opus-4-6"),
         ],
     )

@@ -269,12 +269,12 @@ class LLMSettings(BaseSettings):
 
     response_llm_provider: Literal[
         "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini"
-    ] = Field(default="openai", description="LLM provider for response")
+    ] = Field(default="anthropic", description="LLM provider for response")
     response_llm_provider_config: str = Field(
         default="{}", description="Advanced provider-specific config for response (JSON string)"
     )
     response_llm_model: str = Field(
-        default="gpt-4.1-mini",
+        default="claude-sonnet-4-6",
         description="LLM model for response node",
     )
     response_llm_temperature: float = Field(
@@ -1000,7 +1000,7 @@ class LLMSettings(BaseSettings):
         description="Advanced provider-specific config for Query agent (JSON string)",
     )
     query_agent_llm_model: str = Field(
-        default="gpt-4.1-nano",
+        default="gpt-5.2",
         description="LLM model for Query agent node (data analysis on Registry)",
     )
     query_agent_llm_temperature: float = Field(
@@ -1034,7 +1034,7 @@ class LLMSettings(BaseSettings):
     )
     query_agent_llm_reasoning_effort: Literal["none", "minimal", "low", "medium", "high"] | None = (
         Field(
-            default=None,
+            default="medium",
             description="Reasoning effort for Query agent LLM (OpenAI o-series/GPT-5 only).",
         )
     )
@@ -1057,11 +1057,10 @@ class LLMSettings(BaseSettings):
         description="Advanced provider-specific config for semantic validator (JSON string)",
     )
     semantic_validator_llm_model: str = Field(
-        default="gpt-4.1-mini",
+        default="gpt-5.2",
         description=(
-            "LLM model for semantic validation (fast model recommended). "
-            "Default: gpt-4.1-mini for speed + quality balance. "
-            "Alternatives: gpt-4.1-nano (ultra-fast), gpt-4.1-mini-mini (higher quality)."
+            "LLM model for semantic validation (reasoning model for thorough validation). "
+            "Default: gpt-5.2 with medium reasoning effort."
         ),
     )
     semantic_validator_llm_temperature: float = Field(
@@ -1100,11 +1099,11 @@ class LLMSettings(BaseSettings):
     semantic_validator_llm_reasoning_effort: (
         Literal["none", "minimal", "low", "medium", "high"] | None
     ) = Field(
-        default=None,
+        default="medium",
         description=(
             "Reasoning effort for semantic validator LLM (OpenAI o-series/GPT-5 only). "
             "Controls reasoning depth: minimal=sub-second (GPT-5), low=1-3s, medium=5-15s, high=30+s. "
-            "Recommended: 'minimal' or None for semantic validator (fast validation)."
+            "Recommended: 'medium' for semantic validator (thorough validation)."
         ),
     )
 
@@ -1196,19 +1195,17 @@ class LLMSettings(BaseSettings):
         description="Advanced provider-specific config for query analyzer (JSON string)",
     )
     query_analyzer_llm_model: str = Field(
-        default="gpt-4.1-mini",
+        default="gpt-5.2",
         description=(
-            "LLM model for query analysis (fast model required). "
-            "Replaces embeddings-based domain selection with LLM intelligence. "
-            "Default: gpt-4.1-mini for speed + quality balance. "
-            "Target latency: <800ms."
+            "LLM model for query analysis (reasoning model for thorough analysis). "
+            "Default: gpt-5.2 with medium reasoning effort."
         ),
     )
     query_analyzer_llm_temperature: float = Field(
-        default=0.0,
+        default=0.2,
         ge=0.0,
         le=2.0,
-        description="Temperature for query analyzer (0.0 for deterministic analysis)",
+        description="Temperature for query analyzer (0.2 for balanced analysis)",
     )
     query_analyzer_llm_top_p: float = Field(
         default=1.0,
@@ -1240,10 +1237,10 @@ class LLMSettings(BaseSettings):
     query_analyzer_llm_reasoning_effort: (
         Literal["none", "minimal", "low", "medium", "high"] | None
     ) = Field(
-        default=None,
+        default="medium",
         description=(
             "Reasoning effort for query analyzer LLM (OpenAI o-series/GPT-5 only). "
-            "Recommended: None or 'minimal' for speed."
+            "Recommended: 'medium' for thorough analysis."
         ),
     )
 
@@ -1318,7 +1315,7 @@ class LLMSettings(BaseSettings):
     interest_content_llm_provider: Literal[
         "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini"
     ] = Field(
-        default="openai",
+        default="anthropic",
         description="LLM provider for interest content presentation",
     )
     interest_content_llm_provider_config: str = Field(
@@ -1326,11 +1323,11 @@ class LLMSettings(BaseSettings):
         description="Advanced provider-specific config for interest content (JSON string)",
     )
     interest_content_llm_model: str = Field(
-        default="gpt-4.1-mini",
+        default="claude-sonnet-4-6",
         description=(
             "LLM model for interest content presentation. "
             "Generates conversational notification content. "
-            "Default: gpt-4.1-mini for natural language quality."
+            "Default: claude-sonnet-4-6 for natural language quality."
         ),
     )
     interest_content_llm_temperature: float = Field(

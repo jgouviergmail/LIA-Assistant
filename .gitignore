@@ -246,6 +246,9 @@ docs/architecture/ADR-033-Deployment-Architecture.md
 # Infrastructure runbook (contains server IPs, tunnel IDs, internal hostnames)
 docs/runbooks/CLOUDFLARE_TUNNEL.md
 
+# Cloudflare tunnel config (contains tunnel ID, internal hostnames)
+infrastructure/cloudflared/
+
 # Obsidian
 .obsidian/
 
