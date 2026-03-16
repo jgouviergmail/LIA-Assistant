@@ -33,7 +33,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.4.0</strong> — RAG Knowledge Spaces — March 2026
+  <strong>Version 1.4.3</strong> — Dependency Overhaul — March 2026
 </p>
 
 ---
