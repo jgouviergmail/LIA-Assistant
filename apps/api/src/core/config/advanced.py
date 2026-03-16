@@ -24,6 +24,7 @@ from pydantic_settings import BaseSettings
 
 from src.core.constants import (
     DEFAULT_USD_EUR_RATE,
+    EXTERNAL_CONTENT_WRAPPING_ENABLED_DEFAULT,
     LLM_PRICING_CACHE_TTL_DEFAULT,
     SUPPORTED_LANGUAGES,
     TOOL_CONTEXT_CONFIDENCE_THRESHOLD,
@@ -140,6 +141,17 @@ class AdvancedSettings(BaseSettings):
     web_fetch_cache_prefix: str = Field(
         default=WEB_FETCH_CACHE_PREFIX,
         description="Redis key prefix for web fetch cache entries",
+    )
+
+    # ========================================================================
+    # External Content Wrapping (prompt injection prevention)
+    # ========================================================================
+    external_content_wrapping_enabled: bool = Field(
+        default=EXTERNAL_CONTENT_WRAPPING_ENABLED_DEFAULT,
+        description=(
+            "Wrap untrusted external content (web fetch, search results) in safety markers "
+            "to prevent prompt injection. Recommended: always enabled in production."
+        ),
     )
 
     # ========================================================================

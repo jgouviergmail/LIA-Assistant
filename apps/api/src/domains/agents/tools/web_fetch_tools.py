@@ -28,6 +28,7 @@ Architecture:
         ├── readability.Document()      → Content extraction (article mode)
         ├── markdownify.markdownify()   → HTML → Markdown
         ├── _sanitize_markdown()        → Strip dangerous URIs
+        ├── wrap_external_content()     → Prompt injection prevention (F2)
         └── UnifiedToolOutput           → Structured response
 """
 
@@ -44,6 +45,7 @@ from langchain_core.tools import InjectedToolArg, tool
 from pydantic import BaseModel
 from readability import Document
 
+from src.core.config import settings
 from src.core.constants import (
     WEB_FETCH_ARTICLE_RATIO_THRESHOLD,
     WEB_FETCH_DEFAULT_EXTRACT_MODE,
@@ -72,6 +74,7 @@ from src.domains.agents.data_registry.models import (
 )
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import validate_runtime_config
+from src.domains.agents.utils.content_wrapper import wrap_external_content
 from src.domains.agents.utils.rate_limiting import rate_limit
 from src.domains.agents.web_fetch.url_validator import validate_resolved_url, validate_url
 from src.infrastructure.cache.redis import get_redis_cache
@@ -470,10 +473,18 @@ async def fetch_web_page_tool(
     # 9. Truncate if needed
     markdown_content, was_truncated = _truncate_content(markdown_content, effective_max_length)
 
-    # 10. Calculate word count
+    # 10. Calculate word count (before wrapping to avoid inflated count)
     word_count = len(markdown_content.split())
 
-    # 11. Build registry item
+    # 11. Wrap external content (prompt injection prevention)
+    if getattr(settings, "external_content_wrapping_enabled", True):
+        markdown_content = wrap_external_content(
+            content=markdown_content,
+            source_url=safe_url,
+            source_type="web_page",
+        )
+
+    # 12. Build registry item
     source_domain = urlparse(safe_url).netloc
     extracted_at = datetime.now(UTC).isoformat()
 
@@ -499,7 +510,7 @@ async def fetch_web_page_tool(
         ),
     )
 
-    # 12. Build summary for LLM
+    # 13. Build summary for LLM
     truncation_note = " [truncated]" if was_truncated else ""
     https_warning = " (upgraded to HTTPS)" if validation.https_upgraded else ""
     summary = (

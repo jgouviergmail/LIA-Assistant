@@ -105,8 +105,7 @@ class HtmlRenderer:
             "querys": SearchResultCard(),  # CONTEXT_DOMAIN_QUERY
             "web_search": WebSearchCard(),
             "web_searchs": WebSearchCard(),  # CONTEXT_DOMAIN_WEB_SEARCH alias
-            "web_fetch": WebSearchCard(),  # CONTEXT_DOMAIN_WEB_FETCH (evolution F1)
-            "web_fetchs": WebSearchCard(),  # CONTEXT_DOMAIN_WEB_FETCH alias
+            # web_fetch: No card — content is inline in the LLM response text
             "reminders": ReminderCard(),
             "routes": RouteCard(),
             "mcps": McpResultCard(),  # CONTEXT_DOMAIN_MCP (evolution F2.3)
@@ -138,8 +137,7 @@ class HtmlRenderer:
             "querys": ["results", "items"],  # CONTEXT_DOMAIN_QUERY
             "web_search": ["results", "items"],
             "web_searchs": ["results", "items"],  # CONTEXT_DOMAIN_WEB_SEARCH alias
-            "web_fetch": ["results", "items"],  # CONTEXT_DOMAIN_WEB_FETCH
-            "web_fetchs": ["results", "items"],  # CONTEXT_DOMAIN_WEB_FETCH alias
+            # web_fetch: No card — content is inline in the LLM response text
             "reminders": ["reminders", "items"],
             "routes": ["route", "routes", "items"],
             "mcps": ["mcps", "mcp_results", "items"],
@@ -178,7 +176,10 @@ class HtmlRenderer:
 
         component = self._get_component(domain)
         if not component:
-            return self._render_fallback(items, ctx)
+            # Domain has no registered card component — skip rendering entirely.
+            # This is intentional for domains like web_fetch where content is
+            # inline in the LLM response text and doesn't need a visual card.
+            return ""
 
         # Mono-domain: cards handle their own separators via render_list()
         # First card gets top bold separator, last card gets bottom bold separator

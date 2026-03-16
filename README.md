@@ -33,7 +33,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.4.4</strong> — Web Search Cache & Tool Hardening — March 2026
+  <strong>Version 1.4.5</strong> — External Content Wrapping & Prompt Injection Prevention — March 2026
 </p>
 
 ---
@@ -791,6 +791,7 @@ ESLint + TypeScript check         CodeQL (Python + JS)
 |----------|--------|
 | GDPR | PII filtering, data minimization |
 | OWASP Top 10 | XSS, SQL injection, CSRF protection |
+| Prompt Injection | External content wrapping (`<external_content>` safety markers) |
 | OAuth 2.1 | Mandatory PKCE |
 
 ### Reporting a Vulnerability

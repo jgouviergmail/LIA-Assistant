@@ -57,6 +57,7 @@ from src.domains.agents.data_registry.models import (
 )
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import get_user_preferences, parse_user_id
+from src.domains.agents.utils.content_wrapper import wrap_external_content
 from src.domains.connectors.clients.brave_search_client import BraveSearchClient
 from src.domains.connectors.clients.perplexity_client import PerplexityClient
 from src.domains.connectors.clients.wikipedia_client import WikipediaClient
@@ -624,6 +625,9 @@ async def unified_web_search_tool(
         ),
     )
 
+    # Check wrapping setting
+    wrapping_enabled = getattr(settings, "external_content_wrapping_enabled", True)
+
     # Build summary for LLM
     summary_parts = [
         f"Résultats de recherche web pour '{query}' ({len(sources_used)}/{len(all_sources)} sources):\n"
@@ -632,7 +636,14 @@ async def unified_web_search_tool(
     # Perplexity synthesis section
     if unified_output.synthesis:
         summary_parts.append("### Synthesis (Perplexity AI)")
-        summary_parts.append(unified_output.synthesis)
+        synthesis_text = unified_output.synthesis
+        if wrapping_enabled:
+            synthesis_text = wrap_external_content(
+                content=synthesis_text,
+                source_url="perplexity.ai",
+                source_type="search_synthesis",
+            )
+        summary_parts.append(synthesis_text)
         if unified_output.citations:
             summary_parts.append(f"\nSources: {', '.join(unified_output.citations[:3])}")
         summary_parts.append("")
@@ -647,6 +658,12 @@ async def unified_web_search_tool(
                 snippet = (
                     result.snippet[:100] + "..." if len(result.snippet) > 100 else result.snippet
                 )
+                if wrapping_enabled:
+                    snippet = wrap_external_content(
+                        content=snippet,
+                        source_url=result.url,
+                        source_type="search_snippet",
+                    )
                 summary_parts.append(f"      {snippet}")
         summary_parts.append("")
 
@@ -656,6 +673,12 @@ async def unified_web_search_tool(
         wiki_summary = unified_output.wikipedia.summary
         if len(wiki_summary) > 500:
             wiki_summary = wiki_summary[:500] + "..."
+        if wrapping_enabled:
+            wiki_summary = wrap_external_content(
+                content=wiki_summary,
+                source_url=unified_output.wikipedia.url,
+                source_type="search_snippet",
+            )
         summary_parts.append(wiki_summary)
         summary_parts.append(f"\n🔗 {unified_output.wikipedia.url}")
         summary_parts.append("")
