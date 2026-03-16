@@ -5,12 +5,12 @@ uvicorn[standard]==0.41.0
 # Database
 sqlalchemy[asyncio]==2.0.48
 asyncpg==0.31.0
-psycopg[binary]==3.2.10  # PostgreSQL adapter v3 (modern, for LangGraph checkpointer & SQLAlchemy)
+psycopg[binary]==3.3.3  # PostgreSQL adapter v3 (modern, for LangGraph checkpointer & SQLAlchemy)
 alembic==1.18.4
-pgvector==0.3.6
+pgvector==0.4.2
 
 # Cache & Session
-redis==7.1.0
+redis==7.3.0
 
 # Configuration
 python-dotenv==1.2.2

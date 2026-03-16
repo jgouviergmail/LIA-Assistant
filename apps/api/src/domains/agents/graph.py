@@ -159,7 +159,7 @@ def route_from_router(state: MessagesState) -> str:
         )
         # Mark state for potential review or additional validation
         # Type ignore: low_confidence_routing is a dynamic flag, not in MessagesState schema
-        state["low_confidence_routing"] = True  # type: ignore[typeddict-unknown-key]
+        state["low_confidence_routing"] = True
     else:
         # Very low confidence: fallback to response node regardless of intention
         tier = "very_low"

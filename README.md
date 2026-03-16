@@ -17,8 +17,8 @@
   <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-22%20LTS-5FA04E?style=flat-square&logo=nodedotjs&logoColor=white" alt="Node.js 22 LTS"></a>
   <a href="https://fastapi.tiangolo.com/"><img src="https://img.shields.io/badge/FastAPI-0.135.1-009688?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI"></a>
   <a href="https://nextjs.org/"><img src="https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=nextdotjs&logoColor=white" alt="Next.js 16"></a>
-  <a href="https://langchain-ai.github.io/langgraph/"><img src="https://img.shields.io/badge/LangGraph-1.0.10-FF6F00?style=flat-square" alt="LangGraph"></a>
-  <a href="https://python.langchain.com/"><img src="https://img.shields.io/badge/LangChain-1.2.10-4B8BBE?style=flat-square" alt="LangChain"></a>
+  <a href="https://langchain-ai.github.io/langgraph/"><img src="https://img.shields.io/badge/LangGraph-1.1.2-FF6F00?style=flat-square" alt="LangGraph"></a>
+  <a href="https://python.langchain.com/"><img src="https://img.shields.io/badge/LangChain-1.2.12-4B8BBE?style=flat-square" alt="LangChain"></a>
   <a href="#internationalization-i18n--6-languages"><img src="https://img.shields.io/badge/i18n-6%20languages-E040FB?style=flat-square" alt="6 languages"></a>
   <a href="#license"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue?style=flat-square" alt="License"></a>
 </p>
@@ -580,8 +580,8 @@ apps/api/src/
 |------------|---------|------|
 | Python | 3.12+ | Primary runtime |
 | FastAPI | 0.135.1 | REST API + SSE framework |
-| LangGraph | 1.0.10 | Multi-agent orchestration |
-| LangChain | 1.2.10 | LLM abstraction + tools |
+| LangGraph | 1.1.2 | Multi-agent orchestration |
+| LangChain | 1.2.12 | LLM abstraction + tools |
 | SQLAlchemy | 2.0.45 | Async ORM |
 | Alembic | latest | Database migrations |
 | PostgreSQL | 16 + pgvector | Database + vector search |

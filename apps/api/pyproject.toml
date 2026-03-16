@@ -20,8 +20,8 @@ Repository = "https://github.com/jgouviergmail/LIA-Assistant"
 dev = [
     # Linting & Formatting
     "black==26.3.1",
-    "ruff==0.8.4",
-    "mypy==1.13.0",
+    "ruff==0.15.6",
+    "mypy==1.19.1",
     # Testing
     "pytest==9.0.2",
     "pytest-asyncio==1.3.0",
@@ -83,6 +83,10 @@ ignore = [
     "E501",  # line too long (handled by black)
     "B008",  # do not perform function calls in argument defaults
     "C901",  # too complex
+    "UP042", # replace-str-enum (StrEnum migration deferred — 57 occurrences)
+    "UP045", # non-pep604-annotation-optional (Optional[X] → X | None, cosmetic)
+    "UP046", # non-pep695-generic-class (cosmetic)
+    "UP047", # non-pep695-generic-function (cosmetic)
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -168,6 +172,9 @@ module = [
     "src.domains.agents.utils.*",
     "src.domains.agents.middleware.*",
     "src.domains.agents.tools.*",
+    "src.domains.agents.web_fetch.*",
+    "src.domains.agents.display.*",
+    "src.domains.agents.services.smart_catalogue_service",
     "src.domains.skills.tools",
     "src.domains.agents.nodes.decorators",
     "src.domains.agents.nodes.planner_node",
@@ -200,7 +207,7 @@ module = [
 # LangChain v1.0 API changes may cause operator/override issues with middleware/tools
 # redis-py async methods return Awaitable[T] | T which causes false positive misc errors
 # LLM infrastructure and HITL services use dynamic provider/callback patterns
-disable_error_code = ["no-any-return", "no-untyped-def", "arg-type", "misc", "call-arg", "assignment", "dict-item", "return-value", "var-annotated", "index", "operator", "override", "union-attr", "unused-ignore", "attr-defined"]
+disable_error_code = ["no-any-return", "no-untyped-def", "arg-type", "misc", "call-arg", "assignment", "dict-item", "return-value", "var-annotated", "index", "operator", "override", "union-attr", "unused-ignore", "attr-defined", "call-overload"]
 
 [tool.pytest.ini_options]
 minversion = "9.0"

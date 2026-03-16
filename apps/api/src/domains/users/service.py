@@ -725,7 +725,7 @@ class UserService:
                 error=str(e),
             )
             # Return zeros if query fails
-            return {user_id: 0 for user_id in user_ids}
+            return dict.fromkeys(user_ids, 0)
 
     def _build_user_profile_with_stats(
         self,

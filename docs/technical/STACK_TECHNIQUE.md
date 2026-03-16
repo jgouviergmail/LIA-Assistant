@@ -78,7 +78,7 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 | Technologie | Version | Role |
 |-------------|---------|------|
 | **FastAPI** | 0.135.1 | Web framework async |
-| **Uvicorn** | 0.40.0 | ASGI server |
+| **Uvicorn** | 0.41.0 | ASGI server |
 | **Pydantic** | 2.12.5 | Data validation |
 | **pydantic-settings** | 2.10.x | Configuration |
 
@@ -88,24 +88,24 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 |-------------|---------|------|
 | **SQLAlchemy** | 2.0.45 | ORM async |
 | **Alembic** | 1.14.0 | Migrations |
-| **asyncpg** | 0.30.0 | PostgreSQL driver async |
-| **psycopg** | 3.2.x | PostgreSQL driver |
-| **pgvector** | 0.3.6 | Vector similarity search |
+| **asyncpg** | 0.31.0 | PostgreSQL driver async |
+| **psycopg** | 3.3.x | PostgreSQL driver |
+| **pgvector** | 0.4.2 | Vector similarity search |
 
 ### Cache & Sessions
 
 | Technologie | Version | Role |
 |-------------|---------|------|
-| **redis** (Python) | 7.1.0 | Redis client |
+| **redis** (Python) | 7.3.0 | Redis client |
 | **cachetools** | 5.5.x | In-memory caching |
 
 ### AI/ML Stack (LangChain Ecosystem)
 
 | Technologie | Version | Role |
 |-------------|---------|------|
-| **langchain-core** | 1.2.17 | Core abstractions |
-| **langchain** | 1.2.10 | LLM framework |
-| **langgraph** | 1.0.10 | Agent orchestration |
+| **langchain-core** | 1.2.19 | Core abstractions |
+| **langchain** | 1.2.12 | LLM framework |
+| **langgraph** | 1.1.2 | Agent orchestration |
 | **langgraph-checkpoint** | 4.0.1 | Checkpoint serialization |
 | **langgraph-checkpoint-postgres** | 3.0.4 | State persistence |
 | **langgraph-prebuilt** | 1.0.8 | Prebuilt agent components |
@@ -115,9 +115,9 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 
 | Technologie | Version | Provider |
 |-------------|---------|----------|
-| **langchain-openai** | 1.1.10 | OpenAI GPT-4/5 |
-| **langchain-anthropic** | 1.3.4 | Claude |
-| **langchain-google-genai** | 3.2.0 | Gemini |
+| **langchain-openai** | 1.1.11 | OpenAI GPT-4/5 |
+| **langchain-anthropic** | 1.3.5 | Claude |
+| **langchain-google-genai** | 4.2.1 | Gemini |
 | **langchain-deepseek** | 1.0.1 | DeepSeek |
 | **openai** | 2.20.0 | OpenAI SDK |
 | **anthropic** | 0.84.0 | Claude SDK direct |
@@ -127,7 +127,7 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 
 | Technologie | Version | Role |
 |-------------|---------|------|
-| **sentence-transformers** | 5.0+ | Local E5 embeddings |
+| **sentence-transformers** | 5.3.0 | Local E5 embeddings |
 
 ### Observabilite
 
@@ -136,16 +136,16 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 | **structlog** | 25.x | Structured logging |
 | **prometheus-client** | 0.21.x | Metrics |
 | **langfuse** | 3.14.5 | LLM observability |
-| **opentelemetry-api** | 1.33.x | Distributed tracing |
-| **opentelemetry-sdk** | 1.33.x | Tracing SDK |
-| **opentelemetry-instrumentation-fastapi** | 0.48.x | FastAPI auto-instrumentation |
-| **opentelemetry-exporter-otlp** | 1.33.x | OTLP export |
+| **opentelemetry-api** | 1.40.0 | Distributed tracing |
+| **opentelemetry-sdk** | 1.40.0 | Tracing SDK |
+| **opentelemetry-instrumentation-fastapi** | 0.61b0 | FastAPI auto-instrumentation |
+| **opentelemetry-exporter-otlp** | 1.40.0 | OTLP export |
 
 ### Securite & Auth
 
 | Technologie | Version | Role |
 |-------------|---------|------|
-| **python-jose** | 3.3.x | JWT handling |
+| **python-jose** | 3.5.0 | JWT handling |
 | **passlib** | 1.7.x | Password hashing |
 | **cryptography** | 44.x | Encryption |
 
@@ -155,9 +155,9 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 |-------------|---------|------|
 | **httpx** | 0.28.x | HTTP client async |
 | **slowapi** | 0.1.x | Rate limiting |
-| **apscheduler** | 3.10.x | Background jobs |
-| **edge-tts** | 6.x | Text-to-Speech |
-| **firebase-admin** | 6.x | Firebase integration |
+| **apscheduler** | 3.11.2 | Background jobs |
+| **edge-tts** | 7.2.7 | Text-to-Speech |
+| **firebase-admin** | 7.2.0 | Firebase integration |
 | **phonenumbers** | 8.13.x | Phone validation |
 
 ### Dev Tools Python
@@ -165,14 +165,14 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 | Technologie | Version | Role |
 |-------------|---------|------|
 | **black** | 24.x | Code formatter |
-| **ruff** | 0.8.x | Fast linter |
-| **mypy** | 1.13.x | Type checker |
-| **pytest** | 8.3.x | Testing framework |
-| **pytest-asyncio** | 0.24.x | Async test support |
-| **pytest-cov** | 6.x | Coverage |
-| **pytest-mock** | 3.14.x | Mocking |
-| **bandit** | 1.8.x | Security linter |
-| **safety** | 3.2.x | Dependency scanner |
+| **ruff** | 0.15.6 | Fast linter |
+| **mypy** | 1.19.1 | Type checker |
+| **pytest** | 9.0.2 | Testing framework |
+| **pytest-asyncio** | 1.3.0 | Async test support |
+| **pytest-cov** | 7.0.0 | Coverage |
+| **pytest-mock** | 3.15.1 | Mocking |
+| **bandit** | 1.9.4 | Security linter |
+| **safety** | 3.7.0 | Dependency scanner |
 
 ---
 
@@ -227,13 +227,13 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 
 ### Python & Redis
 
-> **Note**: La version Redis Python client (7.1.0) differe de l'image Docker (7.4-alpine).
-> Le client 7.1.0 est compatible avec Redis server 7.x.
+> **Note**: La version Redis Python client (7.3.0) differe de l'image Docker (7.4-alpine).
+> Le client 7.3.0 est compatible avec Redis server 7.x.
 
 ### LangGraph & Checkpointing
 
 > **Important**: `langgraph-checkpoint-postgres` 3.0.2 requiert PostgreSQL 14+ avec support JSON.
-> Compatible avec pgvector 0.3.6+.
+> Compatible avec pgvector 0.4.2+.
 
 ### Embeddings Local
 
@@ -249,7 +249,7 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 | Composant | Actuel | Cible | Impact |
 |-----------|--------|-------|--------|
 | **Alembic** | 1.14.0 | 1.18.0 | Bug fixes migrations |
-| **pgvector** | 0.3.6 | 0.8.1 | Performance HNSW |
+| **pgvector** | 0.4.2 | 0.8.1 | Performance HNSW |
 
 ### Priorite Moyenne
 

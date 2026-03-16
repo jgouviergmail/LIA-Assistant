@@ -563,8 +563,9 @@ class TestHITLErrorHandling:
 @pytest.fixture
 async def mock_agent_service():
     """Provide a mock AgentService for E2E tests."""
-    from src.domains.agents.api.mixins.graph_management import GraphManagementMixin
     from src.domains.agents.api.mixins.hitl_management import HITLManagementMixin
+
+    from src.domains.agents.api.mixins.graph_management import GraphManagementMixin
     from src.domains.agents.api.mixins.streaming import StreamingMixin
 
     class TestAgentService(HITLManagementMixin, StreamingMixin, GraphManagementMixin):

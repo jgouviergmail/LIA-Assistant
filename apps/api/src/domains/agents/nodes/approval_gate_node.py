@@ -314,7 +314,7 @@ async def _build_approval_request(
 
             user_message = SSEErrorMessages.plan_approval_fallback(
                 step_count=plan_summary.total_steps,
-                language=user_language,  # type: ignore[arg-type]
+                language=user_language,
             )
 
     return PlanApprovalRequest(
