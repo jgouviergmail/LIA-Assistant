@@ -20,11 +20,11 @@ from src.domains.conversations.checkpointer import (
 
 
 @pytest.mark.asyncio
+@pytest.mark.integration
 @pytest.mark.skipif(
     sys.platform == "win32",
     reason="psycopg v3 async not compatible with Windows ProactorEventLoop in unit tests",
 )
-@pytest.mark.unit
 async def test_get_checkpointer_creates_instance():
     """Test get_checkpointer creates checkpointer instance."""
     # Reset first to ensure clean state
@@ -41,7 +41,7 @@ async def test_get_checkpointer_creates_instance():
     sys.platform == "win32",
     reason="psycopg v3 async not compatible with Windows ProactorEventLoop in unit tests",
 )
-@pytest.mark.unit
+@pytest.mark.integration
 async def test_get_checkpointer_returns_singleton():
     """Test get_checkpointer returns same instance (singleton pattern)."""
     reset_checkpointer()
@@ -58,7 +58,7 @@ async def test_get_checkpointer_returns_singleton():
     sys.platform == "win32",
     reason="psycopg v3 async not compatible with Windows ProactorEventLoop in unit tests",
 )
-@pytest.mark.unit
+@pytest.mark.integration
 async def test_reset_checkpointer_clears_singleton():
     """Test reset_checkpointer clears global singleton."""
     # Create checkpointer
@@ -79,7 +79,7 @@ async def test_reset_checkpointer_clears_singleton():
     sys.platform == "win32",
     reason="psycopg v3 async not compatible with Windows ProactorEventLoop in unit tests",
 )
-@pytest.mark.unit
+@pytest.mark.integration
 async def test_checkpointer_setup_is_idempotent():
     """Test checkpointer setup can be called multiple times safely."""
     reset_checkpointer()
@@ -99,7 +99,7 @@ async def test_checkpointer_setup_is_idempotent():
     sys.platform == "win32",
     reason="psycopg v3 async not compatible with Windows ProactorEventLoop in unit tests",
 )
-@pytest.mark.unit
+@pytest.mark.integration
 async def test_checkpointer_connection_string_format():
     """Test checkpointer uses correct psycopg3 connection string format."""
     reset_checkpointer()

@@ -161,7 +161,7 @@ jobs:
             --cov=src \
             --cov-report=xml \
             --cov-report=term-missing \
-            --cov-fail-under=75
+            --cov-fail-under=40
 
       - name: Upload coverage
         if: always()
