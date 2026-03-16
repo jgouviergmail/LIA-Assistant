@@ -79,7 +79,14 @@ unified_web_search_catalogue_manifest = ToolManifest(
             name="recency",
             type="string",
             required=False,
-            description="Freshness filter: 'day', 'week', 'month', or None (default: None)",
+            description=(
+                "Freshness filter. MUST be one of these exact values: "
+                "'day' (last 24h), 'week' (last 7 days), 'month' (last 30 days). "
+                "Omit or set to null for no time filter."
+            ),
+            constraints=[
+                ParameterConstraint(kind="enum", value=["day", "week", "month"]),
+            ],
         ),
     ],
     outputs=[

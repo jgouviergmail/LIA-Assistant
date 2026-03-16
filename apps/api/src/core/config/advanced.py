@@ -29,6 +29,11 @@ from src.core.constants import (
     TOOL_CONTEXT_CONFIDENCE_THRESHOLD,
     TOOL_CONTEXT_DETAILS_MAX_ITEMS,
     TOOL_CONTEXT_MAX_ITEMS,
+    WEB_FETCH_CACHE_PREFIX,
+    WEB_FETCH_CACHE_TTL_DEFAULT,
+    WEB_SEARCH_CACHE_ENABLED_DEFAULT,
+    WEB_SEARCH_CACHE_PREFIX,
+    WEB_SEARCH_CACHE_TTL_DEFAULT,
 )
 
 
@@ -104,6 +109,37 @@ class AdvancedSettings(BaseSettings):
         default=TOOL_CONTEXT_DETAILS_MAX_ITEMS,
         gt=0,
         description="Maximum number of detailed items to cache per domain (LRU eviction)",
+    )
+
+    # ========================================================================
+    # Web Search / Fetch Cache
+    # ========================================================================
+    web_search_cache_enabled: bool = Field(
+        default=WEB_SEARCH_CACHE_ENABLED_DEFAULT,
+        description=(
+            "Enable Redis TTL caching for web search and web fetch tool results. "
+            "Reduces external API calls (Brave, Perplexity, Wikipedia) for repeated queries."
+        ),
+    )
+    web_search_cache_ttl_seconds: int = Field(
+        default=WEB_SEARCH_CACHE_TTL_DEFAULT,
+        ge=0,
+        le=3600,
+        description="TTL for cached unified web search results (0 = disabled)",
+    )
+    web_fetch_cache_ttl_seconds: int = Field(
+        default=WEB_FETCH_CACHE_TTL_DEFAULT,
+        ge=0,
+        le=7200,
+        description="TTL for cached web fetch (page content) results (0 = disabled)",
+    )
+    web_search_cache_prefix: str = Field(
+        default=WEB_SEARCH_CACHE_PREFIX,
+        description="Redis key prefix for web search cache entries",
+    )
+    web_fetch_cache_prefix: str = Field(
+        default=WEB_FETCH_CACHE_PREFIX,
+        description="Redis key prefix for web fetch cache entries",
     )
 
     # ========================================================================

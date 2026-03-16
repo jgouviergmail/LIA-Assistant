@@ -196,6 +196,64 @@ Apres que httpx suive les redirections, l'URL finale (`response.url`) est re-val
 | `WEB_FETCH_MIN_ARTICLE_WORDS` | `200` | Seuil mots min avant ratio check |
 | `WEB_FETCH_ARTICLE_RATIO_THRESHOLD` | `0.3` | Ratio extraction/total declenchant fallback |
 
+### Variables d'environnement - Cache Redis
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `WEB_SEARCH_CACHE_ENABLED` | `true` | Activer le cache Redis TTL pour web search et web fetch |
+| `WEB_FETCH_CACHE_TTL_SECONDS` | `600` | TTL du cache pour les pages web extraites (10 min) |
+| `WEB_SEARCH_CACHE_TTL_SECONDS` | `300` | TTL du cache pour la recherche web unifiee (5 min) |
+| `WEB_FETCH_CACHE_PREFIX` | `web_fetch` | Prefix Redis pour les cles de cache fetch |
+| `WEB_SEARCH_CACHE_PREFIX` | `web_search` | Prefix Redis pour les cles de cache search |
+
+---
+
+## Cache Redis (TTL)
+
+Le Web Fetch Tool integre un cache Redis pour eviter les requetes HTTP redondantes sur les memes URLs dans une fenetre de temps configurable.
+
+### Architecture
+
+```
+fetch_web_page_tool(url)
+    |
+    v
++------------------+
+| Cache Check      |  Redis GET web_fetch:{user_id}:{hash(url)}
++------------------+
+    |         |
+    | HIT     | MISS
+    v         v
++--------+ +-------------------+
+| Return | | HTTP Fetch        |
+| cached | | + Extract + Cache |
++--------+ +-------------------+
+```
+
+### Comportement
+
+- **Cache hit** : retourne le contenu cache sans requete HTTP (latence ~1ms)
+- **Cache miss** : fetch HTTP, extraction Markdown, stockage en cache, retour resultat
+- **force_refresh=True** : bypass le cache et force un re-fetch (utiliser quand l'utilisateur demande une actualisation)
+- **Cache desactive** : quand `WEB_SEARCH_CACHE_ENABLED=false`, tous les appels passent directement au HTTP fetch
+- **Erreur Redis** : degradation gracieuse (fetch direct, pas de crash)
+
+### Cle de cache
+
+Format : `{prefix}:{user_id}:{md5(url)[:8]}`
+
+Exemple : `web_fetch:550e8400-...:a7b9c8d1`
+
+### Multi-tenant
+
+Le `user_id` est inclus dans la cle de cache. Chaque utilisateur a son propre espace cache, sans risque de leak cross-tenant.
+
+### Metriques Prometheus
+
+Les hits/misses sont automatiquement tracked via `parse_cache_entry()` / `record_cache_miss()` :
+- `cache_hit_total{cache_type="web_fetch"}` — nombre de cache hits
+- `cache_miss_total{cache_type="web_fetch"}` — nombre de cache misses
+
 ---
 
 ## Outil fetch_web_page_tool
@@ -210,6 +268,7 @@ async def fetch_web_page_tool(
     url: str,                  # URL complete a recuperer
     extract_mode: str = "article",  # "article" ou "full"
     max_length: int = 30000,   # Longueur max sortie (caracteres)
+    force_refresh: bool = False,  # Bypass cache et force re-fetch
     runtime: ToolRuntime = None,  # Injecte par LangChain
 ) -> UnifiedToolOutput:
 ```
@@ -221,6 +280,7 @@ async def fetch_web_page_tool(
 | `url` | `str` | Oui | URL complete de la page web (ex: `https://example.com/article`) |
 | `extract_mode` | `str` | Non | `article` : contenu principal via readability (defaut). `full` : page entiere |
 | `max_length` | `int` | Non | Longueur max en caracteres (defaut: 30 000, min: 1 000, max: 30 000) |
+| `force_refresh` | `bool` | Non | `true` : bypass le cache Redis et force un re-fetch (defaut: `false`) |
 
 ### Modes d'extraction
 

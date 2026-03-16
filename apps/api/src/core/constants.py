@@ -121,6 +121,13 @@ WEB_FETCH_ARTICLE_RATIO_THRESHOLD = (
     0.3  # if extraction < MIN_WORDS and ratio < this, fallback to full
 )
 
+# Web Search / Fetch Cache (Redis TTL cache for tool results)
+WEB_SEARCH_CACHE_TTL_DEFAULT = 300  # 5 minutes for unified search results
+WEB_FETCH_CACHE_TTL_DEFAULT = 600  # 10 minutes for extracted page content
+WEB_SEARCH_CACHE_PREFIX = "web_search"  # Redis key prefix for search cache
+WEB_FETCH_CACHE_PREFIX = "web_fetch"  # Redis key prefix for fetch cache
+WEB_SEARCH_CACHE_ENABLED_DEFAULT = True  # Enable web search/fetch caching by default
+
 # ============================================================================
 # TOOL CONTEXT MANAGEMENT
 # ============================================================================

@@ -1673,6 +1673,8 @@ async def update_contact(resource_name: str, data: dict):
 | **search_contacts** | Redis LRU | 5 min | 75% | 2000ms → 10ms (99.5%) |
 | **list_contacts** | Redis LRU | 5 min | 60% | 2500ms → 10ms (99.6%) |
 | **get_contact_details** | Redis LRU | 10 min | 85% | 1500ms → 10ms (99.3%) |
+| **unified_web_search** | Redis TTL | 5 min | TBD | ~3000ms → 1ms (API savings) |
+| **fetch_web_page** | Redis TTL | 10 min | TBD | ~2000ms → 1ms (no HTTP fetch) |
 
 ### Rate Limiting Impact
 

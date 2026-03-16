@@ -78,6 +78,8 @@ graph TB
         CACHE[cache_set_json] --> DB2
         CACHE --> CK1[contacts_list:{user}]
         CACHE --> CK2[llm_cache:{hash}]
+        CACHE --> CK3[web_search:{user}:{hash}]
+        CACHE --> CK4[web_fetch:{user}:{hash}]
     end
 
     style DB1 fill:#4CAF50,stroke:#2E7D32,color:#fff
@@ -376,6 +378,8 @@ async def cache_invalidate_pattern(redis_client: aioredis.Redis, pattern: str) -
 | `contacts_list:{user}` | `contacts_list:uuid` | 5 min | Contacts cache |
 | `contacts_search:{user}:{hash}` | `contacts_search:uuid:a1b2c3` | 3 min | Search cache |
 | `llm_cache:{func}:{hash}` | `llm_cache:router:sha256` | 5 min | LLM response |
+| `web_search:{user}:{hash}` | `web_search:uuid:a1b2c3` | 5 min | Web search results |
+| `web_fetch:{user}:{hash}` | `web_fetch:uuid:d4e5f6` | 10 min | Web page content |
 
 ### Cache TTL Configuration
 

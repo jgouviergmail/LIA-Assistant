@@ -30,6 +30,7 @@ from .pricing_cache import (
 )
 from .redis import CacheService, SessionService, get_redis_cache, get_redis_session
 from .routes_cache import RoutesCache
+from .web_search_cache import WebSearchCache
 
 __all__ = [
     # Base cache utilities
@@ -50,6 +51,7 @@ __all__ = [
     "ConversationIdCache",
     "PlacesCache",
     "RoutesCache",
+    "WebSearchCache",
     "SessionService",
     "TokenUsageRecord",
     "cache_llm_response",

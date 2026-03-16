@@ -62,6 +62,8 @@ from src.domains.connectors.clients.perplexity_client import PerplexityClient
 from src.domains.connectors.clients.wikipedia_client import WikipediaClient
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.service import ConnectorService
+from src.infrastructure.cache.redis import get_redis_cache
+from src.infrastructure.cache.web_search_cache import WebSearchCache
 from src.infrastructure.database import get_db_context
 from src.infrastructure.observability.decorators import track_tool_metrics
 from src.infrastructure.observability.metrics_agents import (
@@ -73,6 +75,55 @@ logger = structlog.get_logger(__name__)
 
 # Brave API freshness format mapping (tool "day"/"week"/"month" → Brave "pd"/"pw"/"pm")
 _BRAVE_FRESHNESS_MAP: dict[str, str] = {"day": "pd", "week": "pw", "month": "pm"}
+
+# Valid recency values accepted by the tool
+_VALID_RECENCY = {"day", "week", "month", "year"}
+
+# Normalization map for non-standard recency values the planner may generate
+_RECENCY_NORMALIZE_MAP: dict[str, str] = {
+    "1d": "day",
+    "24h": "day",
+    "7d": "week",
+    "1w": "week",
+    "30d": "month",
+    "1m": "month",
+    "1y": "year",
+    "365d": "year",
+    "pd": "day",
+    "pw": "week",
+    "pm": "month",
+    "py": "year",
+}
+
+
+def _normalize_recency(recency: str | None) -> str | None:
+    """Normalize recency parameter to valid values.
+
+    The planner (LLM) may generate non-standard values like "7d", "1w", "pd", etc.
+    This function normalizes them to the canonical values: "day", "week", "month", "year".
+    Invalid values are treated as None (no recency filter).
+
+    Args:
+        recency: Raw recency value from planner.
+
+    Returns:
+        Normalized recency or None if invalid/not provided.
+    """
+    if recency is None:
+        return None
+    recency = recency.strip().lower()
+    if recency in _VALID_RECENCY:
+        return recency
+    normalized = _RECENCY_NORMALIZE_MAP.get(recency)
+    if normalized:
+        logger.info(
+            "recency_normalized",
+            raw=recency,
+            normalized=normalized,
+        )
+        return normalized
+    logger.warning("recency_invalid_ignored", raw=recency, valid=list(_VALID_RECENCY))
+    return None
 
 
 # ============================================================================
@@ -374,6 +425,10 @@ async def unified_web_search_tool(
         str | None,
         "Freshness filter: 'day', 'week', 'month', or None (default: None)",
     ] = None,
+    force_refresh: Annotated[
+        bool,
+        "Force bypass cache and fetch fresh results (use when user asks to refresh/update)",
+    ] = False,
     runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """
@@ -425,6 +480,36 @@ async def unified_web_search_tool(
 
     # Get user preferences from DB (centralized pattern from runtime_helpers)
     user_timezone, user_language, _locale = await get_user_preferences(runtime)
+
+    # Normalize recency to valid values (planner may pass non-standard values like "7d")
+    recency = _normalize_recency(recency)
+
+    # --- Cache check (before external API calls) ---
+    if not force_refresh:
+        try:
+            redis_client = await get_redis_cache()
+            cache = WebSearchCache(redis_client)
+            cache_result = await cache.get_search(user_uuid, query, recency)
+            if cache_result.from_cache and cache_result.data:
+                logger.info(
+                    "unified_web_search_from_cache",
+                    user_id=str(user_uuid),
+                    query=query[:50],
+                    cache_age_seconds=cache_result.cache_age_seconds,
+                )
+                # Note: registry_updates not restored from cache (RegistryItem
+                # objects cannot be reconstructed from plain dicts without loss).
+                # The text message contains all information the agent needs.
+                return UnifiedToolOutput.data_success(
+                    message=cache_result.data.get("message", ""),
+                    metadata={
+                        **cache_result.data.get("metadata", {}),
+                        "from_cache": True,
+                        "cache_age_seconds": cache_result.cache_age_seconds,
+                    },
+                )
+        except Exception as e:
+            logger.warning("web_search_cache_check_failed", error=str(e))
 
     # Convert freshness for Brave API format (pd=24h, pw=7d, pm=31d)
     brave_freshness = _BRAVE_FRESHNESS_MAP.get(recency)
@@ -593,17 +678,36 @@ async def unified_web_search_tool(
         has_synthesis=unified_output.synthesis is not None,
     )
 
+    result_metadata = {
+        "query": query,
+        "sources_used": sources_used,
+        "results_count": len(unified_output.results),
+        "has_wikipedia": unified_output.wikipedia is not None,
+        "has_synthesis": unified_output.synthesis is not None,
+        "web_search": unified_output.model_dump(),
+        "from_cache": False,
+    }
+
+    # --- Cache store (after successful results) ---
+    try:
+        redis_client = await get_redis_cache()
+        cache = WebSearchCache(redis_client)
+        await cache.set_search(
+            user_id=user_uuid,
+            query=query,
+            data={
+                "message": summary,
+                "metadata": result_metadata,
+            },
+            recency=recency,
+        )
+    except Exception as e:
+        logger.warning("web_search_cache_store_failed", error=str(e))
+
     return UnifiedToolOutput.data_success(
         message=summary,
         registry_updates={item_id: registry_item},
-        metadata={
-            "query": query,
-            "sources_used": sources_used,
-            "results_count": len(unified_output.results),
-            "has_wikipedia": unified_output.wikipedia is not None,
-            "has_synthesis": unified_output.synthesis is not None,
-            "web_search": unified_output.model_dump(),
-        },
+        metadata=result_metadata,
     )
 
 

@@ -74,6 +74,8 @@ from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import validate_runtime_config
 from src.domains.agents.utils.rate_limiting import rate_limit
 from src.domains.agents.web_fetch.url_validator import validate_resolved_url, validate_url
+from src.infrastructure.cache.redis import get_redis_cache
+from src.infrastructure.cache.web_search_cache import WebSearchCache
 from src.infrastructure.observability.decorators import track_tool_metrics
 from src.infrastructure.observability.metrics_agents import (
     agent_tool_duration_seconds,
@@ -285,6 +287,10 @@ async def fetch_web_page_tool(
         int,
         "Maximum content length in characters (default 30000)",
     ] = WEB_FETCH_MAX_OUTPUT_LENGTH,
+    force_refresh: Annotated[
+        bool,
+        "Force bypass cache and fetch fresh content (use when user asks to refresh/reload)",
+    ] = False,
     runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Fetch a web page and extract its content as clean Markdown.
@@ -317,16 +323,43 @@ async def fetch_web_page_tool(
         return config
     user_id_str = str(config.user_id)
 
-    # 2. Validate extract_mode
+    # 2. Cache check (before any external HTTP call)
+    if not force_refresh:
+        try:
+            redis_client = await get_redis_cache()
+            cache = WebSearchCache(redis_client)
+            cache_result = await cache.get_fetch(config.user_id, url)
+            if cache_result.from_cache and cache_result.data:
+                logger.info(
+                    "web_fetch_from_cache",
+                    url=url[:50],
+                    user_id=user_id_str[:8],
+                    cache_age_seconds=cache_result.cache_age_seconds,
+                )
+                # Note: registry_updates not restored from cache (RegistryItem
+                # objects cannot be reconstructed from plain dicts without loss).
+                # The text message contains all information the agent needs.
+                return UnifiedToolOutput.data_success(
+                    message=cache_result.data.get("message", ""),
+                    structured_data={
+                        **cache_result.data.get("structured_data", {}),
+                        "from_cache": True,
+                        "cache_age_seconds": cache_result.cache_age_seconds,
+                    },
+                )
+        except Exception as e:
+            logger.warning("web_fetch_cache_check_failed", error=str(e))
+
+    # 3. Validate extract_mode
     if extract_mode not in ("article", "full"):
         extract_mode = WEB_FETCH_DEFAULT_EXTRACT_MODE
 
-    # 3. Clamp max_length
+    # 4. Clamp max_length
     effective_max_length = min(
         max(WEB_FETCH_MIN_OUTPUT_LENGTH, max_length), WEB_FETCH_MAX_OUTPUT_LENGTH
     )
 
-    # 4. Validate URL (SSRF prevention with async DNS)
+    # 5. Validate URL (SSRF prevention with async DNS)
     validation = await validate_url(url)
     if not validation.valid:
         return UnifiedToolOutput.failure(
@@ -335,7 +368,7 @@ async def fetch_web_page_tool(
         )
     safe_url = validation.url
 
-    # 5. Fetch page with streaming (check headers before downloading body)
+    # 6. Fetch page with streaming (check headers before downloading body)
     try:
         async with httpx.AsyncClient(
             timeout=WEB_FETCH_TIMEOUT_SECONDS,
@@ -346,7 +379,7 @@ async def fetch_web_page_tool(
             async with client.stream("GET", safe_url) as response:
                 response.raise_for_status()
 
-                # 5a. Post-redirect SSRF check
+                # 6a. Post-redirect SSRF check
                 final_url = str(response.url)
                 if final_url != safe_url:
                     is_safe = await validate_resolved_url(final_url)
@@ -362,7 +395,7 @@ async def fetch_web_page_tool(
                             error_code="INVALID_INPUT",
                         )
 
-                # 5b. Check Content-Type before downloading body (case-insensitive per HTTP spec)
+                # 6b. Check Content-Type before downloading body (case-insensitive per HTTP spec)
                 content_type = response.headers.get("content-type", "").lower()
                 if not any(ct in content_type for ct in ("text/html", "application/xhtml")):
                     return UnifiedToolOutput.failure(
@@ -370,7 +403,7 @@ async def fetch_web_page_tool(
                         error_code="INVALID_RESPONSE_FORMAT",
                     )
 
-                # 5c. Check Content-Length if available
+                # 6c. Check Content-Length if available
                 content_length_header = response.headers.get("content-length")
                 if content_length_header:
                     try:
@@ -386,7 +419,7 @@ async def fetch_web_page_tool(
                     except ValueError:
                         pass  # Invalid Content-Length header, proceed with download
 
-                # 5d. Read body (streaming already validated headers)
+                # 6d. Read body (streaming already validated headers)
                 await response.aread()
                 body_bytes = response.content
 
@@ -420,7 +453,7 @@ async def fetch_web_page_tool(
             error_code="EXTERNAL_API_ERROR",
         )
 
-    # 6. Extract content (with article → full fallback)
+    # 7. Extract content (with article → full fallback)
     language = _extract_language(html)
     try:
         title, markdown_content = _html_to_markdown(html, extract_mode)
@@ -431,16 +464,16 @@ async def fetch_web_page_tool(
             error_code="INVALID_RESPONSE_FORMAT",
         )
 
-    # 7. Sanitize markdown (strip javascript:/data: URIs)
+    # 8. Sanitize markdown (strip javascript:/data: URIs)
     markdown_content = _sanitize_markdown(markdown_content)
 
-    # 8. Truncate if needed
+    # 9. Truncate if needed
     markdown_content, was_truncated = _truncate_content(markdown_content, effective_max_length)
 
-    # 9. Calculate word count
+    # 10. Calculate word count
     word_count = len(markdown_content.split())
 
-    # 10. Build registry item
+    # 11. Build registry item
     source_domain = urlparse(safe_url).netloc
     extracted_at = datetime.now(UTC).isoformat()
 
@@ -466,7 +499,7 @@ async def fetch_web_page_tool(
         ),
     )
 
-    # 11. Build summary for LLM
+    # 12. Build summary for LLM
     truncation_note = " [truncated]" if was_truncated else ""
     https_warning = " (upgraded to HTTPS)" if validation.https_upgraded else ""
     summary = (
@@ -484,25 +517,43 @@ async def fetch_web_page_tool(
         user_id=user_id_str[:8],
     )
 
+    structured_data = {
+        "title": title,
+        "content": markdown_content,
+        "url": safe_url,
+        "word_count": word_count,
+        "language": language,
+        "extracted_at": extracted_at,
+        "from_cache": False,
+        "web_fetchs": [
+            {
+                "title": title,
+                "url": safe_url,
+                "word_count": word_count,
+                "language": language,
+            }
+        ],
+    }
+
+    # Cache store (after successful extraction)
+    try:
+        redis_client = await get_redis_cache()
+        cache = WebSearchCache(redis_client)
+        await cache.set_fetch(
+            user_id=config.user_id,
+            url=url,
+            data={
+                "message": summary,
+                "structured_data": structured_data,
+            },
+        )
+    except Exception as e:
+        logger.warning("web_fetch_cache_store_failed", error=str(e))
+
     return UnifiedToolOutput.data_success(
         message=summary,
         registry_updates={item_id: registry_item},
-        structured_data={
-            "title": title,
-            "content": markdown_content,
-            "url": safe_url,
-            "word_count": word_count,
-            "language": language,
-            "extracted_at": extracted_at,
-            "web_fetchs": [
-                {
-                    "title": title,
-                    "url": safe_url,
-                    "word_count": word_count,
-                    "language": language,
-                }
-            ],
-        },
+        structured_data=structured_data,
     )
 
 
