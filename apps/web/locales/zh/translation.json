@@ -1287,7 +1287,8 @@
           "mcp_excalidraw": "生成 Excalidraw 图表",
           "vision_analysis": "视觉分析 — 用于分析附加图片和文档的模型",
           "skill_description_translator": "将技能描述翻译为所有6种支持的语言",
-          "evaluator": "LLM-as-Judge 评估管道（相关性、幻觉检测）"
+          "evaluator": "LLM-as-Judge 评估管道（相关性、幻觉检测）",
+          "compaction": "总结旧对话历史以释放上下文窗口空间"
         },
         "no_compatible_model": "该提供商没有支持此功能的模型",
         "categories": {
@@ -2207,7 +2208,7 @@
       "chat": {
         "title": "对话",
         "description": "使用聊天和对话",
-        "count": "8",
+        "count": "9",
         "questions": {
           "q1": {
             "question": "我可以同时进行多个对话吗？",
@@ -2240,6 +2241,10 @@
           "q8": {
             "question": "如何在消息中附加照片或文档？",
             "answer": "两种方式附加文件：<br><br><strong>📎 回形针按钮：</strong><br>点击输入区域左侧的 <strong>📎</strong> 按钮浏览你的文件。<br><br><strong>🖱️ 拖放：</strong><br>直接从文件管理器将文件拖到输入区域。视觉轮廓会出现以确认放置区域。<br><br><strong>📁 支持的格式：</strong><br>• <strong>照片</strong>（JPEG、PNG、GIF、WebP、HEIC）— 自动压缩<br>• <strong>PDF文档</strong> — 自动提取文本<br><br>缩略图会显示在对话中。点击缩略图可放大查看。LIA可以分析图片的视觉内容和PDF的文本来回答你的问题。<br><br><strong>💡 限制</strong>：每条消息最多5个附件，每张图片最大10MB，每个文档最大20MB。"
+          },
+          "q9": {
+            "question": "/resume 命令是什么？",
+            "answer": "<strong>/resume</strong> 命令触发<strong>智能上下文压缩</strong>：<br><br><strong>功能：</strong><br>• 使用 AI 总结旧对话历史<br>• 保留关键标识符（姓名、电子邮件、ID）<br>• 释放上下文窗口空间以支持更长的对话<br><br><strong>使用时机：</strong><br>• 对话持续时间较长时<br>• LIA 似乎丢失了先前上下文时<br>• 想要「重置」上下文但不丢失重要信息时<br><br><strong>工作原理：</strong><br>1. 在聊天中输入 <strong>/resume</strong><br>2. LIA 将旧消息总结为简洁摘要<br>3. 最近的消息保持不变<br>4. LIA 用简短摘要确认压缩<br><br><strong>💡 提示：</strong>当对话变得很长时，压缩也会自动触发。/resume 命令允许您随时强制执行。"
           }
         }
       },

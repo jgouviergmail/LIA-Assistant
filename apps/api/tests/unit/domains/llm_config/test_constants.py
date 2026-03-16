@@ -37,8 +37,8 @@ class TestLLMDefaults:
             ), f"LLM_DEFAULTS['{llm_type}'] is {type(config)}, expected LLMAgentConfig"
 
     def test_default_count(self) -> None:
-        """Should have 37 LLM types (including evaluator)."""
-        assert len(LLM_DEFAULTS) == 37
+        """Should have 38 LLM types (including evaluator, compaction)."""
+        assert len(LLM_DEFAULTS) == 38
 
     @pytest.mark.parametrize(
         "llm_type,expected_provider,expected_model",

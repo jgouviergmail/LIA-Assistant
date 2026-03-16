@@ -83,7 +83,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 |----------|-------------|--------|
 | [GRAPH_AND_AGENTS_ARCHITECTURE.md](./technical/GRAPH_AND_AGENTS_ARCHITECTURE.md) | LangGraph, nodes, routing, orchestration | ✅ |
 | [STATE_AND_CHECKPOINT.md](./technical/STATE_AND_CHECKPOINT.md) | MessagesState, reducers, PostgreSQL checkpointing | ✅ |
-| [MESSAGE_WINDOWING_STRATEGY.md](./technical/MESSAGE_WINDOWING_STRATEGY.md) | Windowing par node, truncation, performance | ✅ |
+| [MESSAGE_WINDOWING_STRATEGY.md](./technical/MESSAGE_WINDOWING_STRATEGY.md) | Windowing par node, truncation, compaction intelligente (F4), performance | ✅ |
 | [TOKEN_TRACKING_AND_COUNTING.md](./technical/TOKEN_TRACKING_AND_COUNTING.md) | Token tracking, alignment DB/Prometheus | ✅ |
 | [DATABASE_SCHEMA.md](./technical/DATABASE_SCHEMA.md) | Schema PostgreSQL complet, migrations Alembic | ✅ |
 | [STACK_TECHNIQUE.md](./technical/STACK_TECHNIQUE.md) | Référence complète versions technologies | ✅ |

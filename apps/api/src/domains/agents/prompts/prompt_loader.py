@@ -105,6 +105,8 @@ PromptName = Literal[
     "mcp_description_prompt",
     # Skills system
     "skill_description_translation_prompt",
+    # Context compaction (F4)
+    "compaction_prompt",
     # Future prompts:
     # "emails_agent_prompt",
     # "calendar_agent_prompt",

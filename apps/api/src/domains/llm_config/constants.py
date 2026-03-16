@@ -316,6 +316,13 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         description_key="settings.admin.llmConfig.types.evaluator",
         required_capabilities=["structured_output"],
     ),
+    "compaction": LLMTypeMetadata(
+        llm_type="compaction",
+        display_name="Context Compaction",
+        category=CATEGORY_PIPELINE,
+        description_key="settings.admin.llmConfig.types.compaction",
+        required_capabilities=[],
+    ),
 }
 
 
@@ -699,6 +706,15 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=1000,
+    ),
+    "compaction": LLMAgentConfig(
+        provider="openai",
+        model="gpt-4.1-nano",
+        temperature=0.0,
+        top_p=1.0,
+        frequency_penalty=0.0,
+        presence_penalty=0.0,
+        max_tokens=4000,
     ),
 }
 

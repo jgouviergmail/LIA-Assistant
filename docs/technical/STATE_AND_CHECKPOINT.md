@@ -124,8 +124,12 @@ class MessagesState(TypedDict):
     # === Post-Processing (Phase 5.5) ===
     content_final_replacement: str | None  # Post-processed content for STREAM_REPLACE
 
+    # === Context Compaction (F4) ===
+    compaction_summary: str | None  # Last compaction summary (debug/audit)
+    compaction_count: int  # Number of compactions in this session
+
     # === Schema Versioning ===
-    _schema_version: str  # Current: "1.0"
+    _schema_version: str  # Current: "1.1"
 ```
 
 ### Champs Détaillés
@@ -141,10 +145,11 @@ class MessagesState(TypedDict):
 
 **Lifecycle**:
 1. User message ajouté via `state["messages"].append(HumanMessage(...))`
-2. Reducer déclenché automatiquement
-3. Truncation si > 100K tokens ou > 50 messages
-4. SystemMessage toujours préservé en tête
-5. Messages récents prioritaires
+2. **Compaction node** (F4): Before routing, if token count exceeds dynamic threshold (40% of response model context window), old messages are summarized via LLM and replaced by a SystemMessage. The `/resume` command forces compaction. 4 HITL safety conditions prevent compaction during active approval flows.
+3. Reducer déclenché automatiquement
+4. Truncation si > 100K tokens ou > 50 messages (safety net after compaction)
+5. SystemMessage toujours préservé en tête
+6. Messages récents prioritaires
 
 **Exemple**:
 ```python

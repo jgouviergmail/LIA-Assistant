@@ -25,6 +25,13 @@ from src.core.constants import (
     AGENT_HISTORY_KEEP_LAST_DEFAULT,
     AGENT_MAX_ITERATIONS_DEFAULT,
     AGENT_MAX_ITERATIONS_MAX,
+    # Context Compaction
+    COMPACTION_CHUNK_MAX_TOKENS_DEFAULT,
+    COMPACTION_ENABLED_DEFAULT,
+    COMPACTION_MIN_MESSAGES_DEFAULT,
+    COMPACTION_PRESERVE_RECENT_MESSAGES_DEFAULT,
+    COMPACTION_THRESHOLD_RATIO_DEFAULT,
+    COMPACTION_TOKEN_THRESHOLD_DEFAULT,
     CONTACTS_AGENT_PROMPT_VERSION_DEFAULT,
     DEFAULT_MESSAGE_WINDOW_SIZE,
     EMAILS_AGENT_PROMPT_VERSION_DEFAULT,
@@ -597,6 +604,56 @@ class AgentsSettings(BaseSettings):
         description=(
             "Maximum length for field values in compacted format. "
             "Longer values are truncated with ellipsis."
+        ),
+    )
+
+    # ========================================================================
+    # Context Compaction — Intelligent History Summarization (2026-03)
+    # ========================================================================
+    # LLM-based compaction of conversation history when token count exceeds
+    # a dynamic threshold derived from the response model's context window.
+    # The compaction node runs before the router and replaces old messages
+    # with a summary preserving critical identifiers (UUIDs, URLs, IDs).
+    compaction_enabled: bool = Field(
+        default=COMPACTION_ENABLED_DEFAULT,
+        description="Enable intelligent context compaction via LLM summarization.",
+    )
+    compaction_threshold_ratio: float = Field(
+        default=COMPACTION_THRESHOLD_RATIO_DEFAULT,
+        ge=0.1,
+        le=0.9,
+        description=(
+            "Ratio of the response LLM's context window used as compaction trigger. "
+            "E.g., 0.4 with a 200k model triggers at 80k tokens."
+        ),
+    )
+    compaction_token_threshold: int = Field(
+        default=COMPACTION_TOKEN_THRESHOLD_DEFAULT,
+        ge=0,
+        description=(
+            "Absolute token threshold override. "
+            "0 = use dynamic ratio (compaction_threshold_ratio * response model context window)."
+        ),
+    )
+    compaction_preserve_recent_messages: int = Field(
+        default=COMPACTION_PRESERVE_RECENT_MESSAGES_DEFAULT,
+        ge=2,
+        le=50,
+        description="Number of recent messages to preserve (never compacted).",
+    )
+    compaction_chunk_max_tokens: int = Field(
+        default=COMPACTION_CHUNK_MAX_TOKENS_DEFAULT,
+        ge=1000,
+        le=100000,
+        description="Maximum tokens per chunk sent to the compaction LLM for summarization.",
+    )
+    compaction_min_messages: int = Field(
+        default=COMPACTION_MIN_MESSAGES_DEFAULT,
+        ge=5,
+        le=200,
+        description=(
+            "Minimum number of messages before considering compaction. "
+            "Fast-path: skip token counting if fewer messages than this."
         ),
     )
 

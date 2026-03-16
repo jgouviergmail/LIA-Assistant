@@ -22,7 +22,10 @@ _unified_search_desc = (
     "**Executes in parallel**: Perplexity AI (synthesis), Brave Search (URLs), Wikipedia (encyclopedia).\n"
     "**Use for**: Any web search, encyclopedic questions, current events, research.\n"
     "**Fallback chain**: Continues if one source fails, Wikipedia always available.\n"
-    "**Output**: Unified results with synthesis, web links, and Wikipedia context."
+    "**Output**: Unified results with synthesis, web links, and Wikipedia context.\n"
+    "**IMPORTANT — COST CONSTRAINT**: This tool calls 3 APIs in parallel (expensive). "
+    "Use it AT MOST ONCE per plan. If multiple different searches are needed, "
+    "use brave_search_tool for additional queries (lightweight, single API)."
 )
 
 unified_web_search_catalogue_manifest = ToolManifest(

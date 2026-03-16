@@ -16,6 +16,8 @@ NODE_PLANNER = "planner"  # Phase 5: LLM-based plan generation
 NODE_SEMANTIC_VALIDATOR = "semantic_validator"  # Phase 2 OPTIMPLAN: Semantic validation of plans
 NODE_CLARIFICATION = "clarification"  # Phase 2 OPTIMPLAN: Clarification HITL node
 NODE_APPROVAL_GATE = "approval_gate"  # Phase 8: Plan-level HITL approval before execution
+# Context Compaction: Summarize old conversation history before routing
+NODE_COMPACTION = "compaction"  # 2026-03: Intelligent context compaction node
 # HITL Dispatch: Generic HITL handler supporting draft_critique, entity_disambiguation, tool_confirmation
 NODE_HITL_DISPATCH = "hitl_dispatch"  # 2025-12-23: Generic HITL dispatch node
 NODE_DRAFT_CRITIQUE = NODE_HITL_DISPATCH  # Backward compatibility alias
@@ -562,6 +564,7 @@ __all__ = [
     "NODE_SEMANTIC_VALIDATOR",
     "NODE_CLARIFICATION",
     "NODE_APPROVAL_GATE",
+    "NODE_COMPACTION",
     "NODE_DRAFT_CRITIQUE",
     "NODE_HITL_DISPATCH",
     "NODE_QUERY_AGENT",

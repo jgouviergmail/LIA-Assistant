@@ -1414,7 +1414,8 @@
           "mcp_excalidraw": "Generates Excalidraw diagrams",
           "vision_analysis": "Vision analysis — Model used to analyze attached images and documents",
           "skill_description_translator": "Translates system skill descriptions into all 6 supported languages",
-          "evaluator": "LLM-as-Judge evaluation pipeline (relevance, hallucination)"
+          "evaluator": "LLM-as-Judge evaluation pipeline (relevance, hallucination)",
+          "compaction": "Summarizes old conversation history to free context window space"
         },
         "no_compatible_model": "No model from this provider supports this feature",
         "categories": {
@@ -2221,7 +2222,7 @@
       "chat": {
         "title": "Conversations",
         "description": "Using chat and conversations",
-        "count": "8",
+        "count": "9",
         "questions": {
           "q1": {
             "question": "Can I have multiple conversations at the same time?",
@@ -2254,6 +2255,10 @@
           "q8": {
             "question": "How do I attach photos or documents to my messages?",
             "answer": "Two ways to attach files:<br><br><strong>📎 Paperclip button:</strong><br>Click the <strong>📎</strong> button to the left of the input area to browse your files.<br><br><strong>🖱️ Drag and drop:</strong><br>Drag files directly from your file explorer into the input area. A visual outline appears to confirm the drop zone.<br><br><strong>📁 Accepted formats:</strong><br>• <strong>Photos</strong> (JPEG, PNG, GIF, WebP, HEIC) — automatically compressed<br>• <strong>PDF documents</strong> — text is automatically extracted<br><br>Thumbnails are displayed in the conversation. Click a thumbnail to enlarge it. LIA can analyze the visual content of images and the text of PDFs to answer your questions.<br><br><strong>💡 Limits</strong>: maximum 5 attachments per message, 10 MB per image, 20 MB per document."
+          },
+          "q9": {
+            "question": "What is the /resume command?",
+            "answer": "The <strong>/resume</strong> command triggers <strong>intelligent context compaction</strong>:<br><br><strong>What it does:</strong><br>• Summarizes old conversation history using AI<br>• Preserves critical identifiers (names, emails, IDs)<br>• Frees up context window space for longer conversations<br><br><strong>When to use it:</strong><br>• When your conversation has been going on for a long time<br>• When LIA seems to lose track of earlier context<br>• When you want to \"reset\" the context without losing important information<br><br><strong>How it works:</strong><br>1. Type <strong>/resume</strong> in the chat<br>2. LIA summarizes old messages into a concise recap<br>3. Recent messages are preserved intact<br>4. LIA confirms the compaction with a brief summary<br><br><strong>💡 Note:</strong> Compaction also triggers automatically when the conversation becomes very long. The /resume command lets you force it at any time."
           }
         }
       },

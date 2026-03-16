@@ -1281,7 +1281,8 @@
           "mcp_excalidraw": "Genera los diagramas Excalidraw",
           "vision_analysis": "Análisis visual — Modelo utilizado para analizar imágenes y documentos adjuntos",
           "skill_description_translator": "Traduce las descripciones de skills en los 6 idiomas soportados",
-          "evaluator": "Pipeline de evaluación LLM-as-Judge (relevancia, alucinación)"
+          "evaluator": "Pipeline de evaluación LLM-as-Judge (relevancia, alucinación)",
+          "compaction": "Resume el historial de conversación antiguo para liberar la ventana de contexto"
         },
         "no_compatible_model": "Ningún modelo de este proveedor soporta esta funcionalidad",
         "categories": {
@@ -2212,7 +2213,7 @@
       "chat": {
         "title": "Conversaciones",
         "description": "Uso del chat y conversaciones",
-        "count": "8",
+        "count": "9",
         "questions": {
           "q1": {
             "question": "¿Puedo tener varias conversaciones al mismo tiempo?",
@@ -2245,6 +2246,10 @@
           "q8": {
             "question": "¿Cómo adjuntar fotos o documentos a mis mensajes?",
             "answer": "Dos formas de adjuntar archivos:<br><br><strong>📎 Botón de clip:</strong><br>Haz clic en el botón <strong>📎</strong> a la izquierda del área de entrada para explorar tus archivos.<br><br><strong>🖱️ Arrastrar y soltar:</strong><br>Arrastra archivos directamente desde tu explorador de archivos al área de entrada. Aparece un contorno visual para confirmar la zona de destino.<br><br><strong>📁 Formatos aceptados:</strong><br>• <strong>Fotos</strong> (JPEG, PNG, GIF, WebP, HEIC) — comprimidas automáticamente<br>• <strong>Documentos PDF</strong> — el texto se extrae automáticamente<br><br>Las miniaturas se muestran en la conversación. Haz clic en una miniatura para ampliarla. LIA puede analizar el contenido visual de las imágenes y el texto de los PDF para responder a tus preguntas.<br><br><strong>💡 Límites</strong>: máximo 5 archivos adjuntos por mensaje, 10 MB por imagen, 20 MB por documento."
+          },
+          "q9": {
+            "question": "¿Qué es el comando /resume?",
+            "answer": "El comando <strong>/resume</strong> activa la <strong>compactación inteligente del contexto</strong>:<br><br><strong>Qué hace:</strong><br>• Resume el historial antiguo de la conversación usando IA<br>• Preserva identificadores críticos (nombres, correos, IDs)<br>• Libera espacio en la ventana de contexto para conversaciones más largas<br><br><strong>Cuándo usarlo:</strong><br>• Cuando tu conversación lleva mucho tiempo<br>• Cuando LIA parece perder el hilo del contexto anterior<br>• Cuando quieras «reiniciar» el contexto sin perder información importante<br><br><strong>Cómo funciona:</strong><br>1. Escribe <strong>/resume</strong> en el chat<br>2. LIA resume los mensajes antiguos en un resumen conciso<br>3. Los mensajes recientes se conservan intactos<br>4. LIA confirma la compactación con un breve resumen<br><br><strong>💡 Nota:</strong> La compactación también se activa automáticamente cuando la conversación se vuelve muy larga. El comando /resume te permite forzarla en cualquier momento."
           }
         }
       },

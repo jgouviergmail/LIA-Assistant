@@ -645,6 +645,49 @@ RESPONSE_MESSAGE_WINDOW_SIZE=30  # Au lieu de 20
 
 ---
 
+## Intelligent Context Compaction (F4)
+
+Message windowing reduces tokens per-node, but the **full conversation history** grows unbounded in state. F4 adds a complementary layer: **LLM-based compaction** that summarizes old messages when the total token count exceeds a dynamic threshold.
+
+### How it works
+
+1. **Compaction node** runs as the graph entry point (before router)
+2. **Dynamic threshold**: `compaction_threshold_ratio × response_model_context_window` (default: 40% of 200k = 80k tokens)
+3. If exceeded AND safe (no HITL pending): old messages are summarized via cheap LLM (GPT-4.1-nano)
+4. Summary injected as `SystemMessage` (not routed). Recent messages preserved intact.
+
+### Complementary to windowing
+
+| Layer | Scope | When | Effect |
+|-------|-------|------|--------|
+| **Windowing** | Per-node (router 5, planner 10, response 20) | Every LLM call | Reduces per-call token input |
+| **Compaction** | Full state history | When total > threshold | Replaces old messages with summary |
+| **Truncation** | Safety net (reducer) | When windowing/compaction insufficient | Hard cut at 100K tokens / 1000 messages |
+
+### Configuration (`.env`)
+
+```bash
+COMPACTION_ENABLED=true              # Feature flag
+COMPACTION_THRESHOLD_RATIO=0.4       # 40% of response model context window
+COMPACTION_TOKEN_THRESHOLD=0         # Absolute override (0 = use ratio)
+COMPACTION_PRESERVE_RECENT_MESSAGES=10  # Never compacted
+COMPACTION_CHUNK_MAX_TOKENS=20000    # Max tokens per LLM chunk
+COMPACTION_MIN_MESSAGES=20           # Fast-path skip
+```
+
+### User command: `/resume`
+
+Users can type `/resume` to force compaction at any time, even below threshold. LIA responds with a confirmation and summary.
+
+### Files
+
+- `src/domains/agents/services/compaction_service.py` — CompactionService
+- `src/domains/agents/nodes/compaction_node.py` — LangGraph node
+- `src/domains/agents/prompts/v1/compaction_prompt.txt` — Summary prompt
+- `src/infrastructure/observability/metrics_compaction.py` — Prometheus metrics
+
+---
+
 ## Ressources
 
 ### Documentation interne

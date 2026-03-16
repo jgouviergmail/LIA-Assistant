@@ -1512,12 +1512,14 @@ def build_graph() -> CompiledStateGraph:
     graph.add_node(NODE_ROUTER, router_node)
     graph.add_node(NODE_PLANNER, planner_node)
     graph.add_node(NODE_APPROVAL_GATE, approval_gate_node)
+    graph.add_node(NODE_COMPACTION, compaction_node)  # F4: Context compaction
     graph.add_node(NODE_TASK_ORCHESTRATOR, task_orchestrator_node)
     graph.add_node(AGENT_CONTACTS, contacts_agent_node)
     graph.add_node(NODE_RESPONSE, response_node)
 
-    # Entry point
-    graph.set_entry_point(NODE_ROUTER)
+    # Entry point (F4: compaction before router)
+    graph.set_entry_point(NODE_COMPACTION)
+    graph.add_edge(NODE_COMPACTION, NODE_ROUTER)
 
     # Conditional edges
     graph.add_conditional_edges(

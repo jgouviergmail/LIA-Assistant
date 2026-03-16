@@ -32,6 +32,13 @@ LIA utilise **LangGraph v1.0.10** avec exécution parallèle native **asyncio** 
 │                                      │                                           │
 │                                      ▼                                           │
 │                         ┌────────────────────────┐                              │
+│                         │   compaction_node (F4) │                              │
+│                         │  (Context summarization │                              │
+│                         │   if > threshold)       │                              │
+│                         └──────────┬─────────────┘                              │
+│                                    │ (always)                                    │
+│                                    ▼                                           │
+│                         ┌────────────────────────┐                              │
 │                         │      router_node       │                              │
 │                         │  (Classification 0-1)  │                              │
 │                         │   Actionable vs Conv   │                              │

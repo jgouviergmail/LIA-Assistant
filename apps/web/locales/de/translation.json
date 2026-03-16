@@ -1281,7 +1281,8 @@
           "mcp_excalidraw": "Generiert Excalidraw-Diagramme",
           "vision_analysis": "Visuelle Analyse — Modell zur Analyse angehängter Bilder und Dokumente",
           "skill_description_translator": "Übersetzt Skill-Beschreibungen in alle 6 unterstützten Sprachen",
-          "evaluator": "LLM-as-Judge Evaluierungspipeline (Relevanz, Halluzination)"
+          "evaluator": "LLM-as-Judge Evaluierungspipeline (Relevanz, Halluzination)",
+          "compaction": "Fasst alten Gesprächsverlauf zusammen, um Kontextfenster freizugeben"
         },
         "no_compatible_model": "Kein Modell dieses Anbieters unterstützt diese Funktion",
         "categories": {
@@ -2212,7 +2213,7 @@
       "chat": {
         "title": "Unterhaltungen",
         "description": "Chat- und Unterhaltungsnutzung",
-        "count": "8",
+        "count": "9",
         "questions": {
           "q1": {
             "question": "Kann ich mehrere Unterhaltungen gleichzeitig führen?",
@@ -2245,6 +2246,10 @@
           "q8": {
             "question": "Wie hänge ich Fotos oder Dokumente an meine Nachrichten an?",
             "answer": "Zwei Möglichkeiten, Dateien anzuhängen:<br><br><strong>📎 Büroklammer-Button:</strong><br>Klicken Sie auf den <strong>📎</strong>-Button links neben dem Eingabefeld, um Ihre Dateien zu durchsuchen.<br><br><strong>🖱️ Drag & Drop:</strong><br>Ziehen Sie Dateien direkt aus Ihrem Datei-Explorer in das Eingabefeld. Ein visueller Rahmen bestätigt den Ablagebereich.<br><br><strong>📁 Akzeptierte Formate:</strong><br>• <strong>Fotos</strong> (JPEG, PNG, GIF, WebP, HEIC) — automatisch komprimiert<br>• <strong>PDF-Dokumente</strong> — Text wird automatisch extrahiert<br><br>Miniaturbilder werden in der Konversation angezeigt. Klicken Sie auf ein Miniaturbild, um es zu vergrößern. LIA kann den visuellen Inhalt von Bildern und den Text von PDFs analysieren, um Ihre Fragen zu beantworten.<br><br><strong>💡 Limits</strong>: maximal 5 Anhänge pro Nachricht, 10 MB pro Bild, 20 MB pro Dokument."
+          },
+          "q9": {
+            "question": "Was ist der Befehl /resume?",
+            "answer": "Der Befehl <strong>/resume</strong> löst die <strong>intelligente Kontextkomprimierung</strong> aus:<br><br><strong>Was er tut:</strong><br>• Fasst den alten Gesprächsverlauf mithilfe von KI zusammen<br>• Bewahrt wichtige Kennungen (Namen, E-Mails, IDs)<br>• Gibt Platz im Kontextfenster für längere Gespräche frei<br><br><strong>Wann verwenden:</strong><br>• Wenn Ihr Gespräch schon lange dauert<br>• Wenn LIA den früheren Kontext zu verlieren scheint<br>• Wenn Sie den Kontext ‚zurücksetzen' möchten, ohne wichtige Informationen zu verlieren<br><br><strong>So funktioniert es:</strong><br>1. Geben Sie <strong>/resume</strong> im Chat ein<br>2. LIA fasst alte Nachrichten in einer kurzen Zusammenfassung zusammen<br>3. Aktuelle Nachrichten bleiben unverändert<br>4. LIA bestätigt die Komprimierung mit einer kurzen Zusammenfassung<br><br><strong>💡 Hinweis:</strong> Die Komprimierung wird auch automatisch ausgelöst, wenn das Gespräch sehr lang wird. Mit /resume können Sie sie jederzeit erzwingen."
           }
         }
       },

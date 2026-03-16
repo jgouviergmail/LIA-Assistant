@@ -1096,8 +1096,9 @@ class AgentService:
         # The wrapper retrieves the agent via registry.get_agent("contacts_agent")
         # and calls agent.ainvoke(state, config)
 
-        # Set entry point
-        builder.set_entry_point(NODE_ROUTER)
+        # Set entry point (F4: compaction before router)
+        builder.set_entry_point(NODE_COMPACTION)
+        builder.add_edge(NODE_COMPACTION, NODE_ROUTER)
 
         # Add conditional edges
         builder.add_conditional_edges(NODE_ROUTER, route_from_router)

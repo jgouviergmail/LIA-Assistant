@@ -9,12 +9,12 @@ Version 3 (Phase 5.2B): Map-Reduce parallel execution with waves (DEPRECATED - C
 Version 4 (Phase 5.2B-asyncio - CURRENT): Native asyncio parallel execution
 
 Phase 5.2B-asyncio - Asyncio Pattern:
-    Planner → Task Orchestrator
-                ↓ execute_plan_parallel() (asyncio.gather)
-            Parallel Executor (native Python async)
-                ↓ completed_steps
-            agent_results → Response
-            Response → END
+    Compaction → Router → Planner → Task Orchestrator
+                                      ↓ execute_plan_parallel() (asyncio.gather)
+                                  Parallel Executor (native Python async)
+                                      ↓ completed_steps
+                                  agent_results → Response
+                                  Response → END
 """
 
 from typing import Any
@@ -37,6 +37,7 @@ from src.domains.agents.constants import (
     AGENT_WIKIPEDIA,
     NODE_APPROVAL_GATE,
     NODE_CLARIFICATION,
+    NODE_COMPACTION,
     NODE_DRAFT_CRITIQUE,
     NODE_PLANNER,
     NODE_RESPONSE,
@@ -56,6 +57,7 @@ from src.domains.agents.models import MessagesState
 from src.domains.agents.nodes import (
     approval_gate_node,
     clarification_node,
+    compaction_node,
     planner_node,
     response_node,
     router_node,
@@ -357,9 +359,11 @@ async def build_graph(
         ...     config=RunnableConfig(configurable={"thread_id": "123"})
         ... )
 
-    Graph Structure (Phase 5.2B-asyncio + Phase 2 OPTIMPLAN + LOT 6 Draft Critique):
+    Graph Structure (Phase 5.2B-asyncio + Phase 2 OPTIMPLAN + LOT 6 Draft Critique + F4 Compaction):
+        Entry: compaction → router (compaction is pass-through when not needed)
+
         Complex queries (asyncio parallel with semantic validation):
-            router → planner → semantic_validator
+            compaction → router → planner → semantic_validator
                               ↓ (if requires_clarification)
                               ↓ clarification → (needs_replan) → planner
                               ↓ (if valid OR max_iterations)
@@ -379,10 +383,10 @@ async def build_graph(
             - After user decision, routes to response for synthesis
 
         Simple queries (legacy):
-            router → task_orchestrator → contact_agent → response → END
+            compaction → router → task_orchestrator → contact_agent → response → END
 
         Conversation:
-            router → response → END
+            compaction → router → response → END
 
         Clarification Feedback Loop (Phase 2 OPTIMPLAN):
             - Max iterations: configurable via PLANNER_MAX_REPLANS (default: 2)
@@ -437,6 +441,8 @@ async def build_graph(
     # Reference: https://langchain-ai.github.io/langgraph/how-tos/human_in_the_loop/
 
     # Add nodes
+    # F4: Compaction node runs before router to summarize long conversation histories
+    graph.add_node(NODE_COMPACTION, compaction_node)
     graph.add_node(NODE_ROUTER, router_node)
     graph.add_node(NODE_PLANNER, planner_node)  # Phase 5: LLM-based plan generation
     graph.add_node(
@@ -547,8 +553,10 @@ async def build_graph(
 
     graph.add_node(NODE_RESPONSE, response_node)
 
-    # Set entry point
-    graph.set_entry_point(NODE_ROUTER)
+    # Set entry point: compaction runs first, then unconditionally routes to router
+    # F4: Compaction node is a pass-through when no compaction is needed (returns {})
+    graph.set_entry_point(NODE_COMPACTION)
+    graph.add_edge(NODE_COMPACTION, NODE_ROUTER)
 
     # Conditional routing from router (Phase 6 - Binary Simplification)
     # Router routes to:

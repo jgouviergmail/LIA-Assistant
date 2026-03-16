@@ -33,7 +33,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.4.6</strong> — Heartbeat Email Source, Gmail Normalization & Plan Validator Fixes — March 2026
+  <strong>Version 1.4.7</strong> — Intelligent Context Compaction (F4) — March 2026
 </p>
 
 ---
@@ -150,6 +150,7 @@ LIA is available as a hosted service at **https://lia.jeyswork.com/** — no ins
 - **Semantic Routing**: Binary classification with confidence scoring (high >0.85, medium >0.65)
 - **Multi-Step Planning**: ExecutionPlan DSL with dependencies and conditions
 - **Parallel Execution**: asyncio.gather for independent domains
+- **Intelligent Context Compaction**: LLM-based conversation history summarization when token count exceeds dynamic threshold (ratio of response model context window). Preserves identifiers (UUIDs, URLs, emails). `/resume` command for manual trigger. 4 HITL safety conditions prevent compaction during active approval flows
 
 ### Voice TTS Dual-Mode
 
@@ -771,10 +772,12 @@ ESLint + TypeScript check         CodeQL (Python + JS)
 | Planner Latency | 2.5s | < 5s |
 | E5 Embedding (local) | ~50ms | < 100ms |
 | Token Reduction (Windowing) | 93% | > 80% |
+| Context Compaction Savings | ~60% per compaction | — |
 
 ### Implemented Optimizations
 
 - **Message Windowing**: 5/10/20 turns depending on node
+- **Context Compaction**: LLM summarization of old messages (dynamic threshold from response model context window, configurable via `COMPACTION_*` settings)
 - **Prompt Caching**: OpenAI/Anthropic (90% discount)
 - **Local Embeddings**: Multilingual E5 (zero API cost)
 - **Parallel Execution**: asyncio.gather for independent domains

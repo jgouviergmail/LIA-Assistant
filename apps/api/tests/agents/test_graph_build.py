@@ -61,8 +61,9 @@ class TestGraphConstruction:
         # LangGraph internal structure: graph.nodes contains node definitions
         node_names = list(graph.nodes.keys())
 
-        # Expected nodes (V1 sequential architecture)
+        # Expected nodes (V1 sequential architecture + F4 compaction)
         expected_nodes = [
+            "compaction",  # F4: Context compaction before router
             "router",
             "task_orchestrator",
             "contacts_agent",
@@ -73,16 +74,17 @@ class TestGraphConstruction:
         for expected in expected_nodes:
             assert expected in node_names, f"Missing node: {expected}"
 
-    def test_graph_entry_point_is_router(self, test_settings):
+    def test_graph_entry_point_is_compaction(self, test_settings):
         """
         GIVEN a compiled graph
         WHEN checking entry point
-        THEN router should be the first node
+        THEN compaction should be the entry node (F4), routing to router
         """
         graph, _ = build_graph(config=test_settings, checkpointer=None)
 
-        # LangGraph v1.0: Verify graph has router node
+        # LangGraph v1.0: Verify graph has compaction and router nodes
         # Entry point validation is done by successful compilation
+        assert "compaction" in graph.nodes
         assert "router" in graph.nodes
         assert "__start__" in graph.nodes
 

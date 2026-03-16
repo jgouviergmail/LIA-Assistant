@@ -112,6 +112,7 @@ LLMType = Literal[
     "interest_content",  # Interests: generate interest-based content
     "skill_description_translator",  # Skills: translate skill descriptions to all 6 languages
     "evaluator",  # Observability: LLM-as-Judge evaluation pipeline
+    "compaction",  # Context compaction: summarize old conversation history
 ]
 
 

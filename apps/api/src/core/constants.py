@@ -2541,5 +2541,36 @@ SKILLS_RESOURCE_MAX_SIZE_KB = 50
 SKILLS_RESOURCE_SKIP_DIRS = frozenset({".git", "__pycache__", ".venv", "node_modules"})
 SKILLS_RESOURCE_SKIP_FILES = frozenset({"SKILL.md", "translations.json"})
 
+# ============================================================================
+# CONTEXT COMPACTION (Intelligent History Summarization)
+# ============================================================================
+# LLM-based compaction of conversation history when token count exceeds
+# a dynamic threshold derived from the response model's context window.
+# Replaces old messages with a concise summary preserving critical identifiers.
+#
+# Reference: domains/agents/services/compaction_service.py, nodes/compaction_node.py
+
+# Dynamic threshold: ratio of the response LLM's context window
+# Effective threshold = context_window * ratio (e.g., 200k * 0.4 = 80k)
+COMPACTION_THRESHOLD_RATIO_DEFAULT = 0.4
+
+# Absolute threshold override (0 = use dynamic ratio)
+COMPACTION_TOKEN_THRESHOLD_DEFAULT = 0
+
+# Number of recent messages to preserve (never compacted)
+COMPACTION_PRESERVE_RECENT_MESSAGES_DEFAULT = 10
+
+# Maximum tokens per chunk sent to the compaction LLM
+COMPACTION_CHUNK_MAX_TOKENS_DEFAULT = 20000
+
+# Minimum messages before even considering compaction (fast-path skip)
+COMPACTION_MIN_MESSAGES_DEFAULT = 20
+
+# Maximum chars of tool output to include in compaction input (avoid blowing budget)
+COMPACTION_TOOL_OUTPUT_TRUNCATE_CHARS_DEFAULT = 2000
+
+# Feature flag
+COMPACTION_ENABLED_DEFAULT = True
+
 # Scheduler
 SCHEDULER_JOB_ATTACHMENT_CLEANUP = "attachment_cleanup"

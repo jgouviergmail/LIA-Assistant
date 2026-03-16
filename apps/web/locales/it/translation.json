@@ -1283,7 +1283,8 @@
           "mcp_excalidraw": "Genera i diagrammi Excalidraw",
           "vision_analysis": "Analisi visiva — Modello utilizzato per analizzare immagini e documenti allegati",
           "skill_description_translator": "Traduce le descrizioni delle skill in tutte e 6 le lingue supportate",
-          "evaluator": "Pipeline di valutazione LLM-as-Judge (pertinenza, allucinazione)"
+          "evaluator": "Pipeline di valutazione LLM-as-Judge (pertinenza, allucinazione)",
+          "compaction": "Riassume la cronologia delle conversazioni per liberare la finestra di contesto"
         },
         "no_compatible_model": "Nessun modello di questo provider supporta questa funzionalità",
         "categories": {
@@ -2214,7 +2215,7 @@
       "chat": {
         "title": "Conversazioni",
         "description": "Utilizzo della chat e delle conversazioni",
-        "count": "8",
+        "count": "9",
         "questions": {
           "q1": {
             "question": "Posso avere più conversazioni contemporaneamente?",
@@ -2247,6 +2248,10 @@
           "q8": {
             "question": "Come allegare foto o documenti ai miei messaggi?",
             "answer": "Due modi per allegare file:<br><br><strong>📎 Pulsante graffetta:</strong><br>Clicca sul pulsante <strong>📎</strong> a sinistra dell'area di inserimento per sfogliare i tuoi file.<br><br><strong>🖱️ Trascinamento:</strong><br>Trascina i file direttamente dal tuo esploratore file nell'area di inserimento. Un contorno visivo appare per confermare la zona di rilascio.<br><br><strong>📁 Formati accettati:</strong><br>• <strong>Foto</strong> (JPEG, PNG, GIF, WebP, HEIC) — compresse automaticamente<br>• <strong>Documenti PDF</strong> — il testo viene estratto automaticamente<br><br>Le miniature vengono visualizzate nella conversazione. Clicca su una miniatura per ingrandirla. LIA può analizzare il contenuto visivo delle immagini e il testo dei PDF per rispondere alle tue domande.<br><br><strong>💡 Limiti</strong>: massimo 5 allegati per messaggio, 10 MB per immagine, 20 MB per documento."
+          },
+          "q9": {
+            "question": "Cos'è il comando /resume?",
+            "answer": "Il comando <strong>/resume</strong> attiva la <strong>compattazione intelligente del contesto</strong>:<br><br><strong>Cosa fa:</strong><br>• Riassume la cronologia delle conversazioni precedenti usando l'IA<br>• Preserva gli identificatori critici (nomi, email, ID)<br>• Libera spazio nella finestra di contesto per conversazioni più lunghe<br><br><strong>Quando usarlo:</strong><br>• Quando la conversazione dura da molto tempo<br>• Quando LIA sembra perdere il filo del contesto precedente<br>• Quando vuoi «resettare» il contesto senza perdere informazioni importanti<br><br><strong>Come funziona:</strong><br>1. Digita <strong>/resume</strong> nella chat<br>2. LIA riassume i vecchi messaggi in un riepilogo conciso<br>3. I messaggi recenti vengono conservati intatti<br>4. LIA conferma la compattazione con un breve riepilogo<br><br><strong>💡 Nota:</strong> La compattazione si attiva anche automaticamente quando la conversazione diventa molto lunga. Il comando /resume ti permette di forzarla in qualsiasi momento."
           }
         }
       },

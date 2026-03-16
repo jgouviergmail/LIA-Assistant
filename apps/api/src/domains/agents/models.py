@@ -344,6 +344,12 @@ class MessagesState(TypedDict):
     # Contains: spaces_searched, chunks_found, chunks_injected, chunks list
     rag_injection_debug: dict[str, Any] | None
 
+    # Context Compaction: Intelligent history summarization (F4)
+    # When conversation history exceeds a dynamic token threshold, the compaction node
+    # summarizes old messages preserving critical identifiers (UUIDs, URLs, IDs).
+    compaction_summary: str | None  # Last compaction summary (for debug/audit)
+    compaction_count: int  # Number of compactions performed in this session
+
 
 class AgentMessagesState(TypedDict):
     """
@@ -439,7 +445,7 @@ def create_initial_state(
         user_language=user_language,  # User's language code for localized responses
         personality_instruction=personality_instruction,  # LLM personality prompt instruction
         oauth_scopes=oauth_scopes or [],  # OAuth scopes from active connectors
-        _schema_version="1.0",  # Current schema version
+        _schema_version=CURRENT_SCHEMA_VERSION,  # Use constant for consistency
         completed_steps={},  # Phase 5.2B-asyncio: Parallel execution step results
         validation_result=None,  # Phase 8: Plan validation result
         approval_evaluation=None,  # Phase 8: Approval strategies evaluation
@@ -496,6 +502,9 @@ def create_initial_state(
         memory_injection_debug=None,  # Memory injection metrics for debug panel
         # RAG Spaces debug (debug panel)
         rag_injection_debug=None,  # RAG injection metrics for debug panel
+        # Context Compaction (F4)
+        compaction_summary=None,  # Last compaction summary
+        compaction_count=0,  # Compactions performed
     )
 
 
@@ -621,7 +630,7 @@ def validate_state_consistency(state: MessagesState) -> list[str]:
 # SCHEMA MIGRATION FUNCTIONS (LangGraph v1.0 Best Practice)
 # ============================================================================
 
-CURRENT_SCHEMA_VERSION = "1.0"
+CURRENT_SCHEMA_VERSION = "1.1"
 
 
 def get_state_schema_version(state: MessagesState) -> str:
@@ -666,7 +675,7 @@ def migrate_state_to_current(state: MessagesState) -> MessagesState:
 
     Migration Path:
         0.0 (legacy) → 1.0 (add _schema_version field)
-        Future: 1.0 → 1.1 → 2.0 (add new migrations as needed)
+        1.0 → 1.1 (F4: add compaction_summary, compaction_count)
 
     Usage:
         >>> # After loading state from checkpoint
@@ -691,12 +700,15 @@ def migrate_state_to_current(state: MessagesState) -> MessagesState:
         state["_schema_version"] = "1.0"
         current_version = "1.0"
 
-    # Future migrations go here:
-    # if current_version == "1.0":
-    #     logger.info("migrating_state_1.0_to_1.1")
-    #     # Apply 1.0 → 1.1 migration
-    #     state["_schema_version"] = "1.1"
-    #     current_version = "1.1"
+    # Migration: 1.0 → 1.1 (add compaction fields — F4)
+    if current_version == "1.0":
+        logger.info("migrating_state_1.0_to_1.1")
+        if "compaction_summary" not in state:
+            state["compaction_summary"] = None
+        if "compaction_count" not in state:
+            state["compaction_count"] = 0
+        state["_schema_version"] = "1.1"
+        current_version = "1.1"
 
     # Verify final version
     if current_version != CURRENT_SCHEMA_VERSION:

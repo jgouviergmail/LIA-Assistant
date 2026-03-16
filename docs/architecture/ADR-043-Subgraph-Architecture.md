@@ -89,8 +89,9 @@ contacts_agent_node = build_agent_wrapper(
 )
 graph.add_node(AGENT_CONTACTS, contacts_agent_node)
 
-# Set entry and edges
-graph.set_entry_point(NODE_ROUTER)
+# Set entry and edges (F4: compaction before router)
+graph.set_entry_point(NODE_COMPACTION)
+graph.add_edge(NODE_COMPACTION, NODE_ROUTER)
 graph.add_conditional_edges(NODE_ROUTER, route_from_router)
 ```
 

@@ -17,8 +17,9 @@ from src.domains.agents.registry.catalogue import (
 # 1. BRAVE WEB SEARCH
 # ============================================================================
 _search_desc = (
-    "**Tool: brave_search_tool** - Web search via Brave Search API.\n"
-    "**Use for**: Web search, find information, current facts, site content.\n"
+    "**Tool: brave_search_tool** - Lightweight web search via Brave Search API (single API call).\n"
+    "**Use for**: Additional/complementary web searches when unified_web_search_tool was already used, "
+    "or when multiple distinct search queries are needed in one plan.\n"
     "**Output**: List of results with title, URL, description."
 )
 
