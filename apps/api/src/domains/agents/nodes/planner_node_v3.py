@@ -404,6 +404,7 @@ async def planner_node_v3(
         validation_context = ValidationContext(
             user_id=configurable.get("user_id", "unknown"),
             session_id=configurable.get("session_id", run_id),
+            available_scopes=state.get("oauth_scopes", []),
             allow_hitl=True,  # Allow HITL by default
         )
         validation_result = validator.validate_execution_plan(

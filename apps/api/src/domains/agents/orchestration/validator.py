@@ -779,6 +779,28 @@ class PlanValidator:
             requires_hitl=result.requires_hitl,
         )
 
+        # Log individual errors/warnings for debugging (not visible in the summary above)
+        for issue in result.errors:
+            logger.warning(
+                "execution_plan_validation_error",
+                plan_id=plan.plan_id,
+                code=issue.code.value if hasattr(issue.code, "value") else str(issue.code),
+                message=issue.message,
+                step_index=issue.step_index,
+                tool_name=issue.tool_name,
+                context=issue.context,
+            )
+        for issue in result.warnings:
+            logger.info(
+                "execution_plan_validation_warning",
+                plan_id=plan.plan_id,
+                code=issue.code.value if hasattr(issue.code, "value") else str(issue.code),
+                message=issue.message,
+                step_index=issue.step_index,
+                tool_name=issue.tool_name,
+                context=issue.context,
+            )
+
         return result
 
     def _validate_execution_step(

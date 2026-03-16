@@ -2598,7 +2598,7 @@
         "questions": {
           "q1": {
             "question": "What are proactive notifications?",
-            "answer": "Proactive notifications allow LIA to <strong>take the initiative</strong> to contact you with useful information:<br><br><strong>🧠 How it works:</strong><br>• LIA continuously analyzes multiple data sources (calendar, weather, interests, memories)<br>• An LLM <strong>intelligently decides</strong> whether there's something useful to tell you<br>• The message is rewritten with your <strong>personality</strong> and in your <strong>language</strong><br><br><strong>📌 Examples:</strong><br>• \"<em>Rain expected in 45 minutes, don't forget your umbrella</em>\"<br>• \"<em>You have a meeting at 2pm and rain is forecast — bring an umbrella</em>\"<br>• \"<em>A topic you're interested in is trending today</em>\"<br><br><strong>💡 Philosophy:</strong><br>LIA only sends a notification when it is <strong>genuinely useful</strong> — quality over quantity."
+            "answer": "Proactive notifications allow LIA to <strong>take the initiative</strong> to contact you with useful information:<br><br><strong>🧠 How it works:</strong><br>• LIA continuously analyzes multiple data sources (calendar, weather, emails, interests, memories)<br>• An LLM <strong>intelligently decides</strong> whether there's something useful to tell you<br>• The message is rewritten with your <strong>personality</strong> and in your <strong>language</strong><br><br><strong>📌 Examples:</strong><br>• \"<em>Rain expected in 45 minutes, don't forget your umbrella</em>\"<br>• \"<em>You have a meeting at 2pm and rain is forecast — bring an umbrella</em>\"<br>• \"<em>A topic you're interested in is trending today</em>\"<br><br><strong>💡 Philosophy:</strong><br>LIA only sends a notification when it is <strong>genuinely useful</strong> — quality over quantity."
           },
           "q2": {
             "question": "How do I enable proactive notifications?",
@@ -2606,7 +2606,7 @@
           },
           "q3": {
             "question": "What data sources are used?",
-            "answer": "LIA aggregates <strong>8 data sources</strong> in parallel to decide whether to notify you:<br><br><strong>📅 Calendar:</strong><br>• Upcoming events (next few hours)<br>• Requires an active Google Calendar connector<br><br><strong>🌤️ Weather + Changes:</strong><br>• Current conditions + transition detection (rain starting/stopping, temperature drops, strong wind)<br>• Requires an OpenWeatherMap connector + configured location<br><br><strong>✅ Tasks:</strong><br>• Pending or overdue tasks (Google Tasks)<br>• Requires an active Google Tasks connector<br><br><strong>⭐ Interests:</strong><br>• Trending topics among your active interests<br><br><strong>🧠 Memories:</strong><br>• Relevant information extracted from your memories<br><br><strong>📊 Indicators:</strong><br>The Settings section shows a <strong>green badge</strong> for each connected source and a <strong>gray badge</strong> for unavailable sources."
+            "answer": "LIA aggregates <strong>9 data sources</strong> in parallel to decide whether to notify you:<br><br><strong>📅 Calendar:</strong><br>• Upcoming events (next few hours)<br>• Requires an active Google Calendar connector<br><br><strong>🌤️ Weather + Changes:</strong><br>• Current conditions + transition detection (rain starting/stopping, temperature drops, strong wind)<br>• Requires an OpenWeatherMap connector + configured location<br><br><strong>✅ Tasks:</strong><br>• Pending or overdue tasks (Google Tasks)<br>• Requires an active Google Tasks connector<br><br><strong>📧 Emails:</strong><br>• Today's unread emails (urgent, actionable)<br>• Requires an active email connector (Gmail, Apple, Microsoft)<br><br><strong>⭐ Interests:</strong><br>• Trending topics among your active interests<br><br><strong>🧠 Memories:</strong><br>• Relevant information extracted from your memories<br><br><strong>📊 Indicators:</strong><br>The Settings section shows a <strong>green badge</strong> for each connected source and a <strong>gray badge</strong> for unavailable sources."
           },
           "q4": {
             "question": "How often will I receive notifications?",
@@ -3543,7 +3543,7 @@
       },
       "proactive": {
         "title": "Smart notifications",
-        "description": "LIA alerts you at the right time: upcoming meetings, weather changes (rain, temperature drops), overdue tasks, news on your interests. Configurable by time window."
+        "description": "LIA alerts you at the right time: upcoming meetings, weather changes (rain, temperature drops), overdue tasks, important emails, news on your interests. Configurable by time window."
       },
       "interests": {
         "title": "Interest tracking",

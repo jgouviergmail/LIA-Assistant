@@ -94,6 +94,9 @@ class HeartbeatContext:
     # Tasks — pending Google Tasks (due soon or overdue)
     pending_tasks: list[dict[str, Any]] | None = None
 
+    # Emails — today's unread inbox emails (any provider)
+    unread_emails: list[dict[str, str]] | None = None
+
     # Interests — trending topics (names only)
     trending_interests: list[dict[str, str]] | None = None
 
@@ -123,6 +126,7 @@ class HeartbeatContext:
             (
                 self.calendar_events,
                 self.pending_tasks,
+                self.unread_emails,
                 self.weather_current,
                 self.weather_changes,
                 self.trending_interests,
@@ -162,6 +166,15 @@ class HeartbeatContext:
                 for t in self.pending_tasks
             )
             sections.append(f"PENDING TASKS:\n{tasks_text}")
+
+        if self.unread_emails:
+            emails_text = "\n".join(
+                f"  - From: {e.get('from', '?')} — \"{e.get('subject', 'No subject')}\" "
+                f"({e.get('date', '?')})"
+                + (f" [{e['snippet'][:80]}...]" if e.get("snippet") else "")
+                for e in self.unread_emails
+            )
+            sections.append(f"UNREAD EMAILS (received today):\n{emails_text}")
 
         if self.weather_current:
             temp = self.weather_current.get("main", {}).get("temp", "?")
@@ -257,7 +270,7 @@ class HeartbeatSettingsResponse(BaseModel):
         ge=0, le=23, description="End hour for notification window (0-23)"
     )
     available_sources: list[str] = Field(
-        description="Connected data sources (calendar, weather, interests, memories)"
+        description="Connected data sources (calendar, tasks, emails, weather, interests, memories)"
     )
 
 

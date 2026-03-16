@@ -2589,7 +2589,7 @@
         "questions": {
           "q1": {
             "question": "Was sind proaktive Benachrichtigungen?",
-            "answer": "Proaktive Benachrichtigungen ermöglichen es LIA, <strong>die Initiative zu ergreifen</strong>, Sie mit nützlichen Informationen zu kontaktieren:<br><br><strong>🧠 Prinzip:</strong><br>• LIA analysiert kontinuierlich mehrere Datenquellen (Kalender, Wetter, Interessen, Erinnerungen)<br>• Ein LLM <strong>entscheidet intelligent</strong>, ob es etwas Nützliches zu sagen gibt<br>• Die Nachricht wird mit Ihrer <strong>Persönlichkeit</strong> und in Ihrer <strong>Sprache</strong> umgeschrieben<br><br><strong>📌 Beispiele:</strong><br>• \"<em>In 45 Minuten wird Regen erwartet, denk an den Regenschirm</em>\"<br>• \"<em>Du hast um 14 Uhr ein Meeting und Regen ist vorhergesagt — nimm einen Regenschirm mit</em>\"<br>• \"<em>Ein Thema, das dich interessiert, liegt heute im Trend</em>\"<br><br><strong>💡 Philosophie:</strong><br>LIA sendet nur dann eine Benachrichtigung, wenn sie <strong>wirklich nützlich</strong> ist — Qualität vor Quantität."
+            "answer": "Proaktive Benachrichtigungen ermöglichen es LIA, <strong>die Initiative zu ergreifen</strong>, Sie mit nützlichen Informationen zu kontaktieren:<br><br><strong>🧠 Prinzip:</strong><br>• LIA analysiert kontinuierlich mehrere Datenquellen (Kalender, Wetter, E-Mails, Interessen, Erinnerungen)<br>• Ein LLM <strong>entscheidet intelligent</strong>, ob es etwas Nützliches zu sagen gibt<br>• Die Nachricht wird mit Ihrer <strong>Persönlichkeit</strong> und in Ihrer <strong>Sprache</strong> umgeschrieben<br><br><strong>📌 Beispiele:</strong><br>• \"<em>In 45 Minuten wird Regen erwartet, denk an den Regenschirm</em>\"<br>• \"<em>Du hast um 14 Uhr ein Meeting und Regen ist vorhergesagt — nimm einen Regenschirm mit</em>\"<br>• \"<em>Ein Thema, das dich interessiert, liegt heute im Trend</em>\"<br><br><strong>💡 Philosophie:</strong><br>LIA sendet nur dann eine Benachrichtigung, wenn sie <strong>wirklich nützlich</strong> ist — Qualität vor Quantität."
           },
           "q2": {
             "question": "Wie aktiviere ich proaktive Benachrichtigungen?",
@@ -2597,7 +2597,7 @@
           },
           "q3": {
             "question": "Welche Datenquellen werden verwendet?",
-            "answer": "LIA aggregiert <strong>8 Datenquellen</strong> parallel, um zu entscheiden, ob Sie benachrichtigt werden sollten:<br><br><strong>📅 Kalender:</strong><br>• Bevorstehende Termine (nächste Stunden)<br>• Erfordert einen aktiven Google Calendar Connector<br><br><strong>🌤️ Wetter + Änderungen:</strong><br>• Aktuelle Bedingungen + Übergangserkennung (Regen Beginn/Ende, Temperaturabfall, starker Wind)<br>• Erfordert einen OpenWeatherMap-Connector + konfigurierter Standort<br><br><strong>✅ Aufgaben:</strong><br>• Ausstehende oder überfällige Aufgaben (Google Tasks)<br>• Erfordert einen aktiven Google Tasks Connector<br><br><strong>⭐ Interessen:</strong><br>• Trendthemen unter Ihren aktiven Interessen<br><br><strong>🧠 Erinnerungen:</strong><br>• Relevante Informationen aus Ihren Erinnerungen<br><br><strong>📊 Indikatoren:</strong><br>Der Einstellungsbereich zeigt ein <strong>grünes Badge</strong> für jede verbundene Quelle und ein <strong>graues Badge</strong> für nicht verfügbare Quellen."
+            "answer": "LIA aggregiert <strong>9 Datenquellen</strong> parallel, um zu entscheiden, ob Sie benachrichtigt werden sollten:<br><br><strong>📅 Kalender:</strong><br>• Bevorstehende Termine (nächste Stunden)<br>• Erfordert einen aktiven Google Calendar Connector<br><br><strong>🌤️ Wetter + Änderungen:</strong><br>• Aktuelle Bedingungen + Übergangserkennung (Regen Beginn/Ende, Temperaturabfall, starker Wind)<br>• Erfordert einen OpenWeatherMap-Connector + konfigurierter Standort<br><br><strong>✅ Aufgaben:</strong><br>• Ausstehende oder überfällige Aufgaben (Google Tasks)<br>• Erfordert einen aktiven Google Tasks Connector<br><br><strong>📧 E-Mails:</strong><br>• Ungelesene E-Mails des Tages (dringend, handlungsrelevant)<br>• Erfordert einen aktiven E-Mail-Connector (Gmail, Apple, Microsoft)<br><br><strong>⭐ Interessen:</strong><br>• Trendthemen unter Ihren aktiven Interessen<br><br><strong>🧠 Erinnerungen:</strong><br>• Relevante Informationen aus Ihren Erinnerungen<br><br><strong>📊 Indikatoren:</strong><br>Der Einstellungsbereich zeigt ein <strong>grünes Badge</strong> für jede verbundene Quelle und ein <strong>graues Badge</strong> für nicht verfügbare Quellen."
           },
           "q4": {
             "question": "Wie oft werde ich Benachrichtigungen erhalten?",
@@ -3542,7 +3542,7 @@
       },
       "proactive": {
         "title": "Intelligente Benachrichtigungen",
-        "description": "LIA informiert dich zum richtigen Zeitpunkt: anstehende Meetings, Wetteränderungen (Regen, Temperaturabfall), überfällige Aufgaben, Neuigkeiten zu deinen Interessen. Konfigurierbar nach Zeitfenster."
+        "description": "LIA informiert dich zum richtigen Zeitpunkt: anstehende Meetings, Wetteränderungen (Regen, Temperaturabfall), überfällige Aufgaben, wichtige E-Mails, Neuigkeiten zu deinen Interessen. Konfigurierbar nach Zeitfenster."
       },
       "interests": {
         "title": "Interessenverfolgung",

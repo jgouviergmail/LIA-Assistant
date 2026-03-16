@@ -2639,7 +2639,7 @@ Le système de notifications proactives est couvert par les tests du domaine hea
 | Fichier | Composant testé |
 |---------|-----------------|
 | `test_proactive_task.py` | `HeartbeatProactiveTask` : implémentation du protocole `ProactiveTask` (select_target → generate_content → on_notification_sent) |
-| `test_context_aggregator.py` | `ContextAggregator` : agrégation parallèle de 8 sources de contexte via `asyncio.gather` |
+| `test_context_aggregator.py` | `ContextAggregator` : agrégation parallèle de 9 sources de contexte via `asyncio.gather` |
 | `test_schemas.py` | `HeartbeatDecision` : structured output LLM (skip/notify), validation Pydantic |
 
 **Infrastructure Proactive** — `tests/unit/infrastructure/proactive/` :
@@ -2665,7 +2665,7 @@ def mock_weather_api():
 
 @pytest.fixture
 def mock_context_sources():
-    """Mock des 8 sources de contexte agrégées."""
+    """Mock des 9 sources de contexte agrégées."""
     return {
         "weather": {"temperature": 22.5, "condition": "sunny"},
         "calendar": [{"title": "Réunion", "start": "14:00"}],

@@ -2603,7 +2603,7 @@
         "questions": {
           "q1": {
             "question": "Qu'est-ce que les notifications proactives ?",
-            "answer": "Les notifications proactives permettent à LIA de <strong>prendre l'initiative</strong> de vous contacter avec des informations utiles :<br><br><strong>🧠 Principe :</strong><br>• LIA analyse en continu plusieurs sources de données (calendrier, météo, centres d'intérêt, mémoires)<br>• Un LLM <strong>décide intelligemment</strong> s'il y a quelque chose d'utile à vous dire<br>• Le message est réécrit avec votre <strong>personnalité</strong> et dans votre <strong>langue</strong><br><br><strong>📌 Exemples :</strong><br>• \"<em>Il va pleuvoir dans 45 minutes, pense à prendre un parapluie</em>\"<br>• \"<em>Tu as une réunion à 14h et la pluie est prévue — prends un parapluie</em>\"<br>• \"<em>Un sujet qui t'intéresse est en tendance aujourd'hui</em>\"<br><br><strong>💡 Philosophie :</strong><br>LIA n'envoie une notification que si elle est <strong>véritablement utile</strong> — qualité plutôt que quantité."
+            "answer": "Les notifications proactives permettent à LIA de <strong>prendre l'initiative</strong> de vous contacter avec des informations utiles :<br><br><strong>🧠 Principe :</strong><br>• LIA analyse en continu plusieurs sources de données (calendrier, météo, emails, centres d'intérêt, mémoires)<br>• Un LLM <strong>décide intelligemment</strong> s'il y a quelque chose d'utile à vous dire<br>• Le message est réécrit avec votre <strong>personnalité</strong> et dans votre <strong>langue</strong><br><br><strong>📌 Exemples :</strong><br>• \"<em>Il va pleuvoir dans 45 minutes, pense à prendre un parapluie</em>\"<br>• \"<em>Tu as une réunion à 14h et la pluie est prévue — prends un parapluie</em>\"<br>• \"<em>Un sujet qui t'intéresse est en tendance aujourd'hui</em>\"<br><br><strong>💡 Philosophie :</strong><br>LIA n'envoie une notification que si elle est <strong>véritablement utile</strong> — qualité plutôt que quantité."
           },
           "q2": {
             "question": "Comment activer les notifications proactives ?",
@@ -2611,7 +2611,7 @@
           },
           "q3": {
             "question": "Quelles sources de données sont utilisées ?",
-            "answer": "LIA agrège <strong>8 sources de données</strong> en parallèle pour décider s'il doit vous prévenir :<br><br><strong>📅 Calendrier :</strong><br>• Événements à venir (prochaines heures)<br>• Nécessite un connecteur Google Calendar actif<br><br><strong>🌤️ Météo + Changements :</strong><br>• Conditions actuelles + détection de transitions (début/fin de pluie, chute de température, vent fort)<br>• Nécessite un connecteur OpenWeatherMap + localisation configurée<br><br><strong>✅ Tâches :</strong><br>• Tâches en attente ou en retard (Google Tasks)<br>• Nécessite un connecteur Google Tasks actif<br><br><strong>⭐ Centres d'intérêt :</strong><br>• Sujets en tendance parmi vos intérêts actifs<br><br><strong>🧠 Mémoires :</strong><br>• Informations pertinentes extraites de vos mémoires<br><br><strong>📊 Indicateurs :</strong><br>La section Paramètres affiche un <strong>badge vert</strong> pour chaque source connectée et un <strong>badge gris</strong> pour les sources non disponibles."
+            "answer": "LIA agrège <strong>9 sources de données</strong> en parallèle pour décider s'il doit vous prévenir :<br><br><strong>📅 Calendrier :</strong><br>• Événements à venir (prochaines heures)<br>• Nécessite un connecteur Google Calendar actif<br><br><strong>🌤️ Météo + Changements :</strong><br>• Conditions actuelles + détection de transitions (début/fin de pluie, chute de température, vent fort)<br>• Nécessite un connecteur OpenWeatherMap + localisation configurée<br><br><strong>✅ Tâches :</strong><br>• Tâches en attente ou en retard (Google Tasks)<br>• Nécessite un connecteur Google Tasks actif<br><br><strong>📧 Emails :</strong><br>• Emails non lus du jour (urgents, actionnables)<br>• Nécessite un connecteur email actif (Gmail, Apple, Microsoft)<br><br><strong>⭐ Centres d'intérêt :</strong><br>• Sujets en tendance parmi vos intérêts actifs<br><br><strong>🧠 Mémoires :</strong><br>• Informations pertinentes extraites de vos mémoires<br><br><strong>📊 Indicateurs :</strong><br>La section Paramètres affiche un <strong>badge vert</strong> pour chaque source connectée et un <strong>badge gris</strong> pour les sources non disponibles."
           },
           "q4": {
             "question": "À quelle fréquence vais-je recevoir des notifications ?",
@@ -3548,7 +3548,7 @@
       },
       "proactive": {
         "title": "Notifications intelligentes",
-        "description": "LIA te prévient au bon moment : réunions à venir, changements météo (pluie, chute de température), tâches en retard, actualités sur tes centres d'intérêt. Configurable par plage horaire."
+        "description": "LIA te prévient au bon moment : réunions à venir, changements météo (pluie, chute de température), tâches en retard, emails importants, actualités sur tes centres d'intérêt. Configurable par plage horaire."
       },
       "interests": {
         "title": "Centres d'intérêt",

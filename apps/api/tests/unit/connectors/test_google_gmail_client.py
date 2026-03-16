@@ -758,3 +758,144 @@ async def test_send_email_with_cc_bcc(gmail_client):
         )
 
         assert result["id"] == "sent_msg789"
+
+
+# ============================================================================
+# MESSAGE NORMALIZATION TESTS
+# ============================================================================
+
+
+@pytest.mark.unit
+class TestNormalizeMessageFields:
+    """Tests for _normalize_message_fields — unified provider format.
+
+    Google Gmail messages store from/subject/to/cc in payload.headers.
+    This normalization extracts them to top-level fields, matching the
+    format already produced by Apple and Microsoft normalizers.
+    """
+
+    def test_metadata_format_extracts_headers(self):
+        """Test header extraction to top-level in metadata format."""
+        msg = {
+            "id": "msg-1",
+            "snippet": "Preview text",
+            "internalDate": "1737000000000",
+            "payload": {
+                "headers": [
+                    {"name": "From", "value": "alice@gmail.com"},
+                    {"name": "To", "value": "bob@example.com"},
+                    {"name": "Cc", "value": "carol@example.com"},
+                    {"name": "Subject", "value": "Meeting tomorrow"},
+                    {"name": "Date", "value": "Mon, 15 Jan 2026 14:00:00 +0000"},
+                ]
+            },
+        }
+
+        GoogleGmailClient._normalize_message_fields(msg, "metadata")
+
+        assert msg["from"] == "alice@gmail.com"
+        assert msg["to"] == "bob@example.com"
+        assert msg["cc"] == "carol@example.com"
+        assert msg["subject"] == "Meeting tomorrow"
+        assert msg["date"] == "Mon, 15 Jan 2026 14:00:00 +0000"
+        assert msg["_provider"] == "google"
+        # Original payload preserved
+        assert len(msg["payload"]["headers"]) == 5
+
+    def test_metadata_format_does_not_extract_body(self):
+        """Test that body is NOT extracted in metadata format (no body data available)."""
+        msg = {
+            "id": "msg-2",
+            "payload": {
+                "headers": [{"name": "Subject", "value": "Test"}],
+                "mimeType": "text/plain",
+                "body": {"size": 0},
+            },
+        }
+
+        GoogleGmailClient._normalize_message_fields(msg, "metadata")
+
+        assert "body" not in msg
+
+    def test_full_format_extracts_body(self):
+        """Test that body IS extracted in full format."""
+        import base64
+
+        body_text = "Hello, World!"
+        encoded_body = base64.urlsafe_b64encode(body_text.encode()).decode().rstrip("=")
+
+        msg = {
+            "id": "msg-3",
+            "payload": {
+                "headers": [{"name": "Subject", "value": "Test"}],
+                "mimeType": "text/plain",
+                "body": {"data": encoded_body},
+            },
+        }
+
+        GoogleGmailClient._normalize_message_fields(msg, "full")
+
+        assert msg["body"] == "Hello, World!"
+        assert msg["subject"] == "Test"
+
+    def test_existing_top_level_fields_not_overwritten(self):
+        """Test that pre-existing top-level fields are not overwritten."""
+        msg = {
+            "id": "msg-4",
+            "from": "existing@example.com",
+            "subject": "Existing subject",
+            "_provider": "already-set",
+            "payload": {
+                "headers": [
+                    {"name": "From", "value": "header@example.com"},
+                    {"name": "Subject", "value": "Header subject"},
+                ]
+            },
+        }
+
+        GoogleGmailClient._normalize_message_fields(msg, "metadata")
+
+        # Original values preserved
+        assert msg["from"] == "existing@example.com"
+        assert msg["subject"] == "Existing subject"
+        assert msg["_provider"] == "already-set"
+
+    def test_empty_payload_no_crash(self):
+        """Test graceful handling of missing payload."""
+        msg = {"id": "msg-5"}
+
+        GoogleGmailClient._normalize_message_fields(msg, "metadata")
+
+        assert msg["_provider"] == "google"
+        assert "from" not in msg
+        assert "subject" not in msg
+
+    def test_multipart_body_extraction(self):
+        """Test body extraction from multipart message in full format."""
+        import base64
+
+        body_text = "Plain text body"
+        encoded = base64.urlsafe_b64encode(body_text.encode()).decode().rstrip("=")
+
+        msg = {
+            "id": "msg-6",
+            "payload": {
+                "headers": [],
+                "mimeType": "multipart/alternative",
+                "parts": [
+                    {
+                        "mimeType": "text/plain",
+                        "body": {"data": encoded},
+                    },
+                    {
+                        "mimeType": "text/html",
+                        "body": {"data": base64.urlsafe_b64encode(b"<p>HTML</p>").decode()},
+                    },
+                ],
+            },
+        }
+
+        GoogleGmailClient._normalize_message_fields(msg, "full")
+
+        # text/plain preferred over text/html
+        assert msg["body"] == "Plain text body"

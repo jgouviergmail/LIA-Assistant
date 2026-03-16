@@ -3735,6 +3735,7 @@ async with TrackingContext(user_id, run_id) as tracker:
 | Calendar | Google Calendar connector | None |
 | Weather + Changes | OpenWeatherMap + home_location | None |
 | Tasks | Google Tasks connector | None |
+| Emails | Gmail / Apple Email / Microsoft Outlook | None |
 | Interests | Au moins 1 intérêt ACTIVE | None |
 | Memories | LangGraph Store | None |
 | Activity | Dernière interaction | None |

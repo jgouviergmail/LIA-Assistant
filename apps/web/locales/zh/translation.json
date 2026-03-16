@@ -2584,7 +2584,7 @@
         "questions": {
           "q1": {
             "question": "什么是主动通知？",
-            "answer": "主动通知允许LIA<strong>主动</strong>向您发送有用信息：<br><br><strong>🧠 原理：</strong><br>• LIA持续分析多个数据源（日历、天气、兴趣、记忆）<br>• LLM<strong>智能决定</strong>是否有值得告诉您的信息<br>• 消息根据您的<strong>个性</strong>和<strong>语言</strong>重新编写<br><br><strong>📌 示例：</strong><br>• \"<em>预计45分钟后下雨，别忘了带伞</em>\"<br>• \"<em>你14点有会议，预计会下雨——带把伞</em>\"<br>• \"<em>你感兴趣的话题今天是热门</em>\"<br><br><strong>💡 理念：</strong><br>LIA只在<strong>真正有用</strong>时才发送通知——质量胜于数量。"
+            "answer": "主动通知允许LIA<strong>主动</strong>向您发送有用信息：<br><br><strong>🧠 原理：</strong><br>• LIA持续分析多个数据源（日历、天气、邮件、兴趣、记忆）<br>• LLM<strong>智能决定</strong>是否有值得告诉您的信息<br>• 消息根据您的<strong>个性</strong>和<strong>语言</strong>重新编写<br><br><strong>📌 示例：</strong><br>• \"<em>预计45分钟后下雨，别忘了带伞</em>\"<br>• \"<em>你14点有会议，预计会下雨——带把伞</em>\"<br>• \"<em>你感兴趣的话题今天是热门</em>\"<br><br><strong>💡 理念：</strong><br>LIA只在<strong>真正有用</strong>时才发送通知——质量胜于数量。"
           },
           "q2": {
             "question": "如何启用主动通知？",
@@ -2592,7 +2592,7 @@
           },
           "q3": {
             "question": "使用了哪些数据源？",
-            "answer": "LIA并行聚合<strong>8个数据源</strong>来决定是否通知您：<br><br><strong>📅 日历：</strong><br>• 即将到来的事件（未来几小时）<br>• 需要活跃的Google日历连接器<br><br><strong>🌤️ 天气 + 变化：</strong><br>• 当前状况 + 变化检测（开始/停止下雨、温度下降、强风）<br>• 需要OpenWeatherMap连接器 + 已配置位置<br><br><strong>✅ 任务：</strong><br>• 待办或逾期任务（Google Tasks）<br>• 需要活跃的Google Tasks连接器<br><br><strong>⭐ 兴趣：</strong><br>• 您活跃兴趣中的热门话题<br><br><strong>🧠 记忆：</strong><br>• 从您的记忆中提取的相关信息<br><br><strong>📊 指标：</strong><br>设置部分为每个已连接的源显示<strong>绿色徽章</strong>，为不可用的源显示<strong>灰色徽章</strong>。"
+            "answer": "LIA并行聚合<strong>9个数据源</strong>来决定是否通知您：<br><br><strong>📅 日历：</strong><br>• 即将到来的事件（未来几小时）<br>• 需要活跃的Google日历连接器<br><br><strong>🌤️ 天气 + 变化：</strong><br>• 当前状况 + 变化检测（开始/停止下雨、温度下降、强风）<br>• 需要OpenWeatherMap连接器 + 已配置位置<br><br><strong>✅ 任务：</strong><br>• 待办或逾期任务（Google Tasks）<br>• 需要活跃的Google Tasks连接器<br><br><strong>📧 邮件：</strong><br>• 今天未读的邮件（紧急、可操作的）<br>• 需要活跃的邮件连接器（Gmail、Apple、Microsoft）<br><br><strong>⭐ 兴趣：</strong><br>• 您活跃兴趣中的热门话题<br><br><strong>🧠 记忆：</strong><br>• 从您的记忆中提取的相关信息<br><br><strong>📊 指标：</strong><br>设置部分为每个已连接的源显示<strong>绿色徽章</strong>，为不可用的源显示<strong>灰色徽章</strong>。"
           },
           "q4": {
             "question": "我多久会收到一次通知？",
@@ -3537,7 +3537,7 @@
       },
       "proactive": {
         "title": "智能通知",
-        "description": "LIA在合适的时间提醒您：即将到来的会议、天气变化（降雨、温度下降）、逾期任务、您关注领域的新闻。可按时间段配置。"
+        "description": "LIA在合适的时间提醒您：即将到来的会议、天气变化（降雨、温度下降）、逾期任务、重要邮件、您关注领域的新闻。可按时间段配置。"
       },
       "interests": {
         "title": "兴趣追踪",

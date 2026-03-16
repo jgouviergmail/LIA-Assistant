@@ -28,7 +28,7 @@
 
 Le Heartbeat Autonome (Feature F5 du roadmap evolution) permet au LLM de contacter proactivement les utilisateurs avec des informations pertinentes, **sans attendre de requete utilisateur**. C'est un systeme LLM-driven qui :
 
-1. **Agregue du contexte** depuis 8+ sources (calendrier, meteo, taches, centres d'interet, memories, activite, historique notifications)
+1. **Agregue du contexte** depuis 9+ sources (calendrier, meteo, taches, emails, centres d'interet, memories, activite, historique notifications)
 2. **Laisse le LLM decider** s'il y a quelque chose d'utile a communiquer (structured output)
 3. **Genere un message personnalise** avec la personnalite et la langue de l'utilisateur
 
@@ -66,9 +66,9 @@ APScheduler (30 min, configurable)
 |  select_target() ->        |
 |    1. ContextAggregator    |  <-- Fetch parallele (asyncio.gather)
 |       [Calendar, Weather,  |
-|        Tasks, Interests,   |
-|        Memories, Activity, |
-|        Time]               |
+|        Tasks, Emails,      |
+|        Interests, Memories, |
+|        Activity, Time]     |
 |    2. LLM Decision         |  <-- Structured output (gpt-4.1-mini)
 |       -> skip | notify     |
 |  generate_content() ->     |
@@ -339,7 +339,7 @@ if getattr(settings, "mon_type_enabled", False):
 
 ## 5. ContextAggregator
 
-Le `ContextAggregator` (`domains/heartbeat/context_aggregator.py`) fetche 8 sources de contexte en parallele via `asyncio.gather(return_exceptions=True)`.
+Le `ContextAggregator` (`domains/heartbeat/context_aggregator.py`) fetche 9 sources de contexte en parallele via `asyncio.gather(return_exceptions=True)`.
 
 ### Fonctionnement
 
@@ -347,6 +347,7 @@ Le `ContextAggregator` (`domains/heartbeat/context_aggregator.py`) fetche 8 sour
 results = await asyncio.gather(
     self._fetch_calendar(user_id, user, settings),
     self._fetch_tasks(user_id, user, settings),
+    self._fetch_emails(user_id, user, settings),
     self._fetch_weather_with_changes(user_id, user, settings),
     self._fetch_interests(user_id),
     self._fetch_memories(user_id, settings),
@@ -371,6 +372,7 @@ results = await asyncio.gather(
 | Calendar | Google/Apple/Microsoft Calendar API | Connector actif | `None` |
 | Weather + Changes | OpenWeatherMap API | Connector + home_location | `None` |
 | Tasks | Google Tasks / Microsoft To Do API | Connector actif | `None` |
+| Emails | Gmail / Apple Email / Microsoft Outlook | Connector actif | `None` |
 | Interests | `InterestRepository` | Centres d'interet actifs | `None` |
 | Memories | LangGraph Store | `memory_enabled` | `None` |
 | Activity | Query dernier message | Toujours disponible | `None` |
@@ -387,6 +389,7 @@ def has_meaningful_context(self) -> bool:
     return any((
         self.calendar_events,
         self.pending_tasks,
+        self.unread_emails,
         self.weather_current,
         self.weather_changes,
         self.trending_interests,

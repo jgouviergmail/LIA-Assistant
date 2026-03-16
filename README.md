@@ -33,7 +33,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.4.5</strong> — External Content Wrapping & Prompt Injection Prevention — March 2026
+  <strong>Version 1.4.6</strong> — Heartbeat Email Source, Gmail Normalization & Plan Validator Fixes — March 2026
 </p>
 
 ---

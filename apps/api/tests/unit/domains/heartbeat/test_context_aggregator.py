@@ -30,6 +30,7 @@ def _make_settings(**overrides) -> SimpleNamespace:
     defaults = {
         "heartbeat_context_calendar_hours": 6,
         "heartbeat_context_memory_limit": 5,
+        "heartbeat_context_emails_max": 5,
         "heartbeat_weather_rain_threshold_high": 0.6,
         "heartbeat_weather_rain_threshold_low": 0.3,
         "heartbeat_weather_temp_change_threshold": 5.0,
@@ -211,6 +212,24 @@ class TestApplySourceResult:
         assert context.pending_tasks == tasks
         assert "tasks" in context.available_sources
 
+    def test_emails_result(self):
+        """Test emails result is applied correctly."""
+        aggregator = ContextAggregator(MagicMock())
+        context = HeartbeatContext()
+        emails = [
+            {
+                "from": "boss@example.com",
+                "subject": "Urgent meeting",
+                "date": "14:30",
+                "snippet": "Please join ASAP",
+            },
+        ]
+
+        aggregator._apply_source_result(context, "emails", emails)
+
+        assert context.unread_emails == emails
+        assert "emails" in context.available_sources
+
     def test_empty_result_not_applied(self):
         """Test that empty list results are not applied."""
         aggregator = ContextAggregator(MagicMock())
@@ -220,6 +239,59 @@ class TestApplySourceResult:
 
         assert context.calendar_events is None
         assert "calendar" not in context.available_sources
+
+
+# ---------------------------------------------------------------------------
+# _format_email_date (email internalDate conversion)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.unit
+class TestFormatEmailDate:
+    """Tests for _format_email_date static method."""
+
+    def test_epoch_ms_today_shows_time_only(self):
+        """Test that today's email shows only HH:MM."""
+        user_tz = ZoneInfo("Europe/Paris")
+        now = datetime.now(user_tz)
+        # Build epoch ms for today at a known time in user tz
+        target = now.replace(hour=10, minute=30, second=0, microsecond=0)
+        epoch_ms = str(int(target.timestamp() * 1000))
+
+        result = ContextAggregator._format_email_date(epoch_ms, user_tz)
+
+        assert result == "10:30"
+
+    def test_epoch_ms_past_date_shows_full(self):
+        """Test that past date email shows YYYY-MM-DD HH:MM."""
+        user_tz = ZoneInfo("Europe/Paris")
+        # 2026-01-15 14:00 UTC = 15:00 CET
+        dt = datetime(2026, 1, 15, 14, 0, tzinfo=UTC)
+        epoch_ms = str(int(dt.timestamp() * 1000))
+
+        result = ContextAggregator._format_email_date(epoch_ms, user_tz)
+
+        assert result == "2026-01-15 15:00"
+
+    def test_int_epoch_ms(self):
+        """Test integer input (not string) works correctly."""
+        user_tz = ZoneInfo("UTC")
+        dt = datetime(2026, 3, 10, 12, 0, tzinfo=UTC)
+        epoch_ms = int(dt.timestamp() * 1000)
+
+        result = ContextAggregator._format_email_date(epoch_ms, user_tz)
+
+        assert result == "2026-03-10 12:00"
+
+    def test_none_returns_question_mark(self):
+        """Test None input returns '?'."""
+        user_tz = ZoneInfo("Europe/Paris")
+        assert ContextAggregator._format_email_date(None, user_tz) == "?"
+
+    def test_invalid_value_returns_question_mark(self):
+        """Test invalid input returns '?'."""
+        user_tz = ZoneInfo("Europe/Paris")
+        assert ContextAggregator._format_email_date("not-a-number", user_tz) == "?"
 
 
 # ---------------------------------------------------------------------------

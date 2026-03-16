@@ -2589,7 +2589,7 @@
         "questions": {
           "q1": {
             "question": "¿Qué son las notificaciones proactivas?",
-            "answer": "Las notificaciones proactivas permiten a LIA <strong>tomar la iniciativa</strong> de contactarle con información útil:<br><br><strong>🧠 Principio:</strong><br>• LIA analiza continuamente múltiples fuentes de datos (calendario, clima, intereses, memorias)<br>• Un LLM <strong>decide inteligentemente</strong> si hay algo útil que decirle<br>• El mensaje se reescribe con su <strong>personalidad</strong> y en su <strong>idioma</strong><br><br><strong>📌 Ejemplos:</strong><br>• \"<em>Se espera lluvia en 45 minutos, lleva un paraguas</em>\"<br>• \"<em>Tienes una reunión a las 14h y se prevé lluvia — lleva un paraguas</em>\"<br>• \"<em>Un tema que te interesa es tendencia hoy</em>\"<br><br><strong>💡 Filosofía:</strong><br>LIA solo envía una notificación cuando es <strong>verdaderamente útil</strong> — calidad sobre cantidad."
+            "answer": "Las notificaciones proactivas permiten a LIA <strong>tomar la iniciativa</strong> de contactarle con información útil:<br><br><strong>🧠 Principio:</strong><br>• LIA analiza continuamente múltiples fuentes de datos (calendario, clima, emails, intereses, memorias)<br>• Un LLM <strong>decide inteligentemente</strong> si hay algo útil que decirle<br>• El mensaje se reescribe con su <strong>personalidad</strong> y en su <strong>idioma</strong><br><br><strong>📌 Ejemplos:</strong><br>• \"<em>Se espera lluvia en 45 minutos, lleva un paraguas</em>\"<br>• \"<em>Tienes una reunión a las 14h y se prevé lluvia — lleva un paraguas</em>\"<br>• \"<em>Un tema que te interesa es tendencia hoy</em>\"<br><br><strong>💡 Filosofía:</strong><br>LIA solo envía una notificación cuando es <strong>verdaderamente útil</strong> — calidad sobre cantidad."
           },
           "q2": {
             "question": "¿Cómo activo las notificaciones proactivas?",
@@ -2597,7 +2597,7 @@
           },
           "q3": {
             "question": "¿Qué fuentes de datos se utilizan?",
-            "answer": "LIA agrega <strong>8 fuentes de datos</strong> en paralelo para decidir si debe notificarle:<br><br><strong>📅 Calendario:</strong><br>• Eventos próximos (próximas horas)<br>• Requiere un conector de Google Calendar activo<br><br><strong>🌤️ Clima + Cambios:</strong><br>• Condiciones actuales + detección de transiciones (inicio/fin de lluvia, caída de temperatura, viento fuerte)<br>• Requiere un conector OpenWeatherMap + ubicación configurada<br><br><strong>✅ Tareas:</strong><br>• Tareas pendientes o atrasadas (Google Tasks)<br>• Requiere un conector de Google Tasks activo<br><br><strong>⭐ Intereses:</strong><br>• Temas tendencia entre sus intereses activos<br><br><strong>🧠 Memorias:</strong><br>• Información relevante extraída de sus memorias<br><br><strong>📊 Indicadores:</strong><br>La sección de Configuración muestra una <strong>insignia verde</strong> para cada fuente conectada y una <strong>insignia gris</strong> para las fuentes no disponibles."
+            "answer": "LIA agrega <strong>9 fuentes de datos</strong> en paralelo para decidir si debe notificarle:<br><br><strong>📅 Calendario:</strong><br>• Eventos próximos (próximas horas)<br>• Requiere un conector de Google Calendar activo<br><br><strong>🌤️ Clima + Cambios:</strong><br>• Condiciones actuales + detección de transiciones (inicio/fin de lluvia, caída de temperatura, viento fuerte)<br>• Requiere un conector OpenWeatherMap + ubicación configurada<br><br><strong>✅ Tareas:</strong><br>• Tareas pendientes o atrasadas (Google Tasks)<br>• Requiere un conector de Google Tasks activo<br><br><strong>📧 Emails:</strong><br>• Emails no leídos del día (urgentes, accionables)<br>• Requiere un conector de email activo (Gmail, Apple, Microsoft)<br><br><strong>⭐ Intereses:</strong><br>• Temas tendencia entre sus intereses activos<br><br><strong>🧠 Memorias:</strong><br>• Información relevante extraída de sus memorias<br><br><strong>📊 Indicadores:</strong><br>La sección de Configuración muestra una <strong>insignia verde</strong> para cada fuente conectada y una <strong>insignia gris</strong> para las fuentes no disponibles."
           },
           "q4": {
             "question": "¿Con qué frecuencia recibiré notificaciones?",
@@ -3542,7 +3542,7 @@
       },
       "proactive": {
         "title": "Notificaciones inteligentes",
-        "description": "LIA te avisa en el momento justo: reuniones próximas, cambios meteorológicos (lluvia, caída de temperatura), tareas atrasadas, noticias sobre tus intereses. Configurable por franja horaria."
+        "description": "LIA te avisa en el momento justo: reuniones próximas, cambios meteorológicos (lluvia, caída de temperatura), tareas atrasadas, emails importantes, noticias sobre tus intereses. Configurable por franja horaria."
       },
       "interests": {
         "title": "Centros de interés",

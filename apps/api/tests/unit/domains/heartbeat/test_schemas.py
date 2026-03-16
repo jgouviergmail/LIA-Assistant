@@ -284,6 +284,43 @@ class TestHeartbeatContext:
         assert "Review PR" in prompt
         assert "[OVERDUE]" in prompt
 
+    def test_context_with_emails_is_meaningful(self):
+        """Test that context with unread emails is meaningful."""
+        ctx = HeartbeatContext(
+            unread_emails=[
+                {"from": "boss@example.com", "subject": "Urgent", "date": "14:30", "snippet": ""}
+            ]
+        )
+
+        assert ctx.has_meaningful_context()
+
+    def test_to_prompt_context_with_emails(self):
+        """Test prompt context includes unread emails section."""
+        ctx = HeartbeatContext(
+            unread_emails=[
+                {
+                    "from": "alice@example.com",
+                    "subject": "Project update",
+                    "date": "10:15",
+                    "snippet": "Hi, just wanted to share the latest status",
+                },
+                {
+                    "from": "bob@example.com",
+                    "subject": "Lunch today?",
+                    "date": "11:00",
+                    "snippet": "",
+                },
+            ]
+        )
+
+        prompt = ctx.to_prompt_context()
+
+        assert "UNREAD EMAILS (received today)" in prompt
+        assert "alice@example.com" in prompt
+        assert "Project update" in prompt
+        assert "bob@example.com" in prompt
+        assert "Lunch today?" in prompt
+
     def test_recent_heartbeats_summary_none(self):
         """Test summary is None when no recent heartbeats."""
         ctx = HeartbeatContext()

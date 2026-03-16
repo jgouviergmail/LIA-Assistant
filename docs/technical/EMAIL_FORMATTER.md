@@ -110,8 +110,18 @@ apps/api/src/domains/agents/tools/
 └── ...
 
 apps/api/src/domains/connectors/clients/
-└── google_gmail_client.py  # Client Gmail API (inchangé)
+└── google_gmail_client.py  # Client Gmail API (normalisation top-level + _provider)
 ```
+
+### Normalisation unifiée (tri-provider)
+
+Les trois providers email retournent un format normalisé identique avec des champs top-level (`from`, `subject`, `to`, `cc`, `body`, `snippet`, `internalDate`) et un marqueur `_provider` :
+
+- **Google** : `GoogleGmailClient._normalize_message_fields()` extrait depuis `payload.headers` → top-level. Body extrait uniquement en format `full`.
+- **Apple** : `normalize_imap_message()` dans `email_normalizer.py`.
+- **Microsoft** : `normalize_graph_message()` dans `microsoft_email_normalizer.py`.
+
+La structure `payload.headers` originale est conservée pour rétrocompatibilité.
 
 ### Pattern d'architecture
 
@@ -121,7 +131,7 @@ apps/api/src/domains/connectors/clients/
 │  emails_tools.py │
 └────────┬────────┘
          │ 1. Récupère user timezone/locale
-         │ 2. Appelle Gmail Client
+         │ 2. Appelle Email Client (Google/Apple/Microsoft)
          │ 3. Format avec EmailFormatter
          ▼
 ┌──────────────────┐

@@ -6,8 +6,9 @@ the LLM decision phase. Each source is independently failable — a single
 source failure does not block other sources.
 
 Sources:
-- Calendar: upcoming events (Google Calendar or Apple Calendar — dynamic resolution)
-- Tasks: pending/overdue Google Tasks (Google-only, no Apple equivalent)
+- Calendar: upcoming events (Google Calendar, Apple Calendar, or Microsoft — dynamic resolution)
+- Tasks: pending/overdue tasks (Google Tasks or Microsoft To Do — dynamic resolution)
+- Emails: today's unread inbox emails (Gmail, Apple Email, or Microsoft Outlook — dynamic resolution)
 - Weather: current conditions + change detection (rain, temp, wind)
 - Interests: trending user interest topics
 - Memories: relevant entries from LangGraph Store
@@ -31,7 +32,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import get_settings
-from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, GMAIL_FORMAT_METADATA
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.service import ConnectorService
 from src.domains.conversations.models import Conversation, ConversationMessage
@@ -180,6 +181,7 @@ class ContextAggregator:
         results = await asyncio.gather(
             self._fetch_calendar(user_id, user, settings),
             self._fetch_tasks(user_id, user, settings),
+            self._fetch_emails(user_id, user, settings),
             self._fetch_weather_with_changes(user_id, user, settings),
             self._fetch_interests(user_id),
             self._fetch_memories(user_id, settings),
@@ -193,6 +195,7 @@ class ContextAggregator:
         source_names = [
             "calendar",
             "tasks",
+            "emails",
             "weather",
             "interests",
             "memories",
@@ -234,6 +237,10 @@ class ContextAggregator:
         elif name == "tasks" and result:
             context.pending_tasks = result
             context.available_sources.append("tasks")
+
+        elif name == "emails" and result:
+            context.unread_emails = result
+            context.available_sources.append("emails")
 
         elif name == "weather" and result:
             weather_current, weather_changes = result
@@ -688,6 +695,142 @@ class ContextAggregator:
                 detected_types.add("wind_alert")
 
         return changes
+
+    # ------------------------------------------------------------------
+    # Emails source (unread inbox)
+    # ------------------------------------------------------------------
+
+    async def _fetch_emails(
+        self,
+        user_id: UUID,
+        user: Any,
+        settings: Any,
+    ) -> list[dict[str, str]] | None:
+        """Fetch today's unread inbox emails from the active provider.
+
+        Uses dynamic provider resolution to support Google Gmail,
+        Apple Email, and Microsoft Outlook. Only returns emails received
+        today (user's local date). Returns minimal metadata (from,
+        subject, date, snippet) for the LLM decision prompt.
+
+        All three providers return normalized messages with top-level
+        from/subject/snippet/internalDate fields. Apple's search_emails
+        returns only IDs (full messages cached in Redis), so get_message()
+        is called for those — a Redis cache hit, no extra round-trip.
+
+        Returns:
+            List of email summary dicts or None if unavailable.
+        """
+        from src.domains.connectors.clients.registry import ClientRegistry
+        from src.domains.connectors.provider_resolver import resolve_active_connector
+
+        connector_service = ConnectorService(self._db)
+
+        # Dynamically resolve the active email provider
+        resolved_type = await resolve_active_connector(user_id, "email", connector_service)
+        if resolved_type is None:
+            return None
+
+        # Get credentials based on provider type
+        credentials: Any = None
+        if resolved_type.is_apple:
+            credentials = await connector_service.get_apple_credentials(user_id, resolved_type)
+        else:
+            credentials = await connector_service.get_connector_credentials(user_id, resolved_type)
+        if not credentials:
+            return None
+
+        # Instantiate the appropriate client
+        client_class = ClientRegistry.get_client_class(resolved_type)
+        if client_class is None:
+            return None
+        client = client_class(user_id, credentials, connector_service)
+
+        max_emails = getattr(settings, "heartbeat_context_emails_max", 5)
+
+        # Filter to today's unread emails only (user's local date).
+        # Gmail-style `after:` uses the date as a lower bound (inclusive).
+        user_tz = _resolve_user_tz(user)
+        today_str = datetime.now(user_tz).strftime("%Y/%m/%d")
+
+        # All providers accept Gmail-style query syntax (normalized internally)
+        result = await client.search_emails(
+            query=f"is:unread after:{today_str}",
+            max_results=max_emails,
+            use_cache=True,
+        )
+
+        messages = result.get("messages", [])
+        if not messages:
+            return None
+
+        # For providers that return only IDs (Apple), fetch full messages.
+        # Apple's search_emails caches full messages in Redis, so get_message
+        # is a cache hit — no extra IMAP round-trips.
+        full_messages = []
+        for msg in messages:
+            if set(msg.keys()) <= {"id", "threadId"}:
+                try:
+                    full_msg = await client.get_message(
+                        msg["id"], format=GMAIL_FORMAT_METADATA, use_cache=True
+                    )
+                    if full_msg:
+                        full_messages.append(full_msg)
+                except Exception:
+                    logger.debug(
+                        "heartbeat_email_fetch_message_failed",
+                        message_id=msg.get("id"),
+                        user_id=str(user_id),
+                    )
+            else:
+                full_messages.append(msg)
+
+        if not full_messages:
+            return None
+
+        # Extract minimal email data for the prompt.
+        # All providers now return top-level from/subject/snippet/internalDate:
+        # - Google: normalized in GoogleGmailClient._normalize_message_fields()
+        # - Apple: normalized in normalize_imap_message()
+        # - Microsoft: normalized in normalize_graph_message()
+        emails = []
+        for msg in full_messages:
+            emails.append(
+                {
+                    "from": msg.get("from", ""),
+                    "subject": msg.get("subject", ""),
+                    "date": self._format_email_date(msg.get("internalDate"), user_tz),
+                    "snippet": msg.get("snippet", ""),
+                }
+            )
+
+        return emails if emails else None
+
+    @staticmethod
+    def _format_email_date(
+        internal_date: str | int | None,
+        user_tz: ZoneInfo,
+    ) -> str:
+        """Convert email internalDate (epoch ms) to a user-local time string.
+
+        Args:
+            internal_date: Epoch milliseconds as string or int, or None.
+            user_tz: User's timezone for display.
+
+        Returns:
+            Formatted string like '2026-03-15 15:30' or '?' if unavailable.
+        """
+        if internal_date is None:
+            return "?"
+        try:
+            epoch_ms = int(internal_date)
+            dt = datetime.fromtimestamp(epoch_ms / 1000, tz=user_tz)
+            now_local = datetime.now(user_tz)
+            if dt.date() == now_local.date():
+                return dt.strftime("%H:%M")
+            return dt.strftime("%Y-%m-%d %H:%M")
+        except (ValueError, TypeError, OSError):
+            return "?"
 
     # ------------------------------------------------------------------
     # Interests source

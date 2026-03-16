@@ -64,6 +64,13 @@ async def _compute_available_sources(
             sources.append("tasks")
             break
 
+    # Emails: any active email connector (Gmail, Apple Email, Microsoft Outlook)
+    for ct in CONNECTOR_FUNCTIONAL_CATEGORIES.get("email", frozenset()):
+        connector = await repo.get_by_user_and_type(user.id, ct)
+        if connector and connector.status.value == "active":
+            sources.append("emails")
+            break
+
     # Weather: OpenWeatherMap connector active + home location configured
     weather_connector = await repo.get_by_user_and_type(user.id, ConnectorType.OPENWEATHERMAP)
     if (

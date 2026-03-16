@@ -295,6 +295,47 @@ class GoogleGmailClient(BaseGoogleClient):
         return headers
 
     @staticmethod
+    def _normalize_message_fields(message: dict[str, Any], format: str) -> None:
+        """Normalize Gmail API message to unified provider format (in-place).
+
+        Extracts common headers (from, to, cc, subject, date) from
+        payload.headers to top-level fields, matching the format already
+        produced by Apple (normalize_imap_message) and Microsoft
+        (normalize_graph_message) normalizers.
+
+        This ensures all three email providers return messages with the same
+        top-level field structure, enabling provider-agnostic consumption
+        throughout the application.
+
+        Body is extracted only when format is 'full' (metadata format does
+        not include body data in the Gmail API response).
+
+        The original payload.headers structure is preserved for backwards
+        compatibility with existing header-based extraction code.
+
+        Args:
+            message: Gmail API message dict (mutated in-place).
+            format: Gmail format used for the request ('full', 'metadata').
+        """
+        # Extract headers to top-level (only if not already present)
+        headers = GoogleGmailClient._extract_headers(message)
+        for field in ("from", "to", "cc", "subject", "date"):
+            if field not in message and headers.get(field):
+                message[field] = headers[field]
+
+        # Extract body to top-level (only for full format, which includes body data)
+        if format == GMAIL_FORMAT_FULL and "body" not in message:
+            payload = message.get("payload")
+            if payload:
+                body = GoogleGmailClient._extract_body_recursive(payload)
+                if body:
+                    message["body"] = body
+
+        # Mark provider for downstream identification (same as Apple/Microsoft)
+        if "_provider" not in message:
+            message["_provider"] = "google"
+
+    @staticmethod
     def _extract_body_recursive(
         payload: dict[str, Any],
         max_depth: int = 10,
@@ -688,7 +729,12 @@ class GoogleGmailClient(BaseGoogleClient):
             "GET", f"/users/me/messages/{message_id}", params=params
         )
 
-        # Cache result
+        # Normalize: extract common headers to top-level fields.
+        # Apple and Microsoft normalizers already set top-level from/subject/to/cc/body.
+        # This brings Google Gmail in line for a unified message format across providers.
+        self._normalize_message_fields(response, format)
+
+        # Cache result (normalized format so cache hits are also normalized)
         if use_cache:
             redis_client = await get_redis_cache()
             cache_data = {
