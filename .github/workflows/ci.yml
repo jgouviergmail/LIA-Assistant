@@ -167,7 +167,7 @@ jobs:
         if: always()
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
-          file: ./apps/api/coverage.xml
+          files: ./apps/api/coverage.xml
           flags: backend
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -201,7 +201,7 @@ jobs:
         if: always()
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         with:
-          file: ./apps/web/coverage/coverage-final.json
+          files: ./apps/web/coverage/coverage-final.json
           flags: frontend
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
