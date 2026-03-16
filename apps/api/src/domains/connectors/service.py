@@ -1068,7 +1068,7 @@ class ConnectorService:
         )
         async def _refresh_token_with_retry() -> httpx.Response:
             """Refresh OAuth token with retry logic for network resilience."""
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(follow_redirects=False) as client:
                 return await client.post(token_url, data=refresh_data)
 
         try:
@@ -1223,7 +1223,7 @@ class ConnectorService:
             decrypted_json = decrypt_data(connector.credentials_encrypted)
             credentials = ConnectorCredentials.model_validate_json(decrypted_json)
 
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(follow_redirects=False) as client:
                 await client.post(
                     "https://oauth2.googleapis.com/revoke",
                     params={"token": credentials.access_token},

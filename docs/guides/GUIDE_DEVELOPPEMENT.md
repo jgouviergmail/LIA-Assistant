@@ -688,7 +688,7 @@ async def test_google_oauth_callback_success(
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 
 @pytest.fixture
 async def async_session():
@@ -716,7 +716,7 @@ async def async_client(async_session):
     # Override get_session dependency
     app.dependency_overrides[get_session] = lambda: async_session
 
-    async with AsyncClient(app=app, base_url="http://test") as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         yield client
 
     app.dependency_overrides.clear()

@@ -162,7 +162,7 @@ class MCPOAuth2Auth(httpx.Auth):
             if self._resource:
                 data["resource"] = self._resource
 
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(follow_redirects=False) as client:
                 resp = await client.post(
                     self._token_endpoint,
                     data=data,

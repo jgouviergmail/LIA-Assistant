@@ -438,7 +438,7 @@ class AuthService:
         Raises:
             HTTPException: If API call fails
         """
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(follow_redirects=False) as client:
             userinfo_response = await client.get(
                 "https://www.googleapis.com/oauth2/v2/userinfo",
                 headers={"Authorization": f"Bearer {access_token}"},

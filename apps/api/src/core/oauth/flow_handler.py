@@ -313,7 +313,9 @@ class OAuthFlowHandler:
         Raises:
             OAuthTokenExchangeError: If token exchange fails (HTTP errors or network issues)
         """
-        async with httpx.AsyncClient(timeout=settings.http_timeout_oauth) as client:
+        async with httpx.AsyncClient(
+            timeout=settings.http_timeout_oauth, follow_redirects=False
+        ) as client:
             try:
                 response = await client.post(
                     self.provider.token_endpoint,
@@ -415,7 +417,9 @@ class OAuthFlowHandler:
             )
             return
 
-        async with httpx.AsyncClient(timeout=settings.http_timeout_token) as client:
+        async with httpx.AsyncClient(
+            timeout=settings.http_timeout_token, follow_redirects=False
+        ) as client:
             try:
                 response = await client.post(
                     self.provider.revocation_endpoint,

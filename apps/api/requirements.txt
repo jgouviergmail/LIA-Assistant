@@ -42,7 +42,7 @@ langfuse==3.14.5  # Phase 6 - LLM Observability
 slowapi==0.1.9
 
 # HTTP Client
-httpx==0.27.2
+httpx==0.28.1
 
 # Web Page Content Extraction (evolution F1 — Web Fetch Tool)
 readability-lxml==0.8.1    # Mozilla Readability algorithm (article extraction)
