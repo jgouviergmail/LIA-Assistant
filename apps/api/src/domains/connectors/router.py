@@ -205,7 +205,7 @@ async def proxy_routes_static_map(
             has_dest_marker=bool(dest),
         )
 
-        async with httpx.AsyncClient(verify=False) as client:
+        async with httpx.AsyncClient() as client:
             response = await client.get(
                 static_map_url,
                 follow_redirects=True,
@@ -1441,11 +1441,22 @@ async def proxy_places_photo(
     Returns:
         StreamingResponse with the image data
     """
+    import re
+
     import httpx
     from fastapi import HTTPException
 
     from src.core.config import settings
     from src.core.exceptions import raise_configuration_missing, raise_permission_denied
+
+    # Validate photo_name format to prevent path manipulation on Google API
+    places_photo_pattern = re.compile(r"^places/[^/]+/photos/[^/]+$")
+    if not places_photo_pattern.match(photo_name):
+        logger.warning(
+            "places_photo_invalid_name",
+            photo_name=photo_name[:80],
+        )
+        raise HTTPException(status_code=400, detail="Invalid photo resource name format")
 
     user_id = current_user.id
     service = ConnectorService(db)

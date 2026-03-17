@@ -780,6 +780,7 @@ class GetEventDetailsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
         locale = result.get("locale", DEFAULT_LANGUAGE)
 
         # Handle single vs batch mode
+        errors = None
         if mode == "batch":
             events = result.get("events", [])
             event_ids = result.get("event_ids", [])
@@ -1827,10 +1828,6 @@ class CreateEventDirectTool(ConnectorTool[GoogleCalendarClient]):
             "end": end_datetime,
             "message": APIMessages.event_created_successfully(summary),
         }
-
-
-# Create direct tool instance
-_create_event_direct_tool_instance = CreateEventDirectTool()
 
 
 # ============================================================================

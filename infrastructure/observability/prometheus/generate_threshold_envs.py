@@ -16,7 +16,7 @@ Date: 2025-11-23
 
 import json
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict
 
 # Multipliers for each environment
 # Higher value = more permissive threshold

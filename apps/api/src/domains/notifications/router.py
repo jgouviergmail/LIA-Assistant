@@ -302,7 +302,7 @@ async def stream_notifications(
                 user_id=str(current_user.id),
                 error=str(e),
             )
-            yield f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
+            yield f"event: error\ndata: {json.dumps({'error': 'An unexpected error occurred'})}\n\n"
         finally:
             # Clean up SSE tracking key on disconnect
             try:

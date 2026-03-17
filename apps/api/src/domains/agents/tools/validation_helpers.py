@@ -135,7 +135,7 @@ def validate_fields(
         else:
             raise ToolValidationError(
                 message=f"Missing required fields: {', '.join(missing)}",
-                fields=missing,
+                field=", ".join(missing),
             )
 
 

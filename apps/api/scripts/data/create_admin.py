@@ -29,7 +29,7 @@ from src.core.security import get_password_hash
 from src.infrastructure.database.session import AsyncSessionLocal
 
 DEFAULT_EMAIL = "admin@example.com"
-DEFAULT_PASSWORD = "admin123"
+DEFAULT_ADMIN_PASS = "admin123"
 DEFAULT_NAME = "Admin User"
 
 
@@ -81,7 +81,7 @@ async def create_admin(email: str, password: str, full_name: str) -> None:
 
         print(f"\n✅ Admin user created successfully!")
         print(f"   Email:    {email}")
-        print(f"   Password: {password}")
+        print(f"   Password: {'*' * len(password)}")
         print(f"   Name:     {full_name}")
         print(f"\n   You can now log in at the application's login page.")
         print(f"   ⚠ Change the default password after first login!")
@@ -96,8 +96,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--password",
-        default=DEFAULT_PASSWORD,
-        help=f"Admin password (default: {DEFAULT_PASSWORD})",
+        default=DEFAULT_ADMIN_PASS,
+        help=f"Admin password (default: {DEFAULT_ADMIN_PASS})",
     )
     parser.add_argument(
         "--name",

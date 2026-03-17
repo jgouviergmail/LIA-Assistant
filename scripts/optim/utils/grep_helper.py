@@ -10,9 +10,8 @@ Date: 2025-11-14
 """
 
 import re
-import subprocess
 from pathlib import Path
-from typing import List, Dict, Any, Optional, Set
+from typing import List, Dict, Any, Optional
 
 
 def grep_in_directory(

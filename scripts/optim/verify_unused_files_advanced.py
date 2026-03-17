@@ -21,7 +21,6 @@ Date: 2025-11-15
 """
 
 import sys
-import re
 from pathlib import Path
 from typing import Any
 

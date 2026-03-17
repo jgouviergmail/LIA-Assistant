@@ -172,7 +172,6 @@ lifetime_metrics_error_total = Gauge(
 
 # Cache format: {(model, node): (input_tokens, output_tokens, cached_tokens, cost_eur)}
 _lifetime_cache: dict[tuple[str, str], tuple[int, int, int, float]] = {}
-_last_update: datetime | None = None
 _error_count: int = 0
 
 
@@ -212,7 +211,7 @@ async def update_lifetime_metrics() -> None:
             yield
             task.cancel()
     """
-    global _lifetime_cache, _last_update, _error_count
+    global _lifetime_cache, _error_count
 
     update_interval = getattr(settings, "lifetime_metrics_update_interval", 30)  # seconds
 
@@ -238,8 +237,6 @@ async def update_lifetime_metrics() -> None:
                 duration = (datetime.now(UTC) - start_time).total_seconds()
                 lifetime_metrics_update_duration_seconds.set(duration)
                 lifetime_metrics_last_update_timestamp.set(datetime.now(UTC).timestamp())
-
-                _last_update = start_time
 
                 logger.debug(
                     "lifetime_metrics_updated",

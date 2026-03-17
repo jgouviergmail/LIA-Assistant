@@ -11,7 +11,6 @@ import structlog
 from dateutil.relativedelta import relativedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.constants import SUPPORTED_CURRENCIES
 from src.core.context import current_tracker
 from src.core.field_names import (
     FIELD_COST_EUR,
@@ -31,10 +30,6 @@ from src.domains.chat.schemas import TokenSummaryDTO, UserStatisticsResponse
 from src.infrastructure.database import get_db_context
 
 logger = structlog.get_logger(__name__)
-
-# Currency conversion for LLM pricing (base currency USD, target EUR)
-_CURRENCY_USD = SUPPORTED_CURRENCIES[0]  # "USD"
-_CURRENCY_EUR = SUPPORTED_CURRENCIES[1]  # "EUR"
 
 
 class TokenUsageRecord(NamedTuple):

@@ -128,17 +128,14 @@ class AgentService(
     """
 
     def __init__(self) -> None:
-        """Initialize service (lazy graph build)."""
-        # Graph is built lazily on first use (built from global AgentRegistry)
-        # AgentRegistry is configured at application startup (main.py) with
-        # checkpointer, store, and all registered agents
-        self.graph: Any = None
-        self._store: Any = None
-        self.hitl_classifier: Any = None
-        self.hitl_question_generator: Any = None
-        self.hitl_orchestrator: Any = None
+        """Initialize service (lazy graph build via GraphManagementMixin)."""
+        super().__init__()
         logger.info("agent_service_initialized")
 ```
+
+> **Note (v1.5.1)**: `AgentService.__init__` delegates to `super().__init__()` which initializes
+> all mixin attributes (`graph`, `_store`, `hitl_classifier`, etc.) via `GraphManagementMixin`.
+> The previous pattern manually duplicated these attributes and is now removed.
 
 **Responsabilités** :
 - Gestion du LangGraph principal (router → planner → task_orchestrator → response)
@@ -1731,12 +1728,8 @@ class AgentService(
     """
 
     def __init__(self) -> None:
-        """Initialize service (lazy graph build)."""
-        self.graph: Any = None
-        self._store: Any = None
-        self.hitl_classifier: Any = None
-        self.hitl_question_generator: Any = None
-        self.hitl_orchestrator: Any = None
+        """Initialize service (lazy graph build via GraphManagementMixin)."""
+        super().__init__()
         logger.info("agent_service_initialized")
 
     def _build_graph(self) -> CompiledStateGraph:

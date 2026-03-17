@@ -11,13 +11,9 @@ Design Philosophy:
 - Composition: Used by QueryAnalyzerService as a component
 """
 
-import structlog
 from langchain_core.messages import BaseMessage
 
 from src.domains.agents.analysis.query_intelligence import UserGoal
-
-logger = structlog.get_logger(__name__)
-
 
 # =============================================================================
 # GOAL PATTERNS (Module-level constants for performance)

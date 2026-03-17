@@ -192,10 +192,6 @@ class PatternConfig:
 # Singleton instance
 config = PatternConfig.get()
 
-# Aliases for backward compatibility (used in PatternStats dataclass)
-PRIOR_ALPHA = 2  # Default, actual value read from config at runtime
-PRIOR_BETA = 1
-
 
 # =============================================================================
 # DATA STRUCTURES

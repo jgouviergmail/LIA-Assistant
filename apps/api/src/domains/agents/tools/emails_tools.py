@@ -746,8 +746,8 @@ async def get_emails_tool(
                     user_timezone = user.timezone if user.timezone else "UTC"
                     user_language = user.language if user.language else "fr"
                     locale = f"{user_language}-{user_language.upper()}"
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("user_preferences_fallback", error=str(e))
 
     # Delegate to unified tool instance
     result = await _get_emails_tool_instance.execute(
@@ -791,8 +791,8 @@ async def get_emails_tool(
                         "timestamp": time.time(),
                     },
                 )
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("store_context_failed", error=str(e))
 
     return result
 
@@ -1366,6 +1366,7 @@ class GetEmailDetailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
         locale = result.get("locale", DEFAULT_LANGUAGE)
 
         # Handle single vs batch mode
+        errors = None
         if mode == "batch":
             emails = result.get("emails", [])
             message_ids = result.get("message_ids", [])
@@ -1837,9 +1838,8 @@ class SendEmailDirectTool(ConnectorTool[GoogleGmailClient]):
         }
 
 
-# Create tool instances (singletons)
+# Create tool instance (singleton)
 _send_email_draft_tool_instance = SendEmailDraftTool()
-_send_email_direct_tool_instance = SendEmailDirectTool()
 
 
 # ============================================================================
@@ -2661,7 +2661,6 @@ class DeleteEmailDirectTool(ConnectorTool[GoogleGmailClient]):
 
 
 _delete_email_draft_tool_instance = DeleteEmailDraftTool()
-_delete_email_direct_tool_instance = DeleteEmailDirectTool()
 
 
 @connector_tool(

@@ -541,8 +541,8 @@ class MCPOAuthFlowHandler:
                     client_id=data.get("client_id"),
                 )
                 return data
-        except httpx.HTTPError:
-            pass
+        except httpx.HTTPError as e:
+            logger.debug("dynamic_registration_failed", error=str(e))
 
         return None
 

@@ -960,8 +960,3 @@ def create_tool_formatter(
         )
 
     return formatter
-
-
-# Backward compatibility aliases (deprecated)
-ToolOutputMixin = ToolOutputMixin
-create_tool_formatter = create_tool_formatter

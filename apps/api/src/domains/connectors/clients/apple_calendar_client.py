@@ -490,8 +490,8 @@ class AppleCalendarClient(BaseAppleClient):
         if self._dav_client:
             try:
                 await self._dav_client.close()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("caldav_close_error", error=str(e))
             self._dav_client = None
             self._principal = None
 

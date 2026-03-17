@@ -524,8 +524,8 @@ class GetWeatherForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
                 user_timezone, user_lang, _locale = await get_user_preferences(runtime)
                 if user_lang:
                     language = user_lang
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("user_preferences_fallback", error=str(e))
 
         # Calculate target date from temporal reference in user's timezone
         # Returns: (target_date: str "YYYY-MM-DD", offset: int, is_specific_date: bool)
@@ -768,8 +768,8 @@ class GetHourlyForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
                 _tz, user_lang, _locale = await get_user_preferences(runtime)
                 if not language:
                     language = user_lang
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("user_preferences_fallback", error=str(e))
 
         lat: float | None = None
         lon: float | None = None

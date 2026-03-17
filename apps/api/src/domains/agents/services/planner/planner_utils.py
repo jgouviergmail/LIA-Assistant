@@ -8,7 +8,6 @@ to build plans, create virtual catalogues, and extract item IDs.
 from typing import TYPE_CHECKING, Any
 
 from src.domains.agents.services.planner.domain_constants import DOMAIN_ID_FIELDS
-from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
     from langchain_core.runnables import RunnableConfig
@@ -16,8 +15,6 @@ if TYPE_CHECKING:
     from src.domains.agents.analysis.query_intelligence import QueryIntelligence
     from src.domains.agents.orchestration.plan_schemas import ExecutionPlan, ExecutionStep
     from src.domains.agents.services.smart_catalogue_service import FilteredCatalogue
-
-logger = get_logger(__name__)
 
 
 def build_plan_from_steps(

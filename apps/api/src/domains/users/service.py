@@ -1060,8 +1060,8 @@ class UserService:
                             data = json.loads(session_data)
                             if data.get(FIELD_USER_ID) == str(user_id):
                                 keys_to_delete.append(key)
-                        except json.JSONDecodeError:
-                            pass
+                        except json.JSONDecodeError as e:
+                            logger.debug("session_data_parse_error", error=str(e))
 
                 if cursor == 0:
                     break

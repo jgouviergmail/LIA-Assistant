@@ -17,7 +17,8 @@ import http from 'http';
 const API_URL_SERVER = process.env.API_URL_SERVER || 'https://api:8000';
 
 /** HTTPS agent that accepts self-signed certificates (dev only). */
-const httpsAgent = new https.Agent({ rejectUnauthorized: false });
+const isDev = process.env.NODE_ENV !== 'production';
+const httpsAgent = new https.Agent({ rejectUnauthorized: !isDev });
 
 export async function POST(
   request: NextRequest,
@@ -70,7 +71,7 @@ export async function POST(
           cookie,
           'content-length': body.byteLength.toString(),
         },
-        ...(isHttps ? { rejectUnauthorized: false } : {}),
+        ...(isHttps && isDev ? { rejectUnauthorized: false } : {}),
       };
 
       const req = mod.request(options, (res) => {

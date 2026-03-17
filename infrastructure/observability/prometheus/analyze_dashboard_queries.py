@@ -25,16 +25,9 @@ import json
 import re
 import sys
 from pathlib import Path
-from typing import Dict, List, Tuple, Set
+from typing import Dict, List, Tuple
 from dataclasses import dataclass, asdict
 from collections import Counter
-
-try:
-    import yaml
-except ImportError:
-    print("ERROR: Missing required package: pyyaml")
-    print("Install with: pip install pyyaml")
-    sys.exit(1)
 
 
 @dataclass

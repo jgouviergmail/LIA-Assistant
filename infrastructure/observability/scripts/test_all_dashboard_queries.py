@@ -7,7 +7,7 @@ import json
 import requests
 import re
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import List, Tuple
 from collections import defaultdict
 
 PROMETHEUS_URL = "http://localhost:9090"

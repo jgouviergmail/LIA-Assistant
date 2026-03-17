@@ -51,18 +51,8 @@ class AgentService(
     """
 
     def __init__(self) -> None:
-        """Initialize service (lazy graph build)."""
-        # Graph is built lazily on first use (built from global AgentRegistry)
-        # AgentRegistry is configured at application startup (main.py) with
-        # checkpointer, store, and all registered agents
-        self.graph: Any = None
-        self._store: Any = None
-        # HITL conversational classifier (lazy init with graph)
-        self.hitl_classifier: Any = None
-        # HITL question generator (lazy init with graph) - POC implementation
-        self.hitl_question_generator: Any = None
-        # HITL orchestrator (lazy init with graph) - Phase 3.3 Day 5-6
-        self.hitl_orchestrator: Any = None
+        """Initialize service (lazy graph build via GraphManagementMixin)."""
+        super().__init__()
         logger.info("agent_service_initialized")
 
     async def _get_user_oauth_scopes(self, user_id: uuid.UUID, db: AsyncSession) -> list[str]:

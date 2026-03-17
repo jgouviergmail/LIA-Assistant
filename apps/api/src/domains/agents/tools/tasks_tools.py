@@ -827,7 +827,6 @@ class CreateTaskDirectTool(ConnectorTool[GoogleTasksClient]):
 
 
 _create_task_draft_tool_instance = CreateTaskDraftTool()
-_create_task_direct_tool_instance = CreateTaskDirectTool()
 
 
 @connector_tool(
@@ -1212,7 +1211,6 @@ class UpdateTaskDirectTool(ConnectorTool[GoogleTasksClient]):
 
 
 _update_task_draft_tool_instance = UpdateTaskDraftTool()
-_update_task_direct_tool_instance = UpdateTaskDirectTool()
 
 
 @connector_tool(
@@ -1378,7 +1376,6 @@ class DeleteTaskDirectTool(ConnectorTool[GoogleTasksClient]):
 
 
 _delete_task_draft_tool_instance = DeleteTaskDraftTool()
-_delete_task_direct_tool_instance = DeleteTaskDirectTool()
 
 
 @connector_tool(

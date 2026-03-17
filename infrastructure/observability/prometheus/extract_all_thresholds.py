@@ -25,8 +25,8 @@ import json
 import re
 import sys
 from pathlib import Path
-from typing import Dict, List, Tuple, Optional
-from dataclasses import dataclass, asdict
+from typing import Dict, List, Tuple
+from dataclasses import dataclass
 
 try:
     import yaml

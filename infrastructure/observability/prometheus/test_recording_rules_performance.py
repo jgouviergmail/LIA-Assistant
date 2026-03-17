@@ -24,7 +24,7 @@ Usage:
 import yaml
 import re
 from pathlib import Path
-from typing import Dict, List
+from typing import List
 from dataclasses import dataclass
 
 

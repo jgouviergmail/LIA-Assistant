@@ -2221,9 +2221,8 @@ class CreateContactDirectTool(ConnectorTool[GooglePeopleClient]):
         }
 
 
-# Create tool instances (singletons)
+# Create tool instance (singleton)
 _create_contact_draft_tool_instance = CreateContactDraftTool()
-_create_contact_direct_tool_instance = CreateContactDirectTool()
 
 
 @connector_tool(
@@ -2487,7 +2486,6 @@ class UpdateContactDirectTool(ConnectorTool[GooglePeopleClient]):
 
 
 _update_contact_draft_tool_instance = UpdateContactDraftTool()
-_update_contact_direct_tool_instance = UpdateContactDirectTool()
 
 
 @connector_tool(
@@ -2645,7 +2643,6 @@ class DeleteContactDirectTool(ConnectorTool[GooglePeopleClient]):
 
 
 _delete_contact_draft_tool_instance = DeleteContactDraftTool()
-_delete_contact_direct_tool_instance = DeleteContactDirectTool()
 
 
 @connector_tool(

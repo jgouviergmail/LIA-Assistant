@@ -31,14 +31,12 @@ Created: November 2025 (Gmail integration debugging session)
 import json
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
-from typing import Any, TypeVar
+from typing import Any
 
 import redis.asyncio as aioredis
 import structlog
 
 logger = structlog.get_logger(__name__)
-
-T = TypeVar("T", dict, list)
 
 
 async def cache_set_json(

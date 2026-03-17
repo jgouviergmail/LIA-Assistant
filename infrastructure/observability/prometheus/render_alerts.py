@@ -26,14 +26,13 @@ Requirements:
 """
 
 import argparse
-import os
 import sys
 from pathlib import Path
 from typing import Dict
 
 try:
     import yaml
-    from jinja2 import Template, Environment, FileSystemLoader, StrictUndefined
+    from jinja2 import Environment, FileSystemLoader, StrictUndefined
     from dotenv import dotenv_values
 except ImportError as e:
     print(f"ERROR: Missing required package: {e}")

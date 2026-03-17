@@ -420,8 +420,8 @@ class AppleContactsClient(BaseAppleClient):
         try:
             redis = await get_redis_session()
             await redis.delete(f"apple_contacts:{self.user_id}:all")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("cache_invalidation_error", error=str(e))
 
     async def _search_contacts_impl(
         self,

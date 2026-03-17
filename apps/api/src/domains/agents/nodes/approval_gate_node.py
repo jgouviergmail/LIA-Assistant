@@ -61,6 +61,7 @@ from src.domains.agents.orchestration.validator import (
     ValidationContext,
 )
 from src.domains.agents.registry import get_global_registry
+from src.domains.agents.registry.catalogue import ToolManifestNotFound
 from src.domains.agents.services.hitl.question_generator import HitlQuestionGenerator
 from src.domains.agents.utils.state_tracking import track_state_updates
 from src.infrastructure.observability.callbacks import TokenTrackingCallback
@@ -151,7 +152,7 @@ def _build_plan_summary(plan: ExecutionPlan, validation_result: Any) -> PlanSumm
         if step.tool_name:
             try:
                 manifest = registry.get_tool_manifest(step.tool_name)
-            except Exception:
+            except ToolManifestNotFound:
                 # Fallback: MCP tools with hallucinated suffix (evolution F2.1/F2.5)
                 from src.core.context import (
                     strip_hallucinated_mcp_suffix,
@@ -165,7 +166,7 @@ def _build_plan_summary(plan: ExecutionPlan, validation_result: Any) -> PlanSumm
                 if stripped:
                     try:
                         manifest = registry.get_tool_manifest(stripped)
-                    except Exception:
+                    except ToolManifestNotFound:
                         pass
 
                 # 2. User MCP: ContextVar with fuzzy resolve

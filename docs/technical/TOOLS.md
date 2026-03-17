@@ -1312,6 +1312,46 @@ async def resolve_contact_to_email(
 CONTACT_RESOLUTION_MAX_RESULTS = 5
 ```
 
+### get_user_language_safe (v1.5.1)
+
+```python
+async def get_user_language_safe(
+    runtime: ToolRuntime,
+    default: str = DEFAULT_LANGUAGE,
+) -> str:
+    """Get user language from runtime preferences with safe fallback.
+
+    Eliminates the repeated try-except pattern found in 7+ tool methods
+    that only need the language code from user preferences.
+
+    Args:
+        runtime: LangGraph ToolRuntime configuration
+        default: Fallback language if preferences unavailable
+
+    Returns:
+        User language code (e.g., "fr", "en") or default
+    """
+```
+
+**Usage** — replaces the old try-except-for-language pattern:
+
+```python
+# Before (repeated in many tools):
+language = DEFAULT_LANGUAGE
+try:
+    _, language, _ = await get_user_preferences(self.runtime)
+except Exception:
+    pass
+
+# After (v1.5.1):
+from src.domains.agents.tools.runtime_helpers import get_user_language_safe
+
+language = await get_user_language_safe(self.runtime)
+```
+
+> **Note**: Use `get_user_preferences()` when you need timezone and locale in addition to language.
+> Use `get_user_language_safe()` when you only need the language code.
+
 ---
 
 ## ✨ Création d'un Nouveau Tool

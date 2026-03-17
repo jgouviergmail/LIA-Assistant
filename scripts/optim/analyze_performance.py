@@ -28,7 +28,7 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).parent
 sys.path.insert(0, str(SCRIPT_DIR / "utils"))
 
-from ast_parser import parse_file, get_function_complexity
+from ast_parser import parse_file
 from grep_helper import grep_in_directory
 from report_generator import generate_finding_report
 

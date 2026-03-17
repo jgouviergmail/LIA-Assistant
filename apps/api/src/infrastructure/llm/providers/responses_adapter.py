@@ -1598,8 +1598,8 @@ class _StructuredResponsesRunnable(Runnable[list[BaseMessage], PydanticBaseModel
                         result = callback.on_llm_error(error=e, run_id=run_id)
                         if asyncio.iscoroutine(result):
                             await result
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.debug("llm_callback_error", error=str(exc))
 
             if self.llm.fallback_enabled:
                 logger.warning(
@@ -1618,8 +1618,8 @@ class _StructuredResponsesRunnable(Runnable[list[BaseMessage], PydanticBaseModel
                         result = callback.on_llm_error(error=e, run_id=run_id)
                         if asyncio.iscoroutine(result):
                             await result
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.debug("llm_callback_error", error=str(exc))
 
             if self.llm.fallback_enabled:
                 logger.warning(

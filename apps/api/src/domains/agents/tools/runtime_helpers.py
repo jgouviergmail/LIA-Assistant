@@ -138,6 +138,7 @@ from fastapi import HTTPException
 from langchain.tools import ToolRuntime
 from langgraph.store.base import BaseStore
 
+from src.core.constants import DEFAULT_LANGUAGE
 from src.core.field_names import FIELD_ERROR_MESSAGE, FIELD_ERROR_TYPE, FIELD_USER_ID
 from src.core.i18n_api_messages import APIMessages
 from src.infrastructure.observability.logging import get_logger
@@ -567,6 +568,39 @@ async def get_user_preferences(runtime: ToolRuntime) -> tuple[str, str, str]:
         )
 
     return user_timezone, user_language, locale
+
+
+async def get_user_language_safe(
+    runtime: ToolRuntime,
+    default: str = DEFAULT_LANGUAGE,
+) -> str:
+    """Get user language from runtime preferences with safe fallback.
+
+    Eliminates the repeated try-except pattern found in 7+ tool methods
+    that only need the language code from user preferences.
+
+    Args:
+        runtime: LangGraph ToolRuntime configuration
+        default: Fallback language if preferences unavailable
+
+    Returns:
+        User language code (e.g., "fr", "en") or default
+
+    Example:
+        >>> language = await get_user_language_safe(self.runtime)
+        >>> # Instead of:
+        >>> # language = DEFAULT_LANGUAGE
+        >>> # try:
+        >>> #     _, language, _ = await get_user_preferences(self.runtime)
+        >>> # except Exception:
+        >>> #     pass
+    """
+    try:
+        _, language, _ = await get_user_preferences(runtime)
+        return language
+    except (ValueError, KeyError, RuntimeError, AttributeError) as e:
+        logger.debug("user_language_fallback", error=str(e))
+        return default
 
 
 # =============================================================================
@@ -1459,6 +1493,7 @@ __all__ = [
     "get_connector_preference",
     "get_original_user_message",
     "get_user_home_location",
+    "get_user_language_safe",
     "get_user_preferences",
     "handle_connector_api_error",
     "handle_tool_exception",

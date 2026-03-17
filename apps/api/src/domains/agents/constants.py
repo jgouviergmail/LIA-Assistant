@@ -23,17 +23,10 @@ NODE_HITL_DISPATCH = "hitl_dispatch"  # 2025-12-23: Generic HITL dispatch node
 NODE_DRAFT_CRITIQUE = NODE_HITL_DISPATCH  # Backward compatibility alias
 
 # Agent nodes (NAMING: domain=entity(singular), agent=domain+"_agent")
-NODE_CONTACT_AGENT = "contact_agent"
-NODE_EMAIL_AGENT = "email_agent"
-NODE_EVENT_AGENT = "event_agent"  # Was calendar_agent
-NODE_FILE_AGENT = "file_agent"  # Was drive_agent
-NODE_TASK_AGENT = "task_agent"
 NODE_QUERY_AGENT = "query_agent"  # INTELLIA: LocalQueryEngine agent
 NODE_WEATHER_AGENT = "weather_agent"  # LOT 10: Weather API agent
 NODE_WIKIPEDIA_AGENT = "wikipedia_agent"  # LOT 10: Wikipedia API agent
 NODE_PERPLEXITY_AGENT = "perplexity_agent"  # LOT 11: Perplexity internet search
-NODE_PLACE_AGENT = "place_agent"  # LOT 11: Google Places location search
-NODE_ROUTE_AGENT = "route_agent"  # LOT 12: Google Routes directions
 NODE_BRAVE_AGENT = "brave_agent"  # Brave Search web/news search
 NODE_WEB_SEARCH_AGENT = "web_search_agent"  # Unified web search (Perplexity + Brave + Wikipedia)
 NODE_WEB_FETCH_AGENT = "web_fetch_agent"  # Web page content fetching (evolution F1)
@@ -168,7 +161,6 @@ CONTEXT_DOMAIN_EVENTS = "events"
 CONTEXT_DOMAIN_CALENDARS = "calendars"  # List of calendars (distinct from events)
 CONTEXT_DOMAIN_FILES = "files"
 CONTEXT_DOMAIN_TASKS = "tasks"
-CONTEXT_DOMAIN_TASK_LISTS = "task_lists"  # Tasks: separate context for task lists
 CONTEXT_DOMAIN_WEATHER = "weathers"  # Aligned with result_key (was "weather_forecast")
 
 # LOT 10-11: New agents context domains (all follow domain + "s" pattern)
@@ -389,22 +381,9 @@ def parse_agent_result_key(key: str) -> tuple[int, str]:
 # HITL (Human-in-the-Loop) CONSTANTS
 # ============================================================================
 
-# HITL interrupt format keys (standardized across PlanExecutor and Middleware)
-# LangChain HumanInTheLoopMiddleware compatible format
-HITL_ACTION_REQUESTS = "action_requests"
-HITL_REVIEW_CONFIGS = "review_configs"
-
 # Action request fields
 HITL_ACTION_NAME = "name"
 HITL_ACTION_ARGS = "args"
-HITL_ACTION_AGENT = "agent_name"
-HITL_ACTION_DESCRIPTION = "description"
-HITL_ACTION_DATA_CLASSIFICATION = "data_classification"
-HITL_ACTION_REQUIRED_SCOPES = "required_scopes"
-
-# Approval response fields
-HITL_APPROVED = "approved"
-HITL_EDITED_ARGS = "edited_args"
 
 
 # ============================================================================

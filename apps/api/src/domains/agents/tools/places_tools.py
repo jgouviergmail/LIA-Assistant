@@ -294,7 +294,7 @@ class SearchPlacesTool(ToolOutputMixin, ConnectorTool[GooglePlacesClient]):
             get_browser_geolocation,
             get_original_user_message,
             get_user_home_location,
-            get_user_preferences,
+            get_user_language_safe,
             resolve_location,
         )
 
@@ -408,11 +408,7 @@ class SearchPlacesTool(ToolOutputMixin, ConnectorTool[GooglePlacesClient]):
         )
 
         # Get user language for i18n
-        language = DEFAULT_LANGUAGE
-        try:
-            _, language, _ = await get_user_preferences(self.runtime)
-        except Exception:
-            pass
+        language = await get_user_language_safe(self.runtime)
 
         # Get user message for location phrase detection
         user_message: str = get_original_user_message(self.runtime)
@@ -816,15 +812,11 @@ class GetPlaceDetailsTool(ToolOutputMixin, ConnectorTool[GooglePlacesClient]):
         from src.domains.agents.tools.runtime_helpers import (
             get_browser_geolocation,
             get_user_home_location,
-            get_user_preferences,
+            get_user_language_safe,
         )
 
         # Get user language for i18n
-        language = DEFAULT_LANGUAGE
-        try:
-            _, language, _ = await get_user_preferences(self.runtime)
-        except Exception:
-            pass
+        language = await get_user_language_safe(self.runtime)
 
         # Try to get user location for distance calculation (browser first, then home)
         center_lat: float | None = None
@@ -992,15 +984,11 @@ class GetPlaceDetailsTool(ToolOutputMixin, ConnectorTool[GooglePlacesClient]):
         from src.domains.agents.tools.runtime_helpers import (
             get_browser_geolocation,
             get_user_home_location,
-            get_user_preferences,
+            get_user_language_safe,
         )
 
         # Get user language for i18n
-        language = DEFAULT_LANGUAGE
-        try:
-            _, language, _ = await get_user_preferences(self.runtime)
-        except Exception:
-            pass
+        language = await get_user_language_safe(self.runtime)
 
         # Get user location for distance calculation
         center_lat: float | None = None
@@ -1374,16 +1362,12 @@ class GetCurrentLocationTool(ToolOutputMixin, ConnectorTool[GooglePlacesClient])
         """Execute reverse geocoding to get current address."""
         from src.domains.agents.tools.runtime_helpers import (
             get_browser_geolocation,
-            get_user_preferences,
+            get_user_language_safe,
         )
         from src.domains.agents.utils.i18n_location import get_fallback_message
 
         # Get user language for i18n
-        language = DEFAULT_LANGUAGE
-        try:
-            _, language, _ = await get_user_preferences(self.runtime)
-        except Exception:
-            pass
+        language = await get_user_language_safe(self.runtime)
 
         # Get browser geolocation (required for this tool)
         browser_loc = await get_browser_geolocation(self.runtime)

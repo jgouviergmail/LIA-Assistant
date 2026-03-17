@@ -19,10 +19,9 @@ Date: 2025-11-16
 Session: 15 (Phase 5 - Extreme Vigilance)
 """
 
-import ast
 import re
 from pathlib import Path
-from typing import Dict, List, Set
+from typing import Dict, List
 
 ROOT = Path(__file__).parent.parent.parent / "apps" / "api" / "src"
 TESTS_ROOT = Path(__file__).parent.parent.parent / "apps" / "api" / "tests"

@@ -1172,7 +1172,6 @@ class DeleteFileDirectTool(ConnectorTool[GoogleDriveClient]):
 
 
 _delete_file_draft_tool_instance = DeleteFileDraftTool()
-_delete_file_direct_tool_instance = DeleteFileDirectTool()
 
 
 @connector_tool(

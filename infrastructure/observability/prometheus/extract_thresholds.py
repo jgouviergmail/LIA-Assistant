@@ -20,7 +20,7 @@ import re
 import yaml
 import json
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List
 from collections import defaultdict
 
 # Threshold patterns to extract

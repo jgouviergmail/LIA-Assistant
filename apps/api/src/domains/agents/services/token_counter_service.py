@@ -342,8 +342,8 @@ class TokenCounterService:
                 )
 
                 return True, new_level
-        except ValueError:
-            pass
+        except ValueError as e:
+            logger.warning("unknown_fallback_level", error=str(e))
 
         return False, current_level
 

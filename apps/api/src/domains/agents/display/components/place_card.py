@@ -379,7 +379,7 @@ class PlaceCard(BaseComponent):
                             if "–" in time_part:
                                 open_time = time_part.split("–")[0].strip()
                                 return open_time  # type: ignore[no-any-return]
-            except Exception:
+            except (ValueError, IndexError, TypeError):
                 pass
         return ""
 

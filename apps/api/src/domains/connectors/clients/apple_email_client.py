@@ -574,8 +574,8 @@ class AppleEmailClient(BaseAppleClient):
             redis = await get_redis_session()
             cache_key = f"apple_email:{self.user_id}:msg:{message_id}"
             await redis.delete(cache_key)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("cache_invalidation_error", error=str(e))
 
         return result
 

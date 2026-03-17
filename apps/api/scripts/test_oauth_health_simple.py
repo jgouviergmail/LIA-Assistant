@@ -11,7 +11,6 @@ Usage (from api container):
 import asyncio
 import sys
 from datetime import UTC, datetime, timedelta
-from uuid import UUID
 
 
 def init_app():

@@ -33,7 +33,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.5.0</strong> — Sub-Agents & Skills Refactoring — March 2026
+  <strong>Version 1.5.1</strong> — CodeQL Security Hardening & Code Quality — March 2026
 </p>
 
 ---

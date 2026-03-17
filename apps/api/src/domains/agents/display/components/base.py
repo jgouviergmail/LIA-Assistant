@@ -599,9 +599,9 @@ def html_to_text(html_content: str | None, preserve_links: bool = False) -> str:
     text = html.unescape(text)
 
     # 2. Remove <head>, <style>, <script> blocks entirely
-    text = re.sub(r"<head[^>]*>.*?</head>", "", text, flags=re.DOTALL | re.IGNORECASE)
-    text = re.sub(r"<style[^>]*>.*?</style>", "", text, flags=re.DOTALL | re.IGNORECASE)
-    text = re.sub(r"<script[^>]*>.*?</script>", "", text, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r"<head[^>]*>.*?</head\s*>", "", text, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r"<style[^>]*>.*?</style\s*>", "", text, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r"<script[^>]*>.*?</script\s*>", "", text, flags=re.DOTALL | re.IGNORECASE)
 
     # 3. Handle links: extract text and optionally URL
     if preserve_links:

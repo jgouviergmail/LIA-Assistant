@@ -557,16 +557,6 @@ _DESTRUCTIVE_OPERATION_DESCRIPTIONS: dict[str, dict[str, str]] = {
     },
 }
 
-# Delete labels with children operation description
-_DESTRUCTIVE_LABEL_WITH_CHILDREN: dict[str, str] = {
-    "fr": "Le label **{name}** contient **{count}** sous-label(s) qui seront aussi supprimés.",
-    "en": "Label **{name}** contains **{count}** sub-label(s) that will also be deleted.",
-    "es": "La etiqueta **{name}** contiene **{count}** subetiqueta(s) que también serán eliminadas.",
-    "de": "Label **{name}** enthält **{count}** Unterlabel(s), die ebenfalls gelöscht werden.",
-    "it": "L'etichetta **{name}** contiene **{count}** sottoetichetta/e che verranno anche eliminate.",
-    "zh-CN": "标签 **{name}** 包含 **{count}** 个子标签，也将被删除。",
-}
-
 # =============================================================================
 # INSUFFICIENT CONTENT - Clarification questions when content is missing
 # =============================================================================

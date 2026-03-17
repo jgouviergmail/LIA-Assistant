@@ -37,6 +37,8 @@ class GraphManagementMixin:
         self.hitl_classifier: Any = None
         # HITL question generator (lazy init with graph) - POC implementation
         self.hitl_question_generator: Any = None
+        # HITL orchestrator (lazy init with graph) - Phase 3.3 Day 5-6
+        self.hitl_orchestrator: Any = None
 
     async def _ensure_graph_built(self) -> None:
         """
