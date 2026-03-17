@@ -49,7 +49,7 @@
 | Layer | Technologies | Versions |
 |-------|--------------|----------|
 | **Backend** | FastAPI + LangGraph + SQLAlchemy | FastAPI 0.135.1, LangGraph 1.0.10 |
-| **Frontend** | Next.js + React + TailwindCSS | Next.js 16.1.1, React 19.2.3 |
+| **Frontend** | Next.js + React + TailwindCSS | Next.js 16.1.7, React 19.2.3 |
 | **Database** | PostgreSQL + pgvector | PostgreSQL 16 |
 | **Cache/Sessions** | Redis | Redis 7.4 |
 | **Observability** | Prometheus + Grafana + Loki + Tempo + Langfuse | Grafana 11.3.0 |
@@ -253,7 +253,7 @@ cd ../web  # From apps/api
 pnpm install
 
 # Verify the installation
-pnpm list next  # next 16.1.1
+pnpm list next  # next 16.1.7
 ```
 
 **Estimated time**: 1-3 minutes.

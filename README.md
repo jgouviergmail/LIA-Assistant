@@ -613,7 +613,7 @@ apps/api/src/
 | Technology | Version | Role |
 |------------|---------|------|
 | Node.js | 22 LTS | JavaScript runtime |
-| Next.js | 16.1.1 | React framework |
+| Next.js | 16.1.7 | React framework |
 | React | 19.2.3 | UI library |
 | TypeScript | 5.9.3 | Type safety |
 | TailwindCSS | 4.1.18 | Styling |

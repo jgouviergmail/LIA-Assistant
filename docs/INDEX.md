@@ -372,7 +372,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | Technologie | Version | Usage |
 |-------------|---------|-------|
-| Next.js | 16.1.1 | Framework React |
+| Next.js | 16.1.7 | Framework React |
 | React | 19.2.3 | UI Library |
 | TypeScript | 5.9.3 | Typage |
 | Tailwind CSS | 4.1.18 | Styling |

@@ -1,4 +1,4 @@
-# Multi-stage Dockerfile for Next.js 15 in pnpm workspace monorepo
+# Multi-stage Dockerfile for Next.js 16 in pnpm workspace monorepo
 # Handles pnpm symlinks correctly for standalone mode
 
 FROM node:22-alpine AS base

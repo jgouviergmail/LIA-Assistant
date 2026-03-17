@@ -1,4 +1,4 @@
-# Multi-stage Dockerfile for Next.js 15 development in pnpm monorepo
+# Multi-stage Dockerfile for Next.js 16 development in pnpm monorepo
 # This Dockerfile is designed to work with the monorepo structure and properly
 # handle pnpm workspace dependencies and .npmrc configuration
 
