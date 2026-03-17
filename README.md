@@ -33,7 +33,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.5.1</strong> — CodeQL Security Hardening & Code Quality — March 2026
+  <strong>Version 1.5.1</strong> — Skill Generator, CodeQL Security Hardening & Code Quality — March 2026
 </p>
 
 ---
@@ -145,7 +145,7 @@ LIA is available as a hosted service at **https://lia.jeyswork.com/** — no ins
 
 - **16+ Specialized Agents**: Contacts, Emails, Calendar, Drive, Tasks, Reminders, Places, Routes, Weather, Wikipedia, Perplexity, Brave, Web Search, Web Fetch, Context, Query + dynamic MCP agents
 - **MCP (Model Context Protocol)**: Per-user external tool servers with OAuth 2.1, SSRF protection, structured items parsing, MCP Apps (interactive iframe widgets), Excalidraw Iterative Builder
-- **Skills (agentskills.io)**: Open standard for expert instructions (SKILL.md), model-driven activation, progressive disclosure (L1/L2/L3), sandboxed scripts, marketplace import, auto-translated multi-language descriptions, ZIP download, admin management (description editing, deletion, translation in 6 languages)
+- **Skills (agentskills.io)**: Open standard for expert instructions (SKILL.md), model-driven activation, progressive disclosure (L1/L2/L3), sandboxed scripts, marketplace import, auto-translated multi-language descriptions, ZIP download, admin management. **Built-in Skill Generator**: create custom skills in natural language — the assistant guides you through need analysis, archetype selection, and produces a ready-to-import SKILL.md with automatic validation
 - **File Attachments (Images, PDF)**: Upload with client-side compression, configurable LLM vision analysis, PDF text extraction, strict per-user isolation
 - **Semantic Routing**: Binary classification with confidence scoring (high >0.85, medium >0.65)
 - **Multi-Step Planning**: ExecutionPlan DSL with dependencies and conditions

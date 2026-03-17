@@ -1,0 +1,8 @@
+{
+  "fr": "Génère des fichiers SKILL.md complets à partir de descriptions en langage naturel. Guide l'utilisateur dans l'analyse du besoin, le choix d'archétype et produit un package skill prêt à importer, conforme au standard agentskills.io.",
+  "en": "Generates complete SKILL.md files from natural language descriptions. Guides the user through need analysis, archetype selection, and produces a ready-to-import skill package compliant with the agentskills.io standard.",
+  "es": "Genera archivos SKILL.md completos a partir de descripciones en lenguaje natural. Guía al usuario en el análisis de necesidades, la selección de arquetipos y produce un paquete de habilidades listo para importar, conforme con el estándar agentskills.io.",
+  "de": "Erstellt vollständige SKILL.md-Dateien aus Beschreibungen in natürlicher Sprache. Führt den Benutzer durch Bedarfsanalyse, Archetyp-Auswahl und erstellt ein importfertiges Skill-Paket, kompatibel mit dem agentskills.io-Standard.",
+  "it": "Genera file SKILL.md completi da descrizioni in linguaggio naturale. Guida l'utente nell'analisi dei requisiti, nella scelta dell'archetipo e produce un pacchetto skill pronto per l'importazione, conforme allo standard agentskills.io.",
+  "zh": "从自然语言描述生成完整的SKILL.md文件。引导用户完成需求分析、原型选择，并生成符合agentskills.io标准的可导入技能包。"
+}

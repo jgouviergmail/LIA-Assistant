@@ -2165,7 +2165,7 @@
         },
         "skills": {
           "title": "Skills",
-          "description": "为您的业务或个人需求量身定制专家技能，让LIA更强大。兼容Anthropic开放标准，与Claude Code、Cursor、VS Code及30+工具共享同一格式。"
+          "description": "用定制专家技能增强LIA。通过内置技能生成器用自然语言创建自己的技能——或从agentskills.io兼容的市场导入。兼容30+工具，包括Claude Code、Cursor和VS Code。"
         },
         "ragSpaces": {
           "title": "📚 RAG知识空间",
@@ -2687,7 +2687,7 @@
       "skills": {
         "title": "技能（Skills）",
         "description": "通过专家指令扩展LIA的能力",
-        "count": "6",
+        "count": "7",
         "questions": {
           "q1": {
             "question": "什么是技能（Skill）？",
@@ -2699,7 +2699,7 @@
           },
           "q3": {
             "question": "如何创建自己的技能？",
-            "answer": "<p>创建包含最小YAML头（name + description）的 <code>SKILL.md</code> 文件，后跟Markdown指令。查看<strong>内置指南</strong>（📖按钮）了解高级选项：plan_template、Python脚本、参考文档。</p>"
+            "answer": "<p><strong>最简单的方式：直接问LIA！</strong>例如说「<em>帮我创建一个[你的需求]技能</em>」，内置的<strong>技能生成器</strong>会一步步引导你：需求分析、原型选择（Prompt Expert、Advisory或Plan Template）、SKILL.md文件生成和自动验证。</p><p>你也可以手动创建一个<code>SKILL.md</code>文件，包含最小的YAML头（name + description），后跟Markdown指令。参见<strong>内置指南</strong>（我的技能中的📖按钮）了解高级选项。</p>"
           },
           "q4": {
             "question": "管理员技能和我的技能有什么区别？",
@@ -2712,6 +2712,10 @@
           "q6": {
             "question": "我可以下载或分享技能吗？",
             "answer": "<p>可以。将光标悬停在设置中的任意技能上，点击下载图标（⬇️），即可获得包含SKILL.md及所有相关文件（references/、scripts/、assets/）的 <code>.zip</code> 文件。</p>"
+          },
+          "q7": {
+            "question": "什么是技能生成器？",
+            "answer": "<p><strong>技能生成器</strong>是一个内置的系统技能，让你可以<strong>用自然语言创建自己的技能</strong>。只需描述你的需求（「<em>我想要一个详细的5天天气预报</em>」），助手会引导你完成4个步骤：</p><ol><li><strong>需求分析</strong>：关于任务、工具和期望格式的问题</li><li><strong>原型选择</strong>：Prompt Expert、Advisory或Plan Template</li><li><strong>生成</strong>：创建符合agentskills.io标准的SKILL.md文件</li><li><strong>验证</strong>：通过内置脚本自动验证格式</li></ol><p>生成的文件可以直接在<strong>设置 &gt; 功能 &gt; 我的技能</strong>中导入。</p>"
           }
         }
       },
@@ -3634,7 +3638,7 @@
       },
       "skills": {
         "title": "Skills",
-        "description": "为您的业务或个人需求量身定制LIA专家技能，即用即得。兼容Anthropic开放标准，与Claude Code、Cursor、VS Code及30+工具共享同一格式。"
+        "description": "用定制专家技能增强LIA。通过内置技能生成器用自然语言创建自己的技能——或从agentskills.io兼容的市场导入。兼容30+工具，包括Claude Code、Cursor和VS Code。"
       },
       "sub_agents": {
         "title": "子代理",

@@ -2172,7 +2172,7 @@
         },
         "skills": {
           "title": "Skills",
-          "description": "Specializza LIA con competenze esperte su misura per le tue esigenze professionali o personali. Compatibile con lo standard aperto Anthropic di Claude Code, Cursor, VS Code e oltre 30 strumenti."
+          "description": "Specializza LIA con competenze esperte personalizzate. Crea le tue skill in linguaggio naturale con lo Skill Generator integrato — o importa dai marketplace compatibili agentskills.io. Compatibile con 30+ strumenti tra cui Claude Code, Cursor e VS Code."
         },
         "ragSpaces": {
           "title": "📚 Spazi di conoscenza RAG",
@@ -2694,7 +2694,7 @@
       "skills": {
         "title": "Skills (competenze)",
         "description": "Estendere le capacità di LIA con istruzioni esperte",
-        "count": "6",
+        "count": "7",
         "questions": {
           "q1": {
             "question": "Cos'è una skill?",
@@ -2706,7 +2706,7 @@
           },
           "q3": {
             "question": "Come creo la mia skill?",
-            "answer": "<p>Crea un file <code>SKILL.md</code> con intestazione YAML minima (name + description) seguita da istruzioni Markdown. Consulta la <strong>guida integrata</strong> (pulsante 📖) per opzioni avanzate.</p>"
+            "answer": "<p><strong>Il modo più semplice: chiedi a LIA!</strong> Dì ad esempio «<em>creami una skill per [la tua esigenza]</em>» e la skill integrata <strong>Skill Generator</strong> ti guiderà passo dopo passo: analisi delle esigenze, selezione dell'archetipo (Prompt Expert, Advisory o Plan Template), generazione del file SKILL.md e validazione automatica.</p><p>Puoi anche creare manualmente un file <code>SKILL.md</code> con un'intestazione YAML minima (name + description) seguita da istruzioni in Markdown. Consulta la <strong>guida integrata</strong> (pulsante 📖 in Le mie skill) per opzioni avanzate.</p>"
           },
           "q4": {
             "question": "Qual è la differenza tra skills admin e le mie skills?",
@@ -2719,6 +2719,10 @@
           "q6": {
             "question": "Posso scaricare o condividere una skill?",
             "answer": "<p>Sì. Passa il cursore su qualsiasi skill nelle impostazioni e clicca sull'icona di download (⬇️). Otterrai un file <code>.zip</code> con SKILL.md e tutti i file associati.</p>"
+          },
+          "q7": {
+            "question": "Cos'è lo Skill Generator?",
+            "answer": "<p>Lo <strong>Skill Generator</strong> è una skill di sistema integrata che ti permette di <strong>creare le tue skill in linguaggio naturale</strong>. Descrivi semplicemente la tua esigenza («<em>voglio un bollettino meteo dettagliato di 5 giorni</em>») e l'assistente ti guida in 4 passaggi:</p><ol><li><strong>Analisi delle esigenze</strong>: domande sul compito, strumenti e formato desiderato</li><li><strong>Selezione dell'archetipo</strong>: Prompt Expert, Advisory o Plan Template</li><li><strong>Generazione</strong>: creazione del file SKILL.md conforme allo standard agentskills.io</li><li><strong>Validazione</strong>: verifica automatica del formato tramite script integrato</li></ol><p>Il file generato è pronto per essere importato in <strong>Impostazioni &gt; Funzionalità &gt; Le mie skill</strong>.</p>"
           }
         }
       },
@@ -3641,7 +3645,7 @@
       },
       "skills": {
         "title": "Skills",
-        "description": "Specializza LIA per le tue esigenze professionali o personali con istruzioni esperte pronte all'uso. Compatibile con lo standard aperto Anthropic di Claude Code, Cursor, VS Code e oltre 30 strumenti."
+        "description": "Specializza LIA con competenze esperte personalizzate. Crea le tue skill in linguaggio naturale con lo Skill Generator integrato — o importa dai marketplace compatibili agentskills.io. Compatibile con 30+ strumenti tra cui Claude Code, Cursor e VS Code."
       },
       "sub_agents": {
         "title": "Sub-agenti",
