@@ -182,12 +182,12 @@ tasks:
         platforms: [linux, darwin]
 
   test:backend:unit:fast:
-    desc: Run fast unit tests only (excludes DB/integration tests) - used by pre-commit
+    desc: Run fast unit tests only (excludes slow/integration tests) - used by pre-commit
     dir: "{{.API_DIR}}"
     cmds:
-      - cmd: .venv/Scripts/pytest tests/unit/ -v -m "not integration"
+      - cmd: .venv/Scripts/pytest tests/unit/ -v -m "not integration and not slow"
         platforms: [windows]
-      - cmd: .venv/bin/pytest tests/unit/ -v -m "not integration"
+      - cmd: .venv/bin/pytest tests/unit/ -v -m "not integration and not slow"
         platforms: [linux, darwin]
 
   test:backend:integration:
