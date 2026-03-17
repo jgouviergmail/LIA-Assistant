@@ -1027,8 +1027,13 @@ class ConversationService:
                 msg_data[FIELD_TOKENS_OUT] = summary.total_completion_tokens
                 msg_data[FIELD_TOKENS_CACHE] = summary.total_cached_tokens
                 # Use historical cost from message_token_summary (stored at execution time)
+                # Include Google API costs for accurate total billing display
+                llm_cost = float(summary.total_cost_eur) if summary.total_cost_eur else 0.0
+                google_cost = (
+                    float(summary.google_api_cost_eur) if summary.google_api_cost_eur else 0.0
+                )
                 msg_data[FIELD_COST_EUR] = (
-                    float(summary.total_cost_eur) if summary.total_cost_eur else None
+                    llm_cost + google_cost if (llm_cost or google_cost) else None
                 )
                 # Google API tracking
                 msg_data[FIELD_GOOGLE_API_REQUESTS] = summary.google_api_requests

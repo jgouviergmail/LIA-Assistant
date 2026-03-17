@@ -279,6 +279,17 @@ class NormalFilteringStrategy:
                 filtered_tools.append(tool_dict)
                 categories_included.add(tool_category)
 
+        # F6: Force-include sub-agent delegation tool (transversal, always available)
+        # This tool bypasses domain/score filtering — the planner decides autonomously.
+        if getattr(tool_filter, "include_sub_agent_tools", False):
+            existing_names = {t["name"] for t in filtered_tools}
+            if "delegate_to_sub_agent_tool" not in existing_names:
+                for manifest in all_manifests:
+                    if manifest.name == "delegate_to_sub_agent_tool":
+                        filtered_tools.append(self.service._manifest_to_dict(manifest))
+                        domains_included.add("sub_agent")
+                        break
+
         # Calculate token estimate
         token_estimate = sum(
             self.service.TOKEN_ESTIMATES.get(self.service._get_tool_category(t["name"]), 200)

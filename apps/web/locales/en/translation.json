@@ -1415,7 +1415,8 @@
           "vision_analysis": "Vision analysis — Model used to analyze attached images and documents",
           "skill_description_translator": "Translates system skill descriptions into all 6 supported languages",
           "evaluator": "LLM-as-Judge evaluation pipeline (relevance, hallucination)",
-          "compaction": "Summarizes old conversation history to free context window space"
+          "compaction": "Summarizes old conversation history to free context window space",
+          "subagent": "Executes delegated tasks via specialized sub-agents (research, analysis, synthesis)"
         },
         "no_compatible_model": "No model from this provider supports this feature",
         "categories": {
@@ -2183,6 +2184,10 @@
         "ragSpaces": {
           "title": "📚 RAG Knowledge Spaces",
           "description": "Create personal knowledge spaces and upload your own documents (PDF, TXT, MD, DOCX). Documents are automatically processed (text extraction, chunking, OpenAI embedding). Active spaces enrich assistant responses via hybrid search combining semantic similarity (pgvector cosine) and BM25 keyword matching. Full cost transparency with per-document and per-query embedding tracking. Admin reindexation endpoint for embedding model changes."
+        },
+        "subAgents": {
+          "title": "Sub-Agents",
+          "description": "Delegate complex tasks to specialized ephemeral experts working in parallel. The assistant orchestrates and synthesizes their findings transparently."
         }
       },
       "diagram_alt": "LIA architecture diagram"
@@ -2721,6 +2726,29 @@
           "q6": {
             "question": "Can I download or share a skill?",
             "answer": "<p>Yes. Hover over any skill in settings and click the <strong>download</strong> icon (⬇️). You will get a <code>.zip</code> file containing SKILL.md and all associated files (references/, scripts/, assets/).</p><p>Share this zip with other users or publish it on agentskills.io-compatible marketplaces.</p>"
+          }
+        }
+      },
+      "sub_agents": {
+        "title": "Sub-Agents",
+        "description": "Specialized assistants for complex delegated tasks",
+        "count": "4",
+        "questions": {
+          "q1": {
+            "question": "What are sub-agents?",
+            "answer": "<p>Sub-agents are <strong>specialized ephemeral assistants</strong> that the principal LIA assistant can delegate tasks to. When your request requires deep research, multi-source analysis, or specialized expertise, the assistant can spawn one or more experts to work in parallel.</p><p>Sub-agents are <strong>invisible</strong> — you interact only with the principal assistant, which synthesizes their findings into a natural response.</p>"
+          },
+          "q2": {
+            "question": "When does LIA use sub-agents?",
+            "answer": "<p>LIA decides to call on experts when:</p><ul><li>Your request involves <strong>parallel research</strong> across several areas (e.g., comparing transport options)</li><li>A topic benefits from <strong>deep specialized analysis</strong> (e.g., technical audit, market research)</li><li>Multiple independent <strong>expert viewpoints</strong> are needed at the same time</li></ul><p>Simple questions are always handled directly — experts are only called in when they add real value.</p><p><strong>You stay in control:</strong> before launching the experts, LIA asks for your confirmation. If you decline, it automatically switches to a standard plan without sub-agents.</p><p><strong>Tip:</strong> you can also explicitly ask LIA to use experts, for example: <em>&quot;Use specialized experts to handle my request&quot;</em>.</p>"
+          },
+          "q3": {
+            "question": "Can I disable sub-agents?",
+            "answer": "<p>Yes. Go to <strong>Settings &gt; Features &gt; Sub-Agents</strong> and toggle the switch off. The assistant will then use direct tools (web search, etc.) instead of delegating.</p>"
+          },
+          "q4": {
+            "question": "Do sub-agents cost more tokens?",
+            "answer": "<p>Yes — each sub-agent performs its own LLM calls (planning + tool execution + synthesis). A delegation with 3 experts can cost 3-5x more tokens than a single direct search.</p><p>Token guard-rails are in place: per-execution budget, daily budget per user, and auto-disable after consecutive failures. All sub-agent costs are tracked and visible in your usage statistics.</p>"
           }
         }
       },
@@ -3614,6 +3642,10 @@
         "title": "Skills",
         "description": "Specialize LIA for your business or personal needs with ready-to-use expert instructions. Compatible with the open Anthropic standard shared by Claude Code, Cursor, VS Code, and 30+ tools."
       },
+      "sub_agents": {
+        "title": "Sub-Agents",
+        "description": "Delegate complex tasks to specialized ephemeral experts working in parallel for deeper research, multi-source analysis, and expert synthesis."
+      },
       "rag_spaces": {
         "title": "Knowledge Spaces",
         "description": "Upload your own documents (PDF, TXT, MD, DOCX) into personal knowledge spaces. LIA automatically enriches its responses with relevant content via hybrid search (semantic + keyword)."
@@ -3723,6 +3755,31 @@
       "copyright": "© {{year}} LIA. All rights reserved.",
       "docs": "Documentation",
       "privacy": "Privacy"
+    }
+  },
+  "sub_agents": {
+    "templates": {
+      "research_assistant": {
+        "name": "Research Assistant",
+        "description": "Specialized in deep web research, multi-source synthesis, and fact-checking"
+      },
+      "writing_assistant": {
+        "name": "Writing Assistant",
+        "description": "Specialized in drafting, editing, and improving written content"
+      },
+      "data_analyst": {
+        "name": "Data Analyst",
+        "description": "Specialized in analyzing data from emails, calendar, and files"
+      }
+    },
+    "settings": {
+      "title": "Sub-Agents",
+      "description": "Specialized assistants for delegated tasks",
+      "enable_toggle": "Enable sub-agents",
+      "enable_description": "Allow the assistant to delegate tasks to specialized sub-agents",
+      "enabled_success": "Sub-agents enabled",
+      "disabled_success": "Sub-agents disabled",
+      "info": "When enabled, the assistant can delegate research, analysis, and synthesis tasks to specialized sub-agents for better results."
     }
   }
 }

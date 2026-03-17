@@ -541,11 +541,36 @@ class StreamingService:
                             has_routing_decision="routing_decision" in debug_metrics,
                         )
 
+                        # Fetch DB-aggregated totals for HITL flows
+                        # (includes tokens from prior SSE request: router, planner, HITL question)
+                        db_aggregated = None
+                        if self.tracker and hasattr(
+                            self.tracker, "get_aggregated_summary_dto_from_db"
+                        ):
+                            try:
+                                db_aggregated = (
+                                    await self.tracker.get_aggregated_summary_dto_from_db()
+                                )
+                                logger.info(
+                                    "debug_panel_db_aggregated_fetched",
+                                    run_id=run_id,
+                                    db_tokens_in=getattr(db_aggregated, "tokens_in", 0),
+                                    db_tokens_out=getattr(db_aggregated, "tokens_out", 0),
+                                    db_cost_eur=float(getattr(db_aggregated, "cost_eur", 0)),
+                                )
+                            except Exception as db_fetch_err:
+                                logger.warning(
+                                    "debug_panel_db_aggregated_failed",
+                                    run_id=run_id,
+                                    error=f"{type(db_fetch_err).__name__}: {db_fetch_err}",
+                                )
+
                         # Add all cached data
                         self._add_debug_metrics_sections(
                             debug_metrics=debug_metrics,
                             state=state,
                             run_id=run_id,
+                            db_aggregated=db_aggregated,
                         )
 
                         # =============================================================
@@ -1339,16 +1364,24 @@ class StreamingService:
                     question_generator=question_generator,
                 )
 
-                # Stream tokens from LLM
-                # Note: tracker is NOT passed here because:
-                # 1. self.tracker is a TrackingContext, NOT a LangChain callback
-                # 2. Token tracking is handled via Langfuse callbacks in create_instrumented_config()
-                # 3. Passing TrackingContext causes "'TrackingContext' object has no attribute 'run_inline'" error
-                # See OPTIMPLAN PLAN.md section 3.1 lines 295-334 for architecture details
+                # Stream tokens from LLM with token tracking.
+                # self.tracker is a TrackingContext (not a LangChain callback),
+                # so we wrap it in a TokenTrackingCallback for the HITL generator.
+                # Without this, HITL question tokens are consumed but not tracked,
+                # causing cost under-reporting (~€0.03/request on Anthropic models).
+                hitl_tracker = None
+                if self.tracker:
+                    from src.infrastructure.observability.callbacks import (
+                        TokenTrackingCallback,
+                    )
+
+                    hitl_tracker = TokenTrackingCallback(self.tracker, run_id)
+
                 async for token in interaction.generate_question_stream(
                     context=first_action,
                     user_language=user_language,
                     user_timezone=user_timezone,
+                    tracker=hitl_tracker,
                 ):
                     generated_question += token
 
@@ -1447,39 +1480,17 @@ class StreamingService:
 
                 yield question_token_chunk
 
-        # === Step 3: Signal completion with token metadata ===
-        # Get token summary from tracker BEFORE commit (FIX: tokens not displayed on HITL)
-        token_metadata = {}
-        if self.tracker:
-            try:
-                summary_dto = self.tracker.get_summary_dto()
-                token_metadata = summary_dto.to_metadata()
-                logger.info(
-                    "hitl_token_metadata_extracted",
-                    run_id=run_id,
-                    tokens_in=summary_dto.tokens_in,
-                    tokens_out=summary_dto.tokens_out,
-                    cost_eur=summary_dto.cost_eur,
-                    tracker_type=type(self.tracker).__name__,
-                )
-            except (AttributeError, ValueError, RuntimeError) as e:
-                logger.warning(
-                    "hitl_token_metadata_extraction_failed",
-                    run_id=run_id,
-                    error=str(e),
-                    error_type=type(e).__name__,
-                )
-
+        # === Step 3: Signal completion ===
+        # No token metadata in HITL interrupt chunk: tokens are partial (only
+        # planner/router, not the full execution) and disappear on conversation reload.
+        # Complete token counts are sent in the "done" chunk after HITL resumption.
         complete_chunk = ChatStreamChunk(
             type="hitl_interrupt_complete",
             content="",
             metadata={
                 "message_id": message_id,
                 "requires_approval": True,
-                # Phase 1 HITL Streaming: Include generated question for F5 recovery
                 "generated_question": generated_question,
-                # FIX: Include token metadata for frontend display
-                **token_metadata,
             },
         )
 
@@ -1526,6 +1537,7 @@ class StreamingService:
         debug_metrics: dict[str, Any],
         state: dict[str, Any],
         run_id: str,
+        db_aggregated: Any | None = None,
     ) -> None:
         """
         Add all debug metrics sections to debug_metrics dict.
@@ -1537,6 +1549,7 @@ class StreamingService:
             debug_metrics: Base debug metrics dict (from query_intelligence.to_debug_metrics())
             state: Final state dict with all data
             run_id: Run ID for logging
+            db_aggregated: Optional DB-aggregated token summary (includes prior HITL requests)
         """
         from src.core.config import get_settings
         from src.core.config.agents import get_debug_thresholds
@@ -1790,22 +1803,39 @@ class StreamingService:
                         "total_cost_eur": round(sum(c.get("cost_eur", 0) for c in llm_calls), 6),
                     }
                     # v3.1: Update token_budget with REAL total from LLM calls
-                    # User wants real consumed tokens, not just context size
+                    # v3.3: For HITL flows, the DB-aggregated summary includes
+                    # ALL committed data (HITL request + post-approval + sub-agents).
+                    # Use it when available as it's the most complete source.
+                    # Fall back to in-memory tracker data for non-HITL flows.
                     if "token_budget" in debug_metrics:
-                        total_consumed = (
-                            debug_metrics["llm_summary"]["total_tokens_in"]
-                            + debug_metrics["llm_summary"]["total_tokens_out"]
-                        )
-                        debug_metrics["token_budget"]["total_consumed"] = total_consumed
-                        debug_metrics["token_budget"]["tokens_input"] = debug_metrics[
-                            "llm_summary"
-                        ]["total_tokens_in"]
-                        debug_metrics["token_budget"]["tokens_output"] = debug_metrics[
-                            "llm_summary"
-                        ]["total_tokens_out"]
-                        debug_metrics["token_budget"]["tokens_cache"] = debug_metrics[
-                            "llm_summary"
-                        ]["total_tokens_cache"]
+                        # Default: in-memory tracker data (current request only)
+                        tokens_in = debug_metrics["llm_summary"]["total_tokens_in"]
+                        tokens_out = debug_metrics["llm_summary"]["total_tokens_out"]
+                        tokens_cache = debug_metrics["llm_summary"]["total_tokens_cache"]
+                        cost_eur = debug_metrics["llm_summary"]["total_cost_eur"]
+
+                        # Use DB-aggregated totals if available and more complete
+                        # The DB summary includes all committed data across HITL
+                        # requests sharing the same run_id (UPSERT aggregation).
+                        if db_aggregated:
+                            db_total_in = getattr(db_aggregated, "tokens_in", 0)
+                            db_total_out = getattr(db_aggregated, "tokens_out", 0)
+                            db_total_cache = getattr(db_aggregated, "tokens_cache", 0)
+                            db_cost_eur = float(getattr(db_aggregated, "cost_eur", 0.0))
+                            db_total = db_total_in + db_total_out
+                            mem_total = tokens_in + tokens_out
+                            # Use DB if it has more data (includes prior requests)
+                            if db_total > mem_total:
+                                tokens_in = db_total_in
+                                tokens_out = db_total_out
+                                tokens_cache = db_total_cache
+                                cost_eur = round(db_cost_eur, 6)
+
+                        debug_metrics["token_budget"]["total_consumed"] = tokens_in + tokens_out
+                        debug_metrics["token_budget"]["tokens_input"] = tokens_in
+                        debug_metrics["token_budget"]["tokens_output"] = tokens_out
+                        debug_metrics["token_budget"]["tokens_cache"] = tokens_cache
+                        debug_metrics["token_budget"]["total_cost_eur"] = cost_eur
             except (AttributeError, ValueError, RuntimeError) as llm_err:
                 logger.debug(
                     "debug_metrics_llm_calls_failed",

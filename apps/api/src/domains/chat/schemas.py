@@ -25,6 +25,7 @@ class UserStatisticsResponse(BaseModel):
     Response schema for user statistics (dashboard).
 
     Contains both lifetime and current billing cycle metrics.
+    Cost fields include LLM + Google API combined for accurate billing display.
     """
 
     model_config = ConfigDict(from_attributes=True)
@@ -36,7 +37,7 @@ class UserStatisticsResponse(BaseModel):
     total_prompt_tokens: int = Field(description="All-time prompt tokens")
     total_completion_tokens: int = Field(description="All-time completion tokens")
     total_cached_tokens: int = Field(description="All-time cached tokens")
-    total_cost_eur: Decimal = Field(description="All-time cost in EUR")
+    total_cost_eur: Decimal = Field(description="All-time cost in EUR (LLM + Google API)")
     total_messages: int = Field(description="All-time messages sent")
     total_google_api_requests: int = Field(default=0, description="All-time Google API requests")
     total_google_api_cost_eur: Decimal = Field(
@@ -48,7 +49,7 @@ class UserStatisticsResponse(BaseModel):
     cycle_prompt_tokens: int = Field(description="Prompt tokens this cycle")
     cycle_completion_tokens: int = Field(description="Completion tokens this cycle")
     cycle_cached_tokens: int = Field(description="Cached tokens this cycle")
-    cycle_cost_eur: Decimal = Field(description="Cost in EUR this cycle")
+    cycle_cost_eur: Decimal = Field(description="Cost in EUR this cycle (LLM + Google API)")
     cycle_messages: int = Field(description="Messages sent this cycle")
     cycle_google_api_requests: int = Field(default=0, description="Google API requests this cycle")
     cycle_google_api_cost_eur: Decimal = Field(

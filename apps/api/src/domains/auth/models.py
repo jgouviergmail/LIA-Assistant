@@ -18,6 +18,8 @@ if TYPE_CHECKING:
     from src.domains.personalities.models import Personality
     from src.domains.reminders.models import Reminder
     from src.domains.scheduled_actions.models import ScheduledAction
+    from src.domains.skills.models import UserSkillState
+    from src.domains.sub_agents.models import SubAgent
 
 
 class User(BaseModel):
@@ -116,6 +118,14 @@ class User(BaseModel):
         nullable=False,
         server_default="false",
         comment="User preference for debug panel. False = disabled by default (opt-in). Requires admin debug_panel_user_access_enabled.",
+    )
+
+    # Sub-agents delegation preference (F6)
+    sub_agents_enabled: Mapped[bool] = mapped_column(
+        default=True,
+        nullable=False,
+        server_default="true",
+        comment="User preference for sub-agent delegation. True = assistant can delegate tasks to specialized sub-agents.",
     )
 
     # Theme preferences (persisted per user)
@@ -236,13 +246,9 @@ class User(BaseModel):
         comment="List of admin MCP server keys disabled by this user (e.g., ['google_flights'])",
     )
 
-    # Skills per-user toggle
-    disabled_skills: Mapped[list[str]] = mapped_column(
-        JSONB,
-        default=list,
-        server_default="[]",
-        nullable=False,
-        comment="List of skill names disabled by this user (e.g., ['briefing-quotidien'])",
+    # Per-user skill activation states (normalized in user_skill_states table)
+    skill_states: Mapped[list["UserSkillState"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
     )
 
     # Relationships
@@ -266,6 +272,9 @@ class User(BaseModel):
         back_populates="user", cascade="all, delete-orphan"
     )
     scheduled_actions: Mapped[list["ScheduledAction"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+    sub_agents: Mapped[list["SubAgent"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
     # NOTE: No relationship to UserMCPServer — user_id FK + CASCADE handles

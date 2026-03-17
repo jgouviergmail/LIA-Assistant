@@ -50,6 +50,10 @@ graph TB
     SmartCatalogueSvc --> ToolRegistry
     Orchestrator --> ProviderResolver
 
+    Orchestrator --> SubAgentExec["SubAgentExecutor<br/>Ephemeral Delegation"]
+    SubAgentExec --> LLMFactory
+    SubAgentExec --> SmartPlannerSvc
+
     Response -->|"Knowledge Enrichment"| LLMFactory
 
     %% LLM Factory → Config
@@ -74,3 +78,4 @@ graph TB
     style Heartbeat fill:#ffe1f5
     style ContextAgg fill:#ffe1f5
     style ProviderResolver fill:#e1f5ff
+    style SubAgentExec fill:#e1fff5

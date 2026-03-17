@@ -47,6 +47,7 @@ from src.core.constants import (
     DEFAULT_LANGUAGE,
     FOR_EACH_ITEM_REF,
     FOR_EACH_MAX_HARD_LIMIT,
+    TOOL_NAME_DELEGATE_SUB_AGENT,
 )
 from src.domains.agents.prompts import load_prompt
 from src.infrastructure.llm.factory import get_llm
@@ -600,15 +601,29 @@ def validate_for_each_patterns(
     has_for_each_in_plan = len(for_each_steps) > 0
 
     # Check 1: User said "each" but plan has no for_each
+    # Exception: N explicit delegate_to_sub_agent_tool steps satisfy cardinality
+    # (each step delegates to a different expert — for_each iteration doesn't apply)
     if for_each_detected and not has_for_each_in_plan:
-        feedback = (
-            f"FOR_EACH_MISSING_CARDINALITY: User wants action for EACH {for_each_collection_key or 'item'}, "
-            "but plan has no for_each step.\n\n"
-            f"Fix: Add 'for_each' field to the appropriate step:\n"
-            f'  "for_each": "$steps.step_N.{for_each_collection_key or "collection"}"\n'
-            "  This will expand the step to iterate over each item."
-        )
-        return False, feedback, SemanticIssueType.FOR_EACH_MISSING_CARDINALITY
+        delegate_steps = [s for s in plan.steps if s.tool_name == TOOL_NAME_DELEGATE_SUB_AGENT]
+        if len(delegate_steps) >= 2:
+            logger.info(
+                "for_each_satisfied_by_explicit_sub_agent_delegation",
+                delegate_step_count=len(delegate_steps),
+                for_each_collection_key=for_each_collection_key,
+                cardinality_magnitude=cardinality_magnitude,
+            )
+            # Continue to Checks 2-5 (no early return)
+        else:
+            feedback = (
+                "FOR_EACH_MISSING_CARDINALITY: User wants action for EACH "
+                f"{for_each_collection_key or 'item'}, "
+                "but plan has no for_each step.\n\n"
+                f"Fix: Add 'for_each' field to the appropriate step:\n"
+                f'  "for_each": "$steps.step_N.'
+                f'{for_each_collection_key or "collection"}"\n'
+                "  This will expand the step to iterate over each item."
+            )
+            return False, feedback, SemanticIssueType.FOR_EACH_MISSING_CARDINALITY
 
     # Check 2: for_each_max too low for expected cardinality
     if has_for_each_in_plan and cardinality_magnitude is not None:
@@ -717,8 +732,16 @@ def validate_for_each_patterns(
         # Count occurrences of each tool_name
         tool_counts = Counter(step.tool_name for step in plan.steps if step.tool_name)
 
-        # Find tools with 2+ occurrences
-        repeated_tools = [(tool, count) for tool, count in tool_counts.items() if count >= 2]
+        # Exclude delegate_to_sub_agent_tool: explicit delegation to different experts
+        # is intentional and cannot be consolidated into for_each
+        _TOOLS_EXEMPT_FROM_FOR_EACH_CONSOLIDATION = frozenset({TOOL_NAME_DELEGATE_SUB_AGENT})
+
+        # Find tools with 2+ occurrences (excluding exempt tools)
+        repeated_tools = [
+            (tool, count)
+            for tool, count in tool_counts.items()
+            if count >= 2 and tool not in _TOOLS_EXEMPT_FROM_FOR_EACH_CONSOLIDATION
+        ]
 
         for repeated_tool, count in repeated_tools:
             # Get all steps using this tool

@@ -6,7 +6,7 @@ DECISION RULES:
 2. Weather changes (rain starting/stopping, temperature drops, wind alerts) are HIGH VALUE — notify
 3. Upcoming calendar events within 2 hours are HIGH VALUE — always notify (remind, suggest preparation). Morning (before 10h): also mention events for the rest of the day even if > 6 hours away.
 4. Overdue or due-today tasks are HIGH VALUE — notify (remind the user)
-5. Unread emails that appear urgent, important, or actionable are HIGH VALUE — notify. Examples: emails from a known contact about a time-sensitive topic, emails requiring a response, shipping/delivery updates, appointment confirmations. SKIP routine newsletters, marketing, or low-priority automated notifications. When notifying about emails, mention the sender and subject — do NOT quote the full email body.
+5. Unread emails in inbox that appear urgent, important, or actionable are HIGH VALUE — notify. Examples: emails from a known contact about a time-sensitive topic, emails requiring a response, shipping/delivery updates, appointment confirmations. SKIP routine newsletters, marketing, or low-priority automated notifications. When notifying about emails, mention the sender and subject — do NOT quote the full email body.
 6. User memories that are contextually relevant RIGHT NOW are HIGH VALUE — notify (e.g. a stored preference or commitment that relates to today's schedule, weather, or upcoming events)
 7. Trending user interests combined with current context are MEDIUM VALUE — notify when you can offer a timely, personalized insight (e.g. interest in cooking + evening time = recipe suggestion; interest in astronomy + clear sky tonight)
 8. SKIP if the information is trivial or the user likely already knows

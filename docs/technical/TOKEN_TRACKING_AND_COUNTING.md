@@ -1239,10 +1239,13 @@ class MessageTokenSummary(BaseModel):
         session_id: Chat session identifier
         run_id: LangGraph run ID (unique per message, links to token_usage_logs)
         conversation_id: Conversation UUID (nullable for historical data)
+        parent_run_id: Parent run_id for sub-agent cost attribution (F6)
         total_prompt_tokens: Sum of all prompt tokens across nodes
         total_completion_tokens: Sum of all completion tokens across nodes
         total_cached_tokens: Sum of all cached tokens across nodes
-        total_cost_eur: Total cost in EUR for this message
+        total_cost_eur: Total LLM cost in EUR for this message
+        google_api_requests: Number of Google API calls (Routes, Places, etc.)
+        google_api_cost_eur: Google API cost in EUR for this message
         created_at: Timestamp of message
     """
 
@@ -1257,18 +1260,29 @@ class MessageTokenSummary(BaseModel):
         index=True,
     )
 
+    # Sub-agent cost attribution (F6): links background sub-agent run to parent turn
+    parent_run_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
     # Aggregated token counts
     total_prompt_tokens: Mapped[int] = mapped_column(Integer, default=0)
     total_completion_tokens: Mapped[int] = mapped_column(Integer, default=0)
     total_cached_tokens: Mapped[int] = mapped_column(Integer, default=0)
 
-    # Total cost
+    # Total LLM cost (Google API cost tracked separately)
     total_cost_eur: Mapped[Decimal] = mapped_column(Numeric(10, 6), default=Decimal("0.0"))
+
+    # Google API cost (Routes, Places, Geocoding, Static Maps)
+    google_api_requests: Mapped[int] = mapped_column(Integer, default=0)
+    google_api_cost_eur: Mapped[Decimal] = mapped_column(Numeric(10, 6), default=Decimal("0.0"))
 
     __table_args__ = (
         Index("ix_message_token_summary_user_created", "user_id", "created_at"),
     )
 ```
+
+> **Cost display (v1.5):** Token cost totals displayed to users now include both LLM costs and Google API costs (Routes, etc.). These are stored separately in `message_token_summary` (`total_cost_eur` for LLM, `google_api_cost_eur` for Google) but combined at the service layer for display. HITL question tokens are now tracked via `TokenTrackingCallback`.
+>
+> Sub-agent background runs store their token summary with `parent_run_id` set to the parent conversation turn's `run_id`, enabling hierarchical cost queries ("how much did this turn cost in total, including sub-agent delegation?").
 
 **Requête exemple** :
 

@@ -604,6 +604,8 @@ def get_smart_planner_prompt(
     cardinality_magnitude: int | None = None,
     # Skills catalogue (agentskills.io standard)
     skills_catalog: str = "",
+    # Sub-agents delegation section (F6)
+    sub_agents_section: str = "",
 ) -> str:
     """
     Get formatted smart planner prompt for single-domain or simple queries.
@@ -667,6 +669,7 @@ def get_smart_planner_prompt(
         for_each_directive=for_each_directive,
         skills_catalog=skills_catalog,
         result_keys_list=result_keys_list,
+        sub_agents_section=sub_agents_section,
     )
 
 
@@ -692,6 +695,8 @@ def get_smart_planner_multi_domain_prompt(
     cardinality_magnitude: int | None = None,
     # Skills catalogue (agentskills.io standard)
     skills_catalog: str = "",
+    # Sub-agents delegation section (F6)
+    sub_agents_section: str = "",
 ) -> str:
     """
     Get formatted smart planner prompt for multi-domain queries.
@@ -758,6 +763,7 @@ def get_smart_planner_multi_domain_prompt(
         for_each_directive=for_each_directive,
         skills_catalog=skills_catalog,
         result_keys_list=result_keys_list,
+        sub_agents_section=sub_agents_section,
     )
 
 

@@ -320,17 +320,18 @@ class ConversationRepository(BaseRepository[Conversation]):
                     total_tokens = (
                         token_summary.total_prompt_tokens + token_summary.total_completion_tokens
                     )
+                    # Include Google API costs in total for accurate billing
+                    llm_cost = float(token_summary.total_cost_eur or 0)
+                    google_cost = float(token_summary.google_api_cost_eur or 0)
+                    total_cost = llm_cost + google_cost
+
                     token_dict = {
                         FIELD_RUN_ID: token_summary.run_id,
                         "total_tokens": total_tokens,
                         "prompt_tokens": token_summary.total_prompt_tokens,
                         "completion_tokens": token_summary.total_completion_tokens,
                         "cached_tokens": token_summary.total_cached_tokens,
-                        "cost_eur": (
-                            float(token_summary.total_cost_eur)
-                            if token_summary.total_cost_eur
-                            else None
-                        ),
+                        "cost_eur": total_cost if total_cost > 0 else None,
                         FIELD_GOOGLE_API_REQUESTS: token_summary.google_api_requests,
                     }
                 results.append((message, token_dict))
@@ -837,11 +838,15 @@ class ConversationRepository(BaseRepository[Conversation]):
         from src.domains.chat.models import MessageTokenSummary
 
         try:
+            # Include Google API costs in total cost for accurate billing
             stmt = select(
                 func.sum(MessageTokenSummary.total_prompt_tokens).label(FIELD_TOTAL_TOKENS_IN),
                 func.sum(MessageTokenSummary.total_completion_tokens).label(FIELD_TOTAL_TOKENS_OUT),
                 func.sum(MessageTokenSummary.total_cached_tokens).label(FIELD_TOTAL_TOKENS_CACHE),
-                func.sum(MessageTokenSummary.total_cost_eur).label(FIELD_TOTAL_COST_EUR),
+                (
+                    func.sum(MessageTokenSummary.total_cost_eur)
+                    + func.coalesce(func.sum(MessageTokenSummary.google_api_cost_eur), 0)
+                ).label(FIELD_TOTAL_COST_EUR),
                 func.sum(MessageTokenSummary.google_api_requests).label(
                     FIELD_TOTAL_GOOGLE_API_REQUESTS
                 ),

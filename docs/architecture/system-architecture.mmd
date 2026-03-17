@@ -26,6 +26,7 @@ graph TB
         ParallelExecutor["ParallelExecutor"]
         HITL["HITL — 6 Types"]
         Skills["Skills System"]
+        SubAgents["Sub-Agent Executor<br/>Ephemeral Delegation"]
     end
 
     subgraph Data["Data Layer"]
@@ -84,6 +85,8 @@ graph TB
     LangGraph --> HITL
     SmartPlanner --> PatternLearner
     SmartPlanner --> Skills
+    ParallelExecutor --> SubAgents
+    SubAgents --> LLMProviders
     LangGraph --> LLMProviders
     LangGraph --> Embeddings
 
@@ -133,3 +136,4 @@ graph TB
     style HITL fill:#ffcccc
     style Telegram fill:#e1f5ff
     style MCP fill:#f0e1ff
+    style SubAgents fill:#e1fff5

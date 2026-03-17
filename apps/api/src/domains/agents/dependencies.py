@@ -93,6 +93,16 @@ class ConcurrencySafeConnectorService:
         async with self._lock:
             return await self._service.get_api_key_credentials(user_id, connector_type)
 
+    async def is_connector_active(self, user_id: UUID, connector_type: ConnectorType) -> bool:
+        """Thread-safe wrapper for is_connector_active.
+
+        Without this, concurrent tool executions (e.g., parallel sub-agent steps)
+        cause 'concurrent operations are not permitted' errors because
+        is_connector_active performs a DB query through the repository.
+        """
+        async with self._lock:
+            return await self._service.is_connector_active(user_id, connector_type)
+
     def __getattr__(self, name: str) -> Any:
         """
         Fallback for any other methods.

@@ -46,7 +46,7 @@ interface AdminSkillsSectionProps {
 export function AdminSkillsSection({ lng }: AdminSkillsSectionProps) {
   const { t } = useTranslation(lng);
   const {
-    skills,
+    skills: allSkills,
     loading,
     error,
     refetch,
@@ -54,14 +54,14 @@ export function AdminSkillsSection({ lng }: AdminSkillsSectionProps) {
     reloading,
     importAdminSkill,
     deleteAdminSkill,
-    toggleSkill,
-    toggling,
+    adminSystemToggleSkill,
+    togglingSystem,
     translateSkillDescription,
     translating,
     updateAdminSkillDescription,
     updatingDescription,
     downloadSkill,
-  } = useSkills();
+  } = useSkills(true);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
@@ -73,7 +73,7 @@ export function AdminSkillsSection({ lng }: AdminSkillsSectionProps) {
   const [editingSkill, setEditingSkill] = useState<Skill | null>(null);
   const [editDescription, setEditDescription] = useState('');
 
-  const adminSkills = skills.filter((s) => s.scope === 'admin');
+  const adminSkills = allSkills.filter((s) => s.scope === 'admin');
 
   const handleReload = async () => {
     try {
@@ -88,10 +88,10 @@ export function AdminSkillsSection({ lng }: AdminSkillsSectionProps) {
 
   const handleToggle = async (skill: Skill) => {
     try {
-      const result = await toggleSkill(skill.name);
+      const result = await adminSystemToggleSkill(skill.name);
       if (result) {
         toast.success(
-          result.enabled_for_user
+          result.admin_enabled
             ? t('settings.skills.enabled_toast', { name: skill.name })
             : t('settings.skills.disabled_toast', { name: skill.name })
         );
@@ -353,11 +353,11 @@ export function AdminSkillsSection({ lng }: AdminSkillsSectionProps) {
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
 
-                  {/* Toggle on/off */}
+                  {/* System-level toggle on/off */}
                   <Switch
-                    checked={skill.enabled_for_user}
+                    checked={skill.admin_enabled ?? true}
                     onCheckedChange={() => handleToggle(skill)}
-                    disabled={toggling}
+                    disabled={togglingSystem}
                     aria-label={t('settings.skills.toggle_skill', { name: skill.name })}
                   />
                 </div>

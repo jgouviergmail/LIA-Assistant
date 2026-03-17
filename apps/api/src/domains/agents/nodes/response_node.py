@@ -1349,20 +1349,20 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         # Skills L2 injection — structured wrapping per agentskills.io standard
         skills_context = ""
         if getattr(settings, "skills_enabled", False):
-            from src.core.context import disabled_skills_ctx
+            from src.core.context import active_skills_ctx
             from src.domains.skills.activation import activate_skill
             from src.domains.skills.cache import SkillsCache
 
             skill_sections: list[str] = []
             activated_names: set[str] = set()
             skill_user_id = config.get("configurable", {}).get("langgraph_user_id")
-            user_disabled = disabled_skills_ctx.get() or set()
+            active = active_skills_ctx.get()
 
             # 1. Planner-activated skill (from plan.metadata) → L2 structured wrapping
             execution_plan = state.get(STATE_KEY_EXECUTION_PLAN)
             if execution_plan and execution_plan.metadata:
                 plan_skill_name = execution_plan.metadata.get("skill_name")
-                if plan_skill_name and plan_skill_name not in user_disabled:
+                if plan_skill_name and (active is None or plan_skill_name in active):
                     skill_content = activate_skill(plan_skill_name, user_id=skill_user_id)
                     if skill_content:
                         skill_sections.append(skill_content)
@@ -1370,7 +1370,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
 
             # 2. Always-loaded skills (additive, deduplicated per standard)
             for s in SkillsCache.get_always_loaded(skill_user_id):
-                if s["name"] not in activated_names and s["name"] not in user_disabled:
+                if s["name"] not in activated_names and (active is None or s["name"] in active):
                     skill_content = activate_skill(s["name"], user_id=skill_user_id)
                     if skill_content:
                         skill_sections.append(skill_content)
@@ -1383,7 +1383,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             if not skill_sections:
                 from src.domains.skills.injection import build_skills_catalog
 
-                catalog = build_skills_catalog(skill_user_id or "", disabled_skills=user_disabled)
+                catalog = build_skills_catalog(skill_user_id or "", active_skills=active)
                 if catalog:
                     skills_context = (
                         catalog + "\n\nIf a skill above matches the current request, "

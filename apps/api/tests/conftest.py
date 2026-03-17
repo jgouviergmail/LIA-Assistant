@@ -27,6 +27,10 @@ else:
     os.environ["REDIS_URL"] = f"redis://:{_redis_password}@localhost:6379/15"  # Test DB 15
 
 # ruff: noqa: E402 - Module level imports must come after environment setup
+
+# Ensure all SQLAlchemy models are registered before mapper configuration.
+# Without this, relationships using string class names (e.g., "SubAgent")
+# fail with InvalidRequestError when the target model isn't imported.
 import asyncio
 from collections.abc import AsyncGenerator, Generator
 
@@ -40,6 +44,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 from testcontainers.postgres import PostgresContainer
 
+import src.domains.sub_agents.models  # noqa: F401 — F6 SubAgent mapper registration
 from src.core.config import Settings
 from src.core.dependencies import get_db
 from src.domains.agents.context.registry import ContextTypeRegistry

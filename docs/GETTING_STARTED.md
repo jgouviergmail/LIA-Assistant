@@ -963,6 +963,7 @@ All optional features are disabled by default. Enable them in `.env`:
 | `MCP_USER_ENABLED` | Per-user MCP connections | `MCP_ENABLED=true` |
 | `FCM_NOTIFICATIONS_ENABLED` | Firebase push notifications | FCM credentials |
 | `SCHEDULED_ACTIONS_ENABLED` | User-scheduled deferred actions | — |
+| `SUB_AGENTS_ENABLED` | Persistent specialized sub-agents (F6) | — |
 | `SKILLS_ENABLED` | Skills system (SKILL.md) | — |
 | `GEOIP_ENABLED` | IP geolocation in logs | DB-IP Lite MMDB file |
 | `INTEREST_LEARNING_ENABLED` | Automatic interest extraction | — |

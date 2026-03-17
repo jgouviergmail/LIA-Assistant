@@ -48,6 +48,7 @@ const FUNCTIONAL_FEATURES: FeatureItem[] = [
   { key: 'excalidraw', icon: PenTool },
   { key: 'attachments', icon: Paperclip },
   { key: 'skills', icon: Blocks },
+  { key: 'sub_agents', icon: Bot },
   { key: 'rag_spaces', icon: Library },
 ];
 

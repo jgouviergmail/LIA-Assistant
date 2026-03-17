@@ -166,7 +166,7 @@ class TestRegister:
         assert create_call_args["is_verified"] is False
         assert "hashed_password" in create_call_args
 
-        mock_db.commit.assert_called_once()
+        mock_db.commit.assert_called()
         # Verify email sent with new signature (includes user_name and language)
         mock_send_email.assert_called_once_with(
             email="newuser@example.com",

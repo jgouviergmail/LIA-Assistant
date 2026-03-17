@@ -113,9 +113,9 @@ if [ -n "$PYTHON_FILES" ]; then
         print_success "MyPy passed"
     fi
 
-    # 2.4 Unit tests (fast only - no coverage, excluding slow/integration/e2e/benchmark)
+    # 2.4 Unit tests (fast only - same as `task test:backend:unit:fast`)
     echo "  Running fast unit tests..."
-    if ! $PYTEST_BIN tests/unit/ -v --tb=short --no-cov -m "not integration and not slow and not e2e and not benchmark and not multiprocess" --ignore=tests/unit/test_base_repository.py --ignore=tests/unit/test_auth_service_refactored.py --ignore=tests/unit/test_conversation_repository.py --ignore=tests/unit/test_pricing_service.py --ignore=tests/unit/test_metrics_agents.py --ignore=tests/unit/test_conversation_service_v2.py --ignore=tests/unit/test_conversations_service.py --ignore=tests/unit/test_connectors_service.py --ignore=tests/unit/test_conversation_service.py --ignore=tests/unit/domains/conversations/test_conversation_abandonment_metrics.py 2>&1; then
+    if ! $PYTEST_BIN tests/unit/ --tb=short --no-cov -q -m "not integration" 2>&1; then
         print_error "Unit tests failed"
         FAILED=1
     else

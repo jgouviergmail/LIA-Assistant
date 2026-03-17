@@ -541,11 +541,16 @@ The UI displays the localized description based on the user's app language (`ski
 
 ## Per-User Toggle
 
-Each user can enable/disable individual skills independently. Disabled skills are stored in the `disabled_skills` JSONB field on the `User` model and loaded into a `disabled_skills_ctx` ContextVar (same pattern as `admin_mcp_disabled_ctx`).
+Each user can enable/disable individual skills independently. Skill state is stored in two normalized tables:
 
-- Admin skills disabled by the user are hidden from the L1 catalogue (not injected)
-- Admin skills disabled by the **administrator** are hidden entirely (not shown to users at all)
-- User's own skills can always be toggled
+- **`skills`** — Skill registry (synced from disk): name, is_system, owner_id, admin_enabled, description, descriptions.
+- **`user_skill_states`** — Per-user activation: user_id, skill_id, is_active.
+
+Active skills are loaded into an `active_skills_ctx` ContextVar per request (positive set).
+
+- System skills disabled by **admin** (`admin_enabled=false`): hidden from users entirely, is_active set to false for all users.
+- System skills disabled by **user** (`is_active=false`, `admin_enabled=true`): shown in settings but toggled off, excluded from assistant.
+- User's own skills: always visible in settings, togglable by the owner.
 
 ## Admin Skill Management UI
 

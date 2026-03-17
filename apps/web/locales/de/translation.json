@@ -1282,7 +1282,8 @@
           "vision_analysis": "Visuelle Analyse — Modell zur Analyse angehängter Bilder und Dokumente",
           "skill_description_translator": "Übersetzt Skill-Beschreibungen in alle 6 unterstützten Sprachen",
           "evaluator": "LLM-as-Judge Evaluierungspipeline (Relevanz, Halluzination)",
-          "compaction": "Fasst alten Gesprächsverlauf zusammen, um Kontextfenster freizugeben"
+          "compaction": "Fasst alten Gesprächsverlauf zusammen, um Kontextfenster freizugeben",
+          "subagent": "Führt delegierte Aufgaben über spezialisierte Sub-Agenten aus (Recherche, Analyse, Synthese)"
         },
         "no_compatible_model": "Kein Modell dieses Anbieters unterstützt diese Funktion",
         "categories": {
@@ -2174,6 +2175,10 @@
         "ragSpaces": {
           "title": "📚 RAG-Wissensräume",
           "description": "Erstelle persönliche Wissensräume und lade deine eigenen Dokumente hoch (PDF, TXT, MD, DOCX). Dokumente werden automatisch verarbeitet (Textextraktion, Chunking, OpenAI-Embedding). Aktive Räume reichern die Antworten des Assistenten über hybride Suche an — semantische Ähnlichkeit (pgvector Cosine) und BM25-Stichwortabgleich. Volle Kostentransparenz mit Tracking pro Dokument und pro Anfrage. Admin-Reindexierung bei Änderung des Embedding-Modells."
+        },
+        "subAgents": {
+          "title": "Sub-Agenten",
+          "description": "Delegieren Sie komplexe Aufgaben an spezialisierte kurzlebige Experten, die parallel arbeiten. Der Assistent orchestriert und fasst ihre Ergebnisse transparent zusammen."
         }
       },
       "diagram_alt": "LIA-Architekturdiagramm"
@@ -2712,6 +2717,29 @@
           "q6": {
             "question": "Kann ich eine Skill herunterladen oder teilen?",
             "answer": "<p>Ja. Bewege den Mauszeiger über eine Skill und klicke auf das Download-Symbol (⬇️). Du erhältst eine <code>.zip</code>-Datei mit SKILL.md und allen zugehörigen Dateien.</p>"
+          }
+        }
+      },
+      "sub_agents": {
+        "title": "Sub-Agenten",
+        "description": "Spezialisierte Assistenten für komplexe delegierte Aufgaben",
+        "count": "4",
+        "questions": {
+          "q1": {
+            "question": "Was sind Sub-Agenten?",
+            "answer": "<p>Sub-Agenten sind <strong>spezialisierte kurzlebige Assistenten</strong>, an die der LIA-Hauptassistent Aufgaben delegieren kann. Wenn Ihre Anfrage tiefgehende Recherche, Mehrquellen-Analyse oder spezialisiertes Fachwissen erfordert, kann der Assistent einen oder mehrere Experten erstellen, die parallel arbeiten.</p><p>Sub-Agenten sind <strong>unsichtbar</strong> — Sie interagieren nur mit dem Hauptassistenten, der ihre Ergebnisse in einer natürlichen Antwort zusammenfasst.</p>"
+          },
+          "q2": {
+            "question": "Wann verwendet LIA Sub-Agenten?",
+            "answer": "<p>LIA entscheidet, Experten hinzuzuziehen, wenn:</p><ul><li>Ihre Anfrage <strong>parallele Recherche</strong> in mehreren Bereichen erfordert (z.B. Transportoptionen vergleichen)</li><li>Ein Thema von einer <strong>tiefgehenden spezialisierten Analyse</strong> profitiert (z.B. technisches Audit, Marktforschung)</li><li>Mehrere unabhängige <strong>Expertenmeinungen</strong> gleichzeitig nützlich sind</li></ul><p>Einfache Fragen werden immer direkt bearbeitet — Experten werden nur eingesetzt, wenn sie echten Mehrwert bieten.</p><p><strong>Sie behalten die Kontrolle:</strong> Bevor die Experten gestartet werden, fragt LIA nach Ihrer Bestätigung. Wenn Sie ablehnen, wechselt sie automatisch zu einem Standardplan ohne Sub-Agenten.</p><p><strong>Tipp:</strong> Sie können LIA auch ausdrücklich bitten, Experten einzusetzen, zum Beispiel: <em>&quot;Nutze spezialisierte Experten für meine Anfrage&quot;</em>.</p>"
+          },
+          "q3": {
+            "question": "Kann ich Sub-Agenten deaktivieren?",
+            "answer": "<p>Ja. Gehen Sie zu <strong>Einstellungen &gt; Funktionen &gt; Sub-Agenten</strong> und deaktivieren Sie den Schalter. Der Assistent verwendet dann direkte Tools (Websuche usw.) anstatt zu delegieren.</p>"
+          },
+          "q4": {
+            "question": "Kosten Sub-Agenten mehr Token?",
+            "answer": "<p>Ja — jeder Sub-Agent führt eigene LLM-Aufrufe durch (Planung + Tool-Ausführung + Synthese). Eine Delegation mit 3 Experten kann 3-5x mehr Token kosten als eine einzelne direkte Suche.</p><p>Schutzmaßnahmen sind vorhanden: Budget pro Ausführung, Tagesbudget pro Benutzer und automatische Deaktivierung nach aufeinanderfolgenden Fehlern. Alle Sub-Agenten-Kosten werden verfolgt und sind in Ihren Nutzungsstatistiken sichtbar.</p>"
           }
         }
       },
@@ -3613,6 +3641,10 @@
         "title": "Skills",
         "description": "Spezialisiere LIA für deine beruflichen oder persönlichen Bedürfnisse mit gebrauchsfertigen Experten-Skills. Kompatibel mit dem offenen Anthropic-Standard von Claude Code, Cursor, VS Code und 30+ Tools."
       },
+      "sub_agents": {
+        "title": "Sub-Agenten",
+        "description": "Delegieren Sie komplexe Aufgaben an spezialisierte kurzlebige Experten, die parallel für tiefgehende Recherche, Mehrquellen-Analyse und Expertensynthese arbeiten."
+      },
       "rag_spaces": {
         "title": "Wissensräume",
         "description": "Lade deine eigenen Dokumente (PDF, TXT, MD, DOCX) in persönliche Wissensräume hoch. LIA reichert seine Antworten automatisch mit relevanten Inhalten über hybride Suche (semantisch + Stichwort) an."
@@ -3722,6 +3754,31 @@
       "copyright": "© {{year}} LIA. Alle Rechte vorbehalten.",
       "docs": "Dokumentation",
       "privacy": "Datenschutz"
+    }
+  },
+  "sub_agents": {
+    "templates": {
+      "research_assistant": {
+        "name": "Recherche-Assistent",
+        "description": "Spezialisiert auf tiefgehende Webrecherche, Mehrquellen-Synthese und Faktenprüfung"
+      },
+      "writing_assistant": {
+        "name": "Schreib-Assistent",
+        "description": "Spezialisiert auf Entwurf, Bearbeitung und Verbesserung geschriebener Inhalte"
+      },
+      "data_analyst": {
+        "name": "Datenanalyst",
+        "description": "Spezialisiert auf die Analyse von Daten aus E-Mails, Kalender und Dateien"
+      }
+    },
+    "settings": {
+      "title": "Sub-Agenten",
+      "description": "Spezialisierte Assistenten für delegierte Aufgaben",
+      "enable_toggle": "Sub-Agenten aktivieren",
+      "enable_description": "Dem Assistenten erlauben, Aufgaben an spezialisierte Sub-Agenten zu delegieren",
+      "enabled_success": "Sub-Agenten aktiviert",
+      "disabled_success": "Sub-Agenten deaktiviert",
+      "info": "Wenn aktiviert, kann der Assistent Recherche-, Analyse- und Syntheseaufgaben an spezialisierte Sub-Agenten delegieren."
     }
   }
 }

@@ -462,6 +462,7 @@ class ToolFilter:
     categories: list[str]
     max_tools: int = 5
     include_context_tools: bool = True
+    include_sub_agent_tools: bool = True  # F6: always include delegation tool
 
     @classmethod
     def from_intelligence(cls, intelligence: QueryIntelligence) -> "ToolFilter":
@@ -478,6 +479,7 @@ class ToolFilter:
             categories=intelligence.get_tool_categories(),  # Returns [] - no filtering
             max_tools=10,  # Increased: include all tools for domain (~6-8 per domain)
             include_context_tools=intelligence.is_reference_turn(),
+            include_sub_agent_tools=True,  # F6: always available for planner
         )
 
 

@@ -682,6 +682,15 @@ async def approval_gate_node(state: MessagesState) -> dict:
 
         return {**state_updates, "plan_approved": False, "plan_rejection_reason": reason}
 
+    # --- F6: Sub-agent rejection fallback ---
+    # If the rejected plan contains `delegate_to_sub_agent_tool` steps, the rejection
+    # is automatically converted to a REPLAN without sub-agents:
+    # 1. Sets `needs_replan=True` + `exclude_sub_agent_tools=True` in state
+    # 2. Planner regenerates using `exclude_tools` to filter delegation from catalogue
+    # 3. User gets a new plan with direct tools (web_search, etc.) instead
+    # 4. Flags cleared after single replan cycle to prevent infinite loops
+    # Metric: hitl_plan_decisions{decision="REPLAN_SUB_AGENT_FALLBACK"}
+
     else:
         # EDIT case
         logger.info("approval_gate_edited")

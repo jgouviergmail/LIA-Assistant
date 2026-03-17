@@ -15,7 +15,7 @@ import { logger } from '@/lib/logger';
 import { onForegroundMessage } from '@/lib/firebase';
 import type { MessagePayload } from 'firebase/messaging';
 
-export type NotificationType = 'reminder' | 'system' | 'message' | 'oauth_health_warning' | 'oauth_health_critical' | 'proactive_interest' | 'proactive_heartbeat' | 'scheduled_action' | 'admin_broadcast';
+export type NotificationType = 'reminder' | 'system' | 'message' | 'oauth_health_warning' | 'oauth_health_critical' | 'proactive_interest' | 'proactive_heartbeat' | 'scheduled_action' | 'subagent_result' | 'admin_broadcast';
 
 export interface Notification {
   id: string;
@@ -53,6 +53,8 @@ export interface UseNotificationsOptions {
   onOAuthWarning?: (notification: Notification) => void;
   /** Callback when OAuth health critical received (expired/error) */
   onOAuthCritical?: (notification: Notification) => void;
+  /** Callback when sub-agent execution completes (F6) */
+  onSubagentResult?: (content: string, targetId: string, metadata?: Record<string, unknown>) => void;
 }
 
 export interface UseNotificationsReturn {
@@ -96,6 +98,7 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
     onScheduledAction,
     onOAuthWarning,
     onOAuthCritical,
+    onSubagentResult,
   } = options;
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -133,6 +136,8 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
       } else if (notification.type === 'scheduled_action' && notification.action_id) {
         const actionTitle = (notification.metadata?.title as string) || notification.action_id;
         onScheduledAction?.(notification.content, notification.action_id, actionTitle);
+      } else if (notification.type === 'subagent_result' && notification.target_id) {
+        onSubagentResult?.(notification.content, notification.target_id, notification.metadata);
       } else if (notification.type === 'oauth_health_warning') {
         onOAuthWarning?.(notification);
       } else if (notification.type === 'oauth_health_critical') {
@@ -140,7 +145,7 @@ export function useNotifications(options: UseNotificationsOptions = {}): UseNoti
       }
       // Note: admin_broadcast is handled separately by BroadcastProvider (has its own SSE/FCM listeners)
     },
-    [onNotification, onReminder, onProactiveNotification, onScheduledAction, onOAuthWarning, onOAuthCritical]
+    [onNotification, onReminder, onProactiveNotification, onScheduledAction, onOAuthWarning, onOAuthCritical, onSubagentResult]
   );
 
   /**

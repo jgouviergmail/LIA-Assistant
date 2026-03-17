@@ -47,7 +47,7 @@ class SkillBypassStrategy:
         intelligence: "QueryIntelligence",
         catalogue: "FilteredCatalogue | None" = None,
     ) -> bool:
-        from src.core.context import disabled_skills_ctx
+        from src.core.context import active_skills_ctx
         from src.domains.skills.cache import SkillsCache
 
         if not SkillsCache.is_loaded():
@@ -59,10 +59,10 @@ class SkillBypassStrategy:
         if not query_domains:
             return False
 
-        disabled = disabled_skills_ctx.get() or set()
+        active = active_skills_ctx.get()
 
         for skill in SkillsCache.get_all():
-            if skill["name"] in disabled:
+            if active is not None and skill["name"] not in active:
                 continue
             template = skill.get("plan_template")
             if not template or not template.get("deterministic"):
@@ -88,7 +88,7 @@ class SkillBypassStrategy:
         clarification_field: str | None = None,
         existing_plan: "Any | None" = None,
     ) -> PlanningResult:
-        from src.core.context import disabled_skills_ctx
+        from src.core.context import active_skills_ctx
         from src.domains.agents.services.planner.planner_utils import (
             build_plan_from_steps,
             create_virtual_catalogue,
@@ -99,7 +99,7 @@ class SkillBypassStrategy:
         if intelligence.primary_domain:
             query_domains.add(intelligence.primary_domain)
 
-        disabled = disabled_skills_ctx.get() or set()
+        active = active_skills_ctx.get()
 
         # User-scoped lookup: admin skills + user's own skills (override semantics)
         user_id = config.get("configurable", {}).get("user_id", "")
@@ -113,7 +113,7 @@ class SkillBypassStrategy:
             template = skill.get("plan_template")
             if not template or not template.get("deterministic"):
                 continue
-            if skill["name"] in disabled:
+            if active is not None and skill["name"] not in active:
                 continue
 
             steps_data = template.get("steps", [])

@@ -38,8 +38,7 @@ export function SkillsSettings({ lng }: SkillsSettingsProps) {
   const [downloadingName, setDownloadingName] = useState<string | null>(null);
   const [showGuide, setShowGuide] = useState(false);
 
-  // Admin skills disabled by administrator are hidden (not just greyed out)
-  const adminSkills = skills.filter((s) => s.scope === 'admin' && s.enabled_for_user);
+  const adminSkills = skills.filter((s) => s.scope === 'admin');
   const userSkills = skills.filter((s) => s.scope === 'user');
 
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {

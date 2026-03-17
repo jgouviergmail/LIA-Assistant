@@ -505,21 +505,23 @@ class AgentService(
             )
 
             # Import MCP tools setup before try block to ensure cleanup is always accessible
-            from src.core.context import admin_mcp_disabled_ctx, disabled_skills_ctx
+            from src.core.context import active_skills_ctx, admin_mcp_disabled_ctx
             from src.infrastructure.mcp.user_context import (
                 cleanup_user_mcp_tools,
                 setup_user_mcp_tools,
             )
 
             _admin_mcp_token = None
-            _disabled_skills_token = None
+            _active_skills_token = None
             if user_obj:
                 _admin_mcp_token = admin_mcp_disabled_ctx.set(
                     set(getattr(user_obj, "admin_mcp_disabled_servers", None) or [])
                 )
-                _disabled_skills_token = disabled_skills_ctx.set(
-                    set(getattr(user_obj, "disabled_skills", None) or [])
-                )
+                from src.domains.skills.preference_service import SkillPreferenceService
+
+                _skill_svc = SkillPreferenceService(db)
+                _active_skills = await _skill_svc.get_active_skills_for_user(user_obj.id)
+                _active_skills_token = active_skills_ctx.set(_active_skills)
 
             _user_mcp_token = None  # Initialized before try for safe cleanup in except
             try:
@@ -1480,8 +1482,8 @@ class AgentService(
                 if _admin_mcp_token is not None:
                     admin_mcp_disabled_ctx.reset(_admin_mcp_token)
                 # Cleanup disabled skills ContextVar
-                if _disabled_skills_token is not None:
-                    disabled_skills_ctx.reset(_disabled_skills_token)
+                if _active_skills_token is not None:
+                    active_skills_ctx.reset(_active_skills_token)
 
             except Exception as e:
                 # Cleanup user MCP tools ContextVar on error (evolution F2.1)
@@ -1490,8 +1492,8 @@ class AgentService(
                 if _admin_mcp_token is not None:
                     admin_mcp_disabled_ctx.reset(_admin_mcp_token)
                 # Cleanup disabled skills ContextVar on error
-                if _disabled_skills_token is not None:
-                    disabled_skills_ctx.reset(_disabled_skills_token)
+                if _active_skills_token is not None:
+                    active_skills_ctx.reset(_active_skills_token)
 
                 logger.error(
                     "new_service_architecture_error",

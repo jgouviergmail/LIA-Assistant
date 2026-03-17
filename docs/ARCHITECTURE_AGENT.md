@@ -85,6 +85,8 @@ Ce document est le guide de référence exhaustif pour l'ajout d'un nouveau conn
 5. **StandardToolOutput** → Contient `summary_for_llm` + `registry_updates`
 6. **SSE** → Envoie les `RegistryItem` au frontend pour rendu riche
 
+> **F6 — Sub-Agent Delegation**: Le planner peut décider de déléguer des tâches complexes à des sous-agents éphémères via `delegate_to_sub_agent_tool` (tool transversal, toujours dans le catalogue). Chaque sous-agent exécute un pipeline simplifié (query analysis → planner → parallel executor → LLM synthesis) sans semantic validator ni approval gate. Les sous-agents sont read-only (V1), invisibles pour l'utilisateur, et ne peuvent pas spawner d'autres sous-agents (depth limit = 1). Détails : `docs/technical/SUB_AGENTS.md`.
+
 ### 1.3 Fichiers Clés par Composant
 
 | Composant | Fichiers |

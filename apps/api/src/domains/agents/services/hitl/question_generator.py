@@ -660,6 +660,25 @@ class HitlQuestionGenerator:
         # Get default personality in user's language if none provided (i18n)
         default_personality = HitlMessages.get_default_personality(user_language)
 
+        # Build concise action summary for the system prompt
+        tool_names = [step.tool_name for step in plan_summary.steps]
+        sub_agent_count = sum(1 for t in tool_names if t == "delegate_to_sub_agent_tool")
+        action_parts: list[str] = []
+        for step in plan_summary.steps:
+            if step.tool_name == "delegate_to_sub_agent_tool":
+                expertise = step.parameters.get("expertise", "specialist")
+                action_parts.append(f"sub-agent: {expertise}")
+            else:
+                desc = step.description or step.tool_name
+                action_parts.append(desc)
+        action_summary = (
+            f"{plan_summary.total_steps} steps "
+            f"({sub_agent_count} sub-agent(s)). "
+            f"Actions: {'; '.join(action_parts)}"
+            if sub_agent_count > 0
+            else f"{plan_summary.total_steps} steps. " f"Actions: {'; '.join(action_parts)}"
+        )
+
         # Replace placeholders using .replace() to avoid issues with JSON braces
         hitl_plan_approval_system_prompt = (
             prompt_template.replace(
@@ -673,6 +692,10 @@ class HitlQuestionGenerator:
             .replace(
                 "{user_language}",
                 user_language,
+            )
+            .replace(
+                "{action_summary}",
+                action_summary,
             )
         )
 

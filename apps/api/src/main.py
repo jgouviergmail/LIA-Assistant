@@ -40,6 +40,7 @@ from src.core.constants import (
     SCHEDULER_JOB_OAUTH_HEALTH,
     SCHEDULER_JOB_REMINDER_NOTIFICATION,
     SCHEDULER_JOB_SCHEDULED_ACTION_EXECUTOR,
+    SCHEDULER_JOB_SUBAGENT_STALE_RECOVERY,
     SCHEDULER_JOB_TOKEN_REFRESH,
     SCHEDULER_JOB_UNVERIFIED_CLEANUP,
     SCHEDULER_JOB_USER_MCP_EVICTION,
@@ -136,6 +137,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     Handles startup and shutdown events.
     """
     # Startup
+    # Eagerly import all domain models so SQLAlchemy mappers are fully configured
+    # before any query. Required for models referenced via string in relationships
+    # (e.g., User.skill_states → UserSkillState).
+    import src.domains.skills.models  # noqa: F401
+
     logger.info(
         "application_startup",
         environment=settings.environment,
@@ -248,12 +254,28 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         logger.warning("llm_config_cache_initialization_failed", error=str(exc))
 
     # Initialize Skills cache (agentskills.io standard — SKILL.md files on disk)
+    # Then sync DB (skills + user_skill_states) with disk state.
     if getattr(settings, "skills_enabled", False):
         try:
             from src.domains.skills.cache import SkillsCache
 
             SkillsCache.load_from_disk(settings.skills_system_path, settings.skills_users_path)
             logger.info("skills_cache_initialized")
+
+            # Sync DB with disk (create new skills, remove orphans, ensure user states)
+            from src.domains.skills.preference_service import SkillPreferenceService
+            from src.infrastructure.database.session import AsyncSessionLocal
+
+            async with AsyncSessionLocal() as db:
+                svc = SkillPreferenceService(db)
+                sync_result = await svc.sync_from_disk()
+                await db.commit()
+                logger.info(
+                    "skills_db_synced",
+                    created=len(sync_result.created),
+                    removed=len(sync_result.removed),
+                    updated=len(sync_result.updated),
+                )
         except Exception as exc:
             logger.warning("skills_cache_initialization_failed", error=str(exc))
 
@@ -562,6 +584,26 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             "scheduled_action_executor_job_scheduled",
             interval_seconds=SCHEDULED_ACTIONS_EXECUTOR_INTERVAL_SECONDS,
         )
+
+        # Schedule sub-agent stale recovery (feature-flagged)
+        if getattr(settings, "sub_agents_enabled", False):
+            from src.domains.sub_agents.executor import SubAgentExecutor
+
+            stale_interval = getattr(settings, "subagent_stale_recovery_interval_seconds", 120)
+            scheduler.add_job(
+                SubAgentExecutor.recover_stale_subagents,
+                trigger="interval",
+                seconds=stale_interval,
+                id=SCHEDULER_JOB_SUBAGENT_STALE_RECOVERY,
+                name="Recover stale sub-agents",
+                replace_existing=True,
+                max_instances=1,
+                misfire_grace_time=30,
+            )
+            logger.info(
+                "subagent_stale_recovery_job_scheduled",
+                interval_seconds=stale_interval,
+            )
 
         # Schedule proactive interest notifications (configurable interval, default 15 min)
         # Sends personalized content about user's interests (Wikipedia, Perplexity, LLM)

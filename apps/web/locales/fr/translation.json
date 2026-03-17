@@ -1602,7 +1602,8 @@
           "vision_analysis": "Analyse visuelle — Modèle utilisé pour analyser les images et documents joints",
           "skill_description_translator": "Traduit les descriptions des skills système dans les 6 langues supportées",
           "evaluator": "Pipeline d'évaluation LLM-as-Judge (pertinence, hallucination)",
-          "compaction": "Résume l'historique de conversation ancien pour libérer la fenêtre de contexte"
+          "compaction": "Résume l'historique de conversation ancien pour libérer la fenêtre de contexte",
+          "subagent": "Exécute les tâches déléguées via des sous-agents spécialisés (recherche, analyse, synthèse)"
         },
         "no_compatible_model": "Aucun modèle de ce provider ne supporte cette fonctionnalité",
         "categories": {
@@ -2188,6 +2189,10 @@
         "ragSpaces": {
           "title": "📚 Espaces de connaissances RAG",
           "description": "Créez des espaces de connaissances personnels et importez vos propres documents (PDF, TXT, MD, DOCX). Les documents sont automatiquement traités (extraction texte, découpage, embedding OpenAI). Les espaces actifs enrichissent les réponses de l'assistant via recherche hybride combinant similarité sémantique (pgvector cosine) et correspondance par mots-clés BM25. Transparence totale des coûts avec suivi par document et par requête. Endpoint admin de ré-indexation en cas de changement de modèle d'embedding."
+        },
+        "subAgents": {
+          "title": "Sous-agents",
+          "description": "Déléguez des tâches complexes à des experts éphémères spécialisés travaillant en parallèle. L'assistant orchestre et synthétise leurs résultats de manière transparente."
         }
       },
       "diagram_alt": "Schéma d'architecture de LIA"
@@ -2726,6 +2731,29 @@
           "q6": {
             "question": "Puis-je télécharger ou partager une skill ?",
             "answer": "<p>Oui. Survolez n'importe quelle skill dans les réglages et cliquez sur l'icône <strong>télécharger</strong> (⬇️). Vous obtiendrez un fichier <code>.zip</code> contenant SKILL.md et tous ses fichiers associés (references/, scripts/, assets/).</p><p>Vous pouvez partager ce zip avec d'autres utilisateurs ou le publier sur des marketplaces compatibles agentskills.io.</p>"
+          }
+        }
+      },
+      "sub_agents": {
+        "title": "Sous-agents",
+        "description": "Assistants spécialisés pour les tâches complexes déléguées",
+        "count": "4",
+        "questions": {
+          "q1": {
+            "question": "Que sont les sous-agents ?",
+            "answer": "<p>Les sous-agents sont des <strong>assistants éphémères spécialisés</strong> auxquels l'assistant principal LIA peut déléguer des tâches. Quand votre demande nécessite une recherche approfondie, une analyse multi-sources ou une expertise spécialisée, l'assistant peut créer un ou plusieurs experts travaillant en parallèle.</p><p>Les sous-agents sont <strong>invisibles</strong> — vous n'interagissez qu'avec l'assistant principal, qui synthétise leurs résultats dans une réponse naturelle.</p>"
+          },
+          "q2": {
+            "question": "Quand LIA utilise-t-elle les sous-agents ?",
+            "answer": "<p>LIA décide de faire appel à des experts quand :</p><ul><li>Votre demande implique une <strong>recherche parallèle</strong> sur plusieurs domaines (ex : comparer des options de transport)</li><li>Un sujet bénéficie d'une <strong>analyse spécialisée approfondie</strong> (ex : audit technique, étude de marché)</li><li>Plusieurs <strong>avis d'experts</strong> indépendants sont utiles simultanément</li></ul><p>Les questions simples sont toujours traitées directement — les experts ne sont mobilisés que lorsqu'ils apportent une vraie valeur ajoutée.</p><p><strong>Vous gardez le contrôle :</strong> avant de lancer les experts, LIA vous demande confirmation. Si vous refusez, elle bascule automatiquement sur un plan standard sans sous-agents.</p><p><strong>Astuce :</strong> vous pouvez aussi demander explicitement à LIA d'utiliser des experts, par exemple : <em>&laquo; Utilise des sous-agents experts pour traiter ma demande &raquo;</em>.</p>"
+          },
+          "q3": {
+            "question": "Puis-je désactiver les sous-agents ?",
+            "answer": "<p>Oui. Allez dans <strong>Paramètres &gt; Fonctionnalités &gt; Sous-agents</strong> et désactivez le commutateur. L'assistant utilisera alors des outils directs (recherche web, etc.) au lieu de déléguer.</p>"
+          },
+          "q4": {
+            "question": "Les sous-agents coûtent-ils plus de tokens ?",
+            "answer": "<p>Oui — chaque sous-agent effectue ses propres appels LLM (planification + exécution d'outils + synthèse). Une délégation avec 3 experts peut coûter 3 à 5 fois plus de tokens qu'une recherche directe simple.</p><p>Des garde-fous sont en place : budget par exécution, budget journalier par utilisateur, et désactivation automatique après des échecs consécutifs. Tous les coûts des sous-agents sont suivis et visibles dans vos statistiques d'utilisation.</p>"
           }
         }
       },
@@ -3619,6 +3647,10 @@
         "title": "Skills",
         "description": "Spécialisez LIA pour vos besoins métier ou personnels avec des instructions expertes prêtes à l'emploi. Compatible avec le standard ouvert Anthropic partagé par Claude Code, Cursor, VS Code et 30+ outils."
       },
+      "sub_agents": {
+        "title": "Sous-agents",
+        "description": "Déléguez des tâches complexes à des experts éphémères spécialisés travaillant en parallèle pour une recherche approfondie, une analyse multi-sources et une synthèse experte."
+      },
       "rag_spaces": {
         "title": "Espaces de connaissances",
         "description": "Importez vos propres documents (PDF, TXT, MD, DOCX) dans des espaces personnels. LIA enrichit automatiquement ses réponses avec le contenu pertinent via recherche hybride (sémantique + mots-clés)."
@@ -3728,6 +3760,31 @@
       "copyright": "© {{year}} LIA. Tous droits réservés.",
       "docs": "Documentation",
       "privacy": "Confidentialité"
+    }
+  },
+  "sub_agents": {
+    "templates": {
+      "research_assistant": {
+        "name": "Assistant de recherche",
+        "description": "Spécialisé dans la recherche web approfondie, la synthèse multi-sources et la vérification des faits"
+      },
+      "writing_assistant": {
+        "name": "Assistant rédaction",
+        "description": "Spécialisé dans la rédaction, l'édition et l'amélioration de contenus écrits"
+      },
+      "data_analyst": {
+        "name": "Analyste de données",
+        "description": "Spécialisé dans l'analyse de données issues des emails, du calendrier et des fichiers"
+      }
+    },
+    "settings": {
+      "title": "Sous-agents",
+      "description": "Assistants spécialisés pour les tâches déléguées",
+      "enable_toggle": "Activer les sous-agents",
+      "enable_description": "Permettre à l'assistant de déléguer des tâches à des sous-agents spécialisés",
+      "enabled_success": "Sous-agents activés",
+      "disabled_success": "Sous-agents désactivés",
+      "info": "Lorsqu\u2019ils sont activés, l\u2019assistant peut déléguer des tâches de recherche, d\u2019analyse et de synthèse à des sous-agents spécialisés pour de meilleurs résultats."
     }
   }
 }

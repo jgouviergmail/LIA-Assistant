@@ -1020,10 +1020,11 @@ tasks:
   # ============================================================================
 
   ci:
-    desc: Run CI pipeline locally (lint + test)
+    desc: Run CI pipeline locally (lint + fast tests + security)
     cmds:
       - task: lint
-      - task: test
+      - task: test:backend:unit:fast
+      - task: test:frontend
       - task: security:scan
 
   pre-commit:

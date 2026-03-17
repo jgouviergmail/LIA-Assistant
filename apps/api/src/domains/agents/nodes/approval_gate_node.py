@@ -31,8 +31,10 @@ import structlog
 from langchain_core.runnables import RunnableConfig
 from langgraph.types import interrupt
 
+from src.core.constants import TOOL_NAME_DELEGATE_SUB_AGENT
 from src.domains.agents.constants import (
     STATE_KEY_APPROVAL_EVALUATION,
+    STATE_KEY_EXCLUDE_SUB_AGENT_TOOLS,
     STATE_KEY_EXECUTION_PLAN,
     STATE_KEY_NEEDS_REPLAN,
     STATE_KEY_PLAN_APPROVED,
@@ -249,6 +251,19 @@ async def _build_approval_request(
         # Fallback if no approval_evaluation
         reasons = ["Plan contains tools requiring HITL approval"]
         strategies_triggered = ["ManifestBasedStrategy"]
+
+    # F6: Enrich reasons for sub-agent delegation plans
+    delegate_steps = [s for s in plan_summary.steps if s.tool_name == TOOL_NAME_DELEGATE_SUB_AGENT]
+    if delegate_steps:
+        count = len(delegate_steps)
+        expertises = [s.parameters.get("expertise", "expert")[:60] for s in delegate_steps]
+        reasons.append(
+            f"This plan delegates to {count} specialized sub-agent(s): "
+            f"{', '.join(expertises)}. "
+            f"Sub-agents perform deeper analysis but take longer (60-90s each) "
+            f"and consume more tokens than a simple search."
+        )
+        strategies_triggered.append("SubAgentDelegation")
 
     # Phase 1 HITL Streaming: Skip question generation here if enabled
     # The question will be generated via LLM streaming in StreamingService
@@ -781,16 +796,43 @@ async def approval_gate_node(state: MessagesState, config: RunnableConfig) -> di
                 modified_plan_id=modified_plan.plan_id,
             )
     else:
-        # Plan rejected - set state field (router_node clears this each turn)
-        result[STATE_KEY_PLAN_REJECTION_REASON] = rejection_reason
-        # Clear needs_replan
-        result[STATE_KEY_NEEDS_REPLAN] = False
-
-        logger.info(
-            "approval_gate_plan_rejected",
-            plan_id=execution_plan.plan_id,
-            reason=rejection_reason,
+        # F6: Check if rejected plan contains sub-agent delegation → auto-replan without
+        has_sub_agent_steps = any(
+            s.tool_name == TOOL_NAME_DELEGATE_SUB_AGENT for s in execution_plan.steps if s.tool_name
         )
+
+        if has_sub_agent_steps:
+            # Convert REJECT into REPLAN without sub-agents
+            from langchain_core.messages import HumanMessage
+
+            logger.info(
+                "approval_gate_sub_agent_rejection_to_replan",
+                plan_id=execution_plan.plan_id,
+                original_rejection_reason=rejection_reason,
+            )
+            hitl_plan_decisions.labels(decision="REPLAN_SUB_AGENT_FALLBACK").inc()
+
+            replan_msg = (
+                "User rejected the sub-agent delegation plan. "
+                f"Replan WITHOUT using {TOOL_NAME_DELEGATE_SUB_AGENT}. "
+                "Use direct tools (web_search_tool, etc.) instead to accomplish the same goal."
+            )
+            result[STATE_KEY_NEEDS_REPLAN] = True
+            result[STATE_KEY_REPLAN_INSTRUCTIONS] = replan_msg
+            result[STATE_KEY_PLAN_REJECTION_REASON] = None
+            result[STATE_KEY_EXECUTION_PLAN] = None
+            result[STATE_KEY_EXCLUDE_SUB_AGENT_TOOLS] = True
+            result["messages"] = [HumanMessage(content=replan_msg)]
+        else:
+            # Normal rejection — route to response
+            result[STATE_KEY_PLAN_REJECTION_REASON] = rejection_reason
+            result[STATE_KEY_NEEDS_REPLAN] = False
+
+            logger.info(
+                "approval_gate_plan_rejected",
+                plan_id=execution_plan.plan_id,
+                reason=rejection_reason,
+            )
 
     # PHASE 2.5 - LangGraph Observability: Track state updates
     track_state_updates(state, result, "approval_gate", execution_plan.plan_id)

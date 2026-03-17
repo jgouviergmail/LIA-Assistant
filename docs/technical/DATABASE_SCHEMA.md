@@ -2,8 +2,8 @@
 
 > **Documentation technique complète du schéma de base de données PostgreSQL**
 >
-> **Version**: 1.6
-> **Date**: 2026-03-03
+> **Version**: 1.7
+> **Date**: 2026-03-17
 > **Validated**: Structure vérifiée contre code actuel
 >
 > Architecture: PostgreSQL 15+ avec SQLAlchemy 2.0 ORM
@@ -25,12 +25,14 @@
 9. [Tables Audit (2)](#tables-audit)
 10. [Tables Interests (1)](#tables-interests)
 11. [Tables MCP (1)](#tables-mcp)
-12. [Indexes & Performance](#indexes--performance)
-13. [Relations & Foreign Keys](#relations--foreign-keys)
-14. [Migrations Alembic](#migrations-alembic)
-15. [Best Practices](#best-practices)
-16. [Troubleshooting](#troubleshooting)
-17. [Ressources](#ressources)
+12. [Tables Sub-Agents (1)](#tables-sub-agents-1-new-v15)
+13. [Tables Skills (2)](#tables-skills-2-new-v15)
+14. [Indexes & Performance](#indexes--performance)
+15. [Relations & Foreign Keys](#relations--foreign-keys)
+16. [Migrations Alembic](#migrations-alembic)
+17. [Best Practices](#best-practices)
+18. [Troubleshooting](#troubleshooting)
+19. [Ressources](#ressources)
 
 ---
 
@@ -41,7 +43,7 @@
 | Métrique | Valeur |
 |----------|--------|
 | **PostgreSQL Version** | 15+ (recommandé 16) |
-| **Total Tables** | 22 tables (+ 1 LangGraph checkpoints) |
+| **Total Tables** | 27 tables (+ 1 LangGraph checkpoints) |
 | **Extensions** | pgvector (embeddings future), pg_trgm (full-text), unaccent |
 | **ORM** | SQLAlchemy 2.0 (Mapped annotations) |
 | **Migrations** | Alembic 29 migrations |
@@ -65,11 +67,13 @@ Le schéma suit l'architecture Domain-Driven Design avec **13 domaines** (11 ave
 ├── personalities/  → personalities, personality_translations (2 tables)
 ├── user_mcp/       → user_mcp_servers (1 table MCP per-user) [NEW v6.2]
 ├── channels/       → user_channel_bindings (1 table multi-channel messaging) [NEW v6.2]
+├── sub_agents/     → sub_agents (1 table persistent sub-agents) [NEW v1.5]
+├── skills/         → skills, user_skill_states (2 tables normalized skill registry) [NEW v1.5]
 ├── memories/       → (Langfuse semantic store, pas de table DB)
 └── voice/          → (Google Cloud TTS, pas de table DB)
 ```
 
-**Total**: 22 tables métier (incluant personalities, Google API, MCP, channels) + 1 table LangGraph (checkpoints)
+**Total**: 27 tables métier (incluant personalities, Google API, MCP, channels, sub-agents, skills) + 1 table LangGraph (checkpoints)
 
 ---
 
@@ -866,13 +870,20 @@ CREATE TABLE message_token_summary (
     run_id VARCHAR(255) NOT NULL UNIQUE,  -- Links to token_usage_logs
     conversation_id UUID NULL REFERENCES conversations(id) ON DELETE SET NULL,
 
+    -- Sub-agent cost attribution (F6)
+    parent_run_id VARCHAR(255) NULL,  -- Parent run_id for sub-agent background executions
+
     -- Aggregated Token Counts
     total_prompt_tokens INTEGER NOT NULL DEFAULT 0,
     total_completion_tokens INTEGER NOT NULL DEFAULT 0,
     total_cached_tokens INTEGER NOT NULL DEFAULT 0,
 
-    -- Total Cost
+    -- Total Cost (LLM only; Google API cost tracked separately)
     total_cost_eur NUMERIC(10, 6) NOT NULL DEFAULT 0.0,
+
+    -- Google API Cost (Routes, Places, Geocoding, etc.)
+    google_api_requests INTEGER NOT NULL DEFAULT 0,
+    google_api_cost_eur NUMERIC(10, 6) NOT NULL DEFAULT 0.0,
 
     -- Timestamps
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -885,6 +896,8 @@ CREATE INDEX ix_message_token_summary_user_id ON message_token_summary(user_id);
 CREATE INDEX ix_message_token_summary_session_id ON message_token_summary(session_id);
 CREATE INDEX ix_message_token_summary_conversation_id ON message_token_summary(conversation_id);
 CREATE INDEX ix_message_token_summary_user_created ON message_token_summary(user_id, created_at);
+CREATE INDEX ix_message_token_summary_parent_run_id ON message_token_summary(parent_run_id)
+    WHERE parent_run_id IS NOT NULL;
 ```
 
 **Modèle SQLAlchemy:**
@@ -910,13 +923,20 @@ class MessageTokenSummary(BaseModel):
         index=True,
     )
 
+    # Sub-agent cost attribution (F6): links background sub-agent run to parent turn
+    parent_run_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
     # Aggregated token counts
     total_prompt_tokens: Mapped[int] = mapped_column(Integer, default=0)
     total_completion_tokens: Mapped[int] = mapped_column(Integer, default=0)
     total_cached_tokens: Mapped[int] = mapped_column(Integer, default=0)
 
-    # Total cost
+    # Total LLM cost (Google API cost tracked separately)
     total_cost_eur: Mapped[Decimal] = mapped_column(Numeric(10, 6), default=Decimal("0.0"))
+
+    # Google API cost (Routes, Places, Geocoding, Static Maps)
+    google_api_requests: Mapped[int] = mapped_column(Integer, default=0)
+    google_api_cost_eur: Mapped[Decimal] = mapped_column(Numeric(10, 6), default=Decimal("0.0"))
 
     __table_args__ = (
         Index("ix_message_token_summary_user_created", "user_id", "created_at"),
@@ -928,6 +948,8 @@ class MessageTokenSummary(BaseModel):
 - **run_id UNIQUE**: Un seul summary par message (clé naturelle)
 - **Aggregation**: SUM de tous les `token_usage_logs` avec même `run_id`
 - **Drill-Down**: Jointure avec `token_usage_logs` pour breakdown par node/model
+- **parent_run_id**: Attribution de coûts pour les sous-agents (F6) — relie un run de sous-agent background au tour parent qui l'a déclenché
+- **Cost Display**: Le total affiché à l'utilisateur combine `total_cost_eur` (LLM) + `google_api_cost_eur` (Google) au niveau service
 
 **Query Exemple:**
 
@@ -2505,6 +2527,163 @@ class UserChannelBinding(BaseModel):
 - **Extensible** — `channel_type` discriminant permet d'ajouter Discord, WhatsApp, etc. sans migration
 
 **Documentation:** [docs/technical/CHANNELS_INTEGRATION.md](./CHANNELS_INTEGRATION.md)
+
+---
+
+## Tables Sub-Agents (1) [NEW v1.5]
+
+### 23. sub_agents
+
+> Persistent specialized sub-agents owned by a user. The principal assistant can delegate tasks to a sub-agent via the `invoke_sub_agent` tool. Each sub-agent has its own LLM overrides, allowed/blocked tools, associated skills, and execution limits. V1 sub-agents are read-only (created by user or system templates).
+
+**Phase**: F6 — Persistent Sub-Agents
+
+```sql
+CREATE TABLE sub_agents (
+    -- Primary Key
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    -- Ownership
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+
+    -- Identity
+    name VARCHAR(100) NOT NULL,
+    description VARCHAR(500) NOT NULL,
+    icon VARCHAR(10) NULL,
+
+    -- Prompts
+    system_prompt TEXT NOT NULL,
+    personality_instruction TEXT NULL,
+    context_instructions TEXT NULL,
+
+    -- LLM overrides (NULL = inherit from settings defaults)
+    llm_provider VARCHAR(50) NULL,
+    llm_model VARCHAR(100) NULL,
+    llm_temperature FLOAT NULL,
+
+    -- Execution limits
+    max_iterations INTEGER NOT NULL DEFAULT 5,
+    timeout_seconds INTEGER NOT NULL DEFAULT 120,
+
+    -- Skills & tools (JSONB arrays)
+    skill_ids JSONB NOT NULL DEFAULT '[]',
+    allowed_tools JSONB NOT NULL DEFAULT '[]',
+    blocked_tools JSONB NOT NULL DEFAULT '[]',
+
+    -- Status
+    is_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    status VARCHAR(20) NOT NULL DEFAULT 'ready',
+
+    -- Provenance
+    created_by VARCHAR(20) NOT NULL DEFAULT 'user',
+    template_id VARCHAR(50) NULL,
+
+    -- Execution tracking
+    execution_count INTEGER NOT NULL DEFAULT 0,
+    last_executed_at TIMESTAMPTZ NULL,
+    consecutive_failures INTEGER NOT NULL DEFAULT 0,
+    last_error TEXT NULL,
+    last_execution_summary TEXT NULL,
+
+    -- Timestamps
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes
+CREATE INDEX ix_sub_agents_user_id ON sub_agents(user_id);
+CREATE UNIQUE INDEX ix_sub_agents_user_name ON sub_agents(user_id, name);
+CREATE INDEX ix_sub_agents_enabled ON sub_agents(user_id) WHERE is_enabled = true;
+```
+
+**Design Notes:**
+- **UNIQUE (user_id, name)**: One name per user — prevents ambiguity when the principal resolves sub-agents by name
+- **Partial index** `ix_sub_agents_enabled` — hot path for tool catalogue: only enabled sub-agents are exposed to the principal LLM
+- **skill_ids / allowed_tools / blocked_tools**: JSONB arrays rather than junction tables — V1 volumes are small and the list is read together; normalize if volume grows
+- **parent_run_id** in `message_token_summary` links sub-agent token costs back to the parent conversation turn
+
+**Documentation:** [docs/technical/SUB_AGENTS.md](./SUB_AGENTS.md)
+
+---
+
+## Tables Skills (2) [NEW v1.5]
+
+### 24. skills
+
+> Skill registry, synced from disk at startup via `SkillPreferenceService.sync_from_disk()`. Replaces the legacy `disabled_skills` JSONB column on `users`.
+
+```sql
+CREATE TABLE skills (
+    -- Primary Key
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    -- Identity
+    name VARCHAR(100) NOT NULL UNIQUE,
+    is_system BOOLEAN NOT NULL DEFAULT TRUE,
+    owner_id UUID NULL REFERENCES users(id) ON DELETE CASCADE,
+
+    -- Admin toggle (system skills only)
+    admin_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+
+    -- Localized descriptions
+    description VARCHAR(1024) NOT NULL,
+    descriptions JSONB NULL,  -- {"en": "...", "fr": "...", ...}
+
+    -- Timestamps
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes
+CREATE UNIQUE INDEX ix_skills_name ON skills(name);
+CREATE INDEX ix_skills_owner_id ON skills(owner_id);
+CREATE INDEX ix_skills_system_enabled ON skills(is_system, admin_enabled)
+    WHERE is_system = true;
+```
+
+**Design Notes:**
+- System skills (`is_system=true`, `owner_id=NULL`) are seeded from disk at startup
+- User skills (`is_system=false`, `owner_id=<uuid>`) are created by individual users
+- `admin_enabled=false` hides a system skill from all users regardless of their personal preference
+- `descriptions` JSONB holds translations keyed by BCP-47 language code (e.g. `"fr"`, `"de"`)
+
+---
+
+### 25. user_skill_states
+
+> Per-user activation state for each skill. Replaces the legacy `disabled_skills` JSONB column pattern.
+
+```sql
+CREATE TABLE user_skill_states (
+    -- Primary Key
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    -- Composite FK
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    skill_id UUID NOT NULL REFERENCES skills(id) ON DELETE CASCADE,
+
+    -- Toggle
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+
+    -- Timestamps
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes
+CREATE INDEX ix_user_skill_states_user_id ON user_skill_states(user_id);
+CREATE INDEX ix_user_skill_states_skill_id ON user_skill_states(skill_id);
+CREATE UNIQUE INDEX ix_user_skill_states_user_skill ON user_skill_states(user_id, skill_id);
+CREATE INDEX ix_user_skill_states_active ON user_skill_states(user_id)
+    WHERE is_active = true;
+```
+
+**Design Notes:**
+- **UNIQUE (user_id, skill_id)**: At most one row per (user, skill) pair
+- **Partial index** `ix_user_skill_states_active` — hot path for loading active skills per request into `active_skills_ctx` ContextVar
+- Rows are created lazily on first toggle; absence of a row means the skill is active by default (if `admin_enabled=true`)
+
+**Migration:** `2026_03_17_0001-create_skills_tables.py` — creates both tables, preserves legacy `disabled_skills` JSONB data, and drops legacy columns from `users`.
 
 ---
 

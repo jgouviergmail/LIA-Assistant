@@ -46,7 +46,10 @@ graph TB
     UserDecision{User Decision}
 
     UserDecision -->|Approved| TaskExecution[task_orchestrator_node<br/>Execute Plan]
-    UserDecision -->|Rejected| Cancelled[End: Cancelled]
+    UserDecision -->|Rejected| SubAgentCheck{Plan has<br/>sub-agent steps?}
+    SubAgentCheck -->|Yes| ReplanNoSA["Auto-Replan<br/>exclude delegate_to_sub_agent_tool"]
+    SubAgentCheck -->|No| Cancelled[End: Cancelled]
+    ReplanNoSA --> Replanning
     UserDecision -->|Modified / Edited| Replanning[Back to planner_node_v3]
     UserDecision -->|Clarification Provided| Replanning
 
@@ -78,3 +81,5 @@ graph TB
     style UserMustReview fill:#ff9999
     style TaskExecution fill:#e1ffe1
     style DirectExecution fill:#e1ffe1
+    style ReplanNoSA fill:#ffe1e1
+    style SubAgentCheck fill:#fff9e1

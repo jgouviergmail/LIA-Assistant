@@ -19,6 +19,7 @@ export interface User {
   voice_mode_enabled: boolean;
   tokens_display_enabled: boolean;
   debug_panel_enabled: boolean;
+  sub_agents_enabled: boolean;
   onboarding_completed: boolean;
   theme?: string;
   color_theme?: string;

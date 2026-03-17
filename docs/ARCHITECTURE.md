@@ -3283,7 +3283,7 @@ data/skills/
 2. **Tool dédié** (fallback) : `activate_skill_tool(name)` disponible pour le LLM response pour activation à la demande
 3. **Bypass déterministe** (optimisation) : Skills avec `plan_template.deterministic: true` contournent le planner LLM via `SkillBypassStrategy`
 
-**Per-user toggle** : Champ `disabled_skills` sur le modèle User, configurable dans Settings > Features.
+**Per-user toggle** : Table `user_skill_states` (user_id, skill_id, is_active) pour chaque utilisateur. Table `skills` pour le registre (name, is_system, admin_enabled, description, descriptions). Configurable dans Settings > Features.
 
 **Fichiers clés** :
 

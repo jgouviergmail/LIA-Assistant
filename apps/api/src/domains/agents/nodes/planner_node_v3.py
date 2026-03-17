@@ -25,7 +25,11 @@ from typing import Any
 
 from langchain_core.runnables import RunnableConfig
 
-from src.core.constants import CLARIFICATION_RECIPIENT_FIELDS, DEFAULT_LANGUAGE
+from src.core.constants import (
+    CLARIFICATION_RECIPIENT_FIELDS,
+    DEFAULT_LANGUAGE,
+    TOOL_NAME_DELEGATE_SUB_AGENT,
+)
 from src.core.field_names import FIELD_RUN_ID
 from src.domains.agents.analysis.query_intelligence_helpers import (
     get_query_intelligence_from_state,
@@ -33,6 +37,7 @@ from src.domains.agents.analysis.query_intelligence_helpers import (
 from src.domains.agents.constants import (
     STATE_KEY_CLARIFICATION_FIELD,
     STATE_KEY_CLARIFICATION_RESPONSE,
+    STATE_KEY_EXCLUDE_SUB_AGENT_TOOLS,
     STATE_KEY_EXECUTION_PLAN,
     STATE_KEY_MESSAGES,
     STATE_KEY_NEEDS_REPLAN,
@@ -369,6 +374,11 @@ async def planner_node_v3(
     # Get tool selection scores from router (for catalogue filtering)
     tool_selection_result = state.get("tool_selection_result")
 
+    # F6: Exclude sub-agent tools from catalogue after user rejection
+    exclude_tools: set[str] | None = None
+    if state.get(STATE_KEY_EXCLUDE_SUB_AGENT_TOOLS):
+        exclude_tools = {TOOL_NAME_DELEGATE_SUB_AGENT}
+
     # Plan with smart filtering
     planning_result = await planner_service.plan(
         intelligence=intelligence,
@@ -378,6 +388,7 @@ async def planner_node_v3(
         clarification_field=clarification_field,
         existing_plan=existing_plan,
         tool_selection_result=tool_selection_result,
+        exclude_tools=exclude_tools,
     )
 
     if planning_result.success and planning_result.plan:
@@ -438,6 +449,12 @@ async def planner_node_v3(
             # BUG FIX 2026-01-14: Set planner_iteration so route_from_planner sees it
             # This ensures routing goes through semantic_validator after clarification
             result[STATE_KEY_PLANNER_ITERATION] = planner_iteration
+        # F6: Clear replan flags after processing (scoped to single replan cycle)
+        # Prevents infinite loop in route_from_semantic_validator (Case 2: needs_replan)
+        if state.get(STATE_KEY_NEEDS_REPLAN):
+            result[STATE_KEY_NEEDS_REPLAN] = False
+        if state.get(STATE_KEY_EXCLUDE_SUB_AGENT_TOOLS):
+            result[STATE_KEY_EXCLUDE_SUB_AGENT_TOOLS] = False
         return result
     else:
         logger.error(
@@ -467,6 +484,11 @@ async def planner_node_v3(
             result[STATE_KEY_CLARIFICATION_FIELD] = None  # Clear used field
             # BUG FIX 2026-01-14: Set planner_iteration so route_from_planner sees it
             result[STATE_KEY_PLANNER_ITERATION] = planner_iteration
+        # F6: Clear replan flags after processing (scoped to single replan cycle)
+        if state.get(STATE_KEY_NEEDS_REPLAN):
+            result[STATE_KEY_NEEDS_REPLAN] = False
+        if state.get(STATE_KEY_EXCLUDE_SUB_AGENT_TOOLS):
+            result[STATE_KEY_EXCLUDE_SUB_AGENT_TOOLS] = False
         return result
 
 

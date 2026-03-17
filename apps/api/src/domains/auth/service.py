@@ -87,6 +87,13 @@ class AuthService:
         user = await self.repository.create(user_data)
         await self.db.commit()
 
+        # Provision skill states for new user (all admin-enabled system skills)
+        from src.domains.skills.preference_service import SkillPreferenceService
+
+        skill_svc = SkillPreferenceService(self.db)
+        await skill_svc.ensure_user_skills(user.id)
+        await self.db.commit()
+
         # Send verification email
         # Note: Admin notification is sent AFTER email verification (in verify_email method)
         verification_token = create_verification_token(user.email)
@@ -543,6 +550,12 @@ class AuthService:
             "last_login": datetime.now(UTC),  # Track first login
         }
         user = await self.repository.create(user_data)
+
+        # Provision skill states for new user (all admin-enabled system skills)
+        from src.domains.skills.preference_service import SkillPreferenceService
+
+        skill_svc = SkillPreferenceService(self.db)
+        await skill_svc.ensure_user_skills(user.id)
 
         # Track new user creation via OAuth
         oauth_user_creation_total.labels(provider="google").inc()

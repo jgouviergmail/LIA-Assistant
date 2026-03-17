@@ -16,7 +16,10 @@ export interface Skill {
   always_loaded: boolean;
   has_scripts: boolean;
   has_plan_template: boolean;
+  /** Per-user toggle (personal preference). */
   enabled_for_user: boolean;
+  /** System-level toggle (admin only). True = available to users, false = hidden. */
+  admin_enabled?: boolean;
 }
 
 /**
@@ -35,26 +38,38 @@ interface SkillReloadResponse {
 }
 
 /**
- * Toggle response shape.
+ * Toggle response shape (per-user preference).
  */
 interface SkillToggleResponse {
   skill_name: string;
   enabled_for_user: boolean;
 }
 
+/**
+ * Admin system-toggle response shape.
+ */
+interface AdminSystemToggleResponse {
+  skill_name: string;
+  admin_enabled: boolean;
+}
+
 const ENDPOINT = '/skills';
 
 /**
  * Hook for skills CRUD operations.
+ *
+ * @param adminView - If true, fetches from /skills/admin/list (all system skills
+ *   with admin_enabled flag). Used by AdminSkillsSection only.
  */
-export function useSkills() {
+export function useSkills(adminView = false) {
+  const listEndpoint = adminView ? `${ENDPOINT}/admin/list` : ENDPOINT;
   const {
     data: listData,
     loading,
     error,
     refetch,
     setData,
-  } = useApiQuery<SkillListResponse>(ENDPOINT, {
+  } = useApiQuery<SkillListResponse>(listEndpoint, {
     componentName: 'Skills',
     initialData: { skills: [], total: 0 },
   });
@@ -74,6 +89,11 @@ export function useSkills() {
   });
 
   const toggleMutation = useApiMutation<void, SkillToggleResponse>({
+    method: 'PATCH',
+    componentName: 'Skills',
+  });
+
+  const adminSystemToggleMutation = useApiMutation<void, AdminSystemToggleResponse>({
     method: 'PATCH',
     componentName: 'Skills',
   });
@@ -151,7 +171,7 @@ export function useSkills() {
     async (skillName: string) => {
       const result = await toggleMutation.mutate(`${ENDPOINT}/${skillName}/toggle`);
       if (result) {
-        // Optimistic: update enabled_for_user
+        // Optimistic: update enabled_for_user (personal preference)
         setData((prev) => {
           if (!prev) return prev;
           return {
@@ -165,6 +185,29 @@ export function useSkills() {
       return result;
     },
     [toggleMutation, setData]
+  );
+
+  /** System-level toggle for admin skills (superuser only). */
+  const adminSystemToggleSkill = useCallback(
+    async (skillName: string) => {
+      const result = await adminSystemToggleMutation.mutate(
+        `${ENDPOINT}/admin/${skillName}/system-toggle`
+      );
+      if (result) {
+        // Optimistic: update admin_enabled (system-level toggle)
+        setData((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            skills: prev.skills.map((s) =>
+              s.name === skillName ? { ...s, admin_enabled: result.admin_enabled } : s
+            ),
+          };
+        });
+      }
+      return result;
+    },
+    [adminSystemToggleMutation, setData]
   );
 
   const reloadSkills = useCallback(async () => {
@@ -287,6 +330,7 @@ export function useSkills() {
     deleteSkill,
     deleteAdminSkill,
     toggleSkill,
+    adminSystemToggleSkill,
     reloadSkills,
     translateSkillDescription,
     updateAdminSkillDescription,
@@ -296,6 +340,7 @@ export function useSkills() {
     deleting: deleteMutation.loading,
     deletingAdmin: deleteAdminMutation.loading,
     toggling: toggleMutation.loading,
+    togglingSystem: adminSystemToggleMutation.loading,
     reloading: reloadMutation.loading,
     translating: translateMutation.loading,
     updatingDescription: updateDescriptionMutation.loading,

@@ -52,12 +52,15 @@ graph LR
 - Tool catalogue filtré (domain filtering)
 - Active contexts (Store)
 - Routing history (domains détectés)
+- `exclude_tools` (optional, set[str]) — tools to exclude from catalogue (F6: used after sub-agent rejection to remove `delegate_to_sub_agent_tool`)
 
 **Outputs**:
 - `ExecutionPlan` validé (Pydantic model)
 - `planner_metadata` (pour streaming frontend)
 - `planner_error` (si échec après retries)
 - `validation_result` (pour approval gate)
+
+> **F6 — Sub-agent delegation**: The `delegate_to_sub_agent_tool` is a transversal tool always included in the filtered catalogue via `NormalFilteringStrategy`. The planner prompt contains a `{sub_agents_section}` with guidelines on when to delegate. When a user rejects a plan with delegation steps, the approval gate sets `exclude_sub_agent_tools=True` in state, and the planner re-invokes with `exclude_tools={"delegate_to_sub_agent_tool"}` to generate a fallback plan using direct tools.
 
 ### Concepts Clés
 

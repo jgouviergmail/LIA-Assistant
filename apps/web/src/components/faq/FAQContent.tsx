@@ -55,6 +55,7 @@ import {
   Paperclip,
   Blocks,
   Library,
+  Bot,
 } from 'lucide-react';
 
 interface FAQContentProps {
@@ -85,6 +86,7 @@ const sectionIcons = {
   scheduled_actions: CalendarClock,
   mcp_servers: Plug,
   skills: Blocks,
+  sub_agents: Bot,
   rag_spaces: Library,
   privacy: Shield,
   other: HelpCircle,
@@ -103,6 +105,7 @@ const sections = [
   'scheduled_actions',
   'mcp_servers',
   'skills',
+  'sub_agents',
   'rag_spaces',
   'privacy',
   'other',
@@ -250,9 +253,10 @@ const featureIcons = {
   attachments: Paperclip,
   skills: Blocks,
   ragSpaces: Library,
+  subAgents: Bot,
 };
 
-const featureKeys = ['architecture', 'queryAnalyzer', 'planning', 'semanticTypes', 'semanticValidation', 'memory', 'interests', 'security', 'llm', 'i18n', 'observability', 'voice', 'costTransparency', 'scheduledActions', 'mcp', 'mcpApps', 'excalidraw', 'multichannel', 'heartbeatAutonome', 'webFetch', 'knowledgeEnrichment', 'adaptiveReplanner', 'parallelExecution', 'dataRegistry', 'qualityAssurance', 'attachments', 'skills', 'ragSpaces'];
+const featureKeys = ['architecture', 'queryAnalyzer', 'planning', 'semanticTypes', 'semanticValidation', 'memory', 'interests', 'security', 'llm', 'i18n', 'observability', 'voice', 'costTransparency', 'scheduledActions', 'mcp', 'mcpApps', 'excalidraw', 'multichannel', 'heartbeatAutonome', 'webFetch', 'knowledgeEnrichment', 'adaptiveReplanner', 'parallelExecution', 'dataRegistry', 'qualityAssurance', 'attachments', 'skills', 'ragSpaces', 'subAgents'];
 
 export function FAQContent({ lng, onShowWelcome, showWelcomeButton = false }: FAQContentProps) {
   const { t } = useTranslation(lng);

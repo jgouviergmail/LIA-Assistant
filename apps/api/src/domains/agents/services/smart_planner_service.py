@@ -120,6 +120,7 @@ class SmartPlannerService:
         clarification_field: str | None = None,
         existing_plan: "ExecutionPlan | None" = None,
         tool_selection_result: dict | None = None,
+        exclude_tools: set[str] | None = None,
     ) -> PlanningResult:
         """
         Generate execution plan based on query intelligence.
@@ -186,6 +187,19 @@ class SmartPlannerService:
             intelligence, tool_selection_result=tool_selection_result
         )
 
+        # F6: Post-filter excluded tools (e.g., sub-agent delegation after user rejection)
+        if exclude_tools:
+            original_count = filtered.tool_count
+            filtered.tools = [t for t in filtered.tools if t["name"] not in exclude_tools]
+            filtered.tool_count = len(filtered.tools)
+            if filtered.tool_count < original_count:
+                logger.info(
+                    "smart_planner_tools_excluded",
+                    excluded=list(exclude_tools),
+                    original_count=original_count,
+                    filtered_count=filtered.tool_count,
+                )
+
         logger.info(
             "smart_planner_start",
             domains=intelligence.domains,
@@ -226,6 +240,7 @@ class SmartPlannerService:
                 clarification_response,
                 clarification_field,
                 existing_plan,
+                exclude_tools=exclude_tools,
             )
             # Also attach catalogue to panic result
             return panic_result
@@ -272,6 +287,7 @@ class SmartPlannerService:
         clarification_response: str | None = None,
         clarification_field: str | None = None,
         existing_plan: "ExecutionPlan | None" = None,
+        exclude_tools: set[str] | None = None,
     ) -> PlanningResult:
         """
         PANIC MODE: Retry with expanded catalogue.
@@ -290,6 +306,13 @@ class SmartPlannerService:
         panic_catalogue = self.catalogue_service.filter_for_intelligence(
             intelligence, panic_mode=True
         )
+
+        # F6: Post-filter excluded tools in panic mode too
+        if exclude_tools:
+            panic_catalogue.tools = [
+                t for t in panic_catalogue.tools if t["name"] not in exclude_tools
+            ]
+            panic_catalogue.tool_count = len(panic_catalogue.tools)
 
         logger.info(
             "smart_planner_panic_retry",
@@ -791,13 +814,56 @@ class SmartPlannerService:
         if not getattr(get_settings(), "skills_enabled", False):
             return ""
 
-        from src.core.context import disabled_skills_ctx
+        from src.core.context import active_skills_ctx
         from src.domains.skills.injection import build_skills_catalog
 
         user_id = config.get("configurable", {}).get("user_id", "")
         return build_skills_catalog(
             str(user_id),
-            disabled_skills=disabled_skills_ctx.get(),
+            active_skills=active_skills_ctx.get(),
+        )
+
+    @staticmethod
+    def _build_sub_agents_section() -> str:
+        """Build sub-agents delegation section for planner prompt.
+
+        Returns the section content when SUB_AGENTS_ENABLED, empty string otherwise.
+        Braces in examples are escaped for Python .format() compatibility.
+        """
+        from src.core.config import get_settings
+
+        if not getattr(get_settings(), "sub_agents_enabled", False):
+            return ""
+
+        return (
+            "SUB-AGENT DELEGATION (Optional Advanced Capability):\n"
+            "You can delegate complex, specialized, or research-intensive tasks "
+            "to ephemeral sub-agents. A sub-agent is a temporary expert you create "
+            "with specific directives.\n\n"
+            "WHEN TO DELEGATE:\n"
+            "- Deep domain expertise needed (accounting, legal, technical analysis)\n"
+            "- Task decomposes into independent parallel research tracks\n"
+            "- Quality benefits from a specialist's focused analysis\n"
+            "- Complex multi-faceted request (compare options, cross-reference)\n\n"
+            "WHEN NOT TO DELEGATE:\n"
+            "- Simple factual queries (weather, contact lookup, calendar)\n"
+            "- Standard CRUD operations (send email, create event)\n"
+            "- Tasks requiring user confirmation (sub-agents are read-only)\n\n"
+            "HOW TO USE delegate_to_sub_agent_tool:\n"
+            "- expertise: Specialist role description\n"
+            "- instruction: Detailed task with context and expected output\n"
+            "- Independent sub-agents → leave depends_on empty (they run in parallel)\n"
+            "- ALWAYS set timeout_seconds: 120 for delegate steps (sub-agents need more time)\n"
+            "- Reference results: $steps.step_N.analysis\n"
+            "- Handle mutations (send_email, etc.) YOURSELF after sub-agent results\n\n"
+            "IMPORTANT — AVOID DUPLICATING SUB-AGENT WORK:\n"
+            "- Do NOT add search/research steps that sub-agents will perform themselves.\n"
+            "  Sub-agents have full access to web search and other tools — they handle "
+            "  their own research autonomously.\n"
+            "- Your plan should ONLY contain: delegate steps + any non-delegated actions "
+            "  (HITL operations, write operations, steps the user asked YOU to do).\n"
+            "- BAD: step_1=web_search, step_2=delegate(expert, use $steps.step_1)\n"
+            "  GOOD: step_1=delegate(expert, 'research X and produce analysis')\n"
         )
 
     def _extract_preserved_parameters(
@@ -978,6 +1044,9 @@ class SmartPlannerService:
         # Skills L1 catalogue (agentskills.io standard)
         skills_catalog = self._build_skills_catalog(config)
 
+        # F6: Sub-agents delegation section (empty if disabled)
+        sub_agents_section = self._build_sub_agents_section()
+
         return get_smart_planner_prompt(
             user_goal=intelligence.user_goal.value,
             intent=intelligence.immediate_intent,
@@ -1002,6 +1071,7 @@ class SmartPlannerService:
             for_each_collection_key=intelligence.for_each_collection_key,
             cardinality_magnitude=intelligence.cardinality_magnitude,
             skills_catalog=skills_catalog,
+            sub_agents_section=sub_agents_section,
         )
 
     async def _build_multi_domain_prompt(
@@ -1054,6 +1124,9 @@ class SmartPlannerService:
         # Skills L1 catalogue (agentskills.io standard)
         skills_catalog = self._build_skills_catalog(config)
 
+        # F6: Sub-agents delegation section (empty if disabled)
+        sub_agents_section = self._build_sub_agents_section()
+
         return get_smart_planner_multi_domain_prompt(
             domains=", ".join(intelligence.domains) if intelligence.domains else "",
             primary_domain=intelligence.primary_domain,
@@ -1079,6 +1152,7 @@ class SmartPlannerService:
             for_each_collection_key=intelligence.for_each_collection_key,
             cardinality_magnitude=intelligence.cardinality_magnitude,
             skills_catalog=skills_catalog,
+            sub_agents_section=sub_agents_section,
         )
 
     def _build_plan(
@@ -1228,7 +1302,12 @@ class SmartPlannerService:
             )
             steps.append(step)
 
-        plan = self._build_plan_from_steps(steps, intelligence, config)
+        # Extract execution_mode from LLM output (default: sequential for safety)
+        execution_mode = plan_data.get("execution_mode", "sequential")
+
+        plan = self._build_plan_from_steps(
+            steps, intelligence, config, execution_mode=execution_mode
+        )
 
         # Skills: propagate skill_name from LLM output to plan metadata
         skill_name = plan_data.get("skill_name")
@@ -1349,19 +1428,31 @@ class SmartPlannerService:
         steps: list["ExecutionStep"],
         intelligence: QueryIntelligence,
         config: RunnableConfig,
+        execution_mode: str = "sequential",
     ) -> "ExecutionPlan":
-        """Build ExecutionPlan from steps."""
+        """Build ExecutionPlan from steps.
+
+        Args:
+            steps: List of execution steps.
+            intelligence: Query intelligence from router.
+            config: LangGraph runnable config.
+            execution_mode: "sequential" or "parallel" (from LLM output).
+        """
         from src.domains.agents.nodes.utils import extract_session_id_from_config
         from src.domains.agents.orchestration.plan_schemas import ExecutionPlan
 
         configurable = config.get("configurable", {})
+
+        # Validate execution_mode (LLM may produce unexpected values)
+        if execution_mode not in ("sequential", "parallel"):
+            execution_mode = "sequential"
 
         return ExecutionPlan(
             plan_id=f"smart_{configurable.get('run_id', 'unknown')}",
             user_id=str(configurable.get("user_id", "")),
             session_id=extract_session_id_from_config(config, required=False) or "",
             steps=steps,
-            execution_mode="sequential",
+            execution_mode=execution_mode,  # type: ignore[arg-type]
             metadata={
                 "smart_planner": True,
                 "intent": intelligence.immediate_intent,

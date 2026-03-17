@@ -472,10 +472,6 @@ export function handleHitlInterruptComplete(
   const completeChunk = chunk.metadata as ToolApprovalMetadata & {
     message_id: string;
     generated_question?: string;
-    tokens_in?: number;
-    tokens_out?: number;
-    tokens_cache?: number;
-    cost_eur?: number;
   };
   const completeMessageId = completeChunk.message_id;
 
@@ -503,17 +499,12 @@ export function handleHitlInterruptComplete(
     );
   }
 
-  // Finalize stream with token metadata
+  // Finalize stream without token metadata (HITL tokens are partial/misleading)
   dispatch({
     type: 'STREAM_DONE',
     payload: {
       messageId: completeMessageId,
-      metadata: {
-        tokens_in: completeChunk.tokens_in,
-        tokens_out: completeChunk.tokens_out,
-        tokens_cache: completeChunk.tokens_cache,
-        cost_eur: completeChunk.cost_eur,
-      },
+      metadata: {},
     },
   });
 

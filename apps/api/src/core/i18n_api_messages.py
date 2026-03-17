@@ -431,6 +431,29 @@ class APIMessages:
         return messages.get(language, messages["en"])
 
     @staticmethod
+    def sub_agents_preference_updated(enabled: bool, language: SupportedLanguage = "fr") -> str:
+        """Success - sub-agents delegation preference updated."""
+        if enabled:
+            messages = {
+                "fr": "Délégation aux sous-agents activée",
+                "en": "Sub-agents delegation enabled",
+                "es": "Delegación a sub-agentes activada",
+                "de": "Sub-Agenten-Delegierung aktiviert",
+                "it": "Delegazione ai sub-agenti attivata",
+                "zh-CN": "子代理委派已启用",
+            }
+        else:
+            messages = {
+                "fr": "Délégation aux sous-agents désactivée",
+                "en": "Sub-agents delegation disabled",
+                "es": "Delegación a sub-agentes desactivada",
+                "de": "Sub-Agenten-Delegierung deaktiviert",
+                "it": "Delegazione ai sub-agenti disattivata",
+                "zh-CN": "子代理委派已禁用",
+            }
+        return messages.get(language, messages["en"])
+
+    @staticmethod
     def onboarding_preference_updated(language: SupportedLanguage = "fr") -> str:
         """Success - onboarding preference updated."""
         messages = {

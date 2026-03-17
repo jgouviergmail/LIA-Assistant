@@ -37,16 +37,17 @@ class TestLLMDefaults:
             ), f"LLM_DEFAULTS['{llm_type}'] is {type(config)}, expected LLMAgentConfig"
 
     def test_default_count(self) -> None:
-        """Should have 38 LLM types (including evaluator, compaction)."""
-        assert len(LLM_DEFAULTS) == 38
+        """Should have 39 LLM types (including evaluator, compaction, subagent)."""
+        assert len(LLM_DEFAULTS) == 39
 
     @pytest.mark.parametrize(
         "llm_type,expected_provider,expected_model",
         [
             ("router", "openai", "gpt-5-mini"),
             ("response", "anthropic", "claude-sonnet-4-6"),
-            ("planner", "openai", "gpt-5.2"),
+            ("planner", "anthropic", "claude-sonnet-4-6"),
             ("mcp_excalidraw", "anthropic", "claude-opus-4-6"),
+            ("subagent", "anthropic", "claude-sonnet-4-6"),
         ],
     )
     def test_key_defaults(self, llm_type: str, expected_provider: str, expected_model: str) -> None:

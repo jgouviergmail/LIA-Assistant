@@ -31,6 +31,8 @@ graph TB
     ApprovalGate --> ApprovalDecision{User Decision}
     ApprovalDecision -->|Approved| TaskOrchestrator
     ApprovalDecision -->|Replan| PlannerNode
+    ApprovalDecision -->|"Rejected<br/>(has sub-agents)"| ReplanNoSA["Replan without<br/>sub-agents"]
+    ReplanNoSA -->|"exclude_sub_agent_tools"| PlannerNode
     ApprovalDecision -->|Rejected| ResponseNode
 
     TaskOrchestrator --> ExecutePlan[ParallelExecutor<br/>Wave-by-wave asyncio.gather]
@@ -43,8 +45,15 @@ graph TB
     DraftDecision -->|Confirm / Edit / Cancel| ResponseFinal
 
     ExecutePlan --> DomainAgents
+    ExecutePlan --> SubAgentDelegation
 
-    subgraph DomainAgents["16+ Domain Agents"]
+    subgraph SubAgentDelegation["Sub-Agent Delegation (F6)"]
+        direction TB
+        DelegateTool["delegate_to_sub_agent_tool"] --> SubPipeline["Sub-Agent Pipeline<br/>Query Analysis → Planner<br/>→ Executor → Synthesis"]
+        SubPipeline --> SubResult["Consolidated Result<br/>→ Parent Tracker"]
+    end
+
+    subgraph DomainAgents["17+ Domain Agents"]
         direction LR
         subgraph "Google / Apple / Microsoft"
             ContactAgent[contacts]
@@ -74,6 +83,7 @@ graph TB
     end
 
     DomainAgents --> ResponseFinal
+    SubAgentDelegation --> ResponseFinal
 
     ResponseNode --> UserResponse[AI Response to User]
     ResponseFinal --> UserResponse
@@ -91,3 +101,7 @@ graph TB
     style PatternCheck fill:#fff9e1
     style SkillCheck fill:#fff9e1
     style MCPAgents fill:#f0e1ff
+    style SubAgentDelegation fill:#e1fff5
+    style DelegateTool fill:#e1fff5
+    style SubPipeline fill:#e1fff5
+    style ReplanNoSA fill:#ffe1e1

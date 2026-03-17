@@ -140,7 +140,7 @@ admin_mcp_disabled_ctx: ContextVar[set[str] | None] = ContextVar(
     "admin_mcp_disabled_ctx", default=None
 )
 
-# Skills per-user disabled skills
-# Set per-request in AgentService._stream_with_new_services() from User.disabled_skills.
-# Read by callers of build_skills_catalog(), response_node, and skill_bypass to filter disabled skills.
-disabled_skills_ctx: ContextVar[set[str] | None] = ContextVar("disabled_skills_ctx", default=None)
+# Active skills for the current user (positive set).
+# Set per-request in AgentService._stream_with_new_services() via SkillPreferenceService.
+# Read by build_skills_catalog(), response_node, and skill_bypass to filter by inclusion.
+active_skills_ctx: ContextVar[set[str] | None] = ContextVar("active_skills_ctx", default=None)

@@ -1,7 +1,7 @@
 """Skills API router — list, import, delete, reload, toggle, download, description update.
 
-SKILL.md files on disk, no DB. SkillsCache in-memory.
-Per-user toggle stored in users.disabled_skills (JSONB).
+SKILL.md files on disk + SkillsCache in-memory for content.
+DB tables (skills, user_skill_states) for state + display metadata.
 """
 
 from __future__ import annotations
@@ -40,8 +40,32 @@ class SkillDescriptionUpdateRequest(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Shared helpers
+# Shared helpers (disk operations — unchanged)
 # ---------------------------------------------------------------------------
+
+
+def _merge_with_cache(
+    db_data: dict[str, Any],
+    *,
+    enabled_for_user: bool = True,
+) -> dict[str, Any]:
+    """Merge DB skill data with SkillsCache technical metadata for API response."""
+    from src.domains.skills.cache import SkillsCache
+
+    cached = SkillsCache.get_by_name(db_data["name"])
+    return {
+        "name": db_data["name"],
+        "description": db_data["description"],
+        "descriptions": db_data.get("descriptions"),
+        "scope": db_data["scope"],
+        "category": cached.get("category") if cached else None,
+        "priority": cached.get("priority", 50) if cached else 50,
+        "always_loaded": cached.get("always_loaded", False) if cached else False,
+        "has_scripts": bool(cached.get("scripts")) if cached else False,
+        "has_plan_template": bool(cached.get("plan_template")) if cached else False,
+        "enabled_for_user": enabled_for_user,
+        "admin_enabled": db_data.get("admin_enabled", True),
+    }
 
 
 def _skill_to_response(
@@ -50,11 +74,11 @@ def _skill_to_response(
     *,
     enabled_for_user: bool = True,
 ) -> dict[str, Any]:
-    """Build a safe API response dict from a parsed skill (no instructions)."""
+    """Build a safe API response dict from a parsed cache skill (no instructions)."""
     return {
         "name": skill["name"],
         "description": skill["description"],
-        "descriptions": skill.get("descriptions"),  # Translated descriptions keyed by language code
+        "descriptions": skill.get("descriptions"),
         "scope": scope,
         "category": skill.get("category"),
         "priority": skill.get("priority", 50),
@@ -103,15 +127,12 @@ def _extract_zip(content: bytes, base_dir: Path) -> Path:
             parent = Path(skill_md_path).parent
 
             if parent == Path(".") or parent == Path(""):
-                # Flat layout: SKILL.md at zip root → extract into named dir
                 target_dir = base_dir / "imported-skill"
                 target_dir.mkdir(parents=True, exist_ok=True)
             else:
-                # Nested layout: my-skill/SKILL.md → extract to base_dir
                 target_dir = base_dir / parent.parts[0]
                 target_dir.mkdir(parents=True, exist_ok=True)
 
-            # Zip Slip protection (check against base_dir, not target_dir)
             extract_to = (
                 target_dir.parent if parent != Path(".") and parent != Path("") else target_dir
             )
@@ -140,7 +161,6 @@ def _extract_zip(content: bytes, base_dir: Path) -> Path:
 
 def _extract_single_md(content: bytes, base_dir: Path) -> Path:
     """Extract a single SKILL.md file to a named directory."""
-    # Strip UTF-8 BOM if present (common when files are created on Windows)
     if content.startswith(b"\xef\xbb\xbf"):
         content = content[3:]
 
@@ -202,11 +222,7 @@ def _create_skill_zip(skill: dict[str, Any]) -> bytes:
 
 
 def _update_skill_file_description(skill_path: Path, new_description: str) -> None:
-    """Overwrite the `description` field in SKILL.md frontmatter and rewrite the file.
-
-    Uses yaml.safe_load + yaml.dump for correctness; formatting may change slightly
-    but the skill remains fully valid.
-    """
+    """Overwrite the `description` field in SKILL.md frontmatter and rewrite the file."""
     content = skill_path.read_text(encoding="utf-8")
     parts = content.split("---", 2)
     if len(parts) < 3:
@@ -229,11 +245,7 @@ async def _translate_description_all_langs(
     description: str,
     invoke_config: Any,
 ) -> dict[str, str]:
-    """Call LLM to translate a skill description into all 6 supported languages.
-
-    The prompt accepts any source language and always returns a JSON object with
-    keys: fr, en, es, de, it, zh.
-    """
+    """Call LLM to translate a skill description into all 6 supported languages."""
     from langchain_core.messages import HumanMessage, SystemMessage
 
     from src.domains.agents.prompts import load_prompt
@@ -294,21 +306,45 @@ def _validate_and_reload(target_dir: Path) -> dict[str, Any]:
 @router.get(
     "",
     summary="List available skills",
-    description="List admin skills + user's own skills (with override semantics).",
+    description="List system skills (admin-enabled) + user's own skills with activation state.",
 )
 async def list_skills(
     user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    """List admin skills + user's own skills."""
-    from src.domains.skills.cache import SkillsCache
+    """List available skills for the user-facing settings (Compétences LIA).
 
-    disabled: set[str] = set(getattr(user, "disabled_skills", None) or [])
-    skills = SkillsCache.get_for_user(str(user.id))
-    items = [
-        _skill_to_response(s, s["scope"], enabled_for_user=s["name"] not in disabled)
-        for s in skills
-        if not s.get("disable_model_invocation")
-    ]
+    System skills with admin_enabled=false are excluded.
+    User skills always shown regardless of is_active state.
+    """
+    from src.domains.skills.preference_service import SkillPreferenceService
+
+    svc = SkillPreferenceService(db)
+    db_skills = await svc.get_user_visible_skills(user.id)
+
+    items = [_merge_with_cache(s, enabled_for_user=s["is_active"]) for s in db_skills]
+    return {"skills": items, "total": len(items)}
+
+
+@router.get(
+    "/admin/list",
+    summary="List all admin skills with system toggle state (superuser)",
+    description="Returns all system skills with admin_enabled flag for admin management panel.",
+)
+async def list_admin_skills(
+    user: User = Depends(get_current_superuser_session),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """List all admin skills for the admin management panel.
+
+    Returns ALL system skills (including disabled) with admin_enabled flag.
+    """
+    from src.domains.skills.preference_service import SkillPreferenceService
+
+    svc = SkillPreferenceService(db)
+    db_skills = await svc.get_admin_system_skills()
+
+    items = [_merge_with_cache(s, enabled_for_user=True) for s in db_skills]
     return {"skills": items, "total": len(items)}
 
 
@@ -345,10 +381,12 @@ async def download_admin_skill(
 async def delete_admin_skill(
     skill_name: str,
     user: User = Depends(get_current_superuser_session),
+    db: AsyncSession = Depends(get_db),
 ) -> None:
-    """Delete a system skill from the disk and reload the cache."""
+    """Delete a system skill from disk + DB and reload the cache."""
     from src.core.config import get_settings
     from src.domains.skills.cache import SkillsCache
+    from src.domains.skills.preference_service import SkillPreferenceService
 
     settings = get_settings()
     skill = SkillsCache.get_by_name(skill_name)
@@ -357,9 +395,15 @@ async def delete_admin_skill(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Admin skill '{skill_name}' not found"
         )
 
+    # Delete from disk
     skill_dir = Path(skill["source_path"]).parent
     if skill_dir.exists():
         shutil.rmtree(skill_dir, ignore_errors=True)
+
+    # Delete from DB (CASCADE deletes user_skill_states)
+    svc = SkillPreferenceService(db)
+    await svc.delete_skill(skill_name)
+    await db.commit()
 
     SkillsCache.load_from_disk(settings.skills_system_path, settings.skills_users_path)
     logger.info("admin_skill_deleted", skill_name=skill_name, user_id=str(user.id))
@@ -370,17 +414,19 @@ async def delete_admin_skill(
     summary="Update admin skill description (superuser)",
     description=(
         "Update the description of an admin skill in any language. "
-        "Translates to English (stored in SKILL.md) and all 6 languages (stored in translations.json)."
+        "Translates to English (stored in SKILL.md) and all 6 languages (stored in DB + disk)."
     ),
 )
 async def update_admin_skill_description(
     skill_name: str,
     body: SkillDescriptionUpdateRequest,
     user: User = Depends(get_current_superuser_session),
+    db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    """Update description → translate to EN (SKILL.md) + all 6 langs (translations.json) → reload."""
+    """Update description → translate to EN (SKILL.md) + all 6 langs (DB + disk) → reload."""
     from src.core.config import get_settings
     from src.domains.skills.cache import SkillsCache
+    from src.domains.skills.preference_service import SkillPreferenceService
     from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metadata
 
     skill = SkillsCache.get_by_name(skill_name)
@@ -411,6 +457,7 @@ async def update_admin_skill_description(
     skill_path = Path(skill["source_path"])
     skill_dir = skill_path.parent
 
+    # Update disk (backward compat)
     try:
         _update_skill_file_description(skill_path, english_desc)
     except (OSError, ValueError) as exc:
@@ -428,6 +475,11 @@ async def update_admin_skill_description(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to write translations.json",
         ) from exc
+
+    # Update DB
+    svc = SkillPreferenceService(db)
+    await svc.admin_update_description(skill_name, english_desc, translations)
+    await db.commit()
 
     settings = get_settings()
     SkillsCache.load_from_disk(settings.skills_system_path, settings.skills_users_path)
@@ -458,7 +510,6 @@ async def download_skill(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Skill '{skill_name}' not found"
         )
 
-    # User skills: only the owner can download
     if skill.get("scope") == "user" and skill.get("owner_id") != user_id:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=f"Skill '{skill_name}' not found"
@@ -481,10 +532,12 @@ async def download_skill(
 async def import_skill(
     file: UploadFile,
     user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Import a SKILL.md file or .zip package (user scope)."""
     from src.core.config import get_settings
     from src.domains.skills.cache import SkillsCache
+    from src.domains.skills.preference_service import SkillPreferenceService
 
     settings = get_settings()
     user_id = str(user.id)
@@ -502,6 +555,17 @@ async def import_skill(
     target_dir = _extract_skill_to_dir(content, file.filename or "SKILL.md", base_dir)
     skill = _validate_and_reload(target_dir)
 
+    # Register in DB
+    svc = SkillPreferenceService(db)
+    await svc.create_skill_for_import(
+        name=skill["name"],
+        description=skill.get("description", skill["name"]),
+        is_system=False,
+        owner_id=user.id,
+        descriptions=skill.get("descriptions"),
+    )
+    await db.commit()
+
     logger.info("skill_imported", skill_name=skill["name"], user_id=user_id)
     return _skill_to_response(skill, "user")
 
@@ -515,9 +579,11 @@ async def import_skill(
 async def import_admin_skill(
     file: UploadFile,
     user: User = Depends(get_current_superuser_session),
+    db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Import a skill to the system (admin) directory."""
     from src.core.config import get_settings
+    from src.domains.skills.preference_service import SkillPreferenceService
 
     settings = get_settings()
     system_base = Path(settings.skills_system_path)
@@ -526,6 +592,16 @@ async def import_admin_skill(
     content = await file.read()
     target_dir = _extract_skill_to_dir(content, file.filename or "SKILL.md", system_base)
     skill = _validate_and_reload(target_dir)
+
+    # Register in DB + create states for all users
+    svc = SkillPreferenceService(db)
+    await svc.create_skill_for_import(
+        name=skill["name"],
+        description=skill.get("description", skill["name"]),
+        is_system=True,
+        descriptions=skill.get("descriptions"),
+    )
+    await db.commit()
 
     logger.info("admin_skill_imported", skill_name=skill["name"], user_id=str(user.id))
     return _skill_to_response(skill, "admin")
@@ -540,10 +616,12 @@ async def import_admin_skill(
 async def delete_skill(
     skill_name: str,
     user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
 ) -> None:
     """Delete a user skill (cannot delete admin skills)."""
     from src.core.config import get_settings
     from src.domains.skills.cache import SkillsCache
+    from src.domains.skills.preference_service import SkillPreferenceService
 
     settings = get_settings()
     user_id = str(user.id)
@@ -567,9 +645,15 @@ async def delete_skill(
             detail=f"Skill '{skill_name}' not found",
         )
 
+    # Delete from disk
     skill_dir = Path(skill["source_path"]).parent
     if skill_dir.exists():
         shutil.rmtree(skill_dir, ignore_errors=True)
+
+    # Delete from DB
+    svc = SkillPreferenceService(db)
+    await svc.delete_skill(skill_name)
+    await db.commit()
 
     SkillsCache.load_from_disk(settings.skills_system_path, settings.skills_users_path)
     logger.info("skill_deleted", skill_name=skill_name, user_id=user_id)
@@ -587,46 +671,60 @@ async def toggle_skill(
 ) -> dict[str, Any]:
     """Toggle a skill on/off for the current user.
 
-    Adds or removes the skill_name from user.disabled_skills.
-    Pattern: admin_mcp_disabled_servers toggle.
+    Updates is_active in user_skill_states table.
     """
-    from src.domains.skills.cache import SkillsCache
+    from src.domains.skills.preference_service import SkillPreferenceService
 
-    user_id = str(user.id)
-    skill = SkillsCache.get_by_name_for_user(skill_name, user_id)
-    if not skill:
+    svc = SkillPreferenceService(db)
+    try:
+        new_state = await svc.toggle_user_skill(user.id, skill_name)
+    except ValueError as err:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Skill '{skill_name}' not found",
-        )
+        ) from err
+    await db.commit()
 
-    # Users can only toggle their own skills or admin skills
-    if skill["scope"] == "user" and skill.get("owner_id") != user_id:
+    return {"skill_name": skill_name, "enabled_for_user": new_state}
+
+
+@router.patch(
+    "/admin/{skill_name}/system-toggle",
+    summary="Toggle a system skill on/off for all users (admin)",
+    description="System-level enable/disable. Disabled skills are hidden from non-superusers.",
+)
+async def admin_system_toggle_skill(
+    skill_name: str,
+    user: User = Depends(get_current_superuser_session),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Toggle a system skill on/off for all users.
+
+    Updates admin_enabled on skills table + is_active on all user_skill_states.
+    """
+    from src.domains.skills.preference_service import SkillPreferenceService
+    from src.domains.skills.repository import SkillRepository
+
+    skill_repo = SkillRepository(db)
+    db_skill = await skill_repo.get_by_name(skill_name)
+    if not db_skill or not db_skill.is_system:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Skill '{skill_name}' not found",
+            detail=f"System skill '{skill_name}' not found",
         )
 
-    disabled_skills: list[str] = list(getattr(user, "disabled_skills", None) or [])
-
-    if skill_name in disabled_skills:
-        disabled_skills.remove(skill_name)
-        enabled_for_user = True
-    else:
-        disabled_skills.append(skill_name)
-        enabled_for_user = False
-
-    user.disabled_skills = disabled_skills
-    db.add(user)
+    new_state = not db_skill.admin_enabled
+    svc = SkillPreferenceService(db)
+    await svc.admin_toggle_skill(skill_name, enable=new_state)
     await db.commit()
 
     logger.info(
-        "skill_toggled",
+        "system_skill_toggled",
         skill_name=skill_name,
-        user_id=user_id,
-        enabled=enabled_for_user,
+        admin_id=str(user.id),
+        admin_enabled=new_state,
     )
-    return {"skill_name": skill_name, "enabled_for_user": enabled_for_user}
+    return {"skill_name": skill_name, "admin_enabled": new_state}
 
 
 @router.post(
@@ -634,20 +732,18 @@ async def toggle_skill(
     summary="Translate a skill description (admin)",
     description=(
         "Generate LLM translations of a skill description to all 6 supported languages "
-        "(fr, en, es, de, it, zh) and persist them in translations.json next to SKILL.md."
+        "(fr, en, es, de, it, zh) and persist them in DB + translations.json."
     ),
 )
 async def translate_skill_description(
     skill_name: str,
     user: User = Depends(get_current_superuser_session),
+    db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    """Translate a system skill description (English) to all 6 languages via LLM.
-
-    Writes translations.json to the skill directory and reloads the cache.
-    Uses the skill_description_translator LLM type (configurable in admin UI).
-    """
+    """Translate a system skill description to all 6 languages via LLM."""
     from src.core.config import get_settings
     from src.domains.skills.cache import SkillsCache
+    from src.domains.skills.preference_service import SkillPreferenceService
     from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metadata
 
     skill = SkillsCache.get_by_name(skill_name)
@@ -678,6 +774,7 @@ async def translate_skill_description(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Translation failed"
         ) from exc
 
+    # Save to disk
     skill_dir = Path(skill["source_path"]).parent
     try:
         _save_translations(skill_dir, translations)
@@ -687,6 +784,11 @@ async def translate_skill_description(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to write translations.json",
         ) from exc
+
+    # Save to DB
+    svc = SkillPreferenceService(db)
+    await svc.admin_update_description(skill_name, skill["description"], translations)
+    await db.commit()
 
     settings = get_settings()
     SkillsCache.load_from_disk(settings.skills_system_path, settings.skills_users_path)
@@ -703,20 +805,33 @@ async def translate_skill_description(
 @router.post(
     "/reload",
     summary="Reload skills cache (admin)",
-    description="Force reload all skills from disk.",
+    description="Force reload all skills from disk and sync with DB.",
 )
 async def reload_skills(
     user: User = Depends(get_current_superuser_session),
+    db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    """Admin: force reload all skills from disk."""
+    """Admin: force reload all skills from disk and sync DB."""
     from src.core.config import get_settings
     from src.domains.skills.cache import SkillsCache
+    from src.domains.skills.preference_service import SkillPreferenceService
 
     settings = get_settings()
     SkillsCache.load_from_disk(settings.skills_system_path, settings.skills_users_path)
 
+    # Sync DB with disk
+    svc = SkillPreferenceService(db)
+    sync_result = await svc.sync_from_disk()
+    await db.commit()
+
     skills = SkillsCache.get_all()
-    logger.info("skills_reloaded", count=len(skills), user_id=str(user.id))
+    logger.info(
+        "skills_reloaded",
+        count=len(skills),
+        created=len(sync_result.created),
+        removed=len(sync_result.removed),
+        user_id=str(user.id),
+    )
     return {
         "status": "reloaded",
         "count": len(skills),

@@ -65,13 +65,15 @@ PLANNING INSTRUCTIONS:
 OUTPUT FORMAT (JSON only):
 {{
   "skill_name": "optional-skill-name-if-applicable",
+  "execution_mode": "sequential or parallel",
   "steps": [
     {{
       "id": "step_1",
       "agent_name": "{domains}_agent",
       "tool_name": "exact_tool_name_tool",
       "parameters": {{"param": "value"}},
-      "depends_on": []
+      "depends_on": [],
+      "timeout_seconds": 30
     }},
     {{
       "id": "step_2",
@@ -86,6 +88,12 @@ OUTPUT FORMAT (JSON only):
   ]
 }}
 
+EXECUTION MODE (CRITICAL):
+- "sequential": Steps execute one after another IN ORDER. Use when steps depend on each other.
+- "parallel": Steps with empty depends_on execute SIMULTANEOUSLY. Use when steps are independent.
+- DECIDE based on dependencies: if step_2 needs $steps.step_1.result → sequential. If steps are independent → parallel.
+- Default to "parallel" when steps have NO data dependencies between them.
+
 TOOL SELECTION:
 - CREATE → create_*_tool | SEARCH → get_*_tool | UPDATE → update_*_tool | DELETE → delete_*_tool
 - Unified tools return FULL DETAILS directly - no second "details" step needed.
@@ -98,6 +106,7 @@ SKILLS (optional):
 {skills_catalog}
 When a task matches a skill's description from the catalogue above, include "skill_name": "<skill-name>" at the top level of your JSON output alongside "steps". The skill's full instructions will be loaded for the response phase.
 
+{sub_agents_section}
 --- DYNAMIC CONTEXT (all variable data below) ---
 
 TEMPORAL CONTEXT:

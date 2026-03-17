@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { AnimatedCounter } from './AnimatedCounter';
 
 const STATS = [
-  { value: 16, suffix: '+', key: 'agents' },
+  { value: 17, suffix: '+', key: 'agents' },
   { value: 50, suffix: '+', key: 'tools' },
   { value: 6, suffix: '', key: 'providers' },
   { value: 99, suffix: '+', key: 'voice_languages' },

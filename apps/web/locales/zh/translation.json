@@ -1288,7 +1288,8 @@
           "vision_analysis": "视觉分析 — 用于分析附加图片和文档的模型",
           "skill_description_translator": "将技能描述翻译为所有6种支持的语言",
           "evaluator": "LLM-as-Judge 评估管道（相关性、幻觉检测）",
-          "compaction": "总结旧对话历史以释放上下文窗口空间"
+          "compaction": "总结旧对话历史以释放上下文窗口空间",
+          "subagent": "通过专业子代理执行委派任务（研究、分析、综合）"
         },
         "no_compatible_model": "该提供商没有支持此功能的模型",
         "categories": {
@@ -2169,6 +2170,10 @@
         "ragSpaces": {
           "title": "📚 RAG知识空间",
           "description": "创建个人知识空间并上传您的文档（PDF、TXT、MD、DOCX）。文档自动处理（文本提取、分块、OpenAI嵌入）。活跃空间通过混合搜索（pgvector余弦语义相似度 + BM25关键词匹配）丰富助手回答。完全的成本透明度，按文档和按查询跟踪嵌入费用。管理员重新索引端点用于嵌入模型变更。"
+        },
+        "subAgents": {
+          "title": "子代理",
+          "description": "将复杂任务委派给并行工作的专业临时专家。助手透明地编排和综合它们的发现。"
         }
       },
       "diagram_alt": "LIA架构图"
@@ -2707,6 +2712,29 @@
           "q6": {
             "question": "我可以下载或分享技能吗？",
             "answer": "<p>可以。将光标悬停在设置中的任意技能上，点击下载图标（⬇️），即可获得包含SKILL.md及所有相关文件（references/、scripts/、assets/）的 <code>.zip</code> 文件。</p>"
+          }
+        }
+      },
+      "sub_agents": {
+        "title": "子代理",
+        "description": "用于复杂委派任务的专业助手",
+        "count": "4",
+        "questions": {
+          "q1": {
+            "question": "什么是子代理？",
+            "answer": "<p>子代理是<strong>专业的临时助手</strong>，LIA主助手可以将任务委派给它们。当您的请求需要深入研究、多源分析或专业知识时，助手可以创建一个或多个并行工作的专家。</p><p>子代理是<strong>不可见的</strong>——您只与主助手交互，它将子代理的发现综合成自然的回复。</p>"
+          },
+          "q2": {
+            "question": "LIA何时使用子代理？",
+            "answer": "<p>LIA在以下情况下决定调用专家：</p><ul><li>您的请求涉及多个领域的<strong>并行研究</strong>（如：比较交通选择）</li><li>某个主题受益于<strong>深入的专业分析</strong>（如：技术审计、市场调研）</li><li>同时需要多个独立的<strong>专家意见</strong></li></ul><p>简单问题始终直接处理——只有在专家能带来真正价值时才会调用。</p><p><strong>您始终掌控：</strong>在启动专家之前，LIA会征求您的确认。如果您拒绝，她会自动切换到不使用子代理的标准方案。</p><p><strong>提示：</strong>您也可以明确要求LIA使用专家，例如：<em>&quot;请使用专业专家来处理我的请求&quot;</em>。</p>"
+          },
+          "q3": {
+            "question": "我可以禁用子代理吗？",
+            "answer": "<p>可以。前往<strong>设置 &gt; 功能 &gt; 子代理</strong>并关闭开关。助手将使用直接工具（网络搜索等）而不是委派。</p>"
+          },
+          "q4": {
+            "question": "子代理会消耗更多token吗？",
+            "answer": "<p>是的——每个子代理执行自己的LLM调用（规划+工具执行+综合）。3个专家的委派可能比单次直接搜索多消耗3-5倍的token。</p><p>已设置保护措施：每次执行预算、每用户每日预算，以及连续失败后自动禁用。所有子代理成本都会被跟踪，并在您的使用统计中可见。</p>"
           }
         }
       },
@@ -3608,6 +3636,10 @@
         "title": "Skills",
         "description": "为您的业务或个人需求量身定制LIA专家技能，即用即得。兼容Anthropic开放标准，与Claude Code、Cursor、VS Code及30+工具共享同一格式。"
       },
+      "sub_agents": {
+        "title": "子代理",
+        "description": "将复杂任务委派给并行工作的专业临时专家，进行深入研究、多源分析和专家综合。"
+      },
       "rag_spaces": {
         "title": "知识空间",
         "description": "将您的文档（PDF、TXT、MD、DOCX）上传到个人知识空间。LIA通过混合搜索（语义+关键词）自动用相关内容丰富其回答。"
@@ -3717,6 +3749,31 @@
       "copyright": "© {{year}} LIA. 保留所有权利。",
       "docs": "文档",
       "privacy": "隐私政策"
+    }
+  },
+  "sub_agents": {
+    "templates": {
+      "research_assistant": {
+        "name": "研究助手",
+        "description": "专注于深度网络研究、多源综合和事实核查"
+      },
+      "writing_assistant": {
+        "name": "写作助手",
+        "description": "专注于撰写、编辑和改善书面内容"
+      },
+      "data_analyst": {
+        "name": "数据分析师",
+        "description": "专注于分析电子邮件、日历和文件中的数据"
+      }
+    },
+    "settings": {
+      "title": "子代理",
+      "description": "用于委派任务的专业助手",
+      "enable_toggle": "启用子代理",
+      "enable_description": "允许助手将任务委派给专门的子代理",
+      "enabled_success": "子代理已启用",
+      "disabled_success": "子代理已禁用",
+      "info": "启用后，助手可以将研究、分析和综合任务委派给专业的子代理以获得更好的结果。"
     }
   }
 }

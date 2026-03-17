@@ -84,6 +84,17 @@ from src.core.constants import (
     ROUTER_PROMPT_VERSION_DEFAULT,
     SEMANTIC_VALIDATOR_PROMPT_VERSION_DEFAULT,
     SSE_HEARTBEAT_INTERVAL_DEFAULT,
+    # Sub-Agents (F6)
+    SUB_AGENTS_ENABLED_DEFAULT,
+    SUBAGENT_DEFAULT_MAX_ITERATIONS_DEFAULT,
+    SUBAGENT_DEFAULT_TIMEOUT_DEFAULT,
+    SUBAGENT_MAX_CONCURRENT_DEFAULT,
+    SUBAGENT_MAX_CONSECUTIVE_FAILURES_DEFAULT,
+    SUBAGENT_MAX_DEPTH_DEFAULT,
+    SUBAGENT_MAX_PER_USER_DEFAULT,
+    SUBAGENT_MAX_TOKEN_BUDGET_DEFAULT,
+    SUBAGENT_MAX_TOTAL_TOKENS_PER_DAY_DEFAULT,
+    SUBAGENT_STALE_RECOVERY_INTERVAL_DEFAULT,
     TOKEN_THRESHOLD_CRITICAL_DEFAULT,
     TOKEN_THRESHOLD_MAX_DEFAULT,
     TOKEN_THRESHOLD_SAFE_DEFAULT,
@@ -2365,6 +2376,70 @@ class AgentsSettings(BaseSettings):
         if v == "" or v is None:
             return None
         return v
+
+    # ========================================================================
+    # Sub-Agents (F6 — Persistent Specialized Sub-Agents)
+    # ========================================================================
+    sub_agents_enabled: bool = Field(
+        default=SUB_AGENTS_ENABLED_DEFAULT,
+        description="Enable the sub-agents system (feature flag).",
+    )
+    subagent_max_per_user: int = Field(
+        default=SUBAGENT_MAX_PER_USER_DEFAULT,
+        ge=1,
+        le=50,
+        description="Maximum number of sub-agents per user.",
+    )
+    subagent_max_concurrent: int = Field(
+        default=SUBAGENT_MAX_CONCURRENT_DEFAULT,
+        ge=1,
+        le=10,
+        description="Maximum concurrent sub-agent executions per user.",
+    )
+    subagent_max_depth: int = Field(
+        default=SUBAGENT_MAX_DEPTH_DEFAULT,
+        ge=1,
+        le=1,
+        description="Maximum sub-agent nesting depth (V1: always 1).",
+    )
+    subagent_default_timeout: int = Field(
+        default=SUBAGENT_DEFAULT_TIMEOUT_DEFAULT,
+        ge=10,
+        le=600,
+        description="Default execution timeout in seconds.",
+    )
+    subagent_default_max_iterations: int = Field(
+        default=SUBAGENT_DEFAULT_MAX_ITERATIONS_DEFAULT,
+        ge=1,
+        le=15,
+        description="Default max LLM iterations per sub-agent execution.",
+    )
+    # Sub-agent LLM model is configured via Admin > LLM Configuration > Sub-Agent
+    # (type "subagent" in LLM_TYPES_REGISTRY / LLM_DEFAULTS)
+    subagent_max_token_budget: int = Field(
+        default=SUBAGENT_MAX_TOKEN_BUDGET_DEFAULT,
+        ge=1000,
+        le=500000,
+        description="Maximum tokens per single sub-agent execution.",
+    )
+    subagent_max_total_tokens_per_day: int = Field(
+        default=SUBAGENT_MAX_TOTAL_TOKENS_PER_DAY_DEFAULT,
+        ge=10000,
+        le=5000000,
+        description="Maximum total tokens for all sub-agent executions per user per day.",
+    )
+    subagent_max_consecutive_failures: int = Field(
+        default=SUBAGENT_MAX_CONSECUTIVE_FAILURES_DEFAULT,
+        ge=1,
+        le=10,
+        description="Auto-disable sub-agent after N consecutive failures.",
+    )
+    subagent_stale_recovery_interval_seconds: int = Field(
+        default=SUBAGENT_STALE_RECOVERY_INTERVAL_DEFAULT,
+        ge=30,
+        le=600,
+        description="Interval in seconds for the stale sub-agent recovery job.",
+    )
 
 
 # =============================================================================

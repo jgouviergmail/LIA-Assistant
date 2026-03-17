@@ -323,6 +323,13 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         description_key="settings.admin.llmConfig.types.compaction",
         required_capabilities=[],
     ),
+    "subagent": LLMTypeMetadata(
+        llm_type="subagent",
+        display_name="Sub-Agent",
+        category=CATEGORY_DOMAIN_AGENTS,
+        description_key="settings.admin.llmConfig.types.subagent",
+        required_capabilities=["tools"],
+    ),
 }
 
 
@@ -344,14 +351,14 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         reasoning_effort="minimal",
     ),
     "query_analyzer": LLMAgentConfig(
-        provider="openai",
-        model="gpt-5.2",
+        provider="anthropic",
+        model="claude-sonnet-4-6",
         temperature=0.2,
         top_p=1.0,
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=5000,
-        reasoning_effort="medium",
+        reasoning_effort="low",
     ),
     "router": LLMAgentConfig(
         provider="openai",
@@ -364,25 +371,25 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         reasoning_effort="minimal",
     ),
     "planner": LLMAgentConfig(
-        provider="openai",
-        model="gpt-5.2",
+        provider="anthropic",
+        model="claude-sonnet-4-6",
         temperature=0.2,
         top_p=1.0,
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=20000,
         timeout_seconds=30,
-        reasoning_effort="medium",
+        reasoning_effort="low",
     ),
     "semantic_validator": LLMAgentConfig(
-        provider="openai",
-        model="gpt-5.2",
+        provider="anthropic",
+        model="claude-sonnet-4-6",
         temperature=0.0,
         top_p=1.0,
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=1000,
-        reasoning_effort="medium",
+        reasoning_effort="low",
     ),
     "context_resolver": LLMAgentConfig(
         provider="openai",
@@ -527,14 +534,14 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
     ),
     # --- Query & Response ---
     "query_agent": LLMAgentConfig(
-        provider="openai",
-        model="gpt-5.2",
+        provider="anthropic",
+        model="claude-sonnet-4-6",
         temperature=0.0,
         top_p=1.0,
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=5000,
-        reasoning_effort="medium",
+        reasoning_effort="low",
     ),
     "response": LLMAgentConfig(
         provider="anthropic",
@@ -544,6 +551,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.1,
         presence_penalty=0.0,
         max_tokens=5000,
+        reasoning_effort="medium",
     ),
     # --- HITL ---
     "hitl_classifier": LLMAgentConfig(
@@ -557,8 +565,8 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         reasoning_effort="minimal",
     ),
     "hitl_question_generator": LLMAgentConfig(
-        provider="anthropic",
-        model="claude-sonnet-4-6",
+        provider="openai",
+        model="gpt-4.1-mini",
         temperature=0.5,
         top_p=1.0,
         frequency_penalty=0.7,
@@ -615,6 +623,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=1000,
+        reasoning_effort="medium",
     ),
     "heartbeat_decision": LLMAgentConfig(
         provider="openai",
@@ -634,7 +643,7 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=500,
-        reasoning_effort="minimal",
+        reasoning_effort="medium",
     ),
     "broadcast_translator": LLMAgentConfig(
         provider="openai",
@@ -709,12 +718,22 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
     ),
     "compaction": LLMAgentConfig(
         provider="openai",
-        model="gpt-4.1-nano",
+        model="gpt-4.1-mini",
         temperature=0.0,
         top_p=1.0,
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=4000,
+    ),
+    "subagent": LLMAgentConfig(
+        provider="anthropic",
+        model="claude-sonnet-4-6",
+        temperature=0.5,
+        top_p=1.0,
+        frequency_penalty=0.0,
+        presence_penalty=0.0,
+        max_tokens=8000,
+        reasoning_effort="low",
     ),
 }
 

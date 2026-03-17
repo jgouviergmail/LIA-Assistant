@@ -204,6 +204,7 @@ class MessagesState(TypedDict):
     clarification_field: str | None  # Field for which clarification was asked (e.g., "subject")
     needs_replan: bool  # Flag to trigger planner regeneration after clarification
     replan_instructions: str | None  # Instructions for planner when replanning (from approval_gate)
+    exclude_sub_agent_tools: bool  # F6: Exclude sub-agent tools from catalogue during replan
     planner_iteration: (
         int  # Counter for clarification iterations (max: PLANNER_MAX_REPLANS setting)
     )
@@ -457,6 +458,7 @@ def create_initial_state(
         clarification_field=None,  # Field for which clarification was asked (e.g., "subject")
         needs_replan=False,  # Flag to trigger planner regeneration after clarification
         replan_instructions=None,  # Instructions for planner when replanning (from approval_gate)
+        exclude_sub_agent_tools=False,  # F6: Not excluded on initial state
         planner_iteration=0,  # Counter for clarification iterations (max: PLANNER_MAX_REPLANS setting)
         content_final_replacement=None,  # Phase 5.5: Post-processed content replacement
         last_action_turn_id=None,  # Context resolution: Last turn with agent execution

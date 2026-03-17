@@ -113,6 +113,7 @@ LLMType = Literal[
     "skill_description_translator",  # Skills: translate skill descriptions to all 6 languages
     "evaluator",  # Observability: LLM-as-Judge evaluation pipeline
     "compaction",  # Context compaction: summarize old conversation history
+    "subagent",  # F6: Sub-agent delegated task execution
 ]
 
 

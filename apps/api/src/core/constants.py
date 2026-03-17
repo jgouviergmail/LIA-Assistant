@@ -2574,3 +2574,33 @@ COMPACTION_ENABLED_DEFAULT = True
 
 # Scheduler
 SCHEDULER_JOB_ATTACHMENT_CLEANUP = "attachment_cleanup"
+
+# ============================================================================
+# SUB-AGENTS (F6 — Persistent Specialized Sub-Agents)
+# ============================================================================
+
+# Tool name (canonical — used in catalogue, validator, approval gate, planner)
+TOOL_NAME_DELEGATE_SUB_AGENT = "delegate_to_sub_agent_tool"
+
+# Feature flag (default: disabled)
+SUB_AGENTS_ENABLED_DEFAULT = False
+
+# Per-user limits
+SUBAGENT_MAX_PER_USER_DEFAULT = 10
+SUBAGENT_MAX_CONCURRENT_DEFAULT = 3
+SUBAGENT_MAX_DEPTH_DEFAULT = 1  # V1: no nesting
+
+# Execution defaults
+SUBAGENT_DEFAULT_TIMEOUT_DEFAULT = 120  # seconds
+SUBAGENT_DEFAULT_MAX_ITERATIONS_DEFAULT = 5
+
+# Token guard-rails
+SUBAGENT_MAX_TOKEN_BUDGET_DEFAULT = 50000  # per single execution
+SUBAGENT_MAX_TOTAL_TOKENS_PER_DAY_DEFAULT = 500000  # per user per day
+SUBAGENT_MAX_CONSECUTIVE_FAILURES_DEFAULT = 3  # auto-disable threshold
+
+# Stale recovery job interval (seconds)
+SUBAGENT_STALE_RECOVERY_INTERVAL_DEFAULT = 120
+
+# Scheduler job name
+SCHEDULER_JOB_SUBAGENT_STALE_RECOVERY = "subagent_stale_recovery"

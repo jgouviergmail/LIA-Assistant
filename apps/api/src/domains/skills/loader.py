@@ -39,6 +39,11 @@ EXTENSION_FIELDS: dict[str, Any] = {
     "priority": 50,
     "always_loaded": False,
     "plan_template": None,
+    # F6 Sub-Agents: declarative skill visibility
+    # agent_visibility: null (all) | list of agent types (e.g., ["research_assistant"])
+    # visibility_mode: "include" (whitelist) | "exclude" (blacklist)
+    "agent_visibility": None,
+    "visibility_mode": "include",
 }
 
 

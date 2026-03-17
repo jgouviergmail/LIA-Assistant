@@ -33,7 +33,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.4.7</strong> — Intelligent Context Compaction (F4) — March 2026
+  <strong>Version 1.5.0</strong> — Sub-Agents & Skills Refactoring — March 2026
 </p>
 
 ---
@@ -68,7 +68,7 @@
 |---------|---------------------|
 | **Unpredictable LLM costs** | Real-time token tracking, budget alerts, 93% optimization |
 | **Uncontrolled hallucinations** | Human-in-the-Loop (HITL) with 6 approval levels |
-| **Fragmented integrations** | Unified multi-domain orchestration (16 agents + MCP) |
+| **Fragmented integrations** | Unified multi-domain orchestration (17 agents + MCP + sub-agents) |
 | **Limited observability** | 500+ Prometheus metrics, 18 Grafana dashboards, GeoIP analytics |
 | **Inconsistent performance** | Local E5 embeddings (~50ms), semantic routing +48% accuracy |
 
@@ -117,7 +117,7 @@ LIA is available as a hosted service at **https://lia.jeyswork.com/** — no ins
 
 <p align="center">
   <img src="docs/assets/screenshot-settings-features.png" alt="Settings — Features (memory, interests, notifications)" width="800" />
-  <br /><em>Settings — Features: LIA Style, long-term memory, interests, proactive notifications, scheduled actions, channels</em>
+  <br /><em>Settings — Features: LIA Style, long-term memory, interests, proactive notifications, scheduled actions, sub-agents, channels</em>
 </p>
 
 <p align="center">
@@ -294,6 +294,15 @@ ExecutionStep(
 - **Multi-channel integration**: Result notifications via FCM, SSE, and Telegram
 - **Feature flag**: `SCHEDULED_ACTIONS_ENABLED=true` to enable
 
+### Sub-Agents (F6)
+
+- **Persistent specialized agents**: Create sub-agents with custom instructions, skills, and LLM configuration
+- **Read-only V1**: Sub-agents perform research, analysis, and synthesis — no write operations
+- **Template-based creation**: Pre-defined templates (Research Assistant, Writing Assistant, Data Analyst)
+- **Invisible to user**: The principal assistant orchestrates sub-agents and presents results naturally
+- **Token guard-rails**: Per-execution budget, daily budget, auto-disable after consecutive failures
+- **Feature flag**: `SUB_AGENTS_ENABLED=true` to enable (default: false)
+
 ### RAG Knowledge Spaces
 
 - **Personal knowledge bases**: Create spaces, upload documents (PDF, TXT, MD, DOCX), automatic chunking and embedding
@@ -467,6 +476,7 @@ MCP_USER_ENABLED=false         # Per-user MCP (requires MCP_ENABLED)
 CHANNELS_ENABLED=false         # Multi-channel messaging (Telegram)
 HEARTBEAT_ENABLED=false        # Autonomous proactive notifications
 SCHEDULED_ACTIONS_ENABLED=false # Recurring scheduled actions
+SUB_AGENTS_ENABLED=false       # Persistent specialized sub-agents
 SKILLS_ENABLED=false           # Skills system (agentskills.io standard)
 RAG_SPACES_ENABLED=true        # RAG Knowledge Spaces (document upload & retrieval)
 FCM_NOTIFICATIONS_ENABLED=false # Firebase push notifications
@@ -526,13 +536,16 @@ graph TD
     D --> E[Semantic Validator]
     E --> F{Approval Gate}
     F -->|approved| G[Task Orchestrator]
+    F -->|rejected sub-agents| D
     F -->|rejected| C
-    G --> H[Domain Agents]
-    H --> I[External APIs\nGoogle • Apple • Microsoft • MCP]
-    I --> H
-    H --> G
+    G --> H[Domain Agents + Tools]
+    G --> L[Sub-Agent Delegation]
+    H --> I[External APIs]
+    L --> M[Sub-Agent Pipeline]
+    M --> G
+    I --> G
     G --> C
-    C --> J[SSE Stream → User]
+    C --> J[SSE Stream]
 ```
 
 ### Code Structure (DDD)
@@ -557,6 +570,7 @@ apps/api/src/
 │   ├── user_mcp/            # Per-user MCP servers (CRUD, OAuth, domain routing)
 │   ├── voice/               # TTS factory, STT, Wake Word
 │   ├── skills/              # Skills system (agentskills.io standard)
+│   ├── sub_agents/          # Persistent specialized sub-agents (F6)
 │   ├── interests/           # Interest Learning System
 │   ├── heartbeat/           # Autonomous Heartbeat (Proactive Notifications)
 │   ├── channels/            # Multi-channel messaging (Telegram)

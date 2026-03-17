@@ -474,6 +474,18 @@ class TrackingContext:
             for r in records
         ]
 
+    def get_cumulative_tokens(self) -> int:
+        """Get total tokens consumed (prompt + completion) across all recorded nodes.
+
+        Public API for SubAgentTokenGuard and other consumers that need to check
+        cumulative token usage without accessing internal _node_records directly.
+
+        Returns:
+            Total tokens (prompt + completion) across all LLM calls in this context.
+        """
+        records = self._node_records if self._node_records else self._committed_records_copy
+        return sum(r.prompt_tokens + r.completion_tokens for r in records)
+
     def get_google_api_calls_breakdown(self) -> list[dict]:
         """
         Get detailed Google API calls for debug panel display.
@@ -552,13 +564,16 @@ class TrackingContext:
                     cost_eur=float(summary.total_cost_eur),
                     google_api_requests=summary.google_api_requests,
                 )
+                # Include Google API costs in total cost for accurate billing display
+                total_cost = float(summary.total_cost_eur) + float(summary.google_api_cost_eur or 0)
                 return {
                     FIELD_TOKENS_IN: summary.total_prompt_tokens,
                     FIELD_TOKENS_OUT: summary.total_completion_tokens,
                     FIELD_TOKENS_CACHE: summary.total_cached_tokens,
-                    FIELD_COST_EUR: float(summary.total_cost_eur),
+                    FIELD_COST_EUR: total_cost,
                     FIELD_MESSAGE_COUNT: self._message_count,
                     FIELD_GOOGLE_API_REQUESTS: summary.google_api_requests,
+                    FIELD_GOOGLE_API_COST_EUR: float(summary.google_api_cost_eur or 0),
                 }
             else:
                 # Fallback to in-memory if DB not yet updated (should not happen normally)
@@ -989,4 +1004,12 @@ class StatisticsService:
             await db.commit()
             await db.refresh(stats)
 
-        return UserStatisticsResponse.model_validate(stats)
+        response = UserStatisticsResponse.model_validate(stats)
+
+        # Include Google API costs in total cost fields for accurate billing display.
+        # DB stores LLM and Google API costs separately for traceability.
+        # We combine them here (service layer) so the frontend shows the real total.
+        response.total_cost_eur = response.total_cost_eur + response.total_google_api_cost_eur
+        response.cycle_cost_eur = response.cycle_cost_eur + response.cycle_google_api_cost_eur
+
+        return response

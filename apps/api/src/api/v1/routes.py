@@ -40,6 +40,10 @@ api_router.include_router(memories_router)
 api_router.include_router(interests_router)
 api_router.include_router(notifications_router)
 api_router.include_router(scheduled_actions_router)
+if getattr(settings, "sub_agents_enabled", False):
+    from src.domains.sub_agents.router import router as sub_agents_router
+
+    api_router.include_router(sub_agents_router)
 if getattr(settings, "mcp_enabled", False):
     from src.domains.user_mcp.admin_router import router as admin_mcp_router
 

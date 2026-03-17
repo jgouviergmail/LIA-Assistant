@@ -601,11 +601,25 @@ class GoogleRoutesClient:
             # Track API call (always non-cached for Routes Matrix API)
             track_google_api_call("routes", "/distanceMatrix/v2:computeRouteMatrix", cached=False)
 
-            # Matrix API returns streaming NDJSON - parse all results
-            results = []
-            for line in response.text.strip().split("\n"):
-                if line.strip():
-                    results.append(json.loads(line))
+            # Matrix API may return JSON array or streaming NDJSON
+            response_text = response.text.strip()
+            try:
+                # Try JSON array first (most common response format)
+                parsed = json.loads(response_text)
+                results = parsed if isinstance(parsed, list) else [parsed]
+            except json.JSONDecodeError:
+                # Fallback to NDJSON (one JSON object per line)
+                results = []
+                for line in response_text.split("\n"):
+                    line = line.strip()
+                    if line:
+                        try:
+                            results.append(json.loads(line))
+                        except json.JSONDecodeError:
+                            logger.warning(
+                                "routes_matrix_ndjson_line_parse_failed",
+                                line_preview=line[:100],
+                            )
 
             logger.info(
                 "routes_matrix_api_success",

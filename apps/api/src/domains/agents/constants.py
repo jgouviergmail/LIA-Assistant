@@ -250,6 +250,9 @@ STATE_KEY_PLANNER_ITERATION = (
 )
 STATE_KEY_NEEDS_REPLAN = "needs_replan"  # Phase 2 OPTIMPLAN: Flag to trigger planner regeneration
 STATE_KEY_REPLAN_INSTRUCTIONS = "replan_instructions"  # Instructions for planner when replanning
+STATE_KEY_EXCLUDE_SUB_AGENT_TOOLS = (
+    "exclude_sub_agent_tools"  # F6: Exclude sub-agent tools from catalogue during replan
+)
 STATE_KEY_APPROVAL_EVALUATION = "approval_evaluation"  # Phase 8: ApprovalEvaluation result
 STATE_KEY_PLAN_APPROVED = "plan_approved"  # Phase 8: Boolean flag if plan approved
 STATE_KEY_PLAN_REJECTION_REASON = "plan_rejection_reason"  # Phase 8: Rejection reason if rejected
@@ -669,6 +672,7 @@ __all__ = [
     "STATE_KEY_PLANNER_ITERATION",
     "STATE_KEY_NEEDS_REPLAN",
     "STATE_KEY_REPLAN_INSTRUCTIONS",
+    "STATE_KEY_EXCLUDE_SUB_AGENT_TOOLS",
     "STATE_KEY_APPROVAL_EVALUATION",
     "STATE_KEY_PLAN_APPROVED",
     "STATE_KEY_PLAN_REJECTION_REASON",

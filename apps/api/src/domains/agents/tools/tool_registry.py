@@ -354,6 +354,10 @@ def _import_tool_modules() -> None:
     if getattr(get_settings(), "skills_enabled", False):
         tool_modules.append(("src.domains.skills.tools", "skills_tools"))
 
+    # Sub-Agent delegation tool (F6): only register when feature is enabled
+    if getattr(get_settings(), "sub_agents_enabled", False):
+        tool_modules.append(("src.domains.agents.tools.sub_agent_tools", "sub_agent_tools"))
+
     for module_path, module_name in tool_modules:
         try:
             # Dynamic import

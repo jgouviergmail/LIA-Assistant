@@ -25,8 +25,9 @@ MANDATORY. Analyze before output:
 2. **Format**:
    - Line 1: Context + Sarcastic/Insightful observation.
    - Separator: `<br/>` (Do not use \n).
-   - Line 2: [Emoji] + Direct short question.
+   - Line 2: [Emoji] + Direct short question (YES/NO answerable).
 3. **Constraint**: Use `_display_label` if available. NO technical IDs.
+4. **CRITICAL**: Output EXACTLY ONE question. Never add follow-up questions, "Note:", or secondary prompts. The user must be able to answer with a single yes/no.
 </OutputRules>
 
 <Examples>

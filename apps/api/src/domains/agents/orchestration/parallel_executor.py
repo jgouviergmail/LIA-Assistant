@@ -1528,8 +1528,15 @@ async def _execute_single_step_async(
     enriched_config[FIELD_METADATA][FIELD_NODE_NAME] = f"parallel_executor:{step.step_id}"
 
     # Get timeout from step or use default, capped at MAX
+    # F6: Sub-agent delegation needs more time (full graph execution)
+    _SUBAGENT_TOOL_TIMEOUT = 120.0
+    effective_default = (
+        _SUBAGENT_TOOL_TIMEOUT
+        if step.tool_name == "delegate_to_sub_agent_tool"
+        else DEFAULT_TOOL_TIMEOUT_SECONDS
+    )
     timeout_seconds = min(
-        step.timeout_seconds or DEFAULT_TOOL_TIMEOUT_SECONDS,
+        step.timeout_seconds or effective_default,
         MAX_TOOL_TIMEOUT_SECONDS,
     )
 

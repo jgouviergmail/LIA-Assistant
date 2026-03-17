@@ -220,6 +220,7 @@ class UserBase(BaseModel, TimezoneValidatorMixin, ThemeValidatorMixin, FontFamil
     debug_panel_enabled: bool = Field(
         default=False, description="Debug panel enabled (requires admin user access setting)"
     )
+    sub_agents_enabled: bool = Field(default=True, description="Sub-agent delegation enabled")
     onboarding_completed: bool = Field(
         default=False, description="Onboarding tutorial has been completed/dismissed"
     )
@@ -265,6 +266,12 @@ class UserBase(BaseModel, TimezoneValidatorMixin, ThemeValidatorMixin, FontFamil
     def set_debug_panel_enabled_default(cls, v: bool | None) -> bool:
         """Ensure debug_panel_enabled defaults to False if None."""
         return v if v is not None else False
+
+    @field_validator("sub_agents_enabled", mode="before")
+    @classmethod
+    def set_sub_agents_enabled_default(cls, v: bool | None) -> bool:
+        """Ensure sub_agents_enabled defaults to True if None (opt-out)."""
+        return v if v is not None else True
 
     @field_validator("onboarding_completed", mode="before")
     @classmethod

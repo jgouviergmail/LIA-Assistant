@@ -106,6 +106,22 @@ from src.domains.agents.tools.wikipedia_tools import (
     search_wikipedia_tool,
 )
 
+# Sub-Agent Delegation Tool (F6 — feature-flagged)
+# Conditional import: only load when SUB_AGENTS_ENABLED=true
+try:
+    from src.core.config import settings as _settings
+
+    if getattr(_settings, "sub_agents_enabled", False):
+        from src.domains.agents.tools.sub_agent_tools import (
+            delegate_to_sub_agent_tool,
+        )
+
+        _SUB_AGENT_TOOLS_AVAILABLE = True
+    else:
+        _SUB_AGENT_TOOLS_AVAILABLE = False
+except Exception:
+    _SUB_AGENT_TOOLS_AVAILABLE = False
+
 __all__ = [
     # Google Contacts Tools
     "search_contacts_tool",
@@ -190,3 +206,11 @@ __all__ = [
     "ConnectorTool",
     "APIKeyConnectorTool",
 ]
+
+# Conditionally extend __all__ with sub-agent delegation tool
+if _SUB_AGENT_TOOLS_AVAILABLE:
+    __all__.extend(
+        [
+            "delegate_to_sub_agent_tool",
+        ]
+    )
