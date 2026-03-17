@@ -1,30 +1,65 @@
 name: "CodeQL Configuration"
 
-# Paths to ignore during analysis
-paths-ignore:
-  - '**/test/**'
-  - '**/tests/**'
-  - '**/node_modules/**'
-  - '**/dist/**'
-  - '**/build/**'
-  - '**/__pycache__/**'
-  - '**/migrations/**'
-  - '**/alembic/versions/**'
-
-# Paths to include during analysis
+# Only analyze production source code
 paths:
   - 'apps/api/src/**'
   - 'apps/web/src/**'
 
-# Disable default query suites
+# Exclude non-production code that generates false positives
+paths-ignore:
+  # Tests — assertions, pytest.raises patterns, mock data trigger false positives
+  - '**/test/**'
+  - '**/tests/**'
+  # Build artifacts and dependencies
+  - '**/node_modules/**'
+  - '**/dist/**'
+  - '**/build/**'
+  - '**/__pycache__/**'
+  - '**/.venv/**'
+  # Database migrations — Alembic uses module-level variables (revision, down_revision,
+  # branch_labels, depends_on) read by introspection, not direct reference
+  - '**/migrations/**'
+  - '**/alembic/**'
+  # Utility scripts — not production code, lower security bar
+  - 'scripts/**'
+  - 'apps/api/scripts/**'
+  # Infrastructure tooling — Prometheus renderers, dashboard analyzers
+  - 'infrastructure/**'
+  # Documentation templates
+  - 'docs/**'
+
+# Keep default queries enabled
 disable-default-queries: false
 
-# Query filters
+# Exclude rules that produce excessive false positives in this codebase
 query-filters:
+  # Unused imports: Python re-exports (noqa: F401), TYPE_CHECKING guards,
+  # SQLAlchemy side-effect imports are all legitimate patterns
   - exclude:
       id: py/unused-import
+  # Unused global variables: Alembic conventions (revision, down_revision),
+  # pytest fixtures, __all__ re-exports, module-level singletons
+  - exclude:
+      id: py/unused-global-variable
+  # Ineffectual statements: Docstrings on class attributes, type: ignore comments,
+  # and expression-level annotations are intentional Python patterns
+  - exclude:
+      id: py/ineffectual-statement
+  # Import-and-import-from: Common in large codebases with both package-level
+  # and specific imports (e.g., import structlog + from structlog import get_logger)
+  - exclude:
+      id: py/import-and-import-from
+  # Cyclic imports: All instances use TYPE_CHECKING guards (standard Python pattern
+  # for type annotations without runtime circular dependency)
+  - exclude:
+      id: py/unsafe-cyclic-import
+  - exclude:
+      id: py/cyclic-import
+  # Repeated imports: Intentional in files with conditional/lazy imports
+  - exclude:
+      id: py/repeated-import
 
-# Custom queries
+# Query suites
 queries:
   - uses: security-and-quality
   - uses: security-extended
