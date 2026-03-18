@@ -2504,15 +2504,74 @@ RAG_SPACES_RETRIEVAL_MIN_SCORE_DEFAULT = 0.5
 RAG_SPACES_MAX_CONTEXT_TOKENS_DEFAULT = 2000
 RAG_SPACES_HYBRID_ALPHA_DEFAULT = 0.7  # Weight for semantic vs BM25
 
-# MIME types (comma-separated)
+# MIME types (comma-separated) — 15 document formats + text/xml variant
 RAG_SPACES_ALLOWED_TYPES_DEFAULT = (
     "text/plain,text/markdown,application/pdf,"
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document,"
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation,"
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,"
+    "text/csv,application/rtf,text/html,"
+    "application/vnd.oasis.opendocument.text,"
+    "application/vnd.oasis.opendocument.spreadsheet,"
+    "application/vnd.oasis.opendocument.presentation,"
+    "application/epub+zip,application/json,"
+    "application/xml,text/xml"
 )
 
 # Embedding
 RAG_SPACES_EMBEDDING_MODEL_DEFAULT = "text-embedding-3-small"
 RAG_SPACES_EMBEDDING_DIMENSIONS_DEFAULT = 1536
+
+# RAG Drive Sync
+RAG_DRIVE_MAX_SOURCES_PER_SPACE_DEFAULT = 5
+RAG_DRIVE_MAX_FILES_PER_SYNC = 500
+
+# Google native MIME types -> export format mapping
+# google_mime: (export_mime, file_extension, stored_content_type)
+RAG_DRIVE_GOOGLE_EXPORT_MAP: dict[str, tuple[str, str, str]] = {
+    "application/vnd.google-apps.document": ("text/plain", ".txt", "text/plain"),
+    "application/vnd.google-apps.spreadsheet": ("text/csv", ".csv", "text/csv"),
+    "application/vnd.google-apps.presentation": ("text/plain", ".txt", "text/plain"),
+}
+
+# Regular file MIME types supported for Drive sync
+# drive_mime: (stored_content_type, file_extension)
+RAG_DRIVE_REGULAR_FILE_MAP: dict[str, tuple[str, str]] = {
+    "application/pdf": ("application/pdf", ".pdf"),
+    "text/plain": ("text/plain", ".txt"),
+    "text/markdown": ("text/markdown", ".md"),
+    "text/csv": ("text/csv", ".csv"),
+    "text/html": ("text/html", ".html"),
+    "application/rtf": ("application/rtf", ".rtf"),
+    "application/json": ("application/json", ".json"),
+    "application/xml": ("application/xml", ".xml"),
+    "text/xml": ("application/xml", ".xml"),
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document": (
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ".docx",
+    ),
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation": (
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        ".pptx",
+    ),
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": (
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        ".xlsx",
+    ),
+    "application/vnd.oasis.opendocument.text": (
+        "application/vnd.oasis.opendocument.text",
+        ".odt",
+    ),
+    "application/vnd.oasis.opendocument.spreadsheet": (
+        "application/vnd.oasis.opendocument.spreadsheet",
+        ".ods",
+    ),
+    "application/vnd.oasis.opendocument.presentation": (
+        "application/vnd.oasis.opendocument.presentation",
+        ".odp",
+    ),
+    "application/epub+zip": ("application/epub+zip", ".epub"),
+}
 
 # ============================================================================
 # SKILLS (agentskills.io standard)

@@ -10,21 +10,26 @@ Created: 2026-03-14
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, UploadFile, status
+from fastapi import APIRouter, Depends, Query, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.dependencies import get_db
+from src.core.exceptions import BaseAPIException
 from src.core.session_dependencies import (
     get_current_active_session,
     get_current_superuser_session,
 )
 from src.domains.auth.models import User
+from src.domains.rag_spaces.drive_sync import RAGDriveSyncService, sync_folder_background
 from src.domains.rag_spaces.processing import process_document
 from src.domains.rag_spaces.reindex import get_reindex_status as _get_reindex_status
 from src.domains.rag_spaces.reindex import start_reindexation
 from src.domains.rag_spaces.schemas import (
     RAGDocumentResponse,
     RAGDocumentStatusResponse,
+    RAGDriveSourceCreate,
+    RAGDriveSourceResponse,
+    RAGDriveSyncStatusResponse,
     RAGReindexResponse,
     RAGReindexStatusResponse,
     RAGSpaceCreate,
@@ -141,12 +146,14 @@ async def get_space_detail(
     user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
 ) -> RAGSpaceDetailResponse:
-    """Get detailed view of a space including documents list."""
+    """Get detailed view of a space including documents and Drive sources."""
     service = RAGSpaceService(db)
     detail = await service.get_space_detail(space_id, user.id)
+    nested_keys = {"documents", "drive_sources"}
     return RAGSpaceDetailResponse(
-        **{k: v for k, v in detail.items() if k != "documents"},
+        **{k: v for k, v in detail.items() if k not in nested_keys},
         documents=[RAGDocumentResponse(**d) for d in detail["documents"]],
+        drive_sources=[RAGDriveSourceResponse(**s) for s in detail.get("drive_sources", [])],
     )
 
 
@@ -223,7 +230,8 @@ async def upload_document(
     """
     Upload a document to a space.
 
-    Accepted formats: TXT, MD, PDF, DOCX.
+    Accepted formats: TXT, MD, PDF, DOCX, PPTX, XLSX, CSV, RTF,
+    HTML, ODT, ODS, ODP, EPUB, JSON, XML.
     The document is processed asynchronously (chunking + embedding).
     Poll the status endpoint to check processing progress.
     """
@@ -281,4 +289,145 @@ async def get_document_status(
         status=document.status,
         error_message=document.error_message,
         chunk_count=document.chunk_count,
+    )
+
+
+# ============================================================================
+# Drive Sources
+# ============================================================================
+
+
+@router.get(
+    "/{space_id}/drive-browse",
+    response_model=dict,
+    summary="Browse Google Drive folder contents",
+)
+async def browse_drive_contents(
+    space_id: UUID,
+    folder_id: str = Query(default="root"),
+    page_token: str | None = Query(default=None),
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Browse Drive folder contents (folders + files) for the folder picker."""
+    service = RAGDriveSyncService(db)
+    return await service.browse_drive_contents(user.id, folder_id, page_token)
+
+
+@router.post(
+    "/{space_id}/drive-sources",
+    response_model=RAGDriveSourceResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Link a Drive folder",
+)
+async def link_drive_folder(
+    space_id: UUID,
+    data: RAGDriveSourceCreate,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> RAGDriveSourceResponse:
+    """Link a Google Drive folder to a RAG space for sync."""
+    service = RAGDriveSyncService(db)
+    source = await service.link_folder(space_id, user.id, data.folder_id, data.folder_name)
+    return RAGDriveSourceResponse.model_validate(source)
+
+
+@router.get(
+    "/{space_id}/drive-sources",
+    response_model=list[RAGDriveSourceResponse],
+    summary="List linked Drive folders",
+)
+async def list_drive_sources(
+    space_id: UUID,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> list[RAGDriveSourceResponse]:
+    """List all Google Drive folders linked to a space."""
+    service = RAGSpaceService(db)
+    sources = await service.list_drive_sources(space_id, user.id)
+    return [RAGDriveSourceResponse.model_validate(s) for s in sources]
+
+
+@router.delete(
+    "/{space_id}/drive-sources/{source_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Unlink a Drive folder",
+)
+async def unlink_drive_folder(
+    space_id: UUID,
+    source_id: UUID,
+    delete_documents: bool = Query(default=False),
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Unlink a Google Drive folder from a space."""
+    service = RAGDriveSyncService(db)
+    await service.unlink_folder(space_id, source_id, user.id, delete_documents)
+
+
+@router.post(
+    "/{space_id}/drive-sources/{source_id}/sync",
+    response_model=RAGDriveSyncStatusResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Trigger Drive folder sync",
+)
+async def sync_drive_folder(
+    space_id: UUID,
+    source_id: UUID,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> RAGDriveSyncStatusResponse:
+    """Trigger manual sync of a Drive folder. Returns 202 Accepted."""
+    service = RAGDriveSyncService(db)
+
+    # Verify ownership
+    source = await service.get_sync_status(space_id, source_id, user.id)
+
+    # Atomic lock
+    acquired = await service.try_acquire_sync_lock(source_id)
+    if not acquired:
+        raise BaseAPIException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Sync already in progress",
+            log_event="rag_drive_sync_already_running",
+            source_id=str(source_id),
+        )
+
+    # Launch background sync
+    safe_fire_and_forget(
+        sync_folder_background(space_id, source_id, user.id),
+        name=f"drive_sync_{source_id}",
+    )
+
+    # Refetch after lock to return current status
+    source = await service.get_sync_status(space_id, source_id, user.id)
+    return RAGDriveSyncStatusResponse(
+        sync_status=source.sync_status,
+        last_sync_at=source.last_sync_at,
+        file_count=source.file_count,
+        synced_file_count=source.synced_file_count,
+        error_message=source.error_message,
+    )
+
+
+@router.get(
+    "/{space_id}/drive-sources/{source_id}/sync-status",
+    response_model=RAGDriveSyncStatusResponse,
+    summary="Get sync status",
+)
+async def get_drive_sync_status(
+    space_id: UUID,
+    source_id: UUID,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> RAGDriveSyncStatusResponse:
+    """Get the current sync status of a Drive folder source."""
+    service = RAGDriveSyncService(db)
+    source = await service.get_sync_status(space_id, source_id, user.id)
+    return RAGDriveSyncStatusResponse(
+        sync_status=source.sync_status,
+        last_sync_at=source.last_sync_at,
+        file_count=source.file_count,
+        synced_file_count=source.synced_file_count,
+        error_message=source.error_message,
     )

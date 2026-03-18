@@ -1312,7 +1312,7 @@ async def resolve_contact_to_email(
 CONTACT_RESOLUTION_MAX_RESULTS = 5
 ```
 
-### get_user_language_safe (v1.5.1)
+### get_user_language_safe (v1.5.2)
 
 ```python
 async def get_user_language_safe(
@@ -1343,7 +1343,7 @@ try:
 except Exception:
     pass
 
-# After (v1.5.1):
+# After (v1.5.2):
 from src.domains.agents.tools.runtime_helpers import get_user_language_safe
 
 language = await get_user_language_safe(self.runtime)

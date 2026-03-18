@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { Bell, Calendar, Clock, CloudSun, Brain, Sparkles, ListChecks } from 'lucide-react';
+import { Bell, Calendar, Clock, CloudSun, Brain, Mail, Sparkles, ListChecks } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import {
@@ -22,6 +22,7 @@ import type { BaseSettingsProps } from '@/types/settings';
  */
 const SOURCE_ICONS: Record<string, typeof Calendar> = {
   calendar: Calendar,
+  emails: Mail,
   tasks: ListChecks,
   weather: CloudSun,
   interests: Sparkles,
@@ -232,7 +233,7 @@ export function HeartbeatSettings({ lng, collapsible = true }: BaseSettingsProps
           <div className="space-y-2">
             <Label className="text-sm">{t('heartbeat.available_sources')}</Label>
             <div className="flex flex-wrap gap-2">
-              {(['calendar', 'tasks', 'weather', 'interests', 'memories'] as const).map((source) => {
+              {(['calendar', 'emails', 'tasks', 'weather', 'interests', 'memories'] as const).map((source) => {
                 const isConnected = settings.available_sources.includes(source);
                 const Icon = SOURCE_ICONS[source] || Brain;
                 return (

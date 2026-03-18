@@ -22,10 +22,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
 from src.core.exceptions import BaseAPIException
-from src.domains.rag_spaces.models import RAGDocument, RAGDocumentStatus, RAGSpace
+from src.domains.rag_spaces.models import RAGDocument, RAGDocumentStatus, RAGDriveSource, RAGSpace
 from src.domains.rag_spaces.repository import (
     RAGChunkRepository,
     RAGDocumentRepository,
+    RAGDriveSourceRepository,
     RAGSpaceRepository,
 )
 from src.infrastructure.observability.logging import get_logger
@@ -43,6 +44,18 @@ _EXT_TO_MIME: dict[str, str] = {
     ".md": "text/markdown",
     ".pdf": "application/pdf",
     ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ".csv": "text/csv",
+    ".rtf": "application/rtf",
+    ".html": "text/html",
+    ".htm": "text/html",
+    ".odt": "application/vnd.oasis.opendocument.text",
+    ".ods": "application/vnd.oasis.opendocument.spreadsheet",
+    ".odp": "application/vnd.oasis.opendocument.presentation",
+    ".epub": "application/epub+zip",
+    ".json": "application/json",
+    ".xml": "application/xml",
 }
 
 
@@ -125,6 +138,7 @@ class RAGSpaceService:
         self.space_repo = RAGSpaceRepository(db)
         self.doc_repo = RAGDocumentRepository(db)
         self.chunk_repo = RAGChunkRepository(db)
+        self.source_repo = RAGDriveSourceRepository(db)
 
     # ========================================================================
     # Space CRUD
@@ -194,14 +208,16 @@ class RAGSpaceService:
         return space
 
     async def get_space_detail(self, space_id: uuid.UUID, user_id: uuid.UUID) -> dict:
-        """Get space with documents and computed stats."""
+        """Get space with documents, Drive sources, and computed stats."""
         space = await self.get_space(space_id, user_id)
         stats = await self.doc_repo.get_space_stats(space_id)
         documents = await self.doc_repo.get_all_for_space(space_id)
+        drive_sources = await self.source_repo.get_all_for_space(space_id)
         return {
             **space.dict(),
             **stats,
             "documents": [doc.dict() for doc in documents],
+            "drive_sources": [src.dict() for src in drive_sources],
         }
 
     async def update_space(
@@ -447,3 +463,55 @@ class RAGSpaceService:
             raise_document_not_found(document_id)
 
         return document
+
+    # ========================================================================
+    # Drive Sources
+    # ========================================================================
+
+    async def list_drive_sources(
+        self,
+        space_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> list[RAGDriveSource]:
+        """List all Drive folder sources linked to a space.
+
+        Args:
+            space_id: RAG space ID.
+            user_id: Owning user ID.
+
+        Returns:
+            List of RAGDriveSource records.
+        """
+        await self.get_space(space_id, user_id)  # Verify ownership
+        return await self.source_repo.get_all_for_space(space_id)
+
+    async def get_drive_source(
+        self,
+        space_id: uuid.UUID,
+        source_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> RAGDriveSource:
+        """Get a single Drive source with ownership verification.
+
+        Args:
+            space_id: RAG space ID.
+            source_id: Drive source ID.
+            user_id: Owning user ID.
+
+        Returns:
+            RAGDriveSource instance.
+
+        Raises:
+            BaseAPIException: If space or source is not found.
+        """
+        await self.get_space(space_id, user_id)  # Verify ownership
+        source = await self.source_repo.get_by_id_and_space(source_id, space_id)
+        if not source:
+            raise BaseAPIException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Drive source not found",
+                log_event="rag_drive_source_not_found",
+                source_id=str(source_id),
+                space_id=str(space_id),
+            )
+        return source

@@ -33,7 +33,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.5.1</strong> — Skill Generator, CodeQL Security Hardening & Code Quality — March 2026
+  <strong>Version 1.5.2</strong> — RAG 15+ Formats, Google Drive Sync, Skill Generator, CodeQL Security Hardening — March 2026
 </p>
 
 ---
@@ -305,7 +305,8 @@ ExecutionStep(
 
 ### RAG Knowledge Spaces
 
-- **Personal knowledge bases**: Create spaces, upload documents (PDF, TXT, MD, DOCX), automatic chunking and embedding
+- **Personal knowledge bases**: Create spaces, upload documents in 15+ formats (PDF, DOCX, PPTX, XLSX, CSV, RTF, HTML, EPUB, and more), automatic chunking and embedding
+- **Google Drive folder sync**: Link Google Drive folders to spaces for automatic file vectorization with incremental change detection (new, modified, deleted). Feature flag: `RAG_SPACES_DRIVE_SYNC_ENABLED`
 - **Hybrid search**: Semantic similarity (pgvector cosine) + BM25 keyword matching with configurable alpha fusion
 - **Response enrichment**: RAG context automatically injected into assistant responses when active spaces exist
 - **Full cost transparency**: Embedding costs tracked per document and per query, visible in chat bubbles and dashboard

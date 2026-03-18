@@ -1796,10 +1796,46 @@
         "error": "Errore",
         "reindexing": "Reindicizzazione..."
       },
-      "upload_formats": "PDF, TXT, MD, DOCX — max {{maxSize}} MB",
+      "upload_formats": "15+ formati supportati — max {{maxSize}} MB",
+      "upload_formats_tooltip": "PDF, TXT, MD, DOCX, PPTX, XLSX, CSV, RTF, HTML, ODT, ODS, ODP, EPUB, JSON, XML",
       "chunk_count": "{{count}} frammenti",
       "embedding_tokens": "{{count}} token",
       "file_too_large": "\"{{name}}\" è troppo grande (max {{maxSize}} MB)"
+    },
+    "drive": {
+      "title": "Fonti Google Drive",
+      "empty": "Nessuna cartella Google Drive collegata.",
+      "link_folder": "Collega cartella",
+      "unlink": "Scollega",
+      "unlink_confirm_title": "Scollegare la cartella Drive?",
+      "unlink_confirm_message": "Sei sicuro di voler scollegare \"{{name}}\"?",
+      "unlink_delete_docs": "Elimina anche i documenti sincronizzati da questa cartella",
+      "unlink_success": "Cartella \"{{name}}\" scollegata.",
+      "sync_now": "Sincronizza ora",
+      "syncing": "Sincronizzazione...",
+      "sync_success": "Sincronizzazione completata per \"{{name}}\".",
+      "sync_error": "Sincronizzazione fallita per \"{{name}}\".",
+      "last_synced": "Ultima sync {{time}}",
+      "never_synced": "Mai sincronizzato",
+      "files_count": "{{count}} file",
+      "synced_count": "{{count}} sincronizzati",
+      "status_idle": "Non sincronizzato",
+      "status_syncing": "In sincronizzazione",
+      "status_completed": "Sincronizzato",
+      "status_error": "Errore",
+      "picker_title": "Seleziona una cartella Google Drive",
+      "picker_description": "Sfoglia il tuo Google Drive e seleziona una cartella da sincronizzare.",
+      "picker_empty": "Nessuna cartella trovata",
+      "picker_select": "Seleziona questa cartella",
+      "picker_loading": "Caricamento cartelle...",
+      "connector_required": "Collega Google Drive per usare questa funzione.",
+      "source_type_drive": "Drive",
+      "source_type_upload": "Upload",
+      "link_success": "Cartella \"{{name}}\" collegata con successo.",
+      "link_error": "Errore nel collegamento della cartella.",
+      "already_linked": "Questa cartella è già collegata a questo spazio.",
+      "sync_in_progress": "Sincronizzazione già in corso.",
+      "feature_disabled": "La sincronizzazione Drive è disattivata."
     }
   },
   "navigation": {
@@ -2692,7 +2728,7 @@
         }
       },
       "skills": {
-        "title": "Skills (competenze)",
+        "title": "Competenze (skills)",
         "description": "Estendere le capacità di LIA con istruzioni esperte",
         "count": "7",
         "questions": {
@@ -2752,15 +2788,15 @@
       "rag_spaces": {
         "title": "Spazi di conoscenza (RAG)",
         "description": "Carica e utilizza i tuoi documenti per arricchire le risposte dell'IA",
-        "count": "6",
+        "count": "7",
         "questions": {
           "q1": {
             "question": "Cosa sono gli Spazi di conoscenza?",
-            "answer": "<p>Gli Spazi di conoscenza (RAG — Retrieval-Augmented Generation) ti permettono di caricare i tuoi documenti per creare basi di conoscenza personali. Quando poni una domanda, LIA cerca automaticamente in questi documenti e arricchisce le sue risposte con contenuti pertinenti.</p><p><strong>Funzionalità principali:</strong><ul><li>Upload di file PDF, TXT, Markdown e DOCX</li><li>Suddivisione e indicizzazione automatica tramite embedding OpenAI</li><li>Ricerca ibrida (semantica + parole chiave BM25) per una rilevanza ottimale</li><li>Citazione delle fonti nelle risposte</li></ul></p>"
+            "answer": "<p>Gli Spazi di conoscenza (RAG — Retrieval-Augmented Generation) ti permettono di caricare i tuoi documenti per creare basi di conoscenza personali. Quando poni una domanda, LIA cerca automaticamente in questi documenti e arricchisce le sue risposte con contenuti pertinenti.</p><p><strong>Funzionalità principali:</strong><ul><li>Upload di 15+ formati: PDF, TXT, MD, DOCX, PPTX, XLSX, CSV, RTF, HTML, ODT, ODS, ODP, EPUB, JSON, XML</li><li>Suddivisione e indicizzazione automatica tramite embedding OpenAI</li><li>Ricerca ibrida (semantica + parole chiave BM25) per una rilevanza ottimale</li><li>Citazione delle fonti nelle risposte</li></ul></p>"
           },
           "q2": {
             "question": "Quali formati di file sono supportati?",
-            "answer": "<p>Gli Spazi di conoscenza accettano i seguenti formati:</p><ul><li><strong>PDF</strong> — estrazione testo tramite PyMuPDF</li><li><strong>TXT</strong> — file di testo semplice</li><li><strong>Markdown (.md)</strong> — documentazione e note</li><li><strong>DOCX</strong> — documenti Microsoft Word</li></ul><p><strong>Limiti:</strong> massimo 20 MB per file, fino a 50 documenti per spazio e 10 spazi per utente.</p>"
+            "answer": "<p>Gli Spazi di conoscenza accettano <strong>15+ formati</strong>:</p><ul><li><strong>PDF</strong> — estrazione testo tramite PyMuPDF</li><li><strong>TXT</strong> — file di testo semplice</li><li><strong>Markdown (.md)</strong> — documentazione e note</li><li><strong>DOCX</strong> — documenti Microsoft Word</li><li><strong>PPTX</strong> — presentazioni PowerPoint</li><li><strong>XLSX</strong> — fogli di calcolo Excel</li><li><strong>CSV</strong> — dati tabulari</li><li><strong>RTF</strong> — Rich Text Format</li><li><strong>HTML</strong> — pagine web</li><li><strong>ODT / ODS / ODP</strong> — documenti LibreOffice</li><li><strong>EPUB</strong> — e-book</li><li><strong>JSON</strong> — dati strutturati</li><li><strong>XML</strong> — markup strutturato</li></ul><p><strong>Limiti:</strong> massimo 20 MB per file, fino a 50 documenti per spazio e 10 spazi per utente.</p>"
           },
           "q3": {
             "question": "Come funziona l'elaborazione dei documenti?",
@@ -2777,6 +2813,10 @@
           "q6": {
             "question": "Quanto costa il RAG?",
             "answer": "<p>Il RAG utilizza gli embedding OpenAI, che hanno un costo contenuto:</p><ul><li><strong>Indicizzazione</strong> (upload) — costo una tantum per documento con <code>text-embedding-3-small</code> ($0,02/milione di token)</li><li><strong>Ricerca</strong> (ogni query) — embedding della tua domanda (pochi token per query)</li></ul><p>I costi sono <strong>completamente tracciati</strong> e visibili nel dettaglio costi dei messaggi dell'assistente e nella tua dashboard di utilizzo. Il costo di embedding RAG appare sotto il modello <code>text-embedding-3-small</code>.</p><p><strong>Consiglio:</strong> per un tipico PDF di 10 pagine, l'indicizzazione costa meno di $0,001.</p>"
+          },
+          "q7": {
+            "question": "Come funziona la sincronizzazione con Google Drive?",
+            "answer": "<p>Puoi collegare cartelle Google Drive ai tuoi spazi di conoscenza. Clicca su <strong>«Collega cartella»</strong>, sfoglia il tuo Drive e seleziona una cartella. LIA elenca i file supportati, li scarica e li elabora attraverso la stessa pipeline di indicizzazione.</p><p>Usa <strong>«Sincronizza ora»</strong> per aggiornare — LIA rileva automaticamente file nuovi, modificati ed eliminati.</p><p><strong>Dettagli chiave:</strong><ul><li>Supporta Google Docs, Sheets e Slides tramite esportazione API</li><li>Isolamento errori per file — un file in errore non blocca gli altri</li><li>Feature flag: <code>RAG_SPACES_DRIVE_SYNC_ENABLED</code></li></ul></p>"
           }
         }
       },
@@ -3419,6 +3459,7 @@
     "push_description": "Quando disattivato, i messaggi vengono archiviati silenziosamente nella conversazione",
     "available_sources": "Fonti dati disponibili",
     "source_calendar": "Calendario",
+    "source_emails": "Email",
     "source_tasks": "Attività",
     "source_weather": "Meteo",
     "source_interests": "Interessi",
@@ -3653,7 +3694,7 @@
       },
       "rag_spaces": {
         "title": "Spazi di conoscenza",
-        "description": "Carica i tuoi documenti (PDF, TXT, MD, DOCX) in spazi di conoscenza personali. LIA arricchisce automaticamente le sue risposte con contenuti pertinenti tramite ricerca ibrida (semantica + parole chiave)."
+        "description": "Carica documenti in 15+ formati (PDF, DOCX, PPTX, XLSX, HTML, EPUB e altri) o sincronizza cartelle Google Drive direttamente. LIA indicizza automaticamente e arricchisce le risposte tramite ricerca ibrida (semantica + parole chiave)."
       }
     },
     "use_cases": {

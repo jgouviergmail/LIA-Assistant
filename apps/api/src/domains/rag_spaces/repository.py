@@ -14,7 +14,13 @@ from sqlalchemy import case, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.repository import BaseRepository
-from src.domains.rag_spaces.models import RAGChunk, RAGDocument, RAGDocumentStatus, RAGSpace
+from src.domains.rag_spaces.models import (
+    RAGChunk,
+    RAGDocument,
+    RAGDocumentStatus,
+    RAGDriveSource,
+    RAGSpace,
+)
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -88,6 +94,47 @@ class RAGSpaceRepository(BaseRepository[RAGSpace]):
         return result.scalar_one_or_none()
 
 
+class RAGDriveSourceRepository(BaseRepository[RAGDriveSource]):
+    """Repository for RAG Drive Source model with space-scoped queries."""
+
+    def __init__(self, db: AsyncSession) -> None:
+        super().__init__(db, RAGDriveSource)
+
+    async def get_all_for_space(self, space_id: UUID) -> list[RAGDriveSource]:
+        """Get all Drive sources for a space, ordered by creation date descending."""
+        stmt = (
+            select(RAGDriveSource)
+            .where(RAGDriveSource.space_id == space_id)
+            .order_by(RAGDriveSource.created_at.desc())
+        )
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
+    async def get_by_id_and_space(self, source_id: UUID, space_id: UUID) -> RAGDriveSource | None:
+        """Get a Drive source by ID scoped to a specific space."""
+        stmt = select(RAGDriveSource).where(
+            RAGDriveSource.id == source_id,
+            RAGDriveSource.space_id == space_id,
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def count_for_space(self, space_id: UUID) -> int:
+        """Count Drive sources in a space."""
+        stmt = select(func.count(RAGDriveSource.id)).where(RAGDriveSource.space_id == space_id)
+        result = await self.db.execute(stmt)
+        return result.scalar_one()
+
+    async def exists_for_space_and_folder(self, space_id: UUID, folder_id: str) -> bool:
+        """Check whether a Drive folder is already linked to a space."""
+        stmt = select(func.count(RAGDriveSource.id)).where(
+            RAGDriveSource.space_id == space_id,
+            RAGDriveSource.folder_id == folder_id,
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one() > 0
+
+
 class RAGDocumentRepository(BaseRepository[RAGDocument]):
     """Repository for RAG Document model with space-scoped queries."""
 
@@ -159,6 +206,34 @@ class RAGDocumentRepository(BaseRepository[RAGDocument]):
             "total_size": row.total_size,
             "ready_document_count": row.ready_document_count,
         }
+
+    async def get_drive_documents_for_source(self, drive_source_id: UUID) -> list[RAGDocument]:
+        """Get all documents originating from a specific Drive source."""
+        stmt = (
+            select(RAGDocument)
+            .where(RAGDocument.drive_source_id == drive_source_id)
+            .order_by(RAGDocument.created_at.desc())
+        )
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
+    async def get_by_drive_file_id(self, space_id: UUID, drive_file_id: str) -> RAGDocument | None:
+        """Get a document by its Google Drive file ID within a space."""
+        stmt = select(RAGDocument).where(
+            RAGDocument.space_id == space_id,
+            RAGDocument.drive_file_id == drive_file_id,
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_drive_file_ids_for_source(self, drive_source_id: UUID) -> set[str]:
+        """Get all Drive file IDs already ingested for a given source."""
+        stmt = select(RAGDocument.drive_file_id).where(
+            RAGDocument.drive_source_id == drive_source_id,
+            RAGDocument.drive_file_id.is_not(None),
+        )
+        result = await self.db.execute(stmt)
+        return {row[0] for row in result.all()}
 
 
 class RAGChunkRepository(BaseRepository[RAGChunk]):

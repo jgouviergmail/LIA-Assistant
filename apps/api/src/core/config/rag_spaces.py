@@ -19,6 +19,7 @@ from pydantic import Field
 from pydantic_settings import BaseSettings
 
 from src.core.constants import (
+    RAG_DRIVE_MAX_SOURCES_PER_SPACE_DEFAULT,
     RAG_SPACES_ALLOWED_TYPES_DEFAULT,
     RAG_SPACES_CHUNK_OVERLAP_DEFAULT,
     RAG_SPACES_CHUNK_SIZE_DEFAULT,
@@ -167,4 +168,20 @@ class RAGSpacesSettings(BaseSettings):
             "Embedding vector dimensions for pgvector column. "
             "Must match the chosen embedding model output dimensions."
         ),
+    )
+
+    # ========================================================================
+    # Drive Sync Configuration
+    # ========================================================================
+
+    rag_spaces_drive_sync_enabled: bool = Field(
+        default=True,
+        description="Enable Google Drive folder sync for RAG Spaces.",
+    )
+
+    rag_drive_max_sources_per_space: int = Field(
+        default=RAG_DRIVE_MAX_SOURCES_PER_SPACE_DEFAULT,
+        ge=1,
+        le=20,
+        description="Maximum number of Drive folder sources per space.",
     )

@@ -133,7 +133,7 @@ class AgentService(
         logger.info("agent_service_initialized")
 ```
 
-> **Note (v1.5.1)**: `AgentService.__init__` delegates to `super().__init__()` which initializes
+> **Note (v1.5.2)**: `AgentService.__init__` delegates to `super().__init__()` which initializes
 > all mixin attributes (`graph`, `_store`, `hitl_classifier`, etc.) via `GraphManagementMixin`.
 > The previous pattern manually duplicated these attributes and is now removed.
 

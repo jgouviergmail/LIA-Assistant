@@ -1993,6 +1993,33 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 
 ---
 
+### ADR-056: RAG Spaces — Google Drive Folder Sync
+
+**Status**: ✅ IMPLEMENTED (2026-03-17)
+**Fichier**: `docs/architecture/ADR-056-RAG-Drive-Sync.md`
+
+**Décision**: Permettre aux utilisateurs de **lier des dossiers Google Drive** à leurs RAG Spaces et de **synchroniser** le contenu via un bouton "Sync Now" (sync manuelle V1).
+
+**Problème résolu**:
+- ❌ Upload manuel obligatoire (download Drive → upload RAG)
+- ❌ Pas de synchronisation avec les fichiers cloud existants
+- ❌ Workflow fastidieux décourageant l'adoption
+
+**Solution**:
+- ✅ `RAGDriveSyncService` avec link/unlink/browse/sync
+- ✅ Sync incrémentale via `modifiedTime` (skip fichiers non modifiés)
+- ✅ Lock atomique DB (`UPDATE WHERE sync_status != 'syncing'`)
+- ✅ Isolation erreurs par fichier (un échec ne bloque pas le sync)
+- ✅ Feature flag `rag_spaces_drive_sync_enabled`
+
+**Impact**:
+- ✅ 6 nouveaux endpoints REST pour opérations Drive
+- ✅ Réutilisation complète du pipeline RAG existant
+- ✅ 4 métriques Prometheus (runs, files, duration, sources)
+- ✅ Cap pagination 500 fichiers + Semaphore(5) pour throttling
+
+---
+
 ## ADRs Archivés
 
 ### ADR-005 (Version Originale): Workflow-Based HITL

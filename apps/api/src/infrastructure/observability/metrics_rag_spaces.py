@@ -117,3 +117,30 @@ rag_reindex_documents_total = Counter(
     "Total documents processed during reindexation",
     ["status"],  # status: success|error
 )
+
+# ============================================================================
+# Drive Sync Metrics
+# ============================================================================
+
+rag_drive_sync_runs_total = Counter(
+    "rag_drive_sync_runs_total",
+    "Total Drive folder sync runs by status",
+    ["status"],  # status: started|completed|error
+)
+
+rag_drive_sync_duration_seconds = Histogram(
+    "rag_drive_sync_duration_seconds",
+    "Duration of Drive folder sync operations",
+    buckets=[5.0, 10.0, 30.0, 60.0, 120.0, 300.0, 600.0],
+)
+
+rag_drive_sync_files_total = Counter(
+    "rag_drive_sync_files_total",
+    "Total files processed during Drive sync by result",
+    ["result"],  # result: synced|skipped|failed|deleted
+)
+
+rag_drive_sources_total_count = Gauge(
+    "rag_drive_sources_total_count",
+    "Total number of linked Drive folder sources",
+)

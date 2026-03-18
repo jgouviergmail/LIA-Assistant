@@ -1,8 +1,9 @@
 'use client';
 
 import { useTranslation } from 'react-i18next';
-import { Coins, FileText, FileType2, Trash2 } from 'lucide-react';
+import { Coins, FileText, FileType2, HardDriveDownload, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { DocumentProcessingStatus } from './DocumentProcessingStatus';
 import { formatFileSize } from '@/lib/format';
 import type { RAGDocument } from '@/types/rag-spaces';
@@ -32,7 +33,14 @@ export function DocumentRow({ document: doc, onDelete, deleting }: DocumentRowPr
 
       {/* Info */}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate">{doc.original_filename}</p>
+        <div className="flex items-center gap-1.5">
+          <p className="text-sm font-medium truncate">{doc.original_filename}</p>
+          {doc.source_type === 'drive' && (
+            <Badge variant="outline" size="sm" icon={<HardDriveDownload className="h-2.5 w-2.5" />}>
+              {t('spaces.drive.source_type_drive')}
+            </Badge>
+          )}
+        </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
           <span>{formatFileSize(doc.file_size)}</span>
           {doc.status === 'ready' && (

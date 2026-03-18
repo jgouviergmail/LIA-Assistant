@@ -78,6 +78,202 @@ def extract_text_docx(file_path: Path) -> str:
     return "\n".join(para.text for para in doc.paragraphs if para.text.strip())
 
 
+def extract_text_pptx(file_path: Path) -> str:
+    """Extract text from PPTX slides, tables, and speaker notes."""
+    from pptx import Presentation
+
+    prs = Presentation(str(file_path))
+    text_parts: list[str] = []
+    for slide in prs.slides:
+        for shape in slide.shapes:
+            if shape.has_text_frame:
+                for paragraph in shape.text_frame.paragraphs:
+                    text = paragraph.text.strip()
+                    if text:
+                        text_parts.append(text)
+            elif shape.has_table:
+                for row in shape.table.rows:
+                    cells = [cell.text.strip() for cell in row.cells]
+                    if any(cells):
+                        text_parts.append("\t".join(cells))
+        if slide.has_notes_slide and slide.notes_slide.notes_text_frame:
+            notes = slide.notes_slide.notes_text_frame.text.strip()
+            if notes:
+                text_parts.append(notes)
+    return "\n".join(text_parts)
+
+
+def extract_text_xlsx(file_path: Path) -> str:
+    """Extract text from XLSX spreadsheet cells, sheet by sheet."""
+    from openpyxl import load_workbook  # type: ignore[import-untyped]
+
+    wb = load_workbook(str(file_path), read_only=True, data_only=True)
+    text_parts: list[str] = []
+    for sheet in wb.worksheets:
+        rows: list[str] = []
+        for row in sheet.iter_rows(values_only=True):
+            cells = [str(cell) if cell is not None else "" for cell in row]
+            if any(c.strip() for c in cells):
+                rows.append("\t".join(cells))
+        if rows:
+            text_parts.append(f"[{sheet.title}]\n" + "\n".join(rows))
+    wb.close()
+    return "\n\n".join(text_parts)
+
+
+def extract_text_csv(file_path: Path) -> str:
+    """Extract text from CSV file as tab-separated rows."""
+    import csv
+
+    text_parts: list[str] = []
+    with file_path.open(encoding="utf-8", errors="replace", newline="") as f:
+        reader = csv.reader(f)
+        for row in reader:
+            if any(cell.strip() for cell in row):
+                text_parts.append("\t".join(row))
+    return "\n".join(text_parts)
+
+
+def extract_text_rtf(file_path: Path) -> str:
+    """Extract text from RTF using striprtf."""
+    from striprtf.striprtf import rtf_to_text  # type: ignore[import-untyped]
+
+    raw = file_path.read_text(encoding="utf-8", errors="replace")
+    return str(rtf_to_text(raw))
+
+
+def extract_text_html(file_path: Path) -> str:
+    """Extract readable text from HTML using markdownify."""
+    from markdownify import markdownify
+
+    raw_html = file_path.read_text(encoding="utf-8", errors="replace")
+    return markdownify(raw_html, strip=["img", "script", "style"])
+
+
+def _odf_extract_text(node: object) -> str:
+    """Recursively extract text from an ODF node tree.
+
+    Handles nested ``<text:span>`` elements within ``<text:p>`` paragraphs.
+    Text nodes (nodeType == 3) carry data; element nodes (nodeType == 1)
+    contain children that must be traversed.
+    """
+    if getattr(node, "nodeType", None) == 3:  # Text node
+        return getattr(node, "data", "")
+    parts: list[str] = []
+    for child in getattr(node, "childNodes", []):
+        parts.append(_odf_extract_text(child))
+    return "".join(parts)
+
+
+def extract_text_odt(file_path: Path) -> str:
+    """Extract text from ODT (OpenDocument Text)."""
+    from odf import text as odf_text  # type: ignore[import-untyped]
+    from odf.opendocument import load  # type: ignore[import-untyped]
+
+    doc = load(str(file_path))
+    text_parts: list[str] = []
+    for paragraph in doc.getElementsByType(odf_text.P):
+        content = _odf_extract_text(paragraph)
+        if content.strip():
+            text_parts.append(content)
+    return "\n".join(text_parts)
+
+
+def extract_text_ods(file_path: Path) -> str:
+    """Extract text from ODS (OpenDocument Spreadsheet)."""
+    from odf.opendocument import load
+    from odf.table import Table, TableCell, TableRow  # type: ignore[import-untyped]
+    from odf.text import P  # type: ignore[import-untyped]
+
+    doc = load(str(file_path))
+    text_parts: list[str] = []
+    for table in doc.getElementsByType(Table):
+        table_name = table.getAttribute("name") or "Sheet"
+        rows: list[str] = []
+        for row in table.getElementsByType(TableRow):
+            cells: list[str] = []
+            for cell in row.getElementsByType(TableCell):
+                cell_texts = []
+                for p in cell.getElementsByType(P):
+                    cell_texts.append(_odf_extract_text(p))
+                cells.append(" ".join(cell_texts))
+            if any(c.strip() for c in cells):
+                rows.append("\t".join(cells))
+        if rows:
+            text_parts.append(f"[{table_name}]\n" + "\n".join(rows))
+    return "\n\n".join(text_parts)
+
+
+def extract_text_odp(file_path: Path) -> str:
+    """Extract text from ODP (OpenDocument Presentation)."""
+    from odf.draw import Frame, Page  # type: ignore[import-untyped]
+    from odf.opendocument import load
+    from odf.text import P
+
+    doc = load(str(file_path))
+    text_parts: list[str] = []
+    for page in doc.getElementsByType(Page):
+        for frame in page.getElementsByType(Frame):
+            for p in frame.getElementsByType(P):
+                content = _odf_extract_text(p)
+                if content.strip():
+                    text_parts.append(content)
+    return "\n".join(text_parts)
+
+
+def extract_text_epub(file_path: Path) -> str:
+    """Extract chapter text from EPUB in spine (reading) order."""
+    import warnings
+
+    import ebooklib  # type: ignore[import-untyped]
+    from ebooklib import epub
+    from markdownify import markdownify
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        book = epub.read_epub(str(file_path))
+
+    text_parts: list[str] = []
+    for item_id, _linear in book.spine:
+        item = book.get_item_with_id(item_id)
+        if item is None:
+            continue
+        if item.get_type() != ebooklib.ITEM_DOCUMENT:
+            continue
+        html_content = item.get_content().decode("utf-8", errors="replace")
+        chapter_text = markdownify(html_content, strip=["img", "script", "style"])
+        if chapter_text.strip():
+            text_parts.append(chapter_text.strip())
+    return "\n\n".join(text_parts)
+
+
+def extract_text_json(file_path: Path) -> str:
+    """Extract JSON content as pretty-printed text."""
+    import json
+
+    raw = file_path.read_text(encoding="utf-8", errors="replace")
+    try:
+        data = json.loads(raw)
+        return json.dumps(data, indent=2, ensure_ascii=False)
+    except json.JSONDecodeError:
+        return raw
+
+
+def extract_text_xml(file_path: Path) -> str:
+    """Extract XML content as formatted text using defusedxml (XXE-safe)."""
+    import xml.etree.ElementTree as ET
+
+    import defusedxml.ElementTree as DefusedET  # type: ignore[import-untyped]
+
+    try:
+        tree = DefusedET.parse(str(file_path))
+        root = tree.getroot()
+        ET.indent(root)
+        return ET.tostring(root, encoding="unicode")
+    except ET.ParseError:
+        return file_path.read_text(encoding="utf-8", errors="replace")
+
+
 def extract_text(file_path: Path, content_type: str) -> str:
     """
     Extract text from a file based on its MIME type.
@@ -96,7 +292,23 @@ def extract_text(file_path: Path, content_type: str) -> str:
         "text/plain": extract_text_plain,
         "text/markdown": extract_text_plain,
         "application/pdf": extract_text_pdf,
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": extract_text_docx,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": (
+            extract_text_docx
+        ),
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": (
+            extract_text_pptx
+        ),
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": extract_text_xlsx,
+        "text/csv": extract_text_csv,
+        "application/rtf": extract_text_rtf,
+        "text/html": extract_text_html,
+        "application/vnd.oasis.opendocument.text": extract_text_odt,
+        "application/vnd.oasis.opendocument.spreadsheet": extract_text_ods,
+        "application/vnd.oasis.opendocument.presentation": extract_text_odp,
+        "application/epub+zip": extract_text_epub,
+        "application/json": extract_text_json,
+        "application/xml": extract_text_xml,
+        "text/xml": extract_text_xml,
     }
     extractor = extractors.get(content_type)
     if not extractor:

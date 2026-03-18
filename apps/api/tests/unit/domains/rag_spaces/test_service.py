@@ -9,7 +9,7 @@ from sqlalchemy.exc import IntegrityError
 
 from src.core.exceptions import BaseAPIException
 from src.domains.rag_spaces.models import RAGDocumentStatus
-from src.domains.rag_spaces.service import RAGSpaceService
+from src.domains.rag_spaces.service import _EXT_TO_MIME, RAGSpaceService
 
 # ============================================================================
 # Fixtures
@@ -275,6 +275,7 @@ class TestGetSpaceDetail:
         stats = {"document_count": 1, "total_size": 1024, "ready_document_count": 1}
         service.doc_repo.get_space_stats = AsyncMock(return_value=stats)
         service.doc_repo.get_all_for_space = AsyncMock(return_value=[sample_document])
+        service.source_repo.get_all_for_space = AsyncMock(return_value=[])
 
         result = await service.get_space_detail(space_id, user_id)
 
@@ -282,6 +283,7 @@ class TestGetSpaceDetail:
         assert result["document_count"] == 1
         assert result["total_size"] == 1024
         assert len(result["documents"]) == 1
+        assert result["drive_sources"] == []
 
 
 # ============================================================================
@@ -851,3 +853,42 @@ class TestUpdateSpaceWithStats:
         assert result["document_count"] == 5
         assert result["total_size"] == 8192
         assert result["ready_document_count"] == 4
+
+
+# ============================================================================
+# TestExtToMime
+# ============================================================================
+
+
+@pytest.mark.unit
+class TestExtToMime:
+    """Tests that _EXT_TO_MIME maps every extension to its expected MIME type."""
+
+    @pytest.mark.parametrize(
+        ("ext", "expected_mime"),
+        [
+            (".txt", "text/plain"),
+            (".md", "text/markdown"),
+            (".pdf", "application/pdf"),
+            (".docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+            (".pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"),
+            (".xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+            (".csv", "text/csv"),
+            (".rtf", "application/rtf"),
+            (".html", "text/html"),
+            (".htm", "text/html"),
+            (".odt", "application/vnd.oasis.opendocument.text"),
+            (".ods", "application/vnd.oasis.opendocument.spreadsheet"),
+            (".odp", "application/vnd.oasis.opendocument.presentation"),
+            (".epub", "application/epub+zip"),
+            (".json", "application/json"),
+            (".xml", "application/xml"),
+        ],
+    )
+    def test_extension_maps_to_mime(self, ext: str, expected_mime: str) -> None:
+        """Each file extension maps to the correct MIME type."""
+        assert _EXT_TO_MIME[ext] == expected_mime
+
+    def test_ext_to_mime_has_expected_count(self) -> None:
+        """_EXT_TO_MIME contains exactly 16 entries."""
+        assert len(_EXT_TO_MIME) == 16

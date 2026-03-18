@@ -1800,10 +1800,46 @@
         "error": "错误",
         "reindexing": "重新索引中..."
       },
-      "upload_formats": "PDF、TXT、MD、DOCX — 最大 {{maxSize}}MB",
+      "upload_formats": "支持 15+ 种格式 — 最大 {{maxSize}}MB",
+      "upload_formats_tooltip": "PDF、TXT、MD、DOCX、PPTX、XLSX、CSV、RTF、HTML、ODT、ODS、ODP、EPUB、JSON、XML",
       "chunk_count": "{{count}} 个片段",
       "embedding_tokens": "{{count}} 个令牌",
       "file_too_large": "\"{{name}}\" 文件过大（最大 {{maxSize}} MB）"
+    },
+    "drive": {
+      "title": "Google Drive 来源",
+      "empty": "尚未关联任何 Google Drive 文件夹。",
+      "link_folder": "关联文件夹",
+      "unlink": "取消关联",
+      "unlink_confirm_title": "取消关联 Drive 文件夹？",
+      "unlink_confirm_message": "确定要取消关联 \"{{name}}\" 吗？",
+      "unlink_delete_docs": "同时删除从此文件夹同步的文档",
+      "unlink_success": "文件夹 \"{{name}}\" 已取消关联。",
+      "sync_now": "立即同步",
+      "syncing": "同步中...",
+      "sync_success": "\"{{name}}\" 同步完成。",
+      "sync_error": "\"{{name}}\" 同步失败。",
+      "last_synced": "上次同步 {{time}}",
+      "never_synced": "从未同步",
+      "files_count": "{{count}} 个文件",
+      "synced_count": "{{count}} 个已同步",
+      "status_idle": "未同步",
+      "status_syncing": "同步中",
+      "status_completed": "已同步",
+      "status_error": "错误",
+      "picker_title": "选择 Google Drive 文件夹",
+      "picker_description": "浏览您的 Google Drive 并选择要同步的文件夹。",
+      "picker_empty": "未找到文件夹",
+      "picker_select": "选择此文件夹",
+      "picker_loading": "正在加载文件夹...",
+      "connector_required": "请先连接 Google Drive 才能使用此功能。",
+      "source_type_drive": "Drive",
+      "source_type_upload": "上传",
+      "link_success": "文件夹 \"{{name}}\" 已成功关联。",
+      "link_error": "关联文件夹失败。",
+      "already_linked": "此文件夹已关联到此空间。",
+      "sync_in_progress": "同步已在进行中。",
+      "feature_disabled": "Drive 同步功能已禁用。"
     }
   },
   "navigation": {
@@ -2745,15 +2781,15 @@
       "rag_spaces": {
         "title": "知识空间 (RAG)",
         "description": "上传和使用您的文档来丰富AI回答",
-        "count": "6",
+        "count": "7",
         "questions": {
           "q1": {
             "question": "什么是知识空间？",
-            "answer": "<p>知识空间（RAG — 检索增强生成）允许您上传自己的文档来创建个人知识库。当您提问时，LIA会自动搜索这些文档，并用相关内容丰富其回答。</p><p><strong>主要功能：</strong><ul><li>上传 PDF、TXT、Markdown 和 DOCX 文件</li><li>通过 OpenAI embeddings 自动分块和索引</li><li>混合搜索（语义 + BM25 关键词）实现最佳相关性</li><li>回答中标注来源引用</li></ul></p>"
+            "answer": "<p>知识空间（RAG — 检索增强生成）允许您上传自己的文档来创建个人知识库。当您提问时，LIA会自动搜索这些文档，并用相关内容丰富其回答。</p><p><strong>主要功能：</strong><ul><li>支持上传 15+ 种格式：PDF、TXT、MD、DOCX、PPTX、XLSX、CSV、RTF、HTML、ODT、ODS、ODP、EPUB、JSON、XML</li><li>通过 OpenAI embeddings 自动分块和索引</li><li>混合搜索（语义 + BM25 关键词）实现最佳相关性</li><li>回答中标注来源引用</li></ul></p>"
           },
           "q2": {
             "question": "支持哪些文件格式？",
-            "answer": "<p>知识空间接受以下格式：</p><ul><li><strong>PDF</strong> — 通过 PyMuPDF 提取文本</li><li><strong>TXT</strong> — 纯文本文件</li><li><strong>Markdown (.md)</strong> — 文档和笔记</li><li><strong>DOCX</strong> — Microsoft Word 文档</li></ul><p><strong>限制：</strong>每个文件最大 20 MB，每个空间最多 50 个文档，每个用户最多 10 个空间。</p>"
+            "answer": "<p>知识空间接受 <strong>15+ 种格式</strong>：</p><ul><li><strong>PDF</strong> — 通过 PyMuPDF 提取文本</li><li><strong>TXT</strong> — 纯文本文件</li><li><strong>Markdown (.md)</strong> — 文档和笔记</li><li><strong>DOCX</strong> — Microsoft Word 文档</li><li><strong>PPTX</strong> — PowerPoint 演示文稿</li><li><strong>XLSX</strong> — Excel 电子表格</li><li><strong>CSV</strong> — 表格数据</li><li><strong>RTF</strong> — 富文本格式</li><li><strong>HTML</strong> — 网页</li><li><strong>ODT / ODS / ODP</strong> — LibreOffice 文档</li><li><strong>EPUB</strong> — 电子书</li><li><strong>JSON</strong> — 结构化数据</li><li><strong>XML</strong> — 结构化标记</li></ul><p><strong>限制：</strong>每个文件最大 20 MB，每个空间最多 50 个文档，每个用户最多 10 个空间。</p>"
           },
           "q3": {
             "question": "文档处理是如何工作的？",
@@ -2770,6 +2806,10 @@
           "q6": {
             "question": "RAG 的费用是多少？",
             "answer": "<p>RAG 使用 OpenAI 嵌入，费用很低：</p><ul><li><strong>索引</strong>（上传）— 每个文档一次性费用，使用 <code>text-embedding-3-small</code>（$0.02/百万 token）</li><li><strong>搜索</strong>（每次查询）— 对您的问题进行嵌入（每次查询仅需几个 token）</li></ul><p>费用<strong>完全可追踪</strong>，在助手消息的费用明细和您的使用仪表板中可见。RAG 嵌入费用显示在 <code>text-embedding-3-small</code> 模型下。</p><p><strong>提示：</strong>对于典型的10页PDF，索引费用不到 $0.001。</p>"
+          },
+          "q7": {
+            "question": "Google Drive 同步是如何工作的？",
+            "answer": "<p>您可以将 Google Drive 文件夹链接到您的知识空间。点击<strong>「链接文件夹」</strong>，浏览您的 Drive 并选择一个文件夹。LIA 会列出支持的文件，下载并通过相同的索引管道处理它们。</p><p>使用<strong>「立即同步」</strong>进行更新 — LIA 会自动检测新增、修改和删除的文件。</p><p><strong>关键细节：</strong><ul><li>通过 API 导出支持 Google Docs、Sheets 和 Slides</li><li>逐文件错误隔离 — 一个文件失败不会阻塞其他文件</li><li>Feature flag：<code>RAG_SPACES_DRIVE_SYNC_ENABLED</code></li></ul></p>"
           }
         }
       },
@@ -3412,6 +3452,7 @@
     "push_description": "禁用时，消息将在对话中静默存档",
     "available_sources": "可用数据源",
     "source_calendar": "日历",
+    "source_emails": "邮件",
     "source_tasks": "任务",
     "source_weather": "天气",
     "source_interests": "兴趣",
@@ -3646,7 +3687,7 @@
       },
       "rag_spaces": {
         "title": "知识空间",
-        "description": "将您的文档（PDF、TXT、MD、DOCX）上传到个人知识空间。LIA通过混合搜索（语义+关键词）自动用相关内容丰富其回答。"
+        "description": "上传 15+ 种格式的文档（PDF、DOCX、PPTX、XLSX、HTML、EPUB 等）或直接同步 Google Drive 文件夹。LIA 自动索引并通过混合搜索（语义 + 关键词）丰富回答。"
       }
     },
     "use_cases": {

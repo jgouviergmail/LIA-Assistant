@@ -1814,10 +1814,46 @@
         "error": "Error",
         "reindexing": "Reindexing..."
       },
-      "upload_formats": "PDF, TXT, MD, DOCX — max {{maxSize}}MB",
+      "upload_formats": "15+ supported formats — max {{maxSize}}MB",
+      "upload_formats_tooltip": "PDF, TXT, MD, DOCX, PPTX, XLSX, CSV, RTF, HTML, ODT, ODS, ODP, EPUB, JSON, XML",
       "chunk_count": "{{count}} chunks",
       "embedding_tokens": "{{count}} tokens",
       "file_too_large": "\"{{name}}\" is too large (max {{maxSize}} MB)"
+    },
+    "drive": {
+      "title": "Google Drive Sources",
+      "empty": "No Google Drive folders linked yet.",
+      "link_folder": "Link Folder",
+      "unlink": "Unlink",
+      "unlink_confirm_title": "Unlink Drive Folder?",
+      "unlink_confirm_message": "Are you sure you want to unlink \"{{name}}\"?",
+      "unlink_delete_docs": "Also delete documents synced from this folder",
+      "unlink_success": "Folder \"{{name}}\" unlinked.",
+      "sync_now": "Sync Now",
+      "syncing": "Syncing...",
+      "sync_success": "Sync completed for \"{{name}}\".",
+      "sync_error": "Sync failed for \"{{name}}\".",
+      "last_synced": "Last synced {{time}}",
+      "never_synced": "Never synced",
+      "files_count": "{{count}} files",
+      "synced_count": "{{count}} synced",
+      "status_idle": "Not synced",
+      "status_syncing": "Syncing",
+      "status_completed": "Synced",
+      "status_error": "Error",
+      "picker_title": "Select a Google Drive Folder",
+      "picker_description": "Browse your Google Drive and select a folder to sync.",
+      "picker_empty": "No folders found",
+      "picker_select": "Select this folder",
+      "picker_loading": "Loading folders...",
+      "connector_required": "Connect Google Drive to use this feature.",
+      "source_type_drive": "Drive",
+      "source_type_upload": "Upload",
+      "link_success": "Folder \"{{name}}\" linked successfully.",
+      "link_error": "Failed to link folder.",
+      "already_linked": "This folder is already linked to this space.",
+      "sync_in_progress": "Sync already in progress.",
+      "feature_disabled": "Drive sync is currently disabled."
     }
   },
   "navigation": {
@@ -2759,15 +2795,15 @@
       "rag_spaces": {
         "title": "Knowledge Spaces (RAG)",
         "description": "Upload and use your own documents to enrich AI responses",
-        "count": "6",
+        "count": "7",
         "questions": {
           "q1": {
             "question": "What are Knowledge Spaces?",
-            "answer": "<p>Knowledge Spaces (RAG — Retrieval-Augmented Generation) allow you to upload your own documents to create personal knowledge bases. When you ask a question, LIA automatically searches these documents and enriches its responses with relevant content.</p><p><strong>Key features:</strong><ul><li>Upload PDF, TXT, Markdown, and DOCX files</li><li>Automatic chunking and indexing via OpenAI embeddings</li><li>Hybrid search (semantic + BM25 keyword) for optimal relevance</li><li>Source citations in responses</li></ul></p>"
+            "answer": "<p>Knowledge Spaces (RAG — Retrieval-Augmented Generation) allow you to upload your own documents to create personal knowledge bases. When you ask a question, LIA automatically searches these documents and enriches its responses with relevant content.</p><p><strong>Key features:</strong><ul><li>Upload 15+ formats: PDF, TXT, MD, DOCX, PPTX, XLSX, CSV, RTF, HTML, ODT, ODS, ODP, EPUB, JSON, XML</li><li>Automatic chunking and indexing via OpenAI embeddings</li><li>Hybrid search (semantic + BM25 keyword) for optimal relevance</li><li>Source citations in responses</li></ul></p>"
           },
           "q2": {
             "question": "What file formats are supported?",
-            "answer": "<p>Knowledge Spaces accept the following formats:</p><ul><li><strong>PDF</strong> — text extraction via PyMuPDF</li><li><strong>TXT</strong> — plain text files</li><li><strong>Markdown (.md)</strong> — documentation and notes</li><li><strong>DOCX</strong> — Microsoft Word documents</li></ul><p><strong>Limits:</strong> maximum 20 MB per file, up to 50 documents per space, and 10 spaces per user.</p>"
+            "answer": "<p>Knowledge Spaces accept <strong>15+ formats</strong>:</p><ul><li><strong>PDF</strong> — text extraction via PyMuPDF</li><li><strong>TXT</strong> — plain text files</li><li><strong>Markdown (.md)</strong> — documentation and notes</li><li><strong>DOCX</strong> — Microsoft Word documents</li><li><strong>PPTX</strong> — PowerPoint presentations</li><li><strong>XLSX</strong> — Excel spreadsheets</li><li><strong>CSV</strong> — tabular data</li><li><strong>RTF</strong> — Rich Text Format</li><li><strong>HTML</strong> — web pages</li><li><strong>ODT / ODS / ODP</strong> — LibreOffice documents</li><li><strong>EPUB</strong> — e-books</li><li><strong>JSON</strong> — structured data</li><li><strong>XML</strong> — structured markup</li></ul><p><strong>Limits:</strong> maximum 20 MB per file, up to 50 documents per space, and 10 spaces per user.</p>"
           },
           "q3": {
             "question": "How does document processing work?",
@@ -2784,6 +2820,10 @@
           "q6": {
             "question": "How much does RAG cost?",
             "answer": "<p>RAG uses OpenAI embeddings, which have a small cost:</p><ul><li><strong>Indexing</strong> (upload) — one-time cost per document, using <code>text-embedding-3-small</code> ($0.02/million tokens)</li><li><strong>Search</strong> (each query) — embedding of your question (~few tokens per query)</li></ul><p>Costs are <strong>fully tracked</strong> and visible in the assistant message cost breakdown and your usage dashboard. The RAG embedding cost appears under the <code>text-embedding-3-small</code> model.</p><p><strong>Tip:</strong> For a typical 10-page PDF, indexing costs less than $0.001.</p>"
+          },
+          "q7": {
+            "question": "How does Google Drive sync work?",
+            "answer": "<p>You can link Google Drive folders to your knowledge spaces. Click <strong>'Link Folder'</strong>, browse your Drive, and select a folder. LIA lists the supported files, downloads them, and processes them through the same indexing pipeline.</p><p>Use <strong>'Sync Now'</strong> to update — LIA detects new, modified, and deleted files automatically.</p><p><strong>Key details:</strong><ul><li>Supports Google Docs, Sheets, and Slides via API export</li><li>Per-file error isolation — one failed file does not block others</li><li>Feature flag: <code>RAG_SPACES_DRIVE_SYNC_ENABLED</code></li></ul></p>"
           }
         }
       },
@@ -3177,6 +3217,7 @@
     "push_description": "When disabled, messages are silently archived in conversation",
     "available_sources": "Available data sources",
     "source_calendar": "Calendar",
+    "source_emails": "Emails",
     "source_tasks": "Tasks",
     "source_weather": "Weather",
     "source_interests": "Interests",
@@ -3652,7 +3693,7 @@
       },
       "rag_spaces": {
         "title": "Knowledge Spaces",
-        "description": "Upload your own documents (PDF, TXT, MD, DOCX) into personal knowledge spaces. LIA automatically enriches its responses with relevant content via hybrid search (semantic + keyword)."
+        "description": "Upload documents in 15+ formats (PDF, DOCX, PPTX, XLSX, HTML, EPUB, and more) or sync Google Drive folders directly. LIA automatically indexes and enriches its responses via hybrid search (semantic + keyword)."
       }
     },
     "use_cases": {

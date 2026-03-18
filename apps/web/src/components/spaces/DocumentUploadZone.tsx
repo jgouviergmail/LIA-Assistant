@@ -15,12 +15,25 @@ interface DocumentUploadZoneProps {
   maxFileSizeMB?: number;
 }
 
-const ALLOWED_EXTENSIONS = '.pdf,.txt,.md,.docx';
+const ALLOWED_EXTENSIONS =
+  '.pdf,.txt,.md,.docx,.pptx,.xlsx,.csv,.rtf,.html,.htm,.odt,.ods,.odp,.epub,.json,.xml';
 const ALLOWED_MIMES = [
   'text/plain',
   'text/markdown',
   'application/pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'text/csv',
+  'application/rtf',
+  'text/html',
+  'application/vnd.oasis.opendocument.text',
+  'application/vnd.oasis.opendocument.spreadsheet',
+  'application/vnd.oasis.opendocument.presentation',
+  'application/epub+zip',
+  'application/json',
+  'application/xml',
+  'text/xml',
 ];
 
 export function DocumentUploadZone({
@@ -39,7 +52,7 @@ export function DocumentUploadZone({
   const handleFiles = useCallback(
     (files: FileList | File[]) => {
       Array.from(files).forEach((file) => {
-        if (!ALLOWED_MIMES.includes(file.type) && !file.name.match(/\.(pdf|txt|md|docx)$/i)) {
+        if (!ALLOWED_MIMES.includes(file.type) && !file.name.match(/\.(pdf|txt|md|docx|pptx|xlsx|csv|rtf|html?|odt|ods|odp|epub|json|xml)$/i)) {
           return;
         }
         if (file.size > maxSizeBytes) {
@@ -125,7 +138,10 @@ export function DocumentUploadZone({
       >
         <Upload className="h-8 w-8 text-muted-foreground" />
         <p className="text-sm font-medium">{t('spaces.documents.upload_hint')}</p>
-        <p className="text-xs text-muted-foreground">
+        <p
+          className="text-xs text-muted-foreground"
+          title={t('spaces.documents.upload_formats_tooltip')}
+        >
           {t('spaces.documents.upload_formats', { maxSize: maxFileSizeMB })}
         </p>
       </div>

@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.2] - 2026-03-18
+
+### Added
+
+- **RAG Spaces — 15 document formats** — Extended RAG document upload from 4 to 15 formats: PDF, TXT, MD, DOCX, PPTX (slides + tables + notes), XLSX (multi-sheet), CSV, RTF, HTML, ODT, ODS, ODP, EPUB (spine-ordered), JSON, XML (defusedxml). Each format has a dedicated text extractor with edge-case handling. (`processing.py`, `constants.py`, `service.py`)
+- **RAG Spaces — Google Drive folder sync** — Link Google Drive folders to RAG Spaces for automatic file vectorization. Manual sync with incremental change detection (skip unchanged, re-process modified, auto-delete removed). Supports Google Docs/Sheets/Slides via API export. Per-file error isolation, Semaphore(5) throttling, atomic sync lock, 500-file pagination cap. Feature flag: `RAG_SPACES_DRIVE_SYNC_ENABLED`. (`drive_sync.py`, 6 API endpoints, 5 frontend components)
+- **RAG Drive folder browser** — Folder picker dialog showing both folders (navigable) and files (preview) so users can see what will be synced before selecting.
+- **Drive sync Prometheus metrics** — 4 new metrics: `rag_drive_sync_runs_total`, `rag_drive_sync_duration_seconds`, `rag_drive_sync_files_total`, `rag_drive_sources_total_count`.
+- **ADR-056** — Architecture Decision Record for RAG Drive Sync (manual-first, non-recursive, incremental sync, per-file error isolation).
+
+### Changed
+
+- **RAG upload format display** — Compact "15+ supported formats" label with tooltip listing all formats (was: "PDF, TXT, MD, DOCX").
+- **RAG document model** — Added `source_type`, `drive_source_id`, `drive_file_id`, `drive_modified_time` columns for Drive integration.
+
+### Database
+
+- **Migration `drive_sources_001`** — New `rag_drive_sources` table + 4 columns on `rag_documents` with indexes and FK constraints.
+
 ## [1.5.1] - 2026-03-17
 
 ### Added
@@ -350,7 +369,8 @@ First public open-source release of LIA.
 - Circuit breaker, rate limiting, and distributed locks
 - SOPS/Age encryption for secrets management
 
-[Unreleased]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.5.1...HEAD
+[Unreleased]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.5.2...HEAD
+[1.5.2]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.5.1...v1.5.2
 [1.5.1]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.4.7...v1.5.0
 [1.4.7]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.4.6...v1.4.7

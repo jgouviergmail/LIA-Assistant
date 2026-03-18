@@ -49,7 +49,7 @@ describe('DocumentUploadZone', () => {
     vi.clearAllMocks();
   });
 
-  it('accepts valid file types (pdf, txt, md, docx)', () => {
+  it('accepts valid file types', () => {
     const onUpload = vi.fn().mockResolvedValue({ success: true });
     render(<DocumentUploadZone {...defaultProps} onUpload={onUpload} />);
 
@@ -147,7 +147,7 @@ describe('DocumentUploadZone', () => {
     render(<DocumentUploadZone {...defaultProps} />);
 
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
-    expect(input.accept).toBe('.pdf,.txt,.md,.docx');
+    expect(input.accept).toBe('.pdf,.txt,.md,.docx,.pptx,.xlsx,.csv,.rtf,.html,.htm,.odt,.ods,.odp,.epub,.json,.xml');
     expect(input.multiple).toBe(true);
   });
 });

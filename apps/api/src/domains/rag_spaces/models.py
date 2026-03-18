@@ -14,9 +14,10 @@ Created: 2026-03-14
 """
 
 import uuid
+from datetime import datetime
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Boolean, Float, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -24,6 +25,22 @@ from src.core.constants import RAG_SPACES_EMBEDDING_DIMENSIONS_DEFAULT
 from src.infrastructure.database.models import BaseModel
 
 # --- Domain constants (str, not Enum — avoids _CHECKPOINT_ALLOWED_MODULES registration) ---
+
+
+class RAGDriveSyncStatus:
+    """Sync status values for Drive folder sources."""
+
+    IDLE = "idle"
+    SYNCING = "syncing"
+    COMPLETED = "completed"
+    ERROR = "error"
+
+
+class RAGDocumentSourceType:
+    """Source type for RAG documents."""
+
+    UPLOAD = "upload"
+    DRIVE = "drive"
 
 
 class RAGDocumentStatus:
@@ -80,12 +97,114 @@ class RAGSpace(BaseModel):
         lazy="noload",
     )
 
+    drive_sources: Mapped[list["RAGDriveSource"]] = relationship(
+        "RAGDriveSource",
+        back_populates="space",
+        cascade="all, delete-orphan",
+        lazy="noload",
+    )
+
     __table_args__ = (
         Index("ix_rag_spaces_user_id_is_active", "user_id", "is_active"),
         Index(
             "uq_rag_spaces_user_id_name",
             "user_id",
             "name",
+            unique=True,
+        ),
+    )
+
+
+class RAGDriveSource(BaseModel):
+    """Google Drive folder linked to a RAG space for automatic sync.
+
+    Tracks a Drive folder that is continuously synced into the parent
+    RAG space.  New / updated files are detected via the Google Drive
+    API and ingested through the standard RAG document pipeline.
+
+    Attributes:
+        space_id: Parent RAG space.
+        user_id: Owning user (denormalized for direct access checks).
+        folder_id: Google Drive folder ID.
+        folder_name: Human-readable folder name (display only).
+        sync_status: Current sync lifecycle state (idle/syncing/completed/error).
+        last_sync_at: Timestamp of the last successful sync.
+        file_count: Total files detected in the folder.
+        synced_file_count: Files successfully ingested so far.
+        error_message: Last error message (if sync_status == error).
+    """
+
+    __tablename__ = "rag_drive_sources"
+
+    space_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("rag_spaces.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    folder_id: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+    )
+
+    folder_name: Mapped[str] = mapped_column(
+        String(500),
+        nullable=False,
+    )
+
+    sync_status: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default=RAGDriveSyncStatus.IDLE,
+    )
+
+    last_sync_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        default=None,
+    )
+
+    file_count: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+    )
+
+    synced_file_count: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+    )
+
+    error_message: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        default=None,
+    )
+
+    # Relationships
+    space: Mapped["RAGSpace"] = relationship(
+        "RAGSpace",
+        back_populates="drive_sources",
+    )
+
+    documents: Mapped[list["RAGDocument"]] = relationship(
+        "RAGDocument",
+        back_populates="drive_source",
+        lazy="noload",
+    )
+
+    __table_args__ = (
+        Index("ix_rag_drive_sources_space_id", "space_id"),
+        Index("ix_rag_drive_sources_user_id", "user_id"),
+        Index(
+            "uq_rag_drive_sources_space_folder",
+            "space_id",
+            "folder_id",
             unique=True,
         ),
     )
@@ -180,9 +299,39 @@ class RAGDocument(BaseModel):
         comment="Total embedding cost in EUR for this document",
     )
 
+    # Drive sync columns
+    source_type: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default=RAGDocumentSourceType.UPLOAD,
+    )
+
+    drive_source_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("rag_drive_sources.id", ondelete="SET NULL"),
+        nullable=True,
+        default=None,
+    )
+
+    drive_file_id: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        default=None,
+    )
+
+    drive_modified_time: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        default=None,
+    )
+
     # Relationships
     space: Mapped["RAGSpace"] = relationship(
         "RAGSpace",
+        back_populates="documents",
+    )
+
+    drive_source: Mapped["RAGDriveSource | None"] = relationship(
+        "RAGDriveSource",
         back_populates="documents",
     )
 
@@ -196,6 +345,8 @@ class RAGDocument(BaseModel):
     __table_args__ = (
         Index("ix_rag_documents_space_id_status", "space_id", "status"),
         Index("ix_rag_documents_user_id", "user_id"),
+        Index("ix_rag_documents_drive_source_id", "drive_source_id"),
+        Index("ix_rag_documents_drive_file_id", "drive_file_id"),
     )
 
 

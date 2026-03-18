@@ -37,7 +37,6 @@ import { HeartbeatSettings } from '@/components/settings/HeartbeatSettings';
 import { SkillsSettings } from '@/components/settings/SkillsSettings';
 import { AdminSkillsSection } from '@/components/settings/AdminSkillsSection';
 import { SpacesSettingsSection } from '@/components/spaces/SpacesSettingsSection';
-import { SubAgentsSettings } from '@/components/settings/SubAgentsSettings';
 import { VoiceModeSettings } from '@/components/settings/VoiceModeSettings';
 import { UserDebugSettings } from '@/components/settings/UserDebugSettings';
 import { useDebugPanelEnabled } from '@/hooks/useDebugPanelEnabled';
@@ -232,16 +231,15 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               <FeatureErrorBoundary feature="scheduled-actions">
                 <ScheduledActionsSettings lng={lng} />
               </FeatureErrorBoundary>
-              <FeatureErrorBoundary feature="channels">
-                <ChannelSettings lng={lng} />
-              </FeatureErrorBoundary>
               <FeatureErrorBoundary feature="skills">
                 <SkillsSettings lng={lng} />
               </FeatureErrorBoundary>
               <FeatureErrorBoundary feature="rag-spaces">
                 <SpacesSettingsSection lng={lng} />
               </FeatureErrorBoundary>
-              <SubAgentsSettings lng={lng} />
+              <FeatureErrorBoundary feature="channels">
+                <ChannelSettings lng={lng} />
+              </FeatureErrorBoundary>
               <VoiceModeSettings lng={lng} />
             </Accordion>
           </TabsContent>
@@ -334,16 +332,15 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               <FeatureErrorBoundary feature="scheduled-actions">
                 <ScheduledActionsSettings lng={lng} />
               </FeatureErrorBoundary>
-              <FeatureErrorBoundary feature="channels">
-                <ChannelSettings lng={lng} />
-              </FeatureErrorBoundary>
               <FeatureErrorBoundary feature="skills">
                 <SkillsSettings lng={lng} />
               </FeatureErrorBoundary>
               <FeatureErrorBoundary feature="rag-spaces">
                 <SpacesSettingsSection lng={lng} />
               </FeatureErrorBoundary>
-              <SubAgentsSettings lng={lng} />
+              <FeatureErrorBoundary feature="channels">
+                <ChannelSettings lng={lng} />
+              </FeatureErrorBoundary>
               <VoiceModeSettings lng={lng} />
             </Accordion>
           </TabsContent>

@@ -1,10 +1,11 @@
 'use client';
 
-import { useCallback, useState, use } from 'react';
+import { useCallback, useEffect, useRef, useState, use } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocalizedRouter } from '@/hooks/useLocalizedRouter';
 import { useSpaceDetail } from '@/hooks/useSpaces';
 import { useSpaceDocuments } from '@/hooks/useSpaceDocuments';
+import { useDriveSources } from '@/hooks/useDriveSources';
 import { ArrowLeft, Pencil, Trash2, Library } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +14,7 @@ import { Card, CardHeader } from '@/components/ui/card';
 import { SpaceActivationToggle } from '@/components/spaces/SpaceActivationToggle';
 import { DocumentUploadZone } from '@/components/spaces/DocumentUploadZone';
 import { DocumentRow } from '@/components/spaces/DocumentRow';
+import { DriveSourcesList } from '@/components/spaces/DriveSourcesList';
 import { EditSpaceDialog } from '@/components/spaces/EditSpaceDialog';
 import { DeleteSpaceConfirm } from '@/components/spaces/DeleteSpaceConfirm';
 import { FeatureErrorBoundary } from '@/components/errors';
@@ -56,8 +58,27 @@ export default function SpaceDetailPage({ params }: SpaceDetailPageProps) {
     componentName: 'SpaceDetail',
   });
 
+  // Drive sources mutations
+  const { linkFolder, unlinkFolder, syncFolder, linking, syncing } = useDriveSources(spaceId);
+
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+
+  // Poll for sync status when any drive source is syncing
+  const driveSources = space?.drive_sources ?? [];
+  const hasSyncingSource = driveSources.some((s) => s.sync_status === 'syncing');
+  const refetchRef = useRef(refetch);
+  useEffect(() => {
+    refetchRef.current = refetch;
+  }, [refetch]);
+
+  useEffect(() => {
+    if (!hasSyncingSource) return;
+    const interval = setInterval(() => {
+      refetchRef.current();
+    }, 5_000);
+    return () => clearInterval(interval);
+  }, [hasSyncingSource]);
 
   const handleToggle = useCallback(async () => {
     if (!space) return;
@@ -118,6 +139,47 @@ export default function SpaceDetailPage({ params }: SpaceDetailPageProps) {
       return result;
     },
     [uploadDocument, t]
+  );
+
+  const handleLinkFolder = useCallback(
+    async (folderId: string, folderName: string) => {
+      try {
+        await linkFolder(folderId, folderName);
+        toast.success(t('spaces.drive.link_success', { name: folderName }));
+        refetch();
+      } catch {
+        toast.error(t('spaces.drive.link_error'));
+      }
+    },
+    [linkFolder, refetch, t]
+  );
+
+  const handleUnlinkFolder = useCallback(
+    async (sourceId: string, deleteDocuments: boolean) => {
+      const source = driveSources.find((s) => s.id === sourceId);
+      try {
+        await unlinkFolder(sourceId, deleteDocuments);
+        toast.success(t('spaces.drive.unlink_success', { name: source?.folder_name ?? '' }));
+        refetch();
+      } catch {
+        toast.error(t('spaces.drive.link_error'));
+      }
+    },
+    [unlinkFolder, driveSources, refetch, t]
+  );
+
+  const handleSyncFolder = useCallback(
+    async (sourceId: string) => {
+      const source = driveSources.find((s) => s.id === sourceId);
+      try {
+        await syncFolder(sourceId);
+        toast.success(t('spaces.drive.syncing'));
+        refetch();
+      } catch {
+        toast.error(t('spaces.drive.sync_error', { name: source?.folder_name ?? '' }));
+      }
+    },
+    [syncFolder, driveSources, refetch, t]
   );
 
   if (loading) {
@@ -195,6 +257,17 @@ export default function SpaceDetailPage({ params }: SpaceDetailPageProps) {
           onUpload={handleUpload}
           uploads={uploads}
           onDismissUpload={dismissUpload}
+        />
+
+        {/* Google Drive Sources */}
+        <DriveSourcesList
+          spaceId={spaceId}
+          sources={driveSources}
+          onLink={handleLinkFolder}
+          onUnlink={handleUnlinkFolder}
+          onSync={handleSyncFolder}
+          linking={linking}
+          syncing={syncing}
         />
 
         {/* Documents list */}

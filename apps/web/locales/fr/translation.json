@@ -1819,10 +1819,46 @@
         "error": "Erreur",
         "reindexing": "Réindexation..."
       },
-      "upload_formats": "PDF, TXT, MD, DOCX — max {{maxSize}} Mo",
+      "upload_formats": "15+ formats supportés — max {{maxSize}} Mo",
+      "upload_formats_tooltip": "PDF, TXT, MD, DOCX, PPTX, XLSX, CSV, RTF, HTML, ODT, ODS, ODP, EPUB, JSON, XML",
       "chunk_count": "{{count}} fragments",
       "embedding_tokens": "{{count}} tokens",
       "file_too_large": "\"{{name}}\" est trop volumineux (max {{maxSize}} Mo)"
+    },
+    "drive": {
+      "title": "Sources Google Drive",
+      "empty": "Aucun dossier Google Drive lié.",
+      "link_folder": "Lier un dossier",
+      "unlink": "Délier",
+      "unlink_confirm_title": "Délier le dossier Drive ?",
+      "unlink_confirm_message": "Êtes-vous sûr de vouloir délier \"{{name}}\" ?",
+      "unlink_delete_docs": "Supprimer aussi les documents synchronisés depuis ce dossier",
+      "unlink_success": "Dossier \"{{name}}\" délié.",
+      "sync_now": "Synchroniser",
+      "syncing": "Synchronisation...",
+      "sync_success": "Synchronisation terminée pour \"{{name}}\".",
+      "sync_error": "Échec de synchronisation pour \"{{name}}\".",
+      "last_synced": "Dernière sync {{time}}",
+      "never_synced": "Jamais synchronisé",
+      "files_count": "{{count}} fichiers",
+      "synced_count": "{{count}} synchronisés",
+      "status_idle": "Non synchronisé",
+      "status_syncing": "En cours",
+      "status_completed": "Synchronisé",
+      "status_error": "Erreur",
+      "picker_title": "Sélectionner un dossier Google Drive",
+      "picker_description": "Parcourez votre Google Drive et sélectionnez un dossier à synchroniser.",
+      "picker_empty": "Aucun dossier trouvé",
+      "picker_select": "Sélectionner ce dossier",
+      "picker_loading": "Chargement des dossiers...",
+      "connector_required": "Connectez Google Drive pour utiliser cette fonctionnalité.",
+      "source_type_drive": "Drive",
+      "source_type_upload": "Upload",
+      "link_success": "Dossier \"{{name}}\" lié avec succès.",
+      "link_error": "Échec de liaison du dossier.",
+      "already_linked": "Ce dossier est déjà lié à cet espace.",
+      "sync_in_progress": "Synchronisation déjà en cours.",
+      "feature_disabled": "La synchronisation Drive est désactivée."
     }
   },
   "navigation": {
@@ -2704,7 +2740,7 @@
         }
       },
       "skills": {
-        "title": "Skills (compétences)",
+        "title": "Compétences (skills)",
         "description": "Étendre les capacités de LIA avec des instructions expertes",
         "count": "7",
         "questions": {
@@ -2764,15 +2800,15 @@
       "rag_spaces": {
         "title": "Espaces de connaissances (RAG)",
         "description": "Téléchargez et utilisez vos propres documents pour enrichir les réponses de l'IA",
-        "count": "6",
+        "count": "7",
         "questions": {
           "q1": {
             "question": "Que sont les Espaces de connaissances ?",
-            "answer": "<p>Les Espaces de connaissances (RAG — Retrieval-Augmented Generation) vous permettent de télécharger vos propres documents pour créer des bases de connaissances personnelles. Lorsque vous posez une question, LIA recherche automatiquement dans ces documents et enrichit ses réponses avec le contenu pertinent.</p><p><strong>Fonctionnalités clés :</strong><ul><li>Upload de fichiers PDF, TXT, Markdown et DOCX</li><li>Découpage et indexation automatiques via les embeddings OpenAI</li><li>Recherche hybride (sémantique + mots-clés BM25) pour une pertinence optimale</li><li>Citations des sources dans les réponses</li></ul></p>"
+            "answer": "<p>Les Espaces de connaissances (RAG — Retrieval-Augmented Generation) vous permettent de télécharger vos propres documents pour créer des bases de connaissances personnelles. Lorsque vous posez une question, LIA recherche automatiquement dans ces documents et enrichit ses réponses avec le contenu pertinent.</p><p><strong>Fonctionnalités clés :</strong><ul><li>Upload de 15+ formats : PDF, TXT, MD, DOCX, PPTX, XLSX, CSV, RTF, HTML, ODT, ODS, ODP, EPUB, JSON, XML</li><li>Découpage et indexation automatiques via les embeddings OpenAI</li><li>Recherche hybride (sémantique + mots-clés BM25) pour une pertinence optimale</li><li>Citations des sources dans les réponses</li></ul></p>"
           },
           "q2": {
             "question": "Quels formats de fichiers sont supportés ?",
-            "answer": "<p>Les Espaces de connaissances acceptent les formats suivants :</p><ul><li><strong>PDF</strong> — extraction de texte via PyMuPDF</li><li><strong>TXT</strong> — fichiers texte brut</li><li><strong>Markdown (.md)</strong> — documentation et notes</li><li><strong>DOCX</strong> — documents Microsoft Word</li></ul><p><strong>Limites :</strong> maximum 20 Mo par fichier, jusqu'à 50 documents par espace et 10 espaces par utilisateur.</p>"
+            "answer": "<p>Les Espaces de connaissances acceptent <strong>15+ formats</strong> :</p><ul><li><strong>PDF</strong> — extraction de texte via PyMuPDF</li><li><strong>TXT</strong> — fichiers texte brut</li><li><strong>Markdown (.md)</strong> — documentation et notes</li><li><strong>DOCX</strong> — documents Microsoft Word</li><li><strong>PPTX</strong> — présentations PowerPoint</li><li><strong>XLSX</strong> — feuilles de calcul Excel</li><li><strong>CSV</strong> — données tabulaires</li><li><strong>RTF</strong> — Rich Text Format</li><li><strong>HTML</strong> — pages web</li><li><strong>ODT / ODS / ODP</strong> — documents LibreOffice</li><li><strong>EPUB</strong> — livres numériques</li><li><strong>JSON</strong> — données structurées</li><li><strong>XML</strong> — balisage structuré</li></ul><p><strong>Limites :</strong> maximum 20 Mo par fichier, jusqu'à 50 documents par espace et 10 espaces par utilisateur.</p>"
           },
           "q3": {
             "question": "Comment fonctionne le traitement des documents ?",
@@ -2789,6 +2825,10 @@
           "q6": {
             "question": "Combien coûte le RAG ?",
             "answer": "<p>Le RAG utilise les embeddings OpenAI, qui ont un coût modique :</p><ul><li><strong>Indexation</strong> (upload) — coût unique par document, utilisant <code>text-embedding-3-small</code> (0,02 $/million de tokens)</li><li><strong>Recherche</strong> (chaque requête) — embedding de votre question (quelques tokens par requête)</li></ul><p>Les coûts sont <strong>entièrement tracés</strong> et visibles dans le détail de coût des messages de l'assistant et dans votre tableau de bord d'utilisation. Le coût d'embedding RAG apparaît sous le modèle <code>text-embedding-3-small</code>.</p><p><strong>Astuce :</strong> pour un PDF typique de 10 pages, l'indexation coûte moins de 0,001 $.</p>"
+          },
+          "q7": {
+            "question": "Comment fonctionne la synchronisation Google Drive ?",
+            "answer": "<p>Vous pouvez lier des dossiers Google Drive à vos espaces de connaissances. Cliquez sur <strong>« Lier un dossier »</strong>, parcourez votre Drive et sélectionnez un dossier. LIA liste les fichiers supportés, les télécharge et les traite via le même pipeline d'indexation.</p><p>Utilisez <strong>« Synchroniser »</strong> pour mettre à jour — LIA détecte automatiquement les fichiers nouveaux, modifiés et supprimés.</p><p><strong>Détails clés :</strong><ul><li>Supporte Google Docs, Sheets et Slides via export API</li><li>Isolation des erreurs par fichier — un fichier en erreur ne bloque pas les autres</li><li>Feature flag : <code>RAG_SPACES_DRIVE_SYNC_ENABLED</code></li></ul></p>"
           }
         }
       },
@@ -3182,6 +3222,7 @@
     "push_description": "Quand désactivé, les messages sont archivés silencieusement en conversation",
     "available_sources": "Sources de données disponibles",
     "source_calendar": "Calendrier",
+    "source_emails": "Emails",
     "source_tasks": "Tâches",
     "source_weather": "Météo",
     "source_interests": "Centres d'intérêt",
@@ -3657,7 +3698,7 @@
       },
       "rag_spaces": {
         "title": "Espaces de connaissances",
-        "description": "Importez vos propres documents (PDF, TXT, MD, DOCX) dans des espaces personnels. LIA enrichit automatiquement ses réponses avec le contenu pertinent via recherche hybride (sémantique + mots-clés)."
+        "description": "Importez des documents dans 15+ formats (PDF, DOCX, PPTX, XLSX, HTML, EPUB, et plus) ou synchronisez vos dossiers Google Drive directement. LIA indexe automatiquement et enrichit ses réponses via recherche hybride (sémantique + mots-clés)."
       }
     },
     "use_cases": {

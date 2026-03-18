@@ -65,9 +65,10 @@ class RAGSpaceResponse(BaseModel):
 
 
 class RAGSpaceDetailResponse(RAGSpaceResponse):
-    """Detailed space response with documents list."""
+    """Detailed space response with documents and Drive sources."""
 
     documents: list["RAGDocumentResponse"] = Field(default_factory=list)
+    drive_sources: list["RAGDriveSourceResponse"] = Field(default_factory=list)
 
 
 class RAGSpaceListResponse(BaseModel):
@@ -97,6 +98,8 @@ class RAGDocumentResponse(BaseModel):
     embedding_model: str | None
     embedding_tokens: int = 0
     embedding_cost_eur: float = 0.0
+    source_type: str = "upload"
+    drive_file_id: str | None = None
     created_at: datetime
 
 
@@ -145,3 +148,41 @@ class RAGReindexStatusResponse(BaseModel):
     total_documents: int = 0
     processed_documents: int = 0
     failed_documents: int = 0
+
+
+# ============================================================================
+# Drive Source Schemas
+# ============================================================================
+
+
+class RAGDriveSourceCreate(BaseModel):
+    """Request body to link a Google Drive folder to a RAG space."""
+
+    folder_id: str = Field(max_length=255)
+    folder_name: str = Field(max_length=500)
+
+
+class RAGDriveSourceResponse(BaseModel):
+    """Drive source data for API responses."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    folder_id: str
+    folder_name: str
+    sync_status: str
+    last_sync_at: datetime | None
+    file_count: int
+    synced_file_count: int
+    error_message: str | None
+    created_at: datetime
+
+
+class RAGDriveSyncStatusResponse(BaseModel):
+    """Sync status for a Drive source."""
+
+    sync_status: str
+    last_sync_at: datetime | None
+    file_count: int
+    synced_file_count: int
+    error_message: str | None
