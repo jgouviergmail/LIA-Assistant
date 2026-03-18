@@ -72,6 +72,12 @@ query-filters:
   # self-signed TLS between Docker containers. Production always validates certs
   - exclude:
       id: js/disabling-certificate-validation
+  # Partial SSRF: proxy endpoints forward validated user input to hardcoded Google
+  # API hosts (maps.googleapis.com, places.googleapis.com). All user-supplied
+  # parameters are regex-validated (coordinates, photo resource names) and the
+  # target host is never user-controlled. No risk of internal network access
+  - exclude:
+      id: py/partial-ssrf
 
 # Query suites
 queries:

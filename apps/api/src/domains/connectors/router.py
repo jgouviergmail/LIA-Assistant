@@ -144,6 +144,7 @@ async def proxy_routes_static_map(
     Returns:
         StreamingResponse with the map image
     """
+    import re
     from urllib.parse import quote
 
     import httpx
@@ -155,6 +156,13 @@ async def proxy_routes_static_map(
         if not api_key:
             logger.warning("google_api_key_not_configured_for_static_map")
             raise_configuration_missing("google_routes", "api_key")
+
+        # Validate coordinate format for origin/dest to prevent parameter injection
+        _coord_pattern = re.compile(r"^-?\d{1,3}(\.\d+)?,-?\d{1,3}(\.\d+)?$")
+        if origin and not _coord_pattern.match(origin):
+            raise_invalid_input("origin must be 'lat,lng' format", field="origin")
+        if dest and not _coord_pattern.match(dest):
+            raise_invalid_input("dest must be 'lat,lng' format", field="dest")
 
         # Validate dimensions (Google limits from constants)
         width = max(STATIC_MAP_MIN_DIMENSION, min(STATIC_MAP_MAX_DIMENSION, width))
