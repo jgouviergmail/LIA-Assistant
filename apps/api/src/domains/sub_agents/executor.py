@@ -391,14 +391,14 @@ class SubAgentExecutor:
                 try:
                     await p
                 except (asyncio.CancelledError, Exception):
-                    pass
+                    logger.debug("sub_agent_task_cancel_suppressed")
 
             # Commit token tracking INSIDE the DB context so the parent
             # tool can read the MessageTokenSummary for consolidation.
             try:
                 await tracker.commit()
             except Exception:
-                pass  # Token persistence failure must not break execution
+                logger.debug("sub_agent_token_commit_failed")
 
         # Collect token totals for Prometheus metrics (after commit)
         tracker_summary = tracker.get_summary()

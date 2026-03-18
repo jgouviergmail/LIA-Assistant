@@ -1112,6 +1112,9 @@ class ConversationalHitlResumption:
 
         assistant_response_content = ""
         first_values_logged = False
+        # Extract user preferences from graph state (populated on first "values" chunk)
+        state_user_language = "fr"
+        state_user_timezone = "Europe/Paris"
 
         try:
             async for mode, chunk in graph.astream(
@@ -1134,6 +1137,9 @@ class ConversationalHitlResumption:
                         has_user_response_in_command=bool(user_response),
                     )
                     first_values_logged = True
+                    # Capture user preferences from graph state
+                    state_user_language = chunk.get("user_language", "fr")
+                    state_user_timezone = chunk.get("user_timezone", "Europe/Paris")
 
                 # === NESTED HITL: Detect interrupt during resume ===
                 # If the resumed tool triggers another HITL-requiring tool, we must:
@@ -1248,9 +1254,9 @@ class ConversationalHitlResumption:
                         hitl_question = await question_generator.generate_confirmation_question(
                             tool_name=tool_name,
                             tool_args=tool_args,
-                            user_language="fr",  # TODO: Extract from state when available
-                            user_timezone="Europe/Paris",  # TODO: Extract from state when available
-                            tracker=question_tracker,  # ✅ Pass tracker for token tracking
+                            user_language=state_user_language,
+                            user_timezone=state_user_timezone,
+                            tracker=question_tracker,
                         )
 
                         # Yield hitl_interrupt chunk

@@ -65,6 +65,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     - X-Frame-Options: DENY - Prevents clickjacking attacks
     - X-Content-Type-Options: nosniff - Prevents MIME type sniffing
     - X-XSS-Protection: 1; mode=block - Enables XSS filter in legacy browsers
+    - Strict-Transport-Security - Forces HTTPS for 1 year (production only)
+    - Content-Security-Policy - Restricts resource loading origins
     - Cross-Origin-Embedder-Policy: require-corp - Required for SharedArrayBuffer (WASM)
     - Cross-Origin-Opener-Policy: same-origin - Required for SharedArrayBuffer (WASM)
 
@@ -81,6 +83,31 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-XSS-Protection"] = "1; mode=block"
+
+        # HSTS — force HTTPS for 1 year, include subdomains (production only)
+        if settings.is_production:
+            response.headers["Strict-Transport-Security"] = (
+                "max-age=31536000; includeSubDomains; preload"
+            )
+
+        # CSP — restrict resource loading to known origins
+        # 'unsafe-inline' for styles is required by many UI frameworks;
+        # script-src is strict (self only) to prevent XSS.
+        csp_directives = [
+            "default-src 'self'",
+            "script-src 'self'",
+            "style-src 'self' 'unsafe-inline'",
+            "img-src 'self' https: data: blob:",
+            "font-src 'self' data:",
+            "connect-src 'self' wss: https:",
+            "media-src 'self' blob:",
+            "object-src 'none'",
+            "base-uri 'self'",
+            "form-action 'self'",
+            "frame-ancestors 'none'",
+        ]
+        response.headers["Content-Security-Policy"] = "; ".join(csp_directives)
+
         # COOP/COEP for WASM SharedArrayBuffer (Sherpa-onnx KWS multi-threading)
         response.headers["Cross-Origin-Embedder-Policy"] = "require-corp"
         response.headers["Cross-Origin-Opener-Policy"] = "same-origin"

@@ -424,6 +424,7 @@ class GetCurrentWeatherTool(APIKeyConnectorTool[OpenWeatherMapClient]):
             type=RegistryItemType.WEATHER,
             payload={
                 "location": location_info,
+                "date": datetime.now(UTC).strftime("%Y-%m-%d"),
                 "temperature": weather_info.get("temperature"),
                 "description": weather_info.get("description"),
                 "humidity": weather_info.get("humidity"),

@@ -425,6 +425,23 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
             ),
         },
     ),
+    # Sub-Agent domain: Ephemeral sub-agent delegation (cross-cutting)
+    # NOT ROUTABLE: Internal capability, force-injected via include_sub_agent_tools
+    "sub_agent": DomainConfig(
+        name="sub_agent",
+        display_name="Sub-Agent Delegation",
+        description="Delegate complex tasks to ephemeral specialized sub-agents",
+        agent_names=["sub_agent_agent"],
+        result_key="sub_agents",
+        related_domains=[],
+        priority=3,
+        is_routable=False,  # Internal/transversal — not selectable by router
+        metadata={
+            "provider": "internal",
+            "requires_oauth": False,
+            "cross_domain": True,
+        },
+    ),
     # MCP domain: External tools from MCP servers (evolution F2)
     "mcp": DomainConfig(
         name="mcp",

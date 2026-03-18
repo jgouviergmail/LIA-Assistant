@@ -12,10 +12,11 @@ Renders calendar events with:
 
 from __future__ import annotations
 
-import logging
 import re
 from datetime import datetime
 from typing import Any
+
+import structlog
 
 from src.core.i18n_v3 import V3Messages
 from src.domains.agents.constants import CONTEXT_DOMAIN_EVENTS
@@ -32,7 +33,7 @@ from src.domains.agents.display.components.base import (
 )
 from src.domains.agents.display.icons import Icons, icon
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 class EventCard(BaseComponent):
@@ -515,48 +516,29 @@ class EventCard(BaseComponent):
             Response status: 'accepted', 'declined', 'tentative', 'needsAction'
             or empty string if user is not an attendee (organizer only event).
         """
-        # DEBUG: Log event data for response status detection
         event_title = data.get("summary", "Unknown")
         attendees = data.get("attendees", [])
         organizer = data.get("organizer", {})
 
-        # TODO: Remove after debugging - change back to debug level
-        logger.info(
-            f"[EventCard] Response status detection for '{event_title}': "
-            f"attendees_count={len(attendees)}, "
-            f"organizer={organizer}"
+        logger.debug(
+            "event_response_status_detection",
+            event_title=event_title,
+            attendees_count=len(attendees),
         )
 
         if not attendees:
-            # No attendees = personal event, consider as accepted
-            logger.info(f"[EventCard] '{event_title}': No attendees -> accepted (personal event)")
             return "accepted"
 
         for attendee in attendees:
             if isinstance(attendee, dict) and attendee.get("self"):
-                status = attendee.get("responseStatus", "needsAction")
-                logger.info(
-                    f"[EventCard] '{event_title}': Found self attendee -> "
-                    f"responseStatus='{status}'"
-                )
-                return status  # type: ignore[no-any-return]
+                return attendee.get("responseStatus", "needsAction")  # type: ignore[no-any-return]
 
-        # User not in attendees list - could be organizer viewing
-        # Check if user is organizer
         if isinstance(organizer, dict) and organizer.get("self"):
-            logger.info(f"[EventCard] '{event_title}': User is organizer -> accepted")
             return "accepted"
 
-        # Default to needsAction if unclear
-        logger.info(
-            f"[EventCard] '{event_title}': No self in attendees, not organizer -> needsAction. "
-            f"Attendees: {attendees[:3]}..."  # Log first 3 attendees for debugging
-        )
         return "needsAction"
 
     def _get_response_status_class(self, data: dict[str, Any]) -> str:
         """Get CSS class for user's response status."""
         status = self._get_user_response_status(data)
-        css_class = self.RESPONSE_STATUS_CLASS.get(status, "lia-event--pending")
-        logger.info(f"[EventCard] Status '{status}' -> CSS class '{css_class}'")
-        return css_class
+        return self.RESPONSE_STATUS_CLASS.get(status, "lia-event--pending")

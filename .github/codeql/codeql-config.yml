@@ -58,6 +58,20 @@ query-filters:
   # Repeated imports: Intentional in files with conditional/lazy imports
   - exclude:
       id: py/repeated-import
+  # Mixed returns: Helper functions (raise_permission_denied, raise_internal_error, etc.)
+  # are typed -> NoReturn but CodeQL does not track this annotation, causing false
+  # positives in functions that delegate error-raising to shared helpers
+  - exclude:
+      id: py/mixed-returns
+  # Bad tag filter: regex-based HTML stripping in display components converts Google
+  # Places API HTML to plain text for chat rendering — not security sanitization.
+  # Content is never re-rendered as HTML, so bypass risk is not exploitable
+  - exclude:
+      id: py/bad-tag-filter
+  # Disabling certificate validation: dev-only (NODE_ENV !== 'production') for
+  # self-signed TLS between Docker containers. Production always validates certs
+  - exclude:
+      id: js/disabling-certificate-validation
 
 # Query suites
 queries:

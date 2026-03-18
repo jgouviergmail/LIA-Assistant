@@ -381,7 +381,7 @@ async def sync_drive_folder(
     service = RAGDriveSyncService(db)
 
     # Verify ownership
-    source = await service.get_sync_status(space_id, source_id, user.id)
+    await service.get_sync_status(space_id, source_id, user.id)
 
     # Atomic lock
     acquired = await service.try_acquire_sync_lock(source_id)

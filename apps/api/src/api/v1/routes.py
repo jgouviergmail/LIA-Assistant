@@ -10,12 +10,12 @@ from src.core.config import settings
 from src.core.field_names import FIELD_STATUS
 from src.domains.agents.api.router import router as agents_router
 from src.domains.auth.router import router as auth_router
-from src.domains.chat.routes import router as chat_router
+from src.domains.chat.router import router as chat_router
 from src.domains.connectors.router import router as connectors_router
 from src.domains.conversations.router import router as conversations_router
-from src.domains.google_api.routes import router as google_api_admin_router
+from src.domains.google_api.router import router as google_api_admin_router
 from src.domains.interests.router import router as interests_router
-from src.domains.llm.routes import router as llm_admin_router
+from src.domains.llm.router import router as llm_admin_router
 from src.domains.llm_config.router import router as llm_config_router
 from src.domains.memories.router import router as memories_router
 from src.domains.notifications.router import router as notifications_router

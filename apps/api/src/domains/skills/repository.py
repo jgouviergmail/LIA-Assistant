@@ -14,6 +14,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.repository import BaseRepository
 from src.domains.skills.models import Skill, UserSkillState
+from src.infrastructure.observability.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class SkillRepository(BaseRepository[Skill]):
@@ -189,7 +192,7 @@ class UserSkillStateRepository:
             except IntegrityError:
                 # Concurrent insert created the same row — savepoint rolls back,
                 # outer transaction continues safely.
-                pass
+                logger.debug("skill_state_already_exists", skill_id=str(skill_id))
 
         return created
 
@@ -221,7 +224,7 @@ class UserSkillStateRepository:
                     await self.db.flush()
                     created += 1
             except IntegrityError:
-                pass
+                logger.debug("skill_state_already_exists", user_id=str(uid), skill_id=str(skill_id))
 
         return created
 

@@ -61,6 +61,41 @@ logger = get_logger(__name__)
 
 
 # ============================================================================
+# Path Safety
+# ============================================================================
+
+
+def _safe_storage_path(base_dir: Path, *segments: str) -> Path:
+    """Build a storage path and verify it stays within the base directory.
+
+    Prevents path-traversal attacks when segments originate from the database.
+
+    Args:
+        base_dir: Trusted root directory (e.g. ``/app/data/rag_uploads``).
+        *segments: Untrusted path components (user_id, space_id, filename).
+
+    Returns:
+        Resolved absolute path guaranteed to be under *base_dir*.
+
+    Raises:
+        BaseAPIException: If the resolved path escapes *base_dir*.
+    """
+    target = (base_dir / Path(*segments)).resolve()
+    if not target.is_relative_to(base_dir.resolve()):
+        logger.error(
+            "rag_path_traversal_blocked",
+            base_dir=str(base_dir),
+            segments=segments,
+        )
+        raise BaseAPIException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid file path",
+            log_event="rag_path_traversal_blocked",
+        )
+    return target
+
+
+# ============================================================================
 # Exception Helpers
 # ============================================================================
 
@@ -226,11 +261,11 @@ class RAGDriveSyncService:
                 # Delete chunks
                 await self.chunk_repo.delete_by_document(doc.id)
                 # Delete physical file
-                file_path = (
-                    Path(settings.rag_spaces_storage_path)
-                    / str(user_id)
-                    / str(space_id)
-                    / doc.filename
+                file_path = _safe_storage_path(
+                    Path(settings.rag_spaces_storage_path),
+                    str(user_id),
+                    str(space_id),
+                    doc.filename,
                 )
                 if file_path.exists():
                     file_path.unlink()
@@ -502,11 +537,11 @@ async def sync_folder_background(
                                     rag_drive_sync_files_total.labels(result="skipped").inc()
                                     continue
                             # Modified — delete old doc + chunks + file
-                            old_file = (
-                                Path(settings.rag_spaces_storage_path)
-                                / str(user_id)
-                                / str(space_id)
-                                / existing.filename
+                            old_file = _safe_storage_path(
+                                Path(settings.rag_spaces_storage_path),
+                                str(user_id),
+                                str(space_id),
+                                existing.filename,
                             )
                             if old_file.exists():
                                 old_file.unlink()
@@ -550,11 +585,19 @@ async def sync_folder_background(
 
                         # Write to disk
                         stored_filename = f"{uuid_mod.uuid4().hex}{ext}"
-                        storage_dir = (
-                            Path(settings.rag_spaces_storage_path) / str(user_id) / str(space_id)
+                        base_dir = Path(settings.rag_spaces_storage_path)
+                        storage_dir = _safe_storage_path(
+                            base_dir,
+                            str(user_id),
+                            str(space_id),
                         )
                         storage_dir.mkdir(parents=True, exist_ok=True)
-                        file_path = storage_dir / stored_filename
+                        file_path = _safe_storage_path(
+                            base_dir,
+                            str(user_id),
+                            str(space_id),
+                            stored_filename,
+                        )
                         file_path.write_bytes(content_bytes)
 
                         # Parse modified time
@@ -614,11 +657,11 @@ async def sync_folder_background(
                     try:
                         doc = await doc_repo.get_by_drive_file_id(space_id, removed_file_id)
                         if doc and doc.drive_source_id == source_id:
-                            old_file = (
-                                Path(settings.rag_spaces_storage_path)
-                                / str(user_id)
-                                / str(space_id)
-                                / doc.filename
+                            old_file = _safe_storage_path(
+                                Path(settings.rag_spaces_storage_path),
+                                str(user_id),
+                                str(space_id),
+                                doc.filename,
                             )
                             if old_file.exists():
                                 old_file.unlink()

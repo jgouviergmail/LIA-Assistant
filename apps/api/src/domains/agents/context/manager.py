@@ -668,7 +668,7 @@ class ToolContextManager:
         items = data_payload.get(items_key, [])
 
         if not items:
-            logger.warning(
+            logger.debug(
                 "auto_save_skipped_no_items",
                 domain=domain,
                 items_key=items_key,

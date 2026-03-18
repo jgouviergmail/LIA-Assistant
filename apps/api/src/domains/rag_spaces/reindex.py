@@ -73,10 +73,14 @@ async def _alter_vector_dimensions_if_needed(db: AsyncSession, new_dims: int) ->
     # Delete all chunks (they'll be re-embedded with new dimensions)
     await db.execute(text("DELETE FROM rag_chunks"))
 
-    # ALTER column type (new_dims is validated by Pydantic: 256 <= int <= 4096)
+    # ALTER column type — DDL statements don't support bind parameters for type modifiers,
+    # so we use strict whitelist validation before string formatting (defense in depth).
     if not isinstance(new_dims, int) or not (256 <= new_dims <= 4096):
         raise ValueError(f"Invalid embedding dimensions: {new_dims}")
-    await db.execute(text(f"ALTER TABLE rag_chunks ALTER COLUMN embedding TYPE vector({new_dims})"))
+    safe_dims = int(new_dims)  # Re-cast to guarantee pure int (no subclass override)
+    await db.execute(
+        text(f"ALTER TABLE rag_chunks ALTER COLUMN embedding TYPE vector({safe_dims})")
+    )
 
     # Drop and recreate HNSW index
     await db.execute(text("DROP INDEX IF EXISTS ix_rag_chunks_embedding"))

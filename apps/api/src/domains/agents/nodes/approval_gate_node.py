@@ -167,7 +167,7 @@ def _build_plan_summary(plan: ExecutionPlan, validation_result: Any) -> PlanSumm
                     try:
                         manifest = registry.get_tool_manifest(stripped)
                     except ToolManifestNotFound:
-                        pass
+                        logger.debug("manifest_strip_suffix_miss", tool_name=step.tool_name)
 
                 # 2. User MCP: ContextVar with fuzzy resolve
                 if manifest is None:

@@ -1315,7 +1315,7 @@ async def _handle_execution_plan(
 
             replan_context = RePlanContext(
                 user_request=user_message,
-                user_language="fr",  # TODO: Get from user preferences
+                user_language=state.get("user_language", "fr"),
                 execution_plan=execution_plan,
                 plan_id=execution_plan.plan_id,
                 completed_steps=completed_steps,

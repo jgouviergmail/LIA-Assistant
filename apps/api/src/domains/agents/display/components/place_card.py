@@ -31,6 +31,9 @@ from src.domains.agents.display.components.base import (
     wrap_with_response,
 )
 from src.domains.agents.display.icons import Icons, icon
+from src.infrastructure.observability.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class PlaceCard(BaseComponent):
@@ -380,7 +383,7 @@ class PlaceCard(BaseComponent):
                                 open_time = time_part.split("–")[0].strip()
                                 return open_time  # type: ignore[no-any-return]
             except (ValueError, IndexError, TypeError):
-                pass
+                logger.debug("place_card_opening_hours_parse_error")
         return ""
 
     def _render_collapsible_details(self, data: dict[str, Any], ctx: RenderContext) -> str:
