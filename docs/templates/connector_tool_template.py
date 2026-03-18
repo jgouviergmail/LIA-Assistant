@@ -18,15 +18,10 @@ from langchain_core.tools import InjectedToolArg
 from pydantic import BaseModel
 
 from src.core.config import get_settings
-from src.core.field_names import (
-    FIELD_METADATA,
-    # TODO: Add other field names as needed
-)
-from src.domains.agents.constants import (
-    # TODO: Define your agent constant
-    # AGENT_YOUR_SERVICE = "your_service"
-    # CONTEXT_DOMAIN_YOUR_SERVICE = "your_service"
-)
+from src.core.field_names import FIELD_METADATA  # TODO: Add other field names as needed
+
+# TODO: Define your agent constants in src.domains.agents.constants:
+# from src.domains.agents.constants import AGENT_YOUR_SERVICE, CONTEXT_DOMAIN_YOUR_SERVICE
 from src.domains.agents.context import ContextTypeDefinition, ContextTypeRegistry
 from src.domains.agents.tools.base import ConnectorTool
 from src.domains.agents.tools.decorators import connector_tool
@@ -35,17 +30,15 @@ from src.domains.agents.tools.runtime_helpers import (
     validate_runtime_config,
 )
 from src.domains.agents.tools.schemas import ToolResponse
-from src.domains.connectors.clients import (
-    # TODO: Import your client class
-    # YourServiceClient,
-)
+# TODO: Import your client class
+# from src.domains.connectors.clients import YourServiceClient
 from src.domains.connectors.models import ConnectorType
-from src.infrastructure.observability.metrics_agents import (
-    # TODO: Define your metrics
-    # your_service_api_calls,
-    # your_service_api_latency,
-    # your_service_results_count,
-)
+# TODO: Define your metrics in src.infrastructure.observability.metrics_agents
+# from src.infrastructure.observability.metrics_agents import (
+#     your_service_api_calls,
+#     your_service_api_latency,
+#     your_service_results_count,
+# )
 
 logger = structlog.get_logger(__name__)
 
