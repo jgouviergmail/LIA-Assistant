@@ -2064,7 +2064,7 @@
       "features": {
         "architecture": {
           "title": "🏗️ Architettura LangGraph Multi-Agenti",
-          "description": "LIA utilizza LangGraph, un framework di grafi di stato per l'orchestrazione di 16+ agenti IA. Ogni dominio (email, calendario, contatti, attività, drive, meteo, luoghi, percorsi, Wikipedia, Perplexity, Brave Search, promemoria, contesto, ecc.) ha il proprio agente specializzato con transizioni condizionali e persistenza dello stato tramite checkpointing PostgreSQL. Gli agenti MCP dinamici estendono le capacità senza limiti."
+          "description": "LIA utilizza LangGraph, un framework di grafi di stato per l'orchestrazione di 18+ agenti IA. Ogni dominio (email, calendario, contatti, attività, drive, meteo, luoghi, percorsi, Wikipedia, Perplexity, Brave Search, promemoria, contesto, ecc.) ha il proprio agente specializzato con transizioni condizionali e persistenza dello stato tramite checkpointing PostgreSQL. Gli agenti MCP dinamici estendono le capacità senza limiti."
         },
         "queryAnalyzer": {
           "title": "🧭 Query Analyzer v3.2",
@@ -3569,7 +3569,7 @@
   "landing": {
     "meta": {
       "title": "LIA — Il tuo assistente IA personale intelligente",
-      "description": "LIA orchestra 16+ agenti specializzati per gestire le tue email, il calendario, i contatti e molto altro. Validazione umana sistematica, privacy by design."
+      "description": "LIA orchestra 18+ agenti specializzati per gestire le tue email, il calendario, i contatti e molto altro. Validazione umana sistematica, privacy by design."
     },
     "nav": {
       "features": "Funzionalità",
@@ -3645,7 +3645,7 @@
         "description": "Nessun comando da memorizzare. Chiedi quello che vuoi come a un assistente umano, LIA capisce e agisce."
       },
       "multi_agent": {
-        "title": "16+ agenti specializzati",
+        "title": "18+ agenti specializzati",
         "description": "Email, calendario, contatti, file, attività, meteo, ricerca web, Wikipedia, luoghi, percorsi, promemoria e altro ancora. Una singola richiesta attiva automaticamente gli agenti giusti."
       },
       "proactive": {
@@ -3825,6 +3825,20 @@
         "orchestrator": "Orchestratore",
         "agents": "Agenti",
         "response": "Risposta"
+      }
+    },
+    "screenshots": {
+      "title": "LIA in immagini",
+      "subtitle": "Un'interfaccia chiara e intuitiva, progettata per tutti — nessuna competenza tecnica richiesta",
+      "items": {
+        "homepage": "Dashboard — Homepage con statistiche d'uso e saluto personalizzato",
+        "chat": "Chat — Conversazione multi-agente con pannello debug in tempo reale",
+        "settings_preferences": "Impostazioni — Preferenze: connettori, MCP, lingua, temi",
+        "settings_features": "Impostazioni — Funzionalità: memoria, interessi, notifiche, sub-agenti",
+        "settings_administration": "Amministrazione — Pannello di controllo completo per gli operatori",
+        "settings_administration_oneclick": "Amministrazione — Semplicità in un clic: ogni azione accessibile istantaneamente",
+        "settings_administration_llm": "Amministrazione — Configurazione LLM: 7 provider, selezione modello per nodo",
+        "faq": "FAQ — Centro assistenza con ricerca e categorie"
       }
     },
     "cta": {

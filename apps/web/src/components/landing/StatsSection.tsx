@@ -2,14 +2,15 @@
 
 import { useTranslation } from 'react-i18next';
 import { AnimatedCounter } from './AnimatedCounter';
+import { LANDING_STATS } from './constants';
 
 const STATS = [
-  { value: 18, suffix: '+', key: 'agents' },
-  { value: 55, suffix: '+', key: 'tools' },
-  { value: 7, suffix: '', key: 'providers' },
-  { value: 99, suffix: '+', key: 'voice_languages' },
-  { value: 500, suffix: '+', key: 'metrics' },
-  { value: 6, suffix: '', key: 'ui_languages' },
+  { value: LANDING_STATS.agents, suffix: '+', key: 'agents' },
+  { value: LANDING_STATS.tools, suffix: '+', key: 'tools' },
+  { value: LANDING_STATS.providers, suffix: '', key: 'providers' },
+  { value: LANDING_STATS.voiceLanguages, suffix: '+', key: 'voice_languages' },
+  { value: LANDING_STATS.metrics, suffix: '+', key: 'metrics' },
+  { value: LANDING_STATS.uiLanguages, suffix: '', key: 'ui_languages' },
 ] as const;
 
 export function StatsSection() {

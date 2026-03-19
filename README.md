@@ -126,6 +126,11 @@ LIA is available as a hosted service at **https://lia.jeyswork.com/** — no ins
 </p>
 
 <p align="center">
+  <img src="docs/assets/screenshot-settings-administration-oneclick.png" alt="Settings — One-click administration" width="800" />
+  <br /><em>Administration — One-click simplicity: every admin action is accessible in a single click, no technical skills required</em>
+</p>
+
+<p align="center">
   <img src="docs/assets/screenshot-settings-administration-llm.png" alt="Settings — LLM Configuration with multi-provider support" width="800" />
   <br /><em>Administration — LLM Configuration: 7 providers (OpenAI, Anthropic, DeepSeek, Qwen, Perplexity, Ollama, Gemini), per-node model selection</em>
 </p>

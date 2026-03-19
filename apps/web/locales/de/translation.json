@@ -2062,7 +2062,7 @@
       "features": {
         "architecture": {
           "title": "🏗️ LangGraph Multi-Agenten-Architektur",
-          "description": "LIA verwendet LangGraph, ein State-Graph-Framework für KI-Agenten-Orchestrierung. 16+ spezialisierte Agenten, jede Domäne (E-Mails, Kalender, Kontakte, Aufgaben, Drive, Wetter, Orte, Routen, Wikipedia, Perplexity, Brave Search, Webseitenleser, Websuche, lokale Abfragen, Erinnerungen, Kontext) hat ihren eigenen spezialisierten Agenten mit bedingten Übergängen und Zustandspersistenz über PostgreSQL-Checkpointing. Dynamische MCP-Agenten erweitern die Fähigkeiten grenzenlos."
+          "description": "LIA verwendet LangGraph, ein State-Graph-Framework für KI-Agenten-Orchestrierung. 18+ spezialisierte Agenten, jede Domäne (E-Mails, Kalender, Kontakte, Aufgaben, Drive, Wetter, Orte, Routen, Wikipedia, Perplexity, Brave Search, Webseitenleser, Websuche, lokale Abfragen, Erinnerungen, Kontext) hat ihren eigenen spezialisierten Agenten mit bedingten Übergängen und Zustandspersistenz über PostgreSQL-Checkpointing. Dynamische MCP-Agenten erweitern die Fähigkeiten grenzenlos."
         },
         "queryAnalyzer": {
           "title": "🧭 Query Analyzer v3.2",
@@ -3567,7 +3567,7 @@
   "landing": {
     "meta": {
       "title": "LIA — Dein intelligenter persönlicher KI-Assistent",
-      "description": "LIA orchestriert 16+ spezialisierte Agenten zur Verwaltung deiner E-Mails, Kalender, Kontakte und vieles mehr. Systematische menschliche Validierung, Privacy by Design."
+      "description": "LIA orchestriert 18+ spezialisierte Agenten zur Verwaltung deiner E-Mails, Kalender, Kontakte und vieles mehr. Systematische menschliche Validierung, Privacy by Design."
     },
     "nav": {
       "features": "Funktionen",
@@ -3643,7 +3643,7 @@
         "description": "Keine Befehle zum Merken. Frag einfach wie bei einem menschlichen Assistenten, LIA versteht und handelt."
       },
       "multi_agent": {
-        "title": "16+ spezialisierte Agenten",
+        "title": "18+ spezialisierte Agenten",
         "description": "E-Mails, Kalender, Kontakte, Dateien, Aufgaben, Wetter, Websuche, Wikipedia, Orte, Routen, Erinnerungen und mehr. Ein einziger Befehl aktiviert automatisch die richtigen Agenten."
       },
       "proactive": {
@@ -3823,6 +3823,20 @@
         "orchestrator": "Orchestrator",
         "agents": "Agenten",
         "response": "Antwort"
+      }
+    },
+    "screenshots": {
+      "title": "LIA in Bildern",
+      "subtitle": "Eine klare, intuitive Oberfläche für alle — keine technischen Kenntnisse erforderlich",
+      "items": {
+        "homepage": "Dashboard — Startseite mit Nutzungsstatistiken und personalisierter Begrüßung",
+        "chat": "Chat — Multi-Agenten-Konversation mit Echtzeit-Debug-Panel",
+        "settings_preferences": "Einstellungen — Präferenzen: Konnektoren, MCP, Sprache, Themes",
+        "settings_features": "Einstellungen — Funktionen: Gedächtnis, Interessen, Benachrichtigungen, Sub-Agenten",
+        "settings_administration": "Administration — Vollständiges Kontrollpanel für Betreiber",
+        "settings_administration_oneclick": "Administration — Ein-Klick-Einfachheit: jede Aktion sofort zugänglich",
+        "settings_administration_llm": "Administration — LLM-Konfiguration: 7 Anbieter, Modellauswahl pro Knoten",
+        "faq": "FAQ — Durchsuchbares Hilfezentrum mit kategorisierten Fragen"
       }
     },
     "cta": {

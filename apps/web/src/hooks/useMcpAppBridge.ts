@@ -18,6 +18,7 @@
 import { useEffect, type RefObject } from 'react';
 import type { McpAppRegistryPayload, McpAppBridgeMessage } from '@/types/mcp-apps';
 import { mcpAppCallTool, mcpAppReadResource } from '@/lib/api/mcp-apps';
+import { APP_VERSION } from '@/lib/version';
 
 export const MCP_APPS_PROTOCOL_VERSION = '2026-01-26';
 
@@ -84,7 +85,7 @@ export function useMcpAppBridge(
               id: msg.id,
               result: {
                 protocolVersion: MCP_APPS_PROTOCOL_VERSION,
-                hostInfo: { name: 'LIA', version: process.env.NEXT_PUBLIC_APP_VERSION || '0.0.0' },
+                hostInfo: { name: 'LIA', version: APP_VERSION },
                 hostCapabilities: {
                   serverTools: {},
                   serverResources: {},

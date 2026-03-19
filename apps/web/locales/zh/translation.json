@@ -2057,7 +2057,7 @@
       "features": {
         "architecture": {
           "title": "🏗️ LangGraph 多智能体架构",
-          "description": "LIA 使用 LangGraph，一个用于 AI 智能体编排的状态图框架。16+ 个专门的智能体覆盖各个领域（邮件、日历、联系人、任务、云端硬盘、天气、地点、路线、维基百科、Perplexity、Brave Search、网页阅读、网络搜索、提醒、上下文、本地查询等），具有条件转换和通过 PostgreSQL 检查点实现的状态持久化。动态MCP代理无限扩展能力。"
+          "description": "LIA 使用 LangGraph，一个用于 AI 智能体编排的状态图框架。18+ 个专门的智能体覆盖各个领域（邮件、日历、联系人、任务、云端硬盘、天气、地点、路线、维基百科、Perplexity、Brave Search、网页阅读、网络搜索、提醒、上下文、本地查询等），具有条件转换和通过 PostgreSQL 检查点实现的状态持久化。动态MCP代理无限扩展能力。"
         },
         "queryAnalyzer": {
           "title": "🧭 Query Analyzer v3.2",
@@ -3562,7 +3562,7 @@
   "landing": {
     "meta": {
       "title": "LIA — 你的智能个人AI助手",
-      "description": "LIA协调16+个专业代理来管理你的邮件、日历、联系人等。系统化的人工验证，隐私优先设计。"
+      "description": "LIA协调18+个专业代理来管理你的邮件、日历、联系人等。系统化的人工验证，隐私优先设计。"
     },
     "nav": {
       "features": "功能",
@@ -3638,7 +3638,7 @@
         "description": "无需记忆任何命令。像对人类助手一样提出需求，LIA理解并执行。"
       },
       "multi_agent": {
-        "title": "16+个专业智能体",
+        "title": "18+个专业智能体",
         "description": "邮件、日历、联系人、文件、任务、天气、网络搜索、Wikipedia、地点、路线、提醒等。一条指令自动激活正确的智能体。"
       },
       "proactive": {
@@ -3818,6 +3818,20 @@
         "orchestrator": "编排器",
         "agents": "代理",
         "response": "响应"
+      }
+    },
+    "screenshots": {
+      "title": "LIA 界面展示",
+      "subtitle": "简洁直观的界面，为所有人设计——无需技术技能",
+      "items": {
+        "homepage": "仪表盘 — 首页，包含使用统计和个性化问候",
+        "chat": "聊天 — 多智能体对话，带实时调试面板",
+        "settings_preferences": "设置 — 偏好：连接器、MCP、语言、主题",
+        "settings_features": "设置 — 功能：记忆、兴趣、通知、子智能体",
+        "settings_administration": "管理 — 运营者完整控制面板",
+        "settings_administration_oneclick": "管理 — 一键简易操作：每个操作即时可用",
+        "settings_administration_llm": "管理 — LLM配置：7个提供商，按节点选择模型",
+        "faq": "常见问题 — 可搜索的分类帮助中心"
       }
     },
     "cta": {

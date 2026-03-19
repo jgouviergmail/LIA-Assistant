@@ -2071,7 +2071,7 @@
       "features": {
         "architecture": {
           "title": "🏗️ LangGraph Multi-Agent Architecture",
-          "description": "LIA uses LangGraph, a state graph framework for AI agent orchestration. 16+ specialized domain agents (contacts, email, calendar, drive, tasks, weather, wikipedia, perplexity, brave, web_search, web_fetch, places, routes, reminders, context, query) + dynamic MCP agents, each with conditional transitions and state persistence via PostgreSQL checkpointing. Dynamic MCP agents extend capabilities without limit."
+          "description": "LIA uses LangGraph, a state graph framework for AI agent orchestration. 18+ specialized domain agents (contacts, email, calendar, drive, tasks, weather, wikipedia, perplexity, brave, web_search, web_fetch, places, routes, reminders, context, query) + dynamic MCP agents, each with conditional transitions and state persistence via PostgreSQL checkpointing. Dynamic MCP agents extend capabilities without limit."
         },
         "queryAnalyzer": {
           "title": "🧭 Query Analyzer v3.2",
@@ -3568,7 +3568,7 @@
   "landing": {
     "meta": {
       "title": "LIA — Your Intelligent Personal AI Assistant",
-      "description": "LIA orchestrates 16+ specialized agents to manage your emails, calendar, contacts, and more. Systematic human validation, privacy by design."
+      "description": "LIA orchestrates 18+ specialized agents to manage your emails, calendar, contacts, and more. Systematic human validation, privacy by design."
     },
     "nav": {
       "features": "Features",
@@ -3644,7 +3644,7 @@
         "description": "No commands to memorize. Ask what you want like you would a human assistant, LIA understands and acts."
       },
       "multi_agent": {
-        "title": "16+ specialized agents",
+        "title": "18+ specialized agents",
         "description": "Emails, calendar, contacts, files, tasks, weather, web search, Wikipedia, places, routes, reminders and more. A single request automatically activates the right agents."
       },
       "proactive": {
@@ -3824,6 +3824,20 @@
         "orchestrator": "Orchestrator",
         "agents": "Agents",
         "response": "Response"
+      }
+    },
+    "screenshots": {
+      "title": "See LIA in action",
+      "subtitle": "A clean, intuitive interface designed for everyone — no technical skills required",
+      "items": {
+        "homepage": "Dashboard — Homepage with usage statistics and personalized greeting",
+        "chat": "Chat — Multi-agent conversation with real-time debug panel",
+        "settings_preferences": "Settings — Preferences: connectors, MCP, language, themes",
+        "settings_features": "Settings — Features: memory, interests, notifications, sub-agents",
+        "settings_administration": "Administration — Full control panel for operators",
+        "settings_administration_oneclick": "Administration — One-click simplicity: every action accessible instantly",
+        "settings_administration_llm": "Administration — LLM Configuration: 7 providers, per-node model selection",
+        "faq": "FAQ — Searchable help center with categorized Q&A"
       }
     },
     "cta": {

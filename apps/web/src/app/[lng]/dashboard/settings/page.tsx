@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { APP_VERSION } from '@/lib/version';
 import { useAuth } from '@/hooks/useAuth';
 import { useLanguageParam } from '@/hooks/useLanguageParam';
 import { useSearchParams } from 'next/navigation';
@@ -349,7 +350,7 @@ export default function SettingsPage({ params }: SettingsPageProps) {
 
       {/* Version */}
       <p className="text-xs text-muted-foreground/50 text-center pt-4">
-        v{process.env.NEXT_PUBLIC_APP_VERSION}
+        v{APP_VERSION}
       </p>
     </div>
   );

@@ -6,6 +6,7 @@ import { ChevronDown } from 'lucide-react';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 import type { Language } from '@/i18n/settings';
 import { HeroBackground } from './HeroBackground';
+import { LANDING_STATS } from './constants';
 
 interface HeroSectionProps {
   lng: string;
@@ -64,15 +65,15 @@ export async function HeroSection({ lng }: HeroSectionProps) {
         {/* Trust badges */}
         <div className="flex flex-wrap items-center gap-4 justify-center text-sm text-muted-foreground">
           <span className="flex items-center gap-1.5">
-            <span className="font-semibold text-foreground">16+</span> {t('landing.hero.trust_agents')}
+            <span className="font-semibold text-foreground">{LANDING_STATS.agents}+</span> {t('landing.hero.trust_agents')}
           </span>
           <span className="w-px h-4 bg-border" />
           <span className="flex items-center gap-1.5">
-            <span className="font-semibold text-foreground">6</span> {t('landing.hero.trust_providers')}
+            <span className="font-semibold text-foreground">{LANDING_STATS.providers}</span> {t('landing.hero.trust_providers')}
           </span>
           <span className="w-px h-4 bg-border" />
           <span className="flex items-center gap-1.5">
-            <span className="font-semibold text-foreground">99+</span> {t('landing.hero.trust_voices')}
+            <span className="font-semibold text-foreground">{LANDING_STATS.voiceLanguages}+</span> {t('landing.hero.trust_voices')}
           </span>
           <span className="w-px h-4 bg-border hidden sm:block" />
           <span className="hidden sm:flex items-center gap-1.5">

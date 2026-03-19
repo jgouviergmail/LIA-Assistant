@@ -1,5 +1,6 @@
 import { initI18next } from '@/i18n';
 import Image from 'next/image';
+import { APP_VERSION } from '@/lib/version';
 
 interface LandingFooterProps {
   lng: string;
@@ -23,7 +24,7 @@ export async function LandingFooter({ lng }: LandingFooterProps) {
               className="rounded-md"
             />
             <span className="text-sm text-muted-foreground">
-              {t('landing.footer.copyright', { year })} · v{process.env.NEXT_PUBLIC_APP_VERSION}
+              {t('landing.footer.copyright', { year })} · v{APP_VERSION}
             </span>
           </div>
 
