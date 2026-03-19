@@ -626,13 +626,13 @@ apps/api/src/
 
 | Provider | Models | Use Case |
 |----------|--------|----------|
-| OpenAI | GPT-4.1-mini, GPT-4.1-nano | Primary (prompt caching) |
-| Anthropic | Claude 3.5 Sonnet, Claude 3 Opus | Alternative |
-| Google | Gemini 2.0 Flash | Multimodal |
-| DeepSeek | V3, Reasoner (R1) | Cost-effective reasoning |
-| Perplexity | sonar-pro | Web-augmented responses |
-| Qwen | qwen3-max, qwen3.5-plus/flash | Thinking + tools (Alibaba Cloud) |
-| Ollama | Self-hosted | Zero API cost |
+| OpenAI | GPT-5.2, GPT-5.1, GPT-5, GPT-5-mini/nano, GPT-4.1, GPT-4.1-mini/nano, GPT-4o, o1, o3-mini | Primary (prompt caching, reasoning) |
+| Anthropic | Claude Opus 4.6/4.5/4, Claude Sonnet 4.6/4.5/4, Claude Haiku 4.5 | Alternative (extended thinking) |
+| Google | Gemini 3.1/3/2.5 Pro, Gemini 3/2.5/2.0 Flash | Multimodal |
+| DeepSeek | deepseek-chat (V3), deepseek-reasoner (R1) | Cost-effective reasoning |
+| Perplexity | sonar-small/large-128k-online | Web-augmented responses |
+| Qwen | qwen3-max, qwen3.5-plus, qwen3.5-flash | Thinking + tools + vision (Alibaba Cloud) |
+| Ollama | Any local model (dynamic discovery) | Zero API cost, self-hosted |
 
 ### Observability
 
@@ -726,7 +726,7 @@ pytest --cov=src --cov-report=html -v
 |--------|-------|
 | Total tests | 2,300+ |
 | Reusable fixtures | 170+ |
-| Coverage target | 75% |
+| Coverage target | 43% |
 | CI Workflows | 3 (CI, Security, Release) |
 
 ---
@@ -763,7 +763,7 @@ ESLint + TypeScript check         CodeQL (Python + JS)
 | **Branch protection** | PR required (external contributors), 7 status checks, force push forbidden |
 | **Dependabot** | Weekly updates for pip, npm, Docker, Actions — minor/patch grouped |
 | **Pre-commit / CI alignment** | CI covers everything the pre-commit does (and more) |
-| **Coverage threshold** | 75% minimum enforced in CI |
+| **Coverage threshold** | 43% minimum enforced in CI |
 
 ### Workflows
 
@@ -868,7 +868,7 @@ git push origin feature/my-feature
 - **Python**: Black + Ruff + MyPy (strict)
 - **TypeScript**: ESLint + Prettier
 - **Commits**: [Conventional Commits](https://www.conventionalcommits.org/)
-- **Coverage**: >= 75% enforced in CI
+- **Coverage**: >= 43% enforced in CI
 - **Pre-commit hook**: Installed via `task setup` — runs linters + tests on staged files
 - **CI**: All PRs must pass 7 status checks before merge (see [CI/CD](#cicd))
 
