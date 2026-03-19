@@ -51,7 +51,14 @@ const DEFAULT_OPTIONS: Required<UseFileUploadOptions> = {
   maxImageSizeMB: 10,
   maxDocSizeMB: 20,
   maxAttachments: 5,
-  allowedImageTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/heif'],
+  allowedImageTypes: [
+    'image/jpeg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+    'image/heic',
+    'image/heif',
+  ],
   allowedDocTypes: ['application/pdf'],
 };
 
@@ -96,16 +103,16 @@ export function useFileUpload(options?: UseFileUploadOptions) {
     const xhrMap = xhrRefs.current;
     const attRef = attachmentsRef;
     return () => {
-      xhrMap.forEach((xhr) => xhr.abort());
+      xhrMap.forEach(xhr => xhr.abort());
       xhrMap.clear();
       // Revoke all preview Object URLs to prevent memory leaks
-      attRef.current.forEach((a) => {
+      attRef.current.forEach(a => {
         if (a.previewUrl) URL.revokeObjectURL(a.previewUrl);
       });
     };
   }, []);
 
-  const isUploading = attachments.some((a) => a.status === 'uploading');
+  const isUploading = attachments.some(a => a.status === 'uploading');
 
   const uploadFile = useCallback(
     async (file: File) => {
@@ -150,7 +157,7 @@ export function useFileUpload(options?: UseFileUploadOptions) {
       };
       // H2: Increment ref immediately (before async work) to prevent concurrent overflow
       attachmentCountRef.current += 1;
-      setAttachments((prev) => [...prev, pending]);
+      setAttachments(prev => [...prev, pending]);
 
       try {
         // Compress images client-side
@@ -160,8 +167,8 @@ export function useFileUpload(options?: UseFileUploadOptions) {
           uploadBlob = compressed.blob;
           // Update size to reflect actual compressed size (displayed in metadata)
           if (uploadBlob.size !== file.size) {
-            setAttachments((prev) =>
-              prev.map((a) => (a.tempId === tempId ? { ...a, size: uploadBlob.size } : a))
+            setAttachments(prev =>
+              prev.map(a => (a.tempId === tempId ? { ...a, size: uploadBlob.size } : a))
             );
           }
         }
@@ -177,12 +184,10 @@ export function useFileUpload(options?: UseFileUploadOptions) {
           // L5: Set timeout to prevent hanging uploads
           xhr.timeout = UPLOAD_TIMEOUT_MS;
 
-          xhr.upload.onprogress = (e) => {
+          xhr.upload.onprogress = e => {
             if (e.lengthComputable) {
               const progress = Math.round((e.loaded / e.total) * 100);
-              setAttachments((prev) =>
-                prev.map((a) => (a.tempId === tempId ? { ...a, progress } : a))
-              );
+              setAttachments(prev => prev.map(a => (a.tempId === tempId ? { ...a, progress } : a)));
             }
           };
 
@@ -216,8 +221,8 @@ export function useFileUpload(options?: UseFileUploadOptions) {
         });
 
         // Mark as ready
-        setAttachments((prev) =>
-          prev.map((a) =>
+        setAttachments(prev =>
+          prev.map(a =>
             a.tempId === tempId
               ? { ...a, status: 'ready' as const, progress: 100, attachmentId: result.id }
               : a
@@ -227,8 +232,8 @@ export function useFileUpload(options?: UseFileUploadOptions) {
         return { success: true as const };
       } catch (err) {
         // Mark as error
-        setAttachments((prev) =>
-          prev.map((a) =>
+        setAttachments(prev =>
+          prev.map(a =>
             a.tempId === tempId
               ? { ...a, status: 'error' as const, error: (err as Error).message }
               : a
@@ -248,23 +253,23 @@ export function useFileUpload(options?: UseFileUploadOptions) {
       xhrRefs.current.delete(tempId);
     }
 
-    setAttachments((prev) => {
-      const attachment = prev.find((a) => a.tempId === tempId);
+    setAttachments(prev => {
+      const attachment = prev.find(a => a.tempId === tempId);
       if (attachment?.previewUrl) {
         URL.revokeObjectURL(attachment.previewUrl);
       }
-      return prev.filter((a) => a.tempId !== tempId);
+      return prev.filter(a => a.tempId !== tempId);
     });
   }, []);
 
   const clearAttachments = useCallback(() => {
     // Cancel all uploads
-    xhrRefs.current.forEach((xhr) => xhr.abort());
+    xhrRefs.current.forEach(xhr => xhr.abort());
     xhrRefs.current.clear();
 
     // Revoke preview URLs using functional update (avoids stale closure)
-    setAttachments((prev) => {
-      prev.forEach((a) => {
+    setAttachments(prev => {
+      prev.forEach(a => {
         if (a.previewUrl) URL.revokeObjectURL(a.previewUrl);
       });
       return [];
@@ -274,8 +279,8 @@ export function useFileUpload(options?: UseFileUploadOptions) {
   /** Get attachment IDs that are ready for sending */
   const getReadyAttachmentIds = useCallback((): string[] => {
     return attachments
-      .filter((a) => a.status === 'ready' && a.attachmentId)
-      .map((a) => a.attachmentId!);
+      .filter(a => a.status === 'ready' && a.attachmentId)
+      .map(a => a.attachmentId!);
   }, [attachments]);
 
   return {

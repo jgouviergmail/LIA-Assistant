@@ -15,9 +15,7 @@ import { getOptions, type Language, languages, fallbackLng } from './settings';
  * @returns Validated Language type (falls back to default if invalid)
  */
 export function validateLanguage(lngParam: string): Language {
-  return languages.includes(lngParam as Language)
-    ? (lngParam as Language)
-    : fallbackLng;
+  return languages.includes(lngParam as Language) ? (lngParam as Language) : fallbackLng;
 }
 
 // Import translation files directly

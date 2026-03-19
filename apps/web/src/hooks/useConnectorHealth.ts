@@ -108,7 +108,9 @@ function shouldShowModal(connectorId: string, cooldownMs: number): boolean {
  * Hook for monitoring OAuth connector health.
  * Only shows alerts for connectors with status=ERROR (real problems).
  */
-export function useConnectorHealth(options: UseConnectorHealthOptions = {}): UseConnectorHealthResult {
+export function useConnectorHealth(
+  options: UseConnectorHealthOptions = {}
+): UseConnectorHealthResult {
   const { enabled = true, isAuthenticated = false, onCritical } = options;
 
   const [dismissedConnectors, setDismissedConnectors] = useState<Set<string>>(new Set());
@@ -124,7 +126,9 @@ export function useConnectorHealth(options: UseConnectorHealthOptions = {}): Use
 
     const fetchSettings = async () => {
       try {
-        const response = await apiClient.get<ConnectorHealthSettings>('/connectors/health/settings');
+        const response = await apiClient.get<ConnectorHealthSettings>(
+          '/connectors/health/settings'
+        );
         setPollingIntervalMs(response.polling_interval_ms);
         setCriticalCooldownMs(response.critical_cooldown_ms);
         logger.debug('Connector health settings loaded', {
@@ -145,31 +149,32 @@ export function useConnectorHealth(options: UseConnectorHealthOptions = {}): Use
   }, [enabled, isAuthenticated]);
 
   // Use the generic API query hook
-  const { data, loading, refetch: apiRefetch } = useApiQuery<ConnectorHealthResponse>(
-    '/connectors/health',
-    {
-      componentName: 'useConnectorHealth',
-      enabled: enabled && isAuthenticated && settingsLoaded,
-      onSuccess: (response) => {
-        logger.debug('Connector health check completed', {
-          component: 'useConnectorHealth',
-          criticalCount: response.critical_count,
-        });
-      },
-      onError: (error) => {
-        logger.warn('Connector health check failed', {
-          component: 'useConnectorHealth',
-          error: error.message,
-        });
-      },
-    }
-  );
+  const {
+    data,
+    loading,
+    refetch: apiRefetch,
+  } = useApiQuery<ConnectorHealthResponse>('/connectors/health', {
+    componentName: 'useConnectorHealth',
+    enabled: enabled && isAuthenticated && settingsLoaded,
+    onSuccess: response => {
+      logger.debug('Connector health check completed', {
+        component: 'useConnectorHealth',
+        criticalCount: response.critical_count,
+      });
+    },
+    onError: error => {
+      logger.warn('Connector health check failed', {
+        component: 'useConnectorHealth',
+        error: error.message,
+      });
+    },
+  });
 
   // Filter critical connectors (status=ERROR, excluding dismissed)
   const criticalConnectors = useMemo(
     () =>
       (data?.connectors || []).filter(
-        (c) => c.severity === 'critical' && !dismissedConnectors.has(c.id)
+        c => c.severity === 'critical' && !dismissedConnectors.has(c.id)
       ),
     [data?.connectors, dismissedConnectors]
   );
@@ -182,17 +187,20 @@ export function useConnectorHealth(options: UseConnectorHealthOptions = {}): Use
     if (criticalConnectors.length === 0) return;
 
     // Check if critical connectors changed
-    const currentIds = criticalConnectors.map((c) => c.id).sort().join(',');
+    const currentIds = criticalConnectors
+      .map(c => c.id)
+      .sort()
+      .join(',');
     const lastIds = lastCriticalIdsRef.current.sort().join(',');
 
     if (currentIds !== lastIds) {
       // Filter to only show connectors not recently shown
-      const connectorsToShow = criticalConnectors.filter((c) =>
+      const connectorsToShow = criticalConnectors.filter(c =>
         shouldShowModal(c.id, criticalCooldownMs)
       );
 
       if (connectorsToShow.length > 0) {
-        lastCriticalIdsRef.current = criticalConnectors.map((c) => c.id);
+        lastCriticalIdsRef.current = criticalConnectors.map(c => c.id);
         onCritical(connectorsToShow);
       }
     }
@@ -237,7 +245,7 @@ export function useConnectorHealth(options: UseConnectorHealthOptions = {}): Use
   }, [apiRefetch]);
 
   const dismissConnector = useCallback((connectorId: string) => {
-    setDismissedConnectors((prev) => new Set([...prev, connectorId]));
+    setDismissedConnectors(prev => new Set([...prev, connectorId]));
   }, []);
 
   const markReconnectPending = useCallback(() => {

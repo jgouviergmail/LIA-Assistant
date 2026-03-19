@@ -35,8 +35,7 @@ const spinnerVariants = cva('animate-spin', {
 });
 
 export interface LoadingSpinnerProps
-  extends Omit<React.SVGProps<SVGSVGElement>, 'ref'>,
-    VariantProps<typeof spinnerVariants> {
+  extends Omit<React.SVGProps<SVGSVGElement>, 'ref'>, VariantProps<typeof spinnerVariants> {
   /** Optional label for screen readers */
   label?: string;
 }
@@ -77,4 +76,3 @@ export function LoadingSpinner({
     />
   );
 }
-

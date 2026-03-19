@@ -34,11 +34,11 @@ import { VOICE_MODE_ENABLED_KEY } from '@/lib/constants';
  * - any → idle (user disables voice mode or error)
  */
 export type VoiceModeState =
-  | 'idle'       // Voice mode disabled, text input mode
-  | 'listening'  // Listening for wake word
-  | 'recording'  // Wake word detected, recording user speech
+  | 'idle' // Voice mode disabled, text input mode
+  | 'listening' // Listening for wake word
+  | 'recording' // Wake word detected, recording user speech
   | 'processing' // Processing speech (STT + LLM)
-  | 'speaking';  // TTS playing response
+  | 'speaking'; // TTS playing response
 
 /**
  * Voice mode store state interface.
@@ -99,7 +99,11 @@ export interface VoiceModeStore {
  */
 export const useVoiceModeStore = create<VoiceModeStore>()(
   persist(
-    (set: (partial: Partial<VoiceModeStore> | ((state: VoiceModeStore) => Partial<VoiceModeStore>)) => void) => ({
+    (
+      set: (
+        partial: Partial<VoiceModeStore> | ((state: VoiceModeStore) => Partial<VoiceModeStore>)
+      ) => void
+    ) => ({
       // Initial state
       isEnabled: false,
       state: 'idle' as VoiceModeState,

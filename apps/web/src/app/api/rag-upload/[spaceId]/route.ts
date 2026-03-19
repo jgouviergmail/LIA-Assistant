@@ -54,10 +54,10 @@ export async function POST(
         'content-type': response.headers.get('content-type') || 'application/json',
       },
     });
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (_error) {
     // Fallback: use Node.js native http/https for environments where fetch doesn't support dispatcher
-    return new Promise<NextResponse>((resolve) => {
+    return new Promise<NextResponse>(resolve => {
       const url = new URL(targetUrl);
       const mod = isHttps ? https : http;
 
@@ -74,9 +74,9 @@ export async function POST(
         ...(isHttps && isDev ? { rejectUnauthorized: false } : {}),
       };
 
-      const req = mod.request(options, (res) => {
+      const req = mod.request(options, res => {
         const chunks: Buffer[] = [];
-        res.on('data', (chunk) => chunks.push(chunk));
+        res.on('data', chunk => chunks.push(chunk));
         res.on('end', () => {
           const responseBody = Buffer.concat(chunks).toString('utf-8');
           resolve(
@@ -90,12 +90,9 @@ export async function POST(
         });
       });
 
-      req.on('error', (err) => {
+      req.on('error', err => {
         resolve(
-          NextResponse.json(
-            { detail: `Upload proxy error: ${err.message}` },
-            { status: 502 }
-          )
+          NextResponse.json({ detail: `Upload proxy error: ${err.message}` }, { status: 502 })
         );
       });
 

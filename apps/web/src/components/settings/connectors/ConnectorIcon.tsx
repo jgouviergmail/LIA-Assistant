@@ -23,7 +23,9 @@ export function ConnectorIcon({ connectorType, className = '' }: ConnectorIconPr
     // Fallback for unknown connectors
     const Icon = DEFAULT_CONNECTOR_ICON;
     return (
-      <div className={`flex h-10 w-10 items-center justify-center rounded-full ${ICON_BG_CLASS} ${className}`}>
+      <div
+        className={`flex h-10 w-10 items-center justify-center rounded-full ${ICON_BG_CLASS} ${className}`}
+      >
         <Icon className="h-5 w-5 text-primary" />
       </div>
     );
@@ -34,7 +36,9 @@ export function ConnectorIcon({ connectorType, className = '' }: ConnectorIconPr
   // Prefer emoji for visual distinction
   if (config.emoji) {
     return (
-      <div className={`flex h-10 w-10 items-center justify-center rounded-full ${ICON_BG_CLASS} ${className}`}>
+      <div
+        className={`flex h-10 w-10 items-center justify-center rounded-full ${ICON_BG_CLASS} ${className}`}
+      >
         <span className="text-xl" role="img" aria-label={connectorType}>
           {config.emoji}
         </span>
@@ -45,7 +49,9 @@ export function ConnectorIcon({ connectorType, className = '' }: ConnectorIconPr
   // Fallback to icon
   const Icon = config.icon || DEFAULT_CONNECTOR_ICON;
   return (
-    <div className={`flex h-10 w-10 items-center justify-center rounded-full ${ICON_BG_CLASS} ${className}`}>
+    <div
+      className={`flex h-10 w-10 items-center justify-center rounded-full ${ICON_BG_CLASS} ${className}`}
+    >
       <Icon className={`h-5 w-5 ${textClass}`} />
     </div>
   );

@@ -17,11 +17,18 @@ export async function HowItWorksSection({ lng }: HowItWorksSectionProps) {
   const { t } = await initI18next(lng);
 
   return (
-    <section id="how-it-works" className="landing-section py-24 bg-card" aria-labelledby="how-it-works-title">
+    <section
+      id="how-it-works"
+      className="landing-section py-24 bg-card"
+      aria-labelledby="how-it-works-title"
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <FadeInOnScroll>
           <div className="text-center mb-16">
-            <h2 id="how-it-works-title" className="text-3xl mobile:text-4xl font-bold tracking-tight mb-4">
+            <h2
+              id="how-it-works-title"
+              className="text-3xl mobile:text-4xl font-bold tracking-tight mb-4"
+            >
               {t('landing.how_it_works.title')}
             </h2>
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
@@ -33,7 +40,10 @@ export async function HowItWorksSection({ lng }: HowItWorksSectionProps) {
         {/* Timeline */}
         <div className="relative">
           {/* Horizontal line (desktop) */}
-          <div className="hidden mobile:block absolute top-10 left-[12%] right-[12%] h-0.5 bg-border" aria-hidden="true">
+          <div
+            className="hidden mobile:block absolute top-10 left-[12%] right-[12%] h-0.5 bg-border"
+            aria-hidden="true"
+          >
             <div className="absolute inset-0 bg-gradient-to-r from-blue-500/30 via-purple-500/30 to-green-500/30" />
           </div>
 
@@ -50,7 +60,10 @@ export async function HowItWorksSection({ lng }: HowItWorksSectionProps) {
 
                   {/* Vertical line (mobile only) */}
                   {i < STEPS.length - 1 && (
-                    <div className="mobile:hidden w-0.5 h-8 bg-border -mt-2 mb-4" aria-hidden="true" />
+                    <div
+                      className="mobile:hidden w-0.5 h-8 bg-border -mt-2 mb-4"
+                      aria-hidden="true"
+                    />
                   )}
 
                   <h3 className="text-lg font-semibold mb-2">

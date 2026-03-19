@@ -157,9 +157,10 @@ export default function AdminBroadcastSection({ lng, collapsible = true }: BaseS
 
   // Filter out already selected users AND inactive users from search results
   // (inactive users are ignored by backend anyway, avoid UX confusion)
-  const filteredResults = searchResults?.users.filter(
-    user => user.is_active && !selectedUsers.some(selected => selected.id === user.id)
-  ) || [];
+  const filteredResults =
+    searchResults?.users.filter(
+      user => user.is_active && !selectedUsers.some(selected => selected.id === user.id)
+    ) || [];
 
   const canSend = message.trim() && (sendToAll || selectedUsers.length > 0);
 
@@ -212,9 +213,7 @@ export default function AdminBroadcastSection({ lng, collapsible = true }: BaseS
                       variant="secondary"
                       className="flex items-center gap-1 pr-1"
                     >
-                      <span className="max-w-[150px] truncate">
-                        {user.full_name || user.email}
-                      </span>
+                      <span className="max-w-[150px] truncate">{user.full_name || user.email}</span>
                       <button
                         type="button"
                         onClick={() => handleRemoveUser(user.id)}
@@ -234,7 +233,7 @@ export default function AdminBroadcastSection({ lng, collapsible = true }: BaseS
                   ref={inputRef}
                   type="text"
                   value={searchQuery}
-                  onChange={(e) => {
+                  onChange={e => {
                     setSearchQuery(e.target.value);
                     setShowDropdown(true);
                   }}
@@ -246,7 +245,11 @@ export default function AdminBroadcastSection({ lng, collapsible = true }: BaseS
                 {/* Loading indicator */}
                 {searchLoading && searchQuery.length >= 2 && (
                   <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                    <LoadingSpinner size="sm" spinnerColor="muted" label={t('settings.admin.broadcast.searching')} />
+                    <LoadingSpinner
+                      size="sm"
+                      spinnerColor="muted"
+                      label={t('settings.admin.broadcast.searching')}
+                    />
                   </div>
                 )}
 
@@ -265,9 +268,7 @@ export default function AdminBroadcastSection({ lng, collapsible = true }: BaseS
                             {user.full_name || user.email}
                           </span>
                           {user.full_name && (
-                            <span className="text-xs text-muted-foreground">
-                              {user.email}
-                            </span>
+                            <span className="text-xs text-muted-foreground">{user.email}</span>
                           )}
                         </button>
                       ))
@@ -296,7 +297,7 @@ export default function AdminBroadcastSection({ lng, collapsible = true }: BaseS
           <Textarea
             id="broadcast-message"
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={e => setMessage(e.target.value)}
             placeholder={t('settings.admin.broadcast.placeholder')}
             maxLength={1000}
             rows={4}
@@ -353,7 +354,9 @@ export default function AdminBroadcastSection({ lng, collapsible = true }: BaseS
           </div>
           {!sendToAll && selectedUsers.length > 0 && (
             <div className="mb-4">
-              <p className="text-sm font-medium mb-2">{t('settings.admin.broadcast.recipients')}:</p>
+              <p className="text-sm font-medium mb-2">
+                {t('settings.admin.broadcast.recipients')}:
+              </p>
               <div className="flex flex-wrap gap-1">
                 {selectedUsers.map(user => (
                   <Badge key={user.id} variant="secondary" size="sm">

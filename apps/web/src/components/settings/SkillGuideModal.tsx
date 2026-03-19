@@ -62,19 +62,19 @@ const PLAN_TEMPLATE_EXAMPLE = `plan_template:
 
 // Agent → main tool(s) for plan_template
 const AGENTS_TABLE = [
-  { agent: 'event_agent',      tool: 'get_events_tool',             desc: 'Agenda & calendrier' },
-  { agent: 'email_agent',      tool: 'get_emails_tool',             desc: 'Emails (query Gmail)' },
-  { agent: 'task_agent',       tool: 'get_tasks_tool',              desc: 'Tâches' },
-  { agent: 'weather_agent',    tool: 'get_weather_forecast_tool',   desc: 'Météo & prévisions' },
-  { agent: 'contact_agent',    tool: 'get_contacts_tool',           desc: 'Contacts' },
-  { agent: 'place_agent',      tool: 'get_places_tool',             desc: 'Lieux & adresses' },
-  { agent: 'route_agent',      tool: 'get_route_tool',              desc: 'Itinéraires' },
-  { agent: 'file_agent',       tool: 'get_files_tool',              desc: 'Fichiers Drive' },
-  { agent: 'web_search_agent', tool: 'unified_web_search_tool',     desc: 'Recherche web' },
-  { agent: 'web_fetch_agent',  tool: 'fetch_web_page_tool',         desc: 'Lecture de page web' },
-  { agent: 'wikipedia_agent',  tool: 'search_wikipedia_tool',       desc: 'Wikipedia' },
-  { agent: 'perplexity_agent', tool: 'perplexity_search_tool',      desc: 'Recherche IA' },
-  { agent: 'brave_agent',      tool: 'brave_search_tool',           desc: 'Recherche + actualités' },
+  { agent: 'event_agent', tool: 'get_events_tool', desc: 'Agenda & calendrier' },
+  { agent: 'email_agent', tool: 'get_emails_tool', desc: 'Emails (query Gmail)' },
+  { agent: 'task_agent', tool: 'get_tasks_tool', desc: 'Tâches' },
+  { agent: 'weather_agent', tool: 'get_weather_forecast_tool', desc: 'Météo & prévisions' },
+  { agent: 'contact_agent', tool: 'get_contacts_tool', desc: 'Contacts' },
+  { agent: 'place_agent', tool: 'get_places_tool', desc: 'Lieux & adresses' },
+  { agent: 'route_agent', tool: 'get_route_tool', desc: 'Itinéraires' },
+  { agent: 'file_agent', tool: 'get_files_tool', desc: 'Fichiers Drive' },
+  { agent: 'web_search_agent', tool: 'unified_web_search_tool', desc: 'Recherche web' },
+  { agent: 'web_fetch_agent', tool: 'fetch_web_page_tool', desc: 'Lecture de page web' },
+  { agent: 'wikipedia_agent', tool: 'search_wikipedia_tool', desc: 'Wikipedia' },
+  { agent: 'perplexity_agent', tool: 'perplexity_search_tool', desc: 'Recherche IA' },
+  { agent: 'brave_agent', tool: 'brave_search_tool', desc: 'Recherche + actualités' },
 ];
 
 // --- Component ---
@@ -101,7 +101,6 @@ export function SkillGuideModal({ lng, open, onOpenChange }: SkillGuideModalProp
         </DialogHeader>
 
         <div className="space-y-7 py-1">
-
           {/* ① What is a skill */}
           <section className="space-y-3">
             <SectionHeader
@@ -146,11 +145,11 @@ export function SkillGuideModal({ lng, open, onOpenChange }: SkillGuideModalProp
               </p>
               <div className="grid grid-cols-1 gap-1.5 text-xs">
                 {[
-                  ['step_id',      t('settings.skills.guide_modal_plan_field_step_id')],
-                  ['agent_name',   t('settings.skills.guide_modal_plan_field_agent')],
-                  ['tool_name',    t('settings.skills.guide_modal_plan_field_tool')],
-                  ['parameters',   t('settings.skills.guide_modal_plan_field_params')],
-                  ['depends_on',   t('settings.skills.guide_modal_plan_field_depends')],
+                  ['step_id', t('settings.skills.guide_modal_plan_field_step_id')],
+                  ['agent_name', t('settings.skills.guide_modal_plan_field_agent')],
+                  ['tool_name', t('settings.skills.guide_modal_plan_field_tool')],
+                  ['parameters', t('settings.skills.guide_modal_plan_field_params')],
+                  ['depends_on', t('settings.skills.guide_modal_plan_field_depends')],
                 ].map(([key, desc]) => (
                   <div key={key} className="flex gap-2">
                     <code className="shrink-0 font-mono text-primary/80 w-24">{key}</code>
@@ -171,15 +170,14 @@ export function SkillGuideModal({ lng, open, onOpenChange }: SkillGuideModalProp
                     <tr className="bg-muted/60 text-muted-foreground">
                       <th className="text-left px-3 py-2 font-medium">agent_name</th>
                       <th className="text-left px-3 py-2 font-medium">tool_name principal</th>
-                      <th className="text-left px-3 py-2 font-medium hidden sm:table-cell">Usage</th>
+                      <th className="text-left px-3 py-2 font-medium hidden sm:table-cell">
+                        Usage
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {AGENTS_TABLE.map(({ agent, tool, desc }, i) => (
-                      <tr
-                        key={agent}
-                        className={i % 2 === 0 ? 'bg-background' : 'bg-muted/20'}
-                      >
+                      <tr key={agent} className={i % 2 === 0 ? 'bg-background' : 'bg-muted/20'}>
                         <td className="px-3 py-1.5 font-mono text-blue-600 dark:text-blue-400 whitespace-nowrap">
                           {agent}
                         </td>
@@ -213,9 +211,17 @@ export function SkillGuideModal({ lng, open, onOpenChange }: SkillGuideModalProp
             <div className="rounded-xl bg-muted/50 border p-4 text-xs font-mono space-y-1 ml-9">
               <div className="text-foreground font-medium">📁 mon-skill/</div>
               <div className="pl-5 text-foreground">📄 SKILL.md</div>
-              <div className="pl-5 text-muted-foreground">📁 scripts/ &nbsp;<span className="text-muted-foreground/50">— scripts Python</span></div>
-              <div className="pl-5 text-muted-foreground">📁 references/ &nbsp;<span className="text-muted-foreground/50">— docs de référence</span></div>
-              <div className="pl-5 text-muted-foreground">📁 assets/ &nbsp;<span className="text-muted-foreground/50">— templates, ressources</span></div>
+              <div className="pl-5 text-muted-foreground">
+                📁 scripts/ &nbsp;<span className="text-muted-foreground/50">— scripts Python</span>
+              </div>
+              <div className="pl-5 text-muted-foreground">
+                📁 references/ &nbsp;
+                <span className="text-muted-foreground/50">— docs de référence</span>
+              </div>
+              <div className="pl-5 text-muted-foreground">
+                📁 assets/ &nbsp;
+                <span className="text-muted-foreground/50">— templates, ressources</span>
+              </div>
             </div>
           </section>
 
@@ -227,7 +233,7 @@ export function SkillGuideModal({ lng, open, onOpenChange }: SkillGuideModalProp
               title={t('settings.skills.guide_modal_tips_title')}
             />
             <ul className="space-y-2.5 pl-9">
-              {[1, 2, 3, 4].map((i) => (
+              {[1, 2, 3, 4].map(i => (
                 <li key={i} className="flex gap-2.5 text-sm text-muted-foreground">
                   <span className="text-green-500 shrink-0 mt-0.5">✓</span>
                   <span>{t(`settings.skills.guide_modal_tip_${i}`)}</span>
@@ -240,7 +246,9 @@ export function SkillGuideModal({ lng, open, onOpenChange }: SkillGuideModalProp
           <section className="rounded-xl border bg-primary/5 p-5 space-y-2.5">
             <div className="flex items-center gap-2">
               <Globe className="h-4 w-4 text-primary shrink-0" />
-              <h3 className="font-semibold text-sm">{t('settings.skills.guide_modal_compat_title')}</h3>
+              <h3 className="font-semibold text-sm">
+                {t('settings.skills.guide_modal_compat_title')}
+              </h3>
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">
               {t('settings.skills.guide_modal_compat_body')}
@@ -255,7 +263,6 @@ export function SkillGuideModal({ lng, open, onOpenChange }: SkillGuideModalProp
               <ExternalLink className="h-3 w-3 shrink-0" />
             </a>
           </section>
-
         </div>
       </DialogContent>
     </Dialog>

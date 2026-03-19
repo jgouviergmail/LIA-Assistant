@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, use } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, use } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useLocalizedRouter } from '@/hooks/useLocalizedRouter';
 import { useSpaceDetail } from '@/hooks/useSpaces';
@@ -35,12 +35,11 @@ export default function SpaceDetailPage({ params }: SpaceDetailPageProps) {
 
   const { space, loading, refetch, setData } = useSpaceDetail(spaceId);
 
-  const { uploads, uploadDocument, deleteDocument, dismissUpload, deleting } =
-    useSpaceDocuments({
-      spaceId,
-      documents: space?.documents ?? [],
-      onDocumentReady: refetch,
-    });
+  const { uploads, uploadDocument, deleteDocument, dismissUpload, deleting } = useSpaceDocuments({
+    spaceId,
+    documents: space?.documents ?? [],
+    onDocumentReady: refetch,
+  });
 
   // Space mutations
   const toggleMutation = useApiMutation<void, RAGSpaceToggleResponse>({
@@ -65,8 +64,8 @@ export default function SpaceDetailPage({ params }: SpaceDetailPageProps) {
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   // Poll for sync status when any drive source is syncing
-  const driveSources = space?.drive_sources ?? [];
-  const hasSyncingSource = driveSources.some((s) => s.sync_status === 'syncing');
+  const driveSources = useMemo(() => space?.drive_sources ?? [], [space?.drive_sources]);
+  const hasSyncingSource = driveSources.some(s => s.sync_status === 'syncing');
   const refetchRef = useRef(refetch);
   useEffect(() => {
     refetchRef.current = refetch;
@@ -84,7 +83,7 @@ export default function SpaceDetailPage({ params }: SpaceDetailPageProps) {
     if (!space) return;
     const result = await toggleMutation.mutate(`/rag-spaces/${spaceId}/toggle`);
     if (result) {
-      setData((prev) => prev ? { ...prev, is_active: result.is_active } : prev);
+      setData(prev => (prev ? { ...prev, is_active: result.is_active } : prev));
       toast.success(
         result.is_active
           ? t('spaces.toggle_activated', { name: space.name })
@@ -156,7 +155,7 @@ export default function SpaceDetailPage({ params }: SpaceDetailPageProps) {
 
   const handleUnlinkFolder = useCallback(
     async (sourceId: string, deleteDocuments: boolean) => {
-      const source = driveSources.find((s) => s.id === sourceId);
+      const source = driveSources.find(s => s.id === sourceId);
       try {
         await unlinkFolder(sourceId, deleteDocuments);
         toast.success(t('spaces.drive.unlink_success', { name: source?.folder_name ?? '' }));
@@ -170,7 +169,7 @@ export default function SpaceDetailPage({ params }: SpaceDetailPageProps) {
 
   const handleSyncFolder = useCallback(
     async (sourceId: string) => {
-      const source = driveSources.find((s) => s.id === sourceId);
+      const source = driveSources.find(s => s.id === sourceId);
       try {
         await syncFolder(sourceId);
         toast.success(t('spaces.drive.syncing'));
@@ -242,10 +241,20 @@ export default function SpaceDetailPage({ params }: SpaceDetailPageProps) {
                 onToggle={handleToggle}
                 disabled={toggleMutation.loading}
               />
-              <Button variant="ghost" size="icon" onClick={() => setEditOpen(true)} aria-label={t('common.edit')}>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setEditOpen(true)}
+                aria-label={t('common.edit')}
+              >
                 <Pencil className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="icon" onClick={() => setDeleteOpen(true)} aria-label={t('common.delete')}>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setDeleteOpen(true)}
+                aria-label={t('common.delete')}
+              >
                 <Trash2 className="h-4 w-4 text-destructive" />
               </Button>
             </div>
@@ -277,7 +286,7 @@ export default function SpaceDetailPage({ params }: SpaceDetailPageProps) {
           </div>
         ) : (
           <div className="space-y-2">
-            {space.documents.map((doc) => (
+            {space.documents.map(doc => (
               <DocumentRow
                 key={doc.id}
                 document={doc}

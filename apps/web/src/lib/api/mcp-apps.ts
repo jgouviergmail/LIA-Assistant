@@ -21,7 +21,7 @@ function getBasePath(payload: McpAppRegistryPayload): string {
 export async function mcpAppCallTool(
   payload: McpAppRegistryPayload,
   toolName: string,
-  args: Record<string, unknown>,
+  args: Record<string, unknown>
 ): Promise<{ success: boolean; result?: string; error?: string }> {
   const basePath = getBasePath(payload);
   const response = await fetch(`${basePath}/app/call-tool`, {
@@ -38,7 +38,7 @@ export async function mcpAppCallTool(
 
 export async function mcpAppReadResource(
   payload: McpAppRegistryPayload,
-  uri: string,
+  uri: string
 ): Promise<{ success: boolean; content?: string; mime_type?: string; error?: string }> {
   const basePath = getBasePath(payload);
   const response = await fetch(`${basePath}/app/read-resource`, {

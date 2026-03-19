@@ -21,6 +21,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { SnowfallEffect } from '@/components/effects/SnowfallEffect';
 import { languages } from '@/i18n/settings';
 import { initI18next, validateLanguage } from '@/i18n';
+import { WebSiteJsonLd, OrganizationJsonLd } from '@/components/seo/JsonLd';
 import '@/styles/globals.css';
 
 // Use local Inter font to avoid network dependency during Docker build
@@ -39,6 +40,7 @@ export const metadata: Metadata = {
     icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
     apple: [{ url: '/icon.svg', type: 'image/svg+xml' }],
   },
+  manifest: '/manifest.json',
   openGraph: {
     type: 'website',
     siteName: 'LIA',
@@ -90,6 +92,9 @@ export default async function LanguageLayout({ children, params }: LayoutProps) 
   return (
     <html lang={lng} className={`${inter.variable} ${fontVariables}`} suppressHydrationWarning>
       <head>
+        {/* SEO: Structured data (JSON-LD) */}
+        <WebSiteJsonLd />
+        <OrganizationJsonLd />
         {/* Material Symbols - Google's modern icon font (intentionally loaded via link for icon font) */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -100,23 +105,28 @@ export default async function LanguageLayout({ children, params }: LayoutProps) 
         />
       </head>
       <body className="antialiased">
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="light"
+          enableSystem
+          disableTransitionOnChange
+        >
           <ColorThemeProvider>
             <FontProvider>
               <SnowfallEffect />
               <TranslationsProvider
-              locale={lng}
-              namespaces={['translation']}
-              resources={resources || {}}
-            >
-              <QueryProvider>
-                <AuthProvider>
-                  <LoggingProvider>
-                    {children}
-                    <Toaster />
-                  </LoggingProvider>
-                </AuthProvider>
-              </QueryProvider>
+                locale={lng}
+                namespaces={['translation']}
+                resources={resources || {}}
+              >
+                <QueryProvider>
+                  <AuthProvider>
+                    <LoggingProvider>
+                      {children}
+                      <Toaster />
+                    </LoggingProvider>
+                  </AuthProvider>
+                </QueryProvider>
               </TranslationsProvider>
             </FontProvider>
           </ColorThemeProvider>

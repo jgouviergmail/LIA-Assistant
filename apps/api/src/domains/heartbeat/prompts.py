@@ -82,6 +82,7 @@ def build_decision_user_prompt(context: HeartbeatContext) -> str:
 
 async def get_heartbeat_decision(
     context: HeartbeatContext,
+    user_language: str,
 ) -> tuple[HeartbeatDecision, int, int, int]:
     """Execute the LLM decision phase (structured output).
 
@@ -91,6 +92,7 @@ async def get_heartbeat_decision(
 
     Args:
         context: Aggregated HeartbeatContext.
+        user_language: User's language code (e.g., "fr", "en").
 
     Returns:
         Tuple of (decision, tokens_in, tokens_out, tokens_cache).
@@ -101,13 +103,18 @@ async def get_heartbeat_decision(
     from src.infrastructure.llm import get_llm
     from src.infrastructure.llm.structured_output import get_structured_output
 
+    language_name = get_language_name(user_language)
     llm = get_llm("heartbeat_decision")
 
     # Resolve provider for structured output (needs provider-specific logic)
     config = get_llm_config_for_agent(get_settings(), "heartbeat_decision")
 
+    system_prompt = load_prompt("heartbeat_decision_prompt").format(
+        user_language=language_name,
+    )
+
     messages = [
-        SystemMessage(content=load_prompt("heartbeat_decision_prompt")),
+        SystemMessage(content=system_prompt),
         HumanMessage(content=build_decision_user_prompt(context)),
     ]
 

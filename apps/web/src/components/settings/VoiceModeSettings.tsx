@@ -89,9 +89,7 @@ export function VoiceModeSettings({ lng, collapsible = true }: BaseSettingsProps
 
       {/* Info */}
       <InfoBox>
-        <p className="text-xs text-muted-foreground">
-          {t('settings.voice_mode.info')}
-        </p>
+        <p className="text-xs text-muted-foreground">{t('settings.voice_mode.info')}</p>
         <p className="text-xs text-muted-foreground mt-2">
           {t('settings.voice_mode.experimental_note')}
         </p>

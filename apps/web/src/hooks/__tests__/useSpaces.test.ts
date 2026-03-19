@@ -230,10 +230,7 @@ describe('useSpaceDetail', () => {
     const { result } = renderHook(() => useSpaceDetail(null));
 
     expect(result.current.space).toBeNull();
-    expect(mockedUseApiQuery).toHaveBeenCalledWith(
-      '',
-      expect.objectContaining({ enabled: false })
-    );
+    expect(mockedUseApiQuery).toHaveBeenCalledWith('', expect.objectContaining({ enabled: false }));
   });
 });
 

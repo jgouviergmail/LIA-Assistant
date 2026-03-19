@@ -5,15 +5,8 @@
  */
 
 import React from 'react';
-import {
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent,
-} from '@/components/ui/accordion';
-import {
-  MetricRow,
-  InfoRow,
-} from '../shared';
+import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
+import { MetricRow, InfoRow } from '../shared';
 import type { DebugMetrics } from '@/types/chat';
 
 export interface ContextSectionProps {
@@ -29,9 +22,7 @@ export interface ContextSectionProps {
  * - Whether the query references a previous exchange
  * - Resolved references (e.g., "the 2nd" -> contact_id)
  */
-export const ContextSection = React.memo(function ContextSection({
-  data,
-}: ContextSectionProps) {
+export const ContextSection = React.memo(function ContextSection({ data }: ContextSectionProps) {
   const isReference = data.is_reference;
 
   return (
@@ -77,10 +68,7 @@ export const ContextSection = React.memo(function ContextSection({
                 value={data.source_turn_id !== null ? `#${data.source_turn_id}` : 'N/A'}
                 mono
               />
-              <MetricRow
-                label="Domaine source"
-                value={data.source_domain || 'N/A'}
-              />
+              <MetricRow label="Domaine source" value={data.source_domain || 'N/A'} />
             </div>
           )}
 
@@ -110,20 +98,12 @@ export const ContextSection = React.memo(function ContextSection({
           {/* Configuration */}
           {(data.thresholds.confidence_threshold || data.thresholds.active_window_turns) && (
             <div className="border-t border-border/50 pt-2">
-              <div className="text-xs text-muted-foreground font-medium mb-1.5">
-                Configuration
-              </div>
+              <div className="text-xs text-muted-foreground font-medium mb-1.5">Configuration</div>
               {data.thresholds.confidence_threshold && (
-                <InfoRow
-                  label="Seuil de confiance"
-                  check={data.thresholds.confidence_threshold}
-                />
+                <InfoRow label="Seuil de confiance" check={data.thresholds.confidence_threshold} />
               )}
               {data.thresholds.active_window_turns && (
-                <InfoRow
-                  label="Fenêtre de contexte"
-                  check={data.thresholds.active_window_turns}
-                />
+                <InfoRow label="Fenêtre de contexte" check={data.thresholds.active_window_turns} />
               )}
             </div>
           )}

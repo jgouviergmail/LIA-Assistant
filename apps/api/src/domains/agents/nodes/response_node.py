@@ -1250,6 +1250,48 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                 )
 
         # =====================================================================
+        # SYSTEM RAG CONTEXT (App FAQ) — Lazy loading based on is_app_help_query
+        # =====================================================================
+        # When is_app_help_query=True, we ALWAYS inject the app identity prompt
+        # (describing LIA's capabilities). System RAG chunks are added on top if available.
+        app_knowledge_context = ""
+        is_app_help = get_qi_attr(state, "is_app_help_query", default=False)
+        if is_app_help:
+            # Mark as app help so get_response_prompt() loads app_identity_prompt
+            app_knowledge_context = "APP_HELP_QUERY"
+
+            # Optionally enrich with system RAG chunks (FAQ search results)
+            if getattr(settings, "rag_spaces_system_enabled", False) and last_user_message:
+                try:
+                    from src.domains.rag_spaces.retrieval import (
+                        retrieve_rag_context as _sys_retrieve,
+                    )
+                    from src.infrastructure.database.session import (
+                        get_db_context as _sys_get_db,
+                    )
+
+                    async with _sys_get_db() as sys_db:
+                        sys_result = await _sys_retrieve(
+                            user_id=None,
+                            query=last_user_message,
+                            db=sys_db,
+                            system_only=True,
+                        )
+                    if sys_result and sys_result.chunks:
+                        app_knowledge_context = sys_result.to_prompt_context()
+                        logger.info(
+                            "system_rag_injection_completed",
+                            run_id=run_id,
+                            chunks_injected=len(sys_result.chunks),
+                        )
+                except Exception as e:
+                    logger.warning(
+                        "system_rag_injection_failed",
+                        run_id=run_id,
+                        error=str(e),
+                    )
+
+        # =====================================================================
         # AWAIT KNOWLEDGE ENRICHMENT (if task was launched)
         # =====================================================================
         knowledge_context = ""
@@ -1413,6 +1455,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             resolved_references=resolved_references,
             anticipated_needs=anticipated_needs,
             skills_context=skills_context,
+            app_knowledge_context=app_knowledge_context,
         )
 
         logger.debug(

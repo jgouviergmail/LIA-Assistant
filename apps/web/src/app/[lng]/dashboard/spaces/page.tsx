@@ -76,7 +76,7 @@ export default function SpacesPage() {
       try {
         const result = await toggleSpace(spaceId);
         if (result) {
-          const space = spaces.find((s) => s.id === spaceId);
+          const space = spaces.find(s => s.id === spaceId);
           toast.success(
             result.is_active
               ? t('spaces.toggle_activated', { name: space?.name })
@@ -108,7 +108,7 @@ export default function SpacesPage() {
         {/* Content */}
         {loading ? (
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-            {[1, 2, 3].map((i) => (
+            {[1, 2, 3].map(i => (
               <div key={i} className="h-40 rounded-lg border bg-muted/50 animate-pulse" />
             ))}
           </div>
@@ -124,7 +124,7 @@ export default function SpacesPage() {
           </div>
         ) : (
           <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-            {spaces.map((space) => (
+            {spaces.map(space => (
               <SpaceCard
                 key={space.id}
                 space={space}
@@ -148,7 +148,7 @@ export default function SpacesPage() {
 
         <EditSpaceDialog
           open={!!editSpace}
-          onOpenChange={(open) => !open && setEditSpace(null)}
+          onOpenChange={open => !open && setEditSpace(null)}
           space={editSpace}
           onSubmit={handleUpdate}
           isLoading={updating}
@@ -156,7 +156,7 @@ export default function SpacesPage() {
 
         <DeleteSpaceConfirm
           open={!!deleteConfirmSpace}
-          onOpenChange={(open) => !open && setDeleteConfirmSpace(null)}
+          onOpenChange={open => !open && setDeleteConfirmSpace(null)}
           spaceName={deleteConfirmSpace?.name || ''}
           onConfirm={handleDelete}
         />

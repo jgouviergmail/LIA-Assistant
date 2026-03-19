@@ -1,7 +1,20 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Brain, Trash2, Download, AlertTriangle, Pencil, Save, X, Clock, Pin, PinOff, RefreshCw, Plus } from 'lucide-react';
+import {
+  Brain,
+  Trash2,
+  Download,
+  AlertTriangle,
+  Pencil,
+  Save,
+  X,
+  Clock,
+  Pin,
+  PinOff,
+  RefreshCw,
+  Plus,
+} from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -29,7 +42,12 @@ import {
 import { useTranslation } from '@/i18n/client';
 import { type Language, getIntlLocale } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
-import { useMemories, getEmotionalEmoji, type MemoryCategory, type Memory } from '@/hooks/useMemories';
+import {
+  useMemories,
+  getEmotionalEmoji,
+  type MemoryCategory,
+  type Memory,
+} from '@/hooks/useMemories';
 import { useAuth } from '@/hooks/useAuth';
 import apiClient from '@/lib/api-client';
 import { toast } from 'sonner';
@@ -134,11 +152,7 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
     setTogglingPin(memory.id);
     try {
       await togglePin(memory.id, !memory.pinned);
-      toast.success(
-        memory.pinned
-          ? t('memories.unpin_success')
-          : t('memories.pin_success')
-      );
+      toast.success(memory.pinned ? t('memories.unpin_success') : t('memories.pin_success'));
     } catch {
       toast.error(t('memories.pin_error'));
     } finally {
@@ -155,11 +169,7 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
         memory_enabled: enabled,
       });
       await refreshUser();
-      toast.success(
-        enabled
-          ? t('memories.enabled_success')
-          : t('memories.disabled_success')
-      );
+      toast.success(enabled ? t('memories.enabled_success') : t('memories.disabled_success'));
     } catch {
       toast.error(t('common.error'));
     } finally {
@@ -380,7 +390,13 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
                 <span className="hidden sm:inline">{t('memories.create')}</span>
               </Button>
               {/* Export button - hidden on mobile */}
-              <Button variant="outline" size="sm" onClick={handleExport} disabled={total === 0} className="hidden lg:flex">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExport}
+                disabled={total === 0}
+                className="hidden lg:flex"
+              >
                 <Download className="h-4 w-4 mr-1" />
                 {t('memories.export')}
               </Button>
@@ -397,18 +413,12 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>
-                      {t('memories.confirm_delete_all_title')}
-                    </AlertDialogTitle>
+                    <AlertDialogTitle>{t('memories.confirm_delete_all_title')}</AlertDialogTitle>
                     <AlertDialogDescription>
                       {pinnedCount > 0 ? (
-                        <>
-                          {t('memories.confirm_delete_all_with_pinned', { count: pinnedCount })}
-                        </>
+                        <>{t('memories.confirm_delete_all_with_pinned', { count: pinnedCount })}</>
                       ) : (
-                        <>
-                          {t('memories.confirm_delete_all_description')}
-                        </>
+                        <>{t('memories.confirm_delete_all_description')}</>
                       )}
                     </AlertDialogDescription>
                   </AlertDialogHeader>
@@ -451,9 +461,7 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
             <div className="rounded-lg border border-dashed p-6 text-center text-muted-foreground">
               <Brain className="h-8 w-8 mx-auto mb-2 opacity-50" />
               <p>{t('memories.empty')}</p>
-              <p className="text-xs mt-1">
-                {t('memories.empty_hint')}
-              </p>
+              <p className="text-xs mt-1">{t('memories.empty_hint')}</p>
             </div>
           ) : (
             <Accordion type="multiple" defaultValue={[]} className="space-y-2">
@@ -462,153 +470,154 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
                   <AccordionTrigger className="py-3 hover:no-underline">
                     <div className="flex items-center gap-2">
                       <span>{CATEGORY_ICONS[category as MemoryCategory]}</span>
-                      <span className="font-medium">{getCategoryLabel(category as MemoryCategory)}</span>
-                      <span className="text-muted-foreground text-sm">({categoryMemories.length})</span>
+                      <span className="font-medium">
+                        {getCategoryLabel(category as MemoryCategory)}
+                      </span>
+                      <span className="text-muted-foreground text-sm">
+                        ({categoryMemories.length})
+                      </span>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
-                  <div className="space-y-2">
-                    {categoryMemories.map(memory => (
-                      <div
-                        key={memory.id}
-                        className="group flex items-start gap-3 rounded-lg border p-3 bg-card hover:bg-accent/50 transition-colors cursor-pointer lg:cursor-default"
-                        onClick={() => {
-                          // On mobile/tablet, open action popup
-                          if (window.innerWidth < 1024) {
-                            setMobileActionMemory(memory);
-                          }
-                        }}
-                      >
-                        {/* Emotional indicator + Pinned icon (mobile/tablet) */}
-                        {/* FIX 2025-12-29: self-center on mobile for vertical centering */}
-                        <div className="flex flex-col items-center shrink-0 gap-0.5 self-center lg:self-start">
-                          <span
-                            className="text-lg"
-                            title={`${t('memories.field_emotional_weight')}: ${memory.emotional_weight}`}
-                          >
-                            {getEmotionalEmoji(memory.emotional_weight)}
-                          </span>
-                          {/* Pinned indicator - visible on mobile/tablet only */}
-                          {memory.pinned && (
-                            <Pin className="h-3 w-3 text-primary lg:hidden" />
-                          )}
-                        </div>
+                    <div className="space-y-2">
+                      {categoryMemories.map(memory => (
+                        <div
+                          key={memory.id}
+                          className="group flex items-start gap-3 rounded-lg border p-3 bg-card hover:bg-accent/50 transition-colors cursor-pointer lg:cursor-default"
+                          onClick={() => {
+                            // On mobile/tablet, open action popup
+                            if (window.innerWidth < 1024) {
+                              setMobileActionMemory(memory);
+                            }
+                          }}
+                        >
+                          {/* Emotional indicator + Pinned icon (mobile/tablet) */}
+                          {/* FIX 2025-12-29: self-center on mobile for vertical centering */}
+                          <div className="flex flex-col items-center shrink-0 gap-0.5 self-center lg:self-start">
+                            <span
+                              className="text-lg"
+                              title={`${t('memories.field_emotional_weight')}: ${memory.emotional_weight}`}
+                            >
+                              {getEmotionalEmoji(memory.emotional_weight)}
+                            </span>
+                            {/* Pinned indicator - visible on mobile/tablet only */}
+                            {memory.pinned && <Pin className="h-3 w-3 text-primary lg:hidden" />}
+                          </div>
 
-                        {/* Content */}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm">{memory.content}</p>
-                          {memory.usage_nuance && (
-                            <p className="text-xs text-muted-foreground mt-1 italic">
-                              {memory.usage_nuance}
-                            </p>
-                          )}
-                          {/* Trigger topic badge */}
-                          {memory.trigger_topic && (
-                            <div className="mt-1">
-                              <Badge variant="secondary" className="text-xs">
-                                {memory.trigger_topic}
-                              </Badge>
+                          {/* Content */}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm">{memory.content}</p>
+                            {memory.usage_nuance && (
+                              <p className="text-xs text-muted-foreground mt-1 italic">
+                                {memory.usage_nuance}
+                              </p>
+                            )}
+                            {/* Trigger topic badge */}
+                            {memory.trigger_topic && (
+                              <div className="mt-1">
+                                <Badge variant="secondary" className="text-xs">
+                                  {memory.trigger_topic}
+                                </Badge>
+                              </div>
+                            )}
+                            {/* Metadata: dates, usage count, importance */}
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1">
+                              {memory.created_at && (
+                                <span
+                                  className="text-xs text-muted-foreground flex items-center gap-1"
+                                  title={t('memories.created_at')}
+                                >
+                                  <Clock className="h-3 w-3" />
+                                  {formatMemoryDate(memory.created_at, lng)}
+                                </span>
+                              )}
+                              {memory.updated_at && memory.updated_at !== memory.created_at && (
+                                <span
+                                  className="text-xs text-muted-foreground flex items-center gap-1"
+                                  title={t('memories.updated_at')}
+                                >
+                                  ✏️ {formatMemoryDate(memory.updated_at, lng)}
+                                </span>
+                              )}
+                              {memory.last_accessed_at && (
+                                <span
+                                  className="text-xs text-muted-foreground flex items-center gap-1"
+                                  title={t('memories.last_accessed')}
+                                >
+                                  👁️ {formatMemoryDate(memory.last_accessed_at, lng)}
+                                </span>
+                              )}
+                              {typeof memory.usage_count === 'number' && memory.usage_count > 0 && (
+                                <span
+                                  className="text-xs text-muted-foreground flex items-center gap-1"
+                                  title={t('memories.usage_count')}
+                                >
+                                  <RefreshCw className="h-3 w-3" />
+                                  {memory.usage_count}×
+                                </span>
+                              )}
+                              {typeof memory.importance === 'number' && (
+                                <span
+                                  className="text-xs text-muted-foreground"
+                                  title={t('memories.field_importance')}
+                                >
+                                  ★ {(memory.importance * 100).toFixed(0)}%
+                                </span>
+                              )}
                             </div>
-                          )}
-                          {/* Metadata: dates, usage count, importance */}
-                          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1">
-                            {memory.created_at && (
-                              <span
-                                className="text-xs text-muted-foreground flex items-center gap-1"
-                                title={t('memories.created_at')}
-                              >
-                                <Clock className="h-3 w-3" />
-                                {formatMemoryDate(memory.created_at, lng)}
-                              </span>
-                            )}
-                            {memory.updated_at && memory.updated_at !== memory.created_at && (
-                              <span
-                                className="text-xs text-muted-foreground flex items-center gap-1"
-                                title={t('memories.updated_at')}
-                              >
-                                ✏️ {formatMemoryDate(memory.updated_at, lng)}
-                              </span>
-                            )}
-                            {memory.last_accessed_at && (
-                              <span
-                                className="text-xs text-muted-foreground flex items-center gap-1"
-                                title={t('memories.last_accessed')}
-                              >
-                                👁️ {formatMemoryDate(memory.last_accessed_at, lng)}
-                              </span>
-                            )}
-                            {typeof memory.usage_count === 'number' && memory.usage_count > 0 && (
-                              <span
-                                className="text-xs text-muted-foreground flex items-center gap-1"
-                                title={t('memories.usage_count')}
-                              >
-                                <RefreshCw className="h-3 w-3" />
-                                {memory.usage_count}×
-                              </span>
-                            )}
-                            {typeof memory.importance === 'number' && (
-                              <span
-                                className="text-xs text-muted-foreground"
-                                title={t('memories.field_importance')}
-                              >
-                                ★ {(memory.importance * 100).toFixed(0)}%
-                              </span>
-                            )}
+                          </div>
+
+                          {/* Action buttons - hidden on mobile/tablet (use popup instead) */}
+                          <div className="hidden lg:flex gap-1 shrink-0">
+                            {/* Pin button - always visible when pinned */}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleTogglePin(memory)}
+                              disabled={togglingPin === memory.id}
+                              title={memory.pinned ? t('memories.unpin') : t('memories.pin')}
+                              className={
+                                memory.pinned ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                              }
+                            >
+                              {togglingPin === memory.id ? (
+                                <LoadingSpinner size="default" />
+                              ) : memory.pinned ? (
+                                <Pin className="h-4 w-4 text-primary" />
+                              ) : (
+                                <PinOff className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                              )}
+                            </Button>
+                            {/* Edit button */}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleOpenEdit(memory)}
+                              disabled={updating}
+                              title={t('memories.edit')}
+                              className="opacity-0 group-hover:opacity-100"
+                            >
+                              <Pencil className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                            </Button>
+                            {/* Delete button */}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteClick(memory)}
+                              disabled={deleting}
+                              title={t('memories.delete')}
+                              className="opacity-0 group-hover:opacity-100"
+                            >
+                              {deleting ? (
+                                <LoadingSpinner size="default" />
+                              ) : (
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              )}
+                            </Button>
                           </div>
                         </div>
-
-                        {/* Action buttons - hidden on mobile/tablet (use popup instead) */}
-                        <div className="hidden lg:flex gap-1 shrink-0">
-                          {/* Pin button - always visible when pinned */}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleTogglePin(memory)}
-                            disabled={togglingPin === memory.id}
-                            title={memory.pinned
-                              ? t('memories.unpin')
-                              : t('memories.pin')
-                            }
-                            className={memory.pinned ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}
-                          >
-                            {togglingPin === memory.id ? (
-                              <LoadingSpinner size="default" />
-                            ) : memory.pinned ? (
-                              <Pin className="h-4 w-4 text-primary" />
-                            ) : (
-                              <PinOff className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-                            )}
-                          </Button>
-                          {/* Edit button */}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleOpenEdit(memory)}
-                            disabled={updating}
-                            title={t('memories.edit')}
-                            className="opacity-0 group-hover:opacity-100"
-                          >
-                            <Pencil className="h-4 w-4 text-muted-foreground hover:text-foreground" />
-                          </Button>
-                          {/* Delete button */}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteClick(memory)}
-                            disabled={deleting}
-                            title={t('memories.delete')}
-                            className="opacity-0 group-hover:opacity-100"
-                          >
-                            {deleting ? (
-                              <LoadingSpinner size="default" />
-                            ) : (
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
                   </AccordionContent>
                 </AccordionItem>
               ))}
@@ -631,9 +640,7 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
             <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{t('memories.edit_title')}</DialogTitle>
-                <DialogDescription>
-                  {t('memories.edit_description')}
-                </DialogDescription>
+                <DialogDescription>{t('memories.edit_description')}</DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 {/* Content */}
@@ -642,7 +649,7 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
                   <Textarea
                     id="edit-content"
                     value={editForm.content}
-                    onChange={(e) => setEditForm({ ...editForm, content: e.target.value })}
+                    onChange={e => setEditForm({ ...editForm, content: e.target.value })}
                     placeholder={t('memories.content_placeholder')}
                     rows={3}
                   />
@@ -652,7 +659,9 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
                   <Label htmlFor="edit-category">{t('memories.field_category')}</Label>
                   <Select
                     value={editForm.category}
-                    onValueChange={(value) => setEditForm({ ...editForm, category: value as MemoryCategory })}
+                    onValueChange={value =>
+                      setEditForm({ ...editForm, category: value as MemoryCategory })
+                    }
                   >
                     <SelectTrigger id="edit-category">
                       <SelectValue placeholder={t('memories.select_category')} />
@@ -685,12 +694,10 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
                   <Input
                     id="edit-nuance"
                     value={editForm.usage_nuance}
-                    onChange={(e) => setEditForm({ ...editForm, usage_nuance: e.target.value })}
+                    onChange={e => setEditForm({ ...editForm, usage_nuance: e.target.value })}
                     placeholder={t('memories.nuance_placeholder')}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    {t('memories.nuance_help')}
-                  </p>
+                  <p className="text-xs text-muted-foreground">{t('memories.nuance_help')}</p>
                 </div>
                 {/* Trigger Topic */}
                 <div className="grid gap-2">
@@ -698,12 +705,10 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
                   <Input
                     id="edit-trigger"
                     value={editForm.trigger_topic}
-                    onChange={(e) => setEditForm({ ...editForm, trigger_topic: e.target.value })}
+                    onChange={e => setEditForm({ ...editForm, trigger_topic: e.target.value })}
                     placeholder={t('memories.trigger_placeholder')}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    {t('memories.trigger_help')}
-                  </p>
+                  <p className="text-xs text-muted-foreground">{t('memories.trigger_help')}</p>
                 </div>
                 {/* Emotional Weight */}
                 <div className="grid gap-2">
@@ -719,7 +724,9 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
                     max={10}
                     step={1}
                     value={[editForm.emotional_weight]}
-                    onValueChange={(value: number[]) => setEditForm({ ...editForm, emotional_weight: value[0] })}
+                    onValueChange={(value: number[]) =>
+                      setEditForm({ ...editForm, emotional_weight: value[0] })
+                    }
                     className="w-full"
                   />
                   <div className="flex justify-between text-xs text-muted-foreground">
@@ -739,7 +746,9 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
                     max={1}
                     step={0.1}
                     value={[editForm.importance]}
-                    onValueChange={(value: number[]) => setEditForm({ ...editForm, importance: value[0] })}
+                    onValueChange={(value: number[]) =>
+                      setEditForm({ ...editForm, importance: value[0] })
+                    }
                     className="w-full"
                   />
                   <div className="flex justify-between text-xs text-muted-foreground">
@@ -770,9 +779,7 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
             <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>{t('memories.create_title')}</DialogTitle>
-                <DialogDescription>
-                  {t('memories.create_description')}
-                </DialogDescription>
+                <DialogDescription>{t('memories.create_description')}</DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 {/* Content */}
@@ -781,7 +788,7 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
                   <Textarea
                     id="create-content"
                     value={createForm.content}
-                    onChange={(e) => setCreateForm({ ...createForm, content: e.target.value })}
+                    onChange={e => setCreateForm({ ...createForm, content: e.target.value })}
                     placeholder={t('memories.content_placeholder')}
                     rows={3}
                     autoFocus
@@ -792,7 +799,9 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
                   <Label htmlFor="create-category">{t('memories.field_category')}</Label>
                   <Select
                     value={createForm.category}
-                    onValueChange={(value) => setCreateForm({ ...createForm, category: value as MemoryCategory })}
+                    onValueChange={value =>
+                      setCreateForm({ ...createForm, category: value as MemoryCategory })
+                    }
                   >
                     <SelectTrigger id="create-category">
                       <SelectValue placeholder={t('memories.select_category')} />
@@ -825,12 +834,10 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
                   <Input
                     id="create-nuance"
                     value={createForm.usage_nuance}
-                    onChange={(e) => setCreateForm({ ...createForm, usage_nuance: e.target.value })}
+                    onChange={e => setCreateForm({ ...createForm, usage_nuance: e.target.value })}
                     placeholder={t('memories.nuance_placeholder')}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    {t('memories.nuance_help')}
-                  </p>
+                  <p className="text-xs text-muted-foreground">{t('memories.nuance_help')}</p>
                 </div>
                 {/* Trigger Topic */}
                 <div className="grid gap-2">
@@ -838,12 +845,10 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
                   <Input
                     id="create-trigger"
                     value={createForm.trigger_topic}
-                    onChange={(e) => setCreateForm({ ...createForm, trigger_topic: e.target.value })}
+                    onChange={e => setCreateForm({ ...createForm, trigger_topic: e.target.value })}
                     placeholder={t('memories.trigger_placeholder')}
                   />
-                  <p className="text-xs text-muted-foreground">
-                    {t('memories.trigger_help')}
-                  </p>
+                  <p className="text-xs text-muted-foreground">{t('memories.trigger_help')}</p>
                 </div>
                 {/* Emotional Weight */}
                 <div className="grid gap-2">
@@ -859,7 +864,9 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
                     max={10}
                     step={1}
                     value={[createForm.emotional_weight]}
-                    onValueChange={(value: number[]) => setCreateForm({ ...createForm, emotional_weight: value[0] })}
+                    onValueChange={(value: number[]) =>
+                      setCreateForm({ ...createForm, emotional_weight: value[0] })
+                    }
                     className="w-full"
                   />
                   <div className="flex justify-between text-xs text-muted-foreground">
@@ -879,7 +886,9 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
                     max={1}
                     step={0.1}
                     value={[createForm.importance]}
-                    onValueChange={(value: number[]) => setCreateForm({ ...createForm, importance: value[0] })}
+                    onValueChange={(value: number[]) =>
+                      setCreateForm({ ...createForm, importance: value[0] })
+                    }
                     className="w-full"
                   />
                   <div className="flex justify-between text-xs text-muted-foreground">
@@ -893,7 +902,10 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
                   <X className="h-4 w-4 mr-1" />
                   {t('common.cancel')}
                 </Button>
-                <Button onClick={handleSaveCreate} disabled={creating || !createForm.content.trim()}>
+                <Button
+                  onClick={handleSaveCreate}
+                  disabled={creating || !createForm.content.trim()}
+                >
                   {creating ? (
                     <LoadingSpinner size="default" className="mr-1" />
                   ) : (
@@ -906,7 +918,10 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
           </Dialog>
 
           {/* Mobile/Tablet Action Popup */}
-          <Dialog open={mobileActionMemory !== null} onOpenChange={(open) => !open && setMobileActionMemory(null)}>
+          <Dialog
+            open={mobileActionMemory !== null}
+            onOpenChange={open => !open && setMobileActionMemory(null)}
+          >
             <DialogContent className="lg:hidden max-w-[90vw] rounded-lg">
               <DialogHeader>
                 <DialogTitle className="text-base flex items-center gap-2">
@@ -937,10 +952,7 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
                   ) : (
                     <Pin className="h-4 w-4" />
                   )}
-                  {mobileActionMemory?.pinned
-                    ? t('memories.unpin')
-                    : t('memories.pin')
-                  }
+                  {mobileActionMemory?.pinned ? t('memories.unpin') : t('memories.pin')}
                 </Button>
 
                 {/* Edit button */}
@@ -970,11 +982,7 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
                   }}
                   disabled={deleting}
                 >
-                  {deleting ? (
-                    <LoadingSpinner size="default" />
-                  ) : (
-                    <Trash2 className="h-4 w-4" />
-                  )}
+                  {deleting ? <LoadingSpinner size="default" /> : <Trash2 className="h-4 w-4" />}
                   {t('memories.delete')}
                 </Button>
               </div>
@@ -984,7 +992,7 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
           {/* Pinned Memory Delete Confirmation */}
           <AlertDialog
             open={memoryPendingDelete !== null}
-            onOpenChange={(open) => {
+            onOpenChange={open => {
               // Prevent closing while deletion is in progress
               if (!open && !deleting) {
                 setMemoryPendingDelete(null);
@@ -1007,9 +1015,7 @@ export function MemorySettings({ lng, collapsible = true }: BaseSettingsProps) {
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel disabled={deleting}>
-                  {t('common.cancel')}
-                </AlertDialogCancel>
+                <AlertDialogCancel disabled={deleting}>{t('common.cancel')}</AlertDialogCancel>
                 <AlertDialogAction
                   onClick={handleConfirmDeletePinned}
                   disabled={deleting}

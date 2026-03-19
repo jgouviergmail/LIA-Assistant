@@ -118,7 +118,7 @@ export function ConnectorHealthAlert({ lng }: ConnectorHealthAlertProps) {
         </DialogHeader>
 
         <div className="space-y-3 py-4">
-          {modalConnectors.map((connector) => (
+          {modalConnectors.map(connector => (
             <div
               key={connector.id}
               className="flex flex-col gap-2 p-3 bg-destructive/10 rounded-lg border border-destructive/20"

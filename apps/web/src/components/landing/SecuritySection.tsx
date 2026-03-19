@@ -28,9 +28,16 @@ export async function SecuritySection({ lng }: SecuritySectionProps) {
                   <Shield className="w-16 h-16 text-primary" />
                 </div>
                 {/* Animated ring */}
-                <div className="absolute inset-0 rounded-full border-2 border-primary/20 motion-safe:animate-ping" style={{ animationDuration: '3s' }} aria-hidden="true" />
+                <div
+                  className="absolute inset-0 rounded-full border-2 border-primary/20 motion-safe:animate-ping"
+                  style={{ animationDuration: '3s' }}
+                  aria-hidden="true"
+                />
               </div>
-              <h2 id="security-title" className="text-3xl mobile:text-4xl font-bold tracking-tight mb-4">
+              <h2
+                id="security-title"
+                className="text-3xl mobile:text-4xl font-bold tracking-tight mb-4"
+              >
                 {t('landing.security.title')}
               </h2>
               <p className="text-lg text-muted-foreground italic">
@@ -48,9 +55,7 @@ export async function SecuritySection({ lng }: SecuritySectionProps) {
                     <Icon className="w-5 h-5 text-primary" />
                   </div>
                   <div>
-                    <h3 className="font-semibold mb-1">
-                      {t(`landing.security.${key}.title`)}
-                    </h3>
+                    <h3 className="font-semibold mb-1">{t(`landing.security.${key}.title`)}</h3>
                     <p className="text-sm text-muted-foreground leading-relaxed">
                       {t(`landing.security.${key}.description`)}
                     </p>

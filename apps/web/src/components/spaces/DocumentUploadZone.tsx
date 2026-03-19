@@ -51,12 +51,19 @@ export function DocumentUploadZone({
 
   const handleFiles = useCallback(
     (files: FileList | File[]) => {
-      Array.from(files).forEach((file) => {
-        if (!ALLOWED_MIMES.includes(file.type) && !file.name.match(/\.(pdf|txt|md|docx|pptx|xlsx|csv|rtf|html?|odt|ods|odp|epub|json|xml)$/i)) {
+      Array.from(files).forEach(file => {
+        if (
+          !ALLOWED_MIMES.includes(file.type) &&
+          !file.name.match(
+            /\.(pdf|txt|md|docx|pptx|xlsx|csv|rtf|html?|odt|ods|odp|epub|json|xml)$/i
+          )
+        ) {
           return;
         }
         if (file.size > maxSizeBytes) {
-          toast.error(t('spaces.documents.file_too_large', { name: file.name, maxSize: maxFileSizeMB }));
+          toast.error(
+            t('spaces.documents.file_too_large', { name: file.name, maxSize: maxFileSizeMB })
+          );
           return;
         }
         onUpload(file);
@@ -118,14 +125,14 @@ export function DocumentUploadZone({
       <div
         role="button"
         tabIndex={0}
-        onKeyDown={(e) => {
+        onKeyDown={e => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
             fileInputRef.current?.click();
           }
         }}
         onDragEnter={handleDragEnter}
-        onDragOver={(e) => e.preventDefault()}
+        onDragOver={e => e.preventDefault()}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
@@ -158,7 +165,7 @@ export function DocumentUploadZone({
       {/* Upload progress list */}
       {uploads.length > 0 && (
         <div className="space-y-2">
-          {uploads.map((upload) => (
+          {uploads.map(upload => (
             <div
               key={upload.tempId}
               className="flex items-center gap-3 rounded-lg border p-3 bg-card"

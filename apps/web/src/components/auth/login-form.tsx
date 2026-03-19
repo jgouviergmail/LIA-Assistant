@@ -82,7 +82,10 @@ export function LoginForm() {
               disabled={isLoading}
               className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
             />
-            <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+            <label
+              htmlFor="remember-me"
+              className="ml-2 block text-sm text-gray-700 dark:text-gray-300"
+            >
               {t('auth.remember_me')}
             </label>
           </div>

@@ -22,7 +22,12 @@ interface CreateSpaceDialogProps {
   isLoading?: boolean;
 }
 
-export function CreateSpaceDialog({ open, onOpenChange, onSubmit, isLoading }: CreateSpaceDialogProps) {
+export function CreateSpaceDialog({
+  open,
+  onOpenChange,
+  onSubmit,
+  isLoading,
+}: CreateSpaceDialogProps) {
   const { t } = useTranslation();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -83,7 +88,7 @@ export function CreateSpaceDialog({ open, onOpenChange, onSubmit, isLoading }: C
             <Input
               id="space-name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={e => setName(e.target.value)}
               placeholder={t('spaces.name_placeholder')}
               maxLength={200}
               autoFocus
@@ -98,7 +103,7 @@ export function CreateSpaceDialog({ open, onOpenChange, onSubmit, isLoading }: C
             <Textarea
               id="space-description"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={e => setDescription(e.target.value)}
               placeholder={t('spaces.description_placeholder')}
               rows={3}
             />

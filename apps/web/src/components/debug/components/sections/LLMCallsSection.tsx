@@ -6,11 +6,7 @@
  */
 
 import React from 'react';
-import {
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent,
-} from '@/components/ui/accordion';
+import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { MetricRow } from '../shared';
 import { NODE_COLORS, MODEL_NAME_TRUNCATE_LENGTH } from '../../utils/constants';
 import { formatTokenCount, formatCost, truncateText } from '../../utils/formatters';
@@ -45,9 +41,8 @@ export const LLMCallsSection = React.memo(function LLMCallsSection({
 
   // Calculate cache efficiency
   const totalInputTokens = summary.total_tokens_in + summary.total_tokens_cache;
-  const cacheEfficiency = totalInputTokens > 0
-    ? Math.round((summary.total_tokens_cache / totalInputTokens) * 100)
-    : 0;
+  const cacheEfficiency =
+    totalInputTokens > 0 ? Math.round((summary.total_tokens_cache / totalInputTokens) * 100) : 0;
 
   return (
     <AccordionItem value="llm">
@@ -66,18 +61,10 @@ export const LLMCallsSection = React.memo(function LLMCallsSection({
         <div className="space-y-3">
           {/* Global summary */}
           <div className="p-2 bg-muted/30 rounded border border-border/50">
-            <div className="text-xs text-muted-foreground font-medium mb-1.5">
-              Résumé
-            </div>
+            <div className="text-xs text-muted-foreground font-medium mb-1.5">Résumé</div>
             <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-              <MetricRow
-                label="Tokens In"
-                value={formatTokenCount(summary.total_tokens_in)}
-              />
-              <MetricRow
-                label="Tokens Out"
-                value={formatTokenCount(summary.total_tokens_out)}
-              />
+              <MetricRow label="Tokens In" value={formatTokenCount(summary.total_tokens_in)} />
+              <MetricRow label="Tokens Out" value={formatTokenCount(summary.total_tokens_out)} />
               <MetricRow
                 label="Tokens Cache"
                 value={formatTokenCount(summary.total_tokens_cache)}
@@ -86,7 +73,9 @@ export const LLMCallsSection = React.memo(function LLMCallsSection({
               <MetricRow
                 label="Efficacité cache"
                 value={`${cacheEfficiency}%`}
-                valueClassName={cacheEfficiency > 50 ? 'text-green-400 font-medium' : 'text-muted-foreground'}
+                valueClassName={
+                  cacheEfficiency > 50 ? 'text-green-400 font-medium' : 'text-muted-foreground'
+                }
               />
             </div>
             <div className="mt-2 pt-2 border-t border-border/30">
@@ -102,25 +91,22 @@ export const LLMCallsSection = React.memo(function LLMCallsSection({
 
           {/* Detailed calls list */}
           <div className="border-t border-border/50 pt-2">
-            <div className="text-xs text-muted-foreground font-medium mb-2">
-              Détail par node
-            </div>
+            <div className="text-xs text-muted-foreground font-medium mb-2">Détail par node</div>
             <div className="space-y-2">
               {calls.map((call, index) => {
                 // Determine node color
                 const nodeColorClass = call.node_name.toLowerCase().includes('router')
                   ? NODE_COLORS.router
                   : call.node_name.toLowerCase().includes('planner')
-                  ? NODE_COLORS.planner
-                  : call.node_name.toLowerCase().includes('response')
-                  ? NODE_COLORS.response
-                  : NODE_COLORS.default;
+                    ? NODE_COLORS.planner
+                    : call.node_name.toLowerCase().includes('response')
+                      ? NODE_COLORS.response
+                      : NODE_COLORS.default;
 
                 // Calculate per-call cache efficiency
                 const callInputTokens = call.tokens_in + call.tokens_cache;
-                const callCachePercent = callInputTokens > 0
-                  ? Math.round((call.tokens_cache / callInputTokens) * 100)
-                  : 0;
+                const callCachePercent =
+                  callInputTokens > 0 ? Math.round((call.tokens_cache / callInputTokens) * 100) : 0;
 
                 return (
                   <div

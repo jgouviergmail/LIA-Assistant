@@ -57,7 +57,8 @@ export function areNotificationsSupported(): boolean {
 export function isIOSPWA(): boolean {
   if (typeof window === 'undefined') return false;
   const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
-  const isStandalone = (window.navigator as unknown as { standalone?: boolean }).standalone === true;
+  const isStandalone =
+    (window.navigator as unknown as { standalone?: boolean }).standalone === true;
   return isIOS && isStandalone;
 }
 
@@ -133,14 +134,14 @@ export async function requestNotificationPermission(): Promise<string | null> {
   }
 
   if (!isFirebaseConfigured()) {
-    const msg = `[Firebase] Not configured - missing: ${
-      [
-        !firebaseConfig.apiKey && 'apiKey',
-        !firebaseConfig.projectId && 'projectId',
-        !firebaseConfig.messagingSenderId && 'messagingSenderId',
-        !VAPID_KEY && 'vapidKey',
-      ].filter(Boolean).join(', ')
-    }`;
+    const msg = `[Firebase] Not configured - missing: ${[
+      !firebaseConfig.apiKey && 'apiKey',
+      !firebaseConfig.projectId && 'projectId',
+      !firebaseConfig.messagingSenderId && 'messagingSenderId',
+      !VAPID_KEY && 'vapidKey',
+    ]
+      .filter(Boolean)
+      .join(', ')}`;
     console.warn(msg);
     throw new Error(msg);
   }
@@ -219,7 +220,7 @@ export function onForegroundMessage(
   const messagingInstance = getFirebaseMessaging();
   if (!messagingInstance) return null;
 
-  return onMessage(messagingInstance, (payload) => {
+  return onMessage(messagingInstance, payload => {
     console.info('[Firebase] Foreground message received:', payload);
     callback(payload);
   });

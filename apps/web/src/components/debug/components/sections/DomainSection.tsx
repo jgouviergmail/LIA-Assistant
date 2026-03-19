@@ -6,19 +6,9 @@
  */
 
 import React from 'react';
-import {
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent,
-} from '@/components/ui/accordion';
+import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { validateDomainScores } from '../../validation/validators';
-import {
-  MetricRow,
-  ThresholdRow,
-  InfoRow,
-  ScoresList,
-  SectionBadge,
-} from '../shared';
+import { MetricRow, ThresholdRow, InfoRow, ScoresList, SectionBadge } from '../shared';
 import { ERROR_SECTION_CLASSES, DEFAULT_THRESHOLDS } from '../../utils/constants';
 import { formatPercent } from '../../utils/formatters';
 import type { DebugMetrics, IntelligentMechanisms } from '@/types/chat';
@@ -73,11 +63,7 @@ export const DomainSection = React.memo(function DomainSection({
               value={data.selected_domains.join(', ') || 'Aucun'}
               highlight
             />
-            <MetricRow
-              label="Domaine principal"
-              value={data.primary_domain}
-              highlight
-            />
+            <MetricRow label="Domaine principal" value={data.primary_domain} highlight />
             <MetricRow
               label="Confiance LLM"
               value={formatPercent(data.top_score)}
@@ -89,9 +75,7 @@ export const DomainSection = React.memo(function DomainSection({
           {/* LLM reasoning (if available) */}
           {llmReasoning && (
             <div className="border-t pt-2">
-              <div className="text-xs text-muted-foreground font-medium mb-1">
-                Raisonnement LLM
-              </div>
+              <div className="text-xs text-muted-foreground font-medium mb-1">Raisonnement LLM</div>
               <div className="text-xs bg-muted/30 p-2 rounded border border-border/50 text-foreground/80 italic">
                 {llmReasoning}
               </div>
@@ -100,20 +84,12 @@ export const DomainSection = React.memo(function DomainSection({
 
           {/* Configuration */}
           <div className="border-t pt-2">
-            <div className="text-xs text-muted-foreground font-medium mb-1.5">
-              Seuils
-            </div>
+            <div className="text-xs text-muted-foreground font-medium mb-1.5">Seuils</div>
             {data.thresholds.primary_min && (
-              <ThresholdRow
-                label="Confiance minimum"
-                check={data.thresholds.primary_min}
-              />
+              <ThresholdRow label="Confiance minimum" check={data.thresholds.primary_min} />
             )}
             {data.thresholds.max_domains && (
-              <InfoRow
-                label="Maximum de domaines"
-                check={data.thresholds.max_domains}
-              />
+              <InfoRow label="Maximum de domaines" check={data.thresholds.max_domains} />
             )}
           </div>
 
@@ -128,8 +104,7 @@ export const DomainSection = React.memo(function DomainSection({
               />
             ) : (
               <div className={ERROR_SECTION_CLASSES}>
-                <strong>Erreur :</strong>{' '}
-                {scoresValidation.errors?.[0] || 'Aucun score disponible'}
+                <strong>Erreur :</strong> {scoresValidation.errors?.[0] || 'Aucun score disponible'}
               </div>
             )}
           </div>

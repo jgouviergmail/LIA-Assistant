@@ -50,10 +50,7 @@ import type { BaseSettingsProps } from '@/types/settings';
 // Constants
 const OAUTH_RECONNECT_PENDING_KEY = 'oauth_connectors_reconnect_pending';
 
-export default function UserConnectorsSection({
-  lng,
-  collapsible = true,
-}: BaseSettingsProps) {
+export default function UserConnectorsSection({ lng, collapsible = true }: BaseSettingsProps) {
   const { t } = useTranslation(lng);
 
   // State for API key input forms
@@ -162,11 +159,10 @@ export default function UserConnectorsSection({
     t,
   });
 
-  const {
-    savedPrefs,
-    savingPreference,
-    selectPreference,
-  } = useConnectorPreferences({ connectors, t });
+  const { savedPrefs, savingPreference, selectPreference } = useConnectorPreferences({
+    connectors,
+    t,
+  });
 
   // Handlers
   const handleDisconnect = async (connectorId: string) => {
@@ -232,7 +228,8 @@ export default function UserConnectorsSection({
   };
 
   const handleReconnect = async (connectorType: string) => {
-    const endpoint = GOOGLE_AUTH_ENDPOINTS[connectorType] || MICROSOFT_AUTH_ENDPOINTS[connectorType];
+    const endpoint =
+      GOOGLE_AUTH_ENDPOINTS[connectorType] || MICROSOFT_AUTH_ENDPOINTS[connectorType];
     if (!endpoint) {
       toast.error(t('settings.connectors.health.reconnect_failed'));
       return;
@@ -261,10 +258,14 @@ export default function UserConnectorsSection({
   // Sort by GOOGLE_CONNECTORS_METADATA order for consistent display
   const sortByMetadataOrder = (a: Connector, b: Connector) => {
     const aIndex = GOOGLE_CONNECTORS_METADATA.findIndex(
-      m => m.type === a.connector_type.toLowerCase() || m.checkTypes?.includes(a.connector_type.toLowerCase())
+      m =>
+        m.type === a.connector_type.toLowerCase() ||
+        m.checkTypes?.includes(a.connector_type.toLowerCase())
     );
     const bIndex = GOOGLE_CONNECTORS_METADATA.findIndex(
-      m => m.type === b.connector_type.toLowerCase() || m.checkTypes?.includes(b.connector_type.toLowerCase())
+      m =>
+        m.type === b.connector_type.toLowerCase() ||
+        m.checkTypes?.includes(b.connector_type.toLowerCase())
     );
     return aIndex - bIndex;
   };
@@ -272,44 +273,49 @@ export default function UserConnectorsSection({
   const connectedOAuthConnectors = connectors
     .filter(
       c =>
-        GOOGLE_CONNECTOR_TYPES.includes(c.connector_type.toLowerCase() as typeof GOOGLE_CONNECTOR_TYPES[number]) &&
-        isConnectorActive(c)
+        GOOGLE_CONNECTOR_TYPES.includes(
+          c.connector_type.toLowerCase() as (typeof GOOGLE_CONNECTOR_TYPES)[number]
+        ) && isConnectorActive(c)
     )
     .sort(sortByMetadataOrder);
 
   const connectedApiKeyConnectors = connectors.filter(
     c =>
-      API_KEY_CONNECTOR_TYPES.includes(c.connector_type.toLowerCase() as typeof API_KEY_CONNECTOR_TYPES[number]) &&
-      isConnectorActive(c)
+      API_KEY_CONNECTOR_TYPES.includes(
+        c.connector_type.toLowerCase() as (typeof API_KEY_CONNECTOR_TYPES)[number]
+      ) && isConnectorActive(c)
   );
 
   // Connectors with ERROR status (need reconnection)
   const errorOAuthConnectors = connectors
     .filter(
       c =>
-        GOOGLE_CONNECTOR_TYPES.includes(c.connector_type.toLowerCase() as typeof GOOGLE_CONNECTOR_TYPES[number]) &&
-        isConnectorError(c)
+        GOOGLE_CONNECTOR_TYPES.includes(
+          c.connector_type.toLowerCase() as (typeof GOOGLE_CONNECTOR_TYPES)[number]
+        ) && isConnectorError(c)
     )
     .sort(sortByMetadataOrder);
 
   const errorMicrosoftConnectors = connectors.filter(
     c =>
-      MICROSOFT_CONNECTOR_TYPES.includes(c.connector_type.toLowerCase() as typeof MICROSOFT_CONNECTOR_TYPES[number]) &&
-      isConnectorError(c)
+      MICROSOFT_CONNECTOR_TYPES.includes(
+        c.connector_type.toLowerCase() as (typeof MICROSOFT_CONNECTOR_TYPES)[number]
+      ) && isConnectorError(c)
   );
 
   const connectedAppleConnectors = connectors.filter(
     c =>
-      APPLE_CONNECTOR_TYPES.includes(c.connector_type.toLowerCase() as typeof APPLE_CONNECTOR_TYPES[number]) &&
-      isConnectorActive(c)
+      APPLE_CONNECTOR_TYPES.includes(
+        c.connector_type.toLowerCase() as (typeof APPLE_CONNECTOR_TYPES)[number]
+      ) && isConnectorActive(c)
   );
 
-  const connectedMicrosoftConnectors = connectors
-    .filter(
-      c =>
-        MICROSOFT_CONNECTOR_TYPES.includes(c.connector_type.toLowerCase() as typeof MICROSOFT_CONNECTOR_TYPES[number]) &&
-        isConnectorActive(c)
-    );
+  const connectedMicrosoftConnectors = connectors.filter(
+    c =>
+      MICROSOFT_CONNECTOR_TYPES.includes(
+        c.connector_type.toLowerCase() as (typeof MICROSOFT_CONNECTOR_TYPES)[number]
+      ) && isConnectorActive(c)
+  );
 
   // Check if any Google connectors are not connected AND don't exist at all
   // (connectors with ERROR status should show in error section, not available)
@@ -333,8 +339,9 @@ export default function UserConnectorsSection({
     .map(c => c.connector_type.toLowerCase());
 
   // Unconnected Apple services (for "Connect All" button)
-  const unconnectedAppleTypes = APPLE_CONNECTORS_METADATA
-    .filter(meta => !isConnectorTypeActive(connectors, meta.type))
+  const unconnectedAppleTypes = APPLE_CONNECTORS_METADATA.filter(
+    meta => !isConnectorTypeActive(connectors, meta.type)
+  )
     .filter(meta => {
       // Exclude services blocked by mutual exclusivity
       const competingTypes = MUTUAL_EXCLUSIVITY_MAP[meta.type];
@@ -531,7 +538,9 @@ export default function UserConnectorsSection({
                   if (exists) return null;
 
                   const competingTypes = MUTUAL_EXCLUSIVITY_MAP[meta.type];
-                  const activeCompetitor = competingTypes?.find(c => activeConnectorTypes.includes(c));
+                  const activeCompetitor = competingTypes?.find(c =>
+                    activeConnectorTypes.includes(c)
+                  );
                   const isBlocked = !!activeCompetitor;
 
                   return (
@@ -543,9 +552,15 @@ export default function UserConnectorsSection({
                       onConnect={() => connectGoogle(meta.type)}
                       connectTitle={t('settings.connectors.google.connect')}
                       isBlocked={isBlocked}
-                      blockedMessage={isBlocked ? t('settings.connectors.google.service_blocked', {
-                        competing: CONNECTOR_LABELS[activeCompetitor as ConnectorType] || activeCompetitor,
-                      }) : undefined}
+                      blockedMessage={
+                        isBlocked
+                          ? t('settings.connectors.google.service_blocked', {
+                              competing:
+                                CONNECTOR_LABELS[activeCompetitor as ConnectorType] ||
+                                activeCompetitor,
+                            })
+                          : undefined
+                      }
                     />
                   );
                 })}
@@ -592,7 +607,9 @@ export default function UserConnectorsSection({
                     if (isConnectorTypeExists(connectors, meta.type)) return null;
 
                     const competingTypes = MUTUAL_EXCLUSIVITY_MAP[meta.type];
-                    const activeCompetitor = competingTypes?.find(c => activeConnectorTypes.includes(c));
+                    const activeCompetitor = competingTypes?.find(c =>
+                      activeConnectorTypes.includes(c)
+                    );
                     const isBlocked = !!activeCompetitor;
 
                     return (
@@ -604,9 +621,15 @@ export default function UserConnectorsSection({
                         onConnect={() => setAppleConnectTarget([meta.type])}
                         connectTitle={t('settings.connectors.apple.connect')}
                         isBlocked={isBlocked}
-                        blockedMessage={isBlocked ? t('settings.connectors.apple.service_blocked', {
-                          competing: CONNECTOR_LABELS[activeCompetitor as ConnectorType] || activeCompetitor,
-                        }) : undefined}
+                        blockedMessage={
+                          isBlocked
+                            ? t('settings.connectors.apple.service_blocked', {
+                                competing:
+                                  CONNECTOR_LABELS[activeCompetitor as ConnectorType] ||
+                                  activeCompetitor,
+                              })
+                            : undefined
+                        }
                       />
                     );
                   })}
@@ -642,7 +665,9 @@ export default function UserConnectorsSection({
                   if (isConnectorTypeExists(connectors, meta.type)) return null;
 
                   const competingTypes = MUTUAL_EXCLUSIVITY_MAP[meta.type];
-                  const activeCompetitor = competingTypes?.find(c => activeConnectorTypes.includes(c));
+                  const activeCompetitor = competingTypes?.find(c =>
+                    activeConnectorTypes.includes(c)
+                  );
                   const isBlocked = !!activeCompetitor;
 
                   return (
@@ -654,9 +679,15 @@ export default function UserConnectorsSection({
                       onConnect={() => connectMicrosoft(meta.type)}
                       connectTitle={t('settings.connectors.microsoft.connect')}
                       isBlocked={isBlocked}
-                      blockedMessage={isBlocked ? t('settings.connectors.microsoft.service_blocked', {
-                        competing: CONNECTOR_LABELS[activeCompetitor as ConnectorType] || activeCompetitor,
-                      }) : undefined}
+                      blockedMessage={
+                        isBlocked
+                          ? t('settings.connectors.microsoft.service_blocked', {
+                              competing:
+                                CONNECTOR_LABELS[activeCompetitor as ConnectorType] ||
+                                activeCompetitor,
+                            })
+                          : undefined
+                      }
                     />
                   );
                 })}

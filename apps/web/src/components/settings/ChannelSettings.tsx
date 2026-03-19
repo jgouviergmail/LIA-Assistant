@@ -63,7 +63,7 @@ export function ChannelSettings({ lng }: ChannelSettingsProps) {
   const [unlinkingBindingId, setUnlinkingBindingId] = useState<string | null>(null);
 
   // Find telegram binding (at most one per plan)
-  const telegramBinding = bindings.find((b) => b.channel_type === 'telegram');
+  const telegramBinding = bindings.find(b => b.channel_type === 'telegram');
 
   // Countdown timer for OTP expiration
   useEffect(() => {
@@ -88,7 +88,7 @@ export function ChannelSettings({ lng }: ChannelSettingsProps) {
         // Start countdown
         if (countdownRef.current) clearInterval(countdownRef.current);
         countdownRef.current = setInterval(() => {
-          setCountdown((prev) => {
+          setCountdown(prev => {
             if (prev <= 1) {
               if (countdownRef.current) clearInterval(countdownRef.current);
               return 0;
@@ -240,7 +240,7 @@ export function ChannelSettings({ lng }: ChannelSettingsProps) {
       {/* OTP Dialog */}
       <Dialog
         open={showOtpDialog}
-        onOpenChange={(open) => {
+        onOpenChange={open => {
           if (!open) {
             setShowOtpDialog(false);
             if (countdownRef.current) clearInterval(countdownRef.current);
@@ -250,18 +250,14 @@ export function ChannelSettings({ lng }: ChannelSettingsProps) {
         <DialogContent className="sm:max-w-[440px]">
           <DialogHeader>
             <DialogTitle>{t('settings.channels.otp_dialog_title')}</DialogTitle>
-            <DialogDescription>
-              {t('settings.channels.otp_dialog_instructions')}
-            </DialogDescription>
+            <DialogDescription>{t('settings.channels.otp_dialog_instructions')}</DialogDescription>
           </DialogHeader>
 
           {otpData && (
             <div className="space-y-4 py-4">
               {/* Step 1: Open bot */}
               <div className="space-y-1">
-                <p className="text-sm font-medium">
-                  {t('settings.channels.otp_dialog_step1')}
-                </p>
+                <p className="text-sm font-medium">{t('settings.channels.otp_dialog_step1')}</p>
                 {otpData.bot_username && (
                   <a
                     href={`https://t.me/${otpData.bot_username}`}
@@ -276,9 +272,7 @@ export function ChannelSettings({ lng }: ChannelSettingsProps) {
 
               {/* Step 2: Send code */}
               <div className="space-y-2">
-                <p className="text-sm font-medium">
-                  {t('settings.channels.otp_dialog_step2')}
-                </p>
+                <p className="text-sm font-medium">{t('settings.channels.otp_dialog_step2')}</p>
                 <div className="flex items-center gap-2">
                   <code className="flex-1 rounded bg-muted px-3 py-2 text-center text-2xl font-mono tracking-widest">
                     {otpData.code}
@@ -320,7 +314,7 @@ export function ChannelSettings({ lng }: ChannelSettingsProps) {
       {/* Unlink Confirmation */}
       <AlertDialog
         open={unlinkingBindingId !== null}
-        onOpenChange={(open) => !open && setUnlinkingBindingId(null)}
+        onOpenChange={open => !open && setUnlinkingBindingId(null)}
       >
         <AlertDialogContent>
           <AlertDialogHeader>

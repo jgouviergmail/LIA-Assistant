@@ -186,3 +186,50 @@ class RAGDriveSyncStatusResponse(BaseModel):
     file_count: int
     synced_file_count: int
     error_message: str | None
+
+
+# ============================================================================
+# System Space Schemas
+# ============================================================================
+
+
+class SystemSpaceResponse(BaseModel):
+    """System space data for admin API responses."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    name: str
+    description: str | None
+    is_active: bool
+    is_system: bool = Field(default=True, description="Always true for system spaces")
+    content_hash: str | None = Field(default=None, description="SHA-256 hash of source content")
+    document_count: int = Field(default=0, description="Total number of documents")
+    chunk_count: int = Field(default=0, description="Total number of indexed chunks")
+    created_at: datetime
+    updated_at: datetime
+
+
+class SystemSpaceListResponse(BaseModel):
+    """List of system spaces for admin API."""
+
+    spaces: list[SystemSpaceResponse]
+    total: int
+
+
+class SystemSpaceReindexResponse(BaseModel):
+    """Response after triggering system space reindexation."""
+
+    message: str
+    space_name: str
+    chunks_created: int = Field(description="Number of chunks created during indexation")
+    content_hash: str = Field(description="SHA-256 hash of indexed content")
+
+
+class SystemSpaceStalenessResponse(BaseModel):
+    """Staleness check result for a system space."""
+
+    space_name: str
+    is_stale: bool
+    stored_hash: str | None = Field(description="Hash stored in database from last indexation")
+    current_hash: str = Field(description="Hash computed from current source files")

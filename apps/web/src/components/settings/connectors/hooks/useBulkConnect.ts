@@ -50,7 +50,7 @@ async function processQueue(
   authEndpoints: Record<string, string>,
   completeMessageKey: string,
   connectors: Connector[],
-  t: (key: string) => string,
+  t: (key: string) => string
 ): Promise<void> {
   const queueJson = localStorage.getItem(queueKey);
   if (!queueJson) return;
@@ -123,7 +123,7 @@ async function startBulkConnect(
   providerName: string,
   connectors: Connector[],
   t: (key: string) => string,
-  setBulkConnecting: (v: boolean) => void,
+  setBulkConnecting: (v: boolean) => void
 ): Promise<void> {
   // Get list of connectors not yet connected
   const notConnected = connectorTypes.filter(type => {
@@ -185,7 +185,7 @@ export function useBulkConnect({
           GOOGLE_AUTH_ENDPOINTS,
           'settings.connectors.google.connect_all_complete',
           connectors,
-          t,
+          t
         );
         // Process Microsoft queue
         await processQueue(
@@ -193,7 +193,7 @@ export function useBulkConnect({
           MICROSOFT_AUTH_ENDPOINTS,
           'settings.connectors.microsoft.connect_all_complete',
           connectors,
-          t,
+          t
         );
       } catch (error) {
         localStorage.removeItem(BULK_CONNECT_QUEUE_KEY);
@@ -222,9 +222,9 @@ export function useBulkConnect({
         'Google',
         connectors,
         t,
-        setBulkConnecting,
+        setBulkConnecting
       ),
-    [connectors, t],
+    [connectors, t]
   );
 
   const connectAllMicrosoft = useCallback(
@@ -238,9 +238,9 @@ export function useBulkConnect({
         'Microsoft',
         connectors,
         t,
-        setBulkConnecting,
+        setBulkConnecting
       ),
-    [connectors, t],
+    [connectors, t]
   );
 
   return {

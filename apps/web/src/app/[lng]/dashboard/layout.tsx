@@ -18,13 +18,7 @@ import { OnboardingTutorial } from '@/components/onboarding';
 import { BroadcastProvider } from '@/lib/broadcast';
 import { BroadcastModal } from '@/components/broadcast';
 import { useTranslation } from '@/i18n/client';
-import {
-  LayoutDashboard,
-  MessageSquare,
-  Settings,
-  HelpCircle,
-  LogOut,
-} from 'lucide-react';
+import { LayoutDashboard, MessageSquare, Settings, HelpCircle, LogOut } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { proxyGoogleImageUrl } from '@/lib/utils';
 interface DashboardLayoutProps {
@@ -109,6 +103,9 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
 
   return (
     <BroadcastProvider isAuthenticated={!!user}>
+      {/* SEO: Prevent search engines and AI bots from indexing authenticated pages */}
+      <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex" />
+
       <div className="min-h-screen bg-background">
         {/* OAuth Connector Health Alert (toast + modal) */}
         <ConnectorHealthAlert lng={lng} />
@@ -121,16 +118,16 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
           <div className="w-full max-w-7xl mx-auto flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
             {/* Logo & Navigation */}
             <div className="flex items-center gap-8">
-              <Link href={buildLocalizedPath('/dashboard', pathLng)} className="flex items-center gap-2 group">
+              <Link
+                href={buildLocalizedPath('/dashboard', pathLng)}
+                className="flex items-center gap-2 group"
+              >
                 <div className="flex h-10 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/80 shadow-md group-hover:shadow-lg transition-all">
                   <span className="text-sm font-bold text-primary-foreground">LIA</span>
                 </div>
               </Link>
               <nav className="hidden md:flex items-center gap-1">
-                <Link
-                  href={buildLocalizedPath('/dashboard', pathLng)}
-                  className={navLinkClass('')}
-                >
+                <Link href={buildLocalizedPath('/dashboard', pathLng)} className={navLinkClass('')}>
                   <LayoutDashboard className="h-4 w-4" />
                   <span>{t('navigation.dashboard')}</span>
                 </Link>

@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-03-19
+
+### Added
+
+- **System RAG Spaces — App Self-Knowledge (evolution)** — LIA can now answer questions about itself, its features, and usage directly in conversation. Built-in FAQ knowledge base (119 Q/A across 16 sections) indexed from English Markdown files (`docs/knowledge/`), with LLM translation at response time (6 languages). Includes: `SystemSpaceIndexer` with SHA-256 hash-based staleness detection, `is_app_help_query` detection in QueryAnalyzer, RoutingDecider Rule 0 override (prevents misrouting "how do I connect my calendar?" to the planner), App Identity Prompt (~200 tokens) injected conditionally (lazy loading — zero overhead on normal queries), 3 admin API endpoints (list/reindex/staleness), admin UI section with staleness badge and reindex button, automatic indexation at app startup (idempotent — skips if hash matches), 3 Prometheus metrics, seed script (`task db:seed:system-rag`). (`system_indexer.py`, `app_identity_prompt.txt`, `ADR-058`, 35 unit tests)
+
+### Database
+
+- **Migration `system_rag_spaces_001`** — `rag_spaces`: added `is_system` (Boolean, NOT NULL, default false) and `content_hash` (String(64), nullable). Made `user_id` nullable on `rag_spaces`, `rag_documents`, `rag_chunks` (system spaces have no owner). Replaced unique index `uq_rag_spaces_user_id_name` with partial unique indexes: `uq_rag_spaces_user_name` (WHERE user_id IS NOT NULL) and `uq_rag_spaces_system_name` (WHERE is_system = true). Added index `ix_rag_spaces_is_system`.
+
 ## [1.6.0] - 2026-03-19
 
 ### Added

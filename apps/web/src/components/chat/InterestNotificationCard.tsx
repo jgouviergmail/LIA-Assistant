@@ -77,10 +77,7 @@ function SourceBadge({
 }) {
   const { t } = useTranslation();
 
-  const sourceConfig: Record<
-    string,
-    { label: string; className: string }
-  > = {
+  const sourceConfig: Record<string, { label: string; className: string }> = {
     wikipedia: {
       label: 'Wikipedia',
       className: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200',
@@ -91,8 +88,7 @@ function SourceBadge({
     },
     llm_reflection: {
       label: t('interests.sources.reflection'),
-      className:
-        'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+      className: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
     },
   };
 

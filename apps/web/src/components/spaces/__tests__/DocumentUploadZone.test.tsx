@@ -78,11 +78,7 @@ describe('DocumentUploadZone', () => {
     const onUpload = vi.fn().mockResolvedValue({ success: true });
     const maxFileSizeMB = 5;
     render(
-      <DocumentUploadZone
-        {...defaultProps}
-        onUpload={onUpload}
-        maxFileSizeMB={maxFileSizeMB}
-      />
+      <DocumentUploadZone {...defaultProps} onUpload={onUpload} maxFileSizeMB={maxFileSizeMB} />
     );
 
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
@@ -92,9 +88,7 @@ describe('DocumentUploadZone', () => {
 
     expect(onUpload).not.toHaveBeenCalled();
     // t() mock returns the key, so toast.error receives just the i18n key
-    expect(mockToastError).toHaveBeenCalledWith(
-      'spaces.documents.file_too_large'
-    );
+    expect(mockToastError).toHaveBeenCalledWith('spaces.documents.file_too_large');
   });
 
   it('renders upload progress for active uploads', () => {
@@ -122,11 +116,7 @@ describe('DocumentUploadZone', () => {
     ];
 
     render(
-      <DocumentUploadZone
-        {...defaultProps}
-        uploads={uploads}
-        onDismissUpload={onDismissUpload}
-      />
+      <DocumentUploadZone {...defaultProps} uploads={uploads} onDismissUpload={onDismissUpload} />
     );
 
     expect(screen.getByText('broken.docx')).toBeInTheDocument();
@@ -135,7 +125,7 @@ describe('DocumentUploadZone', () => {
     const dismissButtons = screen.getAllByRole('button');
     // Find the small dismiss button (the X icon button, not the main upload button)
     const dismissBtn = dismissButtons.find(
-      (btn) => btn.classList.contains('h-6') && btn.classList.contains('w-6')
+      btn => btn.classList.contains('h-6') && btn.classList.contains('w-6')
     );
     expect(dismissBtn).toBeTruthy();
 
@@ -147,7 +137,9 @@ describe('DocumentUploadZone', () => {
     render(<DocumentUploadZone {...defaultProps} />);
 
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
-    expect(input.accept).toBe('.pdf,.txt,.md,.docx,.pptx,.xlsx,.csv,.rtf,.html,.htm,.odt,.ods,.odp,.epub,.json,.xml');
+    expect(input.accept).toBe(
+      '.pdf,.txt,.md,.docx,.pptx,.xlsx,.csv,.rtf,.html,.htm,.odt,.ods,.odp,.epub,.json,.xml'
+    );
     expect(input.multiple).toBe(true);
   });
 });

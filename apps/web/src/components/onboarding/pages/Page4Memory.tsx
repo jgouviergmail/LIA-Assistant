@@ -59,7 +59,7 @@ export function Page4Memory({ lng }: Page4MemoryProps) {
 
       {/* Examples Grid */}
       <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
-        {memoryExamples.map((example) => (
+        {memoryExamples.map(example => (
           <Card key={example.titleKey} className="border-border/50 bg-card/50">
             <CardContent className="p-4 flex items-center gap-3">
               <div className={`p-2 rounded-lg ${example.bgColor}`}>

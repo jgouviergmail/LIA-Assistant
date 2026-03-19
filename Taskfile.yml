@@ -319,6 +319,11 @@ tasks:
       - cmd: bash -c 'cat infrastructure/database/seeds/llm_pricing_seed.sql | docker exec -i lia-postgres-dev psql -U lia_admin -d lia'
         platforms: [windows, linux, darwin]
 
+  db:seed:system-rag:
+    desc: Seed/reindex system RAG spaces (FAQ knowledge base)
+    cmds:
+      - docker compose -f docker-compose.dev.yml exec -T api python -m scripts.seed_system_rag
+
   # ============================================================================
   # Build & Deploy
   # ============================================================================

@@ -29,9 +29,7 @@ export function ActiveSpacesIndicator() {
         title={t('spaces.indicator_tooltip', { count: activeCount })}
       >
         <Library className="h-3 w-3" />
-        <span className="hidden sm:inline">
-          {t('spaces.indicator', { count: activeCount })}
-        </span>
+        <span className="hidden sm:inline">{t('spaces.indicator', { count: activeCount })}</span>
         <span className="sm:hidden">{activeCount}</span>
       </Badge>
     </Link>

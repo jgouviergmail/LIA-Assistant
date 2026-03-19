@@ -15,7 +15,11 @@ import { MessageAttachmentMeta } from '@/types/chat';
 export type SendAttachmentMeta = MessageAttachmentMeta;
 
 export interface ChatInputProps {
-  onSendMessage: (content: string, attachmentIds?: string[], attachmentsMeta?: SendAttachmentMeta[]) => void;
+  onSendMessage: (
+    content: string,
+    attachmentIds?: string[],
+    attachmentsMeta?: SendAttachmentMeta[]
+  ) => void;
   disabled?: boolean;
   isConnected?: boolean;
   apiAvailable?: boolean;
@@ -49,7 +53,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Check if voice mode (active listening) is enabled - disable push-to-talk when active
-  const voiceModeEnabled = useVoiceModeStore((s) => s.isEnabled);
+  const voiceModeEnabled = useVoiceModeStore(s => s.isEnabled);
 
   // Auto-resize the textarea
   const handleInput = useCallback(() => {
@@ -72,7 +76,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       // Note: We need to compute the new message and update both states separately
       // to avoid calling parent setState inside our own setState callback
       // (which causes "Cannot update component while rendering" error in React 19)
-      setMessage((prev) => {
+      setMessage(prev => {
         const newMessage = prev.trim() ? `${prev.trim()} ${text}` : text;
         // Schedule parent state update for next tick to avoid render conflict
         queueMicrotask(() => {
@@ -114,7 +118,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     isSupported: voiceSupported,
   } = useVoiceInput({
     onTranscription: handleVoiceTranscription,
-    onError: (err) => {
+    onError: err => {
       toast.error(getErrorMessage(err));
     },
   });
@@ -129,8 +133,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       const readyMeta: SendAttachmentMeta[] | undefined =
         readyIds.length > 0
           ? attachments
-              .filter((a) => a.status === 'ready' && a.attachmentId)
-              .map((a) => ({
+              .filter(a => a.status === 'ready' && a.attachmentId)
+              .map(a => ({
                 id: a.attachmentId!,
                 filename: a.filename,
                 mime_type: a.mimeType,
@@ -223,7 +227,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       if (!attachmentsEnabled || disabled || !apiAvailable) return;
 
       const files = Array.from(e.dataTransfer.files).filter(
-        (f) => f.type.startsWith('image/') || f.type === 'application/pdf'
+        f => f.type.startsWith('image/') || f.type === 'application/pdf'
       );
       if (files.length > 0) {
         await processFiles(files);

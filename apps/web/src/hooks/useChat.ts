@@ -46,7 +46,11 @@ export interface UseChatReturn {
   isConnected: boolean;
   apiAvailable: boolean;
   conversationTotals: ConversationTotals;
-  sendMessage: (content: string, attachmentIds?: string[], attachmentsMeta?: MessageAttachmentMeta[]) => Promise<void>;
+  sendMessage: (
+    content: string,
+    attachmentIds?: string[],
+    attachmentsMeta?: MessageAttachmentMeta[]
+  ) => Promise<void>;
   clearMessages: () => void;
   setMessages: (messages: Message[]) => void;
   appendMessage: (message: Message) => void;
@@ -60,7 +64,9 @@ export interface UseChatReturn {
   debugMetricsHistory: DebugMetricsEntry[];
 }
 
-export const useChat = ({ debugPanelVisible = false }: { debugPanelVisible?: boolean } = {}): UseChatReturn => {
+export const useChat = ({
+  debugPanelVisible = false,
+}: { debugPanelVisible?: boolean } = {}): UseChatReturn => {
   const { user } = useAuth();
   const { withContext } = useLoggingContext();
   const { t, i18n } = useTranslation();
@@ -143,7 +149,11 @@ export const useChat = ({ debugPanelVisible = false }: { debugPanelVisible?: boo
    * Send a chat message and handle SSE streaming response.
    */
   const sendMessage = useCallback(
-    async (content: string, attachmentIds?: string[], attachmentsMeta?: MessageAttachmentMeta[]) => {
+    async (
+      content: string,
+      attachmentIds?: string[],
+      attachmentsMeta?: MessageAttachmentMeta[]
+    ) => {
       // ✅ CRITICAL: Cancel any pending stream before starting new one
       // Prevents double token counting and ensures clean state
       chatSSEClient.cancel();
@@ -234,21 +244,23 @@ export const useChat = ({ debugPanelVisible = false }: { debugPanelVisible?: boo
       // This is sent automatically with each message for location-aware features and voice selection
       const browserContext: BrowserContext = {
         // Geolocation (if enabled and available)
-        geolocation: geolocationEnabled && geolocation
-          ? {
-              lat: geolocation.lat,
-              lon: geolocation.lon,
-              accuracy: geolocation.accuracy,
-              timestamp: geolocation.timestamp,
-            }
-          : null,
+        geolocation:
+          geolocationEnabled && geolocation
+            ? {
+                lat: geolocation.lat,
+                lon: geolocation.lon,
+                accuracy: geolocation.accuracy,
+                timestamp: geolocation.timestamp,
+              }
+            : null,
         // LIA gender preference (for TTS voice selection)
         lia_gender: liaIsMale ? 'male' : 'female',
         // Viewport width for responsive HTML rendering
         // When debug panel is visible, subtract its width to get actual content area width
-        viewport_width: typeof window !== 'undefined'
-          ? window.innerWidth - (debugPanelVisible ? DEBUG_PANEL_TOTAL_WIDTH_PX : 0)
-          : null,
+        viewport_width:
+          typeof window !== 'undefined'
+            ? window.innerWidth - (debugPanelVisible ? DEBUG_PANEL_TOTAL_WIDTH_PX : 0)
+            : null,
       };
 
       const request = {
@@ -273,9 +285,13 @@ export const useChat = ({ debugPanelVisible = false }: { debugPanelVisible?: boo
               hitlQuestionBuffer,
               assistantMessageId,
               progressMessageId,
-              setProgressMessageId: (id: string | null) => { progressMessageId = id; },
+              setProgressMessageId: (id: string | null) => {
+                progressMessageId = id;
+              },
               normalStreamInitialized,
-              setNormalStreamInitialized: (v: boolean) => { normalStreamInitialized = v; },
+              setNormalStreamInitialized: (v: boolean) => {
+                normalStreamInitialized = v;
+              },
             };
 
             // Delegate to extracted SSE handlers (see lib/sse-handlers/)
@@ -327,7 +343,21 @@ export const useChat = ({ debugPanelVisible = false }: { debugPanelVisible?: boo
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [user, withContext, geolocation, geolocationEnabled, currentLanguage, enableGeolocation, geolocationPermission, t, stopPlayback, handleVoiceChunk, warmupAudio, recordUserInteraction, debugPanelVisible] // dispatch excluded: stable from useReducer
+    [
+      user,
+      withContext,
+      geolocation,
+      geolocationEnabled,
+      currentLanguage,
+      enableGeolocation,
+      geolocationPermission,
+      t,
+      stopPlayback,
+      handleVoiceChunk,
+      warmupAudio,
+      recordUserInteraction,
+      debugPanelVisible,
+    ] // dispatch excluded: stable from useReducer
   );
 
   /**

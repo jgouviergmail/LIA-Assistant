@@ -14,7 +14,8 @@ import { cn } from '@/lib/utils';
 const statusConfig = {
   granted: {
     variant: 'default' as const,
-    className: 'bg-green-500/10 text-green-600 border-green-500/20 dark:bg-green-900/30 dark:text-green-400',
+    className:
+      'bg-green-500/10 text-green-600 border-green-500/20 dark:bg-green-900/30 dark:text-green-400',
     Icon: CheckCircle2,
   },
   denied: {
@@ -24,12 +25,14 @@ const statusConfig = {
   },
   warning: {
     variant: 'default' as const,
-    className: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20 dark:bg-yellow-900/30 dark:text-yellow-400',
+    className:
+      'bg-yellow-500/10 text-yellow-600 border-yellow-500/20 dark:bg-yellow-900/30 dark:text-yellow-400',
     Icon: AlertTriangle,
   },
   info: {
     variant: 'default' as const,
-    className: 'bg-blue-500/10 text-blue-600 border-blue-500/20 dark:bg-blue-900/30 dark:text-blue-400',
+    className:
+      'bg-blue-500/10 text-blue-600 border-blue-500/20 dark:bg-blue-900/30 dark:text-blue-400',
     Icon: Info,
   },
   pending: {

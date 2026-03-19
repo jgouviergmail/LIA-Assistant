@@ -19,7 +19,8 @@ class RoutingDecider:
     """
     Decides routing destination based on query analysis results.
 
-    Routing rules:
+    Routing rules (evaluated in order, first match wins):
+    0. App help query → response (user asks about the app itself)
     1. Chat intent without domains → response (conversational)
     2. Data intents with domains → planner (action execution)
     3. High semantic score → planner (likely data operation)
@@ -50,9 +51,17 @@ class RoutingDecider:
         intent_confidence: float,
         domains: list[str],
         semantic_score: float,
+        is_app_help_query: bool = False,
     ) -> tuple[str, float, bool]:
         """
         Decide routing based on intent, domains, and semantic scores.
+
+        Args:
+            intent: Detected intent (chat, search, create, etc.)
+            intent_confidence: Confidence score for the intent.
+            domains: List of detected domains.
+            semantic_score: Semantic similarity score.
+            is_app_help_query: True if user asks about the app itself.
 
         Returns:
             Tuple of (route_to, confidence, bypass_llm) where:
@@ -60,6 +69,16 @@ class RoutingDecider:
             - confidence: Routing confidence score
             - bypass_llm: Whether to bypass LLM in planner (high confidence)
         """
+        # Rule 0 (highest priority): App help → always response
+        # Prevents misrouting "how do I connect my calendar?" to the planner
+        if is_app_help_query:
+            logger.info(
+                "routing_app_help_override",
+                intent=intent,
+                domains=domains,
+            )
+            return "response", intent_confidence, False
+
         # Rule 1: Chat intent without domains → response
         if intent == "chat" and (not domains or semantic_score < self.chat_semantic_threshold):
             return "response", intent_confidence, False

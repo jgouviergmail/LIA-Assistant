@@ -244,13 +244,16 @@ export class ChatSSEClient {
               } else if (chunk.type === 'execution_step') {
                 // Phase 6: Execution step tracking
                 const stepMetadata = chunk.metadata as Record<string, unknown> | undefined;
-                console.log(`[ChatSSE] ${(stepMetadata?.emoji as string) || '⚙️'} Execution Step:`, {
-                  step_type: stepMetadata?.step_type,
-                  step_name: stepMetadata?.step_name,
-                  i18n_key: stepMetadata?.i18n_key,
-                  category: stepMetadata?.category,
-                  timestamp: new Date().toISOString(),
-                });
+                console.log(
+                  `[ChatSSE] ${(stepMetadata?.emoji as string) || '⚙️'} Execution Step:`,
+                  {
+                    step_type: stepMetadata?.step_type,
+                    step_name: stepMetadata?.step_name,
+                    i18n_key: stepMetadata?.i18n_key,
+                    category: stepMetadata?.category,
+                    timestamp: new Date().toISOString(),
+                  }
+                );
               } else if (chunk.type === 'token') {
                 // Token chunks are frequent - no logging needed
               } else if (

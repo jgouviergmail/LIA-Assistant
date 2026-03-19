@@ -60,7 +60,7 @@ export async function compressImage(file: File): Promise<{
       ctx.drawImage(img, 0, 0, width, height);
 
       canvas.toBlob(
-        (blob) => {
+        blob => {
           if (!blob) {
             reject(new Error('Canvas toBlob failed'));
             return;

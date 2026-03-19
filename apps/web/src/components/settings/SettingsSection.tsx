@@ -111,14 +111,10 @@ export function SettingsSection({
           )}
           <div className="flex-1">
             <h3 className="text-lg font-semibold leading-none tracking-tight">{title}</h3>
-            {description && (
-              <p className="mt-1.5 text-sm text-muted-foreground">{description}</p>
-            )}
+            {description && <p className="mt-1.5 text-sm text-muted-foreground">{description}</p>}
           </div>
         </CardHeader>
-        <CardContent className={cn('px-6 pb-6 pt-0', contentClassName)}>
-          {children}
-        </CardContent>
+        <CardContent className={cn('px-6 pb-6 pt-0', contentClassName)}>{children}</CardContent>
       </Card>
     );
   }

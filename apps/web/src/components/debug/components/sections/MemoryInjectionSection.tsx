@@ -13,18 +13,11 @@
  */
 
 import React from 'react';
-import {
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent,
-} from '@/components/ui/accordion';
+import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { cn } from '@/lib/utils';
 import { SectionBadge } from '../shared';
 import { INFO_SECTION_CLASSES, DEBUG_TEXT_SIZES } from '../../utils/constants';
-import type {
-  MemoryInjectionMetrics,
-  MemoryInjectionDebugItem,
-} from '@/types/chat';
+import type { MemoryInjectionMetrics, MemoryInjectionDebugItem } from '@/types/chat';
 
 export interface MemoryInjectionSectionProps {
   data: MemoryInjectionMetrics | undefined;
@@ -43,10 +36,14 @@ function getScoreColor(score: number): string {
  * Emotional label with color
  */
 function getEmotionalLabel(weight: number): { label: string; className: string } {
-  if (weight <= -7) return { label: 'TRAUMA', className: 'bg-red-500/30 text-red-300 border-red-500/40' };
-  if (weight <= -3) return { label: 'NEG', className: 'bg-red-500/20 text-red-400 border-red-500/30' };
-  if (weight >= 7) return { label: 'TRES+', className: 'bg-green-500/30 text-green-300 border-green-500/40' };
-  if (weight >= 3) return { label: 'POS', className: 'bg-green-500/20 text-green-400 border-green-500/30' };
+  if (weight <= -7)
+    return { label: 'TRAUMA', className: 'bg-red-500/30 text-red-300 border-red-500/40' };
+  if (weight <= -3)
+    return { label: 'NEG', className: 'bg-red-500/20 text-red-400 border-red-500/30' };
+  if (weight >= 7)
+    return { label: 'TRES+', className: 'bg-green-500/30 text-green-300 border-green-500/40' };
+  if (weight >= 3)
+    return { label: 'POS', className: 'bg-green-500/20 text-green-400 border-green-500/30' };
   return { label: 'NEU', className: 'bg-muted/50 text-muted-foreground border-border/50' };
 }
 
@@ -76,7 +73,9 @@ const MemoryRow = React.memo(function MemoryRow({
     <div className="flex flex-col gap-1 text-xs py-1.5 px-2 bg-muted/10 rounded">
       <div className="flex items-center gap-2">
         {/* Rank */}
-        <span className={`${DEBUG_TEXT_SIZES.tiny} text-muted-foreground w-4 text-right flex-shrink-0`}>
+        <span
+          className={`${DEBUG_TEXT_SIZES.tiny} text-muted-foreground w-4 text-right flex-shrink-0`}
+        >
           #{index + 1}
         </span>
 
@@ -90,11 +89,16 @@ const MemoryRow = React.memo(function MemoryRow({
         <div className="flex items-center gap-1.5 flex-shrink-0 w-[100px]">
           <div className="relative h-1.5 bg-muted/30 rounded-full flex-1 max-w-[60px]">
             <div
-              className={cn('absolute left-0 top-0 h-full rounded-full transition-all', getScoreColor(memory.score))}
+              className={cn(
+                'absolute left-0 top-0 h-full rounded-full transition-all',
+                getScoreColor(memory.score)
+              )}
               style={{ width: `${barWidth}%` }}
             />
           </div>
-          <span className={`font-mono ${DEBUG_TEXT_SIZES.mono} w-12 text-right text-muted-foreground`}>
+          <span
+            className={`font-mono ${DEBUG_TEXT_SIZES.mono} w-12 text-right text-muted-foreground`}
+          >
             {memory.score.toFixed(3)}
           </span>
         </div>
@@ -111,10 +115,7 @@ const MemoryRow = React.memo(function MemoryRow({
 
         {/* Emotional weight badge */}
         <span
-          className={cn(
-            'text-[9px] px-1 py-0.5 rounded border flex-shrink-0',
-            emotional.className
-          )}
+          className={cn('text-[9px] px-1 py-0.5 rounded border flex-shrink-0', emotional.className)}
           title={`Poids émotionnel: ${memory.emotional_weight}`}
         >
           {emotional.label}
@@ -194,7 +195,12 @@ export const MemoryInjectionSection = React.memo(function MemoryInjectionSection
             </span>
             <span>
               <strong>hybrid:</strong>{' '}
-              <span className={cn('font-mono', data.settings.hybrid_enabled ? 'text-green-400' : 'text-red-400')}>
+              <span
+                className={cn(
+                  'font-mono',
+                  data.settings.hybrid_enabled ? 'text-green-400' : 'text-red-400'
+                )}
+              >
                 {data.settings.hybrid_enabled ? 'ON' : 'OFF'}
               </span>
             </span>
@@ -208,11 +214,7 @@ export const MemoryInjectionSection = React.memo(function MemoryInjectionSection
               </div>
               <div className="space-y-1 max-h-[300px] overflow-y-auto">
                 {data.memories.map((memory, index) => (
-                  <MemoryRow
-                    key={`${memory.category}-${index}`}
-                    memory={memory}
-                    index={index}
-                  />
+                  <MemoryRow key={`${memory.category}-${index}`} memory={memory} index={index} />
                 ))}
               </div>
             </div>

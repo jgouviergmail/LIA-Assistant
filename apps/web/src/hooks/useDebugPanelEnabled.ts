@@ -45,13 +45,10 @@ const INITIAL_DATA: DebugPanelStatusResponse = {
  * Fetches from public endpoint (all authenticated users).
  */
 export function useDebugPanelEnabled(): UseDebugPanelEnabledReturn {
-  const { data, loading, refetch } = useApiQuery<DebugPanelStatusResponse>(
-    DEBUG_PANEL_ENDPOINT,
-    {
-      componentName: 'useDebugPanelEnabled',
-      initialData: INITIAL_DATA,
-    }
-  );
+  const { data, loading, refetch } = useApiQuery<DebugPanelStatusResponse>(DEBUG_PANEL_ENDPOINT, {
+    componentName: 'useDebugPanelEnabled',
+    initialData: INITIAL_DATA,
+  });
 
   // During loading, default to false (no flash of debug panel)
   const isEnabled = loading ? false : (data?.enabled ?? false);

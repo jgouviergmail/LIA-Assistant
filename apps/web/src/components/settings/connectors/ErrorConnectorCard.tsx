@@ -62,11 +62,7 @@ export function ErrorConnectorCard({
           disabled={reconnecting}
           className="gap-2"
         >
-          {reconnecting ? (
-            <LoadingSpinner size="default" />
-          ) : (
-            <RefreshCw className="h-4 w-4" />
-          )}
+          {reconnecting ? <LoadingSpinner size="default" /> : <RefreshCw className="h-4 w-4" />}
           {t('settings.connectors.health.reconnect')}
         </Button>
       </div>

@@ -349,6 +349,7 @@ def get_response_prompt(
     anticipated_needs: list[str] | None = None,
     skills_context: str = "",
     rag_context: str = "",
+    app_knowledge_context: str = "",
 ) -> str:
     """Get the formatted system prompt for the response node.
 
@@ -389,6 +390,9 @@ def get_response_prompt(
             Route 3 (conversation): L1 catalogue with activate_skill_tool instruction.
         rag_context: RAG Spaces context from user's knowledge documents.
             Injected from RAG retrieval service (hybrid semantic + BM25 search).
+        app_knowledge_context: System RAG context (FAQ, app help).
+            Injected only when is_app_help_query=True (lazy loading).
+            Combined with app_identity_prompt for complete self-knowledge.
 
     Returns:
         Formatted system prompt string ready for ChatPromptTemplate construction.
@@ -445,6 +449,16 @@ def get_response_prompt(
     safe_skills_context = escape_braces(skills_context) if skills_context else ""
     safe_rag_context = escape_braces(rag_context) if rag_context else ""
 
+    # App knowledge context: load identity prompt + optional system RAG results
+    # Injected when is_app_help_query=True (any truthy value triggers identity prompt)
+    safe_app_knowledge = ""
+    if app_knowledge_context:
+        app_identity = load_prompt("app_identity_prompt")
+        safe_app_knowledge = escape_braces(app_identity)
+        # Append system RAG chunks if they contain actual FAQ content
+        if app_knowledge_context not in ("APP_HELP_QUERY",):
+            safe_app_knowledge += "\n\n" + escape_braces(app_knowledge_context)
+
     formatted_system_prompt = response_system_prompt_template.format(
         fewshot_examples=fewshot_examples,
         user_language=user_language_name,
@@ -461,6 +475,7 @@ def get_response_prompt(
         resolved_references=resolved_refs_str,
         anticipated_needs=anticipated_needs_str,
         skills_context=safe_skills_context,
+        app_knowledge_context=safe_app_knowledge,
     )
 
     return formatted_system_prompt

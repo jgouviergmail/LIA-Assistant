@@ -10,9 +10,11 @@ const badgeVariants = cva(
         default: 'bg-primary/10 text-primary border border-primary/20 shadow-sm',
         secondary: 'bg-secondary text-secondary-foreground border border-border',
         // Success: solid opaque backgrounds to prevent gradient bleed-through
-        success: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border border-green-200 dark:border-green-800 shadow-sm',
+        success:
+          'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border border-green-200 dark:border-green-800 shadow-sm',
         // Destructive: solid opaque backgrounds to prevent gradient bleed-through
-        destructive: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 border border-red-200 dark:border-red-800 shadow-sm',
+        destructive:
+          'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 border border-red-200 dark:border-red-800 shadow-sm',
         warning: 'bg-warning/10 text-warning-foreground border border-warning/20 shadow-sm',
         info: 'bg-primary/10 text-primary border border-primary/20 shadow-sm',
         outline: 'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
@@ -32,8 +34,7 @@ const badgeVariants = cva(
 );
 
 export interface BadgeProps
-  extends React.HTMLAttributes<HTMLDivElement>,
-    VariantProps<typeof badgeVariants> {
+  extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof badgeVariants> {
   icon?: React.ReactNode;
   pulse?: boolean;
 }

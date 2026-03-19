@@ -68,16 +68,9 @@ export const ThresholdRow = React.memo(function ThresholdRow({
   const { value, actual, passed } = check;
 
   return (
-    <div
-      className={cn(
-        'flex items-center justify-between gap-2 text-xs py-0.5',
-        className
-      )}
-    >
+    <div className={cn('flex items-center justify-between gap-2 text-xs py-0.5', className)}>
       {/* Label */}
-      <span className="text-muted-foreground flex-shrink-0">
-        {label}:
-      </span>
+      <span className="text-muted-foreground flex-shrink-0">{label}:</span>
 
       {/* Comparison + Icon */}
       <div className="flex items-center gap-1.5">

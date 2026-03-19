@@ -90,6 +90,13 @@ RUN sed -i 's/\r$//' /app/docker-entrypoint.sh && \
 # Copy application code
 COPY --chown=appuser:appuser . .
 
+# Copy system knowledge files for FAQ RAG indexation
+# These files live at monorepo root (docs/knowledge/) but the build context is apps/api/.
+# The docker-compose build section passes them via additional_contexts or they are
+# pre-copied by the CI pipeline. If missing, system RAG gracefully degrades (no FAQ).
+# See: docs/architecture/ADR-058-System-RAG-Spaces.md
+RUN mkdir -p /app/docs/knowledge
+
 # Create data directories for volumes (owned by appuser before USER switch)
 RUN mkdir -p /app/data/attachments && chown -R appuser:appuser /app/data
 

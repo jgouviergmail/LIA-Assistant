@@ -31,9 +31,7 @@ export function SpacesSettingsSection({ lng }: SpacesSettingsSectionProps) {
         </div>
       ) : spaces.length === 0 ? (
         <div className="text-center py-6">
-          <p className="text-sm text-muted-foreground mb-3">
-            {t('settings.rag_spaces.no_spaces')}
-          </p>
+          <p className="text-sm text-muted-foreground mb-3">{t('settings.rag_spaces.no_spaces')}</p>
           <Link
             href={buildLocalizedPath('/dashboard/spaces', lng as Language)}
             className="text-sm text-primary hover:underline"
@@ -44,7 +42,7 @@ export function SpacesSettingsSection({ lng }: SpacesSettingsSectionProps) {
       ) : (
         <div className="space-y-4">
           <div className="space-y-3">
-            {spaces.map((space) => (
+            {spaces.map(space => (
               <div
                 key={space.id}
                 className="flex items-center justify-between rounded-lg border p-3"
@@ -52,13 +50,13 @@ export function SpacesSettingsSection({ lng }: SpacesSettingsSectionProps) {
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium truncate">{space.name}</p>
                   {space.description && (
-                    <p className="text-xs text-muted-foreground truncate">
-                      {space.description}
-                    </p>
+                    <p className="text-xs text-muted-foreground truncate">{space.description}</p>
                   )}
                   <p className="text-xs text-muted-foreground">
                     {space.document_count}{' '}
-                    {space.document_count === 1 ? t('spaces.doc_singular') : t('spaces.docs_plural')}
+                    {space.document_count === 1
+                      ? t('spaces.doc_singular')
+                      : t('spaces.docs_plural')}
                   </p>
                 </div>
                 <Switch

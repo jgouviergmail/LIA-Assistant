@@ -101,9 +101,12 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({ messages, isTy
 
   return (
     // pt-8 (32px) provides top padding; scroll-mt-8 on messages must match for proper scroll alignment
-    <div ref={containerRef} className="flex-1 overflow-y-auto px-2 pt-8 pb-6 mobile:px-6 scroll-smooth">
+    <div
+      ref={containerRef}
+      className="flex-1 overflow-y-auto px-2 pt-8 pb-6 mobile:px-6 scroll-smooth"
+    >
       <div className="mobile:max-w-5xl mobile:mx-auto [&>*:first-child]:mt-2">
-        {messages.map((message) => (
+        {messages.map(message => (
           // scroll-mt-8 must match container's pt-8 for scrollIntoView alignment
           <div
             key={message.id}
@@ -111,10 +114,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({ messages, isTy
             data-message-id={message.id}
             className="scroll-mt-8"
           >
-            <ChatMessage
-              message={message}
-              isUser={message.role === 'user'}
-            />
+            <ChatMessage message={message} isUser={message.role === 'user'} />
           </div>
         ))}
 

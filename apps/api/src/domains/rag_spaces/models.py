@@ -67,9 +67,10 @@ class RAGSpace(BaseModel):
 
     __tablename__ = "rag_spaces"
 
-    user_id: Mapped[uuid.UUID] = mapped_column(
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
+        comment="NULL for system spaces (not owned by any user)",
     )
 
     name: Mapped[str] = mapped_column(
@@ -89,6 +90,20 @@ class RAGSpace(BaseModel):
         default=True,
     )
 
+    is_system: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        comment="System spaces are built-in (FAQ, etc.) and cannot be modified by users",
+    )
+
+    content_hash: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+        default=None,
+        comment="SHA-256 hash of source content for staleness detection",
+    )
+
     # Relationships
     documents: Mapped[list["RAGDocument"]] = relationship(
         "RAGDocument",
@@ -106,12 +121,10 @@ class RAGSpace(BaseModel):
 
     __table_args__ = (
         Index("ix_rag_spaces_user_id_is_active", "user_id", "is_active"),
-        Index(
-            "uq_rag_spaces_user_id_name",
-            "user_id",
-            "name",
-            unique=True,
-        ),
+        Index("ix_rag_spaces_is_system", "is_system"),
+        # Partial unique indexes are managed in Alembic migration (PostgreSQL-specific)
+        # - uq_rag_spaces_user_name: UNIQUE(user_id, name) WHERE user_id IS NOT NULL
+        # - uq_rag_spaces_system_name: UNIQUE(name) WHERE is_system = true
     )
 
 
@@ -233,9 +246,10 @@ class RAGDocument(BaseModel):
         nullable=False,
     )
 
-    user_id: Mapped[uuid.UUID] = mapped_column(
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
+        comment="NULL for system space documents",
     )
 
     filename: Mapped[str] = mapped_column(
@@ -375,10 +389,10 @@ class RAGChunk(BaseModel):
         comment="Denormalized for query performance (avoid JOIN)",
     )
 
-    user_id: Mapped[uuid.UUID] = mapped_column(
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
-        comment="Denormalized for user isolation (avoid JOIN)",
+        nullable=True,
+        comment="Denormalized for user isolation (avoid JOIN). NULL for system chunks.",
     )
 
     chunk_index: Mapped[int] = mapped_column(

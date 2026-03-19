@@ -15,15 +15,24 @@ export { ContextSection, type ContextSectionProps } from './ContextSection';
 export { QuerySection, type QuerySectionProps } from './QuerySection';
 export { LLMCallsSection, type LLMCallsSectionProps } from './LLMCallsSection';
 export { GoogleApiCallsSection, type GoogleApiCallsSectionProps } from './GoogleApiCallsSection';
-export { IntelligentMechanismsSection, type IntelligentMechanismsSectionProps } from './IntelligentMechanismsSection';
+export {
+  IntelligentMechanismsSection,
+  type IntelligentMechanismsSectionProps,
+} from './IntelligentMechanismsSection';
 // v3.1 Debug Panel Enrichments
 export { ForEachAnalysisSection, type ForEachAnalysisSectionProps } from './ForEachAnalysisSection';
 export { ExecutionWavesSection, type ExecutionWavesSectionProps } from './ExecutionWavesSection';
-export { RequestLifecycleSection, type RequestLifecycleSectionProps } from './RequestLifecycleSection';
+export {
+  RequestLifecycleSection,
+  type RequestLifecycleSectionProps,
+} from './RequestLifecycleSection';
 // Interest Learning System
 export { InterestProfileSection, type InterestProfileSectionProps } from './InterestProfileSection';
 // Knowledge Enrichment (Brave Search)
-export { KnowledgeEnrichmentSection, type KnowledgeEnrichmentSectionProps } from './KnowledgeEnrichmentSection';
+export {
+  KnowledgeEnrichmentSection,
+  type KnowledgeEnrichmentSectionProps,
+} from './KnowledgeEnrichmentSection';
 // Memory Injection (debug tuning)
 export { MemoryInjectionSection, type MemoryInjectionSectionProps } from './MemoryInjectionSection';
 // RAG Injection (Knowledge Spaces)

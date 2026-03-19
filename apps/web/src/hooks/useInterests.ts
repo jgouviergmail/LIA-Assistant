@@ -230,7 +230,7 @@ export function useInterests() {
 
       if (result) {
         // Optimistic update: add the new interest to local state
-        setData((prev) => {
+        setData(prev => {
           if (!prev) return prev;
           return {
             ...prev,
@@ -252,16 +252,16 @@ export function useInterests() {
   const deleteInterest = useCallback(
     async (interestId: string) => {
       // Find the interest first to know its status
-      const interest = interestsData?.interests.find((i) => i.id === interestId);
+      const interest = interestsData?.interests.find(i => i.id === interestId);
 
       await deleteMutate(`/interests/${interestId}`);
 
       // Optimistic update: remove from local state
-      setData((prev) => {
+      setData(prev => {
         if (!prev) return prev;
         return {
           ...prev,
-          interests: prev.interests.filter((i) => i.id !== interestId),
+          interests: prev.interests.filter(i => i.id !== interestId),
           total: Math.max(0, prev.total - 1),
           active_count:
             interest?.status === 'active' ? Math.max(0, prev.active_count - 1) : prev.active_count,
@@ -282,7 +282,7 @@ export function useInterests() {
     await deleteAllMutate('/interests/all', {});
 
     // Optimistic update: clear all interests
-    setData((prev) => {
+    setData(prev => {
       if (!prev) return prev;
       return {
         ...prev,
@@ -302,9 +302,9 @@ export function useInterests() {
       await feedbackMutate(`/interests/${interestId}/feedback`, { feedback });
 
       // Optimistic update based on feedback type
-      setData((prev) => {
+      setData(prev => {
         if (!prev) return prev;
-        const newInterests = prev.interests.map((i) => {
+        const newInterests = prev.interests.map(i => {
           if (i.id !== interestId) return i;
 
           if (feedback === 'block') {
@@ -324,8 +324,8 @@ export function useInterests() {
           }
         });
 
-        const activeCount = newInterests.filter((i) => i.status === 'active').length;
-        const blockedCount = newInterests.filter((i) => i.status === 'blocked').length;
+        const activeCount = newInterests.filter(i => i.status === 'active').length;
+        const blockedCount = newInterests.filter(i => i.status === 'blocked').length;
 
         return {
           ...prev,
@@ -347,11 +347,11 @@ export function useInterests() {
 
       if (result) {
         // Optimistic update: replace the interest in local state
-        setData((prev) => {
+        setData(prev => {
           if (!prev) return prev;
           return {
             ...prev,
-            interests: prev.interests.map((i) => (i.id === interestId ? result : i)),
+            interests: prev.interests.map(i => (i.id === interestId ? result : i)),
           };
         });
       }
@@ -369,7 +369,7 @@ export function useInterests() {
       await updateSettingsMutate('/interests/settings', data);
 
       // Optimistic update
-      setSettingsData((prev) => {
+      setSettingsData(prev => {
         if (!prev) return prev;
         return { ...prev, ...data };
       });
@@ -378,7 +378,7 @@ export function useInterests() {
   );
 
   // Filter interests client-side
-  const filteredInterests = (interestsData?.interests ?? []).filter((interest) => {
+  const filteredInterests = (interestsData?.interests ?? []).filter(interest => {
     if (categoryFilter && interest.category !== categoryFilter) return false;
     if (statusFilter && interest.status !== statusFilter) return false;
     return true;

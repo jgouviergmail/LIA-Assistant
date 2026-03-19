@@ -38,7 +38,7 @@ export function useSpaces() {
 
   const spaces = listData?.spaces ?? [];
   const total = listData?.total ?? 0;
-  const activeCount = spaces.filter((s) => s.is_active).length;
+  const activeCount = spaces.filter(s => s.is_active).length;
 
   // Mutations
   const createMutation = useApiMutation<RAGSpaceCreatePayload, RAGSpace>({
@@ -66,7 +66,7 @@ export function useSpaces() {
       const result = await createMutation.mutate(ENDPOINT, payload);
       if (result) {
         // Optimistic: add to list
-        setData((prev) => {
+        setData(prev => {
           if (!prev) return prev;
           const newSpace: RAGSpace = {
             ...result,
@@ -89,11 +89,11 @@ export function useSpaces() {
     async (spaceId: string, payload: RAGSpaceUpdatePayload) => {
       const result = await updateMutation.mutate(`${ENDPOINT}/${spaceId}`, payload);
       if (result) {
-        setData((prev) => {
+        setData(prev => {
           if (!prev) return prev;
           return {
             ...prev,
-            spaces: prev.spaces.map((s) =>
+            spaces: prev.spaces.map(s =>
               s.id === spaceId ? { ...s, name: result.name, description: result.description } : s
             ),
           };
@@ -108,10 +108,10 @@ export function useSpaces() {
     async (spaceId: string) => {
       // Mutation throws on failure — only update UI on success
       await deleteMutation.mutate(`${ENDPOINT}/${spaceId}`);
-      setData((prev) => {
+      setData(prev => {
         if (!prev) return prev;
         return {
-          spaces: prev.spaces.filter((s) => s.id !== spaceId),
+          spaces: prev.spaces.filter(s => s.id !== spaceId),
           total: prev.total - 1,
         };
       });
@@ -123,11 +123,11 @@ export function useSpaces() {
     async (spaceId: string) => {
       const result = await toggleMutation.mutate(`${ENDPOINT}/${spaceId}/toggle`);
       if (result) {
-        setData((prev) => {
+        setData(prev => {
           if (!prev) return prev;
           return {
             ...prev,
-            spaces: prev.spaces.map((s) =>
+            spaces: prev.spaces.map(s =>
               s.id === spaceId ? { ...s, is_active: result.is_active } : s
             ),
           };
@@ -165,13 +165,7 @@ export function useSpaces() {
  * Hook for fetching a single space detail (with documents).
  */
 export function useSpaceDetail(spaceId: string | null) {
-  const {
-    data,
-    loading,
-    error,
-    refetch,
-    setData,
-  } = useApiQuery<RAGSpaceDetail>(
+  const { data, loading, error, refetch, setData } = useApiQuery<RAGSpaceDetail>(
     spaceId ? `${ENDPOINT}/${spaceId}` : '',
     {
       componentName: 'SpaceDetail',
@@ -186,15 +180,12 @@ export function useSpaceDetail(spaceId: string | null) {
  * Hook for fetching active spaces count (lightweight, for chat indicator).
  */
 export function useActiveSpaces() {
-  const {
-    data: listData,
-    loading,
-  } = useApiQuery<RAGSpaceListResponse>(ENDPOINT, {
+  const { data: listData, loading } = useApiQuery<RAGSpaceListResponse>(ENDPOINT, {
     componentName: 'ActiveSpaces',
     initialData: { spaces: [], total: 0 },
   });
 
-  const activeSpaces = (listData?.spaces ?? []).filter((s) => s.is_active);
+  const activeSpaces = (listData?.spaces ?? []).filter(s => s.is_active);
 
   return { activeSpaces, activeCount: activeSpaces.length, loading };
 }

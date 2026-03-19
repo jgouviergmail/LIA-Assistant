@@ -12,11 +12,7 @@
  */
 
 import React from 'react';
-import {
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent,
-} from '@/components/ui/accordion';
+import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { cn } from '@/lib/utils';
 import { MetricRow, SectionBadge } from '../shared';
 import { CONFIDENCE_BAR_COLORS, SCORE_BAR_MAX_WIDTH_PX } from '../../utils/constants';
@@ -76,11 +72,7 @@ export const RAGInjectionSection = React.memo(function RAGInjectionSection({
           <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
             <MetricRow label="Spaces searched" value={data.spaces_searched} />
             <MetricRow label="Chunks found" value={data.chunks_found} />
-            <MetricRow
-              label="Chunks injected"
-              value={data.chunks_injected}
-              highlight={hasChunks}
-            />
+            <MetricRow label="Chunks injected" value={data.chunks_injected} highlight={hasChunks} />
           </div>
 
           {/* Per-chunk details */}
@@ -101,9 +93,7 @@ export const RAGInjectionSection = React.memo(function RAGInjectionSection({
                     >
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex-1 min-w-0">
-                          <div className="font-medium text-primary truncate">
-                            {chunk.file}
-                          </div>
+                          <div className="font-medium text-primary truncate">{chunk.file}</div>
                           <div className="text-muted-foreground mt-0.5 truncate">
                             Space: {chunk.space}
                           </div>
@@ -162,7 +152,8 @@ export const RAGInjectionSection = React.memo(function RAGInjectionSection({
           {/* No results message */}
           {!hasChunks && data.spaces_searched > 0 && (
             <div className="mt-1 text-xs text-yellow-300 bg-yellow-900/20 p-2 rounded border border-yellow-700/50">
-              <strong>No relevant chunks:</strong> No document content matched the query above the minimum score threshold.
+              <strong>No relevant chunks:</strong> No document content matched the query above the
+              minimum score threshold.
             </div>
           )}
         </div>

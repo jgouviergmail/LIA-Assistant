@@ -13,11 +13,7 @@
  */
 
 import React from 'react';
-import {
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent,
-} from '@/components/ui/accordion';
+import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { cn } from '@/lib/utils';
 import { MetricRow, SectionBadge } from '../shared';
 import { INFO_SECTION_CLASSES } from '../../utils/constants';
@@ -55,11 +51,7 @@ const EndpointBadge = React.memo(function EndpointBadge({
 /**
  * Badge for cache status
  */
-const CacheBadge = React.memo(function CacheBadge({
-  fromCache,
-}: {
-  fromCache: boolean;
-}) {
+const CacheBadge = React.memo(function CacheBadge({ fromCache }: { fromCache: boolean }) {
   return (
     <span
       className={cn(
@@ -146,9 +138,7 @@ export const KnowledgeEnrichmentSection = React.memo(function KnowledgeEnrichmen
           <div className="space-y-3">
             {/* Detected keywords */}
             <div className="space-y-1.5">
-              <div className="text-xs text-muted-foreground font-medium">
-                Detected keywords
-              </div>
+              <div className="text-xs text-muted-foreground font-medium">Detected keywords</div>
               <div className="flex flex-wrap gap-1.5">
                 {data.encyclopedia_keywords.map((keyword, index) => (
                   <span
@@ -226,7 +216,9 @@ export const KnowledgeEnrichmentSection = React.memo(function KnowledgeEnrichmen
                     : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
                 )}
               >
-                {data.is_news_query ? 'TRUE → News (News API)' : 'FALSE → Encyclopedic (Web API + year)'}
+                {data.is_news_query
+                  ? 'TRUE → News (News API)'
+                  : 'FALSE → Encyclopedic (Web API + year)'}
               </span>
             </div>
           </div>
@@ -234,13 +226,9 @@ export const KnowledgeEnrichmentSection = React.memo(function KnowledgeEnrichmen
           {/* Enrichment details */}
           {data.executed && (
             <div className="border-t pt-2 space-y-1">
-              <div className="text-xs text-muted-foreground font-medium">
-                Enrichment details
-              </div>
+              <div className="text-xs text-muted-foreground font-medium">Enrichment details</div>
               <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
-                {data.keyword_used && (
-                  <MetricRow label="Query sent" value={data.keyword_used} />
-                )}
+                {data.keyword_used && <MetricRow label="Query sent" value={data.keyword_used} />}
                 {data.endpoint && (
                   <MetricRow label="Endpoint" value={data.endpoint.toUpperCase()} />
                 )}
@@ -248,10 +236,7 @@ export const KnowledgeEnrichmentSection = React.memo(function KnowledgeEnrichmen
                   <MetricRow label="Results" value={data.results_count} highlight={hasResults} />
                 )}
                 {data.from_cache !== undefined && (
-                  <MetricRow
-                    label="Source"
-                    value={data.from_cache ? 'Cache Redis' : 'API Brave'}
-                  />
+                  <MetricRow label="Source" value={data.from_cache ? 'Cache Redis' : 'API Brave'} />
                 )}
               </div>
             </div>

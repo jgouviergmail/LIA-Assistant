@@ -193,11 +193,7 @@ export function LocationSettings({ t }: LocationSettingsProps) {
                 className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
                 title={t('common.delete')}
               >
-                {clearingHome ? (
-                  <LoadingSpinner size="default" />
-                ) : (
-                  <Trash2 className="h-4 w-4" />
-                )}
+                {clearingHome ? <LoadingSpinner size="default" /> : <Trash2 className="h-4 w-4" />}
               </Button>
             </div>
           </div>

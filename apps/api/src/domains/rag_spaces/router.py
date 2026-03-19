@@ -38,6 +38,10 @@ from src.domains.rag_spaces.schemas import (
     RAGSpaceResponse,
     RAGSpaceToggleResponse,
     RAGSpaceUpdate,
+    SystemSpaceListResponse,
+    SystemSpaceReindexResponse,
+    SystemSpaceResponse,
+    SystemSpaceStalenessResponse,
 )
 from src.domains.rag_spaces.service import RAGSpaceService
 from src.infrastructure.async_utils import safe_fire_and_forget
@@ -84,6 +88,86 @@ async def get_reindex_status(
     """Check the status of an ongoing reindexation."""
     result = await _get_reindex_status()
     return RAGReindexStatusResponse(**result)
+
+
+# ============================================================================
+# Admin: System Spaces (MUST be defined BEFORE /{space_id} routes)
+# ============================================================================
+
+
+@router.get(
+    "/admin/system-spaces",
+    response_model=SystemSpaceListResponse,
+    summary="List system knowledge spaces (admin)",
+)
+async def list_system_spaces(
+    user: User = Depends(get_current_superuser_session),
+    db: AsyncSession = Depends(get_db),
+) -> SystemSpaceListResponse:
+    """List all system spaces with stats (document count, chunk count, staleness)."""
+    service = RAGSpaceService(db)
+    spaces = await service.get_system_spaces()
+    return SystemSpaceListResponse(
+        spaces=[SystemSpaceResponse(**s) for s in spaces],
+        total=len(spaces),
+    )
+
+
+@router.post(
+    "/admin/system-spaces/{space_name}/reindex",
+    response_model=SystemSpaceReindexResponse,
+    summary="Reindex a system space (admin)",
+)
+async def reindex_system_space(
+    space_name: str,
+    user: User = Depends(get_current_superuser_session),
+    db: AsyncSession = Depends(get_db),
+) -> SystemSpaceReindexResponse:
+    """Trigger reindexation of a system space (FAQ knowledge base)."""
+    from src.domains.rag_spaces.system_indexer import SystemSpaceIndexer
+
+    indexer = SystemSpaceIndexer(db)
+    result = await indexer.index_faq_space()
+
+    if result["status"] == "error":
+        raise BaseAPIException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=result.get("error", "Indexation failed"),
+            log_event="system_space_reindex_failed",
+            space_name=space_name,
+        )
+
+    return SystemSpaceReindexResponse(
+        message=(
+            f"System space '{space_name}' reindexed successfully"
+            if result["status"] == "success"
+            else f"System space '{space_name}' is already up to date"
+        ),
+        space_name=space_name,
+        chunks_created=result["chunks_created"],
+        content_hash=result["content_hash"],
+    )
+
+
+@router.get(
+    "/admin/system-spaces/{space_name}/staleness",
+    response_model=SystemSpaceStalenessResponse,
+    summary="Check system space staleness (admin)",
+)
+async def check_system_space_staleness(
+    space_name: str,
+    user: User = Depends(get_current_superuser_session),
+    db: AsyncSession = Depends(get_db),
+) -> SystemSpaceStalenessResponse:
+    """Check if a system space needs reindexation (content hash comparison)."""
+    from src.domains.rag_spaces.system_indexer import SystemSpaceIndexer
+
+    indexer = SystemSpaceIndexer(db)
+    result = await indexer.check_staleness(space_name)
+    return SystemSpaceStalenessResponse(
+        space_name=space_name,
+        **result,
+    )
 
 
 # ============================================================================

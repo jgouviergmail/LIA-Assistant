@@ -41,7 +41,10 @@ interface GoogleApiPricingListResponse {
   entries: GoogleApiPricing[];
 }
 
-export default function AdminGoogleApiPricingSection({ lng, collapsible = true }: BaseSettingsProps) {
+export default function AdminGoogleApiPricingSection({
+  lng,
+  collapsible = true,
+}: BaseSettingsProps) {
   const { t } = useTranslation(lng, 'translation');
 
   const [entries, setEntries] = useState<GoogleApiPricing[]>([]);
@@ -85,7 +88,9 @@ export default function AdminGoogleApiPricingSection({ lng, collapsible = true }
   const [pageSize] = useState(ADMIN_GOOGLE_API_PRICING_PAGE_SIZE);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
-  const [sortBy, setSortBy] = useState<'api_name' | 'endpoint' | 'sku_name' | 'cost_per_1000_usd'>('api_name');
+  const [sortBy, setSortBy] = useState<'api_name' | 'endpoint' | 'sku_name' | 'cost_per_1000_usd'>(
+    'api_name'
+  );
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   // Fetch entries with AbortController
@@ -314,7 +319,10 @@ export default function AdminGoogleApiPricingSection({ lng, collapsible = true }
             <RefreshCw className={`h-4 w-4 mr-2 ${reloadingCache ? 'animate-spin' : ''}`} />
             {t('settings.admin.google_api.reload_cache')}
           </Button>
-          <Button onClick={() => setShowAddModal(true)} aria-label={t('settings.admin.google_api.add_entry')}>
+          <Button
+            onClick={() => setShowAddModal(true)}
+            aria-label={t('settings.admin.google_api.add_entry')}
+          >
             {t('settings.admin.google_api.add_entry')}
           </Button>
         </div>
@@ -337,45 +345,77 @@ export default function AdminGoogleApiPricingSection({ lng, collapsible = true }
               <th
                 className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted transition-colors"
                 onClick={() => handleSort('api_name')}
-                aria-sort={sortBy === 'api_name' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}
+                aria-sort={
+                  sortBy === 'api_name'
+                    ? sortOrder === 'asc'
+                      ? 'ascending'
+                      : 'descending'
+                    : 'none'
+                }
                 role="columnheader"
               >
                 <div className="flex items-center space-x-1">
                   <span>{t('settings.admin.google_api.table.api_name')}</span>
-                  {sortBy === 'api_name' && <span aria-hidden="true">{sortOrder === 'asc' ? '↑' : '↓'}</span>}
+                  {sortBy === 'api_name' && (
+                    <span aria-hidden="true">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                  )}
                 </div>
               </th>
               <th
                 className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted transition-colors"
                 onClick={() => handleSort('endpoint')}
-                aria-sort={sortBy === 'endpoint' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}
+                aria-sort={
+                  sortBy === 'endpoint'
+                    ? sortOrder === 'asc'
+                      ? 'ascending'
+                      : 'descending'
+                    : 'none'
+                }
                 role="columnheader"
               >
                 <div className="flex items-center space-x-1">
                   <span>{t('settings.admin.google_api.table.endpoint')}</span>
-                  {sortBy === 'endpoint' && <span aria-hidden="true">{sortOrder === 'asc' ? '↑' : '↓'}</span>}
+                  {sortBy === 'endpoint' && (
+                    <span aria-hidden="true">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                  )}
                 </div>
               </th>
               <th
                 className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted transition-colors"
                 onClick={() => handleSort('sku_name')}
-                aria-sort={sortBy === 'sku_name' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}
+                aria-sort={
+                  sortBy === 'sku_name'
+                    ? sortOrder === 'asc'
+                      ? 'ascending'
+                      : 'descending'
+                    : 'none'
+                }
                 role="columnheader"
               >
                 <div className="flex items-center space-x-1">
                   <span>{t('settings.admin.google_api.table.sku_name')}</span>
-                  {sortBy === 'sku_name' && <span aria-hidden="true">{sortOrder === 'asc' ? '↑' : '↓'}</span>}
+                  {sortBy === 'sku_name' && (
+                    <span aria-hidden="true">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                  )}
                 </div>
               </th>
               <th
                 className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted transition-colors"
                 onClick={() => handleSort('cost_per_1000_usd')}
-                aria-sort={sortBy === 'cost_per_1000_usd' ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}
+                aria-sort={
+                  sortBy === 'cost_per_1000_usd'
+                    ? sortOrder === 'asc'
+                      ? 'ascending'
+                      : 'descending'
+                    : 'none'
+                }
                 role="columnheader"
               >
                 <div className="flex items-center space-x-1">
                   <span>{t('settings.admin.google_api.table.cost')}</span>
-                  {sortBy === 'cost_per_1000_usd' && <span aria-hidden="true">{sortOrder === 'asc' ? '↑' : '↓'}</span>}
+                  {sortBy === 'cost_per_1000_usd' && (
+                    <span aria-hidden="true">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                  )}
                 </div>
               </th>
               <th
@@ -454,8 +494,7 @@ export default function AdminGoogleApiPricingSection({ lng, collapsible = true }
           }}
           onSubmit={
             editingEntry
-              ? data =>
-                  handleEditEntry(editingEntry.api_name, editingEntry.endpoint, data)
+              ? data => handleEditEntry(editingEntry.api_name, editingEntry.endpoint, data)
               : handleAddEntry
           }
         />
@@ -516,7 +555,9 @@ function GoogleApiPricingModal({ lng, entry, onClose, onSubmit }: GoogleApiPrici
       <div className="bg-card rounded-xl border border-border shadow-xl p-6 max-w-md w-full mx-4">
         <h3 id="modal-title" className="text-lg font-bold mb-4 text-foreground">
           {entry
-            ? t('settings.admin.google_api.modal.title_edit', { name: `${entry.api_name}:${entry.endpoint}` })
+            ? t('settings.admin.google_api.modal.title_edit', {
+                name: `${entry.api_name}:${entry.endpoint}`,
+              })
             : t('settings.admin.google_api.modal.title_add')}
         </h3>
 

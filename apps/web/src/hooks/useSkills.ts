@@ -124,12 +124,12 @@ export function useSkills(adminView = false) {
       const result: Skill = await response.json();
 
       // Optimistic: add or replace in list (handles re-import of same name)
-      setData((prev) => {
+      setData(prev => {
         if (!prev) return prev;
-        const existing = prev.skills.some((s) => s.name === result.name);
+        const existing = prev.skills.some(s => s.name === result.name);
         return {
           skills: existing
-            ? prev.skills.map((s) => (s.name === result.name ? result : s))
+            ? prev.skills.map(s => (s.name === result.name ? result : s))
             : [...prev.skills, result],
           total: existing ? prev.total : prev.total + 1,
         };
@@ -156,10 +156,10 @@ export function useSkills(adminView = false) {
     async (skillName: string) => {
       await deleteMutation.mutate(`${ENDPOINT}/${skillName}`);
       // Optimistic: remove from list
-      setData((prev) => {
+      setData(prev => {
         if (!prev) return prev;
         return {
-          skills: prev.skills.filter((s) => s.name !== skillName),
+          skills: prev.skills.filter(s => s.name !== skillName),
           total: prev.total - 1,
         };
       });
@@ -172,11 +172,11 @@ export function useSkills(adminView = false) {
       const result = await toggleMutation.mutate(`${ENDPOINT}/${skillName}/toggle`);
       if (result) {
         // Optimistic: update enabled_for_user (personal preference)
-        setData((prev) => {
+        setData(prev => {
           if (!prev) return prev;
           return {
             ...prev,
-            skills: prev.skills.map((s) =>
+            skills: prev.skills.map(s =>
               s.name === skillName ? { ...s, enabled_for_user: result.enabled_for_user } : s
             ),
           };
@@ -195,11 +195,11 @@ export function useSkills(adminView = false) {
       );
       if (result) {
         // Optimistic: update admin_enabled (system-level toggle)
-        setData((prev) => {
+        setData(prev => {
           if (!prev) return prev;
           return {
             ...prev,
-            skills: prev.skills.map((s) =>
+            skills: prev.skills.map(s =>
               s.name === skillName ? { ...s, admin_enabled: result.admin_enabled } : s
             ),
           };
@@ -218,7 +218,10 @@ export function useSkills(adminView = false) {
     return result;
   }, [reloadMutation, refetch]);
 
-  const translateMutation = useApiMutation<void, { skill_name: string; descriptions: Record<string, string> }>({
+  const translateMutation = useApiMutation<
+    void,
+    { skill_name: string; descriptions: Record<string, string> }
+  >({
     method: 'POST',
     componentName: 'Skills',
   });
@@ -238,13 +241,15 @@ export function useSkills(adminView = false) {
 
   const translateSkillDescription = useCallback(
     async (skillName: string) => {
-      const result = await translateMutation.mutate(`${ENDPOINT}/admin/${skillName}/translate-description`);
+      const result = await translateMutation.mutate(
+        `${ENDPOINT}/admin/${skillName}/translate-description`
+      );
       if (result) {
-        setData((prev) => {
+        setData(prev => {
           if (!prev) return prev;
           return {
             ...prev,
-            skills: prev.skills.map((s) =>
+            skills: prev.skills.map(s =>
               s.name === skillName ? { ...s, descriptions: result.descriptions } : s
             ),
           };
@@ -263,11 +268,11 @@ export function useSkills(adminView = false) {
         { description, source_language: sourceLang }
       );
       if (result) {
-        setData((prev) => {
+        setData(prev => {
           if (!prev) return prev;
           return {
             ...prev,
-            skills: prev.skills.map((s) =>
+            skills: prev.skills.map(s =>
               s.name === skillName ? { ...s, descriptions: result.descriptions } : s
             ),
           };
@@ -305,10 +310,10 @@ export function useSkills(adminView = false) {
   const deleteAdminSkill = useCallback(
     async (skillName: string) => {
       await deleteAdminMutation.mutate(`${ENDPOINT}/admin/${skillName}`);
-      setData((prev) => {
+      setData(prev => {
         if (!prev) return prev;
         return {
-          skills: prev.skills.filter((s) => s.name !== skillName),
+          skills: prev.skills.filter(s => s.name !== skillName),
           total: prev.total - 1,
         };
       });

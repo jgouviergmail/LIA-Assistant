@@ -59,9 +59,7 @@ export function UserDebugSettings({ lng, collapsible = true }: BaseSettingsProps
 
       {/* Info */}
       <InfoBox>
-        <p className="text-xs text-muted-foreground">
-          {t('settings.preferences.debug.info')}
-        </p>
+        <p className="text-xs text-muted-foreground">{t('settings.preferences.debug.info')}</p>
       </InfoBox>
     </div>
   );

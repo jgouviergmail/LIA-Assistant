@@ -39,11 +39,7 @@ export function FAQPageClient({ lng }: FAQPageClientProps) {
 
       {/* Onboarding Tutorial Modal */}
       {showOnboarding && (
-        <OnboardingTutorial
-          lng={lng}
-          open={showOnboarding}
-          onComplete={handleOnboardingComplete}
-        />
+        <OnboardingTutorial lng={lng} open={showOnboarding} onComplete={handleOnboardingComplete} />
       )}
     </>
   );

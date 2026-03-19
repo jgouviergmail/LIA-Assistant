@@ -5,11 +5,7 @@
  */
 
 import React from 'react';
-import {
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent,
-} from '@/components/ui/accordion';
+import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { MetricRow } from '../shared';
 import { EXECUTION_STATUS_COLORS } from '../../utils/constants';
 import { formatDuration } from '../../utils/formatters';
@@ -39,8 +35,7 @@ export const ExecutionSection = React.memo(function ExecutionSection({
   }
 
   const { steps = [], total_steps, completed_steps } = data;
-  const progressPercentage =
-    total_steps > 0 ? (completed_steps / total_steps) * 100 : 0;
+  const progressPercentage = total_steps > 0 ? (completed_steps / total_steps) * 100 : 0;
 
   return (
     <AccordionItem value="execution">
@@ -62,9 +57,7 @@ export const ExecutionSection = React.memo(function ExecutionSection({
 
           {/* Overall progress bar */}
           <div className="border-t pt-2">
-            <div className="text-xs text-muted-foreground font-medium mb-2">
-              Overall Progress
-            </div>
+            <div className="text-xs text-muted-foreground font-medium mb-2">Overall Progress</div>
             <div className="relative h-2 bg-gray-200 rounded-full">
               <div
                 className="absolute left-0 top-0 h-full bg-blue-500 rounded-full transition-all"
@@ -81,18 +74,13 @@ export const ExecutionSection = React.memo(function ExecutionSection({
           {/* Steps timeline */}
           {steps.length > 0 && (
             <div className="border-t pt-2">
-              <div className="text-xs text-muted-foreground font-medium mb-2">
-                Steps Timeline
-              </div>
+              <div className="text-xs text-muted-foreground font-medium mb-2">Steps Timeline</div>
               <div className="space-y-2">
-                {steps.map((step) => {
+                {steps.map(step => {
                   const statusColorClass = EXECUTION_STATUS_COLORS[step.status];
 
                   return (
-                    <div
-                      key={step.step_id}
-                      className="border-l-2 border-gray-300 pl-3 pb-1"
-                    >
+                    <div key={step.step_id} className="border-l-2 border-gray-300 pl-3 pb-1">
                       {/* Header: tool + status */}
                       <div className="flex items-center justify-between text-xs mb-0.5">
                         <span className="font-mono text-[11px] font-medium truncate flex-1">
@@ -115,11 +103,7 @@ export const ExecutionSection = React.memo(function ExecutionSection({
                           <div>Duration: {formatDuration(step.duration_ms)}</div>
                         )}
                         {step.success !== undefined && step.success !== null && (
-                          <div
-                            className={
-                              step.success ? 'text-green-600' : 'text-red-600'
-                            }
-                          >
+                          <div className={step.success ? 'text-green-600' : 'text-red-600'}>
                             Success: {step.success ? 'Yes' : 'No'}
                           </div>
                         )}

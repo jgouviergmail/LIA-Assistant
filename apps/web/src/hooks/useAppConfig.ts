@@ -40,13 +40,10 @@ export interface AppConfig {
  * @returns `{ config, loading, error }`
  */
 export function useAppConfig(enabled = true) {
-  const { data, loading, error } = useApiQuery<AppConfig>(
-    '/config',
-    {
-      componentName: 'useAppConfig',
-      enabled,
-    },
-  );
+  const { data, loading, error } = useApiQuery<AppConfig>('/config', {
+    componentName: 'useAppConfig',
+    enabled,
+  });
 
   return { config: data ?? null, loading, error };
 }

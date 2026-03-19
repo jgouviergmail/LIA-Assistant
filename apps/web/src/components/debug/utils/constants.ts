@@ -204,22 +204,26 @@ export const TOKEN_BAR_HEIGHT = '0.5rem'; // 2 (h-2)
 /**
  * Reusable CSS classes for query backgrounds
  */
-export const QUERY_BACKGROUND_CLASSES = 'bg-muted/30 p-2 rounded text-foreground border border-border/50';
+export const QUERY_BACKGROUND_CLASSES =
+  'bg-muted/30 p-2 rounded text-foreground border border-border/50';
 
 /**
  * Reusable CSS classes for error sections
  */
-export const ERROR_SECTION_CLASSES = 'mt-1 text-xs text-red-300 bg-red-900/20 p-2 rounded border border-red-700/50';
+export const ERROR_SECTION_CLASSES =
+  'mt-1 text-xs text-red-300 bg-red-900/20 p-2 rounded border border-red-700/50';
 
 /**
  * Reusable CSS classes for warning sections
  */
-export const WARNING_SECTION_CLASSES = 'mt-1 text-xs text-yellow-300 bg-yellow-900/20 p-2 rounded border border-yellow-700/50';
+export const WARNING_SECTION_CLASSES =
+  'mt-1 text-xs text-yellow-300 bg-yellow-900/20 p-2 rounded border border-yellow-700/50';
 
 /**
  * Reusable CSS classes for info sections
  */
-export const INFO_SECTION_CLASSES = 'mt-1 text-xs text-blue-300 bg-blue-900/20 p-2 rounded border border-blue-700/50';
+export const INFO_SECTION_CLASSES =
+  'mt-1 text-xs text-blue-300 bg-blue-900/20 p-2 rounded border border-blue-700/50';
 
 /**
  * Reusable CSS classes for summary boxes
@@ -304,7 +308,7 @@ export const METRIC_TYPES = [
 /**
  * Human-readable labels for metric types
  */
-export const METRIC_TYPE_LABELS: Record<typeof METRIC_TYPES[number], string> = {
+export const METRIC_TYPE_LABELS: Record<(typeof METRIC_TYPES)[number], string> = {
   intent_detection: 'Intent Detection',
   domain_selection: 'Domain Selection',
   routing_decision: 'Routing Decision',
@@ -358,9 +362,11 @@ export function getNodeColor(nodeName: string): string {
   // Fuzzy fallback for variant naming (e.g., "planner_node" -> planner)
   if (lowerName.includes('router')) return NODE_COLORS.router;
   if (lowerName.includes('planner') || lowerName.includes('plan')) return NODE_COLORS.planner;
-  if (lowerName.includes('semantic') || lowerName.includes('validator')) return NODE_COLORS.semantic_validator;
+  if (lowerName.includes('semantic') || lowerName.includes('validator'))
+    return NODE_COLORS.semantic_validator;
   if (lowerName.includes('orchestrator')) return NODE_COLORS.task_orchestrator;
-  if (lowerName.includes('executor') || lowerName.includes('parallel')) return NODE_COLORS.parallel_executor;
+  if (lowerName.includes('executor') || lowerName.includes('parallel'))
+    return NODE_COLORS.parallel_executor;
   if (lowerName.includes('response') || lowerName.includes('resp')) return NODE_COLORS.response;
 
   return NODE_COLORS.default;
@@ -373,9 +379,7 @@ export function getConfidenceColor(
   confidence: 'high' | 'medium' | 'low',
   type: 'badge' | 'bar' = 'badge'
 ): string {
-  return type === 'badge'
-    ? CONFIDENCE_COLORS[confidence]
-    : CONFIDENCE_BAR_COLORS[confidence];
+  return type === 'badge' ? CONFIDENCE_COLORS[confidence] : CONFIDENCE_BAR_COLORS[confidence];
 }
 
 /**

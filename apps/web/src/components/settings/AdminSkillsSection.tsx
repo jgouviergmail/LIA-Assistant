@@ -1,15 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import {
-  Blocks,
-  Download,
-  Languages,
-  Pencil,
-  RotateCcw,
-  Trash2,
-  Upload,
-} from 'lucide-react';
+import { Blocks, Download, Languages, Pencil, RotateCcw, Trash2, Upload } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -73,7 +65,7 @@ export function AdminSkillsSection({ lng }: AdminSkillsSectionProps) {
   const [editingSkill, setEditingSkill] = useState<Skill | null>(null);
   const [editDescription, setEditDescription] = useState('');
 
-  const adminSkills = allSkills.filter((s) => s.scope === 'admin');
+  const adminSkills = allSkills.filter(s => s.scope === 'admin');
 
   const handleReload = async () => {
     try {
@@ -237,9 +229,7 @@ export function AdminSkillsSection({ lng }: AdminSkillsSectionProps) {
       {/* Error */}
       {!loading && error && (
         <div className="flex items-center gap-3 py-4">
-          <p className="text-sm text-muted-foreground">
-            {t('settings.skills.load_error')}
-          </p>
+          <p className="text-sm text-muted-foreground">{t('settings.skills.load_error')}</p>
           <button
             type="button"
             onClick={() => refetch()}
@@ -261,11 +251,8 @@ export function AdminSkillsSection({ lng }: AdminSkillsSectionProps) {
       {/* Skill cards */}
       {!loading && !error && adminSkills.length > 0 && (
         <div className="space-y-3">
-          {adminSkills.map((skill) => (
-            <div
-              key={skill.name}
-              className="rounded-lg border bg-card p-4 space-y-2 group"
-            >
+          {adminSkills.map(skill => (
+            <div key={skill.name} className="rounded-lg border bg-card p-4 space-y-2 group">
               <div className="flex items-center justify-between gap-2">
                 {/* Name + badges */}
                 <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
@@ -374,7 +361,10 @@ export function AdminSkillsSection({ lng }: AdminSkillsSectionProps) {
       )}
 
       {/* Delete admin skill confirmation */}
-      <AlertDialog open={deletingName !== null} onOpenChange={(open) => !open && setDeletingName(null)}>
+      <AlertDialog
+        open={deletingName !== null}
+        onOpenChange={open => !open && setDeletingName(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>{t('settings.skills.delete_admin_confirm_title')}</AlertDialogTitle>
@@ -395,7 +385,7 @@ export function AdminSkillsSection({ lng }: AdminSkillsSectionProps) {
       </AlertDialog>
 
       {/* Edit description dialog */}
-      <Dialog open={editingSkill !== null} onOpenChange={(open) => !open && setEditingSkill(null)}>
+      <Dialog open={editingSkill !== null} onOpenChange={open => !open && setEditingSkill(null)}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>
@@ -409,7 +399,7 @@ export function AdminSkillsSection({ lng }: AdminSkillsSectionProps) {
             <Textarea
               id="skill-desc-edit"
               value={editDescription}
-              onChange={(e) => setEditDescription(e.target.value)}
+              onChange={e => setEditDescription(e.target.value)}
               rows={5}
               placeholder={t('settings.skills.edit_description_label')}
               className="resize-none text-sm"

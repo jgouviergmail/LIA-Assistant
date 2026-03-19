@@ -46,9 +46,7 @@ export default function ForgotPasswordPage() {
             components={{ strong: <strong /> }}
           />
         </p>
-        <p className="text-sm text-muted-foreground">
-          {t('auth.forgot_password.success_hint')}
-        </p>
+        <p className="text-sm text-muted-foreground">{t('auth.forgot_password.success_hint')}</p>
         <Button asChild className="mt-4">
           <Link href="/login">{t('auth.forgot_password.back_to_login')}</Link>
         </Button>
@@ -63,9 +61,7 @@ export default function ForgotPasswordPage() {
           <Mail className="h-12 w-12 text-primary" />
         </div>
         <h1 className="text-2xl font-bold">{t('auth.forgot_password.title')}</h1>
-        <p className="text-muted-foreground">
-          {t('auth.forgot_password.subtitle')}
-        </p>
+        <p className="text-muted-foreground">{t('auth.forgot_password.subtitle')}</p>
       </div>
 
       {errorMessage && (
@@ -88,7 +84,9 @@ export default function ForgotPasswordPage() {
         </div>
 
         <Button type="submit" className="w-full" disabled={status === 'loading'}>
-          {status === 'loading' ? t('auth.forgot_password.submitting') : t('auth.forgot_password.submit')}
+          {status === 'loading'
+            ? t('auth.forgot_password.submitting')
+            : t('auth.forgot_password.submit')}
         </Button>
       </form>
 

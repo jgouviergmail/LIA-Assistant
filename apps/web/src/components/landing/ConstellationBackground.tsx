@@ -50,9 +50,7 @@ export function ConstellationBackground() {
 
   useEffect(() => {
     // Check prefers-reduced-motion
-    const prefersReducedMotion = window.matchMedia(
-      '(prefers-reduced-motion: reduce)'
-    ).matches;
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     if (prefersReducedMotion || !svgRef.current) return;
 

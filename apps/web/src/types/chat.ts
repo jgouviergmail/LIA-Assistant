@@ -73,8 +73,7 @@ export type SSEChunkType =
   | 'voice_comment_start'
   | 'voice_audio_chunk'
   | 'voice_complete'
-  | 'voice_error'
-;
+  | 'voice_error';
 
 export interface ChatStreamChunk {
   type: SSEChunkType;

@@ -176,14 +176,17 @@ export function useEmotionalState(initialState: EmotionalState = 'neutral') {
   const [state, setState] = React.useState<EmotionalState>(initialState);
   const [memoryCount, setMemoryCount] = React.useState(0);
 
-  const updateFromResponse = React.useCallback((response: { emotional_state?: string; memory_count?: number }) => {
-    if (response.emotional_state) {
-      setState(response.emotional_state as EmotionalState);
-    }
-    if (typeof response.memory_count === 'number') {
-      setMemoryCount(response.memory_count);
-    }
-  }, []);
+  const updateFromResponse = React.useCallback(
+    (response: { emotional_state?: string; memory_count?: number }) => {
+      if (response.emotional_state) {
+        setState(response.emotional_state as EmotionalState);
+      }
+      if (typeof response.memory_count === 'number') {
+        setMemoryCount(response.memory_count);
+      }
+    },
+    []
+  );
 
   const reset = React.useCallback(() => {
     setState('neutral');

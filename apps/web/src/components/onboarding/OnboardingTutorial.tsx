@@ -70,7 +70,7 @@ export function OnboardingTutorial({ lng, open, onComplete }: OnboardingTutorial
       onComplete();
 
       // Refresh user in background (non-blocking)
-      refreshUser().catch((error) => {
+      refreshUser().catch(error => {
         console.error('Failed to refresh user after onboarding:', error);
       });
     } catch (error) {
@@ -83,13 +83,13 @@ export function OnboardingTutorial({ lng, open, onComplete }: OnboardingTutorial
 
   const handleNext = () => {
     if (currentPage < ONBOARDING_TOTAL_PAGES) {
-      setCurrentPage((prev) => prev + 1);
+      setCurrentPage(prev => prev + 1);
     }
   };
 
   const handlePrevious = () => {
     if (currentPage > 1) {
-      setCurrentPage((prev) => prev - 1);
+      setCurrentPage(prev => prev - 1);
     }
   };
 
@@ -114,7 +114,14 @@ export function OnboardingTutorial({ lng, open, onComplete }: OnboardingTutorial
       case 6:
         return <Page6Notifications lng={lng} />;
       case 7:
-        return <Page7Examples lng={lng} onFinish={handleFinish} onPrevious={handlePrevious} isLoading={isLoading} />;
+        return (
+          <Page7Examples
+            lng={lng}
+            onFinish={handleFinish}
+            onPrevious={handlePrevious}
+            isLoading={isLoading}
+          />
+        );
       default:
         return null;
     }
@@ -124,8 +131,8 @@ export function OnboardingTutorial({ lng, open, onComplete }: OnboardingTutorial
     <Dialog open={open} onOpenChange={() => {}}>
       <OnboardingDialogContent
         lng={lng}
-        onEscapeKeyDown={(e) => e.preventDefault()}
-        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={e => e.preventDefault()}
+        onInteractOutside={e => e.preventDefault()}
       >
         {/* Header - sticky */}
         <div className="sticky top-0 z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between px-4 sm:px-6 py-3 sm:py-4 gap-2 sm:gap-0 border-b bg-background">
@@ -136,15 +143,15 @@ export function OnboardingTutorial({ lng, open, onComplete }: OnboardingTutorial
             <span className="font-semibold text-foreground">LIA</span>
           </div>
           <span className="text-sm text-muted-foreground" aria-live="polite">
-            {t('onboarding.page_indicator', { current: currentPage, total: ONBOARDING_TOTAL_PAGES })}
+            {t('onboarding.page_indicator', {
+              current: currentPage,
+              total: ONBOARDING_TOTAL_PAGES,
+            })}
           </span>
         </div>
 
         {/* Content - scrollable */}
-        <div
-          ref={contentRef}
-          className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8"
-        >
+        <div ref={contentRef} className="flex-1 overflow-y-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
           {renderPage()}
         </div>
 
@@ -180,11 +187,7 @@ export function OnboardingTutorial({ lng, open, onComplete }: OnboardingTutorial
 
             {/* Next button - right side */}
             <div className="flex-1 flex justify-end">
-              <Button
-                onClick={handleNext}
-                disabled={isLoading}
-                className="min-h-[44px]"
-              >
+              <Button onClick={handleNext} disabled={isLoading} className="min-h-[44px]">
                 <span className="hidden sm:inline">{t('common.next')}</span>
                 <span className="sm:hidden">{t('common.next_short')}</span>
                 <ChevronRight className="h-4 w-4 ml-1 sm:ml-2" />

@@ -9,7 +9,11 @@ interface SpaceActivationToggleProps {
   disabled?: boolean;
 }
 
-export function SpaceActivationToggle({ isActive, onToggle, disabled }: SpaceActivationToggleProps) {
+export function SpaceActivationToggle({
+  isActive,
+  onToggle,
+  disabled,
+}: SpaceActivationToggleProps) {
   const { t } = useTranslation();
 
   return (
@@ -18,7 +22,7 @@ export function SpaceActivationToggle({ isActive, onToggle, disabled }: SpaceAct
       onCheckedChange={onToggle}
       disabled={disabled}
       aria-label={isActive ? t('spaces.deactivate') : t('spaces.activate')}
-      onClick={(e) => e.stopPropagation()}
+      onClick={e => e.stopPropagation()}
     />
   );
 }

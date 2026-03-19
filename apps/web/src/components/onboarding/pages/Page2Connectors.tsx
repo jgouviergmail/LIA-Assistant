@@ -49,9 +49,7 @@ export function Page2Connectors({ lng }: Page2ConnectorsProps) {
       {/* Warning box */}
       <div className="flex items-start gap-3 p-4 rounded-lg bg-amber-500/10 border border-amber-500/20 mb-6">
         <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-        <p className="text-sm text-muted-foreground">
-          {t('onboarding.page2.warning')}
-        </p>
+        <p className="text-sm text-muted-foreground">{t('onboarding.page2.warning')}</p>
       </div>
 
       {/* Description */}
@@ -61,7 +59,7 @@ export function Page2Connectors({ lng }: Page2ConnectorsProps) {
 
       {/* Connector Options */}
       <div className="space-y-3">
-        {connectorOptions.map((option) => (
+        {connectorOptions.map(option => (
           <Card key={option.titleKey} className="border-border/50 bg-card/50">
             <CardContent className="p-4 flex items-center gap-3">
               <div className={`p-2 rounded-lg ${option.bgColor}`}>

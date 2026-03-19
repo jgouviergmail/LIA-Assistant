@@ -70,9 +70,7 @@ export default function AdminVoiceSettingsSection({ lng, collapsible = true }: B
   };
 
   const content = loading ? (
-    <div className="animate-pulse text-muted-foreground py-4">
-      {t('common.loading')}
-    </div>
+    <div className="animate-pulse text-muted-foreground py-4">{t('common.loading')}</div>
   ) : (
     <div className="space-y-6">
       {/* Voice Mode Toggle */}
@@ -84,17 +82,19 @@ export default function AdminVoiceSettingsSection({ lng, collapsible = true }: B
           <div className="text-sm text-muted-foreground">
             {isHDMode ? (
               <span className="text-primary font-medium">
-                {t('settings.admin.voice.modes.hd.label')} - {t('settings.admin.voice.modes.hd.description')}
+                {t('settings.admin.voice.modes.hd.label')} -{' '}
+                {t('settings.admin.voice.modes.hd.description')}
               </span>
             ) : (
               <span className="text-primary font-medium">
-                {t('settings.admin.voice.modes.standard.label')} - {t('settings.admin.voice.modes.standard.description')}
+                {t('settings.admin.voice.modes.standard.label')} -{' '}
+                {t('settings.admin.voice.modes.standard.description')}
               </span>
             )}
           </div>
           {voiceMode?.updated_at && !voiceMode?.is_default && (
             <div className="text-xs text-muted-foreground mt-1">
-              {t('settings.admin.voice.lastUpdated')}: {' '}
+              {t('settings.admin.voice.lastUpdated')}:{' '}
               {new Date(voiceMode.updated_at).toLocaleString(lng)}
             </div>
           )}
@@ -106,7 +106,9 @@ export default function AdminVoiceSettingsSection({ lng, collapsible = true }: B
         </div>
 
         <div className="flex items-center gap-3 shrink-0">
-          <span className="text-sm text-muted-foreground">{t('settings.admin.voice.modes.standard.label')}</span>
+          <span className="text-sm text-muted-foreground">
+            {t('settings.admin.voice.modes.standard.label')}
+          </span>
           <Switch
             id="voice-mode"
             checked={isHDMode}
@@ -114,20 +116,22 @@ export default function AdminVoiceSettingsSection({ lng, collapsible = true }: B
             disabled={updating}
             aria-label={t('settings.admin.voice.toggleLabel')}
           />
-          <span className="text-sm font-medium text-primary">{t('settings.admin.voice.modes.hd.label')}</span>
+          <span className="text-sm font-medium text-primary">
+            {t('settings.admin.voice.modes.hd.label')}
+          </span>
         </div>
       </div>
 
       {/* Info Box */}
       <div className="p-4 bg-muted/50 rounded-lg space-y-3">
-        <div className="text-sm font-medium">
-          {t('settings.admin.voice.modesTitle')}:
-        </div>
+        <div className="text-sm font-medium">{t('settings.admin.voice.modesTitle')}:</div>
         <div className="space-y-2 text-sm text-muted-foreground">
           <div className="flex items-start gap-2">
             <span className="text-primary">●</span>
             <div>
-              <span className="font-medium text-foreground">{t('settings.admin.voice.modes.standard.label')}</span>
+              <span className="font-medium text-foreground">
+                {t('settings.admin.voice.modes.standard.label')}
+              </span>
               {' - '}
               {t('settings.admin.voice.standardInfo')}
             </div>
@@ -135,7 +139,9 @@ export default function AdminVoiceSettingsSection({ lng, collapsible = true }: B
           <div className="flex items-start gap-2">
             <span className="text-primary">●</span>
             <div>
-              <span className="font-medium text-foreground">{t('settings.admin.voice.modes.hd.label')}</span>
+              <span className="font-medium text-foreground">
+                {t('settings.admin.voice.modes.hd.label')}
+              </span>
               {' - '}
               {t('settings.admin.voice.hdInfo')}
             </div>

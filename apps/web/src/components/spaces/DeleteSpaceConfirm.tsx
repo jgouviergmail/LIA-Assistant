@@ -19,7 +19,12 @@ interface DeleteSpaceConfirmProps {
   onConfirm: () => void;
 }
 
-export function DeleteSpaceConfirm({ open, onOpenChange, spaceName, onConfirm }: DeleteSpaceConfirmProps) {
+export function DeleteSpaceConfirm({
+  open,
+  onOpenChange,
+  spaceName,
+  onConfirm,
+}: DeleteSpaceConfirmProps) {
   const { t } = useTranslation();
 
   return (

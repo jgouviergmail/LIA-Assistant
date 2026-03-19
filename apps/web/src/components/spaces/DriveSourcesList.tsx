@@ -77,13 +77,13 @@ export function DriveSourcesList({
         </div>
       ) : (
         <div className="space-y-2">
-          {sources.map((source) => (
+          {sources.map(source => (
             <DriveSourceCard
               key={source.id}
               source={source}
               onSync={onSync}
-              onUnlink={(id) => {
-                const found = sources.find((s) => s.id === id);
+              onUnlink={id => {
+                const found = sources.find(s => s.id === id);
                 if (found) setUnlinkSource(found);
               }}
               syncing={syncing}
@@ -104,7 +104,7 @@ export function DriveSourcesList({
       {unlinkSource && (
         <UnlinkDriveSourceConfirm
           open={!!unlinkSource}
-          onOpenChange={(open) => {
+          onOpenChange={open => {
             if (!open) setUnlinkSource(null);
           }}
           folderName={unlinkSource.folder_name}

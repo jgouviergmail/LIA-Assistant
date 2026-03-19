@@ -66,16 +66,9 @@ export const InfoRow = React.memo(function InfoRow({
   const { value, info } = check;
 
   return (
-    <div
-      className={cn(
-        'flex items-center justify-between gap-2 text-xs py-0.5',
-        className
-      )}
-    >
+    <div className={cn('flex items-center justify-between gap-2 text-xs py-0.5', className)}>
       {/* Label */}
-      <span className="text-muted-foreground flex-shrink-0">
-        {label}:
-      </span>
+      <span className="text-muted-foreground flex-shrink-0">{label}:</span>
 
       {/* Value + Icon */}
       <div className="flex items-center gap-1.5">
@@ -86,10 +79,7 @@ export const InfoRow = React.memo(function InfoRow({
 
         {/* Info icon with tooltip */}
         {showIcon && info && (
-          <Info
-            className="h-3 w-3 text-blue-500 flex-shrink-0"
-            aria-label={info}
-          />
+          <Info className="h-3 w-3 text-blue-500 flex-shrink-0" aria-label={info} />
         )}
       </div>
     </div>

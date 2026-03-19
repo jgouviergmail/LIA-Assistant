@@ -45,7 +45,7 @@ export function AppleCredentialForm({
   const [showPassword, setShowPassword] = useState(false);
 
   const { connect, connecting } = useAppleConnect({
-    onError: (error) => toast.error(error),
+    onError: error => toast.error(error),
     onSuccess: () => {
       toast.success(t('settings.connectors.apple.activate_success'));
       setAppleId('');
@@ -64,8 +64,8 @@ export function AppleCredentialForm({
   }, [appleId, appPassword, services, connect]);
 
   // Resolve service labels for display
-  const serviceLabels = services.map((type) => {
-    const meta = APPLE_CONNECTORS_METADATA.find((m) => m.type === type);
+  const serviceLabels = services.map(type => {
+    const meta = APPLE_CONNECTORS_METADATA.find(m => m.type === type);
     return meta ? t(meta.labelKey) : type;
   });
 
@@ -127,23 +127,21 @@ export function AppleCredentialForm({
           type="email"
           placeholder={t('settings.connectors.apple.apple_id_placeholder')}
           value={appleId}
-          onChange={(e) => setAppleId(e.target.value)}
+          onChange={e => setAppleId(e.target.value)}
           disabled={connecting}
         />
       </div>
 
       {/* App-specific password input */}
       <div className="space-y-2">
-        <Label htmlFor="app-password">
-          {t('settings.connectors.apple.app_password_label')}
-        </Label>
+        <Label htmlFor="app-password">{t('settings.connectors.apple.app_password_label')}</Label>
         <div className="relative">
           <Input
             id="app-password"
             type={showPassword ? 'text' : 'password'}
             placeholder={t('settings.connectors.apple.app_password_placeholder')}
             value={appPassword}
-            onChange={(e) => setAppPassword(e.target.value)}
+            onChange={e => setAppPassword(e.target.value)}
             disabled={connecting}
             className="pr-10"
           />
@@ -167,14 +165,12 @@ export function AppleCredentialForm({
             {t('settings.connectors.apple.services_to_activate')}
           </Label>
           <div className="flex flex-wrap gap-2">
-            {services.map((type) => {
-              const meta = APPLE_CONNECTORS_METADATA.find((m) => m.type === type);
+            {services.map(type => {
+              const meta = APPLE_CONNECTORS_METADATA.find(m => m.type === type);
               return (
                 <div key={type} className="flex items-center gap-1.5 px-2 py-1 bg-muted rounded-md">
                   <ConnectorIcon connectorType={type} className="h-4 w-4" />
-                  <span className="text-xs font-medium">
-                    {meta ? t(meta.labelKey) : type}
-                  </span>
+                  <span className="text-xs font-medium">{meta ? t(meta.labelKey) : type}</span>
                 </div>
               );
             })}

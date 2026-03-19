@@ -6,15 +6,8 @@
  */
 
 import React from 'react';
-import {
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent,
-} from '@/components/ui/accordion';
-import {
-  MetricRow,
-  ZoneBadge,
-} from '../shared';
+import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
+import { MetricRow, ZoneBadge } from '../shared';
 import {
   getZoneColor,
   TOKEN_BAR_HEIGHT,
@@ -75,13 +68,14 @@ export const TokenBudgetSection = React.memo(function TokenBudgetSection({
     tokens_output,
     tokens_cache,
   } = data;
-  const progressPercentage = thresholds.max > 0
-    ? Math.min((current_tokens / thresholds.max) * 100, 100)
-    : 0;
+  const progressPercentage =
+    thresholds.max > 0 ? Math.min((current_tokens / thresholds.max) * 100, 100) : 0;
 
   // Get strategy label and color
-  const strategyLabel = strategy ? (FALLBACK_STRATEGY_LABELS[strategy] || strategy) : null;
-  const strategyColor = strategy ? (FALLBACK_STRATEGY_COLORS[strategy] || 'bg-muted text-muted-foreground border-border') : null;
+  const strategyLabel = strategy ? FALLBACK_STRATEGY_LABELS[strategy] || strategy : null;
+  const strategyColor = strategy
+    ? FALLBACK_STRATEGY_COLORS[strategy] || 'bg-muted text-muted-foreground border-border'
+    : null;
 
   return (
     <AccordionItem value="token_budget">
@@ -108,15 +102,21 @@ export const TokenBudgetSection = React.memo(function TokenBudgetSection({
               <div className="grid grid-cols-3 gap-1 text-[10px]">
                 <div className="flex flex-col items-center p-1 rounded bg-muted/30">
                   <span className="text-muted-foreground">Input</span>
-                  <span className="font-medium text-foreground">{formatTokenCount(tokens_input || 0)}</span>
+                  <span className="font-medium text-foreground">
+                    {formatTokenCount(tokens_input || 0)}
+                  </span>
                 </div>
                 <div className="flex flex-col items-center p-1 rounded bg-muted/30">
                   <span className="text-muted-foreground">Output</span>
-                  <span className="font-medium text-foreground">{formatTokenCount(tokens_output || 0)}</span>
+                  <span className="font-medium text-foreground">
+                    {formatTokenCount(tokens_output || 0)}
+                  </span>
                 </div>
                 <div className="flex flex-col items-center p-1 rounded bg-muted/30">
                   <span className="text-muted-foreground">Cache</span>
-                  <span className="font-medium text-green-400">{formatTokenCount(tokens_cache || 0)}</span>
+                  <span className="font-medium text-green-400">
+                    {formatTokenCount(tokens_cache || 0)}
+                  </span>
                 </div>
               </div>
             </div>
@@ -124,9 +124,7 @@ export const TokenBudgetSection = React.memo(function TokenBudgetSection({
 
           {/* Current context (for zone calculation) */}
           <div className="space-y-1 border-t border-border/50 pt-2">
-            <div className="text-xs text-muted-foreground font-medium mb-1">
-              Taille du contexte
-            </div>
+            <div className="text-xs text-muted-foreground font-medium mb-1">Taille du contexte</div>
             <MetricRow
               label="Tokens contexte"
               value={`${formatTokenCount(current_tokens)} / ${formatTokenCount(thresholds.max)}`}
@@ -154,9 +152,7 @@ export const TokenBudgetSection = React.memo(function TokenBudgetSection({
                   {strategyLabel}
                 </span>
                 {fallback_active && (
-                  <span className="text-[10px] text-yellow-400 italic">
-                    (mode dégradé)
-                  </span>
+                  <span className="text-[10px] text-yellow-400 italic">(mode dégradé)</span>
                 )}
               </div>
             </div>
@@ -189,9 +185,7 @@ export const TokenBudgetSection = React.memo(function TokenBudgetSection({
 
           {/* Zone thresholds */}
           <div className="border-t border-border/50 pt-2">
-            <div className="text-xs text-muted-foreground font-medium mb-1.5">
-              Seuils des zones
-            </div>
+            <div className="text-xs text-muted-foreground font-medium mb-1.5">Seuils des zones</div>
             <div className="grid grid-cols-2 gap-x-4 gap-y-1">
               <MetricRow
                 label="Sûr"

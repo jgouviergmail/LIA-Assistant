@@ -533,6 +533,29 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             remediation="Token cost tracking may fail until rates are synced",
         )
 
+    # Auto-index system RAG spaces (FAQ knowledge base) if enabled
+    # Idempotent: skips if content hash matches (no embedding cost on restart)
+    if getattr(settings, "rag_spaces_system_enabled", False):
+        try:
+            from src.domains.rag_spaces.system_indexer import SystemSpaceIndexer
+            from src.infrastructure.database.session import get_db_context as _sys_db_ctx
+
+            async with _sys_db_ctx() as sys_db:
+                indexer = SystemSpaceIndexer(sys_db)
+                result = await indexer.index_faq_space()
+            if result["status"] == "success":
+                logger.info(
+                    "system_rag_startup_indexed",
+                    chunks_created=result["chunks_created"],
+                )
+            elif result["status"] == "skipped":
+                logger.info("system_rag_startup_skipped")
+            else:
+                logger.warning("system_rag_startup_error", error=result.get("error"))
+        except Exception as exc:
+            # Non-blocking: system FAQ is optional, don't prevent app startup
+            logger.warning("system_rag_startup_failed", error=str(exc))
+
     # Start APScheduler for background tasks
     try:
         # Schedule daily currency sync at configured time (default: 3:00 AM UTC)

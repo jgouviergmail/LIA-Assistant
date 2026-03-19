@@ -76,7 +76,7 @@ export function Page7Examples({ lng, onFinish, onPrevious, isLoading }: Page7Exa
     >
       {/* Accordion with categories */}
       <Accordion type="single" collapsible className="w-full">
-        {EXAMPLE_CATEGORIES.map((category) => {
+        {EXAMPLE_CATEGORIES.map(category => {
           const CategoryIcon = category.icon;
           return (
             <AccordionItem key={category.id} value={category.id}>
@@ -90,7 +90,7 @@ export function Page7Examples({ lng, onFinish, onPrevious, isLoading }: Page7Exa
               </AccordionTrigger>
               <AccordionContent>
                 <ul className="space-y-2 pl-8">
-                  {Array.from({ length: EXAMPLES_PER_CATEGORY }, (_, i) => i + 1).map((i) => {
+                  {Array.from({ length: EXAMPLES_PER_CATEGORY }, (_, i) => i + 1).map(i => {
                     const exampleKey = `onboarding.page7.categories.${category.id}.example${i}`;
                     const example = t(exampleKey);
                     // Only render if translation exists (not returning the key itself)

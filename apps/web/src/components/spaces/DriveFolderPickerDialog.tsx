@@ -103,7 +103,12 @@ export function DriveFolderPickerDialog({
           ) : error ? (
             <div className="flex flex-col items-center justify-center py-12 text-sm text-destructive">
               <p>{error}</p>
-              <Button variant="ghost" size="sm" className="mt-2" onClick={() => navigateBack(breadcrumb.length - 1)}>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="mt-2"
+                onClick={() => navigateBack(breadcrumb.length - 1)}
+              >
                 {t('errors.try_again')}
               </Button>
             </div>
@@ -114,7 +119,7 @@ export function DriveFolderPickerDialog({
             </div>
           ) : (
             <ul className="divide-y">
-              {folders.map((folder) => (
+              {folders.map(folder => (
                 <li key={folder.id}>
                   <button
                     type="button"
@@ -127,8 +132,11 @@ export function DriveFolderPickerDialog({
                   </button>
                 </li>
               ))}
-              {files.map((file) => (
-                <li key={file.id} className="flex items-center gap-3 px-3 py-2.5 text-sm text-muted-foreground">
+              {files.map(file => (
+                <li
+                  key={file.id}
+                  className="flex items-center gap-3 px-3 py-2.5 text-sm text-muted-foreground"
+                >
                   <FileText className="h-4 w-4 shrink-0" />
                   <span className="truncate">{file.name}</span>
                 </li>

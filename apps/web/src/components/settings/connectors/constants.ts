@@ -3,15 +3,7 @@
  * Extracted from UserConnectorsSection.tsx for DRY compliance.
  */
 
-import {
-  Plug,
-  Cloud,
-  Book,
-  Search,
-  MapPin,
-  Globe,
-  type LucideIcon,
-} from 'lucide-react';
+import { Plug, Cloud, Book, Search, MapPin, Globe, type LucideIcon } from 'lucide-react';
 
 // ============================================================================
 // CONNECTOR TYPES
@@ -36,11 +28,7 @@ export const API_KEY_CONNECTOR_TYPES = [
   'browser', // No API key required, headless browser automation
 ] as const;
 
-export const APPLE_CONNECTOR_TYPES = [
-  'apple_email',
-  'apple_calendar',
-  'apple_contacts',
-] as const;
+export const APPLE_CONNECTOR_TYPES = ['apple_email', 'apple_calendar', 'apple_contacts'] as const;
 
 export const MICROSOFT_CONNECTOR_TYPES = [
   'microsoft_outlook',
@@ -231,8 +219,11 @@ export const API_KEY_CONNECTORS: readonly ApiKeyConnectorConfig[] = [
 // Connectors using the /connectors/{id}/preferences API
 // Note: google_places uses LocationSettings (/users/me/home-location) instead
 export const CONNECTORS_WITH_PREFERENCES = [
-  'google_calendar', 'google_tasks', 'apple_calendar',
-  'microsoft_calendar', 'microsoft_tasks',
+  'google_calendar',
+  'google_tasks',
+  'apple_calendar',
+  'microsoft_calendar',
+  'microsoft_tasks',
 ];
 
 // Preference field mapping by connector type

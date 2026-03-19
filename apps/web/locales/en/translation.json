@@ -1363,7 +1363,20 @@
         "reindexConfirmAction": "Start Reindexation",
         "whatItDoes": "What it does",
         "description": "RAG Knowledge Spaces allow users to upload documents (PDF, TXT, MD, DOCX) that are indexed and used to enrich AI responses with relevant context.",
-        "enableHint": "To enable this feature, set the RAG_SPACES_ENABLED=true environment variable and restart the server."
+        "enableHint": "To enable this feature, set the RAG_SPACES_ENABLED=true environment variable and restart the server.",
+        "systemSpaces": {
+          "title": "System Knowledge Spaces",
+          "description": "Built-in knowledge spaces for app FAQ and help content.",
+          "stale": "Update available",
+          "upToDate": "Up to date",
+          "reindexButton": "Reindex",
+          "reindexing": "Reindexing...",
+          "reindexSuccess": "System space reindexed successfully ({{count}} chunks)",
+          "reindexError": "Failed to reindex system space",
+          "noSpaces": "No system spaces configured",
+          "chunks": "{{count}} chunks",
+          "lastIndexed": "Last indexed: {{date}}"
+        }
       },
       "llmConfig": {
         "title": "LLM Configuration",
@@ -2823,7 +2836,7 @@
       "rag_spaces": {
         "title": "Knowledge Spaces (RAG)",
         "description": "Upload and use your own documents to enrich AI responses",
-        "count": "7",
+        "count": "8",
         "questions": {
           "q1": {
             "question": "What are Knowledge Spaces?",
@@ -2852,6 +2865,10 @@
           "q7": {
             "question": "How does Google Drive sync work?",
             "answer": "<p>You can link Google Drive folders to your knowledge spaces. Click <strong>'Link Folder'</strong>, browse your Drive, and select a folder. LIA lists the supported files, downloads them, and processes them through the same indexing pipeline.</p><p>Use <strong>'Sync Now'</strong> to update — LIA detects new, modified, and deleted files automatically.</p><p><strong>Key details:</strong><ul><li>Supports Google Docs, Sheets, and Slides via API export</li><li>Per-file error isolation — one failed file does not block others</li><li>Feature flag: <code>RAG_SPACES_DRIVE_SYNC_ENABLED</code></li></ul></p>"
+          },
+          "q8": {
+            "question": "Can I ask the assistant about its own features?",
+            "answer": "Yes! LIA has a <strong>built-in knowledge base</strong> that lets it answer questions about itself directly in conversation:<br><br><strong>🧠 How it works:</strong><br>• LIA automatically detects when you ask about the app (\"<em>What can you do?</em>\", \"<em>How do I connect my calendar?</em>\")<br>• It searches its FAQ knowledge base (119 Q&A across 16 sections) using the same hybrid search as user spaces<br>• An <strong>App Identity Prompt</strong> describing all capabilities is injected into the response<br><br><strong>⚡ Zero overhead:</strong><br>This only activates when you ask about the app. Normal queries (emails, calendar, etc.) are not affected at all.<br><br><strong>🔧 Admin features:</strong><br>Administrators can manage system knowledge spaces in <strong>Settings > Administration > RAG Spaces</strong>:<br>• View staleness status (content hash comparison)<br>• Trigger manual reindexation<br>• System spaces are automatically indexed at app startup"
           }
         }
       },
@@ -3593,7 +3610,9 @@
       "trust_agents": "AI agents",
       "trust_providers": "LLM providers",
       "trust_voices": "voice languages",
-      "trust_gdpr": "GDPR compliant"
+      "trust_gdpr": "GDPR compliant",
+      "badge_opensource": "Open Source",
+      "cta_github": "GitHub"
     },
     "chat_mockup": {
       "user_message": "Send an email to Marie telling her I'll be late tonight, use a humorous tone",
@@ -3727,6 +3746,10 @@
         "title": "Browser Control",
         "description": "Navigate websites autonomously: search products, fill forms, extract data from dynamic pages powered by JavaScript"
       },
+      "self_knowledge": {
+        "title": "App Self-Knowledge",
+        "description": "LIA can answer questions about itself using its built-in FAQ knowledge base — ask about features, capabilities, setup, or how things work."
+      },
       "responsive": {
         "title": "Responsive Design",
         "description": "Fully optimized interface for desktop, tablet, and smartphone — use LIA anywhere, on any device"
@@ -3849,7 +3872,8 @@
     "footer": {
       "copyright": "© {{year}} LIA. All rights reserved.",
       "docs": "Documentation",
-      "privacy": "Privacy"
+      "privacy": "Privacy",
+      "github": "GitHub"
     }
   },
   "sub_agents": {

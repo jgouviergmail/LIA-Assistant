@@ -119,7 +119,7 @@ export function useScheduledActions() {
       const result = await createMutation.mutate(ENDPOINT, data);
       if (result) {
         // Optimistic: add to list
-        setData((prev) => {
+        setData(prev => {
           if (!prev) return prev;
           return {
             scheduled_actions: [...prev.scheduled_actions, result],
@@ -137,13 +137,11 @@ export function useScheduledActions() {
       const result = await updateMutation.mutate(`${ENDPOINT}/${actionId}`, data);
       if (result) {
         // Optimistic: update in list
-        setData((prev) => {
+        setData(prev => {
           if (!prev) return prev;
           return {
             ...prev,
-            scheduled_actions: prev.scheduled_actions.map((a) =>
-              a.id === actionId ? result : a
-            ),
+            scheduled_actions: prev.scheduled_actions.map(a => (a.id === actionId ? result : a)),
           };
         });
       }
@@ -156,10 +154,10 @@ export function useScheduledActions() {
     async (actionId: string) => {
       await deleteMutation.mutate(`${ENDPOINT}/${actionId}`);
       // Optimistic: remove from list
-      setData((prev) => {
+      setData(prev => {
         if (!prev) return prev;
         return {
-          scheduled_actions: prev.scheduled_actions.filter((a) => a.id !== actionId),
+          scheduled_actions: prev.scheduled_actions.filter(a => a.id !== actionId),
           total: prev.total - 1,
         };
       });
@@ -172,13 +170,11 @@ export function useScheduledActions() {
       const result = await toggleMutation.mutate(`${ENDPOINT}/${actionId}/toggle`);
       if (result) {
         // Optimistic: update in list
-        setData((prev) => {
+        setData(prev => {
           if (!prev) return prev;
           return {
             ...prev,
-            scheduled_actions: prev.scheduled_actions.map((a) =>
-              a.id === actionId ? result : a
-            ),
+            scheduled_actions: prev.scheduled_actions.map(a => (a.id === actionId ? result : a)),
           };
         });
       }
@@ -192,11 +188,11 @@ export function useScheduledActions() {
       const result = await executeMutation.mutate(`${ENDPOINT}/${actionId}/execute`);
       if (result) {
         // Optimistic: mark as executing so faster polling kicks in immediately
-        setData((prev) => {
+        setData(prev => {
           if (!prev) return prev;
           return {
             ...prev,
-            scheduled_actions: prev.scheduled_actions.map((a) =>
+            scheduled_actions: prev.scheduled_actions.map(a =>
               a.id === actionId ? { ...a, status: 'executing' as ScheduledActionStatus } : a
             ),
           };
@@ -209,7 +205,7 @@ export function useScheduledActions() {
 
   // Auto-refresh: faster when actions are executing, slower otherwise
   const hasExecuting = useMemo(
-    () => (listData?.scheduled_actions ?? []).some((a) => a.status === 'executing'),
+    () => (listData?.scheduled_actions ?? []).some(a => a.status === 'executing'),
     [listData]
   );
   const intervalMs = hasExecuting ? EXECUTING_REFRESH_INTERVAL_MS : AUTO_REFRESH_INTERVAL_MS;

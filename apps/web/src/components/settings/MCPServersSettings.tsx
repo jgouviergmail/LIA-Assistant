@@ -1,16 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import {
-  Plug,
-  Unplug,
-  Plus,
-  Trash2,
-  Pencil,
-  Zap,
-  Sparkles,
-  AlertTriangle,
-} from 'lucide-react';
+import { Plug, Unplug, Plus, Trash2, Pencil, Zap, Sparkles, AlertTriangle } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -289,9 +280,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
       const result = await testConnection(editingServer.id);
       setTestResult(result ?? null);
       if (result?.success) {
-        toast.success(
-          t('settings.mcp.test_success', { count: result.tool_count })
-        );
+        toast.success(t('settings.mcp.test_success', { count: result.tool_count }));
       } else {
         toast.error(result?.error || t('settings.mcp.test_failed'));
       }
@@ -311,9 +300,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
         if (result) {
           setListTestResult(result);
           if (result.success) {
-            toast.success(
-              t('settings.mcp.test_success', { count: result.tool_count })
-            );
+            toast.success(t('settings.mcp.test_success', { count: result.tool_count }));
           } else {
             toast.error(result.error || t('settings.mcp.test_failed'));
           }
@@ -358,11 +345,13 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
     try {
       const result = await generateDescription(editingServer.id);
       if (result) {
-        setForm((f) => ({ ...f, domain_description: result.domain_description }));
+        setForm(f => ({ ...f, domain_description: result.domain_description }));
         toast.success(t('settings.mcp.generate_description_success'));
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : t('settings.mcp.generate_description_no_tools'));
+      toast.error(
+        err instanceof Error ? err.message : t('settings.mcp.generate_description_no_tools')
+      );
     }
   }, [editingServer, generateDescription, t]);
 
@@ -374,12 +363,8 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
     (form.auth_type !== 'bearer' || form.bearer_token.trim() !== '' || !!editingServer);
 
   // Form dialog (shared for create and edit)
-  const formDialog = (
-    isOpen: boolean,
-    onClose: () => void,
-    titleKey: string
-  ) => (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+  const formDialog = (isOpen: boolean, onClose: () => void, titleKey: string) => (
+    <Dialog open={isOpen} onOpenChange={open => !open && onClose()}>
       <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t(titleKey)}</DialogTitle>
@@ -392,7 +377,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
             <Input
               id="mcp-name"
               value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
               placeholder={t('settings.mcp.field_name_placeholder')}
               maxLength={100}
             />
@@ -404,7 +389,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
             <Input
               id="mcp-url"
               value={form.url}
-              onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))}
+              onChange={e => setForm(f => ({ ...f, url: e.target.value }))}
               placeholder="https://mcp-server.example.com/mcp"
               type="url"
             />
@@ -414,16 +399,12 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
           <div className="space-y-2">
             <Label htmlFor="mcp-domain-description">
               {t('settings.mcp.field_domain_description')}{' '}
-              <span className="text-xs text-muted-foreground">
-                ({t('common.optional')})
-              </span>
+              <span className="text-xs text-muted-foreground">({t('common.optional')})</span>
             </Label>
             <Textarea
               id="mcp-domain-description"
               value={form.domain_description}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, domain_description: e.target.value }))
-              }
+              onChange={e => setForm(f => ({ ...f, domain_description: e.target.value }))}
               placeholder={t('settings.mcp.field_domain_description_placeholder')}
               maxLength={500}
               rows={2}
@@ -458,9 +439,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
             <Label>{t('settings.mcp.field_auth_type')}</Label>
             <Select
               value={form.auth_type}
-              onValueChange={(v) =>
-                setForm((f) => ({ ...f, auth_type: v as UserMCPAuthType }))
-              }
+              onValueChange={v => setForm(f => ({ ...f, auth_type: v as UserMCPAuthType }))}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -482,7 +461,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
                 <Input
                   id="mcp-api-key"
                   value={form.api_key}
-                  onChange={(e) => setForm((f) => ({ ...f, api_key: e.target.value }))}
+                  onChange={e => setForm(f => ({ ...f, api_key: e.target.value }))}
                   type="password"
                   placeholder={
                     editingServer?.has_credentials
@@ -503,7 +482,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
                 <Input
                   id="mcp-header-name"
                   value={form.header_name}
-                  onChange={(e) => setForm((f) => ({ ...f, header_name: e.target.value }))}
+                  onChange={e => setForm(f => ({ ...f, header_name: e.target.value }))}
                   placeholder="X-API-Key"
                 />
               </div>
@@ -516,7 +495,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
               <Input
                 id="mcp-bearer-token"
                 value={form.bearer_token}
-                onChange={(e) => setForm((f) => ({ ...f, bearer_token: e.target.value }))}
+                onChange={e => setForm(f => ({ ...f, bearer_token: e.target.value }))}
                 type="password"
                 placeholder={
                   editingServer?.has_credentials
@@ -539,16 +518,12 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
               <div className="space-y-2">
                 <Label htmlFor="mcp-oauth-client-id">
                   {t('settings.mcp.field_oauth_client_id')}{' '}
-                  <span className="text-xs text-muted-foreground">
-                    ({t('common.optional')})
-                  </span>
+                  <span className="text-xs text-muted-foreground">({t('common.optional')})</span>
                 </Label>
                 <Input
                   id="mcp-oauth-client-id"
                   value={form.oauth_client_id}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, oauth_client_id: e.target.value }))
-                  }
+                  onChange={e => setForm(f => ({ ...f, oauth_client_id: e.target.value }))}
                   placeholder={
                     editingServer?.has_oauth_credentials
                       ? t('settings.mcp.field_credentials_saved')
@@ -564,16 +539,12 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
               <div className="space-y-2">
                 <Label htmlFor="mcp-oauth-client-secret">
                   {t('settings.mcp.field_oauth_client_secret')}{' '}
-                  <span className="text-xs text-muted-foreground">
-                    ({t('common.optional')})
-                  </span>
+                  <span className="text-xs text-muted-foreground">({t('common.optional')})</span>
                 </Label>
                 <Input
                   id="mcp-oauth-client-secret"
                   value={form.oauth_client_secret}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, oauth_client_secret: e.target.value }))
-                  }
+                  onChange={e => setForm(f => ({ ...f, oauth_client_secret: e.target.value }))}
                   type="password"
                   placeholder={
                     editingServer?.has_oauth_credentials
@@ -590,16 +561,12 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
               <div className="space-y-2">
                 <Label htmlFor="mcp-oauth-scopes">
                   {t('settings.mcp.field_oauth_scopes')}{' '}
-                  <span className="text-xs text-muted-foreground">
-                    ({t('common.optional')})
-                  </span>
+                  <span className="text-xs text-muted-foreground">({t('common.optional')})</span>
                 </Label>
                 <Input
                   id="mcp-oauth-scopes"
                   value={form.oauth_scopes}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, oauth_scopes: e.target.value }))
-                  }
+                  onChange={e => setForm(f => ({ ...f, oauth_scopes: e.target.value }))}
                   placeholder={t('settings.mcp.field_oauth_scopes_placeholder')}
                 />
                 <p className="text-xs text-muted-foreground">
@@ -615,8 +582,8 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
             <Input
               id="mcp-timeout"
               value={form.timeout_seconds}
-              onChange={(e) =>
-                setForm((f) => ({
+              onChange={e =>
+                setForm(f => ({
                   ...f,
                   timeout_seconds: Math.max(5, Math.min(120, Number(e.target.value) || 30)),
                 }))
@@ -669,7 +636,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
                     {t('settings.mcp.discovered_tools', { count: testResult.tools.length })}
                   </p>
                   <div className="space-y-1 max-h-[200px] overflow-y-auto">
-                    {testResult.tools.map((tool) => (
+                    {testResult.tools.map(tool => (
                       <div key={tool.tool_name} className="text-xs p-2 rounded bg-muted/50">
                         <span className="font-medium">{tool.tool_name}</span>
                         {tool.description && (
@@ -733,7 +700,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
 
       {/* Server list */}
       <div className="space-y-3">
-        {servers.map((server) => (
+        {servers.map(server => (
           <div
             key={server.id}
             className="rounded-lg border bg-card p-4 space-y-1.5 group cursor-pointer lg:cursor-default"
@@ -745,16 +712,17 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 min-w-0 flex-1">
                 <span className="font-medium truncate">{server.name}</span>
-                <Badge variant={getStatusBadgeVariant(server)}>
-                  {getStatusLabel(server, t)}
-                </Badge>
+                <Badge variant={getStatusBadgeVariant(server)}>{getStatusLabel(server, t)}</Badge>
               </div>
               {/* Desktop action buttons — hover reveal */}
               <div className="hidden lg:flex gap-1 shrink-0 opacity-0 group-hover:opacity-100">
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={(e) => { e.stopPropagation(); handleTestFromList(server); }}
+                  onClick={e => {
+                    e.stopPropagation();
+                    handleTestFromList(server);
+                  }}
                   disabled={testingServerId === server.id}
                   title={t('settings.mcp.test_connection')}
                 >
@@ -767,7 +735,10 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={(e) => { e.stopPropagation(); handleOpenEdit(server); }}
+                  onClick={e => {
+                    e.stopPropagation();
+                    handleOpenEdit(server);
+                  }}
                   title={t('common.edit')}
                 >
                   <Pencil className="h-4 w-4" />
@@ -775,7 +746,10 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={(e) => { e.stopPropagation(); setDeletingServerId(server.id); }}
+                  onClick={e => {
+                    e.stopPropagation();
+                    setDeletingServerId(server.id);
+                  }}
                   title={t('common.delete')}
                 >
                   <Trash2 className="h-4 w-4 text-destructive" />
@@ -784,7 +758,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
               <Switch
                 checked={server.is_enabled}
                 onCheckedChange={() => handleToggle(server)}
-                onClick={(e) => e.stopPropagation()}
+                onClick={e => e.stopPropagation()}
                 aria-label={t('settings.mcp.toggle_server', { name: server.name })}
               />
             </div>
@@ -793,9 +767,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
             <p className="text-xs text-muted-foreground truncate">{server.url}</p>
 
             {/* Auth type */}
-            <p className="text-xs text-muted-foreground">
-              {getAuthTypeLabel(server.auth_type, t)}
-            </p>
+            <p className="text-xs text-muted-foreground">{getAuthTypeLabel(server.auth_type, t)}</p>
 
             {/* Tools count */}
             {server.tool_count > 0 && (
@@ -827,7 +799,10 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
                 size="sm"
                 variant="outline"
                 className="mt-1"
-                onClick={(e) => { e.stopPropagation(); handleOAuth(server); }}
+                onClick={e => {
+                  e.stopPropagation();
+                  handleOAuth(server);
+                }}
               >
                 {t('settings.mcp.connect_oauth')}
               </Button>
@@ -839,7 +814,10 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
                 size="sm"
                 variant="outline"
                 className="mt-1"
-                onClick={(e) => { e.stopPropagation(); handleDisconnectOAuth(server); }}
+                onClick={e => {
+                  e.stopPropagation();
+                  handleDisconnectOAuth(server);
+                }}
                 disabled={disconnecting}
               >
                 <Unplug className="h-3 w-3 mr-1" />
@@ -859,7 +837,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
       {/* Delete AlertDialog */}
       <AlertDialog
         open={deletingServerId !== null}
-        onOpenChange={(open) => !open && setDeletingServerId(null)}
+        onOpenChange={open => !open && setDeletingServerId(null)}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -884,7 +862,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
       {/* Test Results Dialog (from list view) */}
       <Dialog
         open={listTestResult !== null}
-        onOpenChange={(open) => !open && setListTestResult(null)}
+        onOpenChange={open => !open && setListTestResult(null)}
       >
         <DialogContent className="sm:max-w-[480px] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
@@ -915,7 +893,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
                   {t('settings.mcp.discovered_tools', { count: listTestResult.tools.length })}
                 </p>
                 <div className="space-y-1 max-h-[300px] overflow-y-auto">
-                  {listTestResult.tools.map((tool) => (
+                  {listTestResult.tools.map(tool => (
                     <div key={tool.tool_name} className="text-xs p-2 rounded bg-muted/50">
                       <span className="font-medium">{tool.tool_name}</span>
                       {tool.description && (
@@ -937,13 +915,11 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
       {/* Mobile actions dialog */}
       <Dialog
         open={mobileActionServer !== null}
-        onOpenChange={(open) => !open && setMobileActionServer(null)}
+        onOpenChange={open => !open && setMobileActionServer(null)}
       >
         <DialogContent className="lg:hidden max-w-[90vw] rounded-lg">
           <DialogHeader>
-            <DialogTitle className="text-base">
-              {mobileActionServer?.name}
-            </DialogTitle>
+            <DialogTitle className="text-base">{mobileActionServer?.name}</DialogTitle>
             <DialogDescription className="sr-only">
               {t('settings.mcp.form_description')}
             </DialogDescription>

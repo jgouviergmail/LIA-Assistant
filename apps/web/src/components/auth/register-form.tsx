@@ -10,10 +10,7 @@ import { logger } from '@/lib/logger';
 import { useTranslation } from 'react-i18next';
 import { getBrowserTimezone, formatTimezoneDisplay } from '@/utils/timezone';
 import { getBrowserLanguageForBackend } from '@/utils/locale-mapping';
-import {
-  validatePassword,
-  getPasswordRequirementChecks,
-} from '@/lib/password-validation';
+import { validatePassword, getPasswordRequirementChecks } from '@/lib/password-validation';
 import { Check, X } from 'lucide-react';
 
 export function RegisterForm() {
@@ -136,11 +133,7 @@ export function RegisterForm() {
                   req.met ? 'text-green-600' : 'text-gray-500'
                 }`}
               >
-                {req.met ? (
-                  <Check className="h-3 w-3" />
-                ) : (
-                  <X className="h-3 w-3" />
-                )}
+                {req.met ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
                 <span>{req.label}</span>
               </div>
             ))}

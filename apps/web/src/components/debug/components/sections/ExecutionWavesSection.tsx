@@ -6,11 +6,7 @@
  */
 
 import React from 'react';
-import {
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent,
-} from '@/components/ui/accordion';
+import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { MetricRow } from '../shared';
 import { formatPercent } from '../../utils/formatters';
 import { DEBUG_TEXT_SIZES, DEBUG_WIDTHS } from '../../utils/constants';
@@ -39,9 +35,8 @@ export const ExecutionWavesSection = React.memo(function ExecutionWavesSection({
   }
 
   // Calculate parallelism efficiency (avg vs max possible)
-  const parallelismEfficiency = data.max_parallelism > 0
-    ? data.average_parallelism / data.max_parallelism
-    : 0;
+  const parallelismEfficiency =
+    data.max_parallelism > 0 ? data.average_parallelism / data.max_parallelism : 0;
 
   return (
     <AccordionItem value="execution_waves">
@@ -60,25 +55,15 @@ export const ExecutionWavesSection = React.memo(function ExecutionWavesSection({
             <div className="text-xs text-muted-foreground font-medium mb-1">
               Parallelism Metrics
             </div>
-            <MetricRow
-              label="Total Waves"
-              value={data.total_waves}
-              highlight
-            />
+            <MetricRow label="Total Waves" value={data.total_waves} highlight />
             <MetricRow
               label="Max Parallelism"
               value={data.max_parallelism}
               highlight
               valueClassName="text-blue-400 font-semibold"
             />
-            <MetricRow
-              label="Critical Path"
-              value={`${data.critical_path_length} steps`}
-            />
-            <MetricRow
-              label="Avg Parallelism"
-              value={data.average_parallelism.toFixed(2)}
-            />
+            <MetricRow label="Critical Path" value={`${data.critical_path_length} steps`} />
+            <MetricRow label="Avg Parallelism" value={data.average_parallelism.toFixed(2)} />
             <MetricRow
               label="Efficiency"
               value={formatPercent(parallelismEfficiency)}
@@ -86,8 +71,8 @@ export const ExecutionWavesSection = React.memo(function ExecutionWavesSection({
                 parallelismEfficiency >= 0.7
                   ? 'text-green-400'
                   : parallelismEfficiency >= 0.4
-                  ? 'text-yellow-400'
-                  : 'text-red-400'
+                    ? 'text-yellow-400'
+                    : 'text-red-400'
               }
             />
           </div>
@@ -95,14 +80,14 @@ export const ExecutionWavesSection = React.memo(function ExecutionWavesSection({
           {/* Wave visualization */}
           {data.waves.length > 0 && (
             <div className="border-t border-border/50 pt-2">
-              <div className="text-xs text-muted-foreground font-medium mb-2">
-                Wave Breakdown
-              </div>
+              <div className="text-xs text-muted-foreground font-medium mb-2">Wave Breakdown</div>
               <div className="space-y-2">
-                {data.waves.map((wave) => (
+                {data.waves.map(wave => (
                   <div key={wave.wave_id} className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className={`${DEBUG_TEXT_SIZES.small} text-muted-foreground ${DEBUG_WIDTHS.waveLabel}`}>
+                      <span
+                        className={`${DEBUG_TEXT_SIZES.small} text-muted-foreground ${DEBUG_WIDTHS.waveLabel}`}
+                      >
                         Wave {wave.wave_id + 1}
                       </span>
                       <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
@@ -113,12 +98,14 @@ export const ExecutionWavesSection = React.memo(function ExecutionWavesSection({
                           }}
                         />
                       </div>
-                      <span className={`${DEBUG_TEXT_SIZES.small} text-muted-foreground ${DEBUG_WIDTHS.waveCount} text-right`}>
+                      <span
+                        className={`${DEBUG_TEXT_SIZES.small} text-muted-foreground ${DEBUG_WIDTHS.waveCount} text-right`}
+                      >
                         {wave.size}
                       </span>
                     </div>
                     <div className="flex flex-wrap gap-1 pl-14">
-                      {wave.steps.map((stepId) => (
+                      {wave.steps.map(stepId => (
                         <span
                           key={stepId}
                           className={`${DEBUG_TEXT_SIZES.tiny} px-1 py-0.5 bg-muted rounded border border-border font-mono`}

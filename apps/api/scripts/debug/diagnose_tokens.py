@@ -104,7 +104,9 @@ async def main():
             if s.total_prompt_tokens == 0 and s.total_completion_tokens == 0
         ]
         if zero_summaries:
-            print(f"\nWARNING: {len(zero_summaries)} TokenSummary with tokens at 0 (possible errors)")
+            print(
+                f"\nWARNING: {len(zero_summaries)} TokenSummary with tokens at 0 (possible errors)"
+            )
 
     print("\n=== END OF DIAGNOSTIC ===")
 

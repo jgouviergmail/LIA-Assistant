@@ -196,7 +196,7 @@ export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeRet
 
     // Stop media stream
     if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current.getTracks().forEach(track => track.stop());
       mediaStreamRef.current = null;
     }
 
@@ -237,7 +237,7 @@ export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeRet
 
     // Stop KWS media stream
     if (kwsMediaStreamRef.current) {
-      kwsMediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      kwsMediaStreamRef.current.getTracks().forEach(track => track.stop());
       kwsMediaStreamRef.current = null;
     }
 
@@ -581,7 +581,7 @@ export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeRet
       workletNodeRef.current = workletNode;
 
       // Step 6: Handle audio chunks
-      workletNode.port.onmessage = (event) => {
+      workletNode.port.onmessage = event => {
         const { float32, int16 } = event.data;
 
         // Process with VAD
@@ -740,7 +740,7 @@ export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeRet
         });
 
         if (!isMounted) {
-          stream.getTracks().forEach((track) => track.stop());
+          stream.getTracks().forEach(track => track.stop());
           return;
         }
 
@@ -759,7 +759,7 @@ export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeRet
 
         if (!isMounted) {
           audioContext.close();
-          stream.getTracks().forEach((track) => track.stop());
+          stream.getTracks().forEach(track => track.stop());
           return;
         }
 
@@ -767,7 +767,7 @@ export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeRet
         kwsWorkletNodeRef.current = workletNode;
 
         // Handle audio chunks - feed to KWS
-        workletNode.port.onmessage = (event) => {
+        workletNode.port.onmessage = event => {
           const { samples } = event.data;
           kwsProcessAudio(new Float32Array(samples));
         };
@@ -795,7 +795,16 @@ export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeRet
       isMounted = false;
       cleanupKwsAudio();
     };
-  }, [isEnabled, state, kwsIsReady, isKwsSupported, createKwsWorkletScript, kwsProcessAudio, cleanupKwsAudio, setKwsListening]);
+  }, [
+    isEnabled,
+    state,
+    kwsIsReady,
+    isKwsSupported,
+    createKwsWorkletScript,
+    kwsProcessAudio,
+    cleanupKwsAudio,
+    setKwsListening,
+  ]);
 
   // Cleanup on unmount
   useEffect(() => {

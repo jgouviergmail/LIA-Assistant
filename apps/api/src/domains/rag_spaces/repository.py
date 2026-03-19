@@ -93,6 +93,35 @@ class RAGSpaceRepository(BaseRepository[RAGSpace]):
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
+    # ========================================================================
+    # System Spaces
+    # ========================================================================
+
+    async def get_system_spaces(self) -> list[RAGSpace]:
+        """Get all system spaces, ordered by name."""
+        stmt = select(RAGSpace).where(RAGSpace.is_system.is_(True)).order_by(RAGSpace.name)
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
+    async def get_active_system_spaces(self) -> list[RAGSpace]:
+        """Get all active system spaces."""
+        stmt = (
+            select(RAGSpace)
+            .where(RAGSpace.is_system.is_(True), RAGSpace.is_active.is_(True))
+            .order_by(RAGSpace.name)
+        )
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
+    async def get_system_space_by_name(self, name: str) -> RAGSpace | None:
+        """Get a system space by name."""
+        stmt = select(RAGSpace).where(
+            RAGSpace.is_system.is_(True),
+            RAGSpace.name == name,
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
+
 
 class RAGDriveSourceRepository(BaseRepository[RAGDriveSource]):
     """Repository for RAG Drive Source model with space-scoped queries."""
@@ -175,10 +204,17 @@ class RAGDocumentRepository(BaseRepository[RAGDocument]):
         return result.scalar_one()
 
     async def get_all_for_reindex(self) -> list[RAGDocument]:
-        """Get all documents that need reindexing (all users, all spaces)."""
+        """Get all user documents that need reindexing.
+
+        Excludes system space documents (managed by SystemSpaceIndexer).
+        """
         stmt = (
             select(RAGDocument)
-            .where(RAGDocument.status.in_([RAGDocumentStatus.READY, RAGDocumentStatus.ERROR]))
+            .join(RAGSpace, RAGDocument.space_id == RAGSpace.id)
+            .where(
+                RAGDocument.status.in_([RAGDocumentStatus.READY, RAGDocumentStatus.ERROR]),
+                RAGSpace.is_system.is_(False),
+            )
             .order_by(RAGDocument.created_at)
         )
         result = await self.db.execute(stmt)
@@ -244,7 +280,7 @@ class RAGChunkRepository(BaseRepository[RAGChunk]):
 
     async def search_by_similarity(
         self,
-        user_id: UUID,
+        user_id: UUID | None,
         space_ids: list[UUID],
         query_embedding: list[float],
         limit: int = 10,
@@ -254,17 +290,21 @@ class RAGChunkRepository(BaseRepository[RAGChunk]):
 
         Returns chunks with their similarity score (higher = more similar, range [0, 1]).
         Internally converts cosine distance (lower = closer) to similarity (1 - distance).
+
+        Args:
+            user_id: User ID for user-owned chunks, or None for system chunks.
+            space_ids: Space IDs to search within.
+            query_embedding: Query vector.
+            limit: Maximum results to return.
         """
         if not space_ids:
             return []
 
         cosine_distance = RAGChunk.embedding.cosine_distance(query_embedding)
+        user_filter = RAGChunk.user_id.is_(None) if user_id is None else RAGChunk.user_id == user_id
         stmt = (
             select(RAGChunk, cosine_distance.label("distance"))
-            .where(
-                RAGChunk.user_id == user_id,
-                RAGChunk.space_id.in_(space_ids),
-            )
+            .where(user_filter, RAGChunk.space_id.in_(space_ids))
             .order_by(cosine_distance)
             .limit(limit)
         )
@@ -297,26 +337,35 @@ class RAGChunkRepository(BaseRepository[RAGChunk]):
         return int(count)
 
     async def get_corpus_for_spaces(
-        self, user_id: UUID, space_ids: list[UUID]
+        self, user_id: UUID | None, space_ids: list[UUID]
     ) -> list[tuple[UUID, str]]:
         """
         Get all chunk IDs and content for BM25 indexing.
 
-        Returns list of (chunk_id, content) tuples.
+        Args:
+            user_id: User ID for user-owned chunks, or None for system chunks.
+            space_ids: Space IDs to retrieve corpus from.
+
+        Returns:
+            List of (chunk_id, content) tuples.
         """
         if not space_ids:
             return []
 
+        user_filter = RAGChunk.user_id.is_(None) if user_id is None else RAGChunk.user_id == user_id
         stmt = (
             select(RAGChunk.id, RAGChunk.content)
-            .where(
-                RAGChunk.user_id == user_id,
-                RAGChunk.space_id.in_(space_ids),
-            )
+            .where(user_filter, RAGChunk.space_id.in_(space_ids))
             .order_by(RAGChunk.id)
         )
         result = await self.db.execute(stmt)
         return [(row[0], row[1]) for row in result.all()]
+
+    async def count_for_space(self, space_id: UUID) -> int:
+        """Count total chunks in a space."""
+        stmt = select(func.count(RAGChunk.id)).where(RAGChunk.space_id == space_id)
+        result = await self.db.execute(stmt)
+        return result.scalar_one()
 
     async def bulk_create_chunks(self, chunks: list[RAGChunk]) -> int:
         """Bulk insert chunks. Returns count inserted."""

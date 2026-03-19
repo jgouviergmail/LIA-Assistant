@@ -25,9 +25,7 @@ export function StatsSection() {
               <div className="text-3xl mobile:text-4xl font-bold text-foreground">
                 <AnimatedCounter target={value} suffix={suffix} />
               </div>
-              <div className="text-sm text-muted-foreground mt-1">
-                {t(`landing.stats.${key}`)}
-              </div>
+              <div className="text-sm text-muted-foreground mt-1">{t(`landing.stats.${key}`)}</div>
             </div>
           ))}
         </div>

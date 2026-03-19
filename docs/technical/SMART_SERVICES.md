@@ -135,6 +135,7 @@ class QueryIntelligence:
     # Validation hints (LLM-detected)
     is_mutation_intent: bool  # create/update/delete/send
     has_cardinality_risk: bool  # "all/every/each"
+    is_app_help_query: bool  # Detected by LLM when user asks about the app itself. Used by RoutingDecider Rule 0.
 ```
 
 ### Thresholds de Routing

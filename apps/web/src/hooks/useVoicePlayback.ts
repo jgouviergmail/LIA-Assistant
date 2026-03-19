@@ -50,7 +50,7 @@ export function useVoicePlayback() {
       setIsPlaying(false);
     });
 
-    queue.setOnError((err) => {
+    queue.setOnError(err => {
       logger.error('voice_playback_audio_error', err, { component: 'useVoicePlayback' });
       setError(err);
       setIsPlaying(false);
@@ -103,7 +103,9 @@ export function useVoicePlayback() {
         setError(null);
         await audioQueueRef.current.enqueue(chunk.audio_base64);
       } catch (err) {
-        logger.error('voice_playback_enqueue_failed', err as Error, { component: 'useVoicePlayback' });
+        logger.error('voice_playback_enqueue_failed', err as Error, {
+          component: 'useVoicePlayback',
+        });
         setError(err as Error);
       }
     },

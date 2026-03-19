@@ -53,9 +53,7 @@ export function SubAgentsSettings({ lng, collapsible = true }: BaseSettingsProps
       {/* Toggle */}
       <div className="flex items-center justify-between p-3 rounded-lg border bg-card">
         <div className="flex-1">
-          <p className="text-sm font-medium">
-            {t('sub_agents.settings.enable_toggle')}
-          </p>
+          <p className="text-sm font-medium">{t('sub_agents.settings.enable_toggle')}</p>
           <p className="text-xs text-muted-foreground">
             {t('sub_agents.settings.enable_description')}
           </p>
@@ -69,9 +67,7 @@ export function SubAgentsSettings({ lng, collapsible = true }: BaseSettingsProps
 
       {/* Info */}
       <InfoBox>
-        <p className="text-xs text-muted-foreground">
-          {t('sub_agents.settings.info')}
-        </p>
+        <p className="text-xs text-muted-foreground">{t('sub_agents.settings.info')}</p>
       </InfoBox>
     </div>
   );

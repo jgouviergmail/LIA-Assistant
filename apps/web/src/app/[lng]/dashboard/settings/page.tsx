@@ -112,7 +112,9 @@ export default function SettingsPage({ params }: SettingsPageProps) {
       oauthToastShownRef.current = true;
 
       // Get error message from i18n with fallback to default
-      const errorKey = ['invalid_state', 'code_exchange_failed', 'connector_disabled'].includes(error)
+      const errorKey = ['invalid_state', 'code_exchange_failed', 'connector_disabled'].includes(
+        error
+      )
         ? error
         : 'default';
       toast.error(t(`settings.connectors.oauth_errors.${errorKey}`));
@@ -349,9 +351,7 @@ export default function SettingsPage({ params }: SettingsPageProps) {
       )}
 
       {/* Version */}
-      <p className="text-xs text-muted-foreground/50 text-center pt-4">
-        v{APP_VERSION}
-      </p>
+      <p className="text-xs text-muted-foreground/50 text-center pt-4">v{APP_VERSION}</p>
     </div>
   );
 }

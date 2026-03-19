@@ -18,7 +18,14 @@ interface SpaceCardProps {
   toggling?: boolean;
 }
 
-export function SpaceCard({ space, onClick, onEdit, onDelete, onToggle, toggling }: SpaceCardProps) {
+export function SpaceCard({
+  space,
+  onClick,
+  onEdit,
+  onDelete,
+  onToggle,
+  toggling,
+}: SpaceCardProps) {
   const { t } = useTranslation();
 
   return (
@@ -28,7 +35,7 @@ export function SpaceCard({ space, onClick, onEdit, onDelete, onToggle, toggling
       role="link"
       tabIndex={0}
       onClick={onClick}
-      onKeyDown={(e) => {
+      onKeyDown={e => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           onClick();
@@ -45,18 +52,12 @@ export function SpaceCard({ space, onClick, onEdit, onDelete, onToggle, toggling
         <div className="flex-1 min-w-0">
           <h3 className="text-base font-semibold truncate">{space.name}</h3>
           {space.description && (
-            <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
-              {space.description}
-            </p>
+            <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{space.description}</p>
           )}
         </div>
 
         {/* Toggle */}
-        <SpaceActivationToggle
-          isActive={space.is_active}
-          onToggle={onToggle}
-          disabled={toggling}
-        />
+        <SpaceActivationToggle isActive={space.is_active} onToggle={onToggle} disabled={toggling} />
       </CardHeader>
 
       <CardContent className="p-4 sm:p-6 pt-0">
@@ -67,7 +68,8 @@ export function SpaceCard({ space, onClick, onEdit, onDelete, onToggle, toggling
               {space.is_active ? t('common.active') : t('common.inactive')}
             </Badge>
             <span>
-              {space.document_count} {space.document_count === 1 ? t('spaces.doc_singular') : t('spaces.docs_plural')}
+              {space.document_count}{' '}
+              {space.document_count === 1 ? t('spaces.doc_singular') : t('spaces.docs_plural')}
             </span>
             {space.total_size > 0 && <span>{formatFileSize(space.total_size)}</span>}
           </div>
@@ -78,7 +80,7 @@ export function SpaceCard({ space, onClick, onEdit, onDelete, onToggle, toggling
               variant="ghost"
               size="icon"
               className="h-8 w-8"
-              onClick={(e) => {
+              onClick={e => {
                 e.stopPropagation();
                 onEdit();
               }}
@@ -90,7 +92,7 @@ export function SpaceCard({ space, onClick, onEdit, onDelete, onToggle, toggling
               variant="ghost"
               size="icon"
               className="h-8 w-8"
-              onClick={(e) => {
+              onClick={e => {
                 e.stopPropagation();
                 onDelete();
               }}

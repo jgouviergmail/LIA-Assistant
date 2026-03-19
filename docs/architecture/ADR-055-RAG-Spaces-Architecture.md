@@ -132,6 +132,9 @@ src/domains/rag_spaces/
 - Context window saturation — mitigated by `max_context_tokens` hard cap (default 2000 tokens)
 - BM25 index memory usage — mitigated by per-user cache with TTL
 
+**Evolution (ADR-058)**:
+- `retrieve_rag_context()` now supports a `system_only=True` parameter to restrict retrieval to system spaces only (used for app-help queries)
+
 ## Validation
 
 - [ ] Upload PDF/TXT/DOCX → document reaches `ready` status with correct chunk count
@@ -146,6 +149,7 @@ src/domains/rag_spaces/
 - ADR-001: LangGraph Multi-Agent System (agent orchestration)
 - ADR-050: Voice Domain TTS Architecture (similar background task pattern)
 - ADR-053: Interest Learning System (similar DDD domain structure)
+- ADR-058: System RAG Spaces — extends the RAG Spaces infrastructure with built-in system knowledge spaces (`is_system=True`) for FAQ content, App Identity Prompt injection, and `is_app_help_query()` detection
 
 ## References
 

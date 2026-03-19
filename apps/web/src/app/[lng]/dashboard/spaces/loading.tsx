@@ -18,7 +18,7 @@ export default function Loading() {
 
       {/* Cards grid skeleton */}
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-        {[1, 2, 3].map((i) => (
+        {[1, 2, 3].map(i => (
           <div key={i} className="h-40 rounded-lg border bg-muted/50 animate-pulse" />
         ))}
       </div>

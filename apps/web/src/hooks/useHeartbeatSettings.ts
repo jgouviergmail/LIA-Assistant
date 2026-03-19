@@ -63,7 +63,7 @@ export function useHeartbeatSettings() {
   const updateSettings = useCallback(
     async (data: HeartbeatSettingsUpdate): Promise<HeartbeatSettings | undefined> => {
       // Optimistic update
-      setData((prev) => {
+      setData(prev => {
         if (!prev) return prev;
         return { ...prev, ...data };
       });

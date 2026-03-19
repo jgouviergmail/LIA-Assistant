@@ -1230,7 +1230,20 @@
         "reindexConfirmAction": "Iniciar reindexación",
         "whatItDoes": "Funcionamiento",
         "description": "Los espacios de conocimiento RAG permiten a los usuarios subir documentos (PDF, TXT, MD, DOCX) que se indexan y utilizan para enriquecer las respuestas de la IA con contexto relevante.",
-        "enableHint": "Para activar esta funcionalidad, defina la variable de entorno RAG_SPACES_ENABLED=true y reinicie el servidor."
+        "enableHint": "Para activar esta funcionalidad, defina la variable de entorno RAG_SPACES_ENABLED=true y reinicie el servidor.",
+        "systemSpaces": {
+          "title": "Espacios de conocimiento del sistema",
+          "description": "Espacios de conocimiento integrados para las preguntas frecuentes y el contenido de ayuda de la aplicación.",
+          "stale": "Actualización disponible",
+          "upToDate": "Actualizado",
+          "reindexButton": "Reindexar",
+          "reindexing": "Reindexando...",
+          "reindexSuccess": "Espacio del sistema reindexado correctamente ({{count}} fragmentos)",
+          "reindexError": "Error al reindexar el espacio del sistema",
+          "noSpaces": "No hay espacios del sistema configurados",
+          "chunks": "{{count}} fragmentos",
+          "lastIndexed": "Última indexación: {{date}}"
+        }
       },
       "llmConfig": {
         "title": "Configuración LLM",
@@ -2814,7 +2827,7 @@
       "rag_spaces": {
         "title": "Espacios de conocimiento (RAG)",
         "description": "Sube y utiliza tus propios documentos para enriquecer las respuestas de la IA",
-        "count": "7",
+        "count": "8",
         "questions": {
           "q1": {
             "question": "¿Qué son los Espacios de conocimiento?",
@@ -2843,6 +2856,10 @@
           "q7": {
             "question": "¿Cómo funciona la sincronización con Google Drive?",
             "answer": "<p>Puede vincular carpetas de Google Drive a sus espacios de conocimiento. Haga clic en <strong>«Vincular carpeta»</strong>, navegue por su Drive y seleccione una carpeta. LIA lista los archivos compatibles, los descarga y los procesa a través del mismo pipeline de indexación.</p><p>Use <strong>«Sincronizar ahora»</strong> para actualizar — LIA detecta archivos nuevos, modificados y eliminados automáticamente.</p><p><strong>Detalles clave:</strong><ul><li>Compatible con Google Docs, Sheets y Slides mediante exportación API</li><li>Aislamiento de errores por archivo — un archivo con error no bloquea los demás</li><li>Feature flag: <code>RAG_SPACES_DRIVE_SYNC_ENABLED</code></li></ul></p>"
+          },
+          "q8": {
+            "question": "¿Puedo preguntarle al asistente sobre sus propias funcionalidades?",
+            "answer": "¡Sí! LIA tiene una <strong>base de conocimientos integrada</strong> que le permite responder preguntas sobre sí misma directamente en la conversación:<br><br><strong>🧠 Cómo funciona:</strong><br>• LIA detecta automáticamente cuando preguntas sobre la aplicación (\"<em>¿Qué puedes hacer?</em>\", \"<em>¿Cómo conecto mi calendario?</em>\")<br>• Busca en su base de conocimientos FAQ (119 preguntas y respuestas en 16 secciones) usando la misma búsqueda híbrida que los espacios de usuario<br>• Un <strong>Prompt de identidad de la aplicación</strong> que describe todas las funcionalidades se inyecta en la respuesta<br><br><strong>⚡ Sin sobrecarga:</strong><br>Esto solo se activa cuando preguntas sobre la aplicación. Las consultas normales (correos, calendario, etc.) no se ven afectadas en absoluto.<br><br><strong>🔧 Funciones de administrador:</strong><br>Los administradores pueden gestionar los espacios de conocimiento del sistema en <strong>Configuración > Administración > Espacios RAG</strong>:<br>• Ver el estado de obsolescencia (comparación de hash de contenido)<br>• Activar la reindexación manual<br>• Los espacios del sistema se indexan automáticamente al iniciar la aplicación"
           }
         }
       },
@@ -3592,7 +3609,9 @@
       "trust_agents": "agentes IA",
       "trust_providers": "proveedores LLM",
       "trust_voices": "idiomas vocales",
-      "trust_gdpr": "Conforme RGPD"
+      "trust_gdpr": "Conforme RGPD",
+      "badge_opensource": "Open Source",
+      "cta_github": "GitHub"
     },
     "chat_mockup": {
       "user_message": "Envía un email a María diciéndole que llegaré tarde esta noche, usa un tono humorístico",
@@ -3726,6 +3745,10 @@
         "title": "Control del navegador",
         "description": "Navega por sitios web de forma autónoma: buscar productos, rellenar formularios, extraer datos de páginas dinámicas con JavaScript"
       },
+      "self_knowledge": {
+        "title": "Autoconocimiento",
+        "description": "LIA puede responder preguntas sobre sí misma usando su base de conocimientos FAQ integrada — pregunte sobre funcionalidades, configuración o cómo funciona."
+      },
       "responsive": {
         "title": "Diseno responsive",
         "description": "Interfaz optimizada para escritorio, tableta y smartphone — usa LIA en cualquier lugar y dispositivo"
@@ -3848,7 +3871,8 @@
     "footer": {
       "copyright": "© {{year}} LIA. Todos los derechos reservados.",
       "docs": "Documentación",
-      "privacy": "Privacidad"
+      "privacy": "Privacidad",
+      "github": "GitHub"
     }
   },
   "sub_agents": {

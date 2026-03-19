@@ -107,6 +107,8 @@ PromptName = Literal[
     "skill_description_translation_prompt",
     # Context compaction (F4)
     "compaction_prompt",
+    # App self-knowledge (System RAG Spaces)
+    "app_identity_prompt",
     # Future prompts:
     # "emails_agent_prompt",
     # "calendar_agent_prompt",

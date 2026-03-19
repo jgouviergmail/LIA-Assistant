@@ -95,9 +95,7 @@ export function PersonalitySettings({ lng, collapsible = true }: BaseSettingsPro
                   </div>
 
                   {/* Loading indicator when updating */}
-                  {updating && isSelected && (
-                    <LoadingSpinner size="default" />
-                  )}
+                  {updating && isSelected && <LoadingSpinner size="default" />}
                 </button>
               );
             })}

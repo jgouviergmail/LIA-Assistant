@@ -87,7 +87,9 @@ export default function AdminConnectorsSection({ lng, collapsible = true }: Base
   };
 
   const handleToggle = async (connectorType: string, currentStatus: boolean) => {
-    const action = currentStatus ? t('settings.admin.connectors.actions.disable') : t('settings.admin.connectors.actions.enable');
+    const action = currentStatus
+      ? t('settings.admin.connectors.actions.disable')
+      : t('settings.admin.connectors.actions.enable');
     let disabled_reason: string | null = null;
 
     if (currentStatus) {
@@ -112,7 +114,12 @@ export default function AdminConnectorsSection({ lng, collapsible = true }: Base
           // Update existing config
           return prev.map(c =>
             c.connector_type === connectorType
-              ? { ...c, is_enabled: !currentStatus, disabled_reason, updated_at: new Date().toISOString() }
+              ? {
+                  ...c,
+                  is_enabled: !currentStatus,
+                  disabled_reason,
+                  updated_at: new Date().toISOString(),
+                }
               : c
           );
         } else {
@@ -144,7 +151,9 @@ export default function AdminConnectorsSection({ lng, collapsible = true }: Base
         icon={Plug}
         collapsible={collapsible}
       >
-        <div className="animate-pulse text-muted-foreground">{t('settings.admin.connectors.loading')}</div>
+        <div className="animate-pulse text-muted-foreground">
+          {t('settings.admin.connectors.loading')}
+        </div>
       </SettingsSection>
     );
   }
@@ -152,68 +161,70 @@ export default function AdminConnectorsSection({ lng, collapsible = true }: Base
   // Main content
   const content = (
     <div className="space-y-6">
-        {(Object.keys(ADMIN_CONNECTOR_CATEGORIES) as CategoryKey[]).map(categoryKey => {
-          const connectors = ADMIN_CONNECTOR_CATEGORIES[categoryKey];
+      {(Object.keys(ADMIN_CONNECTOR_CATEGORIES) as CategoryKey[]).map(categoryKey => {
+        const connectors = ADMIN_CONNECTOR_CATEGORIES[categoryKey];
 
-          return (
-            <div key={categoryKey}>
-              <div className="mb-3">
-                <h3 className="text-lg font-medium text-foreground">
-                  {t(`settings.admin.connectors.categories.${categoryKey}.label`)}
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  {t(`settings.admin.connectors.categories.${categoryKey}.description`)}
-                </p>
-              </div>
-              <div className="space-y-2">
-                {connectors.map(connectorType => {
-                  const config = getConfig(connectorType);
-                  const enabled = isEnabled(connectorType);
+        return (
+          <div key={categoryKey}>
+            <div className="mb-3">
+              <h3 className="text-lg font-medium text-foreground">
+                {t(`settings.admin.connectors.categories.${categoryKey}.label`)}
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                {t(`settings.admin.connectors.categories.${categoryKey}.description`)}
+              </p>
+            </div>
+            <div className="space-y-2">
+              {connectors.map(connectorType => {
+                const config = getConfig(connectorType);
+                const enabled = isEnabled(connectorType);
 
-                  return (
-                    <div
-                      key={connectorType}
-                      className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors"
-                    >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-foreground">
-                            {getConnectorLabel(connectorType)}
+                return (
+                  <div
+                    key={connectorType}
+                    className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-foreground">
+                          {getConnectorLabel(connectorType)}
+                        </span>
+                        {enabled ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+                            {t('settings.admin.connectors.status.enabled')}
                           </span>
-                          {enabled ? (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
-                              {t('settings.admin.connectors.status.enabled')}
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">
-                              {t('settings.admin.connectors.status.disabled')}
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-sm text-muted-foreground mt-1">
-                          {t(`settings.admin.connectors.connector_descriptions.${connectorType}`)}
-                        </div>
-                        {config?.disabled_reason && (
-                          <div className="text-xs text-destructive mt-1">
-                            {t('settings.admin.connectors.reason_label')} {config.disabled_reason}
-                          </div>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300">
+                            {t('settings.admin.connectors.status.disabled')}
+                          </span>
                         )}
                       </div>
-                      <Button
-                        variant={enabled ? 'destructive' : 'success'}
-                        size="sm"
-                        onClick={() => handleToggle(connectorType, enabled)}
-                        className="min-w-[100px] justify-center"
-                      >
-                        {enabled ? t('settings.admin.connectors.actions.disable') : t('settings.admin.connectors.actions.enable')}
-                      </Button>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        {t(`settings.admin.connectors.connector_descriptions.${connectorType}`)}
+                      </div>
+                      {config?.disabled_reason && (
+                        <div className="text-xs text-destructive mt-1">
+                          {t('settings.admin.connectors.reason_label')} {config.disabled_reason}
+                        </div>
+                      )}
                     </div>
-                  );
-                })}
-              </div>
+                    <Button
+                      variant={enabled ? 'destructive' : 'success'}
+                      size="sm"
+                      onClick={() => handleToggle(connectorType, enabled)}
+                      className="min-w-[100px] justify-center"
+                    >
+                      {enabled
+                        ? t('settings.admin.connectors.actions.disable')
+                        : t('settings.admin.connectors.actions.enable')}
+                    </Button>
+                  </div>
+                );
+              })}
             </div>
-          );
-        })}
+          </div>
+        );
+      })}
     </div>
   );
 

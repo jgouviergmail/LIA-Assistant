@@ -5,15 +5,8 @@
  */
 
 import React from 'react';
-import {
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent,
-} from '@/components/ui/accordion';
-import {
-  MetricRow,
-  StrategyBadge,
-} from '../shared';
+import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
+import { MetricRow, StrategyBadge } from '../shared';
 import { formatTokenCount, formatCost, formatPercent } from '../../utils/formatters';
 import type { DebugMetrics } from '@/types/chat';
 
@@ -34,9 +27,7 @@ export interface PlannerSectionProps {
  *
  * Not displayed if data is undefined (query routed to chat).
  */
-export const PlannerSection = React.memo(function PlannerSection({
-  data,
-}: PlannerSectionProps) {
+export const PlannerSection = React.memo(function PlannerSection({ data }: PlannerSectionProps) {
   if (!data) {
     return null;
   }
@@ -61,20 +52,12 @@ export const PlannerSection = React.memo(function PlannerSection({
               highlight
               valueClassName={success ? 'text-green-700' : 'text-red-700'}
             />
-            {error && (
-              <MetricRow
-                label="Error"
-                value={error}
-                valueClassName="text-red-700"
-              />
-            )}
+            {error && <MetricRow label="Error" value={error} valueClassName="text-red-700" />}
           </div>
 
           {/* Strategy */}
           <div className="border-t pt-2">
-            <div className="text-xs text-muted-foreground font-medium mb-1.5">
-              Strategy
-            </div>
+            <div className="text-xs text-muted-foreground font-medium mb-1.5">Strategy</div>
             <MetricRow label="Selected" value={strategy} highlight />
             <MetricRow label="Used Template" value={flags.used_template} />
             <MetricRow label="Used Panic Mode" value={flags.used_panic_mode} />
@@ -83,14 +66,8 @@ export const PlannerSection = React.memo(function PlannerSection({
 
           {/* Token Economics */}
           <div className="border-t pt-2">
-            <div className="text-xs text-muted-foreground font-medium mb-1.5">
-              Token Economics
-            </div>
-            <MetricRow
-              label="Tokens Used"
-              value={formatTokenCount(tokens.used)}
-              highlight
-            />
+            <div className="text-xs text-muted-foreground font-medium mb-1.5">Token Economics</div>
+            <MetricRow label="Tokens Used" value={formatTokenCount(tokens.used)} highlight />
             <MetricRow
               label="Tokens Saved"
               value={formatTokenCount(tokens.saved)}
@@ -110,25 +87,15 @@ export const PlannerSection = React.memo(function PlannerSection({
 
           {/* Plan Details */}
           <div className="border-t pt-2">
-            <div className="text-xs text-muted-foreground font-medium mb-1.5">
-              Plan Details
-            </div>
+            <div className="text-xs text-muted-foreground font-medium mb-1.5">Plan Details</div>
             {plan.steps_count !== undefined && (
               <MetricRow label="Steps Count" value={plan.steps_count} />
             )}
             {plan.tools_used && plan.tools_used.length > 0 && (
-              <MetricRow
-                label="Tools Used"
-                value={plan.tools_used.join(', ')}
-                truncate
-              />
+              <MetricRow label="Tools Used" value={plan.tools_used.join(', ')} truncate />
             )}
             {plan.estimated_cost_usd !== undefined && plan.estimated_cost_usd !== null && (
-              <MetricRow
-                label="Estimated Cost"
-                value={formatCost(plan.estimated_cost_usd)}
-                mono
-              />
+              <MetricRow label="Estimated Cost" value={formatCost(plan.estimated_cost_usd)} mono />
             )}
           </div>
         </div>

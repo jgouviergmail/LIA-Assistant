@@ -220,7 +220,8 @@ async def _reindex_all_documents(documents: list[RAGDocument], model_to: str) ->
                     rag_documents_total_count.labels(status="reindexing").inc()
                 await db.commit()
 
-            # Re-process the document
+            # Re-process the document (system docs are excluded by get_all_for_reindex)
+            assert document.user_id is not None  # guaranteed by query filter
             await process_document(
                 document_id=document.id,
                 space_id=document.space_id,

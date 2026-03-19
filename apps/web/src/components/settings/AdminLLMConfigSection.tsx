@@ -96,14 +96,16 @@ function ProviderKeyRow({
           <div className="font-medium text-sm">
             {provider.display_name}
             <span className="ml-1.5 text-xs font-normal text-muted-foreground">
-              ({isOllama ? t('settings.admin.llmConfig.providers.baseUrl') : t('settings.admin.llmConfig.providers.apiKey')})
+              (
+              {isOllama
+                ? t('settings.admin.llmConfig.providers.baseUrl')
+                : t('settings.admin.llmConfig.providers.apiKey')}
+              )
             </span>
           </div>
           <div className="flex items-center gap-1.5 mt-0.5">
             {provider.masked_key && (
-              <span className="text-xs text-muted-foreground font-mono">
-                {provider.masked_key}
-              </span>
+              <span className="text-xs text-muted-foreground font-mono">{provider.masked_key}</span>
             )}
             {!provider.has_db_key && (
               <span className="text-xs text-destructive">
@@ -120,7 +122,7 @@ function ProviderKeyRow({
               <Input
                 type={isOllama || showKey ? 'text' : 'password'}
                 value={keyValue}
-                onChange={(e) => setKeyValue(e.target.value)}
+                onChange={e => setKeyValue(e.target.value)}
                 placeholder={isOllama ? 'http://localhost:11434/v1' : 'sk-...'}
                 className="w-48 pr-8 text-xs"
               />
@@ -135,7 +137,14 @@ function ProviderKeyRow({
             <Button size="sm" onClick={handleSave} disabled={updating || !keyValue.trim()}>
               <Save className="h-3.5 w-3.5" />
             </Button>
-            <Button size="sm" variant="outline" onClick={() => { setEditing(false); setKeyValue(''); }}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setEditing(false);
+                setKeyValue('');
+              }}
+            >
               {t('common.cancel')}
             </Button>
           </>
@@ -170,7 +179,7 @@ function LLMTypeCard({
   const tileConstraints = getModelConstraints(
     config.effective.provider,
     config.effective.model,
-    config.effective.reasoning_effort,
+    config.effective.reasoning_effort
   );
   return (
     <div
@@ -238,7 +247,7 @@ const OPENAI_O1_MINI_PATTERN = /^o1-mini/i;
 function getModelConstraints(
   provider: string,
   model: string,
-  reasoningEffort?: string | null,
+  reasoningEffort?: string | null
 ): ModelConstraints {
   const defaults: ModelConstraints = {
     supportsTemperature: true,
@@ -341,8 +350,8 @@ function getModelConstraints(
       // Thinking via thinking_level mapped from reasoning_effort
       // Only Gemini 2.5-flash, 2.5-pro, and 3+ support thinking
       // Gemini 2.0-flash, 2.0-flash-lite, 2.5-flash-lite do NOT
-      const supportsGeminiThinking = /^gemini-(2\.5-(flash|pro)|[3-9])/i.test(model)
-        && !/lite/i.test(model);
+      const supportsGeminiThinking =
+        /^gemini-(2\.5-(flash|pro)|[3-9])/i.test(model) && !/lite/i.test(model);
       return {
         ...defaults,
         supportsFrequencyPenalty: false,
@@ -421,7 +430,17 @@ function LLMConfigDialog({
   onSave: (llmType: string, data: LLMTypeConfigUpdate) => Promise<LLMTypeConfig | undefined>;
   onReset: (llmType: string) => Promise<LLMTypeConfig | undefined>;
   saving: boolean;
-  metadata: { providers: Record<string, { model_id: string; supports_vision?: boolean; supports_tools?: boolean; supports_structured_output?: boolean }[]> };
+  metadata: {
+    providers: Record<
+      string,
+      {
+        model_id: string;
+        supports_vision?: boolean;
+        supports_tools?: boolean;
+        supports_structured_output?: boolean;
+      }[]
+    >;
+  };
   t: (key: string) => string;
 }) {
   const [form, setForm] = useState<LLMTypeConfigUpdate>({});
@@ -458,11 +477,14 @@ function LLMConfigDialog({
     if (form.model !== d.model) update.model = form.model;
     if (form.temperature !== d.temperature) update.temperature = form.temperature;
     if (form.top_p !== d.top_p) update.top_p = form.top_p;
-    if (form.frequency_penalty !== d.frequency_penalty) update.frequency_penalty = form.frequency_penalty;
-    if (form.presence_penalty !== d.presence_penalty) update.presence_penalty = form.presence_penalty;
+    if (form.frequency_penalty !== d.frequency_penalty)
+      update.frequency_penalty = form.frequency_penalty;
+    if (form.presence_penalty !== d.presence_penalty)
+      update.presence_penalty = form.presence_penalty;
     if (form.max_tokens !== d.max_tokens) update.max_tokens = form.max_tokens;
     if (form.timeout_seconds !== d.timeout_seconds) update.timeout_seconds = form.timeout_seconds;
-    if (form.reasoning_effort !== d.reasoning_effort) update.reasoning_effort = form.reasoning_effort;
+    if (form.reasoning_effort !== d.reasoning_effort)
+      update.reasoning_effort = form.reasoning_effort;
 
     try {
       await onSave(config.llm_type, update);
@@ -492,28 +514,31 @@ function LLMConfigDialog({
       initialData: { models: [], source: 'fallback' as const },
       enabled: form.provider === 'ollama' && open,
       deps: [form.provider, open],
-    },
+    }
   );
 
   // Filter models by required_capabilities from LLM type config
   const requiredCaps = config?.info.required_capabilities ?? [];
   const isOllamaWithDynamic = form.provider === 'ollama' && (ollamaData?.models?.length ?? 0) > 0;
-  const modelSource = isOllamaWithDynamic ? ollamaData!.models : (metadata.providers[form.provider ?? ''] ?? []);
+  const modelSource = isOllamaWithDynamic
+    ? ollamaData!.models
+    : (metadata.providers[form.provider ?? ''] ?? []);
   const availableModels = form.provider
     ? modelSource
-        .filter((m) => {
+        .filter(m => {
           if (requiredCaps.includes('vision') && !m.supports_vision) return false;
           if (requiredCaps.includes('tools') && !m.supports_tools) return false;
-          if (requiredCaps.includes('structured_output') && !m.supports_structured_output) return false;
+          if (requiredCaps.includes('structured_output') && !m.supports_structured_output)
+            return false;
           return true;
         })
-        .map((m) => m.model_id)
+        .map(m => m.model_id)
     : [];
 
   const constraints = getModelConstraints(
     form.provider ?? '',
     form.model ?? '',
-    form.reasoning_effort,
+    form.reasoning_effort
   );
 
   const isModified = (field: keyof LLMTypeConfigUpdate) => {
@@ -525,16 +550,14 @@ function LLMConfigDialog({
   if (!config) return null;
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
+    <Dialog open={open} onOpenChange={o => !o && handleClose()}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Settings2 className="h-5 w-5" />
             {config.info.display_name}
           </DialogTitle>
-          <DialogDescription>
-            {t(config.info.description_key)}
-          </DialogDescription>
+          <DialogDescription>{t(config.info.description_key)}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto pr-1">
@@ -542,16 +565,24 @@ function LLMConfigDialog({
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
               <Label>{t('settings.admin.llmConfig.fields.provider')}</Label>
-              {isModified('provider') && <Badge variant="default" className="text-[10px] px-1 py-0">{t('settings.admin.llmConfig.types.overridden')}</Badge>}
+              {isModified('provider') && (
+                <Badge variant="default" className="text-[10px] px-1 py-0">
+                  {t('settings.admin.llmConfig.types.overridden')}
+                </Badge>
+              )}
             </div>
             <Select
               value={form.provider ?? ''}
-              onValueChange={(v) => setForm({ ...form, provider: v, model: '' })}
+              onValueChange={v => setForm({ ...form, provider: v, model: '' })}
             >
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
-                {Object.keys(metadata.providers).map((p) => (
-                  <SelectItem key={p} value={p}>{p}</SelectItem>
+                {Object.keys(metadata.providers).map(p => (
+                  <SelectItem key={p} value={p}>
+                    {p}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -561,7 +592,11 @@ function LLMConfigDialog({
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
               <Label>{t('settings.admin.llmConfig.fields.model')}</Label>
-              {isModified('model') && <Badge variant="default" className="text-[10px] px-1 py-0">{t('settings.admin.llmConfig.types.overridden')}</Badge>}
+              {isModified('model') && (
+                <Badge variant="default" className="text-[10px] px-1 py-0">
+                  {t('settings.admin.llmConfig.types.overridden')}
+                </Badge>
+              )}
             </div>
             {form.provider === 'ollama' && ollamaLoading ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground py-1.5">
@@ -569,11 +604,15 @@ function LLMConfigDialog({
                 {t('settings.admin.llmConfig.ollama.loading')}
               </div>
             ) : availableModels.length > 0 ? (
-              <Select value={form.model ?? ''} onValueChange={(v) => setForm({ ...form, model: v })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select value={form.model ?? ''} onValueChange={v => setForm({ ...form, model: v })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
-                  {availableModels.map((m) => (
-                    <SelectItem key={m} value={m}>{m}</SelectItem>
+                  {availableModels.map(m => (
+                    <SelectItem key={m} value={m}>
+                      {m}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -584,12 +623,14 @@ function LLMConfigDialog({
             ) : (
               <Input
                 value={form.model ?? ''}
-                onChange={(e) => setForm({ ...form, model: e.target.value })}
+                onChange={e => setForm({ ...form, model: e.target.value })}
                 placeholder="model-name"
               />
             )}
             {form.provider === 'ollama' && !ollamaLoading && ollamaData && (
-              <p className={`text-[11px] mt-1 ${ollamaData.source === 'live' ? 'text-emerald-500' : 'text-amber-500'}`}>
+              <p
+                className={`text-[11px] mt-1 ${ollamaData.source === 'live' ? 'text-emerald-500' : 'text-amber-500'}`}
+              >
                 {ollamaData.source === 'live'
                   ? t('settings.admin.llmConfig.ollama.live')
                   : t('settings.admin.llmConfig.ollama.fallback')}
@@ -603,12 +644,14 @@ function LLMConfigDialog({
               <div className="flex items-center gap-2">
                 <Label>{t('settings.admin.llmConfig.fields.temperature')}</Label>
                 <ParamTooltip text={t('settings.admin.llmConfig.tooltips.temperature')} />
-                {isModified('temperature') && <Badge variant="default" className="text-[10px] px-1 py-0">{t('settings.admin.llmConfig.types.overridden')}</Badge>}
+                {isModified('temperature') && (
+                  <Badge variant="default" className="text-[10px] px-1 py-0">
+                    {t('settings.admin.llmConfig.types.overridden')}
+                  </Badge>
+                )}
               </div>
               {constraints.temperatureWarning && (
-                <p className="text-[11px] text-amber-500">
-                  {t(constraints.temperatureWarning)}
-                </p>
+                <p className="text-[11px] text-amber-500">{t(constraints.temperatureWarning)}</p>
               )}
               <div className="flex items-center gap-3">
                 <input
@@ -617,17 +660,17 @@ function LLMConfigDialog({
                   max={constraints.temperatureMax}
                   step="0.1"
                   value={form.temperature ?? 0}
-                  onChange={(e) => setForm({ ...form, temperature: parseFloat(e.target.value) })}
+                  onChange={e => setForm({ ...form, temperature: parseFloat(e.target.value) })}
                   className="flex-1"
                 />
-                <span className="text-sm font-mono w-10 text-right">{form.temperature?.toFixed(1)}</span>
+                <span className="text-sm font-mono w-10 text-right">
+                  {form.temperature?.toFixed(1)}
+                </span>
               </div>
             </div>
           )}
           {!constraints.supportsTemperature && constraints.temperatureWarning && (
-            <p className="text-[11px] text-amber-500 py-1">
-              {t(constraints.temperatureWarning)}
-            </p>
+            <p className="text-[11px] text-amber-500 py-1">{t(constraints.temperatureWarning)}</p>
           )}
 
           {/* Max Tokens */}
@@ -635,13 +678,17 @@ function LLMConfigDialog({
             <div className="flex items-center gap-2">
               <Label>{t('settings.admin.llmConfig.fields.maxTokens')}</Label>
               <ParamTooltip text={t('settings.admin.llmConfig.tooltips.maxTokens')} />
-              {isModified('max_tokens') && <Badge variant="default" className="text-[10px] px-1 py-0">{t('settings.admin.llmConfig.types.overridden')}</Badge>}
+              {isModified('max_tokens') && (
+                <Badge variant="default" className="text-[10px] px-1 py-0">
+                  {t('settings.admin.llmConfig.types.overridden')}
+                </Badge>
+              )}
             </div>
             <Input
               type="number"
               min="1"
               value={form.max_tokens ?? ''}
-              onChange={(e) => setForm({ ...form, max_tokens: parseInt(e.target.value) || null })}
+              onChange={e => setForm({ ...form, max_tokens: parseInt(e.target.value) || null })}
             />
           </div>
 
@@ -651,7 +698,11 @@ function LLMConfigDialog({
               <div className="flex items-center gap-2">
                 <Label>{t('settings.admin.llmConfig.fields.topP')}</Label>
                 <ParamTooltip text={t('settings.admin.llmConfig.tooltips.topP')} />
-                {isModified('top_p') && <Badge variant="default" className="text-[10px] px-1 py-0">{t('settings.admin.llmConfig.types.overridden')}</Badge>}
+                {isModified('top_p') && (
+                  <Badge variant="default" className="text-[10px] px-1 py-0">
+                    {t('settings.admin.llmConfig.types.overridden')}
+                  </Badge>
+                )}
               </div>
               <div className="flex items-center gap-3">
                 <input
@@ -660,7 +711,7 @@ function LLMConfigDialog({
                   max="1"
                   step="0.05"
                   value={form.top_p ?? 1}
-                  onChange={(e) => setForm({ ...form, top_p: parseFloat(e.target.value) })}
+                  onChange={e => setForm({ ...form, top_p: parseFloat(e.target.value) })}
                   className="flex-1"
                 />
                 <span className="text-sm font-mono w-10 text-right">{form.top_p?.toFixed(2)}</span>
@@ -674,7 +725,11 @@ function LLMConfigDialog({
               <div className="flex items-center gap-2">
                 <Label>{t('settings.admin.llmConfig.fields.frequencyPenalty')}</Label>
                 <ParamTooltip text={t('settings.admin.llmConfig.tooltips.frequencyPenalty')} />
-                {isModified('frequency_penalty') && <Badge variant="default" className="text-[10px] px-1 py-0">{t('settings.admin.llmConfig.types.overridden')}</Badge>}
+                {isModified('frequency_penalty') && (
+                  <Badge variant="default" className="text-[10px] px-1 py-0">
+                    {t('settings.admin.llmConfig.types.overridden')}
+                  </Badge>
+                )}
               </div>
               <div className="flex items-center gap-3">
                 <input
@@ -683,10 +738,14 @@ function LLMConfigDialog({
                   max="2"
                   step="0.1"
                   value={form.frequency_penalty ?? 0}
-                  onChange={(e) => setForm({ ...form, frequency_penalty: parseFloat(e.target.value) })}
+                  onChange={e =>
+                    setForm({ ...form, frequency_penalty: parseFloat(e.target.value) })
+                  }
                   className="flex-1"
                 />
-                <span className="text-sm font-mono w-10 text-right">{form.frequency_penalty?.toFixed(1)}</span>
+                <span className="text-sm font-mono w-10 text-right">
+                  {form.frequency_penalty?.toFixed(1)}
+                </span>
               </div>
             </div>
           )}
@@ -697,7 +756,11 @@ function LLMConfigDialog({
               <div className="flex items-center gap-2">
                 <Label>{t('settings.admin.llmConfig.fields.presencePenalty')}</Label>
                 <ParamTooltip text={t('settings.admin.llmConfig.tooltips.presencePenalty')} />
-                {isModified('presence_penalty') && <Badge variant="default" className="text-[10px] px-1 py-0">{t('settings.admin.llmConfig.types.overridden')}</Badge>}
+                {isModified('presence_penalty') && (
+                  <Badge variant="default" className="text-[10px] px-1 py-0">
+                    {t('settings.admin.llmConfig.types.overridden')}
+                  </Badge>
+                )}
               </div>
               <div className="flex items-center gap-3">
                 <input
@@ -706,10 +769,12 @@ function LLMConfigDialog({
                   max="2"
                   step="0.1"
                   value={form.presence_penalty ?? 0}
-                  onChange={(e) => setForm({ ...form, presence_penalty: parseFloat(e.target.value) })}
+                  onChange={e => setForm({ ...form, presence_penalty: parseFloat(e.target.value) })}
                   className="flex-1"
                 />
-                <span className="text-sm font-mono w-10 text-right">{form.presence_penalty?.toFixed(1)}</span>
+                <span className="text-sm font-mono w-10 text-right">
+                  {form.presence_penalty?.toFixed(1)}
+                </span>
               </div>
             </div>
           )}
@@ -719,14 +784,21 @@ function LLMConfigDialog({
             <div className="flex items-center gap-2">
               <Label>{t('settings.admin.llmConfig.fields.timeout')}</Label>
               <ParamTooltip text={t('settings.admin.llmConfig.tooltips.timeout')} />
-              {isModified('timeout_seconds') && <Badge variant="default" className="text-[10px] px-1 py-0">{t('settings.admin.llmConfig.types.overridden')}</Badge>}
+              {isModified('timeout_seconds') && (
+                <Badge variant="default" className="text-[10px] px-1 py-0">
+                  {t('settings.admin.llmConfig.types.overridden')}
+                </Badge>
+              )}
             </div>
             <Input
               type="number"
               min="1"
               value={form.timeout_seconds ?? ''}
-              onChange={(e) =>
-                setForm({ ...form, timeout_seconds: e.target.value ? parseInt(e.target.value) : null })
+              onChange={e =>
+                setForm({
+                  ...form,
+                  timeout_seconds: e.target.value ? parseInt(e.target.value) : null,
+                })
               }
               placeholder={t('settings.admin.llmConfig.fields.timeoutPlaceholder')}
             />
@@ -738,20 +810,36 @@ function LLMConfigDialog({
               <div className="flex items-center gap-2">
                 <Label>{t('settings.admin.llmConfig.fields.reasoningEffort')}</Label>
                 <ParamTooltip text={t('settings.admin.llmConfig.tooltips.reasoningEffort')} />
-                {isModified('reasoning_effort') && <Badge variant="default" className="text-[10px] px-1 py-0">{t('settings.admin.llmConfig.types.overridden')}</Badge>}
+                {isModified('reasoning_effort') && (
+                  <Badge variant="default" className="text-[10px] px-1 py-0">
+                    {t('settings.admin.llmConfig.types.overridden')}
+                  </Badge>
+                )}
               </div>
               <Select
                 value={form.reasoning_effort ?? '_disabled'}
-                onValueChange={(v) => setForm({ ...form, reasoning_effort: v === '_disabled' ? null : v as ReasoningEffort })}
+                onValueChange={v =>
+                  setForm({
+                    ...form,
+                    reasoning_effort: v === '_disabled' ? null : (v as ReasoningEffort),
+                  })
+                }
               >
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   {/* Only show "None (disabled)" if the model actually supports effort="none" */}
-                  {constraints.reasoningEffortOptions.includes('none')
-                    ? <SelectItem value="_disabled">{t('settings.admin.llmConfig.fields.reasoningNone')}</SelectItem>
-                    : <SelectItem value="_disabled">{t('settings.admin.llmConfig.fields.reasoningDefault')}</SelectItem>
-                  }
-                  {constraints.reasoningEffortOptions.map((opt) => (
+                  {constraints.reasoningEffortOptions.includes('none') ? (
+                    <SelectItem value="_disabled">
+                      {t('settings.admin.llmConfig.fields.reasoningNone')}
+                    </SelectItem>
+                  ) : (
+                    <SelectItem value="_disabled">
+                      {t('settings.admin.llmConfig.fields.reasoningDefault')}
+                    </SelectItem>
+                  )}
+                  {constraints.reasoningEffortOptions.map(opt => (
                     <SelectItem key={opt} value={opt}>
                       {opt.charAt(0).toUpperCase() + opt.slice(1)}
                     </SelectItem>
@@ -809,16 +897,14 @@ export default function AdminLLMConfigSection({ lng, collapsible = true }: BaseS
   // Group configs by category
   const configsByCategory = LLM_CATEGORIES_ORDER.reduce(
     (acc, cat) => {
-      acc[cat] = configs.filter((c) => c.info.category === cat);
+      acc[cat] = configs.filter(c => c.info.category === cat);
       return acc;
     },
-    {} as Record<string, LLMTypeConfig[]>,
+    {} as Record<string, LLMTypeConfig[]>
   );
 
   const content = loading ? (
-    <div className="animate-pulse text-sm text-muted-foreground">
-      {t('common.loading')}
-    </div>
+    <div className="animate-pulse text-sm text-muted-foreground">{t('common.loading')}</div>
   ) : (
     <div className="space-y-8">
       {/* Provider Keys Section */}
@@ -831,7 +917,7 @@ export default function AdminLLMConfigSection({ lng, collapsible = true }: BaseS
           {t('settings.admin.llmConfig.providers.description')}
         </p>
         <div className="space-y-2">
-          {providers.map((p) => (
+          {providers.map(p => (
             <ProviderKeyRow
               key={p.provider}
               provider={p}
@@ -854,7 +940,7 @@ export default function AdminLLMConfigSection({ lng, collapsible = true }: BaseS
           {t('settings.admin.llmConfig.types.description')}
         </p>
 
-        {LLM_CATEGORIES_ORDER.map((cat) => {
+        {LLM_CATEGORIES_ORDER.map(cat => {
           const catConfigs = configsByCategory[cat];
           if (!catConfigs?.length) return null;
 
@@ -864,13 +950,8 @@ export default function AdminLLMConfigSection({ lng, collapsible = true }: BaseS
                 {t(`settings.admin.llmConfig.categories.${cat}`)}
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                {catConfigs.map((c) => (
-                  <LLMTypeCard
-                    key={c.llm_type}
-                    config={c}
-                    onEdit={setEditingConfig}
-                    t={t}
-                  />
+                {catConfigs.map(c => (
+                  <LLMTypeCard key={c.llm_type} config={c} onEdit={setEditingConfig} t={t} />
                 ))}
               </div>
             </div>

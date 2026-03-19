@@ -60,16 +60,9 @@ export const MetricRow = React.memo(function MetricRow({
   const formattedValue = formatValue(value);
 
   return (
-    <div
-      className={cn(
-        'flex items-baseline justify-between gap-2 text-xs py-0.5',
-        className
-      )}
-    >
+    <div className={cn('flex items-baseline justify-between gap-2 text-xs py-0.5', className)}>
       {/* Label */}
-      <span className="text-muted-foreground flex-shrink-0">
-        {label}:
-      </span>
+      <span className="text-muted-foreground flex-shrink-0">{label}:</span>
 
       {/* Value */}
       <span

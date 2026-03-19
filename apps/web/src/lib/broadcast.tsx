@@ -1,13 +1,6 @@
 'use client';
 
-import {
-  createContext,
-  useState,
-  useCallback,
-  useRef,
-  useEffect,
-  type ReactNode,
-} from 'react';
+import { createContext, useState, useCallback, useRef, useEffect, type ReactNode } from 'react';
 import { onForegroundMessage } from '@/lib/firebase';
 import type { MessagePayload } from 'firebase/messaging';
 
@@ -98,10 +91,10 @@ export function BroadcastProvider({ children, isAuthenticated }: BroadcastProvid
   useEffect(() => {
     if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
       channelRef.current = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
-      channelRef.current.onmessage = (e) => {
+      channelRef.current.onmessage = e => {
         if (e.data.type === 'broadcast_shown') {
           // Another tab showed this broadcast, remove from our queue
-          setQueue((prev) => prev.filter((b) => b.id !== e.data.broadcastId));
+          setQueue(prev => prev.filter(b => b.id !== e.data.broadcastId));
         }
       };
     }
@@ -166,9 +159,9 @@ export function BroadcastProvider({ children, isAuthenticated }: BroadcastProvid
       message,
       sent_at: new Date().toISOString(),
     };
-    setQueue((prev) => {
+    setQueue(prev => {
       // Dedup
-      if (prev.some((b) => b.id === broadcastId)) return prev;
+      if (prev.some(b => b.id === broadcastId)) return prev;
       return [...prev, broadcast];
     });
   }, []);
@@ -244,7 +237,7 @@ export function BroadcastProvider({ children, isAuthenticated }: BroadcastProvid
       console.error('Failed to mark broadcast as read:', error);
     }
 
-    const remaining = queue.filter((b) => b.id !== currentBroadcast.id);
+    const remaining = queue.filter(b => b.id !== currentBroadcast.id);
     setQueue(remaining);
     showNext(remaining);
   }, [currentBroadcast, queue, showNext]);

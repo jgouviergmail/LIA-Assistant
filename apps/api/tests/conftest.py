@@ -44,6 +44,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 from testcontainers.postgres import PostgresContainer
 
+import src.domains.skills.models  # noqa: F401 — UserSkillState mapper registration
 import src.domains.sub_agents.models  # noqa: F401 — F6 SubAgent mapper registration
 from src.core.config import Settings
 from src.core.dependencies import get_db

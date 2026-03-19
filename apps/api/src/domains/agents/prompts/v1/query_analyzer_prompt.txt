@@ -82,6 +82,12 @@ Key insight: When domain A provides a collection and domain B provides item-spec
 
 **is_news_query** = true only if user explicitly asks for news/recent information ("news", "latest", "breaking"). NOT for general knowledge queries.
 
+### Step 6: App help detection
+**is_app_help_query** = true if user asks about the AI assistant itself:
+- What features are available, how to use them
+- "What can you do?", "How do I connect my calendar?", "Help me with..."
+- NOT for general knowledge questions, only about THIS application
+
 ## OUTPUT FORMAT (strict JSON)
 {{
   "intent": "action|conversation",
@@ -100,7 +106,8 @@ Key insight: When domain A provides a collection and domain B provides item-spec
   "cardinality_magnitude": null,
   "constraint_hints": {{"has_distance": false, "has_quality": false, "has_iteration": false, "has_time": false, "has_count": false}},
   "encyclopedia_keywords": [],
-  "is_news_query": false
+  "is_news_query": false,
+  "is_app_help_query": false
 }}
 
 **CRITICAL RULE for resolved_references:**

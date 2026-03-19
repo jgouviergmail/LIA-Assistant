@@ -144,3 +144,25 @@ rag_drive_sources_total_count = Gauge(
     "rag_drive_sources_total_count",
     "Total number of linked Drive folder sources",
 )
+
+# ============================================================================
+# System RAG Spaces Metrics
+# ============================================================================
+
+rag_system_indexation_total = Counter(
+    "rag_system_indexation_total",
+    "Total system RAG space indexations triggered",
+    ["space_name", "status"],  # status: success|error|skipped
+)
+
+rag_system_indexation_duration_seconds = Histogram(
+    "rag_system_indexation_duration_seconds",
+    "System RAG space indexation duration",
+    buckets=[1.0, 2.0, 5.0, 10.0, 30.0, 60.0],
+)
+
+rag_system_retrieval_total = Counter(
+    "rag_system_retrieval_total",
+    "Total system RAG context retrievals",
+    ["has_results"],  # has_results: true|false
+)

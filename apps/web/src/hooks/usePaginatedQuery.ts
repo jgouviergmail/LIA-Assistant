@@ -52,8 +52,10 @@ export interface UsePaginatedQueryOptions<TSortKey extends string = string> {
   enabled?: boolean;
 }
 
-export interface UsePaginatedQueryResult<TItem, TSortKey extends string = string>
-  extends Omit<UseApiQueryResult<PaginatedResponse<TItem>>, 'data' | 'setData'> {
+export interface UsePaginatedQueryResult<TItem, TSortKey extends string = string> extends Omit<
+  UseApiQueryResult<PaginatedResponse<TItem>>,
+  'data' | 'setData'
+> {
   /** Array of items for current page */
   items: TItem[];
   /** Total number of items */

@@ -63,10 +63,10 @@ export function useAdminMCPServers() {
   >({
     method: 'PATCH',
     componentName: COMPONENT_NAME,
-    onSuccess: (result) => {
+    onSuccess: result => {
       // Optimistic update: toggle the server in local cache
-      setData((prev) =>
-        (prev ?? []).map((s) =>
+      setData(prev =>
+        (prev ?? []).map(s =>
           s.server_key === result.server_key
             ? { ...s, enabled_for_user: result.enabled_for_user }
             : s

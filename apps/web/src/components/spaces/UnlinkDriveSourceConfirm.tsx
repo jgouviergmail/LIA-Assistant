@@ -65,7 +65,7 @@ export function UnlinkDriveSourceConfirm({
           <input
             type="checkbox"
             checked={deleteDocuments}
-            onChange={(e) => setDeleteDocuments(e.target.checked)}
+            onChange={e => setDeleteDocuments(e.target.checked)}
             className="rounded border-input h-4 w-4 accent-destructive"
           />
           <span>{t('spaces.drive.unlink_delete_docs')}</span>

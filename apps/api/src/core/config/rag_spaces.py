@@ -34,6 +34,7 @@ from src.core.constants import (
     RAG_SPACES_RETRIEVAL_LIMIT_DEFAULT,
     RAG_SPACES_RETRIEVAL_MIN_SCORE_DEFAULT,
     RAG_SPACES_STORAGE_PATH_DEFAULT,
+    RAG_SPACES_SYSTEM_KNOWLEDGE_DIR_DEFAULT,
 )
 
 
@@ -184,4 +185,18 @@ class RAGSpacesSettings(BaseSettings):
         ge=1,
         le=20,
         description="Maximum number of Drive folder sources per space.",
+    )
+
+    # ========================================================================
+    # System Spaces (built-in knowledge bases)
+    # ========================================================================
+
+    rag_spaces_system_enabled: bool = Field(
+        default=True,
+        description="Enable system RAG spaces (built-in FAQ knowledge base).",
+    )
+
+    rag_spaces_system_knowledge_dir: str = Field(
+        default=RAG_SPACES_SYSTEM_KNOWLEDGE_DIR_DEFAULT,
+        description="Directory containing system knowledge Markdown files.",
     )

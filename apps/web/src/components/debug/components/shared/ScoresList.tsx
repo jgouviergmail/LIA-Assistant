@@ -90,9 +90,7 @@ export const ScoresList = React.memo(function ScoresList({
     }
 
     // Otherwise, simple sort by descending score
-    return entries
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, maxDisplay);
+    return entries.sort(([, a], [, b]) => b - a).slice(0, maxDisplay);
   }, [scores, selectedSet, maxDisplay]);
 
   // Max score for normalizing bars
@@ -111,9 +109,7 @@ export const ScoresList = React.memo(function ScoresList({
   return (
     <div className={cn('space-y-1', className)}>
       {/* Label */}
-      <div className="text-xs text-muted-foreground font-medium mb-1.5">
-        {label}
-      </div>
+      <div className="text-xs text-muted-foreground font-medium mb-1.5">{label}</div>
 
       {/* Scores list */}
       {sortedEntries.map(([name, score]) => {
@@ -123,10 +119,7 @@ export const ScoresList = React.memo(function ScoresList({
         const barWidth = (score / maxScore) * SCORE_BAR_MAX_WIDTH_PX;
 
         return (
-          <div
-            key={name}
-            className="flex items-center gap-2 text-xs"
-          >
+          <div key={name} className="flex items-center gap-2 text-xs">
             {/* Domain/tool name */}
             <span
               className={cn(
@@ -140,7 +133,9 @@ export const ScoresList = React.memo(function ScoresList({
 
             {/* Progress bar */}
             <div className="flex-1 flex items-center gap-2">
-              <div className={`relative h-1.5 bg-muted rounded-full flex-1 ${DEBUG_WIDTHS.scoreBar}`}>
+              <div
+                className={`relative h-1.5 bg-muted rounded-full flex-1 ${DEBUG_WIDTHS.scoreBar}`}
+              >
                 <div
                   className={cn(
                     'absolute left-0 top-0 h-full rounded-full transition-all',

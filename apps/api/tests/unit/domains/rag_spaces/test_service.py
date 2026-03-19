@@ -53,12 +53,14 @@ def sample_space(user_id, space_id):
     space.name = "Test Space"
     space.description = "A test knowledge space"
     space.is_active = True
+    space.is_system = False
     space.dict.return_value = {
         "id": space_id,
         "user_id": user_id,
         "name": "Test Space",
         "description": "A test knowledge space",
         "is_active": True,
+        "is_system": False,
     }
     return space
 

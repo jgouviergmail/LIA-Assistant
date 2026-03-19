@@ -54,8 +54,7 @@ export function useAppleConnect({
         return response;
       } catch (error: unknown) {
         const apiError = error as { response?: { data?: { detail?: string } } };
-        const errorDetail =
-          apiError.response?.data?.detail || 'Failed to connect Apple services';
+        const errorDetail = apiError.response?.data?.detail || 'Failed to connect Apple services';
         logger.error('Apple connection failed', error as Error, {
           component: 'useAppleConnect',
           services,

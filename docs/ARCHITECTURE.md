@@ -99,7 +99,7 @@ Chaque domaine est un **bounded context** isolé avec :
 14. **scheduled_actions** - Actions planifiées récurrentes (APScheduler CronTrigger)
 15. **user_mcp** - Serveurs MCP utilisateur (CRUD per-user, Model Context Protocol, auto-génération de description LLM)
 16. **channels** - Canaux de messagerie externes (Telegram) avec OTP linking, HITL inline keyboards, voice STT
-17. **rag_spaces** - Espaces de connaissances RAG (upload, embedding OpenAI, recherche hybride, injection Response Node)
+17. **rag_spaces** - Espaces de connaissances RAG : user spaces (upload, embedding OpenAI, recherche hybride, injection Response Node) et system spaces (FAQ built-in, App Identity, lazy-loaded au démarrage)
 
 ### 2. Async-First
 
@@ -3781,6 +3781,7 @@ async with TrackingContext(user_id, run_id) as tracker:
 - **Tracking coûts** : intégré dans `TokenUsageLog`, `MessageTokenSummary`, `UserStatistics` via `EmbeddingTrackingContext`
 - **Ré-indexation admin** : `POST /rag-spaces/admin/reindex` avec Redis mutex, ALTER TABLE dynamique des dimensions, flag `rag_reindex_in_progress`
 - **Feature flag** : `RAG_SPACES_ENABLED=true` (default: true)
+- **System RAG Spaces** : espaces pré-chargés (FAQ built-in) avec `is_system=True`, lazy loading au premier accès, détection automatique des questions app-help via `is_app_help_query()`, et injection du App Identity Prompt pour les réponses self-descriptives (voir ADR-058)
 
 **Tables** : `rag_spaces`, `rag_documents`, `rag_chunks` avec FKs cascade et indexes optimisés.
 

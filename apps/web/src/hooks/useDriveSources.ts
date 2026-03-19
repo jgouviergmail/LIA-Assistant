@@ -15,11 +15,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useApiMutation } from './useApiMutation';
 import apiClient from '@/lib/api-client';
-import type {
-  RAGDriveSource,
-  DriveFolder,
-  DriveFolderBrowseResponse,
-} from '@/types/rag-spaces';
+import type { RAGDriveSource, DriveFolder, DriveFolderBrowseResponse } from '@/types/rag-spaces';
 
 /**
  * Hook for Drive source mutations (link, unlink, sync).
@@ -28,10 +24,7 @@ import type {
  * This hook only handles mutations.
  */
 export function useDriveSources(spaceId: string) {
-  const linkMutation = useApiMutation<
-    { folder_id: string; folder_name: string },
-    RAGDriveSource
-  >({
+  const linkMutation = useApiMutation<{ folder_id: string; folder_name: string }, RAGDriveSource>({
     method: 'POST',
     componentName: 'DriveSources',
   });
@@ -67,9 +60,7 @@ export function useDriveSources(spaceId: string) {
 
   const syncFolder = useCallback(
     async (sourceId: string) => {
-      return syncMutation.mutate(
-        `/rag-spaces/${spaceId}/drive-sources/${sourceId}/sync`
-      );
+      return syncMutation.mutate(`/rag-spaces/${spaceId}/drive-sources/${sourceId}/sync`);
     },
     [spaceId, syncMutation]
   );
@@ -118,8 +109,8 @@ export function useDriveFolderBrowser(spaceId: string) {
           { params: { folder_id: folderId } }
         );
         const all = data?.files ?? [];
-        setFolders(all.filter((f) => f.mimeType === GOOGLE_FOLDER_MIME));
-        setFiles(all.filter((f) => f.mimeType !== GOOGLE_FOLDER_MIME));
+        setFolders(all.filter(f => f.mimeType === GOOGLE_FOLDER_MIME));
+        setFiles(all.filter(f => f.mimeType !== GOOGLE_FOLDER_MIME));
       } catch {
         setError('Failed to load folders');
         setFolders([]);
@@ -132,11 +123,11 @@ export function useDriveFolderBrowser(spaceId: string) {
   );
 
   const navigateToFolder = useCallback((folderId: string, folderName: string) => {
-    setBreadcrumb((prev) => [...prev, { id: folderId, name: folderName }]);
+    setBreadcrumb(prev => [...prev, { id: folderId, name: folderName }]);
   }, []);
 
   const navigateBack = useCallback((index: number) => {
-    setBreadcrumb((prev) => prev.slice(0, index + 1));
+    setBreadcrumb(prev => prev.slice(0, index + 1));
   }, []);
 
   const reset = useCallback(() => {

@@ -1,0 +1,21 @@
+{
+  "name": "LIA — Intelligent Personal AI Assistant",
+  "short_name": "LIA",
+  "description": "Multi-agent conversational AI assistant with human-in-the-loop approval workflows. Manage your emails, calendar, contacts, and more.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["productivity", "utilities", "business"],
+  "lang": "fr",
+  "dir": "ltr"
+}

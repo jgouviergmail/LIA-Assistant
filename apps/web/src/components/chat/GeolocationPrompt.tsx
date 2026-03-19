@@ -117,7 +117,16 @@ export function GeolocationPrompt({
     }
 
     setShowPrompt(hasLocationPhrase);
-  }, [currentMessage, isEnabled, isDismissed, permission, coordinates, isRetryMode, checkLocationPhrase, currentLanguage]);
+  }, [
+    currentMessage,
+    isEnabled,
+    isDismissed,
+    permission,
+    coordinates,
+    isRetryMode,
+    checkLocationPhrase,
+    currentLanguage,
+  ]);
 
   // Handle enable/retry button click
   const handleEnable = useCallback(async () => {
@@ -137,9 +146,7 @@ export function GeolocationPrompt({
       onGeolocationEnabled?.();
     } else {
       toast.error(
-        isRetryMode
-          ? t('chat.geolocation.retry_failed')
-          : t('chat.geolocation.permission_denied')
+        isRetryMode ? t('chat.geolocation.retry_failed') : t('chat.geolocation.permission_denied')
       );
     }
   }, [enable, refresh, isRetryMode, isEnabled, coordinates, permission, t, onGeolocationEnabled]);
@@ -179,9 +186,7 @@ export function GeolocationPrompt({
     <div
       className={cn(
         'mx-4 mb-2 rounded-lg border p-3 animate-in slide-in-from-bottom-2 duration-200',
-        isRetryMode
-          ? 'border-warning/30 bg-warning/5'
-          : 'border-primary/30 bg-primary/5',
+        isRetryMode ? 'border-warning/30 bg-warning/5' : 'border-primary/30 bg-primary/5',
         className
       )}
     >

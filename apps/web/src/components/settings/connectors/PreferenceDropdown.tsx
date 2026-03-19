@@ -122,11 +122,7 @@ export function PreferenceDropdown({
       {/* Dropdown */}
       {!loading && !error && (
         <>
-          <Select
-            value={currentValue}
-            onValueChange={handleValueChange}
-            disabled={saving}
-          >
+          <Select value={currentValue} onValueChange={handleValueChange} disabled={saving}>
             <SelectTrigger className="w-full">
               {saving ? (
                 <div className="flex items-center gap-2">

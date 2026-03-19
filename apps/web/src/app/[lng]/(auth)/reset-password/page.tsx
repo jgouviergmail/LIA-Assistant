@@ -10,10 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { apiClient } from '@/lib/api-client';
 import { useTranslation } from 'react-i18next';
-import {
-  validatePassword,
-  getPasswordRequirementChecks,
-} from '@/lib/password-validation';
+import { validatePassword, getPasswordRequirementChecks } from '@/lib/password-validation';
 
 type ResetStatus = 'form' | 'loading' | 'success' | 'error';
 
@@ -36,10 +33,10 @@ function ResetPasswordForm() {
         <div className="flex justify-center">
           <XCircle className="h-16 w-16 text-destructive" />
         </div>
-        <h1 className="text-2xl font-bold text-destructive">{t('auth.reset_password.invalid_link_title')}</h1>
-        <p className="text-muted-foreground">
-          {t('auth.reset_password.invalid_link_message')}
-        </p>
+        <h1 className="text-2xl font-bold text-destructive">
+          {t('auth.reset_password.invalid_link_title')}
+        </h1>
+        <p className="text-muted-foreground">{t('auth.reset_password.invalid_link_message')}</p>
         <Button asChild>
           <Link href="/login">{t('auth.reset_password.back_to_login')}</Link>
         </Button>
@@ -90,10 +87,10 @@ function ResetPasswordForm() {
         <div className="flex justify-center">
           <CheckCircle2 className="h-16 w-16 text-green-500" />
         </div>
-        <h1 className="text-2xl font-bold text-green-600">{t('auth.reset_password.success_title')}</h1>
-        <p className="text-muted-foreground">
-          {t('auth.reset_password.success_message')}
-        </p>
+        <h1 className="text-2xl font-bold text-green-600">
+          {t('auth.reset_password.success_title')}
+        </h1>
+        <p className="text-muted-foreground">{t('auth.reset_password.success_message')}</p>
         <Button asChild className="mt-4">
           <Link href="/login">{t('auth.reset_password.login_button')}</Link>
         </Button>
@@ -149,11 +146,7 @@ function ResetPasswordForm() {
                     req.met ? 'text-green-600' : 'text-muted-foreground'
                   }`}
                 >
-                  {req.met ? (
-                    <Check className="h-3 w-3" />
-                  ) : (
-                    <X className="h-3 w-3" />
-                  )}
+                  {req.met ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
                   <span>{req.label}</span>
                 </div>
               ))}
@@ -185,7 +178,9 @@ function ResetPasswordForm() {
         </div>
 
         <Button type="submit" className="w-full" disabled={status === 'loading'}>
-          {status === 'loading' ? t('auth.reset_password.submitting') : t('auth.reset_password.submit')}
+          {status === 'loading'
+            ? t('auth.reset_password.submitting')
+            : t('auth.reset_password.submit')}
         </Button>
       </form>
 

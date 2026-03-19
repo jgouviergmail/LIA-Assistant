@@ -28,9 +28,7 @@ interface UseDeviceParallaxResult {
  * Hook for parallax effect based on device tilt (gyroscope/accelerometer)
  * Works on iOS and Android mobile browsers
  */
-export function useDeviceParallax(
-  options: UseDeviceParallaxOptions = {}
-): UseDeviceParallaxResult {
+export function useDeviceParallax(options: UseDeviceParallaxOptions = {}): UseDeviceParallaxResult {
   const { maxOffset = 20, smoothing = 0.15, enabled = true } = options;
 
   const [offset, setOffset] = useState({ x: 0, y: 0 });
@@ -66,9 +64,10 @@ export function useDeviceParallax(
     if (typeof window === 'undefined') return false;
 
     // Check if DeviceOrientationEvent.requestPermission exists (iOS 13+)
-    const DeviceOrientationEventWithPermission = DeviceOrientationEvent as typeof DeviceOrientationEvent & {
-      requestPermission?: () => Promise<'granted' | 'denied' | 'default'>;
-    };
+    const DeviceOrientationEventWithPermission =
+      DeviceOrientationEvent as typeof DeviceOrientationEvent & {
+        requestPermission?: () => Promise<'granted' | 'denied' | 'default'>;
+      };
 
     if (typeof DeviceOrientationEventWithPermission.requestPermission === 'function') {
       try {
@@ -93,10 +92,8 @@ export function useDeviceParallax(
 
     const animate = () => {
       // Lerp (linear interpolation) for smooth movement
-      currentOffset.current.x +=
-        (targetOffset.current.x - currentOffset.current.x) * smoothing;
-      currentOffset.current.y +=
-        (targetOffset.current.y - currentOffset.current.y) * smoothing;
+      currentOffset.current.x += (targetOffset.current.x - currentOffset.current.x) * smoothing;
+      currentOffset.current.y += (targetOffset.current.y - currentOffset.current.y) * smoothing;
 
       // Only update state if there's meaningful change (avoid unnecessary re-renders)
       const dx = Math.abs(currentOffset.current.x - offset.x);

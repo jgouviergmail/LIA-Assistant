@@ -76,11 +76,7 @@ export function ConnectedConnectorCard({
           className="text-red-500 hover:text-red-600 hover:bg-red-500/10"
           title={t('settings.connectors.google.disconnect')}
         >
-          {deleteLoading ? (
-            <LoadingSpinner size="default" />
-          ) : (
-            <Unplug className="h-4 w-4" />
-          )}
+          {deleteLoading ? <LoadingSpinner size="default" /> : <Unplug className="h-4 w-4" />}
         </Button>
       </div>
 
@@ -88,7 +84,7 @@ export function ConnectedConnectorCard({
       {hasPreferences && onSelectPreference && (
         <PreferenceDropdown
           connector={connector}
-          savedValue={prefField ? (savedPrefs[prefField] || '') : ''}
+          savedValue={prefField ? savedPrefs[prefField] || '' : ''}
           saving={isSaving}
           t={t}
           onSelect={onSelectPreference}

@@ -9,11 +9,7 @@
  */
 
 import React from 'react';
-import {
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent,
-} from '@/components/ui/accordion';
+import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { cn } from '@/lib/utils';
 import { MetricRow } from '../shared';
 import type { SkillsMetrics } from '@/types/chat';
@@ -47,9 +43,7 @@ function getActivationBadge(mode: string): { label: string; className: string } 
   }
 }
 
-export const SkillsSection = React.memo(function SkillsSection({
-  data,
-}: SkillsSectionProps) {
+export const SkillsSection = React.memo(function SkillsSection({ data }: SkillsSectionProps) {
   if (!data) {
     return null;
   }
@@ -69,12 +63,7 @@ export const SkillsSection = React.memo(function SkillsSection({
           >
             {data.skill_name}
           </span>
-          <span
-            className={cn(
-              'text-[10px] px-1 py-0.5 rounded border',
-              activation.className
-            )}
-          >
+          <span className={cn('text-[10px] px-1 py-0.5 rounded border', activation.className)}>
             {activation.label}
           </span>
         </div>
@@ -86,9 +75,7 @@ export const SkillsSection = React.memo(function SkillsSection({
           <MetricRow label="Deterministic" value={data.is_deterministic} />
           {data.scope && <MetricRow label="Scope" value={data.scope} />}
           {data.category && <MetricRow label="Category" value={data.category} />}
-          {data.priority !== undefined && (
-            <MetricRow label="Priority" value={data.priority} />
-          )}
+          {data.priority !== undefined && <MetricRow label="Priority" value={data.priority} />}
 
           {/* Capability flags */}
           <div className="flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground p-2 bg-muted/20 rounded">

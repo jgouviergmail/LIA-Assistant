@@ -74,7 +74,9 @@ function InterestFeedbackButtons({
 
   return (
     <div className="flex items-center gap-1 mt-2">
-      <span className="text-xs text-muted-foreground mr-2">{t('interests.notification.helpful')}</span>
+      <span className="text-xs text-muted-foreground mr-2">
+        {t('interests.notification.helpful')}
+      </span>
       <Button
         variant="ghost"
         size="icon"
@@ -115,7 +117,9 @@ function InterestFeedbackButtons({
  */
 function MessageAttachments({ attachments }: { attachments: MessageAttachmentMeta[] }) {
   const { t } = useTranslation();
-  const [expandedImage, setExpandedImage] = useState<{ url: string; filename: string } | null>(null);
+  const [expandedImage, setExpandedImage] = useState<{ url: string; filename: string } | null>(
+    null
+  );
   const lightboxRef = useRef<HTMLDivElement>(null);
 
   // H3: Keyboard close (Escape) and focus trap for lightbox
@@ -145,9 +149,10 @@ function MessageAttachments({ attachments }: { attachments: MessageAttachmentMet
   return (
     <>
       <div className="flex flex-wrap gap-2 mb-2">
-        {attachments.map((att) => {
+        {attachments.map(att => {
           // Use client-side Object URL when available (immediate send), API URL for history reload
-          const imgSrc = att.previewUrl || API_ENDPOINTS.ATTACHMENTS.BY_ID.replace(':attachmentId', att.id);
+          const imgSrc =
+            att.previewUrl || API_ENDPOINTS.ATTACHMENTS.BY_ID.replace(':attachmentId', att.id);
           const needsCrossOrigin = !att.previewUrl; // Only needed for cross-origin API requests
           return att.content_type === 'image' ? (
             <button
@@ -185,37 +190,42 @@ function MessageAttachments({ attachments }: { attachments: MessageAttachmentMet
       </div>
 
       {/* Lightbox overlay — rendered via portal to escape overflow:hidden ancestors */}
-      {expandedImage && createPortal(
-        <div
-          ref={lightboxRef}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
-          onClick={() => setExpandedImage(null)}
-          onKeyDown={(e) => { if (e.key === 'Escape') setExpandedImage(null); }}
-          role="dialog"
-          aria-modal="true"
-          aria-label={expandedImage.filename}
-          tabIndex={-1}
-        >
-          {/* Close button */}
-          <button
-            type="button"
-            className="absolute top-4 right-4 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10"
+      {expandedImage &&
+        createPortal(
+          <div
+            ref={lightboxRef}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
             onClick={() => setExpandedImage(null)}
-            aria-label={t('common.close')}
+            onKeyDown={e => {
+              if (e.key === 'Escape') setExpandedImage(null);
+            }}
+            role="dialog"
+            aria-modal="true"
+            aria-label={expandedImage.filename}
+            tabIndex={-1}
           >
-            <X className="h-5 w-5" />
-          </button>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={expandedImage.url}
-            alt={expandedImage.filename}
-            className="max-w-[85vw] max-h-[75vh] mobile:max-w-[70vw] mobile:max-h-[70vh] object-contain rounded-lg shadow-2xl"
-            {...(expandedImage.url.startsWith('blob:') ? {} : { crossOrigin: 'use-credentials' as const })}
-            onClick={(e) => e.stopPropagation()}
-          />
-        </div>,
-        document.body,
-      )}
+            {/* Close button */}
+            <button
+              type="button"
+              className="absolute top-4 right-4 p-2 rounded-full bg-black/50 text-white hover:bg-black/70 transition-colors z-10"
+              onClick={() => setExpandedImage(null)}
+              aria-label={t('common.close')}
+            >
+              <X className="h-5 w-5" />
+            </button>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={expandedImage.url}
+              alt={expandedImage.filename}
+              className="max-w-[85vw] max-h-[75vh] mobile:max-w-[70vw] mobile:max-h-[70vh] object-contain rounded-lg shadow-2xl"
+              {...(expandedImage.url.startsWith('blob:')
+                ? {}
+                : { crossOrigin: 'use-credentials' as const })}
+              onClick={e => e.stopPropagation()}
+            />
+          </div>,
+          document.body
+        )}
     </>
   );
 }
@@ -236,24 +246,27 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(({ message, isUser }
 
   // Check if this is a proactive notification (interest, heartbeat, or future types)
   const isProactiveInterest = !isUser && isInterestNotificationMetadata(message.metadata);
-  const isProactiveMessage = !isUser && typeof message.metadata?.type === 'string'
-    && (message.metadata.type as string).startsWith('proactive_');
-  const showFeedbackButtons = isProactiveInterest && Boolean(message.metadata?.feedback_enabled) && !feedbackSubmitted;
+  const isProactiveMessage =
+    !isUser &&
+    typeof message.metadata?.type === 'string' &&
+    (message.metadata.type as string).startsWith('proactive_');
+  const showFeedbackButtons =
+    isProactiveInterest && Boolean(message.metadata?.feedback_enabled) && !feedbackSubmitted;
 
   // Token data: for ALL proactive types, read from metadata (centrally injected by runner),
   // then fall back to message-level fields (from DB JOIN via run_id)
   const tokensIn = isProactiveMessage
-    ? (message.metadata?.tokens_in as number | undefined) ?? message.tokensIn
+    ? ((message.metadata?.tokens_in as number | undefined) ?? message.tokensIn)
     : message.tokensIn;
   const tokensOut = isProactiveMessage
-    ? (message.metadata?.tokens_out as number | undefined) ?? message.tokensOut
+    ? ((message.metadata?.tokens_out as number | undefined) ?? message.tokensOut)
     : message.tokensOut;
   const tokensCache = isProactiveMessage
-    ? (message.metadata?.tokens_cache as number | undefined) ?? message.tokensCache ?? 0
-    : message.tokensCache ?? 0;
+    ? ((message.metadata?.tokens_cache as number | undefined) ?? message.tokensCache ?? 0)
+    : (message.tokensCache ?? 0);
   const costEur = isProactiveMessage
-    ? (message.metadata?.cost_eur as number | undefined) ?? message.costEur ?? 0
-    : message.costEur ?? 0;
+    ? ((message.metadata?.cost_eur as number | undefined) ?? message.costEur ?? 0)
+    : (message.costEur ?? 0);
   const googleApiRequests = message.googleApiRequests ?? 0;
 
   const formatTime = (date: Date) => {
@@ -334,19 +347,11 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(({ message, isUser }
               <span className="hidden mobile:inline">
                 {' | '}
                 <span className="text-orange-500">🟠 {formatNumber(tokensIn)} IN</span>{' '}
-                <span className="text-green-600">
-                  🟢 {formatNumber(tokensOut || 0)} OUT
-                </span>{' '}
-                <span className="text-blue-500">
-                  🔵 {formatNumber(tokensCache)} CACHE
-                </span>{' '}
-                <span className="text-purple-500">
-                  🟣 {formatNumber(googleApiRequests)} GOOGLE
-                </span>
+                <span className="text-green-600">🟢 {formatNumber(tokensOut || 0)} OUT</span>{' '}
+                <span className="text-blue-500">🔵 {formatNumber(tokensCache)} CACHE</span>{' '}
+                <span className="text-purple-500">🟣 {formatNumber(googleApiRequests)} GOOGLE</span>
                 {' • '}
-                <span className="text-foreground font-semibold">
-                  {formatEuro(costEur, 6)}
-                </span>
+                <span className="text-foreground font-semibold">{formatEuro(costEur, 6)}</span>
               </span>
             )}
           </span>
@@ -378,7 +383,11 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(({ message, isUser }
       {/* Message bubble */}
       <div className="flex flex-col flex-1 items-start">
         <div className="message-bubble px-4 py-3 rounded-xl shadow-md bg-gradient-to-br from-primary/80 to-primary/70 backdrop-blur-md text-primary-foreground rounded-tl-none hover:shadow-lg hover:from-primary/90 hover:to-primary/80 transition-colors">
-          <MessageAttachments attachments={(message.metadata?.attachments as MessageAttachmentMeta[] | undefined) ?? []} />
+          <MessageAttachments
+            attachments={
+              (message.metadata?.attachments as MessageAttachmentMeta[] | undefined) ?? []
+            }
+          />
           <MarkdownContent content={message.content} isUser={true} />
         </div>
         <span className="text-[11px] mobile:text-xs text-muted-foreground mt-1.5 px-1 font-medium whitespace-nowrap w-full text-left">

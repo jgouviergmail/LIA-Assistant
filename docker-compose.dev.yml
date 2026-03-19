@@ -114,6 +114,7 @@ services:
       - ./apps/api:/app
       - api_venv:/app/.venv
       - ./.git:/app/.git:ro  # Mount .git for prompt versioning (read-only)
+      - ./docs/knowledge:/app/docs/knowledge:ro  # System RAG knowledge files
       - ssl_certs:/certs:ro  # Shared SSL certificates (kept for future use)
       # Persistent HuggingFace model cache (survives container restarts)
       - huggingface_cache:/app/.cache/huggingface

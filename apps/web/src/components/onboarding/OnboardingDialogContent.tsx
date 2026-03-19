@@ -5,10 +5,16 @@ import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { cn } from '@/lib/utils';
 import { useTranslation } from '@/i18n/client';
 import { type Language } from '@/i18n/settings';
-import { DialogPortal, DialogOverlay, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import {
+  DialogPortal,
+  DialogOverlay,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 
-interface OnboardingDialogContentProps
-  extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> {
+interface OnboardingDialogContentProps extends React.ComponentPropsWithoutRef<
+  typeof DialogPrimitive.Content
+> {
   /** Current language for accessibility translations */
   lng: Language;
 }

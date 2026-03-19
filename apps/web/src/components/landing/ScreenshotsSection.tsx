@@ -18,7 +18,10 @@ const SCREENSHOTS: ScreenshotItem[] = [
   { key: 'settings_preferences', src: '/screenshots/settings-preferences.png' },
   { key: 'settings_features', src: '/screenshots/settings-features.png' },
   { key: 'settings_administration', src: '/screenshots/settings-administration.png' },
-  { key: 'settings_administration_oneclick', src: '/screenshots/settings-administration-oneclick.png' },
+  {
+    key: 'settings_administration_oneclick',
+    src: '/screenshots/settings-administration-oneclick.png',
+  },
   { key: 'settings_administration_llm', src: '/screenshots/settings-administration-llm.png' },
   { key: 'faq', src: '/screenshots/faq.png' },
 ];
@@ -34,11 +37,18 @@ export function ScreenshotsSection() {
   const active = SCREENSHOTS[activeIndex];
 
   return (
-    <section id="screenshots" className="landing-section py-24 bg-card" aria-labelledby="screenshots-title">
+    <section
+      id="screenshots"
+      className="landing-section py-24 bg-card"
+      aria-labelledby="screenshots-title"
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <FadeInOnScroll>
           <div className="text-center mb-12">
-            <h2 id="screenshots-title" className="text-3xl mobile:text-4xl font-bold tracking-tight mb-4">
+            <h2
+              id="screenshots-title"
+              className="text-3xl mobile:text-4xl font-bold tracking-tight mb-4"
+            >
               {t('landing.screenshots.title')}
             </h2>
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
@@ -98,13 +108,7 @@ export function ScreenshotsSection() {
                 aria-label={t(`landing.screenshots.items.${screenshot.key}`)}
                 aria-current={i === activeIndex ? 'true' : undefined}
               >
-                <Image
-                  src={screenshot.src}
-                  alt=""
-                  fill
-                  className="object-cover"
-                  sizes="96px"
-                />
+                <Image src={screenshot.src} alt="" fill className="object-cover" sizes="96px" />
               </button>
             ))}
           </div>

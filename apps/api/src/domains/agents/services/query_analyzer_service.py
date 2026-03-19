@@ -375,6 +375,13 @@ class QueryAnalysisOutput(BaseModel):
         "Keywords: 'actualités', 'dernières nouvelles', 'aujourd'hui', 'cette semaine', "
         "'what's new', 'latest', 'recent', 'breaking news'.",
     )
+    is_app_help_query: bool = PydanticField(
+        default=False,
+        description="True if user asks about the AI assistant itself, its features, capabilities, "
+        "or usage. Examples: 'What can you do?', 'How do I connect my calendar?', "
+        "'Comment utiliser les rappels ?', 'Help me with settings'. "
+        "NOT for general knowledge questions, only about THIS application.",
+    )
 
 
 # =============================================================================
@@ -437,6 +444,8 @@ class QueryAnalysisResult:
     # Knowledge Enrichment (Brave Search)
     encyclopedia_keywords: list[str] = field(default_factory=list)
     is_news_query: bool = False
+    # App self-knowledge
+    is_app_help_query: bool = False
     raw_output: dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -663,6 +672,7 @@ async def analyze_query(
             # Knowledge Enrichment (Brave Search)
             encyclopedia_keywords=result.encyclopedia_keywords,
             is_news_query=result.is_news_query,
+            is_app_help_query=result.is_app_help_query,
             raw_output=result.model_dump(),
         )
 
@@ -1049,6 +1059,7 @@ class QueryAnalyzerService:
                 intent_confidence=confidence,
                 domains=domains,
                 semantic_score=confidence,
+                is_app_help_query=analysis_result.is_app_help_query,
             )
 
             # Build domain scores with softmax calibration
@@ -1109,6 +1120,8 @@ class QueryAnalyzerService:
                 # Knowledge Enrichment (Brave Search)
                 encyclopedia_keywords=analysis_result.encyclopedia_keywords,
                 is_news_query=analysis_result.is_news_query,
+                # App self-knowledge
+                is_app_help_query=analysis_result.is_app_help_query,
             )
 
         except Exception as e:
@@ -1304,6 +1317,8 @@ class QueryAnalyzerService:
             # Knowledge Enrichment - defaults for fallback
             encyclopedia_keywords=[],
             is_news_query=False,
+            # App self-knowledge - defaults for fallback
+            is_app_help_query=False,
         )
 
 

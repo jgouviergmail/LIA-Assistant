@@ -105,7 +105,7 @@ export function VoiceModeBadge({
     onTranscription,
     onStartSpeaking,
     onStopSpeaking,
-    onError: (err) => {
+    onError: err => {
       toast.error(getErrorMessage(err));
     },
   });
@@ -279,52 +279,32 @@ export function VoiceModeBadge({
    * Get badge classes based on state.
    */
   const getBadgeClasses = (currentState: VoiceModeState, enabled: boolean): string => {
-    const baseClasses = 'gap-2 text-[11px] mobile:text-xs font-semibold transition-all duration-200';
+    const baseClasses =
+      'gap-2 text-[11px] mobile:text-xs font-semibold transition-all duration-200';
 
     if (!enabled) {
       // Inactive - gray
-      return cn(
-        baseClasses,
-        'bg-muted text-muted-foreground hover:bg-muted/80'
-      );
+      return cn(baseClasses, 'bg-muted text-muted-foreground hover:bg-muted/80');
     }
 
     // Initializing - amber/orange with spinner
     if (isInitializing) {
-      return cn(
-        baseClasses,
-        'bg-amber-500 text-white',
-        'cursor-wait'
-      );
+      return cn(baseClasses, 'bg-amber-500 text-white', 'cursor-wait');
     }
 
     switch (currentState) {
       case 'recording':
         // Recording - green pulsing
-        return cn(
-          baseClasses,
-          'bg-green-500 text-white hover:bg-green-600',
-          'animate-pulse'
-        );
+        return cn(baseClasses, 'bg-green-500 text-white hover:bg-green-600', 'animate-pulse');
       case 'processing':
         // Processing - green with spinner
-        return cn(
-          baseClasses,
-          'bg-green-500/80 text-white',
-          'cursor-wait'
-        );
+        return cn(baseClasses, 'bg-green-500/80 text-white', 'cursor-wait');
       case 'speaking':
         // Speaking - green solid
-        return cn(
-          baseClasses,
-          'bg-green-600 text-white hover:bg-green-700'
-        );
+        return cn(baseClasses, 'bg-green-600 text-white hover:bg-green-700');
       case 'listening':
         // Listening - green
-        return cn(
-          baseClasses,
-          'bg-green-500 text-white hover:bg-green-600'
-        );
+        return cn(baseClasses, 'bg-green-500 text-white hover:bg-green-600');
       default:
         // Fallback - gray (shouldn't happen normally)
         return cn(baseClasses, 'bg-muted text-muted-foreground');

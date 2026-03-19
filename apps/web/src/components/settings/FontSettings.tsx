@@ -35,7 +35,11 @@ export function FontSettings({ lng, collapsible = true }: FontSettingsProps) {
 
   // Sync font from user on mount
   useEffect(() => {
-    if (user?.font_family && isValidFontFamily(user.font_family) && user.font_family !== fontFamily) {
+    if (
+      user?.font_family &&
+      isValidFontFamily(user.font_family) &&
+      user.font_family !== fontFamily
+    ) {
       setFontFamily(user.font_family);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

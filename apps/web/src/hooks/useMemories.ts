@@ -171,7 +171,7 @@ export function useMemories() {
 
       if (result) {
         // Optimistic update: add the new memory to local state
-        setData((prev) => {
+        setData(prev => {
           if (!prev) return prev;
           const newItems = [result, ...prev.items];
           return {
@@ -196,9 +196,9 @@ export function useMemories() {
       await deleteMutate(`/memories/${memoryId}`);
 
       // Optimistic update: remove from local state
-      setData((prev) => {
+      setData(prev => {
         if (!prev) return prev;
-        const newItems = prev.items.filter((m) => m.id !== memoryId);
+        const newItems = prev.items.filter(m => m.id !== memoryId);
         return {
           ...prev,
           items: newItems,
@@ -218,9 +218,9 @@ export function useMemories() {
       await updateMutate(`/memories/${memoryId}`, data);
 
       // Optimistic update: update in local state
-      setData((prev) => {
+      setData(prev => {
         if (!prev) return prev;
-        const newItems = prev.items.map((m) =>
+        const newItems = prev.items.map(m =>
           m.id === memoryId ? { ...m, ...data, updated_at: new Date().toISOString() } : m
         );
         return {
@@ -242,9 +242,9 @@ export function useMemories() {
       await deleteAllMutate(url);
 
       // Optimistic update: clear or keep only pinned
-      setData((prev) => {
+      setData(prev => {
         if (!prev) return prev;
-        const newItems = preservePinned ? prev.items.filter((m) => m.pinned) : [];
+        const newItems = preservePinned ? prev.items.filter(m => m.pinned) : [];
         return {
           ...prev,
           items: newItems,
@@ -264,9 +264,9 @@ export function useMemories() {
       await updateMutate(`/memories/${memoryId}/pin`, { pinned });
 
       // Optimistic update: toggle pin in local state
-      setData((prev) => {
+      setData(prev => {
         if (!prev) return prev;
-        const newItems = prev.items.map((m) => (m.id === memoryId ? { ...m, pinned } : m));
+        const newItems = prev.items.map(m => (m.id === memoryId ? { ...m, pinned } : m));
         return {
           ...prev,
           items: newItems,

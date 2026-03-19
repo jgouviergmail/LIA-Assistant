@@ -106,7 +106,10 @@ class HeartbeatProactiveTask:
                 return None
 
             # LLM Decision (structured output, cheap model)
-            decision, tok_in, tok_out, tok_cache = await get_heartbeat_decision(context)
+            user_language = getattr(user, "language", "fr")
+            decision, tok_in, tok_out, tok_cache = await get_heartbeat_decision(
+                context, user_language=user_language
+            )
 
             if decision.action == "skip":
                 logger.info(

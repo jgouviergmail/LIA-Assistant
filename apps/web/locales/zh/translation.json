@@ -1236,7 +1236,20 @@
         "reindexConfirmAction": "开始重新索引",
         "whatItDoes": "功能说明",
         "description": "RAG 知识空间允许用户上传文档（PDF、TXT、MD、DOCX），这些文档将被索引并用于为 AI 响应提供相关上下文。",
-        "enableHint": "要启用此功能，请设置环境变量 RAG_SPACES_ENABLED=true 并重启服务器。"
+        "enableHint": "要启用此功能，请设置环境变量 RAG_SPACES_ENABLED=true 并重启服务器。",
+        "systemSpaces": {
+          "title": "系统知识空间",
+          "description": "用于应用常见问题和帮助内容的内置知识空间。",
+          "stale": "有可用更新",
+          "upToDate": "已是最新",
+          "reindexButton": "重新索引",
+          "reindexing": "正在重新索引...",
+          "reindexSuccess": "系统空间重新索引成功（{{count}} 个片段）",
+          "reindexError": "系统空间重新索引失败",
+          "noSpaces": "未配置系统空间",
+          "chunks": "{{count}} 个片段",
+          "lastIndexed": "上次索引时间：{{date}}"
+        }
       },
       "llmConfig": {
         "title": "LLM 配置",
@@ -2809,7 +2822,7 @@
       "rag_spaces": {
         "title": "知识空间 (RAG)",
         "description": "上传和使用您的文档来丰富AI回答",
-        "count": "7",
+        "count": "8",
         "questions": {
           "q1": {
             "question": "什么是知识空间？",
@@ -2838,6 +2851,10 @@
           "q7": {
             "question": "Google Drive 同步是如何工作的？",
             "answer": "<p>您可以将 Google Drive 文件夹链接到您的知识空间。点击<strong>「链接文件夹」</strong>，浏览您的 Drive 并选择一个文件夹。LIA 会列出支持的文件，下载并通过相同的索引管道处理它们。</p><p>使用<strong>「立即同步」</strong>进行更新 — LIA 会自动检测新增、修改和删除的文件。</p><p><strong>关键细节：</strong><ul><li>通过 API 导出支持 Google Docs、Sheets 和 Slides</li><li>逐文件错误隔离 — 一个文件失败不会阻塞其他文件</li><li>Feature flag：<code>RAG_SPACES_DRIVE_SYNC_ENABLED</code></li></ul></p>"
+          },
+          "q8": {
+            "question": "我可以向助手询问它自身的功能吗？",
+            "answer": "可以！LIA 拥有<strong>内置知识库</strong>，可以在对话中直接回答关于自身的问题：<br><br><strong>🧠 工作原理：</strong><br>• LIA 会自动检测您何时询问有关应用的问题（\"<em>你能做什么？</em>\"、\"<em>如何连接我的日历？</em>\"）<br>• 它使用与用户空间相同的混合搜索来搜索其 FAQ 知识库（16 个部分中的 119 个问答）<br>• 一个描述所有功能的<strong>应用身份提示词</strong>会被注入到回复中<br><br><strong>⚡ 零开销：</strong><br>仅在您询问应用相关问题时才会激活。正常查询（邮件、日历等）完全不受影响。<br><br><strong>🔧 管理员功能：</strong><br>管理员可以在<strong>设置 > 管理 > RAG 空间</strong>中管理系统知识空间：<br>• 查看过期状态（内容哈希比较）<br>• 触发手动重新索引<br>• 系统空间在应用启动时自动索引"
           }
         }
       },
@@ -3587,7 +3604,9 @@
       "trust_agents": "AI代理",
       "trust_providers": "LLM提供商",
       "trust_voices": "语音语言",
-      "trust_gdpr": "符合GDPR"
+      "trust_gdpr": "符合GDPR",
+      "badge_opensource": "开源项目",
+      "cta_github": "GitHub"
     },
     "chat_mockup": {
       "user_message": "给Marie发一封邮件说我今晚会迟到，用幽默的语气",
@@ -3721,6 +3740,10 @@
         "title": "浏览器控制",
         "description": "自主浏览网站：搜索产品、填写表单、从JavaScript动态页面提取数据"
       },
+      "self_knowledge": {
+        "title": "应用自知",
+        "description": "LIA 可以通过内置的 FAQ 知识库回答关于自身的问题——询问功能、设置或工作原理。"
+      },
       "responsive": {
         "title": "响应式设计",
         "description": "完全优化的桌面、平板和手机界面——随时随地使用LIA"
@@ -3843,7 +3866,8 @@
     "footer": {
       "copyright": "© {{year}} LIA. 保留所有权利。",
       "docs": "文档",
-      "privacy": "隐私政策"
+      "privacy": "隐私政策",
+      "github": "GitHub"
     }
   },
   "sub_agents": {

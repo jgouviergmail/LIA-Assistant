@@ -16,8 +16,7 @@ const infoBoxVariants = cva('rounded-lg border p-3', {
 });
 
 export interface InfoBoxProps
-  extends React.HTMLAttributes<HTMLDivElement>,
-    VariantProps<typeof infoBoxVariants> {}
+  extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof infoBoxVariants> {}
 
 /**
  * InfoBox component for displaying informational, warning, or error messages.

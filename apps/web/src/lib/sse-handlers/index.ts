@@ -86,10 +86,7 @@ const SSE_HANDLERS: SSEHandlerMap = {
  * @param chunk - The SSE chunk to process
  * @param context - Handler context with dispatch, refs, and callbacks
  */
-export function processSSEChunk(
-  chunk: ChatStreamChunk,
-  context: SSEHandlerContext
-): void {
+export function processSSEChunk(chunk: ChatStreamChunk, context: SSEHandlerContext): void {
   const handler = SSE_HANDLERS[chunk.type];
 
   if (handler) {

@@ -16,7 +16,9 @@ from src.core.config import settings
 from src.core.security import get_password_hash
 from src.domains.auth.models import User
 from src.domains.connectors.models import Connector, ConnectorStatus, ConnectorType
-from src.domains.personalities.models import Personality  # noqa: F401 — required for User relationship resolution
+from src.domains.personalities.models import (
+    Personality,  # noqa: F401 — required for User relationship resolution
+)
 from src.infrastructure.database.session import AsyncSessionLocal
 
 logger = structlog.get_logger(__name__)

@@ -2356,6 +2356,14 @@ Source: `apps/api/src/infrastructure/observability/metrics_rag_spaces.py`
 | `rag_reindex_runs_total` | Counter | `status` (started/completed/failed) | Reindex runs |
 | `rag_reindex_documents_total` | Counter | `status` (success/error) | Documents reindexed |
 
+### System Indexation & Retrieval
+
+| Métrique | Type | Labels | Description |
+|----------|------|--------|-------------|
+| `rag_system_indexation_total` | Counter | `space_name`, `status` | System indexation runs |
+| `rag_system_indexation_duration_seconds` | Histogram | — | Indexation duration |
+| `rag_system_retrieval_total` | Counter | `has_results` (true/false) | System context retrievals |
+
 **Query PromQL:**
 
 ```promql

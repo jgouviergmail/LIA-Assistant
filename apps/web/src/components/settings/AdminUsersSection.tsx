@@ -214,7 +214,13 @@ export default function AdminUsersSection({ lng, collapsible = true }: BaseSetti
         }
       } catch {
         // 5. Rollback on exception (React reverts optimistic update)
-        toast.error(t('settings.admin.users.errors.toggle_status', { action: currentStatus ? t('settings.admin.users.actions.deactivate').toLowerCase() : t('settings.admin.users.actions.activate').toLowerCase() }));
+        toast.error(
+          t('settings.admin.users.errors.toggle_status', {
+            action: currentStatus
+              ? t('settings.admin.users.actions.deactivate').toLowerCase()
+              : t('settings.admin.users.actions.activate').toLowerCase(),
+          })
+        );
       }
     });
   };
@@ -282,7 +288,9 @@ export default function AdminUsersSection({ lng, collapsible = true }: BaseSetti
         <TableSkeleton rows={5} />
       ) : (
         <>
-          <div className={`overflow-x-auto rounded-lg border border-border transition-opacity duration-150 ${loading ? 'opacity-60' : 'opacity-100'}`}>
+          <div
+            className={`overflow-x-auto rounded-lg border border-border transition-opacity duration-150 ${loading ? 'opacity-60' : 'opacity-100'}`}
+          >
             <table className="min-w-full divide-y divide-border" role="table">
               <thead className="bg-muted/50">
                 <tr>
@@ -482,7 +490,9 @@ export default function AdminUsersSection({ lng, collapsible = true }: BaseSetti
                             : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 border border-red-200 dark:border-red-800'
                         }`}
                       >
-                        {user.is_active ? t('settings.admin.users.status.active') : t('settings.admin.users.status.inactive')}
+                        {user.is_active
+                          ? t('settings.admin.users.status.active')
+                          : t('settings.admin.users.status.inactive')}
                       </span>
                       {user.is_superuser && (
                         <span className="ml-1 text-primary font-semibold text-xs">★</span>
@@ -514,19 +524,25 @@ export default function AdminUsersSection({ lng, collapsible = true }: BaseSetti
                     </td>
                     {/* Active connectors count */}
                     <td className="px-3 py-3 whitespace-nowrap text-center">
-                      <span className={`text-sm font-medium tabular-nums ${user.active_connectors_count > 0 ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground/40'}`}>
+                      <span
+                        className={`text-sm font-medium tabular-nums ${user.active_connectors_count > 0 ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground/40'}`}
+                      >
                         {user.active_connectors_count}
                       </span>
                     </td>
                     {/* Memories count */}
                     <td className="px-3 py-3 whitespace-nowrap text-center">
-                      <span className={`text-sm font-medium tabular-nums ${user.memories_count > 0 ? 'text-primary' : 'text-muted-foreground/40'}`}>
+                      <span
+                        className={`text-sm font-medium tabular-nums ${user.memories_count > 0 ? 'text-primary' : 'text-muted-foreground/40'}`}
+                      >
                         {user.memories_count}
                       </span>
                     </td>
                     {/* Interests count */}
                     <td className="px-3 py-3 whitespace-nowrap text-center">
-                      <span className={`text-sm font-medium tabular-nums ${user.interests_count > 0 ? 'text-primary' : 'text-muted-foreground/40'}`}>
+                      <span
+                        className={`text-sm font-medium tabular-nums ${user.interests_count > 0 ? 'text-primary' : 'text-muted-foreground/40'}`}
+                      >
                         {user.interests_count}
                       </span>
                     </td>
@@ -541,7 +557,9 @@ export default function AdminUsersSection({ lng, collapsible = true }: BaseSetti
                           className="min-w-[80px] justify-center"
                           aria-label={`${user.is_active ? t('settings.admin.users.actions.deactivate') : t('settings.admin.users.actions.activate')} ${user.email}`}
                         >
-                          {user.is_active ? t('settings.admin.users.actions.deactivate') : t('settings.admin.users.actions.activate')}
+                          {user.is_active
+                            ? t('settings.admin.users.actions.deactivate')
+                            : t('settings.admin.users.actions.activate')}
                         </Button>
                         {!user.is_superuser && (
                           <Button
@@ -560,7 +578,9 @@ export default function AdminUsersSection({ lng, collapsible = true }: BaseSetti
                     {/* Last message at */}
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-muted-foreground">
                       {user.last_message_at ? (
-                        <span title={new Date(user.last_message_at).toLocaleString(LOCALE_MAP[lng])}>
+                        <span
+                          title={new Date(user.last_message_at).toLocaleString(LOCALE_MAP[lng])}
+                        >
                           {new Date(user.last_message_at).toLocaleDateString(LOCALE_MAP[lng], {
                             day: '2-digit',
                             month: '2-digit',
@@ -589,7 +609,8 @@ export default function AdminUsersSection({ lng, collapsible = true }: BaseSetti
                       {user.total_cost_eur.toLocaleString(LOCALE_MAP[lng], {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
-                      })}€
+                      })}
+                      €
                     </td>
                     {/* Cycle messages */}
                     <td className="px-3 py-3 whitespace-nowrap text-sm text-right tabular-nums text-muted-foreground">
@@ -608,7 +629,8 @@ export default function AdminUsersSection({ lng, collapsible = true }: BaseSetti
                       {user.cycle_cost_eur.toLocaleString(LOCALE_MAP[lng], {
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2,
-                      })}€
+                      })}
+                      €
                     </td>
                   </tr>
                 ))}

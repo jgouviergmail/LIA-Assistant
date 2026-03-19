@@ -16,7 +16,7 @@ import argparse
 import asyncio
 import sys
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 
 # Add project root to path
@@ -57,13 +57,13 @@ async def create_admin(email: str, password: str, full_name: str) -> None:
                     {"id": user_id},
                 )
                 await session.commit()
-                print(f"  → Promoted to superuser.")
+                print("  → Promoted to superuser.")
             else:
-                print(f"  → No changes needed.")
+                print("  → No changes needed.")
             return
 
         # Create admin user via raw SQL
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         await session.execute(
             text("""
                 INSERT INTO users (id, email, hashed_password, full_name, is_active, is_verified, is_superuser, created_at, updated_at)
@@ -79,12 +79,12 @@ async def create_admin(email: str, password: str, full_name: str) -> None:
         )
         await session.commit()
 
-        print(f"\n✅ Admin user created successfully!")
+        print("\n✅ Admin user created successfully!")
         print(f"   Email:    {email}")
         print(f"   Password: {'*' * len(password)}")
         print(f"   Name:     {full_name}")
-        print(f"\n   You can now log in at the application's login page.")
-        print(f"   ⚠ Change the default password after first login!")
+        print("\n   You can now log in at the application's login page.")
+        print("   ⚠ Change the default password after first login!")
 
 
 def parse_args() -> argparse.Namespace:

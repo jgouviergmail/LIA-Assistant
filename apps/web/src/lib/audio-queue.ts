@@ -68,7 +68,8 @@ const audioLogger = {
 const isIOSSafari = (): boolean => {
   if (typeof window === 'undefined') return false;
   const ua = window.navigator.userAgent;
-  const isIOS = /iPad|iPhone|iPod/.test(ua) && !(window as Window & { MSStream?: unknown }).MSStream;
+  const isIOS =
+    /iPad|iPhone|iPod/.test(ua) && !(window as Window & { MSStream?: unknown }).MSStream;
   const isSafari = /Safari/.test(ua) && !/Chrome/.test(ua) && !/CriOS/.test(ua);
   return isIOS || (isSafari && /Macintosh/.test(ua) && 'ontouchend' in document);
 };
@@ -117,8 +118,7 @@ export class AudioQueue {
       // Create AudioContext (with webkit prefix for older Safari)
       const AudioContextClass =
         window.AudioContext ||
-        (window as typeof window & { webkitAudioContext?: typeof AudioContext })
-          .webkitAudioContext;
+        (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
 
       if (!AudioContextClass) {
         throw new Error('Web Audio API not supported');
@@ -178,7 +178,7 @@ export class AudioQueue {
       if (document.visibilityState === 'visible') {
         audioLogger.log('Page became visible, checking context...');
         // Try to resume when page becomes visible again
-        this.ensureContextRunning().catch((err) => {
+        this.ensureContextRunning().catch(err => {
           audioLogger.warn('Could not resume on visibility change:', err);
         });
       }
@@ -439,9 +439,7 @@ export class AudioQueue {
     try {
       // Decode the audio data
       // Note: slice(0) creates a copy because decodeAudioData detaches the buffer
-      const audioBuffer = await this.context.decodeAudioData(
-        arrayBuffer.slice(0)
-      );
+      const audioBuffer = await this.context.decodeAudioData(arrayBuffer.slice(0));
 
       // Create source node
       this.currentSource = this.context.createBufferSource();

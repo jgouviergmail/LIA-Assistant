@@ -11,7 +11,7 @@ import { isImageLoaded, markImageLoaded } from '@/lib/image-cache';
 
 // MCP Apps widget — lazy loaded (only needed when MCP App sentinel divs are present)
 const McpAppWidget = lazy(() =>
-  import('@/components/chat/McpAppWidget').then((m) => ({ default: m.McpAppWidget })),
+  import('@/components/chat/McpAppWidget').then(m => ({ default: m.McpAppWidget }))
 );
 
 /**
@@ -107,7 +107,11 @@ const ContactPhotoGallery = ({ children }: { children?: React.ReactNode }) => {
     const extract = (n: React.ReactNode) => {
       React.Children.forEach(n, child => {
         if (React.isValidElement(child)) {
-          const childProps = child.props as { src?: string; alt?: string; children?: React.ReactNode };
+          const childProps = child.props as {
+            src?: string;
+            alt?: string;
+            children?: React.ReactNode;
+          };
           if (child.type === 'img') {
             if (childProps.src) {
               images.push({ src: childProps.src, alt: childProps.alt || '' });
@@ -207,20 +211,13 @@ const PlacePhotoWrapper = ({
   if (hasMultiplePhotos) {
     return (
       <div className="lia-place__photo">
-        <InlinePlaceCarousel
-          images={photoUrls}
-          alt={t('gallery.place_photo')}
-        />
+        <InlinePlaceCarousel images={photoUrls} alt={t('gallery.place_photo')} />
       </div>
     );
   }
 
   // Single photo or no gallery data - render original content
-  return (
-    <div className="lia-place__photo">
-      {children}
-    </div>
-  );
+  return <div className="lia-place__photo">{children}</div>;
 };
 
 /**
@@ -241,153 +238,155 @@ const PlacePhotoWrapper = ({
  *
  * Issue #64: Uses global image cache to prevent scintillation during streaming.
  */
-const MarkdownImage = memo(({ src: srcProp, alt, className }: React.ImgHTMLAttributes<HTMLImageElement>) => {
-  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
-  // Normalize src to string (React 19 types allow Blob)
-  const src = typeof srcProp === 'string' ? srcProp : undefined;
-  // Use global cache to check if image already loaded
-  const alreadyLoaded = src ? isImageLoaded(src) : false;
-  const [loaded, setLoaded] = useState(alreadyLoaded);
+const MarkdownImage = memo(
+  ({ src: srcProp, alt, className }: React.ImgHTMLAttributes<HTMLImageElement>) => {
+    const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+    // Normalize src to string (React 19 types allow Blob)
+    const src = typeof srcProp === 'string' ? srcProp : undefined;
+    // Use global cache to check if image already loaded
+    const alreadyLoaded = src ? isImageLoaded(src) : false;
+    const [loaded, setLoaded] = useState(alreadyLoaded);
 
-  // For Avatar component (no onLoad prop), preload image in background
-  useEffect(() => {
-    if (src && !alreadyLoaded) {
-      const img = new Image();
-      img.onload = () => {
+    // For Avatar component (no onLoad prop), preload image in background
+    useEffect(() => {
+      if (src && !alreadyLoaded) {
+        const img = new Image();
+        img.onload = () => {
+          markImageLoaded(src);
+          setLoaded(true);
+        };
+        img.src = src;
+      }
+    }, [src, alreadyLoaded]);
+
+    const handleLoad = () => {
+      if (src) {
         markImageLoaded(src);
-        setLoaded(true);
-      };
-      img.src = src;
-    }
-  }, [src, alreadyLoaded]);
+      }
+      setLoaded(true);
+    };
 
-  const handleLoad = () => {
-    if (src) {
-      markImageLoaded(src);
-    }
-    setLoaded(true);
-  };
+    if (!src) return null;
 
-  if (!src) return null;
-
-  // =========================================================================
-  // LIA COMPONENT SYSTEM - Preserve structured component images
-  // =========================================================================
-  // Images with 'lia-*' classes are part of the LIA design system (avatars,
-  // thumbnails, etc.). They must be rendered as-is to preserve:
-  // - Flexbox layouts in card headers (.lia-contact__header, etc.)
-  // - Component-specific sizing (.lia-avatar--sm, .lia-avatar--md)
-  // - Design system consistency
-  //
-  // Without this check, transformations below would wrap LIA images in
-  // full-width blocks, breaking flexbox layouts and changing CSS classes.
-  // =========================================================================
-  const isLiaComponent = className?.startsWith('lia-');
-  if (isLiaComponent) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={src}
-        alt={alt || ''}
-        className={className}
-        style={{
-          opacity: loaded ? 1 : 0,
-          transition: 'opacity 0.15s ease-in',
-        }}
-        onLoad={handleLoad}
-      />
-    );
-  }
-
-  // Detect if this is a profile photo (from Google Contacts API or explicit alt text)
-  // Exclude place photos (/api/v1/connectors/google-places/photo path) - they use proxy endpoint
-  const isPlacePhoto = src.includes('/connectors/google-places/photo');
-  const isProfilePhoto =
-    !isPlacePhoto &&
-    (src.includes('googleusercontent.com') || alt?.toLowerCase().includes('photo'));
-
-  // Place photo - clickable with lightbox (2x zoom: 200px -> 400px)
-  if (isPlacePhoto) {
-    return (
-      <>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
+    // =========================================================================
+    // LIA COMPONENT SYSTEM - Preserve structured component images
+    // =========================================================================
+    // Images with 'lia-*' classes are part of the LIA design system (avatars,
+    // thumbnails, etc.). They must be rendered as-is to preserve:
+    // - Flexbox layouts in card headers (.lia-contact__header, etc.)
+    // - Component-specific sizing (.lia-avatar--sm, .lia-avatar--md)
+    // - Design system consistency
+    //
+    // Without this check, transformations below would wrap LIA images in
+    // full-width blocks, breaking flexbox layouts and changing CSS classes.
+    // =========================================================================
+    const isLiaComponent = className?.startsWith('lia-');
+    if (isLiaComponent) {
+      return (
+        // eslint-disable-next-line @next/next/no-img-element
         <img
           src={src}
-          alt={alt || 'Photo du lieu'}
-          className="place-photo"
+          alt={alt || ''}
+          className={className}
           style={{
             opacity: loaded ? 1 : 0,
-            transition: loaded
-              ? 'transform 0.2s ease, box-shadow 0.2s ease'
-              : 'opacity 0.15s ease-in',
+            transition: 'opacity 0.15s ease-in',
           }}
           onLoad={handleLoad}
-          onClick={() => setIsLightboxOpen(true)}
         />
-        <ImageLightbox
-          src={src}
-          alt={alt || 'Photo du lieu'}
-          isOpen={isLightboxOpen}
-          onClose={() => setIsLightboxOpen(false)}
-          minWidth={400}
-        />
-      </>
-    );
-  }
+      );
+    }
 
-  // Profile photo (Google Contacts) - Single contact detail view
-  // Uses contact-photo CSS class for consistent styling with vignette effect
-  if (isProfilePhoto) {
-    const proxiedSrc = proxyGoogleImageUrl(src) || src;
-    return (
-      <>
-        <span
-          style={{
-            display: 'block',
-          }}
-          className="flex justify-center my-4 w-full"
-        >
+    // Detect if this is a profile photo (from Google Contacts API or explicit alt text)
+    // Exclude place photos (/api/v1/connectors/google-places/photo path) - they use proxy endpoint
+    const isPlacePhoto = src.includes('/connectors/google-places/photo');
+    const isProfilePhoto =
+      !isPlacePhoto &&
+      (src.includes('googleusercontent.com') || alt?.toLowerCase().includes('photo'));
+
+    // Place photo - clickable with lightbox (2x zoom: 200px -> 400px)
+    if (isPlacePhoto) {
+      return (
+        <>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={proxiedSrc}
-            alt={alt || 'Photo de profil'}
-            className="contact-photo"
+            src={src}
+            alt={alt || 'Photo du lieu'}
+            className="place-photo"
             style={{
               opacity: loaded ? 1 : 0,
+              transition: loaded
+                ? 'transform 0.2s ease, box-shadow 0.2s ease'
+                : 'opacity 0.15s ease-in',
             }}
             onLoad={handleLoad}
             onClick={() => setIsLightboxOpen(true)}
           />
-        </span>
-        <ImageLightbox
-          src={proxiedSrc}
-          alt={alt || 'Photo de profil'}
-          isOpen={isLightboxOpen}
-          onClose={() => setIsLightboxOpen(false)}
-          minWidth={250}
+          <ImageLightbox
+            src={src}
+            alt={alt || 'Photo du lieu'}
+            isOpen={isLightboxOpen}
+            onClose={() => setIsLightboxOpen(false)}
+            minWidth={400}
+          />
+        </>
+      );
+    }
+
+    // Profile photo (Google Contacts) - Single contact detail view
+    // Uses contact-photo CSS class for consistent styling with vignette effect
+    if (isProfilePhoto) {
+      const proxiedSrc = proxyGoogleImageUrl(src) || src;
+      return (
+        <>
+          <span
+            style={{
+              display: 'block',
+            }}
+            className="flex justify-center my-4 w-full"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={proxiedSrc}
+              alt={alt || 'Photo de profil'}
+              className="contact-photo"
+              style={{
+                opacity: loaded ? 1 : 0,
+              }}
+              onLoad={handleLoad}
+              onClick={() => setIsLightboxOpen(true)}
+            />
+          </span>
+          <ImageLightbox
+            src={proxiedSrc}
+            alt={alt || 'Photo de profil'}
+            isOpen={isLightboxOpen}
+            onClose={() => setIsLightboxOpen(false)}
+            minWidth={250}
+          />
+        </>
+      );
+    }
+
+    // Default image rendering for non-profile images (screenshots, diagrams, etc.)
+    return (
+      <span className="block relative w-full max-w-[150px] my-3 mx-auto">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={src}
+          alt={alt || 'Image'}
+          className="w-full h-full object-cover rounded-lg shadow-md"
+          style={{
+            opacity: loaded ? 1 : 0,
+            transition: 'opacity 0.15s ease-in',
+          }}
+          loading="lazy"
+          onLoad={handleLoad}
         />
-      </>
+      </span>
     );
   }
-
-  // Default image rendering for non-profile images (screenshots, diagrams, etc.)
-  return (
-    <span className="block relative w-full max-w-[150px] my-3 mx-auto">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={src}
-        alt={alt || 'Image'}
-        className="w-full h-full object-cover rounded-lg shadow-md"
-        style={{
-          opacity: loaded ? 1 : 0,
-          transition: 'opacity 0.15s ease-in',
-        }}
-        loading="lazy"
-        onLoad={handleLoad}
-      />
-    </span>
-  );
-});
+);
 MarkdownImage.displayName = 'MarkdownImage';
 
 interface MarkdownContentProps {
@@ -485,7 +484,11 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = memo(
               const isLiaComponent = className?.startsWith('lia-');
               return (
                 <p
-                  className={isLiaComponent ? className : cn('mb-3 last:mb-0 whitespace-pre-wrap break-words', className)}
+                  className={
+                    isLiaComponent
+                      ? className
+                      : cn('mb-3 last:mb-0 whitespace-pre-wrap break-words', className)
+                  }
                   {...props}
                 >
                   {children}
@@ -641,10 +644,18 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = memo(
               // MCP App widget (generated by mcp_app_sentinel.py)
               // Replaces sentinel div with interactive sandboxed iframe + JSON-RPC bridge
               if (className?.includes('lia-mcp-app')) {
-                const registryId = (props as Record<string, unknown>)['data-registry-id'] as string | undefined;
+                const registryId = (props as Record<string, unknown>)['data-registry-id'] as
+                  | string
+                  | undefined;
                 if (registryId) {
                   return (
-                    <Suspense fallback={<div className="lia-mcp-app__placeholder"><div className="lia-mcp-app__loading">{t('mcp_apps.loading')}</div></div>}>
+                    <Suspense
+                      fallback={
+                        <div className="lia-mcp-app__placeholder">
+                          <div className="lia-mcp-app__loading">{t('mcp_apps.loading')}</div>
+                        </div>
+                      }
+                    >
                       <McpAppWidget registryId={registryId} />
                     </Suspense>
                   );

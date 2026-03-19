@@ -8,11 +8,7 @@
  */
 
 import React from 'react';
-import {
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent,
-} from '@/components/ui/accordion';
+import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { validateToolScores } from '../../validation/validators';
 import {
   MetricRow,
@@ -42,9 +38,7 @@ export interface ToolSectionProps {
  * - The planner selects tools via LLM
  * - Direct confidence scores (no more softmax/calibration)
  */
-export const ToolSection = React.memo(function ToolSection({
-  data,
-}: ToolSectionProps) {
+export const ToolSection = React.memo(function ToolSection({ data }: ToolSectionProps) {
   // Case: no selection (routed to chat)
   if (!data) {
     return (
@@ -57,8 +51,8 @@ export const ToolSection = React.memo(function ToolSection({
         </AccordionTrigger>
         <AccordionContent>
           <div className={INFO_SECTION_CLASSES}>
-            <strong>Non exécuté :</strong> La requête a été routée vers le chat
-            (conversation simple) ou aucun outil ne correspond.
+            <strong>Non exécuté :</strong> La requête a été routée vers le chat (conversation
+            simple) ou aucun outil ne correspond.
           </div>
         </AccordionContent>
       </AccordionItem>
@@ -95,10 +89,7 @@ export const ToolSection = React.memo(function ToolSection({
               highlight
               valueClassName={passed ? 'text-green-400 font-semibold' : 'text-red-400'}
             />
-            <MetricRow
-              label="Incertitude"
-              value={data.has_uncertainty ? 'Oui' : 'Non'}
-            />
+            <MetricRow label="Incertitude" value={data.has_uncertainty ? 'Oui' : 'Non'} />
           </div>
 
           {/* Detailed tools list */}
@@ -117,20 +108,12 @@ export const ToolSection = React.memo(function ToolSection({
 
           {/* Configuration */}
           <div className="border-t pt-2">
-            <div className="text-xs text-muted-foreground font-medium mb-1.5">
-              Seuils
-            </div>
+            <div className="text-xs text-muted-foreground font-medium mb-1.5">Seuils</div>
             {data.thresholds.primary_min && (
-              <ThresholdRow
-                label="Confiance minimum"
-                check={data.thresholds.primary_min}
-              />
+              <ThresholdRow label="Confiance minimum" check={data.thresholds.primary_min} />
             )}
             {data.thresholds.max_tools && (
-              <InfoRow
-                label="Maximum d'outils"
-                check={data.thresholds.max_tools}
-              />
+              <InfoRow label="Maximum d'outils" check={data.thresholds.max_tools} />
             )}
           </div>
 
@@ -148,8 +131,7 @@ export const ToolSection = React.memo(function ToolSection({
           {/* Error if no scores */}
           {!scoresValidation.success && scoresValidation.errors?.[0] !== 'SECTION_ABSENT' && (
             <div className={ERROR_SECTION_CLASSES}>
-              <strong>Erreur :</strong>{' '}
-              {scoresValidation.errors?.[0] || 'Aucun score disponible'}
+              <strong>Erreur :</strong> {scoresValidation.errors?.[0] || 'Aucun score disponible'}
             </div>
           )}
         </div>

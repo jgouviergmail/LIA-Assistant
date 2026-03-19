@@ -24,9 +24,7 @@ export function FadeInOnScroll({
     if (!el) return;
 
     // Check prefers-reduced-motion
-    const prefersReducedMotion = window.matchMedia(
-      '(prefers-reduced-motion: reduce)'
-    ).matches;
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     if (prefersReducedMotion) {
       setIsVisible(true);
@@ -50,11 +48,7 @@ export function FadeInOnScroll({
   return (
     <div
       ref={ref}
-      className={cn(
-        'transition-none',
-        isVisible ? 'animate-fade-in-up' : 'opacity-0',
-        className
-      )}
+      className={cn('transition-none', isVisible ? 'animate-fade-in-up' : 'opacity-0', className)}
       style={isVisible && delay > 0 ? { animationDelay: `${delay}ms` } : undefined}
     >
       {children}

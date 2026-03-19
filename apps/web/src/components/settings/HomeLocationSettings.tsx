@@ -47,7 +47,10 @@ export function HomeLocationSettings({ lng, collapsible = true }: BaseSettingsPr
     }
   );
 
-  const connectors = React.useMemo(() => connectorsData?.connectors || [], [connectorsData?.connectors]);
+  const connectors = React.useMemo(
+    () => connectorsData?.connectors || [],
+    [connectorsData?.connectors]
+  );
 
   const isPlacesActive = React.useMemo(() => {
     return connectors.some(c => c.connector_type === 'google_places' && c.status === 'active');
@@ -67,7 +70,7 @@ export function HomeLocationSettings({ lng, collapsible = true }: BaseSettingsPr
   const { mutate: setHomeLocation, loading: saving } = useApiMutation<HomeLocation, HomeLocation>({
     method: 'PUT',
     componentName: 'HomeLocationSettings',
-    onSuccess: (result) => {
+    onSuccess: result => {
       toast.success(t('settings.location.home.saved'));
       // Optimistic update: update local state with API result
       if (result) {
@@ -191,11 +194,7 @@ export function HomeLocationSettings({ lng, collapsible = true }: BaseSettingsPr
               />
             </div>
             <Button onClick={handleSaveLocation} disabled={saving || !addressInput.trim()}>
-              {saving ? (
-                <LoadingSpinner size="default" />
-              ) : (
-                t('settings.location.home.save')
-              )}
+              {saving ? <LoadingSpinner size="default" /> : t('settings.location.home.save')}
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">{t('settings.location.home.input_help')}</p>

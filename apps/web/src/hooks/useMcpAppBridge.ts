@@ -24,7 +24,7 @@ export const MCP_APPS_PROTOCOL_VERSION = '2026-01-26';
 
 export function useMcpAppBridge(
   iframeRef: RefObject<HTMLIFrameElement | null>,
-  payload: McpAppRegistryPayload,
+  payload: McpAppRegistryPayload
 ): void {
   useEffect(() => {
     let mounted = true;
@@ -50,7 +50,7 @@ export function useMcpAppBridge(
           method: 'ui/notifications/tool-input',
           params: { arguments: payload.tool_arguments ?? {} },
         },
-        '*',
+        '*'
       );
 
       // Phase 2: ui/notifications/tool-result — tool execution result
@@ -76,9 +76,7 @@ export function useMcpAppBridge(
           // ── MCP Apps protocol handshake ──────────────────────────────
           case 'ui/initialize': {
             // View sends initialize request → Host responds with capabilities.
-            const theme = document.documentElement.classList.contains('dark')
-              ? 'dark'
-              : 'light';
+            const theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light';
             const iframe = iframeRef.current;
             response = {
               jsonrpc: '2.0',
@@ -119,11 +117,13 @@ export function useMcpAppBridge(
 
           // ── MCP tool/resource proxying ───────────────────────────────
           case 'tools/call': {
-            const params = msg.params as { name?: string; arguments?: Record<string, unknown> } | undefined;
+            const params = msg.params as
+              | { name?: string; arguments?: Record<string, unknown> }
+              | undefined;
             const apiResult = await mcpAppCallTool(
               payload,
               params?.name ?? '',
-              params?.arguments ?? {},
+              params?.arguments ?? {}
             );
             // Transform API wrapper to MCP CallToolResult format
             if (apiResult.success) {
@@ -161,11 +161,13 @@ export function useMcpAppBridge(
                 jsonrpc: '2.0',
                 id: msg.id,
                 result: {
-                  contents: [{
-                    uri: params?.uri ?? '',
-                    text: apiResult.content ?? '',
-                    mimeType: apiResult.mime_type ?? 'text/plain',
-                  }],
+                  contents: [
+                    {
+                      uri: params?.uri ?? '',
+                      text: apiResult.content ?? '',
+                      mimeType: apiResult.mime_type ?? 'text/plain',
+                    },
+                  ],
                 },
               };
             } else {
@@ -207,7 +209,7 @@ export function useMcpAppBridge(
                   const closeBtn = document.createElement('button');
                   closeBtn.textContent = '\u00d7';
                   closeBtn.className = 'lia-mcp-app-widget__link-close';
-                  closeBtn.addEventListener('click', (e) => {
+                  closeBtn.addEventListener('click', e => {
                     e.preventDefault();
                     banner.remove();
                   });
@@ -224,20 +226,22 @@ export function useMcpAppBridge(
           }
           case 'ui/download-file': {
             // SDK sends EmbeddedResource or ResourceLink per MCP Apps spec
-            const params = msg.params as {
-              contents?: Array<{
-                type?: string;
-                resource?: {
-                  uri?: string;
-                  text?: string;
-                  blob?: string;
-                  mimeType?: string;
-                };
-                uri?: string;
-                name?: string;
-                mimeType?: string;
-              }>;
-            } | undefined;
+            const params = msg.params as
+              | {
+                  contents?: Array<{
+                    type?: string;
+                    resource?: {
+                      uri?: string;
+                      text?: string;
+                      blob?: string;
+                      mimeType?: string;
+                    };
+                    uri?: string;
+                    name?: string;
+                    mimeType?: string;
+                  }>;
+                }
+              | undefined;
             if (params?.contents) {
               for (const item of params.contents) {
                 if (item.type === 'resource' && item.resource) {
@@ -252,7 +256,9 @@ export function useMcpAppBridge(
                       for (let i = 0; i < binary.length; i++) {
                         bytes[i] = binary.charCodeAt(i);
                       }
-                      blob = new Blob([bytes], { type: res.mimeType || 'application/octet-stream' });
+                      blob = new Blob([bytes], {
+                        type: res.mimeType || 'application/octet-stream',
+                      });
                     } catch {
                       // Invalid base64 — skip this resource
                       continue;
@@ -330,7 +336,9 @@ export function useMcpAppBridge(
           case 'notifications/message': {
             // Standard MCP logging notification — forward to browser console
             // Spec: { level: string, logger?: string, text: string }
-            const logParams = msg.params as { level?: string; logger?: string; text?: string } | undefined;
+            const logParams = msg.params as
+              | { level?: string; logger?: string; text?: string }
+              | undefined;
             const logMsg = `[MCP App${logParams?.logger ? `: ${logParams.logger}` : ''}] ${String(logParams?.text ?? '')}`;
             if (logParams?.level === 'error') console.error(logMsg);
             else if (logParams?.level === 'warning') console.warn(logMsg);
@@ -382,7 +390,7 @@ export function useMcpAppBridge(
       // Cleanup any injected DOM banners (ui/open-link fallback)
       iframeEl?.parentElement
         ?.querySelectorAll('.lia-mcp-app-widget__link-banner')
-        .forEach((el) => el.remove());
+        .forEach(el => el.remove());
     };
   }, [iframeRef, payload]);
 }
@@ -418,7 +426,7 @@ function _sendToolResult(cw: Window, payload: McpAppRegistryPayload): void {
   }
   cw.postMessage(
     { jsonrpc: '2.0', method: 'ui/notifications/tool-result', params: resultParams },
-    '*',
+    '*'
   );
 }
 
@@ -439,7 +447,7 @@ function _sendToolResult(cw: Window, payload: McpAppRegistryPayload): void {
 async function _sendExcalidrawProgressive(
   iframeRef: RefObject<HTMLIFrameElement | null>,
   payload: McpAppRegistryPayload,
-  isMounted: () => boolean,
+  isMounted: () => boolean
 ): Promise<void> {
   const elementsStr = payload.tool_arguments?.elements as string;
   let elements: unknown[];
@@ -475,17 +483,17 @@ async function _sendExcalidrawProgressive(
         method: 'ui/notifications/tool-input-partial',
         params: { arguments: { elements: partialJson } },
       },
-      '*',
+      '*'
     );
 
     // Wait between drips (skip delay for the last group)
     if (i < groups.length - 1) {
-      await new Promise((r) => setTimeout(r, _EXCALIDRAW_DRIP_DELAY));
+      await new Promise(r => setTimeout(r, _EXCALIDRAW_DRIP_DELAY));
     }
   }
 
   // Small pause before final send
-  await new Promise((r) => setTimeout(r, 200));
+  await new Promise(r => setTimeout(r, 200));
   if (!isMounted() || !iframeRef.current?.contentWindow) return;
 
   const cw = iframeRef.current.contentWindow;
@@ -497,7 +505,7 @@ async function _sendExcalidrawProgressive(
       method: 'ui/notifications/tool-input',
       params: { arguments: payload.tool_arguments ?? {} },
     },
-    '*',
+    '*'
   );
 
   // Send tool-result
@@ -507,7 +515,7 @@ async function _sendExcalidrawProgressive(
 /** Fallback: send tool-input + tool-result normally. */
 function _sendNormal(
   iframeRef: RefObject<HTMLIFrameElement | null>,
-  payload: McpAppRegistryPayload,
+  payload: McpAppRegistryPayload
 ): void {
   const cw = iframeRef.current?.contentWindow;
   if (!cw) return;
@@ -518,7 +526,7 @@ function _sendNormal(
       method: 'ui/notifications/tool-input',
       params: { arguments: payload.tool_arguments ?? {} },
     },
-    '*',
+    '*'
   );
   _sendToolResult(cw, payload);
 }
@@ -573,10 +581,7 @@ function _groupElementsForDrip(elements: unknown[]): unknown[][] {
       // Check if next element is an arrow label
       if (i + 1 < typed.length) {
         const next = typed[i + 1];
-        if (
-          (next?.type as string) === 'text' &&
-          !(next as Record<string, unknown>)?.containerId
-        ) {
+        if ((next?.type as string) === 'text' && !(next as Record<string, unknown>)?.containerId) {
           group.push(next);
           i++;
         }

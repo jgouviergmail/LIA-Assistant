@@ -17,6 +17,7 @@
 - [Document Processing Pipeline](#document-processing-pipeline)
 - [Hybrid Search & Retrieval](#hybrid-search--retrieval)
 - [Cost Tracking](#cost-tracking)
+- [System RAG Spaces (App Self-Knowledge)](#system-rag-spaces-app-self-knowledge)
 - [Admin Operations](#admin-operations)
 - [API Endpoints](#api-endpoints)
 - [Frontend Components](#frontend-components)
@@ -156,9 +157,92 @@ Additionally, each `RAGDocument` stores:
 
 ---
 
+## System RAG Spaces (App Self-Knowledge)
+
+### What Are System Spaces?
+
+System spaces are **non-deletable, admin-managed RAG spaces** that serve as the application's built-in FAQ knowledge base. Unlike user-created spaces, system spaces are owned by the platform itself and provide contextual self-knowledge — allowing LIA to answer questions about its own features, capabilities, and usage.
+
+Key characteristics:
+- **Non-deletable**: Cannot be removed through the UI or standard API calls
+- **Admin-managed**: Only administrators can trigger reindexation or manage content
+- **Shared knowledge**: Available to all users when relevant to their queries
+- **Zero overhead**: No impact on normal conversation flow (lazy-loaded, query-gated)
+
+### How System Spaces Work
+
+System space content originates from Markdown knowledge files maintained in the repository:
+
+```
+docs/knowledge/*.md  →  SystemSpaceIndexer  →  pgvector chunks (rag_chunks)
+```
+
+1. **Source files**: Knowledge articles are authored as Markdown files in `docs/knowledge/`. Each file covers a specific topic (e.g., feature overview, how-to guide, FAQ entry).
+2. **SystemSpaceIndexer**: At startup (or on-demand via admin endpoint), the indexer reads all knowledge files, chunks them using the same `RecursiveCharacterTextSplitter` as user documents, embeds them via `TrackedOpenAIEmbeddings`, and persists the resulting `RAGChunk` records linked to the system space.
+3. **Hash-based idempotency**: Each file's content hash is stored. On subsequent runs, only changed or new files are re-indexed, making the process safe to run on every application startup.
+
+### Query Detection and Routing
+
+System space retrieval is triggered through a dedicated detection pipeline:
+
+1. **`is_app_help_query` detection**: A lightweight classifier analyzes incoming messages to determine if the user is asking about LIA itself (e.g., "How do I create a space?", "What languages does LIA support?").
+2. **RoutingDecider Rule 0**: When `is_app_help_query` returns `true`, the router applies Rule 0 — the highest-priority routing rule — which directs the query to the conversation node with system FAQ context injected.
+3. **Response with FAQ context**: The retrieved system space chunks are formatted and injected into the prompt, allowing the LLM to answer accurately about LIA's features without hallucination.
+
+### App Identity Prompt Injection
+
+System space context is injected via **lazy loading** to ensure zero overhead on normal queries:
+
+- The App Identity Prompt is **not loaded** unless `is_app_help_query` triggers
+- When triggered, relevant chunks are retrieved from the system space using the same hybrid search (semantic + BM25) as user spaces
+- Context is injected as a dedicated prompt section, separate from user RAG context, so the LLM can distinguish between app knowledge and user documents
+- Typical latency: < 50ms for the detection step; retrieval adds standard RAG latency only when needed
+
+### Admin Endpoints
+
+Three dedicated admin endpoints manage system spaces:
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/rag-spaces/admin/system/list` | List all system spaces with document counts and indexation status |
+| `POST` | `/rag-spaces/admin/system/reindex` | Trigger re-indexation of all `docs/knowledge/*.md` files |
+| `GET` | `/rag-spaces/admin/system/staleness` | Check if any knowledge files have changed since last indexation (hash comparison) |
+
+### Admin UI
+
+System space management is available in the frontend at **Settings > Administration > RAG Spaces**. The admin section includes:
+
+- **System Spaces panel**: Read-only list of system spaces with document count, last indexed timestamp, and staleness indicator
+- **Reindex button**: Triggers `POST /rag-spaces/admin/system/reindex` with progress feedback
+- **Staleness badge**: Visual indicator (green/amber) showing whether knowledge files are up-to-date or require re-indexation
+
+This panel is displayed alongside the existing user-space reindex controls in the `AdminRAGSpacesSection` component.
+
+### Auto-Indexation at Startup
+
+System spaces are automatically indexed during application startup via the `lifespan` event handler:
+
+- **Idempotent**: Uses content hashes to skip unchanged files — safe to run on every boot
+- **Non-blocking**: Runs as a background task after the application is ready to serve requests
+- **Resilient**: Failures are logged but do not prevent the application from starting
+
+### Seed Script
+
+For initial setup or development environments, use the dedicated seed task:
+
+```bash
+task db:seed:system-rag
+```
+
+This seeds the system space record and indexes all current `docs/knowledge/*.md` files. It is idempotent and can be re-run safely.
+
+---
+
 ## Admin Operations
 
 ### Reindexation
+
+#### User Space Reindexation
 
 When the admin changes `rag_spaces_embedding_model`:
 
@@ -169,6 +253,10 @@ When the admin changes `rag_spaces_embedding_model`:
 5. `GET /rag-spaces/admin/reindex/status` polls progress
 
 **Frontend**: The `AdminRAGSpacesSection` component shows current model, reindex button, and progress bar.
+
+#### System Space Reindexation
+
+System spaces can be reindexed independently of user spaces via `POST /rag-spaces/admin/system/reindex`. This re-processes all `docs/knowledge/*.md` files using the current embedding model. Unlike user reindexation, system reindex uses hash-based diffing to only re-embed changed files, making it significantly faster. Use `GET /rag-spaces/admin/system/staleness` to check whether a reindex is needed before triggering one.
 
 ---
 
@@ -185,8 +273,11 @@ When the admin changes `rag_spaces_embedding_model`:
 | `POST` | `/rag-spaces/{id}/documents` | User | Upload document (multipart) |
 | `DELETE` | `/rag-spaces/{id}/documents/{doc_id}` | User | Delete document |
 | `GET` | `/rag-spaces/{id}/documents/{doc_id}/status` | User | Processing status |
-| `POST` | `/rag-spaces/admin/reindex` | Admin | Trigger reindexation |
-| `GET` | `/rag-spaces/admin/reindex/status` | Admin | Reindex progress |
+| `POST` | `/rag-spaces/admin/reindex` | Admin | Trigger user space reindexation |
+| `GET` | `/rag-spaces/admin/reindex/status` | Admin | User reindex progress |
+| `GET` | `/rag-spaces/admin/system/list` | Admin | List system spaces |
+| `POST` | `/rag-spaces/admin/system/reindex` | Admin | Trigger system space reindexation |
+| `GET` | `/rag-spaces/admin/system/staleness` | Admin | Check system space staleness |
 
 ---
 

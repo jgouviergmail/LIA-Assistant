@@ -110,9 +110,9 @@ export async function createPersonality(data: PersonalityCreate): Promise<Person
         errorMessage = errorData.detail;
       } else if (Array.isArray(errorData.detail)) {
         // Pydantic validation errors
-        errorMessage = errorData.detail.map((e: { msg?: string; loc?: string[] }) =>
-          e.msg || JSON.stringify(e)
-        ).join(', ');
+        errorMessage = errorData.detail
+          .map((e: { msg?: string; loc?: string[] }) => e.msg || JSON.stringify(e))
+          .join(', ');
       } else {
         errorMessage = JSON.stringify(errorData.detail);
       }
@@ -185,7 +185,9 @@ export async function deletePersonality(id: string): Promise<void> {
  * Trigger auto-translation for a personality (admin only)
  * Returns the number of translations created
  */
-export async function translatePersonality(id: string): Promise<{ translations_created: number; source_language: string }> {
+export async function translatePersonality(
+  id: string
+): Promise<{ translations_created: number; source_language: string }> {
   const response = await fetch(`${API_BASE_URL}/api/v1/personalities/admin/${id}/auto-translate`, {
     method: 'POST',
     credentials: 'include',

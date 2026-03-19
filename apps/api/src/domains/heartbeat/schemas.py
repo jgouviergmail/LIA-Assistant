@@ -144,7 +144,8 @@ class HeartbeatContext:
 
         if self.user_local_time:
             sections.append(
-                f"TIME: {self.day_of_week}, {self.user_local_time.strftime('%H:%M')} "
+                f"TIME: {self.day_of_week}, "
+                f"{self.user_local_time.strftime('%d/%m/%Y %H:%M')} "
                 f"({self.time_of_day})"
             )
 

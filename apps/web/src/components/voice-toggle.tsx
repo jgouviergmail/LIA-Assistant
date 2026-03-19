@@ -43,7 +43,7 @@ export function VoiceToggle({ lng = 'fr' }: VoiceToggleProps) {
       // This is called during user gesture (click) which satisfies iOS autoplay policy
       // Playing a silent buffer "unlocks" the audio system for future playback
       if (newState) {
-        warmupAudio().catch((err) => {
+        warmupAudio().catch(err => {
           logger.warn('voice_toggle_warmup_failed', { error: err, component: 'VoiceToggle' });
           // Non-blocking - audio may still work on next interaction
         });
@@ -52,11 +52,7 @@ export function VoiceToggle({ lng = 'fr' }: VoiceToggleProps) {
       // Refresh user to get updated state
       await refreshUser();
 
-      toast.success(
-        newState
-          ? t('voice.toggle.enabled')
-          : t('voice.toggle.disabled')
-      );
+      toast.success(newState ? t('voice.toggle.enabled') : t('voice.toggle.disabled'));
     } catch (error) {
       logger.error('voice_preference_update_failed', error as Error, { component: 'VoiceToggle' });
       toast.error(t('common.error'));
@@ -94,7 +90,9 @@ export function VoiceToggle({ lng = 'fr' }: VoiceToggleProps) {
       ) : (
         <VolumeX className="h-[1.2rem] w-[1.2rem] text-muted-foreground transition-all" />
       )}
-      <span className="sr-only">{isEnabled ? t('voice.toggle.disable') : t('voice.toggle.enable')}</span>
+      <span className="sr-only">
+        {isEnabled ? t('voice.toggle.disable') : t('voice.toggle.enable')}
+      </span>
     </Button>
   );
 }

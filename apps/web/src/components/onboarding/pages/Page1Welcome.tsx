@@ -59,7 +59,7 @@ export function Page1Welcome({ lng }: Page1WelcomeProps) {
 
       {/* Action Cards Grid */}
       <div className="grid gap-3 grid-cols-1 md:grid-cols-2">
-        {actionItems.map((item) => (
+        {actionItems.map(item => (
           <Card key={item.titleKey} className="border-border/50 bg-card/50">
             <CardContent className="p-4 flex items-center gap-3">
               <div className={`p-2 rounded-lg ${item.bgColor}`}>
@@ -79,7 +79,9 @@ export function Page1Welcome({ lng }: Page1WelcomeProps) {
       {/* FAQ highlight - more visible */}
       <div className="flex items-center justify-center gap-2 mt-4 p-3 rounded-lg bg-primary/5 border border-primary/20">
         <HelpCircle className="w-5 h-5 text-primary" />
-        <span className="text-sm font-medium text-primary">{t('onboarding.page1.faq_highlight')}</span>
+        <span className="text-sm font-medium text-primary">
+          {t('onboarding.page1.faq_highlight')}
+        </span>
       </div>
     </OnboardingPageLayout>
   );

@@ -24,7 +24,13 @@ interface EditSpaceDialogProps {
   isLoading?: boolean;
 }
 
-export function EditSpaceDialog({ open, onOpenChange, space, onSubmit, isLoading }: EditSpaceDialogProps) {
+export function EditSpaceDialog({
+  open,
+  onOpenChange,
+  space,
+  onSubmit,
+  isLoading,
+}: EditSpaceDialogProps) {
   const { t } = useTranslation();
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -49,7 +55,8 @@ export function EditSpaceDialog({ open, onOpenChange, space, onSubmit, isLoading
     }
 
     const newName = trimmedName !== space?.name ? trimmedName : undefined;
-    const newDesc = description.trim() !== (space?.description || '') ? description.trim() : undefined;
+    const newDesc =
+      description.trim() !== (space?.description || '') ? description.trim() : undefined;
 
     // Skip API call if nothing changed
     if (newName === undefined && newDesc === undefined) {
@@ -78,7 +85,7 @@ export function EditSpaceDialog({ open, onOpenChange, space, onSubmit, isLoading
             <Input
               id="edit-space-name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={e => setName(e.target.value)}
               placeholder={t('spaces.name_placeholder')}
               maxLength={200}
               autoFocus
@@ -93,7 +100,7 @@ export function EditSpaceDialog({ open, onOpenChange, space, onSubmit, isLoading
             <Textarea
               id="edit-space-description"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={e => setDescription(e.target.value)}
               placeholder={t('spaces.description_placeholder')}
               rows={3}
             />

@@ -91,6 +91,10 @@ Item IDs are found as [item_id] at the start of each data line.
 {rag_context}
 </RAGDocuments>
 
+<AppKnowledge>
+{app_knowledge_context}
+</AppKnowledge>
+
 <ResolvedReferences>
 - Resolved references: {resolved_references}
 </ResolvedReferences>

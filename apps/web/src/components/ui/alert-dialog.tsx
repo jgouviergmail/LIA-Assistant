@@ -61,11 +61,7 @@ const AlertDialogTitle = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Title>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title>
 >(({ className, ...props }, ref) => (
-  <DialogPrimitive.Title
-    ref={ref}
-    className={cn('text-lg font-semibold', className)}
-    {...props}
-  />
+  <DialogPrimitive.Title ref={ref} className={cn('text-lg font-semibold', className)} {...props} />
 ));
 AlertDialogTitle.displayName = DialogPrimitive.Title.displayName;
 
@@ -85,11 +81,7 @@ const AlertDialogAction = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Close>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Close>
 >(({ className, ...props }, ref) => (
-  <DialogPrimitive.Close
-    ref={ref}
-    className={cn(buttonVariants(), className)}
-    {...props}
-  />
+  <DialogPrimitive.Close ref={ref} className={cn(buttonVariants(), className)} {...props} />
 ));
 AlertDialogAction.displayName = 'AlertDialogAction';
 

@@ -8,10 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { useTranslation } from '@/i18n/client';
 import { type Language } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
-import {
-  useAdminMCPServers,
-  type AdminMCPServer,
-} from '@/hooks/useAdminMCPServers';
+import { useAdminMCPServers, type AdminMCPServer } from '@/hooks/useAdminMCPServers';
 import { toast } from 'sonner';
 
 interface AdminMCPServersSettingsProps {
@@ -20,8 +17,7 @@ interface AdminMCPServersSettingsProps {
 
 export function AdminMCPServersSettings({ lng }: AdminMCPServersSettingsProps) {
   const { t } = useTranslation(lng);
-  const { servers, loading, error, toggleServer, toggling, refetch } =
-    useAdminMCPServers();
+  const { servers, loading, error, toggleServer, toggling, refetch } = useAdminMCPServers();
   const [expandedServer, setExpandedServer] = useState<string | null>(null);
 
   const handleToggle = async (server: AdminMCPServer) => {
@@ -40,7 +36,7 @@ export function AdminMCPServersSettings({ lng }: AdminMCPServersSettingsProps) {
   };
 
   const toggleExpand = (serverKey: string) => {
-    setExpandedServer((prev) => (prev === serverKey ? null : serverKey));
+    setExpandedServer(prev => (prev === serverKey ? null : serverKey));
   };
 
   // Don't render if no servers and not loading (MCP not configured)
@@ -61,9 +57,7 @@ export function AdminMCPServersSettings({ lng }: AdminMCPServersSettingsProps) {
         </div>
       ) : error ? (
         <div className="flex items-center gap-3 py-4">
-          <p className="text-sm text-muted-foreground">
-            {t('settings.admin_mcp.load_error')}
-          </p>
+          <p className="text-sm text-muted-foreground">{t('settings.admin_mcp.load_error')}</p>
           <button
             type="button"
             onClick={() => refetch()}
@@ -75,17 +69,12 @@ export function AdminMCPServersSettings({ lng }: AdminMCPServersSettingsProps) {
       ) : servers.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-8 text-center">
           <Plug className="h-10 w-10 text-muted-foreground/50 mb-3" />
-          <p className="text-sm text-muted-foreground">
-            {t('settings.admin_mcp.no_servers')}
-          </p>
+          <p className="text-sm text-muted-foreground">{t('settings.admin_mcp.no_servers')}</p>
         </div>
       ) : (
         <div className="space-y-3">
-          {servers.map((server) => (
-            <div
-              key={server.server_key}
-              className="rounded-lg border bg-card p-4"
-            >
+          {servers.map(server => (
+            <div key={server.server_key} className="rounded-lg border bg-card p-4">
               {/* Server header with toggle */}
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
@@ -99,7 +88,9 @@ export function AdminMCPServersSettings({ lng }: AdminMCPServersSettingsProps) {
                   </div>
                   {server.description && (
                     <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                      {t(`settings.admin_mcp.desc_${server.server_key}`, { defaultValue: server.description })}
+                      {t(`settings.admin_mcp.desc_${server.server_key}`, {
+                        defaultValue: server.description,
+                      })}
                     </p>
                   )}
                 </div>
@@ -133,11 +124,8 @@ export function AdminMCPServersSettings({ lng }: AdminMCPServersSettingsProps) {
 
                   {expandedServer === server.server_key && (
                     <div className="mt-2 space-y-1.5">
-                      {server.tools.map((tool) => (
-                        <div
-                          key={tool.name}
-                          className="rounded border bg-muted/50 px-3 py-2"
-                        >
+                      {server.tools.map(tool => (
+                        <div key={tool.name} className="rounded border bg-muted/50 px-3 py-2">
                           <p className="text-sm font-medium">{tool.name}</p>
                           {tool.description && (
                             <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">

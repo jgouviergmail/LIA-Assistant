@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Library, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Library, RefreshCw, AlertTriangle, Database, CheckCircle } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,6 +26,10 @@ import type { BaseSettingsProps } from '@/types/settings';
 // API endpoint constants
 const REINDEX_ENDPOINT = '/rag-spaces/admin/reindex';
 const REINDEX_STATUS_ENDPOINT = '/rag-spaces/admin/reindex/status';
+const SYSTEM_SPACES_ENDPOINT = '/rag-spaces/admin/system-spaces';
+const SYSTEM_STALENESS_ENDPOINT = (name: string) =>
+  `/rag-spaces/admin/system-spaces/${name}/staleness`;
+const SYSTEM_REINDEX_ENDPOINT = (name: string) => `/rag-spaces/admin/system-spaces/${name}/reindex`;
 
 interface ReindexResponse {
   message: string;
@@ -44,6 +48,25 @@ interface ReindexStatus {
   failed_documents: number;
 }
 
+interface SystemSpace {
+  id: string;
+  name: string;
+  description: string | null;
+  is_active: boolean;
+  content_hash: string | null;
+  document_count: number;
+  chunk_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+interface SystemStaleness {
+  space_name: string;
+  is_stale: boolean;
+  stored_hash: string | null;
+  current_hash: string;
+}
+
 /** Polling interval for reindex status (5 seconds). */
 const REINDEX_POLL_INTERVAL_MS = 5000;
 
@@ -54,7 +77,13 @@ export default function AdminRAGSpacesSection({ lng, collapsible = true }: BaseS
   const [reindexStatus, setReindexStatus] = useState<ReindexStatus | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const embeddingModel = appConfig?.features?.rag_spaces_embedding_model ?? 'text-embedding-3-small';
+  // System spaces state
+  const [systemSpaces, setSystemSpaces] = useState<SystemSpace[]>([]);
+  const [staleness, setStaleness] = useState<Record<string, SystemStaleness>>({});
+  const [systemReindexing, setSystemReindexing] = useState<Record<string, boolean>>({});
+
+  const embeddingModel =
+    appConfig?.features?.rag_spaces_embedding_model ?? 'text-embedding-3-small';
 
   // Mutation for triggering reindex
   const { mutate: triggerReindex, loading: reindexing } = useApiMutation<void, ReindexResponse>({
@@ -92,13 +121,58 @@ export default function AdminRAGSpacesSection({ lng, collapsible = true }: BaseS
     }
   };
 
-  // Check initial reindex status on mount
+  // Fetch system spaces and staleness
+  const fetchSystemSpaces = async () => {
+    try {
+      const { default: apiClient } = await import('@/lib/api-client');
+      const result = await apiClient.get<{ spaces: SystemSpace[] }>(SYSTEM_SPACES_ENDPOINT);
+      setSystemSpaces(result.spaces || []);
+
+      // Check staleness for each space
+      for (const space of result.spaces || []) {
+        try {
+          const stalenessResult = await apiClient.get<SystemStaleness>(
+            SYSTEM_STALENESS_ENDPOINT(space.name)
+          );
+          setStaleness(prev => ({ ...prev, [space.name]: stalenessResult }));
+        } catch {
+          // Silently fail for individual staleness checks
+        }
+      }
+    } catch {
+      // Silently fail — not critical
+    }
+  };
+
+  const handleSystemReindex = async (spaceName: string) => {
+    setSystemReindexing(prev => ({ ...prev, [spaceName]: true }));
+    try {
+      const { default: apiClient } = await import('@/lib/api-client');
+      const result = await apiClient.post<{ chunks_created: number }>(
+        SYSTEM_REINDEX_ENDPOINT(spaceName)
+      );
+      toast.success(
+        t('settings.admin.ragSpaces.systemSpaces.reindexSuccess', {
+          count: result.chunks_created,
+        })
+      );
+      // Refresh system spaces and staleness
+      await fetchSystemSpaces();
+    } catch {
+      toast.error(t('settings.admin.ragSpaces.systemSpaces.reindexError'));
+    } finally {
+      setSystemReindexing(prev => ({ ...prev, [spaceName]: false }));
+    }
+  };
+
+  // Check initial reindex status and system spaces on mount
   useEffect(() => {
-    fetchReindexStatus().then((status) => {
+    fetchReindexStatus().then(status => {
       if (status?.in_progress) {
         startPolling();
       }
     });
+    fetchSystemSpaces();
     return () => stopPolling();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -124,13 +198,89 @@ export default function AdminRAGSpacesSection({ lng, collapsible = true }: BaseS
 
   const progressPercent =
     reindexStatus?.in_progress && reindexStatus.total_documents > 0
-      ? Math.round(
-          (reindexStatus.processed_documents / reindexStatus.total_documents) * 100
-        )
+      ? Math.round((reindexStatus.processed_documents / reindexStatus.total_documents) * 100)
       : 0;
 
   const content = (
     <div className="space-y-6">
+      {/* System Knowledge Spaces */}
+      <div className="p-4 border border-border rounded-lg space-y-4">
+        <div className="space-y-1">
+          <div className="text-base font-medium">
+            {t('settings.admin.ragSpaces.systemSpaces.title')}
+          </div>
+          <div className="text-sm text-muted-foreground">
+            {t('settings.admin.ragSpaces.systemSpaces.description')}
+          </div>
+        </div>
+
+        {systemSpaces.length === 0 ? (
+          <div className="text-sm text-muted-foreground italic">
+            {t('settings.admin.ragSpaces.systemSpaces.noSpaces')}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {systemSpaces.map(space => {
+              const spaceStale = staleness[space.name];
+              const isReindexing = systemReindexing[space.name] ?? false;
+              return (
+                <div
+                  key={space.id}
+                  className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between p-3 bg-muted/50 rounded-md"
+                >
+                  <div className="flex-1 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Database className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium">{space.name}</span>
+                      {spaceStale?.is_stale ? (
+                        <Badge variant="outline" className="text-orange-600 border-orange-300">
+                          {t('settings.admin.ragSpaces.systemSpaces.stale')}
+                        </Badge>
+                      ) : spaceStale ? (
+                        <Badge variant="outline" className="text-green-600 border-green-300">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          {t('settings.admin.ragSpaces.systemSpaces.upToDate')}
+                        </Badge>
+                      ) : null}
+                    </div>
+                    {space.description && (
+                      <div className="text-sm text-muted-foreground">{space.description}</div>
+                    )}
+                    <div className="text-xs text-muted-foreground">
+                      {t('settings.admin.ragSpaces.systemSpaces.chunks', {
+                        count: space.chunk_count,
+                      })}
+                      {space.updated_at && (
+                        <>
+                          {' · '}
+                          {t('settings.admin.ragSpaces.systemSpaces.lastIndexed', {
+                            date: new Date(space.updated_at).toLocaleDateString(lng),
+                          })}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleSystemReindex(space.name)}
+                    disabled={isReindexing}
+                    className="shrink-0"
+                  >
+                    <RefreshCw
+                      className={`h-3.5 w-3.5 mr-1.5 ${isReindexing ? 'animate-spin' : ''}`}
+                    />
+                    {isReindexing
+                      ? t('settings.admin.ragSpaces.systemSpaces.reindexing')
+                      : t('settings.admin.ragSpaces.systemSpaces.reindexButton')}
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {/* Embedding Model */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between p-4 border border-border rounded-lg">
         <div className="flex-1 space-y-1">
@@ -206,9 +356,7 @@ export default function AdminRAGSpacesSection({ lng, collapsible = true }: BaseS
       <InfoBox className="p-4">
         <div className="text-sm text-muted-foreground">
           <p>
-            <strong className="text-foreground">
-              {t('settings.admin.ragSpaces.whatItDoes')}:
-            </strong>{' '}
+            <strong className="text-foreground">{t('settings.admin.ragSpaces.whatItDoes')}:</strong>{' '}
             {t('settings.admin.ragSpaces.description')}
           </p>
         </div>
@@ -218,9 +366,7 @@ export default function AdminRAGSpacesSection({ lng, collapsible = true }: BaseS
       <AlertDialog open={showReindexConfirm} onOpenChange={setShowReindexConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {t('settings.admin.ragSpaces.reindexConfirmTitle')}
-            </AlertDialogTitle>
+            <AlertDialogTitle>{t('settings.admin.ragSpaces.reindexConfirmTitle')}</AlertDialogTitle>
             <AlertDialogDescription className="space-y-2">
               <p>{t('settings.admin.ragSpaces.reindexConfirmWarning')}</p>
               <ul className="list-disc pl-4 text-sm space-y-1">

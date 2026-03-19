@@ -60,9 +60,7 @@ export function HeartbeatSettings({ lng, collapsible = true }: BaseSettingsProps
     const newValue = !settings.heartbeat_enabled;
     const result = await updateSettings({ heartbeat_enabled: newValue });
     if (result) {
-      toast.success(
-        newValue ? t('heartbeat.enabled_success') : t('heartbeat.disabled_success')
-      );
+      toast.success(newValue ? t('heartbeat.enabled_success') : t('heartbeat.disabled_success'));
     } else {
       toast.error(t('heartbeat.settings_error'));
     }
@@ -79,9 +77,8 @@ export function HeartbeatSettings({ lng, collapsible = true }: BaseSettingsProps
   };
 
   const handleUpdateFrequency = async (field: 'min' | 'max', value: number) => {
-    const update = field === 'min'
-      ? { heartbeat_min_per_day: value }
-      : { heartbeat_max_per_day: value };
+    const update =
+      field === 'min' ? { heartbeat_min_per_day: value } : { heartbeat_max_per_day: value };
     const result = await updateSettings(update);
     if (result) {
       toast.success(t('heartbeat.settings_updated'));
@@ -91,9 +88,10 @@ export function HeartbeatSettings({ lng, collapsible = true }: BaseSettingsProps
   };
 
   const handleUpdateHours = async (field: 'start' | 'end', value: number) => {
-    const update = field === 'start'
-      ? { heartbeat_notify_start_hour: value }
-      : { heartbeat_notify_end_hour: value };
+    const update =
+      field === 'start'
+        ? { heartbeat_notify_start_hour: value }
+        : { heartbeat_notify_end_hour: value };
     const result = await updateSettings(update);
     if (result) {
       toast.success(t('heartbeat.settings_updated'));
@@ -110,9 +108,7 @@ export function HeartbeatSettings({ lng, collapsible = true }: BaseSettingsProps
           <Label htmlFor="heartbeat-enabled" className="text-sm font-medium">
             {t('heartbeat.enable_proactive')}
           </Label>
-          <p className="text-xs text-muted-foreground">
-            {t('heartbeat.enable_description')}
-          </p>
+          <p className="text-xs text-muted-foreground">{t('heartbeat.enable_description')}</p>
         </div>
         <Switch
           id="heartbeat-enabled"
@@ -131,14 +127,14 @@ export function HeartbeatSettings({ lng, collapsible = true }: BaseSettingsProps
             <div className="flex items-center gap-2">
               <Select
                 value={String(settings.heartbeat_min_per_day)}
-                onValueChange={(v) => handleUpdateFrequency('min', parseInt(v))}
+                onValueChange={v => handleUpdateFrequency('min', parseInt(v))}
                 disabled={updating}
               >
                 <SelectTrigger className="w-20">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {Array.from({ length: 8 }, (_, i) => i + 1).map((n) => (
+                  {Array.from({ length: 8 }, (_, i) => i + 1).map(n => (
                     <SelectItem key={n} value={String(n)}>
                       {n}
                     </SelectItem>
@@ -148,23 +144,21 @@ export function HeartbeatSettings({ lng, collapsible = true }: BaseSettingsProps
               <span className="text-muted-foreground">-</span>
               <Select
                 value={String(settings.heartbeat_max_per_day)}
-                onValueChange={(v) => handleUpdateFrequency('max', parseInt(v))}
+                onValueChange={v => handleUpdateFrequency('max', parseInt(v))}
                 disabled={updating}
               >
                 <SelectTrigger className="w-20">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {Array.from({ length: 8 }, (_, i) => i + 1).map((n) => (
+                  {Array.from({ length: 8 }, (_, i) => i + 1).map(n => (
                     <SelectItem key={n} value={String(n)}>
                       {n}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <span className="text-sm text-muted-foreground">
-                {t('heartbeat.per_day')}
-              </span>
+              <span className="text-sm text-muted-foreground">{t('heartbeat.per_day')}</span>
             </div>
           </div>
 
@@ -177,14 +171,14 @@ export function HeartbeatSettings({ lng, collapsible = true }: BaseSettingsProps
             <div className="flex items-center gap-2">
               <Select
                 value={settings.heartbeat_notify_start_hour.toString()}
-                onValueChange={(v) => handleUpdateHours('start', parseInt(v))}
+                onValueChange={v => handleUpdateHours('start', parseInt(v))}
                 disabled={updating}
               >
                 <SelectTrigger className="w-24">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {hourOptions.map((opt) => (
+                  {hourOptions.map(opt => (
                     <SelectItem key={opt.value} value={opt.value}>
                       {opt.label}
                     </SelectItem>
@@ -194,14 +188,14 @@ export function HeartbeatSettings({ lng, collapsible = true }: BaseSettingsProps
               <span className="text-muted-foreground">-</span>
               <Select
                 value={settings.heartbeat_notify_end_hour.toString()}
-                onValueChange={(v) => handleUpdateHours('end', parseInt(v))}
+                onValueChange={v => handleUpdateHours('end', parseInt(v))}
                 disabled={updating}
               >
                 <SelectTrigger className="w-24">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {hourOptions.map((opt) => (
+                  {hourOptions.map(opt => (
                     <SelectItem key={opt.value} value={opt.value}>
                       {opt.label}
                     </SelectItem>
@@ -217,9 +211,7 @@ export function HeartbeatSettings({ lng, collapsible = true }: BaseSettingsProps
               <Label htmlFor="heartbeat-push" className="text-sm font-medium">
                 {t('heartbeat.push_enabled')}
               </Label>
-              <p className="text-xs text-muted-foreground">
-                {t('heartbeat.push_description')}
-              </p>
+              <p className="text-xs text-muted-foreground">{t('heartbeat.push_description')}</p>
             </div>
             <Switch
               id="heartbeat-push"
@@ -233,26 +225,26 @@ export function HeartbeatSettings({ lng, collapsible = true }: BaseSettingsProps
           <div className="space-y-2">
             <Label className="text-sm">{t('heartbeat.available_sources')}</Label>
             <div className="flex flex-wrap gap-2">
-              {(['calendar', 'emails', 'tasks', 'weather', 'interests', 'memories'] as const).map((source) => {
-                const isConnected = settings.available_sources.includes(source);
-                const Icon = SOURCE_ICONS[source] || Brain;
-                return (
-                  <div
-                    key={source}
-                    className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
-                      isConnected
-                        ? 'bg-primary/10 text-primary'
-                        : 'bg-muted text-muted-foreground opacity-50'
-                    }`}
-                  >
-                    <Icon className="h-3.5 w-3.5" />
-                    <span>{t(`heartbeat.source_${source}`)}</span>
-                    {isConnected && (
-                      <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
-                    )}
-                  </div>
-                );
-              })}
+              {(['calendar', 'emails', 'tasks', 'weather', 'interests', 'memories'] as const).map(
+                source => {
+                  const isConnected = settings.available_sources.includes(source);
+                  const Icon = SOURCE_ICONS[source] || Brain;
+                  return (
+                    <div
+                      key={source}
+                      className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                        isConnected
+                          ? 'bg-primary/10 text-primary'
+                          : 'bg-muted text-muted-foreground opacity-50'
+                      }`}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                      <span>{t(`heartbeat.source_${source}`)}</span>
+                      {isConnected && <span className="h-1.5 w-1.5 rounded-full bg-green-500" />}
+                    </div>
+                  );
+                }
+              )}
             </div>
           </div>
         </div>

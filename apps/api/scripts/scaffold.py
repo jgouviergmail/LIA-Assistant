@@ -941,16 +941,14 @@ def scaffold_agent(
 
     test_classes = []
     for tool in tools:
-        test_classes.append(
-            f'''
+        test_classes.append(f'''
     @pytest.mark.asyncio
     async def test_{tool["name"]}(self, user_id):
         """Test {tool["display"]} tool."""
         tool = {tool["class"]}()
         # TODO: Add proper test implementation
         assert tool.name == "{tool["name"]}"
-'''
-        )
+''')
 
     test_vars = {
         **vars,

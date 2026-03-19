@@ -5,11 +5,7 @@
  */
 
 import React from 'react';
-import {
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent,
-} from '@/components/ui/accordion';
+import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import type { DebugMetrics } from '@/types/chat';
 
 export interface QuerySectionProps {
@@ -25,9 +21,7 @@ export interface QuerySectionProps {
  * - The English translation for processing
  * - The enriched query with resolved context
  */
-export const QuerySection = React.memo(function QuerySection({
-  data,
-}: QuerySectionProps) {
+export const QuerySection = React.memo(function QuerySection({ data }: QuerySectionProps) {
   return (
     <AccordionItem value="query">
       <AccordionTrigger className="py-2 text-sm">

@@ -43,10 +43,7 @@ export interface UseAPIHealthReturn {
  * }
  * ```
  */
-export const useAPIHealth = ({
-  user,
-  onStatusChange,
-}: UseAPIHealthOptions): UseAPIHealthReturn => {
+export const useAPIHealth = ({ user, onStatusChange }: UseAPIHealthOptions): UseAPIHealthReturn => {
   const { withContext } = useLoggingContext();
   const [apiAvailable, setApiAvailable] = useState(false);
   const [isChecking, setIsChecking] = useState(false);

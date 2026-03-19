@@ -71,7 +71,9 @@ export default function AdminPersonalitiesSection({ lng, collapsible = true }: B
       const data = await fetchPersonalitiesAdmin();
       setPersonalities(data.sort((a, b) => a.sort_order - b.sort_order));
     } catch (error) {
-      logger.error('personalities_fetch_failed', error instanceof Error ? error : undefined, { component: 'AdminPersonalitiesSection' });
+      logger.error('personalities_fetch_failed', error instanceof Error ? error : undefined, {
+        component: 'AdminPersonalitiesSection',
+      });
       toast.error(t('settings.admin.personalities.errors.loading'));
     } finally {
       setLoading(false);
@@ -167,8 +169,13 @@ export default function AdminPersonalitiesSection({ lng, collapsible = true }: B
         setDialogOpen(false);
         fetchData();
       } catch (error) {
-        logger.error('personality_save_failed', error instanceof Error ? error : undefined, { component: 'AdminPersonalitiesSection', action: 'save' });
-        toast.error(error instanceof Error ? error.message : t('settings.admin.personalities.errors.save'));
+        logger.error('personality_save_failed', error instanceof Error ? error : undefined, {
+          component: 'AdminPersonalitiesSection',
+          action: 'save',
+        });
+        toast.error(
+          error instanceof Error ? error.message : t('settings.admin.personalities.errors.save')
+        );
       }
     });
   };
@@ -191,8 +198,14 @@ export default function AdminPersonalitiesSection({ lng, collapsible = true }: B
         toast.success(t('settings.admin.personalities.success.deleted'));
         fetchData();
       } catch (error) {
-        logger.error('personality_delete_failed', error instanceof Error ? error : undefined, { component: 'AdminPersonalitiesSection', action: 'delete', personalityId: personality.id });
-        toast.error(error instanceof Error ? error.message : t('settings.admin.personalities.errors.delete'));
+        logger.error('personality_delete_failed', error instanceof Error ? error : undefined, {
+          component: 'AdminPersonalitiesSection',
+          action: 'delete',
+          personalityId: personality.id,
+        });
+        toast.error(
+          error instanceof Error ? error.message : t('settings.admin.personalities.errors.delete')
+        );
       }
     });
   };
@@ -201,10 +214,18 @@ export default function AdminPersonalitiesSection({ lng, collapsible = true }: B
     startTransition(async () => {
       try {
         await updatePersonality(personality.id, { is_active: !personality.is_active });
-        toast.success(personality.is_active ? t('settings.admin.personalities.success.deactivated') : t('settings.admin.personalities.success.activated'));
+        toast.success(
+          personality.is_active
+            ? t('settings.admin.personalities.success.deactivated')
+            : t('settings.admin.personalities.success.activated')
+        );
         fetchData();
       } catch (error) {
-        logger.error('personality_toggle_failed', error instanceof Error ? error : undefined, { component: 'AdminPersonalitiesSection', action: 'toggle', personalityId: personality.id });
+        logger.error('personality_toggle_failed', error instanceof Error ? error : undefined, {
+          component: 'AdminPersonalitiesSection',
+          action: 'toggle',
+          personalityId: personality.id,
+        });
         toast.error(t('settings.admin.personalities.errors.toggle'));
       }
     });
@@ -217,8 +238,16 @@ export default function AdminPersonalitiesSection({ lng, collapsible = true }: B
         toast.success(t('settings.admin.personalities.success.translated'));
         fetchData();
       } catch (error) {
-        logger.error('personality_translate_failed', error instanceof Error ? error : undefined, { component: 'AdminPersonalitiesSection', action: 'translate', personalityId: personality.id });
-        toast.error(error instanceof Error ? error.message : t('settings.admin.personalities.errors.translate'));
+        logger.error('personality_translate_failed', error instanceof Error ? error : undefined, {
+          component: 'AdminPersonalitiesSection',
+          action: 'translate',
+          personalityId: personality.id,
+        });
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : t('settings.admin.personalities.errors.translate')
+        );
       }
     });
   };
@@ -232,7 +261,11 @@ export default function AdminPersonalitiesSection({ lng, collapsible = true }: B
         toast.success(t('settings.admin.personalities.success.set_default'));
         fetchData();
       } catch (error) {
-        logger.error('personality_set_default_failed', error instanceof Error ? error : undefined, { component: 'AdminPersonalitiesSection', action: 'setDefault', personalityId: personality.id });
+        logger.error('personality_set_default_failed', error instanceof Error ? error : undefined, {
+          component: 'AdminPersonalitiesSection',
+          action: 'setDefault',
+          personalityId: personality.id,
+        });
         toast.error(t('settings.admin.personalities.errors.toggle'));
       }
     });
@@ -293,7 +326,9 @@ export default function AdminPersonalitiesSection({ lng, collapsible = true }: B
             </thead>
             <tbody className="bg-card divide-y divide-border">
               {personalities.map(personality => {
-                const frTranslation = personality.translations.find(t => t.language_code === fallbackLng);
+                const frTranslation = personality.translations.find(
+                  t => t.language_code === fallbackLng
+                );
                 const translationCount = personality.translations.length;
 
                 return (
@@ -330,7 +365,9 @@ export default function AdminPersonalitiesSection({ lng, collapsible = true }: B
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm">{translationCount}/{languages.length}</span>
+                        <span className="text-sm">
+                          {translationCount}/{languages.length}
+                        </span>
                         {translationCount < languages.length && (
                           <Button
                             variant="ghost"
@@ -353,7 +390,9 @@ export default function AdminPersonalitiesSection({ lng, collapsible = true }: B
                             : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 border border-red-200 dark:border-red-800'
                         }`}
                       >
-                        {personality.is_active ? t('settings.admin.personalities.status.active') : t('settings.admin.personalities.status.inactive')}
+                        {personality.is_active
+                          ? t('settings.admin.personalities.status.active')
+                          : t('settings.admin.personalities.status.inactive')}
                       </span>
                     </td>
                     <td className="px-4 py-4 whitespace-nowrap">
@@ -374,7 +413,11 @@ export default function AdminPersonalitiesSection({ lng, collapsible = true }: B
                           onClick={() => handleToggleActive(personality)}
                           disabled={isPending}
                           className="h-8 px-2"
-                          title={personality.is_active ? t('settings.admin.personalities.tooltips.deactivate') : t('settings.admin.personalities.tooltips.activate')}
+                          title={
+                            personality.is_active
+                              ? t('settings.admin.personalities.tooltips.deactivate')
+                              : t('settings.admin.personalities.tooltips.activate')
+                          }
                         >
                           <Switch checked={personality.is_active} className="pointer-events-none" />
                         </Button>
@@ -417,7 +460,9 @@ export default function AdminPersonalitiesSection({ lng, collapsible = true }: B
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>
-              {editingPersonality ? t('settings.admin.personalities.dialog.title_edit') : t('settings.admin.personalities.dialog.title_create')}
+              {editingPersonality
+                ? t('settings.admin.personalities.dialog.title_edit')
+                : t('settings.admin.personalities.dialog.title_create')}
             </DialogTitle>
             <DialogDescription>
               {editingPersonality
@@ -439,7 +484,9 @@ export default function AdminPersonalitiesSection({ lng, collapsible = true }: B
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="emoji">{t('settings.admin.personalities.dialog.emoji_label')}</Label>
+                <Label htmlFor="emoji">
+                  {t('settings.admin.personalities.dialog.emoji_label')}
+                </Label>
                 <Input
                   id="emoji"
                   value={formData.emoji}
@@ -453,7 +500,9 @@ export default function AdminPersonalitiesSection({ lng, collapsible = true }: B
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="title">{t('settings.admin.personalities.dialog.title_label')}</Label>
+                <Label htmlFor="title">
+                  {t('settings.admin.personalities.dialog.title_label')}
+                </Label>
                 <Input
                   id="title"
                   value={formData.title}
@@ -463,7 +512,9 @@ export default function AdminPersonalitiesSection({ lng, collapsible = true }: B
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="sort_order">{t('settings.admin.personalities.dialog.sort_order_label')}</Label>
+                <Label htmlFor="sort_order">
+                  {t('settings.admin.personalities.dialog.sort_order_label')}
+                </Label>
                 <Input
                   id="sort_order"
                   type="number"
@@ -477,7 +528,9 @@ export default function AdminPersonalitiesSection({ lng, collapsible = true }: B
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="description">{t('settings.admin.personalities.dialog.description_label')}</Label>
+              <Label htmlFor="description">
+                {t('settings.admin.personalities.dialog.description_label')}
+              </Label>
               <Textarea
                 id="description"
                 value={formData.description}
@@ -489,7 +542,9 @@ export default function AdminPersonalitiesSection({ lng, collapsible = true }: B
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="prompt_instruction">{t('settings.admin.personalities.dialog.prompt_label')}</Label>
+              <Label htmlFor="prompt_instruction">
+                {t('settings.admin.personalities.dialog.prompt_label')}
+              </Label>
               <Textarea
                 id="prompt_instruction"
                 value={formData.prompt_instruction}
@@ -509,7 +564,9 @@ export default function AdminPersonalitiesSection({ lng, collapsible = true }: B
               </Button>
               <Button type="submit" disabled={isPending}>
                 {isPending && <LoadingSpinner size="default" className="mr-2" />}
-                {editingPersonality ? t('settings.admin.personalities.dialog.save') : t('settings.admin.personalities.dialog.create')}
+                {editingPersonality
+                  ? t('settings.admin.personalities.dialog.save')
+                  : t('settings.admin.personalities.dialog.create')}
               </Button>
             </DialogFooter>
           </form>

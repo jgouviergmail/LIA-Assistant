@@ -39,7 +39,7 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
     };
 
     const observer = new IntersectionObserver(
-      (entries) => {
+      entries => {
         for (const entry of entries) {
           if (entry.isIntersecting) {
             setActiveSection(entry.target.id);
@@ -50,7 +50,7 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
     );
 
     const sections = NAV_SECTIONS.map(({ id }) => document.getElementById(id)).filter(Boolean);
-    sections.forEach((el) => observer.observe(el!));
+    sections.forEach(el => observer.observe(el!));
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     handleScroll();
@@ -78,9 +78,7 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
     <header
       className={cn(
         'fixed top-0 left-0 right-0 z-50 transition-all duration-300',
-        scrolled
-          ? 'glass shadow-sm'
-          : 'bg-transparent'
+        scrolled ? 'glass shadow-sm' : 'bg-transparent'
       )}
     >
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -128,9 +126,7 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
               {t('landing.nav.login')}
             </Link>
             <Button asChild size="sm" className="hidden mobile:inline-flex">
-              <Link href={registerHref}>
-                {t('landing.nav.get_started')}
-              </Link>
+              <Link href={registerHref}>{t('landing.nav.get_started')}</Link>
             </Button>
 
             {/* Mobile hamburger */}
@@ -139,7 +135,9 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
               size="sm"
               className="mobile:hidden w-10 h-10 p-0"
               onClick={() => setMobileOpen(!mobileOpen)}
-              aria-label={mobileOpen ? (t('common.close') || 'Close menu') : (t('common.menu') || 'Menu')}
+              aria-label={
+                mobileOpen ? t('common.close') || 'Close menu' : t('common.menu') || 'Menu'
+              }
               aria-expanded={mobileOpen}
             >
               {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}

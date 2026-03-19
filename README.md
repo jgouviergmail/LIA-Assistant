@@ -10,6 +10,8 @@
 
 <p align="center">
   <a href="https://lia.jeyswork.com/"><img src="https://img.shields.io/badge/🚀_Try_LIA-lia.jeyswork.com-0EA5E9?style=for-the-badge" alt="Try LIA"></a>
+  &nbsp;&nbsp;
+  <a href="https://github.com/jgouviergmail/LIA-Assistant/stargazers"><img src="https://img.shields.io/github/stars/jgouviergmail/LIA-Assistant?style=for-the-badge&logo=github&label=Star&color=gold" alt="GitHub Stars"></a>
 </p>
 
 <p align="center">
@@ -33,7 +35,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.6.0</strong> — Browser Control (Playwright), Qwen LLM Provider, RAG Drive Sync — March 2026
+  <strong>Version 1.6.1</strong> — System Knowledge Spaces (App Self-Knowledge), Browser Control, Qwen Provider — March 2026
 </p>
 
 ---
@@ -315,9 +317,10 @@ ExecutionStep(
 - **Hybrid search**: Semantic similarity (pgvector cosine) + BM25 keyword matching with configurable alpha fusion
 - **Response enrichment**: RAG context automatically injected into assistant responses when active spaces exist
 - **Full cost transparency**: Embedding costs tracked per document and per query, visible in chat bubbles and dashboard
-- **Admin reindexation**: Full reindex when embedding model changes, with Redis mutual exclusion and automatic dimension ALTER
-- **Observability**: 14 Prometheus metrics, dedicated Grafana dashboard
-- **Feature flag**: `RAG_SPACES_ENABLED=true` to enable (default: true)
+- **System knowledge spaces**: Built-in FAQ knowledge base (119 Q/A across 16 sections) indexed from Markdown files (`docs/knowledge/`). `is_app_help_query` detection by QueryAnalyzer, RoutingDecider Rule 0 override, App Identity Prompt injection with lazy loading (zero overhead on normal queries). Auto-indexed at startup with SHA-256 hash-based staleness. Admin UI for reindex and staleness monitoring. [ADR-058](./docs/architecture/ADR-058-System-RAG-Spaces.md)
+- **Admin reindexation**: Full reindex when embedding model changes, with Redis mutual exclusion and automatic dimension ALTER. System spaces have independent reindex via admin API
+- **Observability**: 17 Prometheus metrics (14 user + 3 system), dedicated Grafana dashboard
+- **Feature flags**: `RAG_SPACES_ENABLED=true` (user spaces), `RAG_SPACES_SYSTEM_ENABLED=true` (system FAQ spaces)
 
 ### MCP Apps — Interactive Widgets
 
@@ -358,7 +361,7 @@ A web-based administration panel covering every operational aspect:
 | Section | Capabilities |
 |---------|-------------|
 | **LLM Configuration** | Model selection per node, provider parameters, temperature/token limits, prompt versions |
-| **RAG Knowledge Spaces** | Manage document spaces and embedding configuration, reindex operations |
+| **RAG Knowledge Spaces** | Manage document spaces, embedding configuration, user reindex operations, system knowledge spaces (FAQ staleness, reindex) |
 | **Personalities** | Create and manage assistant personalities (tone, language, behavior rules) |
 | **User Management** | User accounts, roles, permissions, connector status overview |
 | **Connector Management** | Google/Apple/Microsoft OAuth status, token health, per-user provider activation |
@@ -572,7 +575,7 @@ apps/api/src/
 │   ├── connectors/          # Google + Apple + Microsoft clients, provider resolver
 │   ├── conversations/       # Conversation CRUD & history
 │   ├── google_api/          # Google API pricing & usage tracking
-│   ├── rag_spaces/          # RAG Knowledge Spaces (upload, embed, retrieve)
+│   ├── rag_spaces/          # RAG Knowledge Spaces (upload, embed, retrieve, system FAQ)
 │   ├── user_mcp/            # Per-user MCP servers (CRUD, OAuth, domain routing)
 │   ├── voice/               # TTS factory, STT, Wake Word
 │   ├── skills/              # Skills system (agentskills.io standard)
@@ -677,7 +680,7 @@ apps/api/src/
 | **Channels** | [CHANNELS_INTEGRATION](./docs/technical/CHANNELS_INTEGRATION.md) • [GUIDE_TELEGRAM](./docs/guides/GUIDE_TELEGRAM_INTEGRATION.md) |
 | **Scheduled Actions** | [SCHEDULED_ACTIONS](./docs/technical/SCHEDULED_ACTIONS.md) • [GUIDE_SCHEDULED_ACTIONS](./docs/guides/GUIDE_SCHEDULED_ACTIONS.md) |
 | **Skills** | [SKILLS_INTEGRATION](./docs/technical/SKILLS_INTEGRATION.md) |
-| **RAG Spaces** | [GUIDE_RAG_SPACES](./docs/guides/GUIDE_RAG_SPACES.md) • [ADR-055](./docs/architecture/ADR-055-RAG-Spaces-Architecture.md) |
+| **RAG Spaces** | [GUIDE_RAG_SPACES](./docs/guides/GUIDE_RAG_SPACES.md) • [ADR-055](./docs/architecture/ADR-055-RAG-Spaces-Architecture.md) • [ADR-058](./docs/architecture/ADR-058-System-RAG-Spaces.md) |
 | **Browser Control** | [BROWSER_CONTROL](./docs/technical/BROWSER_CONTROL.md) • [ADR-057](./docs/architecture/ADR-057-Browser-Control.md) |
 | **LLM Providers** | [LLM_PROVIDERS](./docs/technical/LLM_PROVIDERS.md) |
 | **CI/CD** | [CI_CD](./docs/technical/CI_CD.md) |

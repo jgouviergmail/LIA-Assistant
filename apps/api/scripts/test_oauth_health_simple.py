@@ -81,7 +81,7 @@ async def modify_connector_expiration(connector_id: str, minutes_until_expiry: i
         else:
             status = "HEALTHY"
 
-        print(f"✅ Connector modified")
+        print("✅ Connector modified")
         print(f"   Old expires_at: {old_expires}")
         print(f"   New expires_at: {new_expires_at}")
         print(f"   Expected status: {status}")
@@ -91,7 +91,9 @@ async def modify_connector_expiration(connector_id: str, minutes_until_expiry: i
 def main():
     if len(sys.argv) < 3:
         print("Usage:")
-        print("  python scripts/test_oauth_health_simple.py simulate-warning <connector_id> [minutes]")
+        print(
+            "  python scripts/test_oauth_health_simple.py simulate-warning <connector_id> [minutes]"
+        )
         print("  python scripts/test_oauth_health_simple.py simulate-critical <connector_id>")
         print("  python scripts/test_oauth_health_simple.py restore <connector_id>")
         sys.exit(1)

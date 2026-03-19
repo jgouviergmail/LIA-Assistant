@@ -128,7 +128,7 @@ export function VoiceOverlay({
       tabIndex={isClickable ? 0 : undefined}
       onKeyDown={
         isClickable
-          ? (e) => {
+          ? e => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
                 handleClick();
@@ -143,7 +143,7 @@ export function VoiceOverlay({
         type="button"
         variant="ghost"
         size="icon"
-        onClick={(e) => {
+        onClick={e => {
           e.stopPropagation();
           onDisable();
         }}

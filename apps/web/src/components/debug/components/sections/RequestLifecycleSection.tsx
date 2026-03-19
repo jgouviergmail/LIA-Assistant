@@ -7,11 +7,7 @@
  */
 
 import React from 'react';
-import {
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent,
-} from '@/components/ui/accordion';
+import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { formatDuration } from '../../utils/formatters';
 import { getNodeColor, DEBUG_TEXT_SIZES, DEBUG_WIDTHS } from '../../utils/constants';
 import { cn } from '@/lib/utils';
@@ -42,7 +38,7 @@ export const RequestLifecycleSection = React.memo(function RequestLifecycleSecti
     data.total_duration_ms ?? data.nodes.reduce((acc, node) => acc + (node.duration_ms || 0), 0);
 
   // Find max duration for progress bar scaling
-  const maxNodeDuration = Math.max(...data.nodes.map((n) => n.duration_ms || 0), 1);
+  const maxNodeDuration = Math.max(...data.nodes.map(n => n.duration_ms || 0), 1);
 
   return (
     <AccordionItem value="request_lifecycle">
@@ -73,11 +69,9 @@ export const RequestLifecycleSection = React.memo(function RequestLifecycleSecti
 
           {/* Per-node timing */}
           <div className="border-t border-border/50 pt-2">
-            <div className="text-xs text-muted-foreground font-medium mb-2">
-              Node Breakdown
-            </div>
+            <div className="text-xs text-muted-foreground font-medium mb-2">Node Breakdown</div>
             <div className="space-y-2">
-              {data.nodes.map((node) => {
+              {data.nodes.map(node => {
                 const duration = node.duration_ms || 0;
                 const percentage = totalDuration > 0 ? (duration / totalDuration) * 100 : 0;
                 const barWidth = maxNodeDuration > 0 ? (duration / maxNodeDuration) * 100 : 0;

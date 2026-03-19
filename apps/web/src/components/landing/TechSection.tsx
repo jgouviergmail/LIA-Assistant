@@ -9,10 +9,26 @@ interface TechSectionProps {
 }
 
 const TECH_ITEMS = [
-  { key: 'langgraph', icon: GitBranch, iconBg: 'bg-gradient-to-br from-emerald-500/15 to-green-500/15' },
-  { key: 'llm_providers', icon: Cpu, iconBg: 'bg-gradient-to-br from-blue-500/15 to-indigo-500/15' },
-  { key: 'bayesian', icon: TrendingUp, iconBg: 'bg-gradient-to-br from-amber-500/15 to-yellow-500/15' },
-  { key: 'hybrid_search', icon: Search, iconBg: 'bg-gradient-to-br from-purple-500/15 to-violet-500/15' },
+  {
+    key: 'langgraph',
+    icon: GitBranch,
+    iconBg: 'bg-gradient-to-br from-emerald-500/15 to-green-500/15',
+  },
+  {
+    key: 'llm_providers',
+    icon: Cpu,
+    iconBg: 'bg-gradient-to-br from-blue-500/15 to-indigo-500/15',
+  },
+  {
+    key: 'bayesian',
+    icon: TrendingUp,
+    iconBg: 'bg-gradient-to-br from-amber-500/15 to-yellow-500/15',
+  },
+  {
+    key: 'hybrid_search',
+    icon: Search,
+    iconBg: 'bg-gradient-to-br from-purple-500/15 to-violet-500/15',
+  },
   { key: 'realtime', icon: Radio, iconBg: 'bg-gradient-to-br from-rose-500/15 to-pink-500/15' },
   { key: 'stack', icon: Layers, iconBg: 'bg-gradient-to-br from-cyan-500/15 to-sky-500/15' },
 ];
@@ -40,12 +56,12 @@ export async function TechSection({ lng }: TechSectionProps) {
             <FadeInOnScroll key={key} delay={i * 80}>
               <Card className="glass hover-lift hover-glow h-full border-border/60">
                 <CardHeader className="space-y-3">
-                  <div className={cn('w-12 h-12 rounded-xl flex items-center justify-center', iconBg)}>
+                  <div
+                    className={cn('w-12 h-12 rounded-xl flex items-center justify-center', iconBg)}
+                  >
                     <Icon className="w-6 h-6 text-primary" />
                   </div>
-                  <CardTitle className="text-lg">
-                    {t(`landing.tech.${key}.title`)}
-                  </CardTitle>
+                  <CardTitle className="text-lg">{t(`landing.tech.${key}.title`)}</CardTitle>
                   <CardDescription className="text-sm leading-relaxed">
                     {t(`landing.tech.${key}.description`)}
                   </CardDescription>

@@ -13,11 +13,18 @@ export async function UseCasesSection({ lng }: UseCasesSectionProps) {
   const { t } = await initI18next(lng);
 
   return (
-    <section id="use-cases" className="landing-section py-24 bg-card" aria-labelledby="use-cases-title">
+    <section
+      id="use-cases"
+      className="landing-section py-24 bg-card"
+      aria-labelledby="use-cases-title"
+    >
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <FadeInOnScroll>
           <div className="text-center mb-16">
-            <h2 id="use-cases-title" className="text-3xl mobile:text-4xl font-bold tracking-tight mb-4">
+            <h2
+              id="use-cases-title"
+              className="text-3xl mobile:text-4xl font-bold tracking-tight mb-4"
+            >
               {t('landing.use_cases.title')}
             </h2>
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
@@ -29,7 +36,10 @@ export async function UseCasesSection({ lng }: UseCasesSectionProps) {
         {/* Alternating conversation cards with vertical connector */}
         <div className="relative">
           {/* Vertical line */}
-          <div className="absolute left-1/2 top-0 bottom-0 w-px bg-border hidden mobile:block" aria-hidden="true" />
+          <div
+            className="absolute left-1/2 top-0 bottom-0 w-px bg-border hidden mobile:block"
+            aria-hidden="true"
+          />
 
           <div className="space-y-8">
             {EXAMPLES.map((key, i) => {

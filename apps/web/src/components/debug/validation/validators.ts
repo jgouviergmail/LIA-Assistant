@@ -48,16 +48,12 @@ export interface ValidationResult<T = unknown> {
  * const metrics = result.data; // Type-safe validated metrics
  * ```
  */
-export function validateDebugMetrics(
-  rawMetrics: unknown
-): ValidationResult<ValidatedDebugMetrics> {
+export function validateDebugMetrics(rawMetrics: unknown): ValidationResult<ValidatedDebugMetrics> {
   // Zod validation
   const result = DebugMetricsSchema.safeParse(rawMetrics);
 
   if (!result.success) {
-    const errors = result.error.issues.map(
-      e => `${e.path.join('.')}: ${e.message}`
-    );
+    const errors = result.error.issues.map(e => `${e.path.join('.')}: ${e.message}`);
 
     logger.error('debug_metrics_validation_failed', undefined, {
       errors: result.error.issues,
@@ -226,10 +222,7 @@ export function validateIntentDetection(
   }
 
   // Basic checks
-  if (
-    intentDetection.confidence < 0 ||
-    intentDetection.confidence > 1
-  ) {
+  if (intentDetection.confidence < 0 || intentDetection.confidence > 1) {
     logger.warn('intent_detection_invalid_confidence', {
       confidence: intentDetection.confidence,
     });
@@ -275,10 +268,7 @@ export function validateRoutingDecision(
   }
 
   // Check confidence
-  if (
-    routingDecision.confidence < 0 ||
-    routingDecision.confidence > 1
-  ) {
+  if (routingDecision.confidence < 0 || routingDecision.confidence > 1) {
     logger.warn('routing_decision_invalid_confidence', {
       confidence: routingDecision.confidence,
     });
@@ -379,10 +369,7 @@ export function validatePlannerIntelligence(
   }
 
   // Check reduction_percentage consistency
-  if (
-    tokens.reduction_percentage < 0 ||
-    tokens.reduction_percentage > 100
-  ) {
+  if (tokens.reduction_percentage < 0 || tokens.reduction_percentage > 100) {
     logger.warn('planner_intelligence_invalid_reduction', {
       reduction_percentage: tokens.reduction_percentage,
     });
@@ -417,12 +404,7 @@ export function sanitizeNumericValue(
     defaultValue?: number;
   } = {}
 ): number | null {
-  const {
-    min = -Infinity,
-    max = Infinity,
-    allowNegative = true,
-    defaultValue = null,
-  } = options;
+  const { min = -Infinity, max = Infinity, allowNegative = true, defaultValue = null } = options;
 
   if (typeof value !== 'number') {
     return defaultValue;
@@ -453,10 +435,7 @@ export function sanitizeNumericValue(
  * @param context - Context for logging (e.g., "domain_score", "tool_score")
  * @returns true if valid
  */
-export function validateScoreRange(
-  score: number,
-  context: string = 'score'
-): boolean {
+export function validateScoreRange(score: number, context: string = 'score'): boolean {
   if (!isFinite(score)) {
     logger.warn('validate_score_non_finite', { score, context });
     return false;

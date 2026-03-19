@@ -61,7 +61,9 @@ export function NotificationSettings({ lng }: NotificationSettingsProps) {
 
   // Find current device token
   const currentDeviceType = typeof window !== 'undefined' ? getDeviceType() : 'web';
-  const currentDeviceToken = registeredTokens.find(t => t.device_type === currentDeviceType && t.is_active);
+  const currentDeviceToken = registeredTokens.find(
+    t => t.device_type === currentDeviceType && t.is_active
+  );
 
   // Handle token deletion
   const handleDeleteToken = async (tokenId: string) => {
@@ -118,8 +120,13 @@ export function NotificationSettings({ lng }: NotificationSettingsProps) {
             </div>
             <Switch
               id="notifications-switch"
-              checked={isSupported && isConfigured && permissionStatus === 'granted' && !!currentDeviceToken}
-              onCheckedChange={(checked) => {
+              checked={
+                isSupported &&
+                isConfigured &&
+                permissionStatus === 'granted' &&
+                !!currentDeviceToken
+              }
+              onCheckedChange={checked => {
                 if (checked) {
                   // Enable: show permission prompt
                   setShowPrompt(true);
@@ -150,16 +157,20 @@ export function NotificationSettings({ lng }: NotificationSettingsProps) {
           {/* Permission denied help */}
           {permissionStatus === 'denied' && (
             <InfoBox variant="error" className="p-4">
-              <p className="text-sm text-red-600">{t('settings.notifications.permission_denied_help')}</p>
+              <p className="text-sm text-red-600">
+                {t('settings.notifications.permission_denied_help')}
+              </p>
             </InfoBox>
           )}
 
           {/* Registered Devices */}
           {permissionStatus === 'granted' && registeredTokens.length > 0 && (
             <div className="space-y-3">
-              <h4 className="text-sm font-medium">{t('settings.notifications.registered_devices')}</h4>
+              <h4 className="text-sm font-medium">
+                {t('settings.notifications.registered_devices')}
+              </h4>
               <div className="space-y-2">
-                {registeredTokens.map((token) => (
+                {registeredTokens.map(token => (
                   <div
                     key={token.id}
                     className="flex items-center justify-between rounded-lg border p-3"
@@ -170,7 +181,8 @@ export function NotificationSettings({ lng }: NotificationSettingsProps) {
                       </div>
                       <div>
                         <p className="text-sm font-medium">
-                          {token.device_name || t(`settings.notifications.device_${token.device_type}`)}
+                          {token.device_name ||
+                            t(`settings.notifications.device_${token.device_type}`)}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           {token.is_active
@@ -182,11 +194,7 @@ export function NotificationSettings({ lng }: NotificationSettingsProps) {
 
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          disabled={deletingTokenId === token.id}
-                        >
+                        <Button variant="ghost" size="icon" disabled={deletingTokenId === token.id}>
                           {deletingTokenId === token.id ? (
                             <LoadingSpinner size="default" />
                           ) : (
@@ -252,9 +260,7 @@ export function NotificationSettings({ lng }: NotificationSettingsProps) {
       <AlertDialog open={showDisableConfirm} onOpenChange={setShowDisableConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {t('settings.notifications.disable_title')}
-            </AlertDialogTitle>
+            <AlertDialogTitle>{t('settings.notifications.disable_title')}</AlertDialogTitle>
             <AlertDialogDescription>
               {t('settings.notifications.disable_description')}
             </AlertDialogDescription>

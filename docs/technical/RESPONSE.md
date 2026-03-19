@@ -378,6 +378,16 @@ Le prompt est divisé en **2 sections** pour optimiser le caching OpenAI:
 - Conversation history
 - User message
 
+#### App Knowledge Context (`{app_knowledge_context}` placeholder)
+
+When `is_app_help_query=True` (detected by QueryAnalyzer), the Response Node injects additional context to help the LLM answer questions about LIA itself:
+
+1. **App Identity Prompt** — loaded from `app_identity_prompt.txt` (in the prompts directory). Contains structured knowledge about LIA's features, setup instructions, supported integrations, and usage guidance. This prompt is loaded and injected into the `{app_knowledge_context}` placeholder in `response_system_prompt_base.txt`.
+
+2. **System RAG Context** — optionally enriches the response with FAQ chunks retrieved from the knowledge base. When relevant FAQ entries exist, they are appended to the app knowledge context to provide precise, up-to-date answers.
+
+**Lazy loading**: When `is_app_help_query=False`, the `{app_knowledge_context}` placeholder resolves to an empty string. Neither the app identity prompt file nor the RAG retrieval are loaded, ensuring zero overhead for standard (non-help) queries.
+
 ### Core Rules (Anti-Hallucination)
 
 **Règle #1: Verified Data ONLY**

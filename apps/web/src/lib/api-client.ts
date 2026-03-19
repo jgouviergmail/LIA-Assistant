@@ -162,7 +162,9 @@ async function handleResponse<T>(response: Response): Promise<T> {
             // Redirect to account-inactive page
             // Note: /auth/me now returns 200 with is_active=false, so this handler
             // is only triggered by other endpoints that require active users
-            const inactivePath = currentLang ? `/${currentLang}/account-inactive` : '/account-inactive';
+            const inactivePath = currentLang
+              ? `/${currentLang}/account-inactive`
+              : '/account-inactive';
             window.location.href = inactivePath;
           }
         }

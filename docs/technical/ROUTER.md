@@ -516,11 +516,35 @@ Tool: Retourne résultats réels (ou liste vide si aucun)
 Response: Formate résultats API (pas d'hallucination) ✅
 ```
 
+### App Help Query Detection
+
+The `QueryAnalyzerService` detects app help queries via the `is_app_help_query` field on the analysis result. An app help query is any user message asking about LIA's own capabilities, setup, or usage — e.g., "how do I connect my calendar?", "what can you do?", "how do I add my Google account?".
+
+This detection is critical because app help queries often contain domain keywords (calendar, email, contacts) that would otherwise cause the router to classify them as actionable and route to the planner. Without this guard, "how do I connect my calendar?" would be misrouted to the planner instead of receiving a direct informational response.
+
+### RoutingDecider Rule 0 — App Help Query Override
+
+**Priority**: Highest (evaluated before all other routing rules).
+
+**Logic**: When `is_app_help_query=True`, always route to `next_node="response"` regardless of detected domains, action verbs, or confidence scores.
+
+```
+Rule 0: App Help Query Override
+├─ is_app_help_query == True?
+│  └─ YES → next_node="response" (always)
+│           Reasoning: "App help query — direct response, no planner needed"
+│  └─ NO  → Continue to standard routing rules below
+```
+
+**Defense against misrouting**: Domain keywords in help queries (e.g., "calendar" in "how do I connect my calendar?") would normally trigger planner routing. Rule 0 short-circuits this by checking the help query flag first, ensuring the user receives an informational answer from the Response Node instead of an execution plan.
+
 ### Binary Routing Logic
 
 **Decision Tree**:
 ```
 User Query Analysis (Syntax-Based)
+├─ Rule 0: is_app_help_query? → next_node="response" (see above)
+│
 ├─ Conversational? (greeting, thanks, question about assistant)
 │  └─ YES → intention="conversation" → next_node="response"
 │

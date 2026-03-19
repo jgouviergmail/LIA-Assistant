@@ -36,7 +36,11 @@ interface UseSpaceDocumentsOptions {
 /**
  * Hook for uploading/deleting documents and polling processing status.
  */
-export function useSpaceDocuments({ spaceId, documents, onDocumentReady }: UseSpaceDocumentsOptions) {
+export function useSpaceDocuments({
+  spaceId,
+  documents,
+  onDocumentReady,
+}: UseSpaceDocumentsOptions) {
   const [uploads, setUploads] = useState<DocumentUploadState[]>([]);
   const xhrRefs = useRef<Map<string, XMLHttpRequest>>(new Map());
   const onDocumentReadyRef = useRef(onDocumentReady);
@@ -44,19 +48,19 @@ export function useSpaceDocuments({ spaceId, documents, onDocumentReady }: UseSp
     onDocumentReadyRef.current = onDocumentReady;
   }, [onDocumentReady]);
 
-  const isUploading = uploads.some((u) => u.status === 'uploading');
+  const isUploading = uploads.some(u => u.status === 'uploading');
 
   // Cleanup XHRs on unmount
   useEffect(() => {
     const xhrMap = xhrRefs.current;
     return () => {
-      xhrMap.forEach((xhr) => xhr.abort());
+      xhrMap.forEach(xhr => xhr.abort());
       xhrMap.clear();
     };
   }, []);
 
   // Poll processing status for documents in "processing" state
-  const processingDocs = documents.filter((d) => d.status === 'processing');
+  const processingDocs = documents.filter(d => d.status === 'processing');
 
   useEffect(() => {
     if (processingDocs.length === 0) return;
@@ -73,7 +77,7 @@ export function useSpaceDocuments({ spaceId, documents, onDocumentReady }: UseSp
     async (file: File): Promise<{ success?: boolean; error?: string }> => {
       const tempId = crypto.randomUUID();
 
-      setUploads((prev) => [
+      setUploads(prev => [
         ...prev,
         { tempId, filename: file.name, progress: 0, status: 'uploading' },
       ]);
@@ -88,12 +92,10 @@ export function useSpaceDocuments({ spaceId, documents, onDocumentReady }: UseSp
 
           xhr.timeout = UPLOAD_TIMEOUT_MS;
 
-          xhr.upload.onprogress = (e) => {
+          xhr.upload.onprogress = e => {
             if (e.lengthComputable) {
               const progress = Math.round((e.loaded / e.total) * 100);
-              setUploads((prev) =>
-                prev.map((u) => (u.tempId === tempId ? { ...u, progress } : u))
-              );
+              setUploads(prev => prev.map(u => (u.tempId === tempId ? { ...u, progress } : u)));
             }
           };
 
@@ -139,8 +141,8 @@ export function useSpaceDocuments({ spaceId, documents, onDocumentReady }: UseSp
           xhr.send(formData);
         });
 
-        setUploads((prev) =>
-          prev.map((u) =>
+        setUploads(prev =>
+          prev.map(u =>
             u.tempId === tempId ? { ...u, status: 'done' as const, progress: 100 } : u
           )
         );
@@ -151,11 +153,9 @@ export function useSpaceDocuments({ spaceId, documents, onDocumentReady }: UseSp
         return { success: true };
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
-        setUploads((prev) =>
-          prev.map((u) =>
-            u.tempId === tempId
-              ? { ...u, status: 'error' as const, error: errorMessage }
-              : u
+        setUploads(prev =>
+          prev.map(u =>
+            u.tempId === tempId ? { ...u, status: 'error' as const, error: errorMessage } : u
           )
         );
         return { error: errorMessage };
@@ -185,11 +185,11 @@ export function useSpaceDocuments({ spaceId, documents, onDocumentReady }: UseSp
       xhr.abort();
       xhrRefs.current.delete(tempId);
     }
-    setUploads((prev) => prev.filter((u) => u.tempId !== tempId));
+    setUploads(prev => prev.filter(u => u.tempId !== tempId));
   }, []);
 
   const clearCompletedUploads = useCallback(() => {
-    setUploads((prev) => prev.filter((u) => u.status === 'uploading'));
+    setUploads(prev => prev.filter(u => u.status === 'uploading'));
   }, []);
 
   return {

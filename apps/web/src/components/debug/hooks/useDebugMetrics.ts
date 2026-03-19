@@ -41,9 +41,7 @@ const EMPTY_ERRORS: string[] = [];
  * Validates debug metrics and returns validation result
  * Pure function - React Compiler can optimize automatically
  */
-function validateDebugMetrics(
-  currentDebugMetrics: DebugMetrics | null
-): UseDebugMetricsResult {
+function validateDebugMetrics(currentDebugMetrics: DebugMetrics | null): UseDebugMetricsResult {
   // No metrics available
   if (!currentDebugMetrics) {
     return NULL_METRICS_RESULT;
@@ -105,9 +103,7 @@ function validateDebugMetrics(
  * return <DebugPanel metrics={metrics} />;
  * \`\`\`
  */
-export function useDebugMetrics(
-  currentDebugMetrics: DebugMetrics | null
-): UseDebugMetricsResult {
+export function useDebugMetrics(currentDebugMetrics: DebugMetrics | null): UseDebugMetricsResult {
   // React Compiler will automatically memoize this pure function call
   return validateDebugMetrics(currentDebugMetrics);
 }

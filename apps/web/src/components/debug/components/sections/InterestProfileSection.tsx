@@ -13,20 +13,12 @@
  */
 
 import React from 'react';
-import {
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent,
-} from '@/components/ui/accordion';
+import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { cn } from '@/lib/utils';
 import { SectionBadge } from '../shared';
 import { INFO_SECTION_CLASSES, DEBUG_TEXT_SIZES } from '../../utils/constants';
 import { formatPercent } from '../../utils/formatters';
-import type {
-  InterestProfileMetrics,
-  ExtractedInterest,
-  MatchingDecision,
-} from '@/types/chat';
+import type { InterestProfileMetrics, ExtractedInterest, MatchingDecision } from '@/types/chat';
 
 export interface InterestProfileSectionProps {
   /** Interest detection metrics (can be undefined) */
@@ -92,7 +84,9 @@ const ExtractedInterestRow = React.memo(function ExtractedInterestRow({
               style={{ width: `${barWidth}%` }}
             />
           </div>
-          <span className={`font-mono ${DEBUG_TEXT_SIZES.mono} w-12 text-right text-muted-foreground`}>
+          <span
+            className={`font-mono ${DEBUG_TEXT_SIZES.mono} w-12 text-right text-muted-foreground`}
+          >
             {formatPercent(interest.confidence)}
           </span>
         </div>
@@ -112,9 +106,7 @@ const ExtractedInterestRow = React.memo(function ExtractedInterestRow({
             {isConsolidate ? 'CONSOLIDER' : 'NOUVEAU'}
           </span>
           {isConsolidate && decision.matched_interest && (
-            <span className="text-muted-foreground">
-              → {decision.matched_interest}
-            </span>
+            <span className="text-muted-foreground">→ {decision.matched_interest}</span>
           )}
         </div>
       )}

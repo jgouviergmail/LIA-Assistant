@@ -36,17 +36,15 @@ export function BroadcastModal({ lng }: BroadcastModalProps) {
     <Dialog open={showModal} onOpenChange={() => {}}>
       <DialogContent
         className="sm:max-w-md [&>button]:hidden"
-        onEscapeKeyDown={(e) => e.preventDefault()}
-        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={e => e.preventDefault()}
+        onInteractOutside={e => e.preventDefault()}
       >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Megaphone className="h-5 w-5 text-primary" />
             {t('broadcast.modal.title')}
             {queueLength > 1 && (
-              <span className="text-sm font-normal text-muted-foreground">
-                (1/{queueLength})
-              </span>
+              <span className="text-sm font-normal text-muted-foreground">(1/{queueLength})</span>
             )}
           </DialogTitle>
           <DialogDescription>{t('broadcast.modal.from_admin')}</DialogDescription>

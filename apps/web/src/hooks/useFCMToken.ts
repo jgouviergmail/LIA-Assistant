@@ -226,41 +226,44 @@ export function useFCMToken(): UseFCMTokenReturn {
   /**
    * Unregister a token by ID from backend.
    */
-  const unregisterToken = useCallback(async (tokenId: string): Promise<void> => {
-    setIsLoading(true);
-    setError(null);
+  const unregisterToken = useCallback(
+    async (tokenId: string): Promise<void> => {
+      setIsLoading(true);
+      setError(null);
 
-    try {
-      await apiClient.delete<void>(`/notifications/tokens/${tokenId}`);
+      try {
+        await apiClient.delete<void>(`/notifications/tokens/${tokenId}`);
 
-      // Refresh token list after unregistration
-      await refreshTokens();
+        // Refresh token list after unregistration
+        await refreshTokens();
 
-      // Clear current token if it was the one unregistered
-      const unregisteredToken = registeredTokens.find(t => t.id === tokenId);
-      if (unregisteredToken && token) {
-        // We can't directly compare, so just clear if any token was removed
-        setToken(null);
+        // Clear current token if it was the one unregistered
+        const unregisteredToken = registeredTokens.find(t => t.id === tokenId);
+        if (unregisteredToken && token) {
+          // We can't directly compare, so just clear if any token was removed
+          setToken(null);
+        }
+
+        logger.info('FCM: Token unregistered successfully', {
+          component: 'useFCMToken',
+          tokenId,
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to unregister token';
+        setError(message);
+
+        logger.error('FCM: Failed to unregister token', err as Error, {
+          component: 'useFCMToken',
+          tokenId,
+        });
+
+        throw err;
+      } finally {
+        setIsLoading(false);
       }
-
-      logger.info('FCM: Token unregistered successfully', {
-        component: 'useFCMToken',
-        tokenId,
-      });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to unregister token';
-      setError(message);
-
-      logger.error('FCM: Failed to unregister token', err as Error, {
-        component: 'useFCMToken',
-        tokenId,
-      });
-
-      throw err;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [token, registeredTokens, refreshTokens]);
+    },
+    [token, registeredTokens, refreshTokens]
+  );
 
   return {
     token,

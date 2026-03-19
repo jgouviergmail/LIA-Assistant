@@ -335,7 +335,10 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
             <RefreshCw className={`h-4 w-4 mr-2 ${reloadingCache ? 'animate-spin' : ''}`} />
             {t('settings.admin.llm.reload_cache')}
           </Button>
-          <Button onClick={() => setShowAddModal(true)} aria-label={t('settings.admin.llm.add_model')}>
+          <Button
+            onClick={() => setShowAddModal(true)}
+            aria-label={t('settings.admin.llm.add_model')}
+          >
             {t('settings.admin.llm.add_model')}
           </Button>
         </div>
@@ -653,7 +656,9 @@ function ModelPricingModal({ lng, model, onClose, onSubmit }: ModelPricingModalP
               {t('settings.admin.llm.modal.cancel')}
             </Button>
             <Button type="submit" variant="default" className="flex-1">
-              {model ? t('settings.admin.llm.modal.submit_edit') : t('settings.admin.llm.modal.submit_create')}
+              {model
+                ? t('settings.admin.llm.modal.submit_edit')
+                : t('settings.admin.llm.modal.submit_create')}
             </Button>
           </div>
         </form>

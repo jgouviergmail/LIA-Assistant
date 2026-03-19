@@ -1,15 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import {
-  Sparkles,
-  Trash2,
-  Plus,
-  Ban,
-  Clock,
-  Pencil,
-  Download,
-} from 'lucide-react';
+import { Sparkles, Trash2, Plus, Ban, Clock, Pencil, Download } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -153,7 +145,7 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
 
   // Group active interests by category
   const groupedByCategory = useMemo(() => {
-    const activeInterests = sortedInterests.filter((i) => i.status === 'active');
+    const activeInterests = sortedInterests.filter(i => i.status === 'active');
     return activeInterests.reduce(
       (acc, interest) => {
         const cat = interest.category;
@@ -167,7 +159,7 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
 
   // Blocked interests (separate section)
   const blockedInterests = useMemo(
-    () => sortedInterests.filter((i) => i.status === 'blocked'),
+    () => sortedInterests.filter(i => i.status === 'blocked'),
     [sortedInterests]
   );
 
@@ -341,13 +333,13 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
                 <div className="flex items-center gap-2">
                   <Select
                     value={settings.interests_notify_start_hour.toString()}
-                    onValueChange={(v) => handleUpdateHours('start', parseInt(v))}
+                    onValueChange={v => handleUpdateHours('start', parseInt(v))}
                   >
                     <SelectTrigger className="w-24">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {hourOptions.map((opt) => (
+                      {hourOptions.map(opt => (
                         <SelectItem key={opt.value} value={opt.value}>
                           {opt.label}
                         </SelectItem>
@@ -357,13 +349,13 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
                   <span className="text-muted-foreground">-</span>
                   <Select
                     value={settings.interests_notify_end_hour.toString()}
-                    onValueChange={(v) => handleUpdateHours('end', parseInt(v))}
+                    onValueChange={v => handleUpdateHours('end', parseInt(v))}
                   >
                     <SelectTrigger className="w-24">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {hourOptions.map((opt) => (
+                      {hourOptions.map(opt => (
                         <SelectItem key={opt.value} value={opt.value}>
                           {opt.label}
                         </SelectItem>
@@ -380,13 +372,13 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
                 <div className="flex items-center gap-2">
                   <Select
                     value={settings.interests_notify_min_per_day.toString()}
-                    onValueChange={(v) => handleUpdateFrequency('min', parseInt(v))}
+                    onValueChange={v => handleUpdateFrequency('min', parseInt(v))}
                   >
                     <SelectTrigger className="w-20">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+                      {Array.from({ length: 10 }, (_, i) => i + 1).map(n => (
                         <SelectItem key={n} value={n.toString()}>
                           {n}
                         </SelectItem>
@@ -396,22 +388,20 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
                   <span className="text-muted-foreground">-</span>
                   <Select
                     value={settings.interests_notify_max_per_day.toString()}
-                    onValueChange={(v) => handleUpdateFrequency('max', parseInt(v))}
+                    onValueChange={v => handleUpdateFrequency('max', parseInt(v))}
                   >
                     <SelectTrigger className="w-20">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+                      {Array.from({ length: 10 }, (_, i) => i + 1).map(n => (
                         <SelectItem key={n} value={n.toString()}>
                           {n}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                  <span className="text-sm text-muted-foreground">
-                    {t('interests.per_day')}
-                  </span>
+                  <span className="text-sm text-muted-foreground">{t('interests.per_day')}</span>
                 </div>
               </div>
             </div>
@@ -458,9 +448,7 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>
-                      {t('interests.confirm_delete_all_title')}
-                    </AlertDialogTitle>
+                    <AlertDialogTitle>{t('interests.confirm_delete_all_title')}</AlertDialogTitle>
                     <AlertDialogDescription>
                       {t('interests.confirm_delete_all_description')}
                     </AlertDialogDescription>
@@ -495,13 +483,17 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
                   <AccordionTrigger className="py-3 hover:no-underline">
                     <div className="flex items-center gap-2">
                       <span>{INTEREST_CATEGORY_ICONS[category as InterestCategory]}</span>
-                      <span className="font-medium">{getCategoryLabel(category as InterestCategory)}</span>
-                      <span className="text-muted-foreground text-sm">({categoryInterests.length})</span>
+                      <span className="font-medium">
+                        {getCategoryLabel(category as InterestCategory)}
+                      </span>
+                      <span className="text-muted-foreground text-sm">
+                        ({categoryInterests.length})
+                      </span>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
                     <div className="space-y-2">
-                      {categoryInterests.map((interest) => (
+                      {categoryInterests.map(interest => (
                         <div
                           key={interest.id}
                           className="group flex items-center gap-3 rounded-lg border p-3 bg-card hover:bg-accent/50 transition-colors cursor-pointer lg:cursor-default"
@@ -515,7 +507,10 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium truncate">{interest.topic}</p>
                             <div className="flex items-center gap-2 mt-1">
-                              <Badge variant={getWeightBadgeVariant(interest.weight)} className="text-xs">
+                              <Badge
+                                variant={getWeightBadgeVariant(interest.weight)}
+                                className="text-xs"
+                              >
                                 {(interest.weight * 100).toFixed(0)}%
                               </Badge>
                               {interest.last_mentioned_at && (
@@ -531,7 +526,7 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={(e) => {
+                              onClick={e => {
                                 e.stopPropagation();
                                 handleOpenEdit(interest);
                               }}
@@ -543,7 +538,7 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={(e) => {
+                              onClick={e => {
                                 e.stopPropagation();
                                 handleFeedback(interest, 'block');
                               }}
@@ -555,7 +550,7 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={(e) => {
+                              onClick={e => {
                                 e.stopPropagation();
                                 setPendingDelete(interest);
                               }}
@@ -577,34 +572,38 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
                 <AccordionItem value="blocked" className="border rounded-lg px-3">
                   <AccordionTrigger className="py-3 hover:no-underline">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-muted-foreground">{t('interests.blocked_section')}</span>
-                      <span className="text-muted-foreground text-sm">({blockedInterests.length})</span>
+                      <span className="font-medium text-muted-foreground">
+                        {t('interests.blocked_section')}
+                      </span>
+                      <span className="text-muted-foreground text-sm">
+                        ({blockedInterests.length})
+                      </span>
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
-                  <div className="space-y-2 opacity-60">
-                    {blockedInterests.map((interest) => (
-                      <div
-                        key={interest.id}
-                        className="group flex items-center gap-3 rounded-lg border p-3 bg-muted/30"
-                      >
-                        <span className="text-lg shrink-0">
-                          {INTEREST_CATEGORY_ICONS[interest.category]}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm line-through">{interest.topic}</p>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setPendingDelete(interest)}
-                          disabled={deleting}
+                    <div className="space-y-2 opacity-60">
+                      {blockedInterests.map(interest => (
+                        <div
+                          key={interest.id}
+                          className="group flex items-center gap-3 rounded-lg border p-3 bg-muted/30"
                         >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
+                          <span className="text-lg shrink-0">
+                            {INTEREST_CATEGORY_ICONS[interest.category]}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm line-through">{interest.topic}</p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setPendingDelete(interest)}
+                            disabled={deleting}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
                   </AccordionContent>
                 </AccordionItem>
               )}
@@ -632,7 +631,7 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
                   <Input
                     id="create-topic"
                     value={createForm.topic}
-                    onChange={(e) => setCreateForm({ ...createForm, topic: e.target.value })}
+                    onChange={e => setCreateForm({ ...createForm, topic: e.target.value })}
                     placeholder={t('interests.topic_placeholder')}
                     autoFocus
                   />
@@ -641,7 +640,7 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
                   <Label htmlFor="create-category">{t('interests.field_category')}</Label>
                   <Select
                     value={createForm.category}
-                    onValueChange={(value) =>
+                    onValueChange={value =>
                       setCreateForm({ ...createForm, category: value as InterestCategory })
                     }
                   >
@@ -649,7 +648,7 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {categories.map((cat) => (
+                      {categories.map(cat => (
                         <SelectItem key={cat.value} value={cat.value}>
                           {INTEREST_CATEGORY_ICONS[cat.value]} {getCategoryLabel(cat.value)}
                         </SelectItem>
@@ -683,7 +682,7 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
                   <Input
                     id="edit-topic"
                     value={editForm.topic}
-                    onChange={(e) => setEditForm({ ...editForm, topic: e.target.value })}
+                    onChange={e => setEditForm({ ...editForm, topic: e.target.value })}
                     placeholder={t('interests.topic_placeholder')}
                     autoFocus
                   />
@@ -692,7 +691,7 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
                   <Label htmlFor="edit-category">{t('interests.field_category')}</Label>
                   <Select
                     value={editForm.category}
-                    onValueChange={(value) =>
+                    onValueChange={value =>
                       setEditForm({ ...editForm, category: value as InterestCategory })
                     }
                   >
@@ -700,7 +699,7 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {categories.map((cat) => (
+                      {categories.map(cat => (
                         <SelectItem key={cat.value} value={cat.value}>
                           {INTEREST_CATEGORY_ICONS[cat.value]} {getCategoryLabel(cat.value)}
                         </SelectItem>
@@ -716,7 +715,7 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
                       type="number"
                       min={1}
                       value={editForm.positive_signals}
-                      onChange={(e) =>
+                      onChange={e =>
                         setEditForm({
                           ...editForm,
                           positive_signals: Math.max(1, parseInt(e.target.value) || 1),
@@ -731,7 +730,7 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
                       type="number"
                       min={0}
                       value={editForm.negative_signals}
-                      onChange={(e) =>
+                      onChange={e =>
                         setEditForm({
                           ...editForm,
                           negative_signals: Math.max(0, parseInt(e.target.value) || 0),
@@ -756,13 +755,12 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
           {/* Mobile Action Popup */}
           <Dialog
             open={mobileActionInterest !== null}
-            onOpenChange={(open) => !open && setMobileActionInterest(null)}
+            onOpenChange={open => !open && setMobileActionInterest(null)}
           >
             <DialogContent className="lg:hidden max-w-[90vw] rounded-lg">
               <DialogHeader>
                 <DialogTitle className="text-base flex items-center gap-2">
-                  {mobileActionInterest &&
-                    INTEREST_CATEGORY_ICONS[mobileActionInterest.category]}
+                  {mobileActionInterest && INTEREST_CATEGORY_ICONS[mobileActionInterest.category]}
                   {mobileActionInterest?.topic}
                 </DialogTitle>
               </DialogHeader>
@@ -817,7 +815,7 @@ export function InterestsSettings({ lng, collapsible = true }: BaseSettingsProps
           {/* Delete Confirmation */}
           <AlertDialog
             open={pendingDelete !== null}
-            onOpenChange={(open) => !open && setPendingDelete(null)}
+            onOpenChange={open => !open && setPendingDelete(null)}
           >
             <AlertDialogContent>
               <AlertDialogHeader>

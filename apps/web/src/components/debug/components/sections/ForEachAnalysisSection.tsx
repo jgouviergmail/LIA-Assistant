@@ -6,13 +6,13 @@
  */
 
 import React from 'react';
-import {
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent,
-} from '@/components/ui/accordion';
+import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { MetricRow, SectionBadge } from '../shared';
-import { CARDINALITY_MODE_LABELS, CARDINALITY_ALL_VALUE, DEBUG_TEXT_SIZES } from '../../utils/constants';
+import {
+  CARDINALITY_MODE_LABELS,
+  CARDINALITY_ALL_VALUE,
+  DEBUG_TEXT_SIZES,
+} from '../../utils/constants';
 import type { ForEachAnalysis } from '@/types/chat';
 
 export interface ForEachAnalysisSectionProps {
@@ -43,10 +43,7 @@ export const ForEachAnalysisSection = React.memo(function ForEachAnalysisSection
       <AccordionTrigger className="py-2 text-sm">
         <div className="flex items-center gap-2">
           <span>FOR_EACH Analysis</span>
-          <SectionBadge
-            passed={data.detected}
-            label={data.detected ? 'BULK' : 'N/A'}
-          />
+          <SectionBadge passed={data.detected} label={data.detected ? 'BULK' : 'N/A'} />
         </div>
       </AccordionTrigger>
       <AccordionContent>
@@ -63,20 +60,13 @@ export const ForEachAnalysisSection = React.memo(function ForEachAnalysisSection
               valueClassName={data.detected ? 'text-orange-400 font-semibold' : undefined}
             />
             {data.collection_key && (
-              <MetricRow
-                label="Collection"
-                value={data.collection_key}
-                highlight
-                mono
-              />
+              <MetricRow label="Collection" value={data.collection_key} highlight mono />
             )}
           </div>
 
           {/* Cardinality */}
           <div className="border-t border-border/50 pt-2 space-y-1">
-            <div className="text-xs text-muted-foreground font-medium mb-1">
-              Cardinality
-            </div>
+            <div className="text-xs text-muted-foreground font-medium mb-1">Cardinality</div>
             <MetricRow
               label="Mode"
               value={CARDINALITY_MODE_LABELS[data.cardinality_mode] || data.cardinality_mode}
@@ -89,7 +79,11 @@ export const ForEachAnalysisSection = React.memo(function ForEachAnalysisSection
             {data.cardinality_magnitude !== null && (
               <MetricRow
                 label="Magnitude"
-                value={data.cardinality_magnitude === CARDINALITY_ALL_VALUE ? 'All' : String(data.cardinality_magnitude)}
+                value={
+                  data.cardinality_magnitude === CARDINALITY_ALL_VALUE
+                    ? 'All'
+                    : String(data.cardinality_magnitude)
+                }
                 mono
               />
             )}

@@ -11,8 +11,10 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
-export interface SearchInputProps
-  extends Omit<InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'type'> {
+export interface SearchInputProps extends Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  'onChange' | 'type'
+> {
   /**
    * Callback fired when the debounced search value changes
    */

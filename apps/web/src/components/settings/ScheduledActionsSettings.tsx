@@ -1,14 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
-import {
-  CalendarClock,
-  Plus,
-  Trash2,
-  Pencil,
-  Play,
-  Clock,
-} from 'lucide-react';
+import { CalendarClock, Plus, Trash2, Pencil, Play, Clock } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -125,12 +118,15 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
   }, [t]);
 
   // Format schedule for display using i18n day labels (replaces backend schedule_display)
-  const formatSchedule = useCallback((action: ScheduledAction) => {
-    const sorted = [...action.days_of_week].sort((a, b) => a - b);
-    const daysStr = sorted.map((d) => dayLabels[d] ?? `${d}`).join(', ');
-    const time = `${String(action.trigger_hour).padStart(2, '0')}:${String(action.trigger_minute).padStart(2, '0')}`;
-    return `${daysStr} - ${time}`;
-  }, [dayLabels]);
+  const formatSchedule = useCallback(
+    (action: ScheduledAction) => {
+      const sorted = [...action.days_of_week].sort((a, b) => a - b);
+      const daysStr = sorted.map(d => dayLabels[d] ?? `${d}`).join(', ');
+      const time = `${String(action.trigger_hour).padStart(2, '0')}:${String(action.trigger_minute).padStart(2, '0')}`;
+      return `${daysStr} - ${time}`;
+    },
+    [dayLabels]
+  );
 
   // Format datetime for display
   const formatDateTime = (isoString: string | null) => {
@@ -147,10 +143,10 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
 
   // Toggle day in form
   const toggleDay = (day: number) => {
-    setForm((prev) => ({
+    setForm(prev => ({
       ...prev,
       days_of_week: prev.days_of_week.includes(day)
-        ? prev.days_of_week.filter((d) => d !== day)
+        ? prev.days_of_week.filter(d => d !== day)
         : [...prev.days_of_week, day].sort(),
     }));
   };
@@ -212,9 +208,7 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
       }
     } catch {
       toast.error(
-        editingAction
-          ? t('scheduled_actions.error_update')
-          : t('scheduled_actions.error_create')
+        editingAction ? t('scheduled_actions.error_update') : t('scheduled_actions.error_create')
       );
     }
   };
@@ -266,12 +260,8 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
   };
 
   // Form dialog content (shared between create and edit)
-  const formDialog = (
-    isOpen: boolean,
-    onClose: () => void,
-    titleKey: string,
-  ) => (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+  const formDialog = (isOpen: boolean, onClose: () => void, titleKey: string) => (
+    <Dialog open={isOpen} onOpenChange={open => !open && onClose()}>
       <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
           <DialogTitle>{t(titleKey)}</DialogTitle>
@@ -285,7 +275,7 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
             <Input
               id="sa-title"
               value={form.title}
-              onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+              onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
               maxLength={200}
               placeholder={t('scheduled_actions.field_title_placeholder')}
             />
@@ -297,7 +287,7 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
             <Textarea
               id="sa-prompt"
               value={form.action_prompt}
-              onChange={(e) => setForm((f) => ({ ...f, action_prompt: e.target.value }))}
+              onChange={e => setForm(f => ({ ...f, action_prompt: e.target.value }))}
               maxLength={2000}
               rows={3}
               placeholder={t('scheduled_actions.prompt_placeholder')}
@@ -308,7 +298,7 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
           <div className="space-y-2">
             <Label>{t('scheduled_actions.field_days')}</Label>
             <div className="flex flex-wrap gap-2">
-              {WEEKDAYS.map((day) => (
+              {WEEKDAYS.map(day => (
                 <Button
                   key={day}
                   type="button"
@@ -329,13 +319,13 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
             <div className="flex items-center gap-2">
               <Select
                 value={String(form.trigger_hour)}
-                onValueChange={(v) => setForm((f) => ({ ...f, trigger_hour: parseInt(v) }))}
+                onValueChange={v => setForm(f => ({ ...f, trigger_hour: parseInt(v) }))}
               >
                 <SelectTrigger className="w-20">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {HOUR_OPTIONS.map((h) => (
+                  {HOUR_OPTIONS.map(h => (
                     <SelectItem key={h} value={String(h)}>
                       {String(h).padStart(2, '0')}
                     </SelectItem>
@@ -345,13 +335,13 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
               <span className="text-lg font-bold">:</span>
               <Select
                 value={String(form.trigger_minute)}
-                onValueChange={(v) => setForm((f) => ({ ...f, trigger_minute: parseInt(v) }))}
+                onValueChange={v => setForm(f => ({ ...f, trigger_minute: parseInt(v) }))}
               >
                 <SelectTrigger className="w-20">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {MINUTE_OPTIONS.map((m) => (
+                  {MINUTE_OPTIONS.map(m => (
                     <SelectItem key={m} value={String(m)}>
                       {String(m).padStart(2, '0')}
                     </SelectItem>
@@ -394,9 +384,7 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
       {/* Header with count and add button */}
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm text-muted-foreground">
-          {total > 0
-            ? `${total} ${t('scheduled_actions.settings.count', { count: total })}`
-            : ''}
+          {total > 0 ? `${total} ${t('scheduled_actions.settings.count', { count: total })}` : ''}
         </p>
         <Button size="sm" onClick={handleOpenCreate}>
           <Plus className="h-4 w-4 mr-1" />
@@ -423,7 +411,7 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
       {/* Action cards */}
       {!loading && actions.length > 0 && (
         <div className="space-y-3">
-          {actions.map((action) => (
+          {actions.map(action => (
             <div
               key={action.id}
               className="rounded-lg border bg-card p-4 space-y-1.5 group cursor-pointer lg:cursor-default"
@@ -444,7 +432,10 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={(e) => { e.stopPropagation(); handleExecute(action); }}
+                    onClick={e => {
+                      e.stopPropagation();
+                      handleExecute(action);
+                    }}
                     disabled={executing}
                     title={t('scheduled_actions.test_now')}
                   >
@@ -453,7 +444,10 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={(e) => { e.stopPropagation(); handleOpenEdit(action); }}
+                    onClick={e => {
+                      e.stopPropagation();
+                      handleOpenEdit(action);
+                    }}
                     title={t('common.edit')}
                   >
                     <Pencil className="h-4 w-4" />
@@ -461,7 +455,10 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={(e) => { e.stopPropagation(); setDeletingActionId(action.id); }}
+                    onClick={e => {
+                      e.stopPropagation();
+                      setDeletingActionId(action.id);
+                    }}
                     title={t('common.delete')}
                   >
                     <Trash2 className="h-4 w-4 text-destructive" />
@@ -470,14 +467,12 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
                 <Switch
                   checked={action.is_enabled}
                   onCheckedChange={() => handleToggle(action)}
-                  onClick={(e) => e.stopPropagation()}
+                  onClick={e => e.stopPropagation()}
                 />
               </div>
 
               {/* Prompt (truncated) */}
-              <p className="text-sm text-muted-foreground line-clamp-1">
-                {action.action_prompt}
-              </p>
+              <p className="text-sm text-muted-foreground line-clamp-1">{action.action_prompt}</p>
 
               {/* Schedule */}
               <p className="text-xs text-muted-foreground flex items-center gap-1">
@@ -512,23 +507,19 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
       )}
 
       {/* Create dialog */}
-      {formDialog(
-        showCreateDialog,
-        () => setShowCreateDialog(false),
-        'scheduled_actions.create',
-      )}
+      {formDialog(showCreateDialog, () => setShowCreateDialog(false), 'scheduled_actions.create')}
 
       {/* Edit dialog */}
       {formDialog(
         editingAction !== null,
         () => setEditingAction(null),
-        'scheduled_actions.edit_title',
+        'scheduled_actions.edit_title'
       )}
 
       {/* Delete confirmation */}
       <AlertDialog
         open={deletingActionId !== null}
-        onOpenChange={(open) => !open && setDeletingActionId(null)}
+        onOpenChange={open => !open && setDeletingActionId(null)}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -539,7 +530,10 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
               {t('common.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -548,13 +542,11 @@ export function ScheduledActionsSettings({ lng }: ScheduledActionsSettingsProps)
       {/* Mobile actions dialog */}
       <Dialog
         open={mobileActionItem !== null}
-        onOpenChange={(open) => !open && setMobileActionItem(null)}
+        onOpenChange={open => !open && setMobileActionItem(null)}
       >
         <DialogContent className="lg:hidden max-w-[90vw] rounded-lg">
           <DialogHeader>
-            <DialogTitle className="text-base">
-              {mobileActionItem?.title}
-            </DialogTitle>
+            <DialogTitle className="text-base">{mobileActionItem?.title}</DialogTitle>
             <DialogDescription className="sr-only">
               {t('scheduled_actions.settings.description')}
             </DialogDescription>

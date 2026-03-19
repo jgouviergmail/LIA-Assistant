@@ -1,14 +1,6 @@
 'use client';
 
-import {
-  Sparkles,
-  Link2,
-  MessageCircleHeart,
-  Brain,
-  Bell,
-  Terminal,
-  Heart,
-} from 'lucide-react';
+import { Sparkles, Link2, MessageCircleHeart, Brain, Bell, Terminal, Heart } from 'lucide-react';
 
 export type IllustrationType =
   | 'welcome'
@@ -48,8 +40,14 @@ export function OnboardingIllustration({ type }: OnboardingIllustrationProps) {
           </div>
           {/* Floating decorations */}
           <div className="absolute top-2 right-4 w-3 h-3 rounded-full bg-primary/60 animate-pulse" />
-          <div className="absolute bottom-4 left-2 w-2 h-2 rounded-full bg-primary/40 animate-pulse" style={{ animationDelay: '0.5s' }} />
-          <div className="absolute top-1/4 left-0 w-2 h-2 rounded-full bg-primary/50 animate-pulse" style={{ animationDelay: '1s' }} />
+          <div
+            className="absolute bottom-4 left-2 w-2 h-2 rounded-full bg-primary/40 animate-pulse"
+            style={{ animationDelay: '0.5s' }}
+          />
+          <div
+            className="absolute top-1/4 left-0 w-2 h-2 rounded-full bg-primary/50 animate-pulse"
+            style={{ animationDelay: '1s' }}
+          />
         </div>
       );
 
@@ -61,10 +59,42 @@ export function OnboardingIllustration({ type }: OnboardingIllustrationProps) {
           {/* Connected nodes visualization */}
           <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100">
             {/* Connection lines */}
-            <line x1="50" y1="30" x2="25" y2="60" stroke="currentColor" strokeWidth="1.5" className="text-primary/40" />
-            <line x1="50" y1="30" x2="75" y2="60" stroke="currentColor" strokeWidth="1.5" className="text-primary/40" />
-            <line x1="25" y1="60" x2="50" y2="80" stroke="currentColor" strokeWidth="1.5" className="text-primary/40" />
-            <line x1="75" y1="60" x2="50" y2="80" stroke="currentColor" strokeWidth="1.5" className="text-primary/40" />
+            <line
+              x1="50"
+              y1="30"
+              x2="25"
+              y2="60"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              className="text-primary/40"
+            />
+            <line
+              x1="50"
+              y1="30"
+              x2="75"
+              y2="60"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              className="text-primary/40"
+            />
+            <line
+              x1="25"
+              y1="60"
+              x2="50"
+              y2="80"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              className="text-primary/40"
+            />
+            <line
+              x1="75"
+              y1="60"
+              x2="50"
+              y2="80"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              className="text-primary/40"
+            />
             {/* Nodes */}
             <circle cx="50" cy="30" r="8" className="fill-primary/30" />
             <circle cx="25" cy="60" r="6" className="fill-primary/40" />
@@ -106,9 +136,27 @@ export function OnboardingIllustration({ type }: OnboardingIllustrationProps) {
           {/* Neural network lines */}
           <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100">
             {/* Synaptic connections */}
-            <path d="M30 40 Q50 20 70 40" fill="none" stroke="currentColor" strokeWidth="1" className="text-emerald-500/30" />
-            <path d="M20 55 Q50 45 80 55" fill="none" stroke="currentColor" strokeWidth="1" className="text-teal-500/30" />
-            <path d="M35 70 Q50 60 65 70" fill="none" stroke="currentColor" strokeWidth="1" className="text-emerald-400/30" />
+            <path
+              d="M30 40 Q50 20 70 40"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1"
+              className="text-emerald-500/30"
+            />
+            <path
+              d="M20 55 Q50 45 80 55"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1"
+              className="text-teal-500/30"
+            />
+            <path
+              d="M35 70 Q50 60 65 70"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1"
+              className="text-emerald-400/30"
+            />
             {/* Nodes */}
             <circle cx="30" cy="40" r="3" className="fill-emerald-400/50" />
             <circle cx="70" cy="40" r="3" className="fill-teal-400/50" />
@@ -131,14 +179,41 @@ export function OnboardingIllustration({ type }: OnboardingIllustrationProps) {
           <div className="absolute inset-0 rounded-full bg-gradient-to-br from-rose-500/20 to-pink-500/10" />
           {/* Floating interest bubbles */}
           <div className="absolute top-4 left-6 w-6 h-6 rounded-full bg-purple-400/30 animate-pulse" />
-          <div className="absolute top-8 right-4 w-5 h-5 rounded-full bg-rose-400/30 animate-pulse" style={{ animationDelay: '0.3s' }} />
-          <div className="absolute bottom-6 left-4 w-4 h-4 rounded-full bg-pink-400/30 animate-pulse" style={{ animationDelay: '0.6s' }} />
-          <div className="absolute bottom-4 right-6 w-5 h-5 rounded-full bg-orange-400/30 animate-pulse" style={{ animationDelay: '0.9s' }} />
+          <div
+            className="absolute top-8 right-4 w-5 h-5 rounded-full bg-rose-400/30 animate-pulse"
+            style={{ animationDelay: '0.3s' }}
+          />
+          <div
+            className="absolute bottom-6 left-4 w-4 h-4 rounded-full bg-pink-400/30 animate-pulse"
+            style={{ animationDelay: '0.6s' }}
+          />
+          <div
+            className="absolute bottom-4 right-6 w-5 h-5 rounded-full bg-orange-400/30 animate-pulse"
+            style={{ animationDelay: '0.9s' }}
+          />
           {/* Connecting lines */}
           <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100">
-            <path d="M30 25 Q50 50 70 25" fill="none" stroke="currentColor" strokeWidth="1" className="text-rose-400/30" />
-            <path d="M20 50 Q50 60 80 50" fill="none" stroke="currentColor" strokeWidth="1" className="text-pink-400/30" />
-            <path d="M30 75 Q50 55 70 75" fill="none" stroke="currentColor" strokeWidth="1" className="text-rose-300/30" />
+            <path
+              d="M30 25 Q50 50 70 25"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1"
+              className="text-rose-400/30"
+            />
+            <path
+              d="M20 50 Q50 60 80 50"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1"
+              className="text-pink-400/30"
+            />
+            <path
+              d="M30 75 Q50 55 70 75"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1"
+              className="text-rose-300/30"
+            />
           </svg>
           {/* Center icon */}
           <div className="absolute inset-0 flex items-center justify-center">
@@ -155,8 +230,14 @@ export function OnboardingIllustration({ type }: OnboardingIllustrationProps) {
           {/* Background */}
           <div className="absolute inset-0 rounded-full bg-gradient-to-br from-amber-500/20 to-orange-500/10" />
           {/* Sound waves */}
-          <div className="absolute inset-6 rounded-full border-2 border-amber-400/20 animate-ping" style={{ animationDuration: '2s' }} />
-          <div className="absolute inset-10 rounded-full border-2 border-orange-400/30 animate-ping" style={{ animationDuration: '2s', animationDelay: '0.5s' }} />
+          <div
+            className="absolute inset-6 rounded-full border-2 border-amber-400/20 animate-ping"
+            style={{ animationDuration: '2s' }}
+          />
+          <div
+            className="absolute inset-10 rounded-full border-2 border-orange-400/30 animate-ping"
+            style={{ animationDuration: '2s', animationDelay: '0.5s' }}
+          />
           {/* Center icon */}
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="p-4 rounded-2xl bg-amber-500/20">

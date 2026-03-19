@@ -130,9 +130,7 @@ export default function AdminDebugSettingsSection({ lng, collapsible = true }: B
   };
 
   const content = loading ? (
-    <div className="animate-pulse text-muted-foreground py-4">
-      {t('common.loading')}
-    </div>
+    <div className="animate-pulse text-muted-foreground py-4">{t('common.loading')}</div>
   ) : (
     <div className="space-y-6">
       {/* Debug Panel Toggle (Admin's own) */}
@@ -154,7 +152,7 @@ export default function AdminDebugSettingsSection({ lng, collapsible = true }: B
           </div>
           {debugPanel?.updated_at && !debugPanel?.is_default && (
             <div className="text-xs text-muted-foreground mt-1">
-              {t('settings.admin.debug.lastUpdated')}: {' '}
+              {t('settings.admin.debug.lastUpdated')}:{' '}
               {new Date(debugPanel.updated_at).toLocaleString(lng)}
             </div>
           )}
@@ -197,7 +195,7 @@ export default function AdminDebugSettingsSection({ lng, collapsible = true }: B
           </div>
           {userAccess?.updated_at && !userAccess?.is_default && (
             <div className="text-xs text-muted-foreground mt-1">
-              {t('settings.admin.debug.lastUpdated')}: {' '}
+              {t('settings.admin.debug.lastUpdated')}:{' '}
               {new Date(userAccess.updated_at).toLocaleString(lng)}
             </div>
           )}
@@ -223,9 +221,7 @@ export default function AdminDebugSettingsSection({ lng, collapsible = true }: B
             <strong className="text-foreground">{t('settings.admin.debug.whatItDoes')}:</strong>{' '}
             {t('settings.admin.debug.description')}
           </p>
-          <p className="text-xs">
-            {t('settings.admin.debug.note')}
-          </p>
+          <p className="text-xs">{t('settings.admin.debug.note')}</p>
         </div>
       </InfoBox>
     </div>

@@ -140,6 +140,10 @@ class QueryIntelligence:
     # True if query explicitly asks for news/current events/recent updates
     is_news_query: bool = False
 
+    # === APP SELF-KNOWLEDGE ===
+    # True if user asks about the app itself, its features, or usage
+    is_app_help_query: bool = False
+
     # === INTELLIGENT METHODS ===
 
     def requires_planner(self) -> bool:
@@ -447,6 +451,8 @@ class QueryIntelligence:
             # Knowledge Enrichment (Brave Search)
             "encyclopedia_keywords": list(self.encyclopedia_keywords),
             "is_news_query": self.is_news_query,
+            # App self-knowledge
+            "is_app_help_query": self.is_app_help_query,
         }
 
 

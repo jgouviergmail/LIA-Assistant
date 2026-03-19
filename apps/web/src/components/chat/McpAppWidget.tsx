@@ -33,21 +33,14 @@ export function McpAppWidget({ registryId }: McpAppWidgetProps) {
   if (!item || item.type !== 'MCP_APP') {
     return (
       <div className="lia-mcp-app__placeholder">
-        <span className="text-sm text-muted-foreground">
-          {t('mcp_apps.error')}
-        </span>
+        <span className="text-sm text-muted-foreground">{t('mcp_apps.error')}</span>
       </div>
     );
   }
 
   const payload = item.payload as unknown as McpAppRegistryPayload;
 
-  return (
-    <McpAppWidgetInner
-      iframeRef={iframeRef}
-      payload={payload}
-    />
-  );
+  return <McpAppWidgetInner iframeRef={iframeRef} payload={payload} />;
 }
 
 /**

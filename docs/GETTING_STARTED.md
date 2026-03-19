@@ -42,6 +42,7 @@
 | **Interest Learning** | Automatic interest extraction via LLM |
 | **OAuth Health Check** | Proactive connector monitoring with notifications |
 | **RAG Knowledge Spaces** | Personal document spaces (PDF, TXT, MD, DOCX) with hybrid search enrichment (v1.4) |
+| **System Knowledge Spaces** | Built-in FAQ knowledge base — LIA answers questions about itself (v1.6.1) |
 | **Hybrid Search** | Combined BM25 + semantic search (alpha=0.6) |
 
 ### Technical Architecture
@@ -496,6 +497,8 @@ task db:create-admin -- --email you@example.com --password YourSecurePassword123
 > **Important**: Change the default admin password after first login! Go to Settings > Account to update it.
 
 > **Note**: `task db:seed:sql` populates assistant personalities and LLM pricing data. Without it, the assistant won't have a personality and cost tracking won't work.
+
+> **Note**: System FAQ knowledge base (119 Q/A) is automatically indexed at app startup. No manual seed required. For manual indexation: `task db:seed:system-rag`.
 
 #### Created Tables
 

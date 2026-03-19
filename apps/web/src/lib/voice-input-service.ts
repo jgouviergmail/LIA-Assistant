@@ -180,7 +180,6 @@ export class VoiceInputService {
 
       // Step 3: Create WebSocket connection
       await this.createWebSocket(wsUrl);
-
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       this.config.onError?.(err);
@@ -205,11 +204,11 @@ export class VoiceInputService {
         resolve();
       };
 
-      ws.onmessage = (event) => {
+      ws.onmessage = event => {
         this.handleMessage(event.data);
       };
 
-      ws.onclose = (event) => {
+      ws.onclose = event => {
         this.stopHeartbeat();
         this.config.onConnectionChange?.(false);
 
@@ -254,7 +253,6 @@ export class VoiceInputService {
         });
 
         this.config.onTranscription(result.text, result.duration_seconds);
-
       } else if (message.type === 'pong') {
         logger.debug('voice_input_pong', { component: 'VoiceInputService' });
       }

@@ -66,12 +66,11 @@ const cardVariants = cva(
 
 /** Map domain to CSS variable class */
 const domainAccentClasses: Record<DomainAccent, string> = Object.fromEntries(
-  DOMAIN_ACCENTS.map((domain) => [domain, `border-l-4 border-l-[var(--lia-${domain}-accent)]`])
+  DOMAIN_ACCENTS.map(domain => [domain, `border-l-4 border-l-[var(--lia-${domain}-accent)]`])
 ) as Record<DomainAccent, string>;
 
 export interface CardProps
-  extends React.HTMLAttributes<HTMLDivElement>,
-    VariantProps<typeof cardVariants> {
+  extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof cardVariants> {
   /** Domain accent color for left border (email, contact, calendar, etc.) */
   domainAccent?: DomainAccent;
 }

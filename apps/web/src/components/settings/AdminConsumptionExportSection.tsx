@@ -21,7 +21,10 @@ interface UserSuggestion {
   is_active: boolean;
 }
 
-export default function AdminConsumptionExportSection({ lng, collapsible = true }: BaseSettingsProps) {
+export default function AdminConsumptionExportSection({
+  lng,
+  collapsible = true,
+}: BaseSettingsProps) {
   const { t } = useTranslation(lng, 'translation');
 
   const [startDate, setStartDate] = useState('');
@@ -224,7 +227,9 @@ export default function AdminConsumptionExportSection({ lng, collapsible = true 
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium truncate">{selectedUser.email}</div>
                   {selectedUser.full_name && (
-                    <div className="text-xs text-muted-foreground truncate">{selectedUser.full_name}</div>
+                    <div className="text-xs text-muted-foreground truncate">
+                      {selectedUser.full_name}
+                    </div>
                   )}
                 </div>
                 <button
@@ -282,7 +287,9 @@ export default function AdminConsumptionExportSection({ lng, collapsible = true 
                         <div className="flex-1 min-w-0">
                           <div className="text-sm truncate">{user.email}</div>
                           {user.full_name && (
-                            <div className="text-xs text-muted-foreground truncate">{user.full_name}</div>
+                            <div className="text-xs text-muted-foreground truncate">
+                              {user.full_name}
+                            </div>
                           )}
                         </div>
                         {!user.is_active && (

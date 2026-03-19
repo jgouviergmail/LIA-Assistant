@@ -59,7 +59,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
           // Title text - Larger and bolder
           title: 'group-[.toast]:text-base group-[.toast]:font-semibold',
           // Description text - Better size and spacing
-          description: 'group-[.toast]:text-muted-foreground group-[.toast]:text-sm group-[.toast]:mt-1.5 group-[.toast]:leading-relaxed',
+          description:
+            'group-[.toast]:text-muted-foreground group-[.toast]:text-sm group-[.toast]:mt-1.5 group-[.toast]:leading-relaxed',
           // Action button - More prominent
           actionButton: `
             group-[.toast]:bg-primary

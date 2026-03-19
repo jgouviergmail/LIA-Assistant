@@ -39,11 +39,7 @@ export function MemoryToggle({ lng = 'fr' }: MemoryToggleProps) {
       // Refresh user to get updated state
       await refreshUser();
 
-      toast.success(
-        newState
-          ? t('memory.toggle.enabled')
-          : t('memory.toggle.disabled')
-      );
+      toast.success(newState ? t('memory.toggle.enabled') : t('memory.toggle.disabled'));
     } catch (error) {
       console.error('Failed to update memory preference:', error);
       toast.error(t('common.error'));
@@ -81,7 +77,9 @@ export function MemoryToggle({ lng = 'fr' }: MemoryToggleProps) {
       ) : (
         <BrainCog className="h-[1.2rem] w-[1.2rem] text-muted-foreground transition-all" />
       )}
-      <span className="sr-only">{isEnabled ? t('memory.toggle.disable') : t('memory.toggle.enable')}</span>
+      <span className="sr-only">
+        {isEnabled ? t('memory.toggle.disable') : t('memory.toggle.enable')}
+      </span>
     </Button>
   );
 }

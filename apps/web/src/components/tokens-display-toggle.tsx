@@ -41,12 +41,12 @@ export function TokensDisplayToggle({ lng = 'fr' }: TokensDisplayToggleProps) {
       await refreshUser();
 
       toast.success(
-        newState
-          ? t('tokens_display.toggle.enabled')
-          : t('tokens_display.toggle.disabled')
+        newState ? t('tokens_display.toggle.enabled') : t('tokens_display.toggle.disabled')
       );
     } catch (error) {
-      logger.error('tokens_display_preference_update_failed', error as Error, { component: 'TokensDisplayToggle' });
+      logger.error('tokens_display_preference_update_failed', error as Error, {
+        component: 'TokensDisplayToggle',
+      });
       toast.error(t('common.error'));
     } finally {
       setIsLoading(false);
@@ -72,8 +72,14 @@ export function TokensDisplayToggle({ lng = 'fr' }: TokensDisplayToggleProps) {
       className="w-11 h-11 px-0"
       onClick={handleToggle}
       disabled={isLoading || !user}
-      aria-label={isEnabled ? t('tokens_display.toggle.disable') : t('tokens_display.toggle.enable')}
-      title={isEnabled ? t('tokens_display.toggle.tooltip_enabled') : t('tokens_display.toggle.tooltip_disabled')}
+      aria-label={
+        isEnabled ? t('tokens_display.toggle.disable') : t('tokens_display.toggle.enable')
+      }
+      title={
+        isEnabled
+          ? t('tokens_display.toggle.tooltip_enabled')
+          : t('tokens_display.toggle.tooltip_disabled')
+      }
     >
       {isLoading ? (
         <LoadingSpinner className="h-[1.2rem] w-[1.2rem]" />
@@ -84,7 +90,9 @@ export function TokensDisplayToggle({ lng = 'fr' }: TokensDisplayToggleProps) {
           }`}
         />
       )}
-      <span className="sr-only">{isEnabled ? t('tokens_display.toggle.disable') : t('tokens_display.toggle.enable')}</span>
+      <span className="sr-only">
+        {isEnabled ? t('tokens_display.toggle.disable') : t('tokens_display.toggle.enable')}
+      </span>
     </Button>
   );
 }

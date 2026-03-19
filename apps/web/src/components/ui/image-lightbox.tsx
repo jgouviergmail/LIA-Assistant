@@ -24,7 +24,13 @@ interface ImageLightboxProps {
  * - Smooth fade-in animation
  * - Dark backdrop with glassmorphism
  */
-export const ImageLightbox: React.FC<ImageLightboxProps> = ({ src, alt, isOpen, onClose, minWidth }) => {
+export const ImageLightbox: React.FC<ImageLightboxProps> = ({
+  src,
+  alt,
+  isOpen,
+  onClose,
+  minWidth,
+}) => {
   const { t } = useTranslation();
 
   useEffect(() => {

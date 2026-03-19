@@ -29,7 +29,7 @@ export default function AttachmentPreview({ attachments, onRemove }: AttachmentP
 
   return (
     <div className="flex gap-2 overflow-x-auto py-2 px-1 chat-scrollbar">
-      {attachments.map((att) => (
+      {attachments.map(att => (
         <div
           key={att.tempId}
           className="relative flex-shrink-0 w-20 h-20 rounded-lg border border-border bg-muted overflow-hidden group"
@@ -37,11 +37,7 @@ export default function AttachmentPreview({ attachments, onRemove }: AttachmentP
           {/* Content */}
           {att.contentType === 'image' && att.previewUrl ? (
             /* eslint-disable-next-line @next/next/no-img-element -- Local blob preview URL, no optimization needed */
-            <img
-              src={att.previewUrl}
-              alt={att.filename}
-              className="w-full h-full object-cover"
-            />
+            <img src={att.previewUrl} alt={att.filename} className="w-full h-full object-cover" />
           ) : (
             <div className="flex flex-col items-center justify-center h-full p-1">
               <FileText className="h-8 w-8 text-muted-foreground" />

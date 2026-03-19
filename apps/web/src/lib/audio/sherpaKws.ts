@@ -28,10 +28,7 @@
  */
 
 import { logger } from '@/lib/logger';
-import {
-  VOICE_INPUT_SAMPLE_RATE,
-  VOICE_MODE_MIN_SPEECH_MS,
-} from '@/lib/constants';
+import { VOICE_INPUT_SAMPLE_RATE, VOICE_MODE_MIN_SPEECH_MS } from '@/lib/constants';
 
 // ============================================================================
 // Types
@@ -146,7 +143,10 @@ interface SherpaWasmModule {
   /** Create circular buffer */
   CircularBuffer?: new (size: number, module: SherpaWasmModule) => SherpaCircularBuffer;
   /** Create offline recognizer */
-  OfflineRecognizer?: new (config: SherpaWhisperConfig, module: SherpaWasmModule) => SherpaRecognizer;
+  OfflineRecognizer?: new (
+    config: SherpaWhisperConfig,
+    module: SherpaWasmModule
+  ) => SherpaRecognizer;
   // Emscripten module functions
   _malloc: (size: number) => number;
   _free: (ptr: number) => void;
@@ -201,7 +201,16 @@ const WASM_BASE_PATH = '/models/sherpa-wasm';
  * Primary: "OK Guy" / "OK Guys" (user-facing wake words)
  * Fallback: single words for robust detection
  */
-const DEFAULT_WAKE_WORDS = ['ok guy', 'okay guy', 'ok guys', 'okay guys', 'ok', 'okay', 'guy', 'guys'];
+const DEFAULT_WAKE_WORDS = [
+  'ok guy',
+  'okay guy',
+  'ok guys',
+  'okay guys',
+  'ok',
+  'okay',
+  'guy',
+  'guys',
+];
 
 /**
  * Minimum transcription length to check for wake word.
@@ -312,7 +321,7 @@ function loadScript(src: string): Promise<void> {
       logger.debug('sherpa_script_loaded', { component: 'sherpaKws', src });
       resolve();
     };
-    script.onerror = (error) => {
+    script.onerror = error => {
       logger.error('sherpa_script_load_failed', new Error(String(error)), {
         component: 'sherpaKws',
         src,
@@ -421,7 +430,7 @@ async function loadSherpaModule(): Promise<SherpaWasmModule> {
         script.onload = () => {
           loadedScripts.add(mainScriptSrc);
         };
-        script.onerror = (error) => {
+        script.onerror = error => {
           logger.error('sherpa_wasm_script_load_failed', new Error(String(error)), {
             component: 'sherpaKws',
             src: script.src,
@@ -641,9 +650,13 @@ async function initializeComponents(module: SherpaWasmModule): Promise<{
       cachedVad = globalModule.createVad(module);
       logger.info('sherpa_vad_created', { component: 'sherpaKws' });
     } catch (vadError) {
-      logger.error('sherpa_vad_creation_failed', vadError instanceof Error ? vadError : new Error(String(vadError)), {
-        component: 'sherpaKws',
-      });
+      logger.error(
+        'sherpa_vad_creation_failed',
+        vadError instanceof Error ? vadError : new Error(String(vadError)),
+        {
+          component: 'sherpaKws',
+        }
+      );
       throw vadError;
     }
   }
@@ -657,9 +670,13 @@ async function initializeComponents(module: SherpaWasmModule): Promise<{
       cachedBuffer = new globalModule.CircularBuffer(30 * VOICE_INPUT_SAMPLE_RATE, module);
       logger.info('sherpa_buffer_created', { component: 'sherpaKws' });
     } catch (bufferError) {
-      logger.error('sherpa_buffer_creation_failed', bufferError instanceof Error ? bufferError : new Error(String(bufferError)), {
-        component: 'sherpaKws',
-      });
+      logger.error(
+        'sherpa_buffer_creation_failed',
+        bufferError instanceof Error ? bufferError : new Error(String(bufferError)),
+        {
+          component: 'sherpaKws',
+        }
+      );
       throw bufferError;
     }
   }
@@ -677,7 +694,7 @@ async function initializeComponents(module: SherpaWasmModule): Promise<{
   if (bundledModel.type === 'none') {
     throw new Error(
       'No ASR model found in bundled WASM. ' +
-      'The .data file should contain whisper, sense-voice, transducer, paraformer, or moonshine model.'
+        'The .data file should contain whisper, sense-voice, transducer, paraformer, or moonshine model.'
     );
   }
 
@@ -700,17 +717,23 @@ async function initializeComponents(module: SherpaWasmModule): Promise<{
         module
       );
     } catch (recognizerError) {
-      logger.error('sherpa_recognizer_constructor_failed', recognizerError instanceof Error ? recognizerError : new Error(String(recognizerError)), {
-        component: 'sherpaKws',
-        modelType: bundledModel.type,
-      });
+      logger.error(
+        'sherpa_recognizer_constructor_failed',
+        recognizerError instanceof Error ? recognizerError : new Error(String(recognizerError)),
+        {
+          component: 'sherpaKws',
+          modelType: bundledModel.type,
+        }
+      );
       throw recognizerError;
     }
 
     // Check if recognizer was created successfully
     const recognizerAny = cachedRecognizer as unknown as { handle: number };
     if (!recognizerAny.handle || recognizerAny.handle === 0) {
-      throw new Error('Failed to create OfflineRecognizer - model files may be missing or corrupted');
+      throw new Error(
+        'Failed to create OfflineRecognizer - model files may be missing or corrupted'
+      );
     }
 
     logger.info('sherpa_recognizer_created', {
@@ -764,10 +787,7 @@ class WakeWordDetector implements SherpaKwsInstance {
 
     // Process buffer through VAD
     while (this.buffer.size() > this.vad.config.sileroVad.windowSize) {
-      const vadSamples = this.buffer.get(
-        this.buffer.head(),
-        this.vad.config.sileroVad.windowSize
-      );
+      const vadSamples = this.buffer.get(this.buffer.head(), this.vad.config.sileroVad.windowSize);
       this.vad.acceptWaveform(vadSamples);
       this.buffer.pop(this.vad.config.sileroVad.windowSize);
 
@@ -926,9 +946,7 @@ class WakeWordDetector implements SherpaKwsInstance {
 export async function initSherpaKws(): Promise<SherpaKwsInstance> {
   // Check SharedArrayBuffer support
   if (typeof SharedArrayBuffer === 'undefined') {
-    const error = new Error(
-      'SharedArrayBuffer not available. Ensure COOP/COEP headers are set.'
-    );
+    const error = new Error('SharedArrayBuffer not available. Ensure COOP/COEP headers are set.');
     logger.error('sherpa_kws_no_shared_array_buffer', error, {
       component: 'sherpaKws',
     });
@@ -978,8 +996,7 @@ export function isSherpaKwsSupported(): boolean {
   const hasSharedArrayBuffer = typeof SharedArrayBuffer !== 'undefined';
   const hasWebAssembly = typeof WebAssembly !== 'undefined';
   const hasAudioWorklet =
-    typeof AudioContext !== 'undefined' &&
-    typeof AudioWorkletNode !== 'undefined';
+    typeof AudioContext !== 'undefined' && typeof AudioWorkletNode !== 'undefined';
 
   // Check if cross-origin isolated (required for SharedArrayBuffer on modern browsers)
   // This catches Safari iOS with COEP: credentialless (which doesn't enable isolation)

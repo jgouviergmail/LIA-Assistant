@@ -22,7 +22,7 @@ interface UseOAuthConnectReturn {
 export function useOAuthConnect(
   authEndpoints: Record<string, string>,
   componentName: string,
-  { onError }: UseOAuthConnectOptions = {},
+  { onError }: UseOAuthConnectOptions = {}
 ): UseOAuthConnectReturn {
   const connect = useCallback(
     async (connectorType: string) => {

@@ -66,6 +66,7 @@ apps/api/src/domains/agents/prompts/
     ├── query_analyzer_prompt.txt               # QueryAnalyzerService LLM analysis
     ├── smart_planner_prompt.txt                # SmartPlannerService single domain
     ├── smart_planner_multi_domain_prompt.txt   # SmartPlannerService multi-domain
+    ├── app_identity_prompt.txt                 # App self-knowledge identity prompt (~200 tokens), loaded conditionally when is_app_help_query=True
     │
     │   # SEMANTIC & MEMORY (4)
     ├── semantic_validator_prompt.txt           # Plan semantic validation
@@ -103,7 +104,7 @@ apps/api/src/domains/agents/prompts/
 |--------------|--------|-------------|
 | **Router** | router_system_prompt_template.txt | Binary routing + domain detection |
 | **Planner** | planner_system_prompt.txt | ExecutionPlan generation |
-| **Response** | response_system_prompt_base.txt | Conversational response |
+| **Response** | response_system_prompt_base.txt | Conversational response (placeholder: `{app_knowledge_context}`) |
 | **Contacts Agent** | contacts_agent_prompt.txt | Google Contacts domain |
 | **Emails Agent** | emails_agent_prompt.txt | Gmail domain |
 | **Calendar Agent** | calendar_agent_prompt.txt | Google Calendar domain |

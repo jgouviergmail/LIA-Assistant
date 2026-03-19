@@ -27,9 +27,7 @@ export function DocumentRow({ document: doc, onDelete, deleting }: DocumentRowPr
   return (
     <div className="group flex items-center gap-3 rounded-lg border p-3 bg-card hover:bg-accent/50 transition-colors">
       {/* File icon */}
-      <div className="shrink-0 rounded-lg bg-muted p-2">
-        {getFileIcon(doc.content_type)}
-      </div>
+      <div className="shrink-0 rounded-lg bg-muted p-2">{getFileIcon(doc.content_type)}</div>
 
       {/* Info */}
       <div className="flex-1 min-w-0">
@@ -54,10 +52,10 @@ export function DocumentRow({ document: doc, onDelete, deleting }: DocumentRowPr
               <span>·</span>
               <span className="inline-flex items-center gap-1">
                 <Coins className="h-3 w-3" />
-                {t('spaces.documents.embedding_tokens', { count: doc.embedding_tokens.toLocaleString() } as Record<string, string>)}
-                {doc.embedding_cost_eur > 0 && (
-                  <span>({doc.embedding_cost_eur.toFixed(6)} €)</span>
-                )}
+                {t('spaces.documents.embedding_tokens', {
+                  count: doc.embedding_tokens.toLocaleString(),
+                } as Record<string, string>)}
+                {doc.embedding_cost_eur > 0 && <span>({doc.embedding_cost_eur.toFixed(6)} €)</span>}
               </span>
             </>
           )}

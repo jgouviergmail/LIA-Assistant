@@ -144,12 +144,7 @@ export class DebugPanelErrorBoundary extends Component<
       }
 
       // Display default FallbackUI
-      return (
-        <FallbackUI
-          error={this.state.error}
-          onRetry={this.handleRetry}
-        />
-      );
+      return <FallbackUI error={this.state.error} onRetry={this.handleRetry} />;
     }
 
     // No error, normal render
@@ -181,9 +176,5 @@ export function WithDebugPanelErrorBoundary({
   children: ReactNode;
   onError?: (error: Error, errorInfo: ErrorInfo) => void;
 }) {
-  return (
-    <DebugPanelErrorBoundary onError={onError}>
-      {children}
-    </DebugPanelErrorBoundary>
-  );
+  return <DebugPanelErrorBoundary onError={onError}>{children}</DebugPanelErrorBoundary>;
 }

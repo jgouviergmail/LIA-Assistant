@@ -95,11 +95,11 @@ export function useChannelBindings() {
     async (bindingId: string) => {
       const result = await toggleMutation.mutate(`${ENDPOINT}/${bindingId}/toggle`);
       if (result) {
-        setData((prev) => {
+        setData(prev => {
           if (!prev) return prev;
           return {
             ...prev,
-            bindings: prev.bindings.map((b) =>
+            bindings: prev.bindings.map(b =>
               b.id === bindingId ? { ...b, is_active: result.is_active } : b
             ),
           };
@@ -113,11 +113,11 @@ export function useChannelBindings() {
   const unlinkBinding = useCallback(
     async (bindingId: string) => {
       await deleteMutation.mutate(`${ENDPOINT}/${bindingId}`);
-      setData((prev) => {
+      setData(prev => {
         if (!prev) return prev;
         return {
           ...prev,
-          bindings: prev.bindings.filter((b) => b.id !== bindingId),
+          bindings: prev.bindings.filter(b => b.id !== bindingId),
           total: prev.total - 1,
         };
       });

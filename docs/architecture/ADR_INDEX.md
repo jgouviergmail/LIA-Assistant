@@ -2041,6 +2041,32 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 
 ---
 
+### ADR-058: System RAG Spaces for App Self-Knowledge
+
+**Status**: ✅ IMPLEMENTED (2026-03-19)
+**Fichier**: `docs/architecture/ADR-058-System-RAG-Spaces.md`
+
+**Décision**: Ajouter des espaces de connaissances système (FAQ) indexés depuis des fichiers Markdown backend, avec détection `is_app_help_query` et injection conditionnelle dans le prompt de réponse.
+
+**Problème résolu**:
+- ❌ L'assistant ne connaît pas ses propres fonctionnalités
+- ❌ Les utilisateurs doivent naviguer vers la page FAQ au lieu de poser des questions en conversation
+- ❌ Pas de mécanisme pour des connaissances système non-supprimables
+
+**Solution**:
+- ✅ `SystemSpaceIndexer` — parse Markdown → embed → store chunks (hash-based staleness)
+- ✅ `is_app_help_query` détecté par QueryAnalyzer → RoutingDecider Rule 0 → response
+- ✅ App Identity Prompt + System RAG context injectés conditionnellement (lazy loading)
+- ✅ 3 endpoints admin + UI section avec badge staleness et bouton reindex
+
+**Impact**:
+- ✅ 16 fichiers FAQ Markdown (119 Q/A) dans `docs/knowledge/`
+- ✅ Zero overhead sur les requêtes normales (lazy loading)
+- ✅ 3 métriques Prometheus (indexation, retrieval, duration)
+- ✅ i18n : 11 clés en 6 langues pour l'admin UI
+
+---
+
 ## ADRs Archivés
 
 ### ADR-005 (Version Originale): Workflow-Based HITL

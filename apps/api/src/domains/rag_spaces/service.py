@@ -125,6 +125,27 @@ def raise_file_type_not_allowed(content_type: str) -> NoReturn:
     )
 
 
+def raise_system_space_protected(space_id: uuid.UUID, operation: str) -> NoReturn:
+    """Raise 403 when attempting to modify a system space."""
+    raise BaseAPIException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail=f"Cannot {operation} a system space",
+        log_event="rag_system_space_protected",
+        space_id=str(space_id),
+        operation=operation,
+    )
+
+
+def raise_system_space_not_found(space_name: str) -> NoReturn:
+    """Raise 404 when system space is not found by name."""
+    raise BaseAPIException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="System space not found",
+        log_event="rag_system_space_not_found",
+        space_name=space_name,
+    )
+
+
 # ============================================================================
 # Service
 # ============================================================================
@@ -145,8 +166,9 @@ class RAGSpaceService:
     # ========================================================================
 
     async def list_spaces(self, user_id: uuid.UUID) -> list[dict]:
-        """List all spaces for a user with computed stats."""
+        """List all user-owned spaces with computed stats (excludes system spaces)."""
         spaces = await self.space_repo.get_all_for_user(user_id)
+        spaces = [s for s in spaces if not s.is_system]
         result = []
         for space in spaces:
             stats = await self.doc_repo.get_space_stats(space.id)
@@ -229,6 +251,8 @@ class RAGSpaceService:
     ) -> RAGSpace:
         """Update a space (partial update)."""
         space = await self.get_space(space_id, user_id)
+        if space.is_system:
+            raise_system_space_protected(space_id, "update")
 
         update_data: dict[str, str | None] = {}
         if name is not None:
@@ -272,6 +296,8 @@ class RAGSpaceService:
     async def delete_space(self, space_id: uuid.UUID, user_id: uuid.UUID) -> None:
         """Delete a space with all its documents, chunks, and files."""
         space = await self.get_space(space_id, user_id)
+        if space.is_system:
+            raise_system_space_protected(space_id, "delete")
 
         # Snapshot document statuses BEFORE cascade delete (for gauge updates)
         documents = await self.doc_repo.get_all_for_space(space_id)
@@ -302,6 +328,8 @@ class RAGSpaceService:
     async def toggle_space(self, space_id: uuid.UUID, user_id: uuid.UUID) -> RAGSpace:
         """Toggle space activation."""
         space = await self.get_space(space_id, user_id)
+        if space.is_system:
+            raise_system_space_protected(space_id, "toggle")
         space = await self.space_repo.update(space, {"is_active": not space.is_active})
         await self.db.commit()
 
@@ -334,7 +362,9 @@ class RAGSpaceService:
         status=processing, and returns the document. The caller is
         responsible for launching the background processing task.
         """
-        await self.get_space(space_id, user_id)  # Verify ownership
+        space = await self.get_space(space_id, user_id)  # Verify ownership
+        if space.is_system:
+            raise_system_space_protected(space_id, "upload")
 
         # Check document limit
         doc_count = await self.doc_repo.count_for_space(space_id)
@@ -515,3 +545,76 @@ class RAGSpaceService:
                 space_id=str(space_id),
             )
         return source
+
+    # ========================================================================
+    # System Spaces (admin operations)
+    # ========================================================================
+
+    async def get_system_spaces(self) -> list[dict]:
+        """List all system spaces with stats (document_count, chunk_count)."""
+        spaces = await self.space_repo.get_system_spaces()
+        result = []
+        for space in spaces:
+            stats = await self.doc_repo.get_space_stats(space.id)
+            chunk_count = await self.chunk_repo.count_for_space(space.id)
+            result.append({**space.dict(), **stats, "chunk_count": chunk_count})
+        return result
+
+    async def get_system_space_by_name(self, name: str) -> RAGSpace:
+        """Get a system space by name, raising 404 if not found."""
+        space = await self.space_repo.get_system_space_by_name(name)
+        if not space:
+            raise_system_space_not_found(name)
+        return space
+
+    async def create_system_space(
+        self,
+        name: str,
+        description: str | None = None,
+    ) -> RAGSpace:
+        """Create a new system space (no user_id, is_system=True)."""
+        try:
+            space = await self.space_repo.create(
+                {
+                    "user_id": None,
+                    "name": name.strip(),
+                    "description": description.strip() if description else None,
+                    "is_system": True,
+                    "is_active": True,
+                }
+            )
+            await self.db.commit()
+
+            logger.info(
+                "rag_system_space_created",
+                space_id=str(space.id),
+                name=name,
+            )
+            return space
+
+        except IntegrityError:
+            await self.db.rollback()
+            raise BaseAPIException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"A system space named '{name}' already exists",
+                log_event="rag_system_space_duplicate_name",
+                name=name,
+            ) from None
+
+    async def update_system_space_hash(
+        self,
+        space_id: uuid.UUID,
+        content_hash: str,
+    ) -> RAGSpace:
+        """Update the content hash of a system space after indexation."""
+        space = await self.space_repo.get_by_id(space_id)
+        if not space or not space.is_system:
+            raise_system_space_not_found(str(space_id))
+        space = await self.space_repo.update(space, {"content_hash": content_hash})
+        await self.db.commit()
+        logger.info(
+            "rag_system_space_hash_updated",
+            space_id=str(space_id),
+            content_hash=content_hash,
+        )
+        return space

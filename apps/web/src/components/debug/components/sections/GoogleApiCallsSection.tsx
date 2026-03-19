@@ -6,11 +6,7 @@
  */
 
 import React from 'react';
-import {
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent,
-} from '@/components/ui/accordion';
+import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { MetricRow } from '../shared';
 import { formatCost } from '../../utils/formatters';
 import { cn } from '@/lib/utils';
@@ -93,16 +89,10 @@ export const GoogleApiCallsSection = React.memo(function GoogleApiCallsSection({
         <div className="space-y-3">
           {/* Global summary */}
           <div className="p-2 bg-muted/30 rounded border border-border/50">
-            <div className="text-xs text-muted-foreground font-medium mb-1.5">
-              Résumé
-            </div>
+            <div className="text-xs text-muted-foreground font-medium mb-1.5">Résumé</div>
             <div className="grid grid-cols-2 gap-x-4 gap-y-1">
               <MetricRow label="Total" value={summary.total_calls} />
-              <MetricRow
-                label="Facturables"
-                value={summary.billable_calls}
-                highlight
-              />
+              <MetricRow label="Facturables" value={summary.billable_calls} highlight />
               <MetricRow
                 label="En cache"
                 value={summary.cached_calls}
@@ -127,9 +117,7 @@ export const GoogleApiCallsSection = React.memo(function GoogleApiCallsSection({
 
           {/* Detailed calls list */}
           <div className="border-t border-border/50 pt-2">
-            <div className="text-xs text-muted-foreground font-medium mb-2">
-              Détail par appel
-            </div>
+            <div className="text-xs text-muted-foreground font-medium mb-2">Détail par appel</div>
             <div className="space-y-2">
               {calls.map((call, index) => (
                 <div

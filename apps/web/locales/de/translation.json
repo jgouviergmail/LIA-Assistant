@@ -1230,7 +1230,20 @@
         "reindexConfirmAction": "Neuindexierung starten",
         "whatItDoes": "Funktionsweise",
         "description": "RAG-Wissensräume ermöglichen Benutzern das Hochladen von Dokumenten (PDF, TXT, MD, DOCX), die indexiert und zur Anreicherung von KI-Antworten mit relevantem Kontext verwendet werden.",
-        "enableHint": "Um diese Funktion zu aktivieren, setzen Sie die Umgebungsvariable RAG_SPACES_ENABLED=true und starten Sie den Server neu."
+        "enableHint": "Um diese Funktion zu aktivieren, setzen Sie die Umgebungsvariable RAG_SPACES_ENABLED=true und starten Sie den Server neu.",
+        "systemSpaces": {
+          "title": "System-Wissensräume",
+          "description": "Integrierte Wissensräume für App-FAQ und Hilfeinhalte.",
+          "stale": "Aktualisierung verfügbar",
+          "upToDate": "Aktuell",
+          "reindexButton": "Neu indexieren",
+          "reindexing": "Neuindexierung läuft...",
+          "reindexSuccess": "System-Wissensraum erfolgreich neu indexiert ({{count}} Fragmente)",
+          "reindexError": "Neuindexierung des System-Wissensraums fehlgeschlagen",
+          "noSpaces": "Keine System-Wissensräume konfiguriert",
+          "chunks": "{{count}} Fragmente",
+          "lastIndexed": "Zuletzt indexiert: {{date}}"
+        }
       },
       "llmConfig": {
         "title": "LLM-Konfiguration",
@@ -2814,7 +2827,7 @@
       "rag_spaces": {
         "title": "Wissensräume (RAG)",
         "description": "Laden Sie eigene Dokumente hoch, um KI-Antworten zu bereichern",
-        "count": "7",
+        "count": "8",
         "questions": {
           "q1": {
             "question": "Was sind Wissensräume?",
@@ -2843,6 +2856,10 @@
           "q7": {
             "question": "Wie funktioniert die Google Drive-Synchronisation?",
             "answer": "<p>Sie können Google Drive-Ordner mit Ihren Wissensräumen verknüpfen. Klicken Sie auf <strong>„Ordner verknüpfen“</strong>, durchsuchen Sie Ihr Drive und wählen Sie einen Ordner. LIA listet die unterstützten Dateien auf, lädt sie herunter und verarbeitet sie über dieselbe Indexierungspipeline.</p><p>Verwenden Sie <strong>„Jetzt synchronisieren“</strong> zum Aktualisieren — LIA erkennt neue, geänderte und gelöschte Dateien automatisch.</p><p><strong>Wichtige Details:</strong><ul><li>Unterstützt Google Docs, Sheets und Slides über API-Export</li><li>Fehlerisolierung pro Datei — eine fehlerhafte Datei blockiert nicht die anderen</li><li>Feature-Flag: <code>RAG_SPACES_DRIVE_SYNC_ENABLED</code></li></ul></p>"
+          },
+          "q8": {
+            "question": "Kann ich den Assistenten nach seinen eigenen Funktionen fragen?",
+            "answer": "Ja! LIA verfügt über eine <strong>integrierte Wissensdatenbank</strong>, mit der sie Fragen über sich selbst direkt im Gespräch beantworten kann:<br><br><strong>🧠 So funktioniert es:</strong><br>• LIA erkennt automatisch, wenn Sie nach der App fragen (\"<em>Was kannst du?</em>\", \"<em>Wie verbinde ich meinen Kalender?</em>\")<br>• Sie durchsucht ihre FAQ-Wissensdatenbank (119 Fragen und Antworten in 16 Abschnitten) mit derselben hybriden Suche wie bei Benutzerräumen<br>• Ein <strong>App-Identitätsprompt</strong>, der alle Funktionen beschreibt, wird in die Antwort eingefügt<br><br><strong>⚡ Kein Overhead:</strong><br>Dies wird nur aktiviert, wenn Sie nach der App fragen. Normale Anfragen (E-Mails, Kalender usw.) werden überhaupt nicht beeinflusst.<br><br><strong>🔧 Admin-Funktionen:</strong><br>Administratoren können System-Wissensräume unter <strong>Einstellungen > Administration > RAG-Räume</strong> verwalten:<br>• Aktualitätsstatus anzeigen (Vergleich des Inhalts-Hash)<br>• Manuelle Neuindexierung auslösen<br>• Systemräume werden beim App-Start automatisch indexiert"
           }
         }
       },
@@ -3592,7 +3609,9 @@
       "trust_agents": "KI-Agenten",
       "trust_providers": "LLM-Anbieter",
       "trust_voices": "Sprachsprachen",
-      "trust_gdpr": "DSGVO-konform"
+      "trust_gdpr": "DSGVO-konform",
+      "badge_opensource": "Open Source",
+      "cta_github": "GitHub"
     },
     "chat_mockup": {
       "user_message": "Sende eine E-Mail an Marie und sag ihr, dass ich heute Abend später komme — bitte mit Humor",
@@ -3726,6 +3745,10 @@
         "title": "Browser-Steuerung",
         "description": "Navigiert autonom auf Websites: Produkte suchen, Formulare ausfüllen, Daten aus dynamischen JavaScript-Seiten extrahieren"
       },
+      "self_knowledge": {
+        "title": "App-Selbstwissen",
+        "description": "LIA kann Fragen über sich selbst mithilfe der integrierten FAQ-Wissensdatenbank beantworten — fragen Sie nach Funktionen, Fähigkeiten, Einrichtung oder wie Dinge funktionieren."
+      },
       "responsive": {
         "title": "Responsives Design",
         "description": "Vollstaendig optimierte Oberflaeche fuer Desktop, Tablet und Smartphone — nutzen Sie LIA ueberall"
@@ -3848,7 +3871,8 @@
     "footer": {
       "copyright": "© {{year}} LIA. Alle Rechte vorbehalten.",
       "docs": "Dokumentation",
-      "privacy": "Datenschutz"
+      "privacy": "Datenschutz",
+      "github": "GitHub"
     }
   },
   "sub_agents": {

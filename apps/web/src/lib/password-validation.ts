@@ -22,7 +22,7 @@ export const PASSWORD_MAX_LENGTH = 128;
 export const PASSWORD_MIN_UPPERCASE = 2;
 export const PASSWORD_MIN_SPECIAL = 2;
 export const PASSWORD_MIN_DIGITS = 2;
-export const PASSWORD_SPECIAL_CHARS = "!@#$%^&*()_+-=[]{}|;':\",./<>?`~";
+export const PASSWORD_SPECIAL_CHARS = '!@#$%^&*()_+-=[]{}|;\':",./<>?`~';
 
 export interface PasswordValidationResult {
   isValid: boolean;

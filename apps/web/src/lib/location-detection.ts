@@ -145,7 +145,16 @@ const HOME_PHRASES: Record<SupportedLanguage, string[]> = {
     'dalle mie parti',
     'nel mio vicinato',
   ],
-  zh: ['在我家', '我家附近', '我家周围', '我的住处', '家附近', '靠近我家', '我住的地方', '我的地址'],
+  zh: [
+    '在我家',
+    '我家附近',
+    '我家周围',
+    '我的住处',
+    '家附近',
+    '靠近我家',
+    '我住的地方',
+    '我的地址',
+  ],
 };
 
 /**
@@ -196,7 +205,6 @@ export function detectLocationType(message: string, language: string = 'fr'): Lo
   const messageLower = normalizeText(message);
   const lang = normalizeLanguage(language);
 
-   
   console.log('[location-detection] detectLocationType called:', {
     originalMessage: message.substring(0, 50),
     normalizedMessage: messageLower.substring(0, 50),
@@ -207,7 +215,6 @@ export function detectLocationType(message: string, language: string = 'fr'): Lo
   const homePhrases = HOME_PHRASES[lang] || HOME_PHRASES.fr;
   for (const phrase of homePhrases) {
     if (messageLower.includes(normalizeText(phrase))) {
-       
       console.log('[location-detection] ✅ HOME phrase matched:', phrase);
       return 'home';
     }
@@ -217,13 +224,11 @@ export function detectLocationType(message: string, language: string = 'fr'): Lo
   const currentPhrases = CURRENT_PHRASES[lang] || CURRENT_PHRASES.fr;
   for (const phrase of currentPhrases) {
     if (messageLower.includes(normalizeText(phrase))) {
-       
       console.log('[location-detection] ✅ CURRENT phrase matched:', phrase);
       return 'current';
     }
   }
 
-   
   console.log('[location-detection] No location phrase detected');
   return 'none';
 }

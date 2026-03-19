@@ -183,7 +183,7 @@ export function useUserMCPServers() {
     async (data: UserMCPServerCreate) => {
       const result = await createMutation.mutate(ENDPOINT, data);
       if (result) {
-        setData((prev) => {
+        setData(prev => {
           if (!prev) return prev;
           return {
             servers: [...prev.servers, result],
@@ -200,11 +200,11 @@ export function useUserMCPServers() {
     async (serverId: string, data: UserMCPServerUpdate) => {
       const result = await updateMutation.mutate(`${ENDPOINT}/${serverId}`, data);
       if (result) {
-        setData((prev) => {
+        setData(prev => {
           if (!prev) return prev;
           return {
             ...prev,
-            servers: prev.servers.map((s) => (s.id === serverId ? result : s)),
+            servers: prev.servers.map(s => (s.id === serverId ? result : s)),
           };
         });
       }
@@ -216,10 +216,10 @@ export function useUserMCPServers() {
   const deleteServer = useCallback(
     async (serverId: string) => {
       await deleteMutation.mutate(`${ENDPOINT}/${serverId}`);
-      setData((prev) => {
+      setData(prev => {
         if (!prev) return prev;
         return {
-          servers: prev.servers.filter((s) => s.id !== serverId),
+          servers: prev.servers.filter(s => s.id !== serverId),
           total: prev.total - 1,
         };
       });
@@ -231,11 +231,11 @@ export function useUserMCPServers() {
     async (serverId: string) => {
       const result = await toggleMutation.mutate(`${ENDPOINT}/${serverId}/toggle`);
       if (result) {
-        setData((prev) => {
+        setData(prev => {
           if (!prev) return prev;
           return {
             ...prev,
-            servers: prev.servers.map((s) => (s.id === serverId ? result : s)),
+            servers: prev.servers.map(s => (s.id === serverId ? result : s)),
           };
         });
       }
@@ -258,9 +258,7 @@ export function useUserMCPServers() {
 
   const initiateOAuth = useCallback(
     async (serverId: string) => {
-      const result = await oauthMutation.mutate(
-        `${ENDPOINT}/${serverId}/oauth/authorize`
-      );
+      const result = await oauthMutation.mutate(`${ENDPOINT}/${serverId}/oauth/authorize`);
       if (result?.authorization_url) {
         // Redirect to OAuth authorization server
         window.location.href = result.authorization_url;
@@ -276,11 +274,11 @@ export function useUserMCPServers() {
         `${ENDPOINT}/${serverId}/oauth/disconnect`
       );
       if (result) {
-        setData((prev) => {
+        setData(prev => {
           if (!prev) return prev;
           return {
             ...prev,
-            servers: prev.servers.map((s) => (s.id === serverId ? result : s)),
+            servers: prev.servers.map(s => (s.id === serverId ? result : s)),
           };
         });
       }
@@ -296,11 +294,11 @@ export function useUserMCPServers() {
       );
       if (result) {
         // Update server in local state with new description
-        setData((prev) => {
+        setData(prev => {
           if (!prev) return prev;
           return {
             ...prev,
-            servers: prev.servers.map((s) =>
+            servers: prev.servers.map(s =>
               s.id === serverId ? { ...s, domain_description: result.domain_description } : s
             ),
           };

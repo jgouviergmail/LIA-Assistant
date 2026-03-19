@@ -32,10 +32,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { logger } from '@/lib/logger';
 import { VoiceInputService } from '@/lib/voice-input-service';
-import {
-  VOICE_INPUT_SAMPLE_RATE,
-  VOICE_INPUT_CHUNK_SIZE,
-} from '@/lib/constants';
+import { VOICE_INPUT_SAMPLE_RATE, VOICE_INPUT_CHUNK_SIZE } from '@/lib/constants';
 
 // ============================================================================
 // Types
@@ -182,7 +179,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
       // If connection lost during 'processing', the transcription is lost
       // Reset to idle with an error to unblock the user
       if (!connected) {
-        setState((currentState) => {
+        setState(currentState => {
           if (currentState === 'processing') {
             const connectionError = new Error('Connection lost during transcription');
 
@@ -339,7 +336,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
       workletNodeRef.current = workletNode;
 
       // Step 5: Handle audio chunks from worklet
-      workletNode.port.onmessage = (event) => {
+      workletNode.port.onmessage = event => {
         const audioBuffer = event.data as ArrayBuffer;
         service.sendAudio(audioBuffer);
       };
@@ -354,7 +351,6 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
       isStartingRef.current = false;
 
       logger.info('voice_input_recording_started', { component: 'useVoiceInput' });
-
     } catch (err) {
       isStartingRef.current = false;
 

@@ -52,9 +52,7 @@ export function OnboardingPageLayout({
       </div>
 
       {/* Page Content */}
-      <div className="w-full max-w-2xl px-2 sm:px-4">
-        {children}
-      </div>
+      <div className="w-full max-w-2xl px-2 sm:px-4">{children}</div>
     </div>
   );
 }

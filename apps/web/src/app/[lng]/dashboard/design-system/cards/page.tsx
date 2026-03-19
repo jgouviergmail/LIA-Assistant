@@ -50,7 +50,7 @@ export default async function CardDesignSystemPage({ params }: CardDesignSystemP
           {t('designSystem.cards.visualVariants.description')}
         </p>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {VISUAL_VARIANTS.map((variant) => (
+          {VISUAL_VARIANTS.map(variant => (
             <Card key={variant} variant={variant} size="md">
               <CardContent className="pt-4">
                 <div className="font-medium">variant=&quot;{variant}&quot;</div>
@@ -70,7 +70,7 @@ export default async function CardDesignSystemPage({ params }: CardDesignSystemP
           {t('designSystem.cards.statusVariants.description')}
         </p>
         <div className="space-y-3">
-          {STATUS_VARIANTS.map((status) => (
+          {STATUS_VARIANTS.map(status => (
             <Card key={status} status={status} size="md">
               <CardContent className="pt-4">
                 <div className="font-medium">status=&quot;{status}&quot;</div>
@@ -90,7 +90,7 @@ export default async function CardDesignSystemPage({ params }: CardDesignSystemP
           {t('designSystem.cards.sizeVariants.description')}
         </p>
         <div className="space-y-3">
-          {SIZE_VARIANTS.map((size) => (
+          {SIZE_VARIANTS.map(size => (
             <Card key={size} size={size} className="border-dashed">
               <div className="bg-muted/50 p-2 text-center">
                 <div className="font-medium">size=&quot;{size}&quot;</div>
@@ -110,7 +110,7 @@ export default async function CardDesignSystemPage({ params }: CardDesignSystemP
           {t('designSystem.cards.domainAccents.description')}
         </p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {DOMAIN_ACCENTS.map((domain) => (
+          {DOMAIN_ACCENTS.map(domain => (
             <Card key={domain} domainAccent={domain} size="sm">
               <CardContent className="pt-3">
                 <code className="text-sm">{domain}</code>

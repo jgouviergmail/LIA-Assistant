@@ -166,7 +166,9 @@ def test_metrics_exposed():
     try:
         import requests
 
-        response = requests.get(f"{os.getenv('API_URL', 'http://localhost:8000')}/metrics", timeout=2)
+        response = requests.get(
+            f"{os.getenv('API_URL', 'http://localhost:8000')}/metrics", timeout=2
+        )
 
         if response.status_code != 200:
             print(f"WARN API not accessible (status {response.status_code})")

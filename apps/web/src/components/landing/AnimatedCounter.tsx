@@ -8,11 +8,7 @@ interface AnimatedCounterProps {
   duration?: number;
 }
 
-export function AnimatedCounter({
-  target,
-  suffix = '',
-  duration = 2000,
-}: AnimatedCounterProps) {
+export function AnimatedCounter({ target, suffix = '', duration = 2000 }: AnimatedCounterProps) {
   const ref = useRef<HTMLSpanElement>(null);
   const [value, setValue] = useState(0);
   const [hasAnimated, setHasAnimated] = useState(false);
@@ -22,9 +18,7 @@ export function AnimatedCounter({
     if (!el || hasAnimated) return;
 
     // Check prefers-reduced-motion — show final value instantly
-    const prefersReducedMotion = window.matchMedia(
-      '(prefers-reduced-motion: reduce)'
-    ).matches;
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     if (prefersReducedMotion) {
       setValue(target);

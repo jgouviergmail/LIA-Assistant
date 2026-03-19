@@ -102,6 +102,8 @@ services:
       - ./apps/api/config:/app/config:ro
       # Persistent storage for file attachments (images, PDF)
       - attachments_data:/app/data/attachments
+      # System knowledge files for FAQ RAG indexation (read-only)
+      - ./docs/knowledge:/app/docs/knowledge:ro
       # System skills (read-only, shipped with the app)
       - ./data/skills/system:/app/data/skills/system:ro
       # User-imported skills (persisted across deploys)

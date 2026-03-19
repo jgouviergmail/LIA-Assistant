@@ -63,13 +63,11 @@ function VerifyEmailContent() {
         <div className="flex justify-center">
           <CheckCircle2 className="h-16 w-16 text-green-500" />
         </div>
-        <h1 className="text-2xl font-bold text-green-600">{t('auth.verify_email.success_title')}</h1>
-        <p className="text-muted-foreground">
-          {t('auth.verify_email.success_message')}
-        </p>
-        <p className="text-sm text-muted-foreground">
-          {t('auth.verify_email.success_hint')}
-        </p>
+        <h1 className="text-2xl font-bold text-green-600">
+          {t('auth.verify_email.success_title')}
+        </h1>
+        <p className="text-muted-foreground">{t('auth.verify_email.success_message')}</p>
+        <p className="text-sm text-muted-foreground">{t('auth.verify_email.success_hint')}</p>
         <Button asChild className="mt-4">
           <Link href="/login">{t('auth.verify_email.back_to_login')}</Link>
         </Button>

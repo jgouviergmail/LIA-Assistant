@@ -77,9 +77,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
       // trigger a history reload while a response is being streamed.
       // The streaming message may not yet be persisted in the database.
       if (state.status === 'streaming' && state.streaming.currentMessageId) {
-        const streamingMsg = state.messages.find(
-          m => m.id === state.streaming.currentMessageId
-        );
+        const streamingMsg = state.messages.find(m => m.id === state.streaming.currentMessageId);
 
         // If the streaming message is not in the new messages, preserve it
         if (streamingMsg && !newMessages.some(m => m.id === streamingMsg.id)) {
@@ -472,7 +470,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
     default:
       // TypeScript exhaustiveness check
       // @ts-expect-error - Exhaustiveness check pattern
-       
+
       const _exhaustiveCheck: never = action;
       return state;
   }

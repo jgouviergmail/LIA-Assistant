@@ -34,25 +34,29 @@ export function useLLMConfig() {
     initialData: { providers: [] },
   });
 
-  const {
-    data: metadata,
-    loading: metadataLoading,
-  } = useApiQuery<ProviderModelsMetadata>('/admin/llm-config/metadata/models', {
+  const { data: metadata, loading: metadataLoading } = useApiQuery<ProviderModelsMetadata>(
+    '/admin/llm-config/metadata/models',
+    {
+      componentName: COMPONENT_NAME,
+      initialData: { providers: {} },
+    }
+  );
+
+  const { mutate: updateConfigMutate, loading: updatingConfig } = useApiMutation<
+    LLMTypeConfigUpdate,
+    LLMTypeConfig
+  >({
+    method: 'PUT',
     componentName: COMPONENT_NAME,
-    initialData: { providers: {} },
   });
 
-  const { mutate: updateConfigMutate, loading: updatingConfig } =
-    useApiMutation<LLMTypeConfigUpdate, LLMTypeConfig>({
-      method: 'PUT',
-      componentName: COMPONENT_NAME,
-    });
-
-  const { mutate: resetConfigMutate, loading: resettingConfig } =
-    useApiMutation<void, LLMTypeConfig>({
-      method: 'POST',
-      componentName: COMPONENT_NAME,
-    });
+  const { mutate: resetConfigMutate, loading: resettingConfig } = useApiMutation<
+    void,
+    LLMTypeConfig
+  >({
+    method: 'POST',
+    componentName: COMPONENT_NAME,
+  });
 
   const { mutate: updateKeyMutate, loading: updatingKey } = useApiMutation({
     method: 'PUT',
