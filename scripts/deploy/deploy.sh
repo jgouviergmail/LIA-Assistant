@@ -158,6 +158,15 @@ copy_files() {
         log_success "Monitoring configs copied"
     fi
 
+    # Copy system knowledge files for RAG FAQ indexation
+    if [ -d "docs/knowledge" ] && ls docs/knowledge/*.md &>/dev/null; then
+        ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "mkdir -p ${DEPLOY_PATH}/docs/knowledge"
+        scp docs/knowledge/*.md "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/docs/knowledge/"
+        log_success "System knowledge files copied ($(ls docs/knowledge/*.md | wc -l) FAQ files)"
+    else
+        log_warning "docs/knowledge/ not found. System FAQ indexation will not work."
+    fi
+
     log_success "Files copied successfully"
 }
 
