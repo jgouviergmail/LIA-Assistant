@@ -122,6 +122,24 @@ try:
 except Exception:
     _SUB_AGENT_TOOLS_AVAILABLE = False
 
+# Browser Tools (F7 — auto-detected)
+# Always try to import. No feature flag needed — activation is via admin connector panel.
+# If Playwright is not installed, browser_tools.py imports fine (lazy Playwright imports).
+try:
+    from src.domains.agents.tools.browser_tools import (
+        browser_click_tool,
+        browser_fill_tool,
+        browser_navigate_tool,
+        browser_press_key_tool,
+        browser_screenshot_tool,
+        browser_snapshot_tool,
+        browser_task_tool,
+    )
+
+    _BROWSER_TOOLS_AVAILABLE = True
+except Exception:
+    _BROWSER_TOOLS_AVAILABLE = False
+
 __all__ = [
     # Google Contacts Tools
     "search_contacts_tool",
@@ -212,5 +230,19 @@ if _SUB_AGENT_TOOLS_AVAILABLE:
     __all__.extend(
         [
             "delegate_to_sub_agent_tool",
+        ]
+    )
+
+# Conditionally extend __all__ with browser tools
+if _BROWSER_TOOLS_AVAILABLE:
+    __all__.extend(
+        [
+            "browser_task_tool",
+            "browser_navigate_tool",
+            "browser_snapshot_tool",
+            "browser_click_tool",
+            "browser_fill_tool",
+            "browser_press_key_tool",
+            "browser_screenshot_tool",
         ]
     )

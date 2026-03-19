@@ -56,6 +56,7 @@ import {
   Blocks,
   Library,
   Bot,
+  Monitor,
 } from 'lucide-react';
 
 interface FAQContentProps {
@@ -254,9 +255,10 @@ const featureIcons = {
   skills: Blocks,
   ragSpaces: Library,
   subAgents: Bot,
+  browserControl: Monitor,
 };
 
-const featureKeys = ['architecture', 'queryAnalyzer', 'planning', 'semanticTypes', 'semanticValidation', 'memory', 'interests', 'security', 'llm', 'i18n', 'observability', 'voice', 'costTransparency', 'scheduledActions', 'mcp', 'mcpApps', 'excalidraw', 'multichannel', 'heartbeatAutonome', 'webFetch', 'knowledgeEnrichment', 'adaptiveReplanner', 'parallelExecution', 'dataRegistry', 'qualityAssurance', 'attachments', 'skills', 'ragSpaces', 'subAgents'];
+const featureKeys = ['architecture', 'queryAnalyzer', 'planning', 'semanticTypes', 'semanticValidation', 'memory', 'interests', 'security', 'llm', 'i18n', 'observability', 'voice', 'costTransparency', 'scheduledActions', 'mcp', 'mcpApps', 'excalidraw', 'multichannel', 'heartbeatAutonome', 'webFetch', 'knowledgeEnrichment', 'adaptiveReplanner', 'parallelExecution', 'dataRegistry', 'qualityAssurance', 'attachments', 'skills', 'ragSpaces', 'subAgents', 'browserControl'];
 
 export function FAQContent({ lng, onShowWelcome, showWelcomeButton = false }: FAQContentProps) {
   const { t } = useTranslation(lng);

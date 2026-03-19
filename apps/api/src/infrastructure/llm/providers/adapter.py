@@ -30,7 +30,7 @@ from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
 
-ProviderType = Literal["openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini"]
+ProviderType = Literal["openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"]
 
 
 _ENV_FALLBACK: dict[str, str] = {
@@ -40,6 +40,7 @@ _ENV_FALLBACK: dict[str, str] = {
     "perplexity": "PERPLEXITY_API_KEY",
     "gemini": "GOOGLE_GEMINI_API_KEY",
     "ollama": "OLLAMA_BASE_URL",
+    "qwen": "QWEN_API_KEY",
 }
 
 
@@ -98,6 +99,7 @@ class ProviderAdapter:
     - Perplexity: Search-augmented models via OpenAI-compatible API
     - Ollama: Local deployment via OpenAI-compatible API
     - Gemini: Google AI models (gemini-2.0-flash, gemini-1.5-pro, etc.)
+    - Qwen: Alibaba Cloud models via DashScope OpenAI-compatible API
     """
 
     @staticmethod
@@ -569,6 +571,48 @@ class ProviderAdapter:
             additional_kwargs["base_url"] = "https://api.perplexity.ai"
             additional_kwargs["openai_api_key"] = _require_api_key("perplexity")
             provider_for_init = "openai"
+
+        # Qwen (Alibaba Cloud): OpenAI-compatible API via DashScope
+        # Prompt caching: Implicit cache is automatic (≥256 tokens, no flag needed).
+        # Explicit cache (follow-up): cache_control in content blocks, ≥1024 tokens.
+        elif provider == "qwen":
+            additional_kwargs["base_url"] = "https://dashscope-us.aliyuncs.com/compatible-mode/v1"
+            additional_kwargs["openai_api_key"] = _require_api_key("qwen")
+            provider_for_init = "openai"
+
+            # Build model_kwargs: extra_body (thinking) + stream_options (metrics)
+            model_kwargs: dict[str, Any] = {}
+
+            # Streaming: enable token usage metadata (same as OpenAI block)
+            if streaming:
+                model_kwargs["stream_options"] = {"include_usage": True}
+
+            # Map reasoning_effort → Qwen enable_thinking + thinking_budget (via extra_body)
+            reasoning_effort = additional_kwargs.pop("reasoning_effort", None)
+            extra_body: dict[str, Any] = {}
+            if reasoning_effort and reasoning_effort != "none":
+                extra_body["enable_thinking"] = True
+                budget_mapping = {"low": 4096, "minimal": 2048, "medium": 16384}
+                if reasoning_effort in budget_mapping:
+                    extra_body["thinking_budget"] = budget_mapping[reasoning_effort]
+                # "high"/"xhigh" → no budget limit (model default = max ~81920)
+                logger.info(
+                    "qwen_thinking_configured",
+                    reasoning_effort=reasoning_effort,
+                    thinking_budget=budget_mapping.get(reasoning_effort, "max"),
+                    msg=f"Mapped reasoning_effort={reasoning_effort} to Qwen thinking mode",
+                )
+            elif reasoning_effort == "none":
+                extra_body["enable_thinking"] = False
+            # If no reasoning_effort set, use model's default (thinking=True for qwen3.5-*)
+
+            if extra_body:
+                model_kwargs["extra_body"] = extra_body
+            if model_kwargs:
+                additional_kwargs["model_kwargs"] = model_kwargs
+
+            # Qwen does NOT support frequency_penalty
+            additional_kwargs.pop("frequency_penalty", None)
 
         # OpenAI: Standard provider (fallback path — eligible models use Responses API above)
         # Prompt caching: Handled by Responses API (store=True) for eligible models;

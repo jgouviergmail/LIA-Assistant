@@ -70,7 +70,7 @@ class LLMTypeConfigUpdate(BaseModel):
     """
 
     provider: (
-        Literal["openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini"] | None
+        Literal["openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"] | None
     ) = None
     model: str | None = None
     temperature: float | None = Field(None, ge=0.0, le=2.0)
@@ -109,3 +109,24 @@ class ProviderModelsMetadata(BaseModel):
     """Available models grouped by provider."""
 
     providers: dict[str, list[ModelCapabilities]]
+
+
+# --- Ollama dynamic discovery ---
+
+
+class OllamaModelCapabilities(ModelCapabilities):
+    """Extended capabilities for a dynamically discovered Ollama model."""
+
+    size: str | None = None  # e.g. "8B", "70B"
+    family: str | None = None  # e.g. "llama", "qwen2"
+
+
+class OllamaModelsResponse(BaseModel):
+    """Response for dynamically discovered Ollama models.
+
+    ``source`` indicates whether models were fetched live from the Ollama
+    server ("live") or fell back to static profiles ("fallback").
+    """
+
+    models: list[OllamaModelCapabilities]
+    source: Literal["live", "fallback"]

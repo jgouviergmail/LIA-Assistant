@@ -53,6 +53,7 @@ class ConnectorType(str, enum.Enum):
     WIKIPEDIA = "wikipedia"
     PERPLEXITY = "perplexity"
     BRAVE_SEARCH = "brave_search"
+    BROWSER = "browser"  # Interactive web browsing (evolution F7)
 
     # Legacy (deprecated - use GOOGLE_GMAIL instead)
     GMAIL = "gmail"
@@ -275,6 +276,7 @@ CONNECTOR_DISPLAY_NAMES: dict[ConnectorType, str] = {
     ConnectorType.WIKIPEDIA: "Wikipedia",
     ConnectorType.PERPLEXITY: "Perplexity",
     ConnectorType.BRAVE_SEARCH: "Brave Search",
+    ConnectorType.BROWSER: "Browser",
     ConnectorType.GMAIL: "Gmail",  # Legacy
     ConnectorType.SLACK: "Slack",
     ConnectorType.NOTION: "Notion",

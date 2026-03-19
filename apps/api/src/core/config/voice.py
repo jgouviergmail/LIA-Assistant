@@ -171,7 +171,7 @@ class VoiceSettings(BaseSettings):
     # ========================================================================
 
     voice_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini"
+        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(
         default="openai",
         description="LLM provider for voice comment generation",

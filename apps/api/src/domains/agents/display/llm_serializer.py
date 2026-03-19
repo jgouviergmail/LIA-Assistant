@@ -34,7 +34,17 @@ CONTENT_LENGTH_THRESHOLD = 200
 
 # Fields that may contain long content (not metadata)
 CONTENT_FIELDS: frozenset[str] = frozenset(
-    {"summary", "answer", "extract", "content", "body", "description", "text", "snippet"}
+    {
+        "summary",
+        "answer",
+        "extract",
+        "content",
+        "body",
+        "description",
+        "text",
+        "snippet",
+        "content_summary",  # Browser page accessibility tree (F7)
+    }
 )
 
 # =============================================================================

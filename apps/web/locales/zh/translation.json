@@ -815,6 +815,11 @@
         "description": "网络和新闻增强",
         "get_key": "在 api.search.brave.com 获取密钥",
         "label": "Brave搜索"
+      },
+      "browser": {
+        "label": "浏览器",
+        "description": "交互式网页浏览（无需密钥）",
+        "no_key_required": "此服务不需要 API 密钥"
       }
     },
     "admin": {
@@ -1066,7 +1071,8 @@
           "microsoft_outlook": "通过 Outlook 访问和发送电子邮件",
           "microsoft_calendar": "查看和管理 Microsoft Calendar 事件",
           "microsoft_contacts": "搜索和管理 Microsoft 联系人",
-          "microsoft_tasks": "在 Microsoft To Do 中管理任务和任务列表"
+          "microsoft_tasks": "在 Microsoft To Do 中管理任务和任务列表",
+          "browser": "交互式网页浏览：导航、点击、填写表单"
         }
       },
       "personalities": {
@@ -1289,9 +1295,15 @@
           "skill_description_translator": "将技能描述翻译为所有6种支持的语言",
           "evaluator": "LLM-as-Judge 评估管道（相关性、幻觉检测）",
           "compaction": "总结旧对话历史以释放上下文窗口空间",
-          "subagent": "通过专业子代理执行委派任务（研究、分析、综合）"
+          "subagent": "通过专业子代理执行委派任务（研究、分析、综合）",
+          "browser_agent": "交互式网页浏览代理（导航、点击、填写表单）"
         },
         "no_compatible_model": "该提供商没有支持此功能的模型",
+        "ollama": {
+          "live": "已连接到 Ollama 服务器",
+          "fallback": "Ollama 不可达 — 显示已知模型",
+          "loading": "正在加载 Ollama 模型…"
+        },
         "categories": {
           "pipeline": "管道",
           "domain_agents": "领域代理",
@@ -2105,7 +2117,7 @@
         },
         "llm": {
           "title": "🤖 多供应商 LLM 与模式学习",
-          "description": "支持 OpenAI（GPT-4、o1）、Anthropic（Claude）、Google Gemini、DeepSeek、Perplexity 和本地 Ollama（6 个供应商）。贝叶斯规划模式学习（≥90% 置信度 → 绕过 LLM）。平均节省 89% token。按任务配置配置文件，实时成本跟踪。"
+          "description": "支持 OpenAI（GPT-4、o1）、Anthropic（Claude）、Google Gemini、DeepSeek、Qwen、Perplexity 和本地 Ollama（7 个供应商）。贝叶斯规划模式学习（≥90% 置信度 → 绕过 LLM）。平均节省 89% token。按任务配置配置文件，实时成本跟踪。"
         },
         "security": {
           "title": "🔐 多层安全",
@@ -2210,6 +2222,10 @@
         "subAgents": {
           "title": "子代理",
           "description": "将复杂任务委派给并行工作的专业临时专家。助手透明地编排和综合它们的发现。"
+        },
+        "browserControl": {
+          "title": "🌐 浏览器控制",
+          "description": "交互式网页浏览，具备自主导航功能：在电商网站搜索产品、填写表单、从JavaScript渲染的页面提取数据。浏览器代理自动处理多步骤交互。"
         }
       },
       "diagram_alt": "LIA架构图"
@@ -2488,8 +2504,8 @@
       },
       "tool_examples_external": {
         "title": "外部服务示例",
-        "description": "如何使用天气、维基百科、Perplexity、网页阅读、地点和路线导航",
-        "count": "17",
+        "description": "如何使用天气、维基百科、Perplexity、网页读取、浏览器控制、地点和路线",
+        "count": "20",
         "questions": {
           "q1": {
             "question": "如何获取当前天气？",
@@ -2558,6 +2574,18 @@
           "q17": {
             "question": "何时使用网页阅读与网络搜索？",
             "answer": "根据您的需求选择合适的工具：<br><br><strong>🌐 使用网页阅读：</strong><br>• 阅读您已知URL的完整内容<br>• 总结特定文章<br>• 分析特定页面的内容<br>• 比较多个页面的内容<br>• \"<em>阅读这篇文章：https://...</em>\"<br><br><strong>🔍 使用网络搜索：</strong><br>• 查找某个主题的信息<br>• 获取最新新闻<br>• 不知道确切URL时搜索<br>• \"<em>关于X的最新消息是什么？</em>\"<br><br><strong>🔗 理想组合：</strong><br>1. 网络搜索 → 找到相关URL<br>2. 网页阅读 → 阅读搜索结果的完整内容<br><br><strong>💡 示例：</strong><br>• \"<em>搜索关于Rust的文章</em>\" → 网络搜索（Perplexity/Brave）<br>• \"<em>阅读这篇文章：https://blog.rust-lang.org/...</em>\" → 网页阅读（完整内容）"
+          },
+          "q18": {
+            "question": "什么是浏览器控制？",
+            "answer": "允许LIA像真实用户一样与网站交互：导航、搜索、点击、填写表单并从JavaScript页面提取数据。"
+          },
+          "q19": {
+            "question": "浏览器代理如何工作？",
+            "answer": "使用无头Chromium（Playwright）进行导航、自动接受Cookie、等待JS渲染并提取可见内容。"
+          },
+          "q20": {
+            "question": "浏览器控制和网页读取有什么区别？",
+            "answer": "网页读取：静态HTML，只读，快速。浏览器控制：JavaScript执行，交互，较慢但更强大。"
           }
         }
       },
@@ -3688,6 +3716,10 @@
       "rag_spaces": {
         "title": "知识空间",
         "description": "上传 15+ 种格式的文档（PDF、DOCX、PPTX、XLSX、HTML、EPUB 等）或直接同步 Google Drive 文件夹。LIA 自动索引并通过混合搜索（语义 + 关键词）丰富回答。"
+      },
+      "browser_control": {
+        "title": "浏览器控制",
+        "description": "自主浏览网站：搜索产品、填写表单、从JavaScript动态页面提取数据"
       }
     },
     "use_cases": {
@@ -3750,8 +3782,8 @@
         "description": "基于状态图的智能体编排、波次并行执行和贝叶斯计划模式学习。"
       },
       "llm_providers": {
-        "title": "6家LLM供应商",
-        "description": "OpenAI、Anthropic、Google Gemini、DeepSeek、Perplexity、Ollama。按任务类型动态选择最佳模型。"
+        "title": "7家LLM供应商",
+        "description": "OpenAI、Anthropic、Google Gemini、DeepSeek、Qwen、Perplexity、Ollama。按任务类型动态选择最佳模型。"
       },
       "bayesian": {
         "title": "贝叶斯学习",
@@ -3820,5 +3852,13 @@
       "disabled_success": "子代理已禁用",
       "info": "启用后，助手可以将研究、分析和综合任务委派给专业的子代理以获得更好的结果。"
     }
+  },
+  "browser": {
+    "navigate": "导航到页面",
+    "snapshot": "读取页面内容",
+    "click": "点击元素",
+    "fill": "填写表单字段",
+    "press_key": "按键",
+    "screenshot": "截图"
   }
 }

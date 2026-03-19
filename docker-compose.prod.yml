@@ -40,10 +40,10 @@ services:
       resources:
         limits:
           cpus: '1'
-          memory: 2G
+          memory: 1G
         reservations:
           cpus: '0.25'
-          memory: 512M
+          memory: 256M
 
   # Redis for caching and sessions
   redis:
@@ -66,10 +66,10 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: 1G
+          memory: 256M
         reservations:
           cpus: '0.1'
-          memory: 256M
+          memory: 64M
 
   # Backend API
   api:
@@ -126,10 +126,10 @@ services:
       resources:
         limits:
           cpus: '2'
-          memory: 4G
+          memory: 8G
         reservations:
           cpus: '0.5'
-          memory: 1G
+          memory: 2G
 
   # Frontend Web
   web:
@@ -168,10 +168,10 @@ services:
       resources:
         limits:
           cpus: '1'
-          memory: 2G
+          memory: 512M
         reservations:
           cpus: '0.25'
-          memory: 512M
+          memory: 128M
 
   # Prometheus
   prometheus:
@@ -200,10 +200,10 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: 1G
+          memory: 512M
         reservations:
           cpus: '0.1'
-          memory: 256M
+          memory: 128M
 
   # Grafana
   grafana:
@@ -230,10 +230,10 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: 1G
+          memory: 512M
         reservations:
           cpus: '0.1'
-          memory: 256M
+          memory: 128M
 
   # Loki (Logs)
   loki:
@@ -254,10 +254,10 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: 1G
+          memory: 512M
         reservations:
           cpus: '0.1'
-          memory: 256M
+          memory: 128M
 
   # Promtail (Log Collection Agent)
   promtail:
@@ -279,10 +279,10 @@ services:
       resources:
         limits:
           cpus: '0.25'
-          memory: 512M
+          memory: 256M
         reservations:
           cpus: '0.05'
-          memory: 128M
+          memory: 64M
 
   # Node Exporter - Host/system metrics (CPU, memory, disk, network)
   # Required for Dashboard 01 CPU/Memory panels and Dashboard 03 Infrastructure
@@ -305,10 +305,10 @@ services:
       resources:
         limits:
           cpus: '0.25'
-          memory: 256M
+          memory: 128M
         reservations:
           cpus: '0.05'
-          memory: 64M
+          memory: 32M
 
   # cAdvisor - Container metrics (CPU, memory, network per container)
   # Required for Dashboard 03 container resource panels
@@ -333,10 +333,10 @@ services:
       resources:
         limits:
           cpus: '0.25'
-          memory: 512M
+          memory: 256M
         reservations:
           cpus: '0.05'
-          memory: 128M
+          memory: 64M
 
   # PostgreSQL Exporter - Database metrics
   # Required for Dashboard 03 DB panels
@@ -359,10 +359,10 @@ services:
       resources:
         limits:
           cpus: '0.25'
-          memory: 256M
+          memory: 128M
         reservations:
           cpus: '0.05'
-          memory: 64M
+          memory: 32M
 
   # Redis Exporter - Cache metrics
   # Required for Dashboard 03 Redis panels
@@ -386,10 +386,10 @@ services:
       resources:
         limits:
           cpus: '0.25'
-          memory: 256M
+          memory: 128M
         reservations:
           cpus: '0.05'
-          memory: 64M
+          memory: 32M
 
   # Portainer (Docker Management UI)
   portainer:
@@ -405,6 +405,14 @@ services:
       - portainer_data:/data
     networks:
       - lia-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+        reservations:
+          cpus: '0.05'
+          memory: 64M
 
 volumes:
   postgres_data:

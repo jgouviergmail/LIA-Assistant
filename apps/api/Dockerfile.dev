@@ -74,6 +74,10 @@ COPY --from=geoip-downloader /data/geoip /data/geoip
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh
 
+# Install Playwright Chromium browser (F7 — Browser Control)
+# playwright install downloads the browser binary + system deps
+RUN playwright install --with-deps chromium
+
 # Copy application code
 COPY . .
 

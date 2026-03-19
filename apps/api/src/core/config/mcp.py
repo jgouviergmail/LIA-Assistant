@@ -279,7 +279,7 @@ class MCPSettings(BaseSettings):
     # Uses a dedicated LLM config (can differ from planner for quality/speed).
 
     mcp_excalidraw_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini"
+        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(
         default="anthropic",
         description="LLM provider for Excalidraw diagram generation.",
@@ -359,7 +359,7 @@ class MCPSettings(BaseSettings):
     # Prompt: domains/agents/prompts/v1/mcp_description_prompt.txt
 
     mcp_description_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini"
+        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(
         default="openai",
         description="LLM provider for MCP domain description generation.",

@@ -82,6 +82,7 @@ LLMType = Literal[
     "brave_agent",
     "web_search_agent",
     "web_fetch_agent",
+    "browser_agent",
     # Backward compatibility aliases (deprecated - will be removed in v4)
     "contacts_agent",  # @deprecated: use contact_agent
     "emails_agent",  # @deprecated: use email_agent

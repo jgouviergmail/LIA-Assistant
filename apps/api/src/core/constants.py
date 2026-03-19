@@ -128,6 +128,10 @@ WEB_SEARCH_CACHE_PREFIX = "web_search"  # Redis key prefix for search cache
 WEB_FETCH_CACHE_PREFIX = "web_fetch"  # Redis key prefix for fetch cache
 WEB_SEARCH_CACHE_ENABLED_DEFAULT = True  # Enable web search/fetch caching by default
 
+# Ollama dynamic model discovery
+OLLAMA_MODEL_CACHE_TTL_SECONDS = 60  # In-memory cache for discovered models
+OLLAMA_DISCOVERY_TIMEOUT_SECONDS = 5  # HTTP timeout for Ollama /api/tags + /api/show calls
+
 # ============================================================================
 # EXTERNAL CONTENT WRAPPING (prompt injection prevention)
 # ============================================================================
@@ -2663,3 +2667,57 @@ SUBAGENT_STALE_RECOVERY_INTERVAL_DEFAULT = 120
 
 # Scheduler job name
 SCHEDULER_JOB_SUBAGENT_STALE_RECOVERY = "subagent_stale_recovery"
+
+# ============================================================================
+# BROWSER CONTROL (F7 — Playwright-based Web Interaction)
+# ============================================================================
+# Interactive web browsing: navigate, click, fill forms, extract content.
+# Uses Playwright + Chromium with accessibility tree (CDP) for LLM interaction.
+# Reference: docs/technical/BROWSER_CONTROL.md, docs/architecture/ADR-056-Browser-Control.md
+
+# Scheduler
+SCHEDULER_JOB_BROWSER_CLEANUP = "browser_session_cleanup"
+
+# Default timeout for browser agent task (ms)
+# Must accommodate multi-step ReAct browsing (navigate + search + read ~60-90s)
+BROWSER_DEFAULT_TIMEOUT_MS = 120_000
+
+# Redis key prefix for cross-worker session recovery
+REDIS_KEY_BROWSER_SESSION_PREFIX = "browser:session:"
+
+# ARIA roles considered interactive (receive [EN] references)
+BROWSER_INTERACTIVE_ROLES = frozenset(
+    {
+        "button",
+        "link",
+        "textbox",
+        "checkbox",
+        "radio",
+        "combobox",
+        "listbox",
+        "menuitem",
+        "tab",
+        "switch",
+        "searchbox",
+        "slider",
+        "spinbutton",
+        "option",
+        "menuitemcheckbox",
+        "menuitemradio",
+    }
+)
+
+# ARIA roles considered content (receive [EN] references if named)
+BROWSER_CONTENT_ROLES = frozenset(
+    {
+        "heading",
+        "paragraph",
+        "listitem",
+        "cell",
+        "img",
+        "figure",
+    }
+)
+
+# URL schemes blocked for browser navigation (SSRF prevention)
+BROWSER_BLOCKED_SCHEMES = frozenset({"file", "javascript", "data", "chrome", "about", "blob"})

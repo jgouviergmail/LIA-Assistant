@@ -90,6 +90,9 @@ anthropic==0.85.0  # Anthropic SDK (Claude Opus 4.6, structured outputs natifs, 
 # MCP (Model Context Protocol) — evolution F2
 mcp>=1.20.0,<2.0.0  # MCP 1.20+ adds list_resources/read_resource (MCP Apps support). Requires starlette>=0.27
 
+# Browser Automation — Interactive web browsing (evolution F7)
+playwright==1.51.0  # Headless Chromium for web interaction via accessibility tree
+
 # Push Notifications
 firebase-admin==7.2.0  # Firebase Cloud Messaging for push notifications
 pytz==2026.1.post1  # Timezone handling for reminders

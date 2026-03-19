@@ -75,6 +75,7 @@ class RegistryItemType(str, Enum):
     WEB_PAGE = "WEB_PAGE"  # Fetched web page content (evolution F1)
     MCP_RESULT = "MCP_RESULT"  # MCP tool result (evolution F2.3)
     MCP_APP = "MCP_APP"  # MCP Apps interactive widget (evolution F2.5)
+    BROWSER_PAGE = "BROWSER_PAGE"  # Browser page snapshot (evolution F7)
 
     # Generic/utility types
     NOTE = "NOTE"

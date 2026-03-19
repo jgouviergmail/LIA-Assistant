@@ -809,6 +809,11 @@
         "description": "Enriquecimiento web y noticias",
         "get_key": "Obtenga una clave en api.search.brave.com",
         "label": "Brave Search"
+      },
+      "browser": {
+        "label": "Navegador",
+        "description": "Navegación web interactiva (sin clave requerida)",
+        "no_key_required": "Este servicio no requiere una clave API"
       }
     },
     "admin": {
@@ -1060,7 +1065,8 @@
           "microsoft_outlook": "Acceda a sus correos electrónicos y envíe mensajes a través de Outlook",
           "microsoft_calendar": "Consulte y gestione sus eventos de Microsoft Calendar",
           "microsoft_contacts": "Busque y gestione sus contactos de Microsoft",
-          "microsoft_tasks": "Gestione sus tareas y listas de tareas en Microsoft To Do"
+          "microsoft_tasks": "Gestione sus tareas y listas de tareas en Microsoft To Do",
+          "browser": "Navegación web interactiva: navegar, hacer clic, rellenar formularios"
         }
       },
       "personalities": {
@@ -1283,9 +1289,15 @@
           "skill_description_translator": "Traduce las descripciones de skills en los 6 idiomas soportados",
           "evaluator": "Pipeline de evaluación LLM-as-Judge (relevancia, alucinación)",
           "compaction": "Resume el historial de conversación antiguo para liberar la ventana de contexto",
-          "subagent": "Ejecuta tareas delegadas a sub-agentes especializados (investigación, análisis, síntesis)"
+          "subagent": "Ejecuta tareas delegadas a sub-agentes especializados (investigación, análisis, síntesis)",
+          "browser_agent": "Agente de navegación web interactiva (navegar, hacer clic, rellenar formularios)"
         },
         "no_compatible_model": "Ningún modelo de este proveedor soporta esta funcionalidad",
+        "ollama": {
+          "live": "Conectado al servidor Ollama",
+          "fallback": "Ollama inaccesible — mostrando modelos conocidos",
+          "loading": "Cargando modelos de Ollama…"
+        },
         "categories": {
           "pipeline": "Pipeline",
           "domain_agents": "Agentes de dominio",
@@ -2110,7 +2122,7 @@
         },
         "llm": {
           "title": "🤖 Multi-Proveedores LLM & Pattern Learning",
-          "description": "Soporte OpenAI (GPT-4, o1), Anthropic (Claude), Google Gemini, DeepSeek, Perplexity y Ollama local (6 proveedores). Aprendizaje bayesiano de patrones de planificación (≥90% confianza → bypass LLM). Ahorro promedio del 89% de tokens. Perfiles configurables por tarea con seguimiento en tiempo real de costos."
+          "description": "Soporte OpenAI (GPT-4, o1), Anthropic (Claude), Google Gemini, DeepSeek, Qwen, Perplexity y Ollama local (7 proveedores). Aprendizaje bayesiano de patrones de planificación (≥90% confianza → bypass LLM). Ahorro promedio del 89% de tokens. Perfiles configurables por tarea con seguimiento en tiempo real de costos."
         },
         "security": {
           "title": "🔐 Seguridad Multi-Capas",
@@ -2215,6 +2227,10 @@
         "subAgents": {
           "title": "Sub-agentes",
           "description": "Delegue tareas complejas a expertos efímeros especializados que trabajan en paralelo. El asistente orquesta y sintetiza sus hallazgos de forma transparente."
+        },
+        "browserControl": {
+          "title": "🌐 Control del navegador",
+          "description": "Navegación web interactiva con navegación autónoma: buscar productos en sitios de comercio electrónico, rellenar formularios, extraer datos de páginas renderizadas con JavaScript. El agente del navegador gestiona interacciones de varios pasos automáticamente."
         }
       },
       "diagram_alt": "Diagrama de arquitectura de LIA"
@@ -2493,8 +2509,8 @@
       },
       "tool_examples_external": {
         "title": "Ejemplos de Servicios Externos",
-        "description": "Cómo usar Clima, Wikipedia, Perplexity, Lectura de páginas web, Places e Indicaciones",
-        "count": "17",
+        "description": "Como usar Clima, Wikipedia, Perplexity, Lectura web, Control del navegador, Lugares y Rutas",
+        "count": "20",
         "questions": {
           "q1": {
             "question": "¿Cómo obtengo el clima actual?",
@@ -2563,6 +2579,18 @@
           "q17": {
             "question": "¿Cuándo usar Lectura de páginas web vs la búsqueda web?",
             "answer": "Elija la herramienta adecuada según sus necesidades:<br><br><strong>🌐 Use LECTURA DE PÁGINAS WEB para:</strong><br>• Leer el contenido completo de una URL que conoce<br>• Resumir un artículo específico<br>• Analizar el contenido de una página concreta<br>• Comparar el contenido de varias páginas<br>• \"<em>Lee este artículo: https://...</em>\"<br><br><strong>🔍 Use la BÚSQUEDA WEB para:</strong><br>• Encontrar información sobre un tema<br>• Obtener noticias recientes<br>• Buscar sin conocer la URL exacta<br>• \"<em>¿Cuáles son las últimas noticias sobre X?</em>\"<br><br><strong>🔗 Combinación ideal:</strong><br>1. Búsqueda web → encuentra URLs relevantes<br>2. Lectura de páginas web → lee el contenido completo de un resultado<br><br><strong>💡 Ejemplo:</strong><br>• \"<em>Busca artículos sobre Rust</em>\" → Búsqueda web (Perplexity/Brave)<br>• \"<em>Lee este artículo: https://blog.rust-lang.org/...</em>\" → Lectura de páginas web (contenido completo)"
+          },
+          "q18": {
+            "question": "Que es el Control del navegador?",
+            "answer": "Permite a LIA interactuar con sitios web: navegar, buscar, hacer clic, rellenar formularios y extraer datos de paginas JavaScript."
+          },
+          "q19": {
+            "question": "Como navega el agente del navegador?",
+            "answer": "Utiliza Chromium headless (Playwright) para navegar, aceptar cookies, esperar renderizado JS y extraer contenido visible."
+          },
+          "q20": {
+            "question": "Diferencia entre Control del navegador y Lectura web?",
+            "answer": "Lectura web: estatico, rapido. Control del navegador: JavaScript, interaccion, mas lento pero mas potente."
           }
         }
       },
@@ -3693,6 +3721,10 @@
       "rag_spaces": {
         "title": "Espacios de conocimiento",
         "description": "Suba documentos en 15+ formatos (PDF, DOCX, PPTX, XLSX, HTML, EPUB y más) o sincronice carpetas de Google Drive directamente. LIA indexa automáticamente y enriquece sus respuestas mediante búsqueda híbrida (semántica + palabras clave)."
+      },
+      "browser_control": {
+        "title": "Control del navegador",
+        "description": "Navega por sitios web de forma autónoma: buscar productos, rellenar formularios, extraer datos de páginas dinámicas con JavaScript"
       }
     },
     "use_cases": {
@@ -3755,8 +3787,8 @@
         "description": "Orquestación de agentes con grafos de estado, ejecución paralela por oleadas y aprendizaje bayesiano de patrones de planes."
       },
       "llm_providers": {
-        "title": "6 proveedores LLM",
-        "description": "OpenAI, Anthropic, Google Gemini, DeepSeek, Perplexity, Ollama. Selección dinámica del mejor modelo por tipo de tarea."
+        "title": "7 proveedores LLM",
+        "description": "OpenAI, Anthropic, Google Gemini, DeepSeek, Qwen, Perplexity, Ollama. Selección dinámica del mejor modelo por tipo de tarea."
       },
       "bayesian": {
         "title": "Aprendizaje bayesiano",
@@ -3825,5 +3857,13 @@
       "disabled_success": "Sub-agentes desactivados",
       "info": "Cuando están activados, el asistente puede delegar tareas de investigación, análisis y síntesis a sub-agentes especializados."
     }
+  },
+  "browser": {
+    "navigate": "Navegar a la página",
+    "snapshot": "Leer contenido de la página",
+    "click": "Hacer clic en elemento",
+    "fill": "Rellenar campo",
+    "press_key": "Pulsar tecla",
+    "screenshot": "Capturar pantalla"
   }
 }

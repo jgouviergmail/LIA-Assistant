@@ -468,6 +468,26 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
             ),
         },
     ),
+    # Browser domain: Interactive web browsing (evolution F7)
+    "browser": DomainConfig(
+        name="browser",
+        display_name="Browser",
+        description=(
+            "Interactive web browsing: navigate pages, click elements, fill forms, "
+            "extract structured content. Use for tasks requiring direct web interaction "
+            "beyond simple page fetching."
+        ),
+        agent_names=["browser_agent"],
+        result_key="browsers",  # $steps.step_N.browsers (domain + "s" pattern)
+        related_domains=["web_fetch", "web_search"],
+        priority=5,
+        is_routable=True,
+        metadata={
+            "provider": "internal",
+            "requires_oauth": False,
+            "requires_api_key": False,
+        },
+    ),
 }
 
 

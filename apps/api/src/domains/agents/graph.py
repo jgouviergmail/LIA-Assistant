@@ -25,6 +25,7 @@ from langgraph.graph.state import CompiledStateGraph
 from src.core.config import Settings, settings
 from src.domains.agents.constants import (
     # Agent constants (v3.2 convention: singular domain names)
+    AGENT_BROWSER,
     AGENT_CONTACT,
     AGENT_EMAIL,
     AGENT_EVENT,
@@ -551,6 +552,20 @@ async def build_graph(
     )
     graph.add_node(AGENT_ROUTE, route_agent_node)
 
+    # Browser agent (F7 - auto-detected, registered if Playwright available)
+    _browser_registered = False
+    try:
+        browser_agent_runnable = registry_for_wrapper.get_agent("browser_agent")
+        browser_agent_node = build_agent_wrapper(
+            agent_runnable=browser_agent_runnable,
+            agent_name="browser_agent",
+            agent_constant=AGENT_BROWSER,
+        )
+        graph.add_node(AGENT_BROWSER, browser_agent_node)
+        _browser_registered = True
+    except Exception:
+        pass  # Browser agent not registered (Playwright not installed)
+
     graph.add_node(NODE_RESPONSE, response_node)
 
     # Set entry point: compaction runs first, then unconditionally routes to router
@@ -646,6 +661,8 @@ async def build_graph(
             AGENT_PERPLEXITY: AGENT_PERPLEXITY,
             AGENT_PLACE: AGENT_PLACE,
             AGENT_ROUTE: AGENT_ROUTE,  # LOT 12: Google Routes directions
+            # Browser agent (F7 - conditional)
+            **({AGENT_BROWSER: AGENT_BROWSER} if _browser_registered else {}),
             # Terminal
             NODE_RESPONSE: NODE_RESPONSE,
         },
@@ -669,6 +686,9 @@ async def build_graph(
     graph.add_edge(AGENT_PERPLEXITY, NODE_RESPONSE)
     graph.add_edge(AGENT_PLACE, NODE_RESPONSE)
     graph.add_edge(AGENT_ROUTE, NODE_RESPONSE)  # LOT 12: Google Routes
+    # Browser agent (F7 - conditional)
+    if _browser_registered:
+        graph.add_edge(AGENT_BROWSER, NODE_RESPONSE)
 
     # Response is terminal
     graph.add_edge(NODE_RESPONSE, END)

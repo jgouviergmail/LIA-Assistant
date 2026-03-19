@@ -97,6 +97,18 @@ export interface ProviderModelsMetadata {
   providers: Record<string, ModelCapabilities[]>;
 }
 
+// --- Ollama dynamic discovery ---
+
+export interface OllamaModelCapabilities extends ModelCapabilities {
+  size: string | null;
+  family: string | null;
+}
+
+export interface OllamaModelsResponse {
+  models: OllamaModelCapabilities[];
+  source: 'live' | 'fallback';
+}
+
 // --- UI helpers ---
 
 export const LLM_CATEGORY_LABELS: Record<string, string> = {

@@ -49,6 +49,7 @@ Chaque composant LLM du pipeline (router, planner, response, agents, etc.) est c
 | **Anthropic** | `anthropic` | `ANTHROPIC_API_KEY` | `langchain-anthropic` | Prompt caching automatique (beta header) |
 | **DeepSeek** | `deepseek` | `DEEPSEEK_API_KEY` | `langchain-deepseek` | API compatible OpenAI. Thinking mode via model name |
 | **Gemini** | `gemini` | `GOOGLE_GEMINI_API_KEY` | `langchain-google-genai` | Google AI. Parametrage different des autres |
+| **Qwen** | `qwen` | `QWEN_API_KEY` | `langchain-openai` (compat) | Alibaba Cloud. DashScope OpenAI-compatible API |
 | **Ollama** | `ollama` | _(aucune)_ | `langchain-openai` (compat) | Deploiement local. `OLLAMA_BASE_URL` requis |
 | **Perplexity** | `perplexity` | `PERPLEXITY_API_KEY` | `langchain-openai` (compat) | Search-augmented. Pas de tools/structured output |
 
@@ -154,6 +155,21 @@ PLANNER_LLM_MODEL=deepseek-reasoner
 - `reasoning_effort` est **ignore** (parametre OpenAI uniquement)
 - Le parametre `max_tokens` est mappe vers `max_output_tokens` de l'API Gemini
 
+### Qwen (Alibaba Cloud)
+
+| Modele (valeur config) | Context | Notes |
+|------------------------|---------|-------|
+| `qwen3-max` | 262K | Thinking only (pas de tools, pas de vision) |
+| `qwen3.5-plus` | 1M | Tools + Vision + Thinking (par defaut) |
+| `qwen3.5-flash` | 1M | Tools + Vision + Thinking, cout reduit |
+
+**Notes Qwen** :
+- Endpoint international : `https://dashscope-intl.aliyuncs.com/compatible-mode/v1`
+- Thinking mode : `enable_thinking` + `thinking_budget` via `extra_body`
+- Implicit cache automatique (>=256 tokens, pas de flag necessaire)
+- `frequency_penalty` non supporte (utiliser `presence_penalty`)
+- Prix (international) : qwen3.5-flash $0.10/$0.40, qwen3.5-plus $0.40/$2.40, qwen3-max $1.20/$6.00
+
 ### Ollama (local)
 
 Modeles courants (le nom depend de ce qui est installe localement) :
@@ -171,6 +187,7 @@ Modeles courants (le nom depend de ce qui est installe localement) :
 - API key factice (`"ollama"`) injectee automatiquement
 - `OLLAMA_BASE_URL` configure l'endpoint (defaut : `http://localhost:11434`)
 - Les capacites (tools, structured output) dependent du modele choisi
+- **Dynamic discovery** : l'admin UI liste automatiquement les modeles installes via `GET /api/tags` + `POST /api/show` (capabilities reelles par modele, cache 60s, timeout 5s, fallback sur profils statiques)
 
 ### Perplexity (search-augmented)
 

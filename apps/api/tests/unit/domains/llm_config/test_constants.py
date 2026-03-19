@@ -37,8 +37,8 @@ class TestLLMDefaults:
             ), f"LLM_DEFAULTS['{llm_type}'] is {type(config)}, expected LLMAgentConfig"
 
     def test_default_count(self) -> None:
-        """Should have 39 LLM types (including evaluator, compaction, subagent)."""
-        assert len(LLM_DEFAULTS) == 39
+        """Should have 40 LLM types (including evaluator, compaction, subagent, browser_agent)."""
+        assert len(LLM_DEFAULTS) == 40
 
     @pytest.mark.parametrize(
         "llm_type,expected_provider,expected_model",
@@ -87,6 +87,6 @@ class TestLLMProviders:
     """Tests for LLM_PROVIDERS."""
 
     def test_known_providers(self) -> None:
-        """Should have all 6 known providers."""
-        expected = {"openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini"}
+        """Should have all 7 known providers."""
+        expected = {"openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"}
         assert set(LLM_PROVIDERS.keys()) == expected

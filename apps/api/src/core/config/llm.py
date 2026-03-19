@@ -97,6 +97,10 @@ MODEL_CONTEXT_WINDOWS: dict[str, int] = {
     "llama-3.1-sonar-small-128k-online": 128_000,
     "llama-3.1-sonar-large-128k-online": 128_000,
     "llama-3.1-sonar-huge-128k-online": 128_000,
+    # Qwen series (more specific prefixes before shorter ones)
+    "qwen3.5-plus": 1_000_000,
+    "qwen3.5-flash": 1_000_000,
+    "qwen3-max": 262_144,
 }
 
 # Default context window for unknown models
@@ -204,6 +208,7 @@ class LLMSettings(BaseSettings):
             "ollama": False,  # OpenAI-compatible but no /parse
             "perplexity": False,  # OpenAI-compatible but no /parse
             "gemini": True,  # Native structured output via langchain-google-genai
+            "qwen": False,  # OpenAI-compatible; JSON mode fallback (no /parse endpoint)
         }
 
     # ========================================================================
@@ -211,7 +216,7 @@ class LLMSettings(BaseSettings):
     # ========================================================================
 
     router_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini"
+        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(default="openai", description="LLM provider for router")
     router_llm_provider_config: str = Field(
         default="{}", description="Advanced provider-specific config for router (JSON string)"
@@ -268,7 +273,7 @@ class LLMSettings(BaseSettings):
     # ========================================================================
 
     response_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini"
+        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(default="anthropic", description="LLM provider for response")
     response_llm_provider_config: str = Field(
         default="{}", description="Advanced provider-specific config for response (JSON string)"
@@ -322,7 +327,7 @@ class LLMSettings(BaseSettings):
     # ========================================================================
 
     contacts_agent_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini"
+        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(default="openai", description="LLM provider for contacts agent")
     contacts_agent_llm_provider_config: str = Field(
         default="{}",
@@ -377,7 +382,7 @@ class LLMSettings(BaseSettings):
     # ========================================================================
 
     emails_agent_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini"
+        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(default="openai", description="LLM provider for Emails agent")
     emails_agent_llm_provider_config: str = Field(
         default="{}",
@@ -432,7 +437,7 @@ class LLMSettings(BaseSettings):
     # ========================================================================
 
     calendar_agent_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini"
+        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(default="openai", description="LLM provider for Calendar agent")
     calendar_agent_llm_provider_config: str = Field(
         default="{}",
@@ -483,7 +488,7 @@ class LLMSettings(BaseSettings):
     # ========================================================================
 
     drive_agent_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini"
+        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(default="openai", description="LLM provider for Drive agent")
     drive_agent_llm_provider_config: str = Field(
         default="{}",
@@ -534,7 +539,7 @@ class LLMSettings(BaseSettings):
     # ========================================================================
 
     tasks_agent_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini"
+        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(default="openai", description="LLM provider for Tasks agent")
     tasks_agent_llm_provider_config: str = Field(
         default="{}",
@@ -585,7 +590,7 @@ class LLMSettings(BaseSettings):
     # ========================================================================
 
     weather_agent_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini"
+        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(default="openai", description="LLM provider for Weather agent")
     weather_agent_llm_provider_config: str = Field(
         default="{}",
@@ -636,7 +641,7 @@ class LLMSettings(BaseSettings):
     # ========================================================================
 
     wikipedia_agent_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini"
+        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(default="openai", description="LLM provider for Wikipedia agent")
     wikipedia_agent_llm_provider_config: str = Field(
         default="{}",
@@ -687,7 +692,7 @@ class LLMSettings(BaseSettings):
     # ========================================================================
 
     perplexity_agent_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini"
+        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(default="openai", description="LLM provider for Perplexity agent")
     perplexity_agent_llm_provider_config: str = Field(
         default="{}",
@@ -738,7 +743,7 @@ class LLMSettings(BaseSettings):
     # ========================================================================
 
     brave_agent_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini"
+        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(default="openai", description="LLM provider for Brave Search agent")
     brave_agent_llm_provider_config: str = Field(
         default="{}",
@@ -789,7 +794,7 @@ class LLMSettings(BaseSettings):
     # ========================================================================
 
     web_search_agent_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini"
+        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(default="openai", description="LLM provider for Web Search agent")
     web_search_agent_llm_provider_config: str = Field(
         default="{}",
@@ -840,7 +845,7 @@ class LLMSettings(BaseSettings):
     # ========================================================================
 
     web_fetch_agent_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini"
+        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(default="openai", description="LLM provider for Web Fetch agent")
     web_fetch_agent_llm_provider_config: str = Field(
         default="{}",
@@ -891,7 +896,7 @@ class LLMSettings(BaseSettings):
     # ========================================================================
 
     places_agent_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini"
+        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(default="openai", description="LLM provider for Places agent")
     places_agent_llm_provider_config: str = Field(
         default="{}",
@@ -942,7 +947,7 @@ class LLMSettings(BaseSettings):
     # ========================================================================
 
     routes_agent_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini"
+        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(default="openai", description="LLM provider for Routes agent")
     routes_agent_llm_provider_config: str = Field(
         default="{}",
@@ -993,7 +998,7 @@ class LLMSettings(BaseSettings):
     # ========================================================================
 
     query_agent_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini"
+        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(default="openai", description="LLM provider for Query agent")
     query_agent_llm_provider_config: str = Field(
         default="{}",
@@ -1047,7 +1052,7 @@ class LLMSettings(BaseSettings):
     # Performance Target: P95 < 2s, with 1s timeout for optimistic validation
 
     semantic_validator_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini"
+        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(
         default="openai",
         description="LLM provider for semantic validator (distinct from planner)",
@@ -1114,7 +1119,7 @@ class LLMSettings(BaseSettings):
     # Uses a fast model (gpt-4.1-mini) for low latency (<500ms target)
 
     context_resolver_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini"
+        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(
         default="openai",
         description="LLM provider for context resolver (fast model required)",
@@ -1185,7 +1190,7 @@ class LLMSettings(BaseSettings):
     # Performance Target: P95 < 800ms (fast model recommended)
 
     query_analyzer_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini"
+        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(
         default="openai",
         description="LLM provider for query analyzer (fast model required)",
@@ -1252,7 +1257,7 @@ class LLMSettings(BaseSettings):
     # Performance Target: P95 < 2s (non-blocking, async)
 
     interest_extraction_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini"
+        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(
         default="openai",
         description="LLM provider for interest extraction (fast model recommended)",
@@ -1313,7 +1318,7 @@ class LLMSettings(BaseSettings):
     # Performance Target: P95 < 3s (user-facing quality)
 
     interest_content_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini"
+        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(
         default="anthropic",
         description="LLM provider for interest content presentation",

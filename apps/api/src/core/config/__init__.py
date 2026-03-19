@@ -26,6 +26,7 @@ from src.core.constants import (
 from .advanced import AdvancedSettings
 from .agents import AgentsSettings
 from .attachments import AttachmentsSettings
+from .browser import BrowserSettings
 from .channels import ChannelsSettings
 from .connectors import ConnectorsSettings
 from .database import DatabaseSettings
@@ -83,6 +84,7 @@ class Settings(
     AttachmentsSettings,
     RAGSpacesSettings,
     SkillsSettings,
+    BrowserSettings,
     BaseSettings,
 ):
     """
@@ -105,7 +107,8 @@ class Settings(
         12. AttachmentsSettings (file uploads in chat: images, PDF)
         13. RAGSpacesSettings (user knowledge spaces: upload, embed, retrieve)
         14. SkillsSettings (Agent Skills: agentskills.io standard)
-        15. BaseSettings (Pydantic base class)
+        15. BrowserSettings (Browser automation: Playwright/Chromium)
+        16. BaseSettings (Pydantic base class)
 
     All settings can be overridden via .env file or environment variables.
     """
@@ -339,4 +342,5 @@ __all__ = [
     "AttachmentsSettings",
     "SkillsSettings",
     "RAGSpacesSettings",
+    "BrowserSettings",
 ]

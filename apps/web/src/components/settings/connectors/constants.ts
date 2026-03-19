@@ -9,6 +9,7 @@ import {
   Book,
   Search,
   MapPin,
+  Globe,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -32,6 +33,7 @@ export const API_KEY_CONNECTOR_TYPES = [
   'perplexity',
   'brave_search',
   'google_places', // Uses global API key, simple toggle activation
+  'browser', // No API key required, headless browser automation
 ] as const;
 
 export const APPLE_CONNECTOR_TYPES = [
@@ -149,6 +151,7 @@ export const CONNECTOR_ICONS: Record<string, ConnectorIconConfig> = {
   wikipedia: { icon: Book, emoji: '📚', color: 'slate' },
   perplexity: { icon: Search, emoji: '🔍', color: 'indigo' },
   brave_search: { icon: Search, emoji: '🦁', color: 'violet' },
+  browser: { icon: Globe, emoji: '🌐', color: 'blue' },
 };
 
 // Uniform background class for all connector icons
@@ -212,6 +215,12 @@ export const API_KEY_CONNECTORS: readonly ApiKeyConnectorConfig[] = [
     icon: MapPin,
     color: 'emerald',
     requiresKey: false, // Uses global API key configured on server
+  },
+  {
+    type: 'browser',
+    icon: Globe,
+    color: 'blue',
+    requiresKey: false, // No API key — uses local Playwright/Chromium
   },
 ] as const;
 

@@ -6,6 +6,7 @@ import {
   Cpu,
   HelpCircle,
   Key,
+  Loader2,
   RotateCcw,
   Save,
   Settings2,
@@ -34,11 +35,13 @@ import {
 } from '@/components/ui/select';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { useLLMConfig } from '@/hooks/useLLMConfig';
+import { useApiQuery } from '@/hooks/useApiQuery';
 import { useTranslation } from '@/i18n/client';
 import type { BaseSettingsProps } from '@/types/settings';
 import type {
   LLMTypeConfig,
   LLMTypeConfigUpdate,
+  OllamaModelsResponse,
   ProviderKeyStatus,
   ReasoningEffort,
 } from '@/types/llm-config';
@@ -367,6 +370,17 @@ function getModelConstraints(
       return defaults;
     }
 
+    case 'qwen': {
+      // Qwen: no frequency_penalty, supports thinking via enable_thinking
+      // All 3 models (qwen3-max, qwen3.5-plus, qwen3.5-flash) support thinking
+      return {
+        ...defaults,
+        supportsFrequencyPenalty: false,
+        supportsReasoningEffort: true,
+        reasoningEffortOptions: ['none', 'low', 'medium', 'high'],
+      };
+    }
+
     case 'ollama':
       // Ollama: OpenAI-compatible, all standard params
       return defaults;
@@ -470,10 +484,23 @@ function LLMConfigDialog({
     }
   };
 
+  // Dynamic Ollama model discovery: fetch only when Ollama is selected
+  const { data: ollamaData, loading: ollamaLoading } = useApiQuery<OllamaModelsResponse>(
+    '/admin/llm-config/providers/ollama/models',
+    {
+      componentName: 'LLMConfigDialog',
+      initialData: { models: [], source: 'fallback' as const },
+      enabled: form.provider === 'ollama' && open,
+      deps: [form.provider, open],
+    },
+  );
+
   // Filter models by required_capabilities from LLM type config
   const requiredCaps = config?.info.required_capabilities ?? [];
+  const isOllamaWithDynamic = form.provider === 'ollama' && (ollamaData?.models?.length ?? 0) > 0;
+  const modelSource = isOllamaWithDynamic ? ollamaData!.models : (metadata.providers[form.provider ?? ''] ?? []);
   const availableModels = form.provider
-    ? (metadata.providers[form.provider] ?? [])
+    ? modelSource
         .filter((m) => {
           if (requiredCaps.includes('vision') && !m.supports_vision) return false;
           if (requiredCaps.includes('tools') && !m.supports_tools) return false;
@@ -536,7 +563,12 @@ function LLMConfigDialog({
               <Label>{t('settings.admin.llmConfig.fields.model')}</Label>
               {isModified('model') && <Badge variant="default" className="text-[10px] px-1 py-0">{t('settings.admin.llmConfig.types.overridden')}</Badge>}
             </div>
-            {availableModels.length > 0 ? (
+            {form.provider === 'ollama' && ollamaLoading ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground py-1.5">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                {t('settings.admin.llmConfig.ollama.loading')}
+              </div>
+            ) : availableModels.length > 0 ? (
               <Select value={form.model ?? ''} onValueChange={(v) => setForm({ ...form, model: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -555,6 +587,13 @@ function LLMConfigDialog({
                 onChange={(e) => setForm({ ...form, model: e.target.value })}
                 placeholder="model-name"
               />
+            )}
+            {form.provider === 'ollama' && !ollamaLoading && ollamaData && (
+              <p className={`text-[11px] mt-1 ${ollamaData.source === 'live' ? 'text-emerald-500' : 'text-amber-500'}`}>
+                {ollamaData.source === 'live'
+                  ? t('settings.admin.llmConfig.ollama.live')
+                  : t('settings.admin.llmConfig.ollama.fallback')}
+              </p>
             )}
           </div>
 

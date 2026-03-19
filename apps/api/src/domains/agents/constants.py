@@ -30,6 +30,7 @@ NODE_PERPLEXITY_AGENT = "perplexity_agent"  # LOT 11: Perplexity internet search
 NODE_BRAVE_AGENT = "brave_agent"  # Brave Search web/news search
 NODE_WEB_SEARCH_AGENT = "web_search_agent"  # Unified web search (Perplexity + Brave + Wikipedia)
 NODE_WEB_FETCH_AGENT = "web_fetch_agent"  # Web page content fetching (evolution F1)
+NODE_BROWSER_AGENT = "browser_agent"  # Interactive web browsing (evolution F7)
 
 # ============================================================================
 # AGENT NAMES (used in orchestration and result tracking)
@@ -50,6 +51,7 @@ AGENT_BRAVE = "brave_agent"  # Brave Search web/news search
 AGENT_WEB_SEARCH = "web_search_agent"  # Unified web search meta-agent
 AGENT_WEB_FETCH = "web_fetch_agent"  # Web page content fetching (evolution F1)
 AGENT_MCP = "mcp_agent"  # Virtual agent grouping all MCP tools (evolution F2)
+AGENT_BROWSER = "browser_agent"  # Interactive web browsing (evolution F7)
 
 # Per-server MCP domain prefix (evolution F2.2)
 # Each user MCP server gets its own domain: mcp_<slugified_server_name>
@@ -72,6 +74,7 @@ ALL_AGENTS = [
     AGENT_WEB_SEARCH,  # Unified web search
     AGENT_WEB_FETCH,  # Web page content fetching
     AGENT_MCP,  # MCP external tools (virtual agent, evolution F2)
+    AGENT_BROWSER,  # Interactive web browsing (evolution F7)
 ]
 
 # ============================================================================
@@ -147,6 +150,11 @@ INTENTION_WEB_SEARCH = "web_search"  # Unified web search
 # Web Fetch domain (page content extraction, evolution F1)
 INTENTION_WEB_FETCH = "web_fetch"  # Fetch and read a web page
 
+# Browser domain (interactive web browsing, evolution F7)
+INTENTION_BROWSER = "browser"  # Browser-related (generic)
+INTENTION_BROWSER_NAVIGATE = "browser_navigate"  # Navigate to a page
+INTENTION_BROWSER_INTERACT = "browser_interact"  # Click, fill, interact with page
+
 # ============================================================================
 # CONTEXT TYPES (for context management and state)
 # ============================================================================
@@ -175,6 +183,7 @@ CONTEXT_DOMAIN_WEB_SEARCH = "web_searchs"  # domain + "s" pattern
 CONTEXT_DOMAIN_WEB_FETCH = "web_fetchs"  # domain + "s" pattern (evolution F1)
 CONTEXT_DOMAIN_MCP = "mcps"  # domain + "s" pattern (evolution F2)
 CONTEXT_DOMAIN_MCP_APPS = "mcp_apps"  # MCP Apps interactive widgets (evolution F2.5)
+CONTEXT_DOMAIN_BROWSERS = "browsers"  # Interactive web browsing (evolution F7)
 
 # Web Search sources (used by unified_web_search_tool)
 WEB_SEARCH_SOURCE_PERPLEXITY = "perplexity"
@@ -556,6 +565,7 @@ __all__ = [
     "NODE_BRAVE_AGENT",
     "NODE_WEB_SEARCH_AGENT",
     "NODE_WEB_FETCH_AGENT",
+    "NODE_BROWSER_AGENT",
     # Agent names (v3.2 convention: singular domain names)
     "AGENT_CONTACT",
     "AGENT_EMAIL",
@@ -572,6 +582,7 @@ __all__ = [
     "AGENT_WEB_SEARCH",
     "AGENT_WEB_FETCH",
     "AGENT_MCP",
+    "AGENT_BROWSER",
     "MCP_DOMAIN_PREFIX",
     "ALL_AGENTS",
     # Tool names
@@ -614,6 +625,9 @@ __all__ = [
     "INTENTION_BRAVE_NEWS",
     "INTENTION_WEB_SEARCH",
     "INTENTION_WEB_FETCH",
+    "INTENTION_BROWSER",
+    "INTENTION_BROWSER_NAVIGATE",
+    "INTENTION_BROWSER_INTERACT",
     # Context types
     "CONTEXT_DOMAIN_CONTACTS",
     "CONTEXT_DOMAIN_WEATHER",
@@ -625,6 +639,7 @@ __all__ = [
     "CONTEXT_DOMAIN_WEB_FETCH",
     "CONTEXT_DOMAIN_MCP",
     "CONTEXT_DOMAIN_MCP_APPS",
+    "CONTEXT_DOMAIN_BROWSERS",
     "WEB_SEARCH_SOURCE_PERPLEXITY",
     "WEB_SEARCH_SOURCE_BRAVE",
     "WEB_SEARCH_SOURCE_WIKIPEDIA",

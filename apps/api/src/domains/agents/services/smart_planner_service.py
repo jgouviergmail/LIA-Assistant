@@ -31,7 +31,7 @@ from src.core.constants import (
     PLANNER_PRESERVABLE_PARAM_NAMES,
     V3_PLANNER_DOMAIN_FULL_TOKENS,
 )
-from src.core.context import panic_mode_attempted
+from src.core.context import exclude_sub_agents_from_prompt, panic_mode_attempted
 from src.domains.agents.analysis.query_intelligence import QueryIntelligence
 from src.domains.agents.prompts import (
     get_smart_planner_multi_domain_prompt,
@@ -146,6 +146,16 @@ class SmartPlannerService:
         # Reset panic mode for new request
         self.catalogue_service.reset_panic_mode()
         panic_mode_attempted.set(False)  # ContextVar per-request isolation
+
+        # F6: Signal prompt builder to suppress sub-agent delegation section
+        # when replanning after user rejection of a sub-agent plan.
+        # This prevents contradictory instructions (catalogue excludes the tool
+        # but prompt section still encourages delegation).
+        from src.core.constants import TOOL_NAME_DELEGATE_SUB_AGENT
+
+        exclude_sub_agents_from_prompt.set(
+            bool(exclude_tools and TOOL_NAME_DELEGATE_SUB_AGENT in exclude_tools)
+        )
 
         # Initialize with default failure result (will be replaced if strategy matches)
         result: PlanningResult = PlanningResult(
@@ -828,11 +838,20 @@ class SmartPlannerService:
         """Build sub-agents delegation section for planner prompt.
 
         Returns the section content when SUB_AGENTS_ENABLED, empty string otherwise.
+        Returns empty string when exclude_sub_agents_from_prompt ContextVar is True
+        (F6: user rejected a sub-agent plan, replanning without delegation).
         Braces in examples are escaped for Python .format() compatibility.
         """
         from src.core.config import get_settings
 
         if not getattr(get_settings(), "sub_agents_enabled", False):
+            return ""
+
+        # F6: Suppress sub-agent section during replan after user rejection.
+        # The catalogue already excludes delegate_to_sub_agent_tool, but without
+        # suppressing this prompt section the LLM receives contradictory instructions
+        # (told to delegate while the tool is absent from AVAILABLE TOOLS).
+        if exclude_sub_agents_from_prompt.get():
             return ""
 
         return (

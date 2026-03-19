@@ -130,7 +130,22 @@ Tous les endpoints requièrent le rôle **superuser**.
 | `GET` | `/admin/llm-config/types/{llm_type}` | Config d'un LLM type |
 | `PUT` | `/admin/llm-config/types/{llm_type}` | Met à jour config (full replace) |
 | `POST` | `/admin/llm-config/types/{llm_type}/reset` | Reset vers défauts code |
-| `GET` | `/admin/llm-config/metadata/models` | Modèles disponibles par provider |
+| `GET` | `/admin/llm-config/metadata/models` | Modèles disponibles par provider (static profiles) |
+| `GET` | `/admin/llm-config/providers/ollama/models` | Modèles Ollama installés (discovery dynamique) |
+
+### Dynamic Ollama Model Discovery
+
+L'endpoint `/providers/ollama/models` utilise une discovery en deux phases :
+1. `GET /api/tags` — liste tous les modèles installés (noms, tailles, familles)
+2. `POST /api/show` × N — interroge les **capabilities réelles** de chaque modèle en parallèle (`tools`, `vision`, `thinking`, `embedding`)
+
+Le champ `source` dans la réponse indique la provenance :
+- `"live"` — modèles et capabilities récupérés en temps réel depuis le serveur Ollama
+- `"fallback"` — profils statiques de `FALLBACK_PROFILES` (Ollama injoignable)
+
+Les résultats sont cachés en mémoire pendant 60 secondes (`OLLAMA_MODEL_CACHE_TTL_SECONDS`). Le timeout HTTP est de 5 secondes par requête (`OLLAMA_DISCOVERY_TIMEOUT_SECONDS`). Si `/api/show` échoue pour un modèle spécifique, ses capabilities sont vides (isolation par modèle). Si `/api/tags` échoue, l'endpoint retourne les profils statiques connus (dégradation gracieuse).
+
+Le frontend déclenche ce fetch uniquement quand l'admin sélectionne Ollama comme provider dans le dialog de configuration d'un LLM type (pas au chargement de la page).
 
 ### Sémantique PUT (Full Replace)
 

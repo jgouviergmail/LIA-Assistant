@@ -809,6 +809,11 @@
         "description": "Web- und Nachrichtenanreicherung",
         "get_key": "Holen Sie sich einen Schlüssel auf api.search.brave.com",
         "label": "Brave Search"
+      },
+      "browser": {
+        "label": "Browser",
+        "description": "Interaktives Web-Browsing (kein Schlüssel erforderlich)",
+        "no_key_required": "Dieser Dienst erfordert keinen API-Schlüssel"
       }
     },
     "admin": {
@@ -1060,7 +1065,8 @@
           "microsoft_outlook": "Zugriff auf Ihre E-Mails und Nachrichten senden über Outlook",
           "microsoft_calendar": "Microsoft Calendar-Termine anzeigen und verwalten",
           "microsoft_contacts": "Microsoft-Kontakte suchen und verwalten",
-          "microsoft_tasks": "Aufgaben und Aufgabenlisten in Microsoft To Do verwalten"
+          "microsoft_tasks": "Aufgaben und Aufgabenlisten in Microsoft To Do verwalten",
+          "browser": "Interaktives Web-Browsing: navigieren, klicken, Formulare ausfüllen"
         }
       },
       "personalities": {
@@ -1283,9 +1289,15 @@
           "skill_description_translator": "Übersetzt Skill-Beschreibungen in alle 6 unterstützten Sprachen",
           "evaluator": "LLM-as-Judge Evaluierungspipeline (Relevanz, Halluzination)",
           "compaction": "Fasst alten Gesprächsverlauf zusammen, um Kontextfenster freizugeben",
-          "subagent": "Führt delegierte Aufgaben über spezialisierte Sub-Agenten aus (Recherche, Analyse, Synthese)"
+          "subagent": "Führt delegierte Aufgaben über spezialisierte Sub-Agenten aus (Recherche, Analyse, Synthese)",
+          "browser_agent": "Interaktiver Web-Browsing-Agent (navigieren, klicken, Formulare ausfüllen)"
         },
         "no_compatible_model": "Kein Modell dieses Anbieters unterstützt diese Funktion",
+        "ollama": {
+          "live": "Verbunden mit Ollama-Server",
+          "fallback": "Ollama nicht erreichbar — bekannte Modelle werden angezeigt",
+          "loading": "Ollama-Modelle werden geladen…"
+        },
         "categories": {
           "pipeline": "Pipeline",
           "domain_agents": "Domänenagenten",
@@ -2110,7 +2122,7 @@
         },
         "llm": {
           "title": "🤖 Multi-Provider LLM & Pattern Learning",
-          "description": "Unterstützung für OpenAI (GPT-4, o1), Anthropic (Claude), Google Gemini, DeepSeek, Perplexity und lokales Ollama. Bayessches Lernen von Planungsmustern (≥90% Konfidenz → LLM-Bypass). Durchschnittliche Token-Einsparung von 89%. Konfigurierbare Profile pro Aufgabe mit Echtzeit-Kostenverfolgung."
+          "description": "Unterstützung für OpenAI (GPT-4, o1), Anthropic (Claude), Google Gemini, DeepSeek, Qwen, Perplexity und lokales Ollama. Bayessches Lernen von Planungsmustern (≥90% Konfidenz → LLM-Bypass). Durchschnittliche Token-Einsparung von 89%. Konfigurierbare Profile pro Aufgabe mit Echtzeit-Kostenverfolgung."
         },
         "security": {
           "title": "🔐 Mehrstufige Sicherheit",
@@ -2215,6 +2227,10 @@
         "subAgents": {
           "title": "Sub-Agenten",
           "description": "Delegieren Sie komplexe Aufgaben an spezialisierte kurzlebige Experten, die parallel arbeiten. Der Assistent orchestriert und fasst ihre Ergebnisse transparent zusammen."
+        },
+        "browserControl": {
+          "title": "🌐 Browser-Steuerung",
+          "description": "Interaktives Web-Browsing mit autonomer Navigation: Produkte auf E-Commerce-Seiten suchen, Formulare ausfüllen, Daten aus JavaScript-gerenderten Seiten extrahieren. Der Browser-Agent verwaltet mehrstufige Interaktionen automatisch."
         }
       },
       "diagram_alt": "LIA-Architekturdiagramm"
@@ -2493,8 +2509,8 @@
       },
       "tool_examples_external": {
         "title": "Externe Dienste Beispiele",
-        "description": "Wie Sie Wetter, Wikipedia, Perplexity, Webseitenleser, Places und Wegbeschreibungen verwenden",
-        "count": "17",
+        "description": "Wie man Wetter, Wikipedia, Perplexity, Web-Fetch, Browser-Steuerung, Orte und Routen verwendet",
+        "count": "20",
         "questions": {
           "q1": {
             "question": "Wie erhalte ich das aktuelle Wetter?",
@@ -2563,6 +2579,18 @@
           "q17": {
             "question": "Wann sollte ich Webseitenleser vs Websuche verwenden?",
             "answer": "Wählen Sie das richtige Werkzeug nach Ihren Bedürfnissen:<br><br><strong>🌐 Verwenden Sie WEBSEITENLESER für:</strong><br>• Den vollständigen Inhalt einer bekannten URL lesen<br>• Einen bestimmten Artikel zusammenfassen<br>• Den Inhalt einer bestimmten Seite analysieren<br>• Inhalte mehrerer Seiten vergleichen<br>• \"<em>Lies diesen Artikel: https://...</em>\"<br><br><strong>🔍 Verwenden Sie die WEBSUCHE für:</strong><br>• Informationen zu einem Thema finden<br>• Aktuelle Nachrichten erhalten<br>• Suchen ohne die genaue URL zu kennen<br>• \"<em>Was sind die neuesten Nachrichten zu X?</em>\"<br><br><strong>🔗 Ideale Kombination:</strong><br>1. Websuche → findet relevante URLs<br>2. Webseitenleser → liest den vollständigen Inhalt eines Ergebnisses<br><br><strong>💡 Beispiel:</strong><br>• \"<em>Suche Artikel über Rust</em>\" → Websuche (Perplexity/Brave)<br>• \"<em>Lies diesen Artikel: https://blog.rust-lang.org/...</em>\" → Webseitenleser (vollständiger Inhalt)"
+          },
+          "q18": {
+            "question": "Was ist die Browser-Steuerung?",
+            "answer": "Ermoeglicht LIA, mit Websites zu interagieren: navigieren, suchen, klicken, Formulare ausfuellen, Daten aus JavaScript-Seiten extrahieren."
+          },
+          "q19": {
+            "question": "Wie funktioniert der Browser-Agent?",
+            "answer": "Verwendet headless Chromium (Playwright) zum Navigieren, Cookies akzeptieren, JS-Rendering abwarten und Inhalte extrahieren."
+          },
+          "q20": {
+            "question": "Unterschied zwischen Browser-Steuerung und Web-Fetch?",
+            "answer": "Web-Fetch: statisch, schnell. Browser-Steuerung: JavaScript, Interaktion, langsamer aber leistungsfaehiger."
           }
         }
       },
@@ -2814,7 +2842,7 @@
           },
           "q7": {
             "question": "Wie funktioniert die Google Drive-Synchronisation?",
-            "answer": "<p>Sie können Google Drive-Ordner mit Ihren Wissensräumen verknüpfen. Klicken Sie auf <strong>\u201EOrdner verknüpfen\u201C</strong>, durchsuchen Sie Ihr Drive und wählen Sie einen Ordner. LIA listet die unterstützten Dateien auf, lädt sie herunter und verarbeitet sie über dieselbe Indexierungspipeline.</p><p>Verwenden Sie <strong>\u201EJetzt synchronisieren\u201C</strong> zum Aktualisieren — LIA erkennt neue, geänderte und gelöschte Dateien automatisch.</p><p><strong>Wichtige Details:</strong><ul><li>Unterstützt Google Docs, Sheets und Slides über API-Export</li><li>Fehlerisolierung pro Datei — eine fehlerhafte Datei blockiert nicht die anderen</li><li>Feature-Flag: <code>RAG_SPACES_DRIVE_SYNC_ENABLED</code></li></ul></p>"
+            "answer": "<p>Sie können Google Drive-Ordner mit Ihren Wissensräumen verknüpfen. Klicken Sie auf <strong>„Ordner verknüpfen“</strong>, durchsuchen Sie Ihr Drive und wählen Sie einen Ordner. LIA listet die unterstützten Dateien auf, lädt sie herunter und verarbeitet sie über dieselbe Indexierungspipeline.</p><p>Verwenden Sie <strong>„Jetzt synchronisieren“</strong> zum Aktualisieren — LIA erkennt neue, geänderte und gelöschte Dateien automatisch.</p><p><strong>Wichtige Details:</strong><ul><li>Unterstützt Google Docs, Sheets und Slides über API-Export</li><li>Fehlerisolierung pro Datei — eine fehlerhafte Datei blockiert nicht die anderen</li><li>Feature-Flag: <code>RAG_SPACES_DRIVE_SYNC_ENABLED</code></li></ul></p>"
           }
         }
       },
@@ -3693,6 +3721,10 @@
       "rag_spaces": {
         "title": "Wissensräume",
         "description": "Laden Sie Dokumente in 15+ Formaten hoch (PDF, DOCX, PPTX, XLSX, HTML, EPUB und mehr) oder synchronisieren Sie Google Drive-Ordner direkt. LIA indexiert automatisch und bereichert Antworten durch hybride Suche (semantisch + Stichwort)."
+      },
+      "browser_control": {
+        "title": "Browser-Steuerung",
+        "description": "Navigiert autonom auf Websites: Produkte suchen, Formulare ausfüllen, Daten aus dynamischen JavaScript-Seiten extrahieren"
       }
     },
     "use_cases": {
@@ -3755,8 +3787,8 @@
         "description": "Agenten-Orchestrierung mit Zustandsgraphen, wellenbasierte Parallelausführung und Bayesianisches Lernen von Planmustern."
       },
       "llm_providers": {
-        "title": "6 LLM-Anbieter",
-        "description": "OpenAI, Anthropic, Google Gemini, DeepSeek, Perplexity, Ollama. Dynamische Auswahl des besten Modells pro Aufgabentyp."
+        "title": "7 LLM-Anbieter",
+        "description": "OpenAI, Anthropic, Google Gemini, DeepSeek, Qwen, Perplexity, Ollama. Dynamische Auswahl des besten Modells pro Aufgabentyp."
       },
       "bayesian": {
         "title": "Bayesianisches Lernen",
@@ -3825,5 +3857,13 @@
       "disabled_success": "Sub-Agenten deaktiviert",
       "info": "Wenn aktiviert, kann der Assistent Recherche-, Analyse- und Syntheseaufgaben an spezialisierte Sub-Agenten delegieren."
     }
+  },
+  "browser": {
+    "navigate": "Zur Seite navigieren",
+    "snapshot": "Seiteninhalt lesen",
+    "click": "Element anklicken",
+    "fill": "Feld ausfüllen",
+    "press_key": "Taste drücken",
+    "screenshot": "Screenshot aufnehmen"
   }
 }

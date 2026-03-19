@@ -171,6 +171,13 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         description_key="settings.admin.llmConfig.types.web_fetch_agent",
         required_capabilities=["tools"],
     ),
+    "browser_agent": LLMTypeMetadata(
+        llm_type="browser_agent",
+        display_name="Browser Agent",
+        category=CATEGORY_DOMAIN_AGENTS,
+        description_key="settings.admin.llmConfig.types.browser_agent",
+        required_capabilities=["tools"],
+    ),
     "places_agent": LLMTypeMetadata(
         llm_type="places_agent",
         display_name="Places Agent",
@@ -512,6 +519,15 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         max_tokens=3000,
         reasoning_effort="minimal",
     ),
+    "browser_agent": LLMAgentConfig(
+        provider="openai",
+        model="gpt-4.1-mini",
+        temperature=0.2,
+        top_p=0.9,
+        frequency_penalty=0.0,
+        presence_penalty=0.0,
+        max_tokens=8000,
+    ),
     "places_agent": LLMAgentConfig(
         provider="openai",
         model="gpt-5-nano",
@@ -753,4 +769,5 @@ LLM_PROVIDERS: dict[str, str] = {
     "perplexity": "Perplexity",
     "ollama": "Ollama",
     "gemini": "Google Gemini",
+    "qwen": "Qwen",
 }

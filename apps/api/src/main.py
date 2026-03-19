@@ -32,6 +32,7 @@ from src.core.constants import (
     RATE_LIMIT_ENDPOINT_CHAT_STREAM,
     SCHEDULED_ACTIONS_EXECUTOR_INTERVAL_SECONDS,
     SCHEDULER_JOB_ATTACHMENT_CLEANUP,
+    SCHEDULER_JOB_BROWSER_CLEANUP,
     SCHEDULER_JOB_CURRENCY_SYNC,
     SCHEDULER_JOB_HEARTBEAT_NOTIFICATION,
     SCHEDULER_JOB_INTEREST_CLEANUP,
@@ -336,6 +337,30 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         registry.register_agent("route_agent", build_routes_agent)
         # Internal agents (no external API - operate on Registry data)
         registry.register_agent("query_agent", build_query_agent)
+
+        # Browser agent (F7 - auto-detected, no feature flag needed)
+        # Activation is managed via admin connector panel, not .env.
+        # If Playwright/Chromium is installed → agent available. If not → graceful skip.
+        try:
+            from src.infrastructure.browser.pool import get_browser_pool
+
+            browser_pool = await get_browser_pool()
+            if browser_pool and browser_pool.is_healthy:
+                from src.domains.agents.graphs.browser_agent_builder import build_browser_agent
+
+                registry.register_agent("browser_agent", build_browser_agent)
+                scheduler.add_job(
+                    browser_pool.cleanup_expired,
+                    "interval",
+                    seconds=60,
+                    id=SCHEDULER_JOB_BROWSER_CLEANUP,
+                    replace_existing=True,
+                )
+                logger.info("browser_agent_initialized")
+            else:
+                logger.info("browser_agent_skipped_chromium_not_available")
+        except ImportError:
+            logger.info("browser_agent_skipped_playwright_not_installed")
 
         # Set as global registry
         set_global_registry(registry)
@@ -861,6 +886,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             logger.info("user_mcp_pool_closed")
         except (RuntimeError, ImportError) as exc:
             logger.error("user_mcp_pool_shutdown_failed", error=str(exc))
+
+    # Close browser pool (evolution F7)
+    try:
+        from src.infrastructure.browser.pool import close_browser_pool
+
+        await close_browser_pool()
+        logger.info("browser_pool_closed")
+    except (RuntimeError, ImportError):
+        pass  # Browser not installed — nothing to close
 
     # Shutdown Telegram Bot (evolution F3)
     if telegram_bot:

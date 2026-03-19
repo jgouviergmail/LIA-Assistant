@@ -53,6 +53,7 @@ export const CONNECTOR_TYPES = [
   'wikipedia',
   'perplexity',
   'brave_search',
+  'browser',
   // Future connectors (not yet implemented)
   'slack',
   'notion',
@@ -97,6 +98,7 @@ export const CONNECTOR_LABELS: Record<ConnectorType, string> = {
   wikipedia: 'Wikipedia',
   perplexity: 'Perplexity',
   brave_search: 'Brave Search',
+  browser: 'Browser',
   // Future connectors
   slack: 'Slack',
   notion: 'Notion',
@@ -126,7 +128,7 @@ export const CONNECTOR_CATEGORIES = {
   ],
   apple: ['apple_email', 'apple_calendar', 'apple_contacts'],
   microsoft: ['microsoft_outlook', 'microsoft_calendar', 'microsoft_contacts', 'microsoft_tasks'],
-  external: ['openweathermap', 'wikipedia', 'perplexity', 'brave_search'],
+  external: ['openweathermap', 'wikipedia', 'perplexity', 'brave_search', 'browser'],
   productivity: ['slack', 'notion'],
   development: ['github'],
 } as const;

@@ -1129,6 +1129,11 @@
         "saved": "Préférence enregistrée",
         "cleared": "Préférence supprimée",
         "error": "Erreur lors de l'enregistrement"
+      },
+      "browser": {
+        "label": "Navigateur",
+        "description": "Navigation web interactive (pas de clé requise)",
+        "no_key_required": "Ce service ne nécessite pas de clé API"
       }
     },
     "admin": {
@@ -1380,7 +1385,8 @@
           "microsoft_outlook": "Accédez à vos emails et envoyez des messages via Outlook",
           "microsoft_calendar": "Consultez et gérez vos événements Microsoft Calendar",
           "microsoft_contacts": "Recherchez et gérez vos contacts Microsoft",
-          "microsoft_tasks": "Gérez vos tâches et listes de tâches Microsoft To Do"
+          "microsoft_tasks": "Gérez vos tâches et listes de tâches Microsoft To Do",
+          "browser": "Navigation web interactive : naviguer, cliquer, remplir des formulaires"
         }
       },
       "personalities": {
@@ -1603,9 +1609,15 @@
           "skill_description_translator": "Traduit les descriptions des skills système dans les 6 langues supportées",
           "evaluator": "Pipeline d'évaluation LLM-as-Judge (pertinence, hallucination)",
           "compaction": "Résume l'historique de conversation ancien pour libérer la fenêtre de contexte",
-          "subagent": "Exécute les tâches déléguées via des sous-agents spécialisés (recherche, analyse, synthèse)"
+          "subagent": "Exécute les tâches déléguées via des sous-agents spécialisés (recherche, analyse, synthèse)",
+          "browser_agent": "Agent de navigation web interactive (naviguer, cliquer, remplir des formulaires)"
         },
         "no_compatible_model": "Aucun modèle de ce provider ne supporte cette fonctionnalité",
+        "ollama": {
+          "live": "Connecté au serveur Ollama",
+          "fallback": "Ollama injoignable — modèles connus affichés",
+          "loading": "Chargement des modèles Ollama…"
+        },
         "categories": {
           "pipeline": "Pipeline",
           "domain_agents": "Agents domaine",
@@ -2124,7 +2136,7 @@
         },
         "llm": {
           "title": "🤖 Multi-Fournisseurs LLM & Pattern Learning",
-          "description": "Support 6 fournisseurs : OpenAI (GPT-4, o1), Anthropic (Claude), Google Gemini, DeepSeek, Perplexity et Ollama local. Apprentissage bayésien des patterns de planification (≥90% confiance → bypass LLM). Économie moyenne de 89% des tokens. Profils configurables par tâche avec suivi temps réel des coûts."
+          "description": "Support 7 fournisseurs : OpenAI (GPT-4, o1), Anthropic (Claude), Google Gemini, DeepSeek, Qwen, Perplexity et Ollama local. Apprentissage bayésien des patterns de planification (≥90% confiance → bypass LLM). Économie moyenne de 89% des tokens. Profils configurables par tâche avec suivi temps réel des coûts."
         },
         "security": {
           "title": "🔐 Sécurité Multi-Niveaux",
@@ -2229,6 +2241,10 @@
         "subAgents": {
           "title": "Sous-agents",
           "description": "Déléguez des tâches complexes à des experts éphémères spécialisés travaillant en parallèle. L'assistant orchestre et synthétise leurs résultats de manière transparente."
+        },
+        "browserControl": {
+          "title": "🌐 Contrôle navigateur",
+          "description": "Navigation web interactive avec navigation autonome : recherche de produits sur les sites e-commerce, remplissage de formulaires, extraction de données depuis les pages JavaScript. L'agent navigateur gère les interactions multi-étapes automatiquement."
         }
       },
       "diagram_alt": "Schéma d'architecture de LIA"
@@ -2507,8 +2523,8 @@
       },
       "tool_examples_external": {
         "title": "Exemples Services Externes",
-        "description": "Comment utiliser Météo, Wikipedia, Perplexity, Lecture de pages web, Places et Itinéraires",
-        "count": "17",
+        "description": "Comment utiliser Meteo, Wikipedia, Perplexity, Lecture web, Controle navigateur, Places et Itineraires",
+        "count": "20",
         "questions": {
           "q1": {
             "question": "Comment obtenir la météo actuelle ?",
@@ -2577,6 +2593,18 @@
           "q17": {
             "question": "Quand utiliser Lecture de pages web vs la recherche web ?",
             "answer": "Choisissez le bon outil selon vos besoins :<br><br><strong>🌐 Utilisez LECTURE DE PAGES WEB pour :</strong><br>• Lire le contenu complet d'une URL que vous connaissez<br>• Résumer un article spécifique<br>• Analyser le contenu d'une page précise<br>• Comparer le contenu de plusieurs pages<br>• \"<em>Lis cet article : https://...</em>\"<br><br><strong>🔍 Utilisez la RECHERCHE WEB pour :</strong><br>• Trouver des informations sur un sujet<br>• Obtenir des actualités récentes<br>• Chercher sans connaître l'URL exacte<br>• \"<em>Quelles sont les dernières nouvelles sur X ?</em>\"<br><br><strong>🔗 Combinaison idéale :</strong><br>1. Recherche web → trouve des URLs pertinentes<br>2. Lecture de pages web → lit le contenu complet d'un résultat<br><br><strong>💡 Exemple :</strong><br>• \"<em>Cherche des articles sur Rust</em>\" → Recherche web (Perplexity/Brave)<br>• \"<em>Lis cet article : https://blog.rust-lang.org/...</em>\" → Lecture de pages web (contenu complet)"
+          },
+          "q18": {
+            "question": "Qu est-ce que le Controle navigateur et quand l utiliser ?",
+            "answer": "Le Controle navigateur permet a LIA d interagir avec les sites web : naviguer, rechercher, cliquer, remplir des formulaires et extraire des donnees des pages JavaScript.<br><br><strong>Utilisez pour :</strong> rechercher des produits, remplir des formulaires, extraire du contenu dynamique.<br><strong>Exemples :</strong><br>- Va sur amazon.fr et cherche MacBook Pro M4<br>- Va sur nike.com et trouve les Nike Air blanches pour homme"
+          },
+          "q19": {
+            "question": "Comment l agent navigateur parcourt-il les sites web ?",
+            "answer": "Il utilise un navigateur Chromium headless (Playwright) pour naviguer, gerer les cookies automatiquement, attendre le rendu JavaScript et extraire le contenu visible. L agent decide de maniere autonome. Prend 15 a 60 secondes par tache."
+          },
+          "q20": {
+            "question": "Quelle est la difference entre le Controle navigateur et la Lecture web ?",
+            "answer": "Lecture web : HTML statique, lecture seule, rapide (1-3s). Controle navigateur : execution JavaScript complete, clic/remplissage/recherche, plus lent (15-60s) mais gere les pages dynamiques et l interaction."
           }
         }
       },
@@ -3699,6 +3727,10 @@
       "rag_spaces": {
         "title": "Espaces de connaissances",
         "description": "Importez des documents dans 15+ formats (PDF, DOCX, PPTX, XLSX, HTML, EPUB, et plus) ou synchronisez vos dossiers Google Drive directement. LIA indexe automatiquement et enrichit ses réponses via recherche hybride (sémantique + mots-clés)."
+      },
+      "browser_control": {
+        "title": "Contrôle navigateur",
+        "description": "Navigue sur les sites web de façon autonome : recherche de produits, remplissage de formulaires, extraction de données depuis les pages dynamiques JavaScript"
       }
     },
     "use_cases": {
@@ -3761,8 +3793,8 @@
         "description": "Orchestration d'agents avec graphes d'état, exécution parallèle par vagues, et apprentissage bayésien des patterns de plans."
       },
       "llm_providers": {
-        "title": "6 fournisseurs LLM",
-        "description": "OpenAI, Anthropic, Google Gemini, DeepSeek, Perplexity, Ollama. Sélection dynamique du meilleur modèle par type de tâche."
+        "title": "7 fournisseurs LLM",
+        "description": "OpenAI, Anthropic, Google Gemini, DeepSeek, Qwen, Perplexity, Ollama. Sélection dynamique du meilleur modèle par type de tâche."
       },
       "bayesian": {
         "title": "Apprentissage bayésien",
@@ -3829,7 +3861,15 @@
       "enable_description": "Permettre à l'assistant de déléguer des tâches à des sous-agents spécialisés",
       "enabled_success": "Sous-agents activés",
       "disabled_success": "Sous-agents désactivés",
-      "info": "Lorsqu\u2019ils sont activés, l\u2019assistant peut déléguer des tâches de recherche, d\u2019analyse et de synthèse à des sous-agents spécialisés pour de meilleurs résultats."
+      "info": "Lorsqu’ils sont activés, l’assistant peut déléguer des tâches de recherche, d’analyse et de synthèse à des sous-agents spécialisés pour de meilleurs résultats."
     }
+  },
+  "browser": {
+    "navigate": "Naviguer vers la page",
+    "snapshot": "Lire le contenu de la page",
+    "click": "Cliquer sur un élément",
+    "fill": "Remplir un champ",
+    "press_key": "Appuyer sur une touche",
+    "screenshot": "Capturer l'écran"
   }
 }

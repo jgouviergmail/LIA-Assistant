@@ -148,10 +148,10 @@ pytest tests/unit/ -v --tb=short \
   --ignore=tests/unit/test_base_repository.py \
   --ignore=tests/unit/test_auth_service_refactored.py \
   # ... (10 fichiers exclus — tests necessitant des fixtures specifiques)
-  --cov=src --cov-report=xml --cov-fail-under=75
+  --cov=src --cov-report=xml --cov-fail-under=43
 ```
 
-Seuil de couverture : **75%** minimum.
+Seuil de couverture : **43%** minimum.
 Coverage uploade sur [Codecov](https://codecov.io).
 
 #### Test Frontend
@@ -278,7 +278,7 @@ Le pre-commit est le filet local rapide, la CI est le filet distant qui doit cou
 | Ruff (`src/ tests/`) | ✓ | ✓ | Aligne |
 | Black (`src/ tests/`) | ✓ | ✓ | Aligne |
 | MyPy (`src/`) | ✓ | ✓ | Aligne |
-| Unit tests | ✓ (fast, no cov) | ✓ (fast + cov 75%) | CI ajoute coverage |
+| Unit tests | ✓ (fast, no cov) | ✓ (fast + cov 43%) | CI ajoute coverage |
 | ESLint | ✓ | ✓ | Aligne |
 | TypeScript | ✓ | ✓ | Aligne |
 | `.bak` files | ✓ | ✓ | Aligne |

@@ -16,6 +16,7 @@ from src.domains.llm_config.schemas import (
     LLMConfigListResponse,
     LLMTypeConfig,
     LLMTypeConfigUpdate,
+    OllamaModelsResponse,
     ProviderKeysResponse,
     ProviderKeyUpdate,
     ProviderModelsMetadata,
@@ -173,3 +174,19 @@ async def get_models_metadata(
 ) -> ProviderModelsMetadata:
     """Get available models grouped by provider (from FALLBACK_PROFILES)."""
     return LLMConfigService.get_provider_models()
+
+
+@router.get(
+    "/providers/ollama/models",
+    response_model=OllamaModelsResponse,
+    summary="Get dynamically discovered Ollama models",
+)
+async def get_ollama_models(
+    current_user: User = Depends(get_current_superuser_session),
+) -> OllamaModelsResponse:
+    """Query the Ollama server for installed models with capability profiles.
+
+    Returns live models when Ollama is reachable, or static fallback profiles
+    when the server is unavailable. The ``source`` field indicates which.
+    """
+    return await LLMConfigService.get_ollama_models()

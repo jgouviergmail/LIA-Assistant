@@ -22,9 +22,22 @@ export async function generateMetadata({ params }: HomePageProps): Promise<Metad
   const lng = validateLanguage(lngParam);
   const { t } = await initI18next(lng);
 
+  const title = t('landing.meta.title');
+  const description = t('landing.meta.description');
+
   return {
-    title: t('landing.meta.title'),
-    description: t('landing.meta.description'),
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      images: [{ url: '/Title.png', width: 2125, height: 1193, alt: title }],
+    },
+    twitter: {
+      title,
+      description,
+      images: ['/Title.png'],
+    },
   };
 }
 

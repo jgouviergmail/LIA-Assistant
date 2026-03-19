@@ -24,6 +24,8 @@ from src.domains.llm_config.schemas import (
     LLMTypeConfigUpdate,
     LLMTypeInfo,
     ModelCapabilities,
+    OllamaModelCapabilities,
+    OllamaModelsResponse,
     ProviderKeysResponse,
     ProviderKeyStatus,
     ProviderModelsMetadata,
@@ -307,6 +309,9 @@ class LLMConfigService:
         for provider, models in FALLBACK_PROFILES.items():
             caps = []
             for model_id, profile in models.items():
+                # Skip internal "default" fallback entry — not a real model
+                if model_id == "default":
+                    continue
                 caps.append(
                     ModelCapabilities(
                         model_id=model_id,
@@ -330,6 +335,62 @@ class LLMConfigService:
             providers[provider] = caps
 
         return ProviderModelsMetadata(providers=providers)
+
+    @staticmethod
+    async def get_ollama_models() -> OllamaModelsResponse:
+        """Get Ollama models via dynamic discovery with fallback to static profiles.
+
+        When Ollama is reachable, capabilities come from the server itself
+        (via ``/api/show``), not from static profile guesses.
+        """
+        from src.infrastructure.llm.model_profiles import FALLBACK_PROFILES
+        from src.infrastructure.llm.providers.ollama_discovery import discover_ollama_models
+
+        discovered = await discover_ollama_models()
+
+        if discovered:
+            # Live: capabilities come directly from Ollama /api/show
+            models = []
+            for info in discovered:
+                caps = info.capabilities
+                models.append(
+                    OllamaModelCapabilities(
+                        model_id=info.name,
+                        max_output_tokens=8192,  # Ollama doesn't expose this; safe default
+                        supports_tools="tools" in caps,
+                        supports_structured_output="tools"
+                        in caps,  # Tool-capable models support JSON mode
+                        supports_vision="vision" in caps,
+                        is_reasoning_model="thinking" in caps,
+                        cost_input=0.0,  # Local = free
+                        cost_output=0.0,
+                        size=info.size,
+                        family=info.family,
+                    )
+                )
+            return OllamaModelsResponse(models=models, source="live")
+
+        # Fallback: Ollama unreachable, return static profiles (without "default")
+        ollama_profiles = FALLBACK_PROFILES.get("ollama", {})
+        models = []
+        for model_id, profile in ollama_profiles.items():
+            if model_id == "default":
+                continue
+            models.append(
+                OllamaModelCapabilities(
+                    model_id=model_id,
+                    max_output_tokens=profile.max_output_tokens,
+                    supports_tools=profile.supports_tool_calling,
+                    supports_structured_output=profile.supports_structured_output,
+                    supports_vision=profile.supports_vision,
+                    is_reasoning_model=profile.is_reasoning_model,
+                    cost_input=profile.cost_per_1m_input,
+                    cost_output=profile.cost_per_1m_output,
+                    size=None,
+                    family=None,
+                )
+            )
+        return OllamaModelsResponse(models=models, source="fallback")
 
     # --- Internal ---
 

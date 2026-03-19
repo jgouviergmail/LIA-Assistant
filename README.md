@@ -33,7 +33,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.5.2</strong> — RAG 15+ Formats, Google Drive Sync, Skill Generator, CodeQL Security Hardening — March 2026
+  <strong>Version 1.6.0</strong> — Browser Control (Playwright), Qwen LLM Provider, RAG Drive Sync — March 2026
 </p>
 
 ---
@@ -127,7 +127,7 @@ LIA is available as a hosted service at **https://lia.jeyswork.com/** — no ins
 
 <p align="center">
   <img src="docs/assets/screenshot-settings-administration-llm.png" alt="Settings — LLM Configuration with multi-provider support" width="800" />
-  <br /><em>Administration — LLM Configuration: 6 providers (OpenAI, Anthropic, DeepSeek, Perplexity, Ollama, Gemini), per-node model selection</em>
+  <br /><em>Administration — LLM Configuration: 7 providers (OpenAI, Anthropic, DeepSeek, Qwen, Perplexity, Ollama, Gemini), per-node model selection</em>
 </p>
 
 <p align="center">
@@ -143,7 +143,7 @@ LIA is available as a hosted service at **https://lia.jeyswork.com/** — no ins
 
 ### Multi-Agent Intelligence (LangGraph 1.0)
 
-- **16+ Specialized Agents**: Contacts, Emails, Calendar, Drive, Tasks, Reminders, Places, Routes, Weather, Wikipedia, Perplexity, Brave, Web Search, Web Fetch, Context, Query + dynamic MCP agents
+- **18+ Specialized Agents**: Contacts, Emails, Calendar, Drive, Tasks, Reminders, Places, Routes, Weather, Wikipedia, Perplexity, Brave, Web Search, Web Fetch, Browser Control, Context, Query + dynamic MCP agents
 - **MCP (Model Context Protocol)**: Per-user external tool servers with OAuth 2.1, SSRF protection, structured items parsing, MCP Apps (interactive iframe widgets), Excalidraw Iterative Builder
 - **Skills (agentskills.io)**: Open standard for expert instructions (SKILL.md), model-driven activation, progressive disclosure (L1/L2/L3), sandboxed scripts, marketplace import, auto-translated multi-language descriptions, ZIP download, admin management. **Built-in Skill Generator**: create custom skills in natural language — the assistant guides you through need analysis, archetype selection, and produces a ready-to-import SKILL.md with automatic validation
 - **File Attachments (Images, PDF)**: Upload with client-side compression, configurable LLM vision analysis, PDF text extraction, strict per-user isolation
@@ -508,7 +508,7 @@ Production targets include Raspberry Pi (ARM64) via multi-arch Docker builds (`l
 │  │   ┌─────────────────────────────────────────────────────────────┐  │ │
 │  │   │  Contacts │ Emails │ Calendar │ Drive │ Tasks │ Reminders  │  │ │
 │  │   │  Places │ Routes │ Weather │ Wikipedia │ Perplexity      │  │ │
-│  │   │  Brave │ Web Search │ Web Fetch │ Context │ Query Agent   │  │ │
+│  │   │  Brave │ Web Search │ Web Fetch │ Browser │ Context │ Query│  │ │
 │  │   └─────────────────────────────────────────────────────────────┘  │ │
 │  │                              ↓                                      │ │
 │  │               MCP Tools (per-user external servers)                │ │
@@ -631,6 +631,7 @@ apps/api/src/
 | Google | Gemini 2.0 Flash | Multimodal |
 | DeepSeek | V3, Reasoner (R1) | Cost-effective reasoning |
 | Perplexity | sonar-pro | Web-augmented responses |
+| Qwen | qwen3-max, qwen3.5-plus/flash | Thinking + tools (Alibaba Cloud) |
 | Ollama | Self-hosted | Zero API cost |
 
 ### Observability
@@ -670,6 +671,7 @@ apps/api/src/
 | **Scheduled Actions** | [SCHEDULED_ACTIONS](./docs/technical/SCHEDULED_ACTIONS.md) • [GUIDE_SCHEDULED_ACTIONS](./docs/guides/GUIDE_SCHEDULED_ACTIONS.md) |
 | **Skills** | [SKILLS_INTEGRATION](./docs/technical/SKILLS_INTEGRATION.md) |
 | **RAG Spaces** | [GUIDE_RAG_SPACES](./docs/guides/GUIDE_RAG_SPACES.md) • [ADR-055](./docs/architecture/ADR-055-RAG-Spaces-Architecture.md) |
+| **Browser Control** | [BROWSER_CONTROL](./docs/technical/BROWSER_CONTROL.md) • [ADR-057](./docs/architecture/ADR-057-Browser-Control.md) |
 | **LLM Providers** | [LLM_PROVIDERS](./docs/technical/LLM_PROVIDERS.md) |
 | **CI/CD** | [CI_CD](./docs/technical/CI_CD.md) |
 | **Security** | [SECURITY](./docs/technical/SECURITY.md) • [OAUTH](./docs/technical/OAUTH.md) • [RATE_LIMITING](./docs/technical/RATE_LIMITING.md) |
@@ -740,7 +742,7 @@ Pre-commit (local)              GitHub Actions CI
 ===================             ==================
 .bak files check                Lint Backend (Ruff + Black + MyPy)
 Secrets grep                    Lint Frontend (ESLint + TypeScript)
-Ruff + Black + MyPy             Fast unit tests + coverage (75%)
+Ruff + Black + MyPy             Fast unit tests + coverage (43%)
 Fast unit tests                 Code Hygiene (i18n, Alembic, .env.example, patterns)
 Critical pattern detection      Docker build smoke test
 i18n keys sync                  Secret scan (Gitleaks)

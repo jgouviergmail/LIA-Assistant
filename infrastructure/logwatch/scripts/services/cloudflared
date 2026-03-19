@@ -1,0 +1,128 @@
+#!/bin/bash
+##########################################################################
+# Logwatch custom service: Cloudflare Tunnel (cloudflared)
+# Monitors tunnel health, reconnections, errors
+##########################################################################
+
+DETAIL=${LOGWATCH_DETAIL_LEVEL:-10}
+
+# Read stdin (journalctl output piped by logwatch)
+TMPFILE=$(mktemp)
+cat > "$TMPFILE"
+
+TOTAL_LINES=$(wc -l < "$TMPFILE")
+
+echo ""
+echo "  === ETAT DU TUNNEL ==="
+echo ""
+
+# Check current service status
+TUNNEL_STATUS=$(systemctl is-active cloudflared 2>/dev/null)
+TUNNEL_UPTIME=$(systemctl show cloudflared --property=ActiveEnterTimestamp 2>/dev/null | cut -d= -f2)
+
+if [ "$TUNNEL_STATUS" = "active" ]; then
+    echo "  Service          : Actif"
+else
+    echo "  Service          : $TUNNEL_STATUS  *** ATTENTION ***"
+fi
+echo "  Demarrage        : $TUNNEL_UPTIME"
+echo "  Lignes de log    : $TOTAL_LINES"
+
+# Connection registrations
+REGISTRATIONS=$(grep -c -i "connection.*registered" "$TMPFILE" 2>/dev/null)
+echo "  Connexions enregistrees : $REGISTRATIONS"
+
+# Reconnections (indicator of instability)
+RECONNECTIONS=$(grep -c -i -E "reconnect|re-establish|reconnecting" "$TMPFILE" 2>/dev/null)
+if [ "$RECONNECTIONS" -gt 0 ]; then
+    echo "  RECONNEXIONS     : $RECONNECTIONS  *** INSTABILITE ***"
+else
+    echo "  Reconnexions     : 0 (stable)"
+fi
+
+# Disconnections
+DISCONNECTIONS=$(grep -c -i -E "disconnect|connection.*closed|unregistered" "$TMPFILE" 2>/dev/null)
+if [ "$DISCONNECTIONS" -gt 0 ]; then
+    echo "  Deconnexions     : $DISCONNECTIONS"
+fi
+
+# Separate real errors from SSE stream noise
+STREAM_NOISE=$(grep -c -i -E "stream.*canceled by remote|canceled by remote with error code 0" "$TMPFILE" 2>/dev/null)
+EOF_NOISE=$(grep -c -i "unexpected EOF" "$TMPFILE" 2>/dev/null)
+TOTAL_NOISE=$((STREAM_NOISE + EOF_NOISE))
+
+# Real errors = connection refused, fatal, failed (excluding stream noise)
+REAL_ERRORS=$(grep -i -E "error|ERR|failed|fatal" "$TMPFILE" 2>/dev/null | grep -v -i -E "stream.*canceled|unexpected EOF|error code 0" | wc -l)
+ORIGIN_DOWN=$(grep -c -i "Unable to reach the origin service" "$TMPFILE" 2>/dev/null)
+
+if [ "$REAL_ERRORS" -gt 0 ]; then
+    echo "  ERREURS REELLES  : $REAL_ERRORS  *** A VERIFIER ***"
+else
+    echo "  Erreurs reelles  : 0"
+fi
+
+if [ "$ORIGIN_DOWN" -gt 0 ]; then
+    echo "  Origine injoignable : $ORIGIN_DOWN (API down ou redemarrage)"
+fi
+
+if [ "$TOTAL_NOISE" -gt 0 ]; then
+    echo "  Bruit SSE normal : $TOTAL_NOISE (deconnexions stream clients, ignorable)"
+fi
+
+# Retries
+RETRIES=$(grep -c -i "retry" "$TMPFILE" 2>/dev/null)
+if [ "$RETRIES" -gt 0 ]; then
+    echo "  Tentatives retry : $RETRIES"
+fi
+
+# Detail: show real error lines (not noise)
+if [ "$DETAIL" -ge 5 ] && [ "$REAL_ERRORS" -gt 0 ]; then
+    echo ""
+    echo "  === DETAIL DES ERREURS (hors bruit SSE) ==="
+    echo ""
+    grep -i -E "error|ERR|failed|fatal" "$TMPFILE" | grep -v -i -E "stream.*canceled|unexpected EOF|error code 0" | tail -15 | while read -r LINE; do
+        CLEAN=$(echo "$LINE" | sed 's/.*cloudflared\[[0-9]*\]: //' | cut -c1-120)
+        echo "    $CLEAN"
+    done
+fi
+
+# Origin down details
+if [ "$DETAIL" -ge 5 ] && [ "$ORIGIN_DOWN" -gt 0 ]; then
+    echo ""
+    echo "  === PERIODES ORIGINE INJOIGNABLE ==="
+    echo ""
+    FIRST=$(grep -i "Unable to reach the origin" "$TMPFILE" | head -1 | awk '{print $1, $2, $3}')
+    LAST=$(grep -i "Unable to reach the origin" "$TMPFILE" | tail -1 | awk '{print $1, $2, $3}')
+    echo "    Debut : $FIRST"
+    echo "    Fin   : $LAST"
+    echo "    Cause probable : redemarrage conteneurs Docker ou API temporairement indisponible"
+fi
+
+# Detail: show reconnection timeline
+if [ "$DETAIL" -ge 5 ] && [ "$RECONNECTIONS" -gt 0 ]; then
+    echo ""
+    echo "  === CHRONOLOGIE DES RECONNEXIONS ==="
+    echo ""
+    grep -i -E "reconnect|re-establish|reconnecting" "$TMPFILE" | tail -15 | while read -r LINE; do
+        echo "    $LINE"
+    done
+fi
+
+# Request stats if available
+if [ "$DETAIL" -ge 8 ]; then
+    REQUESTS=$(grep -c -i "request" "$TMPFILE" 2>/dev/null)
+    HTTP_ERRORS=$(grep -c -i -E "status.*[45][0-9][0-9]|502|503|504" "$TMPFILE" 2>/dev/null)
+
+    if [ "$REQUESTS" -gt 0 ] || [ "$HTTP_ERRORS" -gt 0 ]; then
+        echo ""
+        echo "  === TRAFIC ==="
+        echo ""
+        echo "  Requetes traitees   : $REQUESTS"
+        if [ "$HTTP_ERRORS" -gt 0 ]; then
+            echo "  Erreurs HTTP (4xx/5xx) : $HTTP_ERRORS"
+        fi
+    fi
+fi
+
+rm -f "$TMPFILE"
+echo ""

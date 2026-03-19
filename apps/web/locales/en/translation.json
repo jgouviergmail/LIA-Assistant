@@ -942,6 +942,11 @@
         "saved": "Preference saved",
         "cleared": "Preference deleted",
         "error": "Error saving preference"
+      },
+      "browser": {
+        "label": "Browser",
+        "description": "Interactive web browsing (no key required)",
+        "no_key_required": "This service does not require an API key"
       }
     },
     "admin": {
@@ -1193,7 +1198,8 @@
           "microsoft_outlook": "Access your emails and send messages via Outlook",
           "microsoft_calendar": "View and manage your Microsoft Calendar events",
           "microsoft_contacts": "Search and manage your Microsoft contacts",
-          "microsoft_tasks": "Manage your tasks and task lists in Microsoft To Do"
+          "microsoft_tasks": "Manage your tasks and task lists in Microsoft To Do",
+          "browser": "Interactive web browsing: navigate, click, fill forms"
         }
       },
       "personalities": {
@@ -1416,9 +1422,15 @@
           "skill_description_translator": "Translates system skill descriptions into all 6 supported languages",
           "evaluator": "LLM-as-Judge evaluation pipeline (relevance, hallucination)",
           "compaction": "Summarizes old conversation history to free context window space",
-          "subagent": "Executes delegated tasks via specialized sub-agents (research, analysis, synthesis)"
+          "subagent": "Executes delegated tasks via specialized sub-agents (research, analysis, synthesis)",
+          "browser_agent": "Interactive web browsing agent (navigate, click, fill forms)"
         },
         "no_compatible_model": "No model from this provider supports this feature",
+        "ollama": {
+          "live": "Connected to Ollama server",
+          "fallback": "Ollama unreachable — showing known models",
+          "loading": "Loading Ollama models…"
+        },
         "categories": {
           "pipeline": "Pipeline",
           "domain_agents": "Domain Agents",
@@ -2119,7 +2131,7 @@
         },
         "llm": {
           "title": "🤖 Multi-Provider LLM & Pattern Learning",
-          "description": "Support for OpenAI (GPT-4, o1), Anthropic (Claude), Google Gemini, DeepSeek, Perplexity, and local Ollama. Bayesian learning of planning patterns (≥90% confidence → LLM bypass). Average 89% token savings. Configurable profiles per task with real-time cost tracking."
+          "description": "Support for OpenAI (GPT-4, o1), Anthropic (Claude), Google Gemini, DeepSeek, Qwen, Perplexity, and local Ollama. Bayesian learning of planning patterns (≥90% confidence → LLM bypass). Average 89% token savings. Configurable profiles per task with real-time cost tracking."
         },
         "security": {
           "title": "🔐 Multi-Layer Security",
@@ -2224,6 +2236,10 @@
         "subAgents": {
           "title": "Sub-Agents",
           "description": "Delegate complex tasks to specialized ephemeral experts working in parallel. The assistant orchestrates and synthesizes their findings transparently."
+        },
+        "browserControl": {
+          "title": "🌐 Browser Control",
+          "description": "Interactive web browsing with autonomous navigation: search products on e-commerce sites, fill forms, extract data from JavaScript-rendered pages. The browser agent handles multi-step interactions automatically."
         }
       },
       "diagram_alt": "LIA architecture diagram"
@@ -2502,8 +2518,8 @@
       },
       "tool_examples_external": {
         "title": "External Services Examples",
-        "description": "How to use Weather, Wikipedia, Perplexity, Web Page Reader, Places and Directions",
-        "count": "17",
+        "description": "How to use Weather, Wikipedia, Perplexity, Web Fetch, Browser Control, Places and Routes",
+        "count": "20",
         "questions": {
           "q1": {
             "question": "How do I get the current weather?",
@@ -2572,6 +2588,18 @@
           "q17": {
             "question": "When should I use Web Page Reader vs web search?",
             "answer": "Choose the right tool based on your needs:<br><br><strong>🌐 Use WEB PAGE READER for:</strong><br>• Reading the full content of a URL you know<br>• Summarizing a specific article<br>• Analyzing the content of a particular page<br>• Comparing content across multiple pages<br>• \"<em>Read this article: https://...</em>\"<br><br><strong>🔍 Use WEB SEARCH for:</strong><br>• Finding information about a topic<br>• Getting recent news<br>• Searching without knowing the exact URL<br>• \"<em>What's the latest news about X?</em>\"<br><br><strong>🔗 Ideal combination:</strong><br>1. Web search → finds relevant URLs<br>2. Web Page Reader → reads the full content of a result<br><br><strong>💡 Example:</strong><br>• \"<em>Search for articles about Rust</em>\" → Web search (Perplexity/Brave)<br>• \"<em>Read this article: https://blog.rust-lang.org/...</em>\" → Web Page Reader (full content)"
+          },
+          "q18": {
+            "question": "What is Browser Control and when should I use it?",
+            "answer": "Browser Control lets LIA interact with websites like a real user: navigate, search, click, fill forms, and extract data from JavaScript-rendered pages.<br><br><strong>Use for:</strong> searching products on e-commerce, filling forms, extracting dynamic content.<br><strong>Examples:</strong><br>- Go to amazon.fr and search for MacBook Pro M4<br>- Go to nike.com and find white Nike Air for men with prices"
+          },
+          "q19": {
+            "question": "How does the browser agent work?",
+            "answer": "It uses headless Chromium (Playwright) to: navigate, handle cookies automatically, wait for JS rendering, extract visible content, and interact if needed. The agent decides autonomously which actions to take. Takes 15-60 seconds per task."
+          },
+          "q20": {
+            "question": "What is the difference between Browser Control and Web Fetch?",
+            "answer": "Web Fetch: static HTML, read-only, fast (1-3s), cheap. Browser Control: full JS execution, click/fill/search, slower (15-60s), more expensive but handles dynamic pages and interaction."
           }
         }
       },
@@ -3694,6 +3722,10 @@
       "rag_spaces": {
         "title": "Knowledge Spaces",
         "description": "Upload documents in 15+ formats (PDF, DOCX, PPTX, XLSX, HTML, EPUB, and more) or sync Google Drive folders directly. LIA automatically indexes and enriches its responses via hybrid search (semantic + keyword)."
+      },
+      "browser_control": {
+        "title": "Browser Control",
+        "description": "Navigate websites autonomously: search products, fill forms, extract data from dynamic pages powered by JavaScript"
       }
     },
     "use_cases": {
@@ -3756,8 +3788,8 @@
         "description": "Agent orchestration with state graphs, wave-based parallel execution, and Bayesian plan pattern learning."
       },
       "llm_providers": {
-        "title": "6 LLM providers",
-        "description": "OpenAI, Anthropic, Google Gemini, DeepSeek, Perplexity, Ollama. Dynamic selection of the best model per task type."
+        "title": "7 LLM providers",
+        "description": "OpenAI, Anthropic, Google Gemini, DeepSeek, Qwen, Perplexity, Ollama. Dynamic selection of the best model per task type."
       },
       "bayesian": {
         "title": "Bayesian learning",
@@ -3826,5 +3858,13 @@
       "disabled_success": "Sub-agents disabled",
       "info": "When enabled, the assistant can delegate research, analysis, and synthesis tasks to specialized sub-agents for better results."
     }
+  },
+  "browser": {
+    "navigate": "Navigate to page",
+    "snapshot": "Read page content",
+    "click": "Click element",
+    "fill": "Fill form field",
+    "press_key": "Press key",
+    "screenshot": "Take screenshot"
   }
 }

@@ -2012,6 +2012,27 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 - ✅ Isolation erreurs par fichier (un échec ne bloque pas le sync)
 - ✅ Feature flag `rag_spaces_drive_sync_enabled`
 
+---
+
+### ADR-057: Browser Control Architecture (Playwright)
+
+**Status**: ✅ IMPLEMENTED (2026-03-19)
+**Fichier**: `docs/architecture/ADR-057-Browser-Control.md`
+
+**Décision**: Ajouter un connecteur browser autonome basé sur Playwright pour l'interaction web interactive (navigation, recherche, clic, remplissage de formulaires, extraction de contenu JS-rendered).
+
+**Problème résolu**:
+- ❌ web_fetch ne peut pas exécuter JavaScript (contenu dynamique invisible)
+- ❌ Pas d'interaction web (recherche, formulaires, navigation multi-page)
+- ❌ Pas d'extraction de données depuis les SPAs modernes
+
+**Solution**:
+- ✅ `browser_task_tool` — tool autonome avec ReAct loop (create_react_agent)
+- ✅ Session pool avec coordination Redis cross-workers
+- ✅ Anti-détection (UA Chrome, webdriver supprimé, locale dynamique)
+- ✅ Cookie banner auto-dismiss multi-langue
+- ✅ Activation via admin connector panel (pas de feature flag .env)
+
 **Impact**:
 - ✅ 6 nouveaux endpoints REST pour opérations Drive
 - ✅ Réutilisation complète du pipeline RAG existant

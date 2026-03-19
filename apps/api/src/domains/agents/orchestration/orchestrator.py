@@ -10,8 +10,12 @@ import structlog
 from src.core.field_names import FIELD_STATUS
 from src.domains.agents.constants import (
     # v3.2 naming: singular domain names
+    AGENT_BROWSER,
     AGENT_CONTACT,
     EXECUTION_MODE_SEQUENTIAL,
+    INTENTION_BROWSER,
+    INTENTION_BROWSER_INTERACT,
+    INTENTION_BROWSER_NAVIGATE,
     INTENTION_CONTACT,
     INTENTION_CONTACT_DETAILS,
     INTENTION_CONTACT_LIST,
@@ -70,6 +74,10 @@ async def create_orchestration_plan(
         INTENTION_CONTACT_LIST: [AGENT_CONTACT],
         INTENTION_CONTACT_DETAILS: [AGENT_CONTACT],
         INTENTION_CONTACT: [AGENT_CONTACT],  # Fallback for old router outputs
+        # Browser domain (F7)
+        INTENTION_BROWSER: [AGENT_BROWSER],
+        INTENTION_BROWSER_NAVIGATE: [AGENT_BROWSER],
+        INTENTION_BROWSER_INTERACT: [AGENT_BROWSER],
     }
 
     # Use intention (not context_label) for mapping - more reliable

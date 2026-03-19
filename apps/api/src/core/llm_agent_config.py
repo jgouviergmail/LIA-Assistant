@@ -43,7 +43,9 @@ class LLMAgentConfig(BaseModel):
     """
 
     # Provider configuration
-    provider: Literal["openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini"] = Field(
+    provider: Literal[
+        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
+    ] = Field(
         default="openai",
         description="LLM provider",
     )
@@ -138,8 +140,9 @@ class LLMAgentConfig(BaseModel):
         model = info.data.get("model", "")
 
         # Validation 1: Check provider supports reasoning_effort
-        # OpenAI (o-series, GPT-5), Anthropic (effort param), Gemini (thinking_level)
-        supported_providers = {"openai", "anthropic", "gemini"}
+        # OpenAI (o-series, GPT-5), Anthropic (effort param), Gemini (thinking_level),
+        # Qwen (enable_thinking + thinking_budget)
+        supported_providers = {"openai", "anthropic", "gemini", "qwen"}
         if provider not in supported_providers:
             logger.warning(
                 "reasoning_effort_unsupported_provider",
@@ -151,21 +154,23 @@ class LLMAgentConfig(BaseModel):
             )
             return v
 
-        # Validation 2: Check if model is a reasoning model (o-series or GPT-5)
-        # Uses centralized pattern from core.constants (single source of truth)
-        import re
+        # Validation 2: For OpenAI only, check if model is a reasoning model
+        # Other providers (Anthropic, Gemini, Qwen) handle reasoning_effort natively
+        # via their own mapping in the adapter — no model-name validation needed.
+        if provider == "openai":
+            import re
 
-        is_reasoning_model = bool(re.match(REASONING_MODELS_PATTERN, model, re.IGNORECASE))
+            is_reasoning_model = bool(re.match(REASONING_MODELS_PATTERN, model, re.IGNORECASE))
 
-        if not is_reasoning_model:
-            logger.warning(
-                "reasoning_effort_non_reasoning_model",
-                model=model,
-                reasoning_effort=v,
-                msg=f"reasoning_effort parameter is designed for OpenAI reasoning models "
-                f"(o-series, GPT-5 series), but model={model} does not appear to be a "
-                f"reasoning model. This parameter may be ignored by the API.",
-            )
+            if not is_reasoning_model:
+                logger.warning(
+                    "reasoning_effort_non_reasoning_model",
+                    model=model,
+                    reasoning_effort=v,
+                    msg=f"reasoning_effort parameter is designed for OpenAI reasoning models "
+                    f"(o-series, GPT-5 series), but model={model} does not appear to be a "
+                    f"reasoning model. This parameter may be ignored by the API.",
+                )
 
         return v
 

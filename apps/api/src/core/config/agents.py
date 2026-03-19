@@ -762,7 +762,7 @@ class AgentsSettings(BaseSettings):
     # HITL Conversational Classifier Configuration
     # ========================================================================
     hitl_classifier_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini"
+        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(default="openai", description="LLM provider for HITL classifier")
     hitl_classifier_llm_provider_config: str = Field(
         default="{}",
@@ -849,7 +849,7 @@ class AgentsSettings(BaseSettings):
     # HITL Question Generator Configuration (Conversational Clarifications)
     # ========================================================================
     hitl_question_generator_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini"
+        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(default="anthropic", description="LLM provider for HITL question generator")
     hitl_question_generator_llm_provider_config: str = Field(
         default="{}",
@@ -907,7 +907,7 @@ class AgentsSettings(BaseSettings):
     # HITL Plan Approval Question Generator Configuration (Plan-level Explanations)
     # ========================================================================
     hitl_plan_approval_question_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini"
+        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(
         default="openai", description="LLM provider for HITL plan approval question generator"
     )
@@ -1027,7 +1027,7 @@ class AgentsSettings(BaseSettings):
     # Planner Configuration (Phase 5 - Multi-Agent Orchestration)
     # ========================================================================
     planner_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini"
+        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(default="openai", description="LLM provider for planner")
     planner_llm_provider_config: str = Field(
         default="{}", description="Advanced provider-specific config for planner (JSON string)"
@@ -1413,7 +1413,7 @@ class AgentsSettings(BaseSettings):
         ),
     )
     memory_reference_resolution_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini"
+        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(
         default="openai",
         description="LLM provider for memory reference resolution",
@@ -1669,7 +1669,7 @@ class AgentsSettings(BaseSettings):
     # This dramatically improves embedding-based tool selection since
     # embeddings work best in English (dominant training language).
     semantic_pivot_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini"
+        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(
         default="openai",
         description="LLM provider for semantic pivot translation (query to English)",
@@ -1734,7 +1734,7 @@ class AgentsSettings(BaseSettings):
     # Translates admin broadcast messages to each user's preferred language.
     # Uses gpt-4.1-nano for cost-effective translation.
     broadcast_translator_llm_provider: Literal[
-        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini"
+        "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(
         default="openai",
         description="LLM provider for broadcast message translation",

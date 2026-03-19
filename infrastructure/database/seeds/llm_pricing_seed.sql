@@ -169,6 +169,15 @@ INSERT INTO llm_model_pricing (
     (gen_random_uuid(), 'sonar-reasoning-pro', 2.000000, NULL, 8.000000, NOW(), true, NOW(), NOW()),
 
     -- ========================================================================
+    -- QWEN MODELS (Alibaba Cloud - International pricing)
+    -- ========================================================================
+
+    -- Qwen Series (DashScope international endpoint)
+    (gen_random_uuid(), 'qwen3-max', 1.200000, 0.240000, 6.000000, NOW(), true, NOW(), NOW()),
+    (gen_random_uuid(), 'qwen3.5-plus', 0.400000, 0.040000, 2.400000, NOW(), true, NOW(), NOW()),
+    (gen_random_uuid(), 'qwen3.5-flash', 0.100000, 0.010000, 0.400000, NOW(), true, NOW(), NOW()),
+
+    -- ========================================================================
     -- OLLAMA LOCAL MODELS
     -- ========================================================================
 

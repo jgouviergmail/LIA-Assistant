@@ -37,7 +37,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from src.core.constants import DEFAULT_TOOL_TIMEOUT_MS
+from src.core.constants import BROWSER_DEFAULT_TIMEOUT_MS, DEFAULT_TOOL_TIMEOUT_MS
 
 from .catalogue import AgentManifest
 
@@ -404,6 +404,24 @@ WEB_SEARCH_AGENT_MANIFEST = AgentManifest(
 # Agent Manifest: web_fetch_agent (Web Page Content Extraction — evolution F1)
 # ============================================================================
 
+BROWSER_AGENT_MANIFEST = AgentManifest(
+    name="browser_agent",
+    description=(
+        "Agent for interactive web browsing: navigate pages, click elements, "
+        "fill forms, extract structured content via accessibility tree."
+    ),
+    tools=[
+        "browser_task_tool",
+    ],
+    max_parallel_runs=1,
+    default_timeout_ms=BROWSER_DEFAULT_TIMEOUT_MS,
+    prompt_version="v1",
+    owner_team="Team AI",
+    version="1.0.0",
+    updated_at=datetime.now(UTC),
+)
+
+
 WEB_FETCH_AGENT_MANIFEST = AgentManifest(
     name="web_fetch_agent",
     description=(
@@ -589,6 +607,19 @@ def initialize_catalogue(registry: AgentRegistry) -> None:
     registry.register_agent_manifest(BRAVE_AGENT_MANIFEST)
     registry.register_agent_manifest(WEB_SEARCH_AGENT_MANIFEST)
     registry.register_agent_manifest(WEB_FETCH_AGENT_MANIFEST)
+
+    # Register agent manifests - Browser (F7 - always registered, activation via admin panel)
+    registry.register_agent_manifest(BROWSER_AGENT_MANIFEST)
+
+    # Register Browser tool manifests (F7)
+    from src.domains.agents.browser.catalogue_manifests import (
+        browser_task_catalogue_manifest,
+    )
+
+    # Only register the primary task tool for planner discovery.
+    # Individual tools (navigate, snapshot, click, fill, press_key) are used
+    # internally by the browser_task_tool ReAct loop — NOT by the planner.
+    registry.register_tool_manifest(browser_task_catalogue_manifest)
 
     # Register agent manifests - Internal tools (No OAuth)
     registry.register_agent_manifest(REMINDER_AGENT_MANIFEST)

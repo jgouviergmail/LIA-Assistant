@@ -39,6 +39,7 @@ from src.domains.agents.constants import (
     STATE_KEY_NEEDS_REPLAN,
     STATE_KEY_PLAN_APPROVED,
     STATE_KEY_PLAN_REJECTION_REASON,
+    STATE_KEY_PLANNER_ITERATION,
     STATE_KEY_REPLAN_INSTRUCTIONS,
     STATE_KEY_SEMANTIC_VALIDATION,
     STATE_KEY_SESSION_ID,
@@ -803,13 +804,19 @@ async def approval_gate_node(state: MessagesState, config: RunnableConfig) -> di
         )
 
         if has_sub_agent_steps:
-            # Convert REJECT into REPLAN without sub-agents
+            # Convert REJECT into REPLAN without sub-agents.
+            # Increment planner_iteration so the existing max_replans guard
+            # in route_from_semantic_validator prevents infinite loops if the
+            # LLM keeps hallucinating the excluded tool.
             from langchain_core.messages import HumanMessage
+
+            planner_iteration = state.get(STATE_KEY_PLANNER_ITERATION, 0)
 
             logger.info(
                 "approval_gate_sub_agent_rejection_to_replan",
                 plan_id=execution_plan.plan_id,
                 original_rejection_reason=rejection_reason,
+                planner_iteration=planner_iteration,
             )
             hitl_plan_decisions.labels(decision="REPLAN_SUB_AGENT_FALLBACK").inc()
 
@@ -823,6 +830,7 @@ async def approval_gate_node(state: MessagesState, config: RunnableConfig) -> di
             result[STATE_KEY_PLAN_REJECTION_REASON] = None
             result[STATE_KEY_EXECUTION_PLAN] = None
             result[STATE_KEY_EXCLUDE_SUB_AGENT_TOOLS] = True
+            result[STATE_KEY_PLANNER_ITERATION] = planner_iteration + 1
             result["messages"] = [HumanMessage(content=replan_msg)]
         else:
             # Normal rejection — route to response

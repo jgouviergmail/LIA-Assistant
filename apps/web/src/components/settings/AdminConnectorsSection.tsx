@@ -44,7 +44,7 @@ const ADMIN_CONNECTOR_CATEGORIES = {
     'microsoft_tasks',
   ],
   google_api: ['google_routes'],
-  external: ['openweathermap', 'wikipedia', 'perplexity', 'brave_search'],
+  external: ['openweathermap', 'wikipedia', 'perplexity', 'brave_search', 'browser'],
 } as const;
 
 type CategoryKey = keyof typeof ADMIN_CONNECTOR_CATEGORIES;

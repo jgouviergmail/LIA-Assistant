@@ -595,6 +595,10 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
     # =========================================================================
     # OLLAMA (Local deployment - conservative defaults)
     # =========================================================================
+    # NOTE: These profiles are used as FALLBACK when Ollama is unreachable
+    # and at runtime by get_model_profile() for the LLM factory.
+    # When Ollama is reachable, the admin UI queries real capabilities
+    # via POST /api/show (see ollama_discovery.py).
     "ollama": {
         # Ollama models vary widely - use conservative defaults
         "default": ModelProfile(
@@ -644,6 +648,63 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_strict_mode=False,
             supports_streaming=True,
             supports_vision=False,
+        ),
+    },
+    # =========================================================================
+    # QWEN (Alibaba Cloud via DashScope OpenAI-compatible API)
+    # =========================================================================
+    "qwen": {
+        # Conservative default for unknown Qwen models
+        "default": ModelProfile(
+            max_input_tokens=131072,
+            max_output_tokens=8192,
+            supports_structured_output=True,
+            supports_tool_calling=False,
+            supports_strict_mode=False,
+            supports_streaming=True,
+            supports_vision=False,
+            is_reasoning_model=True,
+            cost_per_1m_input=0.40,
+            cost_per_1m_output=2.40,
+        ),
+        # qwen3-max: thinking-only model, NO tools, NO vision
+        "qwen3-max": ModelProfile(
+            max_input_tokens=262144,
+            max_output_tokens=65536,
+            supports_structured_output=True,
+            supports_tool_calling=False,
+            supports_strict_mode=False,
+            supports_streaming=True,
+            supports_vision=False,
+            is_reasoning_model=True,
+            cost_per_1m_input=1.20,
+            cost_per_1m_output=6.00,
+        ),
+        # qwen3.5-plus: tools + vision + thinking
+        "qwen3.5-plus": ModelProfile(
+            max_input_tokens=1000000,
+            max_output_tokens=65536,
+            supports_structured_output=True,
+            supports_tool_calling=True,
+            supports_strict_mode=False,
+            supports_streaming=True,
+            supports_vision=True,
+            is_reasoning_model=True,
+            cost_per_1m_input=0.40,
+            cost_per_1m_output=2.40,
+        ),
+        # qwen3.5-flash: tools + vision + thinking (cost-effective)
+        "qwen3.5-flash": ModelProfile(
+            max_input_tokens=1000000,
+            max_output_tokens=65536,
+            supports_structured_output=True,
+            supports_tool_calling=True,
+            supports_strict_mode=False,
+            supports_streaming=True,
+            supports_vision=True,
+            is_reasoning_model=True,
+            cost_per_1m_input=0.10,
+            cost_per_1m_output=0.40,
         ),
     },
     # =========================================================================

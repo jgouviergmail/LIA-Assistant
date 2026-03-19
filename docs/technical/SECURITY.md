@@ -2669,6 +2669,39 @@ bandit -r apps/api/src/
 
 ---
 
-**Dernière révision** : 2026-03-03
-**Prochaine révision** : 2026-06-02 (tous les 3 mois)
+## Browser Automation Security (F7)
+
+### Sandbox and Isolation
+- Chromium runs with `--no-sandbox` (required in Docker — no user namespaces available)
+- Isolation is provided by the Docker container itself
+- Each user gets a separate `BrowserContext` (isolated cookies, storage, cache)
+
+### SSRF Prevention
+- URL validation reuses `validate_url()` from web_fetch (DNS resolution, private IP blocking)
+- Blocked schemes: `file://`, `javascript:`, `data:`, `chrome://`, `about:`, `blob://`
+- Request interception blocks dangerous sub-requests during page load
+
+### Input Sanitization
+- Fill values: control characters stripped, max length enforced (10,000 chars)
+- Keyboard keys: whitelist-only (Enter, Tab, Escape, Arrow keys)
+- No credential injection: agent prompt forbids entering credentials not provided by user
+
+### Anti-Detection Trade-offs
+- Standard Chrome User-Agent (not bot-identifying) — necessary for functional browsing
+- `navigator.webdriver` flag removed — prevents basic bot detection
+- These measures are for functionality, not for malicious scraping
+
+### Resource Limits
+- Global session coordination via Redis (prevents resource exhaustion)
+- Memory monitoring on Linux (`/proc/{pid}/status`)
+- Per-session navigation limits and idle timeout
+
+### Content Wrapping
+- All browser-extracted content wrapped in `<external_content>` markers
+- `[UNTRUSTED EXTERNAL CONTENT]` warning for prompt injection prevention
+
+---
+
+**Dernière révision** : 2026-03-19
+**Prochaine révision** : 2026-06-19 (tous les 3 mois)
 **Responsable** : Security Team

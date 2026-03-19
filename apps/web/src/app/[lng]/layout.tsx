@@ -32,11 +32,29 @@ const inter = localFont({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://lia.jeyswork.com'),
   title: 'LIA - Votre assistant personnel',
   description: "Votre assistant personnel intelligent pour la productivité et l'assistance",
   icons: {
     icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
     apple: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+  },
+  openGraph: {
+    type: 'website',
+    siteName: 'LIA',
+    images: [
+      {
+        url: '/Title.png',
+        width: 2125,
+        height: 1193,
+        alt: 'LIA — Assistant IA personnel intelligent',
+        type: 'image/png',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    images: ['/Title.png'],
   },
 };
 

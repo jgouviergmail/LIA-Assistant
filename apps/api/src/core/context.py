@@ -43,6 +43,13 @@ current_tracker: ContextVar["TrackingContext | None"] = ContextVar("current_trac
 panic_mode_used: ContextVar[bool] = ContextVar("panic_mode_used", default=False)
 panic_mode_attempted: ContextVar[bool] = ContextVar("panic_mode_attempted", default=False)
 
+# F6: Exclude sub-agent delegation from planner prompt during replan after user rejection.
+# When True, _build_sub_agents_section() returns empty string so the LLM prompt
+# does not encourage delegation. Reset to False after plan generation.
+exclude_sub_agents_from_prompt: ContextVar[bool] = ContextVar(
+    "exclude_sub_agents_from_prompt", default=False
+)
+
 
 # ---------------------------------------------------------------------------
 # MCP tool name resolution (shared by admin + user MCP — evolution F2.1/F2.5)

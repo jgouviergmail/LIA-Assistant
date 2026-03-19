@@ -1,0 +1,166 @@
+#!/bin/bash
+##########################################################################
+# Logwatch custom service: Docker LIA containers
+# Provides a clear, structured overview of all LIA production containers
+##########################################################################
+
+DETAIL=${LOGWATCH_DETAIL_LEVEL:-10}
+
+echo ""
+echo "  === VUE D ENSEMBLE ==="
+echo ""
+
+# Container status table
+CONTAINERS=$(docker ps -a --format "{{.Names}}|{{.Status}}|{{.State}}" --filter "name=lia-" 2>/dev/null | sort)
+
+if [ -z "$CONTAINERS" ]; then
+    echo "  ALERTE: Aucun conteneur LIA trouve!"
+    exit 0
+fi
+
+TOTAL=0
+RUNNING=0
+STOPPED=0
+UNHEALTHY=0
+
+while IFS="|" read -r NAME STATUS STATE; do
+    TOTAL=$((TOTAL + 1))
+    if [ "$STATE" = "running" ]; then
+        RUNNING=$((RUNNING + 1))
+        if echo "$STATUS" | grep -q "unhealthy"; then
+            UNHEALTHY=$((UNHEALTHY + 1))
+        fi
+    else
+        STOPPED=$((STOPPED + 1))
+    fi
+done <<< "$CONTAINERS"
+
+echo "  Conteneurs totaux : $TOTAL"
+echo "  En cours           : $RUNNING"
+if [ "$STOPPED" -gt 0 ]; then
+    echo "  ARRETES            : $STOPPED  *** ATTENTION ***"
+else
+    echo "  Arretes            : 0"
+fi
+if [ "$UNHEALTHY" -gt 0 ]; then
+    echo "  NON SAINS          : $UNHEALTHY  *** ATTENTION ***"
+fi
+
+echo ""
+echo "  === DETAIL PAR CONTENEUR ==="
+echo ""
+
+printf "  %-35s %-12s %s\n" "NOM" "ETAT" "UPTIME"
+printf "  %-35s %-12s %s\n" "---" "-----" "------"
+
+while IFS="|" read -r NAME STATUS STATE; do
+    if [ "$STATE" = "running" ]; then
+        if echo "$STATUS" | grep -q "unhealthy"; then
+            INDICATOR="[NON SAIN]"
+        elif echo "$STATUS" | grep -q "healthy"; then
+            INDICATOR="[OK]"
+        else
+            INDICATOR="[En cours]"
+        fi
+    else
+        INDICATOR="[ARRETE]"
+    fi
+    printf "  %-35s %-12s %s\n" "$NAME" "$INDICATOR" "$STATUS"
+done <<< "$CONTAINERS"
+
+# Container restarts
+echo ""
+echo "  === REDEMARRAGES ==="
+echo ""
+
+RESTARTS_FOUND=0
+while IFS="|" read -r NAME STATUS STATE; do
+    RESTART_COUNT=$(docker inspect --format="{{.RestartCount}}" "$NAME" 2>/dev/null)
+    if [ -n "$RESTART_COUNT" ] && [ "$RESTART_COUNT" -gt 0 ]; then
+        LAST_STARTED=$(docker inspect --format="{{.State.StartedAt}}" "$NAME" 2>/dev/null | cut -d. -f1 | tr 'T' ' ')
+        echo "  $NAME : $RESTART_COUNT redemarrage(s) - dernier: $LAST_STARTED"
+        RESTARTS_FOUND=1
+    fi
+done <<< "$CONTAINERS"
+
+if [ "$RESTARTS_FOUND" -eq 0 ]; then
+    echo "  Aucun redemarrage. Tout est stable."
+fi
+
+# Resource usage with alert thresholds
+if [ "$DETAIL" -ge 5 ]; then
+    echo ""
+    echo "  === RESSOURCES ==="
+    echo ""
+    printf "  %-35s %-10s %-25s %s\n" "NOM" "CPU" "MEMOIRE" "ALERTE"
+    printf "  %-35s %-10s %-25s %s\n" "---" "---" "-------" "------"
+    docker stats --no-stream --format "{{.Name}}|{{.CPUPerc}}|{{.MemUsage}}|{{.MemPerc}}" $(docker ps --format "{{.Names}}" | grep lia- | sort) 2>/dev/null | sort | while IFS="|" read -r NAME CPU MEM MEMPCT; do
+        # Extract numeric percentage
+        PCT=$(echo "$MEMPCT" | tr -d '% ')
+        PCT_INT=${PCT%.*}
+        if [ "$PCT_INT" -ge 90 ] 2>/dev/null; then
+            ALERT="*** CRITIQUE ($MEMPCT) ***"
+        elif [ "$PCT_INT" -ge 80 ] 2>/dev/null; then
+            ALERT="** ATTENTION ($MEMPCT) **"
+        else
+            ALERT=""
+        fi
+        printf "  %-35s %-10s %-25s %s\n" "$NAME" "$CPU" "$MEM" "$ALERT"
+    done
+fi
+
+# Recent errors from container logs (last 24h)
+if [ "$DETAIL" -ge 5 ]; then
+    echo ""
+    echo "  === ERREURS APPLICATIVES (dernieres 24h) ==="
+    echo ""
+
+    ERRORS_FOUND=0
+    for CONTAINER in lia-api-prod lia-web-prod; do
+        ERROR_LINES=$(docker logs --since 24h "$CONTAINER" 2>&1 | grep -i -E '"level":\s*"error"|"level":\s*"critical"|"level":\s*"fatal"|Traceback|CRITICAL|FATAL' | grep -v -i -E 'no.error|error_count.*0|errors.*0' | tail -15)
+        if [ -n "$ERROR_LINES" ]; then
+            ERROR_COUNT=$(echo "$ERROR_LINES" | wc -l)
+            echo "  --- $CONTAINER ($ERROR_COUNT erreur(s)) ---"
+            echo ""
+            echo "$ERROR_LINES" | while read -r LINE; do
+                # Extract key fields from JSON logs for readability
+                EVENT=$(echo "$LINE" | python3 -c "
+import sys, json
+try:
+    d = json.loads(sys.stdin.read())
+    print(f\"  [{d.get('level','?')}] {d.get('event','?')} | {d.get('path', d.get('error', ''))}\")
+except:
+    pass
+" 2>/dev/null)
+                if [ -n "$EVENT" ]; then
+                    echo "  $EVENT"
+                else
+                    echo "    ${LINE:0:120}"
+                fi
+            done
+            echo ""
+            ERRORS_FOUND=1
+        fi
+    done
+
+    if [ "$ERRORS_FOUND" -eq 0 ]; then
+        echo "  Aucune erreur applicative detectee dans api et web."
+    fi
+fi
+
+# Health check details
+echo ""
+echo "  === HEALTH CHECKS ==="
+echo ""
+
+for CONTAINER in $(docker ps --format "{{.Names}}" --filter "name=lia-" --filter "health=healthy" 2>/dev/null | sort; docker ps --format "{{.Names}}" --filter "name=lia-" --filter "health=unhealthy" 2>/dev/null | sort); do
+    HC_STATUS=$(docker inspect --format="{{.State.Health.Status}}" "$CONTAINER" 2>/dev/null)
+    HC_FAILING=$(docker inspect --format="{{.State.Health.FailingStreak}}" "$CONTAINER" 2>/dev/null)
+    if [ "$HC_STATUS" = "unhealthy" ] || { [ -n "$HC_FAILING" ] && [ "$HC_FAILING" -gt 0 ] 2>/dev/null; }; then
+        echo "  $CONTAINER : $HC_STATUS (echecs consecutifs: $HC_FAILING)  *** ATTENTION ***"
+    else
+        echo "  $CONTAINER : $HC_STATUS"
+    fi
+done
+
+echo ""

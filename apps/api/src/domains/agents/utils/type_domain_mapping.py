@@ -43,6 +43,7 @@ TYPE_TO_DOMAIN_MAP: dict[str, tuple[str, str]] = {
     "WEB_PAGE": ("web_fetch", "web_fetchs"),  # Fetched web page content (evolution F1)
     "MCP_RESULT": ("mcp", "mcps"),  # MCP tool results (evolution F2.3)
     "MCP_APP": ("mcp_app", "mcp_apps"),  # MCP Apps interactive widgets (evolution F2.5)
+    "BROWSER_PAGE": ("browser", "browsers"),  # Browser page snapshot (evolution F7)
 }
 
 # ============================================================================
@@ -71,6 +72,7 @@ SKIP_FILTER_RESULT_KEYS: frozenset[str] = frozenset(
         "querys",  # query agent results are always relevant (no RegistryItemType yet — defensive)
         "mcps",  # MCP tools provide their own data
         "mcp_apps",  # MCP interactive widgets are always relevant
+        "browsers",  # browser page content is always relevant (F7)
     }
 )
 

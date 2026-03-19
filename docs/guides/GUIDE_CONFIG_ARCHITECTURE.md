@@ -135,7 +135,7 @@ class ObservabilitySettings(BaseSettings):
 
 ### 4. llm.py (380 lignes)
 
-**Responsabilité** : 6 LLM providers configuration
+**Responsabilité** : 7 LLM providers configuration
 
 ```python
 class LLMSettings(BaseSettings):

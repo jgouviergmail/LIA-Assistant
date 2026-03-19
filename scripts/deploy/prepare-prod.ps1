@@ -157,6 +157,7 @@ New-Item -ItemType Directory -Path $infraDir -Force | Out-Null
 # Sous-dossiers infrastructure nécessaires
 $infraDirs = @(
     "docker",
+    "logwatch",
     "observability",
     "pgadmin",
     "database"
@@ -236,31 +237,61 @@ echo "============================================"
 # Verifier si .env existe, sinon decrypter
 if [ ! -f ".env" ]; then
     if [ -f ".env.prod.encrypted" ] && [ -f "keys/age-key-prod.txt" ]; then
-        echo "[1/4] Decryptage des secrets..."
+        echo "[1/5] Decryptage des secrets..."
         export SOPS_AGE_KEY_FILE=./keys/age-key-prod.txt
         sops --decrypt --input-type dotenv --output-type dotenv .env.prod.encrypted > .env
         echo "  -> .env cree depuis .env.prod.encrypted"
     elif [ -f ".env.prod" ]; then
-        echo "[1/4] Copie de .env.prod vers .env..."
+        echo "[1/5] Copie de .env.prod vers .env..."
         cp .env.prod .env
     else
         echo "ERREUR: Aucun fichier .env trouve!"
         exit 1
     fi
 else
-    echo "[1/4] .env existe deja"
+    echo "[1/5] .env existe deja"
 fi
 
 # Fixer les permissions des scripts (CRLF -> LF deja gere dans Dockerfile)
-echo "[2/4] Verification des permissions..."
+echo "[2/5] Verification des permissions..."
 chmod +x apps/api/docker-entrypoint.sh 2>/dev/null || true
 
+# Install/update logwatch configuration
+echo "[3/5] Installation de la configuration logwatch..."
+if [ -d "infrastructure/logwatch" ]; then
+    # Install logwatch if not present
+    if ! command -v logwatch &> /dev/null; then
+        echo "  -> Installation de logwatch..."
+        sudo apt-get install -y logwatch > /dev/null 2>&1
+    fi
+
+    # Deploy configuration files
+    sudo cp infrastructure/logwatch/conf/logwatch.conf /etc/logwatch/conf/logwatch.conf
+
+    # Deploy logfile overrides
+    sudo mkdir -p /etc/logwatch/conf/logfiles
+    sudo cp infrastructure/logwatch/conf/logfiles/*.conf /etc/logwatch/conf/logfiles/
+
+    # Deploy service configs
+    sudo mkdir -p /etc/logwatch/conf/services
+    sudo cp infrastructure/logwatch/conf/services/*.conf /etc/logwatch/conf/services/
+
+    # Deploy custom scripts
+    sudo mkdir -p /etc/logwatch/scripts/services
+    sudo cp infrastructure/logwatch/scripts/services/* /etc/logwatch/scripts/services/
+    sudo chmod +x /etc/logwatch/scripts/services/*
+
+    echo "  -> Logwatch configure (configs + scripts custom deployes)"
+else
+    echo "  -> infrastructure/logwatch/ absent, skip"
+fi
+
 # Build des images
-echo "[3/4] Build des images Docker..."
+echo "[4/5] Build des images Docker..."
 docker compose -f docker-compose.prod.yml build
 
 # Demarrage des services (force-recreate pour recharger les volumes)
-echo "[4/4] Demarrage des services..."
+echo "[5/5] Demarrage des services..."
 docker compose -f docker-compose.prod.yml up -d --force-recreate
 
 echo ""

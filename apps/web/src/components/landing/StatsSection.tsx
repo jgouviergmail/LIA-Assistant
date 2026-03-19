@@ -4,9 +4,9 @@ import { useTranslation } from 'react-i18next';
 import { AnimatedCounter } from './AnimatedCounter';
 
 const STATS = [
-  { value: 17, suffix: '+', key: 'agents' },
-  { value: 50, suffix: '+', key: 'tools' },
-  { value: 6, suffix: '', key: 'providers' },
+  { value: 18, suffix: '+', key: 'agents' },
+  { value: 55, suffix: '+', key: 'tools' },
+  { value: 7, suffix: '', key: 'providers' },
   { value: 99, suffix: '+', key: 'voice_languages' },
   { value: 500, suffix: '+', key: 'metrics' },
   { value: 6, suffix: '', key: 'ui_languages' },

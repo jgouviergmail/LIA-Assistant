@@ -243,6 +243,7 @@ def build_generic_agent(config: AgentConfig) -> Any:
         "brave_agent": "brave_agent",
         "web_search_agent": "web_search_agent",
         "web_fetch_agent": "web_fetch_agent",
+        "browser_agent": "browser_agent",
         # Backward compatibility aliases (deprecated - will be removed in v4)
         "contacts_agent": "contact_agent",
         "emails_agent": "email_agent",
