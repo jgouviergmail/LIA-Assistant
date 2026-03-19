@@ -622,6 +622,8 @@ apps/api/src/
 | react-i18next | 16.5.1 | i18n (6 languages) |
 | Radix UI | latest | Accessible UI primitives |
 
+**Responsive Design**: Fully optimized for desktop, tablet, and smartphone. Adaptive layouts, touch-friendly interactions, and mobile-first components ensure a seamless experience on any device.
+
 ### Supported LLM Providers
 
 | Provider | Models | Use Case |

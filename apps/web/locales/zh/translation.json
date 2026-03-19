@@ -3720,6 +3720,10 @@
       "browser_control": {
         "title": "浏览器控制",
         "description": "自主浏览网站：搜索产品、填写表单、从JavaScript动态页面提取数据"
+      },
+      "responsive": {
+        "title": "响应式设计",
+        "description": "完全优化的桌面、平板和手机界面——随时随地使用LIA"
       }
     },
     "use_cases": {

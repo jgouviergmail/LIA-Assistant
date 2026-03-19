@@ -3731,6 +3731,10 @@
       "browser_control": {
         "title": "Contrôle navigateur",
         "description": "Navigue sur les sites web de façon autonome : recherche de produits, remplissage de formulaires, extraction de données depuis les pages dynamiques JavaScript"
+      },
+      "responsive": {
+        "title": "Design responsive",
+        "description": "Interface optimisee pour ordinateur, tablette et smartphone — utilisez LIA partout, sur tous vos appareils"
       }
     },
     "use_cases": {

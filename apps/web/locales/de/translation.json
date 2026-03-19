@@ -3725,6 +3725,10 @@
       "browser_control": {
         "title": "Browser-Steuerung",
         "description": "Navigiert autonom auf Websites: Produkte suchen, Formulare ausfüllen, Daten aus dynamischen JavaScript-Seiten extrahieren"
+      },
+      "responsive": {
+        "title": "Responsives Design",
+        "description": "Vollstaendig optimierte Oberflaeche fuer Desktop, Tablet und Smartphone — nutzen Sie LIA ueberall"
       }
     },
     "use_cases": {

@@ -5,6 +5,7 @@ import {
   Globe, Palette, MessageSquareText, Compass,
   CalendarClock, MousePointerClick, Star,
   AppWindow, PenTool, Paperclip, Blocks, Library, Monitor,
+  Smartphone,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -57,6 +58,7 @@ const FUNCTIONAL_FEATURES: FeatureItem[] = [
 const RESPONSIBLE_FEATURES: FeatureItem[] = [
   { key: 'control', icon: ShieldCheck },
   { key: 'privacy', icon: Lock },
+  { key: 'responsive', icon: Smartphone },
   { key: 'simplicity', icon: MousePointerClick },
   { key: 'themes', icon: Palette },
 ];
