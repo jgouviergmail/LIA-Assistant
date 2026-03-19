@@ -355,7 +355,7 @@ class BrowserPool:
                 info = json.loads(data)
                 # Only recover if the session was on a DIFFERENT worker
                 if info.get("worker_pid") != self._pid:
-                    return info.get("current_url")
+                    return str(info.get("current_url")) if info.get("current_url") else None
         except Exception as e:
             logger.warning("browser_redis_recovery_check_failed", error=str(e))
         return None

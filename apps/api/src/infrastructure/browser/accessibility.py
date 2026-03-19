@@ -315,7 +315,7 @@ class AccessibilityTreeExtractor:
 
             # Use role-based locator for reliability
             if target_node.role and target_node.name:
-                locator = page.get_by_role(target_node.role, name=target_node.name)
+                locator = page.get_by_role(target_node.role, name=target_node.name)  # type: ignore[arg-type]
                 if await locator.count() > 0:
                     return locator.first
 

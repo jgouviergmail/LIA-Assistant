@@ -61,7 +61,7 @@ def build_browser_agent() -> Any:
     if settings.browser_screenshot_enabled:
         from src.domains.agents.tools.browser_tools import browser_screenshot_tool
 
-        tools.append(cast(BaseTool, browser_screenshot_tool))
+        tools.append(browser_screenshot_tool)  # type: ignore[arg-type]
 
     # Load versioned prompt template
     browser_agent_prompt_template = load_prompt("browser_agent_prompt", version="v1")
