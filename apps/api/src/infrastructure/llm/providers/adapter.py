@@ -580,14 +580,13 @@ class ProviderAdapter:
             additional_kwargs["openai_api_key"] = _require_api_key("qwen")
             provider_for_init = "openai"
 
-            # Build model_kwargs: extra_body (thinking) + stream_options (metrics)
-            model_kwargs: dict[str, Any] = {}
-
             # Streaming: enable token usage metadata (same as OpenAI block)
             if streaming:
-                model_kwargs["stream_options"] = {"include_usage": True}
+                additional_kwargs["model_kwargs"] = {"stream_options": {"include_usage": True}}
 
-            # Map reasoning_effort → Qwen enable_thinking + thinking_budget (via extra_body)
+            # Map reasoning_effort → Qwen enable_thinking + thinking_budget
+            # Pass extra_body as direct kwarg (not inside model_kwargs) to avoid
+            # LangChain UserWarning: "Parameters {'extra_body'} should be specified explicitly"
             reasoning_effort = additional_kwargs.pop("reasoning_effort", None)
             extra_body: dict[str, Any] = {}
             if reasoning_effort and reasoning_effort != "none":
@@ -607,9 +606,7 @@ class ProviderAdapter:
             # If no reasoning_effort set, use model's default (thinking=True for qwen3.5-*)
 
             if extra_body:
-                model_kwargs["extra_body"] = extra_body
-            if model_kwargs:
-                additional_kwargs["model_kwargs"] = model_kwargs
+                additional_kwargs["extra_body"] = extra_body
 
             # Qwen does NOT support frequency_penalty
             additional_kwargs.pop("frequency_penalty", None)

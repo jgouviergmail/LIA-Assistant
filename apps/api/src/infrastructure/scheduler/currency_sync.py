@@ -10,10 +10,12 @@ from datetime import UTC, datetime
 import structlog
 from sqlalchemy import update
 
-from src.core.constants import SUPPORTED_CURRENCIES
+from src.core.constants import SCHEDULER_JOB_CURRENCY_SYNC, SUPPORTED_CURRENCIES
 from src.domains.llm.models import CurrencyExchangeRate
+from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.database import get_db_context
 from src.infrastructure.external.currency_api import CurrencyRateService
+from src.infrastructure.locks import SchedulerLock
 from src.infrastructure.observability.metrics import (
     background_job_duration_seconds,
     background_job_errors_total,
@@ -36,6 +38,13 @@ async def sync_currency_rates() -> None:
         - background_job_duration_seconds{job_name="currency_sync"}
         - background_job_errors_total{job_name="currency_sync"}
     """
+    # Acquire distributed lock to prevent duplicate execution across workers
+    redis = await get_redis_cache()
+    if redis:
+        async with SchedulerLock(redis, SCHEDULER_JOB_CURRENCY_SYNC) as lock:
+            if not lock.acquired:
+                return
+
     start_time = time.perf_counter()
     job_name = "currency_sync"
 

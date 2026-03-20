@@ -5,6 +5,9 @@ Runs periodically (default: every 15 minutes) and refreshes tokens expiring
 within a configurable margin (default: 30 minutes). This prevents disconnections
 when users return after periods of inactivity.
 
+NOTE: Uses SchedulerLock to prevent duplicate execution with multiple uvicorn workers.
+This is critical for token refresh to avoid race conditions (double refresh).
+
 Configuration (via .env):
     OAUTH_PROACTIVE_REFRESH_ENABLED=true
     OAUTH_PROACTIVE_REFRESH_INTERVAL_MINUTES=15
@@ -23,12 +26,15 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
+from src.core.constants import SCHEDULER_JOB_TOKEN_REFRESH
 from src.core.security import decrypt_data
 from src.domains.connectors.models import Connector
 from src.domains.connectors.repository import ConnectorRepository
 from src.domains.connectors.schemas import ConnectorCredentials
 from src.domains.connectors.service import ConnectorService
+from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.database import get_db_context
+from src.infrastructure.locks import SchedulerLock
 from src.infrastructure.observability.metrics import (
     background_job_duration_seconds,
     background_job_errors_total,
@@ -62,6 +68,15 @@ async def refresh_expiring_tokens() -> None:
         - token_refresh_connector_failed: Individual connector error
         - token_refresh_completed: Job summary with stats
     """
+    # Acquire distributed lock to prevent duplicate execution across workers.
+    # Lock is retained via TTL (not released on context exit) — see SchedulerLock.
+    redis = await get_redis_cache()
+    if redis:
+        async with SchedulerLock(redis, SCHEDULER_JOB_TOKEN_REFRESH) as lock:
+            if not lock.acquired:
+                logger.debug("token_refresh_skipped_lock_busy")
+                return
+
     start_time = time.perf_counter()
     refreshed_count = 0
     error_count = 0

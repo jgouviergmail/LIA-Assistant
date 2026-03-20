@@ -175,6 +175,35 @@ services:
           cpus: '0.25'
           memory: 128M
 
+  # Tempo (Distributed Tracing)
+  # Receives OpenTelemetry traces from the API, stores them for 7 days,
+  # and generates span metrics pushed to Prometheus via remote-write.
+  # Enables trace↔log↔metric correlation in Grafana (Dashboard 06).
+  tempo:
+    image: grafana/tempo:2.6.1
+    container_name: lia-tempo-prod
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    command: [ "-config.file=/etc/tempo/tempo.yml" ]
+    ports:
+      - "${TEMPO_HOST_PORT:-3200}:3200"   # Tempo HTTP API
+      - "${OTLP_GRPC_HOST_PORT:-4317}:4317"   # OTLP gRPC (receives traces from API)
+      - "${OTLP_HTTP_HOST_PORT:-4318}:4318"   # OTLP HTTP
+    volumes:
+      - ./infrastructure/observability/tempo/tempo.yml:/etc/tempo/tempo.yml
+      - tempo_data:/var/tempo
+    networks:
+      - lia-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+
   # Prometheus
   prometheus:
     image: prom/prometheus:v3.0.0
@@ -189,6 +218,7 @@ services:
       - '--storage.tsdb.retention.size=2GB'
       - '--web.console.libraries=/usr/share/prometheus/console_libraries'
       - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-remote-write-receiver'  # Enable Tempo metrics-generator remote write
     ports:
       - "9090:9090"
     volumes:
@@ -223,9 +253,12 @@ services:
     volumes:
       - ./infrastructure/observability/grafana/provisioning:/etc/grafana/provisioning
       - ./infrastructure/observability/grafana/dashboards:/var/lib/grafana/dashboards
+      - ./infrastructure/observability/grafana/grafana.ini:/etc/grafana/grafana.ini
       - grafana_data:/var/lib/grafana
     depends_on:
       - prometheus
+      - loki
+      - tempo
     networks:
       - lia-network
     deploy:
@@ -422,6 +455,7 @@ volumes:
   prometheus_data:
   grafana_data:
   loki_data:
+  tempo_data:  # Trace storage (7-day retention, auto-compacted)
   promtail_positions:
   huggingface_cache:  # Persistent storage for E5 embedding model (~500MB)
   attachments_data:  # Persistent storage for file attachments (images, PDF)

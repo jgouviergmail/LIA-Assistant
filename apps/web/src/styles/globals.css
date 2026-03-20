@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 /* V3 Display Architecture: Modern HTML components */
 /* Note: Material Symbols font is loaded via <link> in layout.tsx for better reliability */
@@ -1001,6 +1002,19 @@
   /* Smooth scroll for landing page */
   html:has(.landing-page) {
     scroll-behavior: smooth;
+  }
+
+  /* ============================================
+     Blog Article Typography
+     ============================================ */
+
+  .blog-article-body ul > li::marker {
+    color: var(--color-primary);
+  }
+
+  .blog-article-body ol > li::marker {
+    color: var(--color-primary);
+    font-weight: 600;
   }
 
   /* Reduced motion: disable all landing animations */

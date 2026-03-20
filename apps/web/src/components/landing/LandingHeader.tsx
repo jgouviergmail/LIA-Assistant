@@ -17,10 +17,11 @@ interface LandingHeaderProps {
 }
 
 const NAV_SECTIONS = [
-  { id: 'features', key: 'landing.nav.features' },
   { id: 'how-it-works', key: 'landing.nav.how_it_works' },
+  { id: 'features', key: 'landing.nav.features' },
   { id: 'security', key: 'landing.nav.security' },
   { id: 'technology', key: 'landing.nav.technology' },
+  { id: 'blog', key: 'landing.nav.blog', href: '/blog' },
 ] as const;
 
 export function LandingHeader({ lng }: LandingHeaderProps) {
@@ -49,7 +50,7 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
       { rootMargin: '-20% 0px -70% 0px' }
     );
 
-    const sections = NAV_SECTIONS.map(({ id }) => document.getElementById(id)).filter(Boolean);
+    const sections = NAV_SECTIONS.filter(s => !('href' in s)).map(({ id }) => document.getElementById(id)).filter(Boolean);
     sections.forEach(el => observer.observe(el!));
 
     window.addEventListener('scroll', handleScroll, { passive: true });
@@ -97,20 +98,34 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
 
           {/* Desktop nav */}
           <div className="hidden mobile:flex items-center gap-1">
-            {NAV_SECTIONS.map(({ id, key }) => (
-              <a
-                key={id}
-                href={`#${id}`}
-                className={cn(
-                  'px-3 py-2 text-sm font-medium rounded-md transition-colors',
-                  activeSection === id
-                    ? 'text-primary bg-primary/10'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                )}
-              >
-                {t(key)}
-              </a>
-            ))}
+            {NAV_SECTIONS.map(({ id, key, ...rest }) => {
+              const href = 'href' in rest ? rest.href as string : undefined;
+              if (href) {
+                return (
+                  <Link
+                    key={id}
+                    href={buildLocalizedPath(href, lng as Language)}
+                    className="px-3 py-2 text-sm font-medium rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  >
+                    {t(key)}
+                  </Link>
+                );
+              }
+              return (
+                <a
+                  key={id}
+                  href={`#${id}`}
+                  className={cn(
+                    'px-3 py-2 text-sm font-medium rounded-md transition-colors',
+                    activeSection === id
+                      ? 'text-primary bg-primary/10'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                  )}
+                >
+                  {t(key)}
+                </a>
+              );
+            })}
           </div>
 
           {/* Right actions */}
@@ -148,21 +163,36 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
         {/* Mobile menu */}
         {mobileOpen && (
           <div className="mobile:hidden border-t border-border/50 py-4 space-y-1">
-            {NAV_SECTIONS.map(({ id, key }) => (
-              <a
-                key={id}
-                href={`#${id}`}
-                onClick={handleNavClick}
-                className={cn(
-                  'block px-4 py-2.5 text-sm font-medium rounded-md transition-colors',
-                  activeSection === id
-                    ? 'text-primary bg-primary/10'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                )}
-              >
-                {t(key)}
-              </a>
-            ))}
+            {NAV_SECTIONS.map(({ id, key, ...rest }) => {
+              const href = 'href' in rest ? rest.href as string : undefined;
+              if (href) {
+                return (
+                  <Link
+                    key={id}
+                    href={buildLocalizedPath(href, lng as Language)}
+                    onClick={handleNavClick}
+                    className="block px-4 py-2.5 text-sm font-medium rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  >
+                    {t(key)}
+                  </Link>
+                );
+              }
+              return (
+                <a
+                  key={id}
+                  href={`#${id}`}
+                  onClick={handleNavClick}
+                  className={cn(
+                    'block px-4 py-2.5 text-sm font-medium rounded-md transition-colors',
+                    activeSection === id
+                      ? 'text-primary bg-primary/10'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                  )}
+                >
+                  {t(key)}
+                </a>
+              );
+            })}
             <div className="border-t border-border/50 mt-3 pt-3 flex items-center gap-2 px-4">
               <LanguageSelector currentLocale={lng as Language} />
               <Link

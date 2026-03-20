@@ -13,7 +13,7 @@ const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://lia.jeyswork.com';
  * - Block all bots from authenticated areas (/dashboard, /api)
  */
 export default function robots(): MetadataRoute.Robots {
-  const publicPaths = ['/', '/login', '/register', '/faq'];
+  const publicPaths = ['/', '/login', '/register', '/faq', '/blog', '/blog/*'];
   const blockedPaths = ['/dashboard', '/dashboard/*', '/api/*', '/account-inactive'];
 
   return {

@@ -4,10 +4,10 @@
  */
 
 export const LANDING_STATS = {
-  agents: 18,
+  agents: 15,
   tools: 55,
   providers: 7,
   voiceLanguages: 99,
-  metrics: 500,
+  metrics: 350,
   uiLanguages: 6,
 } as const;

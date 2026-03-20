@@ -21,7 +21,10 @@ from typing import Any
 import structlog
 
 from src.core.config import settings
+from src.core.constants import SCHEDULER_JOB_MEMORY_CLEANUP
 from src.domains.agents.context.store import get_tool_context_store
+from src.infrastructure.cache.redis import get_redis_cache
+from src.infrastructure.locks import SchedulerLock
 from src.infrastructure.observability.metrics import (
     background_job_duration_seconds,
     background_job_errors_total,
@@ -172,6 +175,13 @@ async def cleanup_memories() -> dict[str, Any]:
     Returns:
         Stats dict with total_checked, purged, by_category, users_processed
     """
+    # Acquire distributed lock to prevent duplicate execution across workers
+    redis = await get_redis_cache()
+    if redis:
+        async with SchedulerLock(redis, SCHEDULER_JOB_MEMORY_CLEANUP) as lock:
+            if not lock.acquired:
+                return {"status": "skipped", "reason": "lock_busy"}
+
     start_time = time.perf_counter()
     job_name = "memory_cleanup"
 

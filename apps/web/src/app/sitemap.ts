@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { languages, fallbackLng } from '@/i18n/settings';
 import type { Language } from '@/i18n/settings';
+import { BLOG_ARTICLES } from '@/data/blog-articles';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://lia.jeyswork.com';
 
@@ -29,22 +30,19 @@ function buildAlternates(path: string): Record<string, string> {
 /**
  * Dynamic sitemap generation with multilingual hreflang support.
  *
- * Only public pages are included:
- * - Landing page (/)
- * - Auth pages (/login, /register)
- * - Public FAQ (/faq)
- *
+ * Public pages and blog articles are included.
  * Each page has alternates for all 6 supported languages.
  */
 export default function sitemap(): MetadataRoute.Sitemap {
   const publicPages = [
     { path: '/', changeFrequency: 'weekly' as const, priority: 1.0 },
+    { path: '/blog', changeFrequency: 'weekly' as const, priority: 0.8 },
     { path: '/faq', changeFrequency: 'monthly' as const, priority: 0.7 },
     { path: '/login', changeFrequency: 'monthly' as const, priority: 0.3 },
     { path: '/register', changeFrequency: 'monthly' as const, priority: 0.3 },
   ];
 
-  return publicPages.map(({ path, changeFrequency, priority }) => ({
+  const staticEntries = publicPages.map(({ path, changeFrequency, priority }) => ({
     url: buildUrl(path, fallbackLng),
     lastModified: new Date(),
     changeFrequency,
@@ -53,4 +51,17 @@ export default function sitemap(): MetadataRoute.Sitemap {
       languages: buildAlternates(path),
     },
   }));
+
+  // Blog article entries
+  const blogEntries = BLOG_ARTICLES.map(article => ({
+    url: buildUrl(`/blog/${article.slug}`, fallbackLng),
+    lastModified: new Date(article.date),
+    changeFrequency: 'monthly' as const,
+    priority: 0.6,
+    alternates: {
+      languages: buildAlternates(`/blog/${article.slug}`),
+    },
+  }));
+
+  return [...staticEntries, ...blogEntries];
 }

@@ -289,9 +289,10 @@ class MetricsCallbackHandler(AsyncCallbackHandler):
             return "deepseek"
         elif "sonar" in model_lower:
             return "perplexity"
+        elif model_lower.startswith("qwen"):
+            return "qwen"
         elif any(
-            model_lower.startswith(prefix)
-            for prefix in ["llama", "mistral", "qwen", "phi-", "codellama"]
+            model_lower.startswith(prefix) for prefix in ["llama", "mistral", "phi-", "codellama"]
         ):
             return "ollama"
         else:

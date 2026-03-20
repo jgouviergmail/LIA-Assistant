@@ -1,12 +1,12 @@
 # LIA — Multi-Agent Conversational AI Assistant
 
 > LIA (Learning Intelligent Assistant) is an open-source, multi-agent conversational AI platform
-> that orchestrates 18+ specialized AI agents to manage your daily productivity tasks — emails,
+> that orchestrates 15 specialized AI agents to manage your daily productivity tasks — emails,
 > calendar, contacts, files, tasks, and more — with systematic human validation at every step.
 
 ## Key Features
 
-- **18+ specialized AI agents**: emails, calendar, contacts, files, tasks, weather, web search, Wikipedia, places, routes, reminders, interests, browser automation, and more
+- **15 specialized AI agents**: emails, calendar, contacts, files, tasks, weather, web search, Wikipedia, places, routes, reminders, interests, browser automation, and more
 - **7 LLM providers**: OpenAI, Anthropic, Google Gemini, DeepSeek, Qwen, Perplexity, Ollama — dynamic model selection per task
 - **Human-in-the-Loop (HITL)**: 6 approval levels ensuring no sensitive action happens without user consent
 - **Connected services**: Google, Apple iCloud, and Microsoft 365 integrations (email, calendar, contacts, tasks, files)
@@ -31,7 +31,7 @@
 - **Frontend**: Next.js 16 / React 19 / TypeScript / TailwindCSS
 - **Orchestration**: LangGraph 1.0 state machine with conditional routing and parallel execution
 - **Database**: PostgreSQL (state checkpointing) + Redis (caching, rate limiting, sessions)
-- **Observability**: 500+ Prometheus metrics, Grafana dashboards, Langfuse LLM tracing
+- **Observability**: 350+ Prometheus metrics, 18 Grafana dashboards, Langfuse LLM tracing
 - **Security**: OAuth 2.0 with PKCE, BFF pattern, Fernet encryption, PII filtering, GDPR compliant
 
 ## How It Works
@@ -52,5 +52,6 @@
 ## Links
 
 - [Landing Page](https://lia.jeyswork.com)
-- [GitHub](https://github.com/JeysWork/LIA)
+- [Blog](https://lia.jeyswork.com/blog) — 20 technical articles about architecture, integrations, features, security, and engineering
 - [FAQ](https://lia.jeyswork.com/faq)
+- [GitHub](https://github.com/JeysWork/LIA)

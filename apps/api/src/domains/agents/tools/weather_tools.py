@@ -862,6 +862,7 @@ class GetHourlyForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
             type=RegistryItemType.WEATHER,
             payload={
                 "location": location_info,
+                "date": datetime.now(UTC).strftime("%Y-%m-%d"),
                 "interval": data.get("interval", "3 hours"),
                 "hourly": hourly_forecasts,
                 "type": "hourly",

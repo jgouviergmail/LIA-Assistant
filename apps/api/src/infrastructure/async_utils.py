@@ -171,7 +171,7 @@ async def wait_all_background_tasks(timeout: float = 30.0) -> int:
         return 0
 
 
-async def await_run_id_tasks(run_id: str, timeout: float = 5.0) -> int:
+async def await_run_id_tasks(run_id: str, timeout: float = 15.0) -> int:
     """
     Wait for all background tasks registered for a specific run_id.
 
@@ -181,14 +181,16 @@ async def await_run_id_tasks(run_id: str, timeout: float = 5.0) -> int:
 
     Args:
         run_id: The pipeline run_id whose tasks to await
-        timeout: Maximum time to wait in seconds (default 5s)
+        timeout: Maximum time to wait in seconds (default 15s).
+            Increased from 5s to 15s to accommodate RPi5 latency
+            on background LLM calls (memory, interest, journal extraction).
 
     Returns:
         Number of tasks that were awaited
 
     Example:
         >>> # Before querying aggregated tokens for SSE done:
-        >>> awaited = await await_run_id_tasks(run_id, timeout=5.0)
+        >>> awaited = await await_run_id_tasks(run_id, timeout=15.0)
         >>> summary = await temp_tracker.get_aggregated_summary_dto_from_db()
     """
     tasks = _run_id_tasks.pop(run_id, [])

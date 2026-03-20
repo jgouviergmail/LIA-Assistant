@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { initI18next, validateLanguage } from '@/i18n';
 import { languages, fallbackLng, LOCALE_MAP } from '@/i18n/settings';
 import type { Language } from '@/i18n/settings';
-import { FAQPageJsonLd } from '@/components/seo/JsonLd';
+import { FAQPageJsonLd, BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://lia.jeyswork.com';
 
@@ -89,6 +89,12 @@ export default async function PublicFAQPage({ params }: FAQPageProps) {
   return (
     <>
       <FAQPageJsonLd questions={allQuestions} />
+      <BreadcrumbJsonLd
+        items={[
+          { name: 'LIA', url: buildLangUrl('/', lng) },
+          { name: 'FAQ', url: buildLangUrl('/faq', lng) },
+        ]}
+      />
 
       <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
         {/* Header */}

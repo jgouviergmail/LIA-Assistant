@@ -819,6 +819,15 @@ OAUTH_LOCK_MAX_BACKOFF_EXPONENT = 5  # Max exponent for exponential backoff (2^5
 # TTL = safety net for crashed workers (job should complete well before this)
 SCHEDULER_LOCK_DEFAULT_TTL_SECONDS = 300  # 5 minutes
 
+# Scheduler leader election (only one worker runs APScheduler)
+# When running with --workers > 1, only the leader worker starts the scheduler.
+# Other workers skip scheduler entirely, eliminating duplicate job triggers.
+# TTL ensures recovery if the leader crashes (uvicorn respawns a new worker
+# that acquires the expired lock and becomes the new leader).
+SCHEDULER_LEADER_LOCK_KEY = "scheduler:leader"
+SCHEDULER_LEADER_LOCK_TTL_SECONDS = 120  # 2 minutes (renewed every 30s)
+SCHEDULER_LEADER_RENEW_INTERVAL_SECONDS = 30  # Renewal frequency
+
 # ============================================================================
 # BACKGROUND TASKS
 # ============================================================================

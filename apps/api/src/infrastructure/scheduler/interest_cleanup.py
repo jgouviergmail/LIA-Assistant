@@ -26,7 +26,9 @@ from src.core.constants import (
 )
 from src.domains.interests.models import InterestStatus, UserInterest
 from src.domains.interests.repository import InterestRepository
+from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.database import get_db_context
+from src.infrastructure.locks import SchedulerLock
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics import (
     background_job_duration_seconds,
@@ -108,6 +110,13 @@ async def cleanup_interests() -> dict[str, Any]:
     Returns:
         Stats dict with marked_dormant, deleted, total_checked
     """
+    # Acquire distributed lock to prevent duplicate execution across workers
+    redis = await get_redis_cache()
+    if redis:
+        async with SchedulerLock(redis, SCHEDULER_JOB_INTEREST_CLEANUP) as lock:
+            if not lock.acquired:
+                return {"status": "skipped", "reason": "lock_busy"}
+
     start_time = time.perf_counter()
     job_name = SCHEDULER_JOB_INTEREST_CLEANUP
 

@@ -2,7 +2,7 @@ import { type Metadata } from 'next';
 import { initI18next, validateLanguage } from '@/i18n';
 import { languages, fallbackLng, LOCALE_MAP } from '@/i18n/settings';
 import type { Language } from '@/i18n/settings';
-import { SoftwareApplicationJsonLd } from '@/components/seo/JsonLd';
+import { SoftwareApplicationJsonLd, HowToJsonLd } from '@/components/seo/JsonLd';
 import { AuthRedirect } from '@/components/landing/AuthRedirect';
 import { LandingHeader } from '@/components/landing/LandingHeader';
 import { HeroSection } from '@/components/landing/HeroSection';
@@ -15,6 +15,7 @@ import { UseCasesSection } from '@/components/landing/UseCasesSection';
 import { StatsSection } from '@/components/landing/StatsSection';
 import { SecuritySection } from '@/components/landing/SecuritySection';
 import { TechSection } from '@/components/landing/TechSection';
+import { BlogPreviewSection } from '@/components/landing/BlogPreviewSection';
 import { CtaSection } from '@/components/landing/CtaSection';
 import { LandingFooter } from '@/components/landing/LandingFooter';
 
@@ -81,6 +82,18 @@ export default async function HomePage({ params }: HomePageProps) {
         description={t('landing.meta.description')}
       />
 
+      {/* SEO: HowTo structured data for "How it works" section */}
+      <HowToJsonLd
+        name={t('landing.how_it_works.title')}
+        description={t('landing.how_it_works.subtitle')}
+        steps={[
+          { name: t('landing.how_it_works.step1.title'), text: t('landing.how_it_works.step1.description') },
+          { name: t('landing.how_it_works.step2.title'), text: t('landing.how_it_works.step2.description') },
+          { name: t('landing.how_it_works.step3.title'), text: t('landing.how_it_works.step3.description') },
+          { name: t('landing.how_it_works.step4.title'), text: t('landing.how_it_works.step4.description') },
+        ]}
+      />
+
       {/* Redirect authenticated users to dashboard */}
       <AuthRedirect lng={lng} />
 
@@ -106,6 +119,7 @@ export default async function HomePage({ params }: HomePageProps) {
           <StatsSection />
           <SecuritySection lng={lng} />
           <TechSection lng={lng} />
+          <BlogPreviewSection lng={lng} />
           <CtaSection lng={lng} />
         </main>
 

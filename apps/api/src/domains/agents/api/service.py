@@ -1070,7 +1070,7 @@ class AgentService(
                 # the complete cost (pipeline + memory + interest extraction).
                 from src.infrastructure.async_utils import await_run_id_tasks
 
-                await await_run_id_tasks(run_id, timeout=5.0)
+                await await_run_id_tasks(run_id, timeout=15.0)
 
                 # === PHASE 3.3 DAY 3: Retrieve aggregated tokens AFTER tracker exit ===
                 # Pattern from LEGACY (lines 1520-1543): Create temp tracker to query DB

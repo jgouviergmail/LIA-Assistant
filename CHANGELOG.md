@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.2] - 2026-03-20
+
+### Added
+
+- **Technical Blog (20 articles × 6 languages = 120 pages)** — Full blog system with category-organized technical articles covering architecture, integrations, features, security, and engineering. Each article enriched with verified code-sourced facts (file paths, exact numbers, real class/function names). 5 categories: Architecture (4), Integrations (4), Features (6), Security (2), Technical (4). Articles include real Python code snippets from the codebase (Prometheus metrics, `load_prompt()`, `ToolResponse`, `get_llm()` factory). (`apps/web/src/app/[lng]/blog/`, `apps/web/src/components/blog/`, `apps/web/src/data/blog-articles.ts`)
+- **Blog illustrations** — 20 unique PNG illustrations (one per article) served via Next.js `<Image>` with lazy loading, responsive `sizes`, and `priority` on article hero. (`apps/web/public/articles/`)
+- **Blog preview on landing page** — `BlogPreviewSection` component showing 6 featured articles with illustrations, inserted before the CTA section. Promotes blog discovery for visitors exploring LIA. (`apps/web/src/components/landing/BlogPreviewSection.tsx`)
+- **Tailwind Typography plugin** — Installed `@tailwindcss/typography` for proper `prose` class rendering in blog article bodies. Configured via `@plugin` directive in globals.css.
+- **Tempo distributed tracing (production)** — Deployed Grafana Tempo on RPi5 prod, completing the observability trifecta (metrics + logs + traces). Service `lia-tempo-prod` with 0.5 CPU / 512 MB limits, 7-day retention with automatic compaction, zstd/snappy compression. Enables Dashboard 06 (Logs & Traces), trace↔log↔metric correlation via exemplars, and Tempo service graph in Grafana. (`docker-compose.prod.yml`, `infrastructure/observability/tempo/tempo.yml`)
+- **Scheduler leader election** — Redis SETNX-based leader election ensures only 1 of 4 uvicorn workers starts APScheduler. Eliminates duplicate job execution caused by `--workers 4`. Lock renewed every 30s (TTL 120s) with automatic failover if leader crashes. Non-leader workers skip scheduler entirely. (`src/main.py`, `src/core/constants.py`)
+
+### Changed
+
+- **SEO & GEO (Generative Engine Optimization)** — Enhanced metadata for Google and AI search engines:
+  - OpenGraph images per article (PNG illustrations) with `summary_large_image` Twitter cards
+  - `image` and `articleSection` fields added to JSON-LD `BlogPosting` schema
+  - `authors` metadata on article pages
+  - OpenGraph image on blog listing page
+  - Sitemap XML extended with 21 blog URLs (listing + 20 articles) with hreflang alternates
+  - `robots.txt` updated: blog paths allowed for all crawlers, AI search bots (OAI-SearchBot, PerplexityBot, Claude-SearchBot) explicitly permitted
+  - `llms.txt` updated with blog link and corrected statistics
+- **Landing page meta descriptions** — SEO-optimized with keywords "Open Source", "Multi-Agent", "HITL", "6 Languages", "7 LLM providers", "Privacy by design" in all 6 languages.
+- **Landing stats correction** — Agent count corrected from 18 to 15 (verified: 15 domain agent builders in `src/domains/agents/graphs/`). Prometheus metrics count corrected from 500 to 350 (verified: 357 metric definitions across 17 observability files).
+- **Blog navigation** — `nav.blog` link integrated into `NAV_SECTIONS` array with same styling as other nav items (was isolated in "Right actions" zone with different markup). Supports both anchor links (`#section`) and route links (`/blog`) in the same nav. (`LandingHeader.tsx`)
+- **Landing navigation order** — Reordered to: Comment ça marche → Fonctionnalités → Sécurité → Technologie → Blog (was: Fonctionnalités → Comment ça marche → ..., Blog separated).
+- **Prometheus remote-write receiver (production)** — Added `--web.enable-remote-write-receiver` flag to prod Prometheus, enabling Tempo's metrics-generator to push span metrics (service graphs, span latency histograms). (`docker-compose.prod.yml`)
+- **Grafana prod parity with dev** — Added `grafana.ini` volume mount (Tempo feature flags: `tempoSearch`, `tempoServiceGraph`, `traceqlEditor`) and `depends_on: [prometheus, loki, tempo]`. (`docker-compose.prod.yml`)
+
+### Fixed
+
+- **Factual accuracy audit (8 corrections × 6 languages = 48 fixes)** — Systematic verification of all blog article claims against actual source code:
+  - Agent count: 18+ → 15 (verified via `find graphs/ -name "*_builder.py"`)
+  - LLM configuration: "environment variables" → "Administration > LLM Configuration" (admin UI is primary, env vars are fallback)
+  - Claude model name: `claude-3.5-sonnet` → `claude-sonnet-4-5`
+  - RAG embedding model: `E5-small (384 dims)` → `text-embedding-3-small (1536 dims)` (verified in `constants.py`)
+  - Wake word: "Hey LIA" → "OK Guy" (verified in `sherpaKws.ts`)
+  - Prometheus metrics: 500+ → 350+ (verified: 357 definitions)
+  - Prompt count: 45+ → 55 (verified: `find prompts -name "*.txt"`)
+  - Token reduction: 93% → 96% (verified in `NormalFilteringStrategy` docstring)
+- **Consistent agent count across all surfaces** — Updated FAQ, meta descriptions, `llms.txt`, landing stats, `WebSiteJsonLd`, and all blog references from "18+" to "15" across all 6 languages.
+- **Scheduler ×4 duplicate execution** — All 4 uvicorn workers were running independent APScheduler instances, causing every job to execute 4× per interval. Root cause: `--workers 4` in `Dockerfile.prod` with no leader coordination. Fixed with Redis leader election (root cause) + `SchedulerLock` on 5 previously unprotected jobs as safety net: `token_refresh`, `currency_sync`, `memory_cleanup`, `interest_cleanup`, `unverified_account_cleanup`. (`src/main.py`, `src/infrastructure/scheduler/*.py`, `src/core/constants.py`)
+- **Tempo OTLP export failures (4 months of silent errors)** — API spammed `Failed to export traces to tempo:4317, StatusCode.UNAVAILABLE` continuously since Tempo was never deployed in prod. Two sub-bugs: (1) Tempo service absent from `docker-compose.prod.yml` despite full config existing, (2) `OTLPSpanExporter(insecure=not settings.is_production)` forced TLS for Docker-internal gRPC — changed to `insecure=True`. (`tracing.py`, `docker-compose.prod.yml`)
+- **Background task timeout (memory/interest/journal extraction)** — Post-response LLM extraction tasks (memory, interests, journals) were silently abandoned after 5s timeout. On RPi5 with network latency, LLM calls routinely exceed 5s. Increased `await_run_id_tasks` timeout from 5s to 15s. (`src/infrastructure/async_utils.py`, `src/domains/agents/api/service.py`)
+- **Weather hourly forecast `save_details_missing_primary_id`** — Context registry for weather uses `primary_id_field="date"`, but hourly forecast payload lacked a `date` field (only daily/current had it). Added `date` field to hourly forecast registry item. (`weather_tools.py`)
+- **Qwen `extra_body` LangChain warning** — `extra_body` (for Qwen thinking mode) was nested inside `model_kwargs` dict, triggering LangChain `UserWarning: Parameters {'extra_body'} should be specified explicitly`. Moved to direct kwarg of `init_chat_model`. (`adapter.py`)
+
 ## [1.7.1] - 2026-03-20
 
 ### Fixed
@@ -429,7 +475,8 @@ First public open-source release of LIA.
 - Circuit breaker, rate limiting, and distributed locks
 - SOPS/Age encryption for secrets management
 
-[Unreleased]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.7.1...HEAD
+[Unreleased]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.7.2...HEAD
+[1.7.2]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.7.1...v1.7.2
 [1.7.1]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.7.0...v1.7.1
 [1.7.0]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.6.1...v1.7.0
 [1.6.1]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.6.0...v1.6.1

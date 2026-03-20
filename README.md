@@ -35,7 +35,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.7.1</strong> — Constants Centralization, Hardcoded Defaults Audit & Security Fixes — March 2026
+  <strong>Version 1.7.2</strong> — Technical Blog, SEO & GEO Optimization, Factual Accuracy Audit — March 2026
 </p>
 
 ---

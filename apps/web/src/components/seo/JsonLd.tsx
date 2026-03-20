@@ -23,7 +23,7 @@ export function WebSiteJsonLd() {
     alternateName: 'LIA — Intelligent Personal AI Assistant',
     url: BASE_URL,
     description:
-      'LIA orchestrates 18+ specialized AI agents to manage your emails, calendar, contacts, and more. Human validation at every step, privacy by design.',
+      'LIA orchestrates 15 specialized AI agents to manage your emails, calendar, contacts, and more. Human validation at every step, privacy by design.',
     inLanguage: languages.map(lng => LOCALE_MAP[lng]),
     potentialAction: {
       '@type': 'ReadAction',
@@ -113,7 +113,7 @@ export function SoftwareApplicationJsonLd({
       'Extensible via MCP protocol',
     ],
     screenshot: `${BASE_URL}/Title.png`,
-    softwareVersion: '1.7.1',
+    softwareVersion: '1.7.2',
     inLanguage: LOCALE_MAP[lng],
     image: `${BASE_URL}/Title.png`,
   };
@@ -147,6 +147,105 @@ export function FAQPageJsonLd({ questions }: FAQPageJsonLdProps) {
           .replace(/<[^>]*>/g, ' ')
           .replace(/\s+/g, ' ')
           .trim(),
+      },
+    })),
+  };
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  );
+}
+
+interface BreadcrumbJsonLdProps {
+  items: Array<{ name: string; url: string }>;
+}
+
+/**
+ * BreadcrumbList schema — navigation breadcrumb for rich snippets.
+ * Helps search engines understand page hierarchy.
+ */
+export function BreadcrumbJsonLd({ items }: BreadcrumbJsonLdProps) {
+  const schema = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: items.map((item, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      name: item.name,
+      item: item.url,
+    })),
+  };
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  );
+}
+
+interface HowToJsonLdProps {
+  name: string;
+  description: string;
+  steps: Array<{ name: string; text: string }>;
+}
+
+/**
+ * HowTo schema — structured how-to data for rich snippets.
+ * Used on the landing page "How it works" section.
+ */
+export function HowToJsonLd({ name, description, steps }: HowToJsonLdProps) {
+  const schema = {
+    '@context': 'https://schema.org',
+    '@type': 'HowTo',
+    name,
+    description,
+    step: steps.map((step, index) => ({
+      '@type': 'HowToStep',
+      position: index + 1,
+      name: step.name,
+      text: step.text,
+    })),
+  };
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+    />
+  );
+}
+
+interface BlogListJsonLdProps {
+  lng: Language;
+  title: string;
+  description: string;
+  articles: Array<{ title: string; url: string; date: string; excerpt: string }>;
+}
+
+/**
+ * Blog schema — structured data for blog listing page.
+ */
+export function BlogListJsonLd({ lng, title, description, articles }: BlogListJsonLdProps) {
+  const schema = {
+    '@context': 'https://schema.org',
+    '@type': 'Blog',
+    name: title,
+    description,
+    url: `${buildLangUrl(lng)}/blog`,
+    inLanguage: LOCALE_MAP[lng],
+    blogPost: articles.map(article => ({
+      '@type': 'BlogPosting',
+      headline: article.title,
+      description: article.excerpt,
+      datePublished: article.date,
+      url: article.url,
+      author: {
+        '@type': 'Organization',
+        name: 'LIA',
       },
     })),
   };

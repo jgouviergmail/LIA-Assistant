@@ -41,9 +41,11 @@ def configure_tracing(app: FastAPI) -> None:
         tracer_provider = TracerProvider(resource=resource)
 
         # Create OTLP exporter
+        # Always insecure for Docker-internal communication (tempo:4317 has no TLS).
+        # For external OTLP endpoints with TLS, set OTEL_EXPORTER_OTLP_ENDPOINT to https://...
         otlp_exporter = OTLPSpanExporter(
             endpoint=settings.otel_exporter_otlp_endpoint,
-            insecure=not settings.is_production,  # Use insecure in dev
+            insecure=True,
         )
 
         # Add span processor
