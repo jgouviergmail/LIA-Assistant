@@ -2,23 +2,23 @@
 
 > Carte complète de toute la documentation du projet LIA - Assistant IA multi-agent avec LangGraph
 
-**Version**: 6.2
-**Dernière mise à jour**: 2026-03-03
-**Statut**: Complète (180+ documents)
+**Version**: 6.3
+**Dernière mise à jour**: 2026-03-20
+**Statut**: Complète (190+ documents)
 
 ---
 
 ## Vue d'Ensemble
 
-Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA conversationnel multi-agent basé sur **LangGraph 1.0.10**, **FastAPI 0.135.1**, et **Next.js 16**.
+Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA conversationnel multi-agent basé sur **LangGraph 1.1.2**, **FastAPI 0.135.1**, et **Next.js 16**.
 
 | Métrique | Valeur |
 |----------|--------|
-| Documents totaux | 180+ |
-| Documents techniques | 47+ |
+| Documents totaux | 190+ |
+| Documents techniques | 50+ |
 | Guides pratiques | 15+ |
 | Runbooks | 34+ |
-| ADRs | 55+ |
+| ADRs | 59 |
 | Skills Claude | 10 |
 
 ---
@@ -42,7 +42,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Architecture globale |
 | [GRAPH_AND_AGENTS_ARCHITECTURE.md](./technical/GRAPH_AND_AGENTS_ARCHITECTURE.md) | Système multi-agents LangGraph |
 | [STATE_AND_CHECKPOINT.md](./technical/STATE_AND_CHECKPOINT.md) | State management et persistence |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (55+) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (59) |
 
 ### Pour les Product Managers
 
@@ -148,7 +148,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [SCHEDULED_ACTIONS.md](./technical/SCHEDULED_ACTIONS.md) | Actions planifiées récurrentes | ✅ |
 | [SUB_AGENTS.md](./technical/SUB_AGENTS.md) | Persistent specialized sub-agents (F6) | ✅ |
 | [HYBRID_SEARCH.md](./technical/HYBRID_SEARCH.md) | Recherche hybride BM25 + sémantique | ✅ |
-| [evolution_INTEGRATION_ROADMAP.md](./technical/evolution_INTEGRATION_ROADMAP.md) | Roadmap intégration evolution (6 features) | 🚧 |
+| [JOURNALS.md](./technical/JOURNALS.md) | Personal Journals — carnets de bord introspectifs, injection sémantique | ✅ |
 
 ### Human-in-the-Loop (HITL)
 
@@ -211,7 +211,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [GUIDE_HEARTBEAT_PROACTIVE_NOTIFICATIONS.md](./guides/GUIDE_HEARTBEAT_PROACTIVE_NOTIFICATIONS.md) | Guide pratique Heartbeat (ProactiveTask, ContextAggregator) | ✅ |
 | [GUIDE_SCHEDULED_ACTIONS.md](./guides/GUIDE_SCHEDULED_ACTIONS.md) | Guide pratique Actions Planifiees (recurrentes, timezone, retry) | ✅ |
 | [GUIDE_RAG_SPACES.md](./guides/GUIDE_RAG_SPACES.md) | Guide RAG Spaces (espaces de connaissances, upload, hybrid search) | ✅ |
-| [docs/knowledge/](./knowledge/) | System Knowledge: FAQ Markdown files for system RAG indexation (16 files, 119 Q/A) | ✅ |
+| [docs/knowledge/](./knowledge/) | System Knowledge: FAQ Markdown files for system RAG indexation (17 files, 119+ Q/A) | ✅ |
 
 ### Operations
 
@@ -236,12 +236,16 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Description | Statut |
 |-----|-------------|--------|
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des 55+ ADRs | ✅ |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des 59 ADRs | ✅ |
 
 ### ADRs Récents (2026)
 
 | ADR | Titre | Date |
 |-----|-------|------|
+| ADR-059 | Browser Control Architecture (Playwright) | 2026-03 |
+| ADR-058 | System RAG Spaces for App Self-Knowledge | 2026-03 |
+| ADR-057 | Personal Journals (Carnets de Bord) | 2026-03 |
+| ADR-056 | RAG Spaces — Google Drive Folder Sync | 2026-03 |
 | ADR-055 | RAG Spaces Architecture | 2026-03 |
 | ADR-054 | Voice Input Architecture | 2026-01 |
 | ADR-053 | Interest Learning System | 2026-01 |
@@ -346,6 +350,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [README_SCRIPTS.md](./readme/README_SCRIPTS.md) | Documentation scripts |
 | [README_TESTS.md](./readme/README_TESTS.md) | Guide tests global |
 | [README_TESTS_AGENTS.md](./readme/README_TESTS_AGENTS.md) | Tests agents |
+| [README_TESTS_AGENT_MIXINS.md](./readme/README_TESTS_AGENT_MIXINS.md) | Tests agent mixins |
 | [README_WORKFLOW.md](./readme/README_WORKFLOW.md) | Workflow développement |
 | [README_BENCHMARK.md](./readme/README_BENCHMARK.md) | Benchmarks performance |
 | [README_REMINDERS.md](./readme/README_REMINDERS.md) | Système de rappels |
@@ -360,14 +365,14 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 |-------------|---------|-------|
 | Python | ≥3.12 | Runtime |
 | FastAPI | 0.135.1 | Framework API |
-| LangGraph | 1.0.10 | Orchestration multi-agents |
-| langchain-core | 1.2.17 | Core abstractions |
-| SQLAlchemy | 2.0.45 | ORM async |
+| LangGraph | 1.1.2 | Orchestration multi-agents |
+| langchain-core | 1.2.19 | Core abstractions |
+| SQLAlchemy | 2.0.48 | ORM async |
 | PostgreSQL | 16 + pgvector | Database + vector search |
-| Redis | 7.1.0 | Cache, sessions, rate limiting |
+| Redis | 7.3.0 | Cache, sessions, rate limiting |
 | Pydantic | 2.12.5 | Validation données |
 | sentence-transformers | 5.0+ | Local E5 embeddings |
-| Langfuse | 3.11.2 | LLM tracing |
+| Langfuse | 3.14.5 | LLM tracing |
 | Edge TTS | 6.1+ | Synthèse vocale (gratuit) |
 
 ### Frontend (apps/web/)
@@ -375,9 +380,9 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Technologie | Version | Usage |
 |-------------|---------|-------|
 | Next.js | 16.1.7 | Framework React |
-| React | 19.2.3 | UI Library |
+| React | 19.2.4 | UI Library |
 | TypeScript | 5.9.3 | Typage |
-| Tailwind CSS | 4.1.18 | Styling |
+| Tailwind CSS | 4.2.1 | Styling |
 | Radix UI | v2 | Composants UI |
 | TanStack Query | 5.90 | State management |
 | react-i18next | 16.5 | Internationalisation |
@@ -425,9 +430,9 @@ LIA/
 │       │   └── lib/            # API client, utils
 │       └── locales/            # Traductions i18n (6 langues)
 ├── docs/                       # Documentation (ce répertoire)
-│   ├── technical/              # Docs techniques détaillées (45+)
+│   ├── technical/              # Docs techniques détaillées (50+)
 │   ├── guides/                 # Guides pratiques (15+)
-│   ├── architecture/           # ADRs (55+)
+│   ├── architecture/           # ADRs (59)
 │   ├── runbooks/               # Procédures opérationnelles (34+)
 │   └── readme/                 # README spécialisés (15+)
 ├── infrastructure/             # Docker, observabilité

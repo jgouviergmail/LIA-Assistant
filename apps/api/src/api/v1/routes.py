@@ -72,6 +72,10 @@ if getattr(settings, "rag_spaces_enabled", False):
     from src.domains.rag_spaces.router import router as rag_spaces_router
 
     api_router.include_router(rag_spaces_router)
+if getattr(settings, "journals_enabled", False):
+    from src.domains.journals.router import router as journals_router
+
+    api_router.include_router(journals_router)
 api_router.include_router(voice_router)
 api_router.include_router(system_settings_public_router)
 
@@ -155,6 +159,7 @@ async def get_client_config() -> dict:
             "rag_spaces_embedding_model": getattr(
                 settings, "rag_spaces_embedding_model", "text-embedding-3-small"
             ),
+            "journals_enabled": getattr(settings, "journals_enabled", False),
         },
         "api_version": constants.API_VERSION,  # PHASE 2.1: Use constant instead of hardcoded value
     }

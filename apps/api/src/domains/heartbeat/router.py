@@ -93,6 +93,10 @@ async def _compute_available_sources(
     if user.memory_enabled:
         sources.append("memories")
 
+    # Journals: journals_enabled
+    if getattr(user, "journals_enabled", False):
+        sources.append("journals")
+
     return sources
 
 

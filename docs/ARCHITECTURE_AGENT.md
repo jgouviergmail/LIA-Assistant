@@ -1,7 +1,7 @@
 # Architecture des Agents - Guide d'Intégration
 
-> **Version**: 1.2.0 (INTELLIPLANNER + Architecture v3)
-> **Dernière mise à jour**: 2026-01-12
+> **Version**: 1.3.0 (INTELLIPLANNER + Architecture v3.5 + Sub-Agents + Browser Control + Journals)
+> **Dernière mise à jour**: 2026-03-20
 > **Auteur**: Documentation générée à partir de l'implémentation réelle
 
 Ce document est le guide de référence exhaustif pour l'ajout d'un nouveau connecteur, d'un nouvel agent ou d'un nouveau tool dans LIA. Il est basé sur l'architecture réelle du système et les patterns établis.

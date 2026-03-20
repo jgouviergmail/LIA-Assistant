@@ -15,6 +15,7 @@ from fastapi.responses import StreamingResponse
 from starlette.requests import ClientDisconnect
 
 from src.core.config import settings
+from src.core.constants import HITL_RATE_LIMIT_REQUESTS, HITL_RATE_LIMIT_WINDOW_SECONDS
 from src.core.exceptions import raise_user_id_mismatch
 from src.core.field_names import (
     FIELD_ACTION_REQUESTS,
@@ -422,15 +423,15 @@ async def stream_chat(
                     request_count = await redis.incr(rate_key)
 
                     if request_count == 1:
-                        # First request in window → set TTL (60 seconds)
-                        await redis.expire(rate_key, 60)
-                    elif request_count > 10:
+                        # First request in window → set TTL
+                        await redis.expire(rate_key, HITL_RATE_LIMIT_WINDOW_SECONDS)
+                    elif request_count > HITL_RATE_LIMIT_REQUESTS:
                         # Exceeded rate limit
                         logger.warning(
                             "hitl_rate_limit_exceeded",
                             user_id=str(current_user.id),
                             request_count=request_count,
-                            window_seconds=60,
+                            window_seconds=HITL_RATE_LIMIT_WINDOW_SECONDS,
                             conversation_id=conversation_id,
                         )
 
@@ -449,11 +450,11 @@ async def stream_chat(
                             detail={
                                 "error": "rate_limit_exceeded",
                                 "message": APIMessages.hitl_rate_limit_exceeded(),
-                                "retry_after": 60,
-                                "limit": 10,
-                                "window_seconds": 60,
+                                "retry_after": HITL_RATE_LIMIT_WINDOW_SECONDS,
+                                "limit": HITL_RATE_LIMIT_REQUESTS,
+                                "window_seconds": HITL_RATE_LIMIT_WINDOW_SECONDS,
                             },
-                            headers={"Retry-After": "60"},
+                            headers={"Retry-After": str(HITL_RATE_LIMIT_WINDOW_SECONDS)},
                         )
                     # Route to HITL response handler
                     # NOTE: conversation_id already retrieved at start of event_generator
@@ -487,6 +488,7 @@ async def stream_chat(
                         original_run_id=original_run_id,  # Reuse for token aggregation
                         browser_context=request.context,  # Pass browser context (geolocation, etc.)
                         user_memory_enabled=getattr(current_user, "memory_enabled", True),
+                        user_journals_enabled=getattr(current_user, "journals_enabled", False),
                         attachment_ids=request.attachment_ids,
                     ):
                         # E2E metrics: Extract metadata from chunks (PHASE 1.2)
@@ -536,6 +538,7 @@ async def stream_chat(
                     user_language=user_language,
                     browser_context=request.context,  # Pass browser context (geolocation, etc.)
                     user_memory_enabled=getattr(current_user, "memory_enabled", True),
+                    user_journals_enabled=getattr(current_user, "journals_enabled", False),
                     attachment_ids=request.attachment_ids,
                 ):
                     # E2E metrics: Extract metadata from chunks (PHASE 1.2)

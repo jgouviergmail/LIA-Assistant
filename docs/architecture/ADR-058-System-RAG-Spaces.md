@@ -6,7 +6,7 @@
 
 ## Context
 
-LIA has a comprehensive FAQ (119 Q&A across 16 sections) displayed in a dedicated page, but the AI assistant cannot answer questions about itself. Users asking "What can you do?" or "How do I connect my calendar?" get generic responses instead of accurate, FAQ-sourced answers.
+LIA has a comprehensive FAQ (119+ Q&A across 17 sections) displayed in a dedicated page, but the AI assistant cannot answer questions about itself. Users asking "What can you do?" or "How do I connect my calendar?" get generic responses instead of accurate, FAQ-sourced answers.
 
 ## Decision
 

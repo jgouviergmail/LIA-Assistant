@@ -11,41 +11,11 @@ from src.core.config import settings
 
 # CRITICAL: Import ALL domain models so they are registered in Base.metadata
 # Without these imports, Alembic's autogenerate will miss tables and migrations may fail
-# noqa: F401 tells linters these imports ARE used (via SQLAlchemy metadata registration)
-from src.domains.auth.models import User as AuthUser  # noqa: F401
-from src.domains.chat.models import (  # noqa: F401
-    MessageTokenSummary,
-    TokenUsageLog,
-    UserStatistics,
-)
-from src.domains.connectors.models import (  # noqa: F401
-    Connector,
-    ConnectorGlobalConfig,
-)
-from src.domains.conversations.models import (  # noqa: F401
-    Conversation,
-    ConversationAuditLog,
-    ConversationMessage,
-)
-from src.domains.llm.models import (  # noqa: F401
-    CurrencyExchangeRate,
-    LLMModelPricing,
-)
-from src.domains.reminders.models import Reminder  # noqa: F401
-from src.domains.notifications.models import UserFCMToken  # noqa: F401
-from src.domains.personalities.models import (  # noqa: F401
-    Personality,
-    PersonalityTranslation,
-)
-from src.domains.scheduled_actions.models import ScheduledAction  # noqa: F401
-from src.domains.system_settings.models import SystemSetting  # noqa: F401
-from src.domains.channels.models import UserChannelBinding  # noqa: F401
-from src.domains.llm_config.models import LLMConfigOverride, ProviderApiKey  # noqa: F401
-from src.domains.user_mcp.models import UserMCPServer  # noqa: F401
-from src.domains.users.models import AdminAuditLog, User  # noqa: F401
-
-# Import all models to ensure they're registered with SQLAlchemy metadata
+# Uses the centralized registry as single source of truth (DRY)
 from src.infrastructure.database.models import Base
+from src.infrastructure.database.registry import import_all_models
+
+import_all_models()
 
 # this is the Alembic Config object
 config = context.config

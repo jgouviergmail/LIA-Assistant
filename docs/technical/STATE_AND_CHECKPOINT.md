@@ -29,7 +29,7 @@
 
 ### Objectif
 
-Le state management dans LIA repose sur **LangGraph 1.0.10** avec un schema `MessagesState` personnalise et un systeme de **PostgreSQL checkpointing** pour la persistence.
+Le state management dans LIA repose sur **LangGraph 1.1.2** avec un schema `MessagesState` personnalise et un systeme de **PostgreSQL checkpointing** pour la persistence.
 
 Ce système permet:
 - **Conversations multi-tours** avec historique persistant

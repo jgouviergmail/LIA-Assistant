@@ -9,6 +9,7 @@ Created: 2025-11-20
 Refactored: Monolithic config.py (1782 lines) → 7 domain modules
 """
 
+import os
 from enum import Enum
 from functools import lru_cache
 from typing import Any
@@ -30,6 +31,7 @@ from .browser import BrowserSettings
 from .channels import ChannelsSettings
 from .connectors import ConnectorsSettings
 from .database import DatabaseSettings
+from .journals import JournalsSettings
 from .llm import (
     DEFAULT_CONTEXT_WINDOW,
     MODEL_CONTEXT_WINDOWS,
@@ -85,6 +87,7 @@ class Settings(
     RAGSpacesSettings,
     SkillsSettings,
     BrowserSettings,
+    JournalsSettings,
     BaseSettings,
 ):
     """
@@ -108,7 +111,8 @@ class Settings(
         13. RAGSpacesSettings (user knowledge spaces: upload, embed, retrieve)
         14. SkillsSettings (Agent Skills: agentskills.io standard)
         15. BrowserSettings (Browser automation: Playwright/Chromium)
-        16. BaseSettings (Pydantic base class)
+        16. JournalsSettings (Personal Journals: assistant logbooks)
+        17. BaseSettings (Pydantic base class)
 
     All settings can be overridden via .env file or environment variables.
     """
@@ -170,7 +174,7 @@ class Settings(
 
     @field_validator("session_cookie_secure", mode="before")
     @classmethod
-    def auto_secure_in_production(cls, v: Any, values: Any) -> bool:
+    def auto_secure_in_production(cls, v: Any) -> bool:
         """
         Auto-enable secure cookies in production if not explicitly set.
 
@@ -193,8 +197,6 @@ class Settings(
         # Auto-configure based on environment
         # Note: We can't access self.environment here in mode="before"
         # So we check the environment directly from the context
-        import os
-
         environment = os.getenv("ENVIRONMENT", "development").lower()
 
         if environment in ("production", "prod"):
@@ -343,4 +345,5 @@ __all__ = [
     "SkillsSettings",
     "RAGSpacesSettings",
     "BrowserSettings",
+    "JournalsSettings",
 ]

@@ -35,7 +35,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.6.1</strong> — System Knowledge Spaces (App Self-Knowledge), Browser Control, Qwen Provider — March 2026
+  <strong>Version 1.7.0</strong> — Personal Journals (Carnets de Bord), Assistant Introspection & Evolving Personality — March 2026
 </p>
 
 ---
@@ -148,7 +148,7 @@ LIA is available as a hosted service at **https://lia.jeyswork.com/** — no ins
 
 ## Features
 
-### Multi-Agent Intelligence (LangGraph 1.0)
+### Multi-Agent Intelligence (LangGraph 1.x)
 
 - **18+ Specialized Agents**: Contacts, Emails, Calendar, Drive, Tasks, Reminders, Places, Routes, Weather, Wikipedia, Perplexity, Brave, Web Search, Web Fetch, Browser Control, Context, Query + dynamic MCP agents
 - **MCP (Model Context Protocol)**: Per-user external tool servers with OAuth 2.1, SSRF protection, structured items parsing, MCP Apps (interactive iframe widgets), Excalidraw Iterative Builder
@@ -317,10 +317,22 @@ ExecutionStep(
 - **Hybrid search**: Semantic similarity (pgvector cosine) + BM25 keyword matching with configurable alpha fusion
 - **Response enrichment**: RAG context automatically injected into assistant responses when active spaces exist
 - **Full cost transparency**: Embedding costs tracked per document and per query, visible in chat bubbles and dashboard
-- **System knowledge spaces**: Built-in FAQ knowledge base (119 Q/A across 16 sections) indexed from Markdown files (`docs/knowledge/`). `is_app_help_query` detection by QueryAnalyzer, RoutingDecider Rule 0 override, App Identity Prompt injection with lazy loading (zero overhead on normal queries). Auto-indexed at startup with SHA-256 hash-based staleness. Admin UI for reindex and staleness monitoring. [ADR-058](./docs/architecture/ADR-058-System-RAG-Spaces.md)
+- **System knowledge spaces**: Built-in FAQ knowledge base (119+ Q/A across 17 sections) indexed from Markdown files (`docs/knowledge/`). `is_app_help_query` detection by QueryAnalyzer, RoutingDecider Rule 0 override, App Identity Prompt injection with lazy loading (zero overhead on normal queries). Auto-indexed at startup with SHA-256 hash-based staleness. Admin UI for reindex and staleness monitoring. [ADR-058](./docs/architecture/ADR-058-System-RAG-Spaces.md)
 - **Admin reindexation**: Full reindex when embedding model changes, with Redis mutual exclusion and automatic dimension ALTER. System spaces have independent reindex via admin API
 - **Observability**: 17 Prometheus metrics (14 user + 3 system), dedicated Grafana dashboard
 - **Feature flags**: `RAG_SPACES_ENABLED=true` (user spaces), `RAG_SPACES_SYSTEM_ENABLED=true` (system FAQ spaces)
+
+### Personal Journals (Carnets de Bord)
+
+- **Introspective notebooks**: The assistant maintains thematic journals (self-reflection, user observations, ideas & analyses, learnings) written in first person, colored by its active personality
+- **Dual trigger**: Post-conversation extraction (fire-and-forget) + periodic consolidation (APScheduler). The assistant decides freely what to write
+- **Semantic context injection**: Journal entries injected into both response AND planner prompts via E5-small embedding similarity search with configurable minimum score prefiltering (`JOURNAL_CONTEXT_MIN_SCORE`). Results include scores — the LLM decides relevance autonomously
+- **Prompt-driven lifecycle**: The assistant manages its own journals — no hardcoded auto-archival. Size constraints guide cleanup via prompt engineering
+- **Heartbeat integration**: Journal entries enrich proactive notifications via dynamic second-pass query built from aggregated context (calendar, weather, emails). Toggleable source badge in heartbeat settings
+- **Full user control**: Enable/disable (data preserved), consolidation toggle, conversation history analysis (with cost warning), 4 configurable numeric settings, full CRUD in Settings
+- **Debug panel**: Dedicated "Personal Journals" section showing injection metrics, per-entry scores with visual bars, and budget indicators
+- **Cost transparency**: Real token costs tracked via TrackingContext, visible in Settings and dashboard
+- **Feature flags**: `JOURNALS_ENABLED=false` (system), user-level toggle in Settings > Features. [ADR-057](./docs/architecture/ADR-057-Personal-Journals.md)
 
 ### MCP Apps — Interactive Widgets
 
@@ -506,7 +518,7 @@ Production targets include Raspberry Pi (ARM64) via multi-arch Docker builds (`l
 └─────────────────────────────┬───────────────────────────────────────────┘
                               │ HTTP-only cookies (session_id, 24h TTL)
 ┌─────────────────────────────┴───────────────────────────────────────────┐
-│                     BACKEND (FastAPI + LangGraph 1.0)                    │
+│                     BACKEND (FastAPI + LangGraph 1.x)                    │
 │                                                                          │
 │  ┌────────────────────────────────────────────────────────────────────┐ │
 │  │                 LangGraph Multi-Agent Orchestration                 │ │
@@ -585,11 +597,13 @@ apps/api/src/
 │   ├── channels/            # Multi-channel messaging (Telegram)
 │   ├── reminders/           # Reminder & notification scheduling
 │   ├── scheduled_actions/   # Recurring scheduled actions
+│   ├── journals/            # Personal Journals (introspective notebooks)
 │   └── users/               # User management
 └── infrastructure/          # Cross-cutting concerns
     ├── cache/               # Redis sessions, LLM cache
     ├── llm/                 # Factory, providers, embeddings
     ├── mcp/                 # MCP client pool, auth, security, tool adapters
+    ├── browser/             # Playwright session pool, CDP accessibility
     ├── rate_limiting/       # Distributed rate limiter
     └── observability/       # Metrics, logging, tracing
 ```
@@ -606,10 +620,10 @@ apps/api/src/
 | FastAPI | 0.135.1 | REST API + SSE framework |
 | LangGraph | 1.1.2 | Multi-agent orchestration |
 | LangChain | 1.2.12 | LLM abstraction + tools |
-| SQLAlchemy | 2.0.45 | Async ORM |
+| SQLAlchemy | 2.0.48 | Async ORM |
 | Alembic | latest | Database migrations |
 | PostgreSQL | 16 + pgvector | Database + vector search |
-| Redis | 7.1.0 | Cache, sessions, rate limiting |
+| Redis | 7.3.0 | Cache, sessions, rate limiting |
 | Pydantic | 2.12.5 | Validation + serialization |
 | structlog | latest | Structured JSON logging |
 | sentence-transformers | 5.0+ | Local E5 embeddings |
@@ -623,9 +637,9 @@ apps/api/src/
 |------------|---------|------|
 | Node.js | 22 LTS | JavaScript runtime |
 | Next.js | 16.1.7 | React framework |
-| React | 19.2.3 | UI library |
+| React | 19.2.4 | UI library |
 | TypeScript | 5.9.3 | Type safety |
-| TailwindCSS | 4.1.18 | Styling |
+| TailwindCSS | 4.2.1 | Styling |
 | TanStack Query | 5.90.16 | Server state management |
 | react-i18next | 16.5.1 | i18n (6 languages) |
 | Radix UI | latest | Accessible UI primitives |
@@ -665,7 +679,7 @@ apps/api/src/
 |----------|-------------|
 | [GETTING_STARTED.md](./docs/GETTING_STARTED.md) | Detailed installation guide |
 | [ARCHITECTURE.md](./docs/ARCHITECTURE.md) | Complete system architecture |
-| [INDEX.md](./docs/INDEX.md) | Full documentation map (180+ docs) |
+| [INDEX.md](./docs/INDEX.md) | Full documentation map (190+ docs) |
 
 ### Technical Documentation
 
@@ -680,8 +694,10 @@ apps/api/src/
 | **Channels** | [CHANNELS_INTEGRATION](./docs/technical/CHANNELS_INTEGRATION.md) • [GUIDE_TELEGRAM](./docs/guides/GUIDE_TELEGRAM_INTEGRATION.md) |
 | **Scheduled Actions** | [SCHEDULED_ACTIONS](./docs/technical/SCHEDULED_ACTIONS.md) • [GUIDE_SCHEDULED_ACTIONS](./docs/guides/GUIDE_SCHEDULED_ACTIONS.md) |
 | **Skills** | [SKILLS_INTEGRATION](./docs/technical/SKILLS_INTEGRATION.md) |
+| **Sub-Agents** | [SUB_AGENTS](./docs/technical/SUB_AGENTS.md) |
 | **RAG Spaces** | [GUIDE_RAG_SPACES](./docs/guides/GUIDE_RAG_SPACES.md) • [ADR-055](./docs/architecture/ADR-055-RAG-Spaces-Architecture.md) • [ADR-058](./docs/architecture/ADR-058-System-RAG-Spaces.md) |
-| **Browser Control** | [BROWSER_CONTROL](./docs/technical/BROWSER_CONTROL.md) • [ADR-057](./docs/architecture/ADR-057-Browser-Control.md) |
+| **Browser Control** | [BROWSER_CONTROL](./docs/technical/BROWSER_CONTROL.md) • [ADR-059](./docs/architecture/ADR-059-Browser-Control.md) |
+| **Personal Journals** | [JOURNALS](./docs/technical/JOURNALS.md) • [ADR-057](./docs/architecture/ADR-057-Personal-Journals.md) |
 | **LLM Providers** | [LLM_PROVIDERS](./docs/technical/LLM_PROVIDERS.md) |
 | **CI/CD** | [CI_CD](./docs/technical/CI_CD.md) |
 | **Security** | [SECURITY](./docs/technical/SECURITY.md) • [OAUTH](./docs/technical/OAUTH.md) • [RATE_LIMITING](./docs/technical/RATE_LIMITING.md) |
@@ -700,7 +716,7 @@ apps/api/src/
 
 ### Architecture Decision Records (ADR)
 
-56+ ADRs documenting major architectural decisions:
+59 ADRs documenting major architectural decisions:
 
 - [ADR-007: Service Layer Pattern for Node Complexity](./docs/architecture/ADR-007-Service-Layer-Pattern-For-Node-Complexity.md)
 - [ADR-048: Semantic Tool Router](./docs/architecture/ADR-048-Semantic-Tool-Router.md)

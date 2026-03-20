@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Heartbeat Autonome (Feature F5 from evolution_INTEGRATION_ROADMAP) enables the LLM to proactively contact users with relevant information — without waiting for a user request. It aggregates multiple context sources (calendar, weather, tasks, emails, interests, memories) and lets the LLM decide whether there's something genuinely useful to communicate.
+The Heartbeat Autonome (Feature F5 from evolution_INTEGRATION_ROADMAP) enables the LLM to proactively contact users with relevant information — without waiting for a user request. It aggregates multiple context sources (calendar, weather, tasks, emails, interests, memories, personal journals) and lets the LLM decide whether there's something genuinely useful to communicate.
 
 **User-facing name**: "Proactive notifications" (in UI and push notifications).
 
@@ -91,6 +91,7 @@ The `ContextAggregator` fetches all sources in parallel via `asyncio.gather(retu
 | Emails | Gmail / Apple Email / Microsoft Outlook | Active connector | None |
 | Interests | InterestRepository | Active interests | None |
 | Memories | LangGraph Store | memory_enabled | None |
+| Journals | JournalEntryRepository (semantic search) | journals_enabled | None |
 | Activity | Last message query | Always available | None |
 | Recent heartbeats | HeartbeatNotification table | Always available | [] |
 | Recent interest notifications | InterestNotification JOIN | Always available | [] |

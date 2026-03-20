@@ -122,7 +122,7 @@ CORRECT output:
 2. **personal**: personal information directly related to the user or concerning them directly,
 3. **relationship**: all relationships and types of relationships of the user with other people or entities,
 4. **event**: important, significant, special, recurring, notable past or future events,
-5. **pattern**: recurring behaviors, habits, repetitive actions of the user,
+5. **pattern**: recurring behaviors, recurring events, habits, repetitive or recurring action,
 6. **sensitivity**: all types of negatively connoted information that are painful, difficult, or complicated for the user (deaths, disputes, illnesses, etc.).
 
 ## OUTPUT FORMAT for each discovery

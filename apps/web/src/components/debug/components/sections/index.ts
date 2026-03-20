@@ -37,5 +37,10 @@ export {
 export { MemoryInjectionSection, type MemoryInjectionSectionProps } from './MemoryInjectionSection';
 // RAG Injection (Knowledge Spaces)
 export { RAGInjectionSection, type RAGInjectionSectionProps } from './RAGInjectionSection';
+// Journal Injection (Personal Journals)
+export {
+  JournalInjectionSection,
+  type JournalInjectionSectionProps,
+} from './JournalInjectionSection';
 // Skills activation
 export { SkillsSection, type SkillsSectionProps } from './SkillsSection';

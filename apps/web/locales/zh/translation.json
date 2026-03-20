@@ -1309,7 +1309,9 @@
           "evaluator": "LLM-as-Judge 评估管道（相关性、幻觉检测）",
           "compaction": "总结旧对话历史以释放上下文窗口空间",
           "subagent": "通过专业子代理执行委派任务（研究、分析、综合）",
-          "browser_agent": "交互式网页浏览代理（导航、点击、填写表单）"
+          "browser_agent": "交互式网页浏览代理（导航、点击、填写表单）",
+          "journal_extraction": "从对话中提取日志条目（助手自省）",
+          "journal_consolidation": "定期审查和整合日志条目"
         },
         "no_compatible_model": "该提供商没有支持此功能的模型",
         "ollama": {
@@ -2854,8 +2856,22 @@
           },
           "q8": {
             "question": "我可以向助手询问它自身的功能吗？",
-            "answer": "可以！LIA 拥有<strong>内置知识库</strong>，可以在对话中直接回答关于自身的问题：<br><br><strong>🧠 工作原理：</strong><br>• LIA 会自动检测您何时询问有关应用的问题（\"<em>你能做什么？</em>\"、\"<em>如何连接我的日历？</em>\"）<br>• 它使用与用户空间相同的混合搜索来搜索其 FAQ 知识库（16 个部分中的 119 个问答）<br>• 一个描述所有功能的<strong>应用身份提示词</strong>会被注入到回复中<br><br><strong>⚡ 零开销：</strong><br>仅在您询问应用相关问题时才会激活。正常查询（邮件、日历等）完全不受影响。<br><br><strong>🔧 管理员功能：</strong><br>管理员可以在<strong>设置 > 管理 > RAG 空间</strong>中管理系统知识空间：<br>• 查看过期状态（内容哈希比较）<br>• 触发手动重新索引<br>• 系统空间在应用启动时自动索引"
+            "answer": "可以！LIA 拥有<strong>内置知识库</strong>，可以在对话中直接回答关于自身的问题：<br><br><strong>🧠 工作原理：</strong><br>• LIA 会自动检测您何时询问有关应用的问题（\"<em>你能做什么？</em>\"、\"<em>如何连接我的日历？</em>\"）<br>• 它使用与用户空间相同的混合搜索来搜索其 FAQ 知识库（17 个部分中的 119+ 个问答）<br>• 一个描述所有功能的<strong>应用身份提示词</strong>会被注入到回复中<br><br><strong>⚡ 零开销：</strong><br>仅在您询问应用相关问题时才会激活。正常查询（邮件、日历等）完全不受影响。<br><br><strong>🔧 管理员功能：</strong><br>管理员可以在<strong>设置 > 管理 > RAG 空间</strong>中管理系统知识空间：<br>• 查看过期状态（内容哈希比较）<br>• 触发手动重新索引<br>• 系统空间在应用启动时自动索引"
           }
+        }
+      },
+      "journals": {
+        "title": "个人日志",
+        "description": "助手的个人日志本，用于记录反思和学习",
+        "count": "7",
+        "questions": {
+          "q1": { "question": "什么是个人日志？", "answer": "<p>个人日志是主题笔记本，AI助手在其中记录自己的反思、观察、分析和学习。与用户记忆（关于您的事实）不同，日志包含<strong>助手自己的视角</strong>——以第一人称书写，受其活跃个性的影响。</p><p><strong>4个主题：</strong>自我反思、用户观察、想法与分析、学习心得。</p>" },
+          "q2": { "question": "助手什么时候写日志？", "answer": "<p><strong>两种机制：</strong></p><ul><li><strong>对话后：</strong>在对话结束后（4+条消息），助手可能会写一篇反思。大多数对话不会产生任何内容——它是有选择性的。</li><li><strong>定期整合：</strong>每隔几小时，助手会审查所有笔记——合并、总结或删除过时的条目。</li></ul>" },
+          "q3": { "question": "日志如何影响回答？", "answer": "<p>日志条目通过<strong>语义搜索</strong>注入到提示词中。两个不同的注入：<strong>回答提示词</strong>获取与对话语气匹配的条目，<strong>规划提示词</strong>获取与用户目标和学习相关的条目。助手决定哪些笔记是相关的。</p>" },
+          "q4": { "question": "我可以阅读和编辑助手的日志吗？", "answer": "<p>可以！在<strong>设置 > 功能 > 个人日志</strong>中，您可以阅读、编辑、删除甚至创建条目。您的添加是透明的——助手无法区分。这让您可以纠正偏见或引导助手。</p>" },
+          "q5": { "question": "我可以配置哪些设置？", "answer": "<p><strong>开关：</strong>启用/禁用日志、整合、对话历史分析（附费用警告）。</p><p><strong>数值设置：</strong>最大日志大小（默认40,000字符）、提示词注入预算（1,500字符）、最大条目大小（2,000字符）、最大搜索结果数（10）。</p>" },
+          "q6": { "question": "费用是多少？", "answer": "<p>日志操作使用后台LLM调用。提取：每次符合条件的对话一次调用（大多数返回空）。整合：每个用户每4-12小时一次调用。LLM模型可在<strong>管理 > LLM配置</strong>中配置。实际费用在设置中可见。</p>" },
+          "q7": { "question": "隐私方面如何？", "answer": "<p>日志数据按用户隔离。所有数据可导出（JSON/CSV）或删除（GDPR）。禁用时，数据被保留但不使用。助手使用您配置的语言书写。</p>" }
         }
       },
       "privacy": {
@@ -3502,6 +3518,7 @@
     "source_weather": "天气",
     "source_interests": "兴趣",
     "source_memories": "记忆",
+      "source_journals": "日志",
     "notification_hours": "通知时间段",
     "enabled_success": "主动通知已启用",
     "disabled_success": "主动通知已禁用",
@@ -3744,9 +3761,13 @@
         "title": "应用自知",
         "description": "LIA 可以通过内置的 FAQ 知识库回答关于自身的问题——询问功能、设置或工作原理。"
       },
+      "journals": {
+        "title": "个人日志",
+        "description": "助手通过内省笔记随时间发展自己的视角——反思、观察和学习，丰富其个性并提升回答质量。"
+      },
       "responsive": {
-        "title": "响应式设计",
-        "description": "完全优化的桌面、平板和手机界面——随时随地使用LIA"
+        "title": "PWA & 响应式设计",
+        "description": "可安装的渐进式Web应用，完全优化的桌面、平板和手机界面——随时随地使用LIA"
       }
     },
     "use_cases": {
@@ -3841,7 +3862,10 @@
         "orchestrator": "编排器",
         "agents": "代理",
         "response": "响应"
-      }
+      },
+      "diagram_title": "完整系统架构",
+      "diagram_zoom": "点击放大图表",
+      "diagram_alt": "LIA完整架构图 — 多智能体编排、可观测性和安全性"
     },
     "screenshots": {
       "title": "LIA 界面展示",
@@ -3856,6 +3880,12 @@
         "settings_administration_llm": "管理 — LLM配置：7个提供商，按节点选择模型",
         "faq": "常见问题 — 可搜索的分类帮助中心"
       }
+    },
+    "presentation": {
+      "title": "详细介绍",
+      "subtitle": "通过13张幻灯片了解LIA的架构、功能和理念",
+      "slide_alt": "LIA演示文稿第{{number}}页",
+      "slide_counter": "第{{current}}页，共{{total}}页"
     },
     "cta": {
       "title": "准备好试试LIA了吗？",
@@ -3902,5 +3932,66 @@
     "fill": "填写表单字段",
     "press_key": "按键",
     "screenshot": "截图"
+  },
+  "journals": {
+    "title": "个人日记",
+    "description": "助手的个人日志 — 反思、观察和学习",
+    "enable": "启用个人日记",
+    "consolidation": "定期整合",
+    "historyAnalysis": "分析对话历史",
+    "higherCost": "更高成本",
+    "sizeUsage": "空间使用",
+    "lastCost": "上次干预",
+    "create": "新条目",
+    "export": "导出",
+    "deleteAll": "全部删除",
+    "deleteAllTitle": "删除所有条目？",
+    "deleteAllDescription": "这将永久删除所有日记条目。此操作无法撤销。",
+    "deleteTitle": "删除条目？",
+    "deleteDescription": "此条目将被永久删除。",
+    "created": "条目已创建",
+    "updated": "条目已更新",
+    "deleted": "条目已删除",
+    "allDeleted": "所有条目已删除",
+    "createError": "创建条目失败",
+    "updateError": "更新条目失败",
+    "deleteError": "删除条目失败",
+    "deleteAllError": "删除所有条目失败",
+    "settingsUpdated": "设置已更新",
+    "settingsError": "更新设置失败",
+    "createTitle": "新日记条目",
+    "createDescription": "向助手的日记添加备注",
+    "editTitle": "编辑日记条目",
+    "theme": "主题",
+    "entryTitle": "标题",
+    "content": "内容",
+    "mood": "心情",
+    "empty": "暂无日记条目。助手将在对话后开始记录。",
+    "noEntries": "此主题下没有条目",
+    "themes": {
+      "self_reflection": "自我反思",
+      "user_observations": "用户观察",
+      "ideas_analyses": "想法与分析",
+      "learnings": "学习心得"
+    },
+    "moods": {
+      "reflective": "沉思的",
+      "curious": "好奇的",
+      "satisfied": "满意的",
+      "concerned": "担忧的",
+      "inspired": "受启发的"
+    },
+    "enableDescription": "助手将在对话后撰写反思笔记",
+    "consolidationDescription": "助手定期审查和整理其笔记",
+    "historyDescription": "整合也会分析最近的对话",
+    "maxTotalChars": "日志最大容量",
+    "maxTotalCharsDescription": "所有条目的最大总字符数。不能低于当前使用量。",
+    "contextMaxChars": "提示注入预算",
+    "contextMaxCharsDescription": "注入提示中用于上下文的最大字符数",
+    "maxEntryChars": "单条最大容量",
+    "maxEntryCharsDescription": "每个单独条目的最大字符数。不能低于当前最长条目。",
+    "contextMaxResults": "最大搜索结果",
+    "contextMaxResultsDescription": "语义搜索返回用于上下文注入的最大条目数",
+    "chars": "字符"
   }
 }

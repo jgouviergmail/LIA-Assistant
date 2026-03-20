@@ -2077,6 +2077,27 @@ class StreamingService:
             )
 
         # =================================================================
+        # Journal Injection: Journal entries with scores for debug panel
+        # =================================================================
+        try:
+            journal_debug = state.get("journal_injection_debug") if state else None
+            if journal_debug:
+                debug_metrics["journal_injection"] = journal_debug
+                logger.debug(
+                    "debug_metrics_journal_injection_added",
+                    run_id=run_id,
+                    entries_found=journal_debug.get("entries_found", 0),
+                    entries_injected=journal_debug.get("entries_injected", 0),
+                )
+        except (KeyError, TypeError, AttributeError) as journal_err:
+            logger.debug(
+                "debug_metrics_journal_injection_failed",
+                run_id=run_id,
+                error=str(journal_err),
+                error_type=type(journal_err).__name__,
+            )
+
+        # =================================================================
         # Skills: Skill activation details for debug panel
         # =================================================================
         try:

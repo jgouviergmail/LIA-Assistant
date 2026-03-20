@@ -1305,7 +1305,9 @@
           "evaluator": "Pipeline di valutazione LLM-as-Judge (pertinenza, allucinazione)",
           "compaction": "Riassume la cronologia delle conversazioni per liberare la finestra di contesto",
           "subagent": "Esegue compiti delegati tramite sub-agenti specializzati (ricerca, analisi, sintesi)",
-          "browser_agent": "Agente di navigazione web interattiva (navigare, cliccare, compilare moduli)"
+          "browser_agent": "Agente di navigazione web interattiva (navigare, cliccare, compilare moduli)",
+          "journal_extraction": "Estrae voci del diario dalle conversazioni (introspezione dell'assistente)",
+          "journal_consolidation": "Revisiona e consolida periodicamente le voci del diario"
         },
         "no_compatible_model": "Nessun modello di questo provider supporta questa funzionalità",
         "ollama": {
@@ -2861,8 +2863,22 @@
           },
           "q8": {
             "question": "Posso chiedere all'assistente informazioni sulle sue funzionalità?",
-            "answer": "Sì! LIA dispone di una <strong>base di conoscenze integrata</strong> che le consente di rispondere a domande su sé stessa direttamente nella conversazione:<br><br><strong>🧠 Come funziona:</strong><br>• LIA rileva automaticamente quando chiedi informazioni sull'applicazione (\"<em>Cosa puoi fare?</em>\", \"<em>Come collego il mio calendario?</em>\")<br>• Cerca nella sua base di conoscenze FAQ (119 domande e risposte in 16 sezioni) utilizzando la stessa ricerca ibrida degli spazi utente<br>• Un <strong>Prompt di identità dell'applicazione</strong> che descrive tutte le funzionalità viene iniettato nella risposta<br><br><strong>⚡ Nessun overhead:</strong><br>Questo si attiva solo quando chiedi informazioni sull'applicazione. Le query normali (email, calendario, ecc.) non vengono assolutamente influenzate.<br><br><strong>🔧 Funzionalità amministratore:</strong><br>Gli amministratori possono gestire gli spazi di conoscenza di sistema in <strong>Impostazioni > Amministrazione > Spazi RAG</strong>:<br>• Visualizzare lo stato di obsolescenza (confronto hash del contenuto)<br>• Avviare la reindicizzazione manuale<br>• Gli spazi di sistema vengono indicizzati automaticamente all'avvio dell'applicazione"
+            "answer": "Sì! LIA dispone di una <strong>base di conoscenze integrata</strong> che le consente di rispondere a domande su sé stessa direttamente nella conversazione:<br><br><strong>🧠 Come funziona:</strong><br>• LIA rileva automaticamente quando chiedi informazioni sull'applicazione (\"<em>Cosa puoi fare?</em>\", \"<em>Come collego il mio calendario?</em>\")<br>• Cerca nella sua base di conoscenze FAQ (119+ domande e risposte in 17 sezioni) utilizzando la stessa ricerca ibrida degli spazi utente<br>• Un <strong>Prompt di identità dell'applicazione</strong> che descrive tutte le funzionalità viene iniettato nella risposta<br><br><strong>⚡ Nessun overhead:</strong><br>Questo si attiva solo quando chiedi informazioni sull'applicazione. Le query normali (email, calendario, ecc.) non vengono assolutamente influenzate.<br><br><strong>🔧 Funzionalità amministratore:</strong><br>Gli amministratori possono gestire gli spazi di conoscenza di sistema in <strong>Impostazioni > Amministrazione > Spazi RAG</strong>:<br>• Visualizzare lo stato di obsolescenza (confronto hash del contenuto)<br>• Avviare la reindicizzazione manuale<br>• Gli spazi di sistema vengono indicizzati automaticamente all'avvio dell'applicazione"
           }
+        }
+      },
+      "journals": {
+        "title": "Diari personali",
+        "description": "Quaderni di bordo dell'assistente per riflessioni e apprendimenti",
+        "count": "7",
+        "questions": {
+          "q1": { "question": "Cosa sono i diari personali?", "answer": "<p>I diari personali sono quaderni tematici in cui l'assistente IA registra le proprie riflessioni, osservazioni, analisi e apprendimenti. A differenza delle memorie utente (fatti su di te), i diari contengono la <strong>prospettiva personale dell'assistente</strong> — scritti in prima persona, influenzati dalla sua personalità attiva.</p><p><strong>4 temi:</strong> Auto-riflessione, Osservazioni sull'utente, Idee e analisi, Apprendimenti.</p>" },
+          "q2": { "question": "Quando l'assistente scrive nei suoi diari?", "answer": "<p><strong>Due meccanismi:</strong></p><ul><li><strong>Post-conversazione:</strong> Dopo le conversazioni (4+ messaggi), l'assistente può scrivere una riflessione. La maggior parte delle conversazioni non produce nulla — è selettivo.</li><li><strong>Consolidamento periodico:</strong> Ogni poche ore, l'assistente rivede tutte le sue note — unisce, riassume o rimuove le voci obsolete.</li></ul>" },
+          "q3": { "question": "Come influenzano i diari le risposte?", "answer": "<p>Le voci del diario vengono iniettate nei prompt tramite <strong>ricerca semantica</strong>. Due iniezioni distinte: il <strong>prompt di risposta</strong> riceve le voci corrispondenti al tono della conversazione, e il <strong>prompt di pianificazione</strong> riceve quelle corrispondenti agli obiettivi e agli apprendimenti dell'utente. L'assistente decide quali note sono rilevanti.</p>" },
+          "q4": { "question": "Posso leggere e modificare i diari dell'assistente?", "answer": "<p>Sì! In <strong>Impostazioni > Funzionalità > Diari personali</strong> puoi leggere, modificare, eliminare e persino creare voci. Le tue aggiunte sono trasparenti — l'assistente non nota la differenza. Questo ti permette di correggere pregiudizi o guidare l'assistente.</p>" },
+          "q5": { "question": "Quali impostazioni posso configurare?", "answer": "<p><strong>Interruttori:</strong> Attiva/disattiva diari, consolidamento, analisi della cronologia conversazioni (con avviso di costo).</p><p><strong>Impostazioni numeriche:</strong> Dimensione massima del diario (40.000 caratteri predefiniti), budget di iniezione prompt (1.500 caratteri), dimensione massima per voce (2.000 caratteri), risultati di ricerca massimi (10).</p>" },
+          "q6": { "question": "Quanto costa?", "answer": "<p>Le operazioni del diario utilizzano chiamate LLM in background. Estrazione: una chiamata per conversazione qualificante (la maggior parte non restituisce nulla). Consolidamento: una chiamata ogni 4-12 ore per utente. Modelli LLM configurabili in <strong>Amministrazione > Configurazione LLM</strong>. Costi reali visibili nelle Impostazioni.</p>" },
+          "q7": { "question": "E la privacy?", "answer": "<p>I dati del diario sono per utente e isolati. Tutti i dati possono essere esportati (JSON/CSV) o eliminati (GDPR). Quando disattivati, i dati vengono conservati ma non utilizzati. L'assistente scrive nella lingua configurata.</p>" }
         }
       },
       "privacy": {
@@ -3509,6 +3525,7 @@
     "source_weather": "Meteo",
     "source_interests": "Interessi",
     "source_memories": "Memorie",
+      "source_journals": "Diari",
     "notification_hours": "Fascia oraria delle notifiche",
     "enabled_success": "Notifiche proattive attivate",
     "disabled_success": "Notifiche proattive disattivate",
@@ -3751,9 +3768,13 @@
         "title": "Auto-conoscenza",
         "description": "LIA può rispondere a domande su se stessa grazie alla sua base di conoscenze FAQ integrata — chiedi informazioni su funzionalità, configurazione o funzionamento."
       },
+      "journals": {
+        "title": "Diari personali",
+        "description": "L'assistente sviluppa la propria prospettiva nel tempo attraverso quaderni introspettivi — riflessioni, osservazioni e apprendimenti che colorano la sua personalità e arricchiscono le risposte."
+      },
       "responsive": {
-        "title": "Design responsive",
-        "description": "Interfaccia ottimizzata per desktop, tablet e smartphone — usa LIA ovunque, su qualsiasi dispositivo"
+        "title": "PWA & Design responsive",
+        "description": "App Web Progressiva installabile con interfaccia ottimizzata per desktop, tablet e smartphone — usa LIA ovunque, su qualsiasi dispositivo"
       }
     },
     "use_cases": {
@@ -3848,7 +3869,10 @@
         "orchestrator": "Orchestratore",
         "agents": "Agenti",
         "response": "Risposta"
-      }
+      },
+      "diagram_title": "Architettura completa del sistema",
+      "diagram_zoom": "Clicca per ingrandire il diagramma",
+      "diagram_alt": "Diagramma dell'architettura completa di LIA — orchestrazione multi-agente, osservabilità e sicurezza"
     },
     "screenshots": {
       "title": "LIA in immagini",
@@ -3863,6 +3887,12 @@
         "settings_administration_llm": "Amministrazione — Configurazione LLM: 7 provider, selezione modello per nodo",
         "faq": "FAQ — Centro assistenza con ricerca e categorie"
       }
+    },
+    "presentation": {
+      "title": "Presentazione dettagliata",
+      "subtitle": "Scopri l'architettura, le funzionalità e la filosofia di LIA in 13 slide",
+      "slide_alt": "Slide {{number}} della presentazione LIA",
+      "slide_counter": "Slide {{current}} di {{total}}"
     },
     "cta": {
       "title": "Pronto a provare LIA?",
@@ -3909,5 +3939,66 @@
     "fill": "Compila campo",
     "press_key": "Premi tasto",
     "screenshot": "Cattura schermata"
+  },
+  "journals": {
+    "title": "Diari personali",
+    "description": "Quaderni di bordo dell'assistente — riflessioni, osservazioni e apprendimenti",
+    "enable": "Attivare i diari personali",
+    "consolidation": "Consolidamento periodico",
+    "historyAnalysis": "Analizzare la cronologia delle conversazioni",
+    "higherCost": "Costo più elevato",
+    "sizeUsage": "Utilizzo dello spazio",
+    "lastCost": "Ultimo intervento",
+    "create": "Nuova voce",
+    "export": "Esportare",
+    "deleteAll": "Elimina tutto",
+    "deleteAllTitle": "Eliminare tutte le voci?",
+    "deleteAllDescription": "Questo eliminerà permanentemente tutte le voci del diario. Questa azione non può essere annullata.",
+    "deleteTitle": "Eliminare la voce?",
+    "deleteDescription": "Questa voce verrà eliminata permanentemente.",
+    "created": "Voce creata",
+    "updated": "Voce aggiornata",
+    "deleted": "Voce eliminata",
+    "allDeleted": "Tutte le voci eliminate",
+    "createError": "Impossibile creare la voce",
+    "updateError": "Impossibile aggiornare la voce",
+    "deleteError": "Impossibile eliminare la voce",
+    "deleteAllError": "Impossibile eliminare tutte le voci",
+    "settingsUpdated": "Impostazioni aggiornate",
+    "settingsError": "Impossibile aggiornare le impostazioni",
+    "createTitle": "Nuova voce di diario",
+    "createDescription": "Aggiungere una nota al diario dell'assistente",
+    "editTitle": "Modifica voce di diario",
+    "theme": "Tema",
+    "entryTitle": "Titolo",
+    "content": "Contenuto",
+    "mood": "Umore",
+    "empty": "Nessuna voce di diario per ora. L'assistente inizierà a scrivere dopo le conversazioni.",
+    "noEntries": "Nessuna voce in questo tema",
+    "themes": {
+      "self_reflection": "Autoriflessione",
+      "user_observations": "Osservazioni utente",
+      "ideas_analyses": "Idee e analisi",
+      "learnings": "Apprendimenti"
+    },
+    "moods": {
+      "reflective": "Riflessivo",
+      "curious": "Curioso",
+      "satisfied": "Soddisfatto",
+      "concerned": "Preoccupato",
+      "inspired": "Ispirato"
+    },
+    "enableDescription": "L'assistente scriverà riflessioni dopo le conversazioni",
+    "consolidationDescription": "L'assistente rivede e organizza periodicamente le sue note",
+    "historyDescription": "Il consolidamento analizza anche le conversazioni recenti",
+    "maxTotalChars": "Dimensione massima del diario",
+    "maxTotalCharsDescription": "Numero massimo di caratteri totali per tutte le voci. Non può essere inferiore all'utilizzo attuale.",
+    "contextMaxChars": "Budget di iniezione prompt",
+    "contextMaxCharsDescription": "Numero massimo di caratteri iniettati nei prompt per il contesto",
+    "maxEntryChars": "Dimensione massima per voce",
+    "maxEntryCharsDescription": "Numero massimo di caratteri per singola voce. Non può essere inferiore alla voce più lunga.",
+    "contextMaxResults": "Risultati di ricerca massimi",
+    "contextMaxResultsDescription": "Numero massimo di voci restituite dalla ricerca semantica per l'iniezione di contesto",
+    "chars": "car"
   }
 }

@@ -121,6 +121,7 @@ class SmartPlannerService:
         existing_plan: "ExecutionPlan | None" = None,
         tool_selection_result: dict | None = None,
         exclude_tools: set[str] | None = None,
+        journal_context: str = "",
     ) -> PlanningResult:
         """
         Generate execution plan based on query intelligence.
@@ -218,6 +219,10 @@ class SmartPlannerService:
             token_estimate=filtered.token_estimate,
         )
 
+        # Store journal context for strategy access via self._current_journal_context
+        # (strategies call self.service._build_prompt() which reads this)
+        self._current_journal_context = journal_context
+
         # Try SingleDomain or MultiDomain strategy based on domain count
         for strategy in self.strategies[bypass_count:]:
             if await strategy.can_handle(intelligence, catalogue=filtered):
@@ -251,6 +256,7 @@ class SmartPlannerService:
                 clarification_field,
                 existing_plan,
                 exclude_tools=exclude_tools,
+                journal_context=journal_context,
             )
             # Also attach catalogue to panic result
             return panic_result
@@ -266,6 +272,7 @@ class SmartPlannerService:
         clarification_response: str | None = None,
         clarification_field: str | None = None,
         existing_plan: "ExecutionPlan | None" = None,
+        journal_context: str = "",
     ) -> PlanningResult:
         """Plan with given catalogue (filtered or panic mode)."""
         if len(intelligence.domains) > 1:
@@ -277,6 +284,7 @@ class SmartPlannerService:
                 clarification_response,
                 clarification_field,
                 existing_plan,
+                journal_context=journal_context,
             )
         return await self._plan_single_domain(
             intelligence,
@@ -286,6 +294,7 @@ class SmartPlannerService:
             clarification_response,
             clarification_field,
             existing_plan,
+            journal_context=journal_context,
         )
 
     async def _retry_with_panic_mode(
@@ -298,6 +307,7 @@ class SmartPlannerService:
         clarification_field: str | None = None,
         existing_plan: "ExecutionPlan | None" = None,
         exclude_tools: set[str] | None = None,
+        journal_context: str = "",
     ) -> PlanningResult:
         """
         PANIC MODE: Retry with expanded catalogue.
@@ -339,6 +349,7 @@ class SmartPlannerService:
             clarification_response,
             clarification_field,
             existing_plan,
+            journal_context=journal_context,
         )
 
         if result.success:
@@ -364,6 +375,7 @@ class SmartPlannerService:
         clarification_response: str | None = None,
         clarification_field: str | None = None,
         existing_plan: "ExecutionPlan | None" = None,
+        journal_context: str = "",
     ) -> PlanningResult:
         """
         Plan for single domain query.
@@ -382,6 +394,7 @@ class SmartPlannerService:
             clarification_response,
             clarification_field,
             existing_plan,
+            journal_context=journal_context,
         )
 
         llm = get_llm("planner")
@@ -470,6 +483,7 @@ class SmartPlannerService:
         clarification_response: str | None = None,
         clarification_field: str | None = None,
         existing_plan: "ExecutionPlan | None" = None,
+        journal_context: str = "",
     ) -> PlanningResult:
         """
         Plan for multi-domain query using generative planning.
@@ -494,6 +508,7 @@ class SmartPlannerService:
             clarification_response,
             clarification_field,
             existing_plan,
+            journal_context=journal_context,
         )
         result.used_generative = True
         return result
@@ -507,6 +522,7 @@ class SmartPlannerService:
         clarification_response: str | None = None,
         clarification_field: str | None = None,
         existing_plan: "ExecutionPlan | None" = None,
+        journal_context: str = "",
     ) -> PlanningResult:
         """
         Generative planning for multi-domain queries.
@@ -531,6 +547,7 @@ class SmartPlannerService:
             clarification_response,
             clarification_field,
             existing_plan,
+            journal_context=journal_context,
         )
 
         llm = get_llm("planner")
@@ -1017,8 +1034,12 @@ class SmartPlannerService:
         clarification_response: str | None = None,
         clarification_field: str | None = None,
         existing_plan: "ExecutionPlan | None" = None,
+        journal_context: str = "",
     ) -> str:
         """Build LLM prompt with filtered catalogue."""
+        # Fallback: read from instance if not passed directly (strategy pattern)
+        if not journal_context:
+            journal_context = getattr(self, "_current_journal_context", "")
         from src.core.constants import DEFAULT_LANGUAGE, DEFAULT_TIMEZONE
         from src.domains.agents.services.plan_pattern_learner import (
             get_learned_patterns_prompt,
@@ -1091,6 +1112,7 @@ class SmartPlannerService:
             cardinality_magnitude=intelligence.cardinality_magnitude,
             skills_catalog=skills_catalog,
             sub_agents_section=sub_agents_section,
+            journal_context=journal_context,  # Personal journal context
         )
 
     async def _build_multi_domain_prompt(
@@ -1102,8 +1124,12 @@ class SmartPlannerService:
         clarification_response: str | None = None,
         clarification_field: str | None = None,
         existing_plan: "ExecutionPlan | None" = None,
+        journal_context: str = "",
     ) -> str:
         """Build prompt for generative multi-domain planning."""
+        # Fallback: read from instance if not passed directly (strategy pattern)
+        if not journal_context:
+            journal_context = getattr(self, "_current_journal_context", "")
         from src.core.constants import DEFAULT_LANGUAGE, DEFAULT_TIMEZONE
         from src.domains.agents.services.plan_pattern_learner import (
             get_learned_patterns_prompt,
@@ -1172,6 +1198,7 @@ class SmartPlannerService:
             cardinality_magnitude=intelligence.cardinality_magnitude,
             skills_catalog=skills_catalog,
             sub_agents_section=sub_agents_section,
+            journal_context=journal_context,  # Personal journal context
         )
 
     def _build_plan(

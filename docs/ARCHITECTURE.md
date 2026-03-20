@@ -1,7 +1,7 @@
 # Architecture LIA
 
 > Architecture complète du système multi-agents avec LangGraph, observabilité enterprise et sécurité GDPR
-> **Version**: 6.2 (Architecture v3.4 + evolution Features: Web Fetch, MCP Per-User, MCP Admin Per-Server, Multi-Channel Telegram, Heartbeat Autonome, RAG Spaces) - 2026-03-14
+> **Version**: 6.3 (Architecture v3.5 + evolution Features: Web Fetch, MCP Per-User, MCP Admin Per-Server, Multi-Channel Telegram, Heartbeat Autonome, RAG Spaces, Sub-Agents, Browser Control, Personal Journals) - 2026-03-20
 
 ## 📋 Table des Matières
 
@@ -35,6 +35,10 @@
   - [Admin MCP Per-Server Routing](#admin-mcp-per-server-routing-evolution-f25)
   - [Multi-Channel Telegram](#multi-channel-telegram-evolution-f3)
   - [Heartbeat Autonome](#heartbeat-autonome-evolution-f5)
+- [Fonctionnalités v6.3](#-fonctionnalités-v63)
+  - [Sub-Agents](#sub-agents--persistent-specialized-agents-f6)
+  - [Browser Control](#browser-control--web-automation-f7)
+  - [Personal Journals](#personal-journals--carnets-de-bord-f8)
 - [Références](#références)
 
 ---
@@ -46,7 +50,7 @@ LIA est une **plateforme d'assistant conversationnel entreprise** construite sur
 ### Caractéristiques Principales
 
 - **Monorepo** : Backend Python + Frontend Next.js avec workspaces PNPM
-- **Domain-Driven Design (DDD)** : 10 bounded contexts isolés
+- **Domain-Driven Design (DDD)** : 20+ bounded contexts isolés
 - **Architecture Async-First** : FastAPI async, SQLAlchemy async, asyncio natif
 - **Stateless Backend** : State centralisé (PostgreSQL checkpoints + Redis sessions)
 - **Event-Driven** : SSE streaming pour communication temps-réel
@@ -62,11 +66,11 @@ LIA est une **plateforme d'assistant conversationnel entreprise** construite sur
 | **Modules Python** | 300+ |
 | **Tests** | 2,300+ |
 | **Métriques Prometheus** | 500+ |
-| **Dashboards Grafana** | 15 |
-| **API Endpoints** | 80+ |
-| **LLM Providers** | 6 |
-| **Agents** | 10 |
-| **Tools** | 50+ |
+| **Dashboards Grafana** | 18 |
+| **API Endpoints** | 90+ |
+| **LLM Providers** | 7 |
+| **Agents** | 18+ |
+| **Tools** | 60+ |
 | **Fichiers Prompts** | 45 |
 | **Langues i18n** | 6 |
 
@@ -82,7 +86,7 @@ Chaque domaine est un **bounded context** isolé avec :
 - Son service layer (business logic)
 - Ses schemas Pydantic (API contracts)
 
-**17 Domaines** :
+**19 Domaines** :
 1. **agents** - Orchestration multi-agents, 10 agents actifs, 50+ tools (cœur du système)
 2. **auth** - Authentification et autorisation
 3. **users** - Gestion utilisateurs
@@ -100,6 +104,8 @@ Chaque domaine est un **bounded context** isolé avec :
 15. **user_mcp** - Serveurs MCP utilisateur (CRUD per-user, Model Context Protocol, auto-génération de description LLM)
 16. **channels** - Canaux de messagerie externes (Telegram) avec OTP linking, HITL inline keyboards, voice STT
 17. **rag_spaces** - Espaces de connaissances RAG : user spaces (upload, embedding OpenAI, recherche hybride, injection Response Node) et system spaces (FAQ built-in, App Identity, lazy-loaded au démarrage)
+18. **sub_agents** - Sous-agents persistants spécialisés (F6) : délégation, templates, token guard-rails, pipeline simplifié
+19. **journals** - Carnets de bord personnels (Personal Journals) : extraction post-conversation, consolidation périodique, injection sémantique
 
 ### 2. Async-First
 
@@ -3789,6 +3795,49 @@ async with TrackingContext(user_id, run_id) as tracker:
 
 ---
 
+## 🆕 Fonctionnalités v6.3
+
+### Sub-Agents — Persistent Specialized Agents (F6)
+
+Système de délégation permettant à l'assistant principal de créer des sous-agents éphémères spécialisés pour des tâches complexes (recherche, analyse, synthèse).
+
+**Architecture** :
+- Domaine DDD complet `src/domains/sub_agents/` (models, repository, service, router, schemas)
+- Pipeline simplifié (query analysis → planner → parallel executor → LLM synthesis) — bypass du semantic validator, approval gate, et response node
+- 3 templates pré-définis (Research Assistant, Writing Assistant, Data Analyst)
+- Token guard-rails : budget par exécution, budget quotidien par utilisateur, auto-disable après échecs consécutifs
+- Feature flag : `SUB_AGENTS_ENABLED=true`
+
+> Voir [SUB_AGENTS.md](./technical/SUB_AGENTS.md) et [ADR-043](./architecture/ADR-043-Subgraph-Architecture.md) pour la documentation complète.
+
+### Browser Control — Web Automation (F7)
+
+Connecteur browser autonome basé sur Playwright pour l'interaction web interactive.
+
+**Architecture** :
+- `browser_task_tool` — tool autonome avec ReAct loop (`create_react_agent`)
+- Infrastructure dans `src/infrastructure/browser/` (pool, session, sécurité, accessibilité)
+- Session pool avec coordination Redis cross-workers
+- Anti-détection (UA Chrome, webdriver supprimé, locale dynamique)
+- Activation via admin connector panel
+
+> Voir [BROWSER_CONTROL.md](./technical/BROWSER_CONTROL.md) et [ADR-059](./architecture/ADR-059-Browser-Control.md) pour la documentation complète.
+
+### Personal Journals — Carnets de Bord (F8)
+
+Carnets de bord introspectifs donnant à l'assistant une personnalité vivante et évolutive.
+
+**Architecture** :
+- Domaine DDD complet `src/domains/journals/` (models, repository, service, router, schemas, extraction, consolidation, context_builder)
+- Double déclencheur : extraction post-conversation (fire-and-forget) + consolidation APScheduler (4h)
+- Injection sémantique E5-small dans prompts response ET planner (deux requêtes distinctes)
+- Gestion autonome du cycle de vie via prompt engineering (pas de règles hardcodées)
+- Feature flag : `JOURNALS_ENABLED=false`
+
+> Voir [JOURNALS.md](./technical/JOURNALS.md) et [ADR-057](./architecture/ADR-057-Personal-Journals.md) pour la documentation complète.
+
+---
+
 ## 📚 Références
 
 ### Documentation Interne
@@ -3828,7 +3877,12 @@ async with TrackingContext(user_id, run_id) as tracker:
 - [MCP_INTEGRATION.md](./technical/MCP_INTEGRATION.md) — MCP Per-User (evolution F2/F2.1) + Admin Per-Server Routing (F2.5)
 - [CHANNELS_INTEGRATION.md](./technical/CHANNELS_INTEGRATION.md) — Multi-Channel Telegram (evolution F3)
 - [HEARTBEAT_AUTONOME.md](./technical/HEARTBEAT_AUTONOME.md) — Heartbeat Autonome (evolution F5)
-- [GUIDE_RAG_SPACES.md](./guides/GUIDE_RAG_SPACES.md) — RAG Knowledge Spaces (evolution F6)
+- [GUIDE_RAG_SPACES.md](./guides/GUIDE_RAG_SPACES.md) — RAG Knowledge Spaces
+
+**Fonctionnalités v6.3** :
+- [SUB_AGENTS.md](./technical/SUB_AGENTS.md) — Sub-Agents persistants (F6)
+- [BROWSER_CONTROL.md](./technical/BROWSER_CONTROL.md) — Browser Control Playwright (F7)
+- [JOURNALS.md](./technical/JOURNALS.md) — Personal Journals (F8)
 
 ### Documentation Externe
 
@@ -3843,4 +3897,4 @@ async with TrackingContext(user_id, run_id) as tracker:
 
 ---
 
-**LIA Architecture** - Version 6.2 - Mars 2026
+**LIA Architecture** - Version 6.3 - Mars 2026

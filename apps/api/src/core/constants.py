@@ -478,6 +478,11 @@ AGENT_MAX_ITERATIONS_MAX = 50  # Hard limit (doubled for safety margin)
 # Validated with POC usage patterns (normal use: 1-5 actions)
 MAX_HITL_ACTIONS_PER_REQUEST = 10
 
+# HITL rate limiting for SSE response endpoint
+# Prevents abuse of the HITL response submission (e.g. automated replay attacks)
+HITL_RATE_LIMIT_REQUESTS = 10
+HITL_RATE_LIMIT_WINDOW_SECONDS = 60
+
 # ============================================================================
 # LLM CONTEXT MANAGEMENT - TWO DISTINCT MECHANISMS
 # ============================================================================
@@ -2727,3 +2732,30 @@ BROWSER_CONTENT_ROLES = frozenset(
 
 # URL schemes blocked for browser navigation (SSRF prevention)
 BROWSER_BLOCKED_SCHEMES = frozenset({"file", "javascript", "data", "chrome", "about", "blob"})
+
+# ============================================================================
+# PERSONAL JOURNALS (Carnets de Bord — Assistant Logbooks)
+# ============================================================================
+# Thematic journals where the assistant records its own reflections,
+# observations, analyses and learnings. Prompt-driven lifecycle management.
+# Reference: docs/architecture/ADR-057-Personal-Journals.md
+
+# Scheduler
+SCHEDULER_JOB_JOURNAL_CONSOLIDATION = "journal_consolidation"
+
+# Extraction defaults
+JOURNAL_EXTRACTION_MIN_MESSAGES_DEFAULT = 4
+
+# Consolidation defaults
+JOURNAL_CONSOLIDATION_INTERVAL_HOURS_DEFAULT = 4
+JOURNAL_CONSOLIDATION_COOLDOWN_HOURS_DEFAULT = 12
+JOURNAL_CONSOLIDATION_MIN_ENTRIES_DEFAULT = 3
+JOURNAL_CONSOLIDATION_HISTORY_MAX_MESSAGES_DEFAULT = 50
+JOURNAL_CONSOLIDATION_HISTORY_MAX_DAYS_DEFAULT = 7
+
+# Size defaults (user-configurable)
+JOURNAL_MAX_TOTAL_CHARS_DEFAULT = 40000  # ~10k tokens total budget
+JOURNAL_MAX_ENTRY_CHARS_DEFAULT = 2000  # per entry
+JOURNAL_CONTEXT_MAX_CHARS_DEFAULT = 1500  # ~400 tokens injection budget
+JOURNAL_CONTEXT_MAX_RESULTS_DEFAULT = 10  # max semantic search results
+JOURNAL_CONTEXT_MIN_SCORE_DEFAULT = 0.3  # min cosine similarity to include in context

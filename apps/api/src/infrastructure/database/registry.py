@@ -25,11 +25,13 @@ def import_all_models() -> None:
     import src.domains.attachments.models  # noqa: F401
     import src.domains.auth.models  # noqa: F401
     import src.domains.channels.models  # noqa: F401
+    import src.domains.chat.models  # noqa: F401
     import src.domains.connectors.models  # noqa: F401
     import src.domains.conversations.models  # noqa: F401
     import src.domains.google_api.models  # noqa: F401
     import src.domains.heartbeat.models  # noqa: F401
     import src.domains.interests.models  # noqa: F401
+    import src.domains.journals.models  # noqa: F401
     import src.domains.llm_config.models  # noqa: F401
     import src.domains.notifications.models  # noqa: F401
     import src.domains.personalities.models  # noqa: F401

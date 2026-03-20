@@ -350,6 +350,7 @@ def get_response_prompt(
     skills_context: str = "",
     rag_context: str = "",
     app_knowledge_context: str = "",
+    journal_context: str = "",
 ) -> str:
     """Get the formatted system prompt for the response node.
 
@@ -448,6 +449,7 @@ def get_response_prompt(
     # Skills context: escape braces for ChatPromptTemplate safety
     safe_skills_context = escape_braces(skills_context) if skills_context else ""
     safe_rag_context = escape_braces(rag_context) if rag_context else ""
+    safe_journal_context = escape_braces(journal_context) if journal_context else ""
 
     # App knowledge context: load identity prompt + optional system RAG results
     # Injected when is_app_help_query=True (any truthy value triggers identity prompt)
@@ -476,6 +478,7 @@ def get_response_prompt(
         anticipated_needs=anticipated_needs_str,
         skills_context=safe_skills_context,
         app_knowledge_context=safe_app_knowledge,
+        journal_context=safe_journal_context,
     )
 
     return formatted_system_prompt
@@ -555,8 +558,6 @@ def _build_for_each_directive(
         FOR_EACH_MAX_HARD_LIMIT,
     )
 
-    logger = structlog.get_logger(__name__)
-
     if not for_each_detected:
         return ""
 
@@ -621,6 +622,8 @@ def get_smart_planner_prompt(
     skills_catalog: str = "",
     # Sub-agents delegation section (F6)
     sub_agents_section: str = "",
+    # Personal journal context
+    journal_context: str = "",
 ) -> str:
     """
     Get formatted smart planner prompt for single-domain or simple queries.
@@ -685,6 +688,7 @@ def get_smart_planner_prompt(
         skills_catalog=skills_catalog,
         result_keys_list=result_keys_list,
         sub_agents_section=sub_agents_section,
+        journal_context=escape_braces(journal_context) if journal_context else "",
     )
 
 
@@ -712,6 +716,8 @@ def get_smart_planner_multi_domain_prompt(
     skills_catalog: str = "",
     # Sub-agents delegation section (F6)
     sub_agents_section: str = "",
+    # Personal journal context
+    journal_context: str = "",
 ) -> str:
     """
     Get formatted smart planner prompt for multi-domain queries.
@@ -779,52 +785,8 @@ def get_smart_planner_multi_domain_prompt(
         skills_catalog=skills_catalog,
         result_keys_list=result_keys_list,
         sub_agents_section=sub_agents_section,
+        journal_context=escape_braces(journal_context) if journal_context else "",
     )
-
-
-def get_planner_prompt(
-    context_section: str,
-    catalogue_json: str,
-    user_message: str,
-    response_schemas: str | None = None,
-    user_timezone: str = DEFAULT_TIMEZONE,
-    user_language: str = DEFAULT_LANGUAGE,
-    personality_instruction: str | None = None,
-    conversation_history: str = "(aucun historique)",
-    window_size: int = 10,
-) -> list:
-    """Get the planner node prompt messages with pre-formatted dynamic data."""
-    from langchain_core.messages import HumanMessage, SystemMessage
-
-    from src.core.config import get_settings
-
-    settings = get_settings()
-
-    planner_prompt_template = load_prompt(
-        "planner_system_prompt", version=settings.planner_prompt_version
-    )
-
-    if response_schemas is None:
-        response_schemas = ""
-
-    default_personality = load_prompt("default_personality_prompt")
-
-    formatted_system_prompt = planner_prompt_template.format(
-        catalogue_json=catalogue_json,
-        response_schemas=response_schemas,
-        context_section=context_section,
-        user_message=user_message,
-        current_datetime=get_current_datetime_context(user_timezone, user_language),
-        personnalite=personality_instruction or default_personality,
-        user_language=user_language,
-        conversation_history=conversation_history,
-        window_size=window_size,
-    )
-
-    return [
-        SystemMessage(content=formatted_system_prompt),
-        HumanMessage(content=f"Generate ExecutionPlan for this query: {user_message}"),
-    ]
 
 
 # ============================
@@ -986,7 +948,6 @@ __all__ = [
     "is_weekend",
     # Prompt builders
     "get_response_prompt",
-    "get_planner_prompt",
     "get_smart_planner_prompt",
     "get_smart_planner_multi_domain_prompt",
     "build_schema_reference_guide",

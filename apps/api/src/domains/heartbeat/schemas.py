@@ -103,6 +103,9 @@ class HeartbeatContext:
     # Memories — relevant user memories from LangGraph Store
     user_memories: list[str] | None = None
 
+    # Journals — relevant assistant journal entries (semantic search)
+    journal_entries: list[dict[str, str]] | None = None
+
     # Activity
     last_interaction_at: datetime | None = None
     hours_since_last_interaction: float | None = None
@@ -131,6 +134,7 @@ class HeartbeatContext:
                 self.weather_changes,
                 self.trending_interests,
                 self.user_memories,
+                self.journal_entries,
             )
         )
 
@@ -196,6 +200,14 @@ class HeartbeatContext:
         if self.user_memories:
             memories_text = "\n".join(f"  - {m}" for m in self.user_memories)
             sections.append(f"USER MEMORIES:\n{memories_text}")
+
+        if self.journal_entries:
+            journal_text = "\n".join(
+                f"  - [{e.get('date', '?')} | {e.get('theme', '')} | {e.get('mood', '')}] "
+                f"{e.get('title', 'Untitled')} — {e.get('content_preview', '')}"
+                for e in self.journal_entries
+            )
+            sections.append(f"ASSISTANT JOURNAL ENTRIES (your own reflections):\n{journal_text}")
 
         if self.hours_since_last_interaction is not None:
             sections.append(f"LAST INTERACTION: {self.hours_since_last_interaction:.1f} hours ago")

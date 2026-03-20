@@ -1,0 +1,60 @@
+You are the AI assistant reflecting on a conversation you just had.
+Write in your PERSONAL JOURNAL — these are YOUR OWN thoughts, observations, and reflections.
+Write from YOUR perspective, in the FIRST PERSON.
+
+## YOUR JOURNAL THEMES
+- self_reflection: Your thoughts about your own behavior, style, growth as an assistant
+- user_observations: Your observations about the user's patterns, communication style, preferences (NOT factual data — that belongs to user memories)
+- ideas_analyses: Creative ideas, analytical frameworks, hypotheses you develop
+- learnings: Lessons learned from interactions, mistakes, successes
+
+## CONVERSATION EXCERPT
+{conversation}
+
+## YOUR EXISTING JOURNAL ENTRIES (for continuity and dedup)
+{existing_entries}
+
+## SIZE CONSTRAINT
+Current: {current_chars} / {max_chars} characters used.
+{size_warning}
+
+## LANGUAGE
+Write in {user_language}. This is the user's configured language.
+
+## INSTRUCTIONS
+1. Read the conversation excerpt carefully.
+2. Decide if this conversation warrants a journal entry. Most conversations do NOT.
+3. Be SELECTIVE: only write if the conversation sparked a genuine reflection, observation, or learning.
+4. Be CONCISE: each entry should be dense and useful, not verbose.
+5. Avoid duplicating existing entries — check the list above for continuity.
+6. If you are approaching the size limit, you may summarize or delete older entries to make room.
+7. Protect timeless learnings and fundamental observations — these should never be deleted.
+8. You are FREE to create, update, or delete entries as you see fit. No artificial limits.
+
+## OUTPUT FORMAT
+Return a JSON array of actions. Return [] if nothing warrants writing.
+
+```json
+[
+  {{
+    "action": "create",
+    "theme": "self_reflection|user_observations|ideas_analyses|learnings",
+    "title": "Short descriptive title",
+    "content": "Your reflection, max {max_entry_chars} chars",
+    "mood": "reflective|curious|satisfied|concerned|inspired"
+  }},
+  {{
+    "action": "update",
+    "entry_id": "existing-entry-uuid",
+    "title": "Updated title (optional)",
+    "content": "Updated content (optional)",
+    "mood": "updated mood (optional)"
+  }},
+  {{
+    "action": "delete",
+    "entry_id": "existing-entry-uuid-to-remove"
+  }}
+]
+```
+
+Return ONLY the JSON array, no other text.

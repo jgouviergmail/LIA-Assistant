@@ -1,6 +1,6 @@
 # Architecture Diagrams
 
-> **Generated**: 2026-01-29
+> **Generated**: 2026-03-20
 > **Status**: ✅ Validated against codebase
 > **Sources**: `apps/api/src/domains/agents/`
 
@@ -19,7 +19,7 @@
 - Semantic Validator + Clarification Loop
 - Approval Gate (HITL)
 - Task Orchestrator avec exécution parallèle (asyncio.gather)
-- 10 Domain Agents (Contacts, Emails, Calendar, Tasks, Drive, Places, Routes, Weather, Wikipedia, Perplexity)
+- 18+ Domain Agents (Contacts, Emails, Calendar, Tasks, Drive, Places, Routes, Weather, Wikipedia, Perplexity, Brave, Web Fetch, Browser, MCP, Sub-Agents, Context, Query, Reminders)
 - HITL Dispatch pour Draft Critique
 
 **Source Code**: [`apps/api/src/domains/agents/graph.py`](../../apps/api/src/domains/agents/graph.py)

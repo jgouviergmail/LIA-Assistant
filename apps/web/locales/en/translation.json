@@ -1436,7 +1436,9 @@
           "evaluator": "LLM-as-Judge evaluation pipeline (relevance, hallucination)",
           "compaction": "Summarizes old conversation history to free context window space",
           "subagent": "Executes delegated tasks via specialized sub-agents (research, analysis, synthesis)",
-          "browser_agent": "Interactive web browsing agent (navigate, click, fill forms)"
+          "browser_agent": "Interactive web browsing agent (navigate, click, fill forms)",
+          "journal_extraction": "Extracts journal entries from conversations (assistant introspection)",
+          "journal_consolidation": "Reviews and consolidates journal entries periodically"
         },
         "no_compatible_model": "No model from this provider supports this feature",
         "ollama": {
@@ -2868,8 +2870,22 @@
           },
           "q8": {
             "question": "Can I ask the assistant about its own features?",
-            "answer": "Yes! LIA has a <strong>built-in knowledge base</strong> that lets it answer questions about itself directly in conversation:<br><br><strong>🧠 How it works:</strong><br>• LIA automatically detects when you ask about the app (\"<em>What can you do?</em>\", \"<em>How do I connect my calendar?</em>\")<br>• It searches its FAQ knowledge base (119 Q&A across 16 sections) using the same hybrid search as user spaces<br>• An <strong>App Identity Prompt</strong> describing all capabilities is injected into the response<br><br><strong>⚡ Zero overhead:</strong><br>This only activates when you ask about the app. Normal queries (emails, calendar, etc.) are not affected at all.<br><br><strong>🔧 Admin features:</strong><br>Administrators can manage system knowledge spaces in <strong>Settings > Administration > RAG Spaces</strong>:<br>• View staleness status (content hash comparison)<br>• Trigger manual reindexation<br>• System spaces are automatically indexed at app startup"
+            "answer": "Yes! LIA has a <strong>built-in knowledge base</strong> that lets it answer questions about itself directly in conversation:<br><br><strong>🧠 How it works:</strong><br>• LIA automatically detects when you ask about the app (\"<em>What can you do?</em>\", \"<em>How do I connect my calendar?</em>\")<br>• It searches its FAQ knowledge base (119+ Q&A across 17 sections) using the same hybrid search as user spaces<br>• An <strong>App Identity Prompt</strong> describing all capabilities is injected into the response<br><br><strong>⚡ Zero overhead:</strong><br>This only activates when you ask about the app. Normal queries (emails, calendar, etc.) are not affected at all.<br><br><strong>🔧 Admin features:</strong><br>Administrators can manage system knowledge spaces in <strong>Settings > Administration > RAG Spaces</strong>:<br>• View staleness status (content hash comparison)<br>• Trigger manual reindexation<br>• System spaces are automatically indexed at app startup"
           }
+        }
+      },
+      "journals": {
+        "title": "Personal Journals",
+        "description": "Assistant's personal logbooks for reflections and learnings",
+        "count": "7",
+        "questions": {
+          "q1": { "question": "What are personal journals?", "answer": "<p>Personal journals are thematic notebooks where the AI assistant records its own reflections, observations, analyses, and learnings. Unlike user memories (facts about you), journals contain the <strong>assistant's own perspective</strong> — written in first person, colored by its active personality.</p><p><strong>4 themes:</strong> Self-reflection, User observations, Ideas & analyses, Learnings.</p>" },
+          "q2": { "question": "When does the assistant write in its journals?", "answer": "<p><strong>Two mechanisms:</strong></p><ul><li><strong>Post-conversation:</strong> After conversations (4+ messages), the assistant may write a reflection. Most conversations produce nothing — it's selective.</li><li><strong>Periodic consolidation:</strong> Every few hours, the assistant reviews all notes — merges, summarizes, or removes obsolete entries.</li></ul>" },
+          "q3": { "question": "How do journals influence responses?", "answer": "<p>Journal entries are injected into prompts via <strong>semantic search</strong>. Two distinct injections: the <strong>response prompt</strong> gets entries matching conversation tone, and the <strong>planner prompt</strong> gets entries matching user goals and learnings. The assistant decides which notes are relevant.</p>" },
+          "q4": { "question": "Can I read and edit the assistant's journals?", "answer": "<p>Yes! In <strong>Settings > Features > Personal Journals</strong> you can read, edit, delete, and even create entries. Your additions are transparent — the assistant can't tell the difference. This lets you correct biases or guide the assistant.</p>" },
+          "q5": { "question": "What settings can I configure?", "answer": "<p><strong>Toggles:</strong> Enable/disable journals, consolidation, conversation history analysis (with cost warning).</p><p><strong>Numeric settings:</strong> Max journal size (40,000 chars default), prompt injection budget (1,500 chars), max entry size (2,000 chars), max search results (10).</p>" },
+          "q6": { "question": "How much does it cost?", "answer": "<p>Journal operations use background LLM calls. Extraction: one call per qualifying conversation (most return empty). Consolidation: one call every 4-12h per user. LLM models configurable in <strong>Admin > LLM Configuration</strong>. Real costs visible in Settings.</p>" },
+          "q7": { "question": "What about privacy?", "answer": "<p>Journal data is per-user and isolated. All data can be exported (JSON/CSV) or deleted (GDPR). When disabled, data is preserved but not used. The assistant writes in your configured language.</p>" }
         }
       },
       "privacy": {
@@ -3267,6 +3283,7 @@
     "source_weather": "Weather",
     "source_interests": "Interests",
     "source_memories": "Memories",
+      "source_journals": "Journals",
     "notification_hours": "Notification time window",
     "enabled_success": "Proactive notifications enabled",
     "disabled_success": "Proactive notifications disabled",
@@ -3750,9 +3767,13 @@
         "title": "App Self-Knowledge",
         "description": "LIA can answer questions about itself using its built-in FAQ knowledge base — ask about features, capabilities, setup, or how things work."
       },
+      "journals": {
+        "title": "Personal Journals",
+        "description": "The assistant develops its own perspective over time through introspective notebooks — reflections, observations, and learnings that color its personality and enrich its responses."
+      },
       "responsive": {
-        "title": "Responsive Design",
-        "description": "Fully optimized interface for desktop, tablet, and smartphone — use LIA anywhere, on any device"
+        "title": "PWA & Responsive Design",
+        "description": "Installable Progressive Web App with a fully optimized interface for desktop, tablet, and smartphone — use LIA anywhere, on any device, even offline-ready"
       }
     },
     "use_cases": {
@@ -3847,7 +3868,10 @@
         "orchestrator": "Orchestrator",
         "agents": "Agents",
         "response": "Response"
-      }
+      },
+      "diagram_title": "Full system architecture",
+      "diagram_zoom": "Click to enlarge diagram",
+      "diagram_alt": "LIA full architecture diagram — multi-agent orchestration, observability and security"
     },
     "screenshots": {
       "title": "See LIA in action",
@@ -3862,6 +3886,12 @@
         "settings_administration_llm": "Administration — LLM Configuration: 7 providers, per-node model selection",
         "faq": "FAQ — Searchable help center with categorized Q&A"
       }
+    },
+    "presentation": {
+      "title": "Detailed presentation",
+      "subtitle": "Explore LIA's architecture, features and philosophy across 13 slides",
+      "slide_alt": "LIA presentation slide {{number}}",
+      "slide_counter": "Slide {{current}} of {{total}}"
     },
     "cta": {
       "title": "Ready to try LIA?",
@@ -3908,5 +3938,66 @@
     "fill": "Fill form field",
     "press_key": "Press key",
     "screenshot": "Take screenshot"
+  },
+  "journals": {
+    "title": "Personal Journals",
+    "description": "Assistant's personal logbooks — reflections, observations, and learnings",
+    "enable": "Enable personal journals",
+    "consolidation": "Periodic consolidation",
+    "historyAnalysis": "Analyze conversation history",
+    "higherCost": "Higher cost",
+    "sizeUsage": "Size usage",
+    "lastCost": "Last intervention",
+    "create": "New entry",
+    "export": "Export",
+    "deleteAll": "Delete all",
+    "deleteAllTitle": "Delete all entries?",
+    "deleteAllDescription": "This will permanently delete all journal entries. This action cannot be undone.",
+    "deleteTitle": "Delete entry?",
+    "deleteDescription": "This entry will be permanently deleted.",
+    "created": "Entry created",
+    "updated": "Entry updated",
+    "deleted": "Entry deleted",
+    "allDeleted": "All entries deleted",
+    "createError": "Failed to create entry",
+    "updateError": "Failed to update entry",
+    "deleteError": "Failed to delete entry",
+    "deleteAllError": "Failed to delete all entries",
+    "settingsUpdated": "Settings updated",
+    "settingsError": "Failed to update settings",
+    "createTitle": "New journal entry",
+    "createDescription": "Add a note to the assistant's journal",
+    "editTitle": "Edit journal entry",
+    "theme": "Theme",
+    "entryTitle": "Title",
+    "content": "Content",
+    "mood": "Mood",
+    "empty": "No journal entries yet. The assistant will start writing after conversations.",
+    "noEntries": "No entries in this theme",
+    "themes": {
+      "self_reflection": "Self Reflection",
+      "user_observations": "User Observations",
+      "ideas_analyses": "Ideas & Analyses",
+      "learnings": "Learnings"
+    },
+    "moods": {
+      "reflective": "Reflective",
+      "curious": "Curious",
+      "satisfied": "Satisfied",
+      "concerned": "Concerned",
+      "inspired": "Inspired"
+    },
+    "enableDescription": "The assistant will write reflections after conversations",
+    "consolidationDescription": "Assistant periodically reviews and organizes its notes",
+    "historyDescription": "Consolidation also reviews recent conversations",
+    "maxTotalChars": "Max journal size",
+    "maxTotalCharsDescription": "Maximum total characters across all entries. Cannot be set below current usage.",
+    "contextMaxChars": "Prompt injection budget",
+    "contextMaxCharsDescription": "Maximum characters injected into prompts for context",
+    "maxEntryChars": "Max entry size",
+    "maxEntryCharsDescription": "Maximum characters per individual entry. Cannot be set below current largest entry.",
+    "contextMaxResults": "Max search results",
+    "contextMaxResultsDescription": "Maximum entries returned by semantic search for context injection",
+    "chars": "chars"
   }
 }

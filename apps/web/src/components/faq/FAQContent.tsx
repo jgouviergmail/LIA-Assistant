@@ -55,6 +55,7 @@ import {
   Paperclip,
   Blocks,
   Library,
+  BookOpen,
   Bot,
   Monitor,
 } from 'lucide-react';
@@ -89,6 +90,7 @@ const sectionIcons = {
   skills: Blocks,
   sub_agents: Bot,
   rag_spaces: Library,
+  journals: BookOpen,
   privacy: Shield,
   other: HelpCircle,
 };
@@ -108,6 +110,7 @@ const sections = [
   'skills',
   'sub_agents',
   'rag_spaces',
+  'journals',
   'privacy',
   'other',
 ];

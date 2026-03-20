@@ -115,6 +115,9 @@ LLMType = Literal[
     "evaluator",  # Observability: LLM-as-Judge evaluation pipeline
     "compaction",  # Context compaction: summarize old conversation history
     "subagent",  # F6: Sub-agent delegated task execution
+    # Personal Journals (Carnets de Bord)
+    "journal_extraction",  # Journals: extract entries from conversations
+    "journal_consolidation",  # Journals: periodic review and maintenance
 ]
 
 

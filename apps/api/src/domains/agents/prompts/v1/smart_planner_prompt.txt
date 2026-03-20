@@ -133,3 +133,6 @@ PREVIOUS VALIDATION FEEDBACK (if replanning):
 
 LEARNED AND VALIDATED PLAN PATTERNS:
 {learned_patterns}
+
+PERSONAL JOURNAL CONTEXT (your own reflections and learnings):
+{journal_context}

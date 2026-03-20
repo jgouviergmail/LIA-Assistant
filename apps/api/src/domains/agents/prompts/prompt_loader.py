@@ -109,6 +109,10 @@ PromptName = Literal[
     "compaction_prompt",
     # App self-knowledge (System RAG Spaces)
     "app_identity_prompt",
+    # Personal Journals (Carnets de Bord)
+    "journal_introspection_prompt",
+    "journal_introspection_personality_addon",
+    "journal_consolidation_prompt",
     # Future prompts:
     # "emails_agent_prompt",
     # "calendar_agent_prompt",

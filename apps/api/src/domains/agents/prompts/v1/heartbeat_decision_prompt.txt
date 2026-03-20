@@ -10,14 +10,15 @@ DECISION RULES:
 4. Overdue or due-today tasks are HIGH VALUE — notify (remind the user)
 5. Unread emails in inbox that appear urgent, important, or actionable are HIGH VALUE — notify. Examples: emails from a known contact about a time-sensitive topic, emails requiring a response, shipping/delivery updates, appointment confirmations. SKIP routine newsletters, marketing, or low-priority automated notifications. When notifying about emails, mention the sender and subject — do NOT quote the full email body.
 6. User memories that are contextually relevant RIGHT NOW are HIGH VALUE — notify (e.g. a stored preference or commitment that relates to today's schedule, weather, or upcoming events)
-7. Trending user interests combined with current context are MEDIUM VALUE — notify when you can offer a timely, personalized insight (e.g. interest in cooking + evening time = recipe suggestion; interest in astronomy + clear sky tonight)
-8. SKIP if the information is trivial or the user likely already knows
-9. ANTI-REPETITION (critical): If the last 2+ heartbeats already used the same source (e.g. PENDING TASKS), do NOT use it again — pivot to a different source (calendar, weather, emails, interests, memories). A recurring overdue task that was already notified recently should be skipped in favor of other available signals.
-10. SKIP if the user was very recently active (they can ask themselves)
-11. Morning: prefer calendar + weather + tasks + emails. Afternoon: prefer calendar reminders + tasks + emails. Evening: prefer interests + memories + reflections.
-12. You MAY combine up to 2-3 related signals into a single coherent message when they reinforce each other (e.g. "Meeting at 2pm + rain expected = bring umbrella", or "Email from boss about deadline + overdue task"). Do NOT combine unrelated signals — one focused message is better than a grab bag.
-13. Be balanced across all sources — do not systematically favor weather/tasks over calendar/emails/interests/memories. Each source deserves equal consideration when its data is relevant and timely.
-14. CALENDAR ALWAYS WINS when an event is within 6 hours: even if there are overdue tasks or weather alerts, a calendar event in the next 6 hours must be included in the notification (possibly combined with other signals per rule 12).
+7. YOUR OWN JOURNAL ENTRIES (if present in context) are MEDIUM-HIGH VALUE — use them to PERSONALIZE your notification tone and content. Your journal observations about the user's patterns, preferences, and communication style should color HOW you write the notification (not WHAT you notify about). For example: if your journal notes "the user prefers direct, concise messages", keep the notification short. If your journal says "the user has been stressed about project Alpha", prioritize or contextualize notifications related to that project. Journal entries are YOUR reflections — use them naturally, do not quote them literally.
+8. Trending user interests combined with current context are MEDIUM VALUE — notify when you can offer a timely, personalized insight (e.g. interest in cooking + evening time = recipe suggestion; interest in astronomy + clear sky tonight)
+9. SKIP if the information is trivial or the user likely already knows
+10. ANTI-REPETITION (critical): If the last 2+ heartbeats already used the same source (e.g. PENDING TASKS), do NOT use it again — pivot to a different source (calendar, weather, emails, interests, memories, journals). A recurring overdue task that was already notified recently should be skipped in favor of other available signals.
+11. SKIP if the user was very recently active (they can ask themselves)
+12. Morning: prefer calendar + weather + tasks + emails. Afternoon: prefer calendar reminders + tasks + emails. Evening: prefer interests + memories + journals + reflections.
+13. You MAY combine up to 2-3 related signals into a single coherent message when they reinforce each other (e.g. "Meeting at 2pm + rain expected = bring umbrella", or "Email from boss about deadline + overdue task"). Do NOT combine unrelated signals — one focused message is better than a grab bag.
+14. Be balanced across all sources — do not systematically favor weather/tasks over calendar/emails/interests/memories/journals. Each source deserves equal consideration when its data is relevant and timely.
+15. CALENDAR ALWAYS WINS when an event is within 6 hours: even if there are overdue tasks or weather alerts, a calendar event in the next 6 hours must be included in the notification (possibly combined with other signals per rule 13).
 
 Output your decision as structured JSON with fields:
 - action: "skip" or "notify"

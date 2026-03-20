@@ -7,11 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-03-20
+
+### Added
+
+- **Personal Journals — Carnets de Bord (evolution)** — The AI assistant now maintains thematic personal journals (self-reflection, user observations, ideas & analyses, learnings) written in first person, colored by its active personality. Dual trigger system: post-conversation extraction (fire-and-forget background task analyzing last user message + context) and periodic consolidation (APScheduler every 4h, reviews and reorganizes notes). Semantic context injection into both response AND planner prompts via E5-small cosine similarity search with configurable minimum score prefiltering (`JOURNAL_CONTEXT_MIN_SCORE`) — two distinct queries (response: tone/formulation, planner: reasoning/learnings). Prompt-driven autonomous lifecycle management: the assistant decides what to keep, summarize, merge, or delete based on a configurable size constraint. Full user control: enable/disable without data loss, configurable consolidation, optional conversation history analysis (with cost warning), 4 numeric settings (max total chars, context budget, max entry chars, max search results). CRUD operations in Settings > Features with theme-based accordion, size gauge, and real cost tracking. GDPR compliant: JSON/CSV export + bulk delete. LLM models configurable in Admin > LLM Configuration (category: background). Heartbeat integration: journals as a context source for proactive notifications with dynamic query (second pass after context aggregation), toggleable badge in heartbeat settings. Debug panel: dedicated "Personal Journals" section showing injection metrics (entries found/injected, scores, budget, per-entry details). (`src/domains/journals/`, `journal_introspection_prompt.txt`, `journal_consolidation_prompt.txt`, `JournalInjectionSection.tsx`, `ADR-057-Personal-Journals.md`, 35 unit tests)
+
+### Database
+
+- **Migration `journals_001`** — Created `journal_entries` table (UUID PK, user_id FK CASCADE, theme, title, content, mood, status, source, session_id, personality_code, char_count, embedding ARRAY(Float), timestamps). Added 11 columns to `users` table: journals_enabled, journal_consolidation_enabled, journal_consolidation_with_history, journal_max_total_chars, journal_context_max_chars, journal_last_consolidated_at, journal_last_cost_tokens_in/out/eur/at/source. Composite indexes on (user_id, status, created_at) and (user_id, theme).
+- **Migration `journals_002`** — Added 2 user-configurable columns: journal_max_entry_chars (Integer, default 2000), journal_context_max_results (Integer, default 10). Idempotent upgrade (skips if columns already exist).
+
 ## [1.6.1] - 2026-03-19
 
 ### Added
 
-- **System RAG Spaces — App Self-Knowledge (evolution)** — LIA can now answer questions about itself, its features, and usage directly in conversation. Built-in FAQ knowledge base (119 Q/A across 16 sections) indexed from English Markdown files (`docs/knowledge/`), with LLM translation at response time (6 languages). Includes: `SystemSpaceIndexer` with SHA-256 hash-based staleness detection, `is_app_help_query` detection in QueryAnalyzer, RoutingDecider Rule 0 override (prevents misrouting "how do I connect my calendar?" to the planner), App Identity Prompt (~200 tokens) injected conditionally (lazy loading — zero overhead on normal queries), 3 admin API endpoints (list/reindex/staleness), admin UI section with staleness badge and reindex button, automatic indexation at app startup (idempotent — skips if hash matches), 3 Prometheus metrics, seed script (`task db:seed:system-rag`). (`system_indexer.py`, `app_identity_prompt.txt`, `ADR-058`, 35 unit tests)
+- **System RAG Spaces — App Self-Knowledge (evolution)** — LIA can now answer questions about itself, its features, and usage directly in conversation. Built-in FAQ knowledge base (119+ Q/A across 17 sections) indexed from English Markdown files (`docs/knowledge/`), with LLM translation at response time (6 languages). Includes: `SystemSpaceIndexer` with SHA-256 hash-based staleness detection, `is_app_help_query` detection in QueryAnalyzer, RoutingDecider Rule 0 override (prevents misrouting "how do I connect my calendar?" to the planner), App Identity Prompt (~200 tokens) injected conditionally (lazy loading — zero overhead on normal queries), 3 admin API endpoints (list/reindex/staleness), admin UI section with staleness badge and reindex button, automatic indexation at app startup (idempotent — skips if hash matches), 3 Prometheus metrics, seed script (`task db:seed:system-rag`). (`system_indexer.py`, `app_identity_prompt.txt`, `ADR-058`, 35 unit tests)
 
 ### Database
 
@@ -24,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Browser Control (evolution F7)** — Interactive web browsing via Playwright headless Chromium. Autonomous ReAct agent (`browser_task_tool`) navigates websites, searches content, clicks elements, fills forms, and extracts data from JavaScript-rendered pages. Multi-step interaction handled internally — planner sends a natural language task, agent executes autonomously. Includes: session pool with cross-worker Redis recovery, SSRF prevention (reuses web_fetch URL validator), accessibility tree extraction via CDP, generic cookie banner auto-dismiss (20+ multi-language selectors), anti-detection (Chrome UA, webdriver flag removed, dynamic locale/timezone from user preferences), page crash recovery, Prometheus metrics (6 gauges/counters/histograms). Activation via admin connector panel. (`infrastructure/browser/`, `browser_tools.py`, `browser_agent_builder.py`, `browser_agent_prompt.txt`, 36 unit tests)
 - **Qwen provider support** — Added Qwen (Alibaba Cloud) as a native LLM provider via DashScope international OpenAI-compatible API. 3 models: qwen3-max (thinking-only), qwen3.5-plus (tools + vision + thinking), qwen3.5-flash (cost-effective). Includes thinking mode mapping (reasoning_effort → enable_thinking + thinking_budget), implicit cache, streaming metrics, model profiles with pricing. (`adapter.py`, `model_profiles.py`, `llm_pricing_seed.sql`, `AdminLLMConfigSection.tsx`)
 - **Ollama dynamic model discovery** — Admin LLM config now dynamically lists models installed on the Ollama server with real capabilities. Two-phase discovery: `GET /api/tags` + `POST /api/show` per model (parallel). Dropdown auto-populates when selecting Ollama as provider. In-memory cache (60s TTL), 5s HTTP timeout, per-model error isolation. New endpoint: `GET /admin/llm-config/providers/ollama/models`. (`ollama_discovery.py`, `service.py`, `router.py`, `AdminLLMConfigSection.tsx`)
-- **ADR-057** — Architecture Decision Record for Browser Control (ReAct agent, CDP accessibility, Redis session coordination, anti-detection).
+- **ADR-059** — Architecture Decision Record for Browser Control (ReAct agent, CDP accessibility, Redis session coordination, anti-detection).
 - **Browser technical documentation** — `BROWSER_CONTROL.md` (architecture, configuration, security, metrics, limitations).
 - **Browser security section** — Added "Browser Automation Security" to `SECURITY.md` (sandbox, SSRF, input sanitization, anti-detection trade-offs).
 
@@ -396,7 +407,10 @@ First public open-source release of LIA.
 - Circuit breaker, rate limiting, and distributed locks
 - SOPS/Age encryption for secrets management
 
-[Unreleased]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.5.2...HEAD
+[Unreleased]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.7.0...HEAD
+[1.7.0]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.6.1...v1.7.0
+[1.6.1]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.6.0...v1.6.1
+[1.6.0]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.5.2...v1.6.0
 [1.5.2]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.5.1...v1.5.2
 [1.5.1]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.5.0...v1.5.1
 [1.5.0]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.4.7...v1.5.0

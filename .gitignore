@@ -258,5 +258,8 @@ infrastructure/cloudflared/
 # Smart Environment
 .smart-env/
 
+# Google Search Console verification
+google*.html
+
 # Source screenshots (originals — cleaned copies in docs/assets/)
 LIA Pics/

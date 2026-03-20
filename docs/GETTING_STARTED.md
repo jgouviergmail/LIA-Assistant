@@ -1,21 +1,22 @@
 # Getting Started - LIA
 
-> Complete guide to install, configure, and get started with LIA - Multi-Agent AI Assistant v6.2
+> Complete guide to install, configure, and get started with LIA - Multi-Agent AI Assistant v6.3
 
-**Version**: 3.1
-**Last Updated**: 2026-03-14
-**Compatibility**: LIA v6.2.x (+ evolution Features: Web Fetch, MCP Per-User, Multi-Channel Telegram, Heartbeat Autonome, RAG Spaces)
+**Version**: 3.2
+**Last Updated**: 2026-03-20
+**Compatibility**: LIA v6.3.x (+ evolution Features: Web Fetch, MCP Per-User, Multi-Channel Telegram, Heartbeat Autonome, RAG Spaces, Sub-Agents, Browser Control, Personal Journals)
 
 ## Table of Contents
 
 - [Project Overview](#project-overview)
-- [What's New in v6.2](#whats-new-in-v62)
+- [What's New in v6.3](#whats-new-in-v63)
 - [Prerequisites](#prerequisites)
 - [Step-by-Step Installation](#step-by-step-installation)
 - [Environment Configuration](#environment-configuration)
 - [Starting the Services](#starting-the-services)
 - [First Steps](#first-steps)
 - [Advanced Features](#advanced-features)
+  - [Recommended LLM Configuration](#recommended-llm-configuration-optimal-quality--cost)
 - [Troubleshooting](#troubleshooting)
 - [Next Steps](#next-steps)
 
@@ -25,32 +26,34 @@
 
 **LIA** is a multi-agent conversational AI assistant built with LangGraph. It orchestrates multiple specialized agents to interact with Google services (Contacts, Gmail, Calendar, Drive, Tasks), Places, Weather, Wikipedia, Perplexity, and Routes.
 
-### v6.2 Highlights
+### v6.3 Highlights
 
 | Feature | Description |
 |---------|-------------|
-| **Multi-Channel Telegram** | Bidirectional chat via Telegram with HITL inline keyboards and voice STT (v6.2) |
-| **MCP Per-User** | External per-user MCP servers with OAuth 2.1, structured parsing, and LLM-based description auto-generation (v6.2) |
-| **Web Fetch Tool** | Web page content extraction for agents (v6.2) |
-| **Heartbeat Autonome** | LLM-driven proactive notifications: weather, calendar, interests (v6.2) |
-| **Google API Tracking** | Automatic Google Maps Platform cost tracking (v6.1) |
-| **Consumption Exports** | CSV exports for LLM + Google API billing (v6.1) |
-| **Skills System** | 10 specialized Claude skills (debugging, architecture, code review, etc.) |
+| **Personal Journals** | Assistant's introspective logbooks with semantic context injection (v1.7.0) |
+| **System Knowledge Spaces** | Built-in FAQ knowledge base — LIA answers questions about itself (v1.6.1) |
+| **Browser Control** | Interactive web browsing via Playwright with autonomous ReAct agent (v1.6.0) |
+| **Sub-Agents** | Persistent specialized sub-agents for delegation (research, analysis, synthesis) (v1.5.0) |
+| **RAG Knowledge Spaces** | Personal document spaces (15+ formats) with hybrid search and Drive sync (v1.4-v1.5) |
+| **Multi-Channel Telegram** | Bidirectional chat via Telegram with HITL inline keyboards and voice STT |
+| **MCP Per-User** | External per-user MCP servers with OAuth 2.1, structured parsing |
+| **Web Fetch Tool** | Web page content extraction for agents |
+| **Heartbeat Autonome** | LLM-driven proactive notifications: weather, calendar, interests |
+| **Google API Tracking** | Automatic Google Maps Platform cost tracking |
+| **Skills System** | 10 specialized Claude skills + built-in Skill Generator |
 | **FOR_EACH Pattern** | Smart iteration with HITL confirmation for bulk operations |
 | **Voice Mode** | Voice input with wake word, Push-to-Talk, and VAD |
-| **Voice TTS Dual** | Standard (free Edge TTS) or HD (paid OpenAI) |
+| **Voice TTS Dual** | Standard (free Edge TTS) or HD (paid OpenAI/Gemini) |
 | **Interest Learning** | Automatic interest extraction via LLM |
 | **OAuth Health Check** | Proactive connector monitoring with notifications |
-| **RAG Knowledge Spaces** | Personal document spaces (PDF, TXT, MD, DOCX) with hybrid search enrichment (v1.4) |
-| **System Knowledge Spaces** | Built-in FAQ knowledge base — LIA answers questions about itself (v1.6.1) |
 | **Hybrid Search** | Combined BM25 + semantic search (alpha=0.6) |
 
 ### Technical Architecture
 
 | Layer | Technologies | Versions |
 |-------|--------------|----------|
-| **Backend** | FastAPI + LangGraph + SQLAlchemy | FastAPI 0.135.1, LangGraph 1.0.10 |
-| **Frontend** | Next.js + React + TailwindCSS | Next.js 16.1.7, React 19.2.3 |
+| **Backend** | FastAPI + LangGraph + SQLAlchemy | FastAPI 0.135.1, LangGraph 1.1.2 |
+| **Frontend** | Next.js + React + TailwindCSS | Next.js 16.1.7, React 19.2.4 |
 | **Database** | PostgreSQL + pgvector | PostgreSQL 16 |
 | **Cache/Sessions** | Redis | Redis 7.4 |
 | **Observability** | Prometheus + Grafana + Loki + Tempo + Langfuse | Grafana 11.3.0 |
@@ -75,7 +78,7 @@
 
 ---
 
-## What's New in v6.2
+## What's New in v6.3
 
 This version introduces several transformative features.
 
@@ -235,7 +238,7 @@ pip install -e ".[dev]"
 
 # Verify the installation
 pip list | grep fastapi     # fastapi 0.135.1
-pip list | grep langgraph   # langgraph 1.0.10
+pip list | grep langgraph   # langgraph 1.1.2
 
 # Install pre-commit hooks (recommended)
 pre-commit install
@@ -972,6 +975,96 @@ All optional features are disabled by default. Enable them in `.env`:
 | `INTEREST_LEARNING_ENABLED` | Automatic interest extraction | — |
 | `OAUTH_HEALTH_CHECK_ENABLED` | Proactive connector monitoring | — |
 
+### Recommended LLM Configuration (Optimal Quality / Cost)
+
+LIA uses **35+ specialized LLM slots**, each independently configurable per provider, model, and parameters. The configuration below represents the **optimal balance between response quality and LLM costs**, tested in production. It is the default shipped with LIA.
+
+> **Fully customizable**: Every slot can be changed at runtime via the admin UI (Settings > Administration > LLM Configuration). You can use any supported provider (OpenAI, Anthropic, DeepSeek, Google Gemini, Ollama, Perplexity, Qwen) and mix them freely.
+
+#### Pipeline (Orchestration & Routing)
+
+| Slot | Provider | Model | Temp | Reasoning | Max Tokens | Rationale |
+|------|----------|-------|------|-----------|------------|-----------|
+| **Semantic Pivot** | OpenAI | `gpt-5-mini` | 0.0 | minimal | 5 000 | Fast deterministic classification |
+| **Query Analyzer** | Anthropic | `claude-sonnet-4-6` | 0.2 | low | 5 000 | Nuanced intent analysis |
+| **Router** | OpenAI | `gpt-5-mini` | 0.0 | minimal | 1 000 | Cheap, structured routing decision |
+| **Planner** | Anthropic | `claude-sonnet-4-6` | 0.2 | low | 20 000 | Complex multi-step plan generation |
+| **Semantic Validator** | Anthropic | `claude-sonnet-4-6` | 0.0 | low | 1 000 | Strict plan validation |
+| **Context Resolver** | OpenAI | `gpt-5-mini` | 0.0 | minimal | 1 000 | Fast context disambiguation |
+| **Compaction** | OpenAI | `gpt-4.1-mini` | 0.0 | — | 4 000 | Context window compression |
+
+#### Domain Agents (Tool-Calling)
+
+| Slot | Provider | Model | Temp | Reasoning | Max Tokens | Rationale |
+|------|----------|-------|------|-----------|------------|-----------|
+| **Contacts** | OpenAI | `gpt-5-nano` | 0.0 | minimal | 2 000 | Cheapest, tool calls are structured |
+| **Emails** | OpenAI | `gpt-5-nano` | 0.0 | minimal | 2 000 | Same — deterministic API calls |
+| **Calendar** | OpenAI | `gpt-5-nano` | 0.0 | minimal | 2 000 | Same |
+| **Drive** | OpenAI | `gpt-5-nano` | 0.0 | minimal | 2 000 | Same |
+| **Tasks** | OpenAI | `gpt-5-nano` | 0.0 | minimal | 2 000 | Same |
+| **Weather** | OpenAI | `gpt-5-nano` | 0.0 | minimal | 1 000 | Same, shorter output |
+| **Wikipedia** | OpenAI | `gpt-5-nano` | 0.0 | minimal | 2 000 | Same |
+| **Perplexity** | OpenAI | `gpt-5-nano` | 0.0 | minimal | 3 000 | Same |
+| **Brave** | OpenAI | `gpt-5-nano` | 0.0 | minimal | 2 000 | Same |
+| **Web Search** | OpenAI | `gpt-5-nano` | 0.3 | minimal | 4 000 | Slight creativity for search synthesis |
+| **Web Fetch** | OpenAI | `gpt-5-nano` | 0.3 | minimal | 3 000 | Same |
+| **Browser** | OpenAI | `gpt-4.1-mini` | 0.2 | — | 8 000 | Needs stronger reasoning for navigation |
+| **Places** | OpenAI | `gpt-5-nano` | 0.0 | minimal | 2 000 | Structured API calls |
+| **Routes** | OpenAI | `gpt-5-nano` | 0.0 | minimal | 2 000 | Same |
+| **Sub-Agent** | Anthropic | `claude-sonnet-4-6` | 0.5 | low | 8 000 | Delegation tasks need quality |
+
+#### Query & Response
+
+| Slot | Provider | Model | Temp | Reasoning | Max Tokens | Rationale |
+|------|----------|-------|------|-----------|------------|-----------|
+| **Query Agent** | Anthropic | `claude-sonnet-4-6` | 0.0 | low | 5 000 | High-quality conversational answers |
+| **Response** | Anthropic | `claude-sonnet-4-6` | 0.5 | medium | 5 000 | Natural, personality-aware final output |
+
+#### HITL (Human-in-the-Loop)
+
+| Slot | Provider | Model | Temp | Reasoning | Max Tokens | Rationale |
+|------|----------|-------|------|-----------|------------|-----------|
+| **HITL Classifier** | OpenAI | `gpt-5-nano` | 0.0 | minimal | 300 | Fast binary classification |
+| **HITL Question Gen** | OpenAI | `gpt-4.1-mini` | 0.5 | — | 500 | Conversational question phrasing |
+| **HITL Plan Approval** | OpenAI | `gpt-5-nano` | 0.5 | minimal | 500 | Budget-friendly approval prompts |
+
+#### Memory & Background
+
+| Slot | Provider | Model | Temp | Reasoning | Max Tokens | Rationale |
+|------|----------|-------|------|-----------|------------|-----------|
+| **Memory Extraction** | OpenAI | `gpt-5-mini` | 0.0 | minimal | 1 000 | Precise fact extraction |
+| **Memory Reference** | OpenAI | `gpt-5-mini` | 0.0 | minimal | 500 | Coreference resolution |
+| **Interest Extraction** | OpenAI | `gpt-5-mini` | 0.3 | minimal | 500 | Background interest detection |
+| **Interest Content** | Anthropic | `claude-sonnet-4-6` | 0.7 | medium | 1 000 | Creative interest-related content |
+| **Heartbeat Decision** | OpenAI | `gpt-5-mini` | 0.3 | minimal | 2 000 | Budget-friendly send/skip decision |
+| **Heartbeat Message** | Anthropic | `claude-sonnet-4-6` | 0.7 | medium | 500 | Personality-aware proactive messages |
+| **Broadcast Translator** | OpenAI | `gpt-5-mini` | 0.3 | minimal | 500 | Fast multilingual translation |
+| **Journal Extraction** | OpenAI | `gpt-5-mini` | 0.7 | minimal | 1 000 | Introspective journal entry creation |
+| **Journal Consolidation** | OpenAI | `gpt-5-mini` | 0.7 | minimal | 2 000 | Daily journal synthesis |
+
+#### Specialized
+
+| Slot | Provider | Model | Temp | Reasoning | Max Tokens | Rationale |
+|------|----------|-------|------|-----------|------------|-----------|
+| **Voice Comment** | OpenAI | `gpt-5-mini` | 0.7 | minimal | 500 | Natural voice commentary |
+| **MCP Description** | OpenAI | `gpt-5-mini` | 0.3 | minimal | 300 | Auto-describe MCP server tools |
+| **MCP Excalidraw** | Anthropic | `claude-opus-4-6` | 0.3 | low | 20 000 | Complex diagram generation |
+| **Vision Analysis** | OpenAI | `gpt-5-mini` | 0.5 | minimal | 4 096 | Image understanding |
+| **Skill Translator** | OpenAI | `gpt-5-mini` | 0.3 | minimal | 1 000 | Skill description i18n |
+| **Evaluator** | OpenAI | `gpt-4.1-mini` | 0.0 | — | 1 000 | LLM-as-Judge scoring |
+
+#### Design Principles
+
+The configuration follows a **tiered strategy**:
+
+1. **`gpt-5-nano`** (cheapest) — Domain agents doing structured tool calls. These don't need strong reasoning, just reliable function calling.
+2. **`gpt-5-mini`** — Pipeline nodes, memory, background tasks. Good reasoning at minimal cost with `reasoning_effort=minimal`.
+3. **`gpt-4.1-mini`** — Slots needing stronger reasoning without extended thinking (browser, evaluator, compaction).
+4. **`claude-sonnet-4-6`** — Core intelligence: planner, response, query analysis. Best quality/cost ratio for complex reasoning.
+5. **`claude-opus-4-6`** — Reserved for demanding creative tasks (Excalidraw diagram generation).
+
+> **Cost optimization tip**: Domain agents (`gpt-5-nano`) represent 50%+ of all LLM calls but a tiny fraction of cost. The real cost drivers are **Response** and **Planner** — switching these to cheaper models has the biggest cost impact (but also the biggest quality impact).
+
 ### Running Tests
 
 #### Backend Tests
@@ -1327,7 +1420,7 @@ grep VOICE_TTS_DEFAULT_MODE .env
 | **4** | [technical/PLANNER.md](./technical/PLANNER.md) | ExecutionPlan DSL + FOR_EACH |
 | **5** | [technical/VOICE_MODE.md](./technical/VOICE_MODE.md) | Voice Mode (STT + Wake Word) |
 
-### v6.2 Specific Documentation
+### v6.2-v6.3 Specific Documentation
 
 | Document | Feature |
 |----------|---------|
@@ -1335,6 +1428,9 @@ grep VOICE_TTS_DEFAULT_MODE .env
 | [technical/OAUTH_HEALTH_CHECK.md](./technical/OAUTH_HEALTH_CHECK.md) | OAuth Health Check |
 | [technical/HYBRID_SEARCH.md](./technical/HYBRID_SEARCH.md) | BM25 hybrid search |
 | [technical/SMART_SERVICES.md](./technical/SMART_SERVICES.md) | Smart Services v3 |
+| [technical/SUB_AGENTS.md](./technical/SUB_AGENTS.md) | Sub-Agents (F6) |
+| [technical/BROWSER_CONTROL.md](./technical/BROWSER_CONTROL.md) | Browser Control (F7) |
+| [technical/JOURNALS.md](./technical/JOURNALS.md) | Personal Journals (F8) |
 
 ### Practical Tutorials
 
@@ -1403,7 +1499,7 @@ Before considering your installation complete, verify:
 - [ ] Simple conversation works
 - [ ] API Docs accessible (`http://localhost:8000/docs`)
 
-### v6.2 Features
+### v6.2-v6.3 Features
 
 - [ ] Voice Mode works (microphone authorized, wake word detected)
 - [ ] TTS responds (Standard or HD depending on config)
@@ -1449,6 +1545,7 @@ Include:
 
 | Version | Date | Changes |
 |---------|------|---------|
+| **3.2** | 2026-03-20 | Added v6.3 features (Sub-Agents, Browser Control, Personal Journals, System Knowledge Spaces) |
 | **3.0** | 2026-03-13 | Added v6.2 features (Telegram, MCP, Heartbeat, Skills, SOPS, Testing, Production Deployment sections) |
 | **2.0** | 2026-02-03 | Added v6.0 (Skills, FOR_EACH, Voice Mode, Interest Learning) |
 | **1.5** | 2025-12-15 | Added Routes API, OAuth Health Check |
@@ -1458,7 +1555,7 @@ Include:
 
 **Congratulations!**
 
-You are now ready to use and develop with LIA v6.2.
+You are now ready to use and develop with LIA v6.3.
 
 **Recommended next step**: [ARCHITECTURE.md](./ARCHITECTURE.md)
 

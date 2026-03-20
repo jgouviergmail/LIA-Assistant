@@ -850,6 +850,34 @@ export interface RAGInjectionMetrics {
 }
 
 /**
+ * JournalInjectionEntry - Single injected journal entry with score
+ * Used for debug panel visualization of journal context injection
+ */
+export interface JournalInjectionEntry {
+  theme: string;
+  title: string; // First 25 chars
+  score: number; // Similarity score (0.0-1.0)
+  mood: string;
+  char_count: number;
+  source: string; // 'conversation' | 'consolidation' | 'manual'
+  date: string; // YYYY-MM-DD
+  injected: boolean; // Whether this entry was actually injected (budget constraint)
+}
+
+/**
+ * JournalInjectionMetrics - Debug details for injected journal entries
+ * Used for tuning context injection parameters and verifying journal behavior
+ */
+export interface JournalInjectionMetrics {
+  entries_found: number; // Total entries matching semantic search
+  entries_injected: number; // Entries actually injected (within budget)
+  total_chars_injected: number; // Total characters injected into prompt
+  max_chars_budget: number; // User's configured max chars
+  max_results_setting: number; // User's configured max results
+  entries: JournalInjectionEntry[];
+}
+
+/**
  * DebugMetrics - Complete debug metrics from QueryIntelligence
  * Emitted via SSE when DEBUG=true in backend
  */
@@ -883,6 +911,8 @@ export interface DebugMetrics {
   memory_injection?: MemoryInjectionMetrics; // Optional: injected memories with scores for tuning
   // RAG Injection (Knowledge Spaces)
   rag_injection?: RAGInjectionMetrics; // Optional: injected RAG chunks with scores
+  // Journal Injection (Personal Journals)
+  journal_injection?: JournalInjectionMetrics; // Optional: injected journal entries with scores
   // Skills activation
   skills?: SkillsMetrics; // Optional: skill activated for this turn
 }

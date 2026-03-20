@@ -13,5 +13,6 @@ export { StatsSection } from './StatsSection';
 export { SecuritySection } from './SecuritySection';
 export { TechSection } from './TechSection';
 export { ArchitectureDiagram } from './ArchitectureDiagram';
+export { PresentationSection } from './PresentationSection';
 export { CtaSection } from './CtaSection';
 export { LandingFooter } from './LandingFooter';

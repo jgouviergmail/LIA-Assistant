@@ -35,6 +35,7 @@ import { AdminMCPServersSettings } from '@/components/settings/AdminMCPServersSe
 import { MCPServersSettings } from '@/components/settings/MCPServersSettings';
 import { ChannelSettings } from '@/components/settings/ChannelSettings';
 import { HeartbeatSettings } from '@/components/settings/HeartbeatSettings';
+import { JournalsSettings } from '@/components/settings/JournalsSettings';
 import { SkillsSettings } from '@/components/settings/SkillsSettings';
 import { AdminSkillsSection } from '@/components/settings/AdminSkillsSection';
 import { SpacesSettingsSection } from '@/components/spaces/SpacesSettingsSection';
@@ -231,6 +232,9 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               <FeatureErrorBoundary feature="heartbeat">
                 <HeartbeatSettings lng={lng} />
               </FeatureErrorBoundary>
+              <FeatureErrorBoundary feature="journals">
+                <JournalsSettings lng={lng} />
+              </FeatureErrorBoundary>
               <FeatureErrorBoundary feature="scheduled-actions">
                 <ScheduledActionsSettings lng={lng} />
               </FeatureErrorBoundary>
@@ -331,6 +335,9 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               <InterestsSettings lng={lng} />
               <FeatureErrorBoundary feature="heartbeat">
                 <HeartbeatSettings lng={lng} />
+              </FeatureErrorBoundary>
+              <FeatureErrorBoundary feature="journals">
+                <JournalsSettings lng={lng} />
               </FeatureErrorBoundary>
               <FeatureErrorBoundary feature="scheduled-actions">
                 <ScheduledActionsSettings lng={lng} />

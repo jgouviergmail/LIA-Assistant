@@ -34,9 +34,9 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 | Technologie | Version | Role |
 |-------------|---------|------|
 | **Next.js** | 16.1.7 | Framework React SSR/SSG |
-| **React** | 19.2.3 | UI Library |
+| **React** | 19.2.4 | UI Library |
 | **TypeScript** | 5.9.3 | Type safety |
-| **Tailwind CSS** | 4.1.18 | Utility-first CSS |
+| **Tailwind CSS** | 4.2.1 | Utility-first CSS |
 
 ### State & Data
 
@@ -86,7 +86,7 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 
 | Technologie | Version | Role |
 |-------------|---------|------|
-| **SQLAlchemy** | 2.0.45 | ORM async |
+| **SQLAlchemy** | 2.0.48 | ORM async |
 | **Alembic** | 1.14.0 | Migrations |
 | **asyncpg** | 0.31.0 | PostgreSQL driver async |
 | **psycopg** | 3.3.x | PostgreSQL driver |

@@ -26,6 +26,7 @@ import {
   Monitor,
   Smartphone,
   HelpCircle,
+  BookOpen,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -88,6 +89,7 @@ const FUNCTIONAL_FEATURES: FeatureItem[] = [
   { key: 'sub_agents', icon: Bot },
   { key: 'browser_control', icon: Monitor },
   { key: 'self_knowledge', icon: HelpCircle },
+  { key: 'journals', icon: BookOpen },
 ];
 
 // Responsible & simple

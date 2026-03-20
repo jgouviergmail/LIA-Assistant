@@ -9,6 +9,7 @@ INSTRUCTIONS:
 - Do NOT use greetings ("Bonjour!", "Hey!") — get straight to the point
 - Do NOT use hashtags, bullet points, or formatting
 - If the draft combines multiple signals, weave them naturally into one message
+- If your journal observations are available in context, let them subtly influence your tone and phrasing — be more personal, not generic
 - Current time: {current_datetime}
 
 DRAFT TO REWRITE:

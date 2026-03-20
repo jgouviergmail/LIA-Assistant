@@ -1896,3 +1896,48 @@ def raise_websocket_rate_limit(
         limit=limit,
         window_seconds=window_seconds,
     )
+
+
+# =============================================================================
+# JOURNALS (Personal Journals — Carnets de Bord)
+# =============================================================================
+
+
+def raise_journal_not_found(entry_id: UUID) -> NoReturn:
+    """
+    Raise 404 when journal entry is not found.
+
+    Args:
+        entry_id: Journal entry UUID
+
+    Raises:
+        ResourceNotFoundError: 404 Not Found
+    """
+    raise ResourceNotFoundError(
+        resource_type="journal_entry",
+        resource_id=entry_id,
+    )
+
+
+def raise_journal_size_exceeded(
+    current_chars: int,
+    max_chars: int,
+) -> NoReturn:
+    """
+    Raise 400 when journal size limit would be exceeded.
+
+    Args:
+        current_chars: Current total characters
+        max_chars: Maximum allowed characters
+
+    Raises:
+        ValidationError: 400 Bad Request
+    """
+    raise ValidationError(
+        detail=(
+            f"Journal size limit exceeded: {current_chars} / {max_chars} characters. "
+            "Delete or summarize entries to free space."
+        ),
+        current_chars=current_chars,
+        max_chars=max_chars,
+    )

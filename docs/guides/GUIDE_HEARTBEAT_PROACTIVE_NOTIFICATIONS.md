@@ -28,7 +28,7 @@
 
 Le Heartbeat Autonome (Feature F5 du roadmap evolution) permet au LLM de contacter proactivement les utilisateurs avec des informations pertinentes, **sans attendre de requete utilisateur**. C'est un systeme LLM-driven qui :
 
-1. **Agregue du contexte** depuis 9+ sources (calendrier, meteo, taches, emails, centres d'interet, memories, activite, historique notifications)
+1. **Agregue du contexte** depuis 10+ sources (calendrier, meteo, taches, emails, centres d'interet, memories, journaux personnels, activite, historique notifications)
 2. **Laisse le LLM decider** s'il y a quelque chose d'utile a communiquer (structured output)
 3. **Genere un message personnalise** avec la personnalite et la langue de l'utilisateur
 
@@ -339,11 +339,12 @@ if getattr(settings, "mon_type_enabled", False):
 
 ## 5. ContextAggregator
 
-Le `ContextAggregator` (`domains/heartbeat/context_aggregator.py`) fetche 9 sources de contexte en parallele via `asyncio.gather(return_exceptions=True)`.
+Le `ContextAggregator` (`domains/heartbeat/context_aggregator.py`) fetche 9 sources de contexte en parallele via `asyncio.gather(return_exceptions=True)`, puis effectue un **second pass** pour les journaux personnels.
 
 ### Fonctionnement
 
 ```python
+# Premier pass : sources en parallele
 results = await asyncio.gather(
     self._fetch_calendar(user_id, user, settings),
     self._fetch_tasks(user_id, user, settings),
@@ -356,12 +357,17 @@ results = await asyncio.gather(
     self._fetch_recent_interest_notifications(user_id),
     return_exceptions=True,
 )
+
+# Second pass : journaux avec query dynamique basee sur le contexte agrege
+journal_query = self._build_journal_query_from_context(context)
+journal_result = await self._fetch_journals(user_id, user, query=journal_query)
 ```
 
 **Points cles** :
 
 - **`return_exceptions=True`** : une source en echec ne bloque pas les autres. Les exceptions sont retournees comme valeurs dans le tableau de resultats.
 - **Ordering stable** : les resultats sont mappes par index avec un tableau `source_names` et `zip(..., strict=True)`.
+- **Second pass journaux** : les journaux personnels sont fetches APRES l'agregation car le query de recherche semantique est construit dynamiquement a partir du contexte deja agrege (resume calendrier, meteo, interets, taches, emails). Cela garantit que les entrees de journal selectionnees sont pertinentes par rapport au contenu de la notification.
 - **Chaque source est independamment failable** : si le calendrier n'est pas connecte, la meteo est quand meme fetchee.
 - **Le contexte temporel** (`_compute_time_context`) est calcule de maniere synchrone avant le gather (pas d'I/O, ne peut pas echouer).
 

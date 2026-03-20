@@ -19,7 +19,7 @@
 
 ## 🎯 Vue d'Ensemble
 
-L'architecture multi-agents de LIA repose sur **LangGraph 1.0.10**, un framework d'orchestration qui permet de construire des workflows d'agents complexes avec :
+L'architecture multi-agents de LIA repose sur **LangGraph 1.1.2**, un framework d'orchestration qui permet de construire des workflows d'agents complexes avec :
 
 - **State Management** : État centralisé avec reducers immutables
 - **Checkpointing** : Persistence automatique à chaque node

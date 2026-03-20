@@ -14,6 +14,7 @@
 # DEPLOY_HOST	(requis)	Serveur cible (hostname/IP)
 # DEPLOY_USER	deploy	Utilisateur SSH
 # DEPLOY_PATH	/opt/lia	Chemin de déploiement
+# DEPLOY_SSH_PORT	22	SSH port
 # Flux Principal (10 étapes)
 # Vérification prérequis - Vérifie DEPLOY_HOST et présence de ssh
 # Test SSH - Valide la connexion au serveur
@@ -81,8 +82,13 @@ NC='\033[0m' # No Color
 DEPLOY_HOST="${DEPLOY_HOST:-}"
 DEPLOY_USER="${DEPLOY_USER:-deploy}"
 DEPLOY_PATH="${DEPLOY_PATH:-/opt/lia}"
+DEPLOY_SSH_PORT="${DEPLOY_SSH_PORT:-22}"
 DOCKER_COMPOSE_FILE="docker-compose.prod.yml"
 ENV_FILE=".env.prod"
+
+# SSH/SCP options with custom port
+SSH_CMD="ssh -p ${DEPLOY_SSH_PORT}"
+SCP_CMD="scp -P ${DEPLOY_SSH_PORT}"
 
 # Functions
 log_info() {
@@ -122,7 +128,7 @@ setup_ssh() {
     log_info "Setting up SSH connection..."
 
     # Test SSH connection
-    if ssh -o BatchMode=yes -o ConnectTimeout=5 "${DEPLOY_USER}@${DEPLOY_HOST}" exit 2>/dev/null; then
+    if $SSH_CMD -o BatchMode=yes -o ConnectTimeout=5 "${DEPLOY_USER}@${DEPLOY_HOST}" exit 2>/dev/null; then
         log_success "SSH connection successful"
     else
         log_warning "SSH connection test failed. Proceeding anyway..."
@@ -132,7 +138,7 @@ setup_ssh() {
 create_remote_directory() {
     log_info "Creating remote deployment directory..."
 
-    ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "mkdir -p ${DEPLOY_PATH}"
+    $SSH_CMD "${DEPLOY_USER}@${DEPLOY_HOST}" "mkdir -p ${DEPLOY_PATH}"
 
     log_success "Remote directory created: ${DEPLOY_PATH}"
 }
@@ -141,11 +147,11 @@ copy_files() {
     log_info "Copying deployment files to remote server..."
 
     # Copy docker-compose file
-    scp "${DOCKER_COMPOSE_FILE}" "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/"
+    $SCP_CMD "${DOCKER_COMPOSE_FILE}" "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/"
 
     # Copy .env.prod if it exists
     if [ -f "$ENV_FILE" ]; then
-        scp "$ENV_FILE" "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/"
+        $SCP_CMD "$ENV_FILE" "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/"
         log_success "Environment file copied"
     else
         log_warning "Environment file $ENV_FILE not found. Make sure it exists on the server."
@@ -153,15 +159,15 @@ copy_files() {
 
     # Copy monitoring configs if they exist
     if [ -d "monitoring" ]; then
-        ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "mkdir -p ${DEPLOY_PATH}/monitoring"
-        scp -r monitoring/* "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/monitoring/"
+        $SSH_CMD "${DEPLOY_USER}@${DEPLOY_HOST}" "mkdir -p ${DEPLOY_PATH}/monitoring"
+        $SCP_CMD -r monitoring/* "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/monitoring/"
         log_success "Monitoring configs copied"
     fi
 
     # Copy system knowledge files for RAG FAQ indexation
     if [ -d "docs/knowledge" ] && ls docs/knowledge/*.md &>/dev/null; then
-        ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "mkdir -p ${DEPLOY_PATH}/docs/knowledge"
-        scp docs/knowledge/*.md "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/docs/knowledge/"
+        $SSH_CMD "${DEPLOY_USER}@${DEPLOY_HOST}" "mkdir -p ${DEPLOY_PATH}/docs/knowledge"
+        $SCP_CMD docs/knowledge/*.md "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/docs/knowledge/"
         log_success "System knowledge files copied ($(ls docs/knowledge/*.md | wc -l) FAQ files)"
     else
         log_warning "docs/knowledge/ not found. System FAQ indexation will not work."
@@ -173,7 +179,7 @@ copy_files() {
 pull_images() {
     log_info "Pulling latest Docker images on remote server..."
 
-    ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "cd ${DEPLOY_PATH} && docker-compose -f ${DOCKER_COMPOSE_FILE} pull"
+    $SSH_CMD "${DEPLOY_USER}@${DEPLOY_HOST}" "cd ${DEPLOY_PATH} && docker-compose -f ${DOCKER_COMPOSE_FILE} pull"
 
     log_success "Docker images pulled successfully"
 }
@@ -181,7 +187,7 @@ pull_images() {
 run_migrations() {
     log_info "Running database migrations..."
 
-    ssh "${DEPLOY_USER}@${DEPLOY_HOST}" << 'EOF'
+    $SSH_CMD "${DEPLOY_USER}@${DEPLOY_HOST}" << 'EOF'
 cd ${DEPLOY_PATH}
 docker-compose -f ${DOCKER_COMPOSE_FILE} run --rm api alembic upgrade head
 EOF
@@ -193,7 +199,7 @@ deploy_services() {
     log_info "Deploying services with zero-downtime strategy..."
 
     # Use docker-compose up with --wait flag for zero-downtime
-    ssh "${DEPLOY_USER}@${DEPLOY_HOST}" << EOF
+    $SSH_CMD "${DEPLOY_USER}@${DEPLOY_HOST}" << EOF
 cd ${DEPLOY_PATH}
 docker-compose -f ${DOCKER_COMPOSE_FILE} up -d --remove-orphans --wait
 EOF
@@ -209,7 +215,7 @@ health_check() {
 
     # Check API health
     log_info "Checking API health..."
-    ssh "${DEPLOY_USER}@${DEPLOY_HOST}" << 'EOF'
+    $SSH_CMD "${DEPLOY_USER}@${DEPLOY_HOST}" << 'EOF'
 MAX_RETRIES=10
 RETRY_COUNT=0
 
@@ -240,7 +246,7 @@ EOF
 rollback() {
     log_warning "Rolling back deployment..."
 
-    ssh "${DEPLOY_USER}@${DEPLOY_HOST}" << EOF
+    $SSH_CMD "${DEPLOY_USER}@${DEPLOY_HOST}" << EOF
 cd ${DEPLOY_PATH}
 docker-compose -f ${DOCKER_COMPOSE_FILE} rollback
 EOF
@@ -251,7 +257,7 @@ EOF
 cleanup_old_images() {
     log_info "Cleaning up old Docker images..."
 
-    ssh "${DEPLOY_USER}@${DEPLOY_HOST}" << 'EOF'
+    $SSH_CMD "${DEPLOY_USER}@${DEPLOY_HOST}" << 'EOF'
 docker image prune -f
 docker volume prune -f
 EOF
@@ -262,7 +268,7 @@ EOF
 show_status() {
     log_info "Checking deployment status..."
 
-    ssh "${DEPLOY_USER}@${DEPLOY_HOST}" << EOF
+    $SSH_CMD "${DEPLOY_USER}@${DEPLOY_HOST}" << EOF
 cd ${DEPLOY_PATH}
 echo ""
 echo "========================================"
@@ -284,7 +290,7 @@ main() {
     echo "LIA Production Deployment"
     echo "========================================"
     echo ""
-    echo "Target: ${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}"
+    echo "Target: ${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_SSH_PORT} → ${DEPLOY_PATH}"
     echo ""
 
     check_prerequisites
@@ -305,7 +311,7 @@ main() {
     echo ""
     echo "Next steps:"
     echo "1. Verify application at: http://${DEPLOY_HOST}:3000"
-    echo "2. Monitor logs: ssh ${DEPLOY_USER}@${DEPLOY_HOST} 'cd ${DEPLOY_PATH} && docker-compose logs -f'"
+    echo "2. Monitor logs: ssh -p ${DEPLOY_SSH_PORT} ${DEPLOY_USER}@${DEPLOY_HOST} 'cd ${DEPLOY_PATH} && docker-compose logs -f'"
     echo "3. Check metrics: http://${DEPLOY_HOST}:3001 (Grafana, if enabled)"
     echo ""
 }
@@ -323,7 +329,7 @@ case "${1:-}" in
         ;;
     --logs)
         setup_ssh
-        ssh "${DEPLOY_USER}@${DEPLOY_HOST}" "cd ${DEPLOY_PATH} && docker-compose -f ${DOCKER_COMPOSE_FILE} logs -f"
+        $SSH_CMD "${DEPLOY_USER}@${DEPLOY_HOST}" "cd ${DEPLOY_PATH} && docker-compose -f ${DOCKER_COMPOSE_FILE} logs -f"
         ;;
     --help)
         echo "Usage: $0 [OPTIONS]"
@@ -339,6 +345,7 @@ case "${1:-}" in
         echo "  DEPLOY_HOST      Target server hostname or IP (required)"
         echo "  DEPLOY_USER      SSH user (default: deploy)"
         echo "  DEPLOY_PATH      Deployment path (default: /opt/lia)"
+        echo "  DEPLOY_SSH_PORT  SSH port (default: 22)"
         echo ""
         echo "Example:"
         echo "  DEPLOY_HOST=prod.example.com DEPLOY_USER=ubuntu ./scripts/deploy.sh"

@@ -221,6 +221,22 @@ class ContextAggregator:
             # Apply result to context based on source name
             self._apply_source_result(context, name, result)
 
+        # Second pass: fetch journals with a dynamic query built from
+        # the aggregated context (calendar summary, weather, interests).
+        # This ensures journal entries are selected based on actual
+        # notification context, not a static generic query.
+        try:
+            journal_query = self._build_journal_query_from_context(context)
+            journal_result = await self._fetch_journals(user_id, user, query=journal_query)
+            if journal_result:
+                self._apply_source_result(context, "journals", journal_result)
+        except Exception as e:
+            logger.warning(
+                "heartbeat_journals_second_pass_failed",
+                user_id=str(user_id),
+                error=str(e),
+            )
+
         return context
 
     def _apply_source_result(
@@ -268,6 +284,10 @@ class ContextAggregator:
 
         elif name == "recent_interests" and result:
             context.recent_interest_notifications = result
+
+        elif name == "journals" and result:
+            context.journal_entries = result
+            context.available_sources.append("journals")
 
     # ------------------------------------------------------------------
     # Time context (synchronous, always succeeds)
@@ -1007,3 +1027,118 @@ class ContextAggregator:
             }
             for row in rows
         ]
+
+    # ------------------------------------------------------------------
+    # Journals (Personal Journals — semantic relevance search)
+    # ------------------------------------------------------------------
+
+    def _build_journal_query_from_context(self, context: HeartbeatContext) -> str:
+        """Build a semantic search query from aggregated heartbeat context.
+
+        Combines summaries of available context sources into a query
+        that will find the most relevant journal entries for this
+        specific notification cycle.
+
+        Args:
+            context: Aggregated heartbeat context (calendar, weather, etc.)
+
+        Returns:
+            Query string for embedding-based semantic search
+        """
+        parts: list[str] = []
+
+        if context.calendar_events:
+            summaries = [e.get("summary", "") for e in context.calendar_events[:3]]
+            parts.append(f"upcoming events: {', '.join(summaries)}")
+
+        if context.weather_current:
+            desc = context.weather_current.get("description", "")
+            parts.append(f"weather: {desc}")
+
+        if context.trending_interests:
+            topics = [i.get("topic", "") for i in context.trending_interests[:3]]
+            parts.append(f"interests: {', '.join(topics)}")
+
+        if context.pending_tasks:
+            tasks = [t.get("title", "") for t in context.pending_tasks[:3]]
+            parts.append(f"tasks: {', '.join(tasks)}")
+
+        if context.unread_emails:
+            subjects = [e.get("subject", "") for e in context.unread_emails[:2]]
+            parts.append(f"emails: {', '.join(subjects)}")
+
+        # Fallback if no context available
+        if not parts:
+            return "user preferences observations patterns priorities"
+
+        return " ".join(parts)
+
+    async def _fetch_journals(
+        self,
+        user_id: UUID,
+        user: Any,
+        query: str = "",
+    ) -> list[dict[str, str]] | None:
+        """Fetch relevant journal entries for heartbeat context enrichment.
+
+        Uses semantic search with a dynamic query built from the
+        aggregated heartbeat context to find journal entries that
+        are specifically relevant to the current notification cycle.
+        Skipped if journals are disabled for the user.
+
+        Args:
+            user_id: User UUID
+            user: User model instance
+            query: Semantic search query (built from aggregated context)
+
+        Returns:
+            List of journal entry dicts, or None if disabled/empty
+        """
+        # Skip if journals disabled
+        if not getattr(user, "journals_enabled", False):
+            return None
+
+        try:
+            from src.domains.journals.repository import JournalEntryRepository
+            from src.infrastructure.llm.local_embeddings import get_local_embeddings
+
+            repo = JournalEntryRepository(self._db)
+
+            embeddings = get_local_embeddings()
+            search_query = query or "user preferences observations patterns priorities"
+            query_embedding = embeddings.embed_query(search_query)
+
+            if not query_embedding:
+                return None
+
+            from src.core.config import settings as app_settings
+
+            scored_entries = await repo.search_by_relevance(
+                user_id=user_id,
+                query_embedding=query_embedding,
+                limit=3,  # Keep small for heartbeat budget
+                min_score=app_settings.journal_context_min_score,
+            )
+
+            if not scored_entries:
+                return None
+
+            return [
+                {
+                    "title": entry.title,
+                    "content_preview": entry.content[:200],
+                    "theme": entry.theme,
+                    "mood": entry.mood,
+                    "date": entry.created_at.strftime("%Y-%m-%d"),
+                    "score": f"{score:.2f}",
+                }
+                for entry, score in scored_entries
+            ]
+
+        except Exception as e:
+            logger.warning(
+                "heartbeat_journals_fetch_failed",
+                user_id=str(user_id),
+                error=str(e),
+            )
+            return None

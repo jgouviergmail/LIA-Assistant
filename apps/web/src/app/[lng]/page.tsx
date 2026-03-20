@@ -10,6 +10,7 @@ import { HowItWorksSection } from '@/components/landing/HowItWorksSection';
 import { FeaturesSection } from '@/components/landing/FeaturesSection';
 import { ScreenshotsSection } from '@/components/landing/ScreenshotsSection';
 import { ArchitectureDiagram } from '@/components/landing/ArchitectureDiagram';
+import { PresentationSection } from '@/components/landing/PresentationSection';
 import { UseCasesSection } from '@/components/landing/UseCasesSection';
 import { StatsSection } from '@/components/landing/StatsSection';
 import { SecuritySection } from '@/components/landing/SecuritySection';
@@ -97,9 +98,10 @@ export default async function HomePage({ params }: HomePageProps) {
         <main>
           <HeroSection lng={lng} />
           <HowItWorksSection lng={lng} />
-          <FeaturesSection lng={lng} />
           <ScreenshotsSection />
+          <FeaturesSection lng={lng} />
           <ArchitectureDiagram />
+          <PresentationSection />
           <UseCasesSection lng={lng} />
           <StatsSection />
           <SecuritySection lng={lng} />

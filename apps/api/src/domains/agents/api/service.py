@@ -321,6 +321,7 @@ class AgentService(
         original_run_id: str | None = None,
         browser_context: BrowserContext | None = None,
         user_memory_enabled: bool = True,
+        user_journals_enabled: bool = False,
         auto_approve_plan: bool = False,
         attachment_ids: list[uuid.UUID] | None = None,
     ) -> AsyncGenerator[ChatStreamChunk, None]:
@@ -337,6 +338,7 @@ class AgentService(
             original_run_id: Optional run_id from HITL resumption (for token aggregation).
             browser_context: Browser context (geolocation, etc.) sent automatically by frontend.
             user_memory_enabled: User's preference for long-term memory (default: True).
+            user_journals_enabled: User's preference for personal journals (default: False).
             auto_approve_plan: If True, bypass HITL plan approval gate (for scheduled actions).
 
         Yields:
@@ -360,6 +362,7 @@ class AgentService(
             original_run_id,
             browser_context,
             user_memory_enabled,
+            user_journals_enabled,
             auto_approve_plan,
             attachment_ids,
         ):
@@ -375,6 +378,7 @@ class AgentService(
         original_run_id: str | None = None,
         browser_context: BrowserContext | None = None,
         user_memory_enabled: bool = True,
+        user_journals_enabled: bool = False,
         auto_approve_plan: bool = False,
         attachment_ids: list[uuid.UUID] | None = None,
     ) -> AsyncGenerator[ChatStreamChunk, None]:
@@ -394,6 +398,7 @@ class AgentService(
             browser_context: Browser context (geolocation, etc.) sent automatically by frontend.
                             Propagated to RunnableConfig.configurable for tools to access.
             user_memory_enabled: User's preference for long-term memory (extraction + injection).
+            user_journals_enabled: User's preference for personal journals (extraction + injection).
             auto_approve_plan: If True, inject plan_approved=True into state to bypass HITL gate.
         """
         # CRITICAL: Reuse original_run_id for HITL token aggregation
@@ -690,6 +695,7 @@ class AgentService(
                                 browser_context=browser_context,
                                 user_message=user_message,  # For location phrase detection
                                 user_memory_enabled=user_memory_enabled,  # User memory preference
+                                user_journals_enabled=user_journals_enabled,  # User journals preference
                             ),
                             conversation_id=conversation_id,
                             run_id=run_id,

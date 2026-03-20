@@ -1436,6 +1436,38 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             if skill_sections:
                 skills_context = "\n\n".join(skill_sections)
 
+        # ===================================================================
+        # JOURNAL CONTEXT INJECTION (semantic relevance search)
+        # ===================================================================
+        journal_context = ""
+        journal_injection_debug: dict | None = None
+        user_journals_enabled = config.get("configurable", {}).get("user_journals_enabled", False)
+        if settings.journals_enabled and user_journals_enabled:
+            try:
+                user_id_for_journal = config.get("configurable", {}).get("langgraph_user_id")
+                if user_id_for_journal and last_user_message:
+                    from src.domains.journals.context_builder import (
+                        build_journal_context,
+                    )
+                    from src.infrastructure.database.session import get_db_context
+
+                    async with get_db_context() as journal_db:
+                        journal_context_result, journal_debug = await build_journal_context(
+                            user_id=user_id_for_journal,
+                            query=last_user_message,
+                            db=journal_db,
+                            include_debug=True,
+                        )
+                        journal_context = journal_context_result or ""
+                        journal_injection_debug = journal_debug
+            except Exception as e:
+                logger.warning(
+                    "journal_context_injection_failed",
+                    run_id=run_id,
+                    error=str(e),
+                    error_type=type(e).__name__,
+                )
+
         # Get timezone-aware prompt with personality, history, and memory injection
         # V3 Architecture: LLM generates conversational response only
         # Data formatting handled by HTML components, injected post-LLM via HtmlRenderer
@@ -1456,6 +1488,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             anticipated_needs=anticipated_needs,
             skills_context=skills_context,
             app_knowledge_context=app_knowledge_context,
+            journal_context=journal_context,  # Personal journal context
         )
 
         logger.debug(
@@ -2076,6 +2109,8 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         state_update["memory_injection_debug"] = memory_injection_debug
         # RAG Spaces: Store debug details for debug panel
         state_update["rag_injection_debug"] = rag_injection_debug
+        # Journals: Store debug details for debug panel
+        state_update["journal_injection_debug"] = journal_injection_debug
 
         # ===================================================================
         # PHASE 3.2 - BUSINESS METRICS INSTRUMENTATION
@@ -2353,6 +2388,70 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             # Graceful degradation - interest extraction failure must not break response_node
             logger.error(
                 "interest_extraction_scheduling_failed",
+                run_id=run_id,
+                error=str(e),
+                error_type=type(e).__name__,
+                exc_info=True,
+            )
+
+        # ===================================================================
+        # JOURNAL ENTRY EXTRACTION (Background)
+        # ===================================================================
+        # Extract journal entries from conversation asynchronously.
+        # Uses safe_fire_and_forget to prevent GC issues with background tasks.
+        # Non-blocking: extraction runs after response is returned to user.
+        # GUARD: Same automated source filter as memory/interest extraction.
+        try:
+            user_journals_enabled = config.get("configurable", {}).get(
+                "user_journals_enabled", False
+            )
+            if _is_automated_source:
+                logger.info(
+                    "journal_extraction_skipped_automated_source",
+                    run_id=run_id,
+                    session_id=_session_id,
+                )
+            elif not user_journals_enabled:
+                logger.debug(
+                    "journal_extraction_skipped_user_disabled",
+                    run_id=run_id,
+                )
+            elif not (user_id := config.get("configurable", {}).get("langgraph_user_id")):
+                logger.debug(
+                    "journal_extraction_skipped_no_user",
+                    run_id=run_id,
+                )
+            else:
+                from src.domains.journals.extraction_service import (
+                    extract_journal_entry_background,
+                )
+
+                thread_id = config.get("configurable", {}).get("thread_id", "unknown")
+                msg_count = len(state.get(STATE_KEY_MESSAGES, []))
+                safe_fire_and_forget(
+                    extract_journal_entry_background(
+                        user_id=user_id,
+                        messages=state[STATE_KEY_MESSAGES],
+                        session_id=thread_id,
+                        personality_instruction=personality_instruction,
+                        conversation_id=thread_id,
+                        user_language=user_language,
+                        parent_run_id=run_id,
+                    ),
+                    name=f"journal_extraction_{user_id}_{thread_id[:8]}",
+                    run_id=run_id,
+                )
+                logger.info(
+                    "journal_extraction_scheduled",
+                    run_id=run_id,
+                    user_id=user_id,
+                    thread_id=thread_id,
+                    message_count=msg_count,
+                )
+        except (ValueError, KeyError, RuntimeError, AttributeError, ImportError, OSError) as e:
+            # Graceful degradation - journal extraction failure must not break response_node
+            logger.error(
+                "journal_extraction_scheduling_failed",
                 run_id=run_id,
                 error=str(e),
                 error_type=type(e).__name__,

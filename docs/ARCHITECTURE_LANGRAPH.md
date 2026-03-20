@@ -1,16 +1,16 @@
 # Architecture LangGraph - LIA
 
-**Version**: 5.5 (INTELLIPLANNER + INTELLIA v10.1 + SEMANTIC + REMINDERS + Architecture v3)
-**Date**: 2026-01-12
+**Version**: 5.6 (INTELLIPLANNER + INTELLIA v10.1 + SEMANTIC + REMINDERS + Architecture v3.5 + Sub-Agents + Browser Control + Journals)
+**Date**: 2026-03-20
 **Status**: Production
 
 ---
 
 ## Vue d'Ensemble
 
-LIA utilise **LangGraph v1.0.10** avec exécution parallèle native **asyncio** pour orchestrer un assistant intelligent multi-domaines. L'architecture supporte:
+LIA utilise **LangGraph v1.1.2** avec exécution parallèle native **asyncio** pour orchestrer un assistant intelligent multi-domaines. L'architecture supporte:
 
-**Domaines actifs**: Contacts, Emails, Calendar, Drive, Tasks, Weather, Wikipedia, Perplexity, Places
+**Domaines actifs**: Contacts, Emails, Calendar, Drive, Tasks, Weather, Wikipedia, Perplexity, Places, Routes, Brave Search, Web Fetch, Browser, MCP, Sub-Agents
 
 - Routing intelligent avec classification binaire
 - Planification LLM avec validation sémantique

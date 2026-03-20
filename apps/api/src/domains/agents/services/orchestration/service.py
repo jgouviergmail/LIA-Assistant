@@ -1186,6 +1186,7 @@ class OrchestrationService:
         browser_context: Any | None = None,  # BrowserContext from frontend
         user_message: str = "",  # Original user message for location phrase detection
         user_memory_enabled: bool = True,  # User preference for long-term memory
+        user_journals_enabled: bool = False,  # User preference for personal journals
     ) -> AsyncGenerator[tuple[str, Any], None]:
         """
         Execute graph with streaming and yield raw (mode, chunk) tuples.
@@ -1214,6 +1215,7 @@ class OrchestrationService:
             browser_context: Browser context (geolocation, etc.) for location-aware tools
             user_message: Original user message for location phrase detection (e.g., "chez moi")
             user_memory_enabled: User preference for long-term memory (extraction + injection)
+            user_journals_enabled: User preference for personal journals (extraction + injection)
 
         Yields:
             (mode, chunk): Raw graph stream outputs
@@ -1260,6 +1262,7 @@ class OrchestrationService:
                 "langgraph_user_id": str(user_id),  # For LangMem memory injection
                 "store": memory_store,  # For long-term memory injection
                 "user_memory_enabled": user_memory_enabled,  # User preference for memory
+                "user_journals_enabled": user_journals_enabled,  # User preference for journals
                 "__deps": tool_deps,
                 "__browser_context": browser_context,  # For location-aware tools (weather, places)
                 "__user_message": user_message,  # Original message for location phrase detection

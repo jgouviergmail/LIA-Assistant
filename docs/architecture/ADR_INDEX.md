@@ -2005,39 +2005,33 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 - ❌ Pas de synchronisation avec les fichiers cloud existants
 - ❌ Workflow fastidieux décourageant l'adoption
 
-**Solution**:
-- ✅ `RAGDriveSyncService` avec link/unlink/browse/sync
-- ✅ Sync incrémentale via `modifiedTime` (skip fichiers non modifiés)
-- ✅ Lock atomique DB (`UPDATE WHERE sync_status != 'syncing'`)
-- ✅ Isolation erreurs par fichier (un échec ne bloque pas le sync)
-- ✅ Feature flag `rag_spaces_drive_sync_enabled`
-
 ---
 
-### ADR-057: Browser Control Architecture (Playwright)
+### ADR-057: Personal Journals (Carnets de Bord)
 
 **Status**: ✅ IMPLEMENTED (2026-03-19)
-**Fichier**: `docs/architecture/ADR-057-Browser-Control.md`
+**Fichier**: `docs/architecture/ADR-057-Personal-Journals.md`
 
-**Décision**: Ajouter un connecteur browser autonome basé sur Playwright pour l'interaction web interactive (navigation, recherche, clic, remplissage de formulaires, extraction de contenu JS-rendered).
+**Décision**: Implémenter des **carnets de bord thématiques** où l'assistant IA enregistre ses propres réflexions, observations et apprentissages. Gestion autonome du cycle de vie via prompt engineering, recherche sémantique pour l'injection contextuelle dans les prompts response et planner.
 
 **Problème résolu**:
-- ❌ web_fetch ne peut pas exécuter JavaScript (contenu dynamique invisible)
-- ❌ Pas d'interaction web (recherche, formulaires, navigation multi-page)
-- ❌ Pas d'extraction de données depuis les SPAs modernes
+- ❌ L'assistant n'évolue pas — pas de mémoire de ses propres réflexions
+- ❌ La personnalité est statique — pas de dimension introspective dynamique
+- ❌ Pas de continuité dans la perspective de l'assistant au fil du temps
 
 **Solution**:
-- ✅ `browser_task_tool` — tool autonome avec ReAct loop (create_react_agent)
-- ✅ Session pool avec coordination Redis cross-workers
-- ✅ Anti-détection (UA Chrome, webdriver supprimé, locale dynamique)
-- ✅ Cookie banner auto-dismiss multi-langue
-- ✅ Activation via admin connector panel (pas de feature flag .env)
+- ✅ Domaine DDD complet `src/domains/journals/` (models, repository, service, router, schemas)
+- ✅ Double déclencheur : extraction post-conversation (fire-and-forget) + consolidation APScheduler (4h)
+- ✅ Injection sémantique E5-small dans prompts response ET planner (deux requêtes distinctes)
+- ✅ Gestion autonome du cycle de vie via prompt engineering (pas de règles hardcodées)
+- ✅ Feature flags : `JOURNALS_ENABLED` (système) + toggle utilisateur
 
 **Impact**:
-- ✅ 6 nouveaux endpoints REST pour opérations Drive
-- ✅ Réutilisation complète du pipeline RAG existant
-- ✅ 4 métriques Prometheus (runs, files, duration, sources)
-- ✅ Cap pagination 500 fichiers + Semaphore(5) pour throttling
+- ✅ 4 thèmes : self-reflection, user observations, ideas & analyses, learnings
+- ✅ CRUD complet + export JSON/CSV (GDPR) dans Settings > Features
+- ✅ Coûts réels traçés via TrackingContext (tokens in/out + EUR)
+- ✅ 35 tests unitaires
+- ✅ 13 colonnes ajoutées au modèle User
 
 ---
 
@@ -2060,10 +2054,38 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 - ✅ 3 endpoints admin + UI section avec badge staleness et bouton reindex
 
 **Impact**:
-- ✅ 16 fichiers FAQ Markdown (119 Q/A) dans `docs/knowledge/`
+- ✅ 17 fichiers FAQ Markdown (119+ Q/A) dans `docs/knowledge/`
 - ✅ Zero overhead sur les requêtes normales (lazy loading)
 - ✅ 3 métriques Prometheus (indexation, retrieval, duration)
 - ✅ i18n : 11 clés en 6 langues pour l'admin UI
+
+---
+
+### ADR-059: Browser Control Architecture (Playwright)
+
+**Status**: ✅ IMPLEMENTED (2026-03-19)
+**Fichier**: `docs/architecture/ADR-059-Browser-Control.md`
+
+**Décision**: Ajouter un connecteur browser autonome basé sur Playwright pour l'interaction web interactive (navigation, recherche, clic, remplissage de formulaires, extraction de contenu JS-rendered).
+
+**Problème résolu**:
+- ❌ web_fetch ne peut pas exécuter JavaScript (contenu dynamique invisible)
+- ❌ Pas d'interaction web (recherche, formulaires, navigation multi-page)
+- ❌ Pas d'extraction de données depuis les SPAs modernes
+
+**Solution**:
+- ✅ `browser_task_tool` — tool autonome avec ReAct loop (create_react_agent)
+- ✅ Session pool avec coordination Redis cross-workers
+- ✅ Anti-détection (UA Chrome, webdriver supprimé, locale dynamique)
+- ✅ Cookie banner auto-dismiss multi-langue
+- ✅ Activation via admin connector panel (pas de feature flag .env)
+
+**Impact**:
+- ✅ Agent ReAct autonome (navigation multi-étapes sans intervention)
+- ✅ Extraction accessibilité via CDP (accessibility tree)
+- ✅ Prévention SSRF (réutilise validateur web_fetch)
+- ✅ 6 métriques Prometheus (gauges/counters/histograms)
+- ✅ 36 tests unitaires
 
 ---
 

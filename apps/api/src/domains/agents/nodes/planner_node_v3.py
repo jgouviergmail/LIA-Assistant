@@ -379,6 +379,36 @@ async def planner_node_v3(
     if state.get(STATE_KEY_EXCLUDE_SUB_AGENT_TOOLS):
         exclude_tools = {TOOL_NAME_DELEGATE_SUB_AGENT}
 
+    # =========================================================================
+    # JOURNAL CONTEXT INJECTION (for planner reasoning)
+    # =========================================================================
+    journal_context = ""
+    user_journals_enabled = config.get("configurable", {}).get("user_journals_enabled", False)
+    from src.core.config import get_settings as _get_settings
+
+    _settings = _get_settings()
+    if getattr(_settings, "journals_enabled", False) and user_journals_enabled:
+        try:
+            user_id_for_journal = configurable.get("langgraph_user_id")
+            if user_id_for_journal and intelligence:
+                from src.domains.journals.context_builder import build_journal_context
+                from src.infrastructure.database.session import get_db_context
+
+                planner_query = f"{intelligence.original_query} {intelligence.immediate_intent}"
+                async with get_db_context() as journal_db:
+                    journal_context_result, _ = await build_journal_context(
+                        user_id=user_id_for_journal,
+                        query=planner_query,
+                        db=journal_db,
+                    )
+                    journal_context = journal_context_result or ""
+        except Exception as e:
+            logger.warning(
+                "planner_journal_context_failed",
+                run_id=run_id,
+                error=str(e),
+            )
+
     # Plan with smart filtering
     planning_result = await planner_service.plan(
         intelligence=intelligence,
@@ -389,6 +419,7 @@ async def planner_node_v3(
         existing_plan=existing_plan,
         tool_selection_result=tool_selection_result,
         exclude_tools=exclude_tools,
+        journal_context=journal_context,
     )
 
     if planning_result.success and planning_result.plan:

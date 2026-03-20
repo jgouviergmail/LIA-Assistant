@@ -70,7 +70,7 @@ BROWSER_RATE_LIMIT_WRITE_CALLS=40    # Rate limit for write tools
 - **Request interception**: Blocks dangerous schemes (javascript:, data:, file:)
 - **Anti-detection**: Chrome UA, `navigator.webdriver` removed, locale/timezone from user prefs
 - **Cookie auto-dismiss**: Generic multi-language selectors (no site-specific)
-- **`--no-sandbox`**: Required in Docker, isolation by container (see ADR-057)
+- **`--no-sandbox`**: Required in Docker, isolation by container (see ADR-059)
 
 ## Session Management
 

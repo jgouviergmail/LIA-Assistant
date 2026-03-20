@@ -4,9 +4,10 @@ Authentication domain models (database entities).
 
 import uuid
 from datetime import datetime
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, String, Text
+from sqlalchemy import DateTime, ForeignKey, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -14,6 +15,7 @@ from src.infrastructure.database.models import BaseModel
 
 if TYPE_CHECKING:
     from src.domains.interests.models import UserInterest
+    from src.domains.journals.models import JournalEntry
     from src.domains.notifications.models import UserFCMToken
     from src.domains.personalities.models import Personality
     from src.domains.reminders.models import Reminder
@@ -229,6 +231,78 @@ class User(BaseModel):
         comment="End hour (0-23) for heartbeat notification window.",
     )
 
+    # Journal settings (Personal Journals — Carnets de Bord)
+    journals_enabled: Mapped[bool] = mapped_column(
+        default=True,
+        nullable=False,
+        server_default="true",
+        comment="Enable personal journals feature (user preference).",
+    )
+    journal_consolidation_enabled: Mapped[bool] = mapped_column(
+        default=True,
+        nullable=False,
+        server_default="true",
+        comment="Enable periodic journal consolidation by the assistant.",
+    )
+    journal_consolidation_with_history: Mapped[bool] = mapped_column(
+        default=False,
+        nullable=False,
+        server_default="false",
+        comment="Allow consolidation to analyze conversation history (higher cost).",
+    )
+    journal_max_total_chars: Mapped[int] = mapped_column(
+        default=40000,
+        nullable=False,
+        server_default="40000",
+        comment="Max total characters across all active journal entries.",
+    )
+    journal_context_max_chars: Mapped[int] = mapped_column(
+        default=1500,
+        nullable=False,
+        server_default="1500",
+        comment="Max characters for journal context injection into prompts.",
+    )
+    journal_max_entry_chars: Mapped[int] = mapped_column(
+        default=2000,
+        nullable=False,
+        server_default="2000",
+        comment="Max characters per individual journal entry.",
+    )
+    journal_context_max_results: Mapped[int] = mapped_column(
+        default=10,
+        nullable=False,
+        server_default="10",
+        comment="Max entries returned by semantic search for context injection.",
+    )
+    journal_last_consolidated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Timestamp of last journal consolidation for this user.",
+    )
+    journal_last_cost_tokens_in: Mapped[int | None] = mapped_column(
+        nullable=True,
+        comment="Input tokens of last journal background intervention.",
+    )
+    journal_last_cost_tokens_out: Mapped[int | None] = mapped_column(
+        nullable=True,
+        comment="Output tokens of last journal background intervention.",
+    )
+    journal_last_cost_eur: Mapped[Decimal | None] = mapped_column(
+        Numeric(10, 6),
+        nullable=True,
+        comment="Real cost in EUR of last journal background intervention.",
+    )
+    journal_last_cost_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="Timestamp of last journal background intervention.",
+    )
+    journal_last_cost_source: Mapped[str | None] = mapped_column(
+        String(20),
+        nullable=True,
+        comment="Source of last journal intervention: 'extraction' or 'consolidation'.",
+    )
+
     # Onboarding tutorial preference
     onboarding_completed: Mapped[bool] = mapped_column(
         default=False,
@@ -269,6 +343,9 @@ class User(BaseModel):
         back_populates="user", cascade="all, delete-orphan"
     )
     interests: Mapped[list["UserInterest"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+    journal_entries: Mapped[list["JournalEntry"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
     scheduled_actions: Mapped[list["ScheduledAction"]] = relationship(

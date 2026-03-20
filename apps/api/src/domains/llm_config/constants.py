@@ -337,6 +337,20 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         description_key="settings.admin.llmConfig.types.subagent",
         required_capabilities=["tools"],
     ),
+    "journal_extraction": LLMTypeMetadata(
+        llm_type="journal_extraction",
+        display_name="Journal Extraction",
+        category=CATEGORY_BACKGROUND,
+        description_key="settings.admin.llmConfig.types.journal_extraction",
+        required_capabilities=[],
+    ),
+    "journal_consolidation": LLMTypeMetadata(
+        llm_type="journal_consolidation",
+        display_name="Journal Consolidation",
+        category=CATEGORY_BACKGROUND,
+        description_key="settings.admin.llmConfig.types.journal_consolidation",
+        required_capabilities=[],
+    ),
 }
 
 
@@ -750,6 +764,27 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=8000,
         reasoning_effort="low",
+    ),
+    # --- Personal Journals (Carnets de Bord) ---
+    "journal_extraction": LLMAgentConfig(
+        provider="openai",
+        model="gpt-5-mini",
+        temperature=0.7,
+        top_p=1.0,
+        frequency_penalty=0.0,
+        presence_penalty=0.0,
+        max_tokens=1000,
+        reasoning_effort="minimal",
+    ),
+    "journal_consolidation": LLMAgentConfig(
+        provider="openai",
+        model="gpt-5-mini",
+        temperature=0.7,
+        top_p=1.0,
+        frequency_penalty=0.0,
+        presence_penalty=0.0,
+        max_tokens=2000,
+        reasoning_effort="minimal",
     ),
 }
 
