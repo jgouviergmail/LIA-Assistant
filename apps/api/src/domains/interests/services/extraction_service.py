@@ -459,6 +459,9 @@ def _format_messages_for_extraction(messages: list[BaseMessage]) -> str:
         if isinstance(msg, HumanMessage):
             prefix = "USER"
         elif isinstance(msg, AIMessage):
+            # Skip proactive notifications (interest/heartbeat) — not user-generated content
+            if msg.additional_kwargs.get("proactive_notification"):
+                continue
             prefix = "ASSISTANT"
         else:
             prefix = "SYSTEM"
