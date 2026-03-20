@@ -32,7 +32,19 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import get_settings
-from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, GMAIL_FORMAT_METADATA
+from src.core.constants import (
+    DEFAULT_USER_DISPLAY_TIMEZONE,
+    GMAIL_FORMAT_METADATA,
+    HEARTBEAT_CONTEXT_CALENDAR_HOURS_DEFAULT,
+    HEARTBEAT_CONTEXT_EMAILS_MAX_DEFAULT,
+    HEARTBEAT_CONTEXT_MEMORY_LIMIT_DEFAULT,
+    HEARTBEAT_CONTEXT_TASKS_DAYS_DEFAULT,
+    HEARTBEAT_WEATHER_RAIN_THRESHOLD_HIGH_DEFAULT,
+    HEARTBEAT_WEATHER_RAIN_THRESHOLD_LOW_DEFAULT,
+    HEARTBEAT_WEATHER_TEMP_CHANGE_THRESHOLD_DEFAULT,
+    HEARTBEAT_WEATHER_WIND_THRESHOLD_DEFAULT,
+    JOURNALS_ENABLED_DEFAULT,
+)
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.service import ConnectorService
 from src.domains.conversations.models import Conversation, ConversationMessage
@@ -383,7 +395,9 @@ class ContextAggregator:
         except (ValueError, KeyError, AttributeError, TypeError) as e:
             logger.warning("heartbeat_calendar_preference_resolution_failed", error=str(e))
 
-        hours = getattr(settings, "heartbeat_context_calendar_hours", 6)
+        hours = getattr(
+            settings, "heartbeat_context_calendar_hours", HEARTBEAT_CONTEXT_CALENDAR_HOURS_DEFAULT
+        )
         now = datetime.now(UTC)
         time_min = now.isoformat()
         time_max = (now + timedelta(hours=hours)).isoformat()
@@ -484,7 +498,9 @@ class ContextAggregator:
         except (ValueError, KeyError, AttributeError, TypeError) as e:
             logger.warning("heartbeat_tasks_preference_resolution_failed", error=str(e))
 
-        days = getattr(settings, "heartbeat_context_tasks_days", 2)
+        days = getattr(
+            settings, "heartbeat_context_tasks_days", HEARTBEAT_CONTEXT_TASKS_DAYS_DEFAULT
+        )
         now = datetime.now(UTC)
         # RFC 3339 timestamp for due_max filter.
         due_max = (now + timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -639,10 +655,24 @@ class ContextAggregator:
         )
         current_temp = current.get("main", {}).get("temp", 0)
 
-        rain_high = getattr(settings, "heartbeat_weather_rain_threshold_high", 0.6)
-        rain_low = getattr(settings, "heartbeat_weather_rain_threshold_low", 0.3)
-        temp_threshold = getattr(settings, "heartbeat_weather_temp_change_threshold", 5.0)
-        wind_threshold = getattr(settings, "heartbeat_weather_wind_threshold", 14.0)
+        rain_high = getattr(
+            settings,
+            "heartbeat_weather_rain_threshold_high",
+            HEARTBEAT_WEATHER_RAIN_THRESHOLD_HIGH_DEFAULT,
+        )
+        rain_low = getattr(
+            settings,
+            "heartbeat_weather_rain_threshold_low",
+            HEARTBEAT_WEATHER_RAIN_THRESHOLD_LOW_DEFAULT,
+        )
+        temp_threshold = getattr(
+            settings,
+            "heartbeat_weather_temp_change_threshold",
+            HEARTBEAT_WEATHER_TEMP_CHANGE_THRESHOLD_DEFAULT,
+        )
+        wind_threshold = getattr(
+            settings, "heartbeat_weather_wind_threshold", HEARTBEAT_WEATHER_WIND_THRESHOLD_DEFAULT
+        )
 
         # Track detected types to avoid duplicate detections
         detected_types: set[str] = set()
@@ -766,7 +796,9 @@ class ContextAggregator:
             return None
         client = client_class(user_id, credentials, connector_service)
 
-        max_emails = getattr(settings, "heartbeat_context_emails_max", 5)
+        max_emails = getattr(
+            settings, "heartbeat_context_emails_max", HEARTBEAT_CONTEXT_EMAILS_MAX_DEFAULT
+        )
 
         # Filter to today's unread emails only (user's local date).
         # Gmail-style `after:` uses the date as a lower bound (inclusive).
@@ -895,7 +927,9 @@ class ContextAggregator:
         """
         from src.domains.agents.context.store import get_tool_context_store
 
-        limit = getattr(settings, "heartbeat_context_memory_limit", 5)
+        limit = getattr(
+            settings, "heartbeat_context_memory_limit", HEARTBEAT_CONTEXT_MEMORY_LIMIT_DEFAULT
+        )
 
         store = await get_tool_context_store()
         results = await store.asearch(
@@ -1095,7 +1129,7 @@ class ContextAggregator:
             List of journal entry dicts, or None if disabled/empty
         """
         # Skip if journals disabled
-        if not getattr(user, "journals_enabled", False):
+        if not getattr(user, "journals_enabled", JOURNALS_ENABLED_DEFAULT):
             return None
 
         try:

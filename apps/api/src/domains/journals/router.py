@@ -24,6 +24,11 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
+from src.core.constants import (
+    JOURNAL_CONSOLIDATION_ENABLED_DEFAULT,
+    JOURNAL_CONSOLIDATION_WITH_HISTORY_DEFAULT,
+    JOURNALS_ENABLED_DEFAULT,
+)
 from src.core.dependencies import get_db
 from src.core.exceptions import ResourceNotFoundError, ValidationError
 from src.core.session_dependencies import get_current_active_session
@@ -82,10 +87,12 @@ async def _build_settings_response(user: User, service: JournalService) -> Journ
     last_cost = JournalService.build_cost_info_from_user(user)
 
     return JournalSettingsResponse(
-        journals_enabled=getattr(user, "journals_enabled", True),
-        journal_consolidation_enabled=getattr(user, "journal_consolidation_enabled", True),
+        journals_enabled=getattr(user, "journals_enabled", JOURNALS_ENABLED_DEFAULT),
+        journal_consolidation_enabled=getattr(
+            user, "journal_consolidation_enabled", JOURNAL_CONSOLIDATION_ENABLED_DEFAULT
+        ),
         journal_consolidation_with_history=getattr(
-            user, "journal_consolidation_with_history", False
+            user, "journal_consolidation_with_history", JOURNAL_CONSOLIDATION_WITH_HISTORY_DEFAULT
         ),
         journal_max_total_chars=max_total_chars,
         journal_context_max_chars=getattr(

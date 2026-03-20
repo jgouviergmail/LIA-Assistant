@@ -29,6 +29,7 @@ from typing import Any
 import structlog
 
 from src.core.config import settings
+from src.core.constants import DEFAULT_LANGUAGE
 from src.core.field_names import (
     FIELD_COST_EUR,
     FIELD_TOKENS_CACHE,
@@ -417,7 +418,7 @@ async def process_pending_reminders() -> dict[str, Any]:
                         user_timezone=reminder.user_timezone,
                         personality=personality,
                         memories=memories,
-                        language=user.language or "fr",
+                        language=user.language or DEFAULT_LANGUAGE,
                     )
                     # Always prefix with 🔔 emoji for reminders
                     message = f"🔔 {result.message}"
@@ -426,7 +427,7 @@ async def process_pending_reminders() -> dict[str, Any]:
                     run_id = f"reminder_{reminder.id}_{uuid.uuid4().hex[:8]}"
 
                     # 6. Send FCM notification
-                    title = get_localized_title(user.language or "fr")
+                    title = get_localized_title(user.language or DEFAULT_LANGUAGE)
                     body = truncate_for_notification(message, 150)
 
                     fcm_result = await fcm_service.send_reminder_notification(

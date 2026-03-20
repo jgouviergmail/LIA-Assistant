@@ -10,6 +10,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.dependencies import get_db
 from src.core.session_dependencies import get_current_active_session
 from src.domains.auth.models import User
@@ -91,7 +92,7 @@ async def create_scheduled_action(
     action = await service.create(
         user_id=user.id,
         data=data,
-        user_timezone=user.timezone or "Europe/Paris",
+        user_timezone=user.timezone or DEFAULT_USER_DISPLAY_TIMEZONE,
     )
     await db.commit()
     await db.refresh(action)

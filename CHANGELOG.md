@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.1] - 2026-03-20
+
+### Fixed
+
+- **Constants centralization audit (25 files)** — Systematic elimination of ~60 hardcoded default values across backend and frontend. All configurable defaults now reference centralized constants from `src/core/constants.py` instead of inline literals. Prevents silent divergence between code paths that should share the same default value.
+- **Journal settings persistence bug** — Numeric settings (prompt injection budget, max entry size, max search results) appeared to save successfully but reverted on page refresh. Root cause: React `useState` initializers ran once with stale `initialData` and were never synchronized with actual server values. Fix: added `useEffect` sync + removed hardcoded `initialData` from `useJournals`, `useHeartbeatSettings`, and `useInterests` hooks. The API is now the single source of truth for all settings.
+- **`journals_enabled` inconsistent defaults** — Three code paths used different fallback values for the same field: `router.py` defaulted to `True`, while `context_builder.py` and `context_aggregator.py` defaulted to `False`. This caused journals to appear enabled in the UI while being silently excluded from heartbeat context and prompt injection. Unified to `JOURNALS_ENABLED_DEFAULT = True`.
+- **Proactive notification language bug** — `proactive/runner.py` and `proactive/notification.py` used `"en"` as the language fallback, while all other code paths used `"fr"`. Users without an explicit language preference received notification titles in English instead of French. All sites now use `DEFAULT_LANGUAGE` constant.
+- **Interest eligibility checker wrong defaults** — `EligibilityChecker` used heartbeat defaults (min=1, max=3) for interest notifications instead of interest-specific defaults (min=2, max=5). Interests were under-notified (capped at 3/day instead of 5). Refactored constructor to accept `default_min_per_day` / `default_max_per_day` parameters, passed from each scheduler with the correct constants.
+- **Frontend optimistic update without revert** — `useInterests.ts` `updateSettings` applied optimistic state changes but never reverted on mutation failure. Added `refetchSettings()` on error to restore server state.
+
+### Changed
+
+- **12 new constants in `constants.py`** — `HEARTBEAT_MIN_PER_DAY_DEFAULT`, `HEARTBEAT_PUSH_ENABLED_DEFAULT`, `HEARTBEAT_NOTIFY_START/END_HOUR_DEFAULT`, `INTEREST_NOTIFY_MIN/MAX_PER_DAY_DEFAULT`, `HEARTBEAT_DECISION/MESSAGE_LLM_MODEL_DEFAULT`, `TOKEN_SUMMARY_CACHE_TTL`, `JOURNALS_ENABLED_DEFAULT`, `JOURNAL_CONSOLIDATION_ENABLED/WITH_HISTORY_DEFAULT`.
+- **User model `server_default` alignment** — All 15 user preference columns in `auth/models.py` (timezone, language, interests×4, heartbeat×5, journals×4) now reference constants instead of string literals.
+- **`EligibilityChecker` parameterization** — Added `default_start_hour`, `default_end_hour`, `default_min_per_day`, `default_max_per_day` constructor parameters to support task-specific fallback values.
+
+### Security
+
+- **CVE-2026-33228 — `flatted` Prototype Pollution (HIGH)** — Transitive dev dependency `flatted <= 3.4.1` (via eslint → flat-cache) vulnerable to prototype pollution via `parse()`. Fixed via `pnpm.overrides` forcing `flatted >= 3.4.2`. Dev-only dependency — no production runtime impact.
+- **GitHub Actions bumped** — codecov/codecov-action 5.5.2→5.5.3, softprops/action-gh-release 2.3.2→2.3.3, github/codeql-action 3.28.16→3.28.17 (PR #63).
+
 ## [1.7.0] - 2026-03-20
 
 ### Added
@@ -407,7 +429,8 @@ First public open-source release of LIA.
 - Circuit breaker, rate limiting, and distributed locks
 - SOPS/Age encryption for secrets management
 
-[Unreleased]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.7.0...HEAD
+[Unreleased]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.7.1...HEAD
+[1.7.1]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.7.0...v1.7.1
 [1.7.0]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.6.1...v1.7.0
 [1.6.1]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.6.0...v1.6.1
 [1.6.0]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.5.2...v1.6.0

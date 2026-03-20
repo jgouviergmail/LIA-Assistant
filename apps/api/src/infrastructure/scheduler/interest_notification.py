@@ -19,7 +19,13 @@ References:
 from typing import Any
 
 from src.core.config import settings
-from src.core.constants import SCHEDULER_JOB_INTEREST_NOTIFICATION
+from src.core.constants import (
+    INTEREST_NOTIFY_END_HOUR_DEFAULT,
+    INTEREST_NOTIFY_MAX_PER_DAY_DEFAULT,
+    INTEREST_NOTIFY_MIN_PER_DAY_DEFAULT,
+    INTEREST_NOTIFY_START_HOUR_DEFAULT,
+    SCHEDULER_JOB_INTEREST_NOTIFICATION,
+)
 from src.domains.heartbeat.models import HeartbeatNotification
 from src.domains.interests.models import InterestNotification
 from src.domains.interests.proactive_task import InterestProactiveTask
@@ -60,6 +66,10 @@ def _create_interest_eligibility_checker() -> EligibilityChecker:
         # Cross-type: don't fire if a heartbeat notification was sent recently
         cross_type_models=[HeartbeatNotification],
         cross_type_cooldown_minutes=settings.proactive_cross_type_cooldown_minutes,
+        default_start_hour=INTEREST_NOTIFY_START_HOUR_DEFAULT,
+        default_end_hour=INTEREST_NOTIFY_END_HOUR_DEFAULT,
+        default_min_per_day=INTEREST_NOTIFY_MIN_PER_DAY_DEFAULT,
+        default_max_per_day=INTEREST_NOTIFY_MAX_PER_DAY_DEFAULT,
     )
 
 

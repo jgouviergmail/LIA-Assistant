@@ -581,6 +581,7 @@ BRAVE_SEARCH_CACHE_TTL = 3600  # 1 hour - knowledge enrichment results
 BRAVE_SEARCH_ENRICHMENT_TIMEOUT = 3.0  # Service-level timeout (cache + API call)
 AGENT_REGISTRY_CACHE_TTL = 3600  # 1 hour - full tool catalog
 AGENT_REGISTRY_FILTERED_CACHE_TTL = 300  # 5 minutes - filtered catalog
+TOKEN_SUMMARY_CACHE_TTL = 3600  # 1 hour - streaming token summaries
 
 # ============================================================================
 # LLM PRICING CACHE (for callback safety - no DB access in callbacks)
@@ -1354,7 +1355,10 @@ HEARTBEAT_NOTIFICATION_BATCH_SIZE_DEFAULT = 50
 
 # User settings defaults
 HEARTBEAT_MAX_PER_DAY_DEFAULT = 3
-HEARTBEAT_MIN_PER_DAY = 1  # Fixed, not user-configurable
+HEARTBEAT_MIN_PER_DAY_DEFAULT = 1
+HEARTBEAT_PUSH_ENABLED_DEFAULT = True
+HEARTBEAT_NOTIFY_START_HOUR_DEFAULT = 9  # 9 AM
+HEARTBEAT_NOTIFY_END_HOUR_DEFAULT = 22  # 10 PM
 
 # Cooldowns
 HEARTBEAT_GLOBAL_COOLDOWN_HOURS_DEFAULT = 2
@@ -1376,6 +1380,10 @@ HEARTBEAT_WEATHER_RAIN_THRESHOLD_LOW_DEFAULT = 0.3
 HEARTBEAT_WEATHER_TEMP_CHANGE_THRESHOLD_DEFAULT = 5.0
 HEARTBEAT_WEATHER_WIND_THRESHOLD_DEFAULT = 14.0
 
+# LLM model defaults for heartbeat
+HEARTBEAT_DECISION_LLM_MODEL_DEFAULT = "gpt-4.1-mini"
+HEARTBEAT_MESSAGE_LLM_MODEL_DEFAULT = "gpt-4.1-mini"
+
 # Early-exit optimization
 HEARTBEAT_INACTIVE_SKIP_DAYS_DEFAULT = 7
 
@@ -1395,6 +1403,8 @@ PROACTIVE_FEEDBACK_ENABLED_DEFAULT = True
 # Notifications are only sent within this time window to avoid disturbing users
 INTEREST_NOTIFY_START_HOUR_DEFAULT = 9  # 9 AM
 INTEREST_NOTIFY_END_HOUR_DEFAULT = 22  # 10 PM
+INTEREST_NOTIFY_MIN_PER_DAY_DEFAULT = 2
+INTEREST_NOTIFY_MAX_PER_DAY_DEFAULT = 5
 
 # Proactive notification scheduler interval
 # How often the scheduler checks for eligible users and sends notifications
@@ -2739,6 +2749,11 @@ BROWSER_BLOCKED_SCHEMES = frozenset({"file", "javascript", "data", "chrome", "ab
 # Thematic journals where the assistant records its own reflections,
 # observations, analyses and learnings. Prompt-driven lifecycle management.
 # Reference: docs/architecture/ADR-057-Personal-Journals.md
+
+# User-level feature defaults (used in User model server_default and getattr fallbacks)
+JOURNALS_ENABLED_DEFAULT = True
+JOURNAL_CONSOLIDATION_ENABLED_DEFAULT = True
+JOURNAL_CONSOLIDATION_WITH_HISTORY_DEFAULT = False
 
 # Scheduler
 SCHEDULER_JOB_JOURNAL_CONSOLIDATION = "journal_consolidation"

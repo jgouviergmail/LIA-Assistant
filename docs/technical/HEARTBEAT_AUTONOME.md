@@ -162,6 +162,11 @@ Index: `ix_heartbeat_notifications_user_created` on (user_id, created_at)
 - `_process_user()`: Uses `self.eligibility_checker.interval_minutes` (was hardcoded)
 - `_dispatch_notification()`: Added `push_enabled` parameter (generic convention: `getattr(user, f"{task_type}_push_enabled", True)`)
 
+### EligibilityChecker (v1.7.1)
+- Added `default_start_hour`, `default_end_hour`, `default_min_per_day`, `default_max_per_day` constructor parameters to support task-specific fallback values instead of hardcoded heartbeat defaults
+- All `getattr(user, field, HARDCODED)` calls now use `self.default_*` attributes
+- `heartbeat_notification.py` and `interest_notification.py` pass the correct constants from `constants.py`
+
 ### NotificationDispatcher
 - `dispatch()`: Added `push_enabled: bool = True` parameter
 - When `push_enabled=False`: skips FCM and channel push, only archives + SSE

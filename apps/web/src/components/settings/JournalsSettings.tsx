@@ -343,7 +343,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                     'journal_max_total_chars',
                     localMaxTotalChars,
                     setLocalMaxTotalChars,
-                    journalSettings?.journal_max_total_chars ?? 40000,
+                    journalSettings!.journal_max_total_chars,
                   )}
                   className="w-full font-mono text-sm"
                   disabled={isUpdatingSettings}
@@ -367,7 +367,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                     'journal_context_max_chars',
                     localContextMaxChars,
                     setLocalContextMaxChars,
-                    journalSettings?.journal_context_max_chars ?? 1500,
+                    journalSettings!.journal_context_max_chars,
                   )}
                   className="w-full font-mono text-sm"
                   disabled={isUpdatingSettings}
@@ -391,7 +391,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                     'journal_max_entry_chars',
                     localMaxEntryChars,
                     setLocalMaxEntryChars,
-                    journalSettings?.journal_max_entry_chars ?? 2000,
+                    journalSettings!.journal_max_entry_chars,
                   )}
                   className="w-full font-mono text-sm"
                   disabled={isUpdatingSettings}
@@ -415,7 +415,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                     'journal_context_max_results',
                     localContextMaxResults,
                     setLocalContextMaxResults,
-                    journalSettings?.journal_context_max_results ?? 10,
+                    journalSettings!.journal_context_max_results,
                   )}
                   className="w-full font-mono text-sm"
                   disabled={isUpdatingSettings}

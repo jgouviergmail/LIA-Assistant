@@ -40,15 +40,6 @@ export function useHeartbeatSettings() {
     setData,
   } = useApiQuery<HeartbeatSettings>('/heartbeat/settings', {
     componentName: 'useHeartbeatSettings',
-    initialData: {
-      heartbeat_enabled: false,
-      heartbeat_min_per_day: 1,
-      heartbeat_max_per_day: 3,
-      heartbeat_push_enabled: true,
-      heartbeat_notify_start_hour: 9,
-      heartbeat_notify_end_hour: 22,
-      available_sources: [],
-    },
   });
 
   // Settings mutation

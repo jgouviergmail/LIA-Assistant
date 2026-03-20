@@ -11,6 +11,23 @@ from sqlalchemy import DateTime, ForeignKey, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from src.core.constants import (
+    DEFAULT_LANGUAGE,
+    DEFAULT_USER_DISPLAY_TIMEZONE,
+    HEARTBEAT_MAX_PER_DAY_DEFAULT,
+    HEARTBEAT_MIN_PER_DAY_DEFAULT,
+    HEARTBEAT_NOTIFY_END_HOUR_DEFAULT,
+    HEARTBEAT_NOTIFY_START_HOUR_DEFAULT,
+    HEARTBEAT_PUSH_ENABLED_DEFAULT,
+    INTEREST_NOTIFY_END_HOUR_DEFAULT,
+    INTEREST_NOTIFY_MAX_PER_DAY_DEFAULT,
+    INTEREST_NOTIFY_MIN_PER_DAY_DEFAULT,
+    INTEREST_NOTIFY_START_HOUR_DEFAULT,
+    JOURNAL_CONTEXT_MAX_CHARS_DEFAULT,
+    JOURNAL_CONTEXT_MAX_RESULTS_DEFAULT,
+    JOURNAL_MAX_ENTRY_CHARS_DEFAULT,
+    JOURNAL_MAX_TOTAL_CHARS_DEFAULT,
+)
 from src.infrastructure.database.models import BaseModel
 
 if TYPE_CHECKING:
@@ -56,16 +73,18 @@ class User(BaseModel):
     # User preferences
     timezone: Mapped[str] = mapped_column(
         String(50),
+        default=DEFAULT_USER_DISPLAY_TIMEZONE,
         nullable=False,
-        server_default="Europe/Paris",
+        server_default=DEFAULT_USER_DISPLAY_TIMEZONE,
         comment="User timezone (IANA timezone name) for personalized timestamp display",
-    )  # Default: Europe/Paris (French users)
+    )
     language: Mapped[str] = mapped_column(
         String(10),
+        default=DEFAULT_LANGUAGE,
         nullable=False,
-        server_default="fr",
+        server_default=DEFAULT_LANGUAGE,
         comment="User preferred language (ISO 639-1 code: fr, en, es, de, it, zh-CN) for emails and notifications",
-    )  # Default: fr (French)
+    )
 
     # Personality preference
     personality_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -169,27 +188,27 @@ class User(BaseModel):
         comment="Enable proactive interest notifications.",
     )
     interests_notify_start_hour: Mapped[int] = mapped_column(
-        default=9,
+        default=INTEREST_NOTIFY_START_HOUR_DEFAULT,
         nullable=False,
-        server_default="9",
+        server_default=str(INTEREST_NOTIFY_START_HOUR_DEFAULT),
         comment="Start hour for interest notifications (0-23, user timezone).",
     )
     interests_notify_end_hour: Mapped[int] = mapped_column(
-        default=22,
+        default=INTEREST_NOTIFY_END_HOUR_DEFAULT,
         nullable=False,
-        server_default="22",
+        server_default=str(INTEREST_NOTIFY_END_HOUR_DEFAULT),
         comment="End hour for interest notifications (0-23, user timezone).",
     )
     interests_notify_min_per_day: Mapped[int] = mapped_column(
-        default=2,
+        default=INTEREST_NOTIFY_MIN_PER_DAY_DEFAULT,
         nullable=False,
-        server_default="2",
+        server_default=str(INTEREST_NOTIFY_MIN_PER_DAY_DEFAULT),
         comment="Minimum interest notifications per day (1-10).",
     )
     interests_notify_max_per_day: Mapped[int] = mapped_column(
-        default=5,
+        default=INTEREST_NOTIFY_MAX_PER_DAY_DEFAULT,
         nullable=False,
-        server_default="5",
+        server_default=str(INTEREST_NOTIFY_MAX_PER_DAY_DEFAULT),
         comment="Maximum interest notifications per day (1-10).",
     )
 
@@ -201,33 +220,33 @@ class User(BaseModel):
         comment="Enable proactive heartbeat notifications (opt-in).",
     )
     heartbeat_min_per_day: Mapped[int] = mapped_column(
-        default=1,
+        default=HEARTBEAT_MIN_PER_DAY_DEFAULT,
         nullable=False,
-        server_default="1",
+        server_default=str(HEARTBEAT_MIN_PER_DAY_DEFAULT),
         comment="Minimum heartbeat notifications per day (1-8).",
     )
     heartbeat_max_per_day: Mapped[int] = mapped_column(
-        default=3,
+        default=HEARTBEAT_MAX_PER_DAY_DEFAULT,
         nullable=False,
-        server_default="3",
+        server_default=str(HEARTBEAT_MAX_PER_DAY_DEFAULT),
         comment="Maximum heartbeat notifications per day (1-8).",
     )
     heartbeat_push_enabled: Mapped[bool] = mapped_column(
-        default=True,
+        default=HEARTBEAT_PUSH_ENABLED_DEFAULT,
         nullable=False,
-        server_default="true",
+        server_default=str(HEARTBEAT_PUSH_ENABLED_DEFAULT).lower(),
         comment="Enable push (FCM/Telegram) for heartbeats. If false, only SSE + archive.",
     )
     heartbeat_notify_start_hour: Mapped[int] = mapped_column(
-        default=9,
+        default=HEARTBEAT_NOTIFY_START_HOUR_DEFAULT,
         nullable=False,
-        server_default="9",
+        server_default=str(HEARTBEAT_NOTIFY_START_HOUR_DEFAULT),
         comment="Start hour (0-23) for heartbeat notification window.",
     )
     heartbeat_notify_end_hour: Mapped[int] = mapped_column(
-        default=22,
+        default=HEARTBEAT_NOTIFY_END_HOUR_DEFAULT,
         nullable=False,
-        server_default="22",
+        server_default=str(HEARTBEAT_NOTIFY_END_HOUR_DEFAULT),
         comment="End hour (0-23) for heartbeat notification window.",
     )
 
@@ -251,27 +270,27 @@ class User(BaseModel):
         comment="Allow consolidation to analyze conversation history (higher cost).",
     )
     journal_max_total_chars: Mapped[int] = mapped_column(
-        default=40000,
+        default=JOURNAL_MAX_TOTAL_CHARS_DEFAULT,
         nullable=False,
-        server_default="40000",
+        server_default=str(JOURNAL_MAX_TOTAL_CHARS_DEFAULT),
         comment="Max total characters across all active journal entries.",
     )
     journal_context_max_chars: Mapped[int] = mapped_column(
-        default=1500,
+        default=JOURNAL_CONTEXT_MAX_CHARS_DEFAULT,
         nullable=False,
-        server_default="1500",
+        server_default=str(JOURNAL_CONTEXT_MAX_CHARS_DEFAULT),
         comment="Max characters for journal context injection into prompts.",
     )
     journal_max_entry_chars: Mapped[int] = mapped_column(
-        default=2000,
+        default=JOURNAL_MAX_ENTRY_CHARS_DEFAULT,
         nullable=False,
-        server_default="2000",
+        server_default=str(JOURNAL_MAX_ENTRY_CHARS_DEFAULT),
         comment="Max characters per individual journal entry.",
     )
     journal_context_max_results: Mapped[int] = mapped_column(
-        default=10,
+        default=JOURNAL_CONTEXT_MAX_RESULTS_DEFAULT,
         nullable=False,
-        server_default="10",
+        server_default=str(JOURNAL_CONTEXT_MAX_RESULTS_DEFAULT),
         comment="Max entries returned by semantic search for context injection.",
     )
     journal_last_consolidated_at: Mapped[datetime | None] = mapped_column(

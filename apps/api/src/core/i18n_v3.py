@@ -806,6 +806,15 @@ _DISPLAY_FEELS_LIKE: dict[str, str] = {
     "zh-CN": "体感温度",
 }
 
+_DISPLAY_TEMP_RANGE: dict[str, str] = {
+    "fr": "Min / Max",
+    "en": "Low / High",
+    "es": "Mín / Máx",
+    "de": "Min / Max",
+    "it": "Min / Max",
+    "zh-CN": "最低 / 最高",
+}
+
 _DISPLAY_HUMIDITY: dict[str, str] = {
     "fr": "Humidité",
     "en": "Humidity",
@@ -3239,6 +3248,12 @@ class V3Messages:
         """Get 'humidity' label."""
         lang = V3Messages._normalize_language(language)
         return _DISPLAY_HUMIDITY.get(lang, _DISPLAY_HUMIDITY["en"])
+
+    @staticmethod
+    def get_temp_range(language: str) -> str:
+        """Get 'low / high' temperature range label."""
+        lang = V3Messages._normalize_language(language)
+        return _DISPLAY_TEMP_RANGE.get(lang, _DISPLAY_TEMP_RANGE["en"])
 
     @staticmethod
     def get_wind(language: str) -> str:

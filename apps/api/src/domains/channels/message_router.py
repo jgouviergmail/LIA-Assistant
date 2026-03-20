@@ -20,6 +20,8 @@ from src.core.constants import (
     CHANNEL_MESSAGE_LOCK_PREFIX,
     CHANNEL_RATE_LIMIT_PER_USER_PER_MINUTE_DEFAULT,
     CHANNEL_RATE_LIMIT_REDIS_PREFIX,
+    DEFAULT_LANGUAGE,
+    DEFAULT_USER_DISPLAY_TIMEZONE,
 )
 from src.domains.channels.abstractions import (
     ChannelInboundMessage,
@@ -203,8 +205,8 @@ class ChannelMessageRouter:
                 )
                 return
 
-            user_language = getattr(user, "language", None) or "fr"
-            user_timezone = getattr(user, "timezone", None) or "Europe/Paris"
+            user_language = getattr(user, "language", None) or DEFAULT_LANGUAGE
+            user_timezone = getattr(user, "timezone", None) or DEFAULT_USER_DISPLAY_TIMEZONE
             user_memory_enabled = getattr(user, "memory_enabled", True)
 
             # === 5. Check pending HITL ===

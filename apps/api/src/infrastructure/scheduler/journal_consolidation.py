@@ -23,7 +23,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from src.core.config import settings
-from src.core.constants import SCHEDULER_JOB_JOURNAL_CONSOLIDATION
+from src.core.constants import DEFAULT_LANGUAGE, SCHEDULER_JOB_JOURNAL_CONSOLIDATION
 from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.locks import SchedulerLock
 from src.infrastructure.observability.logging import get_logger
@@ -134,7 +134,7 @@ async def process_journal_consolidation() -> dict[str, Any]:
                         user_id=user.id,
                         personality_instruction=personality_instruction,
                         personality_code=personality_code,
-                        user_language=getattr(user, "language", "fr"),
+                        user_language=getattr(user, "language", DEFAULT_LANGUAGE),
                         consolidation_with_history=user.journal_consolidation_with_history,
                         max_total_chars=user.journal_max_total_chars,
                         last_consolidated_at=user.journal_last_consolidated_at,

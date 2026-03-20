@@ -25,6 +25,8 @@ from typing import Any
 import structlog
 
 from src.core.constants import (
+    DEFAULT_LANGUAGE,
+    DEFAULT_USER_DISPLAY_TIMEZONE,
     SCHEDULED_ACTIONS_BATCH_SIZE,
     SCHEDULED_ACTIONS_EXECUTION_TIMEOUT_SECONDS,
     SCHEDULED_ACTIONS_MAX_CONSECUTIVE_FAILURES,
@@ -112,8 +114,8 @@ async def execute_single_action(
             )
             return ""
 
-        user_language = user.language or "fr"
-        user_timezone = user.timezone or "Europe/Paris"
+        user_language = user.language or DEFAULT_LANGUAGE
+        user_timezone = user.timezone or DEFAULT_USER_DISPLAY_TIMEZONE
         session_id = f"{SCHEDULED_ACTIONS_SESSION_PREFIX}{action.id}"
 
         # === Guard: Check for pending HITL interrupt on user's conversation ===

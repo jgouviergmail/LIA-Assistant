@@ -174,15 +174,9 @@ export function useInterests() {
     data: settingsData,
     loading: settingsLoading,
     setData: setSettingsData,
+    refetch: refetchSettings,
   } = useApiQuery<InterestSettings>('/interests/settings', {
     componentName: 'useInterests',
-    initialData: {
-      interests_enabled: true,
-      interests_notify_start_hour: 9,
-      interests_notify_end_hour: 22,
-      interests_notify_min_per_day: 2,
-      interests_notify_max_per_day: 5,
-    },
   });
 
   // Create mutation
@@ -366,15 +360,20 @@ export function useInterests() {
    */
   const updateSettings = useCallback(
     async (data: InterestSettingsUpdate) => {
-      await updateSettingsMutate('/interests/settings', data);
-
       // Optimistic update
       setSettingsData(prev => {
         if (!prev) return prev;
         return { ...prev, ...data };
       });
+
+      try {
+        await updateSettingsMutate('/interests/settings', data);
+      } catch {
+        // Revert on failure — refetch server state
+        refetchSettings();
+      }
     },
-    [updateSettingsMutate, setSettingsData]
+    [updateSettingsMutate, setSettingsData, refetchSettings]
   );
 
   // Filter interests client-side

@@ -35,7 +35,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.7.0</strong> — Personal Journals (Carnets de Bord), Assistant Introspection & Evolving Personality — March 2026
+  <strong>Version 1.7.1</strong> — Constants Centralization, Hardcoded Defaults Audit & Security Fixes — March 2026
 </p>
 
 ---

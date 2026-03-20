@@ -30,7 +30,7 @@
 
 | Feature | Description |
 |---------|-------------|
-| **Personal Journals** | Assistant's introspective logbooks with semantic context injection (v1.7.0) |
+| **Personal Journals** | Assistant's introspective logbooks with semantic context injection (v1.7.1) |
 | **System Knowledge Spaces** | Built-in FAQ knowledge base — LIA answers questions about itself (v1.6.1) |
 | **Browser Control** | Interactive web browsing via Playwright with autonomous ReAct agent (v1.6.0) |
 | **Sub-Agents** | Persistent specialized sub-agents for delegation (research, analysis, synthesis) (v1.5.0) |

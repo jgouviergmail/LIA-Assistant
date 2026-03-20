@@ -205,10 +205,24 @@ class WeatherCard(BaseComponent):
         icon_name, weather_class = self._get_weather_visual(description)
         nested_class = self._nested_class(ctx)
 
+        # Detect forecast vs current weather for stat display
+        is_forecast = data.get("type") == "forecast"
+
         # i18n labels
-        feels_like_label = V3Messages.get_feels_like(ctx.language)
         humidity_label = V3Messages.get_humidity(ctx.language)
         wind_label = V3Messages.get_wind(ctx.language)
+
+        # First stat: feels_like for current weather, temp range for forecast
+        if is_forecast:
+            first_stat_label = V3Messages.get_temp_range(ctx.language)
+            temp_min = self._format_temperature(data.get("temp_min", ""))
+            temp_max = self._format_temperature(data.get("temp_max", ""))
+            first_stat_value = f"{temp_min} / {temp_max}" if temp_min and temp_max else "-"
+            first_stat_icon = Icons.TEMPERATURE
+        else:
+            first_stat_label = V3Messages.get_feels_like(ctx.language)
+            first_stat_value = escape_html(feels_like) if feels_like else "-"
+            first_stat_icon = Icons.TEMPERATURE
 
         # Collapsible extended details for all viewports
         collapsible_html = self._render_extended_details(data, ctx)
@@ -241,9 +255,9 @@ class WeatherCard(BaseComponent):
 </div>
 <div class="lia-weather__stats">
 <div class="lia-weather__stat">
-<span class="lia-weather__stat-icon">{icon(Icons.TEMPERATURE)}</span>
-<span class="lia-weather__stat-label">{escape_html(feels_like_label)}</span>
-<span class="lia-weather__stat-value">{escape_html(feels_like) if feels_like else '-'}</span>
+<span class="lia-weather__stat-icon">{icon(first_stat_icon)}</span>
+<span class="lia-weather__stat-label">{escape_html(first_stat_label)}</span>
+<span class="lia-weather__stat-value">{first_stat_value}</span>
 </div>
 <div class="lia-weather__stat">
 <span class="lia-weather__stat-icon">{icon(Icons.HUMIDITY)}</span>

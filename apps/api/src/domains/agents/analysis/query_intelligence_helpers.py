@@ -29,6 +29,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, TypeVar
 
+from src.core.constants import DEFAULT_LANGUAGE
+
 if TYPE_CHECKING:
     from src.domains.agents.analysis.query_intelligence import QueryIntelligence
 
@@ -164,7 +166,7 @@ def reconstruct_query_intelligence(data: dict[str, Any]) -> QueryIntelligence:
         route_to=data.get("route_to", "planner"),
         bypass_llm=data.get("bypass_llm", False),
         confidence=data.get("confidence", 0.5),
-        user_language=data.get("user_language", "fr"),
+        user_language=data.get("user_language", DEFAULT_LANGUAGE),
         reasoning_trace=data.get("reasoning_trace", []),
         intelligent_mechanisms=data.get("intelligent_mechanisms", {}),
         # Validation hints (v3.1) - CRITICAL for semantic validation

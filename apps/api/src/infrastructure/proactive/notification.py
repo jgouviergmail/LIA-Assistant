@@ -19,6 +19,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
+from src.core.constants import DEFAULT_LANGUAGE
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_channels import (
     channel_notification_errors_total,
@@ -249,7 +250,9 @@ class NotificationDispatcher:
 
         # Generate title if not provided
         if title is None:
-            title = self._get_localized_title(task_type, getattr(user, "language", "en"))
+            title = self._get_localized_title(
+                task_type, getattr(user, "language", DEFAULT_LANGUAGE)
+            )
 
         # Build complete metadata
         full_metadata = {

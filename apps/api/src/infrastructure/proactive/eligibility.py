@@ -109,6 +109,10 @@ class EligibilityChecker:
         interval_minutes: int = 15,
         cross_type_models: list[Any] | None = None,
         cross_type_cooldown_minutes: int = 30,
+        default_start_hour: int = 9,
+        default_end_hour: int = 22,
+        default_min_per_day: int = 1,
+        default_max_per_day: int = 3,
     ):
         """
         Initialize eligibility checker.
@@ -130,6 +134,10 @@ class EligibilityChecker:
                 from different proactive task types.
             cross_type_cooldown_minutes: Minimum minutes between notifications of
                 different proactive types.
+            default_start_hour: Fallback start hour if user field is missing.
+            default_end_hour: Fallback end hour if user field is missing.
+            default_min_per_day: Fallback min per day if user field is missing.
+            default_max_per_day: Fallback max per day if user field is missing.
         """
         self.task_type = task_type
         self.enabled_field = enabled_field
@@ -143,6 +151,10 @@ class EligibilityChecker:
         self.interval_minutes = interval_minutes
         self.cross_type_models = cross_type_models or []
         self.cross_type_cooldown_minutes = cross_type_cooldown_minutes
+        self.default_start_hour = default_start_hour
+        self.default_end_hour = default_end_hour
+        self.default_min_per_day = default_min_per_day
+        self.default_max_per_day = default_max_per_day
 
     async def check(
         self,
@@ -233,8 +245,8 @@ class EligibilityChecker:
         current_hour = user_now.hour
 
         # Get time window settings
-        start_hour = getattr(user, self.start_hour_field, 9)
-        end_hour = getattr(user, self.end_hour_field, 22)
+        start_hour = getattr(user, self.start_hour_field, self.default_start_hour)
+        end_hour = getattr(user, self.end_hour_field, self.default_end_hour)
 
         # Check if current hour is within window
         if start_hour <= end_hour:
@@ -298,7 +310,7 @@ class EligibilityChecker:
         today_count = result.scalar() or 0
 
         # Get max per day setting
-        max_per_day = getattr(user, self.max_per_day_field, 3)
+        max_per_day = getattr(user, self.max_per_day_field, self.default_max_per_day)
 
         if today_count >= max_per_day:
             logger.debug(
@@ -497,8 +509,8 @@ class EligibilityChecker:
         """
         import random
 
-        min_per_day = getattr(user, self.min_per_day_field, 1)
-        max_per_day = getattr(user, self.max_per_day_field, 3)
+        min_per_day = getattr(user, self.min_per_day_field, self.default_min_per_day)
+        max_per_day = getattr(user, self.max_per_day_field, self.default_max_per_day)
 
         debug_info: dict[str, Any] = {
             "min_per_day": min_per_day,

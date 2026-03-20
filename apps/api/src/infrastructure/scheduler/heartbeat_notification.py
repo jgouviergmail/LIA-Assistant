@@ -17,7 +17,13 @@ Only registered if HEARTBEAT_ENABLED=true in .env (feature flag pattern).
 from typing import Any
 
 from src.core.config import settings
-from src.core.constants import SCHEDULER_JOB_HEARTBEAT_NOTIFICATION
+from src.core.constants import (
+    HEARTBEAT_MAX_PER_DAY_DEFAULT,
+    HEARTBEAT_MIN_PER_DAY_DEFAULT,
+    HEARTBEAT_NOTIFY_END_HOUR_DEFAULT,
+    HEARTBEAT_NOTIFY_START_HOUR_DEFAULT,
+    SCHEDULER_JOB_HEARTBEAT_NOTIFICATION,
+)
 from src.domains.heartbeat.models import HeartbeatNotification
 from src.domains.heartbeat.proactive_task import HeartbeatProactiveTask
 from src.domains.interests.models import InterestNotification
@@ -57,6 +63,10 @@ def _create_heartbeat_eligibility_checker() -> EligibilityChecker:
         # Cross-type: don't fire if an interest notification was sent recently
         cross_type_models=[InterestNotification],
         cross_type_cooldown_minutes=settings.proactive_cross_type_cooldown_minutes,
+        default_start_hour=HEARTBEAT_NOTIFY_START_HOUR_DEFAULT,
+        default_end_hour=HEARTBEAT_NOTIFY_END_HOUR_DEFAULT,
+        default_min_per_day=HEARTBEAT_MIN_PER_DAY_DEFAULT,
+        default_max_per_day=HEARTBEAT_MAX_PER_DAY_DEFAULT,
     )
 
 

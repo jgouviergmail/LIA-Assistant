@@ -9,6 +9,7 @@ Responsibilities:
 from collections.abc import AsyncGenerator
 from typing import Any
 
+from src.core.constants import TOKEN_SUMMARY_CACHE_TTL
 from src.domains.agents.api.schemas import ChatStreamChunk
 from src.domains.chat.schemas import TokenSummaryDTO
 from src.infrastructure.observability.logging import get_logger
@@ -137,7 +138,9 @@ class StreamingMixin:
                     try:
                         redis = await get_redis_cache()
                         redis_key = f"token_summary:{run_id}"
-                        await redis.setex(redis_key, 3600, json.dumps(summary_dto_db.to_dict()))
+                        await redis.setex(
+                            redis_key, TOKEN_SUMMARY_CACHE_TTL, json.dumps(summary_dto_db.to_dict())
+                        )
                     except Exception as cache_err:
                         logger.warning(
                             "token_summary_cache_write_failed", run_id=run_id, error=str(cache_err)

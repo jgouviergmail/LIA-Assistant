@@ -8,7 +8,7 @@
  * - Total characters injected vs budget
  * - Per-entry details: theme, title (25 chars), score, mood, source, date
  *
- * Phase: v1.7.0 - Personal Journals debug panel integration
+ * Phase: v1.7.0/v1.7.1 - Personal Journals debug panel integration
  */
 
 import React from 'react';
