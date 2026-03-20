@@ -9,6 +9,13 @@ Personal journals are **thematic notebooks** where the AI assistant records its 
 • **Ideas & analyses** — Creative ideas, analytical frameworks, hypotheses
 • **Learnings** — Lessons from interactions, mistakes, successes
 
+**🎭 5 moods** (emotional tone per entry):
+• 😌 **Reflective** — Thoughtful, introspective tone
+• 🔍 **Curious** — Exploratory, questioning tone
+• ✅ **Satisfied** — Content, accomplished tone
+• ⚠️ **Concerned** — Cautious, attentive tone
+• 💡 **Inspired** — Energized, creative tone
+
 ## When does the assistant write in its journals?
 The assistant writes through **two mechanisms**:
 
@@ -30,6 +37,12 @@ Journal entries are **injected into prompts** via semantic search:
 • **Planner prompt** — Entries matching the user's goal (learnings, analyses) → influences reasoning
 
 The assistant receives its most **relevant** notes (with similarity scores) and decides autonomously which to use.
+
+**📓 Proactive notifications:**
+When journals are enabled, they are also integrated as a **context source** for proactive heartbeat notifications. The heartbeat system builds a dynamic query from the aggregated context (upcoming events, weather, emails, etc.) to find the most relevant journal entries, allowing the assistant to personalize notification tone and content based on its own observations.
+
+**🐛 Debug visibility:**
+In the debug panel (if enabled in Settings > Debug), a "Personal Journals" section shows injection metrics for each conversation — how many entries were found, how many were injected (within budget), total characters used, similarity scores, themes, and sources. Entries not injected due to budget constraints are marked with a "BUDGET" badge.
 
 ## Can I read and edit the assistant's journals?
 Yes! In **Settings > Features > Personal Journals**, you can:
@@ -53,13 +66,8 @@ Yes! In **Settings > Features > Personal Journals**, you can:
 • **Max entry size** — Characters per individual entry (default: 2,000)
 • **Max search results** — Entries returned by semantic search (default: 10)
 
-## How is the journal size managed?
-The assistant manages its own journals **autonomously** via prompt engineering:
-
-• A global size constraint limits total content (configurable by user)
-• When approaching the limit, the assistant summarizes or deletes older entries
-• Timeless observations (names, deep patterns, fundamental learnings) are naturally preserved
-• No hardcoded rules — the assistant decides what to keep based on importance
+**📐 Size management:**
+The assistant manages its own journals autonomously via prompt engineering. A global size constraint limits total content (configurable). When approaching the limit, the assistant summarizes or deletes older entries. Timeless observations are naturally preserved — no hardcoded rules.
 
 ## How much does it cost?
 Journal operations use **background LLM calls**:
@@ -69,22 +77,6 @@ Journal operations use **background LLM calls**:
 • LLM models are configurable in **Admin > LLM Configuration** (category: Background)
 • Real costs visible in Settings > Features > Personal Journals (tokens in/out + EUR)
 • Costs integrated into the global dashboard consumption
-
-## Do journals affect proactive notifications?
-Yes! When journals are enabled, they are integrated as a **context source** for proactive heartbeat notifications:
-
-• Journal entries appear as a toggleable source badge in heartbeat settings (green when active, grayed when disabled)
-• The heartbeat system builds a **dynamic query** from the aggregated context (upcoming events, weather, emails, etc.) to find the most relevant journal entries
-• This allows the assistant to **personalize notification tone and content** based on its own observations and reflections about the user
-• Entries below a minimum relevance score are automatically filtered out
-
-## Can I see journal injection details?
-Yes, in the **debug panel** (if enabled in Settings > Debug):
-
-• A "Personal Journals" section shows injection metrics for each conversation
-• You can see how many entries were found, how many were injected (within budget), total characters used
-• Each entry shows its similarity score, theme, source, and date
-• Entries that were found but not injected due to budget constraints are marked with a "BUDGET" badge
 
 ## What about privacy?
 • Journal data is **per-user** and isolated

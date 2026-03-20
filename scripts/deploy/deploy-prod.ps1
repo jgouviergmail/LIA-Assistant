@@ -297,7 +297,8 @@ if ([string]::IsNullOrWhiteSpace($RemoteDir) -or $RemoteDir -match '[;|&`$]' -or
 }
 
 # Utiliser sudo pour supprimer les fichiers crees par Docker (root ownership)
-$sshCmd = "sudo rm -rf ~/$RemoteDir/* ~/$RemoteDir/.[!.]* 2>/dev/null; mkdir -p ~/$RemoteDir"
+# Puis restaurer l'ownership du dossier pour eviter les permission denied lors du scp/rsync
+$sshCmd = "sudo rm -rf ~/$RemoteDir/* ~/$RemoteDir/.[!.]* 2>/dev/null; mkdir -p ~/$RemoteDir && sudo chown -R `$(whoami):`$(whoami) ~/$RemoteDir"
 
 Write-Info "Commande: $sshCmd"
 

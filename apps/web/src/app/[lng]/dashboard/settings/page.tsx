@@ -232,11 +232,11 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               <FeatureErrorBoundary feature="heartbeat">
                 <HeartbeatSettings lng={lng} />
               </FeatureErrorBoundary>
-              <FeatureErrorBoundary feature="journals">
-                <JournalsSettings lng={lng} />
-              </FeatureErrorBoundary>
               <FeatureErrorBoundary feature="scheduled-actions">
                 <ScheduledActionsSettings lng={lng} />
+              </FeatureErrorBoundary>
+              <FeatureErrorBoundary feature="journals">
+                <JournalsSettings lng={lng} />
               </FeatureErrorBoundary>
               <FeatureErrorBoundary feature="skills">
                 <SkillsSettings lng={lng} />
@@ -336,11 +336,11 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               <FeatureErrorBoundary feature="heartbeat">
                 <HeartbeatSettings lng={lng} />
               </FeatureErrorBoundary>
-              <FeatureErrorBoundary feature="journals">
-                <JournalsSettings lng={lng} />
-              </FeatureErrorBoundary>
               <FeatureErrorBoundary feature="scheduled-actions">
                 <ScheduledActionsSettings lng={lng} />
+              </FeatureErrorBoundary>
+              <FeatureErrorBoundary feature="journals">
+                <JournalsSettings lng={lng} />
               </FeatureErrorBoundary>
               <FeatureErrorBoundary feature="skills">
                 <SkillsSettings lng={lng} />

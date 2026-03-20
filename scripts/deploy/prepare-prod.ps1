@@ -41,7 +41,7 @@ Write-Host ""
 # ============================================================================
 # Fichiers racine
 # ============================================================================
-Write-Host "[1/8] Copie des fichiers racine..." -ForegroundColor Green
+Write-Host "[1/9] Copie des fichiers racine..." -ForegroundColor Green
 
 $rootFiles = @(
     ".npmrc",
@@ -65,7 +65,7 @@ foreach ($file in $rootFiles) {
 # ============================================================================
 # Apps API
 # ============================================================================
-Write-Host "[2/8] Copie de apps/api..." -ForegroundColor Green
+Write-Host "[2/9] Copie de apps/api..." -ForegroundColor Green
 
 $apiDir = Join-Path $OutputDir "apps\api"
 New-Item -ItemType Directory -Path $apiDir -Force | Out-Null
@@ -112,7 +112,7 @@ if (Test-Path $configDir) {
 # ============================================================================
 # Apps Web
 # ============================================================================
-Write-Host "[3/8] Copie de apps/web..." -ForegroundColor Green
+Write-Host "[3/9] Copie de apps/web..." -ForegroundColor Green
 
 $webDir = Join-Path $OutputDir "apps\web"
 New-Item -ItemType Directory -Path $webDir -Force | Out-Null
@@ -149,7 +149,7 @@ foreach ($dir in $webDirs) {
 # ============================================================================
 # Infrastructure
 # ============================================================================
-Write-Host "[4/8] Copie de infrastructure..." -ForegroundColor Green
+Write-Host "[4/9] Copie de infrastructure..." -ForegroundColor Green
 
 $infraDir = Join-Path $OutputDir "infrastructure"
 New-Item -ItemType Directory -Path $infraDir -Force | Out-Null
@@ -174,7 +174,7 @@ foreach ($dir in $infraDirs) {
 # ============================================================================
 # Clés de chiffrement (optionnel)
 # ============================================================================
-Write-Host "[5/8] Copie des cles de chiffrement..." -ForegroundColor Green
+Write-Host "[5/9] Copie des cles de chiffrement..." -ForegroundColor Green
 
 $keysDir = Join-Path $OutputDir "keys"
 New-Item -ItemType Directory -Path $keysDir -Force | Out-Null
@@ -190,7 +190,7 @@ if (Test-Path $keyFile) {
 # ============================================================================
 # Fichier .env.prod ou .env.prod.encrypted
 # ============================================================================
-Write-Host "[6/8] Copie des fichiers d'environnement..." -ForegroundColor Green
+Write-Host "[6/9] Copie des fichiers d'environnement..." -ForegroundColor Green
 
 $envFiles = @(".env.prod", ".env.prod.encrypted")
 foreach ($file in $envFiles) {
@@ -204,7 +204,7 @@ foreach ($file in $envFiles) {
 # ============================================================================
 # Skills système (livrés avec l'application, read-only en prod)
 # ============================================================================
-Write-Host "[7/8] Copie des skills systeme..." -ForegroundColor Green
+Write-Host "[7/9] Copie des skills systeme..." -ForegroundColor Green
 
 $skillsSystemSrc = Join-Path $SourceDir "data\skills\system"
 if (Test-Path $skillsSystemSrc) {
@@ -218,9 +218,25 @@ if (Test-Path $skillsSystemSrc) {
 }
 
 # ============================================================================
+# Knowledge files for System RAG (FAQ) — bind-mounted read-only in prod
+# ============================================================================
+Write-Host "[8/9] Copie des fichiers knowledge (System RAG)..." -ForegroundColor Green
+
+$knowledgeSrc = Join-Path $SourceDir "docs\knowledge"
+if (Test-Path $knowledgeSrc) {
+    $knowledgeDir = Join-Path $OutputDir "docs\knowledge"
+    New-Item -ItemType Directory -Path $knowledgeDir -Force | Out-Null
+    Copy-Item "$knowledgeSrc\*" -Destination $knowledgeDir -Recurse
+    $fileCount = (Get-ChildItem $knowledgeSrc -File -Filter "*.md").Count
+    Write-Host "  + docs/knowledge/ ($fileCount files)" -ForegroundColor DarkGray
+} else {
+    Write-Host "  ! docs/knowledge/ (non trouve - System RAG FAQ indisponible en prod)" -ForegroundColor Yellow
+}
+
+# ============================================================================
 # Création du script de déploiement
 # ============================================================================
-Write-Host "[8/8] Creation du script de deploiement..." -ForegroundColor Green
+Write-Host "[9/9] Creation du script de deploiement..." -ForegroundColor Green
 
 $deployScript = @'
 #!/bin/bash

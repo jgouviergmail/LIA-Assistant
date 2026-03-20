@@ -191,7 +191,8 @@ Manage your personal information:
 • ✏️ **Full name**: your name displayed in the app
 • 🌍 **Timezone**: for date display
 • 🌐 **Language**: interface language
-• 🎨 **Theme**: visual appearance
+• 🎨 **Theme**: color theme and light/dark mode
+• 🔤 **Font**: choose from 9 font families (System, Noto Sans, Plus Jakarta Sans, IBM Plex Sans, Geist, Source Sans Pro, Merriweather, Libre Baskerville, Fira Code)
 
 **Not editable:**
 • 📧 **Email**: login identifier (fixed after registration)
@@ -229,12 +230,15 @@ Yes, all your preferences are **automatically synchronized**:
 **🔄 What's synchronized:**
 • Interface language
 • Timezone
-• Theme and light/dark mode
+• Theme, color theme, font family, and light/dark mode
 • LIA personality style
 • Voice preferences
 • Active connectors
 • Default calendar and task preferences
 • Long-term memories
+• Feature toggles (journals, heartbeat, interests, sub-agents, debug panel)
+• Notification settings (heartbeat min/max/hours, interest min/max/hours)
+• Journal settings (sizes, consolidation options)
 
 **📱 Multi-device:**
 Your preferences follow you on all devices. Change the theme on mobile, find it on your computer.

@@ -21,8 +21,16 @@ RAG uses OpenAI embeddings, which have a small cost:**Indexing** (upload) — on
 ## How does Google Drive sync work?
 You can link Google Drive folders to your knowledge spaces. Click **'Link Folder'**, browse your Drive, and select a folder. LIA lists the supported files, downloads them, and processes them through the same indexing pipeline.Use **'Sync Now'** to update — LIA detects new, modified, and deleted files automatically.**Key details:**Supports Google Docs, Sheets, and Slides via API exportPer-file error isolation — one failed file does not block othersFeature flag: RAG_SPACES_DRIVE_SYNC_ENABLED
 
-## What are system knowledge spaces?
-In addition to your personal knowledge spaces, LIA includes **system knowledge spaces** — built-in knowledge bases managed by the platform. These spaces contain curated FAQ content that allows LIA to answer questions about its own features, capabilities, and usage. System spaces are marked with `is_system=True` and are not editable by users. They are loaded lazily on first access and shared across all users. When you ask a question like "What can you do?" or "How do reminders work?", LIA searches these system spaces to provide accurate, up-to-date answers grounded in its own documentation.
+## Can I ask the assistant about its own features?
+Yes! LIA has a **built-in knowledge base** that lets it answer questions about itself directly in conversation.
 
-## How does LIA answer questions about its own features?
-LIA uses a dedicated detection mechanism called `is_app_help_query()` to identify when your message is asking about LIA itself — its features, configuration, or how to use it. When such a query is detected, LIA retrieves context exclusively from system knowledge spaces (using `system_only=True` retrieval) and injects an **App Identity Prompt** into the response generation. This prompt provides LIA with structured self-knowledge so it can answer accurately as itself. The system spaces are **lazy-loaded** — they are only initialized the first time an app-help query is detected, avoiding unnecessary startup cost. This means LIA can describe its own capabilities without relying on the LLM's general training data.
+**🧠 How it works:**
+• LIA automatically detects when you ask about the app ("*What can you do?*", "*How do I connect my calendar?*")
+• It searches its FAQ knowledge base (119+ Q&A across 17 sections) using the same hybrid search as user spaces
+• An **App Identity Prompt** describing all capabilities is injected into the response
+
+**⚡ Zero overhead:**
+This only activates when you ask about the app — normal conversations are not affected. The system knowledge spaces are lazy-loaded (only initialized on first app-help query) and shared across all users.
+
+**📚 System knowledge spaces:**
+In addition to your personal knowledge spaces, LIA includes built-in system knowledge spaces managed by the platform. These contain curated FAQ content and are not editable by users. They are marked with a special badge in the admin interface and can be reindexed when the FAQ is updated.

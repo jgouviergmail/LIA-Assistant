@@ -52,8 +52,8 @@ Settings → "*Interests*" section
 
 **🎚️ Global settings:**
 • **Enable/Disable** proactive suggestions
-• **Time window**: set notification hours (9am-10pm by default)
-• **Frequency**: min/max notifications per day (1-5)
+• **Time window**: set notification hours (default: 9 AM - 10 PM)
+• **Frequency**: min notifications per day (default: 2) and max per day (default: 5)
 
 **📋 Interest list:**
 • View all your interests with their weight
