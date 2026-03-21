@@ -3,6 +3,7 @@ FastAPI application entrypoint.
 Configures middleware, routes, observability and lifecycle events.
 """
 
+import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
@@ -38,6 +39,7 @@ from src.core.constants import (
     SCHEDULER_JOB_INTEREST_CLEANUP,
     SCHEDULER_JOB_INTEREST_NOTIFICATION,
     SCHEDULER_JOB_JOURNAL_CONSOLIDATION,
+    SCHEDULER_JOB_LEADER_LOCK_RENEWAL,
     SCHEDULER_JOB_MEMORY_CLEANUP,
     SCHEDULER_JOB_OAUTH_HEALTH,
     SCHEDULER_JOB_REMINDER_NOTIFICATION,
@@ -46,9 +48,6 @@ from src.core.constants import (
     SCHEDULER_JOB_TOKEN_REFRESH,
     SCHEDULER_JOB_UNVERIFIED_CLEANUP,
     SCHEDULER_JOB_USER_MCP_EVICTION,
-    SCHEDULER_LEADER_LOCK_KEY,
-    SCHEDULER_LEADER_LOCK_TTL_SECONDS,
-    SCHEDULER_LEADER_RENEW_INTERVAL_SECONDS,
     UNVERIFIED_ACCOUNT_CLEANUP_HOUR,
 )
 from src.core.field_names import FIELD_STATUS
@@ -62,6 +61,7 @@ from src.infrastructure.observability.tracing import configure_tracing
 from src.infrastructure.scheduler.currency_sync import sync_currency_rates
 from src.infrastructure.scheduler.interest_cleanup import cleanup_interests
 from src.infrastructure.scheduler.interest_notification import process_interest_notifications
+from src.infrastructure.scheduler.leader_elector import SchedulerLeaderElector
 from src.infrastructure.scheduler.memory_cleanup import cleanup_memories
 from src.infrastructure.scheduler.oauth_health import check_oauth_health_all_users
 from src.infrastructure.scheduler.reminder_notification import process_pending_reminders
@@ -566,40 +566,22 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # ===================================================================
     # SCHEDULER LEADER ELECTION
     # ===================================================================
-    # With --workers N, each worker runs its own lifespan independently.
-    # Only ONE worker should start APScheduler to avoid duplicate job execution.
-    # Uses Redis SETNX for leader election with TTL-based failover.
-    # If the leader crashes, uvicorn respawns a new worker that acquires the
-    # expired lock and becomes the new leader.
-    is_scheduler_leader = False
+    redis_for_leader = None
     try:
-        import os
-
         redis_for_leader = await get_redis_cache()
-        if redis_for_leader:
-            is_scheduler_leader = bool(
-                await redis_for_leader.set(
-                    SCHEDULER_LEADER_LOCK_KEY,
-                    f"worker-{os.getpid()}",
-                    nx=True,  # Only set if key doesn't exist
-                    ex=SCHEDULER_LEADER_LOCK_TTL_SECONDS,
-                )
-            )
-        else:
-            # No Redis available — assume single worker, start scheduler anyway
-            is_scheduler_leader = True
-            logger.warning("scheduler_leader_no_redis_fallback", pid=os.getpid())
     except Exception as exc:
-        # Redis failure — assume single worker, start scheduler anyway
-        is_scheduler_leader = True
-        logger.warning("scheduler_leader_election_failed", error=str(exc))
+        logger.warning("scheduler_leader_redis_unavailable", error=str(exc))
 
-    if not is_scheduler_leader:
-        logger.info(
-            "scheduler_skipped_not_leader",
-            pid=os.getpid(),
-            msg="Another worker is the scheduler leader — skipping APScheduler",
-        )
+    async def _on_scheduler_elected() -> None:
+        """Log scheduled jobs when this worker becomes leader."""
+        jobs = [j.id for j in scheduler.get_jobs() if j.id != SCHEDULER_JOB_LEADER_LOCK_RENEWAL]
+        logger.info("scheduler_elected_jobs_summary", jobs=jobs, pid=os.getpid())
+
+    leader_elector = SchedulerLeaderElector(
+        redis_for_leader,
+        scheduler,
+        on_elected=_on_scheduler_elected,
+    )
 
     # Start APScheduler for background tasks
     try:
@@ -859,59 +841,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             )
             logger.info("attachment_cleanup_job_scheduled", interval_hours=6)
 
-        # Only start scheduler if this worker is the leader (see leader election above).
-        # Jobs are registered above but won't trigger until scheduler.start() is called.
-        if not is_scheduler_leader:
-            logger.info("scheduler_jobs_registered_but_not_started", pid=os.getpid())
-        else:
-            # Leader lock renewal — keeps the lock alive as long as this worker runs.
-            # Runs every 30s, renews the 120s TTL. If this worker crashes, the lock
-            # expires and a newly spawned worker takes over on respawn.
-            async def _renew_scheduler_leader_lock() -> None:
-                try:
-                    r = await get_redis_cache()
-                    if r:
-                        await r.expire(SCHEDULER_LEADER_LOCK_KEY, SCHEDULER_LEADER_LOCK_TTL_SECONDS)
-                except Exception as e:
-                    logger.warning("scheduler_leader_lock_renewal_failed", error=str(e))
-
-            scheduler.add_job(
-                _renew_scheduler_leader_lock,
-                trigger="interval",
-                seconds=SCHEDULER_LEADER_RENEW_INTERVAL_SECONDS,
-                id="scheduler_leader_lock_renewal",
-                name="Renew scheduler leader lock",
-                replace_existing=True,
-            )
-
-            scheduler.start()
-
-            scheduled_jobs = [
-                SCHEDULER_JOB_CURRENCY_SYNC,
-                SCHEDULER_JOB_INTEREST_CLEANUP,
-                SCHEDULER_JOB_INTEREST_NOTIFICATION,
-                SCHEDULER_JOB_UNVERIFIED_CLEANUP,
-                SCHEDULER_JOB_TOKEN_REFRESH,
-                SCHEDULER_JOB_MEMORY_CLEANUP,
-                SCHEDULER_JOB_SCHEDULED_ACTION_EXECUTOR,
-            ]
-            if settings.fcm_enabled:
-                scheduled_jobs.append(SCHEDULER_JOB_REMINDER_NOTIFICATION)
-            if settings.oauth_health_check_enabled:
-                scheduled_jobs.append(SCHEDULER_JOB_OAUTH_HEALTH)
-            if getattr(settings, "mcp_user_enabled", False):
-                scheduled_jobs.append(SCHEDULER_JOB_USER_MCP_EVICTION)
-            if getattr(settings, "heartbeat_enabled", False):
-                scheduled_jobs.append(SCHEDULER_JOB_HEARTBEAT_NOTIFICATION)
-            if getattr(settings, "attachments_enabled", False):
-                scheduled_jobs.append(SCHEDULER_JOB_ATTACHMENT_CLEANUP)
-            if getattr(settings, "journals_enabled", False):
-                scheduled_jobs.append(SCHEDULER_JOB_JOURNAL_CONSOLIDATION)
-            if getattr(settings, "sub_agents_enabled", False):
-                scheduled_jobs.append(SCHEDULER_JOB_SUBAGENT_STALE_RECOVERY)
-            if SCHEDULER_JOB_BROWSER_CLEANUP in {j.id for j in scheduler.get_jobs()}:
-                scheduled_jobs.append(SCHEDULER_JOB_BROWSER_CLEANUP)
-            logger.info("scheduler_started", jobs=scheduled_jobs, pid=os.getpid())
+        # Acquire leadership and start scheduler (or start background re-election).
+        # All jobs are registered above — scheduler.start() is called inside the elector.
+        await leader_elector.start()
     except (RuntimeError, ValueError) as exc:
         logger.error("scheduler_initialization_failed", error=str(exc), exc_info=True)
 
@@ -963,20 +895,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     except (RuntimeError, ImportError) as exc:
         logger.error("langfuse_shutdown_failed", error=str(exc))
 
-    # Stop scheduler (only if this worker started it)
-    if is_scheduler_leader:
-        try:
-            scheduler.shutdown()
-            # Release leader lock so a new worker can take over immediately on restart
-            try:
-                redis_for_shutdown = await get_redis_cache()
-                if redis_for_shutdown:
-                    await redis_for_shutdown.delete(SCHEDULER_LEADER_LOCK_KEY)
-            except Exception:
-                pass  # Lock will expire via TTL anyway
-            logger.info("scheduler_stopped", pid=os.getpid())
-        except RuntimeError as exc:
-            logger.error("scheduler_shutdown_failed", error=str(exc))
+    # Stop scheduler and release leader lock
+    await leader_elector.shutdown()
 
     # Reset v3.1 Semantic Services (clear cached embeddings)
     # Note: SemanticIntentDetector and SemanticDomainSelector removed in v3.1

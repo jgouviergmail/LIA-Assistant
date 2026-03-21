@@ -315,6 +315,14 @@ class OAuthLock:
             await self.redis.delete(self.lock_key)
 ```
 
+Three SETNX-based lock variants exist in the codebase:
+
+| Lock | Module | Behavior | Use case |
+|------|--------|----------|----------|
+| `OAuthLock` | `infrastructure/locks/oauth_lock.py` | Blocking retry with backoff | OAuth token refresh (prevent double-refresh) |
+| `SchedulerLock` | `infrastructure/locks/scheduler_lock.py` | Non-blocking skip | Per-job deduplication across workers |
+| `SchedulerLeaderElector` | `infrastructure/scheduler/leader_elector.py` | Non-blocking + background re-election | Single scheduler instance across workers |
+
 ### Cache Helpers
 
 ```python

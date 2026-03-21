@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.2] - 2026-03-21
+
+### Added
+
+- **Scheduler Leader Election Resilience** — Centralized `SchedulerLeaderElector` class replaces inline leader election logic in `main.py`. Non-blocking background re-election ensures the scheduler always starts, even when a stale Redis lock exists from a killed container (Docker restart/SIGKILL). Includes automatic lock renewal, idempotent shutdown, and comprehensive structured logging (15 event types with `worker_id` correlation). (`apps/api/src/infrastructure/scheduler/leader_elector.py`)
+- **Leader Elector unit tests** — 17-test suite covering immediate acquisition, no-Redis fallback, re-election after stale lock, scheduler error rollback with lock release, callback error resilience, double-start guard, and idempotent shutdown. 90% code coverage. (`apps/api/tests/unit/infrastructure/scheduler/test_leader_elector.py`)
+- **Leader election debugging guide** — New "Leader election stale lock" section in the debugging guide with Redis diagnostic commands and resolution steps. (`docs/guides/GUIDE_DEBUGGING.md`)
+- **SETNX lock variants documentation** — Comparison table of the three Redis SETNX lock patterns (`OAuthLock`, `SchedulerLock`, `SchedulerLeaderElector`) in the Redis architecture ADR. (`docs/architecture/ADR-029-Redis-Multi-Purpose-Architecture.md`)
+
+### Fixed
+
+- **Scheduler not starting after container restart** — When Docker recreated the API container, the stale `scheduler:leader` Redis lock (TTL 120s) from the killed worker prevented the new worker from acquiring leadership. The worker gave up permanently after a single failed SETNX, leaving all 15+ background jobs (journal consolidation, interest notifications, token refresh, etc.) idle. The new `SchedulerLeaderElector` retries every 5s in the background until the lock expires, then starts the scheduler. (`apps/api/src/main.py`, `apps/api/src/infrastructure/scheduler/leader_elector.py`)
+
 ## [1.8.1] - 2026-03-21
 
 ### Added
@@ -518,7 +531,8 @@ First public open-source release of LIA.
 - Circuit breaker, rate limiting, and distributed locks
 - SOPS/Age encryption for secrets management
 
-[Unreleased]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.8.1...HEAD
+[Unreleased]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.8.2...HEAD
+[1.8.2]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.8.1...v1.8.2
 [1.8.1]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.8.0...v1.8.1
 [1.8.0]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.7.2...v1.8.0
 [1.7.2]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.7.1...v1.7.2

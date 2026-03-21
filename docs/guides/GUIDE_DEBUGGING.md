@@ -2182,6 +2182,30 @@ DEL "scheduler_lock:scheduled_action_executor"
 2. Vérifier que le nombre de workers uvicorn est cohérent
 3. Les locks ont un TTL de sécurité — si le job crash, le lock sera automatiquement libéré après expiration
 
+#### Leader election stale lock
+
+**Symptôme** : Aucun job schedulé ne s'exécute après un redémarrage du conteneur. Les logs montrent `scheduler_leader_stale_lock_detected` au démarrage suivi de `scheduler_leader_starting_re_election`.
+
+**Diagnostic** :
+
+```bash
+# Vérifier le lock leader dans Redis (DB2 = cache)
+redis-cli -n 2
+GET "scheduler:leader"        # Qui détient le lock
+TTL "scheduler:leader"        # Temps restant
+
+# Vérifier les logs
+# Events à chercher :
+#   scheduler_leader_elected (method=immediate | re_election)
+#   scheduler_leader_stale_lock_detected (lock_holder, lock_ttl_remaining)
+#   scheduler_leader_starting_re_election
+```
+
+**Solutions** :
+1. **Attendre** : le lock expire automatiquement (TTL 120s) et la re-election background le récupère (~5s après expiration)
+2. Si urgence, supprimer manuellement : `DEL "scheduler:leader"`
+3. Un `docker restart` du conteneur API déclenche le même cycle
+
 #### Vérifier les jobs APScheduler
 
 ```bash

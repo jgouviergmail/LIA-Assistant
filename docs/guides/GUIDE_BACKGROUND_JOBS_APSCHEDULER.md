@@ -31,15 +31,24 @@
 
 ### Jobs Actifs dans LIA
 
-| Job ID | Trigger | Schedule | Description |
-|--------|---------|----------|-------------|
+| Job ID | Trigger | Schedule | Description | Feature Flag |
+|--------|---------|----------|-------------|-------------|
 | `sync_currency_rates` | Cron | 3:00 AM UTC | Sync taux USD→EUR | Toujours |
 | `memory_cleanup` | Cron | 4:00 AM UTC | Purge memoires obsoletes | Toujours |
-| `reminder_notification` | Interval | Toutes les minutes | Traitement rappels dus | Toujours |
-| `scheduled_action_executor` | Interval | Toutes les 60s | Execution actions planifiees utilisateur | `SCHEDULED_ACTIONS_ENABLED` |
-| `heartbeat_proactive` | Interval | Configurable (30-120 min) | Notifications proactives LLM-driven | `HEARTBEAT_ENABLED` |
-| `interest_proactive` | Interval | Configurable | Notifications centres d'interet | Toujours |
+| `interest_cleanup` | Cron | 3:00 AM UTC | Nettoyage centres d'interet dormants | Toujours |
+| `unverified_account_cleanup` | Cron | 5:00 AM UTC | Suppression comptes non verifies | Toujours |
+| `reminder_notification` | Interval | Toutes les minutes | Traitement rappels dus | `FCM_ENABLED` |
+| `scheduled_action_executor` | Interval | Toutes les 60s | Execution actions planifiees utilisateur | Toujours |
+| `token_refresh` | Interval | 15 min | Renouvellement proactif tokens OAuth | Toujours |
+| `interest_notification` | Interval | 15 min | Notifications centres d'interet | Toujours |
+| `heartbeat_notification` | Interval | Configurable (30 min) | Notifications proactives LLM-driven | `HEARTBEAT_ENABLED` |
 | `oauth_health_check` | Interval | 5 min | Surveillance connecteurs OAuth | `OAUTH_HEALTH_CHECK_ENABLED` |
+| `user_mcp_pool_eviction` | Interval | 60s | Eviction connexions MCP idle | `MCP_USER_ENABLED` |
+| `journal_consolidation` | Interval | Configurable (1-4h) | Consolidation autonome des journaux | `JOURNALS_ENABLED` |
+| `attachment_cleanup` | Interval | 6h | Nettoyage fichiers expirés | `ATTACHMENTS_ENABLED` |
+| `subagent_stale_recovery` | Interval | 120s | Récupération sous-agents bloqués | `SUB_AGENTS_ENABLED` |
+| `browser_session_cleanup` | Dynamic | — | Nettoyage sessions navigateur | `ATTACHMENTS_ENABLED` |
+| `scheduler_leader_lock_renewal` | Interval | 30s | Renouvellement lock leader Redis | Leader only |
 
 ### Dépendances
 
@@ -423,6 +432,51 @@ query = (
     .limit(self.batch_size)
 )
 ```
+
+### Solution 3 : SchedulerLock (Redis Distributed Lock)
+
+Pour les jobs qui ne sont ni des queues, ni des batch utilisateurs, utiliser `SchedulerLock` — un lock Redis SETNX non-bloquant. Si le lock est déjà pris, le job est silencieusement ignoré.
+
+```python
+# apps/api/src/infrastructure/scheduler/my_job.py
+from src.infrastructure.cache.redis import get_redis_cache
+from src.infrastructure.locks import SchedulerLock
+
+async def my_scheduled_job():
+    redis = await get_redis_cache()
+    async with SchedulerLock(redis, "my_job_id") as lock:
+        if not lock.acquired:
+            return  # Another worker is executing — skip silently
+        # Execute job logic here
+```
+
+Le lock expire automatiquement via TTL (300s par défaut) — pas de release explicite en `__aexit__` pour éviter que tous les N workers s'exécutent séquentiellement dans la même fenêtre.
+
+### Solution 4 : SchedulerLeaderElector (Single Scheduler Instance)
+
+Avec `--workers N`, chaque worker démarre son propre APScheduler. Pour éviter les doublons, un seul worker est élu "leader" et démarre le scheduler. Les autres workers restent en standby.
+
+```python
+# apps/api/src/infrastructure/scheduler/leader_elector.py
+from src.infrastructure.scheduler.leader_elector import SchedulerLeaderElector
+
+# In main.py lifespan:
+leader_elector = SchedulerLeaderElector(redis, scheduler, on_elected=callback)
+# ... register all jobs with scheduler.add_job() ...
+await leader_elector.start()   # Non-blocking: try SETNX, background re-election if stale lock
+# ... app runs ...
+await leader_elector.shutdown() # Release lock, stop scheduler
+```
+
+**Résilience** : si le leader est tué (SIGKILL, Docker restart), son lock Redis expire (TTL 120s). Les workers non-leaders vérifient toutes les 5s si le lock est libre et le récupèrent automatiquement. Cela résout le problème des locks fantômes qui empêchaient le scheduler de redémarrer après un `docker restart`.
+
+**Trois variantes de locks SETNX** dans LIA :
+
+| Lock | Module | Comportement | Cas d'usage |
+|------|--------|--------------|-------------|
+| `OAuthLock` | `infrastructure/locks/oauth_lock.py` | Blocking retry avec backoff | Refresh token OAuth |
+| `SchedulerLock` | `infrastructure/locks/scheduler_lock.py` | Non-blocking skip | Déduplication per-job |
+| `SchedulerLeaderElector` | `infrastructure/scheduler/leader_elector.py` | Non-blocking + background re-election | Instance unique scheduler |
 
 ---
 

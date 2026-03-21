@@ -35,7 +35,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.8.1</strong> — Journal Extraction Debug, Planner Skill Guard, Weather Temp Range — March 2026
+  <strong>Version 1.8.2</strong> — Scheduler Leader Election Resilience, Journal Consolidation Fix — March 2026
 </p>
 
 ---

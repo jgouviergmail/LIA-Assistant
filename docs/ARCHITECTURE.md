@@ -2903,34 +2903,33 @@ class ErrorHandlerMiddleware(BaseHTTPMiddleware):
 
 ### Background Jobs & Scheduler (APScheduler)
 
-Le système utilise **APScheduler** (AsyncIOScheduler) pour les tâches planifiées en arrière-plan.
+Le système utilise **APScheduler** (AsyncIOScheduler) pour les tâches planifiées en arrière-plan. En multi-worker (`--workers N`), un seul worker est élu "leader" via `SchedulerLeaderElector` (Redis SETNX) et démarre le scheduler. Les non-leaders vérifient toutes les 5s si le lock est libre (re-election automatique).
 
 #### Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
+┌──────────────────────────────────────────────────────────────────────┐
 │                    APSCHEDULER INFRASTRUCTURE                        │
-├─────────────────────────────────────────────────────────────────────┤
+├──────────────────────────────────────────────────────────────────────┤
 │                                                                      │
-│  FastAPI Lifespan                                                   │
+│  FastAPI Lifespan                                                    │
 │       │                                                              │
 │       ▼                                                              │
-│  ┌────────────────────────────────────────────────────────────────┐ │
-│  │              AsyncIOScheduler (ContextVar)                      │ │
-│  │                                                                  │ │
-│  │  Jobs:                                                          │ │
-│  │  ┌─────────────────────────────────────────────────────────────┐│ │
-│  │  │ reminder_notification    │ @every 1 min  │ process_due_reminders ││ │
-│  │  ├─────────────────────────────────────────────────────────────┤│ │
-│  │  │ currency_sync            │ @daily 3:00   │ sync_exchange_rates   ││ │
-│  │  ├─────────────────────────────────────────────────────────────┤│ │
-│  │  │ lifetime_metrics_updater │ @every 30s    │ update_lifetime_metrics││ │
-│  │  ├─────────────────────────────────────────────────────────────┤│ │
-│  │  │ scheduled_action_executor│ @every 60s   │ process_scheduled_actions││ │
-│  │  └─────────────────────────────────────────────────────────────┘│ │
-│  └────────────────────────────────────────────────────────────────┘ │
+│  SchedulerLeaderElector (Redis SETNX + background re-election)       │
+│       │                                                              │
+│       ▼ (leader only)                                                │
+│  ┌────────────────────────────────────────────────────────────────┐   │
+│  │              AsyncIOScheduler (16+ jobs)                       │   │
+│  │                                                                │   │
+│  │  Cron: currency_sync, memory_cleanup, interest_cleanup, ...    │   │
+│  │  Interval: reminder (1m), token_refresh (15m), heartbeat, ...  │   │
+│  │  Interval: journal_consolidation, attachment_cleanup, ...      │   │
+│  │  Internal: scheduler_leader_lock_renewal (30s)                 │   │
+│  └────────────────────────────────────────────────────────────────┘   │
 │                                                                      │
-└─────────────────────────────────────────────────────────────────────┘
+│  Per-job safety: SchedulerLock (Redis SETNX, non-blocking skip)      │
+│                                                                      │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 #### Reminder Notification Job (ADR-051)
@@ -3759,7 +3758,7 @@ async with TrackingContext(user_id, run_id) as tracker:
 - **Early-exit** : skip si utilisateur inactif > N jours (économie tokens)
 - **Continuité conversationnelle** : résumé stocké dans LangGraph Store (write-only v1)
 
-**Infrastructure réutilisée** : `ProactiveTask` Protocol, `EligibilityChecker`, `ProactiveTaskRunner`, `NotificationDispatcher`, `SchedulerLock`, `get_structured_output()`, `PersonalityService`.
+**Infrastructure réutilisée** : `ProactiveTask` Protocol, `EligibilityChecker`, `ProactiveTaskRunner`, `NotificationDispatcher`, `SchedulerLock`, `SchedulerLeaderElector`, `get_structured_output()`, `PersonalityService`.
 
 **Table** : `heartbeat_notifications` (audit trail immuable) + 5 colonnes User (heartbeat_enabled, heartbeat_max_per_day, heartbeat_push_enabled, heartbeat_notify_start_hour, heartbeat_notify_end_hour).
 

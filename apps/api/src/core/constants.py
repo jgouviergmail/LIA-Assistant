@@ -827,6 +827,8 @@ SCHEDULER_LOCK_DEFAULT_TTL_SECONDS = 300  # 5 minutes
 SCHEDULER_LEADER_LOCK_KEY = "scheduler:leader"
 SCHEDULER_LEADER_LOCK_TTL_SECONDS = 120  # 2 minutes (renewed every 30s)
 SCHEDULER_LEADER_RENEW_INTERVAL_SECONDS = 30  # Renewal frequency
+SCHEDULER_LEADER_RE_ELECTION_INTERVAL_SECONDS = 5  # Background re-election check interval
+SCHEDULER_JOB_LEADER_LOCK_RENEWAL = "scheduler_leader_lock_renewal"  # Leader lock renewal job ID
 
 # ============================================================================
 # BACKGROUND TASKS

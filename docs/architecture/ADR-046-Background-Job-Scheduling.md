@@ -149,15 +149,22 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     )
     logger.info("reminder_notification_job_scheduled", interval_minutes=1)
 
-    # 4. Start scheduler
-    scheduler.start()
+    # 4. Leader election + start scheduler
+    # SchedulerLeaderElector handles:
+    # - SETNX-based leader election (one scheduler per multi-worker deployment)
+    # - Non-blocking background re-election if stale lock exists
+    # - Lock renewal (every 30s, TTL 120s)
+    # - Graceful shutdown with lock release
+    leader_elector = SchedulerLeaderElector(
+        await get_redis_cache(), scheduler, on_elected=_on_scheduler_elected,
+    )
+    await leader_elector.start()
     logger.info("scheduler_started")
 
     yield  # APP RUNNING
 
     # === SHUTDOWN ===
-    scheduler.shutdown()
-    logger.info("scheduler_stopped")
+    await leader_elector.shutdown()
 
     # Cleanup resources
     await close_redis()
@@ -473,6 +480,40 @@ query = (
 **Protection** : `max_instances=1` + cooldowns metier (2h global, 24h/topic)
 
 > Voir [ProactiveTaskRunner](../../apps/api/src/infrastructure/proactive/runner.py)
+
+#### Option 3: SchedulerLock (Redis Distributed Lock)
+
+Pour les jobs qui ne sont ni queue ni batch, `SchedulerLock` est un lock Redis SETNX non-bloquant
+qui skip silencieusement si le lock est deja pris :
+
+```python
+from src.infrastructure.locks import SchedulerLock
+
+async def my_job():
+    redis = await get_redis_cache()
+    async with SchedulerLock(redis, "my_job_id") as lock:
+        if not lock.acquired:
+            return  # Another worker executing — skip
+        await do_work()
+```
+
+> Voir [SchedulerLock](../../apps/api/src/infrastructure/locks/scheduler_lock.py)
+
+#### Option 4: SchedulerLeaderElector (Single Scheduler Instance)
+
+Garantit qu'un seul worker demarre APScheduler. Les autres restent en standby avec re-election
+automatique si le leader est tue (Docker restart, SIGKILL). Resout le probleme de locks
+fantomes qui empechaient le scheduler de redemarrer.
+
+```python
+from src.infrastructure.scheduler.leader_elector import SchedulerLeaderElector
+
+leader_elector = SchedulerLeaderElector(redis, scheduler, on_elected=callback)
+await leader_elector.start()     # Non-blocking: SETNX + background re-election
+await leader_elector.shutdown()  # Release lock, stop scheduler
+```
+
+> Voir [SchedulerLeaderElector](../../apps/api/src/infrastructure/scheduler/leader_elector.py)
 
 ### Fire-and-Forget Pattern
 
