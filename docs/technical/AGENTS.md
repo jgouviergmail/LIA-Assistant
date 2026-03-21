@@ -1,12 +1,12 @@
 # AGENTS.md - Architecture Multi-Agent et Registry
 
-**Version**: 1.4
-**Date**: 2026-02-28
+**Version**: 1.5
+**Date**: 2026-03-21
 **Auteur**: Documentation Technique LIA
 **Statut**: ✅ Complète et Validée
 
-> **Nouveautés v1.4** : 14 agents actifs, ajout Web Fetch Agent (LOT 9/10), Semantic Tool Router (ADR-048) + Local E5 Embeddings (ADR-049).
-> Voir [AGENT_MANIFEST.md](./AGENT_MANIFEST.md) pour le catalogue complet des 50+ tools.
+> **Nouveautés v1.5** : 15 agents actifs, ajout Philips Hue Smart Home Agent (v1.8.0), Semantic Tool Router (ADR-048) + Local E5 Embeddings (ADR-049).
+> Voir [AGENT_MANIFEST.md](./AGENT_MANIFEST.md) pour le catalogue complet des 56+ tools.
 
 ---
 
@@ -100,6 +100,7 @@ graph TB
 | `brave_agent` | Brave Search | brave_search, brave_news | ✅ Production |
 | `routes_agent` | Google Routes | compute_routes | ✅ Production |
 | `query_agent` | Context Resolution | resolve_reference, get_context_list, set_current_item | ✅ Production |
+| `hue_agent` | Philips Hue Smart Home | list_lights, control_light, list_rooms, control_room, list_scenes, activate_scene | ✅ Production |
 
 ---
 
@@ -2137,5 +2138,5 @@ else:
 
 **Document généré le** : 2025-12-27
 **Auteur** : Documentation Technique LIA
-**Phase** : LOT 9/10 - 10 agents actifs
+**Phase** : LOT 9/10 + v1.8.0 - 15 agents actifs
 **Statut** : ✅ Complète et Validée

@@ -5,6 +5,7 @@ from src.domains.agents.graphs.calendar_agent_builder import build_calendar_agen
 from src.domains.agents.graphs.contacts_agent_builder import build_contacts_agent
 from src.domains.agents.graphs.drive_agent_builder import build_drive_agent
 from src.domains.agents.graphs.emails_agent_builder import build_emails_agent
+from src.domains.agents.graphs.hue_agent_builder import build_hue_agent
 from src.domains.agents.graphs.perplexity_agent_builder import build_perplexity_agent
 from src.domains.agents.graphs.places_agent_builder import build_places_agent
 from src.domains.agents.graphs.query_agent_builder import build_query_agent
@@ -31,6 +32,8 @@ __all__ = [
     "build_web_fetch_agent",
     "build_places_agent",
     "build_routes_agent",
+    # Smart Home agents
+    "build_hue_agent",
     # Internal agents (no external API)
     "build_query_agent",
 ]

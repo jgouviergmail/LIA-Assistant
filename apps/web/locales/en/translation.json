@@ -730,6 +730,8 @@
       "connected_api_key": "Connected External Connectors",
       "connected_apple": "Connected Apple Connectors",
       "connected_microsoft": "Connected Microsoft Connectors",
+      "connected_hue": "Connected Smart Home",
+      "available_hue": "Available Smart Home Services",
       "connected_on": "Connected on {{date}}",
       "loading": "Loading...",
       "enabled": "✓ Enabled",
@@ -947,6 +949,28 @@
         "label": "Browser",
         "description": "Interactive web browsing (no key required)",
         "no_key_required": "This service does not require an API key"
+      },
+      "hue": {
+        "label": "Philips Hue",
+        "description": "Control your Philips Hue smart lights via LIA",
+        "mode_select": "Choose connection mode",
+        "mode_local": "Local connection (same network)",
+        "mode_local_desc": "Your LIA server must be on the same network as the Hue Bridge",
+        "mode_remote": "Remote connection (Philips cloud)",
+        "mode_remote_desc": "Control your lights from anywhere via Philips cloud relay",
+        "discover_bridges": "Search for bridges",
+        "discovering": "Searching for Hue Bridges...",
+        "no_bridges_found": "No bridges found on local network",
+        "select_bridge": "Select your bridge",
+        "press_button": "Press the button on your Hue Bridge",
+        "press_button_desc": "Press the large button on top of your bridge, then click Pair",
+        "pairing_countdown": "{{seconds}}s remaining",
+        "pair_button": "Pair",
+        "pairing_success": "Bridge paired successfully!",
+        "pairing_error": "Pairing failed. Did you press the bridge button?",
+        "bridge_unreachable": "Bridge unreachable. Check network connection.",
+        "connect_remote": "Connect via Philips Hue",
+        "test_connection": "Test connection"
       }
     },
     "admin": {
@@ -2086,7 +2110,7 @@
       "features": {
         "architecture": {
           "title": "🏗️ LangGraph Multi-Agent Architecture",
-          "description": "LIA uses LangGraph, a state graph framework for AI agent orchestration. 15 specialized domain agents (contacts, email, calendar, drive, tasks, weather, wikipedia, perplexity, brave, web_search, web_fetch, places, routes, reminders, context, query) + dynamic MCP agents, each with conditional transitions and state persistence via PostgreSQL checkpointing. Dynamic MCP agents extend capabilities without limit."
+          "description": "LIA uses LangGraph, a state graph framework for AI agent orchestration. 16 specialized domain agents (contacts, email, calendar, drive, tasks, weather, wikipedia, perplexity, brave, web_search, web_fetch, places, routes, reminders, hue, context, query) + dynamic MCP agents, each with conditional transitions and state persistence via PostgreSQL checkpointing. Dynamic MCP agents extend capabilities without limit."
         },
         "queryAnalyzer": {
           "title": "🧭 Query Analyzer v3.2",
@@ -2404,11 +2428,11 @@
       "connectors": {
         "title": "Connectors",
         "description": "Integrations and external connections",
-        "count": "13",
+        "count": "14",
         "questions": {
           "q1": {
             "question": "What is a connector?",
-            "answer": "A <strong>connector</strong> is a secure gateway between LIA and your external services:<br><br><strong>🔌 Types of connectors:</strong><br><br><strong>Google Services (OAuth):</strong><br>• 📧 <strong>Gmail</strong>: read, send, reply to emails<br>• 📅 <strong>Calendar</strong>: manage your events<br>• 👥 <strong>Contacts</strong>: search and create contacts<br>• 📁 <strong>Drive</strong>: explore your files<br>• ✅ <strong>Tasks</strong>: manage your tasks<br>• 📍 <strong>Places</strong>: search for locations<br>• 🗺️ <strong>Routes</strong>: directions and routes<br><br><strong>Apple iCloud services (app-specific password):</strong><br>• 📮 <strong>Apple Mail</strong>: read, send, reply to emails (IMAP/SMTP)<br>• 🗓️ <strong>Apple Calendar</strong>: manage your iCloud events (CalDAV)<br>• 📇 <strong>Apple Contacts</strong>: search and create iCloud contacts (CardDAV)<br><br><strong>Microsoft 365 services (OAuth):</strong><br>• 📧 <strong>Outlook</strong>: read, send, reply to emails<br>• 📅 <strong>Microsoft Calendar</strong>: manage your events<br>• 👥 <strong>Microsoft Contacts</strong>: search and manage contacts<br>• ✅ <strong>Microsoft To Do</strong>: manage tasks and lists<br><br><strong>External services (API key):</strong><br>• 🌤️ <strong>OpenWeatherMap</strong>: weather and forecasts<br>• 📚 <strong>Wikipedia</strong>: encyclopedic search<br>• 🔍 <strong>Perplexity</strong>: AI web search<br>• 🦁 <strong>Brave Search</strong>: web and news enrichment<br><br><strong>🔒 Security:</strong><br>Each connector has limited permissions. LIA only accesses necessary data.<br><br><strong>⚡ Mutual exclusivity:</strong><br>For email, calendar, and contacts, only one provider can be active at a time (Google OR Apple OR Microsoft, not both simultaneously). Tasks are available via Google Tasks or Microsoft To Do (one at a time)."
+            "answer": "A <strong>connector</strong> is a secure gateway between LIA and your external services:<br><br><strong>🔌 Types of connectors:</strong><br><br><strong>Google Services (OAuth):</strong><br>• 📧 <strong>Gmail</strong>: read, send, reply to emails<br>• 📅 <strong>Calendar</strong>: manage your events<br>• 👥 <strong>Contacts</strong>: search and create contacts<br>• 📁 <strong>Drive</strong>: explore your files<br>• ✅ <strong>Tasks</strong>: manage your tasks<br>• 📍 <strong>Places</strong>: search for locations<br>• 🗺️ <strong>Routes</strong>: directions and routes<br><br><strong>Apple iCloud services (app-specific password):</strong><br>• 📮 <strong>Apple Mail</strong>: read, send, reply to emails (IMAP/SMTP)<br>• 🗓️ <strong>Apple Calendar</strong>: manage your iCloud events (CalDAV)<br>• 📇 <strong>Apple Contacts</strong>: search and create iCloud contacts (CardDAV)<br><br><strong>Microsoft 365 services (OAuth):</strong><br>• 📧 <strong>Outlook</strong>: read, send, reply to emails<br>• 📅 <strong>Microsoft Calendar</strong>: manage your events<br>• 👥 <strong>Microsoft Contacts</strong>: search and manage contacts<br>• ✅ <strong>Microsoft To Do</strong>: manage tasks and lists<br><br><strong>External services (API key):</strong><br>• 🌤️ <strong>OpenWeatherMap</strong>: weather and forecasts<br>• 📚 <strong>Wikipedia</strong>: encyclopedic search<br>• 🔍 <strong>Perplexity</strong>: AI web search<br>• 🦁 <strong>Brave Search</strong>: web and news enrichment<br><br><strong>Smart Home (hybrid auth):</strong><br>• 💡 <strong>Philips Hue</strong>: control lights, rooms, and scenes<br><br><strong>🔒 Security:</strong><br>Each connector has limited permissions. LIA only accesses necessary data.<br><br><strong>⚡ Mutual exclusivity:</strong><br>For email, calendar, and contacts, only one provider can be active at a time (Google OR Apple OR Microsoft, not both simultaneously). Tasks are available via Google Tasks or Microsoft To Do (one at a time)."
           },
           "q2": {
             "question": "How do I connect Google services?",
@@ -2448,7 +2472,7 @@
           },
           "q11": {
             "question": "What is connector mutual exclusivity?",
-            "answer": "For email, calendar, contacts, and tasks services, LIA applies a <strong>mutual exclusivity</strong> rule:<br><br><strong>⚡ Principle:</strong><br>Only one provider can be active per category:<br>• <strong>Email</strong>: Gmail OR Apple Mail OR Outlook (not multiple)<br>• <strong>Calendar</strong>: Google Calendar OR Apple Calendar OR Microsoft Calendar (not multiple)<br>• <strong>Contacts</strong>: Google Contacts OR Apple Contacts OR Microsoft Contacts (not multiple)<br>• <strong>Tasks</strong>: Google Tasks OR Microsoft To Do (not both)<br><br><strong>🔄 Switching providers:</strong><br>If you activate a new provider while another is active for the same category:<br>1. The previous service becomes <strong>inactive</strong> (not deleted)<br>2. The new service becomes <strong>active</strong><br>3. Your data remains intact with each provider<br>4. You can switch back at any time<br><br><strong>✅ Unaffected services:</strong><br>Google Drive, Places, and Routes have no equivalent in other providers and remain always available.<br><br><strong>💡 Tip:</strong><br>You don't need to choose the same provider for everything. For example, you can use Outlook for emails, Google Calendar for your calendar, and Microsoft To Do for tasks."
+            "answer": "For email, calendar, contacts, and tasks services, LIA applies a <strong>mutual exclusivity</strong> rule:<br><br><strong>⚡ Principle:</strong><br>Only one provider can be active per category:<br>• <strong>Email</strong>: Gmail OR Apple Mail OR Outlook (not multiple)<br>• <strong>Calendar</strong>: Google Calendar OR Apple Calendar OR Microsoft Calendar (not multiple)<br>• <strong>Contacts</strong>: Google Contacts OR Apple Contacts OR Microsoft Contacts (not multiple)<br>• <strong>Tasks</strong>: Google Tasks OR Microsoft To Do (not both)<br><br><strong>🔄 Switching providers:</strong><br>If you activate a new provider while another is active for the same category:<br>1. The previous service becomes <strong>inactive</strong> (not deleted)<br>2. The new service becomes <strong>active</strong><br>3. Your data remains intact with each provider<br>4. You can switch back at any time<br><br><strong>✅ Unaffected services:</strong><br>Google Drive, Places, Routes, and Philips Hue have no equivalent in other providers and remain always available.<br><br><strong>💡 Tip:</strong><br>You don't need to choose the same provider for everything. For example, you can use Outlook for emails, Google Calendar for your calendar, and Microsoft To Do for tasks."
           },
           "q12": {
             "question": "How do I connect Microsoft 365 services?",
@@ -2457,6 +2481,10 @@
           "q13": {
             "question": "What Microsoft 365 services can I connect?",
             "answer": "LIA integrates with <strong>4 Microsoft 365 services</strong>:<br><br><strong>📧 Outlook (Microsoft Graph)</strong><br>• Search your emails<br>• Read message content<br>• Send, reply, forward<br>• View attachments<br><br><strong>📅 Microsoft Calendar</strong><br>• View your schedule<br>• Create events<br>• Modify or delete<br>• Invite participants<br><br><strong>👥 Microsoft Contacts</strong><br>• Search by name, email, company<br>• Create new contacts<br>• Update information<br><br><strong>✅ Microsoft To Do</strong><br>• List your tasks<br>• Create new tasks<br>• Mark as completed<br>• Manage task lists<br><br><strong>💡 Same experience:</strong><br>Commands are identical regardless of provider. Just say \"<em>my emails</em>\", \"<em>my calendar</em>\", \"<em>my contacts</em>\", or \"<em>my tasks</em>\" — LIA automatically uses the active provider."
+          },
+          "q14": {
+            "question": "How do I connect Philips Hue?",
+            "answer": "Philips Hue uses <strong>hybrid authentication</strong> (local press-link or remote OAuth2):<br><br><strong>🏠 Local mode (recommended — same network):</strong><br>1. Go to <strong>Settings > Smart Home > Philips Hue</strong><br>2. Click <strong>Local connection</strong><br>3. Click <strong>Search for bridges</strong><br>4. Select your bridge<br>5. <strong>Press the physical button</strong> on top of your Hue Bridge<br>6. Click <strong>Pair</strong> within 30 seconds<br>7. LIA validates connectivity and activates the connector<br><br><strong>🌐 Remote mode (different network):</strong><br>1. Configure Hue Remote API credentials on the server<br>2. Click <strong>Remote connection</strong><br>3. Authorize LIA via Philips OAuth2<br><br><strong>💡 What you can do:</strong><br>• \"Turn on the living room lights\"<br>• \"Dim the bedroom to 30%\"<br>• \"Set the kitchen light to blue\"<br>• \"Activate the movie scene\"<br>• \"What lights are currently on?\"<br>• \"Turn off everything\"<br><br><strong>⚡ 6 tools available:</strong><br>List lights, control a light (on/off, brightness, color), list rooms, control a room, list scenes, activate a scene."
           }
         }
       },
@@ -3602,7 +3630,7 @@
   "landing": {
     "meta": {
       "title": "LIA — Open Source Personal AI Assistant | Multi-Agent, HITL, 6 Languages",
-      "description": "LIA orchestrates 15 specialized AI agents to manage your emails, calendar, contacts, Drive and more. Open source, human validation (HITL), 7 LLM providers, 6 languages. Privacy by design."
+      "description": "LIA orchestrates 16 specialized AI agents to manage your emails, calendar, contacts, Drive and more. Open source, human validation (HITL), 7 LLM providers, 6 languages. Privacy by design."
     },
     "nav": {
       "features": "Features",
@@ -3621,7 +3649,7 @@
       "title_line2_highlight": "AI",
       "title_line2_after": ".",
       "title_line3": "Your rules.",
-      "subtitle": "LIA orchestrates specialized agents to manage your emails, calendar, contacts, and more — with your approval at every step.",
+      "subtitle": "LIA orchestrates specialized agents to manage your emails, calendar, contacts, smart home, and more — with your approval at every step.",
       "cta_primary": "Join the BETA",
       "cta_secondary": "Learn more",
       "scroll_hint": "Scroll to explore",
@@ -3668,6 +3696,10 @@
         "title": "Google, Apple iCloud & Microsoft 365",
         "description": "Emails, calendar and contacts via Google, Apple iCloud or Microsoft 365 — your choice. Plus Google Drive and tasks via Google Tasks or Microsoft To Do. All in natural language, regardless of your provider."
       },
+      "smart_home": {
+        "title": "Smart Home (Philips Hue)",
+        "description": "Control your smart lights by voice: turn on/off, adjust brightness and colors, manage rooms and scenes. Just say \"dim the living room\" or \"activate movie mode\". Local or cloud connection."
+      },
       "web_intelligence": {
         "title": "Search, Weather & Navigation",
         "description": "Multi-source web search (Brave, Perplexity, Wikipedia), real-time weather and 5-day forecasts, nearby places and businesses search, multi-mode route planning (car, walk, bike, transit), automatic geolocation."
@@ -3681,7 +3713,7 @@
         "description": "No commands to memorize. Ask what you want like you would a human assistant, LIA understands and acts."
       },
       "multi_agent": {
-        "title": "15 specialized agents",
+        "title": "16 specialized agents",
         "description": "Emails, calendar, contacts, files, tasks, weather, web search, Wikipedia, places, routes, reminders and more. A single request automatically activates the right agents."
       },
       "proactive": {
@@ -3954,6 +3986,7 @@
     "higherCost": "Higher cost",
     "sizeUsage": "Size usage",
     "lastCost": "Last intervention",
+    "lastCostSource": "Source",
     "create": "New entry",
     "export": "Export",
     "deleteAll": "Delete all",
@@ -4021,7 +4054,7 @@
       "architecture": "Architecture",
       "architecture_desc": "How LIA orchestrates its AI agents, plans tasks, and keeps humans at the center of decisions.",
       "integrations": "Integrations",
-      "integrations_desc": "Connect LIA to Google, Apple, Microsoft and extend it with MCP and custom skills.",
+      "integrations_desc": "Connect LIA to Google, Apple, Microsoft, Philips Hue and extend it with MCP and custom skills.",
       "features": "Features",
       "features_desc": "Voice, documents, personal journals, proactive notifications and much more.",
       "security": "Security & Privacy",
@@ -4031,9 +4064,9 @@
     },
     "articles": {
       "multi-agent-orchestration": {
-        "title": "How LIA Orchestrates 15 Specialized AI Agents",
+        "title": "How LIA Orchestrates 16 Specialized AI Agents",
         "excerpt": "Discover LIA's multi-agent system: an intelligent router directs each request to the right agent using LangGraph, a planner, and a parallel task orchestrator.",
-        "body": "<h2>An 8-node graph at the heart of the system</h2><p>When you send a message to LIA, it doesn't go directly to a language model. It traverses a <strong>LangGraph state machine composed of 8 nodes</strong>: <code>compaction</code>, <code>router_v3</code>, <code>planner</code>, <code>task_orchestrator</code>, <code>approval_gate</code>, <code>semantic_validator</code>, <code>clarification</code> and <code>response</code>. Each node is a specialized asynchronous function with conditional transitions.</p><h2>A unified intelligence router</h2><p>The <code>router_v3</code> node uses <code>QueryAnalyzerService.analyze_full()</code> for a unified analysis of each message. The result is a <strong>RouterOutput</strong> containing: the intent (<code>action</code> or <code>conversation</code>), a confidence score, the list of detected domains and the router's reasoning. If the intent is conversational, the flow passes directly to the <code>response</code> node. If it is actionable, the flow passes to the <code>planner</code> to generate a structured plan.</p><h2>A rich state with token management</h2><p>The LangGraph state (<code>MessagesState</code>) is a TypedDict with <strong>over 50 fields</strong>. It uses a custom <code>add_messages_with_truncate</code> reducer based on tiktoken to handle token-based truncation, message windowing and OpenAI message sequence validation. This state is checkpointed in <strong>PostgreSQL</strong> via the LangGraph persistence system.</p><h2>Native parallel execution</h2><p>For actionable requests (\"send an email and create an event\"), LIA generates a structured <strong>ExecutionPlan</strong> via the planner node. The task orchestrator analyzes the dependency graph and executes independent steps in parallel using native <code>asyncio.gather()</code> (Phase 5.2B), significantly reducing response time for multi-domain requests.</p><h2>Specialized agents per domain</h2><p>Each domain has its own agent: emails, calendar, contacts, tasks, Drive, weather, routes, web search, Wikipedia, and more. Each agent has dedicated tools, a specialized prompt and its own context. This separation allows LIA to automatically coordinate multiple agents for cross-cutting requests like \"send my next meeting details to all participants\".</p><h2>Persistence and recovery</h2><p>The complete state of each conversation is checkpointed in PostgreSQL via the LangGraph persistence system. If interrupted, the conversation resumes exactly where it left off, with all context preserved — including plans in progress and pending approvals.</p>"
+        "body": "<h2>An 8-node graph at the heart of the system</h2><p>When you send a message to LIA, it doesn't go directly to a language model. It traverses a <strong>LangGraph state machine composed of 8 nodes</strong>: <code>compaction</code>, <code>router_v3</code>, <code>planner</code>, <code>task_orchestrator</code>, <code>approval_gate</code>, <code>semantic_validator</code>, <code>clarification</code> and <code>response</code>. Each node is a specialized asynchronous function with conditional transitions.</p><h2>A unified intelligence router</h2><p>The <code>router_v3</code> node uses <code>QueryAnalyzerService.analyze_full()</code> for a unified analysis of each message. The result is a <strong>RouterOutput</strong> containing: the intent (<code>action</code> or <code>conversation</code>), a confidence score, the list of detected domains and the router's reasoning. If the intent is conversational, the flow passes directly to the <code>response</code> node. If it is actionable, the flow passes to the <code>planner</code> to generate a structured plan.</p><h2>A rich state with token management</h2><p>The LangGraph state (<code>MessagesState</code>) is a TypedDict with <strong>over 50 fields</strong>. It uses a custom <code>add_messages_with_truncate</code> reducer based on tiktoken to handle token-based truncation, message windowing and OpenAI message sequence validation. This state is checkpointed in <strong>PostgreSQL</strong> via the LangGraph persistence system.</p><h2>Native parallel execution</h2><p>For actionable requests (\"send an email and create an event\"), LIA generates a structured <strong>ExecutionPlan</strong> via the planner node. The task orchestrator analyzes the dependency graph and executes independent steps in parallel using native <code>asyncio.gather()</code> (Phase 5.2B), significantly reducing response time for multi-domain requests.</p><h2>Specialized agents per domain</h2><p>Each domain has its own agent: emails, calendar, contacts, tasks, Drive, weather, routes, web search, Wikipedia, smart home, and more. Each agent has dedicated tools, a specialized prompt and its own context. This separation allows LIA to automatically coordinate multiple agents for cross-cutting requests like \"send my next meeting details to all participants\".</p><h2>Persistence and recovery</h2><p>The complete state of each conversation is checkpointed in PostgreSQL via the LangGraph persistence system. If interrupted, the conversation resumes exactly where it left off, with all context preserved — including plans in progress and pending approvals.</p>"
       },
       "execution-plans": {
         "title": "ExecutionPlan: How LIA Plans and Executes Complex Requests",

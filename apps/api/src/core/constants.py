@@ -2783,3 +2783,25 @@ JOURNAL_MAX_ENTRY_CHARS_DEFAULT = 2000  # per entry
 JOURNAL_CONTEXT_MAX_CHARS_DEFAULT = 1500  # ~400 tokens injection budget
 JOURNAL_CONTEXT_MAX_RESULTS_DEFAULT = 10  # max semantic search results
 JOURNAL_CONTEXT_MIN_SCORE_DEFAULT = 0.3  # min cosine similarity to include in context
+
+# ============================================================================
+# PHILIPS HUE (Smart Home — Hue Bridge CLIP v2 API)
+# ============================================================================
+# Local bridge discovery and press-link pairing
+HUE_DISCOVERY_URL: str = "https://discovery.meethue.com"
+HUE_PAIRING_DEVICE_TYPE: str = "lia#server"
+HUE_PAIRING_TIMEOUT_SECONDS: int = 30
+HUE_API_PREFIX: str = "/clip/v2/resource"
+HUE_AUTH_HEADER_NAME: str = "hue-application-key"
+HUE_BRIDGE_DEFAULT_PORT: int = 443
+
+# Rate limiting and timeouts
+HUE_DEFAULT_RATE_LIMIT_PER_SECOND: int = 5
+HTTP_TIMEOUT_HUE_API: float = 10.0
+
+# Remote API (OAuth2 via api.meethue.com)
+HUE_REMOTE_API_BASE_URL: str = "https://api.meethue.com"
+HUE_REMOTE_TOKEN_ENDPOINT: str = "https://api.meethue.com/v2/oauth2/token"
+HUE_REMOTE_AUTHORIZATION_ENDPOINT: str = "https://api.meethue.com/v2/oauth2/authorize"
+HUE_REMOTE_TOKEN_EXPIRY_DAYS: int = 7
+HUE_REMOTE_REFRESH_EXPIRY_DAYS: int = 112

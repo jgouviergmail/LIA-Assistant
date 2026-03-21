@@ -322,6 +322,9 @@ async def stream_message(
 
         except Exception as e:
             logger.error("stream_error", error=str(e), exc_info=True)
+            # v1.8.0: SSEErrorMessages.generic_error() detects LLM provider errors
+            # (OverloadedError, RateLimitError) and returns user-friendly i18n messages
+            # instead of raw exception type names
             await sse_manager.send_error(str(e), type(e).__name__)
 
         # Yield all queued events

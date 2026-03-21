@@ -229,11 +229,13 @@ class ConnectorTool[ClientType](ABC):
                     # Step 4 (API Key mode): Create client without credentials
                     client_factory = self.create_api_key_client_factory(user_uuid)
                 else:
-                    # Step 3: Get connector credentials (OAuth or Apple)
+                    # Step 3: Get connector credentials (OAuth, Apple, or Hue)
                     if effective_connector_type.is_apple:
                         credentials = await connector_service.get_apple_credentials(
                             user_uuid, effective_connector_type
                         )
+                    elif effective_connector_type.is_hue:
+                        credentials = await connector_service.get_hue_credentials(user_uuid)
                     else:
                         credentials = await connector_service.get_connector_credentials(
                             user_uuid, effective_connector_type

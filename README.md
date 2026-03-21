@@ -35,7 +35,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.7.2</strong> — Technical Blog, SEO & GEO Optimization, Factual Accuracy Audit — March 2026
+  <strong>Version 1.8.0</strong> — Philips Hue Smart Home Connector, LLM Error Resilience — March 2026
 </p>
 
 ---
@@ -70,7 +70,7 @@
 |---------|---------------------|
 | **Unpredictable LLM costs** | Real-time token tracking, budget alerts, 93% optimization |
 | **Uncontrolled hallucinations** | Human-in-the-Loop (HITL) with 6 approval levels |
-| **Fragmented integrations** | Unified multi-domain orchestration (17 agents + MCP + sub-agents) |
+| **Fragmented integrations** | Unified multi-domain orchestration (18 agents + MCP + sub-agents) |
 | **Limited observability** | 500+ Prometheus metrics, 18 Grafana dashboards, GeoIP analytics |
 | **Inconsistent performance** | Local E5 embeddings (~50ms), semantic routing +48% accuracy |
 
@@ -150,7 +150,7 @@ LIA is available as a hosted service at **https://lia.jeyswork.com/** — no ins
 
 ### Multi-Agent Intelligence (LangGraph 1.x)
 
-- **18+ Specialized Agents**: Contacts, Emails, Calendar, Drive, Tasks, Reminders, Places, Routes, Weather, Wikipedia, Perplexity, Brave, Web Search, Web Fetch, Browser Control, Context, Query + dynamic MCP agents
+- **19+ Specialized Agents**: Contacts, Emails, Calendar, Drive, Tasks, Reminders, Places, Routes, Weather, Wikipedia, Perplexity, Brave, Web Search, Web Fetch, Browser Control, Smart Home (Philips Hue), Context, Query + dynamic MCP agents
 - **MCP (Model Context Protocol)**: Per-user external tool servers with OAuth 2.1, SSRF protection, structured items parsing, MCP Apps (interactive iframe widgets), Excalidraw Iterative Builder
 - **Skills (agentskills.io)**: Open standard for expert instructions (SKILL.md), model-driven activation, progressive disclosure (L1/L2/L3), sandboxed scripts, marketplace import, auto-translated multi-language descriptions, ZIP download, admin management. **Built-in Skill Generator**: create custom skills in natural language — the assistant guides you through need analysis, archetype selection, and produces a ready-to-import SKILL.md with automatic validation
 - **File Attachments (Images, PDF)**: Upload with client-side compression, configurable LLM vision analysis, PDF text extraction, strict per-user isolation
@@ -221,6 +221,13 @@ ExecutionStep(
 - Only one provider per functional category (email, calendar, contacts, tasks)
 - 3 supported providers: Google, Apple, Microsoft
 - Activating a new provider automatically deactivates the active competitor
+
+### Smart Home — Philips Hue
+
+- **Voice-controlled lighting**: Turn lights on/off, adjust brightness and colors via natural language
+- **Room & scene management**: Control entire rooms or activate predefined scenes ("dim the living room", "activate movie mode")
+- **Local or cloud connection**: Connect via local bridge IP or Philips Hue cloud API
+- **Feature flag**: `PHILIPS_HUE_ENABLED=true` to enable
 
 ### Human-in-the-Loop (HITL)
 

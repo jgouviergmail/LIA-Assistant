@@ -36,6 +36,8 @@ class SSEErrorMessages:
         """
         Generic error message for unexpected exceptions.
 
+        Detects LLM provider transient errors and provides appropriate messaging.
+
         Args:
             exception: The exception that occurred
             language: Target language (fr/en/es/de/it/zh-CN)
@@ -43,7 +45,19 @@ class SSEErrorMessages:
         Returns:
             User-friendly error message with recovery guidance
         """
+        # Check for LLM provider transient errors first
+        error_str = str(exception).lower()
         error_type = type(exception).__name__
+
+        if (
+            "overloaded" in error_str
+            or "529" in error_str
+            or error_type == "OverloadedError"
+            or "rate_limit" in error_str
+            or "429" in error_str
+            or error_type == "RateLimitError"
+        ):
+            return SSEErrorMessages._llm_provider_busy(language)
 
         messages = {
             "fr": f"Une erreur s'est produite : {error_type}. Veuillez réessayer ou contacter le support si le problème persiste.",
@@ -61,6 +75,9 @@ class SSEErrorMessages:
         """
         Error message for SSE stream failures (router-level).
 
+        Detects LLM provider errors (overloaded, rate limit, timeout) and returns
+        a user-friendly message with retry guidance instead of raw error types.
+
         Args:
             exception: The exception that occurred
             language: Target language (fr/en/es/de/it/zh-CN)
@@ -68,15 +85,69 @@ class SSEErrorMessages:
         Returns:
             User-friendly error message for stream errors
         """
-        error_type = type(exception).__name__
+        # Detect LLM provider transient errors (overloaded, rate limit, 529, 529)
+        error_str = str(exception).lower()
+        error_type_name = type(exception).__name__
+
+        is_overloaded = (
+            "overloaded" in error_str or "529" in error_str or error_type_name == "OverloadedError"
+        )
+        is_rate_limited = (
+            "rate_limit" in error_str or "429" in error_str or error_type_name == "RateLimitError"
+        )
+
+        if is_overloaded or is_rate_limited:
+            return SSEErrorMessages._llm_provider_busy(language)
 
         messages = {
-            "fr": f"Erreur de streaming : {error_type}. Veuillez rafraîchir la page pour recommencer.",
-            "en": f"Stream error: {error_type}. Please refresh the page to try again.",
-            "es": f"Error de transmisión: {error_type}. Por favor, actualice la página para volver a intentarlo.",
-            "de": f"Streaming-Fehler: {error_type}. Bitte aktualisieren Sie die Seite, um es erneut zu versuchen.",
-            "it": f"Errore di streaming: {error_type}. Si prega di aggiornare la pagina per riprovare.",
-            "zh-CN": f"流错误：{error_type}。请刷新页面重试。",
+            "fr": f"Erreur de streaming : {error_type_name}. Veuillez rafraîchir la page pour recommencer.",
+            "en": f"Stream error: {error_type_name}. Please refresh the page to try again.",
+            "es": f"Error de transmisión: {error_type_name}. Por favor, actualice la página para volver a intentarlo.",
+            "de": f"Streaming-Fehler: {error_type_name}. Bitte aktualisieren Sie die Seite, um es erneut zu versuchen.",
+            "it": f"Errore di streaming: {error_type_name}. Si prega di aggiornare la pagina per riprovare.",
+            "zh-CN": f"流错误：{error_type_name}。请刷新页面重试。",
+        }
+
+        return messages.get(language, messages["en"])
+
+    @staticmethod
+    def _llm_provider_busy(language: SupportedLanguage = "fr") -> str:
+        """
+        User-friendly message when LLM provider is overloaded or rate-limited.
+
+        Args:
+            language: Target language (fr/en/es/de/it/zh-CN)
+
+        Returns:
+            Friendly message asking user to retry in a moment
+        """
+        messages = {
+            "fr": (
+                "Le service d'intelligence artificielle est temporairement surchargé. "
+                "Votre demande a bien été traitée mais la formulation de la réponse a échoué. "
+                "Veuillez réessayer dans quelques instants."
+            ),
+            "en": (
+                "The AI service is temporarily overloaded. "
+                "Your request was processed but the response generation failed. "
+                "Please try again in a few moments."
+            ),
+            "es": (
+                "El servicio de inteligencia artificial está temporalmente sobrecargado. "
+                "Su solicitud fue procesada pero la generación de la respuesta falló. "
+                "Por favor, inténtelo de nuevo en unos momentos."
+            ),
+            "de": (
+                "Der KI-Dienst ist vorübergehend überlastet. "
+                "Ihre Anfrage wurde verarbeitet, aber die Antwortgenerierung ist fehlgeschlagen. "
+                "Bitte versuchen Sie es in einigen Augenblicken erneut."
+            ),
+            "it": (
+                "Il servizio di intelligenza artificiale è temporaneamente sovraccarico. "
+                "La tua richiesta è stata elaborata ma la generazione della risposta è fallita. "
+                "Per favore, riprova tra qualche istante."
+            ),
+            "zh-CN": ("AI服务暂时过载。" "您的请求已处理，但响应生成失败。" "请稍后重试。"),
         }
 
         return messages.get(language, messages["en"])

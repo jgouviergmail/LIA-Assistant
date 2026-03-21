@@ -488,6 +488,26 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
             "requires_api_key": False,
         },
     ),
+    # Smart Home domains
+    "hue": DomainConfig(
+        name="hue",
+        display_name="Philips Hue",
+        description=(
+            "Control Philips Hue smart lights: list lights, turn on/off, adjust brightness "
+            "and color, control rooms, list and activate scenes. "
+            "Covers all smart lighting control operations."
+        ),
+        agent_names=["hue_agent"],
+        result_key="hues",
+        related_domains=[],
+        priority=5,
+        is_routable=True,
+        metadata={
+            "provider": "philips_hue",
+            "requires_oauth": False,
+            "requires_api_key": False,
+        },
+    ),
 }
 
 

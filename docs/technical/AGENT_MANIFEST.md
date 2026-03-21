@@ -4,7 +4,7 @@
 **Date**: 2025-12-27
 **Auteur**: Documentation Technique LIA
 **Statut**: ✅ Complète et Validée
-**Updated**: LOT 9/10 agents, Voice domain, 10 agents total
+**Updated**: LOT 9/10 agents, Voice domain, Philips Hue Smart Home, 11 agents total
 
 ---
 
@@ -108,7 +108,7 @@ classDiagram
 
 ### Catalogue Actuel
 
-**Agents enregistrés** : 10 agents routables + 1 utilitaire (context)
+**Agents enregistrés** : 11 agents routables + 1 utilitaire (context)
 
 | Agent | Domaine | Tools | Description |
 |-------|---------|-------|-------------|
@@ -123,8 +123,9 @@ classDiagram
 | `query_agent` | INTELLIA | 1 | Local query engine |
 | `perplexity_agent` | Perplexity AI | 2 | Search, ask (web-augmented LLM) |
 | `places_agent` | Google Places | 3 | Search, details, current location |
+| `hue_agent` | Philips Hue | 6 | Control lights, rooms, scenes |
 
-**Tools enregistrés** : 46+
+**Tools enregistrés** : 52+
 
 | Domaine | Tools |
 |---------|-------|
@@ -139,6 +140,7 @@ classDiagram
 | **Perplexity** | `perplexity_search_tool`, `perplexity_ask_tool` |
 | **Places** | `search_places_tool`, `get_place_details_tool`, `get_current_location_tool` |
 | **Query** | `local_query_engine_tool` |
+| **Philips Hue** | `list_lights_tool`, `control_light_tool`, `list_rooms_tool`, `control_room_tool`, `list_scenes_tool`, `activate_scene_tool` |
 
 ---
 
@@ -959,7 +961,7 @@ def initialize_catalogue(registry: AgentRegistry) -> None:
     Initialise le catalogue avec les manifestes Phase 5 + LOT 9/10.
 
     Cette fonction charge et enregistre :
-    - 10 agents routables + 1 utilitaire (context) :
+    - 11 agents routables + 1 utilitaire (context) :
       * contacts_agent (Google Contacts)
       * context_agent (Cross-domain utilities)
       * emails_agent (Gmail)
@@ -971,7 +973,8 @@ def initialize_catalogue(registry: AgentRegistry) -> None:
       * query_agent (INTELLIA LocalQueryEngine) - LOT 10
       * perplexity_agent (Perplexity AI) - LOT 10
       * places_agent (Google Places) - LOT 10
-    - 46+ tool manifests across all domains
+      * hue_agent (Philips Hue Smart Home) - v1.8.0
+    - 52+ tool manifests across all domains
 
     Args:
         registry: Instance d'AgentRegistry
@@ -994,7 +997,7 @@ def initialize_catalogue(registry: AgentRegistry) -> None:
     from src.domains.agents.places.catalogue_manifests import (...)
     from src.domains.agents.query.catalogue_manifests import (...)
 
-    # Register all agents (10 routable + 1 utility)
+    # Register all agents (11 routable + 1 utility)
     registry.register_agent_manifest(CONTACTS_AGENT_MANIFEST)
     registry.register_agent_manifest(CONTEXT_AGENT_MANIFEST)
     registry.register_agent_manifest(EMAILS_AGENT_MANIFEST)
@@ -1006,8 +1009,9 @@ def initialize_catalogue(registry: AgentRegistry) -> None:
     registry.register_agent_manifest(QUERY_AGENT_MANIFEST)
     registry.register_agent_manifest(PERPLEXITY_AGENT_MANIFEST)
     registry.register_agent_manifest(PLACES_AGENT_MANIFEST)
+    registry.register_agent_manifest(HUE_AGENT_MANIFEST)
 
-    # Register 46+ tool manifests (per domain)
+    # Register 52+ tool manifests (per domain)
     # Google Contacts (6 tools)
     # Emails (6 tools)
     # Context (5 tools)
@@ -1019,12 +1023,13 @@ def initialize_catalogue(registry: AgentRegistry) -> None:
     # Perplexity (2 tools)
     # Places (3 tools)
     # Query (1 tool)
+    # Philips Hue (6 tools)
 
     # Build domain index for dynamic filtering
     registry._build_domain_index()
 ```
 
-### Agent Manifests (10 agents)
+### Agent Manifests (11 agents)
 
 ```python
 # ============================================================================
@@ -1649,7 +1654,7 @@ manifest = (
 **Core Registry:**
 - `apps/api/src/domains/agents/registry/catalogue.py` - Manifest schemas + ToolCategory
 - `apps/api/src/domains/agents/registry/manifest_builder.py` - Builder pattern fluent API
-- `apps/api/src/domains/agents/registry/catalogue_loader.py` - Catalogue initialization (10 agents, 50+ tools)
+- `apps/api/src/domains/agents/registry/catalogue_loader.py` - Catalogue initialization (11 agents, 56+ tools)
 - `apps/api/src/domains/agents/registry/agent_registry.py` - Registry avec export methods
 
 **Domain Catalogue Manifests:**
@@ -1664,11 +1669,12 @@ manifest = (
 - `apps/api/src/domains/agents/perplexity/catalogue_manifests.py` - Perplexity (2 tools)
 - `apps/api/src/domains/agents/places/catalogue_manifests.py` - Places (3 tools)
 - `apps/api/src/domains/agents/query/catalogue_manifests.py` - Query (1 tool)
+- `apps/api/src/domains/agents/hue/catalogue_manifests.py` - Philips Hue (6 tools)
 
 ---
 
 **Document généré le** : 2025-12-27
 **Auteur** : Documentation Technique LIA
-**Phase** : Phase 5 + LOT 9/10 - Production Manifests
+**Phase** : Phase 5 + LOT 9/10 + v1.8.0 - Production Manifests
 **Statut** : ✅ Complète et Validée
-**Stats** : 10 agents routables + 1 utilitaire, 50+ tools, 11 domaines
+**Stats** : 11 agents routables + 1 utilitaire, 56+ tools, 12 domaines

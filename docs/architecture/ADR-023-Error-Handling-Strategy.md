@@ -407,6 +407,11 @@ class SSEErrorMessages:
         # ... more error types
     }
 
+    # v1.8.0: SSEErrorMessages also detects LLM provider errors
+    # (OverloadedError, RateLimitError) by inspecting exception type names
+    # and returns user-friendly i18n messages instead of raw error types.
+    # See generic_error() which checks for known LLM provider error patterns.
+
     @staticmethod
     def generic_error(exception: Exception, language: str = "fr") -> str:
         return SSEErrorMessages.MESSAGES["generic_error"].get(
@@ -490,7 +495,7 @@ class CircuitBreakerError(Exception):
 - [x] ✅ Connector error handlers (OAuth, permissions, rate limit)
 - [x] ✅ retry_with_exponential_backoff decorator
 - [x] ✅ ErrorCategory/Severity/RecoveryAction enums
-- [x] ✅ SSEErrorMessages avec 6 langues
+- [x] ✅ SSEErrorMessages avec 6 langues + LLM provider error detection (OverloadedError, RateLimitError)
 - [x] ✅ raise_not_found_or_unauthorized (OWASP)
 
 ---

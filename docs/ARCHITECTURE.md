@@ -87,10 +87,10 @@ Chaque domaine est un **bounded context** isolé avec :
 - Ses schemas Pydantic (API contracts)
 
 **19 Domaines** :
-1. **agents** - Orchestration multi-agents, 10 agents actifs, 50+ tools (cœur du système)
+1. **agents** - Orchestration multi-agents, 15 agents actifs, 56+ tools (cœur du système)
 2. **auth** - Authentification et autorisation
 3. **users** - Gestion utilisateurs
-4. **connectors** - Intégrations externes (Google, Apple iCloud, Microsoft 365)
+4. **connectors** - Intégrations externes (Google, Apple iCloud, Microsoft 365, Philips Hue)
 5. **conversations** - Persistence conversations (checkpoints)
 6. **chat** - Routing messages et SSE streaming
 7. **llm** - Pricing et cost tracking LLM
@@ -343,7 +343,7 @@ apps/api/src/
 │   │   └── schemas.py
 │   │
 │   ├── users/                   # User management
-│   ├── connectors/              # OAuth connectors (Google, Apple, Microsoft 365)
+│   ├── connectors/              # OAuth connectors (Google, Apple, Microsoft 365, Philips Hue)
 │   ├── conversations/           # Conversation persistence
 │   ├── chat/                    # Chat routing
 │   ├── llm/                     # LLM pricing

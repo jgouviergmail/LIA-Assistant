@@ -308,6 +308,7 @@ class TestFunctionalCategoriesCompleteness:
             "calendar",
             "contacts",
             "tasks",
+            "smart_home",
         }
 
     @pytest.mark.unit

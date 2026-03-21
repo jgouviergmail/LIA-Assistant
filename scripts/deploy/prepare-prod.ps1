@@ -297,6 +297,13 @@ if [ -d "infrastructure/logwatch" ]; then
     sudo cp infrastructure/logwatch/scripts/services/* /etc/logwatch/scripts/services/
     sudo chmod +x /etc/logwatch/scripts/services/*
 
+    # Deploy custom cron script (MIME-encoded HTML to avoid line-length SMTP errors)
+    if [ -f "infrastructure/logwatch/cron/00logwatch" ]; then
+        sudo cp infrastructure/logwatch/cron/00logwatch /etc/cron.daily/00logwatch
+        sudo chmod +x /etc/cron.daily/00logwatch
+        echo "  -> Cron custom 00logwatch deploye (MIME base64)"
+    fi
+
     echo "  -> Logwatch configure (configs + scripts custom deployes)"
 else
     echo "  -> infrastructure/logwatch/ absent, skip"

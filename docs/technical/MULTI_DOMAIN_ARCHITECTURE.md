@@ -93,7 +93,8 @@ apps/api/src/domains/agents/
 |   |-- tasks_tools.py           # Google Tasks tools
 |   |-- weather_tools.py         # OpenWeatherMap tools
 |   |-- wikipedia_tools.py       # Wikipedia tools
-|   `-- perplexity_tools.py      # Perplexity search tools
+|   |-- perplexity_tools.py      # Perplexity search tools
+|   `-- hue_tools.py             # Philips Hue smart home tools
 ```
 
 ## Component Details
@@ -160,7 +161,7 @@ Synthesizes tool results into conversational responses.
 3. LLM generates Markdown response
 ```
 
-## Active Domains (10 Total)
+## Active Domains (11 Total)
 
 | Domain | Connector Type | Tools |
 |--------|---------------|-------|
@@ -173,6 +174,7 @@ Synthesizes tool results into conversational responses.
 | Wikipedia | Public API | search, get_article |
 | Perplexity | API Key | search, ask |
 | Places | OAuth/Google | search, nearby, details |
+| Hue | Hybrid (API Key + OAuth) | list_lights, control_light, list_rooms, control_room, list_scenes, activate_scene |
 | Query | Internal | analyze, filter, detect_duplicates |
 
 ## Data Registry (LOT 5.2)
@@ -183,7 +185,7 @@ Centralized storage for tool execution results.
 # RegistryItem structure
 RegistryItem:
     id: str           # "contact_abc123"
-    type: str         # "CONTACT", "EMAIL", "EVENT", etc.
+    type: str         # "CONTACT", "EMAIL", "EVENT", "HUE_LIGHT", etc.
     payload: dict     # API response data
     meta:
         source: str       # "google_contacts"

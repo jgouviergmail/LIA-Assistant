@@ -235,6 +235,13 @@ class ClientRegistry:
             cls.register_client(ConnectorType.MICROSOFT_CONTACTS, MicrosoftContactsClient)
             cls.register_client(ConnectorType.MICROSOFT_TASKS, MicrosoftTasksClient)
 
+            # Register Philips Hue client (Smart Home)
+            from src.domains.connectors.clients.philips_hue_client import (
+                PhilipsHueClient,
+            )
+
+            cls.register_client(ConnectorType.PHILIPS_HUE, PhilipsHueClient)
+
             # Note: API key clients (OpenWeatherMap, Wikipedia, Perplexity, GooglePlaces)
             # are not registered here as they use a different instantiation pattern
             # (APIKeyConnectorTool or ConnectorTool with uses_global_api_key=True)

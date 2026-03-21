@@ -59,10 +59,12 @@ description: "Streaming errors at {{ $value }}% (threshold: <<<ALERT_AGENTS_STRE
 ### Cause 1: LLM API Streaming Interruption (High Likelihood)
 **Likelihood**: High (50%)
 
+**Note (v1.8.0)**: `SSEErrorMessages.generic_error()` now detects `OverloadedError` and `RateLimitError` from LLM providers (Anthropic, OpenAI) and returns user-friendly i18n messages instead of raw error type names. This means users see "The AI service is temporarily overloaded" rather than a cryptic error class name.
+
 **Verification**:
 ```bash
-# Check LLM streaming errors
-docker-compose logs api | grep -i "streaming.*error\|anthropic.*stream"
+# Check LLM streaming errors (including OverloadedError and RateLimitError)
+docker-compose logs api | grep -i "streaming.*error\|anthropic.*stream\|OverloadedError\|RateLimitError"
 
 # Check LLM API latency
 curl -s "http://localhost:9090/api/v1/query?query=histogram_quantile(0.95,rate(llm_api_latency_seconds_bucket[5m]))" | jq '.data.result[0].value[1]'

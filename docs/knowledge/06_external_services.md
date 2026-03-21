@@ -41,6 +41,9 @@ Some services are **immediately available**, others require configuration:
 • 🌤️ **OpenWeatherMap**: Free, signup at openweathermap.org
 • 🔍 **Perplexity**: Paid, signup at perplexity.ai
 
+**💡 Require Philips Hue bridge setup:**
+• 💡 **Philips Hue**: Connect your Hue bridge in Settings > Connectors
+
 **💡 Getting started tip:**
 Start by connecting your Google services (one authorization for all), then add OpenWeatherMap for free weather.
 
@@ -411,6 +414,33 @@ Place photos are clickable and display larger in a modal window. Click anywhere 
 
 **💡 After a search:**
 Say "*more details on the first one*" or "*Italian restaurant hours*" to dig deeper.
+
+## How do I control my Philips Hue lights?
+**Philips Hue** - Smart home control:
+
+**💡 Control individual lights:**
+• "*Turn on the living room lamp*"
+• "*Set bedroom light to 50% brightness*"
+• "*Change the kitchen light to warm white*"
+• "*Turn off all lights*"
+
+**🏠 Control rooms:**
+• "*Turn off the bedroom*"
+• "*Dim the living room to 30%*"
+• "*List all my rooms*"
+
+**🎨 Activate scenes:**
+• "*Activate the 'Relax' scene*"
+• "*Set the living room to 'Movie Night'*"
+• "*What scenes are available?*"
+
+**📊 Information provided:**
+• Light name, status (on/off), brightness level
+• Room name and associated lights
+• Available scenes per room
+
+**💡 Setup:**
+Connect your Philips Hue bridge in **Settings > Connectors > Philips Hue**. LIA supports both local bridge control (API key) and remote cloud access (OAuth).
 
 ## Can I combine multiple services?
 Yes! LIA can **intelligently combine** multiple services:

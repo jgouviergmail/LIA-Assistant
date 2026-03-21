@@ -296,6 +296,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             build_contacts_agent,
             build_drive_agent,
             build_emails_agent,
+            build_hue_agent,
             build_perplexity_agent,
             build_places_agent,
             build_query_agent,
@@ -339,6 +340,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         registry.register_agent("web_fetch_agent", build_web_fetch_agent)
         registry.register_agent("place_agent", build_places_agent)
         registry.register_agent("route_agent", build_routes_agent)
+        # Smart Home agents
+        registry.register_agent("hue_agent", build_hue_agent)
         # Internal agents (no external API - operate on Registry data)
         registry.register_agent("query_agent", build_query_agent)
 

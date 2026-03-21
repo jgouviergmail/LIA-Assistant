@@ -57,6 +57,8 @@ from src.domains.connectors.schemas import (
     ConnectorOAuthInitiate,
     ConnectorResponse,
     ConnectorUpdate,
+    HueBridgeCredentials,
+    HueConnectionMode,
 )
 from src.infrastructure.cache.redis import SessionService, get_redis_session
 from src.infrastructure.email import get_email_service
@@ -754,6 +756,278 @@ class ConnectorService:
                 error=str(e),
             )
             return None
+
+    # =========================================================================
+    # PHILIPS HUE (Smart Home)
+    # =========================================================================
+
+    async def get_hue_credentials(
+        self,
+        user_id: UUID,
+    ) -> HueBridgeCredentials | None:
+        """
+        Get decrypted Hue Bridge credentials for a user.
+
+        Args:
+            user_id: User UUID.
+
+        Returns:
+            HueBridgeCredentials or None if not found/inactive.
+        """
+        connector = await self.repository.get_by_user_and_type(user_id, ConnectorType.PHILIPS_HUE)
+
+        if not connector:
+            return None
+
+        if connector.status != ConnectorStatus.ACTIVE:
+            logger.warning(
+                "hue_connector_not_active",
+                user_id=str(user_id),
+                status=connector.status.value if connector.status else "unknown",
+            )
+            return None
+
+        try:
+            decrypted_json = decrypt_data(connector.credentials_encrypted)
+            return HueBridgeCredentials.model_validate_json(decrypted_json)
+        except Exception as e:
+            logger.error(
+                "hue_credentials_decryption_failed",
+                connector_id=str(connector.id),
+                error=str(e),
+            )
+            return None
+
+    async def activate_hue_local(
+        self,
+        user_id: UUID,
+        bridge_ip: str,
+        application_key: str,
+        client_key: str | None = None,
+        bridge_id: str | None = None,
+    ) -> ConnectorResponse:
+        """
+        Activate Philips Hue connector in local mode after press-link pairing.
+
+        Args:
+            user_id: User UUID.
+            bridge_ip: Bridge internal IP address.
+            application_key: Application key from press-link pairing.
+            client_key: Entertainment API client key (optional).
+            bridge_id: Bridge unique identifier (optional).
+
+        Returns:
+            ConnectorResponse with activated connector.
+
+        Raises:
+            ExternalServiceConnectionError: If bridge is unreachable.
+        """
+        from src.core.exceptions import raise_external_service_connection_error
+
+        # 1. Build credentials
+        credentials = HueBridgeCredentials(
+            connection_mode=HueConnectionMode.LOCAL,
+            api_key=application_key,
+            bridge_ip=bridge_ip,
+            bridge_id=bridge_id,
+            client_key=client_key,
+        )
+
+        # 2. Validate connectivity
+        from src.domains.connectors.clients.philips_hue_client import PhilipsHueClient
+
+        test_client = PhilipsHueClient(user_id, credentials, self)
+        try:
+            await test_client.test_connection()
+        except Exception as e:
+            raise_external_service_connection_error(
+                service_name="Philips Hue Bridge",
+                detail=f"Cannot reach bridge at {bridge_ip}: {e}",
+            )
+
+        # 3. Encrypt credentials
+        encrypted_credentials = encrypt_data(credentials.model_dump_json())
+
+        # 4. Create or update connector
+        existing = await self.repository.get_by_user_and_type(user_id, ConnectorType.PHILIPS_HUE)
+
+        connector_metadata: dict[str, Any] = {
+            "auth_type": "press_link",
+            "connection_mode": "local",
+            "bridge_ip": bridge_ip,
+            "bridge_id": bridge_id,
+        }
+
+        if existing:
+            existing.credentials_encrypted = encrypted_credentials
+            existing.status = ConnectorStatus.ACTIVE
+            existing.connector_metadata = connector_metadata
+            await self.db.flush()
+            await self.db.refresh(existing)
+            connector = existing
+        else:
+            connector = Connector(
+                user_id=user_id,
+                connector_type=ConnectorType.PHILIPS_HUE,
+                status=ConnectorStatus.ACTIVE,
+                scopes=[],
+                credentials_encrypted=encrypted_credentials,
+                connector_metadata=connector_metadata,
+            )
+            self.db.add(connector)
+            await self.db.flush()
+            await self.db.refresh(connector)
+
+        await self.db.commit()
+        await self._invalidate_user_connectors_cache(user_id)
+
+        logger.info(
+            "hue_connector_activated_local",
+            user_id=str(user_id),
+            bridge_ip=bridge_ip,
+            bridge_id=bridge_id,
+        )
+
+        return ConnectorResponse.model_validate(connector)
+
+    async def initiate_hue_oauth(self, user_id: UUID) -> ConnectorOAuthInitiate:
+        """
+        Generate OAuth2 authorization URL for Hue Remote API.
+
+        Args:
+            user_id: User UUID.
+
+        Returns:
+            ConnectorOAuthInitiate with authorization URL and state token.
+        """
+        redis = await get_redis_session()
+        session_service = SessionService(redis)
+
+        from src.core.oauth import OAuthFlowHandler
+        from src.core.oauth.providers.hue import HueOAuthProvider
+
+        provider = HueOAuthProvider.for_remote_control(settings)
+        flow_handler = OAuthFlowHandler(provider, session_service)
+        auth_url, state = await flow_handler.initiate_flow(
+            additional_params={"appid": provider.app_id, "deviceid": "lia-server"},
+            metadata={
+                FIELD_USER_ID: str(user_id),
+                FIELD_CONNECTOR_TYPE: ConnectorType.PHILIPS_HUE.value,
+            },
+        )
+
+        logger.info(
+            "hue_oauth_initiated",
+            user_id=str(user_id),
+        )
+
+        return ConnectorOAuthInitiate(authorization_url=auth_url, state=state)
+
+    async def handle_hue_oauth_callback(
+        self,
+        code: str,
+        state: str,
+    ) -> Connector:
+        """
+        Handle Hue Remote API OAuth2 callback.
+
+        Exchanges authorization code for tokens, creates a whitelist entry
+        on the bridge via the remote API, and activates the connector.
+
+        Args:
+            code: Authorization code from Hue.
+            state: CSRF state token.
+
+        Returns:
+            Activated Connector.
+
+        Raises:
+            OAuthFlowError: If state validation or token exchange fails.
+        """
+        from src.core.constants import (
+            HTTP_TIMEOUT_HUE_API,
+            HUE_PAIRING_DEVICE_TYPE,
+            HUE_REMOTE_API_BASE_URL,
+        )
+        from src.core.oauth import OAuthFlowHandler
+        from src.core.oauth.providers.hue import HueOAuthProvider
+
+        # 1. Validate state + exchange code → tokens
+        redis = await get_redis_session()
+        session_service = SessionService(redis)
+        provider = HueOAuthProvider.for_remote_control(settings)
+        flow_handler = OAuthFlowHandler(provider, session_service)
+        token_response, stored_state = await flow_handler.handle_callback(code, state)
+
+        user_id = UUID(stored_state[FIELD_USER_ID])
+
+        # 2. Create whitelist entry via remote API
+        async with httpx.AsyncClient(timeout=HTTP_TIMEOUT_HUE_API) as client:
+            # Enable link button remotely
+            await client.put(
+                f"{HUE_REMOTE_API_BASE_URL}/bridge/0/config",
+                headers={"Authorization": f"Bearer {token_response.access_token}"},
+                json={"linkbutton": True},
+            )
+            # Create username
+            resp = await client.post(
+                f"{HUE_REMOTE_API_BASE_URL}/bridge",
+                headers={"Authorization": f"Bearer {token_response.access_token}"},
+                json={"devicetype": HUE_PAIRING_DEVICE_TYPE},
+            )
+            whitelist_result = resp.json()
+            remote_username = whitelist_result[0]["success"]["username"]
+
+        # 3. Build & store credentials
+        credentials = HueBridgeCredentials(
+            connection_mode=HueConnectionMode.REMOTE,
+            access_token=token_response.access_token,
+            refresh_token=token_response.refresh_token,
+            token_type="Bearer",
+            expires_at=datetime.now(UTC) + timedelta(seconds=token_response.expires_in),
+            remote_username=remote_username,
+        )
+        encrypted = encrypt_data(credentials.model_dump_json())
+
+        # 4. Create or update connector
+        existing = await self.repository.get_by_user_and_type(user_id, ConnectorType.PHILIPS_HUE)
+
+        connector_metadata: dict[str, Any] = {
+            "auth_type": "oauth2",
+            "connection_mode": "remote",
+            "remote_username": remote_username,
+        }
+
+        if existing:
+            existing.credentials_encrypted = encrypted
+            existing.status = ConnectorStatus.ACTIVE
+            existing.connector_metadata = connector_metadata
+            await self.db.flush()
+            await self.db.refresh(existing)
+            connector = existing
+        else:
+            connector = Connector(
+                user_id=user_id,
+                connector_type=ConnectorType.PHILIPS_HUE,
+                status=ConnectorStatus.ACTIVE,
+                scopes=[],
+                credentials_encrypted=encrypted,
+                connector_metadata=connector_metadata,
+            )
+            self.db.add(connector)
+            await self.db.flush()
+            await self.db.refresh(connector)
+
+        await self.db.commit()
+        await self._invalidate_user_connectors_cache(user_id)
+
+        logger.info(
+            "hue_connector_activated_remote",
+            user_id=str(user_id),
+            remote_username=remote_username,
+        )
+
+        return connector
 
     async def activate_apple_connectors(
         self,

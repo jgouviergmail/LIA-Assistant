@@ -37,6 +37,8 @@ export const MICROSOFT_CONNECTOR_TYPES = [
   'microsoft_tasks',
 ] as const;
 
+export const HUE_CONNECTOR_TYPES = ['philips_hue'] as const;
+
 // Gmail types (new + legacy) for checking if Gmail is connected
 export const GMAIL_TYPES = ['google_gmail', 'gmail'] as const;
 
@@ -106,6 +108,10 @@ export const MICROSOFT_AUTH_ENDPOINTS: Record<string, string> = {
   microsoft_tasks: '/connectors/microsoft-tasks/authorize',
 };
 
+export const HUE_AUTH_ENDPOINTS: Record<string, string> = {
+  philips_hue: '/connectors/philips-hue/authorize',
+};
+
 // ============================================================================
 // CONNECTOR ICONS CONFIGURATION
 // ============================================================================
@@ -140,6 +146,8 @@ export const CONNECTOR_ICONS: Record<string, ConnectorIconConfig> = {
   perplexity: { icon: Search, emoji: '🔍', color: 'indigo' },
   brave_search: { icon: Search, emoji: '🦁', color: 'violet' },
   browser: { icon: Globe, emoji: '🌐', color: 'blue' },
+  // Smart Home
+  philips_hue: { emoji: '💡', color: 'yellow' },
 };
 
 // Uniform background class for all connector icons
@@ -348,5 +356,14 @@ export const MICROSOFT_CONNECTORS_METADATA: readonly MicrosoftConnectorMetadata[
     labelKey: 'settings.connectors.microsoft.tasks',
     descriptionKey: 'settings.connectors.microsoft.tasks_description',
     category: 'tasks',
+  },
+] as const;
+
+// Philips Hue Smart Home metadata
+export const HUE_CONNECTORS_METADATA = [
+  {
+    type: 'philips_hue',
+    labelKey: 'settings.connectors.hue.label',
+    descriptionKey: 'settings.connectors.hue.description',
   },
 ] as const;

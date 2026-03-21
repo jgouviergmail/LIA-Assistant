@@ -19,6 +19,7 @@ import {
   GOOGLE_CONNECTOR_TYPES,
   APPLE_CONNECTOR_TYPES,
   MICROSOFT_CONNECTOR_TYPES,
+  HUE_CONNECTOR_TYPES,
   APPLE_CONNECTORS_METADATA,
   MICROSOFT_CONNECTORS_METADATA,
   API_KEY_CONNECTOR_TYPES,
@@ -44,6 +45,7 @@ import {
   useConnectorPreferences,
 } from './connectors';
 import { AppleCredentialForm } from './connectors/AppleCredentialForm';
+import { HueBridgePairingForm } from './connectors/HueBridgePairingForm';
 import { CONNECTOR_LABELS, type ConnectorType } from '@/constants/connectors';
 import type { BaseSettingsProps } from '@/types/settings';
 
@@ -309,6 +311,15 @@ export default function UserConnectorsSection({ lng, collapsible = true }: BaseS
         c.connector_type.toLowerCase() as (typeof APPLE_CONNECTOR_TYPES)[number]
       ) && isConnectorActive(c)
   );
+
+  const connectedHueConnectors = connectors.filter(
+    c =>
+      HUE_CONNECTOR_TYPES.includes(
+        c.connector_type.toLowerCase() as (typeof HUE_CONNECTOR_TYPES)[number]
+      ) && isConnectorActive(c)
+  );
+
+  const [showHuePairing, setShowHuePairing] = useState(false);
 
   const connectedMicrosoftConnectors = connectors.filter(
     c =>
@@ -692,6 +703,58 @@ export default function UserConnectorsSection({ lng, collapsible = true }: BaseS
                   );
                 })}
               </div>
+            </div>
+          )}
+
+          {/* Connected Smart Home (Hue) */}
+          {connectedHueConnectors.length > 0 && (
+            <div className="space-y-3 pt-4 border-t">
+              <h3 className="text-sm font-medium flex items-center gap-2">
+                <span>💡</span>
+                {t('settings.connectors.connected_hue')}
+              </h3>
+              <div className="space-y-2">
+                {connectedHueConnectors.map(connector => (
+                  <ConnectedConnectorCard
+                    key={connector.id}
+                    connector={connector}
+                    lng={lng}
+                    t={t}
+                    deleteLoading={false}
+                    onDisconnect={(connectorId) => {
+                      // Disconnect via DELETE /connectors/{id}
+                      apiClient.delete(`/connectors/${connectorId}`).then(() => refetch());
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Available Smart Home */}
+          {connectedHueConnectors.length === 0 && (
+            <div className="space-y-3 pt-4 border-t">
+              <h3 className="text-sm font-medium flex items-center gap-2">
+                <span>💡</span>
+                {t('settings.connectors.available_hue')}
+              </h3>
+              {!showHuePairing ? (
+                <AvailableConnectorCard
+                  connectorType="philips_hue"
+                  label={t('settings.connectors.hue.label')}
+                  description={t('settings.connectors.hue.description')}
+                  onConnect={() => setShowHuePairing(true)}
+                />
+              ) : (
+                <HueBridgePairingForm
+                  lng={lng}
+                  onSuccess={() => {
+                    setShowHuePairing(false);
+                    refetch();
+                  }}
+                  onCancel={() => setShowHuePairing(false)}
+                />
+              )}
             </div>
           )}
 

@@ -55,6 +55,9 @@ class ConnectorType(str, enum.Enum):
     BRAVE_SEARCH = "brave_search"
     BROWSER = "browser"  # Interactive web browsing (evolution F7)
 
+    # Smart Home
+    PHILIPS_HUE = "philips_hue"
+
     # Legacy (deprecated - use GOOGLE_GMAIL instead)
     GMAIL = "gmail"
 
@@ -105,6 +108,16 @@ class ConnectorType(str, enum.Enum):
         """
         return self in _MICROSOFT_CONNECTOR_TYPES
 
+    @property
+    def is_hue(self) -> bool:
+        """
+        Check if this connector type is a Philips Hue service.
+
+        Returns:
+            True if Philips Hue smart home connector, False otherwise.
+        """
+        return self in _HUE_CONNECTOR_TYPES
+
     @classmethod
     def get_oauth_types(cls) -> frozenset["ConnectorType"]:
         """
@@ -134,6 +147,11 @@ class ConnectorType(str, enum.Enum):
     def get_microsoft_types(cls) -> frozenset["ConnectorType"]:
         """Get all Microsoft 365 connector types."""
         return _MICROSOFT_CONNECTOR_TYPES
+
+    @classmethod
+    def get_hue_types(cls) -> frozenset["ConnectorType"]:
+        """Get all Philips Hue connector types."""
+        return _HUE_CONNECTOR_TYPES
 
 
 # Google OAuth connector types (defined after enum to avoid forward reference)
@@ -175,6 +193,10 @@ _APPLE_CONNECTOR_TYPES: frozenset[ConnectorType] = frozenset(
     }
 )
 
+# Philips Hue connector types (Smart Home)
+# These connectors use a hybrid auth model (local: press-link API key, remote: OAuth2)
+_HUE_CONNECTOR_TYPES: frozenset[ConnectorType] = frozenset({ConnectorType.PHILIPS_HUE})
+
 # Functional categories for mutual exclusivity
 # Only ONE connector per category can be ACTIVE at a time for a given user.
 CONNECTOR_FUNCTIONAL_CATEGORIES: dict[str, frozenset[ConnectorType]] = {
@@ -196,6 +218,7 @@ CONNECTOR_FUNCTIONAL_CATEGORIES: dict[str, frozenset[ConnectorType]] = {
         }
     ),
     "tasks": frozenset({ConnectorType.GOOGLE_TASKS, ConnectorType.MICROSOFT_TASKS}),
+    "smart_home": frozenset({ConnectorType.PHILIPS_HUE}),
 }
 
 # Display names for functional categories (used in error messages).
@@ -204,6 +227,7 @@ CATEGORY_DISPLAY_NAMES: dict[str, str] = {
     "calendar": "Calendar",
     "contacts": "Contacts",
     "tasks": "Tasks",
+    "smart_home": "Smart Home",
 }
 
 
@@ -277,6 +301,7 @@ CONNECTOR_DISPLAY_NAMES: dict[ConnectorType, str] = {
     ConnectorType.PERPLEXITY: "Perplexity",
     ConnectorType.BRAVE_SEARCH: "Brave Search",
     ConnectorType.BROWSER: "Browser",
+    ConnectorType.PHILIPS_HUE: "Philips Hue",
     ConnectorType.GMAIL: "Gmail",  # Legacy
     ConnectorType.SLACK: "Slack",
     ConnectorType.NOTION: "Notion",

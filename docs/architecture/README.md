@@ -32,7 +32,7 @@
 - `approval_gate_node` (ligne 452)
 - `task_orchestrator_node` (ligne 453)
 - `hitl_dispatch_node` (ligne 454)
-- 10 agents de domaine (lignes 464-552)
+- 11+ agents de domaine (lignes 464-552+)
 - `response_node` (ligne 554)
 
 ---

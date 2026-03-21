@@ -342,6 +342,8 @@ def _import_tool_modules() -> None:
         ("src.domains.agents.tools.web_search_tools", "web_search_tools"),
         ("src.domains.agents.tools.web_fetch_tools", "web_fetch_tools"),
         ("src.domains.agents.tools.wikipedia_tools", "wikipedia_tools"),
+        # Smart Home
+        ("src.domains.agents.tools.hue_tools", "hue_tools"),
         # Browser Automation (F7 — always registered, activation via admin connector panel)
         ("src.domains.agents.tools.browser_tools", "browser_tools"),
         # Internal Tools

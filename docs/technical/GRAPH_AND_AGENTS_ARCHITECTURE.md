@@ -161,6 +161,7 @@ NODE_RESPONSE = "response"
 
 # Agent names
 AGENT_CONTACTS = "contacts_agent"
+AGENT_HUE = "hue_agent"
 
 # Special nodes
 END = "__end__"  # LangGraph built-in
@@ -650,7 +651,7 @@ async def planner_node(state: MessagesState) -> dict:
 class ExecutionStep(BaseModel):
     step_id: str  # Unique identifier
     step_type: Literal["TOOL", "CONDITIONAL", "REPLAN", "HUMAN"]
-    agent_name: str  # "contacts_agent", "emails_agent"
+    agent_name: str  # "contacts_agent", "emails_agent", "hue_agent"
     tool_name: str | None  # "search_contacts_tool"
     description: str  # Human-readable
     parameters: dict[str, Any]  # Tool parameters

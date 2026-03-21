@@ -6,7 +6,7 @@ from typing import Any, cast
 from uuid import UUID
 
 import structlog
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from fastapi.responses import RedirectResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -62,6 +62,11 @@ from src.domains.connectors.schemas import (
     ConnectorResponse,
     ConnectorUpdate,
     GoogleContactsOAuthRequest,
+    HueBridgeDiscoveryResponse,
+    HueBridgeInfo,
+    HueLocalActivationRequest,
+    HuePairingRequest,
+    HuePairingResponse,
     TaskListItem,
     TaskListResponse,
 )
@@ -1848,3 +1853,182 @@ async def activate_apple_connectors(
         app_password=data.app_password,
         services=data.services,
     )
+
+
+# ============================================================================
+# PHILIPS HUE SMART HOME
+# ============================================================================
+
+
+@router.post(
+    "/philips-hue/discover",
+    response_model=HueBridgeDiscoveryResponse,
+    summary="Discover Philips Hue bridges on local network",
+    description=(
+        "Discover Hue bridges via discovery.meethue.com. "
+        "Returns a list of bridges found on the local network."
+    ),
+)
+async def discover_hue_bridges(
+    current_user: User = Depends(get_current_active_session),
+) -> HueBridgeDiscoveryResponse:
+    """Discover Hue bridges via Philips discovery service."""
+    from src.domains.connectors.clients.philips_hue_client import PhilipsHueClient
+
+    try:
+        bridges_raw = await PhilipsHueClient.discover_bridges()
+        bridges = [HueBridgeInfo(**b) for b in bridges_raw]
+    except Exception as e:
+        logger.error("hue_discovery_failed", error=str(e))
+        bridges = []
+
+    return HueBridgeDiscoveryResponse(bridges=bridges)
+
+
+@router.post(
+    "/philips-hue/pair",
+    response_model=HuePairingResponse,
+    summary="Pair with Hue Bridge via press-link",
+    description=(
+        "Initiate press-link pairing with a Hue Bridge. "
+        "The user must press the physical button on the bridge within "
+        "30 seconds before calling this endpoint."
+    ),
+)
+async def pair_hue_bridge(
+    data: HuePairingRequest,
+    current_user: User = Depends(get_current_active_session),
+) -> HuePairingResponse:
+    """Pair with Hue Bridge via press-link authentication."""
+    from src.domains.connectors.clients.philips_hue_client import PhilipsHueClient
+
+    try:
+        result = await PhilipsHueClient.pair_bridge(data.bridge_ip)
+
+        # Parse Hue API response
+        if isinstance(result, list) and result:
+            first = result[0]
+            if "success" in first:
+                return HuePairingResponse(
+                    success=True,
+                    application_key=first["success"].get("username"),
+                    client_key=first["success"].get("clientkey"),
+                )
+            elif "error" in first:
+                return HuePairingResponse(
+                    success=False,
+                    error=first["error"].get("description", "Pairing failed"),
+                )
+
+        return HuePairingResponse(
+            success=False,
+            error="Unexpected response from Hue Bridge",
+        )
+    except Exception as e:
+        logger.error(
+            "hue_pairing_failed",
+            bridge_ip=data.bridge_ip,
+            error=str(e),
+        )
+        return HuePairingResponse(
+            success=False,
+            error=f"Cannot reach bridge at {data.bridge_ip}: {e}",
+        )
+
+
+@router.post(
+    "/philips-hue/activate/local",
+    response_model=ConnectorResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Activate Hue connector in local mode",
+    description=(
+        "Activate Philips Hue connector after successful press-link pairing. "
+        "Validates connectivity to the bridge before activation."
+    ),
+)
+async def activate_hue_local(
+    data: HueLocalActivationRequest,
+    current_user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> ConnectorResponse:
+    """Activate Hue connector with local bridge credentials."""
+    service = ConnectorService(db)
+    return await service.activate_hue_local(
+        user_id=current_user.id,
+        bridge_ip=data.bridge_ip,
+        application_key=data.application_key,
+        client_key=data.client_key,
+        bridge_id=data.bridge_id,
+    )
+
+
+@router.get(
+    "/philips-hue/authorize",
+    response_model=ConnectorOAuthInitiate,
+    summary="Initiate Hue Remote API OAuth2 flow",
+    description=(
+        "Generate OAuth2 authorization URL for remote Hue Bridge access. "
+        "Used when the LIA server is not on the same network as the bridge."
+    ),
+)
+async def initiate_hue_oauth(
+    current_user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> ConnectorOAuthInitiate:
+    """Generate OAuth2 authorization URL for Hue Remote API."""
+    service = ConnectorService(db)
+    return await service.initiate_hue_oauth(user_id=current_user.id)
+
+
+@router.get(
+    "/philips-hue/callback",
+    summary="Hue Remote API OAuth2 callback",
+    description="Handle OAuth2 callback from meethue.com after user authorization.",
+)
+async def hue_oauth_callback(
+    code: str = Query(..., description="Authorization code from Hue"),
+    state: str = Query(..., description="CSRF state token"),
+    error: str | None = Query(None, description="Error from OAuth provider"),
+    db: AsyncSession = Depends(get_db),
+) -> RedirectResponse:
+    """Handle Hue Remote API OAuth2 callback."""
+    from src.core.config import settings as app_settings
+
+    if error:
+        logger.warning("hue_oauth_callback_error", error=error)
+        return RedirectResponse(url=f"{app_settings.web_url}/settings?hue_error={error}")
+
+    service = ConnectorService(db)
+    try:
+        await service.handle_hue_oauth_callback(code=code, state=state)
+        return RedirectResponse(url=f"{app_settings.web_url}/settings?hue_connected=true")
+    except Exception as e:
+        logger.error("hue_oauth_callback_failed", error=str(e))
+        return RedirectResponse(url=f"{app_settings.web_url}/settings?hue_error=callback_failed")
+
+
+@router.post(
+    "/philips-hue/test",
+    response_model=dict[str, Any],
+    summary="Test Hue Bridge connectivity",
+    description="Test connection to the configured Hue Bridge.",
+)
+async def test_hue_connection(
+    current_user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Test connection to configured Hue Bridge."""
+    from src.domains.connectors.clients.philips_hue_client import PhilipsHueClient
+
+    service = ConnectorService(db)
+    credentials = await service.get_hue_credentials(current_user.id)
+    if not credentials:
+        raise_connector_not_found(
+            connector_type="philips_hue",
+            detail="Hue connector not configured or inactive",
+        )
+
+    client = PhilipsHueClient(current_user.id, credentials, service)
+    bridge_info = await client.test_connection()
+    data = bridge_info.get("data", [{}])
+    return {"success": True, "bridge": data[0] if data else {}}

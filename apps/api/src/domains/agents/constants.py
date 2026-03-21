@@ -31,6 +31,7 @@ NODE_BRAVE_AGENT = "brave_agent"  # Brave Search web/news search
 NODE_WEB_SEARCH_AGENT = "web_search_agent"  # Unified web search (Perplexity + Brave + Wikipedia)
 NODE_WEB_FETCH_AGENT = "web_fetch_agent"  # Web page content fetching (evolution F1)
 NODE_BROWSER_AGENT = "browser_agent"  # Interactive web browsing (evolution F7)
+NODE_HUE_AGENT = "hue_agent"  # Philips Hue smart lighting (Smart Home)
 
 # ============================================================================
 # AGENT NAMES (used in orchestration and result tracking)
@@ -52,6 +53,7 @@ AGENT_WEB_SEARCH = "web_search_agent"  # Unified web search meta-agent
 AGENT_WEB_FETCH = "web_fetch_agent"  # Web page content fetching (evolution F1)
 AGENT_MCP = "mcp_agent"  # Virtual agent grouping all MCP tools (evolution F2)
 AGENT_BROWSER = "browser_agent"  # Interactive web browsing (evolution F7)
+AGENT_HUE = "hue_agent"  # Philips Hue smart lighting (Smart Home)
 
 # Per-server MCP domain prefix (evolution F2.2)
 # Each user MCP server gets its own domain: mcp_<slugified_server_name>
@@ -75,6 +77,7 @@ ALL_AGENTS = [
     AGENT_WEB_FETCH,  # Web page content fetching
     AGENT_MCP,  # MCP external tools (virtual agent, evolution F2)
     AGENT_BROWSER,  # Interactive web browsing (evolution F7)
+    AGENT_HUE,  # Philips Hue smart lighting (Smart Home)
 ]
 
 # ============================================================================
@@ -155,6 +158,12 @@ INTENTION_BROWSER = "browser"  # Browser-related (generic)
 INTENTION_BROWSER_NAVIGATE = "browser_navigate"  # Navigate to a page
 INTENTION_BROWSER_INTERACT = "browser_interact"  # Click, fill, interact with page
 
+# Hue domain (smart home lighting)
+INTENTION_HUE = "hue"  # Hue-related (generic)
+INTENTION_HUE_CONTROL = "hue_control"  # Control lights/rooms
+INTENTION_HUE_LIST = "hue_list"  # List lights/rooms/scenes
+INTENTION_HUE_SCENE = "hue_scene"  # Activate scene
+
 # ============================================================================
 # CONTEXT TYPES (for context management and state)
 # ============================================================================
@@ -184,6 +193,7 @@ CONTEXT_DOMAIN_WEB_FETCH = "web_fetchs"  # domain + "s" pattern (evolution F1)
 CONTEXT_DOMAIN_MCP = "mcps"  # domain + "s" pattern (evolution F2)
 CONTEXT_DOMAIN_MCP_APPS = "mcp_apps"  # MCP Apps interactive widgets (evolution F2.5)
 CONTEXT_DOMAIN_BROWSERS = "browsers"  # Interactive web browsing (evolution F7)
+CONTEXT_DOMAIN_HUE = "hues"  # Philips Hue smart lights (Smart Home)
 
 # Web Search sources (used by unified_web_search_tool)
 WEB_SEARCH_SOURCE_PERPLEXITY = "perplexity"
@@ -566,6 +576,7 @@ __all__ = [
     "NODE_WEB_SEARCH_AGENT",
     "NODE_WEB_FETCH_AGENT",
     "NODE_BROWSER_AGENT",
+    "NODE_HUE_AGENT",
     # Agent names (v3.2 convention: singular domain names)
     "AGENT_CONTACT",
     "AGENT_EMAIL",
@@ -583,6 +594,7 @@ __all__ = [
     "AGENT_WEB_FETCH",
     "AGENT_MCP",
     "AGENT_BROWSER",
+    "AGENT_HUE",
     "MCP_DOMAIN_PREFIX",
     "ALL_AGENTS",
     # Tool names
@@ -628,6 +640,10 @@ __all__ = [
     "INTENTION_BROWSER",
     "INTENTION_BROWSER_NAVIGATE",
     "INTENTION_BROWSER_INTERACT",
+    "INTENTION_HUE",
+    "INTENTION_HUE_CONTROL",
+    "INTENTION_HUE_LIST",
+    "INTENTION_HUE_SCENE",
     # Context types
     "CONTEXT_DOMAIN_CONTACTS",
     "CONTEXT_DOMAIN_WEATHER",
@@ -640,6 +656,7 @@ __all__ = [
     "CONTEXT_DOMAIN_MCP",
     "CONTEXT_DOMAIN_MCP_APPS",
     "CONTEXT_DOMAIN_BROWSERS",
+    "CONTEXT_DOMAIN_HUE",
     "WEB_SEARCH_SOURCE_PERPLEXITY",
     "WEB_SEARCH_SOURCE_BRAVE",
     "WEB_SEARCH_SOURCE_WIKIPEDIA",

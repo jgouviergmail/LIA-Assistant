@@ -98,6 +98,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [GOOGLE_CONTACTS_INTEGRATION.md](./technical/GOOGLE_CONTACTS_INTEGRATION.md) | Intégration Google Contacts | ✅ |
 | [EMAIL_FORMATTER.md](./technical/EMAIL_FORMATTER.md) | Formatage emails, templates | ✅ |
 | [CONNECTORS_PATTERNS.md](./technical/CONNECTORS_PATTERNS.md) | Patterns connecteurs OAuth/API Key | ✅ |
+| [CONNECTOR_PHILIPS_HUE.md](./connectors/CONNECTOR_PHILIPS_HUE.md) | Philips Hue smart lighting connector (local + remote) | ✅ |
 | [MICROSOFT_365_INTEGRATION.md](./technical/MICROSOFT_365_INTEGRATION.md) | Intégration Microsoft 365 (Outlook, Calendar, Contacts, To Do) | ✅ |
 | [VOICE.md](./technical/VOICE.md) | Voice/TTS Standard/HD, Factory Pattern | ✅ |
 | [VOICE_MODE.md](./technical/VOICE_MODE.md) | STT, Wake Word, Push-to-Talk | ✅ |

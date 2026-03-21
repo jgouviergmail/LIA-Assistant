@@ -64,6 +64,9 @@ class RegistryItemType(str, Enum):
     SEARCH_RESULT = "SEARCH_RESULT"  # Perplexity search
     WEB_SEARCH = "WEB_SEARCH"  # Unified web search (Perplexity + Brave + Wikipedia)
 
+    # Smart Home types
+    HUE_LIGHT = "HUE_LIGHT"  # Philips Hue smart light
+
     # HITL/Draft types (confirmation flow)
     DRAFT = "DRAFT"
 

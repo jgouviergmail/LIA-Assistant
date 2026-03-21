@@ -1,0 +1,51 @@
+#!/bin/bash
+# =============================================================================
+# Custom logwatch cron script - LIA Production Server (RPi5)
+# Replaces default /etc/cron.daily/00logwatch
+#
+# Generates HTML report and sends it as a properly MIME-encoded email
+# to avoid "message has lines too long for transport" errors with exim4.
+# HTML reports can contain lines >998 chars which violates RFC 2821.
+# Using base64 Content-Transfer-Encoding solves this.
+# =============================================================================
+
+set -euo pipefail
+
+# Check if logwatch is installed
+test -x /usr/share/logwatch/scripts/logwatch.pl || exit 0
+
+# Read config values from logwatch.conf
+LOGWATCH_CONF="/etc/logwatch/conf/logwatch.conf"
+MAILTO=$(grep -i "^MailTo" "$LOGWATCH_CONF" 2>/dev/null | awk '{print $3}')
+MAILFROM=$(grep -i "^MailFrom" "$LOGWATCH_CONF" 2>/dev/null | awk '{print $3}')
+SUBJECT=$(grep -i "^Subject" "$LOGWATCH_CONF" 2>/dev/null | sed 's/^Subject *= *//;s/^"//;s/"$//')
+
+# Defaults
+MAILTO="${MAILTO:-root}"
+MAILFROM="${MAILFROM:-logwatch@$(hostname -f)}"
+SUBJECT="${SUBJECT:-Logwatch Report}"
+
+# Add date to subject
+SUBJECT="$SUBJECT - $(date -d yesterday '+%Y-%m-%d')"
+
+# Generate HTML report to stdout
+REPORT=$(/usr/sbin/logwatch --output stdout --format html --range yesterday --detail high 2>&1) || true
+
+if [ -z "$REPORT" ]; then
+    exit 0
+fi
+
+# Encode report as base64 for SMTP-safe transport
+ENCODED=$(echo "$REPORT" | base64 -w 76)
+
+# Build MIME email and send via sendmail (exim4)
+/usr/sbin/sendmail -f "$MAILFROM" "$MAILTO" <<EOF
+From: $MAILFROM
+To: $MAILTO
+Subject: $SUBJECT
+MIME-Version: 1.0
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: base64
+
+$ENCODED
+EOF

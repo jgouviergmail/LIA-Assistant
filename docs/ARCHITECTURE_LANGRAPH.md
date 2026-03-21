@@ -301,7 +301,7 @@ LIA utilise **LangGraph v1.1.2** avec exécution parallèle native **asyncio** p
 ├─────────────────────────────────────────────────────────────────┤
 │ INPUT                                                           │
 │   • execution_plan: Plan validé/approuvé                        │
-│   • Agent functions (contacts_agent, emails_agent, ...)         │
+│   • Agent functions (contacts_agent, emails_agent, hue_agent, ...)│
 ├─────────────────────────────────────────────────────────────────┤
 │ TRAITEMENT                                                      │
 │   1. Dispatch vers parallel_executor                            │

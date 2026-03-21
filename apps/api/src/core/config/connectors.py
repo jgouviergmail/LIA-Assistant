@@ -38,10 +38,12 @@ from src.core.constants import (
     HTTP_TIMEOUT_CURRENCY_API,
     HTTP_TIMEOUT_EXTERNAL_API,
     HTTP_TIMEOUT_GEOCODING_API,
+    HTTP_TIMEOUT_HUE_API,
     HTTP_TIMEOUT_OAUTH,
     HTTP_TIMEOUT_PLACES_API,
     HTTP_TIMEOUT_ROUTES_API,
     HTTP_TIMEOUT_TOKEN,
+    HUE_DEFAULT_RATE_LIMIT_PER_SECOND,
     INTEREST_PERPLEXITY_RECENCY_FILTER_DEFAULT,
     INTEREST_PERPLEXITY_RETURN_RELATED_QUESTIONS_DEFAULT,
     INTEREST_WIKIPEDIA_SEARCH_LIMIT_DEFAULT,
@@ -652,6 +654,34 @@ class ConnectorsSettings(BaseSettings):
         description="Cache TTL for individual IMAP messages in Redis (seconds, default: 60s). "
         "Solves the N+1 IMAP connection problem: search_emails caches messages, "
         "get_message reads from cache.",
+    )
+
+    # ========================================================================
+    # Philips Hue Configuration (Smart Home)
+    # ========================================================================
+    hue_rate_limit_per_second: int = Field(
+        default=HUE_DEFAULT_RATE_LIMIT_PER_SECOND,
+        ge=1,
+        le=20,
+        description="Rate limit per second for Hue Bridge API calls",
+    )
+    hue_bridge_timeout_seconds: float = Field(
+        default=HTTP_TIMEOUT_HUE_API,
+        ge=1.0,
+        le=30.0,
+        description="HTTP timeout for Hue Bridge API calls (seconds)",
+    )
+    hue_remote_client_id: str = Field(
+        default="",
+        description="Hue Remote API OAuth client ID (from developers.meethue.com)",
+    )
+    hue_remote_client_secret: str = Field(
+        default="",
+        description="Hue Remote API OAuth client secret",
+    )
+    hue_remote_app_id: str = Field(
+        default="",
+        description="Hue Remote API application ID",
     )
 
     # ========================================================================

@@ -27,6 +27,7 @@ import {
   Smartphone,
   HelpCircle,
   BookOpen,
+  Lightbulb,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -53,6 +54,12 @@ const HERO_FEATURES: HeroFeatureItem[] = [
     icon: Mail,
     accent: 'bg-gradient-to-r from-red-500 to-orange-500',
     iconBg: 'bg-gradient-to-br from-red-500/15 to-orange-500/15',
+  },
+  {
+    key: 'smart_home',
+    icon: Lightbulb,
+    accent: 'bg-gradient-to-r from-yellow-500 to-amber-500',
+    iconBg: 'bg-gradient-to-br from-yellow-500/15 to-amber-500/15',
   },
   {
     key: 'web_intelligence',
@@ -122,7 +129,7 @@ export async function FeaturesSection({ lng }: FeaturesSectionProps) {
         </FadeInOnScroll>
 
         {/* Hero features — connectors & tools with accent colors */}
-        <div className="grid grid-cols-1 mobile:grid-cols-3 gap-6 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 mobile:grid-cols-4 gap-6 mb-6">
           {HERO_FEATURES.map(({ key, icon: Icon, accent, iconBg }, i) => (
             <FadeInOnScroll key={key} delay={i * 100}>
               <Card className="hover-lift hover-glow h-full border-border/60 overflow-hidden">

@@ -4,7 +4,7 @@
 
 **Version**: 2.2
 **Date**: 2026-03-02
-**Updated**: 16 domaines natifs + MCP externe, 50+ tools implémentés
+**Updated**: 17 domaines natifs + MCP externe, 56+ tools implémentés
 
 ## 📋 Table des Matières
 
@@ -21,7 +21,7 @@
 - [Best Practices](#best-practices)
 - [Performance & Caching](#performance--caching)
 
-### Domaines Implémentés (50+ tools)
+### Domaines Implémentés (56+ tools)
 
 | Domaine | Type | Tools | Fichier Tools |
 |---------|------|-------|---------------|
@@ -38,12 +38,13 @@
 | **Web Search** | API Key | 1 | `web_search_tools.py` |
 | **Web Fetch** | Standalone | 1 | `web_fetch_tools.py` |
 | **Routes** | Google OAuth | 1 | `routes_tools.py` |
+| **Hue (Smart Home)** | Hybrid (API Key + OAuth) | 6 | `hue_tools.py` |
 | **Reminders** | Local | 3 | `reminder_tools.py` |
 | **Context** | Local | 5 | `context_tools.py` |
 | **Query** | Local | 1 | `query_tools.py` |
 | **MCP (per-user)** | MCP External | dynamic | `infrastructure/mcp/user_tool_adapter.py` |
 
-> **Types de connexion** : **Google OAuth** = authentification OAuth2 via Google ; **API Key** = clé API tierce configurée en `.env` ; **Standalone** = aucune authentification requise (accès direct HTTP) ; **Local** = outil interne sans appel externe ; **MCP External** = outils découverts dynamiquement via Model Context Protocol.
+> **Types de connexion** : **Google OAuth** = authentification OAuth2 via Google ; **API Key** = clé API tierce configurée en `.env` ; **Hybrid** = local API key for LAN control + remote OAuth2 for cloud access (Philips Hue) ; **Standalone** = aucune authentification requise (accès direct HTTP) ; **Local** = outil interne sans appel externe ; **MCP External** = outils découverts dynamiquement via Model Context Protocol.
 
 > **Note**: Google Contacts est utilisé comme exemple de référence dans ce document.
 > Tous les domaines suivent les mêmes patterns architecturaux.
@@ -1756,7 +1757,7 @@ client = httpx.AsyncClient(
 
 ### Documentation Interne
 - [GRAPH_AND_AGENTS_ARCHITECTURE.md](./GRAPH_AND_AGENTS_ARCHITECTURE.md) - Task Orchestrator
-- [AGENT_MANIFEST.md](./AGENT_MANIFEST.md) - Manifests détaillés (10 agents, 50+ tools)
+- [AGENT_MANIFEST.md](./AGENT_MANIFEST.md) - Manifests détaillés (11 agents, 56+ tools)
 - [CONNECTORS_PATTERNS.md](./CONNECTORS_PATTERNS.md) - Patterns clients OAuth/API Key
 - [MCP_INTEGRATION.md](./MCP_INTEGRATION.md) - MCP (Model Context Protocol) intégration complète
 - [GUIDE_TOOL_CREATION.md](../guides/GUIDE_TOOL_CREATION.md) - Tutorial création tool
@@ -1766,6 +1767,7 @@ client = httpx.AsyncClient(
 - `apps/api/src/domains/agents/tools/decorators.py` - @connector_tool decorator
 - `apps/api/src/domains/agents/tools/formatters.py` - Formatters (Contacts, Emails, Calendar, etc.)
 - `apps/api/src/domains/agents/tools/runtime_helpers.py` - Helpers centralisés
+- `apps/api/src/domains/agents/tools/hue_tools.py` - Philips Hue smart home tools (6 tools)
 - `apps/api/src/domains/agents/registry/manifest_builder.py` - ToolManifestBuilder
 
 ### Fichiers Tools par Domaine

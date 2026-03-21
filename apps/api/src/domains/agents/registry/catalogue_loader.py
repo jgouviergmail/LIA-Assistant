@@ -706,6 +706,27 @@ def initialize_catalogue(registry: AgentRegistry) -> None:
     registry.register_tool_manifest(list_reminders_catalogue_manifest)
     registry.register_tool_manifest(cancel_reminder_catalogue_manifest)
 
+    # Register Hue tool manifests (Philips Hue Smart Home)
+    # Import hue_tools to trigger ContextTypeRegistry.register() at module level
+    import src.domains.agents.tools.hue_tools  # noqa: F401
+    from src.domains.agents.hue.catalogue_manifests import (
+        activate_hue_scene_catalogue_manifest,
+        control_hue_light_catalogue_manifest,
+        control_hue_room_catalogue_manifest,
+        hue_agent_manifest,
+        list_hue_lights_catalogue_manifest,
+        list_hue_rooms_catalogue_manifest,
+        list_hue_scenes_catalogue_manifest,
+    )
+
+    registry.register_agent_manifest(hue_agent_manifest)
+    registry.register_tool_manifest(list_hue_lights_catalogue_manifest)
+    registry.register_tool_manifest(control_hue_light_catalogue_manifest)
+    registry.register_tool_manifest(list_hue_rooms_catalogue_manifest)
+    registry.register_tool_manifest(control_hue_room_catalogue_manifest)
+    registry.register_tool_manifest(list_hue_scenes_catalogue_manifest)
+    registry.register_tool_manifest(activate_hue_scene_catalogue_manifest)
+
     # Register Skills tool manifests (agentskills.io standard)
     from src.domains.skills.catalogue_manifests import (
         activate_skill_catalogue_manifest,

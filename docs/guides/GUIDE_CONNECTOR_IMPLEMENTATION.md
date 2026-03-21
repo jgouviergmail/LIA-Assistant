@@ -4,10 +4,11 @@
 **Dernière mise à jour** : 2025-12-27
 **Statut** : ✅ Stable
 
-Ce guide explique comment implémenter de nouveaux connecteurs dans LIA. Deux types de connecteurs sont supportés :
+Ce guide explique comment implémenter de nouveaux connecteurs dans LIA. Trois types de connecteurs sont supportés :
 
 1. **Connecteurs OAuth** (ex: Google Gmail, Google Contacts)
 2. **Connecteurs API Key** (ex: OpenAI, Anthropic, services tiers)
+3. **Connecteurs Hybrid** (ex: Philips Hue — local API key for LAN control + remote OAuth2 for cloud access)
 
 ---
 
@@ -37,7 +38,8 @@ apps/api/src/domains/connectors/
 │   ├── base_api_key_client.py    # Classe abstraite pour API Key
 │   ├── base_google_client.py     # Classe abstraite pour Google OAuth
 │   ├── google_gmail_client.py    # Implémentation Gmail
-│   └── google_people_client.py   # Implémentation Contacts
+│   ├── google_people_client.py   # Implémentation Contacts
+│   └── philips_hue_client.py     # Implémentation Philips Hue (hybrid: API key + OAuth)
 ├── models.py                      # ConnectorType enum, modèle DB
 ├── schemas.py                     # Pydantic schemas
 ├── service.py                     # Business logic

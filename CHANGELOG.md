@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-03-21
+
+### Added
+
+- **Philips Hue Smart Home Connector** — Full integration with Philips Hue Bridge CLIP v2 API for smart lighting control via natural language. Dual connection mode: local (press-link pairing on same network) and remote (OAuth2 via api.meethue.com cloud relay). 6 LangChain tools: `list_hue_lights_tool`, `control_hue_light_tool`, `list_hue_rooms_tool`, `control_hue_room_tool`, `list_hue_scenes_tool`, `activate_hue_scene_tool`. Multilingual color support (CIE xy mapping for en/fr/de/es), fuzzy name resolution for natural language control ("éteins le salon" → room "Salon" → grouped_light off). (`src/domains/connectors/clients/philips_hue_client.py`, `src/domains/agents/tools/hue_tools.py`)
+- **Hue Bridge discovery & press-link pairing UI** — Multi-step wizard in Settings > Smart Home: bridge discovery via discovery.meethue.com, bridge selection, 30-second countdown press-link pairing flow, automatic connector activation. Separate remote mode path via OAuth2 redirect. (`apps/web/src/components/settings/connectors/HueBridgePairingForm.tsx`, `apps/web/src/components/settings/connectors/hooks/useHueConnect.ts`)
+- **Hue agent with catalogue manifests** — Dedicated `hue_agent` with versioned prompt (`hue_agent_prompt.txt`), 6 tool manifests with multilingual semantic keywords (en/fr/de/es/it/zh) for Smart Planner tool selection. Agent registered in LangGraph graph with conditional routing edge. (`src/domains/agents/hue/catalogue_manifests.py`, `src/domains/agents/graphs/hue_agent_builder.py`)
+- **HueOAuthProvider** — OAuth2 provider dataclass implementing `OAuthProvider` Protocol for Hue Remote API. Factory method `for_remote_control()` with dynamic redirect URI construction. PKCE support via existing `OAuthFlowHandler`. (`src/core/oauth/providers/hue.py`)
+- **Smart Home domain taxonomy** — New "hue" domain in `domain_taxonomy.py` with `result_key="hues"`, enabling Smart Planner to route smart home intents. New `RegistryItemType.HUE_LIGHT` for Data Registry frontend rendering. (`src/domains/agents/registry/domain_taxonomy.py`, `src/domains/agents/data_registry/models.py`)
+- **Smart Home i18n (6 languages)** — 22 translation keys per language for Hue connector UI: pairing wizard, mode selection, countdown, error messages, connection status. Covers en, fr, de, es, it, zh. (`apps/web/locales/*/translation.json`)
+
+### Changed
+
+- **ConnectorTool credential retrieval** — Added `is_hue` branch in `ConnectorTool.execute()` for Hue-specific credential retrieval via `get_hue_credentials()`, following the existing `is_apple` pattern. (`src/domains/agents/tools/base.py`)
+- **Client registry** — `PhilipsHueClient` registered in `ClientRegistry._ensure_initialized()` alongside Google, Apple, and Microsoft clients. (`src/domains/connectors/clients/registry.py`)
+- **Connector models** — New `ConnectorType.PHILIPS_HUE` enum value with `is_hue` property, `_HUE_CONNECTOR_TYPES` frozenset, `"smart_home"` functional category. (`src/domains/connectors/models.py`)
+- **UserConnectorsSection** — Added "Connected Smart Home" and "Available Smart Home" sections with `HueBridgePairingForm` integration. (`apps/web/src/components/settings/UserConnectorsSection.tsx`)
+
+### Fixed
+
+- **LLM provider error messages** — `OverloadedError` (529) and `RateLimitError` (429) from Anthropic/OpenAI now display a user-friendly message ("Le service d'IA est temporairement surchargé. Veuillez réessayer dans quelques instants.") instead of raw technical error types (`APIStatusError`). Detection covers `stream_error()` and `generic_error()` in all 6 languages. (`src/domains/agents/api/error_messages.py`)
+
 ## [1.7.2] - 2026-03-20
 
 ### Added
@@ -475,7 +497,8 @@ First public open-source release of LIA.
 - Circuit breaker, rate limiting, and distributed locks
 - SOPS/Age encryption for secrets management
 
-[Unreleased]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.7.2...HEAD
+[Unreleased]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.8.0...HEAD
+[1.8.0]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.7.2...v1.8.0
 [1.7.2]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.7.1...v1.7.2
 [1.7.1]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.7.0...v1.7.1
 [1.7.0]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.6.1...v1.7.0

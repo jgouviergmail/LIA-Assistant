@@ -30,6 +30,7 @@
 
 | Feature | Description |
 |---------|-------------|
+| **Philips Hue Smart Home** | Control smart lights via natural language — local press-link or remote OAuth2 (v1.8.0) |
 | **Personal Journals** | Assistant's introspective logbooks with semantic context injection (v1.7.1) |
 | **System Knowledge Spaces** | Built-in FAQ knowledge base — LIA answers questions about itself (v1.6.1) |
 | **Browser Control** | Interactive web browsing via Playwright with autonomous ReAct agent (v1.6.0) |

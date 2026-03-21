@@ -603,6 +603,8 @@
       "connected_api_key": "已连接的外部连接器",
       "connected_apple": "已连接的 Apple 连接器",
       "connected_microsoft": "已连接的 Microsoft 连接器",
+      "connected_hue": "已连接的智能家居",
+      "available_hue": "可用的智能家居服务",
       "connected_on": "连接于 {{date}}",
       "loading": "加载中...",
       "enabled": "✓ 已启用",
@@ -820,6 +822,28 @@
         "label": "浏览器",
         "description": "交互式网页浏览（无需密钥）",
         "no_key_required": "此服务不需要 API 密钥"
+      },
+      "hue": {
+        "label": "Philips Hue",
+        "description": "通过LIA控制您的Philips Hue智能灯",
+        "mode_select": "选择连接模式",
+        "mode_local": "本地连接（同一网络）",
+        "mode_local_desc": "您的LIA服务器必须与Hue Bridge在同一网络中",
+        "mode_remote": "远程连接（Philips云）",
+        "mode_remote_desc": "通过Philips云从任何地方控制您的灯光",
+        "discover_bridges": "搜索网桥",
+        "discovering": "正在搜索Hue网桥...",
+        "no_bridges_found": "在本地网络上未找到网桥",
+        "select_bridge": "选择您的网桥",
+        "press_button": "按下Hue网桥上的按钮",
+        "press_button_desc": "按下网桥顶部的大圆按钮，然后点击配对",
+        "pairing_countdown": "剩余{{seconds}}秒",
+        "pair_button": "配对",
+        "pairing_success": "网桥配对成功！",
+        "pairing_error": "配对失败。您按下了网桥按钮吗？",
+        "bridge_unreachable": "网桥无法访问。请检查网络连接。",
+        "connect_remote": "通过Philips Hue连接",
+        "test_connection": "测试连接"
       }
     },
     "admin": {
@@ -2072,7 +2096,7 @@
       "features": {
         "architecture": {
           "title": "🏗️ LangGraph 多智能体架构",
-          "description": "LIA 使用 LangGraph，一个用于 AI 智能体编排的状态图框架。15个专门的智能体覆盖各个领域（邮件、日历、联系人、任务、云端硬盘、天气、地点、路线、维基百科、Perplexity、Brave Search、网页阅读、网络搜索、提醒、上下文、本地查询等），具有条件转换和通过 PostgreSQL 检查点实现的状态持久化。动态MCP代理无限扩展能力。"
+          "description": "LIA 使用 LangGraph，一个用于 AI 智能体编排的状态图框架。16个专门的智能体覆盖各个领域（邮件、日历、联系人、任务、云端硬盘、天气、地点、路线、维基百科、Perplexity、Brave Search、网页阅读、网络搜索、提醒、Hue、上下文、本地查询等），具有条件转换和通过 PostgreSQL 检查点实现的状态持久化。动态MCP代理无限扩展能力。"
         },
         "queryAnalyzer": {
           "title": "🧭 Query Analyzer v3.2",
@@ -2390,11 +2414,11 @@
       "connectors": {
         "title": "连接器",
         "description": "集成和外部连接",
-        "count": "13",
+        "count": "14",
         "questions": {
           "q1": {
             "question": "什么是连接器？",
-            "answer": "连接器允许LIA<strong>访问您的外部服务</strong>以帮助您完成任务。有四种类型：<br><br><strong>🔐 OAuth连接器（Google）：</strong><br>• Gmail、日历、联系人、云端硬盘、任务、地点、路线（Routes）<br>• 通过Google安全授权<br>• 您的凭据永远不会存储<br><br><strong>🔑 API密钥连接器：</strong><br>• OpenWeatherMap（天气）<br>• Perplexity（AI搜索）<br>• Brave Search（网络搜索）<br>• 维基百科（无需密钥）<br>• 需要您自己的API密钥<br><br><strong>🍎 Apple iCloud 服务（应用专用密码）：</strong><br>• 📮 <strong>Apple Mail</strong>：读取、发送、回复邮件（IMAP/SMTP）<br>• 🗓️ <strong>Apple Calendar</strong>：管理 iCloud 日程（CalDAV）<br>• 📇 <strong>Apple Contacts</strong>：搜索和创建 iCloud 联系人（CardDAV）<br><br><strong>🪟 Microsoft 365 服务（OAuth）：</strong><br>• 📧 <strong>Outlook</strong>：阅读、发送、回复邮件<br>• 📅 <strong>Microsoft Calendar</strong>：管理日程<br>• 👥 <strong>Microsoft Contacts</strong>：搜索和管理联系人<br>• ✅ <strong>Microsoft To Do</strong>：管理任务和列表<br><br><strong>⚡ 互斥规则：</strong><br>对于邮件、日历和联系人，同一时间只能有一个供应商处于活动状态（Google 或 Apple 或 Microsoft，不能同时使用多个）。任务通过 Google Tasks 或 Microsoft To Do 提供。"
+            "answer": "连接器允许LIA<strong>访问您的外部服务</strong>以帮助您完成任务。有四种类型：<br><br><strong>🔐 OAuth连接器（Google）：</strong><br>• Gmail、日历、联系人、云端硬盘、任务、地点、路线（Routes）<br>• 通过Google安全授权<br>• 您的凭据永远不会存储<br><br><strong>🔑 API密钥连接器：</strong><br>• OpenWeatherMap（天气）<br>• Perplexity（AI搜索）<br>• Brave Search（网络搜索）<br>• 维基百科（无需密钥）<br>• 需要您自己的API密钥<br><br><strong>🍎 Apple iCloud 服务（应用专用密码）：</strong><br>• 📮 <strong>Apple Mail</strong>：读取、发送、回复邮件（IMAP/SMTP）<br>• 🗓️ <strong>Apple Calendar</strong>：管理 iCloud 日程（CalDAV）<br>• 📇 <strong>Apple Contacts</strong>：搜索和创建 iCloud 联系人（CardDAV）<br><br><strong>🪟 Microsoft 365 服务（OAuth）：</strong><br>• 📧 <strong>Outlook</strong>：阅读、发送、回复邮件<br>• 📅 <strong>Microsoft Calendar</strong>：管理日程<br>• 👥 <strong>Microsoft Contacts</strong>：搜索和管理联系人<br>• ✅ <strong>Microsoft To Do</strong>：管理任务和列表<br><br><strong>Smart Home (hybrid auth):</strong><br>• 💡 <strong>Philips Hue</strong>: 控制灯光、房间和场景<br><br><strong>⚡ 互斥规则：</strong><br>对于邮件、日历和联系人，同一时间只能有一个供应商处于活动状态（Google 或 Apple 或 Microsoft，不能同时使用多个）。任务通过 Google Tasks 或 Microsoft To Do 提供。"
           },
           "q2": {
             "question": "如何连接Google服务？",
@@ -2434,7 +2458,7 @@
           },
           "q11": {
             "question": "什么是连接器的互斥规则？",
-            "answer": "对于邮件、日历和联系人服务，LIA 应用<strong>互斥规则</strong>：<br><br><strong>⚡ 原则：</strong><br>每个类别只能有一个活动的供应商：<br>• <strong>邮件</strong>：Gmail 或 Apple Mail 或 Outlook（同一时间只能使用一个）<br>• <strong>日历</strong>：Google Calendar 或 Apple Calendar 或 Microsoft Calendar（同一时间只能使用一个）<br>• <strong>联系人</strong>：Google Contacts 或 Apple Contacts 或 Microsoft Contacts（同一时间只能使用一个）<br>• <strong>任务</strong>：Google Tasks 或 Microsoft To Do（同一时间只能使用一个）<br><br><strong>🔄 切换供应商：</strong><br>如果在另一个供应商的对应服务活动时激活新的供应商服务：<br>1. 之前的服务变为<strong>非活动</strong>（未删除）<br>2. 新服务变为<strong>活动</strong><br>3. 您在各供应商的数据保持完整<br>4. 您可以随时切换回之前的供应商<br><br><strong>✅ 不受影响的服务：</strong><br>Google Drive、Places 和 Routes 没有 Apple 或 Microsoft 对应服务，可与其他服务并行使用。<br><br><strong>💡 提示：</strong><br>您不需要为所有服务选择同一供应商。例如，您可以使用 Outlook 处理邮件，使用 Google Calendar 管理日历，使用 Microsoft To Do 管理任务。"
+            "answer": "对于邮件、日历和联系人服务，LIA 应用<strong>互斥规则</strong>：<br><br><strong>⚡ 原则：</strong><br>每个类别只能有一个活动的供应商：<br>• <strong>邮件</strong>：Gmail 或 Apple Mail 或 Outlook（同一时间只能使用一个）<br>• <strong>日历</strong>：Google Calendar 或 Apple Calendar 或 Microsoft Calendar（同一时间只能使用一个）<br>• <strong>联系人</strong>：Google Contacts 或 Apple Contacts 或 Microsoft Contacts（同一时间只能使用一个）<br>• <strong>任务</strong>：Google Tasks 或 Microsoft To Do（同一时间只能使用一个）<br><br><strong>🔄 切换供应商：</strong><br>如果在另一个供应商的对应服务活动时激活新的供应商服务：<br>1. 之前的服务变为<strong>非活动</strong>（未删除）<br>2. 新服务变为<strong>活动</strong><br>3. 您在各供应商的数据保持完整<br>4. 您可以随时切换回之前的供应商<br><br><strong>✅ 不受影响的服务：</strong><br>Google Drive、Places、Routes和Philips Hue没有 Apple 或 Microsoft 对应服务，可与其他服务并行使用。<br><br><strong>💡 提示：</strong><br>您不需要为所有服务选择同一供应商。例如，您可以使用 Outlook 处理邮件，使用 Google Calendar 管理日历，使用 Microsoft To Do 管理任务。"
           },
           "q12": {
             "question": "如何连接 Microsoft 365 服务？",
@@ -2443,6 +2467,10 @@
           "q13": {
             "question": "可以连接哪些 Microsoft 365 服务？",
             "answer": "LIA 集成了 <strong>4 项 Microsoft 365 服务</strong>：<br><br><strong>📧 Microsoft Outlook</strong><br>• 搜索所有邮件<br>• 阅读邮件内容<br>• 发送、回复、转发<br>• 查看附件<br>• 直接链接到 Outlook Web<br><br><strong>📅 Microsoft Calendar</strong><br>• 查看日程<br>• 创建事件<br>• 修改或删除<br>• 邀请参与者<br><br><strong>👥 Microsoft Contacts</strong><br>• 按姓名、邮箱、公司搜索<br>• 创建新联系人<br>• 更新信息<br><br><strong>✅ Microsoft To Do</strong><br>• 列出任务<br>• 创建新任务<br>• 标记为完成<br>• 管理任务列表<br><br><strong>💡 相同的体验：</strong><br>无论使用 Google、Apple 还是 Microsoft，命令完全相同。只需说\"<em>我的邮件</em>\"、\"<em>我的日历</em>\"或\"<em>我的任务</em>\"——LIA 自动使用活动的供应商。"
+          },
+          "q14": {
+            "question": "如何连接Philips Hue？",
+            "answer": "Philips Hue使用<strong>混合认证</strong>（本地按键配对或远程OAuth2）：<br><br><strong>🏠 本地模式（推荐 — 同一网络）：</strong><br>1. 前往 <strong>设置 > 智能家居 > Philips Hue</strong><br>2. 点击 <strong>本地连接</strong><br>3. 点击 <strong>搜索网桥</strong><br>4. 选择您的网桥<br>5. <strong>按下</strong>Hue网桥上的物理按钮<br>6. 在30秒内点击 <strong>配对</strong><br>7. LIA验证连接并激活连接器<br><br><strong>💡 您可以做什么：</strong><br>• \"打开客厅的灯\"<br>• \"将卧室调暗到30%\"<br>• \"将厨房灯设为蓝色\"<br>• \"激活电影模式\""
           }
         }
       },
@@ -3596,7 +3624,7 @@
   "landing": {
     "meta": {
       "title": "LIA — 开源个人AI助手 | 多智能体、HITL、6种语言",
-      "description": "LIA编排15个专业AI智能体管理您的邮件、日历、联系人、Drive等。开源、人工验证(HITL)、7个LLM供应商、6种语言。隐私设计。"
+      "description": "LIA编排16个专业AI智能体管理您的邮件、日历、联系人、Drive等。开源、人工验证(HITL)、7个LLM供应商、6种语言。隐私设计。"
     },
     "nav": {
       "features": "功能",
@@ -3615,7 +3643,7 @@
       "title_line2_highlight": "AI",
       "title_line2_after": "。",
       "title_line3": "你的规则。",
-      "subtitle": "LIA协调专业代理来管理你的邮件、日历、联系人等——每一步都经过你的批准。",
+      "subtitle": "LIA协调专业代理来管理你的邮件、日历、联系人、智能家居等——每一步都经过你的批准。",
       "cta_primary": "加入BETA",
       "cta_secondary": "了解更多",
       "scroll_hint": "向下滚动探索",
@@ -3662,6 +3690,10 @@
         "title": "Google、Apple iCloud 与 Microsoft 365",
         "description": "通过 Google、Apple iCloud 或 Microsoft 365 管理邮件、日历和联系人——由您选择。还有 Google Drive、Google Tasks 和 Microsoft To Do。全部通过自然语言操作，无论您使用哪个服务商。"
       },
+      "smart_home": {
+        "title": "智能家居 (Philips Hue)",
+        "description": "语音控制智能灯光：开关、调节亮度和颜色、管理房间和场景。只需说「调暗客厅」或「激活电影模式」。支持本地或云连接。"
+      },
       "web_intelligence": {
         "title": "搜索、天气与导航",
         "description": "多源网络搜索（Brave、Perplexity、Wikipedia）、实时天气及5天预报、附近地点和商店搜索、多模式路线规划（驾车、步行、骑行、公交）、自动地理定位。"
@@ -3675,7 +3707,7 @@
         "description": "无需记忆任何命令。像对人类助手一样提出需求，LIA理解并执行。"
       },
       "multi_agent": {
-        "title": "15个专业智能体",
+        "title": "16个专业智能体",
         "description": "邮件、日历、联系人、文件、任务、天气、网络搜索、Wikipedia、地点、路线、提醒等。一条指令自动激活正确的智能体。"
       },
       "proactive": {
@@ -3948,6 +3980,7 @@
     "higherCost": "更高成本",
     "sizeUsage": "空间使用",
     "lastCost": "上次干预",
+    "lastCostSource": "来源",
     "create": "新条目",
     "export": "导出",
     "deleteAll": "全部删除",
@@ -4015,7 +4048,7 @@
       "architecture": "架构",
       "architecture_desc": "LIA如何编排AI智能体、规划任务并将人类置于决策中心。",
       "integrations": "集成",
-      "integrations_desc": "将LIA连接到Google、Apple、Microsoft，并通过MCP和自定义技能进行扩展。",
+      "integrations_desc": "将LIA连接到Google、Apple、Microsoft、Philips Hue，并通过MCP和自定义技能进行扩展。",
       "features": "功能",
       "features_desc": "语音、文档、个人日志、主动通知等更多功能。",
       "security": "安全与隐私",
@@ -4025,9 +4058,9 @@
     },
     "articles": {
       "multi-agent-orchestration": {
-        "title": "LIA如何编排15个专业AI智能体",
+        "title": "LIA如何编排16个专业AI智能体",
         "excerpt": "探索LIA的多智能体系统：智能路由器通过LangGraph、规划器和并行任务编排器将每个请求导向正确的智能体。",
-        "body": "<h2>系统核心：8节点状态图</h2><p>当您向LIA发送消息时，消息并不会直接发送到语言模型，而是经过一个<strong>由8个节点组成的LangGraph状态机</strong>：<code>compaction</code>、<code>router_v3</code>、<code>planner</code>、<code>task_orchestrator</code>、<code>approval_gate</code>、<code>semantic_validator</code>、<code>clarification</code>和<code>response</code>。每个节点都是一个专门的异步函数，具有条件转换。</p><h2>统一智能路由器</h2><p><code>router_v3</code>节点使用<code>QueryAnalyzerService.analyze_full()</code>对每条消息进行统一分析。结果是一个<strong>RouterOutput</strong>，包含：意图（<code>action</code>或<code>conversation</code>）、置信度分数、检测到的领域列表以及路由器的推理过程。如果意图是对话性的，流程直接进入<code>response</code>节点；如果是操作性的，流程进入<code>planner</code>生成结构化计划。</p><h2>丰富的状态与Token管理</h2><p>LangGraph状态（<code>MessagesState</code>）是一个包含<strong>50多个字段</strong>的TypedDict。它使用基于tiktoken的自定义reducer <code>add_messages_with_truncate</code>来管理按Token截断、消息窗口化和OpenAI消息序列验证。该状态通过LangGraph持久化系统检查点保存到<strong>PostgreSQL</strong>中。</p><h2>原生并行执行</h2><p>对于可操作的请求（如\"发送一封邮件并创建一个日程\"），LIA通过规划节点生成结构化的<strong>ExecutionPlan</strong>。任务编排器分析依赖图，并通过原生<code>asyncio.gather()</code>（Phase 5.2B）并行执行独立步骤，大幅减少了多领域请求的响应时间。</p><h2>按领域专门化的智能体</h2><p>每个领域都有自己的智能体：邮件、日历、联系人、任务、Drive、天气、路线、网络搜索、Wikipedia等。每个智能体都有专属工具、专业提示和独立上下文。这种划分使LIA能够自动协调多个智能体来处理跨领域请求，例如\"将我下次会议的详情发送给所有参与者\"。</p><h2>持久化与恢复</h2><p>每个对话的完整状态通过LangGraph持久化系统检查点保存到PostgreSQL中。如果中断，对话会从中断处精确恢复，保留所有上下文——包括正在执行的计划和等待中的审批。</p>"
+        "body": "<h2>系统核心：8节点状态图</h2><p>当您向LIA发送消息时，消息并不会直接发送到语言模型，而是经过一个<strong>由8个节点组成的LangGraph状态机</strong>：<code>compaction</code>、<code>router_v3</code>、<code>planner</code>、<code>task_orchestrator</code>、<code>approval_gate</code>、<code>semantic_validator</code>、<code>clarification</code>和<code>response</code>。每个节点都是一个专门的异步函数，具有条件转换。</p><h2>统一智能路由器</h2><p><code>router_v3</code>节点使用<code>QueryAnalyzerService.analyze_full()</code>对每条消息进行统一分析。结果是一个<strong>RouterOutput</strong>，包含：意图（<code>action</code>或<code>conversation</code>）、置信度分数、检测到的领域列表以及路由器的推理过程。如果意图是对话性的，流程直接进入<code>response</code>节点；如果是操作性的，流程进入<code>planner</code>生成结构化计划。</p><h2>丰富的状态与Token管理</h2><p>LangGraph状态（<code>MessagesState</code>）是一个包含<strong>50多个字段</strong>的TypedDict。它使用基于tiktoken的自定义reducer <code>add_messages_with_truncate</code>来管理按Token截断、消息窗口化和OpenAI消息序列验证。该状态通过LangGraph持久化系统检查点保存到<strong>PostgreSQL</strong>中。</p><h2>原生并行执行</h2><p>对于可操作的请求（如\"发送一封邮件并创建一个日程\"），LIA通过规划节点生成结构化的<strong>ExecutionPlan</strong>。任务编排器分析依赖图，并通过原生<code>asyncio.gather()</code>（Phase 5.2B）并行执行独立步骤，大幅减少了多领域请求的响应时间。</p><h2>按领域专门化的智能体</h2><p>每个领域都有自己的智能体：邮件、日历、联系人、任务、Drive、天气、路线、网络搜索、Wikipedia、智能家居等。每个智能体都有专属工具、专业提示和独立上下文。这种划分使LIA能够自动协调多个智能体来处理跨领域请求，例如\"将我下次会议的详情发送给所有参与者\"。</p><h2>持久化与恢复</h2><p>每个对话的完整状态通过LangGraph持久化系统检查点保存到PostgreSQL中。如果中断，对话会从中断处精确恢复，保留所有上下文——包括正在执行的计划和等待中的审批。</p>"
       },
       "execution-plans": {
         "title": "ExecutionPlan：LIA如何规划和执行复杂请求",

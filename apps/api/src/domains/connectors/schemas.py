@@ -282,6 +282,80 @@ class AppleCredentials(BaseModel):
     app_password: str = Field(..., description="App-specific password")
 
 
+# ============================================================================
+# Philips Hue Schemas (Smart Home)
+# ============================================================================
+
+
+class HueConnectionMode(str, Enum):
+    """Hue Bridge connection mode."""
+
+    LOCAL = "local"
+    REMOTE = "remote"
+
+
+class HueBridgeCredentials(BaseModel):
+    """
+    Hue Bridge credentials stored encrypted in connector.credentials_encrypted.
+
+    Supports two modes:
+    - LOCAL: API key from press-link pairing + bridge IP
+    - REMOTE: OAuth2 tokens from Hue Remote API
+    """
+
+    connection_mode: HueConnectionMode = Field(..., description="Local or remote connection mode")
+    # Local mode fields
+    api_key: str | None = Field(None, description="Hue application key from press-link pairing")
+    bridge_ip: str | None = Field(None, description="Bridge internal IP address")
+    bridge_id: str | None = Field(None, description="Bridge unique identifier")
+    client_key: str | None = Field(None, description="Entertainment API client key")
+    # Remote mode fields (OAuth2)
+    access_token: str | None = Field(None, description="OAuth2 access token")
+    refresh_token: str | None = Field(None, description="OAuth2 refresh token")
+    token_type: str | None = Field(None, description="Token type (Bearer)")
+    expires_at: datetime | None = Field(None, description="Token expiry datetime")
+    remote_username: str | None = Field(None, description="Whitelist username for remote API")
+
+
+class HueBridgeInfo(BaseModel):
+    """Discovered Hue Bridge on local network."""
+
+    id: str = Field(..., description="Bridge unique identifier")
+    internalipaddress: str = Field(..., description="Bridge IP on local network")
+    port: int | None = Field(None, description="Bridge port (443 by default)")
+
+
+class HueBridgeDiscoveryResponse(BaseModel):
+    """Response from bridge discovery endpoint."""
+
+    bridges: list[HueBridgeInfo] = Field(default_factory=list, description="Discovered bridges")
+
+
+class HuePairingRequest(BaseModel):
+    """Request to pair with a Hue Bridge via press-link."""
+
+    bridge_ip: str = Field(..., description="Bridge IP from discovery step")
+
+
+class HuePairingResponse(BaseModel):
+    """Response from press-link pairing attempt."""
+
+    success: bool = Field(..., description="Whether pairing succeeded")
+    application_key: str | None = Field(None, description="Hue application key")
+    client_key: str | None = Field(None, description="Entertainment API client key")
+    bridge_id: str | None = Field(None, description="Bridge unique identifier")
+    error: str | None = Field(None, description="Error message if pairing failed")
+
+
+class HueLocalActivationRequest(BaseModel):
+    """Request to activate Hue connector in local mode."""
+
+    bridge_ip: str = Field(..., description="Bridge internal IP address")
+    application_key: str = Field(..., description="Application key from pairing")
+    client_key: str | None = Field(None, description="Entertainment API client key")
+    bridge_id: str | None = Field(None, description="Bridge unique identifier")
+
+
 class _AppleCredentialsBase(BaseModel):
     """Base class for Apple iCloud credential fields with shared validators."""
 

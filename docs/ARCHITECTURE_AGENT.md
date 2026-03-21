@@ -105,12 +105,13 @@ Ce document est le guide de référence exhaustif pour l'ajout d'un nouveau conn
 
 ### 2.1 Types de Connecteurs
 
-Il existe deux types de connecteurs selon le mode d'authentification :
+Il existe trois types de connecteurs selon le mode d'authentification :
 
 | Type | Base Class | Authentification | Exemples |
 |------|------------|------------------|----------|
 | **OAuth** | `BaseGoogleClient` | OAuth 2.0 avec refresh token | Google Calendar, Gmail, Drive |
 | **API Key** | `BaseAPIKeyClient` | Clé API statique | OpenWeatherMap, Perplexity |
+| **Hybrid** | Custom client | API Key + OAuth 2.0 | Philips Hue (local bridge key + remote OAuth) |
 
 ### 2.2 Créer un Client OAuth (BaseGoogleClient)
 

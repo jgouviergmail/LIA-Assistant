@@ -281,15 +281,17 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
               />
             </div>
 
-            {/* History Analysis Toggle (with cost warning) */}
-            <div className="flex items-center justify-between">
+            {/* Higher cost warning */}
+            <Badge variant="outline" className="text-yellow-600 text-[10px] px-1.5 py-0 w-fit">
+              <AlertTriangle className="h-3 w-3 mr-0.5" />
+              {t('journals.higherCost', 'Higher cost')}
+            </Badge>
+
+            {/* History Analysis Toggle */}
+            <div className="flex items-center justify-between -mt-3">
               <div className="space-y-0.5">
-                <Label htmlFor="history-enabled" className="text-sm flex items-center gap-2">
+                <Label htmlFor="history-enabled" className="text-sm">
                   {t('journals.historyAnalysis', 'Analyze conversation history')}
-                  <Badge variant="outline" className="text-yellow-600 text-[10px] px-1.5 py-0">
-                    <AlertTriangle className="h-3 w-3 mr-0.5" />
-                    {t('journals.higherCost', 'Higher cost')}
-                  </Badge>
                 </Label>
                 <p className="text-xs text-muted-foreground">
                   {t('journals.historyDescription', 'Consolidation also reviews recent conversations')}
@@ -306,7 +308,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
             {/* Size Gauge */}
             {sizeInfo && (
               <div className="space-y-2 rounded-lg border p-3">
-                <div className="flex justify-between text-sm">
+                <div className="flex flex-col sm:flex-row sm:justify-between text-sm gap-0.5">
                   <span className="text-muted-foreground">{t('journals.sizeUsage', 'Size usage')}</span>
                   <span className="font-mono text-xs">
                     {sizeInfo.total_chars.toLocaleString()} / {sizeInfo.max_total_chars.toLocaleString()}
@@ -426,7 +428,8 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
             {/* Last Cost Info */}
             {lastCost?.timestamp && (
               <div className="rounded-lg border p-3 text-xs text-muted-foreground">
-                <div className="flex items-center gap-1.5">
+                {/* Desktop: single row */}
+                <div className="hidden sm:flex items-center gap-1.5">
                   <Settings2 className="h-3.5 w-3.5 shrink-0" />
                   <span>{t('journals.lastCost', 'Last intervention')}:</span>
                   <span>
@@ -440,22 +443,49 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                   )}
                   <span className="ml-auto">{new Date(lastCost.timestamp).toLocaleDateString()}</span>
                 </div>
+                {/* Mobile: each element on its own line */}
+                <div className="flex sm:hidden flex-col gap-1">
+                  <div className="flex items-center gap-1.5">
+                    <Settings2 className="h-3.5 w-3.5 shrink-0" />
+                    <span>{t('journals.lastCost', 'Last intervention')}</span>
+                  </div>
+                  <div className="pl-5 flex items-center gap-1.5">
+                    <span>{t('journals.lastCostSource', 'Source')}:</span>
+                    <span>
+                      {lastCost.source === 'extraction' ? SOURCE_EMOJI.conversation : SOURCE_EMOJI.consolidation}
+                      {' '}{lastCost.source}
+                    </span>
+                  </div>
+                  <div className="pl-5">
+                    <span className="font-mono">
+                      {lastCost.tokens_in ?? 0} in / {lastCost.tokens_out ?? 0} out
+                    </span>
+                  </div>
+                  {lastCost.cost_eur != null && (
+                    <div className="pl-5">
+                      <span className="font-mono">{Number(lastCost.cost_eur).toFixed(4)} EUR</span>
+                    </div>
+                  )}
+                  <div className="pl-5">
+                    <span>{new Date(lastCost.timestamp).toLocaleDateString()}</span>
+                  </div>
+                </div>
               </div>
             )}
 
             {/* Action Buttons */}
-            <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant="outline" onClick={() => setIsCreateOpen(true)}>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button size="sm" variant="outline" className="h-9" onClick={() => setIsCreateOpen(true)}>
                 <Plus className="h-4 w-4 mr-1" />
                 {t('journals.create', 'New entry')}
               </Button>
-              <Button size="sm" variant="outline" onClick={() => handleExport('json')}>
+              <Button size="sm" variant="outline" className="h-9" onClick={() => handleExport('json')}>
                 <Download className="h-4 w-4 mr-1" />
                 {t('journals.export', 'Export')}
               </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button size="sm" variant="destructive" disabled={entryList.length === 0}>
+                  <Button size="sm" variant="destructive" className="h-9" disabled={entryList.length === 0}>
                     <Trash2 className="h-4 w-4 mr-1" />
                     {t('journals.deleteAll', 'Delete all')}
                   </Button>
@@ -510,10 +540,12 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                             className="flex items-start justify-between p-3 rounded-lg border bg-card"
                           >
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="text-xs">{MOOD_EMOJI[entry.mood] ?? ''}</span>
-                                <span className="font-medium text-sm truncate">{entry.title}</span>
-                                <Badge variant="outline" className="text-xs">
+                              <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2 mb-1">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className="text-xs">{MOOD_EMOJI[entry.mood] ?? ''}</span>
+                                  <span className="font-medium text-sm truncate">{entry.title}</span>
+                                </div>
+                                <Badge variant="outline" className="text-xs w-fit">
                                   {SOURCE_EMOJI[entry.source] ?? ''} {entry.source}
                                 </Badge>
                               </div>

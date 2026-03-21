@@ -178,6 +178,13 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         description_key="settings.admin.llmConfig.types.browser_agent",
         required_capabilities=["tools"],
     ),
+    "hue_agent": LLMTypeMetadata(
+        llm_type="hue_agent",
+        display_name="Hue Agent",
+        category=CATEGORY_DOMAIN_AGENTS,
+        description_key="settings.admin.llmConfig.types.hue_agent",
+        required_capabilities=["tools"],
+    ),
     "places_agent": LLMTypeMetadata(
         llm_type="places_agent",
         display_name="Places Agent",
@@ -541,6 +548,16 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=8000,
+    ),
+    "hue_agent": LLMAgentConfig(
+        provider="openai",
+        model="gpt-5-nano",
+        temperature=0.0,
+        top_p=1.0,
+        frequency_penalty=0.0,
+        presence_penalty=0.0,
+        max_tokens=1000,
+        reasoning_effort="minimal",
     ),
     "places_agent": LLMAgentConfig(
         provider="openai",

@@ -98,6 +98,7 @@ PromptName = Literal[
     "perplexity_agent_prompt",
     "wikipedia_agent_prompt",
     "web_search_agent_prompt",
+    "hue_agent_prompt",
     # Heartbeat autonome (proactive notifications)
     "heartbeat_decision_prompt",
     "heartbeat_message_prompt",

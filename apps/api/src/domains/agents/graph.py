@@ -30,6 +30,7 @@ from src.domains.agents.constants import (
     AGENT_EMAIL,
     AGENT_EVENT,
     AGENT_FILE,
+    AGENT_HUE,
     AGENT_PERPLEXITY,
     AGENT_PLACE,
     AGENT_ROUTE,
@@ -552,6 +553,15 @@ async def build_graph(
     )
     graph.add_node(AGENT_ROUTE, route_agent_node)
 
+    # Hue agent (Smart Home)
+    hue_agent_runnable = registry_for_wrapper.get_agent("hue_agent")
+    hue_agent_node = build_agent_wrapper(
+        agent_runnable=hue_agent_runnable,
+        agent_name="hue_agent",
+        agent_constant=AGENT_HUE,
+    )
+    graph.add_node(AGENT_HUE, hue_agent_node)
+
     # Browser agent (F7 - auto-detected, registered if Playwright available)
     _browser_registered = False
     try:
@@ -661,6 +671,8 @@ async def build_graph(
             AGENT_PERPLEXITY: AGENT_PERPLEXITY,
             AGENT_PLACE: AGENT_PLACE,
             AGENT_ROUTE: AGENT_ROUTE,  # LOT 12: Google Routes directions
+            # Smart Home agents
+            AGENT_HUE: AGENT_HUE,
             # Browser agent (F7 - conditional)
             **({AGENT_BROWSER: AGENT_BROWSER} if _browser_registered else {}),
             # Terminal

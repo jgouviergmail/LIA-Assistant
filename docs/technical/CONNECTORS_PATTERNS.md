@@ -21,7 +21,7 @@ Updated: Added new Google clients, API Key pattern, Circuit Breaker
 
 ## 🎯 Vue d'Ensemble
 
-Ce document définit les patterns obligatoires pour l'implémentation de nouveaux connecteurs basés sur le retour d'expérience de Google, Apple iCloud et Microsoft 365.
+Ce document définit les patterns obligatoires pour l'implémentation de nouveaux connecteurs basés sur le retour d'expérience de Google, Apple iCloud, Microsoft 365 et Philips Hue.
 
 **Objectifs** :
 - Cohérence architecturale entre tous les connecteurs
@@ -274,6 +274,12 @@ emails = ContactsFormatter._extract_emails(person)
 | **MicrosoftCalendarClient** | calendarView for ranges, PATCH updates |
 | **MicrosoftContactsClient** | OData pagination, search, CRUD |
 | **MicrosoftTasksClient** | @default resolution, status mapping, no subtasks |
+
+#### Hybrid Auth Clients (API Key + OAuth)
+
+| Connecteur | Key Features |
+|------------|--------------|
+| **PhilipsHueClient** | Local API key for LAN control, remote OAuth2 for cloud access, bridge discovery |
 
 #### Base Classes
 
@@ -545,6 +551,6 @@ class BaseAPIKeyClient:
 
 ---
 
-**CONNECTORS_PATTERNS.md** - Version 2.0 - Décembre 2025
+**CONNECTORS_PATTERNS.md** - Version 2.1 - Mars 2026
 
-*Guide des patterns de connecteurs - LIA*
+*Guide des patterns de connecteurs - LIA (includes Philips Hue hybrid auth pattern)*

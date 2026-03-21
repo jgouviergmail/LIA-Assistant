@@ -31,6 +31,9 @@ A **connector** is a secure gateway between LIA and your external services:
 • 🔍 **Perplexity**: AI web search
 • 🦁 **Brave Search**: web and news enrichment
 
+**Smart Home (hybrid auth):**
+• 💡 **Philips Hue**: control lights, rooms, and scenes
+
 **🔒 Security:**
 Each connector has limited permissions. LIA only accesses necessary data.
 
@@ -82,7 +85,7 @@ If you activate a new provider while another is active for the same category:
 4. You can switch back at any time
 
 **✅ Unaffected services:**
-Google Drive, Places, and Routes have no equivalent in other providers and remain always available.
+Google Drive, Places, Routes, and Philips Hue have no equivalent in other providers and remain always available.
 
 **💡 Tip:**
 You don't need to choose the same provider for everything. For example, you can use Outlook for emails, Google Calendar for your calendar, and Microsoft To Do for tasks.
@@ -174,6 +177,41 @@ No key required! Wikipedia is free and directly accessible.
 
 **🔒 Key security:**
 Your API keys are stored securely and encrypted.
+
+## How do I connect Philips Hue?
+Philips Hue uses a **hybrid authentication** (local press-link or remote OAuth2):
+
+**🏠 Local mode (recommended — same network):**
+1. Go to **Settings > Smart Home > Philips Hue**
+2. Click **Local connection**
+3. Click **Search for bridges** — LIA discovers bridges on your network
+4. Select your bridge
+5. **Press the physical button** on top of your Hue Bridge
+6. Click **Pair** within 30 seconds
+7. LIA validates connectivity and activates the connector
+
+**🌐 Remote mode (different network):**
+1. Register at developers.meethue.com
+2. Configure your Hue Remote API credentials in LIA server settings
+3. Go to **Settings > Smart Home > Philips Hue**
+4. Click **Remote connection** — redirects to Philips for OAuth2 authorization
+5. Authorize LIA — connector activates automatically
+
+**💡 What you can do:**
+• "Turn on the living room lights"
+• "Dim the bedroom to 30%"
+• "Set the kitchen light to blue"
+• "Activate the movie scene"
+• "What lights are currently on?"
+• "Turn off everything"
+
+**⚡ 6 tools available:**
+• List lights, control a light (on/off, brightness, color)
+• List rooms, control a room
+• List scenes, activate a scene
+
+**🔒 Security:**
+Your Hue application key (local mode) or OAuth tokens (remote mode) are encrypted and stored securely. Local mode uses `verify=False` for the bridge's self-signed certificate — scoped exclusively to Hue connections.
 
 ## How do I disconnect a service?
 To revoke LIA's access to a service:
