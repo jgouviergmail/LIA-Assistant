@@ -100,7 +100,7 @@ class SystemSettingsService:
 
         if setting:
             return VoiceTTSModeResponse(
-                mode=setting.value,  # type: ignore[arg-type]
+                mode=setting.value,
                 updated_by=setting.updated_by,
                 updated_at=setting.updated_at,
                 is_default=False,
@@ -189,7 +189,7 @@ class SystemSettingsService:
         )
 
         return VoiceTTSModeResponse(
-            mode=setting.value,  # type: ignore[arg-type]
+            mode=setting.value,
             updated_by=setting.updated_by,
             updated_at=setting.updated_at,
             is_default=False,

@@ -841,8 +841,7 @@ class ConnectorService:
             await test_client.test_connection()
         except Exception as e:
             raise_external_service_connection_error(
-                service_name="Philips Hue Bridge",
-                detail=f"Cannot reach bridge at {bridge_ip}: {e}",
+                service=f"Philips Hue Bridge ({bridge_ip}): {e}",
             )
 
         # 3. Encrypt credentials
@@ -984,7 +983,7 @@ class ConnectorService:
             access_token=token_response.access_token,
             refresh_token=token_response.refresh_token,
             token_type="Bearer",
-            expires_at=datetime.now(UTC) + timedelta(seconds=token_response.expires_in),
+            expires_at=datetime.now(UTC) + timedelta(seconds=token_response.expires_in or 3600),
             remote_username=remote_username,
         )
         encrypted = encrypt_data(credentials.model_dump_json())

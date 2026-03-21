@@ -201,7 +201,7 @@ class CrossDomainBypassStrategy:
             step_type=StepType.TOOL,
             agent_name=f"{intelligence.primary_domain}_agent",
             tool_name=tool_name,
-            parameters={param_name: search_value},  # type: ignore
+            parameters={param_name: search_value},
             depends_on=[],
         )
 

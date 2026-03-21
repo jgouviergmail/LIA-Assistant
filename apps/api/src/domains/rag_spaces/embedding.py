@@ -53,7 +53,7 @@ def get_rag_embeddings() -> TrackedOpenAIEmbeddings:
         _rag_embeddings = TrackedOpenAIEmbeddings(
             model=model,
             dimensions=dimensions,
-            api_key=SecretStr(_require_api_key("openai")),
+            openai_api_key=SecretStr(_require_api_key("openai")),
         )
 
         logger.info(

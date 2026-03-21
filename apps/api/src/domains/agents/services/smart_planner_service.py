@@ -1498,7 +1498,7 @@ class SmartPlannerService:
             user_id=str(configurable.get("user_id", "")),
             session_id=extract_session_id_from_config(config, required=False) or "",
             steps=steps,
-            execution_mode=execution_mode,  # type: ignore[arg-type]
+            execution_mode=execution_mode,
             metadata={
                 "smart_planner": True,
                 "intent": intelligence.immediate_intent,

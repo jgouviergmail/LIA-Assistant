@@ -98,6 +98,7 @@ ignore = [
 "scripts/**/*.py" = ["E402", "B007", "F401"]  # Scripts may have late imports and unused vars
 
 [tool.mypy]
+plugins = ["pydantic.mypy"]
 python_version = "3.12"
 warn_return_any = true
 warn_unused_configs = true

@@ -317,7 +317,7 @@ class Settings(
 @lru_cache
 def get_settings() -> Settings:
     """Get cached settings instance."""
-    return Settings()  # type: ignore[call-arg]
+    return Settings()
 
 
 # Global settings instance
