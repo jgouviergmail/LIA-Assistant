@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-03-22
+
+### Added
+
+- **Per-User Usage Limits** — New domain `src/domains/usage_limits/` enabling administrators to define per-user quotas on tokens, messages, and cost (EUR). Supports both period-based (monthly rolling cycle aligned with account creation) and global/absolute limits. Each dimension can be set to a numeric value or unlimited (null). Includes admin manual block/unblock with reason tracking. (`apps/api/src/domains/usage_limits/`)
+- **5-Layer Defense in Depth Enforcement** — Multi-layer enforcement architecture preventing any bypass: Layer 0 (HTTP 429 in chat router before SSE stream), Layer 1 (SSE error in agent service for scheduled actions), Layer 2 (centralized LLM invocation guard in `invoke_with_instrumentation()` covering all background services), Layer 3 (proactive runner skip for blocked users), Layer 4 (migration of direct `.ainvoke()` calls). Fail-open design: infrastructure failures don't block users. (`apps/api/src/domains/agents/api/router.py`, `apps/api/src/domains/agents/api/service.py`, `apps/api/src/infrastructure/llm/invoke_helpers.py`, `apps/api/src/infrastructure/proactive/runner.py`)
+- **Admin Usage Limits Dashboard** — Dedicated admin section with searchable, paginated table showing all users with period and global usage gauges (tokens, messages, cost). Inline block toggle with optimistic updates, edit modal with current consumption display per limit dimension. WebSocket endpoint for real-time gauge updates with ticket-based BFF authentication. (`apps/web/src/components/settings/AdminUsageLimitsSection.tsx`, `apps/web/src/components/settings/AdminUsageLimitsEditModal.tsx`, `apps/api/src/domains/usage_limits/websocket.py`)
+- **User Usage Limits Dashboard Tiles** — Two dashboard cards (Period Limits / Global Limits) showing color-coded progress gauges when limits are configured. Automatically hidden when all limits are unlimited. (`apps/web/src/components/usage/UsageLimitsTile.tsx`, `apps/web/src/components/usage/UsageGauge.tsx`)
+- **Chat Blocking on Limit Exceeded** — Disabled message input, voice input, and destructive alert banner when user is blocked (limit reached or manual block). HTTP 429 handling in chat stream client. SSE error handler for `usage_limit_exceeded` error code with specific toast notification. (`apps/web/src/app/[lng]/dashboard/chat/page.tsx`, `apps/web/src/lib/api/chat.ts`, `apps/web/src/lib/sse-handlers/handlers.ts`)
+- **Usage Limits Redis Caching** — 60-second TTL Redis cache on limit check results using existing `cache_get_json`/`cache_set_json` helpers. Cache invalidated after token persistence and admin updates. Stale cycle detection prevents false blocking after billing cycle rollover. (`apps/api/src/domains/usage_limits/service.py`)
+- **Usage Limits Configuration** — New `UsageLimitsSettings` config module with feature flag (`USAGE_LIMITS_ENABLED`), default limits for new users via env vars, and configurable cache TTL. Empty string env var handling via `BeforeValidator` for Pydantic-settings compatibility. (`apps/api/src/core/config/usage_limits.py`)
+- **Usage Limits Prometheus Metrics** — Two counters: `usage_limit_check_total` (by result status) and `usage_limit_enforcement_total` (by enforcement layer and limit type). (`apps/api/src/infrastructure/observability/metrics_usage_limits.py`)
+- **Usage Limits Unit Tests** — 42 unit tests covering `_compute_status` pure logic (manual block, cycle/absolute limits, warning/critical thresholds, zero limits, mixed configurations, stale cycle detection), schema validation (constraints, serialization, enum roundtrip), and `_build_limit_detail` helper. (`apps/api/tests/unit/domains/usage_limits/`)
+- **Usage Limits Documentation** — ADR-060 (architectural decision record) and technical documentation covering domain structure, enforcement layers, caching, API endpoints, configuration, and frontend integration. (`docs/architecture/ADR-060-Usage-Limits.md`, `docs/technical/USAGE_LIMITS.md`)
+- **Internationalization (6 languages)** — Complete `usage_limits` namespace with translations for all UI elements (admin section, edit modal, dashboard tiles, blocked banner, error messages) in French, English, German, Spanish, Italian, and Chinese. (`apps/web/locales/`)
+
+### Fixed
+
+- **Settings focus loss on preference change** — `refreshUser()` in AuthProvider now compares `JSON.stringify(prev)` vs response before calling `setUser()`, preventing unnecessary re-renders when user data hasn't changed. Context value memoized via `useMemo`. Eliminates focus loss in input fields across all settings tabs (Preferences, Features, Administration). (`apps/web/src/lib/auth.tsx`)
+- **Token/cost values mismatch with dashboard** — Usage limits token calculation now includes cached tokens (`cycle_prompt + cycle_completion + cycle_cached`) and cost calculation includes Google API costs (`cycle_cost_eur + cycle_google_api_cost_eur`) to match the dashboard display. (`apps/api/src/domains/usage_limits/repository.py`)
+- **Philips Hue connector 500 error** — Fixed `connector_global_config` table storing `'philips_hue'` (lowercase enum value) instead of `'PHILIPS_HUE'` (uppercase enum name) expected by SQLAlchemy `Enum(native_enum=False)`. Data corrected in DB.
+- **SQLAlchemy mapper initialization failure** — Added `import_all_models()` call in `main.py` lifespan to ensure all domain models are loaded before the first ORM query. Prevents `UserUsageLimit` forward reference resolution failure. (`apps/api/src/main.py`)
+- **Admin settings section ordering** — Reorganized administration tab sections in logical order: Users → Limits → Export → Broadcast → Connectors → LLM → Google API → LLM Config → Personalities → Skills → RAG → Voice → Debug. Renamed section titles for consistency. (`apps/web/src/app/[lng]/dashboard/settings/page.tsx`)
+
 ## [1.8.2] - 2026-03-21
 
 ### Added

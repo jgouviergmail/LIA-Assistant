@@ -32,7 +32,8 @@
     "off": "Desactivado",
     "on": "Activado",
     "enabled": "Activado",
-    "disabled": "Desactivado"
+    "disabled": "Desactivado",
+    "saving": "Guardando..."
   },
   "theme": {
     "toggle": "Cambiar tema"
@@ -912,7 +913,7 @@
         "error_update": "Error al actualizar"
       },
       "llm": {
-        "title": "Administración de modelos LLM",
+        "title": "Administración de LLM",
         "description": "Gestiona los modelos LLM y sus precios (USD por millón de tokens). Los cambios crean automáticamente un nuevo historial de precios.",
         "search_placeholder": "Buscar por nombre de modelo...",
         "add_model": "Agregar modelo",
@@ -960,7 +961,7 @@
         }
       },
       "google_api": {
-        "title": "Administración de tarifas API Google",
+        "title": "Administración de API Google",
         "description": "Gestione las tarifas de las APIs de Google Maps Platform (Places, Routes, Geocoding). Los cambios crean automáticamente un nuevo historial de precios.",
         "search_placeholder": "Buscar por API, endpoint o SKU...",
         "add_entry": "Agregar tarifa",
@@ -1240,7 +1241,7 @@
         "userAccessDisabledSuccess": "Acceso de usuarios al panel de depuración desactivado"
       },
       "ragSpaces": {
-        "title": "Espacios de conocimiento RAG",
+        "title": "Administración de RAG del sistema",
         "subtitle": "Gestionar los espacios documentales RAG y la configuración de embeddings",
         "featureStatus": "Estado de la funcionalidad",
         "embeddingModel": "Modelo de embedding",
@@ -1929,7 +1930,8 @@
       "server_error": "Error del servidor ({{status}}). Por favor, inténtelo de nuevo.",
       "service_unavailable": "El servicio no está disponible temporalmente. Por favor, inténtelo en unos momentos.",
       "session_expired": "Su sesión ha expirado. Por favor, vuelva a conectarse.",
-      "unknown_error": "Error desconocido durante el streaming"
+      "unknown_error": "Error desconocido durante el streaming",
+      "usage_limit_exceeded": "Has alcanzado tu limite de uso. Contacta a tu administrador."
     },
     "settings": {
       "title": "Se produjo un error",
@@ -2707,7 +2709,7 @@
       "heartbeat": {
         "title": "Notificaciones proactivas",
         "description": "LIA toma la iniciativa de informarle",
-        "count": "5",
+        "count": "6",
         "questions": {
           "q1": {
             "question": "¿Qué son las notificaciones proactivas?",
@@ -2728,13 +2730,17 @@
           "q5": {
             "question": "¿Cómo doy retroalimentación sobre una notificación?",
             "answer": "Su retroalimentación ayuda a LIA a mejorar:<br><br><strong>👍👎 Botones de retroalimentación:</strong><br>• Cada notificación muestra botones de <strong>pulgar arriba / pulgar abajo</strong><br>• Su retroalimentación se registra para mejorar decisiones futuras<br><br><strong>📜 Historial:</strong><br>• Consulte sus notificaciones proactivas recientes en la sección dedicada<br>• Cada entrada indica las fuentes utilizadas y el nivel de prioridad<br><br><strong>⚙️ Ajuste:</strong><br>• Si recibe demasiadas notificaciones, reduzca el máximo diario<br>• Si las notificaciones no son relevantes, desactive las fuentes no deseadas (desconecte el conector correspondiente)"
+          },
+          "q6": {
+            "question": "¿Las notificaciones proactivas se ven afectadas?",
+            "answer": "Sí, se pausan automáticamente."
           }
         }
       },
       "scheduled_actions": {
         "title": "Acciones programadas",
         "description": "Automatice tareas recurrentes con LIA",
-        "count": "5",
+        "count": "6",
         "questions": {
           "q1": {
             "question": "¿Qué es una acción programada?",
@@ -2755,6 +2761,10 @@
           "q5": {
             "question": "¿Cuántas acciones programadas puedo crear?",
             "answer": "Puede crear hasta <strong>20 acciones programadas</strong>:<br><br><strong>📊 Límites:</strong><br>• Máximo 20 acciones por usuario<br>• Cada acción puede dirigirse a uno o varios días de la semana<br>• La hora se configura al minuto<br><br><strong>⚙️ Gestión:</strong><br>• <strong>Activar/Desactivar</strong>: interruptor para pausar sin eliminar<br>• <strong>Modificar</strong>: cambie el título, la instrucción, los días o la hora<br>• <strong>Eliminar</strong>: eliminación definitiva (los resultados pasados permanecen en la conversación)"
+          },
+          "q6": {
+            "question": "¿Las acciones programadas se ven afectadas por los límites?",
+            "answer": "Sí, las acciones programadas se bloquean cuando se alcanzan los límites."
           }
         }
       },
@@ -2988,6 +2998,49 @@
           "q5": {
             "question": "¿Cómo reportar un problema o hacer una sugerencia?",
             "answer": "Varias formas de contactarnos:<br><br><strong>🐛 Reportar un error:</strong><br>• Describa el problema encontrado<br>• Indique los pasos para reproducirlo<br>• Mencione el mensaje de error si lo hay<br>• Contacte a su administrador<br><br><strong>💡 Hacer una sugerencia:</strong><br>• Las ideas de mejora son bienvenidas<br>• Describa la necesidad o funcionalidad deseada<br>• Transmita a través de su administrador<br><br><strong>📧 Soporte del administrador:</strong><br>Su administrador puede:<br>• Gestionar su cuenta<br>• Resolver problemas de conectores<br>• Transmitir solicitudes al equipo técnico<br><br><strong>💡 Antes de reportar:</strong><br>Consulte esta FAQ - ¡quizás su pregunta ya tenga respuesta!"
+          }
+        }
+      },
+      "usage_limits": {
+        "title": "Límites de uso",
+        "description": "Cuotas de tokens, mensajes y costos por usuario",
+        "count": "9",
+        "questions": {
+          "q1": {
+            "question": "¿Qué son los límites de uso?",
+            "answer": "Los límites son <strong>cuotas definidas por su administrador</strong> para controlar el consumo de recursos (tokens, mensajes, costos EUR). Pueden ser por período o globales."
+          },
+          "q2": {
+            "question": "¿Cómo se calcula el período de facturación?",
+            "answer": "Ciclo mensual rodante desde la fecha de creación de la cuenta."
+          },
+          "q3": {
+            "question": "¿Qué pasa cuando alcanzo un límite?",
+            "answer": "La entrada de mensajes y voz se desactivan. Las notificaciones proactivas y acciones programadas también se bloquean. Contacte a su administrador."
+          },
+          "q4": {
+            "question": "¿Los administradores pueden bloquear usuarios?",
+            "answer": "Sí, con efecto inmediato desde Configuración > Administración > Administración de límites."
+          },
+          "q5": {
+            "question": "¿Qué tipos de límites se pueden configurar?",
+            "answer": "3 dimensiones × 2 modos = 6 límites posibles (tokens, mensajes, costos × período/global)."
+          },
+          "q6": {
+            "question": "¿Los administradores están sujetos a límites?",
+            "answer": "Sí, pero pueden ajustar sus propios límites."
+          },
+          "q7": {
+            "question": "¿Qué pasa si no hay límites configurados?",
+            "answer": "Acceso ilimitado hasta que se configuren límites."
+          },
+          "q8": {
+            "question": "¿Dónde puedo ver mi consumo actual?",
+            "answer": "En el panel de control mediante mosaicos dedicados con código de colores."
+          },
+          "q9": {
+            "question": "¿Cómo funciona la aplicación de límites?",
+            "answer": "Arquitectura de defensa en 5 capas. Fail-open en caso de fallo de infraestructura."
           }
         }
       }
@@ -3832,6 +3885,10 @@
       "responsive": {
         "title": "PWA & Diseno responsive",
         "description": "Aplicacion Web Progresiva instalable con interfaz optimizada para escritorio, tableta y smartphone — usa LIA en cualquier lugar y dispositivo"
+      },
+      "usage_limits": {
+        "title": "Cuotas de uso",
+        "description": "Límites por usuario en tokens, mensajes y costos con monitoreo en tiempo real y 5 capas de control. Los administradores gestionan presupuestos con bloqueo/desbloqueo instantáneo."
       }
     },
     "use_cases": {
@@ -4161,7 +4218,7 @@
       "security-architecture": {
         "title": "Defensa en profundidad: Los 5 principios de seguridad de LIA",
         "excerpt": "Defensa en profundidad, mínimo privilegio, rate limiting, cifrado y validación para proteger tus datos.",
-        "body": "<h2>5 principios fundamentales</h2><p>La seguridad de LIA se basa en cinco principios aplicados a cada capa de la aplicación:</p><ul><li><strong>Defensa en profundidad</strong> — Controles multicapa (autenticación, rate limiting, validación, cifrado)</li><li><strong>Mínimo privilegio</strong> — Permisos mínimos por defecto</li><li><strong>Fallo seguro</strong> — En caso de error, el sistema deniega en lugar de autorizar</li><li><strong>No confiar en las entradas</strong> — Validación Pydantic + sanitización sistemática</li><li><strong>Seguridad por defecto</strong> — HTTPS, cookies HttpOnly/SameSite, CORS estricto</li></ul><h2>Hashing y cifrado</h2><p>Las contraseñas se hashean con <strong>bcrypt</strong> (con salt automático). Los datos sensibles (tokens OAuth, credenciales de conectores, PII, credenciales de servidores MCP) se cifran con <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256), garantizando confidencialidad e integridad. Las claves de cifrado se gestionan por separado de los datos.</p><h2>JWT y gestión de sesiones</h2><p>Los tokens JWT utilizan el algoritmo HS256 con un sistema de JTI (JWT ID) incluido en lista negra en Redis. Los tokens de un solo uso (verificación de email, restablecimiento de contraseña) se invalidan tras su primera utilización. Este mecanismo impide cualquier reutilización de tokens sensibles.</p><h2>Rate limiting configurable</h2><p>El rate limiting opera a dos niveles:</p><ul><li><strong>HTTP</strong> — Mediante nginx en upstream</li><li><strong>Herramientas</strong> — Ventana deslizante por usuario y por herramienta mediante Redis, configurable por servicio</li></ul><p>Los límites API son estrictos: 10 elementos máximo por solicitud, con valores por defecto por dominio (10 por defecto, 50 máximo).</p><h2>Protección contra la inyección de prompt</h2><p>Los contenidos externos (emails, páginas web, documentos) se encapsulan en etiquetas <code>UNTRUSTED</code> configurables antes de su inyección en los prompts. Este envoltorio explícito impide que un contenido malicioso desvíe el comportamiento del asistente separando claramente los datos del usuario de las instrucciones del sistema.</p><h2>Verificación de propiedad de recursos</h2><p>Cada acceso a un recurso pasa por <code>check_resource_ownership()</code> con un parámetro <code>hide_existence</code>: los recursos públicos devuelven 403 (acceso denegado), los recursos privados devuelven 404 (recurso inexistente) para no revelar su existencia a un atacante.</p>"
+        "body": "<h2>5 principios fundamentales</h2><p>La seguridad de LIA se basa en cinco principios aplicados a cada capa de la aplicación:</p><ul><li><strong>Defensa en profundidad</strong> — Controles multicapa (autenticación, rate limiting, validación, cifrado)</li><li><strong>Mínimo privilegio</strong> — Permisos mínimos por defecto</li><li><strong>Fallo seguro</strong> — En caso de error, el sistema deniega en lugar de autorizar</li><li><strong>No confiar en las entradas</strong> — Validación Pydantic + sanitización sistemática</li><li><strong>Seguridad por defecto</strong> — HTTPS, cookies HttpOnly/SameSite, CORS estricto</li></ul><h2>Hashing y cifrado</h2><p>Las contraseñas se hashean con <strong>bcrypt</strong> (con salt automático). Los datos sensibles (tokens OAuth, credenciales de conectores, PII, credenciales de servidores MCP) se cifran con <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256), garantizando confidencialidad e integridad. Las claves de cifrado se gestionan por separado de los datos.</p><h2>JWT y gestión de sesiones</h2><p>Los tokens JWT utilizan el algoritmo HS256 con un sistema de JTI (JWT ID) incluido en lista negra en Redis. Los tokens de un solo uso (verificación de email, restablecimiento de contraseña) se invalidan tras su primera utilización. Este mecanismo impide cualquier reutilización de tokens sensibles.</p><h2>Rate limiting configurable</h2><p>El rate limiting opera a dos niveles:</p><ul><li><strong>HTTP</strong> — Mediante nginx en upstream</li><li><strong>Herramientas</strong> — Ventana deslizante por usuario y por herramienta mediante Redis, configurable por servicio</li></ul><p>Los límites API son estrictos: 10 elementos máximo por solicitud, con valores por defecto por dominio (10 por defecto, 50 máximo).</p><h2>Protección contra la inyección de prompt</h2><p>Los contenidos externos (emails, páginas web, documentos) se encapsulan en etiquetas <code>UNTRUSTED</code> configurables antes de su inyección en los prompts. Este envoltorio explícito impide que un contenido malicioso desvíe el comportamiento del asistente separando claramente los datos del usuario de las instrucciones del sistema.</p><h2>Verificación de propiedad de recursos</h2><p>Cada acceso a un recurso pasa por <code>check_resource_ownership()</code> con un parámetro <code>hide_existence</code>: los recursos públicos devuelven 403 (acceso denegado), los recursos privados devuelven 404 (recurso inexistente) para no revelar su existencia a un atacante.</p><h2>Cuotas de uso por usuario (v1.9)</h2><p>LIA permite a los administradores definir <strong>cuotas por usuario</strong> en tokens, mensajes y costos. La aplicación utiliza una arquitectura de <strong>5 capas de defensa</strong>: verificación a nivel de router (HTTP 429), servicio (error SSE), guard de invocación LLM, skip del runner proactivo y migración de llamadas directas. En caso de fallo de infraestructura, el sistema <strong>fail-open</strong>. Un kill switch admin permite bloqueo/desbloqueo instantáneo.</p>"
       },
       "privacy-by-design": {
         "title": "Privacidad por diseño: RGPD, cifrado y control de datos",
@@ -4188,6 +4245,66 @@
         "excerpt": "LIA habla francés, inglés, alemán, español, italiano y chino con internacionalización completa.",
         "body": "<h2>6 idiomas soportados nativamente</h2><p>LIA está completamente disponible en <strong>francés, inglés, alemán, español, italiano y chino</strong>. La internacionalización no se limita a la interfaz: cubre las respuestas del asistente, las notificaciones, la FAQ y la documentación.</p><h2>Arquitectura i18n del frontend</h2><p>El frontend utiliza <strong>react-i18next</strong> con archivos JSON por idioma y persistencia de la elección mediante una cookie <code>NEXT_LOCALE</code> (TTL 1 año). El routing de Next.js utiliza un segmento dinámico <code>[lng]</code> para servir cada idioma en su URL dedicada. Las banderas de idioma se muestran como emojis Unicode. El mapeo de locale asocia cada código corto a su variante completa (fr-FR, en-US, de-DE, es-ES, it-IT, zh-CN). Las páginas se pre-generan estáticamente para cada idioma en el build.</p><h2>Hreflang y SEO multilingüe</h2><p>Cada página pública declara etiquetas <code>hreflang</code> alternativas para los 6 idiomas, con un valor <code>x-default</code> que apunta al francés. El sitemap XML incluye los alternates multilingües para cada URL.</p><h2>Respuestas IA multilingües</h2><p>El asistente responde en el idioma configurado por el usuario. Los idiomas soportados son configurables en el backend mediante la variable de entorno <code>SUPPORTED_LANGUAGES</code>. Los prompts del sistema están redactados en inglés para maximizar la calidad del razonamiento del LLM, pero una instrucción de idioma explícita guía la generación de respuestas en el idioma objetivo. Tres prompts están específicamente adaptados por idioma: <code>journal_introspection_personality_addon</code>, <code>memory_extraction_personality_addon</code> y <code>broadcast_translation_prompt</code>.</p><h2>Reconocimiento vocal multilingüe</h2><p>El modelo Whisper utilizado para la transcripción vocal soporta nativamente 99+ idiomas en modo offline, lo que permite hablar con LIA en prácticamente todos los idiomas del mundo sin configuración adicional ni dependencia de un servicio en la nube.</p>"
       }
+    }
+  },
+  "usage_limits": {
+    "title": "Administración de límites",
+    "description": "Configurar límites de uso por usuario",
+    "search_placeholder": "Buscar por email o nombre...",
+    "unlimited": "Ilimitado",
+    "mode": {
+      "period": "Por período",
+      "absolute": "Global"
+    },
+    "table": {
+      "email": "Email",
+      "name": "Nombre",
+      "status": "Estado",
+      "tokens": "Tokens",
+      "messages": "Mensajes",
+      "cost": "Coste (EUR)",
+      "blocked": "Bloqueado",
+      "actions": "Acciones",
+      "edit": "Editar",
+      "block": "Bloquear",
+      "unblock": "Desbloquear",
+      "no_results": "No se encontraron usuarios",
+      "page_info": "Página {{page}} de {{totalPages}} ({{total}} usuarios)"
+    },
+    "edit": {
+      "title": "Límites para {{email}}",
+      "description": "Configurar límites de uso para este usuario",
+      "cycle_limits": "Límites por período",
+      "absolute_limits": "Límites globales",
+      "token_limit": "Límite de tokens",
+      "message_limit": "Límite de mensajes",
+      "cost_limit": "Límite de coste (EUR)",
+      "block_section": "Bloqueo manual",
+      "block_user": "Bloquear usuario",
+      "block_reason_placeholder": "Razón del bloqueo (opcional)...",
+      "save": "Guardar",
+      "cancel": "Cancelar",
+      "success": "Límites actualizados",
+      "error": "Error al actualizar",
+      "default_block_reason": "Bloqueado por el administrador",
+      "current_usage": "Consumo actual"
+    },
+    "blocked": {
+      "title": "Límite alcanzado",
+      "message": "Has alcanzado tu límite de uso. Contacta a tu administrador.",
+      "tooltip": "Límite de uso alcanzado"
+    },
+    "error": {
+      "loading": "Error al cargar los límites",
+      "limit_exceeded": "Tu límite de uso ha sido superado. Mensaje no enviado."
+    },
+    "tile": {
+      "title": "Tus Límites",
+      "messages": "Mensajes",
+      "tokens": "Tokens",
+      "cost": "Coste",
+      "title_period": "Límites período",
+      "title_absolute": "Límites globales"
     }
   }
 }

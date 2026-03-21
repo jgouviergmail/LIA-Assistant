@@ -94,3 +94,6 @@ Your feedback helps LIA improve:
 **⚙️ Adjustment:**
 • If you receive too many notifications, reduce the daily maximum
 • If notifications aren't relevant, disable unwanted sources (disconnect the corresponding connector)
+
+## Are proactive notifications affected by usage limits?
+Yes. If your administrator has set usage limits and you have reached any of your quotas (tokens, messages, or cost), proactive notifications are automatically paused until your limits are reset (next billing period) or adjusted by your administrator. This ensures that background LLM usage doesn't exceed your allocated budget.

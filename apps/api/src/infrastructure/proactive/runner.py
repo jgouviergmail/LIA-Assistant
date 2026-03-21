@@ -35,6 +35,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.config import settings
 from src.core.constants import DEFAULT_LANGUAGE
 from src.infrastructure.cache.pricing_cache import get_cached_cost_usd_eur
 from src.infrastructure.observability.logging import get_logger
@@ -304,6 +305,27 @@ class ProactiveTaskRunner:
         """
         now = datetime.now(UTC)
         user_settings = self._extract_user_settings(user)
+
+        # 0. Usage limit check (Layer 3)
+        if getattr(settings, "usage_limits_enabled", False):
+            from src.domains.usage_limits.service import UsageLimitService
+            from src.infrastructure.observability.metrics_usage_limits import (
+                usage_limit_enforcement_total,
+            )
+
+            _limit_check = await UsageLimitService.check_user_allowed(user.id)
+            if not _limit_check.allowed:
+                usage_limit_enforcement_total.labels(
+                    layer="proactive", limit_type=_limit_check.exceeded_limit or "unknown"
+                ).inc()
+                logger.info(
+                    "proactive_user_usage_blocked",
+                    task_type=self.task.task_type,
+                    user_id=str(user.id),
+                    limit=_limit_check.exceeded_limit,
+                )
+                stats.record_skip("usage_limit_exceeded")
+                return False
 
         # 1. Common eligibility checks
         if self.eligibility_checker:

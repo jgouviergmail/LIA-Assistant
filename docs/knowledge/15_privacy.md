@@ -125,3 +125,19 @@ Understand the **data flow**:
 
 **💡 General principle:**
 LIA transmits the minimum information necessary to each service. Your personal data is never shared unnecessarily.
+
+## How does LIA enforce usage limits securely?
+Usage limits are enforced via a **5-layer defense-in-depth** architecture:
+
+**🛡️ Enforcement layers:**
+1. **Router** — HTTP 429 before SSE stream starts (chat messages)
+2. **Service** — SSE error for scheduled actions
+3. **LLM Guard** — Centralized check in `invoke_with_instrumentation()` covering all background services
+4. **Proactive Runner** — Skip blocked users for notifications
+5. **Direct call migration** — Legacy `.ainvoke()` calls migrated to guarded path
+
+**⚡ Fail-open design:**
+If Redis or the database is temporarily unavailable, the system allows the request through. Usage limits are a cost control mechanism, not a security boundary — blocking users due to infrastructure issues would be worse than allowing a few extra requests.
+
+**🔒 Admin controls:**
+Administrators can manually block any user instantly with a reason, and unblock them with immediate effect.

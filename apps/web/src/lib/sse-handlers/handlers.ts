@@ -5,6 +5,7 @@
  * Each handler processes a specific SSE chunk type from the chat stream.
  */
 
+import { toast } from 'sonner';
 import { logger } from '@/lib/logger';
 import { generateFallbackHitlQuestion } from '@/lib/hitl-utils';
 import { generateUUID } from '@/lib/utils';
@@ -615,12 +616,20 @@ export function handleVoiceError(chunk: ChatStreamChunk, context: SSEHandlerCont
  */
 export function handleError(chunk: ChatStreamChunk, context: SSEHandlerContext): void {
   const { dispatch, withContext } = context;
+  const metadata = chunk.metadata as Record<string, unknown> | null;
+  const errorCode = metadata?.error_code as string | undefined;
+
+  // Usage limit exceeded — show specific toast (from Layer 1/2 enforcement)
+  if (errorCode === 'usage_limit_exceeded') {
+    toast.error(chunk.content || 'Usage limit exceeded');
+  }
 
   logger.error(
     'chat_stream_error',
     new Error(chunk.content),
     withContext({
       component: 'useChat',
+      error_code: errorCode,
     })
   );
 

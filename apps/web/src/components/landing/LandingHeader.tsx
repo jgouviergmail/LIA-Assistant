@@ -50,7 +50,9 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
       { rootMargin: '-20% 0px -70% 0px' }
     );
 
-    const sections = NAV_SECTIONS.filter(s => !('href' in s)).map(({ id }) => document.getElementById(id)).filter(Boolean);
+    const sections = NAV_SECTIONS.filter(s => !('href' in s))
+      .map(({ id }) => document.getElementById(id))
+      .filter(Boolean);
     sections.forEach(el => observer.observe(el!));
 
     window.addEventListener('scroll', handleScroll, { passive: true });
@@ -99,7 +101,7 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
           {/* Desktop nav */}
           <div className="hidden mobile:flex items-center gap-1">
             {NAV_SECTIONS.map(({ id, key, ...rest }) => {
-              const href = 'href' in rest ? rest.href as string : undefined;
+              const href = 'href' in rest ? (rest.href as string) : undefined;
               if (href) {
                 return (
                   <Link
@@ -164,7 +166,7 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
         {mobileOpen && (
           <div className="mobile:hidden border-t border-border/50 py-4 space-y-1">
             {NAV_SECTIONS.map(({ id, key, ...rest }) => {
-              const href = 'href' in rest ? rest.href as string : undefined;
+              const href = 'href' in rest ? (rest.href as string) : undefined;
               if (href) {
                 return (
                   <Link

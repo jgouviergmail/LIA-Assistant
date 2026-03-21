@@ -461,12 +461,16 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
       const updatedCurrent = state.currentDebugMetrics
         ? { ...state.currentDebugMetrics, ...update }
         : null;
-      const updatedHistory = state.debugMetricsHistory.length > 0
-        ? [
-            { ...state.debugMetricsHistory[0], metrics: { ...state.debugMetricsHistory[0].metrics, ...update } },
-            ...state.debugMetricsHistory.slice(1),
-          ]
-        : [];
+      const updatedHistory =
+        state.debugMetricsHistory.length > 0
+          ? [
+              {
+                ...state.debugMetricsHistory[0],
+                metrics: { ...state.debugMetricsHistory[0].metrics, ...update },
+              },
+              ...state.debugMetricsHistory.slice(1),
+            ]
+          : [];
       return {
         ...state,
         currentDebugMetrics: updatedCurrent,

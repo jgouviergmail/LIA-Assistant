@@ -108,6 +108,19 @@ FIELD_CORRELATION_PARENT_ID = "_correlation_parent_id"  # System param for FOR_E
 FIELD_CORRELATED_TO = "correlated_to"  # RegistryItemMeta field linking child to parent
 
 # ============================================================
+# USAGE LIMITS (per-user quotas)
+# ============================================================
+FIELD_TOKEN_LIMIT_PER_CYCLE = "token_limit_per_cycle"
+FIELD_MESSAGE_LIMIT_PER_CYCLE = "message_limit_per_cycle"
+FIELD_COST_LIMIT_PER_CYCLE = "cost_limit_per_cycle"
+FIELD_TOKEN_LIMIT_ABSOLUTE = "token_limit_absolute"
+FIELD_MESSAGE_LIMIT_ABSOLUTE = "message_limit_absolute"
+FIELD_COST_LIMIT_ABSOLUTE = "cost_limit_absolute"
+FIELD_IS_USAGE_BLOCKED = "is_usage_blocked"
+FIELD_BLOCKED_REASON = "blocked_reason"
+FIELD_USAGE_LIMIT_STATUS = "usage_limit_status"
+
+# ============================================================
 # FIELD GROUPS (for validation, serialization)
 # ============================================================
 
@@ -261,6 +274,16 @@ __all__ = [
     "TOKEN_FIELDS",
     "GOOGLE_API_FIELDS",
     "TIMESTAMP_FIELDS",
+    # Usage Limits
+    "FIELD_TOKEN_LIMIT_PER_CYCLE",
+    "FIELD_MESSAGE_LIMIT_PER_CYCLE",
+    "FIELD_COST_LIMIT_PER_CYCLE",
+    "FIELD_TOKEN_LIMIT_ABSOLUTE",
+    "FIELD_MESSAGE_LIMIT_ABSOLUTE",
+    "FIELD_COST_LIMIT_ABSOLUTE",
+    "FIELD_IS_USAGE_BLOCKED",
+    "FIELD_BLOCKED_REASON",
+    "FIELD_USAGE_LIMIT_STATUS",
     # Helpers
     "is_identity_field",
     "is_token_field",

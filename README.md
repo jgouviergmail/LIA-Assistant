@@ -35,7 +35,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.8.2</strong> — Scheduler Leader Election Resilience, Journal Consolidation Fix — March 2026
+  <strong>Version 1.9.0</strong> — Per-User Usage Limits, Admin Quotas Management — March 2026
 </p>
 
 ---
@@ -267,6 +267,7 @@ ExecutionStep(
 - **BFF Pattern**: HTTP-only cookies, Redis session with 24h TTL
 - **Encryption**: Fernet (credentials), bcrypt (passwords)
 - **GDPR**: Automatic PII filtering, pseudonymization
+- **Per-User Usage Limits**: Token, message, and cost quotas (period/global) with 5-layer defense-in-depth enforcement, admin kill switch, real-time dashboard with WebSocket gauges. Feature flag: `USAGE_LIMITS_ENABLED=true`
 
 ### MCP (Model Context Protocol)
 
@@ -392,6 +393,7 @@ A web-based administration panel covering every operational aspect:
 | **Voice Settings** | TTS mode selection (Standard/HD), provider configuration |
 | **Broadcasting** | Send system-wide notifications to all users or targeted groups |
 | **Debug Settings** | Toggle debug panel visibility, configure diagnostic verbosity per user |
+| **Usage Limits** | Per-user token/message/cost quotas (period + global), real-time gauges, manual block/unblock, WebSocket live updates |
 | **Consumption Export** | CSV export of token usage, Google API usage, and aggregated consumption per user/period |
 
 ### Real-Time Debug Panel

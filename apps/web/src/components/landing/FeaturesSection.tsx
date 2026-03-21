@@ -28,6 +28,7 @@ import {
   HelpCircle,
   BookOpen,
   Lightbulb,
+  Gauge,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -102,6 +103,7 @@ const FUNCTIONAL_FEATURES: FeatureItem[] = [
 // Responsible & simple
 const RESPONSIBLE_FEATURES: FeatureItem[] = [
   { key: 'control', icon: ShieldCheck },
+  { key: 'usage_limits', icon: Gauge },
   { key: 'privacy', icon: Lock },
   { key: 'responsive', icon: Smartphone },
   { key: 'simplicity', icon: MousePointerClick },

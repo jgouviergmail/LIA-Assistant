@@ -1559,6 +1559,25 @@ def reset_rate_limits(tool_name: str | None = None, user_id: str | None = None) 
             logger.info("rate_limit_reset", tool_name=tool_name, user_id_preview=str(user_id)[:8])
 ```
 
+### 3. Per-User Usage Limits Enforcement (v1.9.0)
+
+5-layer defense-in-depth enforcement for per-user token, message, and cost quotas:
+
+| Layer | Location | Mechanism | Scope |
+|-------|----------|-----------|-------|
+| 0 | Chat Router | HTTP 429 before SSE stream | User chat messages |
+| 1 | Agent Service | SSE error chunk | Scheduled actions |
+| 2 | `invoke_with_instrumentation()` | Exception before LLM call | All background services |
+| 3 | Proactive Runner | Skip user | Heartbeat, interests, journals |
+| 4 | Direct `.ainvoke()` migration | Via Layer 2 | Reminders, voice |
+
+- **Fail-open**: Redis/DB failure → user allowed (cost control, not security)
+- **Cache**: Redis 60s TTL, invalidated after token persistence and admin updates
+- **Admin kill switch**: `is_usage_blocked` flag with immediate effect
+- **Auth**: User endpoint via `get_current_active_session`, admin endpoints via `get_current_superuser_session`
+
+See: [ADR-060](../architecture/ADR-060-Usage-Limits.md), [USAGE_LIMITS.md](USAGE_LIMITS.md)
+
 ---
 
 ## Middleware de sécurité

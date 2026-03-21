@@ -61,9 +61,7 @@ export function HueBridgePairingForm({
           >
             <Wifi className="h-5 w-5 text-yellow-500" />
             <div>
-              <div className="text-sm font-medium">
-                {t('settings.connectors.hue.mode_local')}
-              </div>
+              <div className="text-sm font-medium">{t('settings.connectors.hue.mode_local')}</div>
               <div className="text-xs text-gray-500">
                 {t('settings.connectors.hue.mode_local_desc')}
               </div>
@@ -78,9 +76,7 @@ export function HueBridgePairingForm({
           >
             <Radio className="h-5 w-5 text-blue-500" />
             <div>
-              <div className="text-sm font-medium">
-                {t('settings.connectors.hue.mode_remote')}
-              </div>
+              <div className="text-sm font-medium">{t('settings.connectors.hue.mode_remote')}</div>
               <div className="text-xs text-gray-500">
                 {t('settings.connectors.hue.mode_remote_desc')}
               </div>
@@ -96,7 +92,7 @@ export function HueBridgePairingForm({
             {t('settings.connectors.hue.select_bridge')}
           </h4>
 
-          {bridges.map((bridge) => (
+          {bridges.map(bridge => (
             <button
               key={bridge.id}
               onClick={() => setSelectedBridge(bridge.internalipaddress)}

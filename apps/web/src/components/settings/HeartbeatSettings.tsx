@@ -1,7 +1,17 @@
 'use client';
 
 import { useMemo } from 'react';
-import { Bell, BookOpen, Calendar, Clock, CloudSun, Brain, Mail, Sparkles, ListChecks } from 'lucide-react';
+import {
+  Bell,
+  BookOpen,
+  Calendar,
+  Clock,
+  CloudSun,
+  Brain,
+  Mail,
+  Sparkles,
+  ListChecks,
+} from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import {
@@ -226,26 +236,34 @@ export function HeartbeatSettings({ lng, collapsible = true }: BaseSettingsProps
           <div className="space-y-2">
             <Label className="text-sm">{t('heartbeat.available_sources')}</Label>
             <div className="flex flex-wrap gap-2">
-              {(['calendar', 'emails', 'tasks', 'weather', 'interests', 'memories', 'journals'] as const).map(
-                source => {
-                  const isConnected = settings.available_sources.includes(source);
-                  const Icon = SOURCE_ICONS[source] || Brain;
-                  return (
-                    <div
-                      key={source}
-                      className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
-                        isConnected
-                          ? 'bg-primary/10 text-primary'
-                          : 'bg-muted text-muted-foreground opacity-50'
-                      }`}
-                    >
-                      <Icon className="h-3.5 w-3.5" />
-                      <span>{t(`heartbeat.source_${source}`)}</span>
-                      {isConnected && <span className="h-1.5 w-1.5 rounded-full bg-green-500" />}
-                    </div>
-                  );
-                }
-              )}
+              {(
+                [
+                  'calendar',
+                  'emails',
+                  'tasks',
+                  'weather',
+                  'interests',
+                  'memories',
+                  'journals',
+                ] as const
+              ).map(source => {
+                const isConnected = settings.available_sources.includes(source);
+                const Icon = SOURCE_ICONS[source] || Brain;
+                return (
+                  <div
+                    key={source}
+                    className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                      isConnected
+                        ? 'bg-primary/10 text-primary'
+                        : 'bg-muted text-muted-foreground opacity-50'
+                    }`}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    <span>{t(`heartbeat.source_${source}`)}</span>
+                    {isConnected && <span className="h-1.5 w-1.5 rounded-full bg-green-500" />}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>

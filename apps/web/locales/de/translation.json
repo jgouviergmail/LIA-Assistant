@@ -32,7 +32,8 @@
     "off": "Aus",
     "on": "An",
     "enabled": "Aktiviert",
-    "disabled": "Deaktiviert"
+    "disabled": "Deaktiviert",
+    "saving": "Speichern..."
   },
   "theme": {
     "toggle": "Thema wechseln"
@@ -912,7 +913,7 @@
         "error_update": "Aktualisierungsfehler"
       },
       "llm": {
-        "title": "LLM-Modellverwaltung",
+        "title": "LLM-Verwaltung",
         "description": "Verwalten Sie LLM-Modelle und deren Preise (USD pro Million Tokens). Änderungen erstellen automatisch eine neue Preishistorie.",
         "search_placeholder": "Nach Modellname suchen...",
         "add_model": "Modell hinzufügen",
@@ -960,7 +961,7 @@
         }
       },
       "google_api": {
-        "title": "Google API Preisverwaltung",
+        "title": "Google-API-Verwaltung",
         "description": "Verwalten Sie die Preise der Google Maps Platform APIs (Places, Routes, Geocoding). Änderungen erstellen automatisch einen neuen Preisverlauf.",
         "search_placeholder": "Nach API, Endpoint oder SKU suchen...",
         "add_entry": "Preis hinzufügen",
@@ -1240,7 +1241,7 @@
         "userAccessDisabledSuccess": "Debug-Panel-Zugriff für Benutzer deaktiviert"
       },
       "ragSpaces": {
-        "title": "RAG-Wissensräume",
+        "title": "System-RAG-Verwaltung",
         "subtitle": "RAG-Dokumenträume und Embedding-Konfiguration verwalten",
         "featureStatus": "Funktionsstatus",
         "embeddingModel": "Embedding-Modell",
@@ -1929,7 +1930,8 @@
       "server_error": "Serverfehler ({{status}}). Bitte versuchen Sie es erneut.",
       "service_unavailable": "Der Dienst ist vorübergehend nicht verfügbar. Bitte versuchen Sie es in einigen Augenblicken erneut.",
       "session_expired": "Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.",
-      "unknown_error": "Unbekannter Fehler beim Streaming"
+      "unknown_error": "Unbekannter Fehler beim Streaming",
+      "usage_limit_exceeded": "Sie haben Ihr Nutzungslimit erreicht. Kontaktieren Sie Ihren Administrator."
     },
     "settings": {
       "title": "Ein Fehler ist aufgetreten",
@@ -2707,7 +2709,7 @@
       "heartbeat": {
         "title": "Proaktive Benachrichtigungen",
         "description": "LIA ergreift die Initiative, Sie zu informieren",
-        "count": "5",
+        "count": "6",
         "questions": {
           "q1": {
             "question": "Was sind proaktive Benachrichtigungen?",
@@ -2728,13 +2730,17 @@
           "q5": {
             "question": "Wie gebe ich Feedback zu einer Benachrichtigung?",
             "answer": "Ihr Feedback hilft LIA, sich zu verbessern:<br><br><strong>👍👎 Feedback-Buttons:</strong><br>• Jede Benachrichtigung zeigt <strong>Daumen hoch / Daumen runter</strong> Buttons<br>• Ihr Feedback wird aufgezeichnet, um zukünftige Entscheidungen zu verbessern<br><br><strong>📜 Verlauf:</strong><br>• Sehen Sie Ihre letzten proaktiven Benachrichtigungen im dedizierten Bereich<br>• Jeder Eintrag zeigt die verwendeten Quellen und die Prioritätsstufe<br><br><strong>⚙️ Anpassung:</strong><br>• Wenn Sie zu viele Benachrichtigungen erhalten, reduzieren Sie das Tagesmaximum<br>• Wenn Benachrichtigungen nicht relevant sind, deaktivieren Sie unerwünschte Quellen (entsprechenden Connector trennen)"
+          },
+          "q6": {
+            "question": "Sind proaktive Benachrichtigungen von Nutzungslimits betroffen?",
+            "answer": "Ja, sie werden automatisch pausiert."
           }
         }
       },
       "scheduled_actions": {
         "title": "Geplante Aktionen",
         "description": "Automatisieren Sie wiederkehrende Aufgaben mit LIA",
-        "count": "5",
+        "count": "6",
         "questions": {
           "q1": {
             "question": "Was ist eine geplante Aktion?",
@@ -2755,6 +2761,10 @@
           "q5": {
             "question": "Wie viele geplante Aktionen kann ich erstellen?",
             "answer": "Sie können bis zu <strong>20 geplante Aktionen</strong> erstellen:<br><br><strong>📊 Limits:</strong><br>• Maximal 20 Aktionen pro Benutzer<br>• Jede Aktion kann auf einen oder mehrere Wochentage zielen<br>• Die Uhrzeit wird auf die Minute genau konfiguriert<br><br><strong>⚙️ Verwaltung:</strong><br>• <strong>Aktivieren/Deaktivieren</strong>: Inline-Schalter zum Pausieren ohne Löschen<br>• <strong>Bearbeiten</strong>: Titel, Anweisung, Tage oder Uhrzeit ändern<br>• <strong>Löschen</strong>: endgültige Löschung (vergangene Ergebnisse bleiben in der Konversation)"
+          },
+          "q6": {
+            "question": "Sind geplante Aktionen von Nutzungslimits betroffen?",
+            "answer": "Ja, geplante Aktionen werden blockiert wenn Limits erreicht sind."
           }
         }
       },
@@ -2903,13 +2913,34 @@
         "description": "Persönliche Logbücher des Assistenten für Reflexionen und Erkenntnisse",
         "count": "7",
         "questions": {
-          "q1": { "question": "Was sind persönliche Tagebücher?", "answer": "<p>Persönliche Tagebücher sind thematische Notizbücher, in denen der KI-Assistent seine eigenen Reflexionen, Beobachtungen, Analysen und Erkenntnisse festhält. Im Gegensatz zu Benutzer-Erinnerungen (Fakten über Sie) enthalten die Tagebücher die <strong>eigene Perspektive des Assistenten</strong> — in der ersten Person geschrieben, geprägt von seiner aktiven Persönlichkeit.</p><p><strong>4 Themen:</strong> Selbstreflexion, Benutzerbeobachtungen, Ideen und Analysen, Erkenntnisse.</p>" },
-          "q2": { "question": "Wann schreibt der Assistent in seine Tagebücher?", "answer": "<p><strong>Zwei Mechanismen:</strong></p><ul><li><strong>Nach Gesprächen:</strong> Nach Unterhaltungen (4+ Nachrichten) kann der Assistent eine Reflexion verfassen. Die meisten Gespräche erzeugen keinen Eintrag — er ist selektiv.</li><li><strong>Periodische Konsolidierung:</strong> Alle paar Stunden überprüft der Assistent alle Notizen — fasst zusammen, vereinigt oder entfernt veraltete Einträge.</li></ul>" },
-          "q3": { "question": "Wie beeinflussen Tagebücher die Antworten?", "answer": "<p>Tagebucheinträge werden über <strong>semantische Suche</strong> in die Prompts injiziert. Zwei unterschiedliche Injektionen: Der <strong>Antwort-Prompt</strong> erhält Einträge, die zum Gesprächston passen, und der <strong>Planungs-Prompt</strong> erhält Einträge zu Benutzerzielen und Erkenntnissen. Der Assistent entscheidet, welche Notizen relevant sind.</p>" },
-          "q4": { "question": "Kann ich die Tagebücher des Assistenten lesen und bearbeiten?", "answer": "<p>Ja! Unter <strong>Einstellungen > Funktionen > Persönliche Tagebücher</strong> können Sie Einträge lesen, bearbeiten, löschen und sogar erstellen. Ihre Ergänzungen sind transparent — der Assistent kann keinen Unterschied erkennen. So können Sie Verzerrungen korrigieren oder den Assistenten lenken.</p>" },
-          "q5": { "question": "Welche Einstellungen kann ich konfigurieren?", "answer": "<p><strong>Schalter:</strong> Tagebücher, Konsolidierung und Gesprächsverlaufsanalyse aktivieren/deaktivieren (mit Kostenwarnung).</p><p><strong>Numerische Einstellungen:</strong> Maximale Tagebuchgröße (Standard 40.000 Zeichen), Prompt-Injektionsbudget (1.500 Zeichen), maximale Eintragsgröße (2.000 Zeichen), maximale Suchergebnisse (10).</p>" },
-          "q6": { "question": "Wie viel kostet es?", "answer": "<p>Tagebuchoperationen verwenden LLM-Aufrufe im Hintergrund. Extraktion: ein Aufruf pro qualifizierendem Gespräch (die meisten liefern nichts). Konsolidierung: ein Aufruf alle 4-12 Stunden pro Benutzer. LLM-Modelle konfigurierbar unter <strong>Administration > LLM-Konfiguration</strong>. Tatsächliche Kosten in den Einstellungen sichtbar.</p>" },
-          "q7": { "question": "Wie steht es um den Datenschutz?", "answer": "<p>Tagebuchdaten sind benutzerbezogen und isoliert. Alle Daten können exportiert (JSON/CSV) oder gelöscht werden (DSGVO). Bei Deaktivierung werden die Daten aufbewahrt, aber nicht verwendet. Der Assistent schreibt in Ihrer konfigurierten Sprache.</p>" }
+          "q1": {
+            "question": "Was sind persönliche Tagebücher?",
+            "answer": "<p>Persönliche Tagebücher sind thematische Notizbücher, in denen der KI-Assistent seine eigenen Reflexionen, Beobachtungen, Analysen und Erkenntnisse festhält. Im Gegensatz zu Benutzer-Erinnerungen (Fakten über Sie) enthalten die Tagebücher die <strong>eigene Perspektive des Assistenten</strong> — in der ersten Person geschrieben, geprägt von seiner aktiven Persönlichkeit.</p><p><strong>4 Themen:</strong> Selbstreflexion, Benutzerbeobachtungen, Ideen und Analysen, Erkenntnisse.</p>"
+          },
+          "q2": {
+            "question": "Wann schreibt der Assistent in seine Tagebücher?",
+            "answer": "<p><strong>Zwei Mechanismen:</strong></p><ul><li><strong>Nach Gesprächen:</strong> Nach Unterhaltungen (4+ Nachrichten) kann der Assistent eine Reflexion verfassen. Die meisten Gespräche erzeugen keinen Eintrag — er ist selektiv.</li><li><strong>Periodische Konsolidierung:</strong> Alle paar Stunden überprüft der Assistent alle Notizen — fasst zusammen, vereinigt oder entfernt veraltete Einträge.</li></ul>"
+          },
+          "q3": {
+            "question": "Wie beeinflussen Tagebücher die Antworten?",
+            "answer": "<p>Tagebucheinträge werden über <strong>semantische Suche</strong> in die Prompts injiziert. Zwei unterschiedliche Injektionen: Der <strong>Antwort-Prompt</strong> erhält Einträge, die zum Gesprächston passen, und der <strong>Planungs-Prompt</strong> erhält Einträge zu Benutzerzielen und Erkenntnissen. Der Assistent entscheidet, welche Notizen relevant sind.</p>"
+          },
+          "q4": {
+            "question": "Kann ich die Tagebücher des Assistenten lesen und bearbeiten?",
+            "answer": "<p>Ja! Unter <strong>Einstellungen > Funktionen > Persönliche Tagebücher</strong> können Sie Einträge lesen, bearbeiten, löschen und sogar erstellen. Ihre Ergänzungen sind transparent — der Assistent kann keinen Unterschied erkennen. So können Sie Verzerrungen korrigieren oder den Assistenten lenken.</p>"
+          },
+          "q5": {
+            "question": "Welche Einstellungen kann ich konfigurieren?",
+            "answer": "<p><strong>Schalter:</strong> Tagebücher, Konsolidierung und Gesprächsverlaufsanalyse aktivieren/deaktivieren (mit Kostenwarnung).</p><p><strong>Numerische Einstellungen:</strong> Maximale Tagebuchgröße (Standard 40.000 Zeichen), Prompt-Injektionsbudget (1.500 Zeichen), maximale Eintragsgröße (2.000 Zeichen), maximale Suchergebnisse (10).</p>"
+          },
+          "q6": {
+            "question": "Wie viel kostet es?",
+            "answer": "<p>Tagebuchoperationen verwenden LLM-Aufrufe im Hintergrund. Extraktion: ein Aufruf pro qualifizierendem Gespräch (die meisten liefern nichts). Konsolidierung: ein Aufruf alle 4-12 Stunden pro Benutzer. LLM-Modelle konfigurierbar unter <strong>Administration > LLM-Konfiguration</strong>. Tatsächliche Kosten in den Einstellungen sichtbar.</p>"
+          },
+          "q7": {
+            "question": "Wie steht es um den Datenschutz?",
+            "answer": "<p>Tagebuchdaten sind benutzerbezogen und isoliert. Alle Daten können exportiert (JSON/CSV) oder gelöscht werden (DSGVO). Bei Deaktivierung werden die Daten aufbewahrt, aber nicht verwendet. Der Assistent schreibt in Ihrer konfigurierten Sprache.</p>"
+          }
         }
       },
       "privacy": {
@@ -2967,6 +2998,49 @@
           "q5": {
             "question": "Wie melde ich ein Problem oder mache einen Vorschlag?",
             "answer": "Mehrere Möglichkeiten, uns zu kontaktieren:<br><br><strong>🐛 Fehler melden:</strong><br>• Beschreiben Sie das aufgetretene Problem<br>• Geben Sie die Schritte zur Reproduktion an<br>• Nennen Sie eine eventuelle Fehlermeldung<br>• Kontaktieren Sie Ihren Administrator<br><br><strong>💡 Vorschlag machen:</strong><br>• Verbesserungsideen sind willkommen<br>• Beschreiben Sie den Bedarf oder die gewünschte Funktion<br>• Übermitteln Sie über Ihren Administrator<br><br><strong>📧 Administrator-Support:</strong><br>Ihr Administrator kann:<br>• Ihr Konto verwalten<br>• Konnektor-Probleme lösen<br>• Anfragen an das technische Team weiterleiten<br><br><strong>💡 Vor dem Melden:</strong><br>Prüfen Sie diese FAQ - vielleicht ist Ihre Frage bereits beantwortet!"
+          }
+        }
+      },
+      "usage_limits": {
+        "title": "Nutzungslimits",
+        "description": "Pro-Benutzer-Token-, Nachrichten- und Kostenkontingente",
+        "count": "9",
+        "questions": {
+          "q1": {
+            "question": "Was sind Nutzungslimits?",
+            "answer": "Nutzungslimits sind <strong>von Ihrem Administrator festgelegte Kontingente</strong> zur Kontrolle des Ressourcenverbrauchs:<br><br>• <strong>Tokens</strong> — Datenvolumen<br>• <strong>Nachrichten</strong> — Anzahl gesendeter Nachrichten<br>• <strong>Kosten (EUR)</strong> — kombinierte LLM + Google API Kosten<br><br>Jede Dimension kann pro Zeitraum oder global festgelegt werden."
+          },
+          "q2": {
+            "question": "Wie wird der Abrechnungszeitraum berechnet?",
+            "answer": "Monatlicher rollierender Zyklus ab Kontoerstellung."
+          },
+          "q3": {
+            "question": "Was passiert, wenn ich ein Limit erreiche?",
+            "answer": "Nachrichteneingabe und Sprache werden deaktiviert. Proaktive Benachrichtigungen und geplante Aktionen werden ebenfalls blockiert. Kontaktieren Sie Ihren Administrator."
+          },
+          "q4": {
+            "question": "Können Administratoren Benutzer manuell sperren?",
+            "answer": "Ja, mit sofortiger Wirkung über Einstellungen > Administration > Limitverwaltung."
+          },
+          "q5": {
+            "question": "Welche Arten von Limits können festgelegt werden?",
+            "answer": "3 Dimensionen × 2 Modi = 6 mögliche Limits (Tokens, Nachrichten, Kosten × Zeitraum/Global)."
+          },
+          "q6": {
+            "question": "Unterliegen Administratoren den Limits?",
+            "answer": "Ja, aber sie können ihre eigenen Limits anpassen."
+          },
+          "q7": {
+            "question": "Was passiert ohne konfigurierte Limits?",
+            "answer": "Unbegrenzter Zugang bis Limits konfiguriert werden."
+          },
+          "q8": {
+            "question": "Wo sehe ich meinen aktuellen Verbrauch?",
+            "answer": "Auf dem Dashboard über dedizierte Kacheln (Periodenlimits und Globale Limits) mit Farbcodierung."
+          },
+          "q9": {
+            "question": "Wie funktioniert die Durchsetzung?",
+            "answer": "5-Schichten-Verteidigung: Router, Service, LLM-Guard, Proaktiver Runner, Direkte Aufrufe. Fail-open bei Infrastrukturausfall."
           }
         }
       }
@@ -3556,7 +3630,7 @@
     "source_weather": "Wetter",
     "source_interests": "Interessen",
     "source_memories": "Erinnerungen",
-      "source_journals": "Tagebücher",
+    "source_journals": "Tagebücher",
     "notification_hours": "Benachrichtigungszeitraum",
     "enabled_success": "Proaktive Benachrichtigungen aktiviert",
     "disabled_success": "Proaktive Benachrichtigungen deaktiviert",
@@ -3811,6 +3885,10 @@
       "responsive": {
         "title": "PWA & Responsives Design",
         "description": "Installierbare Progressive Web App mit vollstaendig optimierter Oberflaeche fuer Desktop, Tablet und Smartphone — nutzen Sie LIA ueberall, auf jedem Geraet"
+      },
+      "usage_limits": {
+        "title": "Nutzungskontingente",
+        "description": "Pro-Benutzer-Limits für Token, Nachrichten und Kosten mit Echtzeit-Monitoring und 5-Schichten-Durchsetzung. Administratoren steuern Budgets mit sofortiger Sperre/Entsperrung."
       }
     },
     "use_cases": {
@@ -4140,7 +4218,7 @@
       "security-architecture": {
         "title": "Tiefenverteidigung: LIAs 5 Sicherheitsprinzipien",
         "excerpt": "Tiefenverteidigung, minimale Rechte, Rate-Limiting, Verschlüsselung und Validierung zum Schutz Ihrer Daten.",
-        "body": "<h2>5 grundlegende Prinzipien</h2><p>Die Sicherheit von LIA basiert auf fünf Prinzipien, die auf jeder Ebene der Anwendung angewendet werden:</p><ul><li><strong>Tiefenverteidigung</strong> — Mehrschichtige Kontrollen (Authentifizierung, Rate-Limiting, Validierung, Verschlüsselung)</li><li><strong>Minimale Berechtigung</strong> — Standardmäßig minimale Berechtigungen</li><li><strong>Sicheres Fehlschlagen</strong> — Im Fehlerfall verweigert das System, anstatt zu erlauben</li><li><strong>Eingaben nicht vertrauen</strong> — Pydantic-Validierung + systematische Bereinigung</li><li><strong>Sicherheit standardmäßig</strong> — HTTPS, HttpOnly/SameSite-Cookies, striktes CORS</li></ul><h2>Hashing und Verschlüsselung</h2><p>Passwörter werden mit <strong>bcrypt</strong> (mit automatischem Salt) gehasht. Sensible Daten (OAuth-Token, Connector-Anmeldedaten, PII, MCP-Server-Anmeldedaten) werden mit <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256) verschlüsselt, was Vertraulichkeit und Integrität garantiert. Die Verschlüsselungsschlüssel werden getrennt von den Daten verwaltet.</p><h2>JWT und Sitzungsverwaltung</h2><p>Die JWT-Token verwenden den HS256-Algorithmus mit einem JTI-System (JWT ID), das in Redis auf einer Sperrliste steht. Einmal-Token (E-Mail-Verifizierung, Passwortzurücksetzung) werden nach der ersten Verwendung ungültig. Dieser Mechanismus verhindert jede Wiederverwendung sensibler Token.</p><h2>Konfigurierbares Rate-Limiting</h2><p>Das Rate-Limiting arbeitet auf zwei Ebenen:</p><ul><li><strong>HTTP</strong> — Über nginx vorgeschaltet</li><li><strong>Tools</strong> — Gleitendes Fenster pro Benutzer und pro Tool über Redis, pro Dienst konfigurierbar</li></ul><p>Die API-Limits sind streng: maximal 10 Elemente pro Anfrage, mit domänenspezifischen Standardwerten (Standard 10, Maximum 50).</p><h2>Schutz gegen Prompt-Injection</h2><p>Externe Inhalte (E-Mails, Webseiten, Dokumente) werden vor der Injektion in die Prompts in konfigurierbare <code>UNTRUSTED</code>-Tags gekapselt. Dieses explizite Wrapping verhindert, dass ein bösartiger Inhalt das Verhalten des Assistenten umleitet, indem Benutzerdaten klar von Systemanweisungen getrennt werden.</p><h2>Überprüfung der Ressourceneigentümerschaft</h2><p>Jeder Zugriff auf eine Ressource durchläuft <code>check_resource_ownership()</code> mit einem Parameter <code>hide_existence</code>: Öffentliche Ressourcen geben 403 zurück (Zugriff verweigert), private Ressourcen geben 404 zurück (Ressource nicht gefunden), um einem Angreifer ihre Existenz nicht zu verraten.</p>"
+        "body": "<h2>5 grundlegende Prinzipien</h2><p>Die Sicherheit von LIA basiert auf fünf Prinzipien, die auf jeder Ebene der Anwendung angewendet werden:</p><ul><li><strong>Tiefenverteidigung</strong> — Mehrschichtige Kontrollen (Authentifizierung, Rate-Limiting, Validierung, Verschlüsselung)</li><li><strong>Minimale Berechtigung</strong> — Standardmäßig minimale Berechtigungen</li><li><strong>Sicheres Fehlschlagen</strong> — Im Fehlerfall verweigert das System, anstatt zu erlauben</li><li><strong>Eingaben nicht vertrauen</strong> — Pydantic-Validierung + systematische Bereinigung</li><li><strong>Sicherheit standardmäßig</strong> — HTTPS, HttpOnly/SameSite-Cookies, striktes CORS</li></ul><h2>Hashing und Verschlüsselung</h2><p>Passwörter werden mit <strong>bcrypt</strong> (mit automatischem Salt) gehasht. Sensible Daten (OAuth-Token, Connector-Anmeldedaten, PII, MCP-Server-Anmeldedaten) werden mit <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256) verschlüsselt, was Vertraulichkeit und Integrität garantiert. Die Verschlüsselungsschlüssel werden getrennt von den Daten verwaltet.</p><h2>JWT und Sitzungsverwaltung</h2><p>Die JWT-Token verwenden den HS256-Algorithmus mit einem JTI-System (JWT ID), das in Redis auf einer Sperrliste steht. Einmal-Token (E-Mail-Verifizierung, Passwortzurücksetzung) werden nach der ersten Verwendung ungültig. Dieser Mechanismus verhindert jede Wiederverwendung sensibler Token.</p><h2>Konfigurierbares Rate-Limiting</h2><p>Das Rate-Limiting arbeitet auf zwei Ebenen:</p><ul><li><strong>HTTP</strong> — Über nginx vorgeschaltet</li><li><strong>Tools</strong> — Gleitendes Fenster pro Benutzer und pro Tool über Redis, pro Dienst konfigurierbar</li></ul><p>Die API-Limits sind streng: maximal 10 Elemente pro Anfrage, mit domänenspezifischen Standardwerten (Standard 10, Maximum 50).</p><h2>Schutz gegen Prompt-Injection</h2><p>Externe Inhalte (E-Mails, Webseiten, Dokumente) werden vor der Injektion in die Prompts in konfigurierbare <code>UNTRUSTED</code>-Tags gekapselt. Dieses explizite Wrapping verhindert, dass ein bösartiger Inhalt das Verhalten des Assistenten umleitet, indem Benutzerdaten klar von Systemanweisungen getrennt werden.</p><h2>Überprüfung der Ressourceneigentümerschaft</h2><p>Jeder Zugriff auf eine Ressource durchläuft <code>check_resource_ownership()</code> mit einem Parameter <code>hide_existence</code>: Öffentliche Ressourcen geben 403 zurück (Zugriff verweigert), private Ressourcen geben 404 zurück (Ressource nicht gefunden), um einem Angreifer ihre Existenz nicht zu verraten.</p><h2>Pro-Benutzer-Nutzungskontingente (v1.9)</h2><p>LIA ermöglicht Administratoren die Festlegung von <strong>Kontingenten pro Benutzer</strong> für Token, Nachrichten und Kosten. Die Durchsetzung nutzt eine <strong>5-Schichten-Verteidigung</strong>: Router-Prüfung (HTTP 429), Service-Level (SSE-Fehler), LLM-Aufruf-Guard, proaktiver Runner-Skip und Migration direkter Aufrufe. Bei Infrastrukturausfall (Redis/DB) <strong>fail-open</strong> (Zugang erlaubt). Ein Admin-Kill-Switch ermöglicht sofortige Sperrung/Entsperrung.</p>"
       },
       "privacy-by-design": {
         "title": "Privacy by Design: DSGVO, Verschlüsselung und Datenkontrolle",
@@ -4167,6 +4245,66 @@
         "excerpt": "LIA spricht Französisch, Englisch, Deutsch, Spanisch, Italienisch und Chinesisch mit vollständiger Internationalisierung.",
         "body": "<h2>6 nativ unterstützte Sprachen</h2><p>LIA ist vollständig verfügbar in <strong>Französisch, Englisch, Deutsch, Spanisch, Italienisch und Chinesisch</strong>. Die Internationalisierung beschränkt sich nicht auf die Oberfläche: Sie umfasst die Antworten des Assistenten, Benachrichtigungen, FAQ und Dokumentation.</p><h2>Frontend-i18n-Architektur</h2><p>Das Frontend verwendet <strong>react-i18next</strong> mit JSON-Dateien pro Sprache und Persistierung der Auswahl über ein Cookie <code>NEXT_LOCALE</code> (TTL 1 Jahr). Das Next.js-Routing verwendet ein dynamisches Segment <code>[lng]</code>, um jede Sprache unter ihrer eigenen URL bereitzustellen. Die Sprachflaggen werden als Unicode-Emojis angezeigt. Das Locale-Mapping ordnet jeden Kurzcode seiner vollständigen Variante zu (fr-FR, en-US, de-DE, es-ES, it-IT, zh-CN). Die Seiten werden beim Build statisch für jede Sprache vorgeniert.</p><h2>Hreflang und mehrsprachige SEO</h2><p>Jede öffentliche Seite deklariert <code>hreflang</code>-Alternativen für alle 6 Sprachen mit einem <code>x-default</code>-Wert, der auf Französisch verweist. Die XML-Sitemap enthält mehrsprachige Alternates für jede URL.</p><h2>Mehrsprachige KI-Antworten</h2><p>Der Assistent antwortet in der vom Benutzer konfigurierten Sprache. Die unterstützten Sprachen sind backend-seitig über die Umgebungsvariable <code>SUPPORTED_LANGUAGES</code> konfigurierbar. Die System-Prompts sind auf Englisch verfasst, um die Reasoning-Qualität des LLM zu maximieren, aber eine explizite Sprachanweisung steuert die Generierung der Antworten in der Zielsprache. Drei Prompts sind sprachspezifisch angepasst: <code>journal_introspection_personality_addon</code>, <code>memory_extraction_personality_addon</code> und <code>broadcast_translation_prompt</code>.</p><h2>Mehrsprachige Spracherkennung</h2><p>Das für die Sprachtranskription verwendete Whisper-Modell unterstützt nativ 99+ Sprachen im Offline-Modus und ermöglicht es, mit LIA in praktisch jeder Sprache der Welt zu sprechen, ohne zusätzliche Konfiguration oder Abhängigkeit von einem Cloud-Dienst.</p>"
       }
+    }
+  },
+  "usage_limits": {
+    "title": "Limitverwaltung",
+    "description": "Nutzungslimits pro Benutzer konfigurieren",
+    "search_placeholder": "Nach E-Mail oder Name suchen...",
+    "unlimited": "Unbegrenzt",
+    "mode": {
+      "period": "Pro Zeitraum",
+      "absolute": "Global"
+    },
+    "table": {
+      "email": "E-Mail",
+      "name": "Name",
+      "status": "Status",
+      "tokens": "Tokens",
+      "messages": "Nachrichten",
+      "cost": "Kosten (EUR)",
+      "blocked": "Gesperrt",
+      "actions": "Aktionen",
+      "edit": "Bearbeiten",
+      "block": "Sperren",
+      "unblock": "Entsperren",
+      "no_results": "Keine Benutzer gefunden",
+      "page_info": "Seite {{page}} von {{totalPages}} ({{total}} Benutzer)"
+    },
+    "edit": {
+      "title": "Limits für {{email}}",
+      "description": "Nutzungslimits für diesen Benutzer konfigurieren",
+      "cycle_limits": "Periodenlimits",
+      "absolute_limits": "Globale Limits",
+      "token_limit": "Token-Limit",
+      "message_limit": "Nachrichtenlimit",
+      "cost_limit": "Kostenlimit (EUR)",
+      "block_section": "Manuelle Sperre",
+      "block_user": "Benutzer sperren",
+      "block_reason_placeholder": "Sperrgrund (optional)...",
+      "save": "Speichern",
+      "cancel": "Abbrechen",
+      "success": "Limits aktualisiert",
+      "error": "Fehler beim Aktualisieren",
+      "default_block_reason": "Vom Administrator gesperrt",
+      "current_usage": "Aktueller Verbrauch"
+    },
+    "blocked": {
+      "title": "Limit erreicht",
+      "message": "Sie haben Ihr Nutzungslimit erreicht. Kontaktieren Sie Ihren Administrator.",
+      "tooltip": "Nutzungslimit erreicht"
+    },
+    "error": {
+      "loading": "Fehler beim Laden der Nutzungslimits",
+      "limit_exceeded": "Ihr Nutzungslimit wurde überschritten. Nachricht nicht gesendet."
+    },
+    "tile": {
+      "title": "Ihre Limits",
+      "messages": "Nachrichten",
+      "tokens": "Tokens",
+      "cost": "Kosten",
+      "title_period": "Periodenlimits",
+      "title_absolute": "Globale Limits"
     }
   }
 }

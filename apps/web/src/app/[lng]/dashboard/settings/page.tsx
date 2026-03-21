@@ -38,6 +38,7 @@ import { HeartbeatSettings } from '@/components/settings/HeartbeatSettings';
 import { JournalsSettings } from '@/components/settings/JournalsSettings';
 import { SkillsSettings } from '@/components/settings/SkillsSettings';
 import { AdminSkillsSection } from '@/components/settings/AdminSkillsSection';
+import { AdminUsageLimitsSection } from '@/components/settings/AdminUsageLimitsSection';
 import { SpacesSettingsSection } from '@/components/spaces/SpacesSettingsSection';
 import { VoiceModeSettings } from '@/components/settings/VoiceModeSettings';
 import { UserDebugSettings } from '@/components/settings/UserDebugSettings';
@@ -259,24 +260,40 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               onValueChange={setConnectorSections}
               className="space-y-4"
             >
+              {/* 1. Administration des utilisateurs */}
+              <AdminUsersSection lng={lng} />
+              {/* 2. Administration des limites */}
+              <FeatureErrorBoundary feature="usage-limits">
+                <AdminUsageLimitsSection lng={lng} />
+              </FeatureErrorBoundary>
+              {/* 3. Export des consommations */}
+              <AdminConsumptionExportSection lng={lng} />
+              {/* 4. Message broadcast */}
+              <AdminBroadcastSection lng={lng} />
+              {/* 5. Administration des connecteurs */}
+              <AdminConnectorsSection lng={lng} />
+              {/* 6. Administration des LLM */}
+              <AdminLLMPricingSection lng={lng} />
+              {/* 7. Administration des API Google */}
+              <AdminGoogleApiPricingSection lng={lng} />
+              {/* 8. Configuration LLM */}
               <FeatureErrorBoundary feature="llm-config">
                 <AdminLLMConfigSection lng={lng} />
               </FeatureErrorBoundary>
-              <FeatureErrorBoundary feature="rag-spaces-admin">
-                <AdminRAGSpacesSection lng={lng} />
-              </FeatureErrorBoundary>
-              <AdminUsersSection lng={lng} />
-              <AdminConnectorsSection lng={lng} />
-              <AdminLLMPricingSection lng={lng} />
-              <AdminGoogleApiPricingSection lng={lng} />
+              {/* 9. Administration des personnalités */}
               <AdminPersonalitiesSection lng={lng} />
+              {/* 10. Administration des skills système */}
               <FeatureErrorBoundary feature="admin-skills">
                 <AdminSkillsSection lng={lng} />
               </FeatureErrorBoundary>
+              {/* 11. Administration des RAG système */}
+              <FeatureErrorBoundary feature="rag-spaces-admin">
+                <AdminRAGSpacesSection lng={lng} />
+              </FeatureErrorBoundary>
+              {/* 12. Paramètres vocaux */}
               <AdminVoiceSettingsSection lng={lng} />
-              <AdminBroadcastSection lng={lng} />
+              {/* 13. Panneau de Debug */}
               <AdminDebugSettingsSection lng={lng} />
-              <AdminConsumptionExportSection lng={lng} />
             </Accordion>
           </TabsContent>
         </Tabs>

@@ -68,7 +68,12 @@ export function BlogArticleContent({
       {/* Compact header */}
       <header className="mb-8">
         <div className="flex items-center gap-3 mb-4">
-          <span className={cn('text-xs font-semibold uppercase tracking-wider px-3 py-1 rounded-full', badgeClass)}>
+          <span
+            className={cn(
+              'text-xs font-semibold uppercase tracking-wider px-3 py-1 rounded-full',
+              badgeClass
+            )}
+          >
             {categoryLabel}
           </span>
           <span className="text-xs text-muted-foreground">{readTimeLabel}</span>

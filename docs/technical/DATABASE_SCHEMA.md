@@ -2687,6 +2687,39 @@ CREATE INDEX ix_user_skill_states_active ON user_skill_states(user_id)
 
 ---
 
+### 26. user_usage_limits
+
+Per-user usage quota configuration. One record per user (1:1 relationship with `users`). Null limit values mean unlimited.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | UUID | PK, gen_random_uuid() | Primary key |
+| `user_id` | UUID | FK → users.id CASCADE, UNIQUE | User reference (1:1) |
+| `token_limit_per_cycle` | BIGINT | nullable | Max tokens per billing cycle (null = unlimited) |
+| `message_limit_per_cycle` | BIGINT | nullable | Max messages per billing cycle |
+| `cost_limit_per_cycle` | NUMERIC(12,6) | nullable | Max cost EUR per billing cycle |
+| `token_limit_absolute` | BIGINT | nullable | Lifetime max tokens |
+| `message_limit_absolute` | BIGINT | nullable | Lifetime max messages |
+| `cost_limit_absolute` | NUMERIC(12,6) | nullable | Lifetime max cost EUR |
+| `is_usage_blocked` | BOOLEAN | NOT NULL, default false | Admin manual kill switch |
+| `blocked_reason` | VARCHAR(500) | nullable | Block reason |
+| `blocked_at` | TIMESTAMPTZ | nullable | Block timestamp |
+| `blocked_by` | UUID | nullable | Admin who set the block |
+| `created_at` | TIMESTAMPTZ | NOT NULL, default NOW() | Record creation |
+| `updated_at` | TIMESTAMPTZ | NOT NULL, default NOW() | Last update |
+
+**Indexes:**
+- `ix_user_usage_limits_user_id` UNIQUE on `user_id` (1:1 enforcement)
+
+**Design Notes:**
+- No record = unlimited (no migration backfill for existing users)
+- Billing cycle: monthly rolling from `users.created_at` (reuses `StatisticsService.calculate_cycle_start()`)
+- Current usage comes from `user_statistics` table (LEFT JOIN at query time)
+
+**Migration:** `2026_03_21_0001-add_user_usage_limits.py`
+
+---
+
 ## Indexes & Performance
 
 ### Index Strategy Overview
@@ -2881,6 +2914,9 @@ class User(BaseModel):
 | 2026-02-27 | scheduled_actions_001 | Add scheduled_actions table |
 | 2026-02-28 | user_mcp_servers_001 | Add user_mcp_servers table (evolution F2.1 MCP Per-User) |
 | 2026-03-01 | user_mcp_servers_002 | Add domain_description + tool_embeddings_cache to user_mcp_servers |
+| 2026-03-19 | journals_001 | Add journals system (journal_entries table) |
+| 2026-03-20 | hue_global_config_001 | Add Philips Hue to connector_global_config |
+| 2026-03-21 | usage_limits_001 | Add user_usage_limits table (per-user quotas) |
 
 ### Alembic Commands
 

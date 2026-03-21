@@ -35,12 +35,15 @@ export async function BlogPreviewSection({ lng }: BlogPreviewSectionProps) {
   const { t } = await initI18next(lng);
   const blogPath = buildLocalizedPath('/blog', lng as Language);
 
-  const featured = FEATURED_SLUGS
-    .map(slug => BLOG_ARTICLES.find(a => a.slug === slug))
-    .filter(Boolean);
+  const featured = FEATURED_SLUGS.map(slug => BLOG_ARTICLES.find(a => a.slug === slug)).filter(
+    Boolean
+  );
 
   return (
-    <section id="blog" className="landing-section py-20 sm:py-24 bg-gradient-to-b from-muted/30 to-background">
+    <section
+      id="blog"
+      className="landing-section py-20 sm:py-24 bg-gradient-to-b from-muted/30 to-background"
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <FadeInOnScroll>
           <div className="text-center mb-12">
@@ -72,7 +75,12 @@ export async function BlogPreviewSection({ lng }: BlogPreviewSectionProps) {
                     </div>
                     <CardHeader className="space-y-2 pt-4 pb-5">
                       <div className="flex items-center justify-between">
-                        <span className={cn('text-[10px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full', CATEGORY_BADGE[article.category])}>
+                        <span
+                          className={cn(
+                            'text-[10px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full',
+                            CATEGORY_BADGE[article.category]
+                          )}
+                        >
                           {t(`blog.categories.${article.category}`)}
                         </span>
                         <span className="text-xs text-muted-foreground">

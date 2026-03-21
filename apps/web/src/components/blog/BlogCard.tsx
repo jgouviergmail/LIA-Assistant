@@ -21,7 +21,14 @@ interface BlogCardProps {
   lng: string;
 }
 
-export function BlogCard({ article, title, excerpt, categoryLabel, readTimeLabel, lng }: BlogCardProps) {
+export function BlogCard({
+  article,
+  title,
+  excerpt,
+  categoryLabel,
+  readTimeLabel,
+  lng,
+}: BlogCardProps) {
   const badgeClass = CATEGORY_BADGE[article.category];
   const blogPath = lng === 'fr' ? `/blog/${article.slug}` : `/${lng}/blog/${article.slug}`;
 
@@ -40,7 +47,12 @@ export function BlogCard({ article, title, excerpt, categoryLabel, readTimeLabel
         </div>
         <CardHeader className="space-y-2.5 pt-4">
           <div className="flex items-center justify-between">
-            <span className={cn('text-[10px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full', badgeClass)}>
+            <span
+              className={cn(
+                'text-[10px] font-semibold uppercase tracking-wider px-2.5 py-0.5 rounded-full',
+                badgeClass
+              )}
+            >
               {categoryLabel}
             </span>
             <span className="text-xs text-muted-foreground">{readTimeLabel}</span>

@@ -96,6 +96,14 @@ class AuthService:
         await skill_svc.ensure_user_skills(user.id)
         await self.db.commit()
 
+        # Create default usage limits for new user
+        if getattr(settings, "usage_limits_enabled", False):
+            from src.domains.usage_limits.service import UsageLimitService
+
+            limit_svc = UsageLimitService(self.db)
+            await limit_svc.create_default_limits(user.id)
+            await self.db.commit()
+
         # Send verification email
         # Note: Admin notification is sent AFTER email verification (in verify_email method)
         verification_token = create_verification_token(user.email)
@@ -558,6 +566,13 @@ class AuthService:
 
         skill_svc = SkillPreferenceService(self.db)
         await skill_svc.ensure_user_skills(user.id)
+
+        # Create default usage limits for new OAuth user
+        if getattr(settings, "usage_limits_enabled", False):
+            from src.domains.usage_limits.service import UsageLimitService
+
+            limit_svc = UsageLimitService(self.db)
+            await limit_svc.create_default_limits(user.id)
 
         # Track new user creation via OAuth
         oauth_user_creation_total.labels(provider="google").inc()

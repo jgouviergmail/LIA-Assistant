@@ -3,6 +3,8 @@
 import { useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserStatistics } from '@/hooks/useUserStatistics';
+import { useUsageLimits } from '@/hooks/useUsageLimits';
+import { UsageLimitsTile } from '@/components/usage/UsageLimitsTile';
 import { useLanguageParam } from '@/hooks/useLanguageParam';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -37,6 +39,7 @@ interface DashboardPageProps {
 export default function DashboardPage({ params }: DashboardPageProps) {
   const { user } = useAuth();
   const { statistics, isLoading: statsLoading } = useUserStatistics();
+  const { limits: usageLimits, isLoading: limitsLoading } = useUsageLimits();
   const router = useRouter();
   const lng = useLanguageParam(params);
   const { t } = useTranslation(lng);
@@ -385,6 +388,9 @@ export default function DashboardPage({ params }: DashboardPageProps) {
                 )}
               </CardContent>
             </Card>
+
+            {/* Usage Limits Tile - Shows gauges when limits are configured */}
+            <UsageLimitsTile limits={usageLimits} isLoading={limitsLoading} />
           </div>
         </div>
       </div>

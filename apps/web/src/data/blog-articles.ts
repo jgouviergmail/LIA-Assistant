@@ -5,12 +5,7 @@
  * under the `blog.articles.<slug>` namespace.
  */
 
-export type BlogCategory =
-  | 'architecture'
-  | 'integrations'
-  | 'features'
-  | 'security'
-  | 'technical';
+export type BlogCategory = 'architecture' | 'integrations' | 'features' | 'security' | 'technical';
 
 export interface BlogArticle {
   slug: string;

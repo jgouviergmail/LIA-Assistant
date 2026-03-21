@@ -32,7 +32,8 @@
     "off": "Disattivato",
     "on": "Attivato",
     "enabled": "Attivato",
-    "disabled": "Disattivato"
+    "disabled": "Disattivato",
+    "saving": "Salvataggio..."
   },
   "theme": {
     "toggle": "Cambia tema"
@@ -914,7 +915,7 @@
         "error_update": "Errore durante l'aggiornamento"
       },
       "llm": {
-        "title": "Amministrazione modelli LLM",
+        "title": "Amministrazione LLM",
         "description": "Gestisci i modelli LLM e i loro prezzi (USD per milione di token). Le modifiche creano automaticamente una nuova cronologia dei prezzi.",
         "search_placeholder": "Cerca per nome modello...",
         "add_model": "Aggiungi modello",
@@ -962,7 +963,7 @@
         }
       },
       "google_api": {
-        "title": "Amministrazione tariffe API Google",
+        "title": "Amministrazione API Google",
         "description": "Gestisci le tariffe delle API di Google Maps Platform (Places, Routes, Geocoding). Le modifiche creano automaticamente una nuova cronologia dei prezzi.",
         "search_placeholder": "Cerca per API, endpoint o SKU...",
         "add_entry": "Aggiungi tariffa",
@@ -1242,7 +1243,7 @@
         "userAccessDisabledSuccess": "Accesso utenti al pannello di debug disattivato"
       },
       "ragSpaces": {
-        "title": "Spazi di conoscenza RAG",
+        "title": "Amministrazione RAG di sistema",
         "subtitle": "Gestisci gli spazi documentali RAG e la configurazione degli embedding",
         "featureStatus": "Stato della funzionalità",
         "embeddingModel": "Modello di embedding",
@@ -1931,7 +1932,8 @@
       "server_error": "Errore del server ({{status}}). Per favore riprova.",
       "service_unavailable": "Il servizio è temporaneamente non disponibile. Per favore riprova tra qualche istante.",
       "session_expired": "La tua sessione è scaduta. Per favore riconnettiti.",
-      "unknown_error": "Errore sconosciuto durante lo streaming"
+      "unknown_error": "Errore sconosciuto durante lo streaming",
+      "usage_limit_exceeded": "Hai raggiunto il tuo limite di utilizzo. Contatta il tuo amministratore."
     },
     "settings": {
       "title": "Si è verificato un errore",
@@ -2709,7 +2711,7 @@
       "heartbeat": {
         "title": "Notifiche proattive",
         "description": "LIA prende l'iniziativa di informarti",
-        "count": "5",
+        "count": "6",
         "questions": {
           "q1": {
             "question": "Cosa sono le notifiche proattive?",
@@ -2730,13 +2732,17 @@
           "q5": {
             "question": "Come do un feedback su una notifica?",
             "answer": "Il tuo feedback aiuta LIA a migliorare:<br><br><strong>👍👎 Pulsanti di feedback:</strong><br>• Ogni notifica mostra pulsanti <strong>pollice su / pollice giù</strong><br>• Il tuo feedback viene registrato per migliorare le decisioni future<br><br><strong>📜 Cronologia:</strong><br>• Consulta le tue notifiche proattive recenti nella sezione dedicata<br>• Ogni voce indica le fonti utilizzate e il livello di priorità<br><br><strong>⚙️ Regolazione:</strong><br>• Se ricevi troppe notifiche, riduci il massimo giornaliero<br>• Se le notifiche non sono pertinenti, disattiva le fonti indesiderate (disconnetti il connettore corrispondente)"
+          },
+          "q6": {
+            "question": "Le notifiche proattive sono influenzate dai limiti?",
+            "answer": "Sì, vengono automaticamente sospese."
           }
         }
       },
       "scheduled_actions": {
         "title": "Azioni pianificate",
         "description": "Automatizza attività ricorrenti con LIA",
-        "count": "5",
+        "count": "6",
         "questions": {
           "q1": {
             "question": "Cos'è un'azione pianificata?",
@@ -2757,6 +2763,10 @@
           "q5": {
             "question": "Quante azioni pianificate posso creare?",
             "answer": "Puoi creare fino a <strong>20 azioni pianificate</strong>:<br><br><strong>📊 Limiti:</strong><br>• Massimo 20 azioni per utente<br>• Ogni azione può essere configurata per uno o più giorni della settimana<br>• L'orario è configurabile al minuto<br><br><strong>⚙️ Gestione:</strong><br>• <strong>Attiva/Disattiva</strong>: interruttore inline per mettere in pausa senza eliminare<br>• <strong>Modifica</strong>: cambia titolo, istruzione, giorni o orario<br>• <strong>Elimina</strong>: eliminazione definitiva (i risultati passati rimangono nella conversazione)"
+          },
+          "q6": {
+            "question": "Le azioni pianificate sono influenzate dai limiti?",
+            "answer": "Sì, le azioni pianificate vengono bloccate al raggiungimento dei limiti."
           }
         }
       },
@@ -2905,13 +2915,34 @@
         "description": "Quaderni di bordo dell'assistente per riflessioni e apprendimenti",
         "count": "7",
         "questions": {
-          "q1": { "question": "Cosa sono i diari personali?", "answer": "<p>I diari personali sono quaderni tematici in cui l'assistente IA registra le proprie riflessioni, osservazioni, analisi e apprendimenti. A differenza delle memorie utente (fatti su di te), i diari contengono la <strong>prospettiva personale dell'assistente</strong> — scritti in prima persona, influenzati dalla sua personalità attiva.</p><p><strong>4 temi:</strong> Auto-riflessione, Osservazioni sull'utente, Idee e analisi, Apprendimenti.</p>" },
-          "q2": { "question": "Quando l'assistente scrive nei suoi diari?", "answer": "<p><strong>Due meccanismi:</strong></p><ul><li><strong>Post-conversazione:</strong> Dopo le conversazioni (4+ messaggi), l'assistente può scrivere una riflessione. La maggior parte delle conversazioni non produce nulla — è selettivo.</li><li><strong>Consolidamento periodico:</strong> Ogni poche ore, l'assistente rivede tutte le sue note — unisce, riassume o rimuove le voci obsolete.</li></ul>" },
-          "q3": { "question": "Come influenzano i diari le risposte?", "answer": "<p>Le voci del diario vengono iniettate nei prompt tramite <strong>ricerca semantica</strong>. Due iniezioni distinte: il <strong>prompt di risposta</strong> riceve le voci corrispondenti al tono della conversazione, e il <strong>prompt di pianificazione</strong> riceve quelle corrispondenti agli obiettivi e agli apprendimenti dell'utente. L'assistente decide quali note sono rilevanti.</p>" },
-          "q4": { "question": "Posso leggere e modificare i diari dell'assistente?", "answer": "<p>Sì! In <strong>Impostazioni > Funzionalità > Diari personali</strong> puoi leggere, modificare, eliminare e persino creare voci. Le tue aggiunte sono trasparenti — l'assistente non nota la differenza. Questo ti permette di correggere pregiudizi o guidare l'assistente.</p>" },
-          "q5": { "question": "Quali impostazioni posso configurare?", "answer": "<p><strong>Interruttori:</strong> Attiva/disattiva diari, consolidamento, analisi della cronologia conversazioni (con avviso di costo).</p><p><strong>Impostazioni numeriche:</strong> Dimensione massima del diario (40.000 caratteri predefiniti), budget di iniezione prompt (1.500 caratteri), dimensione massima per voce (2.000 caratteri), risultati di ricerca massimi (10).</p>" },
-          "q6": { "question": "Quanto costa?", "answer": "<p>Le operazioni del diario utilizzano chiamate LLM in background. Estrazione: una chiamata per conversazione qualificante (la maggior parte non restituisce nulla). Consolidamento: una chiamata ogni 4-12 ore per utente. Modelli LLM configurabili in <strong>Amministrazione > Configurazione LLM</strong>. Costi reali visibili nelle Impostazioni.</p>" },
-          "q7": { "question": "E la privacy?", "answer": "<p>I dati del diario sono per utente e isolati. Tutti i dati possono essere esportati (JSON/CSV) o eliminati (GDPR). Quando disattivati, i dati vengono conservati ma non utilizzati. L'assistente scrive nella lingua configurata.</p>" }
+          "q1": {
+            "question": "Cosa sono i diari personali?",
+            "answer": "<p>I diari personali sono quaderni tematici in cui l'assistente IA registra le proprie riflessioni, osservazioni, analisi e apprendimenti. A differenza delle memorie utente (fatti su di te), i diari contengono la <strong>prospettiva personale dell'assistente</strong> — scritti in prima persona, influenzati dalla sua personalità attiva.</p><p><strong>4 temi:</strong> Auto-riflessione, Osservazioni sull'utente, Idee e analisi, Apprendimenti.</p>"
+          },
+          "q2": {
+            "question": "Quando l'assistente scrive nei suoi diari?",
+            "answer": "<p><strong>Due meccanismi:</strong></p><ul><li><strong>Post-conversazione:</strong> Dopo le conversazioni (4+ messaggi), l'assistente può scrivere una riflessione. La maggior parte delle conversazioni non produce nulla — è selettivo.</li><li><strong>Consolidamento periodico:</strong> Ogni poche ore, l'assistente rivede tutte le sue note — unisce, riassume o rimuove le voci obsolete.</li></ul>"
+          },
+          "q3": {
+            "question": "Come influenzano i diari le risposte?",
+            "answer": "<p>Le voci del diario vengono iniettate nei prompt tramite <strong>ricerca semantica</strong>. Due iniezioni distinte: il <strong>prompt di risposta</strong> riceve le voci corrispondenti al tono della conversazione, e il <strong>prompt di pianificazione</strong> riceve quelle corrispondenti agli obiettivi e agli apprendimenti dell'utente. L'assistente decide quali note sono rilevanti.</p>"
+          },
+          "q4": {
+            "question": "Posso leggere e modificare i diari dell'assistente?",
+            "answer": "<p>Sì! In <strong>Impostazioni > Funzionalità > Diari personali</strong> puoi leggere, modificare, eliminare e persino creare voci. Le tue aggiunte sono trasparenti — l'assistente non nota la differenza. Questo ti permette di correggere pregiudizi o guidare l'assistente.</p>"
+          },
+          "q5": {
+            "question": "Quali impostazioni posso configurare?",
+            "answer": "<p><strong>Interruttori:</strong> Attiva/disattiva diari, consolidamento, analisi della cronologia conversazioni (con avviso di costo).</p><p><strong>Impostazioni numeriche:</strong> Dimensione massima del diario (40.000 caratteri predefiniti), budget di iniezione prompt (1.500 caratteri), dimensione massima per voce (2.000 caratteri), risultati di ricerca massimi (10).</p>"
+          },
+          "q6": {
+            "question": "Quanto costa?",
+            "answer": "<p>Le operazioni del diario utilizzano chiamate LLM in background. Estrazione: una chiamata per conversazione qualificante (la maggior parte non restituisce nulla). Consolidamento: una chiamata ogni 4-12 ore per utente. Modelli LLM configurabili in <strong>Amministrazione > Configurazione LLM</strong>. Costi reali visibili nelle Impostazioni.</p>"
+          },
+          "q7": {
+            "question": "E la privacy?",
+            "answer": "<p>I dati del diario sono per utente e isolati. Tutti i dati possono essere esportati (JSON/CSV) o eliminati (GDPR). Quando disattivati, i dati vengono conservati ma non utilizzati. L'assistente scrive nella lingua configurata.</p>"
+          }
         }
       },
       "privacy": {
@@ -2969,6 +3000,49 @@
           "q5": {
             "question": "Come segnalo un problema o faccio un suggerimento?",
             "answer": "Diversi modi per contattarci:<br><br><strong>🐛 Segnalare un bug:</strong><br>• Descrivi il problema riscontrato<br>• Indica i passaggi per riprodurlo<br>• Menziona l'eventuale messaggio di errore<br>• Contatta il tuo amministratore<br><br><strong>💡 Fare un suggerimento:</strong><br>• Le idee di miglioramento sono benvenute<br>• Descrivi l'esigenza o la funzionalità desiderata<br>• Trasmetti tramite il tuo amministratore<br><br><strong>📧 Supporto amministratore:</strong><br>Il tuo amministratore può:<br>• Gestire il tuo account<br>• Risolvere problemi dei connettori<br>• Trasmettere richieste al team tecnico<br><br><strong>💡 Prima di segnalare:</strong><br>Controlla questa FAQ - forse la tua domanda ha già una risposta!"
+          }
+        }
+      },
+      "usage_limits": {
+        "title": "Limiti di utilizzo",
+        "description": "Quote di token, messaggi e costi per utente",
+        "count": "9",
+        "questions": {
+          "q1": {
+            "question": "Cosa sono i limiti di utilizzo?",
+            "answer": "I limiti sono <strong>quote definite dall'amministratore</strong> per controllare il consumo di risorse (token, messaggi, costi EUR). Possono essere per periodo o globali."
+          },
+          "q2": {
+            "question": "Come viene calcolato il periodo di fatturazione?",
+            "answer": "Ciclo mensile mobile dalla data di creazione dell'account."
+          },
+          "q3": {
+            "question": "Cosa succede quando raggiungo un limite?",
+            "answer": "L'input messaggi e la voce vengono disabilitati. Le notifiche proattive e le azioni pianificate vengono bloccate. Contatta il tuo amministratore."
+          },
+          "q4": {
+            "question": "Gli amministratori possono bloccare utenti?",
+            "answer": "Sì, con effetto immediato da Impostazioni > Amministrazione > Amministrazione dei limiti."
+          },
+          "q5": {
+            "question": "Quali tipi di limiti possono essere impostati?",
+            "answer": "3 dimensioni × 2 modi = 6 limiti possibili (token, messaggi, costi × periodo/globale)."
+          },
+          "q6": {
+            "question": "Gli amministratori sono soggetti ai limiti?",
+            "answer": "Sì, ma possono modificare i propri limiti."
+          },
+          "q7": {
+            "question": "Cosa succede senza limiti configurati?",
+            "answer": "Accesso illimitato fino alla configurazione dei limiti."
+          },
+          "q8": {
+            "question": "Dove posso vedere il mio consumo attuale?",
+            "answer": "Nella dashboard tramite riquadri dedicati con codifica colori."
+          },
+          "q9": {
+            "question": "Come funziona l'applicazione dei limiti?",
+            "answer": "Architettura di difesa a 5 livelli. Fail-open in caso di guasto infrastrutturale."
           }
         }
       }
@@ -3558,7 +3632,7 @@
     "source_weather": "Meteo",
     "source_interests": "Interessi",
     "source_memories": "Memorie",
-      "source_journals": "Diari",
+    "source_journals": "Diari",
     "notification_hours": "Fascia oraria delle notifiche",
     "enabled_success": "Notifiche proattive attivate",
     "disabled_success": "Notifiche proattive disattivate",
@@ -3813,6 +3887,10 @@
       "responsive": {
         "title": "PWA & Design responsive",
         "description": "App Web Progressiva installabile con interfaccia ottimizzata per desktop, tablet e smartphone — usa LIA ovunque, su qualsiasi dispositivo"
+      },
+      "usage_limits": {
+        "title": "Quote di utilizzo",
+        "description": "Limiti per utente su token, messaggi e costi con monitoraggio in tempo reale e 5 livelli di controllo. Gli amministratori gestiscono i budget con blocco/sblocco istantaneo."
       }
     },
     "use_cases": {
@@ -4142,7 +4220,7 @@
       "security-architecture": {
         "title": "Difesa in profondità: I 5 principi di sicurezza di LIA",
         "excerpt": "Difesa in profondità, minimo privilegio, rate limiting, crittografia e validazione per proteggere i tuoi dati.",
-        "body": "<h2>5 principi fondamentali</h2><p>La sicurezza di LIA si basa su cinque principi applicati a ogni livello dell'applicazione:</p><ul><li><strong>Difesa in profondità</strong> — Controlli multi-livello (autenticazione, rate limiting, validazione, crittografia)</li><li><strong>Minimo privilegio</strong> — Permessi minimi per impostazione predefinita</li><li><strong>Fallimento sicuro</strong> — In caso di errore, il sistema nega piuttosto che autorizzare</li><li><strong>Non fidarsi degli input</strong> — Validazione Pydantic + sanitizzazione sistematica</li><li><strong>Sicurezza per impostazione predefinita</strong> — HTTPS, cookie HttpOnly/SameSite, CORS rigoroso</li></ul><h2>Hashing e crittografia</h2><p>Le password sono hashate con <strong>bcrypt</strong> (con salt automatico). I dati sensibili (token OAuth, credenziali dei connettori, PII, credenziali dei server MCP) sono crittografati con <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256), garantendo riservatezza e integrità. Le chiavi di crittografia sono gestite separatamente dai dati.</p><h2>JWT e gestione delle sessioni</h2><p>I token JWT utilizzano l'algoritmo HS256 con un sistema di JTI (JWT ID) inseriti in blacklist su Redis. I token monouso (verifica email, reimpostazione password) vengono invalidati dopo il primo utilizzo. Questo meccanismo impedisce qualsiasi riutilizzo di token sensibili.</p><h2>Rate limiting configurabile</h2><p>Il rate limiting opera a due livelli:</p><ul><li><strong>HTTP</strong> — Tramite nginx a monte</li><li><strong>Strumenti</strong> — Finestra scorrevole per utente e per strumento tramite Redis, configurabile per servizio</li></ul><p>I limiti API sono rigorosi: 10 elementi massimi per richiesta, con valori predefiniti per dominio (10 per impostazione predefinita, 50 massimo).</p><h2>Protezione contro l'iniezione di prompt</h2><p>I contenuti esterni (email, pagine web, documenti) sono incapsulati in tag <code>UNTRUSTED</code> configurabili prima dell'iniezione nei prompt. Questo wrapping esplicito impedisce a un contenuto malevolo di deviare il comportamento dell'assistente separando chiaramente i dati utente dalle istruzioni di sistema.</p><h2>Verifica della proprietà delle risorse</h2><p>Ogni accesso a una risorsa passa attraverso <code>check_resource_ownership()</code> con un parametro <code>hide_existence</code>: le risorse pubbliche restituiscono 403 (accesso negato), le risorse private restituiscono 404 (risorsa inesistente) per non rivelare la loro esistenza a un attaccante.</p>"
+        "body": "<h2>5 principi fondamentali</h2><p>La sicurezza di LIA si basa su cinque principi applicati a ogni livello dell'applicazione:</p><ul><li><strong>Difesa in profondità</strong> — Controlli multi-livello (autenticazione, rate limiting, validazione, crittografia)</li><li><strong>Minimo privilegio</strong> — Permessi minimi per impostazione predefinita</li><li><strong>Fallimento sicuro</strong> — In caso di errore, il sistema nega piuttosto che autorizzare</li><li><strong>Non fidarsi degli input</strong> — Validazione Pydantic + sanitizzazione sistematica</li><li><strong>Sicurezza per impostazione predefinita</strong> — HTTPS, cookie HttpOnly/SameSite, CORS rigoroso</li></ul><h2>Hashing e crittografia</h2><p>Le password sono hashate con <strong>bcrypt</strong> (con salt automatico). I dati sensibili (token OAuth, credenziali dei connettori, PII, credenziali dei server MCP) sono crittografati con <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256), garantendo riservatezza e integrità. Le chiavi di crittografia sono gestite separatamente dai dati.</p><h2>JWT e gestione delle sessioni</h2><p>I token JWT utilizzano l'algoritmo HS256 con un sistema di JTI (JWT ID) inseriti in blacklist su Redis. I token monouso (verifica email, reimpostazione password) vengono invalidati dopo il primo utilizzo. Questo meccanismo impedisce qualsiasi riutilizzo di token sensibili.</p><h2>Rate limiting configurabile</h2><p>Il rate limiting opera a due livelli:</p><ul><li><strong>HTTP</strong> — Tramite nginx a monte</li><li><strong>Strumenti</strong> — Finestra scorrevole per utente e per strumento tramite Redis, configurabile per servizio</li></ul><p>I limiti API sono rigorosi: 10 elementi massimi per richiesta, con valori predefiniti per dominio (10 per impostazione predefinita, 50 massimo).</p><h2>Protezione contro l'iniezione di prompt</h2><p>I contenuti esterni (email, pagine web, documenti) sono incapsulati in tag <code>UNTRUSTED</code> configurabili prima dell'iniezione nei prompt. Questo wrapping esplicito impedisce a un contenuto malevolo di deviare il comportamento dell'assistente separando chiaramente i dati utente dalle istruzioni di sistema.</p><h2>Verifica della proprietà delle risorse</h2><p>Ogni accesso a una risorsa passa attraverso <code>check_resource_ownership()</code> con un parametro <code>hide_existence</code>: le risorse pubbliche restituiscono 403 (accesso negato), le risorse private restituiscono 404 (risorsa inesistente) per non rivelare la loro esistenza a un attaccante.</p><h2>Quote di utilizzo per utente (v1.9)</h2><p>LIA consente agli amministratori di definire <strong>quote per utente</strong> su token, messaggi e costi. L'enforcement utilizza un'architettura a <strong>5 livelli di difesa</strong>: verifica a livello router (HTTP 429), servizio (errore SSE), guard invocazione LLM, skip runner proattivo e migrazione chiamate dirette. In caso di guasto infrastrutturale, il sistema <strong>fail-open</strong>. Un kill switch admin permette blocco/sblocco istantaneo.</p>"
       },
       "privacy-by-design": {
         "title": "Privacy by Design: GDPR, crittografia e controllo dei dati",
@@ -4169,6 +4247,66 @@
         "excerpt": "LIA parla francese, inglese, tedesco, spagnolo, italiano e cinese con internazionalizzazione completa.",
         "body": "<h2>6 lingue supportate nativamente</h2><p>LIA è interamente disponibile in <strong>francese, inglese, tedesco, spagnolo, italiano e cinese</strong>. L'internazionalizzazione non si limita all'interfaccia: copre le risposte dell'assistente, le notifiche, la FAQ e la documentazione.</p><h2>Architettura i18n frontend</h2><p>Il frontend utilizza <strong>react-i18next</strong> con file JSON per lingua e persistenza della scelta tramite un cookie <code>NEXT_LOCALE</code> (TTL 1 anno). Il routing Next.js utilizza un segmento dinamico <code>[lng]</code> per servire ogni lingua al proprio URL dedicato. Le bandiere delle lingue vengono visualizzate come emoji Unicode. Il mapping dei locale associa ogni codice breve alla sua variante completa (fr-FR, en-US, de-DE, es-ES, it-IT, zh-CN). Le pagine vengono pre-generate staticamente per ogni lingua al momento della build.</p><h2>Hreflang e SEO multilingue</h2><p>Ogni pagina pubblica dichiara tag <code>hreflang</code> alternativi per le 6 lingue, con un valore <code>x-default</code> che punta al francese. La sitemap XML include le alternative multilingue per ogni URL.</p><h2>Risposte IA multilingue</h2><p>L'assistente risponde nella lingua configurata dall'utente. Le lingue supportate sono configurabili lato backend tramite la variabile d'ambiente <code>SUPPORTED_LANGUAGES</code>. I prompt di sistema sono redatti in inglese per massimizzare la qualità del ragionamento del LLM, ma un'istruzione di lingua esplicita guida la generazione delle risposte nella lingua target. Tre prompt sono specificamente adattati per lingua: <code>journal_introspection_personality_addon</code>, <code>memory_extraction_personality_addon</code> e <code>broadcast_translation_prompt</code>.</p><h2>Riconoscimento vocale multilingue</h2><p>Il modello Whisper utilizzato per la trascrizione vocale supporta nativamente 99+ lingue in modalità offline, permettendo di parlare a LIA in praticamente tutte le lingue del mondo senza configurazione aggiuntiva né dipendenza da un servizio cloud.</p>"
       }
+    }
+  },
+  "usage_limits": {
+    "title": "Amministrazione dei limiti",
+    "description": "Configura i limiti di utilizzo per utente",
+    "search_placeholder": "Cerca per email o nome...",
+    "unlimited": "Illimitato",
+    "mode": {
+      "period": "Per periodo",
+      "absolute": "Globale"
+    },
+    "table": {
+      "email": "Email",
+      "name": "Nome",
+      "status": "Stato",
+      "tokens": "Token",
+      "messages": "Messaggi",
+      "cost": "Costo (EUR)",
+      "blocked": "Bloccato",
+      "actions": "Azioni",
+      "edit": "Modifica",
+      "block": "Blocca",
+      "unblock": "Sblocca",
+      "no_results": "Nessun utente trovato",
+      "page_info": "Pagina {{page}} di {{totalPages}} ({{total}} utenti)"
+    },
+    "edit": {
+      "title": "Limiti per {{email}}",
+      "description": "Configura i limiti di utilizzo per questo utente",
+      "cycle_limits": "Limiti per periodo",
+      "absolute_limits": "Limiti globali",
+      "token_limit": "Limite token",
+      "message_limit": "Limite messaggi",
+      "cost_limit": "Limite costo (EUR)",
+      "block_section": "Blocco manuale",
+      "block_user": "Blocca utente",
+      "block_reason_placeholder": "Motivo del blocco (opzionale)...",
+      "save": "Salva",
+      "cancel": "Annulla",
+      "success": "Limiti aggiornati",
+      "error": "Errore durante l'aggiornamento",
+      "default_block_reason": "Bloccato dall'amministratore",
+      "current_usage": "Consumo attuale"
+    },
+    "blocked": {
+      "title": "Limite raggiunto",
+      "message": "Hai raggiunto il tuo limite di utilizzo. Contatta il tuo amministratore.",
+      "tooltip": "Limite di utilizzo raggiunto"
+    },
+    "error": {
+      "loading": "Errore nel caricamento dei limiti",
+      "limit_exceeded": "Il tuo limite di utilizzo e stato superato. Messaggio non inviato."
+    },
+    "tile": {
+      "title": "I tuoi Limiti",
+      "messages": "Messaggi",
+      "tokens": "Token",
+      "cost": "Costo",
+      "title_period": "Limiti periodo",
+      "title_absolute": "Limiti globali"
     }
   }
 }

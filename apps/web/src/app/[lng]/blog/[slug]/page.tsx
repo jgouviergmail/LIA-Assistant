@@ -95,7 +95,12 @@ export default async function BlogArticlePage({ params }: ArticlePageProps) {
   const registerPath = buildLocalizedPath('/register', lng);
 
   const localeMap: Record<string, string> = {
-    fr: 'fr-FR', en: 'en-US', de: 'de-DE', es: 'es-ES', it: 'it-IT', zh: 'zh-CN',
+    fr: 'fr-FR',
+    en: 'en-US',
+    de: 'de-DE',
+    es: 'es-ES',
+    it: 'it-IT',
+    zh: 'zh-CN',
   };
 
   // Build JSON-LD for BlogPosting
@@ -144,7 +149,13 @@ export default async function BlogArticlePage({ params }: ArticlePageProps) {
         <header className="border-b border-border/40 bg-background/80 backdrop-blur-xl sticky top-0 z-50">
           <div className="max-w-7xl mx-auto flex items-center justify-between px-4 sm:px-6 lg:px-8 py-3">
             <Link href={homePath} className="flex items-center gap-2 font-bold text-lg">
-              <Image src="/v4-lia-brain.svg" alt="LIA" width={28} height={28} className="rounded-md" />
+              <Image
+                src="/v4-lia-brain.svg"
+                alt="LIA"
+                width={28}
+                height={28}
+                className="rounded-md"
+              />
               <span>LIA</span>
             </Link>
             <div className="flex items-center gap-2">

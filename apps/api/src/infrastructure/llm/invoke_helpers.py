@@ -49,11 +49,13 @@ Date: 2025-11-05
 """
 
 from typing import Any
+from uuid import UUID
 
 import structlog
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.runnables import RunnableConfig
 
+from src.core.config import settings
 from src.core.field_names import FIELD_METADATA, FIELD_USER_ID
 from src.infrastructure.llm.instrumentation import (
     create_instrumented_config,
@@ -61,6 +63,45 @@ from src.infrastructure.llm.instrumentation import (
 )
 
 logger = structlog.get_logger(__name__)
+
+
+def _resolve_user_id_for_limit_check(
+    explicit_user_id: str | None,
+    state: dict[str, Any] | None,
+    config: RunnableConfig | None,
+) -> UUID | None:
+    """Resolve user_id from available sources for usage limit checking.
+
+    Returns None if no valid user UUID found or if user_id is "system"
+    (system-level calls not attributable to a user).
+
+    Priority: explicit parameter > state > config metadata.
+
+    Args:
+        explicit_user_id: Explicitly passed user_id (may be UUID string or "system").
+        state: LangGraph state dict (may contain user_id).
+        config: RunnableConfig (may contain user_id in metadata).
+
+    Returns:
+        UUID if a valid user_id is found, None otherwise.
+    """
+    uid_str = explicit_user_id
+
+    if not uid_str and state:
+        _, extracted_uid = extract_session_user_from_state(state)
+        uid_str = extracted_uid
+
+    if not uid_str and config:
+        metadata = config.get("metadata") or {}
+        uid_str = metadata.get(FIELD_USER_ID)
+
+    if not uid_str or uid_str == "system":
+        return None
+
+    try:
+        return UUID(uid_str)
+    except (ValueError, AttributeError):
+        return None
 
 
 # ============================================================================
@@ -409,6 +450,34 @@ async def invoke_with_instrumentation(
         ...     config=config
         ... )
     """
+    # === USAGE LIMIT GUARD (Layer 2: centralized LLM-level enforcement) ===
+    if getattr(settings, "usage_limits_enabled", False):
+        resolved_uid = _resolve_user_id_for_limit_check(user_id, state, config)
+        if resolved_uid:
+            from src.domains.usage_limits.service import UsageLimitService
+
+            _limit_check = await UsageLimitService.check_user_allowed(resolved_uid)
+            if not _limit_check.allowed:
+                from src.core.exceptions import raise_usage_limit_exceeded
+                from src.infrastructure.observability.metrics_usage_limits import (
+                    usage_limit_enforcement_total,
+                )
+
+                usage_limit_enforcement_total.labels(
+                    layer="llm_invoke", limit_type=_limit_check.exceeded_limit or "unknown"
+                ).inc()
+                logger.warning(
+                    "llm_invocation_blocked_usage_limit",
+                    user_id=str(resolved_uid),
+                    llm_type=llm_type,
+                    limit=_limit_check.exceeded_limit,
+                )
+                raise_usage_limit_exceeded(
+                    _limit_check.exceeded_limit,
+                    _limit_check.blocked_reason,
+                )
+    # === END USAGE LIMIT GUARD ===
+
     # Create instrumented config
     instrumented_config = create_instrumented_config_from_node(
         llm_type=llm_type,

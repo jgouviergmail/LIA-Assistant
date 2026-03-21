@@ -103,20 +103,17 @@ export const JournalInjectionSection = React.memo(function JournalInjectionSecti
       <AccordionTrigger className="py-2 text-sm">
         <div className="flex items-center gap-2">
           <span>Personal Journals</span>
-          <SectionBadge
-            passed={hasInjectedEntries || hasExtraction}
-            label={badgeLabel}
-          />
+          <SectionBadge passed={hasInjectedEntries || hasExtraction} label={badgeLabel} />
           {hasInjectedEntries && data && (
             <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-muted/50 text-muted-foreground border border-border/50">
-              {data.total_chars_injected.toLocaleString()} / {data.max_chars_budget.toLocaleString()} chars
+              {data.total_chars_injected.toLocaleString()} /{' '}
+              {data.max_chars_budget.toLocaleString()} chars
             </span>
           )}
         </div>
       </AccordionTrigger>
       <AccordionContent>
         <div className="space-y-3">
-
           {/* ============================================================ */}
           {/* INJECTION SUB-SECTION (context retrieval) */}
           {/* ============================================================ */}
@@ -129,8 +126,15 @@ export const JournalInjectionSection = React.memo(function JournalInjectionSecti
               {/* Summary metrics */}
               <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
                 <MetricRow label="Entries found" value={data.entries_found} />
-                <MetricRow label="Entries injected" value={data.entries_injected} highlight={hasInjectedEntries} />
-                <MetricRow label="Chars injected" value={data.total_chars_injected.toLocaleString()} />
+                <MetricRow
+                  label="Entries injected"
+                  value={data.entries_injected}
+                  highlight={hasInjectedEntries}
+                />
+                <MetricRow
+                  label="Chars injected"
+                  value={data.total_chars_injected.toLocaleString()}
+                />
                 <MetricRow label="Chars budget" value={data.max_chars_budget.toLocaleString()} />
                 <MetricRow label="Max results" value={data.max_results_setting} />
               </div>
@@ -178,7 +182,9 @@ export const JournalInjectionSection = React.memo(function JournalInjectionSecti
                               {/* Metadata row */}
                               <div className="flex items-center gap-2 mt-0.5 text-muted-foreground">
                                 <span>{entry.date}</span>
-                                <span>{sourceEmoji} {entry.source}</span>
+                                <span>
+                                  {sourceEmoji} {entry.source}
+                                </span>
                                 <span>{entry.char_count} chars</span>
                               </div>
                             </div>
@@ -236,7 +242,8 @@ export const JournalInjectionSection = React.memo(function JournalInjectionSecti
               {/* No injection results message */}
               {!hasInjectedEntries && data.entries_found === 0 && !extraction && (
                 <div className="mt-1 text-xs text-muted-foreground bg-muted/20 p-2 rounded border border-border/50">
-                  No journal entries found. The assistant hasn&apos;t written any entries yet, or journals are disabled.
+                  No journal entries found. The assistant hasn&apos;t written any entries yet, or
+                  journals are disabled.
                 </div>
               )}
             </>
@@ -247,17 +254,23 @@ export const JournalInjectionSection = React.memo(function JournalInjectionSecti
           {/* ============================================================ */}
           {extraction && (
             <>
-              <div className={cn(
-                'text-xs font-medium text-muted-foreground uppercase tracking-wider',
-                data && 'border-t pt-3'
-              )}>
+              <div
+                className={cn(
+                  'text-xs font-medium text-muted-foreground uppercase tracking-wider',
+                  data && 'border-t pt-3'
+                )}
+              >
                 Background Extraction
               </div>
 
               {/* Summary metrics */}
               <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
                 <MetricRow label="Actions parsed" value={extraction.actions_parsed} />
-                <MetricRow label="Actions applied" value={extraction.actions_applied} highlight={hasExtraction} />
+                <MetricRow
+                  label="Actions applied"
+                  value={extraction.actions_applied}
+                  highlight={hasExtraction}
+                />
               </div>
 
               {/* Per-action details */}
@@ -274,19 +287,19 @@ export const JournalInjectionSection = React.memo(function JournalInjectionSecti
                         className="text-xs p-2 rounded border bg-muted/30 border-border/50"
                       >
                         <div className="flex items-center gap-1.5">
-                          <span className={cn(
-                            'text-[9px] px-1.5 py-0 rounded font-mono border',
-                            actionStyle.className
-                          )}>
+                          <span
+                            className={cn(
+                              'text-[9px] px-1.5 py-0 rounded font-mono border',
+                              actionStyle.className
+                            )}
+                          >
                             {actionStyle.label}
                           </span>
                           {themeEmoji && <span>{themeEmoji}</span>}
                           <span className="font-medium text-primary truncate">
                             {entry.title || entry.entry_id?.slice(0, 8) || '—'}
                           </span>
-                          {moodEmoji && (
-                            <span className="text-muted-foreground">{moodEmoji}</span>
-                          )}
+                          {moodEmoji && <span className="text-muted-foreground">{moodEmoji}</span>}
                         </div>
                         {entry.theme && (
                           <div className="flex items-center gap-2 mt-0.5 text-muted-foreground">

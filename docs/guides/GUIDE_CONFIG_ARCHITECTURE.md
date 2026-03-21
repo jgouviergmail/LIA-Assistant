@@ -306,6 +306,29 @@ class VoiceSettings(BaseSettings):
     voice_sentence_delimiters: str = Field(".!?")
 ```
 
+### 11. usage_limits.py
+
+**Responsabilite** : Per-user token/message/cost quotas, enforcement configuration
+
+```python
+class UsageLimitsSettings(BaseSettings):
+    # Feature flag
+    usage_limits_enabled: bool = Field(False)
+
+    # Default limits for new users (None = unlimited)
+    default_token_limit_per_cycle: OptionalInt = Field(None)
+    default_message_limit_per_cycle: OptionalInt = Field(None)
+    default_cost_limit_per_cycle_eur: OptionalFloat = Field(None)
+    default_token_limit_absolute: OptionalInt = Field(None)
+    default_message_limit_absolute: OptionalInt = Field(None)
+    default_cost_limit_absolute_eur: OptionalFloat = Field(None)
+
+    # Cache
+    usage_limit_cache_ttl_seconds: int = Field(60, ge=5, le=300)
+```
+
+**Note** : Uses `Annotated[int | None, BeforeValidator(_empty_str_to_none)]` to handle empty env vars (`VAR=`) as None.
+
 ---
 
 ## Usage Patterns

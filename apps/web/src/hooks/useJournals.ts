@@ -5,21 +5,12 @@ import { useApiMutation } from './useApiMutation';
 /**
  * Journal theme types matching backend JournalTheme enum.
  */
-export type JournalTheme =
-  | 'self_reflection'
-  | 'user_observations'
-  | 'ideas_analyses'
-  | 'learnings';
+export type JournalTheme = 'self_reflection' | 'user_observations' | 'ideas_analyses' | 'learnings';
 
 /**
  * Journal entry mood types matching backend JournalEntryMood enum.
  */
-export type JournalEntryMood =
-  | 'reflective'
-  | 'curious'
-  | 'satisfied'
-  | 'concerned'
-  | 'inspired';
+export type JournalEntryMood = 'reflective' | 'curious' | 'satisfied' | 'concerned' | 'inspired';
 
 /**
  * Journal entry status types.
@@ -171,13 +162,10 @@ export function useJournals() {
   });
 
   // Fetch themes
-  const { data: themesData } = useApiQuery<{ themes: JournalThemeInfo[] }>(
-    '/journals/themes',
-    {
-      componentName: 'useJournals',
-      initialData: { themes: [] },
-    }
-  );
+  const { data: themesData } = useApiQuery<{ themes: JournalThemeInfo[] }>('/journals/themes', {
+    componentName: 'useJournals',
+    initialData: { themes: [] },
+  });
 
   // Mutations
   const { mutate: createMutate, loading: creating } = useApiMutation<
@@ -220,7 +208,7 @@ export function useJournals() {
       const result = await createMutate('/journals', data);
       if (result) {
         // Optimistic update
-        setData((prev) => {
+        setData(prev => {
           if (!prev) return prev;
           return {
             ...prev,
@@ -240,11 +228,11 @@ export function useJournals() {
     async (entryId: string, data: JournalEntryUpdate) => {
       const result = await updateMutate(`/journals/${entryId}`, data);
       if (result) {
-        setData((prev) => {
+        setData(prev => {
           if (!prev) return prev;
           return {
             ...prev,
-            entries: prev.entries.map((e) => (e.id === entryId ? result : e)),
+            entries: prev.entries.map(e => (e.id === entryId ? result : e)),
           };
         });
       }
@@ -256,13 +244,13 @@ export function useJournals() {
   // Delete entry
   const deleteEntry = useCallback(
     async (entryId: string) => {
-      const entry = entriesData?.entries.find((e) => e.id === entryId);
+      const entry = entriesData?.entries.find(e => e.id === entryId);
       await deleteMutate(`/journals/${entryId}`);
-      setData((prev) => {
+      setData(prev => {
         if (!prev) return prev;
         return {
           ...prev,
-          entries: prev.entries.filter((e) => e.id !== entryId),
+          entries: prev.entries.filter(e => e.id !== entryId),
           total: Math.max(0, prev.total - 1),
           total_chars: Math.max(0, prev.total_chars - (entry?.char_count || 0)),
         };
@@ -274,7 +262,7 @@ export function useJournals() {
   // Delete all entries (GDPR)
   const deleteAllEntries = useCallback(async () => {
     await deleteAllMutate('/journals');
-    setData((prev) => {
+    setData(prev => {
       if (!prev) return prev;
       return {
         ...prev,

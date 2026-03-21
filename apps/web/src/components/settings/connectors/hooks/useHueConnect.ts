@@ -63,9 +63,7 @@ export function useHueConnect({ onSuccess, onError }: UseHueConnectOptions = {})
     setIsLoading(true);
     setError(null);
     try {
-      const data = await apiClient.post<HueDiscoveryResponse>(
-        '/connectors/philips-hue/discover'
-      );
+      const data = await apiClient.post<HueDiscoveryResponse>('/connectors/philips-hue/discover');
       setBridges(data.bridges || []);
       if (data.bridges?.length > 0) {
         setStep('discover');
@@ -86,7 +84,7 @@ export function useHueConnect({ onSuccess, onError }: UseHueConnectOptions = {})
     setStep('pair');
     setCountdown(30);
     countdownRef.current = setInterval(() => {
-      setCountdown((prev) => {
+      setCountdown(prev => {
         if (prev <= 1) {
           if (countdownRef.current) clearInterval(countdownRef.current);
           return 0;
@@ -101,10 +99,9 @@ export function useHueConnect({ onSuccess, onError }: UseHueConnectOptions = {})
       setIsPairing(true);
       setError(null);
       try {
-        const pairData = await apiClient.post<HuePairingResponse>(
-          '/connectors/philips-hue/pair',
-          { bridge_ip: bridgeIp }
-        );
+        const pairData = await apiClient.post<HuePairingResponse>('/connectors/philips-hue/pair', {
+          bridge_ip: bridgeIp,
+        });
 
         if (pairData.success) {
           // Activate connector

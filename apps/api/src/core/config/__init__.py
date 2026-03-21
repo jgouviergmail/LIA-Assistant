@@ -44,6 +44,7 @@ from .observability import ObservabilitySettings
 from .rag_spaces import RAGSpacesSettings
 from .security import SecuritySettings
 from .skills import SkillsSettings
+from .usage_limits import UsageLimitsSettings
 from .voice import VoiceSettings
 
 
@@ -88,6 +89,7 @@ class Settings(
     SkillsSettings,
     BrowserSettings,
     JournalsSettings,
+    UsageLimitsSettings,
     BaseSettings,
 ):
     """
@@ -112,7 +114,8 @@ class Settings(
         14. SkillsSettings (Agent Skills: agentskills.io standard)
         15. BrowserSettings (Browser automation: Playwright/Chromium)
         16. JournalsSettings (Personal Journals: assistant logbooks)
-        17. BaseSettings (Pydantic base class)
+        17. UsageLimitsSettings (Per-user usage limits: tokens, messages, cost)
+        18. BaseSettings (Pydantic base class)
 
     All settings can be overridden via .env file or environment variables.
     """
@@ -346,4 +349,5 @@ __all__ = [
     "RAGSpacesSettings",
     "BrowserSettings",
     "JournalsSettings",
+    "UsageLimitsSettings",
 ]

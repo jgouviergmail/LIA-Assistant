@@ -144,8 +144,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Startup
     # Eagerly import all domain models so SQLAlchemy mappers are fully configured
     # before any query. Required for models referenced via string in relationships
-    # (e.g., User.skill_states → UserSkillState).
+    # (e.g., User.skill_states → UserSkillState, User.usage_limit → UserUsageLimit).
     import src.domains.skills.models  # noqa: F401
+    from src.infrastructure.database.registry import import_all_models
+
+    import_all_models()
 
     logger.info(
         "application_startup",

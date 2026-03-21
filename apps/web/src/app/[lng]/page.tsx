@@ -87,10 +87,22 @@ export default async function HomePage({ params }: HomePageProps) {
         name={t('landing.how_it_works.title')}
         description={t('landing.how_it_works.subtitle')}
         steps={[
-          { name: t('landing.how_it_works.step1.title'), text: t('landing.how_it_works.step1.description') },
-          { name: t('landing.how_it_works.step2.title'), text: t('landing.how_it_works.step2.description') },
-          { name: t('landing.how_it_works.step3.title'), text: t('landing.how_it_works.step3.description') },
-          { name: t('landing.how_it_works.step4.title'), text: t('landing.how_it_works.step4.description') },
+          {
+            name: t('landing.how_it_works.step1.title'),
+            text: t('landing.how_it_works.step1.description'),
+          },
+          {
+            name: t('landing.how_it_works.step2.title'),
+            text: t('landing.how_it_works.step2.description'),
+          },
+          {
+            name: t('landing.how_it_works.step3.title'),
+            text: t('landing.how_it_works.step3.description'),
+          },
+          {
+            name: t('landing.how_it_works.step4.title'),
+            text: t('landing.how_it_works.step4.description'),
+          },
         ]}
       />
 

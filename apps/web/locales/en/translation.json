@@ -32,7 +32,8 @@
     "on": "On",
     "off": "Off",
     "enabled": "Enabled",
-    "disabled": "Disabled"
+    "disabled": "Disabled",
+    "saving": "Saving..."
   },
   "broadcast": {
     "modal": {
@@ -1045,7 +1046,7 @@
         "error_update": "Update error"
       },
       "llm": {
-        "title": "LLM Model Administration",
+        "title": "LLM Administration",
         "description": "Manage LLM models and their pricing (USD per million tokens). Changes automatically create a new price history.",
         "search_placeholder": "Search by model name...",
         "add_model": "Add Model",
@@ -1093,7 +1094,7 @@
         }
       },
       "google_api": {
-        "title": "Google API Pricing Administration",
+        "title": "Google API Administration",
         "description": "Manage Google Maps Platform API pricing (Places, Routes, Geocoding). Changes automatically create a new price history.",
         "search_placeholder": "Search by API, endpoint or SKU...",
         "add_entry": "Add Pricing",
@@ -1373,7 +1374,7 @@
         "userAccessDisabledSuccess": "User debug panel access disabled"
       },
       "ragSpaces": {
-        "title": "RAG Knowledge Spaces",
+        "title": "System RAG Administration",
         "subtitle": "Manage RAG document spaces and embedding configuration",
         "featureStatus": "Feature Status",
         "embeddingModel": "Embedding Model",
@@ -1949,7 +1950,8 @@
       "server_error": "Server error ({{status}}). Please try again.",
       "http_error": "HTTP Error {{status}}: {{statusText}}",
       "network_error": "Network connection error. Check your internet connection.",
-      "unknown_error": "Unknown error during streaming"
+      "unknown_error": "Unknown error during streaming",
+      "usage_limit_exceeded": "You have reached your usage limit. Contact your administrator."
     },
     "settings": {
       "title": "An error occurred",
@@ -2716,7 +2718,7 @@
       "heartbeat": {
         "title": "Proactive Notifications",
         "description": "LIA takes the initiative to keep you informed",
-        "count": "5",
+        "count": "6",
         "questions": {
           "q1": {
             "question": "What are proactive notifications?",
@@ -2737,13 +2739,17 @@
           "q5": {
             "question": "How do I give feedback on a notification?",
             "answer": "Your feedback helps LIA improve:<br><br><strong>👍👎 Feedback buttons:</strong><br>• Each notification displays <strong>thumbs up / thumbs down</strong> buttons<br>• Your feedback is recorded to improve future decisions<br><br><strong>📜 History:</strong><br>• View your recent proactive notifications in the dedicated section<br>• Each entry shows the sources used and priority level<br><br><strong>⚙️ Adjustment:</strong><br>• If you receive too many notifications, reduce the daily maximum<br>• If notifications aren't relevant, disable unwanted sources (disconnect the corresponding connector)"
+          },
+          "q6": {
+            "question": "Are proactive notifications affected by usage limits?",
+            "answer": "Yes. When your usage limits are reached, proactive notifications are <strong>automatically paused</strong> until your limits are reset or adjusted by your administrator."
           }
         }
       },
       "scheduled_actions": {
         "title": "Scheduled Actions",
         "description": "Automate recurring tasks with LIA",
-        "count": "5",
+        "count": "6",
         "questions": {
           "q1": {
             "question": "What is a scheduled action?",
@@ -2764,6 +2770,10 @@
           "q5": {
             "question": "How many scheduled actions can I create?",
             "answer": "You can create up to <strong>20 scheduled actions</strong>:<br><br><strong>📊 Limits:</strong><br>• Maximum 20 actions per user<br>• Each action can target one or more days of the week<br>• Time is configured to the minute<br><br><strong>⚙️ Management:</strong><br>• <strong>Enable/Disable</strong>: inline switch to pause without deleting<br>• <strong>Edit</strong>: change the title, instruction, days or time<br>• <strong>Delete</strong>: permanent deletion (past results remain in conversation)"
+          },
+          "q6": {
+            "question": "Are scheduled actions affected by usage limits?",
+            "answer": "Yes. When your usage limits are reached, scheduled actions are <strong>blocked</strong>. The action remains scheduled and will resume automatically on the next cycle or when your administrator adjusts your limits."
           }
         }
       },
@@ -2912,13 +2922,34 @@
         "description": "Assistant's personal logbooks for reflections and learnings",
         "count": "7",
         "questions": {
-          "q1": { "question": "What are personal journals?", "answer": "<p>Personal journals are thematic notebooks where the AI assistant records its own reflections, observations, analyses, and learnings. Unlike user memories (facts about you), journals contain the <strong>assistant's own perspective</strong> — written in first person, colored by its active personality.</p><p><strong>4 themes:</strong> Self-reflection, User observations, Ideas & analyses, Learnings.</p>" },
-          "q2": { "question": "When does the assistant write in its journals?", "answer": "<p><strong>Two mechanisms:</strong></p><ul><li><strong>Post-conversation:</strong> After conversations (4+ messages), the assistant may write a reflection. Most conversations produce nothing — it's selective.</li><li><strong>Periodic consolidation:</strong> Every few hours, the assistant reviews all notes — merges, summarizes, or removes obsolete entries.</li></ul>" },
-          "q3": { "question": "How do journals influence responses?", "answer": "<p>Journal entries are injected into prompts via <strong>semantic search</strong>. Two distinct injections: the <strong>response prompt</strong> gets entries matching conversation tone, and the <strong>planner prompt</strong> gets entries matching user goals and learnings. The assistant decides which notes are relevant.</p>" },
-          "q4": { "question": "Can I read and edit the assistant's journals?", "answer": "<p>Yes! In <strong>Settings > Features > Personal Journals</strong> you can read, edit, delete, and even create entries. Your additions are transparent — the assistant can't tell the difference. This lets you correct biases or guide the assistant.</p>" },
-          "q5": { "question": "What settings can I configure?", "answer": "<p><strong>Toggles:</strong> Enable/disable journals, consolidation, conversation history analysis (with cost warning).</p><p><strong>Numeric settings:</strong> Max journal size (40,000 chars default), prompt injection budget (1,500 chars), max entry size (2,000 chars), max search results (10).</p>" },
-          "q6": { "question": "How much does it cost?", "answer": "<p>Journal operations use background LLM calls. Extraction: one call per qualifying conversation (most return empty). Consolidation: one call every 4-12h per user. LLM models configurable in <strong>Admin > LLM Configuration</strong>. Real costs visible in Settings.</p>" },
-          "q7": { "question": "What about privacy?", "answer": "<p>Journal data is per-user and isolated. All data can be exported (JSON/CSV) or deleted (GDPR). When disabled, data is preserved but not used. The assistant writes in your configured language.</p>" }
+          "q1": {
+            "question": "What are personal journals?",
+            "answer": "<p>Personal journals are thematic notebooks where the AI assistant records its own reflections, observations, analyses, and learnings. Unlike user memories (facts about you), journals contain the <strong>assistant's own perspective</strong> — written in first person, colored by its active personality.</p><p><strong>4 themes:</strong> Self-reflection, User observations, Ideas & analyses, Learnings.</p>"
+          },
+          "q2": {
+            "question": "When does the assistant write in its journals?",
+            "answer": "<p><strong>Two mechanisms:</strong></p><ul><li><strong>Post-conversation:</strong> After conversations (4+ messages), the assistant may write a reflection. Most conversations produce nothing — it's selective.</li><li><strong>Periodic consolidation:</strong> Every few hours, the assistant reviews all notes — merges, summarizes, or removes obsolete entries.</li></ul>"
+          },
+          "q3": {
+            "question": "How do journals influence responses?",
+            "answer": "<p>Journal entries are injected into prompts via <strong>semantic search</strong>. Two distinct injections: the <strong>response prompt</strong> gets entries matching conversation tone, and the <strong>planner prompt</strong> gets entries matching user goals and learnings. The assistant decides which notes are relevant.</p>"
+          },
+          "q4": {
+            "question": "Can I read and edit the assistant's journals?",
+            "answer": "<p>Yes! In <strong>Settings > Features > Personal Journals</strong> you can read, edit, delete, and even create entries. Your additions are transparent — the assistant can't tell the difference. This lets you correct biases or guide the assistant.</p>"
+          },
+          "q5": {
+            "question": "What settings can I configure?",
+            "answer": "<p><strong>Toggles:</strong> Enable/disable journals, consolidation, conversation history analysis (with cost warning).</p><p><strong>Numeric settings:</strong> Max journal size (40,000 chars default), prompt injection budget (1,500 chars), max entry size (2,000 chars), max search results (10).</p>"
+          },
+          "q6": {
+            "question": "How much does it cost?",
+            "answer": "<p>Journal operations use background LLM calls. Extraction: one call per qualifying conversation (most return empty). Consolidation: one call every 4-12h per user. LLM models configurable in <strong>Admin > LLM Configuration</strong>. Real costs visible in Settings.</p>"
+          },
+          "q7": {
+            "question": "What about privacy?",
+            "answer": "<p>Journal data is per-user and isolated. All data can be exported (JSON/CSV) or deleted (GDPR). When disabled, data is preserved but not used. The assistant writes in your configured language.</p>"
+          }
         }
       },
       "privacy": {
@@ -2976,6 +3007,49 @@
           "q5": {
             "question": "How do I report a problem or make a suggestion?",
             "answer": "Several ways to contact us:<br><br><strong>🐛 Report a bug:</strong><br>• Describe the problem encountered<br>• Specify the steps to reproduce it<br>• Indicate any error message<br>• Contact your administrator<br><br><strong>💡 Make a suggestion:</strong><br>• Improvement ideas are welcome<br>• Describe the need or desired feature<br>• Submit via your administrator<br><br><strong>📧 Administrator support:</strong><br>Your administrator can:<br>• Manage your account<br>• Resolve connector issues<br>• Forward requests to the technical team<br><br><strong>💡 Before reporting:</strong><br>Check this FAQ - your question may already have an answer!"
+          }
+        }
+      },
+      "usage_limits": {
+        "title": "Usage Limits",
+        "description": "Per-user token, message and cost quotas",
+        "count": "9",
+        "questions": {
+          "q1": {
+            "question": "What are usage limits?",
+            "answer": "Usage limits are <strong>quotas set by your administrator</strong> to control resource consumption:<br><br><strong>📊 3 dimensions:</strong><br>• <strong>Tokens</strong> (prompt + response + cache) — volume of data processed by AI<br>• <strong>Messages</strong> — number of messages sent<br>• <strong>Cost (EUR)</strong> — combined LLM + Google API cost<br><br><strong>📅 2 modes:</strong><br>• <strong>Per period</strong> — monthly rolling cycle from account creation<br>• <strong>Global</strong> — cumulative total since registration<br><br>Each dimension can be set or unlimited."
+          },
+          "q2": {
+            "question": "How is the billing period calculated?",
+            "answer": "The period is a <strong>monthly rolling cycle</strong> aligned with your account creation date:<br><br><strong>📅 Example:</strong><br>If you registered on January 15th, your cycle runs from the 15th of each month to the 15th of the next. This is the same period shown on the dashboard."
+          },
+          "q3": {
+            "question": "What happens when I reach a limit?",
+            "answer": "When a limit is reached:<br><br><strong>🔒 Blocking:</strong><br>• Message input and voice are <strong>disabled</strong><br>• A <strong>red banner</strong> explains the situation<br>• <strong>Proactive notifications</strong> and <strong>scheduled actions</strong> are also blocked<br><br><strong>🔓 To unblock:</strong><br>• Wait for the next cycle (period limits)<br>• Contact your administrator to adjust your quotas"
+          },
+          "q4": {
+            "question": "Can administrators manually block a user?",
+            "answer": "Yes. Administrators can <strong>block or unblock</strong> any user instantly via <strong>Settings > Administration > Limits Administration</strong>. A reason can be provided and will be shown to the user."
+          },
+          "q5": {
+            "question": "What types of limits can be set?",
+            "answer": "<strong>3 dimensions × 2 modes = 6 possible limits:</strong><br><br>• <strong>Tokens per period</strong> or <strong>global</strong><br>• <strong>Messages per period</strong> or <strong>global</strong><br>• <strong>Cost EUR per period</strong> or <strong>global</strong><br><br>Each dimension can be set to a specific value or left <strong>unlimited</strong>."
+          },
+          "q6": {
+            "question": "Are administrators subject to limits?",
+            "answer": "Yes, all users including administrators are subject to usage limits. However, administrators can <strong>adjust their own limits</strong> through the admin interface."
+          },
+          "q7": {
+            "question": "What happens if no limits are configured?",
+            "answer": "If no limit record exists for a user, they have <strong>unlimited access</strong>. Limits are created either automatically at registration (with default values) or manually by an administrator."
+          },
+          "q8": {
+            "question": "Where can I see my current usage?",
+            "answer": "Your usage is visible on the <strong>dashboard</strong> via dedicated tiles:<br><br><strong>📊 Tiles:</strong><br>• <strong>Period Limits</strong> — current cycle consumption<br>• <strong>Global Limits</strong> — total consumption since registration<br><br><strong>🎨 Color coding:</strong><br>• 🟢 Green: < 60%<br>• 🟡 Yellow: 60-80%<br>• 🟠 Orange: 80-95%<br>• 🔴 Red: > 95%"
+          },
+          "q9": {
+            "question": "How does limit enforcement work?",
+            "answer": "LIA uses a <strong>5-layer defense-in-depth</strong> architecture:<br><br>1. <strong>Router</strong> — HTTP 429 before streaming<br>2. <strong>Service</strong> — SSE error for scheduled actions<br>3. <strong>LLM Guard</strong> — Centralized check before each LLM call<br>4. <strong>Proactive Runner</strong> — Skip blocked users<br>5. <strong>Direct call migration</strong> — Full coverage<br><br><strong>⚡ Fail-open:</strong> If Redis/DB is down, access is allowed (cost control, not security)."
           }
         }
       }
@@ -3316,7 +3390,7 @@
     "source_weather": "Weather",
     "source_interests": "Interests",
     "source_memories": "Memories",
-      "source_journals": "Journals",
+    "source_journals": "Journals",
     "notification_hours": "Notification time window",
     "enabled_success": "Proactive notifications enabled",
     "disabled_success": "Proactive notifications disabled",
@@ -3812,6 +3886,10 @@
       "responsive": {
         "title": "PWA & Responsive Design",
         "description": "Installable Progressive Web App with a fully optimized interface for desktop, tablet, and smartphone — use LIA anywhere, on any device, even offline-ready"
+      },
+      "usage_limits": {
+        "title": "Usage Quotas",
+        "description": "Per-user limits on tokens, messages and cost with real-time monitoring and 5-layer enforcement. Administrators control budgets with instant block/unblock."
       }
     },
     "use_cases": {
@@ -4141,7 +4219,7 @@
       "security-architecture": {
         "title": "Defense in Depth: LIA's 5 Security Principles",
         "excerpt": "Defense in depth, least privilege, rate limiting, encryption, and validation: discover how LIA protects your data at every layer.",
-        "body": "<h2>5 fundamental principles</h2><p>LIA's security rests on five principles applied at every application layer:</p><ul><li><strong>Defense in depth</strong> — Multi-layer controls (authentication, rate limiting, validation, encryption)</li><li><strong>Least privilege</strong> — Minimal permissions by default</li><li><strong>Fail securely</strong> — On error, the system denies rather than allows</li><li><strong>Don't trust input</strong> — Pydantic validation + systematic sanitization</li><li><strong>Security by default</strong> — HTTPS, HttpOnly/SameSite cookies, strict CORS</li></ul><h2>Hashing and encryption</h2><p>Passwords are hashed with <strong>bcrypt</strong> (with automatic salt). Sensitive data (OAuth tokens, connector credentials, PII, MCP server credentials) is encrypted with <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256), ensuring confidentiality and integrity. Encryption keys are managed separately from data.</p><h2>JWT and session management</h2><p>JWT tokens use the HS256 algorithm with a JTI (JWT ID) blacklist system in Redis. Single-use tokens (email verification, password reset) are invalidated after first use. This mechanism prevents any reuse of sensitive tokens.</p><h2>Configurable rate limiting</h2><p>Rate limiting operates at two levels:</p><ul><li><strong>HTTP</strong> — Via nginx upstream</li><li><strong>Tools</strong> — Sliding window per user and per tool via Redis, configurable per service</li></ul><p>API limits are strict: 10 items maximum per request, with per-domain defaults (10 by default, 50 maximum).</p><h2>Prompt injection protection</h2><p>External content (emails, web pages, documents) is encapsulated in configurable <code>UNTRUSTED</code> tags before injection into prompts. This explicit wrapping prevents malicious content from hijacking the assistant's behavior by clearly separating user data from system instructions.</p><h2>Resource ownership verification</h2><p>Every resource access goes through <code>check_resource_ownership()</code> with a <code>hide_existence</code> parameter: public resources return 403 (access denied), private resources return 404 (resource not found) to avoid revealing their existence to an attacker.</p>"
+        "body": "<h2>5 fundamental principles</h2><p>LIA's security rests on five principles applied at every application layer:</p><ul><li><strong>Defense in depth</strong> — Multi-layer controls (authentication, rate limiting, validation, encryption)</li><li><strong>Least privilege</strong> — Minimal permissions by default</li><li><strong>Fail securely</strong> — On error, the system denies rather than allows</li><li><strong>Don't trust input</strong> — Pydantic validation + systematic sanitization</li><li><strong>Security by default</strong> — HTTPS, HttpOnly/SameSite cookies, strict CORS</li></ul><h2>Hashing and encryption</h2><p>Passwords are hashed with <strong>bcrypt</strong> (with automatic salt). Sensitive data (OAuth tokens, connector credentials, PII, MCP server credentials) is encrypted with <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256), ensuring confidentiality and integrity. Encryption keys are managed separately from data.</p><h2>JWT and session management</h2><p>JWT tokens use the HS256 algorithm with a JTI (JWT ID) blacklist system in Redis. Single-use tokens (email verification, password reset) are invalidated after first use. This mechanism prevents any reuse of sensitive tokens.</p><h2>Configurable rate limiting</h2><p>Rate limiting operates at two levels:</p><ul><li><strong>HTTP</strong> — Via nginx upstream</li><li><strong>Tools</strong> — Sliding window per user and per tool via Redis, configurable per service</li></ul><p>API limits are strict: 10 items maximum per request, with per-domain defaults (10 by default, 50 maximum).</p><h2>Prompt injection protection</h2><p>External content (emails, web pages, documents) is encapsulated in configurable <code>UNTRUSTED</code> tags before injection into prompts. This explicit wrapping prevents malicious content from hijacking the assistant's behavior by clearly separating user data from system instructions.</p><h2>Resource ownership verification</h2><p>Every resource access goes through <code>check_resource_ownership()</code> with a <code>hide_existence</code> parameter: public resources return 403 (access denied), private resources return 404 (resource not found) to avoid revealing their existence to an attacker.</p><h2>Per-User Usage Quotas (v1.9)</h2><p>LIA enables administrators to set <strong>per-user quotas</strong> on tokens, messages, and costs. Enforcement uses a <strong>5-layer defense-in-depth</strong> architecture: router-level check (HTTP 429), service-level (SSE error), LLM invocation guard (centralized in invoke_with_instrumentation), proactive runner skip, and direct call migration. If infrastructure (Redis/DB) fails, the system <strong>fails open</strong> (allows access) since this is cost control, not security. An admin kill switch enables instant blocking/unblocking of any user.</p>"
       },
       "privacy-by-design": {
         "title": "Privacy by Design: GDPR, Encryption, and Data Control",
@@ -4168,6 +4246,66 @@
         "excerpt": "LIA speaks French, English, German, Spanish, Italian, and Chinese. Internationalization covers the UI, AI responses, and documentation.",
         "body": "<h2>6 natively supported languages</h2><p>LIA is fully available in <strong>French, English, German, Spanish, Italian, and Chinese</strong>. Internationalization isn't limited to the interface: it covers assistant responses, notifications, FAQ, and documentation.</p><h2>Frontend i18n architecture</h2><p>The frontend uses <strong>react-i18next</strong> with per-language JSON files and language choice persistence via a <code>NEXT_LOCALE</code> cookie (1-year TTL). Next.js routing uses a dynamic <code>[lng]</code> segment to serve each language at its dedicated URL. Language flags are displayed as Unicode emojis. The locale mapping associates each short code with its full variant (fr-FR, en-US, de-DE, es-ES, it-IT, zh-CN). Pages are statically pre-generated for each language at build time.</p><h2>Hreflang and multilingual SEO</h2><p>Each public page declares <code>hreflang</code> alternates for all 6 languages, with an <code>x-default</code> value pointing to French. The XML sitemap includes multilingual alternates for each URL.</p><h2>Multilingual AI responses</h2><p>The assistant responds in the user's configured language. Supported languages are configurable on the backend via the <code>SUPPORTED_LANGUAGES</code> environment variable. System prompts are written in English to maximize LLM reasoning quality, but an explicit language instruction guides response generation in the target language. Three prompts are specifically adapted per language: <code>journal_introspection_personality_addon</code>, <code>memory_extraction_personality_addon</code> and <code>broadcast_translation_prompt</code>.</p><h2>Multilingual voice recognition</h2><p>The Whisper model used for voice transcription natively supports 99+ languages in offline mode, allowing you to speak to LIA in virtually any language without additional configuration or cloud service dependency.</p>"
       }
+    }
+  },
+  "usage_limits": {
+    "title": "Limits Administration",
+    "description": "Configure per-user usage limits",
+    "search_placeholder": "Search by email or name...",
+    "unlimited": "Unlimited",
+    "mode": {
+      "period": "Per period",
+      "absolute": "Global"
+    },
+    "table": {
+      "email": "Email",
+      "name": "Name",
+      "status": "Status",
+      "tokens": "Tokens",
+      "messages": "Messages",
+      "cost": "Cost (EUR)",
+      "blocked": "Blocked",
+      "actions": "Actions",
+      "edit": "Edit",
+      "block": "Block",
+      "unblock": "Unblock",
+      "no_results": "No users found",
+      "page_info": "Page {{page}} of {{totalPages}} ({{total}} users)"
+    },
+    "edit": {
+      "title": "Limits for {{email}}",
+      "description": "Configure usage limits for this user",
+      "cycle_limits": "Per-period limits",
+      "absolute_limits": "Global limits",
+      "token_limit": "Token limit",
+      "message_limit": "Message limit",
+      "cost_limit": "Cost limit (EUR)",
+      "block_section": "Manual block",
+      "block_user": "Block user",
+      "block_reason_placeholder": "Block reason (optional)...",
+      "save": "Save",
+      "cancel": "Cancel",
+      "success": "Limits updated",
+      "error": "Failed to update limits",
+      "default_block_reason": "Blocked by administrator",
+      "current_usage": "Current usage"
+    },
+    "blocked": {
+      "title": "Limit reached",
+      "message": "You have reached your usage limit. Contact your administrator.",
+      "tooltip": "Usage limit reached"
+    },
+    "error": {
+      "loading": "Failed to load usage limits",
+      "limit_exceeded": "Your usage limit has been exceeded. Message not sent."
+    },
+    "tile": {
+      "title": "Your Limits",
+      "messages": "Messages",
+      "tokens": "Tokens",
+      "cost": "Cost",
+      "title_period": "Period Limits",
+      "title_absolute": "Global Limits"
     }
   }
 }

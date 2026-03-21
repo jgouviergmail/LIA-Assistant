@@ -11,6 +11,12 @@ import { useApiQuery } from '@/hooks/useApiQuery';
 import { useApiMutation } from '@/hooks/useApiMutation';
 import { useTranslation } from '@/i18n/client';
 import { SettingsSection } from '@/components/settings/SettingsSection';
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from '@/components/ui/accordion';
 import { toast } from 'sonner';
 import { useState } from 'react';
 
@@ -360,6 +366,20 @@ export default function UserConnectorsSection({ lng, collapsible = true }: BaseS
     })
     .map(meta => meta.type);
 
+  // Counts for available sections
+  const unconnectedGoogleCount = GOOGLE_CONNECTORS_METADATA.filter(
+    meta => !isConnectorTypeExists(connectors, meta.type, meta.checkTypes)
+  ).length;
+  const unconnectedAppleCount = APPLE_CONNECTOR_TYPES.filter(
+    type => !isConnectorTypeExists(connectors, type)
+  ).length;
+  const unconnectedMicrosoftCount = MICROSOFT_CONNECTORS_METADATA.filter(
+    meta => !isConnectorTypeExists(connectors, meta.type)
+  ).length;
+  const unconnectedApiKeyCount = API_KEY_CONNECTORS.filter(
+    c => !isConnectorTypeActive(connectors, c.type)
+  ).length;
+
   const content = (
     <div ref={sectionRef} className="space-y-6">
       {loading ? (
@@ -370,251 +390,365 @@ export default function UserConnectorsSection({ lng, collapsible = true }: BaseS
           </div>
         </div>
       ) : (
-        <>
+        <Accordion type="multiple" defaultValue={[]} className="space-y-2">
           {/* ===================== CONNECTED SECTIONS ===================== */}
 
           {/* Connected Google Services */}
           {connectedOAuthConnectors.length > 0 && (
-            <div className="space-y-3">
-              <h3 className="text-sm font-medium flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-success" />
-                {t('settings.connectors.connected_google')}
-              </h3>
-              <div className="space-y-2">
-                {connectedOAuthConnectors.map(connector => (
-                  <ConnectedConnectorCard
-                    key={connector.id}
-                    connector={connector}
-                    lng={lng}
-                    t={t}
-                    deleteLoading={deleteLoading}
-                    onDisconnect={handleDisconnect}
-                    savedPrefs={savedPrefs[connector.id]}
-                    savingPreference={savingPreference}
-                    onSelectPreference={selectPreference}
-                  >
-                    {/* LocationSettings for Google Places */}
-                    {connector.connector_type === 'google_places' && <LocationSettings t={t} />}
-                  </ConnectedConnectorCard>
-                ))}
-              </div>
-            </div>
+            <AccordionItem value="connected-google" className="border rounded-lg px-3">
+              <AccordionTrigger className="text-sm font-medium gap-2 hover:no-underline py-3">
+                <span className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-success" />
+                  {t('settings.connectors.connected_google')}
+                  <span className="text-muted-foreground text-sm">
+                    ({connectedOAuthConnectors.length})
+                  </span>
+                </span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-2">
+                  {connectedOAuthConnectors.map(connector => (
+                    <ConnectedConnectorCard
+                      key={connector.id}
+                      connector={connector}
+                      lng={lng}
+                      t={t}
+                      deleteLoading={deleteLoading}
+                      onDisconnect={handleDisconnect}
+                      savedPrefs={savedPrefs[connector.id]}
+                      savingPreference={savingPreference}
+                      onSelectPreference={selectPreference}
+                    >
+                      {/* LocationSettings for Google Places */}
+                      {connector.connector_type === 'google_places' && <LocationSettings t={t} />}
+                    </ConnectedConnectorCard>
+                  ))}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
           )}
 
           {/* Connected Apple iCloud Services */}
           {connectedAppleConnectors.length > 0 && (
-            <div className="space-y-3">
-              <h3 className="text-sm font-medium flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-success" />
-                {t('settings.connectors.connected_apple')}
-              </h3>
-              <div className="space-y-2">
-                {connectedAppleConnectors.map(connector => (
-                  <ConnectedConnectorCard
-                    key={connector.id}
-                    connector={connector}
-                    lng={lng}
-                    t={t}
-                    deleteLoading={deleteLoading}
-                    onDisconnect={handleDisconnect}
-                    savedPrefs={savedPrefs[connector.id]}
-                    savingPreference={savingPreference}
-                    onSelectPreference={selectPreference}
-                  />
-                ))}
-              </div>
-            </div>
+            <AccordionItem value="connected-apple" className="border rounded-lg px-3">
+              <AccordionTrigger className="text-sm font-medium gap-2 hover:no-underline py-3">
+                <span className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-success" />
+                  {t('settings.connectors.connected_apple')}
+                  <span className="text-muted-foreground text-sm">
+                    ({connectedAppleConnectors.length})
+                  </span>
+                </span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-2">
+                  {connectedAppleConnectors.map(connector => (
+                    <ConnectedConnectorCard
+                      key={connector.id}
+                      connector={connector}
+                      lng={lng}
+                      t={t}
+                      deleteLoading={deleteLoading}
+                      onDisconnect={handleDisconnect}
+                      savedPrefs={savedPrefs[connector.id]}
+                      savingPreference={savingPreference}
+                      onSelectPreference={selectPreference}
+                    />
+                  ))}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
           )}
 
           {/* Connected Microsoft 365 Services */}
           {connectedMicrosoftConnectors.length > 0 && (
-            <div className="space-y-3">
-              <h3 className="text-sm font-medium flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-success" />
-                {t('settings.connectors.connected_microsoft')}
-              </h3>
-              <div className="space-y-2">
-                {connectedMicrosoftConnectors.map(connector => (
-                  <ConnectedConnectorCard
-                    key={connector.id}
-                    connector={connector}
-                    lng={lng}
-                    t={t}
-                    deleteLoading={deleteLoading}
-                    onDisconnect={handleDisconnect}
-                    savedPrefs={savedPrefs[connector.id]}
-                    savingPreference={savingPreference}
-                    onSelectPreference={selectPreference}
-                  />
-                ))}
-              </div>
-            </div>
+            <AccordionItem value="connected-microsoft" className="border rounded-lg px-3">
+              <AccordionTrigger className="text-sm font-medium gap-2 hover:no-underline py-3">
+                <span className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-success" />
+                  {t('settings.connectors.connected_microsoft')}
+                  <span className="text-muted-foreground text-sm">
+                    ({connectedMicrosoftConnectors.length})
+                  </span>
+                </span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-2">
+                  {connectedMicrosoftConnectors.map(connector => (
+                    <ConnectedConnectorCard
+                      key={connector.id}
+                      connector={connector}
+                      lng={lng}
+                      t={t}
+                      deleteLoading={deleteLoading}
+                      onDisconnect={handleDisconnect}
+                      savedPrefs={savedPrefs[connector.id]}
+                      savingPreference={savingPreference}
+                      onSelectPreference={selectPreference}
+                    />
+                  ))}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
           )}
 
           {/* Connected External (API Key) Services */}
           {connectedApiKeyConnectors.length > 0 && (
-            <div className="space-y-3">
-              <h3 className="text-sm font-medium flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-success" />
-                {t('settings.connectors.connected_api_key')}
-              </h3>
-              <div className="space-y-2">
-                {connectedApiKeyConnectors.map(connector => (
-                  <ConnectedConnectorCard
-                    key={connector.id}
-                    connector={connector}
-                    lng={lng}
-                    t={t}
-                    deleteLoading={deleteLoading}
-                    onDisconnect={handleDisconnect}
-                  >
-                    {/* LocationSettings for Google Places (global API key mode) */}
-                    {connector.connector_type === 'google_places' && <LocationSettings t={t} />}
-                  </ConnectedConnectorCard>
-                ))}
-              </div>
-            </div>
+            <AccordionItem value="connected-api-key" className="border rounded-lg px-3">
+              <AccordionTrigger className="text-sm font-medium gap-2 hover:no-underline py-3">
+                <span className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 text-success" />
+                  {t('settings.connectors.connected_api_key')}
+                  <span className="text-muted-foreground text-sm">
+                    ({connectedApiKeyConnectors.length})
+                  </span>
+                </span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-2">
+                  {connectedApiKeyConnectors.map(connector => (
+                    <ConnectedConnectorCard
+                      key={connector.id}
+                      connector={connector}
+                      lng={lng}
+                      t={t}
+                      deleteLoading={deleteLoading}
+                      onDisconnect={handleDisconnect}
+                    >
+                      {/* LocationSettings for Google Places (global API key mode) */}
+                      {connector.connector_type === 'google_places' && <LocationSettings t={t} />}
+                    </ConnectedConnectorCard>
+                  ))}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
           )}
 
           {/* ===================== ERROR SECTIONS ===================== */}
 
           {/* Error Google Connectors - Need Reconnection */}
           {errorOAuthConnectors.length > 0 && (
-            <div className="space-y-3">
-              <h3 className="text-sm font-medium flex items-center gap-2 text-destructive">
-                <AlertTriangle className="h-4 w-4" />
-                {t('settings.connectors.health.critical_title')}
-              </h3>
-              <div className="space-y-2">
-                {errorOAuthConnectors.map(connector => (
-                  <ErrorConnectorCard
-                    key={connector.id}
-                    connector={connector}
-                    t={t}
-                    reconnecting={reconnectingConnector === connector.connector_type}
-                    onReconnect={handleReconnect}
-                  />
-                ))}
-              </div>
-            </div>
+            <AccordionItem value="error-google" className="border rounded-lg px-3">
+              <AccordionTrigger className="text-sm font-medium gap-2 hover:no-underline py-3 text-destructive">
+                <span className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  {t('settings.connectors.health.critical_title')}
+                  <span className="text-sm">({errorOAuthConnectors.length})</span>
+                </span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-2">
+                  {errorOAuthConnectors.map(connector => (
+                    <ErrorConnectorCard
+                      key={connector.id}
+                      connector={connector}
+                      t={t}
+                      reconnecting={reconnectingConnector === connector.connector_type}
+                      onReconnect={handleReconnect}
+                    />
+                  ))}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
           )}
 
           {/* Error Microsoft Connectors - Need Reconnection */}
           {errorMicrosoftConnectors.length > 0 && (
-            <div className="space-y-3">
-              <h3 className="text-sm font-medium flex items-center gap-2 text-destructive">
-                <AlertTriangle className="h-4 w-4" />
-                {t('settings.connectors.health.critical_title')}
-              </h3>
-              <div className="space-y-2">
-                {errorMicrosoftConnectors.map(connector => (
-                  <ErrorConnectorCard
-                    key={connector.id}
-                    connector={connector}
-                    t={t}
-                    reconnecting={reconnectingConnector === connector.connector_type}
-                    onReconnect={handleReconnect}
-                  />
-                ))}
-              </div>
-            </div>
+            <AccordionItem value="error-microsoft" className="border rounded-lg px-3">
+              <AccordionTrigger className="text-sm font-medium gap-2 hover:no-underline py-3 text-destructive">
+                <span className="flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  {t('settings.connectors.health.critical_title')}
+                  <span className="text-sm">({errorMicrosoftConnectors.length})</span>
+                </span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-2">
+                  {errorMicrosoftConnectors.map(connector => (
+                    <ErrorConnectorCard
+                      key={connector.id}
+                      connector={connector}
+                      t={t}
+                      reconnecting={reconnectingConnector === connector.connector_type}
+                      onReconnect={handleReconnect}
+                    />
+                  ))}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
           )}
 
           {/* ===================== AVAILABLE SECTIONS ===================== */}
 
           {/* Available Google Connectors */}
           {hasUnconnectedGoogle && (
-            <div className="space-y-3 pt-4 border-t">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium">{t('settings.connectors.available_google')}</h3>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={connectAllGoogle}
-                  disabled={bulkConnecting}
-                  className="gap-2"
-                >
-                  {bulkConnecting ? (
-                    <LoadingSpinner size="default" />
-                  ) : (
-                    <Plug className="h-4 w-4" />
-                  )}
-                  {t('settings.connectors.google.connect_all')}
-                </Button>
-              </div>
-              <div className="space-y-2">
-                {GOOGLE_CONNECTORS_METADATA.map(meta => {
-                  // Don't show in available if exists (active OR error)
-                  const exists = isConnectorTypeExists(connectors, meta.type, meta.checkTypes);
-                  if (exists) return null;
+            <AccordionItem value="available-google" className="border rounded-lg px-3">
+              <AccordionTrigger className="text-sm font-medium hover:no-underline py-3">
+                <span className="flex items-center gap-2 flex-1">
+                  {t('settings.connectors.available_google')}
+                  <span className="text-muted-foreground text-sm">({unconnectedGoogleCount})</span>
+                </span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="flex justify-end mb-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={connectAllGoogle}
+                    disabled={bulkConnecting}
+                    className="gap-2"
+                  >
+                    {bulkConnecting ? (
+                      <LoadingSpinner size="default" />
+                    ) : (
+                      <Plug className="h-4 w-4" />
+                    )}
+                    {t('settings.connectors.google.connect_all')}
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  {GOOGLE_CONNECTORS_METADATA.map(meta => {
+                    // Don't show in available if exists (active OR error)
+                    const exists = isConnectorTypeExists(connectors, meta.type, meta.checkTypes);
+                    if (exists) return null;
 
-                  const competingTypes = MUTUAL_EXCLUSIVITY_MAP[meta.type];
-                  const activeCompetitor = competingTypes?.find(c =>
-                    activeConnectorTypes.includes(c)
-                  );
-                  const isBlocked = !!activeCompetitor;
+                    const competingTypes = MUTUAL_EXCLUSIVITY_MAP[meta.type];
+                    const activeCompetitor = competingTypes?.find(c =>
+                      activeConnectorTypes.includes(c)
+                    );
+                    const isBlocked = !!activeCompetitor;
 
-                  return (
-                    <AvailableConnectorCard
-                      key={meta.type}
-                      connectorType={meta.type}
-                      label={t(meta.labelKey)}
-                      description={t(meta.descriptionKey)}
-                      onConnect={() => connectGoogle(meta.type)}
-                      connectTitle={t('settings.connectors.google.connect')}
-                      isBlocked={isBlocked}
-                      blockedMessage={
-                        isBlocked
-                          ? t('settings.connectors.google.service_blocked', {
-                              competing:
-                                CONNECTOR_LABELS[activeCompetitor as ConnectorType] ||
-                                activeCompetitor,
-                            })
-                          : undefined
-                      }
-                    />
-                  );
-                })}
-              </div>
-            </div>
+                    return (
+                      <AvailableConnectorCard
+                        key={meta.type}
+                        connectorType={meta.type}
+                        label={t(meta.labelKey)}
+                        description={t(meta.descriptionKey)}
+                        onConnect={() => connectGoogle(meta.type)}
+                        connectTitle={t('settings.connectors.google.connect')}
+                        isBlocked={isBlocked}
+                        blockedMessage={
+                          isBlocked
+                            ? t('settings.connectors.google.service_blocked', {
+                                competing:
+                                  CONNECTOR_LABELS[activeCompetitor as ConnectorType] ||
+                                  activeCompetitor,
+                              })
+                            : undefined
+                        }
+                      />
+                    );
+                  })}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
           )}
 
           {/* Available Apple iCloud Connectors */}
           {hasUnconnectedApple && (
-            <div className="space-y-3 pt-4 border-t">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium flex items-center gap-2">
+            <AccordionItem value="available-apple" className="border rounded-lg px-3">
+              <AccordionTrigger className="text-sm font-medium hover:no-underline py-3">
+                <span className="flex items-center gap-2 flex-1">
                   {t('settings.connectors.apple.title')}
-                </h3>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setAppleConnectTarget(unconnectedAppleTypes)}
-                  disabled={unconnectedAppleTypes.length === 0}
-                  className="gap-2"
-                >
-                  <Plug className="h-4 w-4" />
-                  {t('settings.connectors.apple.connect_all')}
-                </Button>
-              </div>
+                  <span className="text-muted-foreground text-sm">({unconnectedAppleCount})</span>
+                </span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="flex justify-end mb-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setAppleConnectTarget(unconnectedAppleTypes)}
+                    disabled={unconnectedAppleTypes.length === 0}
+                    className="gap-2"
+                  >
+                    <Plug className="h-4 w-4" />
+                    {t('settings.connectors.apple.connect_all')}
+                  </Button>
+                </div>
 
-              {/* Apple credential form (shown when a service is selected) */}
-              {appleConnectTarget && (
-                <AppleCredentialForm
-                  lng={lng}
-                  services={appleConnectTarget}
-                  onActivated={() => {
-                    setAppleConnectTarget(null);
-                    refetch();
-                  }}
-                  onCancel={() => setAppleConnectTarget(null)}
-                />
-              )}
+                {/* Apple credential form (shown when a service is selected) */}
+                {appleConnectTarget && (
+                  <AppleCredentialForm
+                    lng={lng}
+                    services={appleConnectTarget}
+                    onActivated={() => {
+                      setAppleConnectTarget(null);
+                      refetch();
+                    }}
+                    onCancel={() => setAppleConnectTarget(null)}
+                  />
+                )}
 
-              {/* Individual Apple service cards */}
-              {!appleConnectTarget && (
+                {/* Individual Apple service cards */}
+                {!appleConnectTarget && (
+                  <div className="space-y-2">
+                    {APPLE_CONNECTORS_METADATA.map(meta => {
+                      if (isConnectorTypeExists(connectors, meta.type)) return null;
+
+                      const competingTypes = MUTUAL_EXCLUSIVITY_MAP[meta.type];
+                      const activeCompetitor = competingTypes?.find(c =>
+                        activeConnectorTypes.includes(c)
+                      );
+                      const isBlocked = !!activeCompetitor;
+
+                      return (
+                        <AvailableConnectorCard
+                          key={meta.type}
+                          connectorType={meta.type}
+                          label={t(meta.labelKey)}
+                          description={t(meta.descriptionKey)}
+                          onConnect={() => setAppleConnectTarget([meta.type])}
+                          connectTitle={t('settings.connectors.apple.connect')}
+                          isBlocked={isBlocked}
+                          blockedMessage={
+                            isBlocked
+                              ? t('settings.connectors.apple.service_blocked', {
+                                  competing:
+                                    CONNECTOR_LABELS[activeCompetitor as ConnectorType] ||
+                                    activeCompetitor,
+                                })
+                              : undefined
+                          }
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+              </AccordionContent>
+            </AccordionItem>
+          )}
+
+          {/* Available Microsoft 365 Services */}
+          {hasUnconnectedMicrosoft && (
+            <AccordionItem value="available-microsoft" className="border rounded-lg px-3">
+              <AccordionTrigger className="text-sm font-medium hover:no-underline py-3">
+                <span className="flex items-center gap-2 flex-1">
+                  {t('settings.connectors.microsoft.title')}
+                  <span className="text-muted-foreground text-sm">
+                    ({unconnectedMicrosoftCount})
+                  </span>
+                </span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="flex justify-end mb-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={connectAllMicrosoft}
+                    disabled={bulkConnecting}
+                    className="gap-2"
+                  >
+                    {bulkConnecting ? (
+                      <LoadingSpinner size="default" />
+                    ) : (
+                      <Plug className="h-4 w-4" />
+                    )}
+                    {t('settings.connectors.microsoft.connect_all')}
+                  </Button>
+                </div>
                 <div className="space-y-2">
-                  {APPLE_CONNECTORS_METADATA.map(meta => {
+                  {MICROSOFT_CONNECTORS_METADATA.map(meta => {
                     if (isConnectorTypeExists(connectors, meta.type)) return null;
 
                     const competingTypes = MUTUAL_EXCLUSIVITY_MAP[meta.type];
@@ -629,12 +763,12 @@ export default function UserConnectorsSection({ lng, collapsible = true }: BaseS
                         connectorType={meta.type}
                         label={t(meta.labelKey)}
                         description={t(meta.descriptionKey)}
-                        onConnect={() => setAppleConnectTarget([meta.type])}
-                        connectTitle={t('settings.connectors.apple.connect')}
+                        onConnect={() => connectMicrosoft(meta.type)}
+                        connectTitle={t('settings.connectors.microsoft.connect')}
                         isBlocked={isBlocked}
                         blockedMessage={
                           isBlocked
-                            ? t('settings.connectors.apple.service_blocked', {
+                            ? t('settings.connectors.microsoft.service_blocked', {
                                 competing:
                                   CONNECTOR_LABELS[activeCompetitor as ConnectorType] ||
                                   activeCompetitor,
@@ -645,224 +779,184 @@ export default function UserConnectorsSection({ lng, collapsible = true }: BaseS
                     );
                   })}
                 </div>
-              )}
-            </div>
-          )}
-
-          {/* Available Microsoft 365 Services */}
-          {hasUnconnectedMicrosoft && (
-            <div className="space-y-3 pt-4 border-t">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium flex items-center gap-2">
-                  {t('settings.connectors.microsoft.title')}
-                </h3>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={connectAllMicrosoft}
-                  disabled={bulkConnecting}
-                  className="gap-2"
-                >
-                  {bulkConnecting ? (
-                    <LoadingSpinner size="default" />
-                  ) : (
-                    <Plug className="h-4 w-4" />
-                  )}
-                  {t('settings.connectors.microsoft.connect_all')}
-                </Button>
-              </div>
-              <div className="space-y-2">
-                {MICROSOFT_CONNECTORS_METADATA.map(meta => {
-                  if (isConnectorTypeExists(connectors, meta.type)) return null;
-
-                  const competingTypes = MUTUAL_EXCLUSIVITY_MAP[meta.type];
-                  const activeCompetitor = competingTypes?.find(c =>
-                    activeConnectorTypes.includes(c)
-                  );
-                  const isBlocked = !!activeCompetitor;
-
-                  return (
-                    <AvailableConnectorCard
-                      key={meta.type}
-                      connectorType={meta.type}
-                      label={t(meta.labelKey)}
-                      description={t(meta.descriptionKey)}
-                      onConnect={() => connectMicrosoft(meta.type)}
-                      connectTitle={t('settings.connectors.microsoft.connect')}
-                      isBlocked={isBlocked}
-                      blockedMessage={
-                        isBlocked
-                          ? t('settings.connectors.microsoft.service_blocked', {
-                              competing:
-                                CONNECTOR_LABELS[activeCompetitor as ConnectorType] ||
-                                activeCompetitor,
-                            })
-                          : undefined
-                      }
-                    />
-                  );
-                })}
-              </div>
-            </div>
+              </AccordionContent>
+            </AccordionItem>
           )}
 
           {/* Connected Smart Home (Hue) */}
           {connectedHueConnectors.length > 0 && (
-            <div className="space-y-3 pt-4 border-t">
-              <h3 className="text-sm font-medium flex items-center gap-2">
-                <span>💡</span>
-                {t('settings.connectors.connected_hue')}
-              </h3>
-              <div className="space-y-2">
-                {connectedHueConnectors.map(connector => (
-                  <ConnectedConnectorCard
-                    key={connector.id}
-                    connector={connector}
-                    lng={lng}
-                    t={t}
-                    deleteLoading={false}
-                    onDisconnect={(connectorId) => {
-                      // Disconnect via DELETE /connectors/{id}
-                      apiClient.delete(`/connectors/${connectorId}`).then(() => refetch());
-                    }}
-                  />
-                ))}
-              </div>
-            </div>
+            <AccordionItem value="connected-hue" className="border rounded-lg px-3">
+              <AccordionTrigger className="text-sm font-medium gap-2 hover:no-underline py-3">
+                <span className="flex items-center gap-2">
+                  <span>💡</span>
+                  {t('settings.connectors.connected_hue')}
+                  <span className="text-muted-foreground text-sm">
+                    ({connectedHueConnectors.length})
+                  </span>
+                </span>
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-2">
+                  {connectedHueConnectors.map(connector => (
+                    <ConnectedConnectorCard
+                      key={connector.id}
+                      connector={connector}
+                      lng={lng}
+                      t={t}
+                      deleteLoading={false}
+                      onDisconnect={connectorId => {
+                        // Disconnect via DELETE /connectors/{id}
+                        apiClient.delete(`/connectors/${connectorId}`).then(() => refetch());
+                      }}
+                    />
+                  ))}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
           )}
 
           {/* Available Smart Home */}
           {connectedHueConnectors.length === 0 && (
-            <div className="space-y-3 pt-4 border-t">
-              <h3 className="text-sm font-medium flex items-center gap-2">
-                <span>💡</span>
-                {t('settings.connectors.available_hue')}
-              </h3>
-              {!showHuePairing ? (
-                <AvailableConnectorCard
-                  connectorType="philips_hue"
-                  label={t('settings.connectors.hue.label')}
-                  description={t('settings.connectors.hue.description')}
-                  onConnect={() => setShowHuePairing(true)}
-                />
-              ) : (
-                <HueBridgePairingForm
-                  lng={lng}
-                  onSuccess={() => {
-                    setShowHuePairing(false);
-                    refetch();
-                  }}
-                  onCancel={() => setShowHuePairing(false)}
-                />
-              )}
-            </div>
+            <AccordionItem value="available-hue" className="border rounded-lg px-3">
+              <AccordionTrigger className="text-sm font-medium gap-2 hover:no-underline py-3">
+                <span className="flex items-center gap-2">
+                  <span>💡</span>
+                  {t('settings.connectors.available_hue')}
+                  <span className="text-muted-foreground text-sm">(1)</span>
+                </span>
+              </AccordionTrigger>
+              <AccordionContent>
+                {!showHuePairing ? (
+                  <AvailableConnectorCard
+                    connectorType="philips_hue"
+                    label={t('settings.connectors.hue.label')}
+                    description={t('settings.connectors.hue.description')}
+                    onConnect={() => setShowHuePairing(true)}
+                  />
+                ) : (
+                  <HueBridgePairingForm
+                    lng={lng}
+                    onSuccess={() => {
+                      setShowHuePairing(false);
+                      refetch();
+                    }}
+                    onCancel={() => setShowHuePairing(false)}
+                  />
+                )}
+              </AccordionContent>
+            </AccordionItem>
           )}
 
           {/* Available External (API Key) Connectors */}
-          <div className="space-y-3 pt-4 border-t">
-            <h3 className="text-sm font-medium flex items-center gap-2">
-              <Key className="h-4 w-4" />
-              {t('settings.connectors.available_external')}
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              {t('settings.connectors.api_key.description')}
-            </p>
-            <div className="space-y-2">
-              {API_KEY_CONNECTORS.map(connector => {
-                const isConnected = isConnectorTypeActive(connectors, connector.type);
-                const isActivating = activatingConnector === connector.type;
+          <AccordionItem value="available-api-key" className="border rounded-lg px-3">
+            <AccordionTrigger className="text-sm font-medium gap-2 hover:no-underline py-3">
+              <span className="flex items-center gap-2">
+                <Key className="h-4 w-4" />
+                {t('settings.connectors.available_external')}
+                <span className="text-muted-foreground text-sm">({unconnectedApiKeyCount})</span>
+              </span>
+            </AccordionTrigger>
+            <AccordionContent>
+              <p className="text-sm text-muted-foreground mb-3">
+                {t('settings.connectors.api_key.description')}
+              </p>
+              <div className="space-y-2">
+                {API_KEY_CONNECTORS.map(connector => {
+                  const isConnected = isConnectorTypeActive(connectors, connector.type);
+                  const isActivating = activatingConnector === connector.type;
 
-                if (isConnected) return null;
+                  if (isConnected) return null;
 
-                return (
-                  <div
-                    key={connector.type}
-                    className="flex flex-col gap-3 p-4 border rounded-lg hover:bg-accent/50 transition-colors"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <ConnectorIcon connectorType={connector.type} />
-                        <div>
-                          <div className="font-medium">
-                            {t(`settings.connectors.${connector.type}.label`)}
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            {t(`settings.connectors.${connector.type}.description`)}
+                  return (
+                    <div
+                      key={connector.type}
+                      className="flex flex-col gap-3 p-4 border rounded-lg hover:bg-accent/50 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <ConnectorIcon connectorType={connector.type} />
+                          <div>
+                            <div className="font-medium">
+                              {t(`settings.connectors.${connector.type}.label`)}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              {t(`settings.connectors.${connector.type}.description`)}
+                            </div>
                           </div>
                         </div>
                       </div>
+
+                      {connector.requiresKey ? (
+                        <div className="flex gap-2">
+                          <Input
+                            type="password"
+                            placeholder={t('settings.connectors.api_key.key_placeholder')}
+                            value={apiKeyInputs[connector.type] || ''}
+                            onChange={e =>
+                              setApiKeyInputs(prev => ({
+                                ...prev,
+                                [connector.type]: e.target.value,
+                              }))
+                            }
+                            className="flex-1"
+                            disabled={isActivating}
+                          />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleActivateApiKeyConnector(connector.type, true)}
+                            disabled={isActivating || !apiKeyInputs[connector.type]?.trim()}
+                            className="text-primary hover:text-primary hover:bg-primary/10"
+                            title={t('settings.connectors.api_key.activate')}
+                          >
+                            {isActivating ? (
+                              <LoadingSpinner size="default" />
+                            ) : (
+                              <Save className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground italic">
+                            {t(`settings.connectors.${connector.type}.no_key_required`)}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleActivateApiKeyConnector(connector.type, false)}
+                            disabled={isActivating}
+                            className="text-green-600 hover:text-green-700 hover:bg-green-500/10 dark:text-green-500 dark:hover:text-green-400"
+                            title={t('settings.connectors.api_key.activate')}
+                          >
+                            {isActivating ? (
+                              <LoadingSpinner size="default" />
+                            ) : (
+                              <Plug className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
+                      )}
+
+                      {connector.requiresKey && (
+                        <p className="text-xs text-muted-foreground">
+                          {t(`settings.connectors.${connector.type}.get_key`)}
+                        </p>
+                      )}
                     </div>
+                  );
+                })}
 
-                    {connector.requiresKey ? (
-                      <div className="flex gap-2">
-                        <Input
-                          type="password"
-                          placeholder={t('settings.connectors.api_key.key_placeholder')}
-                          value={apiKeyInputs[connector.type] || ''}
-                          onChange={e =>
-                            setApiKeyInputs(prev => ({
-                              ...prev,
-                              [connector.type]: e.target.value,
-                            }))
-                          }
-                          className="flex-1"
-                          disabled={isActivating}
-                        />
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleActivateApiKeyConnector(connector.type, true)}
-                          disabled={isActivating || !apiKeyInputs[connector.type]?.trim()}
-                          className="text-primary hover:text-primary hover:bg-primary/10"
-                          title={t('settings.connectors.api_key.activate')}
-                        >
-                          {isActivating ? (
-                            <LoadingSpinner size="default" />
-                          ) : (
-                            <Save className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground italic">
-                          {t(`settings.connectors.${connector.type}.no_key_required`)}
-                        </span>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleActivateApiKeyConnector(connector.type, false)}
-                          disabled={isActivating}
-                          className="text-green-600 hover:text-green-700 hover:bg-green-500/10 dark:text-green-500 dark:hover:text-green-400"
-                          title={t('settings.connectors.api_key.activate')}
-                        >
-                          {isActivating ? (
-                            <LoadingSpinner size="default" />
-                          ) : (
-                            <Plug className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    )}
-
-                    {connector.requiresKey && (
-                      <p className="text-xs text-muted-foreground">
-                        {t(`settings.connectors.${connector.type}.get_key`)}
-                      </p>
-                    )}
-                  </div>
-                );
-              })}
-
-              {/* All API Key connectors connected */}
-              {API_KEY_CONNECTORS.every(c => isConnectorTypeActive(connectors, c.type)) && (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  {t('settings.connectors.all_connected')}
-                </p>
-              )}
-            </div>
-          </div>
-        </>
+                {/* All API Key connectors connected */}
+                {API_KEY_CONNECTORS.every(c => isConnectorTypeActive(connectors, c.type)) && (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    {t('settings.connectors.all_connected')}
+                  </p>
+                )}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
       )}
     </div>
   );

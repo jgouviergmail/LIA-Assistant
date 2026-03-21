@@ -18,12 +18,9 @@ export function PresentationSection() {
   const { t } = useTranslation();
   const [activeIndex, setActiveIndex] = useState(0);
 
-  const goTo = useCallback(
-    (index: number) => {
-      setActiveIndex((index + TOTAL_SLIDES) % TOTAL_SLIDES);
-    },
-    []
-  );
+  const goTo = useCallback((index: number) => {
+    setActiveIndex((index + TOTAL_SLIDES) % TOTAL_SLIDES);
+  }, []);
 
   const active = SLIDES[activeIndex];
 
@@ -102,13 +99,7 @@ export function PresentationSection() {
                 aria-label={t('landing.presentation.slide_alt', { number: slide.index })}
                 aria-current={i === activeIndex ? 'true' : undefined}
               >
-                <Image
-                  src={slide.src}
-                  alt=""
-                  fill
-                  className="object-cover"
-                  sizes="96px"
-                />
+                <Image src={slide.src} alt="" fill className="object-cover" sizes="96px" />
               </button>
             ))}
           </div>

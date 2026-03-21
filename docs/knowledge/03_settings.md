@@ -305,3 +305,19 @@ These memories personalize LIA's responses. For example, LIA will say "Hello Mar
 
 **🛡️ Full control:**
 View, edit, pin or delete your memories in **Settings > Memory**.
+
+## What are usage limits and where can I see them?
+Usage limits are quotas set by your administrator to control resource consumption (tokens, messages, cost). You can see your current usage vs limits on the **Dashboard** via dedicated tiles (Period Limits and Global Limits).
+
+**📊 Dashboard tiles:**
+When limits are configured, color-coded gauge bars show your consumption:
+- 🟢 Green: under 60%
+- 🟡 Yellow: 60-80%
+- 🟠 Orange: 80-95%
+- 🔴 Red: over 95%
+
+**🔒 When blocked:**
+If you reach a limit, the message input and voice are disabled and a red banner explains the situation. Contact your administrator to have limits adjusted.
+
+**⚙️ Admin management:**
+Administrators manage limits in **Settings > Administration > Administration des limites**. They can set per-user quotas, block/unblock users instantly, and monitor real-time consumption.

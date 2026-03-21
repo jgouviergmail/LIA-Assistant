@@ -39,6 +39,7 @@ if TYPE_CHECKING:
     from src.domains.scheduled_actions.models import ScheduledAction
     from src.domains.skills.models import UserSkillState
     from src.domains.sub_agents.models import SubAgent
+    from src.domains.usage_limits.models import UserUsageLimit
 
 
 class User(BaseModel):
@@ -376,6 +377,11 @@ class User(BaseModel):
     # NOTE: No relationship to UserMCPServer — user_id FK + CASCADE handles
     # deletion. ORM relationship was unused and caused import-order issues
     # (UserMCPServer mapper configuration requires User to be loaded first).
+
+    # Usage limits (1:1, optional — no record means unlimited)
+    usage_limit: Mapped["UserUsageLimit | None"] = relationship(
+        back_populates="user", lazy="noload", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
         return f"<User(id={self.id}, email={self.email})>"

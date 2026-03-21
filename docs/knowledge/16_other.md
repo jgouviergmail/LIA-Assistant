@@ -18,6 +18,9 @@ Costs are based on AI usage:
 **📧 Pricing information:**
 Contact your administrator for pricing applicable to your organization.
 
+**📊 Usage limits:**
+Your administrator may have configured usage limits for your account. You can check your current consumption vs limits on the **Dashboard** (period and global tiles). If you reach a limit, your access is temporarily restricted until the next billing period or until your administrator adjusts your quotas. See the [Usage Limits FAQ](19_usage_limits.md) for details.
+
 ## How can I view my usage?
 Track your usage from the **dashboard**:
 

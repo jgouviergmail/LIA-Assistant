@@ -517,6 +517,7 @@ src/core/config/
 ├── agents.py             # AgentsSettings (SSE, HITL, Router, Planner, Memory)
 ├── connectors.py         # ConnectorsSettings (Google APIs, rate limiting)
 ├── voice.py              # VoiceSettings (Edge TTS, voice comments)
+├── usage_limits.py       # UsageLimitsSettings (per-user token/message/cost quotas)
 └── advanced.py           # AdvancedSettings (pricing, i18n, feature flags)
 ```
 
@@ -536,6 +537,7 @@ class Settings(
     AgentsSettings,
     ConnectorsSettings,
     VoiceSettings,
+    UsageLimitsSettings,
     AdvancedSettings,
     BaseSettings  # Pydantic base (MUST be last for MRO)
 ):

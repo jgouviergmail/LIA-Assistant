@@ -27,6 +27,8 @@ import { FeatureErrorBoundary } from '@/components/errors';
 
 import { useDebugPanelEnabled } from '@/hooks/useDebugPanelEnabled';
 import { useAppConfig } from '@/hooks/useAppConfig';
+import { useUsageLimits } from '@/hooks/useUsageLimits';
+import { UsageBlockedBanner } from '@/components/usage/UsageBlockedBanner';
 import { ActiveSpacesIndicator } from '@/components/spaces/ActiveSpacesIndicator';
 
 export default function ChatPage() {
@@ -46,6 +48,9 @@ export default function ChatPage() {
   const { isEnabled: debugPanelEnabled } = useDebugPanelEnabled();
   // App config: feature flags from backend /api/v1/config
   const { config: appConfig } = useAppConfig(!!user && !isLoading);
+
+  // Usage limits (per-user quotas)
+  const { isBlocked: isUsageBlocked, blockReason: usageBlockReason } = useUsageLimits();
 
   // Debug panel requires desktop viewport (≥1024px) - not suitable for mobile
   const [isDesktop, setIsDesktop] = useState(false);
@@ -413,7 +418,7 @@ export default function ChatPage() {
               <div className="absolute left-1/2 -translate-x-1/2">
                 <VoiceModeBadge
                   onTranscription={sendMessage}
-                  disabled={!apiAvailable || isTyping}
+                  disabled={!apiAvailable || isTyping || isUsageBlocked}
                 />
               </div>
 
@@ -440,6 +445,9 @@ export default function ChatPage() {
               </div>
             </div>
           </div>
+
+          {/* Usage Limit Blocked Banner */}
+          {isUsageBlocked && <UsageBlockedBanner blockReason={usageBlockReason} />}
 
           {/* Conversation Totals Banner - Shows combined totals (API history + current session) */}
           {/* Show if tokens_display_enabled is true and there are tokens */}
@@ -526,9 +534,9 @@ export default function ChatPage() {
           <div className="border-t border-border/40 bg-card/80 backdrop-blur-sm shadow-lg">
             <ChatInput
               onSendMessage={sendMessage}
-              disabled={isTyping}
+              disabled={isTyping || isUsageBlocked}
               isConnected={isConnected}
-              apiAvailable={apiAvailable}
+              apiAvailable={apiAvailable && !isUsageBlocked}
               onMessageChange={handleMessageChange}
               attachmentsEnabled={appConfig?.features?.attachments_enabled ?? true}
             />

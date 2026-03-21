@@ -18,6 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
+from src.core.constants import USAGE_LIMIT_EXCEEDED_ERROR_CODE
 from src.core.field_names import FIELD_ERROR_TYPE, FIELD_RUN_ID
 from src.domains.agents.api.mixins import GraphManagementMixin, StreamingMixin
 from src.domains.agents.api.schemas import BrowserContext, ChatStreamChunk
@@ -351,6 +352,29 @@ class AgentService(
             ... ):
             >>>     print(chunk.type, chunk.content)
         """
+        # === USAGE LIMIT CHECK (Layer 1: Service pre-check for scheduled actions) ===
+        if getattr(settings, "usage_limits_enabled", False):
+            from src.domains.usage_limits.service import UsageLimitService
+            from src.infrastructure.observability.metrics_usage_limits import (
+                usage_limit_enforcement_total,
+            )
+
+            _limit_check = await UsageLimitService.check_user_allowed(user_id)
+            if not _limit_check.allowed:
+                usage_limit_enforcement_total.labels(
+                    layer="service", limit_type=_limit_check.exceeded_limit or "unknown"
+                ).inc()
+                yield ChatStreamChunk(
+                    type="error",
+                    content=_limit_check.blocked_reason or "Usage limit exceeded",
+                    metadata={
+                        "error_code": USAGE_LIMIT_EXCEEDED_ERROR_CODE,
+                        "limit": _limit_check.exceeded_limit,
+                    },
+                )
+                return
+        # === END USAGE LIMIT CHECK ===
+
         # === PHASE 3.3 - Service Architecture (Migration Complete Day 7) ===
         # Uses: OrchestrationService, StreamingService, ConversationOrchestrator, HITLOrchestrator
         async for chunk in self._stream_with_new_services(

@@ -2087,6 +2087,31 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 - ✅ 6 métriques Prometheus (gauges/counters/histograms)
 - ✅ 36 tests unitaires
 
+### ADR-060: Per-User Usage Limits
+
+**Status**: ✅ IMPLEMENTED (2026-03-21)
+**Fichier**: `docs/architecture/ADR-060-Usage-Limits.md`
+
+**Décision**: Implémenter un système de quotas par utilisateur (tokens, messages, coût) avec enforcement multi-couche et gestion admin en temps réel.
+
+**Problème résolu**:
+- ❌ Aucun contrôle de la consommation LLM par utilisateur
+- ❌ Risque financier non maîtrisé sur les coûts API
+- ❌ Pas de capacité à bloquer un utilisateur abusif
+
+**Solution**:
+- ✅ Table `user_usage_limits` (1:1 avec User, null = illimité)
+- ✅ 5 layers d'enforcement (router → service → LLM invoke → proactive runner → migration)
+- ✅ Cache Redis 60s avec invalidation après chaque message
+- ✅ Admin WebSocket temps réel + section dédiée
+
+**Impact**:
+- ✅ Contrôle financier par utilisateur (tokens, messages, coût × période/absolu)
+- ✅ Kill switch admin instantané (blocage/déblocage)
+- ✅ Fail-open (panne infra → utilisateur autorisé)
+- ✅ Extensible automatiquement (Layer 2 couvre tout service utilisant invoke_with_instrumentation)
+- ✅ 42 tests unitaires
+
 ---
 
 ## ADRs Archivés

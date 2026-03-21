@@ -33,7 +33,8 @@
 19. [Voice WebSocket (5 métriques)](#voice-websocket)
 20. [Hybrid Memory Search (5 métriques)](#hybrid-memory-search)
 21. [GeoIP (1 métrique)](#geoip)
-22. [Recording Rules (40+ règles)](#recording-rules)
+22. [Usage Limits (2 métriques)](#usage-limits)
+23. [Recording Rules (40+ règles)](#recording-rules)
 23. [Labels & Cardinality](#labels--cardinality)
 24. [Best Practices](#best-practices)
 25. [Troubleshooting](#troubleshooting)
@@ -56,9 +57,10 @@
 | **Business** | 6 | Dashboard 03 | 10 panels |
 | **Voice (TTS/STT/WS)** | 21 | Dashboard 10 | 20 panels |
 | **Hybrid Memory Search** | 5 | Dashboard 04 | 6 panels |
+| **Usage Limits** | 2 | Dashboard 03 | 2 panels |
 | **Infrastructure** | 20+ | Dashboard 02 | 25 panels |
 | **Recording Rules** | 40+ | Toutes | - |
-| **TOTAL** | **135+** | **10** | **155+** |
+| **TOTAL** | **137+** | **10** | **157+** |
 
 ### Architecture Observabilité
 
@@ -2399,6 +2401,28 @@ sum by (operation) (rate(rag_embedding_tokens_total[1h]))
 - IPs non résolvables → label `"unknown"`
 - Configurable via `GEOIP_ENABLED` et `GEOIP_DB_PATH`
 - Résolveur lazy-loaded singleton avec dégradation gracieuse (MMDB manquant → warning unique + None)
+
+---
+
+## Usage Limits (2 métriques)
+
+### `usage_limit_check_total`
+
+| Propriété | Valeur |
+|-----------|--------|
+| **Type** | Counter |
+| **Labels** | `result` (ok, warning, critical, blocked_limit, blocked_manual) |
+| **Description** | Total usage limit checks performed |
+| **Instrumenté dans** | `apps/api/src/domains/usage_limits/service.py` |
+
+### `usage_limit_enforcement_total`
+
+| Propriété | Valeur |
+|-----------|--------|
+| **Type** | Counter |
+| **Labels** | `layer` (router, service, llm_invoke, proactive), `limit_type` (cycle_tokens, cycle_messages, etc.) |
+| **Description** | Total enforcement actions (user blocked from performing an action) |
+| **Instrumenté dans** | `apps/api/src/domains/agents/api/router.py`, `service.py`, `invoke_helpers.py`, `runner.py` |
 
 ---
 

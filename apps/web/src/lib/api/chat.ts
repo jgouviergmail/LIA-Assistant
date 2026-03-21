@@ -103,6 +103,13 @@ export class ChatSSEClient {
             'errors.chat.account_inactive',
             'Your account is disabled. Check your emails for more information or contact an administrator.'
           );
+        } else if (response.status === 429) {
+          // Usage limit exceeded
+          throw new ChatStreamError(
+            'UsageLimitExceededError',
+            'errors.chat.usage_limit_exceeded',
+            'You have reached your usage limit. Contact your administrator.'
+          );
         } else if (response.status === 503) {
           // Service unavailable
           throw new ChatStreamError(

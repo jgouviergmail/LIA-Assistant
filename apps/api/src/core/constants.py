@@ -2813,3 +2813,37 @@ HUE_REMOTE_TOKEN_ENDPOINT: str = "https://api.meethue.com/v2/oauth2/token"
 HUE_REMOTE_AUTHORIZATION_ENDPOINT: str = "https://api.meethue.com/v2/oauth2/authorize"
 HUE_REMOTE_TOKEN_EXPIRY_DAYS: int = 7
 HUE_REMOTE_REFRESH_EXPIRY_DAYS: int = 112
+
+# ============================================================================
+# USAGE LIMITS (Per-User Quotas)
+# ============================================================================
+# Feature flag
+USAGE_LIMITS_ENABLED_DEFAULT: bool = False
+
+# Default limits applied when a new UserUsageLimit record is created (None = unlimited)
+DEFAULT_TOKEN_LIMIT_PER_CYCLE: int | None = None
+DEFAULT_MESSAGE_LIMIT_PER_CYCLE: int | None = None
+DEFAULT_COST_LIMIT_PER_CYCLE_EUR: float | None = None
+DEFAULT_TOKEN_LIMIT_ABSOLUTE: int | None = None
+DEFAULT_MESSAGE_LIMIT_ABSOLUTE: int | None = None
+DEFAULT_COST_LIMIT_ABSOLUTE_EUR: float | None = None
+
+# Redis cache
+USAGE_LIMIT_CACHE_TTL_SECONDS_DEFAULT: int = 60
+REDIS_KEY_USAGE_LIMIT_PREFIX: str = "usage_limit:"
+REDIS_KEY_USAGE_LIMIT_WS_TICKET_PREFIX: str = "usage_limit_ws_ticket:"
+
+# Warning/critical thresholds (percentage of limit)
+USAGE_LIMIT_WARNING_THRESHOLD_PCT: int = 80
+USAGE_LIMIT_CRITICAL_THRESHOLD_PCT: int = 95
+
+# Error codes
+USAGE_LIMIT_EXCEEDED_ERROR_CODE: str = "usage_limit_exceeded"
+
+# Constraints
+USAGE_LIMIT_BLOCKED_REASON_MAX_LENGTH: int = 500
+
+# WebSocket
+USAGE_LIMIT_WS_TICKET_TTL_SECONDS_DEFAULT: int = 60
+USAGE_LIMIT_WS_PUSH_INTERVAL_SECONDS: int = 10
+USAGE_LIMIT_WS_IDLE_TIMEOUT_SECONDS: int = 120

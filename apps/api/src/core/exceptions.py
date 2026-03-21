@@ -879,6 +879,44 @@ def raise_rate_limit_exceeded(
     )
 
 
+class UsageLimitExceededError(BaseAPIException):
+    """Raised when a user exceeds their per-user usage limits (tokens, messages, cost)."""
+
+    def __init__(
+        self,
+        limit_name: str | None = None,
+        reason: str | None = None,
+        **kwargs: Any,
+    ) -> None:
+        self.limit_name = limit_name
+        self.reason = reason
+
+        super().__init__(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=reason or "Usage limit exceeded",
+            log_event="usage_limit_exceeded",
+            limit_name=limit_name or "unknown",
+            **kwargs,
+        )
+
+
+def raise_usage_limit_exceeded(
+    limit_name: str | None = None,
+    reason: str | None = None,
+) -> NoReturn:
+    """
+    Raise when a user exceeds their per-user usage limits.
+
+    Args:
+        limit_name: Which limit was exceeded (e.g., 'cycle_tokens', 'manual_block').
+        reason: Human-readable reason for the block.
+
+    Raises:
+        UsageLimitExceededError: 429 Too Many Requests
+    """
+    raise UsageLimitExceededError(limit_name=limit_name, reason=reason)
+
+
 def raise_api_rate_limit_exceeded(endpoint: str, limit: int) -> NoReturn:
     """
     Raise when API endpoint rate limit is exceeded.

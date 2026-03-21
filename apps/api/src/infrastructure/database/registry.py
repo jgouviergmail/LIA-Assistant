@@ -41,6 +41,7 @@ def import_all_models() -> None:
     import src.domains.skills.models  # noqa: F401
     import src.domains.sub_agents.models  # noqa: F401
     import src.domains.system_settings.models  # noqa: F401
+    import src.domains.usage_limits.models  # noqa: F401
     import src.domains.user_mcp.models  # noqa: F401
     import src.domains.users.models  # noqa: F401
 

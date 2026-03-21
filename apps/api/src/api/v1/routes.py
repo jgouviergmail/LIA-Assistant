@@ -76,6 +76,12 @@ if getattr(settings, "journals_enabled", False):
     from src.domains.journals.router import router as journals_router
 
     api_router.include_router(journals_router)
+if getattr(settings, "usage_limits_enabled", False):
+    from src.domains.usage_limits.router import router as usage_limits_router
+    from src.domains.usage_limits.websocket import router as usage_limits_ws_router
+
+    api_router.include_router(usage_limits_router)
+    api_router.include_router(usage_limits_ws_router)
 api_router.include_router(voice_router)
 api_router.include_router(system_settings_public_router)
 

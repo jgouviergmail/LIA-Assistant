@@ -72,3 +72,6 @@ You can create up to **20 scheduled actions**:
 • **Enable/Disable**: inline switch to pause without deleting
 • **Edit**: change the title, instruction, days or time
 • **Delete**: permanent deletion (past results remain in conversation)
+
+## Are scheduled actions affected by usage limits?
+Yes. When your usage limits are reached, scheduled actions are blocked from executing — the system checks your quota before each execution. The action remains scheduled and will resume automatically once your limits are reset (next billing period) or adjusted by your administrator.

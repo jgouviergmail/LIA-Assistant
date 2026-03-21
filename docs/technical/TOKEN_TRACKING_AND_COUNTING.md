@@ -2020,6 +2020,27 @@ class TestAsyncPricingService:
 
 ---
 
+## Integration with Usage Limits (v1.9.0)
+
+After token usage is persisted to `UserStatistics`, the usage limits cache is invalidated to ensure the next enforcement check reflects the updated consumption:
+
+```python
+# In TrackingContext._update_user_statistics() (chat/service.py)
+if getattr(settings, "usage_limits_enabled", False):
+    await UsageLimitService.invalidate_cache_static(self.user_id)
+```
+
+This ensures that:
+- Token counts used for limit enforcement match dashboard values
+- Cache TTL (60s) is reset after each message
+- Cycle rollover is detected via `_is_cycle_stale()` which compares `UserStatistics.current_cycle_start` with the theoretical cycle start
+
+Token calculation for limits includes cached tokens: `cycle_prompt + cycle_completion + cycle_cached` (matching dashboard).
+
+See: [USAGE_LIMITS.md](USAGE_LIMITS.md)
+
+---
+
 ## Troubleshooting
 
 ### Problème 1 : Tokens Manquants dans Extraction

@@ -267,6 +267,23 @@ async def stream_chat(
     if current_user.id != request.user_id:
         raise_user_id_mismatch()
 
+    # === USAGE LIMIT CHECK (Layer 0: HTTP 429 before SSE stream) ===
+    if getattr(settings, "usage_limits_enabled", False):
+        from src.domains.usage_limits.service import UsageLimitService
+        from src.infrastructure.observability.metrics_usage_limits import (
+            usage_limit_enforcement_total,
+        )
+
+        _limit_check = await UsageLimitService.check_user_allowed(current_user.id)
+        if not _limit_check.allowed:
+            usage_limit_enforcement_total.labels(
+                layer="router", limit_type=_limit_check.exceeded_limit or "unknown"
+            ).inc()
+            from src.core.exceptions import raise_usage_limit_exceeded
+
+            raise_usage_limit_exceeded(_limit_check.exceeded_limit, _limit_check.blocked_reason)
+    # === END USAGE LIMIT CHECK ===
+
     logger.info(
         "sse_stream_started",
         user_id=str(current_user.id),

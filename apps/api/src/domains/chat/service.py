@@ -11,6 +11,7 @@ import structlog
 from dateutil.relativedelta import relativedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.config import settings
 from src.core.context import current_tracker
 from src.core.field_names import (
     FIELD_COST_EUR,
@@ -859,6 +860,15 @@ class TrackingContext:
             summary_data=summary,
             is_new_cycle=is_new_cycle,
         )
+
+        # Invalidate usage limit cache after stats update
+        if getattr(settings, "usage_limits_enabled", False):
+            try:
+                from src.domains.usage_limits.service import UsageLimitService
+
+                await UsageLimitService.invalidate_cache_static(self.user_id)
+            except Exception:
+                pass  # Cache invalidation failure must not break token tracking
 
 
 class StatisticsService:

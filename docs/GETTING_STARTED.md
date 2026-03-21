@@ -975,6 +975,7 @@ All optional features are disabled by default. Enable them in `.env`:
 | `GEOIP_ENABLED` | IP geolocation in logs | DB-IP Lite MMDB file |
 | `INTEREST_LEARNING_ENABLED` | Automatic interest extraction | — |
 | `OAUTH_HEALTH_CHECK_ENABLED` | Proactive connector monitoring | — |
+| `USAGE_LIMITS_ENABLED` | Per-user usage quotas (tokens, messages, cost) | — |
 
 ### Recommended LLM Configuration (Optimal Quality / Cost)
 

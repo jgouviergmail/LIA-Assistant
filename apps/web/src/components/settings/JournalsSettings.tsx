@@ -1,15 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import {
-  BookOpen,
-  Trash2,
-  Plus,
-  Pencil,
-  Download,
-  AlertTriangle,
-  Settings2,
-} from 'lucide-react';
+import { BookOpen, Trash2, Plus, Pencil, Download, AlertTriangle, Settings2 } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -170,7 +162,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
     field: string,
     value: number,
     restoreFn: (v: number) => void,
-    previousValue: number,
+    previousValue: number
   ) => {
     try {
       await updateSettings({ [field]: value });
@@ -178,7 +170,10 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
     } catch (err) {
       // Restore previous value on error
       restoreFn(previousValue);
-      const message = err instanceof Error ? err.message : t('journals.settingsError', 'Failed to update settings');
+      const message =
+        err instanceof Error
+          ? err.message
+          : t('journals.settingsError', 'Failed to update settings');
       toast.error(message);
     }
   };
@@ -238,7 +233,10 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
     <SettingsSection
       value="journals"
       title={t('journals.title', 'Personal Journals')}
-      description={t('journals.description', "Assistant's personal logbooks — reflections, observations, and learnings")}
+      description={t(
+        'journals.description',
+        "Assistant's personal logbooks — reflections, observations, and learnings"
+      )}
       icon={BookOpen}
     >
       <div className="space-y-6">
@@ -249,13 +247,16 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
               {t('journals.enable', 'Enable personal journals')}
             </Label>
             <p className="text-xs text-muted-foreground">
-              {t('journals.enableDescription', 'The assistant will write reflections after conversations')}
+              {t(
+                'journals.enableDescription',
+                'The assistant will write reflections after conversations'
+              )}
             </p>
           </div>
           <Switch
             id="journals-enabled"
             checked={journalSettings?.journals_enabled ?? false}
-            onCheckedChange={(v) => handleToggle('journals_enabled', v)}
+            onCheckedChange={v => handleToggle('journals_enabled', v)}
             disabled={isUpdatingSettings}
           />
         </div>
@@ -270,13 +271,16 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                   {t('journals.consolidation', 'Periodic consolidation')}
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  {t('journals.consolidationDescription', 'Assistant periodically reviews and organizes its notes')}
+                  {t(
+                    'journals.consolidationDescription',
+                    'Assistant periodically reviews and organizes its notes'
+                  )}
                 </p>
               </div>
               <Switch
                 id="consolidation-enabled"
                 checked={journalSettings?.journal_consolidation_enabled ?? true}
-                onCheckedChange={(v) => handleToggle('journal_consolidation_enabled', v)}
+                onCheckedChange={v => handleToggle('journal_consolidation_enabled', v)}
                 disabled={isUpdatingSettings}
               />
             </div>
@@ -294,13 +298,16 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                   {t('journals.historyAnalysis', 'Analyze conversation history')}
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  {t('journals.historyDescription', 'Consolidation also reviews recent conversations')}
+                  {t(
+                    'journals.historyDescription',
+                    'Consolidation also reviews recent conversations'
+                  )}
                 </p>
               </div>
               <Switch
                 id="history-enabled"
                 checked={journalSettings?.journal_consolidation_with_history ?? false}
-                onCheckedChange={(v) => handleToggle('journal_consolidation_with_history', v)}
+                onCheckedChange={v => handleToggle('journal_consolidation_with_history', v)}
                 disabled={isUpdatingSettings}
               />
             </div>
@@ -309,9 +316,12 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
             {sizeInfo && (
               <div className="space-y-2 rounded-lg border p-3">
                 <div className="flex flex-col sm:flex-row sm:justify-between text-sm gap-0.5">
-                  <span className="text-muted-foreground">{t('journals.sizeUsage', 'Size usage')}</span>
+                  <span className="text-muted-foreground">
+                    {t('journals.sizeUsage', 'Size usage')}
+                  </span>
                   <span className="font-mono text-xs">
-                    {sizeInfo.total_chars.toLocaleString()} / {sizeInfo.max_total_chars.toLocaleString()}
+                    {sizeInfo.total_chars.toLocaleString()} /{' '}
+                    {sizeInfo.max_total_chars.toLocaleString()}
                     <span className="text-muted-foreground ml-1">({sizeInfo.usage_pct}%)</span>
                   </span>
                 </div>
@@ -340,13 +350,15 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                   max={200000}
                   step={5000}
                   value={localMaxTotalChars}
-                  onChange={(e) => setLocalMaxTotalChars(parseInt(e.target.value) || 0)}
-                  onBlur={() => handleNumericSave(
-                    'journal_max_total_chars',
-                    localMaxTotalChars,
-                    setLocalMaxTotalChars,
-                    journalSettings!.journal_max_total_chars,
-                  )}
+                  onChange={e => setLocalMaxTotalChars(parseInt(e.target.value) || 0)}
+                  onBlur={() =>
+                    handleNumericSave(
+                      'journal_max_total_chars',
+                      localMaxTotalChars,
+                      setLocalMaxTotalChars,
+                      journalSettings!.journal_max_total_chars
+                    )
+                  }
                   className="w-full font-mono text-sm"
                   disabled={isUpdatingSettings}
                 />
@@ -354,7 +366,9 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
 
               {/* Context Max Chars */}
               <div className="space-y-1.5">
-                <Label className="text-sm">{t('journals.contextMaxChars', 'Prompt injection budget')}</Label>
+                <Label className="text-sm">
+                  {t('journals.contextMaxChars', 'Prompt injection budget')}
+                </Label>
                 <p className="text-[11px] text-muted-foreground">
                   {t('journals.contextMaxCharsDescription', 'Max characters injected into prompts')}
                 </p>
@@ -364,13 +378,15 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                   max={10000}
                   step={100}
                   value={localContextMaxChars}
-                  onChange={(e) => setLocalContextMaxChars(parseInt(e.target.value) || 0)}
-                  onBlur={() => handleNumericSave(
-                    'journal_context_max_chars',
-                    localContextMaxChars,
-                    setLocalContextMaxChars,
-                    journalSettings!.journal_context_max_chars,
-                  )}
+                  onChange={e => setLocalContextMaxChars(parseInt(e.target.value) || 0)}
+                  onBlur={() =>
+                    handleNumericSave(
+                      'journal_context_max_chars',
+                      localContextMaxChars,
+                      setLocalContextMaxChars,
+                      journalSettings!.journal_context_max_chars
+                    )
+                  }
                   className="w-full font-mono text-sm"
                   disabled={isUpdatingSettings}
                 />
@@ -388,13 +404,15 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                   max={5000}
                   step={100}
                   value={localMaxEntryChars}
-                  onChange={(e) => setLocalMaxEntryChars(parseInt(e.target.value) || 0)}
-                  onBlur={() => handleNumericSave(
-                    'journal_max_entry_chars',
-                    localMaxEntryChars,
-                    setLocalMaxEntryChars,
-                    journalSettings!.journal_max_entry_chars,
-                  )}
+                  onChange={e => setLocalMaxEntryChars(parseInt(e.target.value) || 0)}
+                  onBlur={() =>
+                    handleNumericSave(
+                      'journal_max_entry_chars',
+                      localMaxEntryChars,
+                      setLocalMaxEntryChars,
+                      journalSettings!.journal_max_entry_chars
+                    )
+                  }
                   className="w-full font-mono text-sm"
                   disabled={isUpdatingSettings}
                 />
@@ -402,7 +420,9 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
 
               {/* Context Max Results */}
               <div className="space-y-1.5">
-                <Label className="text-sm">{t('journals.contextMaxResults', 'Max search results')}</Label>
+                <Label className="text-sm">
+                  {t('journals.contextMaxResults', 'Max search results')}
+                </Label>
                 <p className="text-[11px] text-muted-foreground">
                   {t('journals.contextMaxResultsDescription', 'Max entries for context injection')}
                 </p>
@@ -412,13 +432,15 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                   max={30}
                   step={1}
                   value={localContextMaxResults}
-                  onChange={(e) => setLocalContextMaxResults(parseInt(e.target.value) || 0)}
-                  onBlur={() => handleNumericSave(
-                    'journal_context_max_results',
-                    localContextMaxResults,
-                    setLocalContextMaxResults,
-                    journalSettings!.journal_context_max_results,
-                  )}
+                  onChange={e => setLocalContextMaxResults(parseInt(e.target.value) || 0)}
+                  onBlur={() =>
+                    handleNumericSave(
+                      'journal_context_max_results',
+                      localContextMaxResults,
+                      setLocalContextMaxResults,
+                      journalSettings!.journal_context_max_results
+                    )
+                  }
                   className="w-full font-mono text-sm"
                   disabled={isUpdatingSettings}
                 />
@@ -433,7 +455,9 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                   <Settings2 className="h-3.5 w-3.5 shrink-0" />
                   <span>{t('journals.lastCost', 'Last intervention')}:</span>
                   <span>
-                    {lastCost.source === 'extraction' ? SOURCE_EMOJI.conversation : SOURCE_EMOJI.consolidation}
+                    {lastCost.source === 'extraction'
+                      ? SOURCE_EMOJI.conversation
+                      : SOURCE_EMOJI.consolidation}
                   </span>
                   <span className="font-mono">
                     {lastCost.tokens_in ?? 0} in / {lastCost.tokens_out ?? 0} out
@@ -441,7 +465,9 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                   {lastCost.cost_eur != null && (
                     <span className="font-mono">{Number(lastCost.cost_eur).toFixed(4)} EUR</span>
                   )}
-                  <span className="ml-auto">{new Date(lastCost.timestamp).toLocaleDateString()}</span>
+                  <span className="ml-auto">
+                    {new Date(lastCost.timestamp).toLocaleDateString()}
+                  </span>
                 </div>
                 {/* Mobile: each element on its own line */}
                 <div className="flex sm:hidden flex-col gap-1">
@@ -452,8 +478,10 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                   <div className="pl-5 flex items-center gap-1.5">
                     <span>{t('journals.lastCostSource', 'Source')}:</span>
                     <span>
-                      {lastCost.source === 'extraction' ? SOURCE_EMOJI.conversation : SOURCE_EMOJI.consolidation}
-                      {' '}{lastCost.source}
+                      {lastCost.source === 'extraction'
+                        ? SOURCE_EMOJI.conversation
+                        : SOURCE_EMOJI.consolidation}{' '}
+                      {lastCost.source}
                     </span>
                   </div>
                   <div className="pl-5">
@@ -475,26 +503,46 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
 
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-2">
-              <Button size="sm" variant="outline" className="h-9" onClick={() => setIsCreateOpen(true)}>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-9"
+                onClick={() => setIsCreateOpen(true)}
+              >
                 <Plus className="h-4 w-4 mr-1" />
                 {t('journals.create', 'New entry')}
               </Button>
-              <Button size="sm" variant="outline" className="h-9" onClick={() => handleExport('json')}>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-9"
+                onClick={() => handleExport('json')}
+              >
                 <Download className="h-4 w-4 mr-1" />
                 {t('journals.export', 'Export')}
               </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button size="sm" variant="destructive" className="h-9" disabled={entryList.length === 0}>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    className="h-9"
+                    disabled={entryList.length === 0}
+                  >
                     <Trash2 className="h-4 w-4 mr-1" />
                     {t('journals.deleteAll', 'Delete all')}
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>{t('journals.deleteAllTitle', 'Delete all entries?')}</AlertDialogTitle>
+                    <AlertDialogTitle>
+                      {t('journals.deleteAllTitle', 'Delete all entries?')}
+                    </AlertDialogTitle>
                     <AlertDialogDescription>
-                      {t('journals.deleteAllDescription', 'This will permanently delete all journal entries. This action cannot be undone.')}
+                      {t(
+                        'journals.deleteAllDescription',
+                        'This will permanently delete all journal entries. This action cannot be undone.'
+                      )}
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -509,99 +557,120 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
 
             {/* Entries Accordion by Theme */}
             {entryList.length > 0 ? (
-        <Accordion type="multiple" className="w-full">
-          {(['self_reflection', 'user_observations', 'ideas_analyses', 'learnings'] as JournalTheme[]).map(
-            (theme) => {
-              const themeEntries = entryList.filter((e) => e.theme === theme);
-              const info = THEME_INFO[theme];
-              const count = themeGroups[theme] ?? 0;
+              <Accordion type="multiple" className="w-full">
+                {(
+                  [
+                    'self_reflection',
+                    'user_observations',
+                    'ideas_analyses',
+                    'learnings',
+                  ] as JournalTheme[]
+                ).map(theme => {
+                  const themeEntries = entryList.filter(e => e.theme === theme);
+                  const info = THEME_INFO[theme];
+                  const count = themeGroups[theme] ?? 0;
 
-              return (
-                <AccordionItem key={theme} value={theme}>
-                  <AccordionTrigger className="text-sm">
-                    <span className="flex items-center gap-2">
-                      <span>{info.icon}</span>
-                      <span>{t(`journals.themes.${theme}`, theme.replace('_', ' '))}</span>
-                      <Badge variant="secondary" className="ml-1">
-                        {count}
-                      </Badge>
-                    </span>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    {themeEntries.length === 0 ? (
-                      <p className="text-sm text-muted-foreground py-2">
-                        {t('journals.noEntries', 'No entries in this theme')}
-                      </p>
-                    ) : (
-                      <div className="space-y-2">
-                        {themeEntries.map((entry) => (
-                          <div
-                            key={entry.id}
-                            className="flex items-start justify-between p-3 rounded-lg border bg-card"
-                          >
-                            <div className="flex-1 min-w-0">
-                              <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2 mb-1">
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <span className="text-xs">{MOOD_EMOJI[entry.mood] ?? ''}</span>
-                                  <span className="font-medium text-sm truncate">{entry.title}</span>
-                                </div>
-                                <Badge variant="outline" className="text-xs w-fit">
-                                  {SOURCE_EMOJI[entry.source] ?? ''} {entry.source}
-                                </Badge>
-                              </div>
-                              <p className="text-xs text-muted-foreground line-clamp-2">
-                                {entry.content}
-                              </p>
-                              <span className="text-xs text-muted-foreground">
-                                {new Date(entry.created_at).toLocaleDateString()}
-                              </span>
-                            </div>
-                            <div className="flex gap-1 ml-2">
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-7 w-7"
-                                onClick={() => openEdit(entry)}
+                  return (
+                    <AccordionItem key={theme} value={theme}>
+                      <AccordionTrigger className="text-sm">
+                        <span className="flex items-center gap-2">
+                          <span>{info.icon}</span>
+                          <span>{t(`journals.themes.${theme}`, theme.replace('_', ' '))}</span>
+                          <Badge variant="secondary" className="ml-1">
+                            {count}
+                          </Badge>
+                        </span>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        {themeEntries.length === 0 ? (
+                          <p className="text-sm text-muted-foreground py-2">
+                            {t('journals.noEntries', 'No entries in this theme')}
+                          </p>
+                        ) : (
+                          <div className="space-y-2">
+                            {themeEntries.map(entry => (
+                              <div
+                                key={entry.id}
+                                className="flex items-start justify-between p-3 rounded-lg border bg-card"
                               >
-                                <Pencil className="h-3 w-3" />
-                              </Button>
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive">
-                                    <Trash2 className="h-3 w-3" />
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2 mb-1">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <span className="text-xs">
+                                        {MOOD_EMOJI[entry.mood] ?? ''}
+                                      </span>
+                                      <span className="font-medium text-sm truncate">
+                                        {entry.title}
+                                      </span>
+                                    </div>
+                                    <Badge variant="outline" className="text-xs w-fit">
+                                      {SOURCE_EMOJI[entry.source] ?? ''} {entry.source}
+                                    </Badge>
+                                  </div>
+                                  <p className="text-xs text-muted-foreground line-clamp-2">
+                                    {entry.content}
+                                  </p>
+                                  <span className="text-xs text-muted-foreground">
+                                    {new Date(entry.created_at).toLocaleDateString()}
+                                  </span>
+                                </div>
+                                <div className="flex gap-1 ml-2">
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-7 w-7"
+                                    onClick={() => openEdit(entry)}
+                                  >
+                                    <Pencil className="h-3 w-3" />
                                   </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>
-                                      {t('journals.deleteTitle', 'Delete entry?')}
-                                    </AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      {t('journals.deleteDescription', 'This entry will be permanently deleted.')}
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleDelete(entry.id)}>
-                                      {t('common.delete', 'Delete')}
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            </div>
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-7 w-7 text-destructive"
+                                      >
+                                        <Trash2 className="h-3 w-3" />
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>
+                                          {t('journals.deleteTitle', 'Delete entry?')}
+                                        </AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          {t(
+                                            'journals.deleteDescription',
+                                            'This entry will be permanently deleted.'
+                                          )}
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>
+                                          {t('common.cancel', 'Cancel')}
+                                        </AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleDelete(entry.id)}>
+                                          {t('common.delete', 'Delete')}
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                </div>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  </AccordionContent>
-                </AccordionItem>
-              );
-            }
-          )}
-        </Accordion>
+                        )}
+                      </AccordionContent>
+                    </AccordionItem>
+                  );
+                })}
+              </Accordion>
             ) : (
               <p className="text-sm text-muted-foreground text-center py-4">
-                {t('journals.empty', 'No journal entries yet. The assistant will start writing after conversations.')}
+                {t(
+                  'journals.empty',
+                  'No journal entries yet. The assistant will start writing after conversations.'
+                )}
               </p>
             )}
           </div>
@@ -622,17 +691,25 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
               <Label>{t('journals.theme', 'Theme')}</Label>
               <Select
                 value={createForm.theme}
-                onValueChange={(v) => setCreateForm({ ...createForm, theme: v as JournalTheme })}
+                onValueChange={v => setCreateForm({ ...createForm, theme: v as JournalTheme })}
               >
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
-                  {(['self_reflection', 'user_observations', 'ideas_analyses', 'learnings'] as JournalTheme[]).map(
-                    (theme) => (
-                      <SelectItem key={theme} value={theme}>
-                        {THEME_INFO[theme].icon} {t(`journals.themes.${theme}`, theme.replace('_', ' '))}
-                      </SelectItem>
-                    )
-                  )}
+                  {(
+                    [
+                      'self_reflection',
+                      'user_observations',
+                      'ideas_analyses',
+                      'learnings',
+                    ] as JournalTheme[]
+                  ).map(theme => (
+                    <SelectItem key={theme} value={theme}>
+                      {THEME_INFO[theme].icon}{' '}
+                      {t(`journals.themes.${theme}`, theme.replace('_', ' '))}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -640,7 +717,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
               <Label>{t('journals.entryTitle', 'Title')}</Label>
               <Input
                 value={createForm.title}
-                onChange={(e) => setCreateForm({ ...createForm, title: e.target.value })}
+                onChange={e => setCreateForm({ ...createForm, title: e.target.value })}
                 maxLength={200}
               />
             </div>
@@ -648,7 +725,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
               <Label>{t('journals.content', 'Content')}</Label>
               <Textarea
                 value={createForm.content}
-                onChange={(e) => setCreateForm({ ...createForm, content: e.target.value })}
+                onChange={e => setCreateForm({ ...createForm, content: e.target.value })}
                 maxLength={2000}
                 rows={5}
               />
@@ -657,17 +734,25 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
               <Label>{t('journals.mood', 'Mood')}</Label>
               <Select
                 value={createForm.mood}
-                onValueChange={(v) => setCreateForm({ ...createForm, mood: v as JournalEntryMood })}
+                onValueChange={v => setCreateForm({ ...createForm, mood: v as JournalEntryMood })}
               >
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
-                  {(['reflective', 'curious', 'satisfied', 'concerned', 'inspired'] as JournalEntryMood[]).map(
-                    (mood) => (
-                      <SelectItem key={mood} value={mood}>
-                        {MOOD_EMOJI[mood]} {t(`journals.moods.${mood}`, mood)}
-                      </SelectItem>
-                    )
-                  )}
+                  {(
+                    [
+                      'reflective',
+                      'curious',
+                      'satisfied',
+                      'concerned',
+                      'inspired',
+                    ] as JournalEntryMood[]
+                  ).map(mood => (
+                    <SelectItem key={mood} value={mood}>
+                      {MOOD_EMOJI[mood]} {t(`journals.moods.${mood}`, mood)}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -676,7 +761,10 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
             <Button variant="outline" onClick={() => setIsCreateOpen(false)}>
               {t('common.cancel', 'Cancel')}
             </Button>
-            <Button onClick={handleCreate} disabled={isCreating || !createForm.title || !createForm.content}>
+            <Button
+              onClick={handleCreate}
+              disabled={isCreating || !createForm.title || !createForm.content}
+            >
               {isCreating ? <LoadingSpinner /> : t('journals.create', 'Create')}
             </Button>
           </DialogFooter>
@@ -684,7 +772,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
       </Dialog>
 
       {/* Edit Dialog */}
-      <Dialog open={!!editingEntry} onOpenChange={(open) => !open && setEditingEntry(null)}>
+      <Dialog open={!!editingEntry} onOpenChange={open => !open && setEditingEntry(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t('journals.editTitle', 'Edit journal entry')}</DialogTitle>
@@ -694,7 +782,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
               <Label>{t('journals.entryTitle', 'Title')}</Label>
               <Input
                 value={editForm.title ?? ''}
-                onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                onChange={e => setEditForm({ ...editForm, title: e.target.value })}
                 maxLength={200}
               />
             </div>
@@ -702,7 +790,7 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
               <Label>{t('journals.content', 'Content')}</Label>
               <Textarea
                 value={editForm.content ?? ''}
-                onChange={(e) => setEditForm({ ...editForm, content: e.target.value })}
+                onChange={e => setEditForm({ ...editForm, content: e.target.value })}
                 maxLength={2000}
                 rows={5}
               />
@@ -711,17 +799,25 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
               <Label>{t('journals.mood', 'Mood')}</Label>
               <Select
                 value={editForm.mood}
-                onValueChange={(v) => setEditForm({ ...editForm, mood: v as JournalEntryMood })}
+                onValueChange={v => setEditForm({ ...editForm, mood: v as JournalEntryMood })}
               >
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
-                  {(['reflective', 'curious', 'satisfied', 'concerned', 'inspired'] as JournalEntryMood[]).map(
-                    (mood) => (
-                      <SelectItem key={mood} value={mood}>
-                        {MOOD_EMOJI[mood]} {t(`journals.moods.${mood}`, mood)}
-                      </SelectItem>
-                    )
-                  )}
+                  {(
+                    [
+                      'reflective',
+                      'curious',
+                      'satisfied',
+                      'concerned',
+                      'inspired',
+                    ] as JournalEntryMood[]
+                  ).map(mood => (
+                    <SelectItem key={mood} value={mood}>
+                      {MOOD_EMOJI[mood]} {t(`journals.moods.${mood}`, mood)}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

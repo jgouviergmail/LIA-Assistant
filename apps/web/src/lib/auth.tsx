@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
 import { useLocalizedRouter } from '@/hooks/useLocalizedRouter';
 import apiClient from './api-client';
 
@@ -231,29 +231,38 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
    * Useful after updating user profile (timezone, name, etc.)
    * to sync the local state with the backend.
    */
-  const refreshUser = async (): Promise<void> => {
+  const refreshUser = useCallback(async (): Promise<void> => {
     try {
       const response = await apiClient.get<User>('/auth/me');
-      setUser(response);
+      // Only update if user data actually changed (prevents unnecessary re-renders)
+      setUser(prev => {
+        if (prev && JSON.stringify(prev) === JSON.stringify(response)) {
+          return prev; // Same reference → no re-render
+        }
+        return response;
+      });
     } catch (error) {
       console.error('Failed to refresh user:', error);
       // Don't throw - just log the error
     }
-  };
+  }, []);
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isLoading,
-        login,
-        register,
-        logout,
-        initiateGoogleOAuth,
-        refreshUser,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+  // Memoize context value to prevent unnecessary re-renders of consumers.
+  // Only user and isLoading change after mount — functions are stable or recreated
+  // but don't affect consumer rendering (they're only called on user action).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const contextValue = useMemo(
+    () => ({
+      user,
+      isLoading,
+      login,
+      register,
+      logout,
+      initiateGoogleOAuth,
+      refreshUser,
+    }),
+    [user, isLoading]
   );
+
+  return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
 };

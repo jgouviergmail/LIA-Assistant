@@ -32,7 +32,8 @@
     "off": "关闭",
     "on": "开启",
     "enabled": "已启用",
-    "disabled": "已禁用"
+    "disabled": "已禁用",
+    "saving": "保存中..."
   },
   "theme": {
     "toggle": "切换主题"
@@ -918,7 +919,7 @@
         "error_update": "更新时出错"
       },
       "llm": {
-        "title": "LLM模型管理",
+        "title": "LLM 管理",
         "description": "管理LLM模型及其费率（美元每百万令牌）。更改会自动创建新的价格历史。",
         "search_placeholder": "按模型名称搜索...",
         "add_model": "添加模型",
@@ -966,7 +967,7 @@
         }
       },
       "google_api": {
-        "title": "Google API 定价管理",
+        "title": "Google API 管理",
         "description": "管理 Google Maps Platform API（Places、Routes、Geocoding）的定价。更改会自动创建新的价格历史记录。",
         "search_placeholder": "按 API、端点或 SKU 搜索...",
         "add_entry": "添加定价",
@@ -1246,7 +1247,7 @@
         "userAccessDisabledSuccess": "已禁用用户调试面板访问"
       },
       "ragSpaces": {
-        "title": "RAG 知识空间",
+        "title": "系统 RAG 管理",
         "subtitle": "管理 RAG 文档空间和嵌入配置",
         "featureStatus": "功能状态",
         "embeddingModel": "嵌入模型",
@@ -1935,7 +1936,8 @@
       "server_error": "服务器错误 ({{status}})。请重试。",
       "service_unavailable": "服务暂时不可用。请稍后重试。",
       "session_expired": "您的会话已过期。请重新登录。",
-      "unknown_error": "流式传输时发生未知错误"
+      "unknown_error": "流式传输时发生未知错误",
+      "usage_limit_exceeded": "您已达到使用限制。请联系管理员。"
     },
     "settings": {
       "title": "发生错误",
@@ -2702,7 +2704,7 @@
       "heartbeat": {
         "title": "主动通知",
         "description": "LIA主动为您提供有用信息",
-        "count": "5",
+        "count": "6",
         "questions": {
           "q1": {
             "question": "什么是主动通知？",
@@ -2723,13 +2725,17 @@
           "q5": {
             "question": "如何对通知提供反馈？",
             "answer": "您的反馈帮助LIA改进：<br><br><strong>👍👎 反馈按钮：</strong><br>• 每条通知显示<strong>点赞/点踩</strong>按钮<br>• 您的反馈被记录以改进未来决策<br><br><strong>📜 历史记录：</strong><br>• 在专用部分查看您最近的主动通知<br>• 每条记录显示使用的数据源和优先级<br><br><strong>⚙️ 调整：</strong><br>• 如果收到太多通知，请减少每日最大数<br>• 如果通知不相关，请禁用不需要的源（断开对应连接器）"
+          },
+          "q6": {
+            "question": "主动通知是否受使用限制影响？",
+            "answer": "是的，会自动暂停。"
           }
         }
       },
       "scheduled_actions": {
         "title": "计划操作",
         "description": "使用LIA自动执行定期任务",
-        "count": "5",
+        "count": "6",
         "questions": {
           "q1": {
             "question": "什么是计划操作？",
@@ -2750,6 +2756,10 @@
           "q5": {
             "question": "我可以创建多少个计划操作？",
             "answer": "您最多可以创建<strong>20个计划操作</strong>：<br><br><strong>📊 限制：</strong><br>• 每个用户最多20个操作<br>• 每个操作可以针对一个或多个工作日<br>• 时间精确到分钟配置<br><br><strong>⚙️ 管理：</strong><br>• <strong>启用/禁用</strong>：内联开关可暂停而不删除<br>• <strong>编辑</strong>：更改标题、指令、日期或时间<br>• <strong>删除</strong>：永久删除（过去的结果保留在对话中）"
+          },
+          "q6": {
+            "question": "计划操作是否受使用限制影响？",
+            "answer": "是的，达到限制时计划操作将被阻止。"
           }
         }
       },
@@ -2898,13 +2908,34 @@
         "description": "助手的个人日志本，用于记录反思和学习",
         "count": "7",
         "questions": {
-          "q1": { "question": "什么是个人日志？", "answer": "<p>个人日志是主题笔记本，AI助手在其中记录自己的反思、观察、分析和学习。与用户记忆（关于您的事实）不同，日志包含<strong>助手自己的视角</strong>——以第一人称书写，受其活跃个性的影响。</p><p><strong>4个主题：</strong>自我反思、用户观察、想法与分析、学习心得。</p>" },
-          "q2": { "question": "助手什么时候写日志？", "answer": "<p><strong>两种机制：</strong></p><ul><li><strong>对话后：</strong>在对话结束后（4+条消息），助手可能会写一篇反思。大多数对话不会产生任何内容——它是有选择性的。</li><li><strong>定期整合：</strong>每隔几小时，助手会审查所有笔记——合并、总结或删除过时的条目。</li></ul>" },
-          "q3": { "question": "日志如何影响回答？", "answer": "<p>日志条目通过<strong>语义搜索</strong>注入到提示词中。两个不同的注入：<strong>回答提示词</strong>获取与对话语气匹配的条目，<strong>规划提示词</strong>获取与用户目标和学习相关的条目。助手决定哪些笔记是相关的。</p>" },
-          "q4": { "question": "我可以阅读和编辑助手的日志吗？", "answer": "<p>可以！在<strong>设置 > 功能 > 个人日志</strong>中，您可以阅读、编辑、删除甚至创建条目。您的添加是透明的——助手无法区分。这让您可以纠正偏见或引导助手。</p>" },
-          "q5": { "question": "我可以配置哪些设置？", "answer": "<p><strong>开关：</strong>启用/禁用日志、整合、对话历史分析（附费用警告）。</p><p><strong>数值设置：</strong>最大日志大小（默认40,000字符）、提示词注入预算（1,500字符）、最大条目大小（2,000字符）、最大搜索结果数（10）。</p>" },
-          "q6": { "question": "费用是多少？", "answer": "<p>日志操作使用后台LLM调用。提取：每次符合条件的对话一次调用（大多数返回空）。整合：每个用户每4-12小时一次调用。LLM模型可在<strong>管理 > LLM配置</strong>中配置。实际费用在设置中可见。</p>" },
-          "q7": { "question": "隐私方面如何？", "answer": "<p>日志数据按用户隔离。所有数据可导出（JSON/CSV）或删除（GDPR）。禁用时，数据被保留但不使用。助手使用您配置的语言书写。</p>" }
+          "q1": {
+            "question": "什么是个人日志？",
+            "answer": "<p>个人日志是主题笔记本，AI助手在其中记录自己的反思、观察、分析和学习。与用户记忆（关于您的事实）不同，日志包含<strong>助手自己的视角</strong>——以第一人称书写，受其活跃个性的影响。</p><p><strong>4个主题：</strong>自我反思、用户观察、想法与分析、学习心得。</p>"
+          },
+          "q2": {
+            "question": "助手什么时候写日志？",
+            "answer": "<p><strong>两种机制：</strong></p><ul><li><strong>对话后：</strong>在对话结束后（4+条消息），助手可能会写一篇反思。大多数对话不会产生任何内容——它是有选择性的。</li><li><strong>定期整合：</strong>每隔几小时，助手会审查所有笔记——合并、总结或删除过时的条目。</li></ul>"
+          },
+          "q3": {
+            "question": "日志如何影响回答？",
+            "answer": "<p>日志条目通过<strong>语义搜索</strong>注入到提示词中。两个不同的注入：<strong>回答提示词</strong>获取与对话语气匹配的条目，<strong>规划提示词</strong>获取与用户目标和学习相关的条目。助手决定哪些笔记是相关的。</p>"
+          },
+          "q4": {
+            "question": "我可以阅读和编辑助手的日志吗？",
+            "answer": "<p>可以！在<strong>设置 > 功能 > 个人日志</strong>中，您可以阅读、编辑、删除甚至创建条目。您的添加是透明的——助手无法区分。这让您可以纠正偏见或引导助手。</p>"
+          },
+          "q5": {
+            "question": "我可以配置哪些设置？",
+            "answer": "<p><strong>开关：</strong>启用/禁用日志、整合、对话历史分析（附费用警告）。</p><p><strong>数值设置：</strong>最大日志大小（默认40,000字符）、提示词注入预算（1,500字符）、最大条目大小（2,000字符）、最大搜索结果数（10）。</p>"
+          },
+          "q6": {
+            "question": "费用是多少？",
+            "answer": "<p>日志操作使用后台LLM调用。提取：每次符合条件的对话一次调用（大多数返回空）。整合：每个用户每4-12小时一次调用。LLM模型可在<strong>管理 > LLM配置</strong>中配置。实际费用在设置中可见。</p>"
+          },
+          "q7": {
+            "question": "隐私方面如何？",
+            "answer": "<p>日志数据按用户隔离。所有数据可导出（JSON/CSV）或删除（GDPR）。禁用时，数据被保留但不使用。助手使用您配置的语言书写。</p>"
+          }
         }
       },
       "privacy": {
@@ -2962,6 +2993,49 @@
           "q5": {
             "question": "如何报告问题或提出建议？",
             "answer": "联系我们的几种方式：<br><br><strong>🐛 报告错误：</strong><br>• 描述遇到的问题<br>• 说明重现步骤<br>• 提及任何错误消息<br>• 联系您的管理员<br><br><strong>💡 提出建议：</strong><br>• 欢迎改进想法<br>• 描述需求或期望的功能<br>• 通过管理员传达<br><br><strong>📧 管理员支持：</strong><br>您的管理员可以：<br>• 管理您的账户<br>• 解决连接器问题<br>• 将请求传达给技术团队<br><br><strong>💡 报告前：</strong><br>查看此FAQ - 也许您的问题已有答案！"
+          }
+        }
+      },
+      "usage_limits": {
+        "title": "使用限制",
+        "description": "每用户令牌、消息和成本配额",
+        "count": "9",
+        "questions": {
+          "q1": {
+            "question": "什么是使用限制？",
+            "answer": "使用限制是<strong>管理员设置的配额</strong>，用于控制资源消耗（令牌、消息、成本EUR）。可以按周期或全局设置。"
+          },
+          "q2": {
+            "question": "计费周期如何计算？",
+            "answer": "从账户创建日期开始的月度滚动周期。"
+          },
+          "q3": {
+            "question": "达到限制时会发生什么？",
+            "answer": "消息输入和语音被禁用。主动通知和计划操作也被阻止。请联系管理员。"
+          },
+          "q4": {
+            "question": "管理员可以手动封禁用户吗？",
+            "answer": "可以，通过设置 > 管理 > 限制管理即时生效。"
+          },
+          "q5": {
+            "question": "可以设置哪些类型的限制？",
+            "answer": "3个维度 × 2种模式 = 6种可能的限制（令牌、消息、成本 × 周期/全局）。"
+          },
+          "q6": {
+            "question": "管理员是否受限制？",
+            "answer": "是的，但他们可以调整自己的限制。"
+          },
+          "q7": {
+            "question": "没有配置限制会怎样？",
+            "answer": "无限制访问，直到配置限制。"
+          },
+          "q8": {
+            "question": "在哪里查看当前使用量？",
+            "answer": "在仪表板上通过专用磁贴查看，带有颜色编码。"
+          },
+          "q9": {
+            "question": "限制如何执行？",
+            "answer": "5层纵深防御架构。基础设施故障时fail-open。"
           }
         }
       }
@@ -3551,7 +3625,7 @@
     "source_weather": "天气",
     "source_interests": "兴趣",
     "source_memories": "记忆",
-      "source_journals": "日志",
+    "source_journals": "日志",
     "notification_hours": "通知时间段",
     "enabled_success": "主动通知已启用",
     "disabled_success": "主动通知已禁用",
@@ -3806,6 +3880,10 @@
       "responsive": {
         "title": "PWA & 响应式设计",
         "description": "可安装的渐进式Web应用，完全优化的桌面、平板和手机界面——随时随地使用LIA"
+      },
+      "usage_limits": {
+        "title": "使用配额",
+        "description": "每用户的令牌、消息和成本限制，实时监控和5层执行。管理员可即时封禁/解封控制预算。"
       }
     },
     "use_cases": {
@@ -4135,7 +4213,7 @@
       "security-architecture": {
         "title": "纵深防御：LIA的5项安全原则",
         "excerpt": "纵深防御、最小权限、速率限制、加密和验证保护您的数据。",
-        "body": "<h2>5项基本原则</h2><p>LIA的安全性基于五项应用于应用每一层的原则：</p><ul><li><strong>纵深防御</strong> — 多层控制（认证、速率限制、验证、加密）</li><li><strong>最小权限</strong> — 默认最小权限</li><li><strong>安全失败</strong> — 出错时拒绝而非允许</li><li><strong>不信任输入</strong> — Pydantic验证 + 系统化清洗</li><li><strong>默认安全</strong> — HTTPS、HttpOnly/SameSite cookies、严格CORS</li></ul><h2>哈希与加密</h2><p>密码使用<strong>bcrypt</strong>（带自动盐值）进行哈希。敏感数据（OAuth令牌、连接器凭据、PII、MCP服务器凭据）使用<strong>Fernet</strong>（AES-128 CBC + HMAC-SHA256）加密，确保机密性和完整性。加密密钥与数据分开管理。</p><h2>JWT与会话管理</h2><p>JWT令牌使用HS256算法，配合Redis中的JTI（JWT ID）黑名单系统。一次性令牌（邮件验证、密码重置）在首次使用后即失效。此机制防止任何敏感令牌的重复使用。</p><h2>可配置速率限制</h2><p>速率限制在两个层面运作：</p><ul><li><strong>HTTP</strong> — 通过上游nginx</li><li><strong>工具</strong> — 通过Redis按用户按工具的滑动窗口，可按服务配置</li></ul><p>API限制严格：每次请求最多10个项目，每个领域有默认值（默认10，最大50）。</p><h2>提示注入防护</h2><p>外部内容（邮件、网页、文档）在注入提示之前封装在可配置的<code>UNTRUSTED</code>标签中。这种显式封装通过清楚地分隔用户数据和系统指令，防止恶意内容劫持助手的行为。</p><h2>资源所有权验证</h2><p>每次资源访问都通过<code>check_resource_ownership()</code>进行检查，带有<code>hide_existence</code>参数：公共资源返回403（拒绝访问），私有资源返回404（资源不存在），以避免向攻击者透露其存在。</p>"
+        "body": "<h2>5项基本原则</h2><p>LIA的安全性基于五项应用于应用每一层的原则：</p><ul><li><strong>纵深防御</strong> — 多层控制（认证、速率限制、验证、加密）</li><li><strong>最小权限</strong> — 默认最小权限</li><li><strong>安全失败</strong> — 出错时拒绝而非允许</li><li><strong>不信任输入</strong> — Pydantic验证 + 系统化清洗</li><li><strong>默认安全</strong> — HTTPS、HttpOnly/SameSite cookies、严格CORS</li></ul><h2>哈希与加密</h2><p>密码使用<strong>bcrypt</strong>（带自动盐值）进行哈希。敏感数据（OAuth令牌、连接器凭据、PII、MCP服务器凭据）使用<strong>Fernet</strong>（AES-128 CBC + HMAC-SHA256）加密，确保机密性和完整性。加密密钥与数据分开管理。</p><h2>JWT与会话管理</h2><p>JWT令牌使用HS256算法，配合Redis中的JTI（JWT ID）黑名单系统。一次性令牌（邮件验证、密码重置）在首次使用后即失效。此机制防止任何敏感令牌的重复使用。</p><h2>可配置速率限制</h2><p>速率限制在两个层面运作：</p><ul><li><strong>HTTP</strong> — 通过上游nginx</li><li><strong>工具</strong> — 通过Redis按用户按工具的滑动窗口，可按服务配置</li></ul><p>API限制严格：每次请求最多10个项目，每个领域有默认值（默认10，最大50）。</p><h2>提示注入防护</h2><p>外部内容（邮件、网页、文档）在注入提示之前封装在可配置的<code>UNTRUSTED</code>标签中。这种显式封装通过清楚地分隔用户数据和系统指令，防止恶意内容劫持助手的行为。</p><h2>资源所有权验证</h2><p>每次资源访问都通过<code>check_resource_ownership()</code>进行检查，带有<code>hide_existence</code>参数：公共资源返回403（拒绝访问），私有资源返回404（资源不存在），以避免向攻击者透露其存在。</p><h2>每用户使用配额 (v1.9)</h2><p>LIA 允许管理员设置<strong>每用户配额</strong>，包括令牌、消息和成本。执行使用<strong>5层纵深防御</strong>架构。基础设施故障时系统<strong>fail-open</strong>。管理员可即时封禁/解封任何用户。</p>"
       },
       "privacy-by-design": {
         "title": "隐私设计：GDPR、加密和数据控制",
@@ -4162,6 +4240,66 @@
         "excerpt": "LIA支持法语、英语、德语、西班牙语、意大利语和中文，具有完整的国际化。",
         "body": "<h2>原生支持6种语言</h2><p>LIA完全支持<strong>法语、英语、德语、西班牙语、意大利语和中文</strong>。国际化不仅限于界面：还涵盖助手回复、通知、FAQ和文档。</p><h2>前端i18n架构</h2><p>前端使用<strong>react-i18next</strong>，每种语言一个JSON文件，语言选择通过<code>NEXT_LOCALE</code> cookie持久化（TTL 1年）。Next.js路由使用动态段<code>[lng]</code>为每种语言提供专属URL。语言标志显示为Unicode表情符号。区域映射将每个短代码关联到其完整变体（fr-FR、en-US、de-DE、es-ES、it-IT、zh-CN）。页面在构建时为每种语言静态预生成。</p><h2>Hreflang与多语言SEO</h2><p>每个公共页面为6种语言声明<code>hreflang</code>替代标签，<code>x-default</code>值指向法语。XML站点地图包含每个URL的多语言替代链接。</p><h2>多语言AI响应</h2><p>助手以用户配置的语言回复。后端通过<code>SUPPORTED_LANGUAGES</code>环境变量配置支持的语言。系统提示以英文编写以最大化LLM推理质量，但明确的语言指令引导以目标语言生成响应。三个提示专门按语言适配：<code>journal_introspection_personality_addon</code>、<code>memory_extraction_personality_addon</code>和<code>broadcast_translation_prompt</code>。</p><h2>多语言语音识别</h2><p>用于语音转录的Whisper模型原生支持99+种语言的离线模式，使您几乎可以用世界上任何语言与LIA交谈，无需额外配置或依赖云服务。</p>"
       }
+    }
+  },
+  "usage_limits": {
+    "title": "限制管理",
+    "description": "配置每用户使用限制",
+    "search_placeholder": "按邮箱或姓名搜索...",
+    "unlimited": "无限制",
+    "mode": {
+      "period": "按周期",
+      "absolute": "全局"
+    },
+    "table": {
+      "email": "邮箱",
+      "name": "姓名",
+      "status": "状态",
+      "tokens": "令牌",
+      "messages": "消息",
+      "cost": "费用 (EUR)",
+      "blocked": "已封禁",
+      "actions": "操作",
+      "edit": "编辑",
+      "block": "封禁",
+      "unblock": "解封",
+      "no_results": "未找到用户",
+      "page_info": "第 {{page}} 页，共 {{totalPages}} 页（{{total}} 个用户）"
+    },
+    "edit": {
+      "title": "{{email}} 的限制",
+      "description": "配置此用户的使用限制",
+      "cycle_limits": "周期限制",
+      "absolute_limits": "全局限制",
+      "token_limit": "令牌限制",
+      "message_limit": "消息限制",
+      "cost_limit": "费用限制 (EUR)",
+      "block_section": "手动封禁",
+      "block_user": "封禁用户",
+      "block_reason_placeholder": "封禁原因（可选）...",
+      "save": "保存",
+      "cancel": "取消",
+      "success": "限制已更新",
+      "error": "更新失败",
+      "default_block_reason": "被管理员封禁",
+      "current_usage": "当前使用量"
+    },
+    "blocked": {
+      "title": "已达限制",
+      "message": "您已达到使用限制。请联系管理员。",
+      "tooltip": "使用限制已达"
+    },
+    "error": {
+      "loading": "加载使用限制失败",
+      "limit_exceeded": "您的使用限制已超出。消息未发送。"
+    },
+    "tile": {
+      "title": "您的限制",
+      "messages": "消息",
+      "tokens": "令牌",
+      "cost": "费用",
+      "title_period": "周期限制",
+      "title_absolute": "全局限制"
     }
   }
 }
