@@ -37,8 +37,8 @@ class TestLLMDefaults:
             ), f"LLM_DEFAULTS['{llm_type}'] is {type(config)}, expected LLMAgentConfig"
 
     def test_default_count(self) -> None:
-        """Should have 42 LLM types (including journals: extraction + consolidation)."""
-        assert len(LLM_DEFAULTS) == 42
+        """Should have 43 LLM types (including journals + hue_agent)."""
+        assert len(LLM_DEFAULTS) == 43
 
     @pytest.mark.parametrize(
         "llm_type,expected_provider,expected_model",

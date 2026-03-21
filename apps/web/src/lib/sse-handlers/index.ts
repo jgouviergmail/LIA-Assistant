@@ -15,6 +15,7 @@ import {
   // Data handlers
   handleRegistryUpdate,
   handleDebugMetrics,
+  handleDebugMetricsUpdate,
   // Progress handlers
   handleRouterDecision,
   handlePlannerMetadata,
@@ -53,6 +54,7 @@ const SSE_HANDLERS: SSEHandlerMap = {
   // Data events
   registry_update: handleRegistryUpdate,
   debug_metrics: handleDebugMetrics,
+  debug_metrics_update: handleDebugMetricsUpdate,
 
   // Progress feedback events
   router_decision: handleRouterDecision,

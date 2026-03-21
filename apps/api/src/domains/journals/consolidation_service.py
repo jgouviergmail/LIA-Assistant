@@ -53,6 +53,7 @@ def _format_all_entries(entries: list[JournalEntry]) -> str:
     """Format all active entries for the consolidation prompt.
 
     Shows full content for every entry (unlike extraction which uses summaries).
+    Includes an ID reference table to help the LLM copy exact UUIDs.
 
     Args:
         entries: All active entries ordered by created_at desc
@@ -63,16 +64,22 @@ def _format_all_entries(entries: list[JournalEntry]) -> str:
     if not entries:
         return "No entries to review."
 
-    lines = []
+    # ID reference table for easy copy-paste
+    id_lines = ["### ENTRY ID REFERENCE (copy-paste these exact IDs for update/delete):"]
+    for entry in entries:
+        id_lines.append(f"- {entry.id}  →  {entry.title}")
+
+    # Full entries
+    entry_lines = []
     for entry in entries:
         date_str = entry.created_at.strftime("%Y-%m-%d")
-        lines.append(
-            f"[{entry.id} | {date_str} | {entry.theme} | {entry.mood} | "
+        entry_lines.append(
+            f"[id={entry.id} | {date_str} | {entry.theme} | {entry.mood} | "
             f"{entry.char_count} chars]\n"
             f"**{entry.title}**\n{entry.content}\n"
         )
 
-    return "\n---\n".join(lines)
+    return "\n".join(id_lines) + "\n\n---\n" + "\n---\n".join(entry_lines)
 
 
 async def _load_conversation_history(
@@ -287,6 +294,31 @@ async def consolidate_journals_for_user(
                 user_id=str(user_id),
             )
             return 0
+
+        # Filter out hallucinated entry_ids (only keep IDs that exist in loaded entries)
+        known_ids = {str(e.id) for e in entries}
+        valid_actions = []
+        for action in actions:
+            if action.action in ("update", "delete") and action.entry_id:
+                if action.entry_id not in known_ids:
+                    logger.warning(
+                        "journal_consolidation_unknown_entry_id",
+                        user_id=str(user_id),
+                        action=action.action,
+                        entry_id=action.entry_id,
+                    )
+                    continue
+            valid_actions.append(action)
+
+        if len(valid_actions) < len(actions):
+            logger.info(
+                "journal_consolidation_filtered_hallucinated_ids",
+                user_id=str(user_id),
+                original_count=len(actions),
+                valid_count=len(valid_actions),
+                filtered_count=len(actions) - len(valid_actions),
+            )
+        actions = valid_actions
 
         # Apply actions
         applied_count = 0

@@ -35,7 +35,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.8.0</strong> — Philips Hue Smart Home Connector, LLM Error Resilience — March 2026
+  <strong>Version 1.8.1</strong> — Journal Extraction Debug, Planner Skill Guard, Weather Temp Range — March 2026
 </p>
 
 ---
@@ -152,7 +152,7 @@ LIA is available as a hosted service at **https://lia.jeyswork.com/** — no ins
 
 - **19+ Specialized Agents**: Contacts, Emails, Calendar, Drive, Tasks, Reminders, Places, Routes, Weather, Wikipedia, Perplexity, Brave, Web Search, Web Fetch, Browser Control, Smart Home (Philips Hue), Context, Query + dynamic MCP agents
 - **MCP (Model Context Protocol)**: Per-user external tool servers with OAuth 2.1, SSRF protection, structured items parsing, MCP Apps (interactive iframe widgets), Excalidraw Iterative Builder
-- **Skills (agentskills.io)**: Open standard for expert instructions (SKILL.md), model-driven activation, progressive disclosure (L1/L2/L3), sandboxed scripts, marketplace import, auto-translated multi-language descriptions, ZIP download, admin management. **Built-in Skill Generator**: create custom skills in natural language — the assistant guides you through need analysis, archetype selection, and produces a ready-to-import SKILL.md with automatic validation
+- **Skills (agentskills.io)**: Open standard for expert instructions (SKILL.md), model-driven activation, progressive disclosure (L1/L2/L3), sandboxed scripts, marketplace import, auto-translated multi-language descriptions, ZIP download, admin management. **Planner skill guard**: multi-domain deterministic skills are protected from false-positive early clarification requests via domain overlap detection (`_has_potential_skill_match`). **Built-in Skill Generator**: create custom skills in natural language — the assistant guides you through need analysis, archetype selection, and produces a ready-to-import SKILL.md with automatic validation
 - **File Attachments (Images, PDF)**: Upload with client-side compression, configurable LLM vision analysis, PDF text extraction, strict per-user isolation
 - **Semantic Routing**: Binary classification with confidence scoring (high >0.85, medium >0.65)
 - **Multi-Step Planning**: ExecutionPlan DSL with dependencies and conditions
@@ -337,7 +337,8 @@ ExecutionStep(
 - **Prompt-driven lifecycle**: The assistant manages its own journals — no hardcoded auto-archival. Size constraints guide cleanup via prompt engineering
 - **Heartbeat integration**: Journal entries enrich proactive notifications via dynamic second-pass query built from aggregated context (calendar, weather, emails). Toggleable source badge in heartbeat settings
 - **Full user control**: Enable/disable (data preserved), consolidation toggle, conversation history analysis (with cost warning), 4 configurable numeric settings, full CRUD in Settings
-- **Debug panel**: Dedicated "Personal Journals" section showing injection metrics, per-entry scores with visual bars, and budget indicators
+- **Anti-hallucination guards**: Three-layer defense against LLM UUID hallucination — prompt guidance with ID reference tables, `field_validator` on entry IDs, and known-ID filtering in both extraction and consolidation services
+- **Debug panel**: Dedicated "Personal Journals" section showing injection metrics (per-entry scores with visual bars, budget indicators) AND background extraction results (actions parsed/applied, CREATE/UPDATE/DELETE badges, themes, moods). Extraction data arrives via supplementary `debug_metrics_update` SSE event after background tasks complete
 - **Cost transparency**: Real token costs tracked via TrackingContext, visible in Settings and dashboard
 - **Feature flags**: `JOURNALS_ENABLED=false` (system), user-level toggle in Settings > Features. [ADR-057](./docs/architecture/ADR-057-Personal-Journals.md)
 

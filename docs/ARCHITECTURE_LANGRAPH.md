@@ -1,7 +1,7 @@
 # Architecture LangGraph - LIA
 
-**Version**: 5.6 (INTELLIPLANNER + INTELLIA v10.1 + SEMANTIC + REMINDERS + Architecture v3.5 + Sub-Agents + Browser Control + Journals)
-**Date**: 2026-03-20
+**Version**: 5.7 (INTELLIPLANNER + INTELLIA v10.1 + SEMANTIC + REMINDERS + Architecture v3.5 + Sub-Agents + Browser Control + Journals + Philips Hue)
+**Date**: 2026-03-21
 **Status**: Production
 
 ---

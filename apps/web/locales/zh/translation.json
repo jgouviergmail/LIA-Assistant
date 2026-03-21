@@ -1075,6 +1075,10 @@
           "external": {
             "label": "外部服务",
             "description": "每个用户使用API密钥的第三方服务"
+          },
+          "smart_home": {
+            "label": "智能家居",
+            "description": "智能家居设备集成（灯光、场景、房间）"
           }
         },
         "connector_descriptions": {
@@ -1096,7 +1100,8 @@
           "microsoft_calendar": "查看和管理 Microsoft Calendar 事件",
           "microsoft_contacts": "搜索和管理 Microsoft 联系人",
           "microsoft_tasks": "在 Microsoft To Do 中管理任务和任务列表",
-          "browser": "交互式网页浏览：导航、点击、填写表单"
+          "browser": "交互式网页浏览：导航、点击、填写表单",
+          "philips_hue": "控制智能灯光：开关、亮度、颜色、场景和房间"
         }
       },
       "personalities": {
@@ -4095,7 +4100,7 @@
       "skills-system": {
         "title": "技能：专家指令定制LIA",
         "excerpt": "导入或创建专业技能，让LIA掌握新领域。",
-        "body": "<h2>什么是技能？</h2><p><strong>技能</strong>是一组结构化指令，使LIA能够掌握特定领域。与执行操作的工具不同，技能丰富的是助手的<strong>推理和行为</strong>。架构基于一个关键原则：<strong>磁盘是技能内容的唯一真实来源</strong>，而数据库仅管理元数据（激活状态、所有者、统计信息）。</p><h2>三种技能类型</h2><ul><li><strong>Prompt Expert</strong> — 某一领域的详细指令（如：专业写作、财务分析）</li><li><strong>Advisory</strong> — 建议和最佳实践（如：风格指南、质量检查清单）</li><li><strong>Plan Template</strong> — 常见场景的执行计划模板</li></ul><h2>沙盒执行</h2><p>可执行技能在<strong>沙盒环境</strong>中通过<code>subprocess</code>运行（永远不使用<code>shell=True</code>）。执行环境经过过滤：仅<code>PATH</code>、<code>HOME</code>、<code>LANG</code>、<code>LC_ALL</code>和<code>TZ</code>变量传递给子进程。在Linux上，通过<code>unshare</code>实现<strong>网络隔离</strong>，防止技能脚本进行任何网络访问。</p><h2>结构化结果</h2><p>每次技能执行返回一个标准化的<strong>ScriptResult</strong>对象，包含：<code>success</code>（布尔值）、<code>output</code>（stdout）、<code>error</code>（stderr）、<code>exit_code</code>和<code>execution_time_ms</code>。这种格式使系统能够统一处理成功和错误情况。</p><h2>SkillBypassStrategy：绕过规划器</h2><p>当确定性技能完全匹配请求时，<strong>SkillBypassStrategy</strong>会短路LLM规划器。技能直接执行，无需经过planner → validator → orchestrator链，从而降低延迟和Token消耗。</p><h2>技能生成器</h2><p>LIA包含内置的<strong>技能生成器</strong>。用自然语言描述所需的专业领域，LIA会自动生成符合agentskills.io标准的SKILL.md格式的结构化技能。</p><h2>用户管理</h2><p>每个用户可以在设置界面中激活、停用、导入或删除技能。管理员还可以定义面向所有用户的全局技能。</p>"
+        "body": "<h2>什么是技能？</h2><p><strong>技能</strong>是一组结构化指令，使LIA能够掌握特定领域。与执行操作的工具不同，技能丰富的是助手的<strong>推理和行为</strong>。架构基于一个关键原则：<strong>磁盘是技能内容的唯一真实来源</strong>，而数据库仅管理元数据（激活状态、所有者、统计信息）。</p><h2>三种技能类型</h2><ul><li><strong>Prompt Expert</strong> — 某一领域的详细指令（如：专业写作、财务分析）</li><li><strong>Advisory</strong> — 建议和最佳实践（如：风格指南、质量检查清单）</li><li><strong>Plan Template</strong> — 常见场景的执行计划模板</li></ul><h2>沙盒执行</h2><p>可执行技能在<strong>沙盒环境</strong>中通过<code>subprocess</code>运行（永远不使用<code>shell=True</code>）。执行环境经过过滤：仅<code>PATH</code>、<code>HOME</code>、<code>LANG</code>、<code>LC_ALL</code>和<code>TZ</code>变量传递给子进程。在Linux上，通过<code>unshare</code>实现<strong>网络隔离</strong>，防止技能脚本进行任何网络访问。</p><h2>结构化结果</h2><p>每次技能执行返回一个标准化的<strong>ScriptResult</strong>对象，包含：<code>success</code>（布尔值）、<code>output</code>（stdout）、<code>error</code>（stderr）、<code>exit_code</code>和<code>execution_time_ms</code>。这种格式使系统能够统一处理成功和错误情况。</p><h2>SkillBypassStrategy：绕过规划器</h2><p>当确定性技能完全匹配请求时，<strong>SkillBypassStrategy</strong>会短路LLM规划器。技能直接执行，无需经过planner → validator → orchestrator链，从而降低延迟和Token消耗。</p><h2>规划器技能守卫</h2><p>规划器具有早期检测功能，在缺少必需参数时请求澄清。然而，多域确定性技能（例如：每日简报 = 事件 + 任务 + 天气 + 邮件）可能会触发<strong>错误的澄清请求</strong>。技能守卫检测到确定性技能与查询具有高域重叠时，会让完整的规划器管道来决定，而不是直接跳转到澄清。</p><h2>技能生成器</h2><p>LIA包含内置的<strong>技能生成器</strong>。用自然语言描述所需的专业领域，LIA会自动生成符合agentskills.io标准的SKILL.md格式的结构化技能。</p><h2>用户管理</h2><p>每个用户可以在设置界面中激活、停用、导入或删除技能。管理员还可以定义面向所有用户的全局技能。</p>"
       },
       "voice-mode": {
         "title": "语音模式：像与个人助手一样与LIA对话",
@@ -4110,7 +4115,7 @@
       "personal-journals": {
         "title": "个人日志：当您的AI助手发展自己的记忆",
         "excerpt": "LIA保持主题日志，记录反思、观察和分析，影响其推理和回应。",
-        "body": "<h2>内省记忆</h2><p>个人日志是LIA的独特功能：助手维护<strong>主题个人日志</strong>，记录关于用户的反思、观察、想法和学习。这些笔记随时间推移丰富其推理并个性化其回复。</p><h2>4个主题</h2><p>每个条目归入4个主题之一：</p><ul><li><strong>SELF_REFLECTION</strong> — 对自身运作和交互的反思</li><li><strong>USER_OBSERVATIONS</strong> — 关于您的偏好、习惯和需求的记录</li><li><strong>IDEAS_ANALYSES</strong> — 联系、洞察和跨领域分析</li><li><strong>LEARNINGS</strong> — 从交互中获得的经验教训和新知识</li></ul><h2>5种心情</h2><p>每个条目带有反映助手内省状态的心情：<strong>REFLECTIVE</strong>（反思）、<strong>CURIOUS</strong>（好奇）、<strong>SATISFIED</strong>（满意）、<strong>CONCERNED</strong>（担忧）或<strong>INSPIRED</strong>（受启发）。</p><h2>3种写作来源</h2><p>条目来自三个不同的来源：</p><ul><li><strong>CONVERSATION</strong> — 对话后自动提取。内省分析最后一条消息加<strong>4条上下文消息</strong>，并加载<strong>10条近期条目</strong>以确保连续性并避免重复。</li><li><strong>CONSOLIDATION</strong> — 每<strong>4小时</strong>的定期综合，冷却期为<strong>12小时</strong>，最少<strong>3条条目</strong>才触发整合。</li><li><strong>MANUAL</strong> — 用户通过界面直接创建的条目。</li></ul><h2>基于Embeddings的语义搜索</h2><p>日志条目通过<strong>E5-small</strong>（384维）Embeddings索引，用于语义搜索。这允许通过语义相似性找到相关条目，即使确切用词不同。</p><h2>对回复的影响</h2><p>相关条目通过语义搜索注入到规划器和响应节点的提示中。LIA接收带有相似度分数的条目，自行决定使用哪些。</p><h2>用户控制</h2><p>您可以在设置 > 功能中阅读、编辑和导出日志。该功能可按用户完全禁用。</p>"
+        "body": "<h2>内省记忆</h2><p>个人日志是LIA的独特功能：助手维护<strong>主题个人日志</strong>，记录关于用户的反思、观察、想法和学习。这些笔记随时间推移丰富其推理并个性化其回复。</p><h2>4个主题</h2><p>每个条目归入4个主题之一：</p><ul><li><strong>SELF_REFLECTION</strong> — 对自身运作和交互的反思</li><li><strong>USER_OBSERVATIONS</strong> — 关于您的偏好、习惯和需求的记录</li><li><strong>IDEAS_ANALYSES</strong> — 联系、洞察和跨领域分析</li><li><strong>LEARNINGS</strong> — 从交互中获得的经验教训和新知识</li></ul><h2>5种心情</h2><p>每个条目带有反映助手内省状态的心情：<strong>REFLECTIVE</strong>（反思）、<strong>CURIOUS</strong>（好奇）、<strong>SATISFIED</strong>（满意）、<strong>CONCERNED</strong>（担忧）或<strong>INSPIRED</strong>（受启发）。</p><h2>3种写作来源</h2><p>条目来自三个不同的来源：</p><ul><li><strong>CONVERSATION</strong> — 对话后自动提取。内省分析最后一条消息加<strong>4条上下文消息</strong>，并加载<strong>10条近期条目</strong>以确保连续性并避免重复。</li><li><strong>CONSOLIDATION</strong> — 每<strong>4小时</strong>的定期综合，冷却期为<strong>12小时</strong>，最少<strong>3条条目</strong>才触发整合。</li><li><strong>MANUAL</strong> — 用户通过界面直接创建的条目。</li></ul><h2>基于Embeddings的语义搜索</h2><p>日志条目通过<strong>E5-small</strong>（384维）Embeddings索引，用于语义搜索。这允许通过语义相似性找到相关条目，即使确切用词不同。</p><h2>对回复的影响</h2><p>相关条目通过语义搜索注入到规划器和响应节点的提示中。LIA接收带有相似度分数的条目，自行决定使用哪些。</p><h2>数据完整性</h2><p>LLM在更新或删除日志条目时可能会产生UUID幻觉。LIA通过<strong>三层防护</strong>进行保护：带有ID参考表的提示指导、拒绝格式错误UUID的架构验证，以及静默丢弃引用不存在条目操作的运行时过滤。这确保了即使LLM出错，日志数据也能保持一致。</p><h2>调试可见性</h2><p>调试面板同时显示<strong>上下文注入</strong>（哪些条目被检索并注入到提示中，带有相似度分数）和<strong>后台提取</strong>（助手在对话后写了什么——操作类型、主题、标题、心情）。提取数据通过后台处理完成后的补充SSE事件到达。</p><h2>用户控制</h2><p>您可以在设置 > 功能中阅读、编辑和导出日志。该功能可按用户完全禁用。</p>"
       },
       "proactive-notifications": {
         "title": "Heartbeat：主动的上下文感知通知",

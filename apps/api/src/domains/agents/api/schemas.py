@@ -129,6 +129,7 @@ class ChatStreamChunk(BaseModel):
         "registry_update",  # Data Registry: Registry items for frontend rendering (emitted BEFORE tokens)
         # Debug Panel: Scoring metrics for threshold tuning (only emitted when DEBUG=true)
         "debug_metrics",  # Debug: All scoring metrics with thresholds for debug panel
+        "debug_metrics_update",  # Debug: Supplementary metrics (post-background tasks, merged by frontend)
         "hitl_interrupt",  # HITL interrupt (used in resumption strategies)
         "hitl_interrupt_metadata",  # HITL Streaming: Step 1 - Metadata chunk (immediate)
         "hitl_question_token",  # HITL Streaming: Step 2 - Progressive question tokens

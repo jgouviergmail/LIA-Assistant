@@ -17,7 +17,7 @@ from decimal import Decimal
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.domains.journals.constants import (
     JOURNAL_ENTRY_CONTENT_MAX_LENGTH,
@@ -245,6 +245,19 @@ class ExtractedJournalEntry(BaseModel):
         None,
         description="Existing entry ID (required for update/delete, null for create)",
     )
+
+    @field_validator("entry_id", mode="before")
+    @classmethod
+    def validate_entry_id_is_valid_uuid(cls, v: str | None) -> str | None:
+        """Reject malformed UUIDs produced by LLM hallucination."""
+        if v is None:
+            return v
+        try:
+            UUID(str(v))
+        except (ValueError, AttributeError) as err:
+            raise ValueError(f"Invalid UUID for entry_id: {v!r}") from err
+        return str(v)
+
     theme: JournalTheme | None = Field(
         None,
         description="Thematic category (required for create)",

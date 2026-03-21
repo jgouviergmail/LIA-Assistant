@@ -146,10 +146,11 @@ class TestConfigureTracing:
         app = FastAPI()
         configure_tracing(app)
 
-        # Verify OTLP exporter uses secure connection in production
+        # OTLP exporter always uses insecure=True (Docker-internal communication)
+        # Even in production, Tempo runs inside the same Docker network without TLS
         mock_otlp_exporter.assert_called_once_with(
             endpoint="https://tempo.example.com:4317",
-            insecure=False,  # Secure in production
+            insecure=True,
         )
 
 

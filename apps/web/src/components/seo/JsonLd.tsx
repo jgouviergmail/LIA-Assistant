@@ -113,7 +113,7 @@ export function SoftwareApplicationJsonLd({
       'Extensible via MCP protocol',
     ],
     screenshot: `${BASE_URL}/Title.png`,
-    softwareVersion: '1.8.0',
+    softwareVersion: '1.8.1',
     inLanguage: LOCALE_MAP[lng],
     image: `${BASE_URL}/Title.png`,
   };

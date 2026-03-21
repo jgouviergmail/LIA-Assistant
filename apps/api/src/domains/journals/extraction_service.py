@@ -16,10 +16,11 @@ from __future__ import annotations
 
 import json
 import re
+import time as _time
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
@@ -43,6 +44,60 @@ from src.infrastructure.llm.invoke_helpers import invoke_with_instrumentation
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+# =============================================================================
+# Debug Results Registry (per run_id, consumed by streaming service)
+# =============================================================================
+# In-process dict storing extraction debug data keyed by run_id.
+# Entries are written by extract_journal_entry_background() and consumed
+# (popped) by the SSE streaming service via pop_extraction_debug().
+# A TTL-based eviction prevents unbounded growth when entries are never
+# consumed (e.g., streaming error, debug panel disabled).
+
+_EXTRACTION_DEBUG_TTL_SECONDS: int = 300  # 5 minutes
+
+_extraction_debug_results: dict[str, tuple[float, dict[str, Any]]] = {}
+
+
+def _store_extraction_debug(run_id: str, data: dict[str, Any]) -> None:
+    """Store extraction debug results for a given run_id with a timestamp.
+
+    Args:
+        run_id: The pipeline run_id to associate the results with.
+        data: Debug dict with actions_parsed, actions_applied, entries.
+    """
+    _extraction_debug_results[run_id] = (_time.monotonic(), data)
+
+
+def pop_extraction_debug(run_id: str) -> dict[str, Any] | None:
+    """Pop and return extraction debug results for a given run_id.
+
+    Called by the streaming service after await_run_id_tasks to include
+    journal extraction details in the debug panel.
+
+    Also evicts stale entries older than ``_EXTRACTION_DEBUG_TTL_SECONDS``
+    to prevent unbounded memory growth when entries are never consumed.
+
+    Args:
+        run_id: The pipeline run_id whose extraction results to retrieve.
+
+    Returns:
+        Debug dict with actions_parsed, actions_applied, entries details,
+        or None if no results found for this run_id.
+    """
+    # Evict stale entries
+    now = _time.monotonic()
+    stale_keys = [
+        k
+        for k, (ts, _) in _extraction_debug_results.items()
+        if now - ts > _EXTRACTION_DEBUG_TTL_SECONDS
+    ]
+    for k in stale_keys:
+        del _extraction_debug_results[k]
+
+    entry = _extraction_debug_results.pop(run_id, None)
+    return entry[1] if entry is not None else None
 
 
 # =============================================================================
@@ -114,20 +169,26 @@ def _format_existing_entries_for_context(
     if not entries:
         return "No existing entries yet."
 
-    lines = []
+    # ID reference table for easy copy-paste
+    id_lines = ["ENTRY IDs (copy-paste these exact IDs for update/delete):"]
+    for entry in entries:
+        id_lines.append(f"- {entry.id}  →  {entry.title}")
+
+    # Full entries
+    entry_lines = []
     for i, entry in enumerate(entries):
         date_str = entry.created_at.strftime("%Y-%m-%d")
         if i < full_count:
             # Full content for recent entries
-            lines.append(
-                f"[{entry.id} | {date_str} | {entry.theme} | {entry.mood}] "
+            entry_lines.append(
+                f"[id={entry.id} | {date_str} | {entry.theme} | {entry.mood}] "
                 f"**{entry.title}** — {entry.content}"
             )
         else:
             # Compact summary for older entries
-            lines.append(f"[{entry.id} | {date_str} | {entry.theme}] {entry.title}")
+            entry_lines.append(f"[id={entry.id} | {date_str} | {entry.theme}] {entry.title}")
 
-    return "\n".join(lines)
+    return "\n".join(id_lines) + "\n\n" + "\n".join(entry_lines)
 
 
 def _parse_journal_extraction_result(result_text: str) -> list[ExtractedJournalEntry]:
@@ -566,7 +627,41 @@ async def extract_journal_entry_background(
 
         if not actions:
             logger.debug("journal_extraction_no_actions", user_id=user_id)
+            if parent_run_id:
+                _store_extraction_debug(
+                    parent_run_id,
+                    {
+                        "actions_parsed": 0,
+                        "actions_applied": 0,
+                        "entries": [],
+                    },
+                )
             return 0
+
+        # Filter out hallucinated entry_ids (only keep IDs that exist in loaded entries)
+        known_ids = {str(e.id) for e in existing_entries}
+        valid_actions = []
+        for action in actions:
+            if action.action in ("update", "delete") and action.entry_id:
+                if action.entry_id not in known_ids:
+                    logger.warning(
+                        "journal_extraction_unknown_entry_id",
+                        user_id=user_id,
+                        action=action.action,
+                        entry_id=action.entry_id,
+                    )
+                    continue
+            valid_actions.append(action)
+
+        if len(valid_actions) < len(actions):
+            logger.info(
+                "journal_extraction_filtered_hallucinated_ids",
+                user_id=user_id,
+                original_count=len(actions),
+                valid_count=len(valid_actions),
+                filtered_count=len(actions) - len(valid_actions),
+            )
+        actions = valid_actions
 
         # Apply actions via JournalService (handles char_count + embeddings)
         applied_count = 0
@@ -633,10 +728,35 @@ async def extract_journal_entry_background(
             actions_applied=applied_count,
         )
 
+        # Store debug results for the debug panel (consumed by streaming service)
+        if parent_run_id:
+            _store_extraction_debug(
+                parent_run_id,
+                {
+                    "actions_parsed": len(actions),
+                    "actions_applied": applied_count,
+                    "entries": [
+                        {
+                            "action": a.action,
+                            "theme": a.theme.value if a.theme else None,
+                            "title": (
+                                (a.title[:30] + "…") if a.title and len(a.title) > 30 else a.title
+                            ),
+                            "mood": a.mood.value if a.mood else None,
+                            "entry_id": a.entry_id,
+                        }
+                        for a in actions
+                    ],
+                },
+            )
+
         return applied_count
 
     except Exception as e:
         # Graceful degradation — extraction failure must never break the response
+        # Clean up debug entry to avoid orphaned data in the registry
+        if parent_run_id:
+            _extraction_debug_results.pop(parent_run_id, None)
         logger.error(
             "journal_extraction_failed",
             user_id=user_id,

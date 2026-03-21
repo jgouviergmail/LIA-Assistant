@@ -34,6 +34,9 @@ Write in {user_language}. This is the user's configured language.
 ## OUTPUT FORMAT
 Return a JSON array of actions. Return [] if nothing warrants writing.
 
+CRITICAL: For update/delete actions, you MUST copy-paste the EXACT entry_id UUID from the entries listed above.
+Do NOT invent, shorten, or modify UUIDs. Only use IDs that appear in the entry headers above (inside [ ] brackets).
+
 ```json
 [
   {{
@@ -45,14 +48,14 @@ Return a JSON array of actions. Return [] if nothing warrants writing.
   }},
   {{
     "action": "update",
-    "entry_id": "existing-entry-uuid",
+    "entry_id": "<copy exact UUID from entry header>",
     "title": "Updated title (optional)",
     "content": "Updated content (optional)",
     "mood": "updated mood (optional)"
   }},
   {{
     "action": "delete",
-    "entry_id": "existing-entry-uuid-to-remove"
+    "entry_id": "<copy exact UUID from entry header>"
   }}
 ]
 ```

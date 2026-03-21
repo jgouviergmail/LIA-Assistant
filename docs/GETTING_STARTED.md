@@ -1,10 +1,10 @@
 # Getting Started - LIA
 
-> Complete guide to install, configure, and get started with LIA - Multi-Agent AI Assistant v6.3
+> Complete guide to install, configure, and get started with LIA - Multi-Agent AI Assistant v6.4
 
-**Version**: 3.2
-**Last Updated**: 2026-03-20
-**Compatibility**: LIA v6.3.x (+ evolution Features: Web Fetch, MCP Per-User, Multi-Channel Telegram, Heartbeat Autonome, RAG Spaces, Sub-Agents, Browser Control, Personal Journals)
+**Version**: 3.3
+**Last Updated**: 2026-03-21
+**Compatibility**: LIA v6.4.x (+ evolution Features: Web Fetch, MCP Per-User, Multi-Channel Telegram, Heartbeat Autonome, RAG Spaces, Sub-Agents, Browser Control, Personal Journals, Philips Hue Smart Home)
 
 ## Table of Contents
 

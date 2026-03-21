@@ -69,6 +69,7 @@ export type SSEChunkType =
   | 'registry_update'
   // Debug Panel: Scoring metrics for threshold tuning (DEBUG=true only)
   | 'debug_metrics'
+  | 'debug_metrics_update'
   // Voice TTS: Voice comment audio streaming
   | 'voice_comment_start'
   | 'voice_audio_chunk'
@@ -878,6 +879,28 @@ export interface JournalInjectionMetrics {
 }
 
 /**
+ * JournalExtractionEntry - Single journal action from background extraction
+ * Shows what the assistant created/updated/deleted in its journals
+ */
+export interface JournalExtractionEntry {
+  action: 'create' | 'update' | 'delete';
+  theme: string | null;
+  title: string | null; // First 30 chars
+  mood: string | null;
+  entry_id: string | null; // UUID for update/delete actions
+}
+
+/**
+ * JournalExtractionMetrics - Debug details for background journal extraction
+ * Shows what the assistant wrote in its journals after processing the conversation
+ */
+export interface JournalExtractionMetrics {
+  actions_parsed: number; // Total actions parsed from LLM output
+  actions_applied: number; // Actions successfully applied (create/update/delete)
+  entries: JournalExtractionEntry[];
+}
+
+/**
  * DebugMetrics - Complete debug metrics from QueryIntelligence
  * Emitted via SSE when DEBUG=true in backend
  */
@@ -913,6 +936,8 @@ export interface DebugMetrics {
   rag_injection?: RAGInjectionMetrics; // Optional: injected RAG chunks with scores
   // Journal Injection (Personal Journals)
   journal_injection?: JournalInjectionMetrics; // Optional: injected journal entries with scores
+  // Journal Extraction (Background creation)
+  journal_extraction?: JournalExtractionMetrics; // Optional: journal entries created/updated/deleted
   // Skills activation
   skills?: SkillsMetrics; // Optional: skill activated for this turn
 }

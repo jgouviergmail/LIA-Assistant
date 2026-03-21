@@ -54,6 +54,8 @@ export const CONNECTOR_TYPES = [
   'perplexity',
   'brave_search',
   'browser',
+  // Smart Home connectors
+  'philips_hue',
   // Future connectors (not yet implemented)
   'slack',
   'notion',
@@ -99,6 +101,8 @@ export const CONNECTOR_LABELS: Record<ConnectorType, string> = {
   perplexity: 'Perplexity',
   brave_search: 'Brave Search',
   browser: 'Browser',
+  // Smart Home connectors
+  philips_hue: 'Philips Hue',
   // Future connectors
   slack: 'Slack',
   notion: 'Notion',
@@ -129,6 +133,7 @@ export const CONNECTOR_CATEGORIES = {
   apple: ['apple_email', 'apple_calendar', 'apple_contacts'],
   microsoft: ['microsoft_outlook', 'microsoft_calendar', 'microsoft_contacts', 'microsoft_tasks'],
   external: ['openweathermap', 'wikipedia', 'perplexity', 'brave_search', 'browser'],
+  smart_home: ['philips_hue'],
   productivity: ['slack', 'notion'],
   development: ['github'],
 } as const;
@@ -141,6 +146,7 @@ export const CATEGORY_LABELS = {
   apple: 'Apple iCloud',
   microsoft: 'Microsoft 365',
   external: 'Services Externes',
+  smart_home: 'Smart Home',
   productivity: 'Productivité',
   development: 'Développement',
 } as const;

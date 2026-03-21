@@ -2629,6 +2629,12 @@ SKILLS_SCRIPT_MAX_OUTPUT_KB = 50
 SKILLS_SCRIPT_MAX_INPUT_KB = 100
 SKILLS_SCRIPT_ALLOWED_EXTENSIONS = frozenset({".py"})
 
+# Early detection guard: minimum domain overlap to consider a deterministic skill
+# as a potential match. When overlap >= (skill_domains - this threshold), early
+# insufficient content detection is skipped to let the planner/LLM decide.
+# Value of 1 means "at most 1 domain may be missing from the query".
+SKILLS_EARLY_DETECTION_MAX_MISSING_DOMAINS = 1
+
 # Resource reading (L3 tier — on-demand file access)
 SKILLS_RESOURCE_MAX_SIZE_KB = 50
 SKILLS_RESOURCE_SKIP_DIRS = frozenset({".git", "__pycache__", ".venv", "node_modules"})

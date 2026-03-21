@@ -105,6 +105,10 @@ class SSEEventType(str, Enum):
     HITL_REQUIRED = "hitl_required"     # Approval needed
     HITL_RESPONSE = "hitl_response"     # User responded
 
+    # Debug events (actual implementation uses ChatStreamChunk.type literals)
+    # debug_metrics          — Full debug metrics from QueryIntelligence (emitted at each values chunk)
+    # debug_metrics_update   — Supplementary metrics from background tasks (v1.8.1, emitted once after await_run_id_tasks)
+
 
 @dataclass
 class SSEEvent:

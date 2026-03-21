@@ -351,10 +351,22 @@ class TestFunctionalCategoriesCompleteness:
 
     @pytest.mark.unit
     def test_conflict_is_symmetric(self):
-        """If A conflicts with B, then B must conflict with A."""
+        """If A conflicts with B, then B must conflict with A.
+
+        Categories with a single connector (e.g., smart_home with only philips_hue)
+        have no conflicts by definition — mutual exclusivity only applies when
+        multiple providers exist for the same functional category.
+        """
         for category, types in CONNECTOR_FUNCTIONAL_CATEGORIES.items():
             for ct in types:
                 conflicts = get_conflicting_connector_types(ct)
+                if len(types) == 1:
+                    # Single-connector categories have no conflicts
+                    assert len(conflicts) == 0, (
+                        f"{ct.value} is the only connector in '{category}' "
+                        f"but has conflicts: {conflicts}"
+                    )
+                    continue
                 assert len(conflicts) > 0, f"{ct.value} in '{category}' has no conflicts"
                 for conflict in conflicts:
                     reverse_conflicts = get_conflicting_connector_types(conflict)

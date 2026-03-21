@@ -286,40 +286,54 @@ async def planner_node_v3(
     # Example: "send an email to marie" without subject/body
     # - Without early detection: 2 planner calls before clarification
     # - With early detection: 0 planner calls, immediate clarification
+    #
+    # GUARD: Skip when a deterministic skill has high domain overlap with the
+    # query. Multi-domain skills (e.g., briefing = event+task+weather+email)
+    # trigger false positives in early detection because the QueryAnalyzer may
+    # classify the query as a single-domain mutation (e.g., "create event")
+    # when it's actually a skill invocation. In that case, let the planner
+    # pipeline decide (SkillBypassStrategy or LLM-driven skill activation).
     # =========================================================================
     if planner_iteration == 0 and not clarification_response:
-        from src.domains.agents.orchestration.semantic_validator import (
-            detect_early_insufficient_content,
-        )
-
-        # Use english_enriched_query if available (post Semantic Pivot)
-        english_query = getattr(intelligence, "english_enriched_query", None)
-        if not english_query:
-            english_query = getattr(intelligence, "english_query", None)
-        if not english_query:
-            english_query = intelligence.original_query
-
-        user_language = state.get("user_language", DEFAULT_LANGUAGE)
-
-        early_result = detect_early_insufficient_content(
-            query_intelligence=intelligence,
-            user_request=english_query,
-            user_language=user_language,
-        )
-
-        if early_result and early_result.requires_clarification:
+        if _has_potential_skill_match(intelligence):
             logger.info(
-                "planner_v3_early_insufficient_content",
+                "planner_v3_early_detection_skipped_for_skill",
                 run_id=run_id,
-                requires_clarification=True,
-                issue_count=len(early_result.issues),
-                msg="Early detection saved planner LLM call(s)",
+                msg="Potential skill match — letting planner pipeline decide",
             )
-            # Return early with semantic_validation set for clarification routing
-            return {
-                STATE_KEY_EXECUTION_PLAN: None,
-                STATE_KEY_SEMANTIC_VALIDATION: early_result,
-            }
+        else:
+            from src.domains.agents.orchestration.semantic_validator import (
+                detect_early_insufficient_content,
+            )
+
+            # Use english_enriched_query if available (post Semantic Pivot)
+            english_query = getattr(intelligence, "english_enriched_query", None)
+            if not english_query:
+                english_query = getattr(intelligence, "english_query", None)
+            if not english_query:
+                english_query = intelligence.original_query
+
+            user_language = state.get("user_language", DEFAULT_LANGUAGE)
+
+            early_result = detect_early_insufficient_content(
+                query_intelligence=intelligence,
+                user_request=english_query,
+                user_language=user_language,
+            )
+
+            if early_result and early_result.requires_clarification:
+                logger.info(
+                    "planner_v3_early_insufficient_content",
+                    run_id=run_id,
+                    requires_clarification=True,
+                    issue_count=len(early_result.issues),
+                    msg="Early detection saved planner LLM call(s)",
+                )
+                # Return early with semantic_validation set for clarification routing
+                return {
+                    STATE_KEY_EXECUTION_PLAN: None,
+                    STATE_KEY_SEMANTIC_VALIDATION: early_result,
+                }
 
     # Get SmartPlannerService
     planner_service = get_smart_planner_service()
@@ -728,6 +742,75 @@ def _format_validation_feedback(semantic_validation) -> str:
     lines.append("CRITICAL: You MUST address ALL issues above in your new plan.")
 
     return "\n".join(lines)
+
+
+def _has_potential_skill_match(intelligence: Any) -> bool:
+    """Check if a deterministic skill has high domain overlap with query domains.
+
+    Used to gate early insufficient content detection: when a deterministic skill
+    is likely relevant, we skip the early short-circuit and let the full planner
+    pipeline decide (SkillBypassStrategy exact match OR LLM-driven skill activation).
+
+    Matching is intentionally relaxed compared to SkillBypassStrategy.can_handle()
+    which requires ALL template domains to be covered. Here we allow up to
+    SKILLS_EARLY_DETECTION_MAX_MISSING_DOMAINS domains to be missing, since the
+    QueryAnalyzer may not detect all domains for multi-domain skill triggers
+    (e.g., "briefing quotidien" may miss "email" domain).
+
+    Args:
+        intelligence: QueryIntelligence with detected domains and primary_domain.
+
+    Returns:
+        True if at least one active deterministic skill has sufficient domain overlap.
+    """
+    from src.core.config import get_settings
+    from src.core.constants import SKILLS_EARLY_DETECTION_MAX_MISSING_DOMAINS
+
+    if not getattr(get_settings(), "skills_enabled", False):
+        return False
+
+    from src.core.context import active_skills_ctx
+    from src.domains.skills.cache import SkillsCache
+
+    if not SkillsCache.is_loaded():
+        return False
+
+    query_domains = set(intelligence.domains or [])
+    if intelligence.primary_domain:
+        query_domains.add(intelligence.primary_domain)
+    if not query_domains:
+        return False
+
+    active = active_skills_ctx.get()
+
+    for skill in SkillsCache.get_all():
+        if active is not None and skill["name"] not in active:
+            continue
+        template = skill.get("plan_template")
+        if not template or not template.get("deterministic"):
+            continue
+
+        steps = template.get("steps", [])
+        skill_domains = {
+            s.get("agent_name", "").replace("_agent", "") for s in steps if s.get("agent_name")
+        }
+        if not skill_domains:
+            continue
+
+        overlap = len(skill_domains & query_domains)
+        missing = len(skill_domains) - overlap
+        if overlap >= 1 and missing <= SKILLS_EARLY_DETECTION_MAX_MISSING_DOMAINS:
+            logger.info(
+                "potential_skill_match_detected",
+                skill_name=skill["name"],
+                skill_domains=sorted(skill_domains),
+                query_domains=sorted(query_domains),
+                missing_domains=sorted(skill_domains - query_domains),
+                msg="Skipping early insufficient content detection",
+            )
+            return True
+
+    return False
 
 
 # Alias for backward compatibility

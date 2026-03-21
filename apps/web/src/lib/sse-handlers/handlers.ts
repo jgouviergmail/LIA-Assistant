@@ -148,6 +148,33 @@ export function handleDebugMetrics(chunk: ChatStreamChunk, context: SSEHandlerCo
   }
 }
 
+/**
+ * Handle debug_metrics_update: Supplementary debug metrics (post-background tasks)
+ *
+ * Merges additional metrics (e.g., journal extraction results) into the
+ * current debug metrics and the most recent history entry.
+ * Emitted after background tasks complete (after await_run_id_tasks).
+ */
+export function handleDebugMetricsUpdate(chunk: ChatStreamChunk, context: SSEHandlerContext): void {
+  const { dispatch, withContext } = context;
+  const updateData = chunk.metadata as Partial<DebugMetrics>;
+
+  if (updateData) {
+    dispatch({
+      type: 'DEBUG_METRICS_UPDATE',
+      payload: { metrics: updateData },
+    });
+
+    logger.debug(
+      'chat_debug_metrics_update',
+      withContext({
+        component: 'useChat',
+        keys: Object.keys(updateData),
+      })
+    );
+  }
+}
+
 // ============================================================================
 // Progress Feedback Handlers
 // ============================================================================

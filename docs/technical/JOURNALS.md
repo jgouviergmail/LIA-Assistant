@@ -15,12 +15,12 @@ apps/api/src/domains/journals/
 ├── __init__.py              # Package docstring
 ├── constants.py             # Domain constants (entry limits, emoji maps)
 ├── models.py                # SQLAlchemy models (JournalEntry + 4 enums)
-├── schemas.py               # Pydantic schemas (API + internal LLM)
+├── schemas.py               # Pydantic schemas (API + internal LLM, UUID validation)
 ├── repository.py            # Data access layer (CRUD + semantic search with min_score)
 ├── service.py               # Business logic (CRUD + embedding + size tracking)
 ├── router.py                # FastAPI endpoints (CRUD + settings + export)
-├── extraction_service.py    # Background post-conversation extraction
-├── consolidation_service.py # Periodic journal maintenance
+├── extraction_service.py    # Background post-conversation extraction + debug registry
+├── consolidation_service.py # Periodic journal maintenance + hallucinated UUID filtering
 └── context_builder.py       # Prompt injection via semantic relevance (with debug data)
 ```
 
@@ -72,6 +72,8 @@ Conversation
     │                      │
     │                      └── [EXTRACTION] extract_journal_entry_background()
     │                          → fire-and-forget → LLM introspection → create/update/delete entries
+    │                          → UUID validation + hallucinated ID filtering (v1.8.1)
+    │                          → debug results stored in _extraction_debug_results registry
     │
     ├── planner_node_v3.py ── [INJECTION] build_journal_context(query=goal+intent)
     │                          → semantic search (min_score prefilter)
@@ -79,6 +81,7 @@ Conversation
     │
     ├── APScheduler (every 4h) ── process_journal_consolidation()
     │                              → batch eligible users → LLM consolidation → maintain entries
+    │                              → hallucinated UUID filtering (v1.8.1)
     │
     └── Heartbeat (proactive) ── _fetch_journals(query=dynamic_context)
                                   → second pass after context aggregation
@@ -139,16 +142,41 @@ Personal Journals are integrated as a context source for proactive heartbeat not
 - **Prefiltering**: Same `JOURNAL_CONTEXT_MIN_SCORE` threshold applies
 - **Prompt injection**: Journal entries appear as "ASSISTANT JOURNAL ENTRIES (your own reflections)" in the heartbeat context, allowing the assistant to personalize notification tone and content
 
+### Anti-Hallucination Guards (v1.8.1)
+
+LLMs may hallucinate UUIDs when asked to update or delete journal entries. Three layers prevent invalid operations:
+
+1. **Prompt-level guidance**: Introspection and consolidation prompts include a CRITICAL instruction to copy-paste exact UUIDs from entry headers. Entry headers use `[id=UUID | ...]` format with a dedicated ID reference table for easy copy-paste.
+2. **Schema validation**: `ExtractedJournalEntry.entry_id` has a `field_validator` that rejects malformed UUIDs (non-parseable strings). Invalid UUIDs raise `ValueError` and the action is skipped.
+3. **Known-ID filtering**: Both `extraction_service.py` and `consolidation_service.py` filter out actions referencing entry IDs that do not exist in the loaded entries set. Actions with unknown IDs are logged as `journal_extraction_unknown_entry_id` / `journal_consolidation_unknown_entry_id` and silently dropped.
+
 ### Debug Panel
 
-The debug panel includes a "Personal Journals" section showing injection metrics:
+The debug panel includes a "Personal Journals" section with two sub-sections:
 
+**Context Injection** (reads):
 - **Summary**: Entries found vs. injected, characters injected vs. budget, max results setting
 - **Per-entry details**: Rank, theme emoji, title (25 chars), similarity score with visual bar, mood, source (conversation/consolidation/manual), date, char count
 - **Budget indicator**: Entries that were found but not injected due to budget constraints are marked with a "BUDGET" badge and displayed at reduced opacity
 - **Score legend**: Color-coded (green ≥0.70, yellow 0.50-0.69, red <0.50)
 
-Data flow: `context_builder(include_debug=True)` → `state_update["journal_injection_debug"]` → `streaming_service` → SSE `debug_metrics` chunk → frontend `JournalInjectionSection.tsx`
+**Background Extraction** (writes, v1.8.1):
+- **Summary**: Actions parsed from LLM output vs. actions applied (after UUID validation + filtering)
+- **Per-action details**: Action type badge (CREATE/UPDATE/DELETE with color coding), theme emoji, title (30 chars), mood emoji, entry ID (8 chars for update/delete)
+- **Timing**: Extraction results arrive via a separate `debug_metrics_update` SSE event after background tasks complete (post `await_run_id_tasks`), merged into the current debug state by the frontend
+
+Data flows:
+- **Injection**: `context_builder(include_debug=True)` → `state_update["journal_injection_debug"]` → `streaming_service` → SSE `debug_metrics` chunk → frontend
+- **Extraction**: `extract_journal_entry_background()` → `_store_extraction_debug(run_id, data)` → `pop_extraction_debug(run_id)` in streaming service → SSE `debug_metrics_update` chunk → frontend `DEBUG_METRICS_UPDATE` reducer → merged into `JournalInjectionSection.tsx`
+
+### Extraction Debug Registry
+
+The extraction debug registry (`_extraction_debug_results` in `extraction_service.py`) is an in-process dict storing debug data keyed by `run_id`:
+
+- **Write**: `_store_extraction_debug(run_id, data)` stores results with a monotonic timestamp
+- **Read**: `pop_extraction_debug(run_id)` pops and returns results (single consumption)
+- **TTL eviction**: Stale entries older than 5 minutes are evicted on each `pop_extraction_debug()` call to prevent unbounded memory growth when entries are never consumed (e.g., streaming error, debug panel disabled)
+- **Error cleanup**: On extraction failure, the debug entry is removed to avoid orphaned data
 
 ## API Endpoints
 

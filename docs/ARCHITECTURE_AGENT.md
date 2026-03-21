@@ -1,7 +1,7 @@
 # Architecture des Agents - Guide d'Intégration
 
-> **Version**: 1.3.0 (INTELLIPLANNER + Architecture v3.5 + Sub-Agents + Browser Control + Journals)
-> **Dernière mise à jour**: 2026-03-20
+> **Version**: 1.3.1 (INTELLIPLANNER + Architecture v3.5 + Sub-Agents + Browser Control + Journals + Philips Hue)
+> **Dernière mise à jour**: 2026-03-21
 > **Auteur**: Documentation générée à partir de l'implémentation réelle
 
 Ce document est le guide de référence exhaustif pour l'ajout d'un nouveau connecteur, d'un nouvel agent ou d'un nouveau tool dans LIA. Il est basé sur l'architecture réelle du système et les patterns établis.
@@ -3024,6 +3024,20 @@ ChatStreamChunk(
         total_cost=0.0023,
         latency_ms=1234,
     )
+)
+
+# Debug metrics (émis à chaque chunk values, DEBUG=true uniquement)
+ChatStreamChunk(
+    type="debug_metrics",
+    content="",
+    metadata={...}  # QueryIntelligence.to_debug_metrics()
+)
+
+# Debug metrics update (v1.8.1 — émis après background tasks)
+ChatStreamChunk(
+    type="debug_metrics_update",
+    content="",
+    metadata={"journal_extraction": {...}}  # Supplementary metrics merged by frontend
 )
 ```
 

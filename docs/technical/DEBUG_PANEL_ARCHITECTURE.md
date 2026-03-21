@@ -412,13 +412,62 @@ console.log('[DebugPanel Selection]', {
 
 ## État actuel du code
 
+### v1.8.1 — Supplementary Debug Metrics (`debug_metrics_update`)
+
+**Contexte** : Certaines données de debug ne sont disponibles qu'après la fin des tâches en arrière-plan (ex. journal extraction). Un nouveau type de chunk SSE `debug_metrics_update` permet de les envoyer après coup.
+
+**Flow** :
+```
+response_node → fire-and-forget extraction_service → _store_extraction_debug(run_id)
+    │
+    ▼
+streaming_service (après await_run_id_tasks)
+    │
+    ├── pop_extraction_debug(run_id) → données d'extraction
+    │
+    ▼
+ChatStreamChunk(type="debug_metrics_update", metadata={"journal_extraction": {...}})
+    │
+    ▼
+Frontend: handleDebugMetricsUpdate() → dispatch({ type: 'DEBUG_METRICS_UPDATE', payload: { metrics } })
+    │
+    ▼
+Reducer: merge supplementary metrics into currentDebugMetrics + latest debugMetricsHistory entry
+```
+
+**Reducer `DEBUG_METRICS_UPDATE`** :
+```typescript
+case 'DEBUG_METRICS_UPDATE': {
+  // Merge supplementary metrics into current + latest history
+  const update = action.payload.metrics;
+  const updatedCurrent = state.currentDebugMetrics
+    ? { ...state.currentDebugMetrics, ...update }
+    : null;
+  // Also update the most recent history entry (index 0)
+  const updatedHistory = state.debugMetricsHistory.length > 0
+    ? [{ ...history[0], metrics: { ...history[0].metrics, ...update } }, ...rest]
+    : [];
+  return { ...state, currentDebugMetrics: updatedCurrent, debugMetricsHistory: updatedHistory };
+}
+```
+
+**Points clés** :
+- `debug_metrics_update` est émis UNE SEULE FOIS par requête (après les tâches en arrière-plan)
+- Il est distinct de `debug_metrics` (émis à chaque chunk values)
+- Le frontend merge les données supplémentaires dans l'état existant (pas de remplacement)
+- Le registre d'extraction (`_extraction_debug_results`) a un TTL de 5 minutes pour éviter les fuites mémoire
+
+---
+
 ### ✅ Ce qui fonctionne
 
 1. **Backend émet debug_metrics** (logs montrent `debug_metrics_emitted`)
-2. **Frontend dispatch DEBUG_METRICS** (reducer stocke les données)
-3. **Cache StreamingService** fonctionne correctement (persiste dans une requête)
-4. **Tool selector** initialisé avec bons paramètres
-5. **MessagesState schema** inclut tool_selection_result
+2. **Backend émet debug_metrics_update** pour les données post-background (journal extraction)
+3. **Frontend dispatch DEBUG_METRICS** (reducer stocke les données)
+4. **Frontend dispatch DEBUG_METRICS_UPDATE** (reducer merge les données supplémentaires)
+5. **Cache StreamingService** fonctionne correctement (persiste dans une requête)
+6. **Tool selector** initialisé avec bons paramètres
+7. **MessagesState schema** inclut tool_selection_result
 
 ### ⚠️ Ce qui est incertain
 

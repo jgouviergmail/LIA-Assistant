@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.8.1] - 2026-03-21
+
+### Added
+
+- **Journal Extraction Debug Panel** — Background journal extraction results (create/update/delete actions) now visible in the Debug Panel. New `debug_metrics_update` SSE event type emits extraction details after `await_run_id_tasks` completes. Frontend merges supplementary metrics into current debug state via `DEBUG_METRICS_UPDATE` reducer action. Extraction sub-section shows action type badges (CREATE/UPDATE/DELETE), theme, title, mood per action. (`apps/api/src/domains/agents/api/service.py`, `apps/web/src/components/debug/components/sections/JournalInjectionSection.tsx`)
+- **Planner v3 Skill Guard** — Early insufficient content detection now skips when a deterministic skill has high domain overlap with the query. Prevents false-positive clarification requests on multi-domain skills (e.g., daily briefing = event+task+weather+email). New `_has_potential_skill_match()` helper with configurable `SKILLS_EARLY_DETECTION_MAX_MISSING_DOMAINS` constant. (`apps/api/src/domains/agents/nodes/planner_node_v3.py`, `apps/api/src/core/constants.py`)
+- **Journal Extraction Debug Registry** — In-process `_extraction_debug_results` dict with TTL-based eviction (5 min) stores extraction results per `run_id` for consumption by the SSE streaming service. (`apps/api/src/domains/journals/extraction_service.py`)
+- **Planner Skill Guard unit tests** — 284-line test suite covering skill match detection, domain overlap, missing domain threshold, disabled skills, and edge cases. (`apps/api/tests/unit/domains/agents/nodes/test_planner_v3_skill_guard.py`)
+- **Smart Home connector category** — `smart_home` category added to frontend connector constants and Admin Connectors section with Philips Hue entry. (`apps/web/src/constants/connectors.ts`, `apps/web/src/components/settings/AdminConnectorsSection.tsx`)
+- **Smart Home i18n descriptions** — Connector description for `philips_hue` and `smart_home` category label/description added across 6 languages. (`apps/web/locales/*/translation.json`)
+
+### Changed
+
+- **Weather card temp range** — Current weather cards now display min/max temperature range (not shown for forecast cards which already have it in main stats). (`apps/api/src/domains/agents/display/components/weather_card.py`)
+- **Journal entry ID formatting** — Entry headers in extraction and consolidation prompts now use `[id=UUID | ...]` format with a dedicated ID reference table for easy LLM copy-paste. Reduces UUID hallucination in update/delete actions. (`apps/api/src/domains/journals/extraction_service.py`, `apps/api/src/domains/journals/consolidation_service.py`)
+- **Journal prompts UUID guidance** — Introspection and consolidation prompts now include CRITICAL instruction to copy-paste exact UUIDs from entry headers, with placeholder `<copy exact UUID from entry header>` in JSON examples. (`apps/api/src/domains/agents/prompts/v1/journal_introspection_prompt.txt`, `apps/api/src/domains/agents/prompts/v1/journal_consolidation_prompt.txt`)
+
+### Fixed
+
+- **Journal hallucinated UUID rejection** — `ExtractedJournalEntry.entry_id` now validates UUID format via `field_validator`, rejecting malformed IDs from LLM hallucination. Both extraction and consolidation services filter out actions referencing unknown entry IDs before applying them. (`apps/api/src/domains/journals/schemas.py`, `apps/api/src/domains/journals/extraction_service.py`, `apps/api/src/domains/journals/consolidation_service.py`)
+
 ## [1.8.0] - 2026-03-21
 
 ### Added
@@ -497,7 +518,8 @@ First public open-source release of LIA.
 - Circuit breaker, rate limiting, and distributed locks
 - SOPS/Age encryption for secrets management
 
-[Unreleased]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.8.0...HEAD
+[Unreleased]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.8.1...HEAD
+[1.8.1]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.8.0...v1.8.1
 [1.8.0]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.7.2...v1.8.0
 [1.7.2]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.7.1...v1.7.2
 [1.7.1]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.7.0...v1.7.1

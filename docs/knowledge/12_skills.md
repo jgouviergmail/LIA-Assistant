@@ -15,6 +15,8 @@ In **Settings > Features > My Skills**, click **Import skill** and select a .md 
 ## How does LIA decide which skill to use?
 Skill activation is **model-driven** — the LLM reads the L1 catalogue (names + descriptions) and decides which skill matches your request.For skills with a deterministic plan_template, an optimization mechanism (*SkillBypassStrategy*) can trigger the skill directly without consulting the LLM planner.
 
+**Planner skill guard:** The planner normally detects missing parameters early and asks for clarification (e.g., "send an email" without a subject). However, multi-domain deterministic skills (e.g., a daily briefing that combines events + tasks + weather + emails) could trigger false-positive clarification requests. The skill guard detects when a deterministic skill has high domain overlap with your query and lets the full planner pipeline decide instead, ensuring your skill runs smoothly without unnecessary interruptions.
+
 ## Can I download or share a skill?
 Yes. Hover over any skill in settings and click the **download** icon (⬇️). You will get a .zip file containing SKILL.md and all associated files (references/, scripts/, assets/).Share this zip with other users or publish it on agentskills.io-compatible marketplaces.
 

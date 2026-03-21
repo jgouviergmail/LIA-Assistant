@@ -42,7 +42,9 @@ The assistant receives its most **relevant** notes (with similarity scores) and 
 When journals are enabled, they are also integrated as a **context source** for proactive heartbeat notifications. The heartbeat system builds a dynamic query from the aggregated context (upcoming events, weather, emails, etc.) to find the most relevant journal entries, allowing the assistant to personalize notification tone and content based on its own observations.
 
 **🐛 Debug visibility:**
-In the debug panel (if enabled in Settings > Debug), a "Personal Journals" section shows injection metrics for each conversation — how many entries were found, how many were injected (within budget), total characters used, similarity scores, themes, and sources. Entries not injected due to budget constraints are marked with a "BUDGET" badge.
+In the debug panel (if enabled in Settings > Debug), a "Personal Journals" section shows two types of metrics:
+- **Context Injection** — How many entries were found, how many were injected (within budget), total characters used, similarity scores, themes, and sources. Entries not injected due to budget constraints are marked with a "BUDGET" badge.
+- **Background Extraction** — What the assistant wrote after the conversation: action type (create/update/delete), theme, title, mood. This data arrives slightly after the main response (once background processing completes).
 
 ## Can I read and edit the assistant's journals?
 Yes! In **Settings > Features > Personal Journals**, you can:

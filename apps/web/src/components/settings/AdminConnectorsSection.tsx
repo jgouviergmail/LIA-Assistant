@@ -45,6 +45,7 @@ const ADMIN_CONNECTOR_CATEGORIES = {
   ],
   google_api: ['google_routes'],
   external: ['openweathermap', 'wikipedia', 'perplexity', 'brave_search', 'browser'],
+  smart_home: ['philips_hue'],
 } as const;
 
 type CategoryKey = keyof typeof ADMIN_CONNECTOR_CATEGORIES;

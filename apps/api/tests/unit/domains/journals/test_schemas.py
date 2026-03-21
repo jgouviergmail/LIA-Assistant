@@ -132,19 +132,24 @@ class TestExtractedJournalEntry:
         """Valid update action with entry_id."""
         entry = ExtractedJournalEntry(
             action="update",
-            entry_id="some-uuid",
+            entry_id="00000000-0000-0000-0000-000000000001",
             content="Updated content.",
         )
         assert entry.action == "update"
-        assert entry.entry_id == "some-uuid"
+        assert entry.entry_id == "00000000-0000-0000-0000-000000000001"
 
     def test_delete_action(self) -> None:
         """Valid delete action with entry_id."""
         entry = ExtractedJournalEntry(
             action="delete",
-            entry_id="some-uuid",
+            entry_id="00000000-0000-0000-0000-000000000001",
         )
         assert entry.action == "delete"
+
+    def test_invalid_uuid_rejected(self) -> None:
+        """Malformed UUID in entry_id is rejected."""
+        with pytest.raises(ValidationError, match="Invalid UUID"):
+            ExtractedJournalEntry(action="delete", entry_id="not-a-uuid")
 
     def test_invalid_action_rejected(self) -> None:
         """Invalid action value is rejected."""

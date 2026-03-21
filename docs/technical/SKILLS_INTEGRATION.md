@@ -135,6 +135,22 @@ The LLM planner sees the L1 catalogue → includes `"skill_name": "<name>"` in J
 
 Skills with `plan_template.deterministic: true` bypass the LLM planner entirely via `SkillBypassStrategy`.
 
+### 5. Early Detection Guard (v1.8.1)
+
+The planner has an "early insufficient content detection" feature that short-circuits LLM planning when required parameters are missing (e.g., "send an email" without subject/body). However, multi-domain deterministic skills can trigger false positives: the QueryAnalyzer may classify a skill trigger as a single-domain mutation (e.g., "create event") when it's actually a multi-domain skill invocation (e.g., daily briefing = event+task+weather+email).
+
+**Solution**: `_has_potential_skill_match()` in `planner_node_v3.py` checks if any active deterministic skill has high domain overlap with the query domains. If so, early detection is skipped entirely and the full planner pipeline decides (SkillBypassStrategy exact match OR LLM-driven skill activation).
+
+**Matching logic** (intentionally relaxed vs. `SkillBypassStrategy.can_handle()`):
+- Extracts `agent_name` domains from each deterministic skill's `plan_template.steps`
+- Computes overlap with the query's detected domains (from QueryIntelligence)
+- Allows up to `SKILLS_EARLY_DETECTION_MAX_MISSING_DOMAINS` (default: 1) domains to be missing
+- Requires at least 1 domain overlap
+
+**Configuration**: `SKILLS_EARLY_DETECTION_MAX_MISSING_DOMAINS` in `src/core/constants.py` (default: 1 — at most 1 domain may be missing from the query).
+
+**Example**: "briefing quotidien" → QueryAnalyzer detects `event` domain → skill `briefing-quotidien` has domains {event, task, weather, email} → overlap=1, missing=3 > threshold → no match → early detection proceeds normally. But if user says "what's my schedule, tasks and weather" → domains {event, task, weather} → overlap=3, missing=1 ≤ threshold → skill match → early detection skipped.
+
 ## Backend Files
 
 | File | Purpose |
@@ -218,6 +234,9 @@ SKILLS_SCRIPTS_ENABLED=false
 SKILLS_SCRIPT_TIMEOUT_SECONDS=30
 SKILLS_SCRIPT_MAX_OUTPUT_KB=50
 SKILLS_SCRIPT_MAX_INPUT_KB=100
+
+# Early detection guard (v1.8.1)
+# SKILLS_EARLY_DETECTION_MAX_MISSING_DOMAINS=1  # in constants.py (not env var)
 ```
 
 ## Script Execution Security

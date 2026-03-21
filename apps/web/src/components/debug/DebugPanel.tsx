@@ -135,6 +135,7 @@ function MetricsSections({ metrics }: { metrics: DebugMetrics }) {
     memory_injection,
     rag_injection,
     journal_injection,
+    journal_extraction,
     skills,
   } = metrics;
 
@@ -151,7 +152,7 @@ function MetricsSections({ metrics }: { metrics: DebugMetrics }) {
       <InterestProfileSection data={interest_profile} />
       <KnowledgeEnrichmentSection data={knowledge_enrichment} />
       <RAGInjectionSection data={rag_injection} />
-      <JournalInjectionSection data={journal_injection} />
+      <JournalInjectionSection data={journal_injection} extraction={journal_extraction} />
       <TokenBudgetSection data={token_budget} />
       <PlannerSection data={planner_intelligence} />
       <ExecutionSection data={execution_timeline} />

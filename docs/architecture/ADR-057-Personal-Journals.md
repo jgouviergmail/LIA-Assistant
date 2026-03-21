@@ -53,8 +53,16 @@ Entries are prefiltered by a configurable minimum cosine similarity score (`JOUR
 ### Heartbeat Integration
 Journals are integrated as a context source for proactive notifications via a **second pass** pattern: after all other heartbeat context is aggregated (calendar, weather, emails, tasks, interests, memories), a dynamic query is built from the aggregated summary and used for semantic journal search. This ensures journal entries selected are specifically relevant to what the heartbeat is about to notify.
 
+### Anti-Hallucination Guards (v1.8.1)
+LLMs may hallucinate UUIDs when asked to update/delete entries. Three-layer defense:
+1. **Prompt guidance**: CRITICAL instruction to copy-paste exact UUIDs from `[id=UUID | ...]` entry headers, with a dedicated ID reference table
+2. **Schema validation**: `field_validator` on `ExtractedJournalEntry.entry_id` rejects malformed UUIDs
+3. **Known-ID filtering**: Both extraction and consolidation services filter out actions referencing unknown entry IDs before applying them
+
 ### Debug Panel
-A dedicated "Personal Journals" section in the debug panel shows injection metrics (entries found/injected, chars budget, per-entry scores with visual bars). Data flows from `context_builder(include_debug=True)` through the state to the SSE `debug_metrics` chunk.
+A dedicated "Personal Journals" section in the debug panel shows two sub-sections:
+- **Context Injection**: Entries found/injected, chars budget, per-entry scores with visual bars. Data flows from `context_builder(include_debug=True)` through the state to the SSE `debug_metrics` chunk.
+- **Background Extraction** (v1.8.1): Actions parsed/applied, per-action type badges (CREATE/UPDATE/DELETE), theme, title, mood. Data flows from `_store_extraction_debug(run_id)` through a separate SSE `debug_metrics_update` chunk (emitted after background tasks complete), merged into debug state by the frontend `DEBUG_METRICS_UPDATE` reducer.
 
 ## Files
 
@@ -79,6 +87,7 @@ A dedicated "Personal Journals" section in the debug panel shows injection metri
 - **Storage**: Bounded by user-configurable max (default 40k chars per user).
 - **Personality evolution**: The assistant develops a unique, coherent voice over time through its own reflections.
 - **Proactive enrichment**: Heartbeat notifications are personalized by journal context (dynamic query from aggregated context).
+- **Data integrity** (v1.8.1): Three-layer anti-hallucination guard (prompt guidance + UUID validation + known-ID filtering) prevents invalid update/delete operations from corrupting journal data.
 
 ## Alternatives Considered
 

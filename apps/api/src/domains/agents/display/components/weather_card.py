@@ -285,6 +285,20 @@ class WeatherCard(BaseComponent):
         air_quality_label = V3Messages.get_air_quality(ctx.language)
         precipitation_label = V3Messages.get_precipitation(ctx.language)
 
+        # Temperature min/max (for current weather — forecast already shows it in main stats)
+        is_forecast = data.get("type") == "forecast"
+        if not is_forecast:
+            temp_min = self._format_temperature(data.get("temp_min", ""))
+            temp_max = self._format_temperature(data.get("temp_max", ""))
+            if temp_min and temp_max:
+                temp_range_label = V3Messages.get_temp_range(ctx.language)
+                detail_sections.append(
+                    f'<div class="lia-weather__detail-item">'
+                    f"{icon(Icons.TEMPERATURE)}"
+                    f"<span>{temp_range_label}: {escape_html(temp_min)} / {escape_html(temp_max)}</span>"
+                    f"</div>"
+                )
+
         # UV Index
         uv_index = data.get("uv_index") or data.get("uv", "")
         if uv_index:

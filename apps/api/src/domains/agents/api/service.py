@@ -1445,6 +1445,32 @@ class AgentService(
                             metadata={"error_type": type(voice_error).__name__},
                         )
 
+                # =============================================================
+                # Debug Panel: Emit journal extraction results (post-background)
+                # =============================================================
+                # Journal extraction runs as fire-and-forget in response_node.
+                # By this point, await_run_id_tasks has completed so extraction
+                # results are available. Emit as debug_metrics_update for merge.
+                if debug_panel_for_user:
+                    try:
+                        from src.domains.journals.extraction_service import (
+                            pop_extraction_debug,
+                        )
+
+                        extraction_debug = pop_extraction_debug(run_id)
+                        if extraction_debug is not None:
+                            yield ChatStreamChunk(
+                                type="debug_metrics_update",
+                                content="",
+                                metadata={"journal_extraction": extraction_debug},
+                            )
+                    except Exception as extr_dbg_err:
+                        logger.debug(
+                            "debug_metrics_journal_extraction_failed",
+                            run_id=run_id,
+                            error=str(extr_dbg_err),
+                        )
+
                 # Yield done chunk with complete aggregated token metadata
                 # CRITICAL: Skip done chunk if HITL interrupt was emitted
                 # hitl_interrupt_complete already sent tokens to frontend

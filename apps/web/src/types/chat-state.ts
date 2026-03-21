@@ -181,6 +181,9 @@ export type ChatAction =
   // Debug Panel: Add metrics to cumulative history (on request completion)
   | { type: 'DEBUG_METRICS_ADD_TO_HISTORY'; payload: { entry: DebugMetricsEntry } }
 
+  // Debug Panel: Merge supplementary metrics into current + latest history entry
+  | { type: 'DEBUG_METRICS_UPDATE'; payload: { metrics: Partial<DebugMetrics> } }
+
   // Debug Panel: Clear all debug metrics (current + history)
   | { type: 'DEBUG_METRICS_CLEAR' };
 
