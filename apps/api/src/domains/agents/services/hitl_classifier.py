@@ -286,7 +286,7 @@ class HitlResponseClassifier:
                         if user_response
                         else "Peux-tu clarifier ta demande ?"
                     )
-                classification.confidence = 0.5
+                classification.confidence = settings.hitl_demotion_confidence
                 classification.edited_params = {}  # Clear empty params
 
                 # Track demotion for monitoring
@@ -323,7 +323,7 @@ class HitlResponseClassifier:
                     if user_response
                     else "Peux-tu clarifier ta demande ?"
                 )
-                classification.confidence = 0.5
+                classification.confidence = settings.hitl_demotion_confidence
                 classification.edited_params = {}  # Clear uncertain edits
 
                 # Track demotion for monitoring

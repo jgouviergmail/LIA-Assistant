@@ -1451,12 +1451,15 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                     )
                     from src.infrastructure.database.session import get_db_context
 
+                    thread_id_for_journal = config.get("configurable", {}).get("thread_id")
                     async with get_db_context() as journal_db:
                         journal_context_result, journal_debug = await build_journal_context(
                             user_id=user_id_for_journal,
                             query=last_user_message,
                             db=journal_db,
                             include_debug=True,
+                            run_id=run_id,
+                            session_id=thread_id_for_journal,
                         )
                         journal_context = journal_context_result or ""
                         journal_injection_debug = journal_debug
@@ -2437,6 +2440,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                         conversation_id=thread_id,
                         user_language=user_language,
                         parent_run_id=run_id,
+                        assistant_response=final_content,
                     ),
                     name=f"journal_extraction_{user_id}_{thread_id[:8]}",
                     run_id=run_id,

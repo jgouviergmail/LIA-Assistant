@@ -21,10 +21,11 @@ from uuid import UUID
 
 from langchain_core.messages import AIMessage
 
+from src.core.config import settings
 from src.core.i18n_types import get_language_name
+from src.core.llm_config_helper import get_llm_config_for_agent
 from src.domains.agents.prompts import load_prompt
 from src.domains.interests.services.content_sources.base import ContentResult
-from src.domains.llm_config.constants import LLM_DEFAULTS
 from src.infrastructure.llm import get_llm
 from src.infrastructure.llm.invoke_helpers import invoke_with_instrumentation
 from src.infrastructure.llm.token_utils import extract_llm_tokens
@@ -146,7 +147,7 @@ class LLMReflectionContentSource:
                     user_id=user_id,
                     session_id=session_id,
                     result=result,
-                    model_name=LLM_DEFAULTS["interest_content"].model,
+                    model_name=get_llm_config_for_agent(settings, "interest_content").model,
                 )
 
             logger.info(
@@ -167,7 +168,7 @@ class LLMReflectionContentSource:
                 tokens_in=tokens_in,
                 tokens_out=tokens_out,
                 metadata={
-                    "model": LLM_DEFAULTS["interest_content"].model,
+                    "model": get_llm_config_for_agent(settings, "interest_content").model,
                     "language": user_language,
                     "category": category or "general",
                     "generated_at": current_datetime,

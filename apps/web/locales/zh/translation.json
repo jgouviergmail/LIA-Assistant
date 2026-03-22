@@ -4134,6 +4134,8 @@
     "maxEntryCharsDescription": "每个单独条目的最大字符数。不能低于当前最长条目。",
     "contextMaxResults": "最大搜索结果",
     "contextMaxResultsDescription": "语义搜索返回用于上下文注入的最大条目数",
+    "searchHints": "搜索提示",
+    "searchHintsDescription": "语义搜索关键词（逗号分隔）",
     "chars": "字符"
   },
   "blog": {

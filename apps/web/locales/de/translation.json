@@ -4139,6 +4139,8 @@
     "maxEntryCharsDescription": "Maximale Zeichen pro einzelnem Eintrag. Kann nicht unter den längsten Eintrag gesetzt werden.",
     "contextMaxResults": "Maximale Suchergebnisse",
     "contextMaxResultsDescription": "Maximale Einträge aus der semantischen Suche für die Kontextinjektion",
+    "searchHints": "Suchhinweise",
+    "searchHintsDescription": "Schlüsselwörter für die semantische Suche (kommagetrennt)",
     "chars": "Zeichen"
   },
   "blog": {

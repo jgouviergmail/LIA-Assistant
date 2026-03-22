@@ -10,7 +10,9 @@
 
 ## Overview
 
-Local E5 Embeddings remplace OpenAI text-embedding-3-small par un modèle local HuggingFace. Cette approche élimine les coûts API tout en améliorant la précision de +48% sur les benchmarks Q/A.
+> **Note (v1.9.3)**: This document covers E5-small embeddings used by the **Memory** system (long-term psychological profile). The **Journals** system now uses OpenAI `text-embedding-3-small` (1536 dims) via pgvector — see [JOURNALS.md](JOURNALS.md) for details.
+
+Local E5 Embeddings remplace OpenAI text-embedding-3-small par un modèle local HuggingFace pour le système de mémoire. Cette approche élimine les coûts API tout en améliorant la précision de +48% sur les benchmarks Q/A.
 
 ### Key Features
 

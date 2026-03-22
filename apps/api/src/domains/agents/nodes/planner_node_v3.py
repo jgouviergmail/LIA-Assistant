@@ -397,6 +397,7 @@ async def planner_node_v3(
     # JOURNAL CONTEXT INJECTION (for planner reasoning)
     # =========================================================================
     journal_context = ""
+    journal_planner_debug: dict | None = None
     user_journals_enabled = config.get("configurable", {}).get("user_journals_enabled", False)
     from src.core.config import get_settings as _get_settings
 
@@ -408,14 +409,21 @@ async def planner_node_v3(
                 from src.domains.journals.context_builder import build_journal_context
                 from src.infrastructure.database.session import get_db_context
 
-                planner_query = f"{intelligence.original_query} {intelligence.immediate_intent}"
+                planner_query = intelligence.original_query
+                thread_id_for_journal = configurable.get("thread_id")
                 async with get_db_context() as journal_db:
-                    journal_context_result, _ = await build_journal_context(
-                        user_id=user_id_for_journal,
-                        query=planner_query,
-                        db=journal_db,
+                    journal_context_result, planner_journal_debug_data = (
+                        await build_journal_context(
+                            user_id=user_id_for_journal,
+                            query=planner_query,
+                            db=journal_db,
+                            include_debug=True,
+                            run_id=run_id,
+                            session_id=thread_id_for_journal,
+                        )
                     )
                     journal_context = journal_context_result or ""
+                    journal_planner_debug = planner_journal_debug_data
         except Exception as e:
             logger.warning(
                 "planner_journal_context_failed",
@@ -479,6 +487,7 @@ async def planner_node_v3(
             STATE_KEY_EXECUTION_PLAN: planning_result.plan,
             STATE_KEY_PLANNING_RESULT: planning_result,
             STATE_KEY_VALIDATION_RESULT: validation_result,
+            "journal_planner_injection_debug": journal_planner_debug,
         }
         # BUG FIX 2026-01-14: Clear stale state after processing clarification
         # This prevents:
@@ -520,6 +529,7 @@ async def planner_node_v3(
             STATE_KEY_EXECUTION_PLAN: None,
             STATE_KEY_PLANNING_RESULT: planning_result,
             STATE_KEY_VALIDATION_RESULT: None,  # No plan = no validation needed
+            "journal_planner_injection_debug": journal_planner_debug,
         }
         # BUG FIX 2026-01-14: Clear stale state after processing clarification
         if should_clear_needs_replan:

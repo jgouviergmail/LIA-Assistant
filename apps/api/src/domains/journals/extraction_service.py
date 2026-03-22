@@ -29,6 +29,7 @@ if TYPE_CHECKING:
     from src.domains.journals.models import JournalEntry
 
 from src.core.config import settings
+from src.core.llm_config_helper import get_llm_config_for_agent
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.journals.constants import (
     JOURNAL_ENTRY_CONTENT_MAX_LENGTH,
@@ -38,7 +39,6 @@ from src.domains.journals.constants import (
 )
 from src.domains.journals.models import JournalEntryMood, JournalEntrySource
 from src.domains.journals.schemas import ExtractedJournalEntry
-from src.domains.llm_config.constants import LLM_DEFAULTS
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.invoke_helpers import invoke_with_instrumentation
 from src.infrastructure.observability.logging import get_logger
@@ -180,8 +180,9 @@ def _format_existing_entries_for_context(
         date_str = entry.created_at.strftime("%Y-%m-%d")
         if i < full_count:
             # Full content for recent entries
+            hints_str = f" | hints: {', '.join(entry.search_hints)}" if entry.search_hints else ""
             entry_lines.append(
-                f"[id={entry.id} | {date_str} | {entry.theme} | {entry.mood}] "
+                f"[id={entry.id} | {date_str} | {entry.theme} | {entry.mood}{hints_str}] "
                 f"**{entry.title}** — {entry.content}"
             )
         else:
@@ -469,6 +470,7 @@ async def extract_journal_entry_background(
     conversation_id: str | None = None,
     user_language: str = "fr",
     parent_run_id: str | None = None,
+    assistant_response: str | None = None,
 ) -> int:
     """
     Background journal extraction from conversation.
@@ -487,6 +489,9 @@ async def extract_journal_entry_background(
         conversation_id: Conversation UUID for token cost linking
         user_language: User's language code (fr, en, etc.)
         parent_run_id: Run ID for token UPSERT into originating message
+        assistant_response: Assistant's response text for this turn. Passed
+            explicitly because the state_update with the AIMessage has not
+            been applied by the LangGraph reducer yet at scheduling time.
 
     Returns:
         Number of actions applied (create/update/delete)
@@ -529,6 +534,11 @@ async def extract_journal_entry_background(
         # Format conversation excerpt
         conversation = _format_messages_for_extraction(context_messages)
 
+        # Append assistant's response (not yet in state at scheduling time)
+        if assistant_response:
+            truncated_response = assistant_response[:JOURNAL_EXTRACTION_MESSAGE_MAX_CHARS]
+            conversation += f"\nASSISTANT: {truncated_response}"
+
         # Load existing entries for context (recent full + older summary)
         from src.infrastructure.database import get_db_context
 
@@ -548,6 +558,11 @@ async def extract_journal_entry_background(
             user = user_result.scalar_one_or_none()
             max_total_chars = (
                 user.journal_max_total_chars if user else settings.journal_default_max_total_chars
+            )
+            max_entry_chars = (
+                user.journal_max_entry_chars
+                if user and hasattr(user, "journal_max_entry_chars")
+                else JOURNAL_ENTRY_CONTENT_MAX_LENGTH
             )
 
             # Load personality code
@@ -588,7 +603,7 @@ async def extract_journal_entry_background(
             max_chars=max_total_chars,
             size_warning=size_warning,
             user_language=user_language,
-            max_entry_chars=JOURNAL_ENTRY_CONTENT_MAX_LENGTH,
+            max_entry_chars=max_entry_chars,
         )
 
         # Add personality addon if available
@@ -608,8 +623,8 @@ async def extract_journal_entry_background(
         )
         result_content = result.content if isinstance(result.content, str) else str(result.content)
 
-        # Persist token usage
-        model_name = LLM_DEFAULTS["journal_extraction"].model
+        # Persist token usage (use effective config, not defaults — admin overrides matter)
+        model_name = get_llm_config_for_agent(settings, "journal_extraction").model
         await _persist_journal_tokens(
             user_id=user_id,
             session_id=session_id,
@@ -664,61 +679,81 @@ async def extract_journal_entry_background(
         actions = valid_actions
 
         # Apply actions via JournalService (handles char_count + embeddings)
+        # Set embedding tracking context for cost attribution to parent message
+        from src.infrastructure.llm.embedding_context import (
+            clear_embedding_context,
+            set_embedding_context,
+        )
+
+        set_embedding_context(
+            user_id=user_id,
+            session_id=session_id,
+            conversation_id=conversation_id,
+            run_id=parent_run_id,
+        )
+
         applied_count = 0
-        async with get_db_context() as db:
-            service = JournalService(db)
+        try:
+            async with get_db_context() as db:
+                service = JournalService(db)
 
-            for action in actions:
-                try:
-                    if (
-                        action.action == "create"
-                        and action.theme
-                        and action.title
-                        and action.content
-                    ):
-                        await service.create_entry(
-                            user_id=UUID(user_id),
-                            theme=action.theme.value,
-                            title=action.title,
-                            content=action.content,
-                            mood=(
-                                action.mood.value
-                                if action.mood
-                                else JournalEntryMood.REFLECTIVE.value
-                            ),
-                            source=JournalEntrySource.CONVERSATION.value,
-                            session_id=session_id,
-                            personality_code=personality_code,
-                        )
-                        applied_count += 1
-
-                    elif action.action == "update" and action.entry_id:
-                        entry = await service.repo.get_by_id(UUID(action.entry_id))
-                        if entry and str(entry.user_id) == user_id:
-                            await service.update_entry(
-                                entry=entry,
+                for action in actions:
+                    try:
+                        if (
+                            action.action == "create"
+                            and action.theme
+                            and action.title
+                            and action.content
+                        ):
+                            await service.create_entry(
+                                user_id=UUID(user_id),
+                                theme=action.theme.value,
                                 title=action.title,
                                 content=action.content,
-                                mood=(action.mood.value if action.mood else None),
+                                mood=(
+                                    action.mood.value
+                                    if action.mood
+                                    else JournalEntryMood.REFLECTIVE.value
+                                ),
+                                source=JournalEntrySource.CONVERSATION.value,
+                                session_id=session_id,
+                                personality_code=personality_code,
+                                max_entry_chars=max_entry_chars,
+                                search_hints=action.search_hints,
                             )
                             applied_count += 1
 
-                    elif action.action == "delete" and action.entry_id:
-                        entry = await service.repo.get_by_id(UUID(action.entry_id))
-                        if entry and str(entry.user_id) == user_id:
-                            await service.delete_entry(entry)
-                            applied_count += 1
+                        elif action.action == "update" and action.entry_id:
+                            entry = await service.repo.get_by_id(UUID(action.entry_id))
+                            if entry and str(entry.user_id) == user_id:
+                                await service.update_entry(
+                                    entry=entry,
+                                    title=action.title,
+                                    content=action.content,
+                                    mood=(action.mood.value if action.mood else None),
+                                    max_entry_chars=max_entry_chars,
+                                    search_hints=action.search_hints,
+                                )
+                                applied_count += 1
 
-                except Exception as e:
-                    logger.warning(
-                        "journal_extraction_action_failed",
-                        user_id=user_id,
-                        action=action.action,
-                        error=str(e),
-                    )
-                    continue
+                        elif action.action == "delete" and action.entry_id:
+                            entry = await service.repo.get_by_id(UUID(action.entry_id))
+                            if entry and str(entry.user_id) == user_id:
+                                await service.delete_entry(entry)
+                                applied_count += 1
 
-            await db.commit()
+                    except Exception as e:
+                        logger.warning(
+                            "journal_extraction_action_failed",
+                            user_id=user_id,
+                            action=action.action,
+                            error=str(e),
+                        )
+                        continue
+
+                await db.commit()
+        finally:
+            clear_embedding_context()
 
         logger.info(
             "journal_extraction_completed",
@@ -742,6 +777,8 @@ async def extract_journal_entry_background(
                             "title": (
                                 (a.title[:30] + "…") if a.title and len(a.title) > 30 else a.title
                             ),
+                            "full_title": a.title,
+                            "content": a.content,
                             "mood": a.mood.value if a.mood else None,
                             "entry_id": a.entry_id,
                         }

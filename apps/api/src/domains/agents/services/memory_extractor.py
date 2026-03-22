@@ -44,9 +44,9 @@ from src.core.constants import (
     MEMORY_RELATIONSHIP_MIN_SCORE,
     MEMORY_RELATIONSHIP_SEARCH_LIMIT,
 )
+from src.core.llm_config_helper import get_llm_config_for_agent
 from src.domains.agents.prompts import load_prompt
 from src.domains.agents.tools.memory_tools import MemorySchema
-from src.domains.llm_config.constants import LLM_DEFAULTS
 from src.infrastructure.llm import get_llm
 from src.infrastructure.llm.embedding_context import (
     clear_embedding_context,
@@ -587,7 +587,7 @@ async def extract_memories_background(
             session_id=session_id,
             conversation_id=conversation_id,
             result=result,
-            model_name=LLM_DEFAULTS["memory_extraction"].model,
+            model_name=get_llm_config_for_agent(settings, "memory_extraction").model,
             parent_run_id=parent_run_id,
         )
 

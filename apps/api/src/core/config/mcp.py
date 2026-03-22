@@ -27,6 +27,21 @@ from src.core.constants import (
     MCP_DEFAULT_RATE_LIMIT_CALLS,
     MCP_DEFAULT_RATE_LIMIT_WINDOW,
     MCP_DEFAULT_TIMEOUT_SECONDS,
+    MCP_DESCRIPTION_LLM_FREQUENCY_PENALTY_DEFAULT,
+    MCP_DESCRIPTION_LLM_MAX_TOKENS_DEFAULT,
+    MCP_DESCRIPTION_LLM_MODEL_DEFAULT,
+    MCP_DESCRIPTION_LLM_PRESENCE_PENALTY_DEFAULT,
+    MCP_DESCRIPTION_LLM_PROVIDER_CONFIG_DEFAULT,
+    MCP_DESCRIPTION_LLM_TEMPERATURE_DEFAULT,
+    MCP_DESCRIPTION_LLM_TOP_P_DEFAULT,
+    MCP_EXCALIDRAW_LLM_FREQUENCY_PENALTY_DEFAULT,
+    MCP_EXCALIDRAW_LLM_MAX_TOKENS_DEFAULT,
+    MCP_EXCALIDRAW_LLM_MODEL_DEFAULT,
+    MCP_EXCALIDRAW_LLM_PRESENCE_PENALTY_DEFAULT,
+    MCP_EXCALIDRAW_LLM_PROVIDER_CONFIG_DEFAULT,
+    MCP_EXCALIDRAW_LLM_TEMPERATURE_DEFAULT,
+    MCP_EXCALIDRAW_LLM_TOP_P_DEFAULT,
+    MCP_EXCALIDRAW_STEP_TIMEOUT_SECONDS_DEFAULT,
     MCP_HEALTH_CHECK_INTERVAL_DEFAULT,
     MCP_MAX_SERVERS_DEFAULT,
     MCP_MAX_STRUCTURED_ITEMS_PER_CALL,
@@ -59,7 +74,7 @@ class MCPSettings(BaseSettings):
     # ========================================================================
 
     mcp_servers_config: str = Field(
-        default="{}",
+        default=MCP_EXCALIDRAW_LLM_PROVIDER_CONFIG_DEFAULT,
         description=(
             "JSON string defining MCP servers. "
             'Format: {"name": {"transport": "stdio"|"streamable_http", '
@@ -286,45 +301,45 @@ class MCPSettings(BaseSettings):
     )
 
     mcp_excalidraw_llm_provider_config: str = Field(
-        default="{}",
+        default=MCP_DESCRIPTION_LLM_PROVIDER_CONFIG_DEFAULT,
         description="Advanced provider-specific config for Excalidraw LLM (JSON string).",
     )
 
     mcp_excalidraw_llm_model: str = Field(
-        default="claude-opus-4-6",
+        default=MCP_EXCALIDRAW_LLM_MODEL_DEFAULT,
         description="LLM model for Excalidraw diagram generation.",
     )
 
     mcp_excalidraw_llm_temperature: float = Field(
-        default=0.3,
+        default=MCP_EXCALIDRAW_LLM_TEMPERATURE_DEFAULT,
         ge=0.0,
         le=2.0,
         description="Temperature for Excalidraw LLM (0.3 for balanced creativity/consistency).",
     )
 
     mcp_excalidraw_llm_top_p: float = Field(
-        default=1.0,
+        default=MCP_EXCALIDRAW_LLM_TOP_P_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Nucleus sampling for Excalidraw LLM (1.0 = disabled).",
     )
 
     mcp_excalidraw_llm_frequency_penalty: float = Field(
-        default=0.0,
+        default=MCP_EXCALIDRAW_LLM_FREQUENCY_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Frequency penalty for Excalidraw LLM (0.0 = no penalty).",
     )
 
     mcp_excalidraw_llm_presence_penalty: float = Field(
-        default=0.0,
+        default=MCP_EXCALIDRAW_LLM_PRESENCE_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Presence penalty for Excalidraw LLM (0.0 = no penalty).",
     )
 
     mcp_excalidraw_llm_max_tokens: int = Field(
-        default=16000,
+        default=MCP_EXCALIDRAW_LLM_MAX_TOKENS_DEFAULT,
         gt=0,
         description=(
             "Max tokens for Excalidraw LLM output. "
@@ -342,7 +357,7 @@ class MCPSettings(BaseSettings):
     )
 
     mcp_excalidraw_step_timeout_seconds: int = Field(
-        default=60,
+        default=MCP_EXCALIDRAW_STEP_TIMEOUT_SECONDS_DEFAULT,
         ge=30,
         le=300,
         description=(
@@ -366,45 +381,45 @@ class MCPSettings(BaseSettings):
     )
 
     mcp_description_llm_provider_config: str = Field(
-        default="{}",
+        default=MCP_DESCRIPTION_LLM_PROVIDER_CONFIG_DEFAULT,
         description="Advanced provider-specific config for MCP description LLM (JSON string).",
     )
 
     mcp_description_llm_model: str = Field(
-        default="gpt-4.1-mini",
+        default=MCP_DESCRIPTION_LLM_MODEL_DEFAULT,
         description="LLM model for MCP domain description generation (cheap/fast).",
     )
 
     mcp_description_llm_temperature: float = Field(
-        default=0.3,
+        default=MCP_DESCRIPTION_LLM_TEMPERATURE_DEFAULT,
         ge=0.0,
         le=2.0,
         description="Temperature for MCP description LLM (low for consistent results).",
     )
 
     mcp_description_llm_top_p: float = Field(
-        default=1.0,
+        default=MCP_DESCRIPTION_LLM_TOP_P_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Nucleus sampling for MCP description LLM (1.0 = disabled).",
     )
 
     mcp_description_llm_frequency_penalty: float = Field(
-        default=0.0,
+        default=MCP_DESCRIPTION_LLM_FREQUENCY_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Frequency penalty for MCP description LLM (0.0 = no penalty).",
     )
 
     mcp_description_llm_presence_penalty: float = Field(
-        default=0.0,
+        default=MCP_DESCRIPTION_LLM_PRESENCE_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Presence penalty for MCP description LLM (0.0 = no penalty).",
     )
 
     mcp_description_llm_max_tokens: int = Field(
-        default=300,
+        default=MCP_DESCRIPTION_LLM_MAX_TOKENS_DEFAULT,
         gt=0,
         description="Max tokens for MCP description LLM output.",
     )

@@ -22,10 +22,21 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from pydantic_settings import BaseSettings
 
 from src.core.constants import (
+    ADAPTIVE_REPLANNING_EMPTY_THRESHOLD_DEFAULT,
+    ADAPTIVE_REPLANNING_MAX_ATTEMPTS_DEFAULT,
     AGENT_HISTORY_KEEP_LAST_DEFAULT,
     AGENT_MAX_ITERATIONS_DEFAULT,
     AGENT_MAX_ITERATIONS_MAX,
-    # Context Compaction
+    APPROVAL_AUTO_APPROVE_ROLES_DEFAULT,
+    APPROVAL_COST_THRESHOLD_USD_DEFAULT,
+    APPROVAL_SENSITIVE_CLASSIFICATIONS_DEFAULT,
+    BROADCAST_TRANSLATOR_LLM_FREQUENCY_PENALTY_DEFAULT,
+    BROADCAST_TRANSLATOR_LLM_MAX_TOKENS_DEFAULT,
+    BROADCAST_TRANSLATOR_LLM_MODEL_DEFAULT,
+    BROADCAST_TRANSLATOR_LLM_PRESENCE_PENALTY_DEFAULT,
+    BROADCAST_TRANSLATOR_LLM_PROVIDER_CONFIG_DEFAULT,
+    BROADCAST_TRANSLATOR_LLM_TEMPERATURE_DEFAULT,
+    BROADCAST_TRANSLATOR_LLM_TOP_P_DEFAULT,
     COMPACTION_CHUNK_MAX_TOKENS_DEFAULT,
     COMPACTION_ENABLED_DEFAULT,
     COMPACTION_MIN_MESSAGES_DEFAULT,
@@ -33,42 +44,142 @@ from src.core.constants import (
     COMPACTION_THRESHOLD_RATIO_DEFAULT,
     COMPACTION_TOKEN_THRESHOLD_DEFAULT,
     CONTACTS_AGENT_PROMPT_VERSION_DEFAULT,
+    CONTEXT_ACTIVE_WINDOW_TURNS_DEFAULT,
+    CONTEXT_CURRENT_ITEM_CONFIDENCE_DEFAULT,
+    CONTEXT_DEMONSTRATIVE_CONFIDENCE_DEFAULT,
+    CONTEXT_EDIT_MAX_TOOL_RESULT_TOKENS_DEFAULT,
+    CONTEXT_REFERENCE_CONFIDENCE_THRESHOLD_DEFAULT,
+    CONTEXT_RESOLUTION_TIMEOUT_MS_DEFAULT,
+    DEFAULT_ITEM_CONFIDENCE,
     DEFAULT_MESSAGE_WINDOW_SIZE,
     EMAILS_AGENT_PROMPT_VERSION_DEFAULT,
+    FALLBACK_MODELS_DEFAULT,
     FOR_EACH_APPROVAL_THRESHOLD,
     FOR_EACH_MAX_DEFAULT,
     FOR_EACH_MAX_HARD_LIMIT,
+    FOR_EACH_MUTATION_THRESHOLD_DEFAULT,
     FOR_EACH_WARNING_THRESHOLD,
     HEARTBEAT_ACTIVITY_COOLDOWN_MINUTES_DEFAULT,
     HEARTBEAT_CONTEXT_CALENDAR_HOURS_DEFAULT,
     HEARTBEAT_CONTEXT_EMAILS_MAX_DEFAULT,
     HEARTBEAT_CONTEXT_MEMORY_LIMIT_DEFAULT,
     HEARTBEAT_CONTEXT_TASKS_DAYS_DEFAULT,
+    HEARTBEAT_DECISION_LLM_MODEL_DEFAULT,
+    HEARTBEAT_DECISION_LLM_PROVIDER_DEFAULT,
     HEARTBEAT_GLOBAL_COOLDOWN_HOURS_DEFAULT,
     HEARTBEAT_INACTIVE_SKIP_DAYS_DEFAULT,
+    HEARTBEAT_MESSAGE_LLM_MODEL_DEFAULT,
+    HEARTBEAT_MESSAGE_LLM_PROVIDER_DEFAULT,
     HEARTBEAT_NOTIFICATION_BATCH_SIZE_DEFAULT,
     HEARTBEAT_NOTIFICATION_INTERVAL_MINUTES_DEFAULT,
     HEARTBEAT_WEATHER_RAIN_THRESHOLD_HIGH_DEFAULT,
     HEARTBEAT_WEATHER_RAIN_THRESHOLD_LOW_DEFAULT,
     HEARTBEAT_WEATHER_TEMP_CHANGE_THRESHOLD_DEFAULT,
     HEARTBEAT_WEATHER_WIND_THRESHOLD_DEFAULT,
+    HITL_AMBIGUOUS_CONFIDENCE_THRESHOLD_DEFAULT,
+    HITL_CLASSIFIER_CONFIDENCE_THRESHOLD_DEFAULT,
+    HITL_CLASSIFIER_LLM_FREQUENCY_PENALTY_DEFAULT,
+    HITL_CLASSIFIER_LLM_MAX_TOKENS_DEFAULT,
+    HITL_CLASSIFIER_LLM_MODEL_DEFAULT,
+    HITL_CLASSIFIER_LLM_PRESENCE_PENALTY_DEFAULT,
+    HITL_CLASSIFIER_LLM_PROVIDER_CONFIG_DEFAULT,
+    HITL_CLASSIFIER_LLM_TEMPERATURE_DEFAULT,
+    HITL_CLASSIFIER_LLM_TOP_P_DEFAULT,
     HITL_CLASSIFIER_PROMPT_VERSION_DEFAULT,
+    HITL_DEMOTION_CONFIDENCE_DEFAULT,
+    HITL_FUZZY_MATCH_AMBIGUITY_THRESHOLD_DEFAULT,
+    HITL_LOW_CONFIDENCE_THRESHOLD_DEFAULT,
+    HITL_MAX_WAIT_SECONDS_DEFAULT,
+    HITL_PLAN_APPROVAL_QUESTION_LLM_FREQUENCY_PENALTY_DEFAULT,
+    HITL_PLAN_APPROVAL_QUESTION_LLM_MAX_TOKENS_DEFAULT,
+    HITL_PLAN_APPROVAL_QUESTION_LLM_MODEL_DEFAULT,
+    HITL_PLAN_APPROVAL_QUESTION_LLM_PRESENCE_PENALTY_DEFAULT,
+    HITL_PLAN_APPROVAL_QUESTION_LLM_PROVIDER_CONFIG_DEFAULT,
+    HITL_PLAN_APPROVAL_QUESTION_LLM_TEMPERATURE_DEFAULT,
+    HITL_PLAN_APPROVAL_QUESTION_LLM_TOP_P_DEFAULT,
     HITL_PLAN_APPROVAL_QUESTION_PROMPT_VERSION_DEFAULT,
+    HITL_QUESTION_GENERATOR_LLM_FREQUENCY_PENALTY_DEFAULT,
+    HITL_QUESTION_GENERATOR_LLM_MAX_TOKENS_DEFAULT,
+    HITL_QUESTION_GENERATOR_LLM_MODEL_DEFAULT,
+    HITL_QUESTION_GENERATOR_LLM_PRESENCE_PENALTY_DEFAULT,
+    HITL_QUESTION_GENERATOR_LLM_PROVIDER_CONFIG_DEFAULT,
+    HITL_QUESTION_GENERATOR_LLM_TEMPERATURE_DEFAULT,
+    HITL_QUESTION_GENERATOR_LLM_TOP_P_DEFAULT,
     HITL_QUESTION_GENERATOR_PROMPT_VERSION_DEFAULT,
     INSUFFICIENT_CONTENT_MIN_CHARS_THRESHOLD_DEFAULT,
+    INTEREST_ACTIVITY_COOLDOWN_MINUTES_DEFAULT,
+    INTEREST_CONTENT_LOOKBACK_DAYS_DEFAULT,
+    INTEREST_CONTENT_MAX_LENGTH_DEFAULT,
+    INTEREST_CONTENT_SIMILARITY_THRESHOLD_DEFAULT,
+    INTEREST_DECAY_RATE_PER_DAY_DEFAULT,
+    INTEREST_DEDUP_SEARCH_LIMIT_DEFAULT,
+    INTEREST_DEDUP_SIMILARITY_THRESHOLD_DEFAULT,
+    INTEREST_DELETION_THRESHOLD_DAYS_DEFAULT,
+    INTEREST_DORMANT_THRESHOLD_DAYS_DEFAULT,
+    INTEREST_GLOBAL_COOLDOWN_HOURS_DEFAULT,
+    INTEREST_NOTIFICATION_BATCH_SIZE_DEFAULT,
     INTEREST_NOTIFY_INTERVAL_MINUTES_DEFAULT,
+    INTEREST_PER_TOPIC_COOLDOWN_HOURS_DEFAULT,
+    INTEREST_PRIOR_ALPHA_DEFAULT,
+    INTEREST_PRIOR_BETA_DEFAULT,
+    INTEREST_TOP_PERCENT_DEFAULT,
+    MAX_AGENT_RESULTS_DEFAULT,
+    MAX_CONTEXT_BATCH_SIZE_DEFAULT,
     MAX_MESSAGES_HISTORY_DEFAULT,
+    MAX_ROUTING_HISTORY_DEFAULT,
     MAX_TOKENS_HISTORY_DEFAULT,
-    # Hybrid Memory Search
     MEMORY_BM25_CACHE_MAX_USERS_DEFAULT,
+    MEMORY_CLEANUP_HOUR_DEFAULT,
+    MEMORY_CLEANUP_MINUTE_DEFAULT,
+    MEMORY_EMBEDDING_DIMENSIONS_DEFAULT,
+    MEMORY_EMBEDDING_MODEL_DEFAULT,
+    MEMORY_EXTRACTION_FREQUENCY_PENALTY_DEFAULT,
+    MEMORY_EXTRACTION_LLM_MODEL_DEFAULT,
+    MEMORY_EXTRACTION_LLM_TEMPERATURE_DEFAULT,
+    MEMORY_EXTRACTION_MAX_TOKENS_DEFAULT,
+    MEMORY_EXTRACTION_MESSAGE_MAX_CHARS_DEFAULT,
+    MEMORY_EXTRACTION_PRESENCE_PENALTY_DEFAULT,
+    MEMORY_EXTRACTION_TOP_P_DEFAULT,
     MEMORY_HYBRID_ALPHA_DEFAULT,
     MEMORY_HYBRID_BOOST_THRESHOLD_DEFAULT,
     MEMORY_HYBRID_MIN_SCORE_DEFAULT,
+    MEMORY_MAX_AGE_DAYS_DEFAULT,
+    MEMORY_MAX_RESULTS_DEFAULT,
+    MEMORY_MIN_SEARCH_SCORE_DEFAULT,
+    MEMORY_MIN_USAGE_COUNT_DEFAULT,
+    MEMORY_PURGE_THRESHOLD_DEFAULT,
+    MEMORY_REFERENCE_RESOLUTION_LLM_FREQUENCY_PENALTY_DEFAULT,
+    MEMORY_REFERENCE_RESOLUTION_LLM_MAX_TOKENS_DEFAULT,
+    MEMORY_REFERENCE_RESOLUTION_LLM_MODEL_DEFAULT,
+    MEMORY_REFERENCE_RESOLUTION_LLM_PRESENCE_PENALTY_DEFAULT,
+    MEMORY_REFERENCE_RESOLUTION_LLM_PROVIDER_CONFIG_DEFAULT,
+    MEMORY_REFERENCE_RESOLUTION_LLM_TEMPERATURE_DEFAULT,
+    MEMORY_REFERENCE_RESOLUTION_LLM_TOP_P_DEFAULT,
+    MEMORY_REFERENCE_RESOLUTION_TIMEOUT_MS_DEFAULT,
+    MEMORY_RELEVANCE_THRESHOLD_DEFAULT,
+    MEMORY_RETENTION_WEIGHT_IMPORTANCE_DEFAULT,
+    MEMORY_RETENTION_WEIGHT_RECENCY_DEFAULT,
+    MEMORY_RETENTION_WEIGHT_USAGE_DEFAULT,
+    MODEL_CALL_RUN_LIMIT_DEFAULT,
+    MODEL_CALL_THREAD_LIMIT_DEFAULT,
     ORCHESTRATOR_MESSAGE_WINDOW_SIZE_DEFAULT,
+    PLAN_PATTERN_LOCAL_CACHE_TTL_S_DEFAULT,
+    PLAN_PATTERN_MAX_SUGGESTIONS_DEFAULT,
+    PLAN_PATTERN_MIN_CONF_BYPASS_DEFAULT,
+    PLAN_PATTERN_MIN_CONF_SUGGEST_DEFAULT,
+    PLAN_PATTERN_MIN_OBS_BYPASS_DEFAULT,
+    PLAN_PATTERN_MIN_OBS_SUGGEST_DEFAULT,
+    PLAN_PATTERN_PRIOR_ALPHA_DEFAULT,
+    PLAN_PATTERN_PRIOR_BETA_DEFAULT,
     PLAN_PATTERN_REDIS_PREFIX,
+    PLAN_PATTERN_REDIS_TTL_DAYS_DEFAULT,
+    PLAN_PATTERN_SUGGESTION_TIMEOUT_MS_DEFAULT,
     PLANNER_LLM_FREQUENCY_PENALTY_DEFAULT,
     PLANNER_LLM_MAX_TOKENS_DEFAULT,
+    PLANNER_LLM_MODEL_DEFAULT,
     PLANNER_LLM_PRESENCE_PENALTY_DEFAULT,
+    PLANNER_LLM_PROVIDER_CONFIG_DEFAULT,
+    PLANNER_LLM_TEMPERATURE_DEFAULT,
     PLANNER_LLM_TOP_P_DEFAULT,
     PLANNER_MAX_COST_USD_DEFAULT,
     PLANNER_MAX_REPLANS_DEFAULT,
@@ -78,13 +189,46 @@ from src.core.constants import (
     PLANNER_PROMPT_VERSION_DEFAULT,
     PLANNER_TIMEOUT_SECONDS,
     PROACTIVE_CROSS_TYPE_COOLDOWN_MINUTES_DEFAULT,
+    QUERY_ENGINE_SIMILARITY_THRESHOLD_DEFAULT,
+    REGISTRY_MAX_ITEMS_DEFAULT,
+    RESPONSE_LLM_TIMEOUT_SECONDS_DEFAULT,
     RESPONSE_MESSAGE_WINDOW_SIZE_DEFAULT,
     RESPONSE_PROMPT_VERSION_DEFAULT,
+    RETRY_BACKOFF_FACTOR_DEFAULT,
+    RETRY_INITIAL_DELAY_DEFAULT,
+    RETRY_JITTER_DEFAULT,
+    RETRY_MAX_ATTEMPTS_DEFAULT,
+    RETRY_MAX_DELAY_DEFAULT,
+    ROUTER_CONFIDENCE_HIGH_DEFAULT,
+    ROUTER_CONFIDENCE_LOW_DEFAULT,
+    ROUTER_CONFIDENCE_MEDIUM_DEFAULT,
+    ROUTER_DEBUG_LOG_PATH_DEFAULT,
+    ROUTER_LLM_TIMEOUT_SECONDS_DEFAULT,
     ROUTER_MESSAGE_WINDOW_SIZE_DEFAULT,
     ROUTER_PROMPT_VERSION_DEFAULT,
+    SEMANTIC_DOMAIN_HARD_THRESHOLD_DEFAULT,
+    SEMANTIC_DOMAIN_MAX_DOMAINS_DEFAULT,
+    SEMANTIC_DOMAIN_SOFT_THRESHOLD_DEFAULT,
+    SEMANTIC_EXPANSION_THRESHOLD_DEFAULT,
+    SEMANTIC_FALLBACK_THRESHOLD_DEFAULT,
+    SEMANTIC_INTENT_FALLBACK_THRESHOLD_DEFAULT,
+    SEMANTIC_INTENT_HIGH_THRESHOLD_DEFAULT,
+    SEMANTIC_LINKING_MAX_SUGGESTIONS_DEFAULT,
+    SEMANTIC_PIVOT_LLM_FREQUENCY_PENALTY_DEFAULT,
+    SEMANTIC_PIVOT_LLM_MAX_TOKENS_DEFAULT,
+    SEMANTIC_PIVOT_LLM_MODEL_DEFAULT,
+    SEMANTIC_PIVOT_LLM_PRESENCE_PENALTY_DEFAULT,
+    SEMANTIC_PIVOT_LLM_PROVIDER_CONFIG_DEFAULT,
+    SEMANTIC_PIVOT_LLM_TEMPERATURE_DEFAULT,
+    SEMANTIC_PIVOT_LLM_TOP_P_DEFAULT,
+    SEMANTIC_TOOL_SELECTOR_HARD_THRESHOLD_DEFAULT,
+    SEMANTIC_TOOL_SELECTOR_MAX_TOOLS_DEFAULT,
+    SEMANTIC_TOOL_SELECTOR_SOFT_THRESHOLD_DEFAULT,
+    SEMANTIC_VALIDATION_CONFIDENCE_THRESHOLD_DEFAULT,
+    SEMANTIC_VALIDATION_FALLBACK_CONFIDENCE_DEFAULT,
+    SEMANTIC_VALIDATION_TIMEOUT_SECONDS_DEFAULT,
     SEMANTIC_VALIDATOR_PROMPT_VERSION_DEFAULT,
     SSE_HEARTBEAT_INTERVAL_DEFAULT,
-    # Sub-Agents (F6)
     SUB_AGENTS_ENABLED_DEFAULT,
     SUBAGENT_DEFAULT_MAX_ITERATIONS_DEFAULT,
     SUBAGENT_DEFAULT_TIMEOUT_DEFAULT,
@@ -95,11 +239,20 @@ from src.core.constants import (
     SUBAGENT_MAX_TOKEN_BUDGET_DEFAULT,
     SUBAGENT_MAX_TOTAL_TOKENS_PER_DAY_DEFAULT,
     SUBAGENT_STALE_RECOVERY_INTERVAL_DEFAULT,
+    SUMMARIZATION_KEEP_MESSAGES_DEFAULT,
+    SUMMARIZATION_MODEL_DEFAULT,
+    SUMMARIZATION_TRIGGER_FRACTION_DEFAULT,
+    TASK_ORCHESTRATOR_EXECUTION_TIMEOUT_SECONDS_DEFAULT,
+    TEXT_COMPACTION_MAX_FIELD_LENGTH_DEFAULT,
+    TEXT_COMPACTION_MAX_ITEMS_DEFAULT,
+    TEXT_COMPACTION_MIN_SIZE_DEFAULT,
     TOKEN_THRESHOLD_CRITICAL_DEFAULT,
     TOKEN_THRESHOLD_MAX_DEFAULT,
     TOKEN_THRESHOLD_SAFE_DEFAULT,
     TOKEN_THRESHOLD_WARNING_DEFAULT,
-    # V3 Architecture Constants
+    TOOL_APPROVAL_CLEANUP_DAYS_DEFAULT,
+    TOOL_RETRY_BACKOFF_FACTOR_DEFAULT,
+    TOOL_RETRY_MAX_ATTEMPTS_DEFAULT,
     V3_DISPLAY_ENABLED,
     V3_DISPLAY_MAX_ITEMS_PER_DOMAIN,
     V3_DISPLAY_SHOW_ACTION_BUTTONS,
@@ -126,6 +279,8 @@ from src.core.constants import (
     V3_ROUTING_MIN_CONFIDENCE,
     V3_SMART_PLANNER_PROMPT_VERSION,
     V3_TOOL_CALIBRATED_PRIMARY_MIN,
+    V3_TOOL_SELECTOR_HYBRID_ALPHA_DEFAULT,
+    V3_TOOL_SELECTOR_HYBRID_MODE_DEFAULT,
     V3_TOOL_SOFTMAX_TEMPERATURE,
 )
 
@@ -167,19 +322,19 @@ class AgentsSettings(BaseSettings):
     # Controls memory retention for agent results, routing history, and data registry
     # These limits prevent unbounded memory growth in long-running conversations
     max_agent_results: int = Field(
-        default=10,  # Imported from domains.agents.constants
+        default=MAX_AGENT_RESULTS_DEFAULT,  # Imported from domains.agents.constants
         ge=1,
         le=100,
         description="Max agent_results to keep in state (cleanup per turn, prevents memory bloat)",
     )
     max_routing_history: int = Field(
-        default=30,  # Imported from domains.agents.constants
+        default=MAX_ROUTING_HISTORY_DEFAULT,  # Imported from domains.agents.constants
         ge=1,
         le=200,
         description="Max routing history entries to keep (cleanup per turn)",
     )
     registry_max_items: int = Field(
-        default=100,  # From REGISTRY_MAX_ITEMS_DEFAULT
+        default=REGISTRY_MAX_ITEMS_DEFAULT,  # From REGISTRY_MAX_ITEMS_DEFAULT
         ge=10,
         le=1000,
         description="Max items in data registry (LRU eviction for cross-turn references)",
@@ -237,25 +392,25 @@ class AgentsSettings(BaseSettings):
     # ========================================================================
     # LLM call timeouts for each node type - prevents runaway operations
     router_llm_timeout_seconds: float = Field(
-        default=5.0,
+        default=ROUTER_LLM_TIMEOUT_SECONDS_DEFAULT,
         ge=1.0,
         le=30.0,
         description="Timeout for router LLM call (fast routing decision)",
     )
     response_llm_timeout_seconds: float = Field(
-        default=60.0,
+        default=RESPONSE_LLM_TIMEOUT_SECONDS_DEFAULT,
         ge=5.0,
         le=180.0,
         description="Timeout for response node LLM call (synthesis, longer due to streaming)",
     )
     task_orchestrator_execution_timeout_seconds: float = Field(
-        default=120.0,
+        default=TASK_ORCHESTRATOR_EXECUTION_TIMEOUT_SECONDS_DEFAULT,
         ge=30.0,
         le=600.0,
         description="Max execution time for task orchestrator (all steps combined)",
     )
     hitl_max_wait_seconds: int = Field(
-        default=900,
+        default=HITL_MAX_WAIT_SECONDS_DEFAULT,
         ge=60,
         le=3600,
         description="Max time to wait for HITL user response (15 min default)",
@@ -270,13 +425,13 @@ class AgentsSettings(BaseSettings):
     # NOTE: ModelRetryMiddleware is always enabled (automatic retry on transient failures)
 
     retry_max_attempts: int = Field(
-        default=3,
+        default=RETRY_MAX_ATTEMPTS_DEFAULT,
         ge=1,
         le=10,
         description="Maximum retry attempts for ModelRetryMiddleware (default: 3)",
     )
     retry_backoff_factor: float = Field(
-        default=2.0,
+        default=RETRY_BACKOFF_FACTOR_DEFAULT,
         ge=1.0,
         le=10.0,
         description=(
@@ -284,18 +439,34 @@ class AgentsSettings(BaseSettings):
             "Wait time = backoff_factor^attempt seconds (default: 2.0 → 2s, 4s, 8s)"
         ),
     )
+    retry_initial_delay: float = Field(
+        default=RETRY_INITIAL_DELAY_DEFAULT,
+        ge=0.1,
+        le=30.0,
+        description="Initial delay in seconds before first retry (default: 1.0)",
+    )
+    retry_max_delay: float = Field(
+        default=RETRY_MAX_DELAY_DEFAULT,
+        ge=1.0,
+        le=300.0,
+        description="Maximum delay in seconds between retries (caps exponential backoff, default: 60.0)",
+    )
+    retry_jitter: bool = Field(
+        default=RETRY_JITTER_DEFAULT,
+        description="Add random jitter to retry delays to avoid thundering herd (default: True)",
+    )
 
     # NOTE: SummarizationMiddleware is always enabled (context compression when approaching limits)
 
     summarization_model: str = Field(
-        default="gpt-4.1-nano",
+        default=SUMMARIZATION_MODEL_DEFAULT,
         description=(
             "LLM model for context summarization (fast, cheap model recommended). "
             "Default: gpt-4.1-nano for optimal speed/cost balance."
         ),
     )
     summarization_trigger_fraction: float = Field(
-        default=0.7,
+        default=SUMMARIZATION_TRIGGER_FRACTION_DEFAULT,
         ge=0.3,
         le=0.95,
         description=(
@@ -304,7 +475,7 @@ class AgentsSettings(BaseSettings):
         ),
     )
     summarization_keep_messages: int = Field(
-        default=10,
+        default=SUMMARIZATION_KEEP_MESSAGES_DEFAULT,
         ge=3,
         le=50,
         description=(
@@ -321,7 +492,7 @@ class AgentsSettings(BaseSettings):
     # NOTE: ModelFallbackMiddleware is always enabled (automatic provider failover)
 
     fallback_models: str = Field(
-        default="claude-sonnet-4-5,deepseek-chat",
+        default=FALLBACK_MODELS_DEFAULT,
         description=(
             "Comma-separated list of fallback models (in priority order). "
             "Used when primary model fails. Default: Anthropic → DeepSeek."
@@ -336,13 +507,13 @@ class AgentsSettings(BaseSettings):
     # NOTE: ToolRetryMiddleware is always enabled (automatic tool call retries)
 
     tool_retry_max_attempts: int = Field(
-        default=3,
+        default=TOOL_RETRY_MAX_ATTEMPTS_DEFAULT,
         ge=1,
         le=5,
         description="Maximum retry attempts for failed tool calls (default: 3)",
     )
     tool_retry_backoff_factor: float = Field(
-        default=1.5,
+        default=TOOL_RETRY_BACKOFF_FACTOR_DEFAULT,
         ge=1.0,
         le=5.0,
         description=(
@@ -359,7 +530,7 @@ class AgentsSettings(BaseSettings):
     # NOTE: ModelCallLimitMiddleware is always enabled (cost protection)
 
     model_call_thread_limit: int = Field(
-        default=100,
+        default=MODEL_CALL_THREAD_LIMIT_DEFAULT,
         ge=10,
         le=500,
         description=(
@@ -368,7 +539,7 @@ class AgentsSettings(BaseSettings):
         ),
     )
     model_call_run_limit: int = Field(
-        default=20,
+        default=MODEL_CALL_RUN_LIMIT_DEFAULT,
         ge=5,
         le=50,
         description=(
@@ -385,7 +556,7 @@ class AgentsSettings(BaseSettings):
     # NOTE: ContextEditingMiddleware is always enabled (tool result pruning)
 
     context_edit_max_tool_result_tokens: int = Field(
-        default=2000,
+        default=CONTEXT_EDIT_MAX_TOOL_RESULT_TOKENS_DEFAULT,
         ge=500,
         le=10000,
         description=(
@@ -400,7 +571,7 @@ class AgentsSettings(BaseSettings):
     # Migration Note (2025-11): Moved to manifest-driven architecture
     # Tool approval requirements now defined in tool manifests (permissions.hitl_required)
     tool_approval_cleanup_days: int = Field(
-        default=7,
+        default=TOOL_APPROVAL_CLEANUP_DAYS_DEFAULT,
         gt=0,
         description="Days before cleaning up abandoned tool approvals",
     )
@@ -412,7 +583,7 @@ class AgentsSettings(BaseSettings):
     # NOTE: Semantic validation is always enabled (detects cardinality mismatches, etc.)
 
     semantic_validation_timeout_seconds: float = Field(
-        default=10.0,
+        default=SEMANTIC_VALIDATION_TIMEOUT_SECONDS_DEFAULT,
         ge=0.5,
         le=30.0,
         description=(
@@ -422,7 +593,7 @@ class AgentsSettings(BaseSettings):
         ),
     )
     semantic_validation_confidence_threshold: float = Field(
-        default=0.7,
+        default=SEMANTIC_VALIDATION_CONFIDENCE_THRESHOLD_DEFAULT,
         ge=0.0,
         le=1.0,
         description=(
@@ -430,6 +601,15 @@ class AgentsSettings(BaseSettings):
             "Only trigger clarification if LLM confidence < this threshold AND issues found. "
             "Higher = less strict (fewer clarifications), Lower = more strict. "
             "Default: 0.7 - balanced between catching real issues and avoiding over-questioning."
+        ),
+    )
+    semantic_validation_fallback_confidence: float = Field(
+        default=SEMANTIC_VALIDATION_FALLBACK_CONFIDENCE_DEFAULT,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Confidence value assigned when semantic validation uses fallback mode "
+            "(timeout or error). Full validation gets 1.0, fallback gets this value."
         ),
     )
 
@@ -469,13 +649,13 @@ class AgentsSettings(BaseSettings):
 
     # Bayesian prior: Beta(α, β) - initial confidence = α/(α+β)
     plan_pattern_prior_alpha: int = Field(
-        default=2,
+        default=PLAN_PATTERN_PRIOR_ALPHA_DEFAULT,
         ge=1,
         le=10,
         description="Bayesian prior alpha. Default Beta(2,1) = 67% initial confidence.",
     )
     plan_pattern_prior_beta: int = Field(
-        default=1,
+        default=PLAN_PATTERN_PRIOR_BETA_DEFAULT,
         ge=1,
         le=10,
         description="Bayesian prior beta. Higher values = more conservative learning.",
@@ -483,13 +663,13 @@ class AgentsSettings(BaseSettings):
 
     # Decision thresholds for suggestions
     plan_pattern_min_obs_suggest: int = Field(
-        default=3,
+        default=PLAN_PATTERN_MIN_OBS_SUGGEST_DEFAULT,
         ge=1,
         le=20,
         description="Minimum observations (K-anonymity) before suggesting a pattern.",
     )
     plan_pattern_min_conf_suggest: float = Field(
-        default=0.75,
+        default=PLAN_PATTERN_MIN_CONF_SUGGEST_DEFAULT,
         ge=0.5,
         le=0.95,
         description="Minimum confidence (0-1) to suggest a pattern. Default 75%.",
@@ -497,13 +677,13 @@ class AgentsSettings(BaseSettings):
 
     # Decision thresholds for validation bypass (stricter)
     plan_pattern_min_obs_bypass: int = Field(
-        default=10,
+        default=PLAN_PATTERN_MIN_OBS_BYPASS_DEFAULT,
         ge=5,
         le=50,
         description="Minimum observations before allowing validation bypass.",
     )
     plan_pattern_min_conf_bypass: float = Field(
-        default=0.90,
+        default=PLAN_PATTERN_MIN_CONF_BYPASS_DEFAULT,
         ge=0.8,
         le=0.99,
         description="Minimum confidence (0-1) to bypass validation. Default 90%.",
@@ -511,19 +691,19 @@ class AgentsSettings(BaseSettings):
 
     # Performance limits
     plan_pattern_max_suggestions: int = Field(
-        default=3,
+        default=PLAN_PATTERN_MAX_SUGGESTIONS_DEFAULT,
         ge=1,
         le=10,
         description="Maximum patterns injected in prompt (token budget).",
     )
     plan_pattern_suggestion_timeout_ms: int = Field(
-        default=5,
+        default=PLAN_PATTERN_SUGGESTION_TIMEOUT_MS_DEFAULT,
         ge=1,
         le=100,
         description="Timeout (ms) for Redis lookup. Fail-open on timeout.",
     )
     plan_pattern_local_cache_ttl_s: float = Field(
-        default=1.0,
+        default=PLAN_PATTERN_LOCAL_CACHE_TTL_S_DEFAULT,
         ge=0.1,
         le=60.0,
         description="Local cache TTL (seconds) to reduce Redis calls.",
@@ -535,7 +715,7 @@ class AgentsSettings(BaseSettings):
         description="Redis key prefix for pattern storage.",
     )
     plan_pattern_redis_ttl_days: int = Field(
-        default=30,
+        default=PLAN_PATTERN_REDIS_TTL_DAYS_DEFAULT,
         ge=1,
         le=365,
         description="Pattern expiration in days (TTL).",
@@ -555,7 +735,7 @@ class AgentsSettings(BaseSettings):
         ),
     )
     semantic_expansion_threshold: float = Field(
-        default=0.7,
+        default=SEMANTIC_EXPANSION_THRESHOLD_DEFAULT,
         ge=0.0,
         le=1.0,
         description=(
@@ -566,7 +746,7 @@ class AgentsSettings(BaseSettings):
         ),
     )
     semantic_linking_max_suggestions: int = Field(
-        default=5,
+        default=SEMANTIC_LINKING_MAX_SUGGESTIONS_DEFAULT,
         ge=1,
         le=20,
         description=(
@@ -591,7 +771,7 @@ class AgentsSettings(BaseSettings):
         ),
     )
     text_compaction_min_size: int = Field(
-        default=200,
+        default=TEXT_COMPACTION_MIN_SIZE_DEFAULT,
         ge=50,
         le=2000,
         description=(
@@ -600,7 +780,7 @@ class AgentsSettings(BaseSettings):
         ),
     )
     text_compaction_max_items: int = Field(
-        default=3,
+        default=TEXT_COMPACTION_MAX_ITEMS_DEFAULT,
         ge=1,
         le=10,
         description=(
@@ -609,7 +789,7 @@ class AgentsSettings(BaseSettings):
         ),
     )
     text_compaction_max_field_length: int = Field(
-        default=40,
+        default=TEXT_COMPACTION_MAX_FIELD_LENGTH_DEFAULT,
         ge=10,
         le=200,
         description=(
@@ -673,7 +853,7 @@ class AgentsSettings(BaseSettings):
     # ========================================================================
     # Intelligent recovery from execution failures (empty results, partial failures)
     adaptive_replanning_max_attempts: int = Field(
-        default=3,
+        default=ADAPTIVE_REPLANNING_MAX_ATTEMPTS_DEFAULT,
         ge=1,
         le=5,
         description=(
@@ -683,7 +863,7 @@ class AgentsSettings(BaseSettings):
         ),
     )
     adaptive_replanning_empty_threshold: float = Field(
-        default=0.8,
+        default=ADAPTIVE_REPLANNING_EMPTY_THRESHOLD_DEFAULT,
         ge=0.0,
         le=1.0,
         description=(
@@ -745,16 +925,16 @@ class AgentsSettings(BaseSettings):
     # ========================================================================
     # Approval strategies for plan-level HITL before execution
     approval_cost_threshold_usd: float = Field(
-        default=5.00,
+        default=APPROVAL_COST_THRESHOLD_USD_DEFAULT,
         ge=0.0,
         description="Cost threshold for plan approval (plans above this require approval)",
     )
     approval_auto_approve_roles: list[str] = Field(
-        default=["admin", "power_user"],
+        default=APPROVAL_AUTO_APPROVE_ROLES_DEFAULT,
         description="User roles that can auto-approve plans without HITL",
     )
     approval_sensitive_classifications: list[str] = Field(
-        default=["CONFIDENTIAL", "RESTRICTED"],
+        default=APPROVAL_SENSITIVE_CLASSIFICATIONS_DEFAULT,
         description="Data classifications that trigger approval requirement",
     )
 
@@ -763,41 +943,44 @@ class AgentsSettings(BaseSettings):
     # ========================================================================
     hitl_classifier_llm_provider: Literal[
         "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
-    ] = Field(default="openai", description="LLM provider for HITL classifier")
+    ] = Field(
+        default=HEARTBEAT_DECISION_LLM_PROVIDER_DEFAULT,  # type: ignore[arg-type]
+        description="LLM provider for HITL classifier",
+    )
     hitl_classifier_llm_provider_config: str = Field(
-        default="{}",
+        default=HITL_CLASSIFIER_LLM_PROVIDER_CONFIG_DEFAULT,
         description="Advanced provider-specific config for HITL classifier (JSON string)",
     )
     hitl_classifier_llm_model: str = Field(
-        default="",
+        default=HITL_CLASSIFIER_LLM_MODEL_DEFAULT,
         description="Deprecated: use LLM_DEFAULTS. LLM model for HITL classifier.",
     )
     hitl_classifier_llm_temperature: float = Field(
-        default=0.2,
+        default=HITL_CLASSIFIER_LLM_TEMPERATURE_DEFAULT,
         ge=0.0,
         le=2.0,
         description="Temperature for HITL classifier (0.2 for deterministic classification)",
     )
     hitl_classifier_llm_top_p: float = Field(
-        default=1.0,
+        default=HITL_CLASSIFIER_LLM_TOP_P_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Top-p (nucleus sampling) for HITL classifier",
     )
     hitl_classifier_llm_frequency_penalty: float = Field(
-        default=0.0,
+        default=HITL_CLASSIFIER_LLM_FREQUENCY_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Frequency penalty for HITL classifier",
     )
     hitl_classifier_llm_presence_penalty: float = Field(
-        default=0.0,
+        default=HITL_CLASSIFIER_LLM_PRESENCE_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Presence penalty for HITL classifier",
     )
     hitl_classifier_llm_max_tokens: int = Field(
-        default=300,
+        default=HITL_CLASSIFIER_LLM_MAX_TOKENS_DEFAULT,
         ge=1,
         description="Max tokens for HITL classifier response",
     )
@@ -812,7 +995,7 @@ class AgentsSettings(BaseSettings):
         ),
     )
     hitl_classifier_confidence_threshold: float = Field(
-        default=0.7,
+        default=HITL_CLASSIFIER_CONFIDENCE_THRESHOLD_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Confidence threshold for HITL classification (below = ask clarification)",
@@ -822,19 +1005,19 @@ class AgentsSettings(BaseSettings):
     # HITL Ambiguity Detection Configuration
     # ========================================================================
     hitl_ambiguous_confidence_threshold: float = Field(
-        default=0.7,
+        default=HITL_AMBIGUOUS_CONFIDENCE_THRESHOLD_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Confidence threshold for ambiguous HITL responses (below = ask user for clarification)",
     )
     hitl_fuzzy_match_ambiguity_threshold: float = Field(
-        default=0.05,
+        default=HITL_FUZZY_MATCH_AMBIGUITY_THRESHOLD_DEFAULT,
         ge=0.0,
         le=0.5,
         description="Threshold for fuzzy match ambiguity detection (if scores within this %, consider ambiguous)",
     )
     hitl_low_confidence_threshold: float = Field(
-        default=0.5,
+        default=HITL_LOW_CONFIDENCE_THRESHOLD_DEFAULT,
         ge=0.0,
         le=1.0,
         description=(
@@ -844,47 +1027,59 @@ class AgentsSettings(BaseSettings):
             "Issue #60 Fix: Was hardcoded to 0.5."
         ),
     )
+    hitl_demotion_confidence: float = Field(
+        default=HITL_DEMOTION_CONFIDENCE_DEFAULT,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Confidence value assigned when demoting EDIT → AMBIGUOUS. "
+            "Applied when EDIT has empty params or low classifier confidence."
+        ),
+    )
 
     # ========================================================================
     # HITL Question Generator Configuration (Conversational Clarifications)
     # ========================================================================
     hitl_question_generator_llm_provider: Literal[
         "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
-    ] = Field(default="anthropic", description="LLM provider for HITL question generator")
+    ] = Field(
+        default=HEARTBEAT_MESSAGE_LLM_PROVIDER_DEFAULT,  # type: ignore[arg-type]
+        description="LLM provider for HITL question generator",
+    )
     hitl_question_generator_llm_provider_config: str = Field(
-        default="{}",
+        default=HITL_QUESTION_GENERATOR_LLM_PROVIDER_CONFIG_DEFAULT,
         description="Advanced provider-specific config for HITL question generator (JSON string)",
     )
     hitl_question_generator_llm_model: str = Field(
-        default="",
+        default=HITL_QUESTION_GENERATOR_LLM_MODEL_DEFAULT,
         description="Deprecated: use LLM_DEFAULTS. LLM model for HITL question generator.",
     )
     hitl_question_generator_llm_temperature: float = Field(
-        default=0.5,
+        default=HITL_QUESTION_GENERATOR_LLM_TEMPERATURE_DEFAULT,
         ge=0.0,
         le=2.0,
         description="Temperature for HITL question generator (0.5 for creative questions)",
     )
     hitl_question_generator_llm_top_p: float = Field(
-        default=1.0,
+        default=HITL_QUESTION_GENERATOR_LLM_TOP_P_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Top-p (nucleus sampling) for HITL question generator",
     )
     hitl_question_generator_llm_frequency_penalty: float = Field(
-        default=0.0,
+        default=HITL_QUESTION_GENERATOR_LLM_FREQUENCY_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Frequency penalty for HITL question generator (reduce repetition)",
     )
     hitl_question_generator_llm_presence_penalty: float = Field(
-        default=0.0,
+        default=HITL_QUESTION_GENERATOR_LLM_PRESENCE_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Presence penalty for HITL question generator (encourage diversity)",
     )
     hitl_question_generator_llm_max_tokens: int = Field(
-        default=500,
+        default=HITL_QUESTION_GENERATOR_LLM_MAX_TOKENS_DEFAULT,
         gt=0,
         description=(
             "Max tokens for HITL question generator response. "
@@ -909,42 +1104,43 @@ class AgentsSettings(BaseSettings):
     hitl_plan_approval_question_llm_provider: Literal[
         "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(
-        default="openai", description="LLM provider for HITL plan approval question generator"
+        default=HEARTBEAT_DECISION_LLM_PROVIDER_DEFAULT,  # type: ignore[arg-type]
+        description="LLM provider for HITL plan approval question generator",
     )
     hitl_plan_approval_question_llm_provider_config: str = Field(
-        default="{}",
+        default=HITL_PLAN_APPROVAL_QUESTION_LLM_PROVIDER_CONFIG_DEFAULT,
         description="Advanced provider-specific config for HITL plan approval question generator (JSON string)",
     )
     hitl_plan_approval_question_llm_model: str = Field(
-        default="",
+        default=HITL_PLAN_APPROVAL_QUESTION_LLM_MODEL_DEFAULT,
         description="Deprecated: use LLM_DEFAULTS. LLM model for HITL plan approval question generator.",
     )
     hitl_plan_approval_question_llm_temperature: float = Field(
-        default=0.5,
+        default=HITL_PLAN_APPROVAL_QUESTION_LLM_TEMPERATURE_DEFAULT,
         ge=0.0,
         le=2.0,
         description="Temperature for HITL plan approval question generator (0.5 for creative)",
     )
     hitl_plan_approval_question_llm_top_p: float = Field(
-        default=1.0,
+        default=HITL_PLAN_APPROVAL_QUESTION_LLM_TOP_P_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Top-p (nucleus sampling) for HITL plan approval question generator",
     )
     hitl_plan_approval_question_llm_frequency_penalty: float = Field(
-        default=0.0,
+        default=HITL_PLAN_APPROVAL_QUESTION_LLM_FREQUENCY_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Frequency penalty for HITL plan approval question generator (reduce repetition)",
     )
     hitl_plan_approval_question_llm_presence_penalty: float = Field(
-        default=0.0,
+        default=HITL_PLAN_APPROVAL_QUESTION_LLM_PRESENCE_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Presence penalty for HITL plan approval question generator (encourage diversity)",
     )
     hitl_plan_approval_question_llm_max_tokens: int = Field(
-        default=500,
+        default=HITL_PLAN_APPROVAL_QUESTION_LLM_MAX_TOKENS_DEFAULT,
         gt=0,
         description=(
             "Max tokens for HITL plan approval question generator response. "
@@ -971,7 +1167,7 @@ class AgentsSettings(BaseSettings):
         description="Enable separate debug log for router reasoning",
     )
     router_debug_log_path: str = Field(
-        default="/var/log/lia/router_debug.log",
+        default=ROUTER_DEBUG_LOG_PATH_DEFAULT,
         description="Path to router debug log file",
     )
 
@@ -979,19 +1175,19 @@ class AgentsSettings(BaseSettings):
     # Router Confidence Thresholds
     # ========================================================================
     router_confidence_high: float = Field(
-        default=0.8,
+        default=ROUTER_CONFIDENCE_HIGH_DEFAULT,
         ge=0.0,
         le=1.0,
         description="High confidence threshold for router decisions",
     )
     router_confidence_medium: float = Field(
-        default=0.6,
+        default=ROUTER_CONFIDENCE_MEDIUM_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Medium confidence threshold for router decisions",
     )
     router_confidence_low: float = Field(
-        default=0.4,
+        default=ROUTER_CONFIDENCE_LOW_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Low confidence threshold for router decisions",
@@ -1030,14 +1226,15 @@ class AgentsSettings(BaseSettings):
         "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(default="openai", description="LLM provider for planner")
     planner_llm_provider_config: str = Field(
-        default="{}", description="Advanced provider-specific config for planner (JSON string)"
+        default=PLANNER_LLM_PROVIDER_CONFIG_DEFAULT,
+        description="Advanced provider-specific config for planner (JSON string)",
     )
     planner_llm_model: str = Field(
-        default="",
+        default=PLANNER_LLM_MODEL_DEFAULT,
         description="Deprecated: use LLM_DEFAULTS. LLM model for planner node.",
     )
     planner_llm_temperature: float = Field(
-        default=0.0,
+        default=PLANNER_LLM_TEMPERATURE_DEFAULT,
         ge=0.0,
         le=2.0,
         description="Temperature for planner (0.0 = deterministic, precise plan generation)",
@@ -1126,7 +1323,7 @@ class AgentsSettings(BaseSettings):
         ),
     )
     for_each_mutation_threshold: int = Field(
-        default=1,
+        default=FOR_EACH_MUTATION_THRESHOLD_DEFAULT,
         ge=1,
         le=100,
         description=(
@@ -1165,28 +1362,46 @@ class AgentsSettings(BaseSettings):
         description="Enable reference resolution for follow-up questions (e.g., 'et le deuxième?')",
     )
     context_reference_confidence_threshold: float = Field(
-        default=0.7,
+        default=CONTEXT_REFERENCE_CONFIDENCE_THRESHOLD_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Minimum confidence score for reference resolution (0.0-1.0)",
     )
     context_active_window_turns: int = Field(
-        default=3,
+        default=CONTEXT_ACTIVE_WINDOW_TURNS_DEFAULT,
         ge=1,
         le=10,
         description="Number of previous turns to consider for active context",
     )
     context_resolution_timeout_ms: int = Field(
-        default=500,
+        default=CONTEXT_RESOLUTION_TIMEOUT_MS_DEFAULT,
         gt=0,
         description="Timeout for context resolution in milliseconds",
+    )
+    context_demonstrative_confidence: float = Field(
+        default=CONTEXT_DEMONSTRATIVE_CONFIDENCE_DEFAULT,
+        ge=0.0,
+        le=1.0,
+        description="Confidence score for demonstrative references (celui-ci, cette)",
+    )
+    context_current_item_confidence: float = Field(
+        default=CONTEXT_CURRENT_ITEM_CONFIDENCE_DEFAULT,
+        ge=0.0,
+        le=1.0,
+        description="Confidence score for current_item resolution (higher than list[0])",
+    )
+    default_item_confidence: float = Field(
+        default=DEFAULT_ITEM_CONFIDENCE,
+        ge=0.0,
+        le=1.0,
+        description="Default confidence score for items lacking explicit confidence field",
     )
 
     # ========================================================================
     # Context Tools (Batch Operations)
     # ========================================================================
     MAX_CONTEXT_BATCH_SIZE: int = Field(
-        default=10,
+        default=MAX_CONTEXT_BATCH_SIZE_DEFAULT,
         ge=1,
         le=100,
         description=(
@@ -1211,7 +1426,7 @@ class AgentsSettings(BaseSettings):
         ),
     )
     memory_max_results: int = Field(
-        default=10,
+        default=MEMORY_MAX_RESULTS_DEFAULT,
         ge=1,
         le=50,
         description=(
@@ -1220,7 +1435,7 @@ class AgentsSettings(BaseSettings):
         ),
     )
     memory_min_search_score: float = Field(
-        default=0.5,
+        default=MEMORY_MIN_SEARCH_SCORE_DEFAULT,
         ge=0.0,
         le=1.0,
         description=(
@@ -1230,7 +1445,7 @@ class AgentsSettings(BaseSettings):
         ),
     )
     memory_extraction_llm_model: str = Field(
-        default="gpt-4.1-mini",
+        default=MEMORY_EXTRACTION_LLM_MODEL_DEFAULT,
         description=(
             "LLM model for background memory extraction. "
             "Use a fast, cost-effective model (extraction runs frequently). "
@@ -1238,7 +1453,7 @@ class AgentsSettings(BaseSettings):
         ),
     )
     memory_extraction_llm_temperature: float = Field(
-        default=0.3,
+        default=MEMORY_EXTRACTION_LLM_TEMPERATURE_DEFAULT,
         ge=0.0,
         le=1.0,
         description=(
@@ -1247,13 +1462,13 @@ class AgentsSettings(BaseSettings):
         ),
     )
     memory_extraction_max_tokens: int = Field(
-        default=1000,
+        default=MEMORY_EXTRACTION_MAX_TOKENS_DEFAULT,
         ge=100,
         le=4000,
         description="Max tokens for memory extraction LLM response.",
     )
     memory_extraction_message_max_chars: int = Field(
-        default=3000,
+        default=MEMORY_EXTRACTION_MESSAGE_MAX_CHARS_DEFAULT,
         ge=500,
         le=10000,
         description=(
@@ -1262,7 +1477,7 @@ class AgentsSettings(BaseSettings):
         ),
     )
     memory_extraction_top_p: float = Field(
-        default=1.0,
+        default=MEMORY_EXTRACTION_TOP_P_DEFAULT,
         ge=0.0,
         le=1.0,
         description=(
@@ -1271,7 +1486,7 @@ class AgentsSettings(BaseSettings):
         ),
     )
     memory_extraction_frequency_penalty: float = Field(
-        default=0.0,
+        default=MEMORY_EXTRACTION_FREQUENCY_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description=(
@@ -1280,7 +1495,7 @@ class AgentsSettings(BaseSettings):
         ),
     )
     memory_extraction_presence_penalty: float = Field(
-        default=0.0,
+        default=MEMORY_EXTRACTION_PRESENCE_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description=(
@@ -1295,7 +1510,7 @@ class AgentsSettings(BaseSettings):
         description="Reasoning effort for memory extraction LLM (OpenAI o-series/GPT-5 only).",
     )
     memory_embedding_model: str = Field(
-        default="intfloat/multilingual-e5-small",
+        default=MEMORY_EMBEDDING_MODEL_DEFAULT,
         description=(
             "Embedding model for semantic memory search. "
             "For local: intfloat/multilingual-e5-small (384 dims, 100 languages). "
@@ -1303,7 +1518,7 @@ class AgentsSettings(BaseSettings):
         ),
     )
     memory_embedding_dimensions: int = Field(
-        default=384,
+        default=MEMORY_EMBEDDING_DIMENSIONS_DEFAULT,
         ge=256,
         le=3072,
         description=(
@@ -1318,7 +1533,7 @@ class AgentsSettings(BaseSettings):
     # Controls automatic cleanup of old, unused memories.
     # Uses a hybrid strategy: usage_count + importance + emotional_weight + age.
     memory_max_age_days: int = Field(
-        default=180,
+        default=MEMORY_MAX_AGE_DAYS_DEFAULT,
         ge=1,
         le=730,
         description=(
@@ -1327,7 +1542,7 @@ class AgentsSettings(BaseSettings):
         ),
     )
     memory_min_usage_count: int = Field(
-        default=3,
+        default=MEMORY_MIN_USAGE_COUNT_DEFAULT,
         ge=1,
         le=100,
         description=(
@@ -1336,7 +1551,7 @@ class AgentsSettings(BaseSettings):
         ),
     )
     memory_purge_threshold: float = Field(
-        default=0.3,
+        default=MEMORY_PURGE_THRESHOLD_DEFAULT,
         ge=0.0,
         le=1.0,
         description=(
@@ -1346,19 +1561,19 @@ class AgentsSettings(BaseSettings):
         ),
     )
     memory_cleanup_hour: int = Field(
-        default=4,
+        default=MEMORY_CLEANUP_HOUR_DEFAULT,
         ge=0,
         le=23,
         description="Hour (UTC) for daily memory cleanup job. Default: 4 AM UTC.",
     )
     memory_cleanup_minute: int = Field(
-        default=0,
+        default=MEMORY_CLEANUP_MINUTE_DEFAULT,
         ge=0,
         le=59,
         description="Minute for daily memory cleanup job. Default: 0.",
     )
     memory_relevance_threshold: float = Field(
-        default=0.8,
+        default=MEMORY_RELEVANCE_THRESHOLD_DEFAULT,
         ge=0.0,
         le=1.0,
         description=(
@@ -1368,7 +1583,7 @@ class AgentsSettings(BaseSettings):
         ),
     )
     memory_retention_weight_usage: float = Field(
-        default=0.4,
+        default=MEMORY_RETENTION_WEIGHT_USAGE_DEFAULT,
         ge=0.0,
         le=1.0,
         description=(
@@ -1377,7 +1592,7 @@ class AgentsSettings(BaseSettings):
         ),
     )
     memory_retention_weight_importance: float = Field(
-        default=0.3,
+        default=MEMORY_RETENTION_WEIGHT_IMPORTANCE_DEFAULT,
         ge=0.0,
         le=1.0,
         description=(
@@ -1386,7 +1601,7 @@ class AgentsSettings(BaseSettings):
         ),
     )
     memory_retention_weight_recency: float = Field(
-        default=0.3,
+        default=MEMORY_RETENTION_WEIGHT_RECENCY_DEFAULT,
         ge=0.0,
         le=1.0,
         description=(
@@ -1403,7 +1618,7 @@ class AgentsSettings(BaseSettings):
     # NOTE: Memory reference resolution is always enabled
 
     memory_reference_resolution_timeout_ms: int = Field(
-        default=2000,
+        default=MEMORY_REFERENCE_RESOLUTION_TIMEOUT_MS_DEFAULT,
         ge=100,
         le=10000,
         description=(
@@ -1419,11 +1634,11 @@ class AgentsSettings(BaseSettings):
         description="LLM provider for memory reference resolution",
     )
     memory_reference_resolution_llm_provider_config: str = Field(
-        default="{}",
+        default=MEMORY_REFERENCE_RESOLUTION_LLM_PROVIDER_CONFIG_DEFAULT,
         description="Advanced provider-specific config for memory reference resolution (JSON string)",
     )
     memory_reference_resolution_llm_model: str = Field(
-        default="gpt-4.1-mini",
+        default=MEMORY_REFERENCE_RESOLUTION_LLM_MODEL_DEFAULT,
         description=(
             "LLM model for memory reference resolution micro-call. "
             "Use a fast, cheap model (extraction is simple). "
@@ -1431,31 +1646,31 @@ class AgentsSettings(BaseSettings):
         ),
     )
     memory_reference_resolution_llm_temperature: float = Field(
-        default=0.0,
+        default=MEMORY_REFERENCE_RESOLUTION_LLM_TEMPERATURE_DEFAULT,
         ge=0.0,
         le=2.0,
         description="Temperature for memory reference resolution (0.0 = deterministic extraction)",
     )
     memory_reference_resolution_llm_top_p: float = Field(
-        default=1.0,
+        default=MEMORY_REFERENCE_RESOLUTION_LLM_TOP_P_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Top-p (nucleus sampling) for memory reference resolution",
     )
     memory_reference_resolution_llm_frequency_penalty: float = Field(
-        default=0.0,
+        default=MEMORY_REFERENCE_RESOLUTION_LLM_FREQUENCY_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Frequency penalty for memory reference resolution",
     )
     memory_reference_resolution_llm_presence_penalty: float = Field(
-        default=0.0,
+        default=MEMORY_REFERENCE_RESOLUTION_LLM_PRESENCE_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Presence penalty for memory reference resolution",
     )
     memory_reference_resolution_llm_max_tokens: int = Field(
-        default=250,
+        default=MEMORY_REFERENCE_RESOLUTION_LLM_MAX_TOKENS_DEFAULT,
         gt=0,
         description=(
             "Max output tokens for memory reference resolution. "
@@ -1527,7 +1742,7 @@ class AgentsSettings(BaseSettings):
     # SemanticToolSelector provides domain hints to the router using embeddings.
     # Used for semantic domain detection in router_node.
     semantic_tool_selector_hard_threshold: float = Field(
-        default=0.70,
+        default=SEMANTIC_TOOL_SELECTOR_HARD_THRESHOLD_DEFAULT,
         ge=0.0,
         le=1.0,
         description=(
@@ -1537,7 +1752,7 @@ class AgentsSettings(BaseSettings):
         ),
     )
     semantic_tool_selector_soft_threshold: float = Field(
-        default=0.60,
+        default=SEMANTIC_TOOL_SELECTOR_SOFT_THRESHOLD_DEFAULT,
         ge=0.0,
         le=1.0,
         description=(
@@ -1547,7 +1762,7 @@ class AgentsSettings(BaseSettings):
         ),
     )
     semantic_tool_selector_max_tools: int = Field(
-        default=8,
+        default=SEMANTIC_TOOL_SELECTOR_MAX_TOOLS_DEFAULT,
         ge=1,
         le=20,
         description=(
@@ -1579,7 +1794,7 @@ class AgentsSettings(BaseSettings):
 
     # Semantic Tool Selector - Hybrid Scoring (CORRECTION 7)
     v3_tool_selector_hybrid_alpha: float = Field(
-        default=0.6,
+        default=V3_TOOL_SELECTOR_HYBRID_ALPHA_DEFAULT,
         ge=0.0,
         le=1.0,
         description=(
@@ -1589,7 +1804,7 @@ class AgentsSettings(BaseSettings):
         ),
     )
     v3_tool_selector_hybrid_mode: str = Field(
-        default="first_line",
+        default=V3_TOOL_SELECTOR_HYBRID_MODE_DEFAULT,
         description=(
             "Description extraction mode for embedding: "
             "'first_line' (default, ~60-150 chars), 'full', 'truncate'."
@@ -1607,19 +1822,19 @@ class AgentsSettings(BaseSettings):
     # Semantic Domain Selector
     # ========================================================================
     semantic_domain_hard_threshold: float = Field(
-        default=0.75,
+        default=SEMANTIC_DOMAIN_HARD_THRESHOLD_DEFAULT,
         ge=0.0,
         le=1.0,
         description="High confidence domain match threshold",
     )
     semantic_domain_soft_threshold: float = Field(
-        default=0.65,
+        default=SEMANTIC_DOMAIN_SOFT_THRESHOLD_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Uncertainty zone domain threshold",
     )
     semantic_domain_max_domains: int = Field(
-        default=5,
+        default=SEMANTIC_DOMAIN_MAX_DOMAINS_DEFAULT,
         ge=1,
         le=10,
         description="Max domains to return",
@@ -1629,13 +1844,13 @@ class AgentsSettings(BaseSettings):
     # Semantic Intent Detector
     # ========================================================================
     semantic_intent_fallback_threshold: float = Field(
-        default=0.50,
+        default=SEMANTIC_INTENT_FALLBACK_THRESHOLD_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Below this, use fallback 'full' intent",
     )
     semantic_intent_high_threshold: float = Field(
-        default=0.75,
+        default=SEMANTIC_INTENT_HIGH_THRESHOLD_DEFAULT,
         ge=0.0,
         le=1.0,
         description="High confidence threshold for intent detection",
@@ -1645,7 +1860,7 @@ class AgentsSettings(BaseSettings):
     # Semantic Fallback
     # ========================================================================
     semantic_fallback_threshold: float = Field(
-        default=0.4,
+        default=SEMANTIC_FALLBACK_THRESHOLD_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Fallback to perplexity/wikipedia when confidence < this",
@@ -1655,7 +1870,7 @@ class AgentsSettings(BaseSettings):
     # Query Engine
     # ========================================================================
     query_engine_similarity_threshold: float = Field(
-        default=0.85,
+        default=QUERY_ENGINE_SIMILARITY_THRESHOLD_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Similarity threshold for duplicate detection",
@@ -1675,11 +1890,11 @@ class AgentsSettings(BaseSettings):
         description="LLM provider for semantic pivot translation (query to English)",
     )
     semantic_pivot_llm_provider_config: str = Field(
-        default="{}",
+        default=SEMANTIC_PIVOT_LLM_PROVIDER_CONFIG_DEFAULT,
         description="Advanced provider-specific config for semantic pivot (JSON string)",
     )
     semantic_pivot_llm_model: str = Field(
-        default="gpt-4.1-mini",
+        default=SEMANTIC_PIVOT_LLM_MODEL_DEFAULT,
         description=(
             "LLM model for semantic pivot translation. "
             "Use a fast, cheap model (translation is simple). "
@@ -1687,31 +1902,31 @@ class AgentsSettings(BaseSettings):
         ),
     )
     semantic_pivot_llm_temperature: float = Field(
-        default=0.0,
+        default=SEMANTIC_PIVOT_LLM_TEMPERATURE_DEFAULT,
         ge=0.0,
         le=2.0,
         description="Temperature for semantic pivot (0.0 = deterministic translation)",
     )
     semantic_pivot_llm_top_p: float = Field(
-        default=1.0,
+        default=SEMANTIC_PIVOT_LLM_TOP_P_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Top-p (nucleus sampling) for semantic pivot",
     )
     semantic_pivot_llm_frequency_penalty: float = Field(
-        default=0.0,
+        default=SEMANTIC_PIVOT_LLM_FREQUENCY_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Frequency penalty for semantic pivot",
     )
     semantic_pivot_llm_presence_penalty: float = Field(
-        default=0.0,
+        default=SEMANTIC_PIVOT_LLM_PRESENCE_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Presence penalty for semantic pivot",
     )
     semantic_pivot_llm_max_tokens: int = Field(
-        default=100,
+        default=SEMANTIC_PIVOT_LLM_MAX_TOKENS_DEFAULT,
         gt=0,
         description=(
             "Max tokens for semantic pivot response (short translated query). "
@@ -1740,39 +1955,39 @@ class AgentsSettings(BaseSettings):
         description="LLM provider for broadcast message translation",
     )
     broadcast_translator_llm_provider_config: str = Field(
-        default="{}",
+        default=BROADCAST_TRANSLATOR_LLM_PROVIDER_CONFIG_DEFAULT,
         description="Advanced provider-specific config for broadcast translator (JSON string)",
     )
     broadcast_translator_llm_model: str = Field(
-        default="gpt-5-mini",
+        default=BROADCAST_TRANSLATOR_LLM_MODEL_DEFAULT,
         description="LLM model for broadcast translation. gpt-5-mini for quality + reasoning.",
     )
     broadcast_translator_llm_temperature: float = Field(
-        default=0.3,
+        default=BROADCAST_TRANSLATOR_LLM_TEMPERATURE_DEFAULT,
         ge=0.0,
         le=2.0,
         description="Temperature for broadcast translation. Low value for consistent translations.",
     )
     broadcast_translator_llm_top_p: float = Field(
-        default=1.0,
+        default=BROADCAST_TRANSLATOR_LLM_TOP_P_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Top-p (nucleus sampling) for broadcast translation",
     )
     broadcast_translator_llm_frequency_penalty: float = Field(
-        default=0.0,
+        default=BROADCAST_TRANSLATOR_LLM_FREQUENCY_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Frequency penalty for broadcast translation",
     )
     broadcast_translator_llm_presence_penalty: float = Field(
-        default=0.0,
+        default=BROADCAST_TRANSLATOR_LLM_PRESENCE_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Presence penalty for broadcast translation",
     )
     broadcast_translator_llm_max_tokens: int = Field(
-        default=500,
+        default=BROADCAST_TRANSLATOR_LLM_MAX_TOKENS_DEFAULT,
         gt=0,
         description="Max tokens for broadcast translation response. 500 sufficient for typical messages.",
     )
@@ -2085,7 +2300,7 @@ class AgentsSettings(BaseSettings):
         description="Interval between notification scheduler runs (minutes).",
     )
     interest_notification_batch_size: int = Field(
-        default=50,
+        default=INTEREST_NOTIFICATION_BATCH_SIZE_DEFAULT,
         ge=10,
         le=200,
         description="Number of users to process per scheduler run.",
@@ -2093,7 +2308,7 @@ class AgentsSettings(BaseSettings):
 
     # Interest selection
     interest_top_percent: float = Field(
-        default=0.2,
+        default=INTEREST_TOP_PERCENT_DEFAULT,
         ge=0.1,
         le=1.0,
         description=(
@@ -2104,19 +2319,19 @@ class AgentsSettings(BaseSettings):
 
     # Cooldowns
     interest_global_cooldown_hours: int = Field(
-        default=2,
+        default=INTEREST_GLOBAL_COOLDOWN_HOURS_DEFAULT,
         ge=1,
         le=12,
         description="Minimum hours between any two interest notifications for a user.",
     )
     interest_per_topic_cooldown_hours: int = Field(
-        default=24,
+        default=INTEREST_PER_TOPIC_COOLDOWN_HOURS_DEFAULT,
         ge=12,
         le=168,
         description="Minimum hours before re-notifying the same interest topic.",
     )
     interest_activity_cooldown_minutes: int = Field(
-        default=5,
+        default=INTEREST_ACTIVITY_COOLDOWN_MINUTES_DEFAULT,
         ge=1,
         le=30,
         description=(
@@ -2127,7 +2342,7 @@ class AgentsSettings(BaseSettings):
 
     # Weight evolution (Bayesian)
     interest_prior_alpha: int = Field(
-        default=2,
+        default=INTEREST_PRIOR_ALPHA_DEFAULT,
         ge=1,
         le=10,
         description=(
@@ -2137,7 +2352,7 @@ class AgentsSettings(BaseSettings):
         ),
     )
     interest_prior_beta: int = Field(
-        default=1,
+        default=INTEREST_PRIOR_BETA_DEFAULT,
         ge=1,
         le=10,
         description=(
@@ -2147,7 +2362,7 @@ class AgentsSettings(BaseSettings):
         ),
     )
     interest_dormant_threshold_days: int = Field(
-        default=30,
+        default=INTEREST_DORMANT_THRESHOLD_DAYS_DEFAULT,
         ge=7,
         le=90,
         description=(
@@ -2156,13 +2371,13 @@ class AgentsSettings(BaseSettings):
         ),
     )
     interest_deletion_threshold_days: int = Field(
-        default=90,
+        default=INTEREST_DELETION_THRESHOLD_DAYS_DEFAULT,
         ge=30,
         le=365,
         description="Days dormant before automatic deletion.",
     )
     interest_decay_rate_per_day: float = Field(
-        default=0.01,
+        default=INTEREST_DECAY_RATE_PER_DAY_DEFAULT,
         ge=0.001,
         le=0.1,
         description=(
@@ -2173,19 +2388,19 @@ class AgentsSettings(BaseSettings):
 
     # Content limits
     interest_content_max_length: int = Field(
-        default=500,
+        default=INTEREST_CONTENT_MAX_LENGTH_DEFAULT,
         ge=100,
         le=2000,
         description="Maximum characters for notification content.",
     )
     interest_content_lookback_days: int = Field(
-        default=30,
+        default=INTEREST_CONTENT_LOOKBACK_DAYS_DEFAULT,
         ge=7,
         le=90,
         description="Lookback period in days for content deduplication.",
     )
     interest_dedup_search_limit: int = Field(
-        default=20,
+        default=INTEREST_DEDUP_SEARCH_LIMIT_DEFAULT,
         ge=5,
         le=100,
         description="Maximum embeddings to check for similarity during deduplication.",
@@ -2193,7 +2408,7 @@ class AgentsSettings(BaseSettings):
 
     # Deduplication
     interest_dedup_similarity_threshold: float = Field(
-        default=0.8,
+        default=INTEREST_DEDUP_SIMILARITY_THRESHOLD_DEFAULT,
         ge=0.5,
         le=0.95,
         description=(
@@ -2202,7 +2417,7 @@ class AgentsSettings(BaseSettings):
         ),
     )
     interest_content_similarity_threshold: float = Field(
-        default=0.92,
+        default=INTEREST_CONTENT_SIMILARITY_THRESHOLD_DEFAULT,
         ge=0.7,
         le=0.98,
         description=(
@@ -2268,19 +2483,19 @@ class AgentsSettings(BaseSettings):
 
     # LLM models
     heartbeat_decision_llm_provider: str = Field(
-        default="openai",
+        default=HEARTBEAT_DECISION_LLM_PROVIDER_DEFAULT,
         description="LLM provider for heartbeat decision phase (structured output).",
     )
     heartbeat_decision_llm_model: str = Field(
-        default="gpt-5-mini",
+        default=HEARTBEAT_DECISION_LLM_MODEL_DEFAULT,
         description="LLM model for heartbeat decision phase (reasoning-capable).",
     )
     heartbeat_message_llm_provider: str = Field(
-        default="anthropic",
+        default=HEARTBEAT_MESSAGE_LLM_PROVIDER_DEFAULT,
         description="LLM provider for heartbeat message generation phase.",
     )
     heartbeat_message_llm_model: str = Field(
-        default="claude-sonnet-4-6",
+        default=HEARTBEAT_MESSAGE_LLM_MODEL_DEFAULT,
         description="LLM model for heartbeat message generation (personality-aware).",
     )
 

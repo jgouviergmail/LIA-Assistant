@@ -19,6 +19,156 @@ from typing import Any, Literal
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
 
+from src.core.constants import (
+    BRAVE_AGENT_LLM_FREQUENCY_PENALTY_DEFAULT,
+    BRAVE_AGENT_LLM_MAX_TOKENS_DEFAULT,
+    BRAVE_AGENT_LLM_MODEL_DEFAULT,
+    BRAVE_AGENT_LLM_PRESENCE_PENALTY_DEFAULT,
+    BRAVE_AGENT_LLM_PROVIDER_CONFIG_DEFAULT,
+    BRAVE_AGENT_LLM_TEMPERATURE_DEFAULT,
+    BRAVE_AGENT_LLM_TOP_P_DEFAULT,
+    CALENDAR_AGENT_LLM_FREQUENCY_PENALTY_DEFAULT,
+    CALENDAR_AGENT_LLM_MAX_TOKENS_DEFAULT,
+    CALENDAR_AGENT_LLM_MODEL_DEFAULT,
+    CALENDAR_AGENT_LLM_PRESENCE_PENALTY_DEFAULT,
+    CALENDAR_AGENT_LLM_PROVIDER_CONFIG_DEFAULT,
+    CALENDAR_AGENT_LLM_TEMPERATURE_DEFAULT,
+    CALENDAR_AGENT_LLM_TOP_P_DEFAULT,
+    CONTACTS_AGENT_LLM_FREQUENCY_PENALTY_DEFAULT,
+    CONTACTS_AGENT_LLM_MAX_TOKENS_DEFAULT,
+    CONTACTS_AGENT_LLM_MODEL_DEFAULT,
+    CONTACTS_AGENT_LLM_PRESENCE_PENALTY_DEFAULT,
+    CONTACTS_AGENT_LLM_PROVIDER_CONFIG_DEFAULT,
+    CONTACTS_AGENT_LLM_TEMPERATURE_DEFAULT,
+    CONTACTS_AGENT_LLM_TOP_P_DEFAULT,
+    CONTEXT_RESOLVER_LLM_FREQUENCY_PENALTY_DEFAULT,
+    CONTEXT_RESOLVER_LLM_MAX_TOKENS_DEFAULT,
+    CONTEXT_RESOLVER_LLM_MODEL_DEFAULT,
+    CONTEXT_RESOLVER_LLM_PRESENCE_PENALTY_DEFAULT,
+    CONTEXT_RESOLVER_LLM_PROVIDER_CONFIG_DEFAULT,
+    CONTEXT_RESOLVER_LLM_TEMPERATURE_DEFAULT,
+    CONTEXT_RESOLVER_LLM_TOP_P_DEFAULT,
+    DRIVE_AGENT_LLM_FREQUENCY_PENALTY_DEFAULT,
+    DRIVE_AGENT_LLM_MAX_TOKENS_DEFAULT,
+    DRIVE_AGENT_LLM_MODEL_DEFAULT,
+    DRIVE_AGENT_LLM_PRESENCE_PENALTY_DEFAULT,
+    DRIVE_AGENT_LLM_PROVIDER_CONFIG_DEFAULT,
+    DRIVE_AGENT_LLM_TEMPERATURE_DEFAULT,
+    DRIVE_AGENT_LLM_TOP_P_DEFAULT,
+    EMAILS_AGENT_LLM_FREQUENCY_PENALTY_DEFAULT,
+    EMAILS_AGENT_LLM_MAX_TOKENS_DEFAULT,
+    EMAILS_AGENT_LLM_MODEL_DEFAULT,
+    EMAILS_AGENT_LLM_PRESENCE_PENALTY_DEFAULT,
+    EMAILS_AGENT_LLM_PROVIDER_CONFIG_DEFAULT,
+    EMAILS_AGENT_LLM_TEMPERATURE_DEFAULT,
+    EMAILS_AGENT_LLM_TOP_P_DEFAULT,
+    INTEREST_CONTENT_LLM_FREQUENCY_PENALTY_DEFAULT,
+    INTEREST_CONTENT_LLM_MAX_TOKENS_DEFAULT,
+    INTEREST_CONTENT_LLM_MODEL_DEFAULT,
+    INTEREST_CONTENT_LLM_PRESENCE_PENALTY_DEFAULT,
+    INTEREST_CONTENT_LLM_PROVIDER_CONFIG_DEFAULT,
+    INTEREST_CONTENT_LLM_TEMPERATURE_DEFAULT,
+    INTEREST_CONTENT_LLM_TOP_P_DEFAULT,
+    INTEREST_EXTRACTION_LLM_FREQUENCY_PENALTY_DEFAULT,
+    INTEREST_EXTRACTION_LLM_MAX_TOKENS_DEFAULT,
+    INTEREST_EXTRACTION_LLM_MODEL_DEFAULT,
+    INTEREST_EXTRACTION_LLM_PRESENCE_PENALTY_DEFAULT,
+    INTEREST_EXTRACTION_LLM_PROVIDER_CONFIG_DEFAULT,
+    INTEREST_EXTRACTION_LLM_TEMPERATURE_DEFAULT,
+    INTEREST_EXTRACTION_LLM_TOP_P_DEFAULT,
+    PERPLEXITY_AGENT_LLM_FREQUENCY_PENALTY_DEFAULT,
+    PERPLEXITY_AGENT_LLM_MAX_TOKENS_DEFAULT,
+    PERPLEXITY_AGENT_LLM_MODEL_DEFAULT,
+    PERPLEXITY_AGENT_LLM_PRESENCE_PENALTY_DEFAULT,
+    PERPLEXITY_AGENT_LLM_PROVIDER_CONFIG_DEFAULT,
+    PERPLEXITY_AGENT_LLM_TEMPERATURE_DEFAULT,
+    PERPLEXITY_AGENT_LLM_TOP_P_DEFAULT,
+    PLACES_AGENT_LLM_FREQUENCY_PENALTY_DEFAULT,
+    PLACES_AGENT_LLM_MAX_TOKENS_DEFAULT,
+    PLACES_AGENT_LLM_MODEL_DEFAULT,
+    PLACES_AGENT_LLM_PRESENCE_PENALTY_DEFAULT,
+    PLACES_AGENT_LLM_PROVIDER_CONFIG_DEFAULT,
+    PLACES_AGENT_LLM_TEMPERATURE_DEFAULT,
+    PLACES_AGENT_LLM_TOP_P_DEFAULT,
+    QUERY_AGENT_LLM_FREQUENCY_PENALTY_DEFAULT,
+    QUERY_AGENT_LLM_MAX_TOKENS_DEFAULT,
+    QUERY_AGENT_LLM_MODEL_DEFAULT,
+    QUERY_AGENT_LLM_PRESENCE_PENALTY_DEFAULT,
+    QUERY_AGENT_LLM_PROVIDER_CONFIG_DEFAULT,
+    QUERY_AGENT_LLM_TEMPERATURE_DEFAULT,
+    QUERY_AGENT_LLM_TOP_P_DEFAULT,
+    QUERY_ANALYZER_LLM_FREQUENCY_PENALTY_DEFAULT,
+    QUERY_ANALYZER_LLM_MAX_TOKENS_DEFAULT,
+    QUERY_ANALYZER_LLM_MODEL_DEFAULT,
+    QUERY_ANALYZER_LLM_PRESENCE_PENALTY_DEFAULT,
+    QUERY_ANALYZER_LLM_PROVIDER_CONFIG_DEFAULT,
+    QUERY_ANALYZER_LLM_TEMPERATURE_DEFAULT,
+    QUERY_ANALYZER_LLM_TOP_P_DEFAULT,
+    RESPONSE_LLM_FREQUENCY_PENALTY_DEFAULT,
+    RESPONSE_LLM_MAX_TOKENS_DEFAULT,
+    RESPONSE_LLM_MODEL_DEFAULT,
+    RESPONSE_LLM_PRESENCE_PENALTY_DEFAULT,
+    RESPONSE_LLM_PROVIDER_CONFIG_DEFAULT,
+    RESPONSE_LLM_TEMPERATURE_DEFAULT,
+    RESPONSE_LLM_TOP_P_DEFAULT,
+    ROUTER_LLM_FREQUENCY_PENALTY_DEFAULT,
+    ROUTER_LLM_MAX_TOKENS_DEFAULT,
+    ROUTER_LLM_MODEL_DEFAULT,
+    ROUTER_LLM_PRESENCE_PENALTY_DEFAULT,
+    ROUTER_LLM_PROVIDER_CONFIG_DEFAULT,
+    ROUTER_LLM_TEMPERATURE_DEFAULT,
+    ROUTER_LLM_TOP_P_DEFAULT,
+    ROUTES_AGENT_LLM_FREQUENCY_PENALTY_DEFAULT,
+    ROUTES_AGENT_LLM_MAX_TOKENS_DEFAULT,
+    ROUTES_AGENT_LLM_MODEL_DEFAULT,
+    ROUTES_AGENT_LLM_PRESENCE_PENALTY_DEFAULT,
+    ROUTES_AGENT_LLM_PROVIDER_CONFIG_DEFAULT,
+    ROUTES_AGENT_LLM_TEMPERATURE_DEFAULT,
+    ROUTES_AGENT_LLM_TOP_P_DEFAULT,
+    SEMANTIC_VALIDATOR_LLM_FREQUENCY_PENALTY_DEFAULT,
+    SEMANTIC_VALIDATOR_LLM_MAX_TOKENS_DEFAULT,
+    SEMANTIC_VALIDATOR_LLM_MODEL_DEFAULT,
+    SEMANTIC_VALIDATOR_LLM_PRESENCE_PENALTY_DEFAULT,
+    SEMANTIC_VALIDATOR_LLM_PROVIDER_CONFIG_DEFAULT,
+    SEMANTIC_VALIDATOR_LLM_TEMPERATURE_DEFAULT,
+    SEMANTIC_VALIDATOR_LLM_TOP_P_DEFAULT,
+    TASKS_AGENT_LLM_FREQUENCY_PENALTY_DEFAULT,
+    TASKS_AGENT_LLM_MAX_TOKENS_DEFAULT,
+    TASKS_AGENT_LLM_MODEL_DEFAULT,
+    TASKS_AGENT_LLM_PRESENCE_PENALTY_DEFAULT,
+    TASKS_AGENT_LLM_PROVIDER_CONFIG_DEFAULT,
+    TASKS_AGENT_LLM_TEMPERATURE_DEFAULT,
+    TASKS_AGENT_LLM_TOP_P_DEFAULT,
+    WEATHER_AGENT_LLM_FREQUENCY_PENALTY_DEFAULT,
+    WEATHER_AGENT_LLM_MAX_TOKENS_DEFAULT,
+    WEATHER_AGENT_LLM_MODEL_DEFAULT,
+    WEATHER_AGENT_LLM_PRESENCE_PENALTY_DEFAULT,
+    WEATHER_AGENT_LLM_PROVIDER_CONFIG_DEFAULT,
+    WEATHER_AGENT_LLM_TEMPERATURE_DEFAULT,
+    WEATHER_AGENT_LLM_TOP_P_DEFAULT,
+    WEB_FETCH_AGENT_LLM_FREQUENCY_PENALTY_DEFAULT,
+    WEB_FETCH_AGENT_LLM_MAX_TOKENS_DEFAULT,
+    WEB_FETCH_AGENT_LLM_MODEL_DEFAULT,
+    WEB_FETCH_AGENT_LLM_PRESENCE_PENALTY_DEFAULT,
+    WEB_FETCH_AGENT_LLM_PROVIDER_CONFIG_DEFAULT,
+    WEB_FETCH_AGENT_LLM_TEMPERATURE_DEFAULT,
+    WEB_FETCH_AGENT_LLM_TOP_P_DEFAULT,
+    WEB_SEARCH_AGENT_LLM_FREQUENCY_PENALTY_DEFAULT,
+    WEB_SEARCH_AGENT_LLM_MAX_TOKENS_DEFAULT,
+    WEB_SEARCH_AGENT_LLM_MODEL_DEFAULT,
+    WEB_SEARCH_AGENT_LLM_PRESENCE_PENALTY_DEFAULT,
+    WEB_SEARCH_AGENT_LLM_PROVIDER_CONFIG_DEFAULT,
+    WEB_SEARCH_AGENT_LLM_TEMPERATURE_DEFAULT,
+    WEB_SEARCH_AGENT_LLM_TOP_P_DEFAULT,
+    WIKIPEDIA_AGENT_LLM_FREQUENCY_PENALTY_DEFAULT,
+    WIKIPEDIA_AGENT_LLM_MAX_TOKENS_DEFAULT,
+    WIKIPEDIA_AGENT_LLM_MODEL_DEFAULT,
+    WIKIPEDIA_AGENT_LLM_PRESENCE_PENALTY_DEFAULT,
+    WIKIPEDIA_AGENT_LLM_PROVIDER_CONFIG_DEFAULT,
+    WIKIPEDIA_AGENT_LLM_TEMPERATURE_DEFAULT,
+    WIKIPEDIA_AGENT_LLM_TOP_P_DEFAULT,
+)
+
 # =============================================================================
 # MODEL CONTEXT WINDOWS (tokens)
 # =============================================================================
@@ -146,7 +296,7 @@ class LLMSettings(BaseSettings):
 
     # OpenAI Organization ID (not a secret — stays in .env)
     openai_organization_id: str = Field(
-        default="",
+        default=CONTACTS_AGENT_LLM_MODEL_DEFAULT,
         description="OpenAI Organization ID (optional, required for GPT-5 streaming with verified org)",
     )
 
@@ -156,7 +306,7 @@ class LLMSettings(BaseSettings):
 
     # OpenWeatherMap (Weather API)
     openweathermap_api_key: str = Field(
-        default="",
+        default=EMAILS_AGENT_LLM_MODEL_DEFAULT,
         description="OpenWeatherMap API key for weather data (get from https://home.openweathermap.org/api_keys)",
     )
 
@@ -219,38 +369,39 @@ class LLMSettings(BaseSettings):
         "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(default="openai", description="LLM provider for router")
     router_llm_provider_config: str = Field(
-        default="{}", description="Advanced provider-specific config for router (JSON string)"
+        default=ROUTER_LLM_PROVIDER_CONFIG_DEFAULT,
+        description="Advanced provider-specific config for router (JSON string)",
     )
     router_llm_model: str = Field(
-        default="gpt-4.1-nano",
+        default=ROUTER_LLM_MODEL_DEFAULT,
         description="LLM model for router node",
     )
     router_llm_temperature: float = Field(
-        default=0.0,
+        default=ROUTER_LLM_TEMPERATURE_DEFAULT,
         ge=0.0,
         le=2.0,
         description="Temperature for router LLM (0.0 for deterministic routing)",
     )
     router_llm_top_p: float = Field(
-        default=1.0,
+        default=ROUTER_LLM_TOP_P_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Nucleus sampling for router LLM (1.0 = disabled, use temperature)",
     )
     router_llm_frequency_penalty: float = Field(
-        default=0.0,
+        default=ROUTER_LLM_FREQUENCY_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Frequency penalty for router LLM (0.0 = no penalty)",
     )
     router_llm_presence_penalty: float = Field(
-        default=0.0,
+        default=ROUTER_LLM_PRESENCE_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Presence penalty for router LLM (0.0 = no penalty)",
     )
     router_llm_max_tokens: int = Field(
-        default=300,
+        default=ROUTER_LLM_MAX_TOKENS_DEFAULT,
         gt=0,
         description="Max tokens for router LLM output",
     )
@@ -276,38 +427,39 @@ class LLMSettings(BaseSettings):
         "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(default="anthropic", description="LLM provider for response")
     response_llm_provider_config: str = Field(
-        default="{}", description="Advanced provider-specific config for response (JSON string)"
+        default=RESPONSE_LLM_PROVIDER_CONFIG_DEFAULT,
+        description="Advanced provider-specific config for response (JSON string)",
     )
     response_llm_model: str = Field(
-        default="claude-sonnet-4-6",
+        default=RESPONSE_LLM_MODEL_DEFAULT,
         description="LLM model for response node",
     )
     response_llm_temperature: float = Field(
-        default=0.0,
+        default=RESPONSE_LLM_TEMPERATURE_DEFAULT,
         ge=0.0,
         le=2.0,
         description="Temperature for response LLM (0.0 for deterministic responses)",
     )
     response_llm_top_p: float = Field(
-        default=1.0,
+        default=RESPONSE_LLM_TOP_P_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Nucleus sampling for response LLM (1.0 = disabled, use temperature)",
     )
     response_llm_frequency_penalty: float = Field(
-        default=0.0,
+        default=RESPONSE_LLM_FREQUENCY_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Frequency penalty for response LLM (0.0 = no penalty)",
     )
     response_llm_presence_penalty: float = Field(
-        default=0.0,
+        default=RESPONSE_LLM_PRESENCE_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Presence penalty for response LLM (0.0 = no penalty)",
     )
     response_llm_max_tokens: int = Field(
-        default=8000,
+        default=RESPONSE_LLM_MAX_TOKENS_DEFAULT,
         gt=0,
         description="Max tokens for response LLM output",
     )
@@ -330,7 +482,7 @@ class LLMSettings(BaseSettings):
         "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(default="openai", description="LLM provider for contacts agent")
     contacts_agent_llm_provider_config: str = Field(
-        default="{}",
+        default=CONTACTS_AGENT_LLM_PROVIDER_CONFIG_DEFAULT,
         description="Advanced provider-specific config for contacts agent (JSON string)",
     )
     contacts_agent_llm_model: str = Field(
@@ -338,31 +490,31 @@ class LLMSettings(BaseSettings):
         description="Deprecated: use LLM_DEFAULTS. LLM model for contacts agent.",
     )
     contacts_agent_llm_temperature: float = Field(
-        default=0.3,
+        default=CONTACTS_AGENT_LLM_TEMPERATURE_DEFAULT,
         ge=0.0,
         le=2.0,
         description="Temperature for contacts agent (0.3 for precise tool usage)",
     )
     contacts_agent_llm_top_p: float = Field(
-        default=1.0,
+        default=CONTACTS_AGENT_LLM_TOP_P_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Top-p for contacts agent (nucleus sampling)",
     )
     contacts_agent_llm_frequency_penalty: float = Field(
-        default=0.0,
+        default=CONTACTS_AGENT_LLM_FREQUENCY_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Frequency penalty for contacts agent (reduce repetition)",
     )
     contacts_agent_llm_presence_penalty: float = Field(
-        default=0.0,
+        default=CONTACTS_AGENT_LLM_PRESENCE_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Presence penalty for contacts agent (encourage new topics)",
     )
     contacts_agent_llm_max_tokens: int = Field(
-        default=2000,
+        default=CONTACTS_AGENT_LLM_MAX_TOKENS_DEFAULT,
         gt=0,
         description="Max tokens for contacts agent (sufficient for tool calls + reasoning)",
     )
@@ -385,7 +537,7 @@ class LLMSettings(BaseSettings):
         "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(default="openai", description="LLM provider for Emails agent")
     emails_agent_llm_provider_config: str = Field(
-        default="{}",
+        default=EMAILS_AGENT_LLM_PROVIDER_CONFIG_DEFAULT,
         description="Advanced provider-specific config for Emails agent (JSON string)",
     )
     emails_agent_llm_model: str = Field(
@@ -393,31 +545,31 @@ class LLMSettings(BaseSettings):
         description="Deprecated: use LLM_DEFAULTS. LLM model for Emails agent.",
     )
     emails_agent_llm_temperature: float = Field(
-        default=0.3,
+        default=EMAILS_AGENT_LLM_TEMPERATURE_DEFAULT,
         ge=0.0,
         le=2.0,
         description="Temperature for Emails agent (0.3 for precise tool usage)",
     )
     emails_agent_llm_top_p: float = Field(
-        default=1.0,
+        default=EMAILS_AGENT_LLM_TOP_P_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Top-p for Emails agent (nucleus sampling)",
     )
     emails_agent_llm_frequency_penalty: float = Field(
-        default=0.0,
+        default=EMAILS_AGENT_LLM_FREQUENCY_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Frequency penalty for Emails agent (reduce repetition)",
     )
     emails_agent_llm_presence_penalty: float = Field(
-        default=0.0,
+        default=EMAILS_AGENT_LLM_PRESENCE_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Presence penalty for Emails agent (encourage new topics)",
     )
     emails_agent_llm_max_tokens: int = Field(
-        default=2000,
+        default=EMAILS_AGENT_LLM_MAX_TOKENS_DEFAULT,
         gt=0,
         description="Max tokens for Emails agent (sufficient for tool calls + reasoning)",
     )
@@ -440,39 +592,39 @@ class LLMSettings(BaseSettings):
         "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(default="openai", description="LLM provider for Calendar agent")
     calendar_agent_llm_provider_config: str = Field(
-        default="{}",
+        default=CALENDAR_AGENT_LLM_PROVIDER_CONFIG_DEFAULT,
         description="Advanced provider-specific config for Calendar agent (JSON string)",
     )
     calendar_agent_llm_model: str = Field(
-        default="gpt-4.1-nano",
+        default=CALENDAR_AGENT_LLM_MODEL_DEFAULT,
         description="LLM model for Calendar agent node (ReAct pattern)",
     )
     calendar_agent_llm_temperature: float = Field(
-        default=0.3,
+        default=CALENDAR_AGENT_LLM_TEMPERATURE_DEFAULT,
         ge=0.0,
         le=2.0,
         description="Temperature for Calendar agent (0.3 for precise scheduling)",
     )
     calendar_agent_llm_top_p: float = Field(
-        default=1.0,
+        default=CALENDAR_AGENT_LLM_TOP_P_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Top-p for Calendar agent (nucleus sampling)",
     )
     calendar_agent_llm_frequency_penalty: float = Field(
-        default=0.0,
+        default=CALENDAR_AGENT_LLM_FREQUENCY_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Frequency penalty for Calendar agent",
     )
     calendar_agent_llm_presence_penalty: float = Field(
-        default=0.0,
+        default=CALENDAR_AGENT_LLM_PRESENCE_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Presence penalty for Calendar agent",
     )
     calendar_agent_llm_max_tokens: int = Field(
-        default=2000,
+        default=CALENDAR_AGENT_LLM_MAX_TOKENS_DEFAULT,
         gt=0,
         description="Max tokens for Calendar agent (sufficient for tool calls + reasoning)",
     )
@@ -491,39 +643,39 @@ class LLMSettings(BaseSettings):
         "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(default="openai", description="LLM provider for Drive agent")
     drive_agent_llm_provider_config: str = Field(
-        default="{}",
+        default=DRIVE_AGENT_LLM_PROVIDER_CONFIG_DEFAULT,
         description="Advanced provider-specific config for Drive agent (JSON string)",
     )
     drive_agent_llm_model: str = Field(
-        default="gpt-4.1-nano",
+        default=DRIVE_AGENT_LLM_MODEL_DEFAULT,
         description="LLM model for Drive agent node (ReAct pattern)",
     )
     drive_agent_llm_temperature: float = Field(
-        default=0.3,
+        default=DRIVE_AGENT_LLM_TEMPERATURE_DEFAULT,
         ge=0.0,
         le=2.0,
         description="Temperature for Drive agent (0.3 for precise file search)",
     )
     drive_agent_llm_top_p: float = Field(
-        default=1.0,
+        default=DRIVE_AGENT_LLM_TOP_P_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Top-p for Drive agent (nucleus sampling)",
     )
     drive_agent_llm_frequency_penalty: float = Field(
-        default=0.0,
+        default=DRIVE_AGENT_LLM_FREQUENCY_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Frequency penalty for Drive agent",
     )
     drive_agent_llm_presence_penalty: float = Field(
-        default=0.0,
+        default=DRIVE_AGENT_LLM_PRESENCE_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Presence penalty for Drive agent",
     )
     drive_agent_llm_max_tokens: int = Field(
-        default=2000,
+        default=DRIVE_AGENT_LLM_MAX_TOKENS_DEFAULT,
         gt=0,
         description="Max tokens for Drive agent (sufficient for tool calls + reasoning)",
     )
@@ -542,39 +694,39 @@ class LLMSettings(BaseSettings):
         "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(default="openai", description="LLM provider for Tasks agent")
     tasks_agent_llm_provider_config: str = Field(
-        default="{}",
+        default=TASKS_AGENT_LLM_PROVIDER_CONFIG_DEFAULT,
         description="Advanced provider-specific config for Tasks agent (JSON string)",
     )
     tasks_agent_llm_model: str = Field(
-        default="gpt-4.1-nano",
+        default=TASKS_AGENT_LLM_MODEL_DEFAULT,
         description="LLM model for Tasks agent node (ReAct pattern)",
     )
     tasks_agent_llm_temperature: float = Field(
-        default=0.3,
+        default=TASKS_AGENT_LLM_TEMPERATURE_DEFAULT,
         ge=0.0,
         le=2.0,
         description="Temperature for Tasks agent (0.3 for precise task management)",
     )
     tasks_agent_llm_top_p: float = Field(
-        default=1.0,
+        default=TASKS_AGENT_LLM_TOP_P_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Top-p for Tasks agent (nucleus sampling)",
     )
     tasks_agent_llm_frequency_penalty: float = Field(
-        default=0.0,
+        default=TASKS_AGENT_LLM_FREQUENCY_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Frequency penalty for Tasks agent",
     )
     tasks_agent_llm_presence_penalty: float = Field(
-        default=0.0,
+        default=TASKS_AGENT_LLM_PRESENCE_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Presence penalty for Tasks agent",
     )
     tasks_agent_llm_max_tokens: int = Field(
-        default=2000,
+        default=TASKS_AGENT_LLM_MAX_TOKENS_DEFAULT,
         gt=0,
         description="Max tokens for Tasks agent (sufficient for tool calls + reasoning)",
     )
@@ -593,39 +745,39 @@ class LLMSettings(BaseSettings):
         "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(default="openai", description="LLM provider for Weather agent")
     weather_agent_llm_provider_config: str = Field(
-        default="{}",
+        default=WEATHER_AGENT_LLM_PROVIDER_CONFIG_DEFAULT,
         description="Advanced provider-specific config for Weather agent (JSON string)",
     )
     weather_agent_llm_model: str = Field(
-        default="gpt-4.1-nano",
+        default=WEATHER_AGENT_LLM_MODEL_DEFAULT,
         description="LLM model for Weather agent node (ReAct pattern)",
     )
     weather_agent_llm_temperature: float = Field(
-        default=0.3,
+        default=WEATHER_AGENT_LLM_TEMPERATURE_DEFAULT,
         ge=0.0,
         le=2.0,
         description="Temperature for Weather agent (0.3 for precise weather info)",
     )
     weather_agent_llm_top_p: float = Field(
-        default=1.0,
+        default=WEATHER_AGENT_LLM_TOP_P_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Top-p for Weather agent (nucleus sampling)",
     )
     weather_agent_llm_frequency_penalty: float = Field(
-        default=0.0,
+        default=WEATHER_AGENT_LLM_FREQUENCY_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Frequency penalty for Weather agent",
     )
     weather_agent_llm_presence_penalty: float = Field(
-        default=0.0,
+        default=WEATHER_AGENT_LLM_PRESENCE_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Presence penalty for Weather agent",
     )
     weather_agent_llm_max_tokens: int = Field(
-        default=1000,
+        default=WEATHER_AGENT_LLM_MAX_TOKENS_DEFAULT,
         gt=0,
         description="Max tokens for Weather agent (sufficient for tool calls + reasoning)",
     )
@@ -644,39 +796,39 @@ class LLMSettings(BaseSettings):
         "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(default="openai", description="LLM provider for Wikipedia agent")
     wikipedia_agent_llm_provider_config: str = Field(
-        default="{}",
+        default=WIKIPEDIA_AGENT_LLM_PROVIDER_CONFIG_DEFAULT,
         description="Advanced provider-specific config for Wikipedia agent (JSON string)",
     )
     wikipedia_agent_llm_model: str = Field(
-        default="gpt-4.1-nano",
+        default=WIKIPEDIA_AGENT_LLM_MODEL_DEFAULT,
         description="LLM model for Wikipedia agent node (ReAct pattern)",
     )
     wikipedia_agent_llm_temperature: float = Field(
-        default=0.3,
+        default=WIKIPEDIA_AGENT_LLM_TEMPERATURE_DEFAULT,
         ge=0.0,
         le=2.0,
         description="Temperature for Wikipedia agent (0.3 for accurate knowledge)",
     )
     wikipedia_agent_llm_top_p: float = Field(
-        default=1.0,
+        default=WIKIPEDIA_AGENT_LLM_TOP_P_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Top-p for Wikipedia agent (nucleus sampling)",
     )
     wikipedia_agent_llm_frequency_penalty: float = Field(
-        default=0.0,
+        default=WIKIPEDIA_AGENT_LLM_FREQUENCY_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Frequency penalty for Wikipedia agent",
     )
     wikipedia_agent_llm_presence_penalty: float = Field(
-        default=0.0,
+        default=WIKIPEDIA_AGENT_LLM_PRESENCE_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Presence penalty for Wikipedia agent",
     )
     wikipedia_agent_llm_max_tokens: int = Field(
-        default=2000,
+        default=WIKIPEDIA_AGENT_LLM_MAX_TOKENS_DEFAULT,
         gt=0,
         description="Max tokens for Wikipedia agent (sufficient for tool calls + reasoning)",
     )
@@ -695,39 +847,39 @@ class LLMSettings(BaseSettings):
         "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(default="openai", description="LLM provider for Perplexity agent")
     perplexity_agent_llm_provider_config: str = Field(
-        default="{}",
+        default=PERPLEXITY_AGENT_LLM_PROVIDER_CONFIG_DEFAULT,
         description="Advanced provider-specific config for Perplexity agent (JSON string)",
     )
     perplexity_agent_llm_model: str = Field(
-        default="gpt-4.1-nano",
+        default=PERPLEXITY_AGENT_LLM_MODEL_DEFAULT,
         description="LLM model for Perplexity agent node (ReAct pattern)",
     )
     perplexity_agent_llm_temperature: float = Field(
-        default=0.3,
+        default=PERPLEXITY_AGENT_LLM_TEMPERATURE_DEFAULT,
         ge=0.0,
         le=2.0,
         description="Temperature for Perplexity agent (0.3 for accurate search)",
     )
     perplexity_agent_llm_top_p: float = Field(
-        default=1.0,
+        default=PERPLEXITY_AGENT_LLM_TOP_P_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Top-p for Perplexity agent (nucleus sampling)",
     )
     perplexity_agent_llm_frequency_penalty: float = Field(
-        default=0.0,
+        default=PERPLEXITY_AGENT_LLM_FREQUENCY_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Frequency penalty for Perplexity agent",
     )
     perplexity_agent_llm_presence_penalty: float = Field(
-        default=0.0,
+        default=PERPLEXITY_AGENT_LLM_PRESENCE_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Presence penalty for Perplexity agent",
     )
     perplexity_agent_llm_max_tokens: int = Field(
-        default=3000,
+        default=PERPLEXITY_AGENT_LLM_MAX_TOKENS_DEFAULT,
         gt=0,
         description="Max tokens for Perplexity agent (sufficient for tool calls + reasoning)",
     )
@@ -746,39 +898,39 @@ class LLMSettings(BaseSettings):
         "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(default="openai", description="LLM provider for Brave Search agent")
     brave_agent_llm_provider_config: str = Field(
-        default="{}",
+        default=BRAVE_AGENT_LLM_PROVIDER_CONFIG_DEFAULT,
         description="Advanced provider-specific config for Brave agent (JSON string)",
     )
     brave_agent_llm_model: str = Field(
-        default="gpt-4.1-nano",
+        default=BRAVE_AGENT_LLM_MODEL_DEFAULT,
         description="LLM model for Brave agent node (ReAct pattern)",
     )
     brave_agent_llm_temperature: float = Field(
-        default=0.3,
+        default=BRAVE_AGENT_LLM_TEMPERATURE_DEFAULT,
         ge=0.0,
         le=2.0,
         description="Temperature for Brave agent (0.3 for accurate search)",
     )
     brave_agent_llm_top_p: float = Field(
-        default=1.0,
+        default=BRAVE_AGENT_LLM_TOP_P_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Top-p for Brave agent (nucleus sampling)",
     )
     brave_agent_llm_frequency_penalty: float = Field(
-        default=0.0,
+        default=BRAVE_AGENT_LLM_FREQUENCY_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Frequency penalty for Brave agent",
     )
     brave_agent_llm_presence_penalty: float = Field(
-        default=0.0,
+        default=BRAVE_AGENT_LLM_PRESENCE_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Presence penalty for Brave agent",
     )
     brave_agent_llm_max_tokens: int = Field(
-        default=3000,
+        default=BRAVE_AGENT_LLM_MAX_TOKENS_DEFAULT,
         gt=0,
         description="Max tokens for Brave agent (sufficient for tool calls + reasoning)",
     )
@@ -797,39 +949,39 @@ class LLMSettings(BaseSettings):
         "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(default="openai", description="LLM provider for Web Search agent")
     web_search_agent_llm_provider_config: str = Field(
-        default="{}",
+        default=WEB_SEARCH_AGENT_LLM_PROVIDER_CONFIG_DEFAULT,
         description="Advanced provider-specific config for Web Search agent (JSON string)",
     )
     web_search_agent_llm_model: str = Field(
-        default="gpt-4.1-nano",
+        default=WEB_SEARCH_AGENT_LLM_MODEL_DEFAULT,
         description="LLM model for Web Search agent node (orchestrates triple source)",
     )
     web_search_agent_llm_temperature: float = Field(
-        default=0.3,
+        default=WEB_SEARCH_AGENT_LLM_TEMPERATURE_DEFAULT,
         ge=0.0,
         le=2.0,
         description="Temperature for Web Search agent (0.3 for accurate synthesis)",
     )
     web_search_agent_llm_top_p: float = Field(
-        default=1.0,
+        default=WEB_SEARCH_AGENT_LLM_TOP_P_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Top-p for Web Search agent (nucleus sampling)",
     )
     web_search_agent_llm_frequency_penalty: float = Field(
-        default=0.0,
+        default=WEB_SEARCH_AGENT_LLM_FREQUENCY_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Frequency penalty for Web Search agent",
     )
     web_search_agent_llm_presence_penalty: float = Field(
-        default=0.0,
+        default=WEB_SEARCH_AGENT_LLM_PRESENCE_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Presence penalty for Web Search agent",
     )
     web_search_agent_llm_max_tokens: int = Field(
-        default=4000,
+        default=WEB_SEARCH_AGENT_LLM_MAX_TOKENS_DEFAULT,
         gt=0,
         description="Max tokens for Web Search agent (sufficient for triple source results)",
     )
@@ -848,39 +1000,39 @@ class LLMSettings(BaseSettings):
         "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(default="openai", description="LLM provider for Web Fetch agent")
     web_fetch_agent_llm_provider_config: str = Field(
-        default="{}",
+        default=WEB_FETCH_AGENT_LLM_PROVIDER_CONFIG_DEFAULT,
         description="Advanced provider-specific config for Web Fetch agent (JSON string)",
     )
     web_fetch_agent_llm_model: str = Field(
-        default="gpt-4.1-nano",
+        default=WEB_FETCH_AGENT_LLM_MODEL_DEFAULT,
         description="LLM model for Web Fetch agent node (URL content extraction)",
     )
     web_fetch_agent_llm_temperature: float = Field(
-        default=0.3,
+        default=WEB_FETCH_AGENT_LLM_TEMPERATURE_DEFAULT,
         ge=0.0,
         le=2.0,
         description="Temperature for Web Fetch agent (0.3 for accurate extraction)",
     )
     web_fetch_agent_llm_top_p: float = Field(
-        default=1.0,
+        default=WEB_FETCH_AGENT_LLM_TOP_P_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Top-p for Web Fetch agent (nucleus sampling)",
     )
     web_fetch_agent_llm_frequency_penalty: float = Field(
-        default=0.0,
+        default=WEB_FETCH_AGENT_LLM_FREQUENCY_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Frequency penalty for Web Fetch agent",
     )
     web_fetch_agent_llm_presence_penalty: float = Field(
-        default=0.0,
+        default=WEB_FETCH_AGENT_LLM_PRESENCE_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Presence penalty for Web Fetch agent",
     )
     web_fetch_agent_llm_max_tokens: int = Field(
-        default=3000,
+        default=WEB_FETCH_AGENT_LLM_MAX_TOKENS_DEFAULT,
         gt=0,
         description="Max tokens for Web Fetch agent (sufficient for tool calls + summary)",
     )
@@ -899,39 +1051,39 @@ class LLMSettings(BaseSettings):
         "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(default="openai", description="LLM provider for Places agent")
     places_agent_llm_provider_config: str = Field(
-        default="{}",
+        default=PLACES_AGENT_LLM_PROVIDER_CONFIG_DEFAULT,
         description="Advanced provider-specific config for Places agent (JSON string)",
     )
     places_agent_llm_model: str = Field(
-        default="gpt-4.1-nano",
+        default=PLACES_AGENT_LLM_MODEL_DEFAULT,
         description="LLM model for Places agent node (ReAct pattern)",
     )
     places_agent_llm_temperature: float = Field(
-        default=0.3,
+        default=PLACES_AGENT_LLM_TEMPERATURE_DEFAULT,
         ge=0.0,
         le=2.0,
         description="Temperature for Places agent (0.3 for precise location search)",
     )
     places_agent_llm_top_p: float = Field(
-        default=1.0,
+        default=PLACES_AGENT_LLM_TOP_P_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Top-p for Places agent (nucleus sampling)",
     )
     places_agent_llm_frequency_penalty: float = Field(
-        default=0.0,
+        default=PLACES_AGENT_LLM_FREQUENCY_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Frequency penalty for Places agent",
     )
     places_agent_llm_presence_penalty: float = Field(
-        default=0.0,
+        default=PLACES_AGENT_LLM_PRESENCE_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Presence penalty for Places agent",
     )
     places_agent_llm_max_tokens: int = Field(
-        default=2000,
+        default=PLACES_AGENT_LLM_MAX_TOKENS_DEFAULT,
         gt=0,
         description="Max tokens for Places agent (sufficient for tool calls + reasoning)",
     )
@@ -950,39 +1102,39 @@ class LLMSettings(BaseSettings):
         "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(default="openai", description="LLM provider for Routes agent")
     routes_agent_llm_provider_config: str = Field(
-        default="{}",
+        default=ROUTES_AGENT_LLM_PROVIDER_CONFIG_DEFAULT,
         description="Advanced provider-specific config for Routes agent (JSON string)",
     )
     routes_agent_llm_model: str = Field(
-        default="gpt-4.1-nano",
+        default=ROUTES_AGENT_LLM_MODEL_DEFAULT,
         description="LLM model for Routes agent node (ReAct pattern)",
     )
     routes_agent_llm_temperature: float = Field(
-        default=0.3,
+        default=ROUTES_AGENT_LLM_TEMPERATURE_DEFAULT,
         ge=0.0,
         le=2.0,
         description="Temperature for Routes agent (0.3 for precise route calculation)",
     )
     routes_agent_llm_top_p: float = Field(
-        default=1.0,
+        default=ROUTES_AGENT_LLM_TOP_P_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Top-p for Routes agent (nucleus sampling)",
     )
     routes_agent_llm_frequency_penalty: float = Field(
-        default=0.0,
+        default=ROUTES_AGENT_LLM_FREQUENCY_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Frequency penalty for Routes agent",
     )
     routes_agent_llm_presence_penalty: float = Field(
-        default=0.0,
+        default=ROUTES_AGENT_LLM_PRESENCE_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Presence penalty for Routes agent",
     )
     routes_agent_llm_max_tokens: int = Field(
-        default=2000,
+        default=ROUTES_AGENT_LLM_MAX_TOKENS_DEFAULT,
         gt=0,
         description="Max tokens for Routes agent (sufficient for tool calls + reasoning)",
     )
@@ -1001,39 +1153,39 @@ class LLMSettings(BaseSettings):
         "openai", "anthropic", "deepseek", "perplexity", "ollama", "gemini", "qwen"
     ] = Field(default="openai", description="LLM provider for Query agent")
     query_agent_llm_provider_config: str = Field(
-        default="{}",
+        default=QUERY_AGENT_LLM_PROVIDER_CONFIG_DEFAULT,
         description="Advanced provider-specific config for Query agent (JSON string)",
     )
     query_agent_llm_model: str = Field(
-        default="gpt-5.2",
+        default=QUERY_AGENT_LLM_MODEL_DEFAULT,
         description="LLM model for Query agent node (data analysis on Registry)",
     )
     query_agent_llm_temperature: float = Field(
-        default=0.1,
+        default=QUERY_AGENT_LLM_TEMPERATURE_DEFAULT,
         ge=0.0,
         le=2.0,
         description="Temperature for Query agent (low for precise data analysis)",
     )
     query_agent_llm_top_p: float = Field(
-        default=1.0,
+        default=QUERY_AGENT_LLM_TOP_P_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Top-p for Query agent (nucleus sampling)",
     )
     query_agent_llm_frequency_penalty: float = Field(
-        default=0.0,
+        default=QUERY_AGENT_LLM_FREQUENCY_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Frequency penalty for Query agent",
     )
     query_agent_llm_presence_penalty: float = Field(
-        default=0.0,
+        default=QUERY_AGENT_LLM_PRESENCE_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Presence penalty for Query agent",
     )
     query_agent_llm_max_tokens: int = Field(
-        default=5000,
+        default=QUERY_AGENT_LLM_MAX_TOKENS_DEFAULT,
         gt=0,
         description="Max tokens for Query agent (sufficient for analysis + results)",
     )
@@ -1058,42 +1210,42 @@ class LLMSettings(BaseSettings):
         description="LLM provider for semantic validator (distinct from planner)",
     )
     semantic_validator_llm_provider_config: str = Field(
-        default="{}",
+        default=SEMANTIC_VALIDATOR_LLM_PROVIDER_CONFIG_DEFAULT,
         description="Advanced provider-specific config for semantic validator (JSON string)",
     )
     semantic_validator_llm_model: str = Field(
-        default="gpt-5.2",
+        default=SEMANTIC_VALIDATOR_LLM_MODEL_DEFAULT,
         description=(
             "LLM model for semantic validation (reasoning model for thorough validation). "
             "Default: gpt-5.2 with medium reasoning effort."
         ),
     )
     semantic_validator_llm_temperature: float = Field(
-        default=0.3,
+        default=SEMANTIC_VALIDATOR_LLM_TEMPERATURE_DEFAULT,
         ge=0.0,
         le=2.0,
         description="Temperature for semantic validator (0.3 for validation)",
     )
     semantic_validator_llm_top_p: float = Field(
-        default=1.0,
+        default=SEMANTIC_VALIDATOR_LLM_TOP_P_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Top-p for semantic validator (nucleus sampling)",
     )
     semantic_validator_llm_frequency_penalty: float = Field(
-        default=0.0,
+        default=SEMANTIC_VALIDATOR_LLM_FREQUENCY_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Frequency penalty for semantic validator",
     )
     semantic_validator_llm_presence_penalty: float = Field(
-        default=0.0,
+        default=SEMANTIC_VALIDATOR_LLM_PRESENCE_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Presence penalty for semantic validator",
     )
     semantic_validator_llm_max_tokens: int = Field(
-        default=1000,
+        default=SEMANTIC_VALIDATOR_LLM_MAX_TOKENS_DEFAULT,
         gt=0,
         description=(
             "Max tokens for semantic validator output. "
@@ -1125,42 +1277,42 @@ class LLMSettings(BaseSettings):
         description="LLM provider for context resolver (fast model required)",
     )
     context_resolver_llm_provider_config: str = Field(
-        default="{}",
+        default=CONTEXT_RESOLVER_LLM_PROVIDER_CONFIG_DEFAULT,
         description="Advanced provider-specific config for context resolver (JSON string)",
     )
     context_resolver_llm_model: str = Field(
-        default="gpt-4.1-mini",
+        default=CONTEXT_RESOLVER_LLM_MODEL_DEFAULT,
         description=(
             "LLM model for context resolution (fast model required). "
             "Default: gpt-4.1-mini for speed. Target latency: <500ms."
         ),
     )
     context_resolver_llm_temperature: float = Field(
-        default=0.1,
+        default=CONTEXT_RESOLVER_LLM_TEMPERATURE_DEFAULT,
         ge=0.0,
         le=2.0,
         description="Temperature for context resolver (low for deterministic resolution)",
     )
     context_resolver_llm_top_p: float = Field(
-        default=1.0,
+        default=CONTEXT_RESOLVER_LLM_TOP_P_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Top-p for context resolver (nucleus sampling)",
     )
     context_resolver_llm_frequency_penalty: float = Field(
-        default=0.0,
+        default=CONTEXT_RESOLVER_LLM_FREQUENCY_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Frequency penalty for context resolver",
     )
     context_resolver_llm_presence_penalty: float = Field(
-        default=0.0,
+        default=CONTEXT_RESOLVER_LLM_PRESENCE_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Presence penalty for context resolver",
     )
     context_resolver_llm_max_tokens: int = Field(
-        default=1000,
+        default=CONTEXT_RESOLVER_LLM_MAX_TOKENS_DEFAULT,
         gt=0,
         description=(
             "Max tokens for context resolver output. "
@@ -1196,42 +1348,42 @@ class LLMSettings(BaseSettings):
         description="LLM provider for query analyzer (fast model required)",
     )
     query_analyzer_llm_provider_config: str = Field(
-        default="{}",
+        default=QUERY_ANALYZER_LLM_PROVIDER_CONFIG_DEFAULT,
         description="Advanced provider-specific config for query analyzer (JSON string)",
     )
     query_analyzer_llm_model: str = Field(
-        default="gpt-5.2",
+        default=QUERY_ANALYZER_LLM_MODEL_DEFAULT,
         description=(
             "LLM model for query analysis (reasoning model for thorough analysis). "
             "Default: gpt-5.2 with medium reasoning effort."
         ),
     )
     query_analyzer_llm_temperature: float = Field(
-        default=0.2,
+        default=QUERY_ANALYZER_LLM_TEMPERATURE_DEFAULT,
         ge=0.0,
         le=2.0,
         description="Temperature for query analyzer (0.2 for balanced analysis)",
     )
     query_analyzer_llm_top_p: float = Field(
-        default=1.0,
+        default=QUERY_ANALYZER_LLM_TOP_P_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Top-p for query analyzer (nucleus sampling)",
     )
     query_analyzer_llm_frequency_penalty: float = Field(
-        default=0.0,
+        default=QUERY_ANALYZER_LLM_FREQUENCY_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Frequency penalty for query analyzer",
     )
     query_analyzer_llm_presence_penalty: float = Field(
-        default=0.0,
+        default=QUERY_ANALYZER_LLM_PRESENCE_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Presence penalty for query analyzer",
     )
     query_analyzer_llm_max_tokens: int = Field(
-        default=500,
+        default=QUERY_ANALYZER_LLM_MAX_TOKENS_DEFAULT,
         gt=0,
         description=(
             "Max tokens for query analyzer output. "
@@ -1263,11 +1415,11 @@ class LLMSettings(BaseSettings):
         description="LLM provider for interest extraction (fast model recommended)",
     )
     interest_extraction_llm_provider_config: str = Field(
-        default="{}",
+        default=INTEREST_EXTRACTION_LLM_PROVIDER_CONFIG_DEFAULT,
         description="Advanced provider-specific config for interest extraction (JSON string)",
     )
     interest_extraction_llm_model: str = Field(
-        default="gpt-4.1-mini",
+        default=INTEREST_EXTRACTION_LLM_MODEL_DEFAULT,
         description=(
             "LLM model for interest extraction. "
             "Extracts 0-2 interests per conversation turn. "
@@ -1275,31 +1427,31 @@ class LLMSettings(BaseSettings):
         ),
     )
     interest_extraction_llm_temperature: float = Field(
-        default=0.3,
+        default=INTEREST_EXTRACTION_LLM_TEMPERATURE_DEFAULT,
         ge=0.0,
         le=2.0,
         description="Temperature for interest extraction (low for consistency)",
     )
     interest_extraction_llm_top_p: float = Field(
-        default=1.0,
+        default=INTEREST_EXTRACTION_LLM_TOP_P_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Top-p for interest extraction (nucleus sampling)",
     )
     interest_extraction_llm_frequency_penalty: float = Field(
-        default=0.0,
+        default=INTEREST_EXTRACTION_LLM_FREQUENCY_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Frequency penalty for interest extraction",
     )
     interest_extraction_llm_presence_penalty: float = Field(
-        default=0.0,
+        default=INTEREST_EXTRACTION_LLM_PRESENCE_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Presence penalty for interest extraction",
     )
     interest_extraction_llm_max_tokens: int = Field(
-        default=500,
+        default=INTEREST_EXTRACTION_LLM_MAX_TOKENS_DEFAULT,
         gt=0,
         description="Max tokens for interest extraction output (JSON array of 0-2 interests)",
     )
@@ -1324,11 +1476,11 @@ class LLMSettings(BaseSettings):
         description="LLM provider for interest content presentation",
     )
     interest_content_llm_provider_config: str = Field(
-        default="{}",
+        default=INTEREST_CONTENT_LLM_PROVIDER_CONFIG_DEFAULT,
         description="Advanced provider-specific config for interest content (JSON string)",
     )
     interest_content_llm_model: str = Field(
-        default="claude-sonnet-4-6",
+        default=INTEREST_CONTENT_LLM_MODEL_DEFAULT,
         description=(
             "LLM model for interest content presentation. "
             "Generates conversational notification content. "
@@ -1336,31 +1488,31 @@ class LLMSettings(BaseSettings):
         ),
     )
     interest_content_llm_temperature: float = Field(
-        default=0.7,
+        default=INTEREST_CONTENT_LLM_TEMPERATURE_DEFAULT,
         ge=0.0,
         le=2.0,
         description="Temperature for content presentation (higher for creativity)",
     )
     interest_content_llm_top_p: float = Field(
-        default=1.0,
+        default=INTEREST_CONTENT_LLM_TOP_P_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Top-p for content presentation (nucleus sampling)",
     )
     interest_content_llm_frequency_penalty: float = Field(
-        default=0.0,
+        default=INTEREST_CONTENT_LLM_FREQUENCY_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Frequency penalty for content presentation",
     )
     interest_content_llm_presence_penalty: float = Field(
-        default=0.0,
+        default=INTEREST_CONTENT_LLM_PRESENCE_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Presence penalty for content presentation",
     )
     interest_content_llm_max_tokens: int = Field(
-        default=1000,
+        default=INTEREST_CONTENT_LLM_MAX_TOKENS_DEFAULT,
         gt=0,
         description="Max tokens for content presentation (conversational notification)",
     )

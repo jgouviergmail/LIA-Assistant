@@ -53,6 +53,17 @@ class JournalEntryResponse(BaseModel):
         description="Active personality code when entry was created"
     )
     char_count: int = Field(description="Character count of the content")
+    search_hints: list[str] | None = Field(
+        None,
+        description="LLM-generated search keywords bridging user vocabulary to entry content",
+    )
+    injection_count: int = Field(
+        description="Number of times this entry was injected into prompts",
+    )
+    last_injected_at: datetime | None = Field(
+        None,
+        description="Last time this entry was injected into a prompt (UTC)",
+    )
     created_at: datetime = Field(description="Creation timestamp (UTC)")
     updated_at: datetime = Field(description="Last modification timestamp (UTC)")
 
@@ -77,6 +88,10 @@ class JournalEntryCreate(BaseModel):
         default=JournalEntryMood.REFLECTIVE,
         description="Emotional tone of the entry",
     )
+    search_hints: list[str] | None = Field(
+        None,
+        description="3-5 keywords in user vocabulary for semantic search bridging",
+    )
 
 
 class JournalEntryUpdate(BaseModel):
@@ -97,6 +112,10 @@ class JournalEntryUpdate(BaseModel):
     mood: JournalEntryMood | None = Field(
         None,
         description="Emotional tone of the entry",
+    )
+    search_hints: list[str] | None = Field(
+        None,
+        description="3-5 keywords in user vocabulary for semantic search bridging",
     )
 
 
@@ -275,4 +294,11 @@ class ExtractedJournalEntry(BaseModel):
     mood: JournalEntryMood | None = Field(
         None,
         description="Emotional tone (optional, defaults to reflective)",
+    )
+    search_hints: list[str] | None = Field(
+        None,
+        description=(
+            "3-5 keywords in the USER's vocabulary that would make this entry relevant. "
+            "Optional — LLM may omit for backward compatibility."
+        ),
     )

@@ -26,6 +26,9 @@ from src.core.constants import (
     JOURNAL_CONTEXT_MAX_CHARS_DEFAULT,
     JOURNAL_CONTEXT_MAX_RESULTS_DEFAULT,
     JOURNAL_CONTEXT_MIN_SCORE_DEFAULT,
+    JOURNAL_CONTEXT_RECENT_ENTRIES_DEFAULT,
+    JOURNAL_EMBEDDING_DIMENSIONS_DEFAULT,
+    JOURNAL_EMBEDDING_MODEL_DEFAULT,
     JOURNAL_EXTRACTION_MIN_MESSAGES_DEFAULT,
     JOURNAL_MAX_ENTRY_CHARS_DEFAULT,
     JOURNAL_MAX_TOTAL_CHARS_DEFAULT,
@@ -139,6 +142,39 @@ class JournalsSettings(BaseSettings):
         ge=1,
         le=30,
         description="Max entries returned by semantic search for context injection.",
+    )
+
+    journal_context_recent_entries: int = Field(
+        default=JOURNAL_CONTEXT_RECENT_ENTRIES_DEFAULT,
+        ge=0,
+        le=5,
+        description=(
+            "Number of most recent journal entries to always inject, regardless of "
+            "semantic score. Provides temporal continuity for the assistant's reflections. "
+            "These count toward max_results and max_chars budgets."
+        ),
+    )
+
+    # ========================================================================
+    # Embedding Configuration
+    # ========================================================================
+
+    journal_embedding_model: str = Field(
+        default=JOURNAL_EMBEDDING_MODEL_DEFAULT,
+        description=(
+            "OpenAI embedding model for journal entry indexing and search. "
+            "Options: text-embedding-3-small (1536d), text-embedding-3-large (3072d)."
+        ),
+    )
+
+    journal_embedding_dimensions: int = Field(
+        default=JOURNAL_EMBEDDING_DIMENSIONS_DEFAULT,
+        ge=256,
+        le=4096,
+        description=(
+            "Embedding vector dimensions for journal entries. "
+            "Must match the chosen embedding model output dimensions."
+        ),
     )
 
     journal_context_min_score: float = Field(

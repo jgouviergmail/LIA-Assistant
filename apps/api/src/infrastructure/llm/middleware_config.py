@@ -290,9 +290,9 @@ def _create_retry_middleware() -> Any | None:
         middleware = ModelRetryMiddleware(
             max_retries=settings.retry_max_attempts,
             backoff_factor=settings.retry_backoff_factor,
-            initial_delay=1.0,
-            max_delay=60.0,
-            jitter=True,
+            initial_delay=settings.retry_initial_delay,
+            max_delay=settings.retry_max_delay,
+            jitter=settings.retry_jitter,
             on_failure="continue",  # Return AIMessage on failure instead of raising
         )
 

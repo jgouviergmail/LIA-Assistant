@@ -4141,6 +4141,8 @@
     "maxEntryCharsDescription": "Numero massimo di caratteri per singola voce. Non può essere inferiore alla voce più lunga.",
     "contextMaxResults": "Risultati di ricerca massimi",
     "contextMaxResultsDescription": "Numero massimo di voci restituite dalla ricerca semantica per l'iniezione di contesto",
+    "searchHints": "Suggerimenti di ricerca",
+    "searchHintsDescription": "Parole chiave per la ricerca semantica (separate da virgole)",
     "chars": "car"
   },
   "blog": {

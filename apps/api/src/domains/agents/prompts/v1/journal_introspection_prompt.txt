@@ -25,7 +25,7 @@ Write in {user_language}. This is the user's configured language.
 1. Read the conversation excerpt carefully.
 2. Decide if this conversation warrants a journal entry. Most conversations do NOT.
 3. Be SELECTIVE: only write if the conversation sparked a genuine reflection, observation, or learning.
-4. Be CONCISE: each entry should be dense and useful, not verbose.
+4. **MANDATORY SIZE LIMIT**: Each entry's "content" field MUST be at most **{max_entry_chars} characters**. This is a hard limit — entries exceeding it will be rejected. Write dense, concise content that fits within this budget.
 5. Avoid duplicating existing entries — check the list above for continuity.
 6. If you are approaching the size limit, you may summarize or delete older entries to make room.
 7. Protect timeless learnings and fundamental observations — these should never be deleted.
@@ -44,14 +44,16 @@ Do NOT invent, shorten, or modify UUIDs. Only use IDs that appear in the entry h
     "theme": "self_reflection|user_observations|ideas_analyses|learnings",
     "title": "Short descriptive title",
     "content": "Your reflection, max {max_entry_chars} chars",
-    "mood": "reflective|curious|satisfied|concerned|inspired"
+    "mood": "reflective|curious|satisfied|concerned|inspired",
+    "search_hints": ["keyword1", "keyword2", "keyword3"]
   }},
   {{
     "action": "update",
     "entry_id": "<copy exact UUID from entry header>",
     "title": "Updated title (optional)",
     "content": "Updated content (optional)",
-    "mood": "updated mood (optional)"
+    "mood": "updated mood (optional)",
+    "search_hints": ["keyword1", "keyword2", "keyword3"]
   }},
   {{
     "action": "delete",
@@ -59,5 +61,11 @@ Do NOT invent, shorten, or modify UUIDs. Only use IDs that appear in the entry h
   }}
 ]
 ```
+
+search_hints: 3-5 keywords in the USER's vocabulary that would make this entry relevant.
+Think: what would the user SAY or ASK that should trigger this reflection?
+Use the user's direct language and action verbs, not your introspective style.
+Example: for an entry about the user preferring structured responses, hints could be
+["format", "structure", "organize", "clear", "bullet points"].
 
 Return ONLY the JSON array, no other text.

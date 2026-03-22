@@ -3,7 +3,8 @@ Repository for Journals domain database operations.
 
 Provides optimized queries for:
 - Journal entry CRUD operations
-- Semantic relevance search via cosine similarity
+- Semantic relevance search via pgvector cosine distance
+- Temporal recency queries for continuity injection
 - Size tracking (total chars)
 - Theme-based filtering and counting
 - GDPR export and bulk delete
@@ -15,7 +16,6 @@ from sqlalchemy import and_, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domains.journals.models import JournalEntry, JournalEntryStatus
-from src.infrastructure.llm.local_embeddings import cosine_similarity
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -189,49 +189,126 @@ class JournalEntryRepository:
         min_score: float = 0.0,
     ) -> list[tuple[JournalEntry, float]]:
         """
-        Search active entries by semantic relevance using cosine similarity.
+        Search active entries by semantic relevance via pgvector cosine distance.
 
-        Loads all active entries with embeddings, computes cosine similarity
-        in Python (same pattern as interests dedup), filters by min_score,
-        and returns sorted by score descending.
+        Uses pgvector's HNSW index for efficient cosine distance computation.
+        Converts cosine distance (lower = closer) to similarity score (1 - distance).
+        Same pattern as RAG Spaces search_by_similarity.
 
         Args:
             user_id: User UUID
-            query_embedding: Query embedding vector (384 dims E5-small)
+            query_embedding: Query embedding vector (1536 dims OpenAI)
             limit: Max results to return
-            min_score: Minimum cosine similarity to include (prefilter before LLM)
+            min_score: Minimum similarity score to include (0.0-1.0)
 
         Returns:
             List of (entry, score) tuples sorted by score descending,
             filtered by min_score
         """
-        # Load all active entries with embeddings
-        result = await self.db.execute(
-            select(JournalEntry).where(
+        if not query_embedding:
+            return []
+
+        cosine_distance = JournalEntry.embedding.cosine_distance(query_embedding)
+        stmt = (
+            select(JournalEntry, cosine_distance.label("distance"))
+            .where(
                 and_(
                     JournalEntry.user_id == user_id,
                     JournalEntry.status == JournalEntryStatus.ACTIVE.value,
                     JournalEntry.embedding.isnot(None),
                 )
             )
+            .order_by(cosine_distance)
+            .limit(limit)
         )
-        entries = list(result.scalars().all())
+        result = await self.db.execute(stmt)
 
-        if not entries or not query_embedding:
-            return []
-
-        # Compute cosine similarity in Python (volume ~80 entries max per user)
+        # Convert distance to similarity and filter by min_score
         scored: list[tuple[JournalEntry, float]] = []
-        for entry in entries:
-            if entry.embedding:
-                score = cosine_similarity(query_embedding, entry.embedding)
-                # Prefilter: discard entries below min_score threshold
-                if score >= min_score:
-                    scored.append((entry, score))
+        all_scores: list[dict[str, str | float]] = []
+        for row in result.all():
+            similarity = max(0.0, 1.0 - float(row[1]))
+            entry: JournalEntry = row[0]
+            all_scores.append(
+                {
+                    "title": entry.title[:40],
+                    "score": round(similarity, 4),
+                    "passed": similarity >= min_score,
+                }
+            )
+            if similarity >= min_score:
+                scored.append((entry, similarity))
 
-        # Sort by score descending, limit results
-        scored.sort(key=lambda x: x[1], reverse=True)
-        return scored[:limit]
+        logger.info(
+            "journal_semantic_search_results",
+            user_id=str(user_id),
+            total_candidates=len(all_scores),
+            passed_filter=len(scored),
+            min_score=min_score,
+            scores=all_scores,
+        )
+
+        return scored
+
+    async def get_recent_for_user(
+        self,
+        user_id: UUID,
+        limit: int = 2,
+    ) -> list[JournalEntry]:
+        """
+        Get most recent active entries for temporal continuity injection.
+
+        Returns entries ordered by creation date descending, regardless of
+        semantic score. Used to ensure the assistant always has access to
+        its most recent reflections.
+
+        Args:
+            user_id: User UUID
+            limit: Max entries to return
+
+        Returns:
+            List of entries sorted by created_at descending
+        """
+        result = await self.db.execute(
+            select(JournalEntry)
+            .where(
+                and_(
+                    JournalEntry.user_id == user_id,
+                    JournalEntry.status == JournalEntryStatus.ACTIVE.value,
+                )
+            )
+            .order_by(JournalEntry.created_at.desc())
+            .limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def increment_injection_counts(self, entry_ids: list[UUID]) -> None:
+        """
+        Bulk increment injection_count and set last_injected_at for injected entries.
+
+        Called after journal context is built to track which entries are
+        actually used in prompts. Non-blocking (called via safe_fire_and_forget).
+
+        Args:
+            entry_ids: UUIDs of entries that were injected into a prompt
+        """
+        if not entry_ids:
+            return
+
+        from datetime import UTC
+        from datetime import datetime as dt
+
+        from sqlalchemy import update
+
+        await self.db.execute(
+            update(JournalEntry)
+            .where(JournalEntry.id.in_(entry_ids))
+            .values(
+                injection_count=JournalEntry.injection_count + 1,
+                last_injected_at=dt.now(UTC),
+            )
+        )
+        await self.db.commit()
 
     async def get_total_chars(self, user_id: UUID) -> int:
         """

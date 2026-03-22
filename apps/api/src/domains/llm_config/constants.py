@@ -541,8 +541,8 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         reasoning_effort="minimal",
     ),
     "browser_agent": LLMAgentConfig(
-        provider="openai",
-        model="gpt-4.1-mini",
+        provider="anthropic",
+        model="claude-opus-4-6",
         temperature=0.2,
         top_p=0.9,
         frequency_penalty=0.0,
@@ -612,8 +612,8 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         reasoning_effort="minimal",
     ),
     "hitl_question_generator": LLMAgentConfig(
-        provider="openai",
-        model="gpt-4.1-mini",
+        provider="anthropic",
+        model="claude-sonnet-4-6",
         temperature=0.5,
         top_p=1.0,
         frequency_penalty=0.7,
@@ -784,24 +784,22 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
     ),
     # --- Personal Journals (Carnets de Bord) ---
     "journal_extraction": LLMAgentConfig(
-        provider="openai",
-        model="gpt-5-mini",
-        temperature=0.7,
+        provider="qwen",
+        model="qwen3.5-plus",
+        temperature=0.5,
         top_p=1.0,
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=1000,
-        reasoning_effort="minimal",
     ),
     "journal_consolidation": LLMAgentConfig(
-        provider="openai",
-        model="gpt-5-mini",
-        temperature=0.7,
+        provider="qwen",
+        model="qwen3.5-plus",
+        temperature=0.5,
         top_p=1.0,
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=2000,
-        reasoning_effort="minimal",
     ),
 }
 

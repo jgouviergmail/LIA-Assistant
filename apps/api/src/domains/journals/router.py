@@ -318,6 +318,7 @@ async def create_entry(
         content=data.content,
         mood=data.mood.value,
         source=JournalEntrySource.MANUAL.value,
+        search_hints=data.search_hints,
     )
 
     await db.commit()
@@ -347,6 +348,7 @@ async def update_entry(
         title=data.title,
         content=data.content,
         mood=data.mood.value if data.mood else None,
+        search_hints=data.search_hints,
     )
 
     await db.commit()

@@ -857,7 +857,9 @@ export interface RAGInjectionMetrics {
 export interface JournalInjectionEntry {
   theme: string;
   title: string; // First 25 chars
-  score: number; // Similarity score (0.0-1.0)
+  full_title?: string; // Complete title
+  content?: string; // Full entry content (for tooltip)
+  score: number | null; // Similarity score (0.0-1.0), null for recent entries (temporal continuity)
   mood: string;
   char_count: number;
   source: string; // 'conversation' | 'consolidation' | 'manual'
@@ -871,6 +873,7 @@ export interface JournalInjectionEntry {
  */
 export interface JournalInjectionMetrics {
   entries_found: number; // Total entries matching semantic search
+  entries_recent?: number; // Recent entries injected for temporal continuity
   entries_injected: number; // Entries actually injected (within budget)
   total_chars_injected: number; // Total characters injected into prompt
   max_chars_budget: number; // User's configured max chars
@@ -886,6 +889,8 @@ export interface JournalExtractionEntry {
   action: 'create' | 'update' | 'delete';
   theme: string | null;
   title: string | null; // First 30 chars
+  full_title?: string | null; // Complete title
+  content?: string | null; // Full entry content (for tooltip)
   mood: string | null;
   entry_id: string | null; // UUID for update/delete actions
 }
@@ -934,8 +939,10 @@ export interface DebugMetrics {
   memory_injection?: MemoryInjectionMetrics; // Optional: injected memories with scores for tuning
   // RAG Injection (Knowledge Spaces)
   rag_injection?: RAGInjectionMetrics; // Optional: injected RAG chunks with scores
-  // Journal Injection (Personal Journals)
-  journal_injection?: JournalInjectionMetrics; // Optional: injected journal entries with scores
+  // Journal Injection (Personal Journals - Response)
+  journal_injection?: JournalInjectionMetrics; // Optional: injected journal entries with scores (response node)
+  // Journal Injection (Personal Journals - Planner)
+  journal_planner_injection?: JournalInjectionMetrics; // Optional: injected journal entries with scores (planner node)
   // Journal Extraction (Background creation)
   journal_extraction?: JournalExtractionMetrics; // Optional: journal entries created/updated/deleted
   // Skills activation

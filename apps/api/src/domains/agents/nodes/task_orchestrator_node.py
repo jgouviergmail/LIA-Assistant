@@ -50,7 +50,6 @@ from langchain_core.runnables import RunnableConfig
 from langgraph.errors import GraphInterrupt
 
 from src.core.config import settings
-from src.core.constants import API_MAX_ITEMS_PER_REQUEST
 from src.core.field_names import FIELD_METADATA, FIELD_RUN_ID
 from src.domains.agents.constants import (
     HITL_DECISION_APPROVE,
@@ -979,7 +978,7 @@ async def _handle_execution_plan(
             # ================================================================
             # Safety limit: max iterations = max items possible in a request
             # (user can't filter more times than there are items)
-            max_edit_iterations = API_MAX_ITEMS_PER_REQUEST
+            max_edit_iterations = settings.api_max_items_per_request
             iteration = 0
             current_item_previews = item_previews  # Start with full list
             current_total_affected = total_affected

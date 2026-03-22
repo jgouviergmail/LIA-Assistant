@@ -4141,6 +4141,8 @@
     "maxEntryCharsDescription": "Maximum characters per individual entry. Cannot be set below current largest entry.",
     "contextMaxResults": "Max search results",
     "contextMaxResultsDescription": "Maximum entries returned by semantic search for context injection",
+    "searchHints": "Search hints",
+    "searchHintsDescription": "Keywords for semantic search (comma-separated)",
     "chars": "chars"
   },
   "blog": {

@@ -41,7 +41,7 @@ import structlog
 from langchain_core.runnables import RunnableConfig
 from langgraph.types import interrupt
 
-from src.core.constants import API_MAX_ITEMS_PER_REQUEST
+from src.core.config import settings
 from src.domains.agents.constants import (
     DEFAULT_CONTACT_NAME,
     PEOPLE_API_FIELD_DISPLAY_NAME,
@@ -550,7 +550,7 @@ async def _handle_draft_critique(
     # Iterative modification loop
     # User can request multiple modifications before confirming
     # Safety limit: max iterations = max items possible in a request
-    max_iterations = API_MAX_ITEMS_PER_REQUEST
+    max_iterations = settings.api_max_items_per_request
     iteration = 0
 
     while iteration < max_iterations:

@@ -2077,17 +2077,24 @@ class StreamingService:
             )
 
         # =================================================================
-        # Journal Injection: Journal entries with scores for debug panel
+        # Journal Injection (Response): Journal entries with scores for debug panel
         # =================================================================
         try:
             journal_debug = state.get("journal_injection_debug") if state else None
             if journal_debug:
                 debug_metrics["journal_injection"] = journal_debug
-                logger.debug(
+                logger.info(
                     "debug_metrics_journal_injection_added",
                     run_id=run_id,
                     entries_found=journal_debug.get("entries_found", 0),
                     entries_injected=journal_debug.get("entries_injected", 0),
+                    entries_count=len(journal_debug.get("entries", [])),
+                )
+            else:
+                logger.info(
+                    "debug_metrics_journal_injection_missing",
+                    run_id=run_id,
+                    state_keys=list(state.keys()) if state else [],
                 )
         except (KeyError, TypeError, AttributeError) as journal_err:
             logger.debug(
@@ -2095,6 +2102,28 @@ class StreamingService:
                 run_id=run_id,
                 error=str(journal_err),
                 error_type=type(journal_err).__name__,
+            )
+
+        # =================================================================
+        # Journal Injection (Planner): Journal entries injected into planner context
+        # =================================================================
+        try:
+            journal_planner_debug = state.get("journal_planner_injection_debug") if state else None
+            if journal_planner_debug:
+                debug_metrics["journal_planner_injection"] = journal_planner_debug
+                logger.info(
+                    "debug_metrics_journal_planner_injection_added",
+                    run_id=run_id,
+                    entries_found=journal_planner_debug.get("entries_found", 0),
+                    entries_injected=journal_planner_debug.get("entries_injected", 0),
+                    entries_count=len(journal_planner_debug.get("entries", [])),
+                )
+        except (KeyError, TypeError, AttributeError) as journal_planner_err:
+            logger.debug(
+                "debug_metrics_journal_planner_injection_failed",
+                run_id=run_id,
+                error=str(journal_planner_err),
+                error_type=type(journal_planner_err).__name__,
             )
 
         # =================================================================

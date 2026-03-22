@@ -505,7 +505,9 @@ class SemanticFallback:
 
             return get_settings().semantic_fallback_threshold
         except Exception:
-            return 0.4
+            from src.core.constants import SEMANTIC_FALLBACK_THRESHOLD_DEFAULT
+
+            return SEMANTIC_FALLBACK_THRESHOLD_DEFAULT
 
     @staticmethod
     def should_fallback(confidence: float) -> bool:

@@ -29,8 +29,8 @@ JOURNAL_EXTRACTION_MESSAGE_MAX_CHARS = 1000
 # Embedding
 # =========================================================================
 
-# E5-small embedding dimensions (same as UserInterest.embedding)
-JOURNAL_EMBEDDING_DIMENSIONS = 384
+# OpenAI text-embedding-3-small dimensions (pgvector Vector column)
+JOURNAL_EMBEDDING_DIMENSIONS = 1536
 
 # =========================================================================
 # Mood emoji mapping (for context injection formatting)

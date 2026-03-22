@@ -137,6 +137,7 @@ async def process_journal_consolidation() -> dict[str, Any]:
                         user_language=getattr(user, "language", DEFAULT_LANGUAGE),
                         consolidation_with_history=user.journal_consolidation_with_history,
                         max_total_chars=user.journal_max_total_chars,
+                        max_entry_chars=user.journal_max_entry_chars,
                         last_consolidated_at=user.journal_last_consolidated_at,
                     )
 

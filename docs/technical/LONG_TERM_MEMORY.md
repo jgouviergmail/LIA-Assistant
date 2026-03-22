@@ -608,10 +608,19 @@ MEMORY_BM25_CACHE_MAX_USERS=100
 | **Effacement** | DELETE /api/v1/memories |
 | **Rectification** | PATCH /api/v1/memories/{id} |
 
-### Directive Prioritaire
+### Directive Comportementale Dynamique (v1.9.3)
 
-Le profil injecté inclut une **DIRECTIVE PRIORITAIRE** qui empêche l'assistant de sur-utiliser le contexte émotionnel :
+Le profil injecté inclut une **directive comportementale dynamique** basée sur l'état émotionnel détecté :
 
+**État DANGER** (au moins une mémoire avec `emotional_weight ≤ -5`) :
+- `⛔ DIRECTIVE DE SÉCURITÉ ÉMOTIONNELLE` avec 4 interdictions absolues :
+  - Jamais de blague/ironie/sarcasme sur les sujets TRAUMA/NÉGATIF
+  - Jamais de référence désinvolte ou banalisante
+  - Jamais de minimisation
+  - Jamais de projection/comparaison
+- Les `usage_nuance` des mémoires sensibles sont formatées en `⚠ OBLIGATION :` (impératif, pas informatif)
+
+**État NEUTRAL/COMFORT** (pas de mémoire sensible activée) :
 ```
 1. Tâche technique → Ignore les émotions, garde le style
 2. Tâche conversationnelle → Utilise les leviers pour personnaliser

@@ -437,7 +437,10 @@ class TestMakeRequest:
         mock_http_client.get = AsyncMock(return_value=mock_response)
         client._http_client = mock_http_client
 
-        with patch.object(client, "_rate_limit", AsyncMock()):
+        with (
+            patch.object(client, "_rate_limit", AsyncMock()),
+            patch.object(client, "_is_circuit_breaker_enabled", return_value=False),
+        ):
             result = await client._make_request("GET", "/test")
 
         assert result == {}
@@ -458,7 +461,10 @@ class TestMakeRequest:
         mock_http_client.patch = AsyncMock(return_value=mock_response)
         client._http_client = mock_http_client
 
-        with patch.object(client, "_rate_limit", AsyncMock()):
+        with (
+            patch.object(client, "_rate_limit", AsyncMock()),
+            patch.object(client, "_is_circuit_breaker_enabled", return_value=False),
+        ):
             await client._make_request("GET", "/test")
             await client._make_request("POST", "/test", json_data={})
             await client._make_request("PUT", "/test", json_data={})
@@ -477,6 +483,9 @@ class TestMakeRequest:
         mock_http_client = AsyncMock()
         client._http_client = mock_http_client
 
-        with patch.object(client, "_rate_limit", AsyncMock()):
+        with (
+            patch.object(client, "_rate_limit", AsyncMock()),
+            patch.object(client, "_is_circuit_breaker_enabled", return_value=False),
+        ):
             with pytest.raises(ValueError, match="Unsupported HTTP method"):
                 await client._make_request("INVALID", "/test")

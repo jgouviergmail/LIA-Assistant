@@ -33,6 +33,7 @@ You may perform ANY combination of these actions:
 
 ## SIZE MANAGEMENT
 {size_management_instruction}
+**MANDATORY**: Each entry's "content" field MUST be at most **{max_entry_chars} characters**. This is a hard limit — entries exceeding it will be rejected.
 
 ## OUTPUT FORMAT
 Return a JSON array of actions. Return [] if no maintenance is needed.
@@ -48,14 +49,16 @@ Do NOT invent, shorten, or modify UUIDs. Only use IDs that appear in the entry h
     "theme": "self_reflection|user_observations|ideas_analyses|learnings",
     "title": "Short descriptive title",
     "content": "Your reflection, max {max_entry_chars} chars",
-    "mood": "reflective|curious|satisfied|concerned|inspired"
+    "mood": "reflective|curious|satisfied|concerned|inspired",
+    "search_hints": ["keyword1", "keyword2", "keyword3"]
   }},
   {{
     "action": "update",
     "entry_id": "<copy exact UUID from entry header>",
     "title": "Updated title (optional)",
     "content": "Updated content (optional)",
-    "mood": "updated mood (optional)"
+    "mood": "updated mood (optional)",
+    "search_hints": ["keyword1", "keyword2", "keyword3"]
   }},
   {{
     "action": "delete",
@@ -63,5 +66,10 @@ Do NOT invent, shorten, or modify UUIDs. Only use IDs that appear in the entry h
   }}
 ]
 ```
+
+search_hints: 3-5 keywords in the USER's vocabulary that would make this entry relevant.
+Think: what would the user SAY or ASK that should trigger this reflection?
+Use the user's direct language and action verbs, not your introspective style.
+For existing entries that lack search_hints, you may update them to add this field.
 
 Return ONLY the JSON array, no other text.

@@ -349,6 +349,10 @@ class MessagesState(TypedDict):
     # Contains: entries_found, entries_injected, total_chars_injected, entries list
     journal_injection_debug: dict[str, Any] | None
 
+    # Personal Journals (Planner): Stores injected journal entry details from planner_node for debug.
+    # Contains: entries_found, entries_injected, total_chars_injected, entries list
+    journal_planner_injection_debug: dict[str, Any] | None
+
     # Context Compaction: Intelligent history summarization (F4)
     # When conversation history exceeds a dynamic token threshold, the compaction node
     # summarizes old messages preserving critical identifiers (UUIDs, URLs, IDs).
@@ -510,6 +514,7 @@ def create_initial_state(
         rag_injection_debug=None,  # RAG injection metrics for debug panel
         # Journal Injection debug (debug panel)
         journal_injection_debug=None,  # Journal injection metrics for debug panel
+        journal_planner_injection_debug=None,  # Journal planner injection metrics for debug panel
         # Context Compaction (F4)
         compaction_summary=None,  # Last compaction summary
         compaction_count=0,  # Compactions performed

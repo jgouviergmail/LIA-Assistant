@@ -58,11 +58,11 @@ from src.core.constants import (
     REDIS_KEY_INTEREST_ANALYSIS_PREFIX,
 )
 from src.core.i18n_types import get_language_name
+from src.core.llm_config_helper import get_llm_config_for_agent
 from src.domains.agents.prompts import load_prompt
 from src.domains.interests.models import UserInterest
 from src.domains.interests.repository import InterestRepository
 from src.domains.interests.schemas import ExtractedInterest
-from src.domains.llm_config.constants import LLM_DEFAULTS
 from src.infrastructure.database import get_db_context
 from src.infrastructure.llm import get_llm
 from src.infrastructure.llm.invoke_helpers import invoke_with_instrumentation
@@ -856,11 +856,11 @@ async def _analyze_interests_core(
         analysis_result = InterestAnalysisResult(
             analyzed=True,
             extracted_interests=extracted_interests,
-            llm_model=LLM_DEFAULTS["interest_extraction"].model,
+            llm_model=get_llm_config_for_agent(settings, "interest_extraction").model,
             llm_input_tokens=input_tokens,
             llm_output_tokens=output_tokens,
             llm_cached_tokens=cached_tokens,
-            llm_temperature=LLM_DEFAULTS["interest_extraction"].temperature,
+            llm_temperature=get_llm_config_for_agent(settings, "interest_extraction").temperature,
             analyzed_message=(
                 message_content[:200] + "..." if len(message_content) > 200 else message_content
             ),
@@ -959,7 +959,8 @@ async def extract_interests_background(
                 session_id=session_id,
                 conversation_id=conversation_id,
                 result=analysis._raw_result,
-                model_name=analysis.llm_model or LLM_DEFAULTS["interest_extraction"].model,
+                model_name=analysis.llm_model
+                or get_llm_config_for_agent(settings, "interest_extraction").model,
                 parent_run_id=parent_run_id,
             )
         elif analysis.llm_input_tokens > 0 or analysis.llm_output_tokens > 0:
@@ -971,7 +972,8 @@ async def extract_interests_background(
                 input_tokens=analysis.llm_input_tokens,
                 output_tokens=analysis.llm_output_tokens,
                 cached_tokens=analysis.llm_cached_tokens,
-                model_name=analysis.llm_model or LLM_DEFAULTS["interest_extraction"].model,
+                model_name=analysis.llm_model
+                or get_llm_config_for_agent(settings, "interest_extraction").model,
                 parent_run_id=parent_run_id,
             )
 

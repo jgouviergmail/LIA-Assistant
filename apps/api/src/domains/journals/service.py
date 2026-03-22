@@ -7,8 +7,8 @@ Provides:
 - Last cost retrieval for UI display
 - Ownership validation
 
-All embedding generation is synchronous (~107ms on RPi5 with E5-small).
-Acceptable latency for manual CRUD operations (rare user actions).
+Embedding generation uses OpenAI text-embedding-3-small (1536d) via
+TrackedOpenAIEmbeddings, with automatic token tracking via Prometheus.
 Background extraction/consolidation services also use this service
 for consistent char_count + embedding handling (DRY).
 """
@@ -31,24 +31,24 @@ from src.infrastructure.observability.logging import get_logger
 logger = get_logger(__name__)
 
 
-def _generate_embedding(text: str) -> list[float] | None:
+async def _generate_embedding(text: str) -> list[float] | None:
     """
-    Generate E5-small embedding for journal entry content.
+    Generate OpenAI embedding for journal entry content.
 
-    Uses the singleton LocalE5Embeddings instance (lazy-loaded, thread-safe).
+    Uses the singleton TrackedOpenAIEmbeddings instance (lazy-loaded, thread-safe).
     Returns None on failure (graceful degradation — entry works without embedding).
 
     Args:
-        text: Text to embed (title + content concatenated)
+        text: Text to embed (title + content + optional search hints)
 
     Returns:
-        384-dim float vector, or None on error
+        1536-dim float vector, or None on error
     """
     try:
-        from src.infrastructure.llm.local_embeddings import get_local_embeddings
+        from src.domains.journals.embedding import get_journal_embeddings
 
-        embeddings = get_local_embeddings()
-        return embeddings.embed_query(text)
+        embeddings = get_journal_embeddings()
+        return await embeddings.aembed_query(text)
     except Exception as e:
         logger.warning(
             "journal_embedding_generation_failed",
@@ -57,6 +57,31 @@ def _generate_embedding(text: str) -> list[float] | None:
             text_length=len(text),
         )
         return None
+
+
+def _build_embedding_text(
+    title: str,
+    content: str,
+    search_hints: list[str] | None = None,
+) -> str:
+    """
+    Build text for embedding generation from entry fields.
+
+    Combines title, content, and optional search hints into a single
+    string optimized for semantic search. Search hints bridge the gap
+    between the assistant's introspective vocabulary and the user's
+    direct vocabulary.
+
+    Args:
+        title: Entry title
+        content: Entry content
+        search_hints: Optional LLM-generated keywords in user vocabulary
+
+    Returns:
+        Combined text for embedding
+    """
+    hints_text = f" Context: {' '.join(search_hints)}" if search_hints else ""
+    return f"{title}. {content}.{hints_text}"
 
 
 class JournalService:
@@ -88,6 +113,7 @@ class JournalService:
         session_id: str | None = None,
         personality_code: str | None = None,
         max_entry_chars: int = JOURNAL_ENTRY_CONTENT_MAX_LENGTH,
+        search_hints: list[str] | None = None,
     ) -> JournalEntry:
         """
         Create a new journal entry with char_count and embedding.
@@ -101,6 +127,8 @@ class JournalService:
             source: Origin (conversation/consolidation/manual)
             session_id: Conversation session ID (for extraction traceability)
             personality_code: Active personality code when entry was written
+            max_entry_chars: Max content length (safety net for LLM output)
+            search_hints: LLM-generated keywords bridging user vocabulary to content
 
         Returns:
             Created JournalEntry with ID, char_count, and embedding
@@ -118,8 +146,8 @@ class JournalService:
 
         char_count = len(content)
 
-        # Generate embedding from title + content for semantic search
-        embedding = _generate_embedding(f"{title} {content}")
+        # Generate embedding from title + content + search hints for semantic search
+        embedding = await _generate_embedding(_build_embedding_text(title, content, search_hints))
 
         entry = JournalEntry(
             user_id=user_id,
@@ -133,6 +161,7 @@ class JournalService:
             personality_code=personality_code,
             char_count=char_count,
             embedding=embedding,
+            search_hints=search_hints,
         )
 
         return await self.repo.create(entry)
@@ -148,6 +177,7 @@ class JournalService:
         content: str | None = None,
         mood: str | None = None,
         max_entry_chars: int = JOURNAL_ENTRY_CONTENT_MAX_LENGTH,
+        search_hints: list[str] | None = None,
     ) -> JournalEntry:
         """
         Update an existing journal entry.
@@ -159,6 +189,8 @@ class JournalService:
             title: New title (None = keep current)
             content: New content (None = keep current)
             mood: New mood (None = keep current)
+            max_entry_chars: Max content length (safety net for LLM output)
+            search_hints: New search hints (None = keep current)
 
         Returns:
             Updated JournalEntry
@@ -179,9 +211,15 @@ class JournalService:
         if mood is not None:
             entry.mood = mood
 
-        # Regenerate embedding if title or content changed
+        if search_hints is not None:
+            entry.search_hints = search_hints
+            content_changed = True  # Hints affect embedding text
+
+        # Regenerate embedding if title, content, or search_hints changed
         if content_changed:
-            entry.embedding = _generate_embedding(f"{entry.title} {entry.content}")
+            entry.embedding = await _generate_embedding(
+                _build_embedding_text(entry.title, entry.content, entry.search_hints)
+            )
 
         return await self.repo.update(entry)
 

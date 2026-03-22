@@ -150,3 +150,5 @@ LEARNED AND VALIDATED PLAN PATTERNS:
 
 PERSONAL JOURNAL CONTEXT (your own reflections and learnings):
 {journal_context}
+If any reflection above is relevant, let it inform your planning choices — preferred approach,
+known user pattern, or past lesson learned. Apply these insights silently, do not reference them.

@@ -41,7 +41,10 @@ apps/api/src/domains/journals/
 | session_id | String(100) | Conversation session that triggered extraction |
 | personality_code | String(50) | Personality active when entry was written |
 | char_count | Integer | Content character count (size tracking) |
-| embedding | Float[] | E5-small 384-dim vector (semantic search) |
+| embedding | Vector(1536) | OpenAI text-embedding-3-small via pgvector HNSW index |
+| search_hints | String[] | LLM-generated keywords in user vocabulary for search bridging |
+| injection_count | Integer | Cumulative count of prompt injections (consolidation optimization) |
+| last_injected_at | DateTime | Last injection timestamp (consolidation optimization) |
 | created_at | DateTime | Auto-set |
 | updated_at | DateTime | Auto-updated |
 
@@ -59,6 +62,9 @@ apps/api/src/domains/journals/
 **Migrations**:
 - `journals_001` — Creates `journal_entries` table + 11 initial user columns
 - `journals_002` — Adds `journal_max_entry_chars` + `journal_context_max_results` (idempotent)
+- `journal_search_hints_001` — Adds `search_hints` column (ARRAY(String(100)))
+- `journal_pgvector_001` — Migrates embeddings from E5-small ARRAY(Float) to OpenAI pgvector Vector(1536) with HNSW index; **destructive**: purges all existing entries (incompatible dimensions)
+- `journal_injection_tracking_001` — Adds `injection_count` (Integer) and `last_injected_at` (DateTime) columns
 
 ### Data Flow
 
@@ -90,11 +96,14 @@ Conversation
 
 ### Semantic Search & Prefiltering
 
-- **Embeddings**: E5-small (384 dims, local, free, ~107ms/embed on RPi5)
-- **Search**: Cosine similarity computed in Python (not SQL/pgvector)
-- **Min score prefilter**: `JOURNAL_CONTEXT_MIN_SCORE` (default 0.3) — entries below this threshold are discarded BEFORE being sent to the LLM. This eliminates noise and reduces prompt token usage.
+- **Embeddings**: OpenAI `text-embedding-3-small` (1536 dims, pgvector HNSW index)
+- **Search**: Cosine distance computed via pgvector HNSW index (SQL-level, efficient at scale)
+- **Search hints**: LLM-generated keywords in user vocabulary supplement embeddings to bridge the gap between assistant introspective style and user direct queries
+- **Min score prefilter**: `JOURNAL_CONTEXT_MIN_SCORE` (default 0.55) — entries below this threshold are discarded BEFORE being sent to the LLM
+- **Temporal continuity**: `JOURNAL_CONTEXT_RECENT_ENTRIES` most recent entries are always injected regardless of semantic score
+- **Injection tracking**: Each injected entry increments `injection_count` and updates `last_injected_at` (fire-and-forget, non-blocking)
+- **Dual injection**: Journal context is injected into both the **planner** (via `intelligence.original_query`) and the **response** (via `last_user_message`) prompts
 - **LLM autonomy**: The LLM receives remaining entries WITH their similarity scores and decides which to use based on contextual relevance
-- **Volume**: ~80 entries max per user → brute-force cosine similarity is fast enough
 
 ### Configuration
 

@@ -93,11 +93,15 @@ Before referencing any fact from conversation history or collected data, verify 
 - Available data for filtering: {data_for_filtering}
 
 <Psychological_profile>
-- Memory and usage recommendation: {psychological_profile}
+{psychological_profile}
+CRITICAL: If the profile above contains a "DIRECTIVE DE SÉCURITÉ ÉMOTIONNELLE", you MUST comply with ALL its prohibitions and obligations. Any violation (joke about trauma, dismissive reference to a sensitive zone) is a severe failure. When in doubt about tone, always err on the side of caution and respect.
 </Psychological_profile>
 
 <JournalContext>
 {journal_context}
+If any of YOUR past reflections above are relevant to this conversation, naturally integrate
+that insight into your response — adjust tone, apply a remembered preference, or leverage a
+learned pattern. Do NOT quote entries verbatim; weave them into your reasoning seamlessly.
 </JournalContext>
 
 <KnowledgeEnrichment>

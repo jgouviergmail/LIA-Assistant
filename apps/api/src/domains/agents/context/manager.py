@@ -175,12 +175,12 @@ class ToolContextManager:
 
         # Sort by confidence if available, otherwise use first items as fallback
         def get_confidence(item: dict[str, Any]) -> float:
-            """Extract confidence score, default to 0.5 if missing."""
+            """Extract confidence score, default to settings if missing."""
             # Try common confidence field names
             for key in ["confidence", "score", "relevance", "rank"]:
                 if key in item and isinstance(item[key], int | float):
                     return float(item[key])
-            return 0.5  # Default confidence for items without explicit score
+            return settings.default_item_confidence
 
         sorted_by_conf = sorted(remaining, key=get_confidence, reverse=True)
         high_conf_items = sorted_by_conf[:high_conf_count]

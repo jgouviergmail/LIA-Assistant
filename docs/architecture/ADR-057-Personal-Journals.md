@@ -19,7 +19,9 @@ Implement **Personal Journals** (Carnets de Bord) — thematic notebooks where t
 
 ### Storage
 - PostgreSQL with SQLAlchemy (`journal_entries` table)
-- E5-small embeddings (384 dims) for semantic relevance search
+- OpenAI `text-embedding-3-small` embeddings (1536 dims) with pgvector HNSW index (migrated from E5-small in v1.9.3)
+- `search_hints`: LLM-generated keywords in user vocabulary for semantic search bridging
+- `injection_count` + `last_injected_at`: Tracks injection frequency for consolidation optimization
 - 4 themes: `self_reflection`, `user_observations`, `ideas_analyses`, `learnings`
 
 ### Dual Trigger
@@ -30,7 +32,10 @@ Implement **Personal Journals** (Carnets de Bord) — thematic notebooks where t
 - Two separate semantic searches per conversation turn:
   - **Planner**: query = user goal + intent → influences reasoning
   - **Response**: query = last user message → influences tone/formulation
+- Temporal continuity: N most recent entries always injected regardless of semantic score
+- Search hints supplement embeddings to bridge vocabulary gap between assistant introspection and user queries
 - Results include similarity scores — the LLM decides relevance autonomously
+- Injection tracking updated per injected entry (fire-and-forget, non-blocking)
 
 ### User Control
 - All key parameters administered by the user (Settings > Features):

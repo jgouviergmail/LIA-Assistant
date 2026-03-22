@@ -35,6 +35,7 @@ export interface JournalEntry {
   source: JournalEntrySource;
   personality_code: string | null;
   char_count: number;
+  search_hints: string[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -47,6 +48,7 @@ export interface JournalEntryCreate {
   title: string;
   content: string;
   mood?: JournalEntryMood;
+  search_hints?: string[];
 }
 
 /**
@@ -56,6 +58,7 @@ export interface JournalEntryUpdate {
   title?: string;
   content?: string;
   mood?: JournalEntryMood;
+  search_hints?: string[];
 }
 
 /**

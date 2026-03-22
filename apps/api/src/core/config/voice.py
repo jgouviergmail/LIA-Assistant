@@ -23,6 +23,44 @@ from typing import Any, Literal
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
 
+from src.core.constants import (
+    VOICE_CHAT_MODE_MAX_SENTENCES_DEFAULT,
+    VOICE_CONTEXT_MAX_CHARS_DEFAULT,
+    VOICE_LLM_FREQUENCY_PENALTY_DEFAULT,
+    VOICE_LLM_MAX_TOKENS_DEFAULT,
+    VOICE_LLM_MODEL_DEFAULT,
+    VOICE_LLM_PRESENCE_PENALTY_DEFAULT,
+    VOICE_LLM_PROVIDER_CONFIG_DEFAULT,
+    VOICE_LLM_TEMPERATURE_DEFAULT,
+    VOICE_LLM_TOP_P_DEFAULT,
+    VOICE_MAX_SENTENCES_DEFAULT,
+    VOICE_PARALLEL_TIMEOUT_SECONDS_DEFAULT,
+    VOICE_SENTENCE_DELIMITERS_DEFAULT,
+    VOICE_STT_LANGUAGE_DEFAULT,
+    VOICE_STT_MAX_DURATION_SECONDS_DEFAULT,
+    VOICE_STT_MODEL_PATH_DEFAULT,
+    VOICE_STT_NUM_THREADS_DEFAULT,
+    VOICE_STT_TASK_DEFAULT,
+    VOICE_TTS_DEFAULT_MODE_DEFAULT,
+    VOICE_TTS_HD_MODEL_DEFAULT,
+    VOICE_TTS_HD_PROVIDER_CONFIG_DEFAULT,
+    VOICE_TTS_HD_PROVIDER_DEFAULT,
+    VOICE_TTS_HD_RESPONSE_FORMAT_DEFAULT,
+    VOICE_TTS_HD_SPEED_DEFAULT,
+    VOICE_TTS_HD_VOICE_FEMALE_DEFAULT,
+    VOICE_TTS_HD_VOICE_MALE_DEFAULT,
+    VOICE_TTS_STANDARD_PITCH_DEFAULT,
+    VOICE_TTS_STANDARD_PROVIDER_DEFAULT,
+    VOICE_TTS_STANDARD_RATE_DEFAULT,
+    VOICE_TTS_STANDARD_VOICE_FEMALE_DEFAULT,
+    VOICE_TTS_STANDARD_VOICE_MALE_DEFAULT,
+    VOICE_TTS_STANDARD_VOLUME_DEFAULT,
+    VOICE_WS_IDLE_TIMEOUT_SECONDS_DEFAULT,
+    VOICE_WS_RATE_LIMIT_MAX_CALLS_DEFAULT,
+    VOICE_WS_RATE_LIMIT_WINDOW_SECONDS_DEFAULT,
+    VOICE_WS_TICKET_TTL_SECONDS_DEFAULT,
+)
+
 # Type alias for voice quality mode
 VoiceTTSMode = Literal["standard", "hd"]
 
@@ -42,7 +80,7 @@ class VoiceSettings(BaseSettings):
     # ========================================================================
 
     voice_tts_default_mode: VoiceTTSMode = Field(
-        default="standard",
+        default=VOICE_TTS_DEFAULT_MODE_DEFAULT,  # type: ignore[arg-type]
         description=(
             "Default TTS mode when no admin setting exists. "
             "standard = Edge TTS (free), hd = OpenAI/Gemini TTS (paid)"
@@ -57,12 +95,12 @@ class VoiceSettings(BaseSettings):
     # ========================================================================
 
     voice_tts_standard_provider: Literal["edge"] = Field(
-        default="edge",
+        default=VOICE_TTS_STANDARD_PROVIDER_DEFAULT,  # type: ignore[arg-type]
         description="TTS provider for Standard mode (edge = Microsoft Edge TTS)",
     )
 
     voice_tts_standard_voice_male: str = Field(
-        default="fr-FR-RemyMultilingualNeural",
+        default=VOICE_TTS_STANDARD_VOICE_MALE_DEFAULT,
         description=(
             "Standard mode male voice. "
             "Edge voices: fr-FR-RemyMultilingualNeural, en-US-GuyNeural, etc."
@@ -70,7 +108,7 @@ class VoiceSettings(BaseSettings):
     )
 
     voice_tts_standard_voice_female: str = Field(
-        default="fr-FR-VivienneMultilingualNeural",
+        default=VOICE_TTS_STANDARD_VOICE_FEMALE_DEFAULT,
         description=(
             "Standard mode female voice. "
             "Edge voices: fr-FR-VivienneMultilingualNeural, en-US-AriaNeural, etc."
@@ -78,7 +116,7 @@ class VoiceSettings(BaseSettings):
     )
 
     voice_tts_standard_rate: str = Field(
-        default="+10%",
+        default=VOICE_TTS_STANDARD_RATE_DEFAULT,
         description=(
             "Standard mode (Edge TTS) speaking rate adjustment. "
             "Examples: '+10%' (faster), '-5%' (slower), '+0%' (normal)"
@@ -86,7 +124,7 @@ class VoiceSettings(BaseSettings):
     )
 
     voice_tts_standard_pitch: str = Field(
-        default="+0Hz",
+        default=VOICE_TTS_STANDARD_PITCH_DEFAULT,
         description=(
             "Standard mode (Edge TTS) voice pitch adjustment. "
             "Examples: '+5Hz' (higher), '-10Hz' (lower), '+0Hz' (normal)"
@@ -94,7 +132,7 @@ class VoiceSettings(BaseSettings):
     )
 
     voice_tts_standard_volume: str = Field(
-        default="+0%",
+        default=VOICE_TTS_STANDARD_VOLUME_DEFAULT,
         description=(
             "Standard mode (Edge TTS) volume adjustment. "
             "Examples: '+10%' (louder), '-5%' (quieter), '+0%' (normal)"
@@ -110,19 +148,19 @@ class VoiceSettings(BaseSettings):
     # ========================================================================
 
     voice_tts_hd_provider: Literal["openai", "gemini"] = Field(
-        default="openai",
+        default=VOICE_TTS_HD_PROVIDER_DEFAULT,  # type: ignore[arg-type]
         description=(
             "TTS provider for HD mode. " "openai = OpenAI TTS API, gemini = Google Gemini TTS"
         ),
     )
 
     voice_tts_hd_provider_config: str = Field(
-        default="{}",
+        default=VOICE_TTS_HD_PROVIDER_CONFIG_DEFAULT,
         description="Advanced provider-specific config for HD TTS (JSON string)",
     )
 
     voice_tts_hd_voice_male: str = Field(
-        default="onyx",
+        default=VOICE_TTS_HD_VOICE_MALE_DEFAULT,
         description=(
             "HD mode male voice. "
             "OpenAI: onyx (deep), echo (warm). "
@@ -131,7 +169,7 @@ class VoiceSettings(BaseSettings):
     )
 
     voice_tts_hd_voice_female: str = Field(
-        default="nova",
+        default=VOICE_TTS_HD_VOICE_FEMALE_DEFAULT,
         description=(
             "HD mode female voice. "
             "OpenAI: nova (warm), shimmer (soft), alloy (neutral). "
@@ -140,7 +178,7 @@ class VoiceSettings(BaseSettings):
     )
 
     voice_tts_hd_model: str = Field(
-        default="tts-1",
+        default=VOICE_TTS_HD_MODEL_DEFAULT,
         description=(
             "HD mode TTS model. "
             "OpenAI: tts-1 (faster/cheaper), tts-1-hd (higher quality). "
@@ -149,14 +187,14 @@ class VoiceSettings(BaseSettings):
     )
 
     voice_tts_hd_speed: float = Field(
-        default=1.0,
+        default=VOICE_TTS_HD_SPEED_DEFAULT,
         ge=0.25,
         le=4.0,
         description="HD mode speaking speed (0.25 to 4.0). 1.0 = normal speed.",
     )
 
     voice_tts_hd_response_format: Literal["mp3", "opus", "aac", "flac", "wav", "pcm"] = Field(
-        default="mp3",
+        default=VOICE_TTS_HD_RESPONSE_FORMAT_DEFAULT,  # type: ignore[arg-type]
         description=(
             "HD mode audio output format. "
             "mp3 = best compatibility, opus = smaller size, wav = uncompressed"
@@ -178,45 +216,45 @@ class VoiceSettings(BaseSettings):
     )
 
     voice_llm_provider_config: str = Field(
-        default="{}",
+        default=VOICE_LLM_PROVIDER_CONFIG_DEFAULT,
         description="Advanced provider-specific config for voice LLM (JSON string)",
     )
 
     voice_llm_model: str = Field(
-        default="gpt-4.1-nano",
+        default=VOICE_LLM_MODEL_DEFAULT,
         description="LLM model for voice comment generation (fast, cheap model recommended)",
     )
 
     voice_llm_temperature: float = Field(
-        default=0.7,
+        default=VOICE_LLM_TEMPERATURE_DEFAULT,
         ge=0.0,
         le=2.0,
         description="LLM temperature for voice comments (0.7 = creative but controlled)",
     )
 
     voice_llm_top_p: float = Field(
-        default=1.0,
+        default=VOICE_LLM_TOP_P_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Nucleus sampling for voice LLM (1.0 = disabled)",
     )
 
     voice_llm_frequency_penalty: float = Field(
-        default=0.0,
+        default=VOICE_LLM_FREQUENCY_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Frequency penalty for voice LLM (reduce repetition)",
     )
 
     voice_llm_presence_penalty: float = Field(
-        default=0.0,
+        default=VOICE_LLM_PRESENCE_PENALTY_DEFAULT,
         ge=-2.0,
         le=2.0,
         description="Presence penalty for voice LLM (encourage diversity)",
     )
 
     voice_llm_max_tokens: int = Field(
-        default=500,
+        default=VOICE_LLM_MAX_TOKENS_DEFAULT,
         gt=0,
         le=2000,
         description="Max tokens for voice comment (500 ~ 6 sentences)",
@@ -258,14 +296,14 @@ class VoiceSettings(BaseSettings):
     # Voice Comment Behavior
     # ========================================================================
     voice_max_sentences: int = Field(
-        default=6,
+        default=VOICE_MAX_SENTENCES_DEFAULT,
         ge=1,
         le=10,
         description="Maximum number of sentences in voice comment",
     )
 
     voice_sentence_delimiters: str = Field(
-        default=".!?",
+        default=VOICE_SENTENCE_DELIMITERS_DEFAULT,
         description="Characters that mark end of sentence for TTS chunking",
     )
 
@@ -273,14 +311,14 @@ class VoiceSettings(BaseSettings):
     # Voice Context Configuration
     # ========================================================================
     voice_context_max_chars: int = Field(
-        default=2000,
+        default=VOICE_CONTEXT_MAX_CHARS_DEFAULT,
         gt=0,
         le=10000,
         description="Maximum characters for voice context (truncation limit for fallback)",
     )
 
     voice_parallel_timeout_seconds: float = Field(
-        default=15.0,
+        default=VOICE_PARALLEL_TIMEOUT_SECONDS_DEFAULT,
         gt=0.0,
         le=60.0,
         description="Timeout for parallel voice generation task (seconds). "
@@ -295,7 +333,7 @@ class VoiceSettings(BaseSettings):
     # This provides faster and more natural conversational responses.
 
     voice_chat_mode_max_sentences: int = Field(
-        default=3,
+        default=VOICE_CHAT_MODE_MAX_SENTENCES_DEFAULT,
         ge=1,
         le=6,
         description="Max sentences to TTS in chat mode direct TTS. "
@@ -318,7 +356,7 @@ class VoiceSettings(BaseSettings):
     )
 
     voice_stt_model_path: str = Field(
-        default="/models/whisper-small",
+        default=VOICE_STT_MODEL_PATH_DEFAULT,
         description=(
             "Path to Sherpa-onnx Whisper model directory. "
             "Must contain: encoder.onnx, decoder.onnx, tokens.txt. "
@@ -327,7 +365,7 @@ class VoiceSettings(BaseSettings):
     )
 
     voice_stt_num_threads: int = Field(
-        default=4,
+        default=VOICE_STT_NUM_THREADS_DEFAULT,
         ge=1,
         le=16,
         description="CPU threads for STT transcription. "
@@ -335,7 +373,7 @@ class VoiceSettings(BaseSettings):
     )
 
     voice_stt_language: str = Field(
-        default="",
+        default=VOICE_STT_LANGUAGE_DEFAULT,
         description=(
             "Language hint for Whisper transcription (ISO 639-1 code). "
             "Empty = auto-detect. Examples: 'fr', 'en', 'de', 'es', 'it', 'zh'."
@@ -343,12 +381,12 @@ class VoiceSettings(BaseSettings):
     )
 
     voice_stt_task: str = Field(
-        default="transcribe",
+        default=VOICE_STT_TASK_DEFAULT,
         description=("Whisper task: 'transcribe' (same language) or 'translate' (to English)."),
     )
 
     voice_stt_max_duration_seconds: int = Field(
-        default=60,
+        default=VOICE_STT_MAX_DURATION_SECONDS_DEFAULT,
         ge=5,
         le=300,
         description="Maximum audio duration per transcription request (seconds). "
@@ -360,7 +398,7 @@ class VoiceSettings(BaseSettings):
     # ========================================================================
 
     voice_ws_ticket_ttl_seconds: int = Field(
-        default=60,
+        default=VOICE_WS_TICKET_TTL_SECONDS_DEFAULT,
         ge=10,
         le=300,
         description="WebSocket auth ticket TTL (seconds). Tickets are single-use. "
@@ -368,7 +406,7 @@ class VoiceSettings(BaseSettings):
     )
 
     voice_ws_rate_limit_max_calls: int = Field(
-        default=10,
+        default=VOICE_WS_RATE_LIMIT_MAX_CALLS_DEFAULT,
         ge=1,
         le=100,
         description="Max WebSocket connections per user per minute. "
@@ -376,14 +414,14 @@ class VoiceSettings(BaseSettings):
     )
 
     voice_ws_rate_limit_window_seconds: int = Field(
-        default=60,
+        default=VOICE_WS_RATE_LIMIT_WINDOW_SECONDS_DEFAULT,
         ge=10,
         le=3600,
         description="Rate limit window for WebSocket connections (seconds).",
     )
 
     voice_ws_idle_timeout_seconds: int = Field(
-        default=120,
+        default=VOICE_WS_IDLE_TIMEOUT_SECONDS_DEFAULT,
         ge=30,
         le=600,
         description="Close WebSocket after N seconds of inactivity. "

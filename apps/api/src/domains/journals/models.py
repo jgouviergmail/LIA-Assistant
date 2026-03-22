@@ -12,13 +12,16 @@ Enums:
 """
 
 import uuid
+from datetime import datetime
 from enum import Enum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Float, ForeignKey, Index, Integer, String, Text
+from pgvector.sqlalchemy import Vector
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from src.domains.journals.constants import JOURNAL_EMBEDDING_DIMENSIONS
 from src.infrastructure.database.models import BaseModel
 
 if TYPE_CHECKING:
@@ -79,7 +82,10 @@ class JournalEntry(BaseModel):
         session_id: Conversation session that triggered extraction (nullable)
         personality_code: Personality code active when entry was written (nullable)
         char_count: Content character count (for size tracking)
-        embedding: E5-small embedding (384 dims) for semantic relevance search
+        embedding: OpenAI text-embedding-3-small (1536 dims) for semantic relevance search
+        search_hints: LLM-generated keywords bridging user vocabulary to entry content
+        injection_count: Number of times this entry was injected into prompts
+        last_injected_at: Last time this entry was injected into a prompt (UTC)
     """
 
     __tablename__ = "journal_entries"
@@ -139,9 +145,27 @@ class JournalEntry(BaseModel):
         default=0,
     )
 
-    # Embedding for semantic relevance search (384 dims for E5-small)
+    # Embedding for semantic relevance search (1536 dims for OpenAI text-embedding-3-small)
     embedding: Mapped[list[float] | None] = mapped_column(
-        ARRAY(Float()),
+        Vector(JOURNAL_EMBEDDING_DIMENSIONS),
+        nullable=True,
+    )
+
+    # LLM-generated search keywords bridging user vocabulary to entry content
+    search_hints: Mapped[list[str] | None] = mapped_column(
+        ARRAY(String(100)),
+        nullable=True,
+    )
+
+    # Injection tracking (feedback loop for consolidation optimization)
+    injection_count: Mapped[int] = mapped_column(
+        Integer(),
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+    last_injected_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
         nullable=True,
     )
 

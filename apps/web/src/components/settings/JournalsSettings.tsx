@@ -226,7 +226,12 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
 
   const openEdit = (entry: JournalEntry) => {
     setEditingEntry(entry);
-    setEditForm({ title: entry.title, content: entry.content, mood: entry.mood });
+    setEditForm({
+      title: entry.title,
+      content: entry.content,
+      mood: entry.mood,
+      search_hints: entry.search_hints ?? [],
+    });
   };
 
   return (
@@ -607,9 +612,22 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                                       {SOURCE_EMOJI[entry.source] ?? ''} {entry.source}
                                     </Badge>
                                   </div>
-                                  <p className="text-xs text-muted-foreground line-clamp-2">
+                                  <p className="text-xs text-muted-foreground whitespace-pre-wrap">
                                     {entry.content}
                                   </p>
+                                  {entry.search_hints && entry.search_hints.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                      {entry.search_hints.map((hint, idx) => (
+                                        <Badge
+                                          key={idx}
+                                          variant="outline"
+                                          className="text-[10px] px-1.5 py-0 font-normal text-muted-foreground"
+                                        >
+                                          {hint}
+                                        </Badge>
+                                      ))}
+                                    </div>
+                                  )}
                                   <span className="text-xs text-muted-foreground">
                                     {new Date(entry.created_at).toLocaleDateString()}
                                   </span>
@@ -820,6 +838,29 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label>{t('journals.searchHints', 'Search hints')}</Label>
+              <p className="text-[11px] text-muted-foreground mb-1">
+                {t(
+                  'journals.searchHintsDescription',
+                  'Keywords for semantic search (comma-separated)'
+                )}
+              </p>
+              <Input
+                value={(editForm.search_hints ?? []).join(', ')}
+                onChange={e =>
+                  setEditForm({
+                    ...editForm,
+                    search_hints: e.target.value
+                      .split(',')
+                      .map(s => s.trim())
+                      .filter(Boolean),
+                  })
+                }
+                placeholder="keyword1, keyword2, keyword3"
+                maxLength={500}
+              />
             </div>
           </div>
           <DialogFooter>

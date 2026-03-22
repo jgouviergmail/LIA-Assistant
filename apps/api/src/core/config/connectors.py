@@ -19,17 +19,48 @@ from pydantic import Field
 from pydantic_settings import BaseSettings
 
 from src.core.constants import (
+    API_MAX_ITEMS_PER_REQUEST_DEFAULT,
+    APPLE_CALDAV_URL_DEFAULT,
+    APPLE_CARDDAV_URL_DEFAULT,
+    APPLE_CONNECTION_TIMEOUT_DEFAULT,
+    APPLE_CONTACTS_CACHE_TTL_DEFAULT,
+    APPLE_EMAIL_MESSAGE_CACHE_TTL_DEFAULT,
+    APPLE_IMAP_HOST_DEFAULT,
+    APPLE_IMAP_PORT_DEFAULT,
+    APPLE_SMTP_DAILY_LIMIT_DEFAULT,
+    APPLE_SMTP_HOST_DEFAULT,
+    APPLE_SMTP_MAX_RECIPIENTS_DEFAULT,
+    APPLE_SMTP_MAX_SIZE_MB_DEFAULT,
+    APPLE_SMTP_PORT_DEFAULT,
     BRAVE_SEARCH_CACHE_TTL,
     CALENDAR_CACHE_DETAILS_TTL,
     CALENDAR_CACHE_LIST_TTL,
     CALENDAR_CACHE_SEARCH_TTL,
+    CALENDAR_TOOL_DEFAULT_MAX_RESULTS_DEFAULT,
+    CIRCUIT_BREAKER_FAILURE_THRESHOLD_DEFAULT,
+    CIRCUIT_BREAKER_HALF_OPEN_MAX_CALLS_DEFAULT,
+    CIRCUIT_BREAKER_SUCCESS_THRESHOLD_DEFAULT,
+    CIRCUIT_BREAKER_TIMEOUT_SECONDS_DEFAULT,
+    CLIENT_RATE_LIMIT_APPLE_PER_SECOND_DEFAULT,
+    CLIENT_RATE_LIMIT_BRAVE_SEARCH_PER_SECOND_DEFAULT,
+    CLIENT_RATE_LIMIT_GOOGLE_PER_SECOND_DEFAULT,
+    CLIENT_RATE_LIMIT_MICROSOFT_PER_SECOND_DEFAULT,
+    CLIENT_RATE_LIMIT_OPENWEATHERMAP_PER_SECOND_DEFAULT,
+    CLIENT_RATE_LIMIT_PERPLEXITY_PER_SECOND_DEFAULT,
+    CLIENT_RATE_LIMIT_WIKIPEDIA_PER_SECOND_DEFAULT,
+    CONTACTS_TOOL_DEFAULT_LIMIT_DEFAULT,
+    CONTACTS_TOOL_DEFAULT_MAX_RESULTS_DEFAULT,
     DRIVE_CACHE_DETAILS_TTL,
     DRIVE_CACHE_LIST_TTL,
     DRIVE_CACHE_SEARCH_TTL,
+    DRIVE_TOOL_DEFAULT_MAX_RESULTS_DEFAULT,
+    EMAIL_TRUNCATION_RATIO_DEFAULT,
     EMAILS_BODY_MAX_LENGTH_DEFAULT,
     EMAILS_CACHE_DETAILS_TTL_SECONDS,
     EMAILS_CACHE_LIST_TTL_SECONDS,
     EMAILS_CACHE_SEARCH_TTL_SECONDS,
+    EMAILS_TOOL_DEFAULT_LIMIT_DEFAULT,
+    EMAILS_TOOL_DEFAULT_MAX_RESULTS_DEFAULT,
     EMAILS_URL_SHORTEN_THRESHOLD_DEFAULT,
     GMAIL_DEFAULT_SEARCH_DAYS,
     GOOGLE_CONTACTS_DETAILS_CACHE_TTL,
@@ -51,6 +82,16 @@ from src.core.constants import (
     OAUTH_HEALTH_CRITICAL_COOLDOWN_HOURS_DEFAULT,
     OAUTH_PROACTIVE_REFRESH_INTERVAL_MINUTES,
     OAUTH_PROACTIVE_REFRESH_MARGIN_SECONDS,
+    PERPLEXITY_SEARCH_MODEL_DEFAULT,
+    PLACES_TOOL_DEFAULT_MAX_RESULTS_DEFAULT,
+    PLACES_TOOL_DEFAULT_RADIUS_METERS_DEFAULT,
+    RATE_LIMIT_DEFAULT_EXPENSIVE_CALLS_DEFAULT,
+    RATE_LIMIT_DEFAULT_EXPENSIVE_WINDOW_DEFAULT,
+    RATE_LIMIT_DEFAULT_READ_CALLS_DEFAULT,
+    RATE_LIMIT_DEFAULT_READ_WINDOW_DEFAULT,
+    RATE_LIMIT_DEFAULT_WRITE_CALLS_DEFAULT,
+    RATE_LIMIT_DEFAULT_WRITE_WINDOW_DEFAULT,
+    RATE_LIMIT_SCOPE_DEFAULT,
     ROUTES_CACHE_MATRIX_TTL,
     ROUTES_CACHE_STATIC_TTL,
     ROUTES_CACHE_TRAFFIC_TTL,
@@ -62,6 +103,7 @@ from src.core.constants import (
     SSE_CONNECTION_TTL_SECONDS_DEFAULT,
     TASKS_CACHE_DETAILS_TTL,
     TASKS_CACHE_LIST_TTL,
+    TASKS_TOOL_DEFAULT_MAX_RESULTS_DEFAULT,
     WEATHER_CACHE_CURRENT_TTL,
     WEATHER_CACHE_FORECAST_TTL,
     WEATHER_FORECAST_MAX_DAYS,
@@ -317,7 +359,7 @@ class ConnectorsSettings(BaseSettings):
         description="Enable rate limiting globally (affects tools AND API clients)",
     )
     rate_limit_scope: str = Field(
-        default="user",
+        default=RATE_LIMIT_SCOPE_DEFAULT,
         description="Rate limit scope: 'user' (per-user isolation) or 'global' (shared)",
     )
 
@@ -328,23 +370,23 @@ class ConnectorsSettings(BaseSettings):
     # Uses Redis sliding window for distributed rate limiting (horizontal scaling)
     # Falls back to local rate limiting if Redis unavailable
     client_rate_limit_google_per_second: int = Field(
-        default=10,
+        default=CLIENT_RATE_LIMIT_GOOGLE_PER_SECOND_DEFAULT,
         gt=0,
         description="Google APIs: max requests per second per user (default: 10)",
     )
     client_rate_limit_perplexity_per_second: float = Field(
-        default=2.0,
+        default=CLIENT_RATE_LIMIT_PERPLEXITY_PER_SECOND_DEFAULT,
         gt=0,
         description="Perplexity API: max requests per second per user (default: 2)",
     )
     perplexity_search_model: str = Field(
-        default="sonar",
+        default=PERPLEXITY_SEARCH_MODEL_DEFAULT,
         description="Perplexity API search model (sonar, sonar-pro, sonar-reasoning)",
     )
     # Brave Search API (user connector - API key per user, like Perplexity)
     # Note: No global API key - each user configures their own via connector settings
     client_rate_limit_brave_search_per_second: float = Field(
-        default=20.0,
+        default=CLIENT_RATE_LIMIT_BRAVE_SEARCH_PER_SECOND_DEFAULT,
         gt=0.1,
         le=100.0,
         description="Brave Search API: max requests per second per user (default: 20)",
@@ -356,17 +398,17 @@ class ConnectorsSettings(BaseSettings):
         description="Cache TTL for Brave Search knowledge enrichment results (seconds, default: 1 hour)",
     )
     client_rate_limit_microsoft_per_second: int = Field(
-        default=4,
+        default=CLIENT_RATE_LIMIT_MICROSOFT_PER_SECOND_DEFAULT,
         gt=0,
         description="Microsoft Graph API: max requests per second per user (default: 4)",
     )
     client_rate_limit_openweathermap_per_second: int = Field(
-        default=1,
+        default=CLIENT_RATE_LIMIT_OPENWEATHERMAP_PER_SECOND_DEFAULT,
         gt=0,
         description="OpenWeatherMap API: max requests per second per user (default: 1, free tier)",
     )
     client_rate_limit_wikipedia_per_second: float = Field(
-        default=0.5,
+        default=CLIENT_RATE_LIMIT_WIKIPEDIA_PER_SECOND_DEFAULT,
         gt=0,
         description="Wikipedia API: max requests per second per user (default: 0.5, conservative)",
     )
@@ -381,32 +423,32 @@ class ConnectorsSettings(BaseSettings):
     # Default Rate Limits (applies to ALL tools: Contacts, Gmail, Calendar, etc.)
     # ========================================================================
     rate_limit_default_read_calls: int = Field(
-        default=20,
+        default=RATE_LIMIT_DEFAULT_READ_CALLS_DEFAULT,
         gt=0,
         description="Default max calls for read operations (search, list, get) per window",
     )
     rate_limit_default_read_window: int = Field(
-        default=60,
+        default=RATE_LIMIT_DEFAULT_READ_WINDOW_DEFAULT,
         gt=0,
         description="Default time window for read operations (seconds)",
     )
     rate_limit_default_write_calls: int = Field(
-        default=5,
+        default=RATE_LIMIT_DEFAULT_WRITE_CALLS_DEFAULT,
         gt=0,
         description="Default max calls for write operations (create, update, delete, send) per window",
     )
     rate_limit_default_write_window: int = Field(
-        default=60,
+        default=RATE_LIMIT_DEFAULT_WRITE_WINDOW_DEFAULT,
         gt=0,
         description="Default time window for write operations (seconds)",
     )
     rate_limit_default_expensive_calls: int = Field(
-        default=2,
+        default=RATE_LIMIT_DEFAULT_EXPENSIVE_CALLS_DEFAULT,
         gt=0,
         description="Default max calls for expensive operations (export, bulk) per window",
     )
     rate_limit_default_expensive_window: int = Field(
-        default=300,
+        default=RATE_LIMIT_DEFAULT_EXPENSIVE_WINDOW_DEFAULT,
         gt=0,
         description="Default time window for expensive operations (seconds, default: 5 minutes)",
     )
@@ -415,39 +457,39 @@ class ConnectorsSettings(BaseSettings):
     # Contacts Tools Configuration
     # ========================================================================
     contacts_tool_default_max_results: int = Field(
-        default=10,
+        default=CONTACTS_TOOL_DEFAULT_MAX_RESULTS_DEFAULT,
         gt=0,
         description="Default max results for contact search operations",
     )
     contacts_tool_default_limit: int = Field(
-        default=10,
+        default=CONTACTS_TOOL_DEFAULT_LIMIT_DEFAULT,
         gt=0,
         description="Default limit for contact list operations",
     )
     calendar_tool_default_max_results: int = Field(
-        default=10,
+        default=CALENDAR_TOOL_DEFAULT_MAX_RESULTS_DEFAULT,
         gt=0,
         description="Default max results for calendar search operations",
     )
     tasks_tool_default_max_results: int = Field(
-        default=10,
+        default=TASKS_TOOL_DEFAULT_MAX_RESULTS_DEFAULT,
         gt=0,
         description="Default max results for tasks list/search operations",
     )
     places_tool_default_max_results: int = Field(
-        default=10,
+        default=PLACES_TOOL_DEFAULT_MAX_RESULTS_DEFAULT,
         gt=0,
         le=20,
         description="Default max results for places search operations (Google Places max 20)",
     )
     places_tool_default_radius_meters: int = Field(
-        default=500,
+        default=PLACES_TOOL_DEFAULT_RADIUS_METERS_DEFAULT,
         gt=0,
         le=50000,
         description="Default search radius in meters for nearby places search (max 50km)",
     )
     drive_tool_default_max_results: int = Field(
-        default=10,
+        default=DRIVE_TOOL_DEFAULT_MAX_RESULTS_DEFAULT,
         gt=0,
         description="Default max results for Drive search/list operations",
     )
@@ -456,12 +498,12 @@ class ConnectorsSettings(BaseSettings):
     # Emails Tools Configuration
     # ========================================================================
     emails_tool_default_max_results: int = Field(
-        default=10,
+        default=EMAILS_TOOL_DEFAULT_MAX_RESULTS_DEFAULT,
         gt=0,
         description="Default max results for email search operations",
     )
     emails_tool_default_limit: int = Field(
-        default=10,
+        default=EMAILS_TOOL_DEFAULT_LIMIT_DEFAULT,
         gt=0,
         description="Default limit for email list operations",
     )
@@ -470,7 +512,7 @@ class ConnectorsSettings(BaseSettings):
     # Global API Security Limits
     # ========================================================================
     api_max_items_per_request: int = Field(
-        default=50,
+        default=API_MAX_ITEMS_PER_REQUEST_DEFAULT,
         gt=0,
         le=50,
         description=(
@@ -495,6 +537,16 @@ class ConnectorsSettings(BaseSettings):
         default=EMAILS_URL_SHORTEN_THRESHOLD_DEFAULT,
         gt=0,
         description="URL length threshold for shortening to [lien](url) format (default: 50)",
+    )
+
+    email_truncation_ratio: float = Field(
+        default=EMAIL_TRUNCATION_RATIO_DEFAULT,
+        ge=0.5,
+        le=1.0,
+        description=(
+            "Minimum ratio of allowed email body length to keep when finding sentence breaks. "
+            "E.g., 0.8 means keep at least 80% of max_length when truncating at sentence boundary."
+        ),
     )
 
     # Gmail default search window (days)
@@ -559,25 +611,25 @@ class ConnectorsSettings(BaseSettings):
     # Circuit Breaker Configuration (Sprint 16 - Gold-Grade Resilience)
     # ========================================================================
     circuit_breaker_failure_threshold: int = Field(
-        default=5,
+        default=CIRCUIT_BREAKER_FAILURE_THRESHOLD_DEFAULT,
         ge=1,
         le=50,
         description="Number of consecutive failures before opening circuit",
     )
     circuit_breaker_success_threshold: int = Field(
-        default=3,
+        default=CIRCUIT_BREAKER_SUCCESS_THRESHOLD_DEFAULT,
         ge=1,
         le=20,
         description="Number of consecutive successes to close circuit from half-open",
     )
     circuit_breaker_timeout_seconds: int = Field(
-        default=60,
+        default=CIRCUIT_BREAKER_TIMEOUT_SECONDS_DEFAULT,
         ge=10,
         le=600,
         description="Time in seconds before half-open retry after circuit opens",
     )
     circuit_breaker_half_open_max_calls: int = Field(
-        default=3,
+        default=CIRCUIT_BREAKER_HALF_OPEN_MAX_CALLS_DEFAULT,
         ge=1,
         le=10,
         description="Max calls allowed in half-open state for testing recovery",
@@ -588,68 +640,68 @@ class ConnectorsSettings(BaseSettings):
     # ========================================================================
     # IMAP / SMTP (Apple Mail)
     apple_imap_host: str = Field(
-        default="imap.mail.me.com",
+        default=APPLE_IMAP_HOST_DEFAULT,
         description="Apple iCloud IMAP server hostname",
     )
     apple_imap_port: int = Field(
-        default=993,
+        default=APPLE_IMAP_PORT_DEFAULT,
         ge=1,
         le=65535,
         description="Apple iCloud IMAP server port (SSL)",
     )
     apple_smtp_host: str = Field(
-        default="smtp.mail.me.com",
+        default=APPLE_SMTP_HOST_DEFAULT,
         description="Apple iCloud SMTP server hostname",
     )
     apple_smtp_port: int = Field(
-        default=587,
+        default=APPLE_SMTP_PORT_DEFAULT,
         ge=1,
         le=65535,
         description="Apple iCloud SMTP server port (STARTTLS)",
     )
     apple_smtp_daily_limit: int = Field(
-        default=1000,
+        default=APPLE_SMTP_DAILY_LIMIT_DEFAULT,
         gt=0,
         description="Apple SMTP daily sending limit (Apple imposes 1000 messages/day)",
     )
     apple_smtp_max_recipients: int = Field(
-        default=500,
+        default=APPLE_SMTP_MAX_RECIPIENTS_DEFAULT,
         gt=0,
         description="Apple SMTP max recipients per message (Apple imposes 500)",
     )
     apple_smtp_max_size_mb: int = Field(
-        default=20,
+        default=APPLE_SMTP_MAX_SIZE_MB_DEFAULT,
         gt=0,
         description="Apple SMTP max message size in MB (Apple imposes 20MB)",
     )
     # CalDAV (Apple Calendar)
     apple_caldav_url: str = Field(
-        default="https://caldav.icloud.com",
+        default=APPLE_CALDAV_URL_DEFAULT,
         description="Apple iCloud CalDAV discovery URL",
     )
     # CardDAV (Apple Contacts)
     apple_carddav_url: str = Field(
-        default="https://contacts.icloud.com",
+        default=APPLE_CARDDAV_URL_DEFAULT,
         description="Apple iCloud CardDAV discovery URL",
     )
     # Common Apple settings
     apple_connection_timeout: float = Field(
-        default=30.0,
+        default=APPLE_CONNECTION_TIMEOUT_DEFAULT,
         gt=0.0,
         description="Timeout for Apple iCloud connections (seconds)",
     )
     client_rate_limit_apple_per_second: int = Field(
-        default=5,
+        default=CLIENT_RATE_LIMIT_APPLE_PER_SECOND_DEFAULT,
         gt=0,
         description="Apple iCloud APIs: max requests per second per user (default: 5)",
     )
     apple_contacts_cache_ttl: int = Field(
-        default=600,
+        default=APPLE_CONTACTS_CACHE_TTL_DEFAULT,
         gt=0,
         description="Cache TTL for full Apple contacts list in Redis (seconds, default: 10 minutes)",
     )
     apple_email_message_cache_ttl: int = Field(
-        default=60,
+        default=APPLE_EMAIL_MESSAGE_CACHE_TTL_DEFAULT,
         gt=0,
         description="Cache TTL for individual IMAP messages in Redis (seconds, default: 60s). "
         "Solves the N+1 IMAP connection problem: search_emails caches messages, "

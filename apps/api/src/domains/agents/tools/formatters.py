@@ -1275,7 +1275,7 @@ class GmailFormatter(BaseFormatter):
         # Look for sentence endings near the cut point
         for end_marker in ["\n\n", ". ", ".\n", "! ", "!\n", "? ", "?\n"]:
             last_end = truncated_body.rfind(end_marker)
-            if last_end > max_length * 0.8:  # Keep at least 80% of allowed length
+            if last_end > max_length * settings.email_truncation_ratio:
                 truncated_body = truncated_body[: last_end + len(end_marker)]
                 break
 

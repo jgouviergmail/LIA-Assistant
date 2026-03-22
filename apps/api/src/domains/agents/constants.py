@@ -4,6 +4,14 @@ Constants for agents domain.
 Centralizes hardcoded values to improve maintainability and reduce magic strings.
 """
 
+from src.core.constants import (
+    CONTEXT_ACTIVE_WINDOW_TURNS_DEFAULT,
+    CONTEXT_CURRENT_ITEM_CONFIDENCE_DEFAULT,
+    CONTEXT_DEMONSTRATIVE_CONFIDENCE_DEFAULT,
+    CONTEXT_REFERENCE_CONFIDENCE_THRESHOLD_DEFAULT,
+    CONTEXT_RESOLUTION_TIMEOUT_MS_DEFAULT,
+)
+
 # ============================================================================
 # NODE NAMES (used in graph construction and routing)
 # ============================================================================
@@ -313,18 +321,30 @@ def get_context_reference_confidence_threshold() -> float:
 
         return get_settings().context_reference_confidence_threshold
     except Exception:
-        return 0.7
+        from src.core.constants import CONTEXT_REFERENCE_CONFIDENCE_THRESHOLD_DEFAULT
+
+        return CONTEXT_REFERENCE_CONFIDENCE_THRESHOLD_DEFAULT
+
+
+def _get_setting_with_fallback(setting_name: str, fallback_constant: str) -> float:
+    """Get a settings value with fallback to constant."""
+    try:
+        from src.core.config import get_settings
+
+        return float(getattr(get_settings(), setting_name))
+    except Exception:
+        from src.core import constants
+
+        return float(getattr(constants, fallback_constant))
 
 
 CONTEXT_REFERENCE_CONFIDENCE_THRESHOLD = (
-    0.7  # Fallback, use get_context_reference_confidence_threshold()
+    CONTEXT_REFERENCE_CONFIDENCE_THRESHOLD_DEFAULT  # Use constant, settings accessed at runtime
 )
-CONTEXT_ACTIVE_WINDOW_TURNS = 3  # Turns to consider for active context
-CONTEXT_RESOLUTION_TIMEOUT_MS = 500  # Resolution timeout
-CONTEXT_DEMONSTRATIVE_CONFIDENCE = 0.8  # Confidence for demonstrative refs (celui-ci)
-CONTEXT_CURRENT_ITEM_CONFIDENCE = (
-    0.95  # Confidence for current_item resolution (higher than list[0])
-)
+CONTEXT_ACTIVE_WINDOW_TURNS = CONTEXT_ACTIVE_WINDOW_TURNS_DEFAULT
+CONTEXT_RESOLUTION_TIMEOUT_MS = CONTEXT_RESOLUTION_TIMEOUT_MS_DEFAULT
+CONTEXT_DEMONSTRATIVE_CONFIDENCE = CONTEXT_DEMONSTRATIVE_CONFIDENCE_DEFAULT
+CONTEXT_CURRENT_ITEM_CONFIDENCE = CONTEXT_CURRENT_ITEM_CONFIDENCE_DEFAULT
 
 # ============================================================================
 # LOGGING AND PREVIEW LIMITS

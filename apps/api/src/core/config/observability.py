@@ -13,7 +13,19 @@ Created: 2025-11-20
 from pydantic import Field
 from pydantic_settings import BaseSettings
 
-from src.core.constants import GEOIP_DB_PATH_DEFAULT, OTEL_SERVICE_NAME_DEFAULT
+from src.core.constants import (
+    EVALUATOR_HALLUCINATION_MAX_TOKENS_DEFAULT,
+    EVALUATOR_LATENCY_ACCEPTABLE_THRESHOLD_MS_DEFAULT,
+    EVALUATOR_LATENCY_EXCELLENT_THRESHOLD_MS_DEFAULT,
+    EVALUATOR_LATENCY_GOOD_THRESHOLD_MS_DEFAULT,
+    EVALUATOR_LATENCY_SLOW_THRESHOLD_MS_DEFAULT,
+    EVALUATOR_RELEVANCE_MAX_TOKENS_DEFAULT,
+    GEOIP_DB_PATH_DEFAULT,
+    LANGFUSE_FLUSH_INTERVAL_DEFAULT,
+    LANGFUSE_SAMPLE_RATE_DEFAULT,
+    OTEL_SERVICE_NAME_DEFAULT,
+    PROMETHEUS_METRICS_PORT_DEFAULT,
+)
 
 
 class ObservabilitySettings(BaseSettings):
@@ -31,7 +43,7 @@ class ObservabilitySettings(BaseSettings):
 
     # Prometheus
     prometheus_metrics_port: int = Field(
-        default=9091,
+        default=PROMETHEUS_METRICS_PORT_DEFAULT,
         description="Dedicated HTTP-only port for Prometheus metrics scraping",
     )
 
@@ -57,13 +69,13 @@ class ObservabilitySettings(BaseSettings):
         description="Release version for tracking deployments",
     )
     langfuse_sample_rate: float = Field(
-        default=1.0,
+        default=LANGFUSE_SAMPLE_RATE_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Sampling rate for traces (0.0-1.0, 1.0 = trace everything)",
     )
     langfuse_flush_interval: int = Field(
-        default=5,
+        default=LANGFUSE_FLUSH_INTERVAL_DEFAULT,
         ge=1,
         description="Flush interval in seconds (how often to send traces)",
     )
@@ -86,27 +98,27 @@ class ObservabilitySettings(BaseSettings):
     # LLM_DEFAULTS["evaluator"] in domains/llm_config/constants.py
     # and can be overridden via Admin UI (Settings > LLM Configuration)
     evaluator_relevance_max_tokens: int = Field(
-        default=500,
+        default=EVALUATOR_RELEVANCE_MAX_TOKENS_DEFAULT,
         description="Max tokens for relevance evaluator response",
     )
     evaluator_hallucination_max_tokens: int = Field(
-        default=1000,
+        default=EVALUATOR_HALLUCINATION_MAX_TOKENS_DEFAULT,
         description="Max tokens for hallucination evaluator response",
     )
     evaluator_latency_excellent_threshold_ms: float = Field(
-        default=500.0,
+        default=EVALUATOR_LATENCY_EXCELLENT_THRESHOLD_MS_DEFAULT,
         description="Latency threshold for excellent score (1.0)",
     )
     evaluator_latency_good_threshold_ms: float = Field(
-        default=1000.0,
+        default=EVALUATOR_LATENCY_GOOD_THRESHOLD_MS_DEFAULT,
         description="Latency threshold for good score (0.85)",
     )
     evaluator_latency_acceptable_threshold_ms: float = Field(
-        default=2000.0,
+        default=EVALUATOR_LATENCY_ACCEPTABLE_THRESHOLD_MS_DEFAULT,
         description="Latency threshold for acceptable score (0.65)",
     )
     evaluator_latency_slow_threshold_ms: float = Field(
-        default=5000.0,
+        default=EVALUATOR_LATENCY_SLOW_THRESHOLD_MS_DEFAULT,
         description="Latency threshold for slow score (0.45)",
     )
     evaluator_pipeline_send_to_langfuse: bool = Field(

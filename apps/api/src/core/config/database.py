@@ -18,6 +18,7 @@ from src.core.constants import (
     DATABASE_POOL_RECYCLE_DEFAULT,
     DATABASE_POOL_SIZE_DEFAULT,
     DATABASE_POOL_TIMEOUT_DEFAULT,
+    LLM_CACHE_TTL_SECONDS_DEFAULT,
     REDIS_CACHE_DB,
     REDIS_CONVERSATION_ID_TTL_SECONDS_DEFAULT,
     REDIS_HEALTH_CHECK_INTERVAL_DEFAULT,
@@ -81,7 +82,7 @@ class DatabaseSettings(BaseSettings):
         description="Enable LLM response caching for Router and Planner (reduces latency and cost)",
     )
     llm_cache_ttl_seconds: int = Field(
-        default=300,
+        default=LLM_CACHE_TTL_SECONDS_DEFAULT,
         ge=60,
         le=3600,
         description="Cache TTL in seconds (default: 300 = 5 minutes)",

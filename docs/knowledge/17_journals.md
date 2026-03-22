@@ -36,7 +36,7 @@ Journal entries are **injected into prompts** via semantic search:
 • **Response prompt** — Entries matching the conversation tone (self-reflection, observations) → influences formulation
 • **Planner prompt** — Entries matching the user's goal (learnings, analyses) → influences reasoning
 
-The assistant receives its most **relevant** notes (with similarity scores) and decides autonomously which to use.
+The assistant receives its most **relevant** notes (with similarity scores) and decides autonomously which to use. Recent entries are also prioritized for **temporal continuity**, ensuring the assistant always has access to its latest reflections. Each entry includes **search hints** (keywords in your vocabulary) that improve matching accuracy.
 
 **📓 Proactive notifications:**
 When journals are enabled, they are also integrated as a **context source** for proactive heartbeat notifications. The heartbeat system builds a dynamic query from the aggregated context (upcoming events, weather, emails, etc.) to find the most relevant journal entries, allowing the assistant to personalize notification tone and content based on its own observations.

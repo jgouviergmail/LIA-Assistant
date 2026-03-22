@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from src.domains.journals.models import JournalEntry
 
 from src.core.config import settings
+from src.core.llm_config_helper import get_llm_config_for_agent
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.journals.constants import JOURNAL_ENTRY_CONTENT_MAX_LENGTH
 from src.domains.journals.extraction_service import (
@@ -31,7 +32,6 @@ from src.domains.journals.extraction_service import (
     _update_user_last_cost,
 )
 from src.domains.journals.models import JournalEntryMood, JournalEntrySource
-from src.domains.llm_config.constants import LLM_DEFAULTS
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.invoke_helpers import invoke_with_instrumentation
 from src.infrastructure.observability.logging import get_logger
@@ -73,9 +73,14 @@ def _format_all_entries(entries: list[JournalEntry]) -> str:
     entry_lines = []
     for entry in entries:
         date_str = entry.created_at.strftime("%Y-%m-%d")
+        hints_str = (
+            f" | hints: {', '.join(entry.search_hints)}"
+            if entry.search_hints
+            else " | hints: MISSING"
+        )
         entry_lines.append(
             f"[id={entry.id} | {date_str} | {entry.theme} | {entry.mood} | "
-            f"{entry.char_count} chars]\n"
+            f"{entry.char_count} chars{hints_str}]\n"
             f"**{entry.title}**\n{entry.content}\n"
         )
 
@@ -169,6 +174,7 @@ async def consolidate_journals_for_user(
     user_language: str,
     consolidation_with_history: bool = False,
     max_total_chars: int = 40000,
+    max_entry_chars: int = JOURNAL_ENTRY_CONTENT_MAX_LENGTH,
     last_consolidated_at: datetime | None = None,
 ) -> int:
     """
@@ -184,6 +190,7 @@ async def consolidate_journals_for_user(
         user_language: User's configured language
         consolidation_with_history: Whether to include conversation history
         max_total_chars: User's configured max total characters
+        max_entry_chars: User's configured max characters per entry (prompt constraint)
         last_consolidated_at: Timestamp of previous consolidation (for history lookback)
 
     Returns:
@@ -251,7 +258,7 @@ async def consolidate_journals_for_user(
             current_datetime=current_datetime,
             conversation_history_section=conversation_history_section,
             user_language=user_language,
-            max_entry_chars=JOURNAL_ENTRY_CONTENT_MAX_LENGTH,
+            max_entry_chars=max_entry_chars,
             size_management_instruction=size_management_instruction,
         )
 
@@ -271,8 +278,8 @@ async def consolidate_journals_for_user(
         )
         result_content = result.content if isinstance(result.content, str) else str(result.content)
 
-        # Persist token usage
-        model_name = LLM_DEFAULTS["journal_consolidation"].model
+        # Persist token usage (use effective config, not defaults — admin overrides matter)
+        model_name = get_llm_config_for_agent(settings, "journal_consolidation").model
         await _persist_journal_tokens(
             user_id=str(user_id),
             session_id="consolidation",
@@ -320,61 +327,78 @@ async def consolidate_journals_for_user(
             )
         actions = valid_actions
 
-        # Apply actions
+        # Apply actions (with embedding cost tracking)
+        from src.infrastructure.llm.embedding_context import (
+            clear_embedding_context,
+            set_embedding_context,
+        )
+
+        set_embedding_context(
+            user_id=str(user_id),
+            session_id="journal_consolidation",
+        )
+
         applied_count = 0
-        async with get_db_context() as db:
-            service = JournalService(db)
+        try:
+            async with get_db_context() as db:
+                service = JournalService(db)
 
-            for action in actions:
-                try:
-                    if (
-                        action.action == "create"
-                        and action.theme
-                        and action.title
-                        and action.content
-                    ):
-                        await service.create_entry(
-                            user_id=user_id,
-                            theme=action.theme.value,
-                            title=action.title,
-                            content=action.content,
-                            mood=(
-                                action.mood.value
-                                if action.mood
-                                else JournalEntryMood.REFLECTIVE.value
-                            ),
-                            source=JournalEntrySource.CONSOLIDATION.value,
-                            personality_code=personality_code,
-                        )
-                        applied_count += 1
-
-                    elif action.action == "update" and action.entry_id:
-                        entry = await service.repo.get_by_id(UUID(action.entry_id))
-                        if entry and entry.user_id == user_id:
-                            await service.update_entry(
-                                entry=entry,
+                for action in actions:
+                    try:
+                        if (
+                            action.action == "create"
+                            and action.theme
+                            and action.title
+                            and action.content
+                        ):
+                            await service.create_entry(
+                                user_id=user_id,
+                                theme=action.theme.value,
                                 title=action.title,
                                 content=action.content,
-                                mood=(action.mood.value if action.mood else None),
+                                mood=(
+                                    action.mood.value
+                                    if action.mood
+                                    else JournalEntryMood.REFLECTIVE.value
+                                ),
+                                source=JournalEntrySource.CONSOLIDATION.value,
+                                personality_code=personality_code,
+                                max_entry_chars=max_entry_chars,
+                                search_hints=action.search_hints,
                             )
                             applied_count += 1
 
-                    elif action.action == "delete" and action.entry_id:
-                        entry = await service.repo.get_by_id(UUID(action.entry_id))
-                        if entry and entry.user_id == user_id:
-                            await service.delete_entry(entry)
-                            applied_count += 1
+                        elif action.action == "update" and action.entry_id:
+                            entry = await service.repo.get_by_id(UUID(action.entry_id))
+                            if entry and entry.user_id == user_id:
+                                await service.update_entry(
+                                    entry=entry,
+                                    title=action.title,
+                                    content=action.content,
+                                    mood=(action.mood.value if action.mood else None),
+                                    max_entry_chars=max_entry_chars,
+                                    search_hints=action.search_hints,
+                                )
+                                applied_count += 1
 
-                except Exception as e:
-                    logger.warning(
-                        "journal_consolidation_action_failed",
-                        user_id=str(user_id),
-                        action=action.action,
-                        error=str(e),
-                    )
-                    continue
+                        elif action.action == "delete" and action.entry_id:
+                            entry = await service.repo.get_by_id(UUID(action.entry_id))
+                            if entry and entry.user_id == user_id:
+                                await service.delete_entry(entry)
+                                applied_count += 1
 
-            await db.commit()
+                    except Exception as e:
+                        logger.warning(
+                            "journal_consolidation_action_failed",
+                            user_id=str(user_id),
+                            action=action.action,
+                            error=str(e),
+                        )
+                        continue
+
+                await db.commit()
+        finally:
+            clear_embedding_context()
 
         # Update last_consolidated_at
         async with get_db_context() as db:

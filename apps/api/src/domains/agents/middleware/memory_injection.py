@@ -49,7 +49,7 @@ from src.infrastructure.store.semantic_store import (
 logger = get_logger(__name__)
 
 
-# Template for the psychological profile injection
+# Template for the psychological profile injection (base, always present)
 PSYCHOLOGICAL_PROFILE_TEMPLATE = """
 ## PROFIL PSYCHOLOGIQUE DE L'UTILISATEUR
 
@@ -60,7 +60,37 @@ Tu dois répondre en disant "Tu t'es marié en 2008" ou "Vous vous êtes marié 
 {profile_sections}
 
 ---
-## DIRECTIVE PRIORITAIRE
+{behavioral_directive}
+"""
+
+# Behavioral directive when emotional state is DANGER (sensitivity memories present)
+DANGER_DIRECTIVE = """## ⛔ DIRECTIVE DE SÉCURITÉ ÉMOTIONNELLE (PRIORITÉ ABSOLUE)
+
+Des souvenirs marqués **[TRAUMA/DOULEUR]** ou **[NÉGATIF]** sont actifs dans ce contexte.
+Les instructions marquées **⚠ OBLIGATION :** dans les zones sensibles ci-dessus sont des ORDRES, pas des suggestions.
+
+**INTERDICTIONS ABSOLUES** — violation = faute grave :
+1. **JAMAIS** de blague, ironie, sarcasme ou humour noir touchant de près ou de loin un sujet TRAUMA/NÉGATIF
+2. **JAMAIS** de référence désinvolte, légère ou banalisante à un sujet de zone sensible
+3. **JAMAIS** de minimisation ("ce n'est pas si grave", "ça va aller") d'un souvenir négatif
+4. **JAMAIS** de projection ou de comparaison avec d'autres situations ("d'autres ont vécu pire")
+
+**COMPORTEMENT REQUIS** quand un sujet sensible est activé ou proche du contexte :
+- Adopte un ton **respectueux, sobre et empathique**
+- Si le sujet sensible n'est pas directement abordé par l'utilisateur, **ne le mentionne pas**
+- Si l'utilisateur l'aborde : **accueille avec bienveillance**, sans relancer ni approfondir sauf si demandé
+- En cas de doute sur le ton approprié : **choisis toujours la prudence**
+
+Ces informations constituent le "sous-texte" de ton interaction, pas le sujet principal.
+
+1. **Tâche technique** (code, recherche, calcul) → Ignore les émotions, garde le style de communication
+2. **Tâche conversationnelle** → Personnalise avec respect, **en évitant tout sujet sensible**
+3. **Ne force jamais** l'utilisation d'une mémoire si elle n'est pas pertinente au contexte immédiat
+
+Les instructions de chaque souvenir (marquées ⚠ OBLIGATION) t'indiquent précisément ce que tu DOIS et NE DOIS PAS faire."""
+
+# Behavioral directive for normal states (NEUTRAL / COMFORT)
+NORMAL_DIRECTIVE = """## DIRECTIVE PRIORITAIRE
 
 Ces informations constituent le "sous-texte" de ton interaction, pas le sujet principal.
 
@@ -68,8 +98,7 @@ Ces informations constituent le "sous-texte" de ton interaction, pas le sujet pr
 2. **Tâche conversationnelle** → Utilise ces leviers pour créer du lien et personnaliser
 3. **Ne force jamais** l'utilisation d'une mémoire si elle n'est pas pertinente au contexte immédiat
 
-Les nuances d'usage t'indiquent COMMENT exploiter chaque information quand c'est approprié.
-"""
+Les nuances d'usage t'indiquent COMMENT exploiter chaque information quand c'est approprié."""
 
 # Section templates by category with priority ordering
 SECTION_TEMPLATES = {
@@ -118,8 +147,12 @@ def _format_memory_item(memory_value: dict, score: float) -> str:
     """
     Format a single memory item for the profile briefing.
 
+    For sensitivity-category or negative-weight memories, the usage_nuance is
+    formatted as an imperative obligation rather than an informational hint,
+    ensuring the LLM treats it as a binding instruction.
+
     Args:
-        memory_value: Memory dict with content, emotional_weight, usage_nuance
+        memory_value: Memory dict with content, emotional_weight, usage_nuance, category
         score: Semantic similarity score
 
     Returns:
@@ -128,12 +161,17 @@ def _format_memory_item(memory_value: dict, score: float) -> str:
     content = memory_value.get("content", "")
     emotional = memory_value.get("emotional_weight", 0)
     nuance = memory_value.get("usage_nuance", "")
+    category = memory_value.get("category", "personal")
 
     label = _get_emotional_label(emotional)
     line = f"- {label} {content}"
 
     if nuance:
-        line += f" → *{nuance}*"
+        # Sensitive or negative memories: format nuance as imperative obligation
+        if category == "sensitivity" or emotional <= -3:
+            line += f"\n  **⚠ OBLIGATION :** {nuance}"
+        else:
+            line += f" → *{nuance}*"
 
     return line
 
@@ -239,7 +277,15 @@ async def build_psychological_profile(
         if not sections:
             return None, EmotionalState.NEUTRAL, None
 
-        profile_text = PSYCHOLOGICAL_PROFILE_TEMPLATE.format(profile_sections="\n\n".join(sections))
+        # Select behavioral directive based on emotional state
+        behavioral_directive = (
+            DANGER_DIRECTIVE if emotional_state == EmotionalState.DANGER else NORMAL_DIRECTIVE
+        )
+
+        profile_text = PSYCHOLOGICAL_PROFILE_TEMPLATE.format(
+            profile_sections="\n\n".join(sections),
+            behavioral_directive=behavioral_directive,
+        )
 
         # Build debug details if requested (for debug panel tuning)
         debug_details: list[dict] | None = None

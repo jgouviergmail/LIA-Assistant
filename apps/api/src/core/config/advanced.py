@@ -23,10 +23,26 @@ from pydantic import Field
 from pydantic_settings import BaseSettings
 
 from src.core.constants import (
+    AGENT_STREAM_SLEEP_INTERVAL_DEFAULT,
+    CURRENCY_API_TIMEOUT_SECONDS_DEFAULT,
+    CURRENCY_API_URL_DEFAULT,
+    CURRENCY_CACHE_TTL_HOURS_DEFAULT,
+    DEFAULT_LANGUAGE_DEFAULT,
     DEFAULT_USD_EUR_RATE,
+    ENTITY_RESOLUTION_AUTO_THRESHOLD_DEFAULT,
+    ENTITY_RESOLUTION_MAX_CANDIDATES_DEFAULT,
     EXTERNAL_CONTENT_WRAPPING_ENABLED_DEFAULT,
+    FORMAT_TRUNCATE_SUBJECT_LENGTH_DEFAULT,
+    HITL_PENDING_DATA_TTL_SECONDS_DEFAULT,
+    JINJA_MAX_RECURSION_DEPTH_DEFAULT,
     LLM_PRICING_CACHE_TTL_DEFAULT,
+    MAX_AGENT_RESULTS_DEFAULT,
+    PROMPT_DATETIME_FORMAT_DEFAULT,
+    PROMPT_TIMEZONE_DEFAULT,
+    REDIS_SCAN_COUNT_DEFAULT,
     SUPPORTED_LANGUAGES,
+    TOKEN_COUNT_DEFAULT_MODEL_DEFAULT,
+    TOKEN_ENCODING_NAME_DEFAULT,
     TOOL_CONTEXT_CONFIDENCE_THRESHOLD,
     TOOL_CONTEXT_DETAILS_MAX_ITEMS,
     TOOL_CONTEXT_MAX_ITEMS,
@@ -69,11 +85,11 @@ class AdvancedSettings(BaseSettings):
     # Currency Exchange Rates API
     # ========================================================================
     currency_api_url: str = Field(
-        default="https://api.frankfurter.app",
+        default=CURRENCY_API_URL_DEFAULT,
         description="Currency exchange rates API base URL (default: frankfurter.app - free, ECB source)",
     )
     currency_api_timeout_seconds: float = Field(
-        default=5.0,
+        default=CURRENCY_API_TIMEOUT_SECONDS_DEFAULT,
         gt=0.0,
         description="Timeout for currency exchange rate API requests (seconds)",
     )
@@ -82,7 +98,7 @@ class AdvancedSettings(BaseSettings):
     # Internationalization (i18n) - UI messages only (not LLM prompts)
     # ========================================================================
     default_language: str = Field(
-        default="fr",
+        default=DEFAULT_LANGUAGE_DEFAULT,
         description="Default language for error messages and API responses (fr/en/es/de/it)",
     )
     supported_languages: str | list[str] = Field(
@@ -158,13 +174,13 @@ class AdvancedSettings(BaseSettings):
     # Entity Resolution (Auto-disambiguation)
     # ========================================================================
     entity_resolution_auto_threshold: float = Field(
-        default=0.9,
+        default=ENTITY_RESOLUTION_AUTO_THRESHOLD_DEFAULT,
         ge=0.0,
         le=1.0,
         description="Confidence threshold for automatic entity resolution (0.0-1.0)",
     )
     entity_resolution_max_candidates: int = Field(
-        default=5,
+        default=ENTITY_RESOLUTION_MAX_CANDIDATES_DEFAULT,
         gt=0,
         le=10,
         description="Maximum number of candidates to show in disambiguation questions",
@@ -178,7 +194,7 @@ class AdvancedSettings(BaseSettings):
     # Formatting Display Limits
     # ========================================================================
     format_truncate_subject_length: int = Field(
-        default=55,
+        default=FORMAT_TRUNCATE_SUBJECT_LENGTH_DEFAULT,
         ge=0,
         description="Max characters for email subjects in display (0 = no truncation)",
     )
@@ -187,7 +203,7 @@ class AdvancedSettings(BaseSettings):
     # Redis Advanced Configuration
     # ========================================================================
     redis_scan_count: int = Field(
-        default=100,
+        default=REDIS_SCAN_COUNT_DEFAULT,
         gt=0,
         description="Number of keys to scan per Redis SCAN iteration",
     )
@@ -196,12 +212,12 @@ class AdvancedSettings(BaseSettings):
     # Cache TTL Configuration
     # ========================================================================
     currency_cache_ttl_hours: int = Field(
-        default=24,
+        default=CURRENCY_CACHE_TTL_HOURS_DEFAULT,
         gt=0,
         description="Cache TTL for currency exchange rates (hours)",
     )
     hitl_pending_data_ttl_seconds: int = Field(
-        default=3600,
+        default=HITL_PENDING_DATA_TTL_SECONDS_DEFAULT,
         gt=0,
         description="Redis TTL for pending HITL tool approval data (seconds, default: 1 hour for response time metrics)",
     )
@@ -210,7 +226,7 @@ class AdvancedSettings(BaseSettings):
     # Agent Streaming Configuration
     # ========================================================================
     agent_stream_sleep_interval: float = Field(
-        default=0.0,
+        default=AGENT_STREAM_SLEEP_INTERVAL_DEFAULT,
         ge=0.0,
         le=0.1,
         description=(
@@ -224,11 +240,11 @@ class AdvancedSettings(BaseSettings):
     # Token Encoding Configuration
     # ========================================================================
     token_encoding_name: str = Field(
-        default="o200k_base",
+        default=TOKEN_ENCODING_NAME_DEFAULT,
         description="Token encoding name for tiktoken (o200k_base for GPT-4 models)",
     )
     token_count_default_model: str = Field(
-        default="gpt-4.1-mini",
+        default=TOKEN_COUNT_DEFAULT_MODEL_DEFAULT,
         description="Default model name for token counting operations",
     )
 
@@ -238,11 +254,11 @@ class AdvancedSettings(BaseSettings):
     # Dynamic Prompt Configuration
     # ========================================================================
     prompt_datetime_format: str = Field(
-        default="%Y-%m-%d %H:%M:%S UTC",
+        default=PROMPT_DATETIME_FORMAT_DEFAULT,
         description="Format for datetime in agent prompts (strftime format)",
     )
     prompt_timezone: str = Field(
-        default="UTC",
+        default=PROMPT_TIMEZONE_DEFAULT,
         description="Timezone for datetime in agent prompts (IANA timezone name)",
     )
 
@@ -250,7 +266,7 @@ class AdvancedSettings(BaseSettings):
     # Agent Limits & Constraints
     # ========================================================================
     max_agent_results: int = Field(
-        default=10,
+        default=MAX_AGENT_RESULTS_DEFAULT,
         gt=0,
         description="Maximum number of agent results to keep in history",
     )
@@ -259,7 +275,7 @@ class AdvancedSettings(BaseSettings):
     # JINJA2 TEMPLATE EVALUATION (Issue #41)
     # ========================================================================
     jinja_max_recursion_depth: int = Field(
-        default=10,
+        default=JINJA_MAX_RECURSION_DEPTH_DEFAULT,
         ge=5,
         le=50,
         description=(

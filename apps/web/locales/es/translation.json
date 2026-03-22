@@ -4139,6 +4139,8 @@
     "maxEntryCharsDescription": "Máximo de caracteres por entrada individual. No puede ser inferior a la entrada más larga.",
     "contextMaxResults": "Resultados de búsqueda máximos",
     "contextMaxResultsDescription": "Máximo de entradas devueltas por la búsqueda semántica para inyección de contexto",
+    "searchHints": "Pistas de búsqueda",
+    "searchHintsDescription": "Palabras clave para la búsqueda semántica (separadas por comas)",
     "chars": "cars"
   },
   "blog": {

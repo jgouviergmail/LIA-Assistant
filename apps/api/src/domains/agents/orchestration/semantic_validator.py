@@ -1832,7 +1832,9 @@ Respond in {user_language}."""
         return SemanticValidationResult(
             is_valid=True,
             issues=[],
-            confidence=1.0 if not used_fallback else 0.5,
+            confidence=(
+                1.0 if not used_fallback else settings.semantic_validation_fallback_confidence
+            ),
             requires_clarification=False,
             clarification_questions=[],
             validation_duration_seconds=duration,
