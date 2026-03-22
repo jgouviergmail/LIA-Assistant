@@ -17,6 +17,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.dependencies import get_db
+from src.core.exceptions import raise_user_not_found
 from src.core.session_dependencies import (
     get_current_active_session,
     get_current_superuser_session,
@@ -30,11 +31,30 @@ from src.domains.usage_limits.schemas import (
     UserUsageLimitResponse,
 )
 from src.domains.usage_limits.service import UsageLimitService
-from src.domains.users.service import UserService
+from src.domains.users.repository import UserRepository
 
 logger = structlog.get_logger(__name__)
 
 router = APIRouter(prefix="/usage-limits", tags=["Usage Limits"])
+
+
+async def _verify_user_exists(db: AsyncSession, user_id: UUID) -> None:
+    """Verify a user exists (including inactive accounts).
+
+    Admins need to configure limits on inactive accounts to prepare
+    them before activation. Uses include_inactive=True.
+
+    Args:
+        db: Database session.
+        user_id: Target user UUID.
+
+    Raises:
+        ResourceNotFoundError: If user does not exist.
+    """
+    user_repo = UserRepository(db)
+    user = await user_repo.get_by_id(user_id, include_inactive=True)
+    if not user:
+        raise_user_not_found(user_id)
 
 
 # ============================================================================
@@ -131,9 +151,8 @@ async def update_user_limits(
     Raises:
         404: If target user does not exist.
     """
-    # Verify target user exists (raises 404 if not found)
-    user_service = UserService(db)
-    await user_service.get_user_by_id(user_id)
+    # Verify target user exists (include inactive — admin can prepare limits before activation)
+    await _verify_user_exists(db, user_id)
 
     service = UsageLimitService(db)
     return await service.update_limits(
@@ -169,9 +188,8 @@ async def toggle_user_block(
     Raises:
         404: If target user does not exist.
     """
-    # Verify target user exists (raises 404 if not found)
-    user_service = UserService(db)
-    await user_service.get_user_by_id(user_id)
+    # Verify target user exists (include inactive — admin can manage limits before activation)
+    await _verify_user_exists(db, user_id)
 
     service = UsageLimitService(db)
     return await service.toggle_block(
