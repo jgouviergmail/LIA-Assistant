@@ -260,35 +260,63 @@ class BroadcastRepository(BaseRepository[AdminBroadcast]):
         await self.db.flush()
         return broadcast
 
-    async def get_unread_for_user(self, user_id: UUID) -> list[AdminBroadcast]:
+    async def get_unread_for_user(
+        self,
+        user_id: UUID,
+        user_created_at: datetime | None = None,
+        recent_limit: int | None = None,
+    ) -> list[AdminBroadcast]:
         """
         Get broadcasts that user hasn't read yet.
 
         Excludes:
         - Already read broadcasts
         - Expired broadcasts (expires_at < now)
+        - Broadcasts created before the user's account (prevents new users from being spammed)
+        - Broadcasts outside the N most recent eligible ones (prevents old broadcast waterfall)
 
-        Orders by created_at ASC (oldest first).
+        The ``recent_limit`` caps how many of the *most recent eligible* broadcasts
+        are considered at all. Only unread broadcasts within that window are returned.
+        This prevents a cascade effect where dismissing 3 broadcasts reveals 3 older ones.
 
         Args:
             user_id: User UUID
+            user_created_at: User's account creation date (broadcasts before this are excluded)
+            recent_limit: Only consider the N most recent eligible broadcasts
 
         Returns:
-            List of unread AdminBroadcast
+            List of unread AdminBroadcast ordered by created_at ASC (oldest first)
         """
         now = func.now()
 
-        # Subquery for read broadcast IDs
+        # Base conditions for eligible broadcasts (non-expired, after user signup)
+        eligible_conditions = [
+            or_(AdminBroadcast.expires_at.is_(None), AdminBroadcast.expires_at > now),
+        ]
+        if user_created_at is not None:
+            eligible_conditions.append(AdminBroadcast.created_at >= user_created_at)
+
+        # Subquery: IDs of the N most recent eligible broadcasts
+        eligible_ids_subquery = (
+            select(AdminBroadcast.id)
+            .where(*eligible_conditions)
+            .order_by(AdminBroadcast.created_at.desc())
+        )
+        if recent_limit is not None:
+            eligible_ids_subquery = eligible_ids_subquery.limit(recent_limit)
+
+        # Subquery: IDs of broadcasts already read by this user
         read_ids_subquery = select(UserBroadcastRead.broadcast_id).where(
             UserBroadcastRead.user_id == user_id
         )
 
+        # Main query: unread broadcasts within the eligible window
         stmt = (
             select(AdminBroadcast)
-            .options(selectinload(AdminBroadcast.sender))  # Eager load for _to_broadcast_info
+            .options(selectinload(AdminBroadcast.sender))
             .where(
+                AdminBroadcast.id.in_(eligible_ids_subquery),
                 AdminBroadcast.id.notin_(read_ids_subquery),
-                or_(AdminBroadcast.expires_at.is_(None), AdminBroadcast.expires_at > now),
             )
             .order_by(AdminBroadcast.created_at.asc())
         )

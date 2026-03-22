@@ -382,7 +382,7 @@ Le prompt est divisé en **2 sections** pour optimiser le caching OpenAI:
 
 When `is_app_help_query=True` (detected by QueryAnalyzer), the Response Node injects additional context to help the LLM answer questions about LIA itself:
 
-1. **App Identity Prompt** — loaded from `app_identity_prompt.txt` (in the prompts directory). Contains structured knowledge about LIA's features, setup instructions, supported integrations, and usage guidance. This prompt is loaded and injected into the `{app_knowledge_context}` placeholder in `response_system_prompt_base.txt`.
+1. **App Identity Prompt** — loaded from `app_identity_prompt.txt` (in the prompts directory). Contains structured knowledge about LIA's features, setup instructions, supported integrations, and usage guidance. This prompt is loaded and injected into the `{app_knowledge_context}` placeholder in `response_system_prompt_base.txt`. Since v1.9.2, it also includes an admin-boundary directive instructing the LLM to never reference admin-only features (admin panels, LLM configuration, user management) when talking to regular users.
 
 2. **System RAG Context** — optionally enriches the response with FAQ chunks retrieved from the knowledge base. When relevant FAQ entries exist, they are appended to the app knowledge context to provide precise, up-to-date answers.
 

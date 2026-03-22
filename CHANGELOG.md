@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.2] - 2026-03-22
+
+### Fixed
+
+- **Browser agent unavailable in production** — Playwright Chromium binary was missing from the production Docker image (`Dockerfile.prod`). The Python package was installed but `playwright install chromium` was never executed, causing `BrowserPool` initialization to fail silently (`_healthy=False`) and all browser tools to return "Browser pool is not healthy". Added Chromium binary download in the builder stage, `PLAYWRIGHT_BROWSERS_PATH` env var, and Chromium runtime system dependencies (libnss3, libatk, libgbm, etc.) in the final stage. Dev image (`Dockerfile.dev`) was already correct. (`apps/api/Dockerfile.prod`)
+- **Broadcast notification spam for new and existing users** — New users who connected for the first time received the entire history of broadcast messages. Additionally, existing users with many unread broadcasts were overwhelmed with notifications. The `GET /broadcasts/unread` endpoint now only considers the 3 most recent *eligible* broadcasts (non-expired, created after the user's signup date) and returns only the unread ones among those. This uses a two-subquery approach: one to select the N most recent eligible broadcast IDs, another to exclude already-read IDs. New `MAX_UNREAD_BROADCASTS` constant centralizes the limit. (`apps/api/src/domains/notifications/repository.py`, `apps/api/src/domains/notifications/broadcast_service.py`, `apps/api/src/domains/notifications/router.py`, `apps/api/src/core/constants.py`)
+- **Confusing logout button** — The user profile section (avatar + name + email + icon) in the navbar was mistaken for a profile link rather than a logout action. Replaced with a clear red icon-only button (`bg-destructive` + `LogOut` icon). Removed unused `proxyGoogleImageUrl` import. (`apps/web/src/app/[lng]/dashboard/layout.tsx`)
+- **Assistant leaking admin-only features to regular users** — When asked "which LLM do you use?", the assistant mentioned admin interfaces like "Admin > LLM Configuration" which are inaccessible to regular users. Added a directive to the app identity prompt instructing the assistant to never reference admin panels, admin settings, or backend configuration options. (`apps/api/src/domains/agents/prompts/v1/app_identity_prompt.txt`)
+- **Usage limits console error on startup** — `useUsageLimits` hook logged `ERROR: Failed to fetch` when the backend was unreachable (e.g., during startup). Network errors (`TypeError`) are now silently ignored since the polling interval will retry automatically. (`apps/web/src/hooks/useUsageLimits.ts`)
+
 ## [1.9.1] - 2026-03-22
 
 ### Added

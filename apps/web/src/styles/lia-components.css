@@ -76,17 +76,17 @@
   /* Borders */
   --lia-border: #e5e7eb;
   --lia-border-light: #f3f4f6;
-  --lia-border-subtle: rgba(0, 0, 0, 0.06);  /* Very subtle for section separators */
+  --lia-border-subtle: rgba(0, 0, 0, 0.06); /* Very subtle for section separators */
   --lia-border-focus: var(--lia-primary);
 
   /* Unified Spacing Scale (4px base) */
-  --lia-space-2xs: 0.125rem;  /* 2px */
-  --lia-space-xs: 0.25rem;    /* 4px */
-  --lia-space-sm: 0.5rem;     /* 8px */
-  --lia-space-md: 0.75rem;    /* 12px */
-  --lia-space-lg: 1rem;       /* 16px */
-  --lia-space-xl: 1.5rem;     /* 24px */
-  --lia-space-2xl: 2rem;      /* 32px */
+  --lia-space-2xs: 0.125rem; /* 2px */
+  --lia-space-xs: 0.25rem; /* 4px */
+  --lia-space-sm: 0.5rem; /* 8px */
+  --lia-space-md: 0.75rem; /* 12px */
+  --lia-space-lg: 1rem; /* 16px */
+  --lia-space-xl: 1.5rem; /* 24px */
+  --lia-space-2xl: 2rem; /* 32px */
 
   /* Border Radius */
   --lia-radius-xs: 4px;
@@ -109,16 +109,17 @@
   --lia-transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
 
   /* Typography Scale */
-  --lia-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
-  --lia-font-mono: "SF Mono", "Fira Code", "Monaco", monospace;
+  --lia-font-sans:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --lia-font-mono: 'SF Mono', 'Fira Code', 'Monaco', monospace;
 
-  --lia-text-xs: 0.75rem;     /* 12px */
-  --lia-text-sm: 0.8125rem;   /* 13px */
-  --lia-text-base: 0.875rem;  /* 14px */
-  --lia-text-md: 0.9375rem;   /* 15px */
-  --lia-text-lg: 1rem;        /* 16px */
-  --lia-text-xl: 1.125rem;    /* 18px */
-  --lia-text-2xl: 1.25rem;    /* 20px */
+  --lia-text-xs: 0.75rem; /* 12px */
+  --lia-text-sm: 0.8125rem; /* 13px */
+  --lia-text-base: 0.875rem; /* 14px */
+  --lia-text-md: 0.9375rem; /* 15px */
+  --lia-text-lg: 1rem; /* 16px */
+  --lia-text-xl: 1.125rem; /* 18px */
+  --lia-text-2xl: 1.25rem; /* 20px */
 
   --lia-leading-tight: 1.2;
   --lia-leading-normal: 1.35;
@@ -142,7 +143,12 @@
 
   --lia-border: #374151;
   --lia-border-light: #4b5563;
-  --lia-border-subtle: rgba(255, 255, 255, 0.08);  /* Very subtle for section separators (dark mode) */
+  --lia-border-subtle: rgba(
+    255,
+    255,
+    255,
+    0.08
+  ); /* Very subtle for section separators (dark mode) */
 
   --lia-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
   --lia-shadow-md: 0 2px 8px rgba(0, 0, 0, 0.4);
@@ -180,9 +186,10 @@
   font-size: var(--lia-text-base);
   line-height: var(--lia-leading-normal);
   color: var(--lia-text);
-  transition: transform var(--lia-transition-fast),
-              box-shadow var(--lia-transition-fast),
-              border-color var(--lia-transition-fast);
+  transition:
+    transform var(--lia-transition-fast),
+    box-shadow var(--lia-transition-fast),
+    border-color var(--lia-transition-fast);
 }
 
 /* Hover effects disabled - cards should not change state on hover */
@@ -302,7 +309,10 @@
   bottom: -2px;
   width: 0;
   height: 2px;
-  background: var(--lia-title-gradient, linear-gradient(135deg, var(--lia-primary), var(--lia-primary-light)));
+  background: var(
+    --lia-title-gradient,
+    linear-gradient(135deg, var(--lia-primary), var(--lia-primary-light))
+  );
   border-radius: 1px;
   transition: width var(--lia-transition-fast);
 }
@@ -312,13 +322,27 @@
 }
 
 /* Domain-specific title gradients */
-.lia-email .lia-title-underline { --lia-title-gradient: var(--lia-email-gradient); }
-.lia-contact .lia-title-underline { --lia-title-gradient: var(--lia-contact-gradient); }
-.lia-event .lia-title-underline { --lia-title-gradient: var(--lia-calendar-gradient); }
-.lia-task .lia-title-underline { --lia-title-gradient: var(--lia-task-gradient); }
-.lia-place .lia-title-underline { --lia-title-gradient: var(--lia-place-gradient); }
-.lia-file .lia-title-underline { --lia-title-gradient: var(--lia-drive-gradient); }
-.lia-article .lia-title-underline { --lia-title-gradient: var(--lia-primary-gradient); }
+.lia-email .lia-title-underline {
+  --lia-title-gradient: var(--lia-email-gradient);
+}
+.lia-contact .lia-title-underline {
+  --lia-title-gradient: var(--lia-contact-gradient);
+}
+.lia-event .lia-title-underline {
+  --lia-title-gradient: var(--lia-calendar-gradient);
+}
+.lia-task .lia-title-underline {
+  --lia-title-gradient: var(--lia-task-gradient);
+}
+.lia-place .lia-title-underline {
+  --lia-title-gradient: var(--lia-place-gradient);
+}
+.lia-file .lia-title-underline {
+  --lia-title-gradient: var(--lia-drive-gradient);
+}
+.lia-article .lia-title-underline {
+  --lia-title-gradient: var(--lia-primary-gradient);
+}
 
 /* Extended Section - Collapsible content area
    Previously duplicated across 6+ domain cards */
@@ -429,20 +453,65 @@
 }
 
 /* Icon size variants */
-.lia-icon--xs { width: 14px; height: 14px; }
-.lia-icon--xs .material-symbols-outlined { font-size: 14px; font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20; }
+.lia-icon--xs {
+  width: 14px;
+  height: 14px;
+}
+.lia-icon--xs .material-symbols-outlined {
+  font-size: 14px;
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 20;
+}
 
-.lia-icon--sm { width: 16px; height: 16px; }
-.lia-icon--sm .material-symbols-outlined { font-size: 16px; font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20; }
+.lia-icon--sm {
+  width: 16px;
+  height: 16px;
+}
+.lia-icon--sm .material-symbols-outlined {
+  font-size: 16px;
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 20;
+}
 
-.lia-icon--md { width: 20px; height: 20px; }
-.lia-icon--md .material-symbols-outlined { font-size: 18px; }
+.lia-icon--md {
+  width: 20px;
+  height: 20px;
+}
+.lia-icon--md .material-symbols-outlined {
+  font-size: 18px;
+}
 
-.lia-icon--lg { width: 24px; height: 24px; }
-.lia-icon--lg .material-symbols-outlined { font-size: 22px; font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+.lia-icon--lg {
+  width: 24px;
+  height: 24px;
+}
+.lia-icon--lg .material-symbols-outlined {
+  font-size: 22px;
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 24;
+}
 
-.lia-icon--xl { width: 32px; height: 32px; }
-.lia-icon--xl .material-symbols-outlined { font-size: 28px; font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 48; }
+.lia-icon--xl {
+  width: 32px;
+  height: 32px;
+}
+.lia-icon--xl .material-symbols-outlined {
+  font-size: 28px;
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 48;
+}
 
 /* Filled style variant */
 .lia-icon--filled .material-symbols-outlined {
@@ -454,20 +523,44 @@
 }
 
 /* Domain-colored icons */
-.lia-icon--email { color: var(--lia-email-accent); }
-.lia-icon--contact { color: var(--lia-contact-accent); }
-.lia-icon--calendar { color: var(--lia-calendar-accent); }
-.lia-icon--drive { color: var(--lia-drive-accent); }
-.lia-icon--task { color: var(--lia-task-accent); }
-.lia-icon--place { color: var(--lia-place-accent); }
-.lia-icon--weather { color: var(--lia-weather-accent); }
-.lia-icon--reminder { color: var(--lia-reminder-accent); }
-.lia-icon--route { color: var(--lia-route-accent); }
+.lia-icon--email {
+  color: var(--lia-email-accent);
+}
+.lia-icon--contact {
+  color: var(--lia-contact-accent);
+}
+.lia-icon--calendar {
+  color: var(--lia-calendar-accent);
+}
+.lia-icon--drive {
+  color: var(--lia-drive-accent);
+}
+.lia-icon--task {
+  color: var(--lia-task-accent);
+}
+.lia-icon--place {
+  color: var(--lia-place-accent);
+}
+.lia-icon--weather {
+  color: var(--lia-weather-accent);
+}
+.lia-icon--reminder {
+  color: var(--lia-reminder-accent);
+}
+.lia-icon--route {
+  color: var(--lia-route-accent);
+}
 
 /* Explicit color overrides (use !important to override domain/context colors) */
-.lia-icon--white { color: white !important; }
-.lia-icon--inherit { color: inherit !important; }
-.lia-icon--muted { color: var(--lia-text-muted) !important; }
+.lia-icon--white {
+  color: white !important;
+}
+.lia-icon--inherit {
+  color: inherit !important;
+}
+.lia-icon--muted {
+  color: var(--lia-text-muted) !important;
+}
 
 /* Action button icons - slightly smaller */
 .lia-action-btn__icon .material-symbols-outlined {
@@ -486,15 +579,27 @@
 }
 
 .lia-rating__star--full .material-symbols-outlined {
-  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+  font-variation-settings:
+    'FILL' 1,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 20;
 }
 
 .lia-rating__star--half .material-symbols-outlined {
-  font-variation-settings: 'FILL' 0.5, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+  font-variation-settings:
+    'FILL' 0.5,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 20;
 }
 
 .lia-rating__star--empty .material-symbols-outlined {
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 20;
   opacity: 0.4;
 }
 
@@ -525,9 +630,17 @@
   color: var(--lia-primary);
 }
 
-.lia-title--lg { font-size: var(--lia-text-2xl); }  /* +2px: 18px → 20px */
-.lia-title--md { font-size: var(--lia-text-xl); font-weight: 600; }  /* +2px: 16px → 18px */
-.lia-title--sm { font-size: var(--lia-text-lg); font-weight: 600; }  /* +2px: 14px → 16px */
+.lia-title--lg {
+  font-size: var(--lia-text-2xl);
+} /* +2px: 18px → 20px */
+.lia-title--md {
+  font-size: var(--lia-text-xl);
+  font-weight: 600;
+} /* +2px: 16px → 18px */
+.lia-title--sm {
+  font-size: var(--lia-text-lg);
+  font-weight: 600;
+} /* +2px: 14px → 16px */
 
 .lia-subtitle {
   font-size: var(--lia-text-sm);
@@ -585,7 +698,7 @@
 }
 
 .lia-contact__name {
-  font-size: var(--lia-text-xl);  /* +2px: 16px → 18px */
+  font-size: var(--lia-text-xl); /* +2px: 16px → 18px */
   font-weight: 700;
   color: var(--lia-text);
   text-decoration: none;
@@ -728,9 +841,18 @@
   border: 2px solid var(--lia-border-light);
 }
 
-.lia-avatar--sm { width: 32px; height: 32px; }
-.lia-avatar--md { width: 40px; height: 40px; }
-.lia-avatar--lg { width: 56px; height: 56px; }
+.lia-avatar--sm {
+  width: 32px;
+  height: 32px;
+}
+.lia-avatar--md {
+  width: 40px;
+  height: 40px;
+}
+.lia-avatar--lg {
+  width: 56px;
+  height: 56px;
+}
 
 .lia-avatar--initials {
   background: var(--lia-contact-gradient);
@@ -743,8 +865,12 @@
   border: none;
 }
 
-.lia-avatar--md.lia-avatar--initials { font-size: var(--lia-text-base); }
-.lia-avatar--lg.lia-avatar--initials { font-size: var(--lia-text-xl); }
+.lia-avatar--md.lia-avatar--initials {
+  font-size: var(--lia-text-base);
+}
+.lia-avatar--lg.lia-avatar--initials {
+  font-size: var(--lia-text-xl);
+}
 
 /* =============================================================================
    Email Card v3.1 - Gmail-inspired modern design
@@ -1284,7 +1410,7 @@ a.lia-email__sender-email:hover {
 }
 
 .lia-event__title {
-  font-size: var(--lia-text-lg);  /* +2px: 14px → 16px */
+  font-size: var(--lia-text-lg); /* +2px: 14px → 16px */
   font-weight: 700;
   color: var(--lia-text);
   text-decoration: none;
@@ -1451,7 +1577,9 @@ a.lia-email__sender-email:hover {
 
 .lia-task--overdue {
   /* Use inset box-shadow instead of border to avoid width issues */
-  box-shadow: inset 3px 0 0 0 var(--lia-danger), var(--lia-shadow-md);
+  box-shadow:
+    inset 3px 0 0 0 var(--lia-danger),
+    var(--lia-shadow-md);
 }
 
 .lia-task__main,
@@ -1469,7 +1597,7 @@ a.lia-email__sender-email:hover {
 }
 
 .lia-task__title {
-  font-size: var(--lia-text-lg);  /* +2px: 14px → 16px */
+  font-size: var(--lia-text-lg); /* +2px: 14px → 16px */
   font-weight: 700;
   color: var(--lia-text);
   text-decoration: none;
@@ -1626,8 +1754,15 @@ a.lia-email__sender-email:hover {
 }
 
 @keyframes lia-reminder-pulse {
-  0%, 100% { box-shadow: var(--lia-shadow-sm); }
-  50% { box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.12), var(--lia-shadow-md); }
+  0%,
+  100% {
+    box-shadow: var(--lia-shadow-sm);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px rgba(239, 68, 68, 0.12),
+      var(--lia-shadow-md);
+  }
 }
 
 /* Icon wrapper - circle background for desktop */
@@ -1667,11 +1802,22 @@ a.lia-email__sender-email:hover {
 }
 
 @keyframes lia-bell-ring {
-  0%, 100% { transform: rotate(0); }
-  20% { transform: rotate(12deg); }
-  40% { transform: rotate(-12deg); }
-  60% { transform: rotate(8deg); }
-  80% { transform: rotate(-8deg); }
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  20% {
+    transform: rotate(12deg);
+  }
+  40% {
+    transform: rotate(-12deg);
+  }
+  60% {
+    transform: rotate(8deg);
+  }
+  80% {
+    transform: rotate(-8deg);
+  }
 }
 
 /* Label - content text */
@@ -1929,7 +2075,7 @@ a.lia-email__sender-email:hover {
   left: 0;
   right: 0;
   height: 40%;
-  background: linear-gradient(to top, rgba(0,0,0,0.3), transparent);
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.3), transparent);
 }
 
 .lia-place__photo img {
@@ -1962,7 +2108,7 @@ a.lia-email__sender-email:hover {
 }
 
 .lia-place__name {
-  font-size: var(--lia-text-xl);  /* +2px: 16px → 18px */
+  font-size: var(--lia-text-xl); /* +2px: 16px → 18px */
   font-weight: 700;
   color: var(--lia-text);
   text-decoration: none;
@@ -2216,8 +2362,13 @@ a.lia-email__sender-email:hover {
   gap: 1px;
 }
 
-.lia-star--full .lia-icon { color: #fbbf24; }
-.lia-star--empty .lia-icon { color: var(--lia-border); opacity: 0.5; }
+.lia-star--full .lia-icon {
+  color: #fbbf24;
+}
+.lia-star--empty .lia-icon {
+  color: var(--lia-border);
+  opacity: 0.5;
+}
 
 /* Badges row under name (mobile layout) */
 .lia-place__badges-row {
@@ -2268,24 +2419,49 @@ a.lia-email__sender-email:hover {
 
 /* Place card icons colored */
 /* Card icons use theme primary color (user-defined) */
-.lia-place .lia-icon { color: var(--lia-primary); }
-.lia-contact .lia-icon { color: var(--lia-primary); }
-.lia-email .lia-icon { color: var(--lia-primary); }
-.lia-event .lia-icon { color: var(--lia-primary); }
-.lia-task .lia-icon { color: var(--lia-primary); }
-.lia-file .lia-icon { color: var(--lia-primary); }
-.lia-article .lia-icon { color: var(--lia-primary); }
-.lia-search .lia-icon { color: var(--lia-primary); }
+.lia-place .lia-icon {
+  color: var(--lia-primary);
+}
+.lia-contact .lia-icon {
+  color: var(--lia-primary);
+}
+.lia-email .lia-icon {
+  color: var(--lia-primary);
+}
+.lia-event .lia-icon {
+  color: var(--lia-primary);
+}
+.lia-task .lia-icon {
+  color: var(--lia-primary);
+}
+.lia-file .lia-icon {
+  color: var(--lia-primary);
+}
+.lia-article .lia-icon {
+  color: var(--lia-primary);
+}
+.lia-search .lia-icon {
+  color: var(--lia-primary);
+}
 
 /* Weather icons stay colored (weather-specific) or white on dark background */
-.lia-weather .lia-icon { color: var(--lia-text-secondary); }
+.lia-weather .lia-icon {
+  color: var(--lia-text-secondary);
+}
 
 /* Badge icons stay white */
-.lia-badge .lia-icon { color: inherit; }
+.lia-badge .lia-icon {
+  color: inherit;
+}
 
 /* Stars keep their gold color */
-.lia-star--full .lia-icon { color: #fbbf24 !important; }
-.lia-star--empty .lia-icon { color: var(--lia-border) !important; opacity: 0.5; }
+.lia-star--full .lia-icon {
+  color: #fbbf24 !important;
+}
+.lia-star--empty .lia-icon {
+  color: var(--lia-border) !important;
+  opacity: 0.5;
+}
 
 /* =============================================================================
    Inline Place Carousel - Carousel within place card photo area
@@ -2321,7 +2497,7 @@ a.lia-email__sender-email:hover {
   cursor: pointer;
   opacity: 0.85;
   transition: all var(--lia-transition-fast);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .lia-place-carousel__nav:hover {
@@ -2384,7 +2560,7 @@ a.lia-email__sender-email:hover {
   right: var(--lia-space-sm);
   z-index: 2;
   padding: var(--lia-space-xs) var(--lia-space-sm);
-  background: rgba(0,0,0,0.6);
+  background: rgba(0, 0, 0, 0.6);
   color: white;
   border-radius: var(--lia-radius-sm);
   font-size: var(--lia-text-xs);
@@ -2464,7 +2640,7 @@ a.lia-email__sender-email:hover {
 
 .lia-weather__icon {
   font-size: 3rem;
-  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
 }
 
 .lia-weather__icon--lg {
@@ -2475,7 +2651,7 @@ a.lia-email__sender-email:hover {
   font-size: 3rem;
   font-weight: 700;
   line-height: 1;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 /* Smaller temperature for desktop header row */
@@ -2492,16 +2668,28 @@ a.lia-email__sender-email:hover {
 }
 
 /* Weather icon coloring based on condition (main current weather icon) */
-.lia-weather--sunny .lia-weather__icon .lia-icon { color: #f59e0b; }
+.lia-weather--sunny .lia-weather__icon .lia-icon {
+  color: #f59e0b;
+}
 .lia-weather--cloudy .lia-weather__icon .lia-icon,
-.lia-weather--overcast .lia-weather__icon .lia-icon { color: #94a3b8; }
-.lia-weather--partly-cloudy .lia-weather__icon .lia-icon { color: #60a5fa; }
+.lia-weather--overcast .lia-weather__icon .lia-icon {
+  color: #94a3b8;
+}
+.lia-weather--partly-cloudy .lia-weather__icon .lia-icon {
+  color: #60a5fa;
+}
 .lia-weather--rainy .lia-weather__icon .lia-icon,
 .lia-weather--light-rain .lia-weather__icon .lia-icon,
-.lia-weather--drizzle .lia-weather__icon .lia-icon { color: #3b82f6; }
+.lia-weather--drizzle .lia-weather__icon .lia-icon {
+  color: #3b82f6;
+}
 .lia-weather--snowy .lia-weather__icon .lia-icon,
-.lia-weather--light-snow .lia-weather__icon .lia-icon { color: #a5b4fc; }
-.lia-weather--stormy .lia-weather__icon .lia-icon { color: #6366f1; }
+.lia-weather--light-snow .lia-weather__icon .lia-icon {
+  color: #a5b4fc;
+}
+.lia-weather--stormy .lia-weather__icon .lia-icon {
+  color: #6366f1;
+}
 
 .lia-weather__temp-block {
   display: flex;
@@ -2740,30 +2928,42 @@ a.lia-email__sender-email:hover {
 }
 
 .lia-weather--sunny .lia-weather__day-icon--color .lia-icon,
-.lia-weather--sunny .lia-weather__hour-icon--color .lia-icon { color: #f59e0b; }
+.lia-weather--sunny .lia-weather__hour-icon--color .lia-icon {
+  color: #f59e0b;
+}
 
 .lia-weather--cloudy .lia-weather__day-icon--color .lia-icon,
 .lia-weather--cloudy .lia-weather__hour-icon--color .lia-icon,
 .lia-weather--overcast .lia-weather__day-icon--color .lia-icon,
-.lia-weather--overcast .lia-weather__hour-icon--color .lia-icon { color: #94a3b8; }
+.lia-weather--overcast .lia-weather__hour-icon--color .lia-icon {
+  color: #94a3b8;
+}
 
 .lia-weather--partly-cloudy .lia-weather__day-icon--color .lia-icon,
-.lia-weather--partly-cloudy .lia-weather__hour-icon--color .lia-icon { color: #60a5fa; }
+.lia-weather--partly-cloudy .lia-weather__hour-icon--color .lia-icon {
+  color: #60a5fa;
+}
 
 .lia-weather--rainy .lia-weather__day-icon--color .lia-icon,
 .lia-weather--rainy .lia-weather__hour-icon--color .lia-icon,
 .lia-weather--light-rain .lia-weather__day-icon--color .lia-icon,
 .lia-weather--light-rain .lia-weather__hour-icon--color .lia-icon,
 .lia-weather--drizzle .lia-weather__day-icon--color .lia-icon,
-.lia-weather--drizzle .lia-weather__hour-icon--color .lia-icon { color: #3b82f6; }
+.lia-weather--drizzle .lia-weather__hour-icon--color .lia-icon {
+  color: #3b82f6;
+}
 
 .lia-weather--snowy .lia-weather__day-icon--color .lia-icon,
 .lia-weather--snowy .lia-weather__hour-icon--color .lia-icon,
 .lia-weather--light-snow .lia-weather__day-icon--color .lia-icon,
-.lia-weather--light-snow .lia-weather__hour-icon--color .lia-icon { color: #a5b4fc; }
+.lia-weather--light-snow .lia-weather__hour-icon--color .lia-icon {
+  color: #a5b4fc;
+}
 
 .lia-weather--stormy .lia-weather__day-icon--color .lia-icon,
-.lia-weather--stormy .lia-weather__hour-icon--color .lia-icon { color: #6366f1; }
+.lia-weather--stormy .lia-weather__hour-icon--color .lia-icon {
+  color: #6366f1;
+}
 
 /* Day temps layout */
 .lia-weather__day-temps {
@@ -2826,7 +3026,7 @@ a.lia-email__sender-email:hover {
 
 .lia-file__icon {
   font-size: 1.5rem;
-  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.1));
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1));
 }
 
 .lia-file__icon--lg {
@@ -2856,7 +3056,7 @@ a.lia-email__sender-email:hover {
 }
 
 .lia-file__name {
-  font-size: var(--lia-text-lg);  /* +2px: 14px → 16px */
+  font-size: var(--lia-text-lg); /* +2px: 14px → 16px */
   font-weight: 700;
   color: var(--lia-text);
   text-decoration: none;
@@ -3024,7 +3224,7 @@ a.lia-email__sender-email:hover {
 /* Note: Badge/title rows now use shared .lia-badge-row and .lia-title-row utilities */
 
 .lia-article__title {
-  font-size: var(--lia-text-xl);  /* +2px: 16px → 18px */
+  font-size: var(--lia-text-xl); /* +2px: 16px → 18px */
   font-weight: 700;
   color: var(--lia-text);
   text-decoration: none;
@@ -3116,7 +3316,7 @@ a.lia-email__sender-email:hover {
 }
 
 .lia-search__title {
-  font-size: var(--lia-text-lg);  /* +2px: 14px → 16px */
+  font-size: var(--lia-text-lg); /* +2px: 14px → 16px */
   font-weight: 700;
   color: var(--lia-text);
   text-decoration: none;
@@ -3231,7 +3431,7 @@ a.lia-email__sender-email:hover {
 }
 
 .lia-search__related-item::before {
-  content: "→ ";
+  content: '→ ';
   color: var(--lia-primary);
 }
 
@@ -3441,7 +3641,7 @@ a.lia-email__sender-email:hover {
 }
 
 .lia-web-search__related-item::before {
-  content: "→ ";
+  content: '→ ';
   color: var(--lia-primary);
 }
 
@@ -3523,18 +3723,31 @@ a.lia-email__sender-email:hover {
   flex-shrink: 0;
 }
 
-.lia-dot--primary { background: var(--lia-primary); }
-.lia-dot--success { background: var(--lia-success); }
-.lia-dot--warning { background: var(--lia-warning); }
-.lia-dot--danger { background: var(--lia-danger); }
+.lia-dot--primary {
+  background: var(--lia-primary);
+}
+.lia-dot--success {
+  background: var(--lia-success);
+}
+.lia-dot--warning {
+  background: var(--lia-warning);
+}
+.lia-dot--danger {
+  background: var(--lia-danger);
+}
 
 .lia-dot--pulse {
   animation: pulse 2s infinite;
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
 /* Icon */
@@ -3545,11 +3758,21 @@ a.lia-email__sender-email:hover {
   flex-shrink: 0;
 }
 
-.lia-icon--xs { font-size: 0.75rem; }
-.lia-icon--sm { font-size: 0.875rem; }
-.lia-icon--md { font-size: 1rem; }
-.lia-icon--lg { font-size: 1.5rem; }
-.lia-icon--xl { font-size: 2rem; }
+.lia-icon--xs {
+  font-size: 0.75rem;
+}
+.lia-icon--sm {
+  font-size: 0.875rem;
+}
+.lia-icon--md {
+  font-size: 1rem;
+}
+.lia-icon--lg {
+  font-size: 1.5rem;
+}
+.lia-icon--xl {
+  font-size: 2rem;
+}
 
 /* Rating */
 .lia-rating {
@@ -3558,9 +3781,16 @@ a.lia-email__sender-email:hover {
   gap: 1px;
 }
 
-.lia-rating__star--full { color: #fbbf24; }
-.lia-rating__star--half { color: #fbbf24; opacity: 0.5; }
-.lia-rating__star--empty { color: var(--lia-border); }
+.lia-rating__star--full {
+  color: #fbbf24;
+}
+.lia-rating__star--half {
+  color: #fbbf24;
+  opacity: 0.5;
+}
+.lia-rating__star--empty {
+  color: var(--lia-border);
+}
 
 .lia-rating__value {
   margin-left: var(--lia-space-xs);
@@ -3680,13 +3910,27 @@ a.lia-email__sender-email:hover {
 }
 
 /* Link variant - accent (domain-specific) */
-.lia-link--email::after { background: var(--lia-email-gradient); }
-.lia-link--contact::after { background: var(--lia-contact-gradient); }
-.lia-link--calendar::after { background: var(--lia-calendar-gradient); }
-.lia-link--drive::after { background: var(--lia-drive-gradient); }
-.lia-link--task::after { background: var(--lia-task-gradient); }
-.lia-link--place::after { background: var(--lia-place-gradient); }
-.lia-link--route::after { background: var(--lia-route-gradient); }
+.lia-link--email::after {
+  background: var(--lia-email-gradient);
+}
+.lia-link--contact::after {
+  background: var(--lia-contact-gradient);
+}
+.lia-link--calendar::after {
+  background: var(--lia-calendar-gradient);
+}
+.lia-link--drive::after {
+  background: var(--lia-drive-gradient);
+}
+.lia-link--task::after {
+  background: var(--lia-task-gradient);
+}
+.lia-link--place::after {
+  background: var(--lia-place-gradient);
+}
+.lia-link--route::after {
+  background: var(--lia-route-gradient);
+}
 
 /* =============================================================================
    Layout Components
@@ -3964,7 +4208,7 @@ a.lia-email__sender-email:hover {
   display: flex;
   flex-wrap: wrap;
   gap: var(--lia-space-sm);
-  margin: 0;  /* Gap in .lia-response-wrapper handles spacing */
+  margin: 0; /* Gap in .lia-response-wrapper handles spacing */
   /* Padding: sm top, md horizontal, lg bottom (more breathing room below) */
   padding: var(--lia-space-sm) var(--lia-space-md) var(--lia-space-lg);
   animation: lia-slide-up var(--lia-transition-normal) ease-out;
@@ -4283,7 +4527,8 @@ details.lia-collapsible > summary::marker {
 
 /* Pulse animation for unread/important */
 @keyframes lia-pulse-unread {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
     transform: scale(1);
   }
@@ -4295,24 +4540,35 @@ details.lia-collapsible > summary::marker {
 
 /* Shake animation for attention */
 @keyframes lia-shake {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateX(0);
   }
-  10%, 30%, 50%, 70%, 90% {
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
     transform: translateX(-2px);
   }
-  20%, 40%, 60%, 80% {
+  20%,
+  40%,
+  60%,
+  80% {
     transform: translateX(2px);
   }
 }
 
 /* Glow animation for highlights */
 @keyframes lia-glow {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow: var(--lia-shadow-md);
   }
   50% {
-    box-shadow: var(--lia-shadow-lg), 0 0 20px rgba(99, 102, 241, 0.15);
+    box-shadow:
+      var(--lia-shadow-lg),
+      0 0 20px rgba(99, 102, 241, 0.15);
   }
 }
 
@@ -4333,7 +4589,8 @@ details.lia-collapsible > summary::marker {
 
 /* Weather-specific animations */
 @keyframes lia-float {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0) translateX(0);
   }
   25% {
@@ -4365,7 +4622,8 @@ details.lia-collapsible > summary::marker {
 }
 
 @keyframes lia-sun-rays {
-  0%, 100% {
+  0%,
+  100% {
     transform: rotate(0deg);
   }
   100% {
@@ -4395,11 +4653,21 @@ details.lia-collapsible > summary::marker {
   animation: lia-slide-in-left var(--lia-transition-normal) ease-out backwards;
 }
 
-.lia-stagger-children > *:nth-child(1) { animation-delay: 0ms; }
-.lia-stagger-children > *:nth-child(2) { animation-delay: 50ms; }
-.lia-stagger-children > *:nth-child(3) { animation-delay: 100ms; }
-.lia-stagger-children > *:nth-child(4) { animation-delay: 150ms; }
-.lia-stagger-children > *:nth-child(5) { animation-delay: 200ms; }
+.lia-stagger-children > *:nth-child(1) {
+  animation-delay: 0ms;
+}
+.lia-stagger-children > *:nth-child(2) {
+  animation-delay: 50ms;
+}
+.lia-stagger-children > *:nth-child(3) {
+  animation-delay: 100ms;
+}
+.lia-stagger-children > *:nth-child(4) {
+  animation-delay: 150ms;
+}
+.lia-stagger-children > *:nth-child(5) {
+  animation-delay: 200ms;
+}
 
 /* Attachments list */
 .lia-attachments {
@@ -4451,7 +4719,9 @@ details.lia-collapsible > summary::marker {
 .lia-attachment--image .lia-attachment__icon,
 .lia-attachment--video .lia-attachment__icon,
 .lia-attachment--audio .lia-attachment__icon,
-.lia-attachment--archive .lia-attachment__icon { color: var(--lia-primary); }
+.lia-attachment--archive .lia-attachment__icon {
+  color: var(--lia-primary);
+}
 
 /* =============================================================================
    Container Query Responsive - SINGLE SOURCE OF TRUTH

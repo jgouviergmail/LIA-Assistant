@@ -35,7 +35,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.9.1</strong> — User Consumption Export, Admin Export Refactoring — March 2026
+  <strong>Version 1.9.2</strong> — Broadcast Spam Fix, UX & Prompt Improvements — March 2026
 </p>
 
 ---

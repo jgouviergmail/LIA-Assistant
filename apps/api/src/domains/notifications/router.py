@@ -396,7 +396,7 @@ async def send_broadcast(
     "/broadcasts/unread",
     response_model=UnreadBroadcastsResponse,
     summary="Get unread broadcasts",
-    description="Get all unread broadcast messages for the current user.",
+    description="Get recent unread broadcast messages for the current user.",
 )
 async def get_unread_broadcasts(
     current_user: User = Depends(get_current_active_session),
@@ -409,13 +409,17 @@ async def get_unread_broadcasts(
     - At login to show any broadcasts missed while offline
     - On visibility change (app comes to foreground)
 
-    Returns broadcasts the user hasn't marked as read yet,
-    excluding expired broadcasts. Messages are translated to the user's preferred language.
+    Only considers the N most recent eligible broadcasts (non-expired,
+    created after the user's signup). From those, returns the ones the user
+    hasn't marked as read yet, translated to their preferred language.
+    This prevents new users from seeing old broadcasts and limits notification
+    volume for existing users.
     """
     service = BroadcastService(db)
     broadcasts = await service.get_unread_broadcasts(
         user_id=current_user.id,
         user_language=current_user.language,  # type: ignore[arg-type]
+        user_created_at=current_user.created_at,
     )
 
     return UnreadBroadcastsResponse(

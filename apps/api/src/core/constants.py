@@ -909,6 +909,15 @@ OAUTH_HEALTH_CRITICAL_COOLDOWN_HOURS_DEFAULT = 24
 SSE_CONNECTION_TTL_SECONDS_DEFAULT = 120
 
 # ============================================================================
+# ADMIN BROADCASTS
+# ============================================================================
+
+# Maximum number of recent eligible broadcasts considered per user.
+# Only the N most recent non-expired broadcasts (created after the user's signup)
+# are eligible; from those, only the unread ones are actually returned.
+MAX_UNREAD_BROADCASTS = 3
+
+# ============================================================================
 # TOOL EXECUTION TIMEOUTS
 # ============================================================================
 

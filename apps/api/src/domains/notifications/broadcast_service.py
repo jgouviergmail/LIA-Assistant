@@ -18,6 +18,7 @@ import structlog
 from langchain_core.messages import HumanMessage, SystemMessage
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.constants import MAX_UNREAD_BROADCASTS
 from src.core.i18n import _
 from src.core.i18n_types import LANGUAGE_NAMES, Language
 from src.domains.agents.prompts.prompt_loader import load_prompt
@@ -353,18 +354,29 @@ class BroadcastService:
         self,
         user_id: UUID,
         user_language: Language = DEFAULT_SOURCE_LANGUAGE,
+        user_created_at: datetime | None = None,
     ) -> list[BroadcastInfo]:
         """
         Get unread broadcasts for a user, translated to their language.
 
+        Only considers the N most recent *eligible* broadcasts (non-expired,
+        created after the user's signup) and returns the unread ones among them.
+        This prevents new users from being spammed with old broadcasts and caps
+        the number of notifications for existing users.
+
         Args:
             user_id: User UUID
             user_language: User's preferred language
+            user_created_at: User's account creation date (excludes older broadcasts)
 
         Returns:
             List of BroadcastInfo with translated messages
         """
-        broadcasts = await self.broadcast_repo.get_unread_for_user(user_id)
+        broadcasts = await self.broadcast_repo.get_unread_for_user(
+            user_id,
+            user_created_at=user_created_at,
+            recent_limit=MAX_UNREAD_BROADCASTS,
+        )
 
         result = []
         for broadcast in broadcasts:

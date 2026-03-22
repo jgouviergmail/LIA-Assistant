@@ -50,6 +50,10 @@ export function useUsageLimits(): UseUsageLimitsReturn {
         }
         return;
       }
+      // Network errors (backend unreachable) are expected during startup — don't spam console
+      if (err instanceof TypeError) {
+        return;
+      }
       logger.error('Failed to fetch usage limits', err as Error, {
         component: 'useUsageLimits',
       });

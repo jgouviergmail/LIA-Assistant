@@ -20,7 +20,6 @@ import { BroadcastModal } from '@/components/broadcast';
 import { useTranslation } from '@/i18n/client';
 import { LayoutDashboard, MessageSquare, Settings, HelpCircle, LogOut } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { proxyGoogleImageUrl } from '@/lib/utils';
 interface DashboardLayoutProps {
   children: React.ReactNode;
   params: Promise<{ lng: string }>;
@@ -170,38 +169,14 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
                 <LanguageSelector currentLocale={lng} />
               </div>
 
-              {/* User Profile - Clickable for logout */}
+              {/* Logout button */}
               <button
                 onClick={logout}
-                className="flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-1.5 rounded-lg bg-muted/50 backdrop-blur-sm cursor-pointer transition-colors hover:bg-destructive/10 hover:text-destructive ml-3"
+                className="flex items-center justify-center h-9 w-9 rounded-lg bg-destructive text-destructive-foreground cursor-pointer transition-colors hover:bg-destructive/80 ml-3 shadow-sm"
                 title={t('navigation.logout')}
+                aria-label={t('navigation.logout')}
               >
-                {user.picture_url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={proxyGoogleImageUrl(user.picture_url) || user.picture_url}
-                    alt={user.full_name || user.email}
-                    className="h-8 w-8 rounded-full object-cover ring-2 ring-primary/20 shadow-sm"
-                    referrerPolicy="no-referrer"
-                  />
-                ) : (
-                  <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center ring-2 ring-primary/20 shadow-sm">
-                    <span className="text-sm font-semibold text-primary-foreground">
-                      {user.full_name?.[0]?.toUpperCase() || user.email[0].toUpperCase()}
-                    </span>
-                  </div>
-                )}
-                <div className="hidden lg:flex flex-col text-left">
-                  {user.full_name && (
-                    <span className="text-sm font-semibold leading-none">{user.full_name}</span>
-                  )}
-                  <span
-                    className={`text-xs text-muted-foreground ${!user.full_name ? 'text-sm' : 'mt-1'}`}
-                  >
-                    {user.email}
-                  </span>
-                </div>
-                <LogOut className="h-4 w-4 sm:ml-1" />
+                <LogOut className="h-4 w-4" />
               </button>
             </div>
           </div>

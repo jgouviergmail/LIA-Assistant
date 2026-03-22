@@ -66,7 +66,7 @@ apps/api/src/domains/agents/prompts/
     ├── query_analyzer_prompt.txt               # QueryAnalyzerService LLM analysis
     ├── smart_planner_prompt.txt                # SmartPlannerService single domain
     ├── smart_planner_multi_domain_prompt.txt   # SmartPlannerService multi-domain
-    ├── app_identity_prompt.txt                 # App self-knowledge identity prompt (~200 tokens), loaded conditionally when is_app_help_query=True
+    ├── app_identity_prompt.txt                 # App self-knowledge identity prompt (~200 tokens), loaded conditionally when is_app_help_query=True. Includes admin-boundary directive (v1.9.2): instructs LLM to never mention admin-only features to regular users.
     │
     │   # SEMANTIC & MEMORY (4)
     ├── semantic_validator_prompt.txt           # Plan semantic validation
