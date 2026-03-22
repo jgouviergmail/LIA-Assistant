@@ -321,3 +321,18 @@ If you reach a limit, the message input and voice are disabled and a red banner 
 
 **⚙️ Admin management:**
 Administrators manage limits in **Settings > Administration > Administration des limites**. They can set per-user quotas, block/unblock users instantly, and monitor real-time consumption.
+
+## How do I export my consumption data?
+
+You can export your personal LLM and Google API consumption as CSV files from **Settings > Features > My Consumption Export** (v1.9.1).
+
+**📥 Three export types:**
+- **LLM Token Usage** — Detailed per-call breakdown (model, tokens, cost)
+- **Google API Usage** — Detailed per-call breakdown (API, endpoint, cost)
+- **My Summary** — Aggregated totals (tokens, calls, costs)
+
+**📅 Date filters:**
+Quick presets (current month, last month, last 30 days, all time) or custom date range.
+
+**🔒 Security:**
+You can only export your own data — it is not possible to access other users' consumption. Administrators have a separate export tool in Settings > Administration with the ability to filter by user.

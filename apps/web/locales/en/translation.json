@@ -479,13 +479,7 @@
       "retry_button": "Retry",
       "retry_failed": "Unable to retrieve your position. Check that GPS is enabled.",
       "detection": {
-        "keywords": [
-          "nearby",
-          "vicinity",
-          "neighborhood",
-          "surroundings",
-          "area"
-        ],
+        "keywords": ["nearby", "vicinity", "neighborhood", "surroundings", "area"],
         "patterns": [
           "around (me|here|us)",
           "close (by|to me)",
@@ -972,6 +966,28 @@
         "bridge_unreachable": "Bridge unreachable. Check network connection.",
         "connect_remote": "Connect via Philips Hue",
         "test_connection": "Test connection"
+      }
+    },
+    "user": {
+      "export": {
+        "title": "My Consumption Export",
+        "description": "Export your personal LLM and Google API consumption data as CSV.",
+        "start_date": "Start Date",
+        "end_date": "End Date",
+        "preset_current_month": "Current Month",
+        "preset_last_month": "Last Month",
+        "preset_last_30_days": "Last 30 Days",
+        "preset_all_time": "All Time",
+        "token_usage_title": "LLM Token Usage",
+        "token_usage_description": "Details of each LLM call with tokens and costs.",
+        "google_api_usage_title": "Google API Usage",
+        "google_api_usage_description": "Details of each Google Maps API call.",
+        "summary_title": "My Summary",
+        "summary_description": "Aggregated totals of your consumption.",
+        "download_csv": "Download CSV",
+        "exporting": "Exporting...",
+        "success": "Export downloaded successfully",
+        "error": "Error during export"
       }
     },
     "admin": {
@@ -2368,7 +2384,7 @@
       "settings": {
         "title": "Settings",
         "description": "Account configuration and preferences",
-        "count": "15",
+        "count": "16",
         "questions": {
           "q1": {
             "question": "How do I change my timezone?",
@@ -2429,6 +2445,10 @@
           "q15": {
             "question": "Voice mode isn't working, what should I do?",
             "answer": "Here are <strong>solutions to common voice mode issues</strong>:<br><br><strong>🎤 Microphone problem:</strong><br>1. Check that your browser has permission to use the microphone<br>2. Click the 🔒 icon to the left of the URL to see permissions<br>3. Allow the microphone if blocked<br><br><strong>🌐 Unsupported browser:</strong><br>Voice mode requires a modern browser:<br>• ✅ Chrome 92+<br>• ✅ Firefox 79+<br>• ✅ Safari 15.2+<br>• ✅ Edge 92+<br>• ❌ Internet Explorer (not supported)<br><br><strong>🔒 Security headers:</strong><br>Voice mode uses advanced features (SharedArrayBuffer) that require security headers. If you see a \"crossOriginIsolated\" error, contact the administrator.<br><br><strong>🔇 Wake word not detected:</strong><br>• Say \"OK Guy\" or \"OK Guys\" clearly<br>• Avoid noisy environments<br>• Get closer to the microphone<br>• Use Push-to-Talk (click the overlay) as an alternative<br><br><strong>⏱️ Slow transcription:</strong><br>The first transcription may take 2-3 seconds (model loading). Subsequent ones are faster (~500ms)."
+          },
+          "q16": {
+            "question": "How do I export my consumption data?",
+            "answer": "You can export your personal LLM and Google API consumption as CSV files:<br><br><strong>📥 To export:</strong><br>1. Go to <strong>Settings > Features</strong><br>2. Open the <strong>My Consumption Export</strong> section<br>3. Choose a date range (current month, last month, last 30 days, or all time)<br>4. Click <strong>Download CSV</strong> on the export you want<br><br><strong>📊 Three export types:</strong><br>• <strong>LLM Token Usage</strong> — Detailed per-call breakdown (model, tokens, cost)<br>• <strong>Google API Usage</strong> — Detailed per-call breakdown (API, endpoint, cost)<br>• <strong>My Summary</strong> — Aggregated totals (tokens, calls, costs)<br><br><strong>🔒 Security:</strong><br>You can only export your own data. It is not possible to access other users' consumption data."
           }
         }
       },
@@ -3850,7 +3870,7 @@
       },
       "privacy": {
         "title": "Protected data",
-        "description": "No sharing of your data with third parties. Sensitive information encrypted, isolated sessions, automatic personal data filtering. GDPR compliant."
+        "description": "No sharing of your data with third parties. Sensitive information encrypted, isolated sessions, automatic personal data filtering. CSV export of your personal consumption data. GDPR compliant."
       },
       "simplicity": {
         "title": "Simple in a few clicks",
@@ -4225,7 +4245,7 @@
       "privacy-by-design": {
         "title": "Privacy by Design: GDPR, Encryption, and Data Control",
         "excerpt": "LIA encrypts your sensitive data, minimizes collection, gives you full control, and respects GDPR principles.",
-        "body": "<h2>Privacy by design</h2><p>LIA is designed from the ground up with data protection as a founding principle, not an afterthought.</p><h2>Fernet symmetric encryption</h2><p>All sensitive data is encrypted with <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256) via the <code>encrypt_data()</code> function. This covers OAuth tokens, connector credentials, PII, and MCP server credentials. OAuth credentials are encrypted before database writes and decrypted on-the-fly during retrieval. Encryption keys are managed separately from data.</p><h2>Collection minimization</h2><p>LIA only collects data strictly necessary for its operation:</p><ul><li>Profile information (name, email, preferences)</li><li>Conversation history (encrypted)</li><li>Service connection tokens (encrypted)</li><li>Anonymized usage metrics</li></ul><h2>Deletion and cascading</h2><p>Deleting a user account triggers a complete <strong>cascading delete</strong>: connectors, conversations, settings, sessions, memories, and all associated data are irreversibly deleted. No orphaned data persists in the database.</p><h2>Secure sessions and cookies</h2><p>Session cookies are configured with <code>HttpOnly</code>, <code>Secure</code> (in production), and <code>SameSite=lax</code> attributes. Session duration is 7 days by default, extendable to 30 days with the \"Remember me\" option. Single-use tokens are invalidated after first use via a Redis blacklist.</p><h2>External content protection</h2><p>Content retrieved from external sources (emails, web pages, documents) is tagged as <code>UNTRUSTED</code> with configurable wrapping before injection into prompts. The web_fetch tool is rate limited to 10 calls per 60-second window per user to prevent abuse.</p><h2>PII filtering in logs</h2><p>The logging system applies <strong>OWASP Logging Cheat Sheet</strong> recommendations to automatically filter personal data from application logs. No sensitive data appears in logs.</p>"
+        "body": "<h2>Privacy by design</h2><p>LIA is designed from the ground up with data protection as a founding principle, not an afterthought.</p><h2>Fernet symmetric encryption</h2><p>All sensitive data is encrypted with <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256) via the <code>encrypt_data()</code> function. This covers OAuth tokens, connector credentials, PII, and MCP server credentials. OAuth credentials are encrypted before database writes and decrypted on-the-fly during retrieval. Encryption keys are managed separately from data.</p><h2>Collection minimization</h2><p>LIA only collects data strictly necessary for its operation:</p><ul><li>Profile information (name, email, preferences)</li><li>Conversation history (encrypted)</li><li>Service connection tokens (encrypted)</li><li>Anonymized usage metrics</li></ul><h2>Deletion and cascading</h2><p>Deleting a user account triggers a complete <strong>cascading delete</strong>: connectors, conversations, settings, sessions, memories, and all associated data are irreversibly deleted. No orphaned data persists in the database.</p><h2>Secure sessions and cookies</h2><p>Session cookies are configured with <code>HttpOnly</code>, <code>Secure</code> (in production), and <code>SameSite=lax</code> attributes. Session duration is 7 days by default, extendable to 30 days with the \"Remember me\" option. Single-use tokens are invalidated after first use via a Redis blacklist.</p><h2>External content protection</h2><p>Content retrieved from external sources (emails, web pages, documents) is tagged as <code>UNTRUSTED</code> with configurable wrapping before injection into prompts. The web_fetch tool is rate limited to 10 calls per 60-second window per user to prevent abuse.</p><h2>PII filtering in logs</h2><p>The logging system applies <strong>OWASP Logging Cheat Sheet</strong> recommendations to automatically filter personal data from application logs. No sensitive data appears in logs.</p><h2>Data portability (v1.9.1)</h2><p>LIA allows each user to <strong>export their own consumption data</strong> as CSV from Settings > Features. Three export types: LLM consumption (tokens and costs per call), Google API consumption, and aggregated summary. Security: the <code>user_id</code> is forced server-side — no parameter is exposed, preventing access to other users' data (IDOR protection).</p>"
       },
       "observability": {
         "title": "350+ Prometheus Metrics, 18 Grafana Dashboards, and Langfuse Tracing",

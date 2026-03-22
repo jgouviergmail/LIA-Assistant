@@ -471,14 +471,7 @@
       "retry_button": "重试",
       "retry_failed": "无法获取您的位置。请检查GPS是否已启用。",
       "detection": {
-        "keywords": [
-          "附近",
-          "周围",
-          "周边",
-          "旁边",
-          "邻近",
-          "住处"
-        ],
+        "keywords": ["附近", "周围", "周边", "旁边", "邻近", "住处"],
         "patterns": [
           "(我|这)(附近|周围|周边)",
           "在我(附近|旁边)",
@@ -845,6 +838,28 @@
         "bridge_unreachable": "网桥无法访问。请检查网络连接。",
         "connect_remote": "通过Philips Hue连接",
         "test_connection": "测试连接"
+      }
+    },
+    "user": {
+      "export": {
+        "title": "导出我的消费数据",
+        "description": "将您的个人LLM和Google API消费数据导出为CSV。",
+        "start_date": "开始日期",
+        "end_date": "结束日期",
+        "preset_current_month": "本月",
+        "preset_last_month": "上月",
+        "preset_last_30_days": "最近30天",
+        "preset_all_time": "全部",
+        "token_usage_title": "LLM Token消费",
+        "token_usage_description": "每次LLM调用的详细信息，包括Token和费用。",
+        "google_api_usage_title": "Google API消费",
+        "google_api_usage_description": "每次Google Maps API调用的详细信息。",
+        "summary_title": "我的摘要",
+        "summary_description": "您的消费汇总数据。",
+        "download_csv": "下载CSV",
+        "exporting": "导出中...",
+        "success": "导出下载成功",
+        "error": "导出时出错"
       }
     },
     "admin": {
@@ -2354,7 +2369,7 @@
       "settings": {
         "title": "设置",
         "description": "账户配置和偏好设置",
-        "count": "15",
+        "count": "16",
         "questions": {
           "q1": {
             "question": "如何更改时区？",
@@ -2415,6 +2430,10 @@
           "q15": {
             "question": "语音模式不工作，该怎么办？",
             "answer": "以下是<strong>语音模式常见问题的解决方案</strong>：<br><br><strong>🎤 麦克风问题：</strong><br>1. 检查您的浏览器是否有使用麦克风的权限<br>2. 点击URL左侧的🔒图标查看权限<br>3. 如果被阻止，请允许麦克风<br><br><strong>🌐 不支持的浏览器：</strong><br>语音模式需要现代浏览器：<br>• ✅ Chrome 92+<br>• ✅ Firefox 79+<br>• ✅ Safari 15.2+<br>• ✅ Edge 92+<br>• ❌ Internet Explorer（不支持）<br><br><strong>🔒 安全标头：</strong><br>语音模式使用需要安全标头的高级功能（SharedArrayBuffer）。如果看到「crossOriginIsolated」错误，请联系管理员。<br><br><strong>🔇 未检测到唤醒词：</strong><br>• 清楚地说「ok guy」或「ok guys」<br>• 避免嘈杂的环境<br>• 靠近麦克风<br>• 使用按住说话（点击覆盖层）作为替代方案<br><br><strong>⏱️ 转录缓慢：</strong><br>第一次转录可能需要2-3秒（模型加载）。之后的转录会更快（约500毫秒）。"
+          },
+          "q16": {
+            "question": "如何导出我的消费数据？",
+            "answer": "您可以将个人LLM和Google API消费数据导出为CSV：<br><br><strong>📥 导出步骤：</strong><br>1. 进入<strong>设置 > 功能</strong><br>2. 打开<strong>导出我的消费数据</strong>部分<br>3. 选择时间段（本月、上月、最近30天或全部）<br>4. 点击<strong>下载CSV</strong><br><br><strong>📊 三种导出类型：</strong><br>• <strong>LLM Token消费</strong> — 每次调用的详细信息<br>• <strong>Google API消费</strong> — 每次调用的详细信息<br>• <strong>我的摘要</strong> — 汇总数据<br><br><strong>🔒 安全：</strong><br>您只能导出自己的数据。"
           }
         }
       },
@@ -3844,7 +3863,7 @@
       },
       "privacy": {
         "title": "数据受保护",
-        "description": "不与任何第三方共享您的数据。敏感信息加密，会话隔离，自动过滤个人数据。符合GDPR标准。"
+        "description": "不与任何第三方共享您的数据。敏感信息加密，会话隔离，自动过滤个人数据。个人消费数据CSV导出。符合GDPR标准。"
       },
       "simplicity": {
         "title": "简单几步操作",
@@ -4219,7 +4238,7 @@
       "privacy-by-design": {
         "title": "隐私设计：GDPR、加密和数据控制",
         "excerpt": "LIA加密敏感数据，最小化收集，尊重GDPR原则。",
-        "body": "<h2>隐私设计</h2><p>LIA从一开始就以数据保护为基本原则来设计，而非事后补充。</p><h2>Fernet对称加密</h2><p>所有敏感数据通过<strong>Fernet</strong>（AES-128 CBC + HMAC-SHA256）使用<code>encrypt_data()</code>函数加密。覆盖范围包括OAuth令牌、连接器凭据、PII和MCP服务器凭据。OAuth凭据在写入数据库前加密，读取时即时解密。加密密钥与数据分开管理。</p><h2>最小化数据收集</h2><p>LIA仅收集运行所需的最少数据：</p><ul><li>个人资料信息（姓名、邮箱、偏好设置）</li><li>对话历史（加密）</li><li>服务连接令牌（加密）</li><li>匿名使用指标</li></ul><h2>删除与级联</h2><p>删除用户账户会触发完整的<strong>级联删除</strong>：连接器、对话、设置、会话、记忆和所有关联数据都将不可逆地删除。数据库中不会保留任何孤立数据。</p><h2>安全会话与Cookie</h2><p>会话Cookie配置了<code>HttpOnly</code>、<code>Secure</code>（生产环境）和<code>SameSite=lax</code>属性。默认会话持续时间为7天，选择\"记住我\"可延长至30天。一次性令牌在首次使用后通过Redis黑名单机制失效。</p><h2>外部内容防护</h2><p>从外部来源（邮件、网页、文档）获取的内容在注入提示前标记为<code>UNTRUSTED</code>，并进行可配置封装。web_fetch工具限制为每个用户在60秒窗口内最多10次调用，以防止滥用。</p><h2>日志中PII过滤</h2><p>日志系统应用<strong>OWASP日志备忘录</strong>建议，自动从应用日志中过滤个人数据。敏感数据不会出现在日志中。</p>"
+        "body": "<h2>隐私设计</h2><p>LIA从一开始就以数据保护为基本原则来设计，而非事后补充。</p><h2>Fernet对称加密</h2><p>所有敏感数据通过<strong>Fernet</strong>（AES-128 CBC + HMAC-SHA256）使用<code>encrypt_data()</code>函数加密。覆盖范围包括OAuth令牌、连接器凭据、PII和MCP服务器凭据。OAuth凭据在写入数据库前加密，读取时即时解密。加密密钥与数据分开管理。</p><h2>最小化数据收集</h2><p>LIA仅收集运行所需的最少数据：</p><ul><li>个人资料信息（姓名、邮箱、偏好设置）</li><li>对话历史（加密）</li><li>服务连接令牌（加密）</li><li>匿名使用指标</li></ul><h2>删除与级联</h2><p>删除用户账户会触发完整的<strong>级联删除</strong>：连接器、对话、设置、会话、记忆和所有关联数据都将不可逆地删除。数据库中不会保留任何孤立数据。</p><h2>安全会话与Cookie</h2><p>会话Cookie配置了<code>HttpOnly</code>、<code>Secure</code>（生产环境）和<code>SameSite=lax</code>属性。默认会话持续时间为7天，选择\"记住我\"可延长至30天。一次性令牌在首次使用后通过Redis黑名单机制失效。</p><h2>外部内容防护</h2><p>从外部来源（邮件、网页、文档）获取的内容在注入提示前标记为<code>UNTRUSTED</code>，并进行可配置封装。web_fetch工具限制为每个用户在60秒窗口内最多10次调用，以防止滥用。</p><h2>日志中PII过滤</h2><p>日志系统应用<strong>OWASP日志备忘录</strong>建议，自动从应用日志中过滤个人数据。敏感数据不会出现在日志中。</p><h2>数据可移植性 (v1.9.1)</h2><p>LIA允许每个用户从设置 > 功能中<strong>导出个人消费数据</strong>为CSV格式。三种导出类型：LLM消费（每次调用的Token和成本）、Google API消费和汇总摘要。安全性：<code>user_id</code>在服务器端强制设置——不暴露任何参数（IDOR防护）。</p>"
       },
       "observability": {
         "title": "350+个Prometheus指标、18个Grafana仪表板和Langfuse追踪",

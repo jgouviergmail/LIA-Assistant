@@ -460,14 +460,7 @@
       "retry_button": "Reintentar",
       "retry_failed": "No se pudo obtener tu posición. Verifica que el GPS esté activado.",
       "detection": {
-        "keywords": [
-          "alrededores",
-          "cercanias",
-          "proximidad",
-          "vecindario",
-          "zona",
-          "domicilio"
-        ],
+        "keywords": ["alrededores", "cercanias", "proximidad", "vecindario", "zona", "domicilio"],
         "patterns": [
           "cerca de (aqu[ií]|m[ií])",
           "a mi alrededor",
@@ -839,6 +832,28 @@
         "bridge_unreachable": "Puente inalcanzable. Verifica la conexión de red.",
         "connect_remote": "Conectar vía Philips Hue",
         "test_connection": "Probar conexión"
+      }
+    },
+    "user": {
+      "export": {
+        "title": "Exportar mi consumo",
+        "description": "Exporte sus datos personales de consumo de LLM y API de Google como CSV.",
+        "start_date": "Fecha de inicio",
+        "end_date": "Fecha de fin",
+        "preset_current_month": "Mes actual",
+        "preset_last_month": "Mes pasado",
+        "preset_last_30_days": "Últimos 30 días",
+        "preset_all_time": "Todo",
+        "token_usage_title": "Consumo de tokens LLM",
+        "token_usage_description": "Detalles de cada llamada LLM con tokens y costos.",
+        "google_api_usage_title": "Consumo de API Google",
+        "google_api_usage_description": "Detalles de cada llamada a la API de Google Maps.",
+        "summary_title": "Mi resumen",
+        "summary_description": "Totales agregados de su consumo.",
+        "download_csv": "Descargar CSV",
+        "exporting": "Exportando...",
+        "success": "Exportación descargada con éxito",
+        "error": "Error durante la exportación"
       }
     },
     "admin": {
@@ -2359,7 +2374,7 @@
       "settings": {
         "title": "Configuración",
         "description": "Configuración de cuenta y preferencias",
-        "count": "15",
+        "count": "16",
         "questions": {
           "q1": {
             "question": "¿Cómo cambio mi zona horaria?",
@@ -2420,6 +2435,10 @@
           "q15": {
             "question": "El modo vocal no funciona, ¿qué hago?",
             "answer": "Aquí están las <strong>soluciones a problemas comunes</strong> del modo vocal:<br><br><strong>🎤 Problema de micrófono:</strong><br>1. Verifica que tu navegador tenga permiso para usar el micrófono<br>2. Haz clic en el icono 🔒 a la izquierda de la URL para ver los permisos<br>3. Permite el micrófono si está bloqueado<br><br><strong>🌐 Navegador no compatible:</strong><br>El modo vocal requiere un navegador moderno:<br>• ✅ Chrome 92+<br>• ✅ Firefox 79+<br>• ✅ Safari 15.2+<br>• ✅ Edge 92+<br>• ❌ Internet Explorer (no compatible)<br><br><strong>🔒 Headers de seguridad:</strong><br>El modo vocal usa funciones avanzadas (SharedArrayBuffer) que requieren headers de seguridad. Si ves un error \"crossOriginIsolated\", contacta al administrador.<br><br><strong>🔇 Wake word no detectado:</strong><br>• Di \"OK Guy\" o \"OK Guys\" claramente<br>• Evita ambientes ruidosos<br>• Acércate al micrófono<br>• Usa Push-to-Talk (haz clic en el overlay) como alternativa<br><br><strong>⏱️ Transcripción lenta:</strong><br>La primera transcripción puede tardar 2-3 segundos (carga del modelo). Las siguientes son más rápidas (~500ms)."
+          },
+          "q16": {
+            "question": "¿Cómo exporto mis datos de consumo?",
+            "answer": "Puedes exportar tu consumo personal de LLM y API de Google como CSV:<br><br><strong>📥 Para exportar:</strong><br>1. Ve a <strong>Configuración > Funcionalidades</strong><br>2. Abre la sección <strong>Exportar mi consumo</strong><br>3. Elige un período (mes actual, mes pasado, últimos 30 días, o todo)<br>4. Haz clic en <strong>Descargar CSV</strong><br><br><strong>📊 Tres tipos de exportación:</strong><br>• <strong>Consumo de tokens LLM</strong> — Desglose detallado por llamada<br>• <strong>Consumo de API Google</strong> — Desglose detallado por llamada<br>• <strong>Mi resumen</strong> — Totales agregados<br><br><strong>🔒 Seguridad:</strong><br>Solo puedes exportar tus propios datos."
           }
         }
       },
@@ -3849,7 +3868,7 @@
       },
       "privacy": {
         "title": "Datos protegidos",
-        "description": "Ningún dato compartido con terceros. Información sensible cifrada, sesiones aisladas, filtrado automático de datos personales. Conforme al RGPD."
+        "description": "Ningún dato compartido con terceros. Información sensible cifrada, sesiones aisladas, filtrado automático de datos personales. Exportación CSV de tu consumo personal. Conforme al RGPD."
       },
       "simplicity": {
         "title": "Simple en pocos clics",
@@ -4224,7 +4243,7 @@
       "privacy-by-design": {
         "title": "Privacidad por diseño: RGPD, cifrado y control de datos",
         "excerpt": "LIA cifra datos sensibles, minimiza la recopilación y respeta los principios del RGPD.",
-        "body": "<h2>Privacy by design</h2><p>LIA está diseñado desde el origen con la protección de datos como principio fundacional, no como un añadido posterior.</p><h2>Cifrado simétrico Fernet</h2><p>Todos los datos sensibles se cifran con <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256) mediante la función <code>encrypt_data()</code>. Esto cubre los tokens OAuth, las credenciales de los conectores, los PII y las credenciales de los servidores MCP. Las credenciales OAuth se cifran antes de escribirse en base de datos y se descifran al vuelo durante la recuperación. Las claves de cifrado se gestionan por separado de los datos.</p><h2>Minimización de la recopilación</h2><p>LIA solo recopila los datos estrictamente necesarios para su funcionamiento:</p><ul><li>Información de perfil (nombre, email, preferencias)</li><li>Historial de conversaciones (cifrado)</li><li>Tokens de conexión a los servicios (cifrados)</li><li>Métricas de uso anonimizadas</li></ul><h2>Eliminación y cascading</h2><p>La eliminación de una cuenta de usuario desencadena un <strong>cascading delete</strong> completo: conectores, conversaciones, configuraciones, sesiones, memorias y todos los datos asociados se eliminan irreversiblemente. Ningún dato huérfano persiste en la base de datos.</p><h2>Sesiones y cookies seguras</h2><p>Las cookies de sesión se configuran con los atributos <code>HttpOnly</code>, <code>Secure</code> (en producción) y <code>SameSite=lax</code>. La duración de la sesión es de 7 días por defecto, extensible a 30 días con la opción \"Recordarme\". Los tokens de un solo uso se invalidan tras su primera utilización mediante una lista negra en Redis.</p><h2>Protección de contenidos externos</h2><p>Los contenidos recuperados de fuentes externas (emails, páginas web, documentos) se etiquetan como <code>UNTRUSTED</code> con un envoltorio configurable antes de su inyección en los prompts. La herramienta web_fetch está limitada a 10 llamadas por ventana de 60 segundos por usuario para prevenir abusos.</p><h2>Filtrado de PII en los logs</h2><p>El sistema de logging aplica las recomendaciones <strong>OWASP Logging Cheat Sheet</strong> para filtrar automáticamente los datos personales de los registros de la aplicación. Ningún dato sensible aparece en los logs.</p>"
+        "body": "<h2>Privacy by design</h2><p>LIA está diseñado desde el origen con la protección de datos como principio fundacional, no como un añadido posterior.</p><h2>Cifrado simétrico Fernet</h2><p>Todos los datos sensibles se cifran con <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256) mediante la función <code>encrypt_data()</code>. Esto cubre los tokens OAuth, las credenciales de los conectores, los PII y las credenciales de los servidores MCP. Las credenciales OAuth se cifran antes de escribirse en base de datos y se descifran al vuelo durante la recuperación. Las claves de cifrado se gestionan por separado de los datos.</p><h2>Minimización de la recopilación</h2><p>LIA solo recopila los datos estrictamente necesarios para su funcionamiento:</p><ul><li>Información de perfil (nombre, email, preferencias)</li><li>Historial de conversaciones (cifrado)</li><li>Tokens de conexión a los servicios (cifrados)</li><li>Métricas de uso anonimizadas</li></ul><h2>Eliminación y cascading</h2><p>La eliminación de una cuenta de usuario desencadena un <strong>cascading delete</strong> completo: conectores, conversaciones, configuraciones, sesiones, memorias y todos los datos asociados se eliminan irreversiblemente. Ningún dato huérfano persiste en la base de datos.</p><h2>Sesiones y cookies seguras</h2><p>Las cookies de sesión se configuran con los atributos <code>HttpOnly</code>, <code>Secure</code> (en producción) y <code>SameSite=lax</code>. La duración de la sesión es de 7 días por defecto, extensible a 30 días con la opción \"Recordarme\". Los tokens de un solo uso se invalidan tras su primera utilización mediante una lista negra en Redis.</p><h2>Protección de contenidos externos</h2><p>Los contenidos recuperados de fuentes externas (emails, páginas web, documentos) se etiquetan como <code>UNTRUSTED</code> con un envoltorio configurable antes de su inyección en los prompts. La herramienta web_fetch está limitada a 10 llamadas por ventana de 60 segundos por usuario para prevenir abusos.</p><h2>Filtrado de PII en los logs</h2><p>El sistema de logging aplica las recomendaciones <strong>OWASP Logging Cheat Sheet</strong> para filtrar automáticamente los datos personales de los registros de la aplicación. Ningún dato sensible aparece en los logs.</p><h2>Portabilidad de datos (v1.9.1)</h2><p>LIA permite a cada usuario <strong>exportar sus propios datos de consumo</strong> en formato CSV desde Configuración > Funcionalidades. Tres tipos de exportación: consumo LLM (tokens y costos por llamada), consumo API Google, y resumen agregado. Seguridad: el <code>user_id</code> se fuerza en el servidor — ningún parámetro se expone (protección IDOR).</p>"
       },
       "observability": {
         "title": "350+ métricas Prometheus, 18 dashboards Grafana y tracing Langfuse",

@@ -460,14 +460,7 @@
       "retry_button": "Erneut versuchen",
       "retry_failed": "Ihre Position konnte nicht abgerufen werden. Überprüfen Sie, ob GPS aktiviert ist.",
       "detection": {
-        "keywords": [
-          "nahe",
-          "umgebung",
-          "gegend",
-          "nachbarschaft",
-          "viertel",
-          "zuhause"
-        ],
+        "keywords": ["nahe", "umgebung", "gegend", "nachbarschaft", "viertel", "zuhause"],
         "patterns": [
           "in der n[aä]he",
           "um mich herum",
@@ -839,6 +832,28 @@
         "bridge_unreachable": "Bridge nicht erreichbar. Prüfen Sie die Netzwerkverbindung.",
         "connect_remote": "Über Philips Hue verbinden",
         "test_connection": "Verbindung testen"
+      }
+    },
+    "user": {
+      "export": {
+        "title": "Mein Verbrauchsexport",
+        "description": "Exportieren Sie Ihre persönlichen LLM- und Google-API-Verbrauchsdaten als CSV.",
+        "start_date": "Startdatum",
+        "end_date": "Enddatum",
+        "preset_current_month": "Aktueller Monat",
+        "preset_last_month": "Letzter Monat",
+        "preset_last_30_days": "Letzte 30 Tage",
+        "preset_all_time": "Alles",
+        "token_usage_title": "LLM-Token-Verbrauch",
+        "token_usage_description": "Details zu jedem LLM-Aufruf mit Tokens und Kosten.",
+        "google_api_usage_title": "Google-API-Verbrauch",
+        "google_api_usage_description": "Details zu jedem Google Maps API-Aufruf.",
+        "summary_title": "Meine Zusammenfassung",
+        "summary_description": "Aggregierte Gesamtwerte Ihres Verbrauchs.",
+        "download_csv": "CSV herunterladen",
+        "exporting": "Exportiere...",
+        "success": "Export erfolgreich heruntergeladen",
+        "error": "Fehler beim Export"
       }
     },
     "admin": {
@@ -2359,7 +2374,7 @@
       "settings": {
         "title": "Einstellungen",
         "description": "Kontokonfiguration und Einstellungen",
-        "count": "15",
+        "count": "16",
         "questions": {
           "q1": {
             "question": "Wie ändere ich meine Zeitzone?",
@@ -2420,6 +2435,10 @@
           "q15": {
             "question": "Der Sprachmodus funktioniert nicht, was soll ich tun?",
             "answer": "Hier sind <strong>Lösungen für häufige Probleme</strong> im Sprachmodus:<br><br><strong>🎤 Mikrofonproblem:</strong><br>1. Überprüfen Sie, ob Ihr Browser die Berechtigung zur Verwendung des Mikrofons hat<br>2. Klicken Sie auf das 🔒-Symbol links neben der URL, um Berechtigungen zu sehen<br>3. Erlauben Sie das Mikrofon, falls es blockiert ist<br><br><strong>🌐 Nicht unterstützter Browser:</strong><br>Der Sprachmodus erfordert einen modernen Browser:<br>• ✅ Chrome 92+<br>• ✅ Firefox 79+<br>• ✅ Safari 15.2+<br>• ✅ Edge 92+<br>• ❌ Internet Explorer (nicht unterstützt)<br><br><strong>🔒 Sicherheits-Header:</strong><br>Der Sprachmodus verwendet erweiterte Funktionen (SharedArrayBuffer), die Sicherheits-Header erfordern. Wenn Sie einen \"crossOriginIsolated\"-Fehler sehen, kontaktieren Sie den Administrator.<br><br><strong>🔇 Wake Word nicht erkannt:</strong><br>• Sagen Sie \"OK Guy\" oder \"OK Guys\" deutlich<br>• Vermeiden Sie laute Umgebungen<br>• Nähern Sie sich dem Mikrofon<br>• Verwenden Sie Push-to-Talk (klicken Sie auf das Overlay) als Alternative<br><br><strong>⏱️ Langsame Transkription:</strong><br>Die erste Transkription kann 2-3 Sekunden dauern (Modell wird geladen). Die folgenden sind schneller (~500ms)."
+          },
+          "q16": {
+            "question": "Wie exportiere ich meine Verbrauchsdaten?",
+            "answer": "Sie können Ihre persönlichen LLM- und Google-API-Verbrauchsdaten als CSV exportieren:<br><br><strong>📥 So exportieren Sie:</strong><br>1. Gehen Sie zu <strong>Einstellungen > Funktionen</strong><br>2. Öffnen Sie den Abschnitt <strong>Mein Verbrauchsexport</strong><br>3. Wählen Sie einen Zeitraum (aktueller Monat, letzter Monat, letzte 30 Tage oder alles)<br>4. Klicken Sie auf <strong>CSV herunterladen</strong><br><br><strong>📊 Drei Exporttypen:</strong><br>• <strong>LLM-Token-Verbrauch</strong> — Detaillierte Aufschlüsselung pro Aufruf<br>• <strong>Google-API-Verbrauch</strong> — Detaillierte Aufschlüsselung pro Aufruf<br>• <strong>Meine Zusammenfassung</strong> — Aggregierte Gesamtwerte<br><br><strong>🔒 Sicherheit:</strong><br>Sie können nur Ihre eigenen Daten exportieren."
           }
         }
       },
@@ -3849,7 +3868,7 @@
       },
       "privacy": {
         "title": "Geschützte Daten",
-        "description": "Keine Weitergabe deiner Daten an Dritte. Sensible Informationen verschlüsselt, isolierte Sitzungen, automatische Filterung personenbezogener Daten. DSGVO-konform."
+        "description": "Keine Weitergabe deiner Daten an Dritte. Sensible Informationen verschlüsselt, isolierte Sitzungen, automatische Filterung personenbezogener Daten. CSV-Export deiner persönlichen Verbrauchsdaten. DSGVO-konform."
       },
       "simplicity": {
         "title": "Einfach mit wenigen Klicks",
@@ -4224,7 +4243,7 @@
       "privacy-by-design": {
         "title": "Privacy by Design: DSGVO, Verschlüsselung und Datenkontrolle",
         "excerpt": "LIA verschlüsselt sensible Daten, minimiert die Erfassung und respektiert DSGVO-Prinzipien.",
-        "body": "<h2>Privacy by Design</h2><p>LIA ist von Anfang an mit Datenschutz als Grundprinzip konzipiert, nicht als nachträgliche Ergänzung.</p><h2>Symmetrische Fernet-Verschlüsselung</h2><p>Alle sensiblen Daten werden mit <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256) über die Funktion <code>encrypt_data()</code> verschlüsselt. Dies umfasst OAuth-Token, Connector-Anmeldedaten, PII und MCP-Server-Anmeldedaten. OAuth-Anmeldedaten werden vor dem Schreiben in die Datenbank verschlüsselt und beim Abrufen on-the-fly entschlüsselt. Die Verschlüsselungsschlüssel werden getrennt von den Daten verwaltet.</p><h2>Minimierung der Datenerhebung</h2><p>LIA erhebt nur die für seinen Betrieb strikt notwendigen Daten:</p><ul><li>Profilinformationen (Name, E-Mail, Präferenzen)</li><li>Konversationsverlauf (verschlüsselt)</li><li>Verbindungs-Token zu Diensten (verschlüsselt)</li><li>Anonymisierte Nutzungsmetriken</li></ul><h2>Löschung und Kaskadierung</h2><p>Die Löschung eines Benutzerkontos löst eine <strong>vollständige Kaskadenlöschung</strong> aus: Connectoren, Konversationen, Einstellungen, Sitzungen, Erinnerungen und alle zugehörigen Daten werden unwiderruflich gelöscht. Keine verwaisten Daten verbleiben in der Datenbank.</p><h2>Sichere Sitzungen und Cookies</h2><p>Die Sitzungs-Cookies sind mit den Attributen <code>HttpOnly</code>, <code>Secure</code> (in Produktion) und <code>SameSite=lax</code> konfiguriert. Die Sitzungsdauer beträgt standardmäßig 7 Tage, erweiterbar auf 30 Tage mit der Option \"Angemeldet bleiben\". Einmal-Token werden nach der ersten Verwendung über eine Redis-Sperrliste ungültig gemacht.</p><h2>Schutz externer Inhalte</h2><p>Inhalte, die aus externen Quellen abgerufen werden (E-Mails, Webseiten, Dokumente), werden vor der Injektion in die Prompts als <code>UNTRUSTED</code> mit konfigurierbarem Wrapping markiert. Das Tool web_fetch ist auf 10 Aufrufe pro 60-Sekunden-Fenster pro Benutzer rate-limitiert, um Missbrauch zu verhindern.</p><h2>PII-Filterung in Logs</h2><p>Das Logging-System wendet die <strong>OWASP Logging Cheat Sheet</strong>-Empfehlungen an, um persönliche Daten automatisch aus den Anwendungslogs zu filtern. Keine sensiblen Daten erscheinen in den Logs.</p>"
+        "body": "<h2>Privacy by Design</h2><p>LIA ist von Anfang an mit Datenschutz als Grundprinzip konzipiert, nicht als nachträgliche Ergänzung.</p><h2>Symmetrische Fernet-Verschlüsselung</h2><p>Alle sensiblen Daten werden mit <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256) über die Funktion <code>encrypt_data()</code> verschlüsselt. Dies umfasst OAuth-Token, Connector-Anmeldedaten, PII und MCP-Server-Anmeldedaten. OAuth-Anmeldedaten werden vor dem Schreiben in die Datenbank verschlüsselt und beim Abrufen on-the-fly entschlüsselt. Die Verschlüsselungsschlüssel werden getrennt von den Daten verwaltet.</p><h2>Minimierung der Datenerhebung</h2><p>LIA erhebt nur die für seinen Betrieb strikt notwendigen Daten:</p><ul><li>Profilinformationen (Name, E-Mail, Präferenzen)</li><li>Konversationsverlauf (verschlüsselt)</li><li>Verbindungs-Token zu Diensten (verschlüsselt)</li><li>Anonymisierte Nutzungsmetriken</li></ul><h2>Löschung und Kaskadierung</h2><p>Die Löschung eines Benutzerkontos löst eine <strong>vollständige Kaskadenlöschung</strong> aus: Connectoren, Konversationen, Einstellungen, Sitzungen, Erinnerungen und alle zugehörigen Daten werden unwiderruflich gelöscht. Keine verwaisten Daten verbleiben in der Datenbank.</p><h2>Sichere Sitzungen und Cookies</h2><p>Die Sitzungs-Cookies sind mit den Attributen <code>HttpOnly</code>, <code>Secure</code> (in Produktion) und <code>SameSite=lax</code> konfiguriert. Die Sitzungsdauer beträgt standardmäßig 7 Tage, erweiterbar auf 30 Tage mit der Option \"Angemeldet bleiben\". Einmal-Token werden nach der ersten Verwendung über eine Redis-Sperrliste ungültig gemacht.</p><h2>Schutz externer Inhalte</h2><p>Inhalte, die aus externen Quellen abgerufen werden (E-Mails, Webseiten, Dokumente), werden vor der Injektion in die Prompts als <code>UNTRUSTED</code> mit konfigurierbarem Wrapping markiert. Das Tool web_fetch ist auf 10 Aufrufe pro 60-Sekunden-Fenster pro Benutzer rate-limitiert, um Missbrauch zu verhindern.</p><h2>PII-Filterung in Logs</h2><p>Das Logging-System wendet die <strong>OWASP Logging Cheat Sheet</strong>-Empfehlungen an, um persönliche Daten automatisch aus den Anwendungslogs zu filtern. Keine sensiblen Daten erscheinen in den Logs.</p><h2>Datenportabilität (v1.9.1)</h2><p>LIA ermöglicht jedem Benutzer den <strong>Export seiner persönlichen Verbrauchsdaten</strong> als CSV über Einstellungen > Funktionen. Drei Exporttypen: LLM-Verbrauch (Tokens und Kosten pro Aufruf), Google-API-Verbrauch und aggregierte Zusammenfassung. Sicherheit: Die <code>user_id</code> wird serverseitig erzwungen — kein Parameter wird offengelegt (IDOR-Schutz).</p>"
       },
       "observability": {
         "title": "350+ Prometheus-Metriken, 18 Grafana-Dashboards und Langfuse-Tracing",

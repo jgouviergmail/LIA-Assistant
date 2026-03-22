@@ -72,3 +72,12 @@ LIA uses a **5-layer defense-in-depth** architecture:
 5. **Direct call migration** — Full coverage
 
 **Fail-open:** If Redis/DB is down, access is allowed (cost control, not security).
+
+## Can I export my consumption data?
+Yes. Go to **Settings > Features > My Consumption Export** to download your personal data as CSV:
+
+- **LLM Token Usage** — detailed per-call breakdown (model, tokens, cost)
+- **Google API Usage** — detailed per-call breakdown (API, endpoint, cost)
+- **My Summary** — aggregated totals (tokens, calls, costs)
+
+Use date presets (current month, last month, last 30 days) or custom ranges. You can only export your own data — other users' data is never accessible.

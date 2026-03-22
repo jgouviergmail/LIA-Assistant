@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.1] - 2026-03-22
+
+### Added
+
+- **User Consumption Export** — Authenticated users can now export their own LLM token usage, Google API usage, and aggregated consumption summary as CSV from Settings → Features → "My Consumption Export". Three export types with date range filters (current month, last month, last 30 days, all time). Security: `user_id` forced server-side via `current_user.id` — no `user_id` parameter exposed on user endpoints, preventing IDOR. 7 introspection-based security unit tests. (`apps/api/src/domains/google_api/user_export_router.py`, `apps/web/src/components/settings/ConsumptionExportSection.tsx`)
+- **Shared Export Service** — Extracted admin export query logic into reusable service functions (`export_token_usage_csv`, `export_google_api_usage_csv`, `export_consumption_summary_csv`) with shared date parsing helper. Both admin and user endpoints delegate to the same service, eliminating code duplication. (`apps/api/src/domains/google_api/export_service.py`)
+- **Dual-Mode Export Component** — Unified `ConsumptionExportSection` React component with `mode` prop (`'admin'` | `'user'`). Admin mode shows user filter with autocomplete; user mode shows date filters only and calls user-scoped API endpoints. Admin wrapper (`AdminConsumptionExportSection`) reduced to a thin passthrough. Unique HTML IDs per mode prevent DOM conflicts when both instances coexist for superusers. (`apps/web/src/components/settings/ConsumptionExportSection.tsx`, `apps/web/src/components/settings/AdminConsumptionExportSection.tsx`)
+- **Export Unit Tests** — 26 unit tests: `_parse_date_range` validation, CSV output for token/Google API/summary exports, empty data handling, consumption aggregation with partial data, and 9 router security tests (no `user_id` parameter exposed, auth dependency present, correct prefix, allowed params whitelist). (`apps/api/tests/unit/domains/google_api/`)
+- **User Export Internationalization (6 languages)** — 18 translation keys per language under `settings.user.export.*` namespace (en, fr, de, es, it, zh) for section title, description, date presets, export card labels, and status messages. (`apps/web/locales/`)
+
+### Fixed
+
+- **Admin export code duplication** — Admin export endpoints (`/admin/google-api/export/*`) refactored to delegate to shared `export_service` functions instead of inlining SQLAlchemy queries. No behavioral change. (`apps/api/src/domains/google_api/router.py`)
+
 ## [1.9.0] - 2026-03-22
 
 ### Added

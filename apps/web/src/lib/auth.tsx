@@ -189,7 +189,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
    * 4. Frontend clears user state
    * 5. Redirect to login page
    */
-  const logout = async (): Promise<void> => {
+  const logout = useCallback(async (): Promise<void> => {
     try {
       await apiClient.post('/auth/logout');
     } catch (error) {
@@ -199,7 +199,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUser(null);
       router.push('/login');
     }
-  };
+  }, [router]);
 
   /**
    * Initiate Google OAuth flow
@@ -248,9 +248,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   // Memoize context value to prevent unnecessary re-renders of consumers.
-  // Only user and isLoading change after mount — functions are stable or recreated
-  // but don't affect consumer rendering (they're only called on user action).
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // logout and refreshUser are useCallback-wrapped (stable references).
+  // login, register, initiateGoogleOAuth are recreated per render but only
+  // called on user action — they don't trigger consumer re-renders.
   const contextValue = useMemo(
     () => ({
       user,
@@ -261,7 +261,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       initiateGoogleOAuth,
       refreshUser,
     }),
-    [user, isLoading]
+    [user, isLoading, logout, refreshUser]
   );
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;

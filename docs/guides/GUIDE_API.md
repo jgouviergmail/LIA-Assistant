@@ -1081,6 +1081,39 @@ Content-Type: application/json
 
 ---
 
+## User Consumption Export (v1.9.1)
+
+> Prefix: `/usage/export`. Auth: `get_current_active_session` (any authenticated user).
+
+Users can export their own consumption data as CSV. Security: `user_id` is forced server-side — no parameter exposed.
+
+### GET /usage/export/token-usage
+
+**Export the current user's LLM token usage as CSV.**
+
+**Query Parameters:**
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `start_date` | string | No | Start date filter (YYYY-MM-DD) |
+| `end_date` | string | No | End date filter (YYYY-MM-DD) |
+
+**Response:** `200 OK` — CSV file download (`text/csv; charset=utf-8`)
+
+### GET /usage/export/google-api-usage
+
+**Export the current user's Google API usage as CSV.**
+
+Same query parameters as above.
+
+### GET /usage/export/consumption-summary
+
+**Export the current user's aggregated consumption summary as CSV.**
+
+Same query parameters as above. Returns a single-row CSV with totals (tokens, calls, costs).
+
+---
+
 ## MCP Admin
 
 > **Feature Flag** : `MCP_ENABLED=true` requis. Prefix : `/mcp/admin-servers`

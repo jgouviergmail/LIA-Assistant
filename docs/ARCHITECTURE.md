@@ -94,7 +94,7 @@ Chaque domaine est un **bounded context** isolé avec :
 5. **conversations** - Persistence conversations (checkpoints)
 6. **chat** - Routing messages et SSE streaming
 7. **llm** - Pricing et cost tracking LLM
-8. **google_api** - Google Maps Platform tracking et pricing (v6.1)
+8. **google_api** - Google Maps Platform tracking, pricing, and consumption exports (v6.1, user export v1.9.1)
 9. **personalities** - Personnalités assistant (ton, style réponses)
 10. **voice** - Synthèse vocale TTS (Edge/OpenAI) et STT (Whisper)
 11. **memories** - Mémoire long-terme sémantique (pgvector + BM25)

@@ -1912,8 +1912,8 @@ result = await db.execute(query)
 | Storage Limitation | Art. 5(1)(e) | TTL automatique (7-30 jours) | ✅ |
 | Confidentiality | Art. 32 | Encryption at rest + in transit | ✅ |
 | Right to Erasure | Art. 17 | DELETE cascade (users → data) | ✅ |
-| Right to Access | Art. 15 | Export endpoints (JSON/CSV) | 🔄 |
-| Data Portability | Art. 20 | Export endpoints (JSON/CSV) | 🔄 |
+| Right to Access | Art. 15 | User consumption export (CSV), memories export (JSON) | ✅ |
+| Data Portability | Art. 20 | `/api/v1/usage/export/*` — user exports own data (v1.9.1) | ✅ |
 | Breach Notification | Art. 33 | AlertManager (72h requirement) | ✅ |
 
 ### Data Minimization (Art. 5)

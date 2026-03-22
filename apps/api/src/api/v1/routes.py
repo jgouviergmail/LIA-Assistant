@@ -14,6 +14,7 @@ from src.domains.chat.router import router as chat_router
 from src.domains.connectors.router import router as connectors_router
 from src.domains.conversations.router import router as conversations_router
 from src.domains.google_api.router import router as google_api_admin_router
+from src.domains.google_api.user_export_router import router as user_export_router
 from src.domains.interests.router import router as interests_router
 from src.domains.llm.router import router as llm_admin_router
 from src.domains.llm_config.router import router as llm_config_router
@@ -83,6 +84,7 @@ if getattr(settings, "usage_limits_enabled", False):
     api_router.include_router(usage_limits_router)
     api_router.include_router(usage_limits_ws_router)
 api_router.include_router(voice_router)
+api_router.include_router(user_export_router)
 api_router.include_router(system_settings_public_router)
 
 # Include admin routers

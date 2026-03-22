@@ -42,6 +42,7 @@ import { AdminUsageLimitsSection } from '@/components/settings/AdminUsageLimitsS
 import { SpacesSettingsSection } from '@/components/spaces/SpacesSettingsSection';
 import { VoiceModeSettings } from '@/components/settings/VoiceModeSettings';
 import { UserDebugSettings } from '@/components/settings/UserDebugSettings';
+import ConsumptionExportSection from '@/components/settings/ConsumptionExportSection';
 import { useDebugPanelEnabled } from '@/hooks/useDebugPanelEnabled';
 import { useTranslation } from '@/i18n/client';
 import { FeatureErrorBoundary } from '@/components/errors';
@@ -249,6 +250,9 @@ export default function SettingsPage({ params }: SettingsPageProps) {
                 <ChannelSettings lng={lng} />
               </FeatureErrorBoundary>
               <VoiceModeSettings lng={lng} />
+              <FeatureErrorBoundary feature="user-consumption-export">
+                <ConsumptionExportSection lng={lng} mode="user" />
+              </FeatureErrorBoundary>
             </Accordion>
           </TabsContent>
 
@@ -369,6 +373,9 @@ export default function SettingsPage({ params }: SettingsPageProps) {
                 <ChannelSettings lng={lng} />
               </FeatureErrorBoundary>
               <VoiceModeSettings lng={lng} />
+              <FeatureErrorBoundary feature="user-consumption-export">
+                <ConsumptionExportSection lng={lng} mode="user" />
+              </FeatureErrorBoundary>
             </Accordion>
           </TabsContent>
         </Tabs>

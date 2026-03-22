@@ -780,23 +780,29 @@ Voir [GOOGLE_API_TRACKING.md](./GOOGLE_API_TRACKING.md) pour la documentation d�
 
 ## 📤 Export de Consommation
 
-### Endpoints Admin
+### Shared Export Service (v1.9.1)
 
-Le système fournit des endpoints d'export CSV pour la facturation :
+Export logic is centralized in `src/domains/google_api/export_service.py` with three reusable functions used by both admin and user endpoints. See [GOOGLE_API_TRACKING.md](./GOOGLE_API_TRACKING.md#-export-de-consommation) for full details.
+
+### Admin Endpoints (Superuser Only)
 
 | Endpoint | Description |
 |----------|-------------|
-| `GET /admin/google-api/export/token-usage` | Export détaillé LLM |
-| `GET /admin/google-api/export/google-api-usage` | Export détaillé Google API |
-| `GET /admin/google-api/export/consumption-summary` | Agrégation par utilisateur |
+| `GET /admin/google-api/export/token-usage` | Detailed LLM export (all users or filtered) |
+| `GET /admin/google-api/export/google-api-usage` | Detailed Google API export |
+| `GET /admin/google-api/export/consumption-summary` | Per-user aggregation |
 
-### Filtres Disponibles
+Filters: `start_date`, `end_date`, `user_id` (optional).
 
-Tous les endpoints supportent :
+### User Endpoints (v1.9.1)
 
-- `start_date` : Date début (YYYY-MM-DD)
-- `end_date` : Date fin (YYYY-MM-DD)
-- `user_id` : Filtrer par utilisateur (UUID)
+| Endpoint | Description |
+|----------|-------------|
+| `GET /usage/export/token-usage` | User's own LLM token usage |
+| `GET /usage/export/google-api-usage` | User's own Google API usage |
+| `GET /usage/export/consumption-summary` | User's own aggregated summary |
+
+Filters: `start_date`, `end_date`. Security: `user_id` forced server-side to `current_user.id`.
 
 ### Format CSV Summary
 
@@ -805,12 +811,11 @@ user_email,total_prompt_tokens,total_completion_tokens,total_cached_tokens,total
 user@example.com,125000,45000,80000,150,1.234567,25,0.456789,1.691356
 ```
 
-### Interface Admin
+### Interface Frontend
 
-Deux composants frontend permettent la gestion :
-
-- **AdminConsumptionExportSection** : Exports avec presets de dates et autocomplete utilisateur
-- **AdminGoogleApiPricingSection** : CRUD pricing Google API avec rechargement cache
+- **ConsumptionExportSection** (v1.9.1): Shared dual-mode component (`mode: 'admin' | 'user'`). Admin mode shows user filter with autocomplete; user mode shows date filters only.
+- **AdminConsumptionExportSection**: Thin wrapper calling `ConsumptionExportSection` with `mode="admin"`.
+- **AdminGoogleApiPricingSection**: CRUD pricing Google API with cache reload.
 
 ---
 

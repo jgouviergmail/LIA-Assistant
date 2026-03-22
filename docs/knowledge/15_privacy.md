@@ -60,6 +60,9 @@ LIA only collects data **necessary for its operation**:
 **🗑️ Right to erasure:**
 You can request complete deletion of your account and data.
 
+**📥 Right to data portability:**
+You can export your personal consumption data as CSV from **Settings > Features > My Consumption Export**. Three export types: LLM token usage, Google API usage, and aggregated summary. You can only export your own data — access to other users' data is blocked server-side.
+
 ## Can I delete my account and data?
 Yes, you have a **right to complete erasure**:
 

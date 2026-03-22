@@ -550,7 +550,15 @@ Recharger le cache pricing en mémoire après modifications.
 
 ## 📤 Export de Consommation
 
-### Endpoints d'Export
+### Architecture
+
+The export logic is centralized in a shared service (`src/domains/google_api/export_service.py`) used by both admin and user endpoints, eliminating code duplication. Three reusable functions handle query building, date parsing, and CSV generation:
+
+- `export_token_usage_csv()` — Detailed LLM call export
+- `export_google_api_usage_csv()` — Detailed Google API call export
+- `export_consumption_summary_csv()` — Aggregated per-user summary
+
+### Admin Endpoints (Superuser Only)
 
 ```
 GET /api/v1/admin/google-api/export/token-usage
@@ -558,39 +566,48 @@ GET /api/v1/admin/google-api/export/google-api-usage
 GET /api/v1/admin/google-api/export/consumption-summary
 ```
 
-#### Export Token Usage
-
-Export détaillé des appels LLM.
+**Auth**: Requires `get_current_superuser_session` (router-level dependency).
 
 **Query Parameters**:
 
 | Param | Type | Description |
 |-------|------|-------------|
-| `start_date` | string | Date début (YYYY-MM-DD) |
-| `end_date` | string | Date fin (YYYY-MM-DD) |
-| `user_id` | UUID | Filtrer par utilisateur |
+| `start_date` | string | Start date filter (YYYY-MM-DD) |
+| `end_date` | string | End date filter (YYYY-MM-DD) |
+| `user_id` | UUID | Filter by specific user (optional — omit for all users) |
 
-**CSV Columns**:
+### User Endpoints (v1.9.1)
+
+```
+GET /api/v1/usage/export/token-usage
+GET /api/v1/usage/export/google-api-usage
+GET /api/v1/usage/export/consumption-summary
+```
+
+**Auth**: Requires `get_current_active_session`. Security: `user_id` is forced server-side to `current_user.id` — no `user_id` parameter is exposed, preventing IDOR attacks.
+
+**Query Parameters**:
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `start_date` | string | Start date filter (YYYY-MM-DD) |
+| `end_date` | string | End date filter (YYYY-MM-DD) |
+
+### CSV Formats
+
+#### Token Usage
 
 ```csv
 date,user_email,run_id,node_name,model_name,prompt_tokens,completion_tokens,cached_tokens,cost_usd,cost_eur
 ```
 
-#### Export Google API Usage
-
-Export détaillé des appels Google API.
-
-**CSV Columns**:
+#### Google API Usage
 
 ```csv
 date,user_email,run_id,api_name,endpoint,request_count,cost_usd,cost_eur,cached
 ```
 
-#### Export Consumption Summary
-
-Export agrégé par utilisateur.
-
-**CSV Columns**:
+#### Consumption Summary
 
 ```csv
 user_email,total_prompt_tokens,total_completion_tokens,total_cached_tokens,total_llm_calls,total_llm_cost_eur,total_google_requests,total_google_cost_eur,total_cost_eur
@@ -622,27 +639,32 @@ interface Props {
 }
 ```
 
-### AdminConsumptionExportSection
+### ConsumptionExportSection (v1.9.1)
 
-Export de données de consommation.
+Shared dual-mode component for consumption data export.
 
-**Fichier**: `apps/web/src/components/settings/AdminConsumptionExportSection.tsx`
+**File**: `apps/web/src/components/settings/ConsumptionExportSection.tsx`
 
 **Features**:
 
-- Presets de dates (mois courant, mois dernier, 30 derniers jours, tout)
-- Autocomplete utilisateur avec debounce
-- 3 types d'export (Token Usage, Google API, Summary)
-- Téléchargement CSV
+- Date presets (current month, last month, last 30 days, all time)
+- Admin mode: user autocomplete with debounce, calls `/admin/google-api/export/*`
+- User mode: no user filter, calls `/usage/export/*` (own data only)
+- 3 export types (Token Usage, Google API, Summary)
+- CSV download via blob
 
 **Props**:
 
 ```typescript
-interface Props {
-  lng: Language;
-  collapsible?: boolean;
+interface ConsumptionExportSectionProps extends BaseSettingsProps {
+  mode: 'admin' | 'user';
 }
 ```
+
+**Wrappers**:
+
+- `AdminConsumptionExportSection` — Thin wrapper with `mode="admin"`, used in Settings > Administration
+- Direct `<ConsumptionExportSection mode="user" />` in Settings > Features (both superuser and regular user tabs)
 
 ### Traductions i18n
 
@@ -670,6 +692,15 @@ Clés ajoutées dans `locales/{lang}/translation.json` :
         "token_usage_title": "LLM Token Usage",
         "google_api_usage_title": "Google API Usage",
         "summary_title": "Consumption Summary"
+      }
+    },
+    "user": {
+      "export": {
+        "title": "My Consumption Export",
+        "description": "Export your personal consumption data as CSV",
+        "token_usage_title": "LLM Token Usage",
+        "google_api_usage_title": "Google API Usage",
+        "summary_title": "My Summary"
       }
     }
   }

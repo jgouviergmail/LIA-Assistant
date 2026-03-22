@@ -35,7 +35,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.9.0</strong> — Per-User Usage Limits, Admin Quotas Management — March 2026
+  <strong>Version 1.9.1</strong> — User Consumption Export, Admin Export Refactoring — March 2026
 </p>
 
 ---
@@ -259,14 +259,15 @@ ExecutionStep(
 - **Google Maps Platform**: Places, Routes, Geocoding, Static Maps
 - **Dynamic Pricing**: Admin UI for pricing CRUD
 - **ContextVar Pattern**: Implicit tracking without explicit parameter passing
-- **CSV Exports**: Token usage, Google API usage, Consumption summary
+- **Admin CSV Exports**: Token usage, Google API usage, Consumption summary (all users or filtered by user)
+- **User CSV Exports** (v1.9.1): Personal consumption export in Settings > Features — users export their own data only (`user_id` forced server-side, IDOR-safe)
 
 ### Security & Compliance
 
 - **OAuth 2.1**: PKCE (S256), single-use state token
 - **BFF Pattern**: HTTP-only cookies, Redis session with 24h TTL
 - **Encryption**: Fernet (credentials), bcrypt (passwords)
-- **GDPR**: Automatic PII filtering, pseudonymization
+- **GDPR**: Automatic PII filtering, pseudonymization, personal data export (Art. 20 data portability)
 - **Per-User Usage Limits**: Token, message, and cost quotas (period/global) with 5-layer defense-in-depth enforcement, admin kill switch, real-time dashboard with WebSocket gauges. Feature flag: `USAGE_LIMITS_ENABLED=true`
 
 ### MCP (Model Context Protocol)
