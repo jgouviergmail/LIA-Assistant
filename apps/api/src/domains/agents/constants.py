@@ -5,11 +5,7 @@ Centralizes hardcoded values to improve maintainability and reduce magic strings
 """
 
 from src.core.constants import (
-    CONTEXT_ACTIVE_WINDOW_TURNS_DEFAULT,
-    CONTEXT_CURRENT_ITEM_CONFIDENCE_DEFAULT,
-    CONTEXT_DEMONSTRATIVE_CONFIDENCE_DEFAULT,
     CONTEXT_REFERENCE_CONFIDENCE_THRESHOLD_DEFAULT,
-    CONTEXT_RESOLUTION_TIMEOUT_MS_DEFAULT,
 )
 
 # ============================================================================
@@ -341,10 +337,6 @@ def _get_setting_with_fallback(setting_name: str, fallback_constant: str) -> flo
 CONTEXT_REFERENCE_CONFIDENCE_THRESHOLD = (
     CONTEXT_REFERENCE_CONFIDENCE_THRESHOLD_DEFAULT  # Use constant, settings accessed at runtime
 )
-CONTEXT_ACTIVE_WINDOW_TURNS = CONTEXT_ACTIVE_WINDOW_TURNS_DEFAULT
-CONTEXT_RESOLUTION_TIMEOUT_MS = CONTEXT_RESOLUTION_TIMEOUT_MS_DEFAULT
-CONTEXT_DEMONSTRATIVE_CONFIDENCE = CONTEXT_DEMONSTRATIVE_CONFIDENCE_DEFAULT
-CONTEXT_CURRENT_ITEM_CONFIDENCE = CONTEXT_CURRENT_ITEM_CONFIDENCE_DEFAULT
 
 # ============================================================================
 # LOGGING AND PREVIEW LIMITS
@@ -795,9 +787,6 @@ __all__ = [
     "TURN_TYPE_CONVERSATIONAL",
     "CONTEXT_REFERENCE_CONFIDENCE_THRESHOLD",
     "get_context_reference_confidence_threshold",
-    "CONTEXT_ACTIVE_WINDOW_TURNS",
-    "CONTEXT_RESOLUTION_TIMEOUT_MS",
-    "CONTEXT_DEMONSTRATIVE_CONFIDENCE",
     # Logging and preview limits
     "LOGGING_CONTENT_PREVIEW_CHARS",
     "LOGGING_SUMMARY_PREVIEW_CHARS",

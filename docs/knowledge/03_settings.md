@@ -336,3 +336,20 @@ Quick presets (current month, last month, last 30 days, all time) or custom date
 
 **🔒 Security:**
 You can only export your own data — it is not possible to access other users' consumption. Administrators have a separate export tool in Settings > Administration with the ability to filter by user.
+
+## How does the settings priority chain work?
+
+LIA uses a three-level priority chain for all configurable values:
+
+**APPLICATION (admin UI / DB) > .ENV (settings) > CONSTANT (fallback only)**
+
+1. **Application-level** — Values set by administrators via the admin UI or stored in the database take highest priority.
+2. **Environment variables** — `.env` file values override constants but are overridden by application-level settings.
+3. **Constants** — Hardcoded defaults in `constants.py` are used as fallbacks only when no higher-priority value is set.
+
+Since v1.9.4, this chain is enforced systematically across the entire codebase. Constants are reserved exclusively for:
+- Default values in Pydantic `Field(default=...)` in config files
+- SQLAlchemy column defaults (`default=`, `server_default=`)
+- Structural values (node names, state keys, Redis prefixes, scheduler IDs)
+
+All runtime code uses `settings.field_name` to access configurable values, ensuring that admin and .env overrides are always respected.

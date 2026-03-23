@@ -8,11 +8,11 @@ Architecture Simplification (2026-01):
 - Supports query mode (text search) OR ID mode (direct fetch) OR proximity mode
 """
 
+from src.core.config import settings
 from src.core.constants import (
     PLACES_MIN_RATING_MAX,
     PLACES_MIN_RATING_MIN,
     PLACES_TOOL_DEFAULT_LIMIT,
-    PLACES_TOOL_DEFAULT_MAX_RESULTS,
     PLACES_VALID_PRICE_LEVELS,
 )
 from src.domains.agents.registry.catalogue import (
@@ -220,9 +220,9 @@ get_places_catalogue_manifest = ToolManifest(
             name="max_results",
             type="integer",
             required=False,
-            description=f"Max results (def: {PLACES_TOOL_DEFAULT_LIMIT}, max: {PLACES_TOOL_DEFAULT_MAX_RESULTS})",
+            description=f"Max results (def: {PLACES_TOOL_DEFAULT_LIMIT}, max: {settings.places_tool_default_max_results})",
             constraints=[
-                ParameterConstraint(kind="maximum", value=PLACES_TOOL_DEFAULT_MAX_RESULTS)
+                ParameterConstraint(kind="maximum", value=settings.places_tool_default_max_results)
             ],
         ),
         ParameterSchema(

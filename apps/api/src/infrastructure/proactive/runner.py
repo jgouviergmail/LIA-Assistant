@@ -36,7 +36,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
-from src.core.constants import DEFAULT_LANGUAGE
 from src.infrastructure.cache.pricing_cache import get_cached_cost_usd_eur
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics import (
@@ -403,7 +402,9 @@ class ProactiveTaskRunner:
             return False
 
         # 4. Generate content
-        user_language = getattr(user, "language", DEFAULT_LANGUAGE) or DEFAULT_LANGUAGE
+        user_language = (
+            getattr(user, "language", settings.default_language) or settings.default_language
+        )
         result = await self.task.generate_content(user.id, target, user_language)
 
         if not result.success or not result.content:

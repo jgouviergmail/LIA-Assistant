@@ -8,11 +8,8 @@ Architecture Simplification (2026-01):
 - Supports query mode (search) OR ID mode (direct fetch)
 """
 
-from src.core.constants import (
-    CONTACTS_TOOL_DEFAULT_LIMIT,
-    CONTACTS_TOOL_DEFAULT_MAX_RESULTS,
-    GOOGLE_CONTACTS_SCOPES,
-)
+from src.core.config import settings
+from src.core.constants import GOOGLE_CONTACTS_SCOPES
 from src.core.field_names import FIELD_QUERY, FIELD_RESOURCE_NAME
 from src.domains.agents.google_contacts.common_mappings import get_contacts_field_mappings
 from src.domains.agents.registry.catalogue import (
@@ -109,9 +106,11 @@ get_contacts_catalogue_manifest = ToolManifest(
             name="max_results",
             type="integer",
             required=False,
-            description=f"Max results (def: {CONTACTS_TOOL_DEFAULT_LIMIT}, max: {CONTACTS_TOOL_DEFAULT_MAX_RESULTS})",
+            description=f"Max results (def: {settings.contacts_tool_default_limit}, max: {settings.contacts_tool_default_max_results})",
             constraints=[
-                ParameterConstraint(kind="maximum", value=CONTACTS_TOOL_DEFAULT_MAX_RESULTS)
+                ParameterConstraint(
+                    kind="maximum", value=settings.contacts_tool_default_max_results
+                )
             ],
         ),
     ],

@@ -47,7 +47,6 @@ if TYPE_CHECKING:
 
 from src.core.config import settings
 from src.core.constants import (
-    DEFAULT_LANGUAGE,
     OAUTH_HEALTH_NOTIFIED_KEY_PREFIX,
     SCHEDULER_JOB_OAUTH_HEALTH,
     SSE_CONNECTION_KEY_PREFIX,
@@ -225,7 +224,7 @@ async def _maybe_notify(
 
     # Generate i18n message (only critical - ERROR status)
     # Cast to SupportedLanguage (user.language is validated at DB level)
-    language = cast(SupportedLanguage, user.language or DEFAULT_LANGUAGE)
+    language = cast(SupportedLanguage, user.language or settings.default_language)
     title = APIMessages.oauth_health_critical_title(language)
     body = APIMessages.oauth_health_critical_body(connector_name, language)
 

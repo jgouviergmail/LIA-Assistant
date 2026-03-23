@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
-from src.core.constants import DEFAULT_LANGUAGE
+from src.core.config import settings
 
 if TYPE_CHECKING:
     from src.domains.agents.services.reference_resolver import ResolvedContext
@@ -111,7 +111,7 @@ class QueryIntelligence:
     confidence: float = 0.0
 
     # === METADATA ===
-    user_language: str = DEFAULT_LANGUAGE
+    user_language: str = settings.default_language
     reasoning_trace: list[str] = field(default_factory=list)  # Reasoning trace
 
     # === DEBUG: INTELLIGENT MECHANISMS ===
@@ -500,14 +500,7 @@ class SemanticFallback:
     @staticmethod
     def get_threshold() -> float:
         """Get confidence threshold from settings."""
-        try:
-            from src.core.config import get_settings
-
-            return get_settings().semantic_fallback_threshold
-        except Exception:
-            from src.core.constants import SEMANTIC_FALLBACK_THRESHOLD_DEFAULT
-
-            return SEMANTIC_FALLBACK_THRESHOLD_DEFAULT
+        return settings.semantic_fallback_threshold
 
     @staticmethod
     def should_fallback(confidence: float) -> bool:

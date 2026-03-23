@@ -35,7 +35,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.9.3</strong> — Journal Intelligence, Memory Safety & Config Alignment — March 2026
+  <strong>Version 1.9.4</strong> — Settings Priority Chain Enforcement & Config Architecture — March 2026
 </p>
 
 ---

@@ -40,7 +40,8 @@ import structlog
 from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg, tool
 
-from src.core.constants import DEFAULT_LANGUAGE, DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.config import settings
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.i18n_api_messages import APIMessages
 from src.core.time_utils import format_datetime_for_display
 from src.domains.agents.data_registry.models import (
@@ -229,7 +230,7 @@ async def _get_user_info(runtime: ToolRuntime) -> tuple[str, str] | None:
             if user:
                 return (
                     user.timezone or DEFAULT_USER_DISPLAY_TIMEZONE,
-                    user.language or DEFAULT_LANGUAGE,
+                    user.language or settings.default_language,
                 )
     except Exception as e:
         logger.warning(
@@ -237,7 +238,7 @@ async def _get_user_info(runtime: ToolRuntime) -> tuple[str, str] | None:
             error=str(e),
         )
 
-    return (DEFAULT_USER_DISPLAY_TIMEZONE, DEFAULT_LANGUAGE)
+    return (DEFAULT_USER_DISPLAY_TIMEZONE, settings.default_language)
 
 
 # =============================================================================
@@ -314,7 +315,7 @@ async def create_reminder_tool(
         # Get user info
         user_info = await _get_user_info(runtime)
         user_timezone = user_info[0] if user_info else DEFAULT_USER_DISPLAY_TIMEZONE
-        user_language = user_info[1] if user_info else DEFAULT_LANGUAGE
+        user_language = user_info[1] if user_info else settings.default_language
 
         # Validate: exactly one of trigger_datetime or relative_trigger must be provided
         if trigger_datetime and relative_trigger:
@@ -453,7 +454,7 @@ async def list_reminders_tool(
         # Get user info
         user_info = await _get_user_info(runtime)
         user_timezone = user_info[0] if user_info else DEFAULT_USER_DISPLAY_TIMEZONE
-        user_language = user_info[1] if user_info else DEFAULT_LANGUAGE
+        user_language = user_info[1] if user_info else settings.default_language
 
         async with get_db_context() as db:
             service = ReminderService(db)
@@ -576,7 +577,7 @@ async def cancel_reminder_tool(
 
     # Get user info for language (before try block to ensure availability in except)
     user_info = await _get_user_info(runtime)
-    user_language = user_info[1] if user_info else DEFAULT_LANGUAGE
+    user_language = user_info[1] if user_info else settings.default_language
 
     try:
         user_id = parse_user_id(config.user_id)

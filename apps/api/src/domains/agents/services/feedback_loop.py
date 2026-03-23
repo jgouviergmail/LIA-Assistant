@@ -26,12 +26,8 @@ from datetime import UTC, datetime
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 
+from src.core.config import settings
 from src.core.config.agents import V3FeedbackLoopConfig, get_v3_feedback_loop_config
-from src.core.constants import (
-    V3_FEEDBACK_LOOP_CONFIDENCE_THRESHOLD,
-    V3_FEEDBACK_LOOP_MAX_RECORDS,
-    V3_FEEDBACK_LOOP_MIN_SAMPLES,
-)
 from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
@@ -104,9 +100,9 @@ class FeedbackLoopService:
     """
 
     # Class-level defaults (for backwards compatibility with storage classes)
-    MAX_RECORDS = V3_FEEDBACK_LOOP_MAX_RECORDS
-    MIN_SAMPLES_FOR_SUGGESTION = V3_FEEDBACK_LOOP_MIN_SAMPLES
-    CONFIDENCE_THRESHOLD = V3_FEEDBACK_LOOP_CONFIDENCE_THRESHOLD
+    MAX_RECORDS = settings.v3_feedback_loop_max_records
+    MIN_SAMPLES_FOR_SUGGESTION = settings.v3_feedback_loop_min_samples
+    CONFIDENCE_THRESHOLD = settings.v3_feedback_loop_confidence_threshold
 
     def __init__(
         self,

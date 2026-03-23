@@ -48,11 +48,8 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
 from src.core.config import settings
 from src.core.constants import (
-    DEFAULT_LANGUAGE,
     INTEREST_ACTIVE_LIST_LIMIT,
     INTEREST_ANALYSIS_CACHE_TTL,
-    INTEREST_DEDUP_SEARCH_LIMIT,
-    INTEREST_DEDUP_SIMILARITY_THRESHOLD,
     INTEREST_EXTRACTION_MIN_CONFIDENCE,
     INTEREST_EXTRACTION_QUERY_TRUNCATION_LENGTH,
     REDIS_KEY_INTEREST_ANALYSIS_PREFIX,
@@ -655,13 +652,13 @@ async def _find_similar_interest(
 
             similarity = cosine_similarity(topic_embedding, interest.embedding)
 
-            if similarity >= INTEREST_DEDUP_SIMILARITY_THRESHOLD:
+            if similarity >= settings.interest_dedup_similarity_threshold:
                 logger.debug(
                     "interest_similarity_embedding_match",
                     new_topic=topic[:50],
                     existing_topic=interest.topic[:50],
                     similarity=round(similarity, 3),
-                    threshold=INTEREST_DEDUP_SIMILARITY_THRESHOLD,
+                    threshold=settings.interest_dedup_similarity_threshold,
                 )
                 # Track best match in case multiple are above threshold
                 if similarity > best_similarity:
@@ -685,7 +682,7 @@ async def _find_similar_interest(
             new_topic=topic[:50],
             matched_topic=best_match.topic[:50],
             similarity=round(best_similarity, 4),
-            threshold=INTEREST_DEDUP_SIMILARITY_THRESHOLD,
+            threshold=settings.interest_dedup_similarity_threshold,
             matched_interest_id=str(best_match.id),
         )
         return True, best_match
@@ -702,7 +699,7 @@ async def _analyze_interests_core(
     user_id: str,
     messages: list[BaseMessage],
     session_id: str,
-    user_language: str = DEFAULT_LANGUAGE,
+    user_language: str = settings.default_language,
     use_cache: bool = True,
 ) -> InterestAnalysisResult:
     """
@@ -787,7 +784,7 @@ async def _analyze_interests_core(
 
         # Retrieve existing interests for deduplication
         existing_interests = await repo.get_active_for_user(
-            user_uuid, limit=INTEREST_DEDUP_SEARCH_LIMIT
+            user_uuid, limit=settings.interest_dedup_search_limit
         )
 
         existing_texts = [
@@ -893,7 +890,7 @@ async def extract_interests_background(
     messages: list[BaseMessage],
     session_id: str,
     conversation_id: str | None = None,
-    user_language: str = DEFAULT_LANGUAGE,
+    user_language: str = settings.default_language,
     parent_run_id: str | None = None,
 ) -> int:
     """
@@ -994,7 +991,7 @@ async def extract_interests_background(
 
             # Retrieve existing interests for deduplication
             existing_interests = await repo.get_active_for_user(
-                user_uuid, limit=INTEREST_DEDUP_SEARCH_LIMIT
+                user_uuid, limit=settings.interest_dedup_search_limit
             )
 
             for extracted in analysis.extracted_interests:
@@ -1080,7 +1077,7 @@ async def analyze_interests_for_debug(
     user_id: str,
     messages: list[BaseMessage],
     session_id: str,
-    user_language: str = DEFAULT_LANGUAGE,
+    user_language: str = settings.default_language,
 ) -> dict:
     """
     Analyze conversation for interests (debug panel - LLM-based).
@@ -1180,7 +1177,7 @@ async def analyze_interests_for_debug(
             repo = InterestRepository(db)
 
             existing_interests = await repo.get_active_for_user(
-                user_uuid, limit=INTEREST_DEDUP_SEARCH_LIMIT
+                user_uuid, limit=settings.interest_dedup_search_limit
             )
 
             # Format existing interests for debug output

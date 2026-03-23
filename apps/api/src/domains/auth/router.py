@@ -8,7 +8,6 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
-from src.core.constants import HTTP_TIMEOUT_EXTERNAL_API
 from src.core.dependencies import get_db
 from src.core.exceptions import (
     raise_external_service_connection_error,
@@ -976,7 +975,7 @@ async def proxy_profile_image(
             response = await client.get(
                 url,
                 follow_redirects=True,
-                timeout=HTTP_TIMEOUT_EXTERNAL_API,
+                timeout=settings.http_timeout_external_api,
                 headers={
                     "User-Agent": "LIA/1.0",
                 },

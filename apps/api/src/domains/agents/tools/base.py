@@ -522,10 +522,10 @@ class ConnectorTool[ClientType](ABC):
             - Falls back silently to defaults on any error
             - Uses get_user_preferences() from runtime_helpers
         """
-        from src.core.constants import DEFAULT_LANGUAGE
+        from src.core.config import settings
 
         user_timezone = "UTC"
-        locale = DEFAULT_LANGUAGE
+        locale = settings.default_language
 
         if self.runtime:
             try:

@@ -2,15 +2,6 @@
 Constants for the personalities domain.
 """
 
-from src.core.constants import (  # noqa: F401 - re-exported for domain use
-    DEFAULT_LANGUAGE,
-    SUPPORTED_LANGUAGES,
-)
-
-# Fallback languages for translation resolution (in priority order)
-# Used when user's language translation is not available
-FALLBACK_LANGUAGES: tuple[str, ...] = (DEFAULT_LANGUAGE, "en")
-
 # Default personality code (used when user has no preference)
 DEFAULT_PERSONALITY_CODE = "normal"
 

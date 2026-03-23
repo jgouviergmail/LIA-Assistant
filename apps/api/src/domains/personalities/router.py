@@ -10,13 +10,13 @@ import structlog
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.config import settings
 from src.core.dependencies import get_db
 from src.core.session_dependencies import (
     get_current_active_session,
     get_current_superuser_session,
 )
 from src.domains.auth.models import User
-from src.domains.personalities.constants import DEFAULT_LANGUAGE
 from src.domains.personalities.schemas import (
     PersonalityCreate,
     PersonalityListResponse,
@@ -263,7 +263,9 @@ async def add_translation(
 @router.post("/admin/{personality_id}/auto-translate")
 async def trigger_auto_translation(
     personality_id: UUID,
-    source_language: str = Query(DEFAULT_LANGUAGE, description="Source language to translate from"),
+    source_language: str = Query(
+        settings.default_language, description="Source language to translate from"
+    ),
     user: User = Depends(get_current_superuser_session),
     db: AsyncSession = Depends(get_db),
 ) -> dict:

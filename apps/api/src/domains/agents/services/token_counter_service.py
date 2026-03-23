@@ -27,12 +27,7 @@ import structlog
 import tiktoken
 from langchain_core.messages import BaseMessage
 
-from src.core.constants import (
-    TOKEN_THRESHOLD_CRITICAL_DEFAULT,
-    TOKEN_THRESHOLD_MAX_DEFAULT,
-    TOKEN_THRESHOLD_SAFE_DEFAULT,
-    TOKEN_THRESHOLD_WARNING_DEFAULT,
-)
+from src.core.config import settings as _app_settings
 from src.infrastructure.observability.metrics_agents import (
     planner_fallback_triggered_total,
     planner_token_count,
@@ -44,10 +39,10 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 # Re-export constants for backward compatibility
-TOKEN_THRESHOLD_SAFE = TOKEN_THRESHOLD_SAFE_DEFAULT
-TOKEN_THRESHOLD_WARNING = TOKEN_THRESHOLD_WARNING_DEFAULT
-TOKEN_THRESHOLD_CRITICAL = TOKEN_THRESHOLD_CRITICAL_DEFAULT
-TOKEN_THRESHOLD_MAX = TOKEN_THRESHOLD_MAX_DEFAULT
+TOKEN_THRESHOLD_SAFE = _app_settings.token_threshold_safe
+TOKEN_THRESHOLD_WARNING = _app_settings.token_threshold_warning
+TOKEN_THRESHOLD_CRITICAL = _app_settings.token_threshold_critical
+TOKEN_THRESHOLD_MAX = _app_settings.token_threshold_max
 
 
 class FallbackLevel:

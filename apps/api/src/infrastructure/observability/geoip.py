@@ -18,8 +18,6 @@ from typing import TYPE_CHECKING
 
 import structlog
 
-from src.core.constants import GEOIP_DB_PATH_DEFAULT
-
 if TYPE_CHECKING:
     import geoip2.database
 
@@ -64,7 +62,7 @@ class GeoIPResolver:
             logger.info("geoip_disabled", reason="GEOIP_ENABLED=false")
             return
 
-        db_path_str = getattr(settings, "geoip_db_path", GEOIP_DB_PATH_DEFAULT)
+        db_path_str = settings.geoip_db_path
         db_path = Path(db_path_str)
         if not db_path.exists():
             logger.warning(

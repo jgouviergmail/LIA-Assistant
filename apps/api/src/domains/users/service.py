@@ -15,7 +15,7 @@ from fastapi import Request
 from sqlalchemy import func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.constants import DEFAULT_LANGUAGE
+from src.core.config import settings
 from src.core.exceptions import (
     raise_admin_required,
     raise_user_not_found,
@@ -437,7 +437,7 @@ class UserService:
 
                 places_client = GooglePlacesClient(
                     user_id=user_id,
-                    language=user.language or DEFAULT_LANGUAGE,
+                    language=user.language or settings.default_language,
                 )
 
                 # Use search_text to geocode the address

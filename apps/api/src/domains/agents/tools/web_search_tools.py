@@ -37,7 +37,6 @@ from langchain_core.tools import InjectedToolArg, tool
 from pydantic import BaseModel
 
 from src.core.config import settings
-from src.core.constants import DEFAULT_LANGUAGE
 from src.core.i18n import _
 from src.core.time_utils import get_current_datetime_context
 from src.domains.agents.constants import (
@@ -348,7 +347,7 @@ async def _search_brave(
 
 async def _search_wikipedia(
     query: str,
-    language: str = DEFAULT_LANGUAGE,
+    language: str = settings.default_language,
 ) -> WikipediaResult | None:
     """
     Execute Wikipedia search - always available (no auth).

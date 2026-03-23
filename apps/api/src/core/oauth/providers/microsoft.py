@@ -4,7 +4,6 @@ from dataclasses import dataclass
 
 from src.core.config import Settings
 from src.core.constants import (
-    API_PREFIX_DEFAULT,
     MICROSOFT_CALENDAR_SCOPES,
     MICROSOFT_CONTACTS_SCOPES,
     MICROSOFT_OAUTH_AUTHORIZATION_ENDPOINT,
@@ -46,7 +45,7 @@ class MicrosoftOAuthProvider:
             client_id=settings.microsoft_client_id,
             client_secret=settings.microsoft_client_secret,
             redirect_uri=(
-                f"{settings.api_url}{API_PREFIX_DEFAULT}/connectors/microsoft-outlook/callback"
+                f"{settings.api_url}{settings.api_prefix}/connectors/microsoft-outlook/callback"
             ),
             scopes=MICROSOFT_OUTLOOK_SCOPES,
             authorization_endpoint=MICROSOFT_OAUTH_AUTHORIZATION_ENDPOINT.format(tenant=tenant),
@@ -61,7 +60,7 @@ class MicrosoftOAuthProvider:
             client_id=settings.microsoft_client_id,
             client_secret=settings.microsoft_client_secret,
             redirect_uri=(
-                f"{settings.api_url}{API_PREFIX_DEFAULT}/connectors/microsoft-calendar/callback"
+                f"{settings.api_url}{settings.api_prefix}/connectors/microsoft-calendar/callback"
             ),
             scopes=MICROSOFT_CALENDAR_SCOPES,
             authorization_endpoint=MICROSOFT_OAUTH_AUTHORIZATION_ENDPOINT.format(tenant=tenant),
@@ -76,7 +75,7 @@ class MicrosoftOAuthProvider:
             client_id=settings.microsoft_client_id,
             client_secret=settings.microsoft_client_secret,
             redirect_uri=(
-                f"{settings.api_url}{API_PREFIX_DEFAULT}/connectors/microsoft-contacts/callback"
+                f"{settings.api_url}{settings.api_prefix}/connectors/microsoft-contacts/callback"
             ),
             scopes=MICROSOFT_CONTACTS_SCOPES,
             authorization_endpoint=MICROSOFT_OAUTH_AUTHORIZATION_ENDPOINT.format(tenant=tenant),
@@ -91,7 +90,7 @@ class MicrosoftOAuthProvider:
             client_id=settings.microsoft_client_id,
             client_secret=settings.microsoft_client_secret,
             redirect_uri=(
-                f"{settings.api_url}{API_PREFIX_DEFAULT}/connectors/microsoft-tasks/callback"
+                f"{settings.api_url}{settings.api_prefix}/connectors/microsoft-tasks/callback"
             ),
             scopes=MICROSOFT_TASKS_SCOPES,
             authorization_endpoint=MICROSOFT_OAUTH_AUTHORIZATION_ENDPOINT.format(tenant=tenant),

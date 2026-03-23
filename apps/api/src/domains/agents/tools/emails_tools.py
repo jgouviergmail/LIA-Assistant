@@ -36,7 +36,6 @@ from pydantic import BaseModel
 
 from src.core.config import settings
 from src.core.constants import (
-    DEFAULT_LANGUAGE,
     GMAIL_DATE_OPERATORS,
     GMAIL_FORMAT_FULL,
     GMAIL_FORMAT_METADATA,
@@ -108,7 +107,7 @@ def _extract_email_from_address(address: str) -> str:
 def _validate_email_addresses(
     addresses: str,
     field_name: str,
-    language: SupportedLanguage = DEFAULT_LANGUAGE,
+    language: SupportedLanguage = settings.default_language,
 ) -> None:
     """
     Validate comma-separated email addresses.
@@ -259,7 +258,7 @@ def _validate_send_email_inputs(
     body: str | None,
     cc: str | None = None,
     bcc: str | None = None,
-    language: SupportedLanguage = DEFAULT_LANGUAGE,
+    language: SupportedLanguage = settings.default_language,
 ) -> None:
     """
     Validate send_email inputs (centralized validation).
@@ -655,7 +654,7 @@ class GetEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
         query = result.get("query")
         from_cache = result.get("from_cache", False)
         user_timezone = result.get("user_timezone", "UTC")
-        locale = result.get("locale", DEFAULT_LANGUAGE)
+        locale = result.get("locale", settings.default_language)
 
         # Use ToolOutputMixin helper (with timezone conversion)
         return self.build_emails_output(
@@ -950,7 +949,7 @@ class SearchEmailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
         query = result.get("query", "")
         from_cache = result.get("from_cache", False)
         user_timezone = result.get("user_timezone", "UTC")
-        locale = result.get("locale", DEFAULT_LANGUAGE)
+        locale = result.get("locale", settings.default_language)
 
         # Use ToolOutputMixin helper method (with timezone conversion)
         # build_emails_output returns UnifiedToolOutput directly
@@ -1363,7 +1362,7 @@ class GetEmailDetailsTool(ToolOutputMixin, ConnectorTool[GoogleGmailClient]):
         from_cache = result.get("from_cache", False)
         include_body = result.get("include_body", True)
         user_timezone = result.get("user_timezone", "UTC")
-        locale = result.get("locale", DEFAULT_LANGUAGE)
+        locale = result.get("locale", settings.default_language)
 
         # Handle single vs batch mode
         errors = None
@@ -1850,7 +1849,7 @@ _send_email_draft_tool_instance = SendEmailDraftTool()
 async def _generate_email_content(
     instruction: str,
     recipient: str,
-    user_language: str = DEFAULT_LANGUAGE,
+    user_language: str = settings.default_language,
     existing_body: str | None = None,
     config: Any = None,
 ) -> dict[str, str]:
@@ -1990,11 +1989,11 @@ async def send_email_tool(
         "Brouillon créé: Email à jean@example.com: Confirmation RDV [draft_abc123]
          Action requise: confirmez, modifiez ou annulez."
     """
-    # Get user language from runtime config (default: DEFAULT_LANGUAGE)
+    # Get user language from runtime config (default: settings.default_language)
     user_language: SupportedLanguage = (
-        runtime.config.get("configurable", {}).get("user_language", DEFAULT_LANGUAGE)
+        runtime.config.get("configurable", {}).get("user_language", settings.default_language)
         if runtime and runtime.config
-        else DEFAULT_LANGUAGE
+        else settings.default_language
     )
 
     # Determine effective content instruction:

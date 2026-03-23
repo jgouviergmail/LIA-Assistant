@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.4] - 2026-03-23
+
+### Changed
+
+- **Systematic Settings Priority Chain Enforcement** — Comprehensive refactoring of ~291 runtime constant usages across ~80 files to use `settings.field_name` instead of direct constants. Enforces the priority chain APPLICATION (admin UI / DB) > .ENV (settings) > CONSTANT (fallback only). Six fix patterns applied: direct replacement (Pattern A), `getattr` simplification (Pattern B), module-level alias re-sourcing (Pattern C), None sentinel for function defaults (Pattern D), Pydantic `default_factory` for domain schemas (Pattern E), and f-string description updates (Pattern F). Constants now reserved exclusively for: `Field(default=...)` in config files, SQLAlchemy `default=`/`server_default=`, structural values (node names, state keys, Redis prefixes, scheduler IDs). (`apps/api/src/` — 80+ files across all domains)
+- **i18n Chain Fix** — `i18n_dates.py` had a hardcoded `DEFAULT_LANGUAGE = "fr"` bypassing settings, and `i18n_drafts.py` imported from `i18n_types.py` (also hardcoded) instead of `i18n.py` (which reads from settings). Both now correctly route through the settings-backed `i18n.py` bridge. (`apps/api/src/core/i18n_dates.py`, `apps/api/src/core/i18n_drafts.py`)
+- **Agent Constants Alias Cleanup** — Removed 4 redundant aliases in `agents/constants.py` (`CONTEXT_ACTIVE_WINDOW_TURNS`, `CONTEXT_RESOLUTION_TIMEOUT_MS`, `CONTEXT_DEMONSTRATIVE_CONFIDENCE`, `CONTEXT_CURRENT_ITEM_CONFIDENCE`) that bypassed settings. Consumers migrated to `settings.*` access. (`apps/api/src/domains/agents/constants.py`, `apps/api/src/domains/agents/services/context_resolution_service.py`)
+- **Personalities Constants Cleanup** — Removed re-exported `DEFAULT_LANGUAGE`, `SUPPORTED_LANGUAGES`, and `FALLBACK_LANGUAGES` from `personalities/constants.py`. `FALLBACK_LANGUAGES` was capturing the constant "fr" at import time; replaced with inline `(settings.default_language, "en")` in the single consumer. (`apps/api/src/domains/personalities/constants.py`, `apps/api/src/domains/personalities/models.py`)
+- **Token Counter Aliases Re-sourced** — `TOKEN_THRESHOLD_SAFE/WARNING/CRITICAL/MAX` module-level aliases in `token_counter_service.py` now read from `settings.*` instead of constants, while preserving backward-compatible exports for tests. (`apps/api/src/domains/agents/services/token_counter_service.py`)
+
+### Fixed
+
+- **Places Tool Crash on Language Parameter** — `get_places_tool()` raised `TypeError: unexpected keyword argument 'language'` when the LLM planner included a `language` parameter in the execution plan. Added optional `language: str | None = None` parameter to accept the argument gracefully (tool already reads language from runtime context). (`apps/api/src/domains/agents/tools/places_tools.py`)
+
 ## [1.9.3] - 2026-03-23
 
 ### Added

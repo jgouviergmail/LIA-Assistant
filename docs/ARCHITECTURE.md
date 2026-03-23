@@ -574,6 +574,18 @@ settings.router_confidence_high
 
 **Voir** : [ADR-009](./architecture/ADR-009-Config-Module-Split.md)
 
+#### Priority Chain (v1.9.4)
+
+All configurable values follow a strict three-level priority chain:
+
+**APPLICATION (admin UI / DB) > .ENV (settings) > CONSTANT (fallback only)**
+
+- **Application-level** — Values set by administrators via the admin UI or stored in the database take highest priority.
+- **Environment variables** — `.env` file values override constants but are overridden by application-level settings.
+- **Constants** (`src/core/constants.py`) — Hardcoded defaults used as fallbacks only. They feed Pydantic `Field(default=...)` in config modules and SQLAlchemy column defaults, but are never read directly by runtime code.
+
+All runtime code accesses values through `settings.field_name`, ensuring that admin and `.env` overrides are always respected. Constants are reserved for: default values in config fields, database column defaults, and structural identifiers (node names, state keys, Redis prefixes, scheduler job IDs).
+
 ---
 
 ### Rate Limiting Distribué (Phase 2.4)

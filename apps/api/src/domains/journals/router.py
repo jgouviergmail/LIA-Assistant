@@ -27,7 +27,6 @@ from src.core.config import settings
 from src.core.constants import (
     JOURNAL_CONSOLIDATION_ENABLED_DEFAULT,
     JOURNAL_CONSOLIDATION_WITH_HISTORY_DEFAULT,
-    JOURNALS_ENABLED_DEFAULT,
 )
 from src.core.dependencies import get_db
 from src.core.exceptions import ResourceNotFoundError, ValidationError
@@ -87,7 +86,7 @@ async def _build_settings_response(user: User, service: JournalService) -> Journ
     last_cost = JournalService.build_cost_info_from_user(user)
 
     return JournalSettingsResponse(
-        journals_enabled=getattr(user, "journals_enabled", JOURNALS_ENABLED_DEFAULT),
+        journals_enabled=getattr(user, "journals_enabled", settings.journals_enabled),
         journal_consolidation_enabled=getattr(
             user, "journal_consolidation_enabled", JOURNAL_CONSOLIDATION_ENABLED_DEFAULT
         ),

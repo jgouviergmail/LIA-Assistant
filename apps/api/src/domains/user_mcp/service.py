@@ -15,10 +15,7 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
-from src.core.constants import (
-    MCP_USER_DEFAULT_API_KEY_HEADER,
-    MCP_USER_MAX_SERVERS_PER_USER_DEFAULT,
-)
+from src.core.constants import MCP_USER_DEFAULT_API_KEY_HEADER
 from src.core.exceptions import ResourceNotFoundError, ValidationError
 from src.core.security.utils import decrypt_data, encrypt_data
 from src.domains.user_mcp.models import (
@@ -80,9 +77,7 @@ class UserMCPServerService:
             ValidationError: If user has reached the maximum limit or URL is invalid.
         """
         # Enforce per-user limit
-        max_servers = getattr(
-            settings, "mcp_user_max_servers_per_user", MCP_USER_MAX_SERVERS_PER_USER_DEFAULT
-        )
+        max_servers = settings.mcp_user_max_servers_per_user
         count = await self.repository.count_for_user(user_id)
         if count >= max_servers:
             raise ValidationError(f"Maximum of {max_servers} MCP servers per user")

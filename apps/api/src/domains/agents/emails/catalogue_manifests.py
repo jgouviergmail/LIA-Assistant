@@ -8,11 +8,8 @@ Architecture Simplification (2026-01):
 - Supports query mode (search) OR ID mode (direct fetch)
 """
 
-from src.core.constants import (
-    EMAILS_TOOL_DEFAULT_LIMIT,
-    EMAILS_TOOL_DEFAULT_MAX_RESULTS,
-    GOOGLE_GMAIL_SCOPES,
-)
+from src.core.config import settings
+from src.core.constants import GOOGLE_GMAIL_SCOPES
 from src.core.field_names import FIELD_QUERY
 from src.domains.agents.registry.catalogue import (
     CostProfile,
@@ -118,9 +115,9 @@ get_emails_catalogue_manifest = ToolManifest(
             name="max_results",
             type="integer",
             required=False,
-            description=f"Max results for query mode (def: {EMAILS_TOOL_DEFAULT_LIMIT}, max: {EMAILS_TOOL_DEFAULT_MAX_RESULTS})",
+            description=f"Max results for query mode (def: {settings.emails_tool_default_limit}, max: {settings.emails_tool_default_max_results})",
             constraints=[
-                ParameterConstraint(kind="maximum", value=EMAILS_TOOL_DEFAULT_MAX_RESULTS)
+                ParameterConstraint(kind="maximum", value=settings.emails_tool_default_max_results)
             ],
         ),
         ParameterSchema(

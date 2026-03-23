@@ -18,9 +18,7 @@ from typing import TYPE_CHECKING
 
 from src.core.constants import (
     CHANNEL_MESSAGE_LOCK_PREFIX,
-    CHANNEL_RATE_LIMIT_PER_USER_PER_MINUTE_DEFAULT,
     CHANNEL_RATE_LIMIT_REDIS_PREFIX,
-    DEFAULT_LANGUAGE,
     DEFAULT_USER_DISPLAY_TIMEZONE,
 )
 from src.domains.channels.abstractions import (
@@ -121,11 +119,7 @@ class ChannelMessageRouter:
 
         # === 2. Rate limit check ===
         rate_limit_key = f"{CHANNEL_RATE_LIMIT_REDIS_PREFIX}{channel_type}:{user_id}"
-        rate_limit = getattr(
-            settings,
-            "channel_rate_limit_per_user_per_minute",
-            CHANNEL_RATE_LIMIT_PER_USER_PER_MINUTE_DEFAULT,
-        )
+        rate_limit = settings.channel_rate_limit_per_user_per_minute
 
         limiter = RedisRateLimiter(self.redis)
         allowed = await limiter.acquire(
@@ -205,7 +199,7 @@ class ChannelMessageRouter:
                 )
                 return
 
-            user_language = getattr(user, "language", None) or DEFAULT_LANGUAGE
+            user_language = getattr(user, "language", None) or settings.default_language
             user_timezone = getattr(user, "timezone", None) or DEFAULT_USER_DISPLAY_TIMEZONE
             user_memory_enabled = getattr(user, "memory_enabled", True)
 

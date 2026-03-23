@@ -24,8 +24,8 @@ from typing import Any
 
 import structlog
 
+from src.core.config import settings
 from src.core.constants import (
-    DEFAULT_LANGUAGE,
     DEFAULT_USER_DISPLAY_TIMEZONE,
     SCHEDULED_ACTIONS_BATCH_SIZE,
     SCHEDULED_ACTIONS_EXECUTION_TIMEOUT_SECONDS,
@@ -114,7 +114,7 @@ async def execute_single_action(
             )
             return ""
 
-        user_language = user.language or DEFAULT_LANGUAGE
+        user_language = user.language or settings.default_language
         user_timezone = user.timezone or DEFAULT_USER_DISPLAY_TIMEZONE
         session_id = f"{SCHEDULED_ACTIONS_SESSION_PREFIX}{action.id}"
 

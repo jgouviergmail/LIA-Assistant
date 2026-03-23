@@ -34,13 +34,9 @@ from mcp.client.streamable_http import streamablehttp_client
 
 from src.core.config import settings
 from src.core.constants import (
-    MCP_APP_MAX_HTML_SIZE_DEFAULT,
     MCP_DEFAULT_RATE_LIMIT_CALLS,
     MCP_DEFAULT_RATE_LIMIT_WINDOW,
-    MCP_MAX_TOOLS_PER_SERVER_DEFAULT,
     MCP_REFERENCE_TOOL_NAME,
-    MCP_USER_POOL_MAX_TOTAL_DEFAULT,
-    MCP_USER_POOL_TTL_SECONDS_DEFAULT,
 )
 from src.infrastructure.mcp.utils import extract_app_meta
 
@@ -106,9 +102,7 @@ class UserMCPClientPool:
                 return self._entries[key]
 
             # Check global pool limit
-            max_total = getattr(
-                settings, "mcp_user_pool_max_total", MCP_USER_POOL_MAX_TOTAL_DEFAULT
-            )
+            max_total = settings.mcp_user_pool_max_total
             while len(self._entries) >= max_total:
                 evicted = await self._evict_oldest_idle()
                 if not evicted:
@@ -236,7 +230,7 @@ class UserMCPClientPool:
         connect → initialize → read_resource → close, all within a single
         async scope bounded by ``timeout_seconds``.
         """
-        max_size = getattr(settings, "mcp_app_max_html_size", MCP_APP_MAX_HTML_SIZE_DEFAULT)
+        max_size = settings.mcp_app_max_html_size
 
         async def _inner() -> str | None:
             async with AsyncExitStack() as exit_stack:
@@ -317,7 +311,7 @@ class UserMCPClientPool:
 
         IMPORTANT: Never evicts entries with active_calls > 0.
         """
-        ttl = getattr(settings, "mcp_user_pool_ttl_seconds", MCP_USER_POOL_TTL_SECONDS_DEFAULT)
+        ttl = settings.mcp_user_pool_ttl_seconds
         now = time.monotonic()
         evicted = 0
 
@@ -387,9 +381,7 @@ class UserMCPClientPool:
 
                 tools_result = await session.list_tools()
 
-                max_tools = getattr(
-                    settings, "mcp_max_tools_per_server", MCP_MAX_TOOLS_PER_SERVER_DEFAULT
-                )
+                max_tools = settings.mcp_max_tools_per_server
                 tools_list = []
                 for tool in (tools_result.tools or [])[:max_tools]:
                     app_resource_uri, app_visibility = extract_app_meta(tool)
@@ -557,10 +549,8 @@ async def initialize_user_mcp_pool() -> UserMCPClientPool:
 
     logger.info(
         "user_mcp_pool_initialized",
-        max_total=getattr(settings, "mcp_user_pool_max_total", MCP_USER_POOL_MAX_TOTAL_DEFAULT),
-        ttl_seconds=getattr(
-            settings, "mcp_user_pool_ttl_seconds", MCP_USER_POOL_TTL_SECONDS_DEFAULT
-        ),
+        max_total=settings.mcp_user_pool_max_total,
+        ttl_seconds=settings.mcp_user_pool_ttl_seconds,
     )
 
     return _user_pool

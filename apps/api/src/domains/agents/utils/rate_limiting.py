@@ -36,9 +36,9 @@ from typing import Any
 import structlog
 from langchain.tools import ToolRuntime
 
+from src.core.config import settings as _app_settings
 from src.core.field_names import FIELD_TOOL_NAME, FIELD_USER_ID
 from src.domains.agents.constants import (
-    RATE_LIMIT_DEFAULT_READ_CALLS,
     RATE_LIMIT_DEFAULT_READ_WINDOW_SECONDS,
     RATE_LIMIT_SCOPE_USER,
 )
@@ -55,7 +55,7 @@ _rate_limit_tracker: dict[tuple[str, str], list[float]] = defaultdict(list)
 def rate_limit(
     max_calls: (
         int | Callable[[], int]
-    ) = RATE_LIMIT_DEFAULT_READ_CALLS,  # From constants: 20 calls, or lambda for dynamic
+    ) = _app_settings.rate_limit_default_read_calls,  # From settings: 20 calls, or lambda for dynamic
     window_seconds: (
         int | Callable[[], int]
     ) = RATE_LIMIT_DEFAULT_READ_WINDOW_SECONDS,  # From constants: 60 seconds, or lambda
@@ -71,7 +71,7 @@ def rate_limit(
     Args:
         max_calls: Maximum number of calls allowed within the time window.
                   Can be an int or a Callable[[], int] (lambda) for dynamic settings.
-                  Default: RATE_LIMIT_DEFAULT_READ_CALLS (20 calls).
+                  Default: settings.rate_limit_default_read_calls (20 calls).
                   Example: lambda: get_settings().rate_limit_contacts_search_calls
         window_seconds: Time window in seconds for rate limiting.
                        Can be an int or a Callable[[], int] (lambda) for dynamic settings.

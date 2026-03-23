@@ -4,7 +4,6 @@ from dataclasses import dataclass
 
 from src.core.config import Settings
 from src.core.constants import (
-    API_PREFIX_DEFAULT,
     GOOGLE_CALENDAR_SCOPES,
     GOOGLE_CONTACTS_SCOPES,
     GOOGLE_DRIVE_SCOPES,
@@ -63,7 +62,7 @@ class GoogleOAuthProvider:  # pylint: disable=too-many-instance-attributes
         return cls(
             client_id=settings.google_client_id,
             client_secret=settings.google_client_secret,
-            redirect_uri=f"{settings.api_url}{API_PREFIX_DEFAULT}/connectors/gmail/callback",
+            redirect_uri=f"{settings.api_url}{settings.api_prefix}/connectors/gmail/callback",
             scopes=GOOGLE_GMAIL_SCOPES,
         )
 
@@ -80,7 +79,7 @@ class GoogleOAuthProvider:  # pylint: disable=too-many-instance-attributes
         return cls(
             client_id=settings.google_client_id,
             client_secret=settings.google_client_secret,
-            redirect_uri=f"{settings.api_url}{API_PREFIX_DEFAULT}/connectors/google-contacts/callback",
+            redirect_uri=f"{settings.api_url}{settings.api_prefix}/connectors/google-contacts/callback",
             scopes=GOOGLE_CONTACTS_SCOPES,
         )
 
@@ -97,7 +96,7 @@ class GoogleOAuthProvider:  # pylint: disable=too-many-instance-attributes
         return cls(
             client_id=settings.google_client_id,
             client_secret=settings.google_client_secret,
-            redirect_uri=f"{settings.api_url}{API_PREFIX_DEFAULT}/connectors/google-calendar/callback",
+            redirect_uri=f"{settings.api_url}{settings.api_prefix}/connectors/google-calendar/callback",
             scopes=GOOGLE_CALENDAR_SCOPES,
         )
 
@@ -114,7 +113,7 @@ class GoogleOAuthProvider:  # pylint: disable=too-many-instance-attributes
         return cls(
             client_id=settings.google_client_id,
             client_secret=settings.google_client_secret,
-            redirect_uri=f"{settings.api_url}{API_PREFIX_DEFAULT}/connectors/google-drive/callback",
+            redirect_uri=f"{settings.api_url}{settings.api_prefix}/connectors/google-drive/callback",
             scopes=GOOGLE_DRIVE_SCOPES,
         )
 
@@ -131,6 +130,6 @@ class GoogleOAuthProvider:  # pylint: disable=too-many-instance-attributes
         return cls(
             client_id=settings.google_client_id,
             client_secret=settings.google_client_secret,
-            redirect_uri=f"{settings.api_url}{API_PREFIX_DEFAULT}/connectors/google-tasks/callback",
+            redirect_uri=f"{settings.api_url}{settings.api_prefix}/connectors/google-tasks/callback",
             scopes=GOOGLE_TASKS_SCOPES,
         )

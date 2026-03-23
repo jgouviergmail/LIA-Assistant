@@ -9,12 +9,9 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from src.core.config import settings
 from src.core.exceptions import ResourceConflictError, ResourceNotFoundError
-from src.domains.personalities.constants import (
-    DEFAULT_LANGUAGE,
-    DEFAULT_PERSONALITY_PROMPT,
-    SUPPORTED_LANGUAGES,
-)
+from src.domains.personalities.constants import DEFAULT_PERSONALITY_PROMPT
 from src.domains.personalities.models import Personality, PersonalityTranslation
 from src.domains.personalities.schemas import (
     PersonalityCreate,
@@ -97,7 +94,9 @@ class PersonalityService:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def list_active(self, user_language: str = DEFAULT_LANGUAGE) -> PersonalityListResponse:
+    async def list_active(
+        self, user_language: str = settings.default_language
+    ) -> PersonalityListResponse:
         """
         List all active personalities with localized titles/descriptions.
 
@@ -280,7 +279,7 @@ class PersonalityService:
 
         # Handle translation updates
         needs_propagation = False
-        source_language = translation_data.get("source_language", DEFAULT_LANGUAGE)
+        source_language = translation_data.get("source_language", settings.default_language)
 
         if "title" in translation_data or "description" in translation_data:
             needs_propagation = await self._update_source_translation(
@@ -446,7 +445,7 @@ class PersonalityService:
     async def get_user_personality(
         self,
         user_personality_id: UUID | None,
-        user_language: str = DEFAULT_LANGUAGE,
+        user_language: str = settings.default_language,
     ) -> PersonalityListItem | None:
         """
         Get user's current personality for display.
@@ -592,7 +591,7 @@ class PersonalityService:
             return 0
 
         count = 0
-        for lang in SUPPORTED_LANGUAGES:
+        for lang in settings.supported_languages:
             if lang == source_language:
                 continue
 
@@ -685,7 +684,7 @@ class PersonalityService:
             PersonalityTranslationService,
         )
 
-        missing_langs = set(SUPPORTED_LANGUAGES) - existing_langs
+        missing_langs = set(settings.supported_languages) - existing_langs
         count = 0
 
         for lang in missing_langs:
@@ -719,7 +718,7 @@ class PersonalityService:
     async def trigger_auto_translation(
         self,
         personality_id: UUID,
-        source_language: str = DEFAULT_LANGUAGE,
+        source_language: str = settings.default_language,
     ) -> int:
         """
         Trigger auto-translation for a personality.

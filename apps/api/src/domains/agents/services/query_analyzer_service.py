@@ -42,9 +42,9 @@ from langchain_core.messages import BaseMessage
 from pydantic import BaseModel
 from pydantic import Field as PydanticField
 
+from src.core.config import settings
 from src.core.config.agents import V3RoutingConfig
 from src.core.constants import (
-    DEFAULT_LANGUAGE,
     INTENT_PATTERNS_CREATE,
     INTENT_PATTERNS_DELETE,
     INTENT_PATTERNS_SEND,
@@ -616,7 +616,7 @@ async def analyze_query(
         # Extract user timezone and language from config (critical for correct date calculations)
         configurable = (base_config or {}).get("configurable", {})
         user_timezone = configurable.get("user_timezone", DEFAULT_USER_DISPLAY_TIMEZONE)
-        user_language = configurable.get("user_language", DEFAULT_LANGUAGE)
+        user_language = configurable.get("user_language", settings.default_language)
 
         # Format prompt - double braces in template become single braces in output
         # Use user's timezone for datetime context so LLM calculates dates correctly
@@ -813,7 +813,7 @@ class QueryAnalyzerService:
 
         configurable = config.get("configurable", {})
         run_id = configurable.get(FIELD_RUN_ID, "unknown")
-        user_language = state.get("user_language", DEFAULT_LANGUAGE)
+        user_language = state.get("user_language", settings.default_language)
 
         try:
             # === STEP 1: Memory facts retrieval + reference resolution ===
@@ -1277,7 +1277,7 @@ class QueryAnalyzerService:
     def _create_fallback_intelligence(
         self,
         query: str,
-        user_language: str = DEFAULT_LANGUAGE,
+        user_language: str = settings.default_language,
         error: Exception | None = None,
     ) -> QueryIntelligence:
         """Create minimal QueryIntelligence on error - routes to chat."""

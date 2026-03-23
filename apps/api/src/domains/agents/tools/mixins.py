@@ -29,7 +29,7 @@ from zoneinfo import ZoneInfo
 
 import structlog
 
-from src.core.constants import DEFAULT_LANGUAGE
+from src.core.config import settings
 from src.core.time_utils import (
     convert_email_dates_in_payload,
     convert_event_dates_in_payload,
@@ -92,12 +92,12 @@ class ToolOutputMixin:
         calling execute_api_call() and format_registry_response().
 
         Args:
-            default: Default language if not found in config (uses DEFAULT_LANGUAGE if None)
+            default: Default language if not found in config (uses settings.default_language if None)
 
         Returns:
             User's language code (fr, en, es, de, it, zh-CN)
         """
-        fallback = default if default is not None else DEFAULT_LANGUAGE
+        fallback = default if default is not None else settings.default_language
         if self.runtime and self.runtime.config:
             return self.runtime.config.get("configurable", {}).get("user_language", fallback)
         return fallback
@@ -430,7 +430,7 @@ class ToolOutputMixin:
         query: str | None = None,
         from_cache: bool = False,
         user_timezone: str = "UTC",
-        locale: str = DEFAULT_LANGUAGE,
+        locale: str = settings.default_language,
     ) -> UnifiedToolOutput:
         """
         Build UnifiedToolOutput for email search results.
@@ -519,7 +519,7 @@ class ToolOutputMixin:
         time_max: str | None = None,
         from_cache: bool = False,
         user_timezone: str = "UTC",
-        locale: str = DEFAULT_LANGUAGE,
+        locale: str = settings.default_language,
         calendar_id: str | None = None,
     ) -> UnifiedToolOutput:
         """
@@ -673,7 +673,7 @@ class ToolOutputMixin:
         task_list_id: str | None = None,
         from_cache: bool = False,
         user_timezone: str = "UTC",
-        locale: str = DEFAULT_LANGUAGE,
+        locale: str = settings.default_language,
     ) -> UnifiedToolOutput:
         """
         Build UnifiedToolOutput for task results.
@@ -754,7 +754,7 @@ class ToolOutputMixin:
         folder_id: str | None = None,
         from_cache: bool = False,
         user_timezone: str = "UTC",
-        locale: str = DEFAULT_LANGUAGE,
+        locale: str = settings.default_language,
     ) -> UnifiedToolOutput:
         """
         Build UnifiedToolOutput for Drive file results.
@@ -833,7 +833,7 @@ class ToolOutputMixin:
         location: str | None = None,
         from_cache: bool = False,
         user_timezone: str = "UTC",
-        locale: str = DEFAULT_LANGUAGE,
+        locale: str = settings.default_language,
     ) -> UnifiedToolOutput:
         """
         Build UnifiedToolOutput for weather results.

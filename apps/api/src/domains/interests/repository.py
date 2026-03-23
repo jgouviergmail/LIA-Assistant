@@ -18,7 +18,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.config import settings
 from src.core.constants import (
     INTEREST_ACTIVE_LIST_LIMIT,
-    INTEREST_CONTENT_LOOKBACK_DAYS,
     INTEREST_USER_LIST_LIMIT,
 )
 from src.domains.interests.models import (
@@ -636,7 +635,7 @@ class InterestNotificationRepository:
     async def get_recent_for_interest(
         self,
         interest_id: UUID,
-        days: int = INTEREST_CONTENT_LOOKBACK_DAYS,
+        days: int | None = None,
         now: datetime | None = None,
     ) -> list[InterestNotification]:
         """
@@ -644,6 +643,8 @@ class InterestNotificationRepository:
 
         Used for content deduplication.
         """
+        if days is None:
+            days = settings.interest_content_lookback_days
         now = now or datetime.now(UTC)
         threshold = now - timedelta(days=days)
 
@@ -663,7 +664,7 @@ class InterestNotificationRepository:
         self,
         user_id: UUID,
         content_hash: str,
-        days: int = INTEREST_CONTENT_LOOKBACK_DAYS,
+        days: int | None = None,
         now: datetime | None = None,
     ) -> bool:
         """
@@ -678,6 +679,8 @@ class InterestNotificationRepository:
         Returns:
             True if duplicate exists
         """
+        if days is None:
+            days = settings.interest_content_lookback_days
         now = now or datetime.now(UTC)
         threshold = now - timedelta(days=days)
 

@@ -8,9 +8,9 @@ Architecture Simplification (2026-01):
 - Supports query mode (search) OR ID mode (direct fetch)
 """
 
+from src.core.config import settings
 from src.core.constants import (
     CALENDAR_TOOL_DEFAULT_LIMIT,
-    CALENDAR_TOOL_DEFAULT_MAX_RESULTS,
     GOOGLE_CALENDAR_SCOPES,
 )
 from src.domains.agents.registry.catalogue import (
@@ -135,10 +135,12 @@ get_events_catalogue_manifest = ToolManifest(
             name="max_results",
             type="integer",
             required=False,
-            description=f"Max return (def: {CALENDAR_TOOL_DEFAULT_LIMIT}, max: {CALENDAR_TOOL_DEFAULT_MAX_RESULTS})",
+            description=f"Max return (def: {CALENDAR_TOOL_DEFAULT_LIMIT}, max: {settings.calendar_tool_default_max_results})",
             constraints=[
                 ParameterConstraint(kind="minimum", value=1),
-                ParameterConstraint(kind="maximum", value=CALENDAR_TOOL_DEFAULT_MAX_RESULTS),
+                ParameterConstraint(
+                    kind="maximum", value=settings.calendar_tool_default_max_results
+                ),
             ],
         ),
         _CALENDAR_ID_PARAM,

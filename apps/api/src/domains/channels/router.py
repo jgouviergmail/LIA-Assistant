@@ -17,7 +17,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.constants import DEFAULT_LANGUAGE, DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.config import settings
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.dependencies import get_db
 from src.core.session_dependencies import get_current_active_session
 from src.domains.auth.models import User
@@ -326,7 +327,7 @@ async def _handle_hitl_callback(message: ChannelInboundMessage) -> None:
             user_service = UserService(db)
             user = await user_service.get_user_by_id(user_id)
             if user:
-                user_language = getattr(user, "language", None) or DEFAULT_LANGUAGE
+                user_language = getattr(user, "language", None) or settings.default_language
                 user_timezone = getattr(user, "timezone", None) or DEFAULT_USER_DISPLAY_TIMEZONE
                 user_memory_enabled = getattr(user, "memory_enabled", True)
     except Exception:

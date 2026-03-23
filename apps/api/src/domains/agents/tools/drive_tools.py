@@ -37,7 +37,6 @@ from langchain_core.tools import InjectedToolArg
 from pydantic import BaseModel
 
 from src.core.config import settings
-from src.core.constants import DEFAULT_LANGUAGE
 from src.core.i18n_api_messages import APIMessages
 from src.domains.agents.constants import AGENT_FILE, CONTEXT_DOMAIN_FILES
 from src.domains.agents.context import ContextTypeDefinition, ContextTypeRegistry
@@ -313,7 +312,7 @@ class SearchFilesTool(ToolOutputMixin, ConnectorTool[GoogleDriveClient]):
         files = result.get("files", [])
         query = result.get("query", "")
         user_timezone = result.get("user_timezone", "UTC")
-        locale = result.get("locale", DEFAULT_LANGUAGE)
+        locale = result.get("locale", settings.default_language)
 
         # Use ToolOutputMixin helper with timezone conversion
         # build_files_output returns UnifiedToolOutput directly
@@ -523,7 +522,7 @@ class ListFilesTool(ToolOutputMixin, ConnectorTool[GoogleDriveClient]):
         files = result.get("files", [])
         folder_id = result.get("folder_id")
         user_timezone = result.get("user_timezone", "UTC")
-        locale = result.get("locale", DEFAULT_LANGUAGE)
+        locale = result.get("locale", settings.default_language)
 
         # Use ToolOutputMixin helper with timezone conversion
         # build_files_output returns UnifiedToolOutput directly
@@ -881,7 +880,7 @@ class GetFileDetailsTool(ToolOutputMixin, ConnectorTool[GoogleDriveClient]):
         """
         mode = result.get("mode", "single")
         user_timezone = result.get("user_timezone", "UTC")
-        locale = result.get("locale", DEFAULT_LANGUAGE)
+        locale = result.get("locale", settings.default_language)
 
         # Handle batch mode
         if mode == "batch":

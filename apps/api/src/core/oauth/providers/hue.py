@@ -4,7 +4,6 @@ from dataclasses import dataclass
 
 from src.core.config import Settings
 from src.core.constants import (
-    API_PREFIX_DEFAULT,
     HUE_REMOTE_AUTHORIZATION_ENDPOINT,
     HUE_REMOTE_TOKEN_ENDPOINT,
 )
@@ -46,7 +45,7 @@ class HueOAuthProvider:
             client_secret=settings.hue_remote_client_secret,
             app_id=settings.hue_remote_app_id,
             redirect_uri=(
-                f"{settings.api_url}{API_PREFIX_DEFAULT}" "/connectors/philips-hue/callback"
+                f"{settings.api_url}{settings.api_prefix}" "/connectors/philips-hue/callback"
             ),
             scopes=[],
         )

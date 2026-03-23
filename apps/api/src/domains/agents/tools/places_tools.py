@@ -30,9 +30,8 @@ from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg
 from pydantic import BaseModel
 
-from src.core.config import get_settings
+from src.core.config import get_settings, settings
 from src.core.constants import (
-    DEFAULT_LANGUAGE,
     PLACE_CAROUSEL_ENABLED,
     PLACES_MAX_GALLERY_PHOTOS,
     PLACES_MIN_RATING_MAX,
@@ -106,7 +105,7 @@ def _format_place(
     center_lat: float | None = None,
     center_lon: float | None = None,
     distance_source: str | None = None,
-    language: str = DEFAULT_LANGUAGE,
+    language: str = settings.default_language,
 ) -> dict[str, Any]:
     """
     Format a place for consistent output.
@@ -1594,6 +1593,7 @@ async def get_places_tool(
     min_rating: float | None = None,
     price_levels: list[str] | None = None,
     force_refresh: bool = False,
+    language: str | None = None,
 ) -> UnifiedToolOutput:
     """
     Get places with full details - unified search and retrieval.
@@ -1627,6 +1627,8 @@ async def get_places_tool(
             PRICE_LEVEL_INEXPENSIVE, PRICE_LEVEL_MODERATE,
             PRICE_LEVEL_EXPENSIVE, PRICE_LEVEL_VERY_EXPENSIVE
         force_refresh: Bypass cache (default False).
+        language: Language code for results (e.g., "fr", "en", "es", "de", "it", "zh-CN").
+            If not provided, uses user's preferred language from runtime context.
 
     Returns:
         UnifiedToolOutput with registry items containing place data.

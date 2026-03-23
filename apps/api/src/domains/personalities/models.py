@@ -11,7 +11,7 @@ from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, UniqueConstra
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.domains.personalities.constants import FALLBACK_LANGUAGES
+from src.core.config import settings
 from src.infrastructure.database.models import BaseModel
 
 if TYPE_CHECKING:
@@ -74,7 +74,8 @@ class Personality(BaseModel):
                 return t
 
         # Try fallbacks
-        for fallback in FALLBACK_LANGUAGES:
+        fallback_languages = (settings.default_language, "en")
+        for fallback in fallback_languages:
             for t in self.translations:
                 if t.language_code == fallback:
                     return t

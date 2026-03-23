@@ -15,7 +15,8 @@ Usage:
 
 from typing import Any
 
-from src.core.constants import DEFAULT_LANGUAGE, DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.config import settings
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.domains.agents.display.config import config_for_viewport
 from src.domains.agents.display.html_renderer import get_html_renderer
 from src.domains.agents.formatters.text_summary import generate_text_summary_for_items
@@ -69,7 +70,7 @@ def format_resolved_context_for_prompt(
     resolved_context: dict[str, Any],
     use_text_summary: bool = False,
     user_viewport: str = "desktop",
-    user_language: str = DEFAULT_LANGUAGE,
+    user_language: str = settings.default_language,
 ) -> str:
     """
     Format resolved context items for LLM prompt.
@@ -110,7 +111,7 @@ def format_resolved_context_for_prompt(
 def generate_html_for_resolved_context(
     resolved_context: dict[str, Any],
     user_viewport: str = "desktop",
-    user_language: str = DEFAULT_LANGUAGE,
+    user_language: str = settings.default_language,
     user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
 ) -> str:
     """

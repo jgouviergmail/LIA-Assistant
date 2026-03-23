@@ -11,10 +11,6 @@ import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
-from src.core.constants import (
-    SUBAGENT_MAX_CONSECUTIVE_FAILURES_DEFAULT,
-    SUBAGENT_MAX_PER_USER_DEFAULT,
-)
 from src.core.exceptions import ResourceConflictError, ResourceNotFoundError, ValidationError
 from src.domains.sub_agents.constants import (
     SUBAGENT_TEMPLATES,
@@ -82,7 +78,7 @@ class SubAgentService:
             ValidationError: If user has reached the maximum limit.
             ResourceConflictError: If name already exists for this user.
         """
-        max_per_user = getattr(settings, "subagent_max_per_user", SUBAGENT_MAX_PER_USER_DEFAULT)
+        max_per_user = settings.subagent_max_per_user
 
         count = await self.repository.count_for_user(user_id)
         if count >= max_per_user:
@@ -334,11 +330,7 @@ class SubAgentService:
         if not subagent:
             raise ResourceNotFoundError("sub_agent", str(subagent_id))
 
-        max_failures = getattr(
-            settings,
-            "subagent_max_consecutive_failures",
-            SUBAGENT_MAX_CONSECUTIVE_FAILURES_DEFAULT,
-        )
+        max_failures = settings.subagent_max_consecutive_failures
 
         update_data: dict = {
             "execution_count": subagent.execution_count + 1,

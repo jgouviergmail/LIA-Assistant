@@ -21,11 +21,6 @@ from uuid import UUID, uuid4
 import structlog
 
 from src.core.config import get_settings
-from src.core.constants import (
-    DEFAULT_LANGUAGE,
-    HEARTBEAT_DECISION_LLM_MODEL_DEFAULT,
-    HEARTBEAT_MESSAGE_LLM_MODEL_DEFAULT,
-)
 from src.domains.heartbeat.context_aggregator import ContextAggregator
 from src.domains.heartbeat.prompts import (
     generate_heartbeat_message,
@@ -111,7 +106,7 @@ class HeartbeatProactiveTask:
                 return None
 
             # LLM Decision (structured output, cheap model)
-            user_language = getattr(user, "language", DEFAULT_LANGUAGE)
+            user_language = getattr(user, "language", settings.default_language)
             decision, tok_in, tok_out, tok_cache = await get_heartbeat_decision(
                 context, user_language=user_language
             )
@@ -177,9 +172,7 @@ class HeartbeatProactiveTask:
         total_cache = target.decision_tokens_cache + msg_tok_cache
 
         settings = get_settings()
-        model_name = getattr(
-            settings, "heartbeat_message_llm_model", HEARTBEAT_MESSAGE_LLM_MODEL_DEFAULT
-        )
+        model_name = settings.heartbeat_message_llm_model
 
         return ProactiveTaskResult(
             success=True,
@@ -282,9 +275,7 @@ class HeartbeatProactiveTask:
             from src.infrastructure.proactive.tracking import track_proactive_tokens
 
             settings = get_settings()
-            model_name = getattr(
-                settings, "heartbeat_decision_llm_model", HEARTBEAT_DECISION_LLM_MODEL_DEFAULT
-            )
+            model_name = settings.heartbeat_decision_llm_model
 
             await track_proactive_tokens(
                 user_id=user_id,

@@ -12,7 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from src.core.constants import DEFAULT_LANGUAGE
+from src.core.config import settings
 from src.core.i18n_v3 import V3Messages
 from src.domains.agents.display.components.article_card import ArticleCard
 from src.domains.agents.display.components.base import (
@@ -577,7 +577,7 @@ class HtmlRenderer:
         """Get component for domain."""
         return self._components.get(domain)
 
-    def _get_domain_label(self, domain: str, language: str = DEFAULT_LANGUAGE) -> str:
+    def _get_domain_label(self, domain: str, language: str = settings.default_language) -> str:
         """
         Get human-readable domain label with icon.
 
@@ -627,7 +627,7 @@ class HtmlRenderer:
     def _build_cluster_title(
         self,
         clusters: list[CorrelatedCluster],
-        language: str = DEFAULT_LANGUAGE,
+        language: str = settings.default_language,
     ) -> str:
         """
         Build combined title for correlated clusters.

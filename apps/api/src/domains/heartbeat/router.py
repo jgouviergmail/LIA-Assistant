@@ -13,7 +13,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.constants import JOURNALS_ENABLED_DEFAULT
+from src.core.config import settings
 from src.core.dependencies import get_db
 from src.core.session_dependencies import get_current_active_session
 from src.domains.auth.models import User
@@ -95,7 +95,7 @@ async def _compute_available_sources(
         sources.append("memories")
 
     # Journals: journals_enabled
-    if getattr(user, "journals_enabled", JOURNALS_ENABLED_DEFAULT):
+    if getattr(user, "journals_enabled", settings.journals_enabled):
         sources.append("journals")
 
     return sources

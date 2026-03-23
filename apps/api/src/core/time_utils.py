@@ -55,7 +55,7 @@ from zoneinfo import ZoneInfo
 
 import structlog
 
-from src.core.constants import DEFAULT_LANGUAGE
+from src.core.config import settings
 from src.core.i18n_dates import (
     _extract_language,
     get_day_name,
@@ -143,7 +143,7 @@ def calculate_cache_age_seconds(cached_at: str) -> int:
 
 
 def get_current_datetime_context(
-    timezone_str: str = "UTC", language: str = DEFAULT_LANGUAGE
+    timezone_str: str = "UTC", language: str = settings.default_language
 ) -> str:
     """
     Get current datetime formatted for LLM context.

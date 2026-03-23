@@ -25,9 +25,9 @@ from typing import Any
 
 from langchain_core.runnables import RunnableConfig
 
+from src.core.config import settings
 from src.core.constants import (
     CLARIFICATION_RECIPIENT_FIELDS,
-    DEFAULT_LANGUAGE,
     TOOL_NAME_DELEGATE_SUB_AGENT,
 )
 from src.core.field_names import FIELD_RUN_ID
@@ -313,7 +313,7 @@ async def planner_node_v3(
             if not english_query:
                 english_query = intelligence.original_query
 
-            user_language = state.get("user_language", DEFAULT_LANGUAGE)
+            user_language = state.get("user_language", settings.default_language)
 
             early_result = detect_early_insufficient_content(
                 query_intelligence=intelligence,
@@ -643,7 +643,7 @@ async def _resolve_clarification_reference(
         # Resolve using memory reference resolution service
         # Extract user_language from config for multilingual resolution
         configurable = config.get("configurable", {}) if config else {}
-        user_language = configurable.get("user_language", DEFAULT_LANGUAGE)
+        user_language = configurable.get("user_language", settings.default_language)
 
         resolution_service = get_memory_reference_resolution_service()
         result = await resolution_service.resolve_pre_planner(

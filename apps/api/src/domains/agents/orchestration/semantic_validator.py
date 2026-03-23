@@ -44,9 +44,7 @@ from pydantic import BaseModel, Field
 from src.core.config import settings
 from src.core.constants import (
     CARDINALITY_ALL,
-    DEFAULT_LANGUAGE,
     FOR_EACH_ITEM_REF,
-    FOR_EACH_MAX_HARD_LIMIT,
     TOOL_NAME_DELEGATE_SUB_AGENT,
 )
 from src.domains.agents.prompts import load_prompt
@@ -636,7 +634,7 @@ def validate_for_each_patterns(
                     f"FOR_EACH_MAX_EXCEEDED: Step {step.step_id} has for_each_max={step.for_each_max}, "
                     f"but user expects ~{cardinality_magnitude} items.\n\n"
                     f"Fix: Increase for_each_max to at least {cardinality_magnitude}:\n"
-                    f'  "for_each_max": {min(cardinality_magnitude, FOR_EACH_MAX_HARD_LIMIT)}'
+                    f'  "for_each_max": {min(cardinality_magnitude, settings.for_each_max_hard_limit)}'
                 )
                 return False, feedback, SemanticIssueType.FOR_EACH_MAX_EXCEEDED
 
@@ -828,7 +826,7 @@ def validate_for_each_patterns(
 def detect_early_insufficient_content(
     query_intelligence: Any,
     user_request: str,
-    user_language: str = DEFAULT_LANGUAGE,
+    user_language: str = settings.default_language,
 ) -> SemanticValidationResult | None:
     """
     Pre-planner detection of insufficient content using QueryIntelligence.
@@ -969,7 +967,7 @@ def detect_early_insufficient_content(
 def detect_insufficient_content(
     plan: ExecutionPlan,
     user_request: str,
-    user_language: str = DEFAULT_LANGUAGE,
+    user_language: str = settings.default_language,
 ) -> SemanticValidationResult | None:
     """
     Detect if a mutation tool is called without sufficient content.
@@ -1276,7 +1274,7 @@ class PlanSemanticValidator:
         self,
         plan: ExecutionPlan,
         user_request: str,
-        user_language: str = DEFAULT_LANGUAGE,
+        user_language: str = settings.default_language,
         config: Any | None = None,
         query_intelligence: Any | None = None,
     ) -> SemanticValidationResult:

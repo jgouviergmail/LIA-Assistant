@@ -27,7 +27,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
-from src.core.constants import PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, SUPPORTED_LANGUAGES
+from src.core.config import settings
+from src.core.constants import PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH
 from src.core.security import validate_password_strict
 from src.core.validators import validate_timezone
 
@@ -84,9 +85,9 @@ class LanguageValidatorMixin:
         if v is None:
             return v
 
-        if v not in SUPPORTED_LANGUAGES:
+        if v not in settings.supported_languages:
             raise ValueError(
-                f"Invalid language: {v}. Must be one of {', '.join(SUPPORTED_LANGUAGES)}"
+                f"Invalid language: {v}. Must be one of {', '.join(settings.supported_languages)}"
             )
 
         return v

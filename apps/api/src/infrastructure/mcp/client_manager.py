@@ -37,7 +37,6 @@ from mcp.client.streamable_http import streamablehttp_client
 
 from src.core.config import settings
 from src.core.constants import (
-    MCP_APP_MAX_HTML_SIZE_DEFAULT,
     MCP_DEFAULT_RATE_LIMIT_CALLS,
     MCP_DEFAULT_RATE_LIMIT_WINDOW,
     MCP_REFERENCE_TOOL_NAME,
@@ -444,7 +443,7 @@ class MCPClientManager:
             return None
 
         timeout = getattr(settings, "mcp_tool_timeout_seconds", 30)
-        max_size = getattr(settings, "mcp_app_max_html_size", MCP_APP_MAX_HTML_SIZE_DEFAULT)
+        max_size = settings.mcp_app_max_html_size
 
         try:
             from pydantic import AnyUrl

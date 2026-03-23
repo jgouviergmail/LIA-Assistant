@@ -43,9 +43,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
+from src.core.config import settings
 from src.core.config.agents import V3DisplayConfig as V3DisplayConfigModel
 from src.core.config.agents import get_v3_display_config
-from src.core.constants import V3_DISPLAY_MAX_ITEMS_PER_DOMAIN
 
 
 class Viewport(str, Enum):
@@ -117,7 +117,7 @@ class DisplayConfig:
     context: DisplayContext = DisplayContext.MONO
     viewport: Viewport = Viewport.DESKTOP
     user_expertise: UserExpertise = UserExpertise.INTERMEDIATE
-    max_items_per_domain: int = V3_DISPLAY_MAX_ITEMS_PER_DOMAIN
+    max_items_per_domain: int = settings.v3_display_max_items_per_domain
     show_secondary_metadata: bool = True
     enable_folding: bool = False  # For mobile mainly
     language: str = "fr"

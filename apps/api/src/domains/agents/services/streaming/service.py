@@ -18,7 +18,8 @@ from typing import TYPE_CHECKING, Any
 
 from structlog import get_logger
 
-from src.core.constants import DEFAULT_LANGUAGE, DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.config import settings
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.field_names import (
     FIELD_CONVERSATION_ID,
     FIELD_ERROR_TYPE,
@@ -586,7 +587,9 @@ class StreamingService:
                                 )
 
                                 messages = state.get("messages", [])
-                                user_language = state.get("user_language", DEFAULT_LANGUAGE)
+                                user_language = state.get(
+                                    "user_language", settings.default_language
+                                )
 
                                 interest_detection = await analyze_interests_for_debug(
                                     user_id=self.user_id,
@@ -1256,7 +1259,7 @@ class StreamingService:
 
         # Phase 1 HITL Streaming: Check if streaming generation is requested
         generate_streaming = interrupt_data.get("generate_question_streaming", False)
-        user_language = interrupt_data.get("user_language", DEFAULT_LANGUAGE)
+        user_language = interrupt_data.get("user_language", settings.default_language)
         # Extract user_timezone from interrupt_data or fallback to state's user_timezone
         user_timezone = interrupt_data.get("user_timezone") or chunk.get(
             "user_timezone", DEFAULT_USER_DISPLAY_TIMEZONE

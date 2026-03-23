@@ -20,11 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.core.config import settings
 from src.core.constants import (
     CHANNEL_OTP_ATTEMPTS_REDIS_PREFIX,
-    CHANNEL_OTP_BLOCK_TTL_SECONDS_DEFAULT,
-    CHANNEL_OTP_LENGTH_DEFAULT,
-    CHANNEL_OTP_MAX_ATTEMPTS_DEFAULT,
     CHANNEL_OTP_REDIS_PREFIX,
-    CHANNEL_OTP_TTL_SECONDS_DEFAULT,
 )
 from src.core.exceptions import ResourceNotFoundError, ValidationError
 from src.domains.channels.models import ChannelType, UserChannelBinding
@@ -79,8 +75,8 @@ class ChannelService:
                 "Unlink it first to link a new one."
             )
 
-        otp_length = getattr(settings, "channel_otp_length", CHANNEL_OTP_LENGTH_DEFAULT)
-        otp_ttl = getattr(settings, "channel_otp_ttl_seconds", CHANNEL_OTP_TTL_SECONDS_DEFAULT)
+        otp_length = settings.channel_otp_length
+        otp_ttl = settings.channel_otp_ttl_seconds
 
         # Generate cryptographically secure numeric OTP
         code = "".join(secrets.choice("0123456789") for _ in range(otp_length))
@@ -142,12 +138,8 @@ class ChannelService:
 
         # Check brute-force block
         attempts_key = f"{CHANNEL_OTP_ATTEMPTS_REDIS_PREFIX}{channel_user_id}"
-        max_attempts = getattr(
-            settings, "channel_otp_max_attempts", CHANNEL_OTP_MAX_ATTEMPTS_DEFAULT
-        )
-        block_ttl = getattr(
-            settings, "channel_otp_block_ttl_seconds", CHANNEL_OTP_BLOCK_TTL_SECONDS_DEFAULT
-        )
+        max_attempts = settings.channel_otp_max_attempts
+        block_ttl = settings.channel_otp_block_ttl_seconds
 
         current_attempts = await redis.get(attempts_key)
         if current_attempts and int(current_attempts) >= max_attempts:

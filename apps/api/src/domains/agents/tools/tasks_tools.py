@@ -37,8 +37,7 @@ from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg
 from pydantic import BaseModel
 
-from src.core.config import get_settings
-from src.core.constants import DEFAULT_LANGUAGE
+from src.core.config import get_settings, settings
 from src.core.i18n_api_messages import APIMessages
 from src.domains.agents.constants import AGENT_TASK, CONTEXT_DOMAIN_TASKS
 from src.domains.agents.context import ContextTypeDefinition, ContextTypeRegistry
@@ -350,7 +349,7 @@ class ListTasksTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
         tasks = result.get("tasks", [])
         task_list_id = result.get("task_list_id")
         user_timezone = result.get("user_timezone", "UTC")
-        locale = result.get("locale", DEFAULT_LANGUAGE)
+        locale = result.get("locale", settings.default_language)
 
         # Use ToolOutputMixin helper with timezone conversion
         # build_tasks_output returns UnifiedToolOutput directly
@@ -584,7 +583,7 @@ class GetTaskDetailsTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
         mode = result.get("mode", "single")
         task_list_id = result.get("task_list_id")
         user_timezone = result.get("user_timezone", "UTC")
-        locale = result.get("locale", DEFAULT_LANGUAGE)
+        locale = result.get("locale", settings.default_language)
 
         if mode == "batch":
             # Batch mode

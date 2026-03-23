@@ -7,6 +7,7 @@ Used by formatters to display dates in user's locale.
 Supported languages: fr, en, es, de, it, zh-CN
 """
 
+from src.core.i18n import DEFAULT_LANGUAGE
 from src.core.i18n_types import Language
 
 # Day names indexed by weekday (0=Monday, 6=Sunday)
@@ -116,8 +117,6 @@ TIME_CONNECTORS: dict[Language, str] = {
     "it": "alle",
     "zh-CN": "",
 }
-
-DEFAULT_LANGUAGE: Language = "fr"
 
 
 def get_day_name(weekday: int, locale: str = "fr") -> str:

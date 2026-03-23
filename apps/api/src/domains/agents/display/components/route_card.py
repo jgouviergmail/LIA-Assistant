@@ -17,8 +17,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from src.core.config import settings
 from src.core.constants import (
-    ROUTES_MAX_STEPS,
     STATIC_MAP_DESKTOP_HEIGHT,
     STATIC_MAP_DESKTOP_WIDTH,
 )
@@ -360,8 +360,8 @@ class RouteCard(BaseComponent):
         if not steps:
             return ""
 
-        # Limit steps for readability (configurable via ROUTES_MAX_STEPS env var)
-        steps_to_show = steps[:ROUTES_MAX_STEPS]
+        # Limit steps for readability (configurable via settings.routes_max_steps env var)
+        steps_to_show = steps[: settings.routes_max_steps]
 
         step_items = []
         for i, step in enumerate(steps_to_show, 1):
@@ -400,8 +400,8 @@ class RouteCard(BaseComponent):
             step_items.append(step_html)
 
         # Add "more steps" indicator if truncated
-        if len(steps) > ROUTES_MAX_STEPS:
-            remaining = len(steps) - ROUTES_MAX_STEPS
+        if len(steps) > settings.routes_max_steps:
+            remaining = len(steps) - settings.routes_max_steps
             more_steps_label = V3Messages.get_more_steps(ctx.language, remaining)
             step_items.append(
                 f'<div class="lia-route__step lia-route__step--more">'

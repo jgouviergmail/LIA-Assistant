@@ -57,7 +57,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
 
-from src.core.constants import FOR_EACH_MAX_DEFAULT, FOR_EACH_MAX_HARD_LIMIT
+from src.core.config import settings
 from src.core.field_names import FIELD_AGENT_NAME, FIELD_STEP_ID
 
 # ============================================================================
@@ -337,10 +337,10 @@ class ExecutionStep(BaseModel):
         "When set, this step is expanded at runtime into N parallel steps.",
     )
     for_each_max: int = Field(
-        default=FOR_EACH_MAX_DEFAULT,
+        default_factory=lambda: settings.for_each_max_default,
         ge=1,
-        le=FOR_EACH_MAX_HARD_LIMIT,
-        description=f"Maximum items to process (safety limit). Default {FOR_EACH_MAX_DEFAULT}, max {FOR_EACH_MAX_HARD_LIMIT}.",
+        le=settings.for_each_max_hard_limit,
+        description=f"Maximum items to process (safety limit). Default {settings.for_each_max_default}, max {settings.for_each_max_hard_limit}.",
     )
     on_item_error: Literal["continue", "stop", "collect_errors"] = Field(
         default="continue",
@@ -476,10 +476,10 @@ class ExecutionStepLLM(BaseModel):
         "When set, this step is expanded at runtime into N parallel steps.",
     )
     for_each_max: int = Field(
-        default=FOR_EACH_MAX_DEFAULT,
+        default_factory=lambda: settings.for_each_max_default,
         ge=1,
-        le=FOR_EACH_MAX_HARD_LIMIT,
-        description=f"Maximum items to process (safety limit). Default {FOR_EACH_MAX_DEFAULT}, max {FOR_EACH_MAX_HARD_LIMIT}.",
+        le=settings.for_each_max_hard_limit,
+        description=f"Maximum items to process (safety limit). Default {settings.for_each_max_default}, max {settings.for_each_max_hard_limit}.",
     )
     on_item_error: Literal["continue", "stop", "collect_errors"] = Field(
         default="continue",

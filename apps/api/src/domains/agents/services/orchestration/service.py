@@ -1249,10 +1249,10 @@ class OrchestrationService:
             )
 
         # Extract user preferences from state for planner temporal context
-        from src.core.constants import DEFAULT_LANGUAGE, DEFAULT_TIMEZONE
+        from src.core.constants import DEFAULT_TIMEZONE
 
         user_timezone = state.get("user_timezone", DEFAULT_TIMEZONE)
-        user_language = state.get("user_language", DEFAULT_LANGUAGE)
+        user_language = state.get("user_language", settings.default_language)
 
         # === NEW: Create RunnableConfig with thread_id for checkpoint persistence ===
         runnable_config = RunnableConfig(

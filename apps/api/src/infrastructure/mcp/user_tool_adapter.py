@@ -23,10 +23,7 @@ from langchain_core.tools import BaseTool
 from pydantic import BaseModel, Field
 
 from src.core.config import settings
-from src.core.constants import (
-    MCP_MAX_STRUCTURED_ITEMS_PER_CALL,
-    MCP_USER_TOOL_NAME_PREFIX,
-)
+from src.core.constants import MCP_USER_TOOL_NAME_PREFIX
 from src.core.field_names import FIELD_REGISTRY_ID
 from src.domains.agents.constants import CONTEXT_DOMAIN_MCP
 from src.domains.agents.data_registry.models import (
@@ -261,11 +258,7 @@ class UserMCPToolAdapter(BaseTool):
 
                 # Cap items to prevent registry explosion (e.g., list_commits
                 # returning 100+ items per page × N repos in a for_each).
-                max_items = getattr(
-                    settings,
-                    "mcp_max_structured_items_per_call",
-                    MCP_MAX_STRUCTURED_ITEMS_PER_CALL,
-                )
+                max_items = settings.mcp_max_structured_items_per_call
                 if len(items_list) > max_items:
                     items_list = items_list[:max_items]
 

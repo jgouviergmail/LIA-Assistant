@@ -746,7 +746,6 @@ class SmartPlannerService:
             Formatted reference string, or empty string if no relevant content.
         """
         from src.core.config import get_settings
-        from src.core.constants import MCP_REFERENCE_CONTENT_MAX_CHARS_DEFAULT
         from src.core.context import user_mcp_tools_ctx
         from src.domains.agents.constants import MCP_DOMAIN_PREFIX
 
@@ -763,11 +762,7 @@ class SmartPlannerService:
             return ""
 
         _settings = get_settings()
-        max_ref_chars = getattr(
-            _settings,
-            "mcp_reference_content_max_chars",
-            MCP_REFERENCE_CONTENT_MAX_CHARS_DEFAULT,
-        )
+        max_ref_chars = _settings.mcp_reference_content_max_chars
         if max_ref_chars <= 0:
             return ""
 
@@ -1040,15 +1035,18 @@ class SmartPlannerService:
         # Fallback: read from instance if not passed directly (strategy pattern)
         if not journal_context:
             journal_context = getattr(self, "_current_journal_context", "")
-        from src.core.constants import DEFAULT_LANGUAGE, DEFAULT_TIMEZONE
+        from src.core.config import get_settings
+        from src.core.constants import DEFAULT_TIMEZONE
         from src.domains.agents.services.plan_pattern_learner import (
             get_learned_patterns_prompt,
         )
 
+        _settings = get_settings()
+
         # Extract user preferences from config
         configurable = config.get("configurable", {})
         user_timezone = configurable.get("user_timezone", DEFAULT_TIMEZONE)
-        user_language = configurable.get("user_language", DEFAULT_LANGUAGE)
+        user_language = configurable.get("user_language", _settings.default_language)
 
         # Conditional semantic deps injection for single-domain queries
         # - Mutations may need cross-domain deps (e.g., send_email needs contact resolution)
@@ -1130,15 +1128,18 @@ class SmartPlannerService:
         # Fallback: read from instance if not passed directly (strategy pattern)
         if not journal_context:
             journal_context = getattr(self, "_current_journal_context", "")
-        from src.core.constants import DEFAULT_LANGUAGE, DEFAULT_TIMEZONE
+        from src.core.config import get_settings
+        from src.core.constants import DEFAULT_TIMEZONE
         from src.domains.agents.services.plan_pattern_learner import (
             get_learned_patterns_prompt,
         )
 
+        _settings = get_settings()
+
         # Extract user preferences from config
         configurable = config.get("configurable", {})
         user_timezone = configurable.get("user_timezone", DEFAULT_TIMEZONE)
-        user_language = configurable.get("user_language", DEFAULT_LANGUAGE)
+        user_language = configurable.get("user_language", _settings.default_language)
 
         # Generate dynamic semantic dependencies for cross-domain planning
         semantic_deps = generate_semantic_dependencies_for_prompt(intelligence.domains)

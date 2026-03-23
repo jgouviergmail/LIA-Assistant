@@ -24,7 +24,6 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
-from src.core.constants import JOURNALS_ENABLED_DEFAULT
 from src.domains.journals.constants import JOURNAL_MOOD_EMOJI
 from src.domains.journals.models import JournalEntry
 from src.domains.journals.repository import JournalEntryRepository
@@ -108,7 +107,7 @@ async def build_journal_context(
             return None, None
 
         # Check user-level feature flag
-        if not getattr(user, "journals_enabled", JOURNALS_ENABLED_DEFAULT):
+        if not getattr(user, "journals_enabled", settings.journals_enabled):
             return None, None
 
         max_chars = getattr(

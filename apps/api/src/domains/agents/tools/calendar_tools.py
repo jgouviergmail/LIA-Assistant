@@ -44,8 +44,7 @@ from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg
 from pydantic import BaseModel
 
-from src.core.config import get_settings
-from src.core.constants import DEFAULT_LANGUAGE
+from src.core.config import get_settings, settings
 from src.core.i18n_api_messages import APIMessages
 from src.core.time_utils import normalize_to_rfc3339
 from src.domains.agents.constants import (
@@ -422,7 +421,7 @@ class SearchEventsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
         time_max = result.get("time_max")
         from_cache = result.get("from_cache", False)
         user_timezone = result.get("user_timezone", "UTC")
-        locale = result.get("locale", DEFAULT_LANGUAGE)
+        locale = result.get("locale", settings.default_language)
         calendar_id = result.get("calendar_id")  # Pass calendar_id for update/delete
 
         return self.build_events_output(
@@ -777,7 +776,7 @@ class GetEventDetailsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
         mode = result.get("mode", "single")
         from_cache = result.get("from_cache", False)
         user_timezone = result.get("user_timezone", "UTC")
-        locale = result.get("locale", DEFAULT_LANGUAGE)
+        locale = result.get("locale", settings.default_language)
 
         # Handle single vs batch mode
         errors = None
@@ -1883,7 +1882,7 @@ class ListCalendarsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
         )
 
         # Get user preferences for locale
-        locale = DEFAULT_LANGUAGE
+        locale = settings.default_language
         try:
             _, _, locale = await get_user_preferences(self.runtime)
         except (ValueError, KeyError, AttributeError):

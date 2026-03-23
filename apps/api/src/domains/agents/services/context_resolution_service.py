@@ -19,11 +19,9 @@ from typing import Any, cast
 import structlog
 from langchain_core.runnables import RunnableConfig
 
-from src.core.config import Settings, get_settings
+from src.core.config import Settings, get_settings, settings
 from src.core.field_names import FIELD_USER_ID
 from src.domains.agents.constants import (
-    CONTEXT_CURRENT_ITEM_CONFIDENCE,
-    CONTEXT_DEMONSTRATIVE_CONFIDENCE,
     STATE_KEY_AGENT_RESULTS,
     STATE_KEY_CURRENT_TURN_ID,
     STATE_KEY_LAST_LIST_DOMAIN,
@@ -419,7 +417,7 @@ class ContextResolutionService:
                 )
                 if current_item:
                     resolved_items.append(current_item)
-                    total_confidence += CONTEXT_CURRENT_ITEM_CONFIDENCE
+                    total_confidence += settings.context_current_item_confidence
                     logger.info(
                         "demonstrative_resolved_to_current_item",
                         run_id=run_id,
@@ -432,7 +430,7 @@ class ContextResolutionService:
             # Fallback: use first item from list
             if all_items:
                 resolved_items.append(all_items[0])
-                total_confidence += CONTEXT_DEMONSTRATIVE_CONFIDENCE
+                total_confidence += settings.context_demonstrative_confidence
                 logger.debug(
                     "demonstrative_resolved_to_first_item",
                     run_id=run_id,

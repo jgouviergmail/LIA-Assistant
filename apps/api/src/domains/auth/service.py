@@ -12,7 +12,7 @@ import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
-from src.core.constants import DEFAULT_LANGUAGE, DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.exceptions import (
     raise_email_already_exists,
     raise_invalid_credentials,
@@ -80,7 +80,7 @@ class AuthService:
             "full_name": data.full_name,
             "timezone": data.timezone
             or DEFAULT_USER_DISPLAY_TIMEZONE,  # Browser detection or default
-            "language": data.language or DEFAULT_LANGUAGE,  # Browser detection or default
+            "language": data.language or settings.default_language,  # Browser detection or default
             FIELD_IS_ACTIVE: False,  # Requires email verification
             "is_verified": False,
             "memory_enabled": True,  # Long-term memory enabled by default
@@ -226,7 +226,7 @@ class AuthService:
         await self._send_pending_activation_notification(
             user_email=user.email,
             user_name=user.full_name,
-            user_language=user.language or DEFAULT_LANGUAGE,
+            user_language=user.language or settings.default_language,
         )
 
         return UserResponse.model_validate(user)

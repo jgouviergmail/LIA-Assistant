@@ -377,7 +377,7 @@ def with_user_preferences(func: Callable[..., T]) -> Callable[..., T]:
     """
     from functools import wraps
 
-    from src.core.constants import DEFAULT_LANGUAGE
+    from src.core.config import settings
 
     @wraps(func)
     async def wrapper(*args, **kwargs):
@@ -386,7 +386,7 @@ def with_user_preferences(func: Callable[..., T]) -> Callable[..., T]:
 
         # Default values
         user_timezone = "UTC"
-        locale = DEFAULT_LANGUAGE
+        locale = settings.default_language
 
         if runtime:
             try:

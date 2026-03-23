@@ -8,10 +8,10 @@ Architecture Simplification (2026-01):
 - Supports filter mode (list) OR ID mode (direct fetch)
 """
 
+from src.core.config import settings
 from src.core.constants import (
     GOOGLE_TASKS_SCOPES,
     TASKS_TOOL_DEFAULT_LIMIT,
-    TASKS_TOOL_DEFAULT_MAX_RESULTS,
 )
 from src.domains.agents.registry.catalogue import (
     CostProfile,
@@ -109,8 +109,10 @@ get_tasks_catalogue_manifest = ToolManifest(
             name="max_results",
             type="integer",
             required=False,
-            description=f"Max (def: {TASKS_TOOL_DEFAULT_LIMIT}, max: {TASKS_TOOL_DEFAULT_MAX_RESULTS})",
-            constraints=[ParameterConstraint(kind="maximum", value=TASKS_TOOL_DEFAULT_MAX_RESULTS)],
+            description=f"Max (def: {TASKS_TOOL_DEFAULT_LIMIT}, max: {settings.tasks_tool_default_max_results})",
+            constraints=[
+                ParameterConstraint(kind="maximum", value=settings.tasks_tool_default_max_results)
+            ],
         ),
     ],
     outputs=[
@@ -387,8 +389,10 @@ list_task_lists_catalogue_manifest = ToolManifest(
             name="max_results",
             type="integer",
             required=False,
-            description=f"Max (def: {TASKS_TOOL_DEFAULT_LIMIT}, max: {TASKS_TOOL_DEFAULT_MAX_RESULTS})",
-            constraints=[ParameterConstraint(kind="maximum", value=TASKS_TOOL_DEFAULT_MAX_RESULTS)],
+            description=f"Max (def: {TASKS_TOOL_DEFAULT_LIMIT}, max: {settings.tasks_tool_default_max_results})",
+            constraints=[
+                ParameterConstraint(kind="maximum", value=settings.tasks_tool_default_max_results)
+            ],
         ),
     ],
     outputs=[

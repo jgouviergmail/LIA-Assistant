@@ -12,7 +12,7 @@ from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.constants import DEFAULT_USD_EUR_RATE
+from src.core.config import settings
 from src.domains.google_api.repository import GoogleApiPricingRepository
 from src.infrastructure.external.currency_api import CurrencyRateService
 from src.infrastructure.observability.logging import get_logger
@@ -37,7 +37,7 @@ class GoogleApiPricingService:
     """
 
     _pricing_cache: dict[str, Decimal] = {}
-    _usd_eur_rate: Decimal = Decimal(str(DEFAULT_USD_EUR_RATE))
+    _usd_eur_rate: Decimal = Decimal(str(settings.default_usd_eur_rate))
 
     @classmethod
     async def load_pricing_cache(cls, db: AsyncSession) -> None:
@@ -66,9 +66,9 @@ class GoogleApiPricingService:
             logger.warning(
                 "google_api_pricing_currency_rate_fallback",
                 error=str(e),
-                fallback_rate=float(DEFAULT_USD_EUR_RATE),
+                fallback_rate=float(settings.default_usd_eur_rate),
             )
-            cls._usd_eur_rate = Decimal(str(DEFAULT_USD_EUR_RATE))
+            cls._usd_eur_rate = Decimal(str(settings.default_usd_eur_rate))
 
         logger.info(
             "google_api_pricing_loaded",

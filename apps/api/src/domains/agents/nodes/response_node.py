@@ -28,7 +28,6 @@ from langchain_core.runnables import RunnableConfig
 from src.core.config import settings
 from src.core.constants import (
     BRAVE_SEARCH_ENRICHMENT_TIMEOUT,
-    DEFAULT_LANGUAGE,
     DEFAULT_USER_DISPLAY_TIMEZONE,
     SCHEDULED_ACTIONS_SESSION_PREFIX,
 )
@@ -465,7 +464,7 @@ async def _execute_draft_if_confirmed(
         return None
 
     # Extract user_language from state for localized messages
-    user_language = state.get("user_language", DEFAULT_LANGUAGE)
+    user_language = state.get("user_language", settings.default_language)
 
     try:
         # Lazy import to avoid circular dependencies
@@ -745,7 +744,7 @@ def _detect_result_domains_from_registry(
 def generate_html_for_registry(
     data_registry: dict[str, Any] | None,
     user_viewport: str = "desktop",
-    user_language: str = DEFAULT_LANGUAGE,
+    user_language: str = settings.default_language,
     user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
 ) -> str:
     """
@@ -926,7 +925,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
 
         # Get user timezone and language from state (with fallbacks to i18n defaults)
         user_timezone = state.get("user_timezone", DEFAULT_USER_DISPLAY_TIMEZONE)
-        user_language = state.get("user_language", DEFAULT_LANGUAGE)
+        user_language = state.get("user_language", settings.default_language)
         user_viewport = _extract_viewport_from_config(config)
 
         logger.debug(

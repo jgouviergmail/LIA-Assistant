@@ -17,7 +17,6 @@ import html
 import re
 
 from src.core.config import settings
-from src.core.constants import TELEGRAM_MESSAGE_MAX_LENGTH_DEFAULT
 
 # ============================================================================
 # Localized Bot Messages (6 languages)
@@ -178,11 +177,7 @@ def split_message(text: str, max_length: int | None = None) -> list[str]:
         List of message chunks.
     """
     if max_length is None:
-        max_length = getattr(
-            settings,
-            "telegram_message_max_length",
-            TELEGRAM_MESSAGE_MAX_LENGTH_DEFAULT,
-        )
+        max_length = settings.telegram_message_max_length
 
     if len(text) <= max_length:
         return [text]

@@ -29,11 +29,8 @@ from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg, tool
 from pydantic import BaseModel
 
-from src.core.constants import (
-    DEFAULT_LANGUAGE,
-    DEFAULT_USER_DISPLAY_TIMEZONE,
-    WEATHER_FORECAST_MAX_DAYS,
-)
+from src.core.config import settings
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.i18n import _
 from src.core.time_utils import format_time_only
 from src.domains.agents.constants import AGENT_QUERY, AGENT_WEATHER, CONTEXT_DOMAIN_WEATHER
@@ -316,7 +313,7 @@ class GetCurrentWeatherTool(APIKeyConnectorTool[OpenWeatherMapClient]):
 
         location = kwargs.get("location")
         units = kwargs.get("units", "metric")
-        language = kwargs.get("language", DEFAULT_LANGUAGE)
+        language = kwargs.get("language", settings.default_language)
         runtime = kwargs.get("runtime")  # InjectedToolArg from parallel_executor
 
         # Get user_message from parameter or fallback to runtime config
@@ -509,7 +506,7 @@ class GetWeatherForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
         location = kwargs.get("location")
         days = kwargs.get("days", max_forecast_days)
         units = kwargs.get("units", "metric")
-        language = kwargs.get("language", DEFAULT_LANGUAGE)
+        language = kwargs.get("language", settings.default_language)
         date_ref = kwargs.get("date")  # Temporal reference (e.g., "demain", "tomorrow")
         runtime = kwargs.get("runtime")  # InjectedToolArg from parallel_executor
 
@@ -755,7 +752,7 @@ class GetHourlyForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
         location = kwargs.get("location")
         hours = kwargs.get("hours", 24)
         units = kwargs.get("units", "metric")
-        language = kwargs.get("language", DEFAULT_LANGUAGE)
+        language = kwargs.get("language", settings.default_language)
         runtime = kwargs.get("runtime")  # InjectedToolArg from parallel_executor
 
         # Get user_message from parameter or fallback to runtime config
@@ -1236,7 +1233,7 @@ async def get_weather_forecast_tool(
         str | None,
         "Temporal reference (e.g., 'demain', 'tomorrow', 'après-demain', 'dans 2 jours') - determines forecast start date",
     ] = None,
-    days: Annotated[int, "Number of days to forecast (1-5)"] = WEATHER_FORECAST_MAX_DAYS,
+    days: Annotated[int, "Number of days to forecast (1-5)"] = settings.weather_forecast_max_days,
     units: Annotated[
         str, "Temperature units: 'metric' (Celsius) or 'imperial' (Fahrenheit)"
     ] = "metric",

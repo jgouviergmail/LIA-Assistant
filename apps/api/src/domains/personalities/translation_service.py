@@ -9,8 +9,8 @@ import json
 import structlog
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from src.core.config import settings
 from src.core.i18n_types import LANGUAGE_NAMES
-from src.domains.personalities.constants import SUPPORTED_LANGUAGES
 
 logger = structlog.get_logger(__name__)
 
@@ -192,7 +192,7 @@ Description: {source_description}"""
         """
         translations = {}
 
-        for lang in SUPPORTED_LANGUAGES:
+        for lang in settings.supported_languages:
             if lang == source_language:
                 # Keep source as-is
                 translations[lang] = {

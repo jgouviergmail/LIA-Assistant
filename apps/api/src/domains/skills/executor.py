@@ -26,12 +26,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from src.core.constants import (
-    SKILLS_SCRIPT_ALLOWED_EXTENSIONS,
-    SKILLS_SCRIPT_MAX_INPUT_KB,
-    SKILLS_SCRIPT_MAX_OUTPUT_KB,
-    SKILLS_SCRIPT_TIMEOUT_SECONDS,
-)
+from src.core.constants import SKILLS_SCRIPT_ALLOWED_EXTENSIONS
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -67,15 +62,9 @@ class SkillScriptExecutor:
         from src.domains.skills.cache import SkillsCache
 
         settings = get_settings()
-        timeout = timeout_seconds or getattr(
-            settings, "skills_script_timeout_seconds", SKILLS_SCRIPT_TIMEOUT_SECONDS
-        )
-        max_output = (
-            getattr(settings, "skills_script_max_output_kb", SKILLS_SCRIPT_MAX_OUTPUT_KB) * 1024
-        )
-        max_input = (
-            getattr(settings, "skills_script_max_input_kb", SKILLS_SCRIPT_MAX_INPUT_KB) * 1024
-        )
+        timeout = timeout_seconds or settings.skills_script_timeout_seconds
+        max_output = settings.skills_script_max_output_kb * 1024
+        max_input = settings.skills_script_max_input_kb * 1024
 
         # Resolve script path (user-scoped for override semantics)
         skill = (
@@ -121,7 +110,7 @@ class SkillScriptExecutor:
             return ScriptResult(
                 success=False,
                 output="",
-                error=f"Input exceeds {SKILLS_SCRIPT_MAX_INPUT_KB}KB",
+                error=f"Input exceeds {settings.skills_script_max_input_kb}KB",
             )
 
         # Safe environment

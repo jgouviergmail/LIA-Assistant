@@ -22,7 +22,7 @@ from zoneinfo import ZoneInfo
 
 import structlog
 
-from src.core.constants import DEFAULT_LANGUAGE
+from src.core.config import settings
 from src.core.i18n_types import LANGUAGE_NAMES
 from src.domains.agents.prompts.prompt_loader import (
     PromptIntegrityError,
@@ -69,7 +69,9 @@ def escape_braces(s: str) -> str:
 
 
 def format_with_current_datetime(
-    prompt: str, user_timezone: str = DEFAULT_TIMEZONE, user_language: str = DEFAULT_LANGUAGE
+    prompt: str,
+    user_timezone: str = DEFAULT_TIMEZONE,
+    user_language: str = settings.default_language,
 ) -> str:
     """
     Inject current_datetime placeholder into a prompt if present.
@@ -336,7 +338,7 @@ def get_current_datetime_context(
 
 def get_response_prompt(
     user_timezone: str = DEFAULT_TIMEZONE,
-    user_language: str = DEFAULT_LANGUAGE,
+    user_language: str = settings.default_language,
     personality_instruction: str | None = None,
     conversation_history: str = "(aucun historique)",
     window_size: int = 20,
@@ -555,7 +557,6 @@ def _build_for_each_directive(
     from src.core.constants import (
         CARDINALITY_ALL,
         FOR_EACH_COLLECTION_DEFAULT,
-        FOR_EACH_MAX_HARD_LIMIT,
     )
 
     if not for_each_detected:
@@ -576,7 +577,7 @@ def _build_for_each_directive(
     else:
         cardinality_hint = f"~{cardinality_magnitude}"
         # Cap at hard limit to ensure LLM generates valid schema
-        for_each_max_value = min(cardinality_magnitude, FOR_EACH_MAX_HARD_LIMIT)
+        for_each_max_value = min(cardinality_magnitude, settings.for_each_max_hard_limit)
 
     logger.debug(
         "for_each_directive_generated",
@@ -609,7 +610,7 @@ def get_smart_planner_prompt(
     context: str = "",
     references: str = "",
     user_timezone: str = DEFAULT_TIMEZONE,
-    user_language: str = DEFAULT_LANGUAGE,
+    user_language: str = settings.default_language,
     validation_feedback: str | None = None,
     semantic_dependencies: str = "",
     learned_patterns: str = "",
@@ -703,7 +704,7 @@ def get_smart_planner_multi_domain_prompt(
     context: str = "",
     references: str = "",
     user_timezone: str = DEFAULT_TIMEZONE,
-    user_language: str = DEFAULT_LANGUAGE,
+    user_language: str = settings.default_language,
     validation_feedback: str | None = None,
     semantic_dependencies: str = "",
     learned_patterns: str = "",
@@ -798,7 +799,7 @@ def get_hitl_classifier_prompt(
     action_desc: str,
     response: str,
     user_timezone: str = DEFAULT_TIMEZONE,
-    user_language: str = DEFAULT_LANGUAGE,
+    user_language: str = settings.default_language,
 ) -> str:
     """Get formatted HITL response classifier prompt from versioned file."""
     from src.core.config import get_settings
@@ -905,7 +906,7 @@ def get_error_fallback_message(
 
 
 def get_hitl_resumption_error_message(
-    error: Exception, user_language: str = DEFAULT_LANGUAGE
+    error: Exception, user_language: str = settings.default_language
 ) -> str:
     """Get error message for HITL resumption failures."""
     from typing import cast

@@ -7,15 +7,14 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
 
+from src.core.config import settings
 from src.domains.personalities.constants import (
-    DEFAULT_LANGUAGE,
     MAX_CODE_LENGTH,
     MAX_DESCRIPTION_LENGTH,
     MAX_EMOJI_LENGTH,
     MAX_PROMPT_LENGTH,
     MAX_TITLE_LENGTH,
     PERSONALITY_CODE_PATTERN,
-    SUPPORTED_LANGUAGES,
 )
 
 # =============================================================================
@@ -33,8 +32,10 @@ class PersonalityTranslationCreate(BaseModel):
     @field_validator("language_code")
     @classmethod
     def validate_language_code(cls, v: str) -> str:
-        if v not in SUPPORTED_LANGUAGES:
-            raise ValueError(f"Unsupported language: {v}. Supported: {SUPPORTED_LANGUAGES}")
+        if v not in settings.supported_languages:
+            raise ValueError(
+                f"Unsupported language: {v}. Supported: {settings.supported_languages}"
+            )
         return v
 
 
@@ -93,7 +94,9 @@ class PersonalityCreate(BaseModel):
     # Simplified format (from frontend)
     title: str | None = Field(None, min_length=1, max_length=MAX_TITLE_LENGTH)
     description: str | None = Field(None, min_length=1, max_length=MAX_DESCRIPTION_LENGTH)
-    source_language: str = Field(DEFAULT_LANGUAGE, description="Language for title/description")
+    source_language: str = Field(
+        settings.default_language, description="Language for title/description"
+    )
     # Full format (translations list)
     translations: list[PersonalityTranslationCreate] | None = Field(
         None, description="Optional translations list"
@@ -157,8 +160,10 @@ class PersonalityUpdate(BaseModel):
     @classmethod
     def validate_source_language(cls, v: str | None) -> str | None:
         """Validate source_language is supported."""
-        if v is not None and v not in SUPPORTED_LANGUAGES:
-            raise ValueError(f"Unsupported language: {v}. Supported: {SUPPORTED_LANGUAGES}")
+        if v is not None and v not in settings.supported_languages:
+            raise ValueError(
+                f"Unsupported language: {v}. Supported: {settings.supported_languages}"
+            )
         return v
 
 

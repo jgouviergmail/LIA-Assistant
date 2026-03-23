@@ -27,8 +27,9 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
+from src.core.config import settings
 from src.core.config.agents import V3RelevanceConfig, get_v3_relevance_config
-from src.core.constants import DEFAULT_LANGUAGE, DEFAULT_USER_DISPLAY_TIMEZONE
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.i18n_v3 import V3Messages
 from src.infrastructure.observability.logging import get_logger
 
@@ -49,7 +50,7 @@ class UserContext:
     preferred_place_types: list[str] = field(default_factory=list)  # ["restaurant", "cafe"]
     recent_searches: list[str] = field(default_factory=list)  # Last searches
     timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE
-    language: str = DEFAULT_LANGUAGE
+    language: str = field(default_factory=lambda: settings.default_language)
 
     @classmethod
     def default(cls, user_id: str) -> UserContext:
@@ -128,7 +129,7 @@ class RelevanceEngine:
         results: list[Any],
         intelligence: QueryIntelligence,
         user_context: UserContext | None = None,
-        language: str = DEFAULT_LANGUAGE,
+        language: str = settings.default_language,
     ) -> FilteredResults:
         """
         Filter and order results by relevance.
@@ -214,7 +215,7 @@ class RelevanceEngine:
         self,
         result: Any,
         intelligence: QueryIntelligence,
-        language: str = DEFAULT_LANGUAGE,
+        language: str = settings.default_language,
     ) -> tuple[float, list[str]]:
         """
         Score an individual result.
@@ -291,7 +292,7 @@ class RelevanceEngine:
         result: Any,
         intelligence: QueryIntelligence,
         user_ctx: UserContext,
-        language: str = DEFAULT_LANGUAGE,
+        language: str = settings.default_language,
     ) -> tuple[float, list[str]]:
         """
         Enriched scoring with personal context (Episodic Memory).
@@ -390,7 +391,7 @@ class RelevanceEngine:
         total: int,
         shown: int,
         intelligence: QueryIntelligence,
-        language: str = DEFAULT_LANGUAGE,
+        language: str = settings.default_language,
     ) -> str:
         """
         Build filtering explanation.

@@ -138,7 +138,7 @@ from fastapi import HTTPException
 from langchain.tools import ToolRuntime
 from langgraph.store.base import BaseStore
 
-from src.core.constants import DEFAULT_LANGUAGE
+from src.core.config import settings
 from src.core.field_names import FIELD_ERROR_MESSAGE, FIELD_ERROR_TYPE, FIELD_USER_ID
 from src.core.i18n_api_messages import APIMessages
 from src.infrastructure.observability.logging import get_logger
@@ -572,7 +572,7 @@ async def get_user_preferences(runtime: ToolRuntime) -> tuple[str, str, str]:
 
 async def get_user_language_safe(
     runtime: ToolRuntime,
-    default: str = DEFAULT_LANGUAGE,
+    default: str = settings.default_language,
 ) -> str:
     """Get user language from runtime preferences with safe fallback.
 
@@ -589,7 +589,7 @@ async def get_user_language_safe(
     Example:
         >>> language = await get_user_language_safe(self.runtime)
         >>> # Instead of:
-        >>> # language = DEFAULT_LANGUAGE
+        >>> # language = settings.default_language
         >>> # try:
         >>> #     _, language, _ = await get_user_preferences(self.runtime)
         >>> # except Exception:

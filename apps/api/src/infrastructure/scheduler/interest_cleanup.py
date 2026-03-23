@@ -18,12 +18,7 @@ from typing import Any
 from sqlalchemy import select
 
 from src.core.config import settings
-from src.core.constants import (
-    INTEREST_DECAY_RATE_PER_DAY,
-    INTEREST_DELETION_THRESHOLD_DAYS,
-    INTEREST_DORMANT_THRESHOLD_DAYS,
-    SCHEDULER_JOB_INTEREST_CLEANUP,
-)
+from src.core.constants import SCHEDULER_JOB_INTEREST_CLEANUP
 from src.domains.interests.models import InterestStatus, UserInterest
 from src.domains.interests.repository import InterestRepository
 from src.infrastructure.cache.redis import get_redis_cache
@@ -130,22 +125,10 @@ async def cleanup_interests() -> dict[str, Any]:
     try:
         now = datetime.now(UTC)
 
-        # Get config from settings with fallback to constants
-        dormant_threshold_days = getattr(
-            settings,
-            "interest_dormant_threshold_days",
-            INTEREST_DORMANT_THRESHOLD_DAYS,
-        )
-        deletion_threshold_days = getattr(
-            settings,
-            "interest_deletion_threshold_days",
-            INTEREST_DELETION_THRESHOLD_DAYS,
-        )
-        decay_rate = getattr(
-            settings,
-            "interest_decay_rate_per_day",
-            INTEREST_DECAY_RATE_PER_DAY,
-        )
+        # Get config from settings
+        dormant_threshold_days = settings.interest_dormant_threshold_days
+        deletion_threshold_days = settings.interest_deletion_threshold_days
+        decay_rate = settings.interest_decay_rate_per_day
 
         logger.info(
             "interest_cleanup_started",

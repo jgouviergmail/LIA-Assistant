@@ -13,8 +13,9 @@ Supported languages: fr, en, es, de, it, zh-CN
 
 from typing import Literal
 
+from src.core.config import settings
+
 Language = Literal["fr", "en", "es", "de", "it", "zh-CN"]
-DEFAULT_LANGUAGE: Language = "fr"
 
 # =============================================================================
 # EMOJIS BY FIELD TYPE
@@ -288,7 +289,7 @@ RELATION_TYPE_TRANSLATIONS: dict[str, dict[Language, str]] = {
 def _extract_language(locale: str | None) -> Language:
     """Extract language code from locale string."""
     if not locale:
-        return DEFAULT_LANGUAGE
+        return settings.default_language
 
     if locale.lower() == "zh-cn":
         return "zh-CN"
@@ -297,7 +298,7 @@ def _extract_language(locale: str | None) -> Language:
     if lang in ("fr", "en", "es", "de", "it", "zh-CN"):
         return lang  # type: ignore[return-value]
 
-    return DEFAULT_LANGUAGE
+    return settings.default_language
 
 
 def get_emoji(field_type: str) -> str:

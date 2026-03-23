@@ -7,7 +7,8 @@ Used by DraftExecutionResult to display localized messages.
 Supported languages: fr, en, es, de, it, zh-CN
 """
 
-from src.core.i18n_types import DEFAULT_LANGUAGE, Language
+from src.core.i18n import DEFAULT_LANGUAGE
+from src.core.i18n_types import Language
 
 # ============================================================================
 # SUCCESS MESSAGES
