@@ -603,6 +603,22 @@ _INSUFFICIENT_CONTENT_QUESTIONS: dict[str, dict[str, str]] = {
         "it": "Quali informazioni vuoi aggiungere per questo contatto?",
         "zh-CN": "您想为这个联系人添加什么信息？",
     },
+    "email_reply": {
+        "fr": "Que souhaites-tu répondre ?",
+        "en": "What would you like to reply?",
+        "es": "¿Qué quieres responder?",
+        "de": "Was möchtest du antworten?",
+        "it": "Cosa vuoi rispondere?",
+        "zh-CN": "您想回复什么？",
+    },
+    "email_forward": {
+        "fr": "À qui souhaites-tu transférer cet email ?",
+        "en": "Who would you like to forward this email to?",
+        "es": "¿A quién quieres reenviar este email?",
+        "de": "An wen möchtest du diese E-Mail weiterleiten?",
+        "it": "A chi vuoi inoltrare questa email?",
+        "zh-CN": "您想将这封邮件转发给谁？",
+    },
 }
 
 # Generic fallback for unknown domains
@@ -647,6 +663,24 @@ _INSUFFICIENT_CONTENT_FIELD_QUESTIONS: dict[str, dict[str, str]] = {
         "de": "Was möchtest du in diese E-Mail schreiben?",
         "it": "Cosa vuoi scrivere in questa email?",
         "zh-CN": "您想在这封邮件中写什么？",
+    },
+    # Email reply fields (only body needed — recipient and subject are implicit)
+    "email_reply.body": {
+        "fr": "Que souhaites-tu répondre ?",
+        "en": "What would you like to reply?",
+        "es": "¿Qué quieres responder?",
+        "de": "Was möchtest du antworten?",
+        "it": "Cosa vuoi rispondere?",
+        "zh-CN": "您想回复什么？",
+    },
+    # Email forward fields (recipient required, body optional)
+    "email_forward.recipient": {
+        "fr": "À qui souhaites-tu transférer cet email ?",
+        "en": "Who would you like to forward this email to?",
+        "es": "¿A quién quieres reenviar este email?",
+        "de": "An wen möchtest du diese E-Mail weiterleiten?",
+        "it": "A chi vuoi inoltrare questa email?",
+        "zh-CN": "您想将这封邮件转发给谁？",
     },
     # Event fields (priority: title > start_datetime > end_or_duration)
     "event.title": {
@@ -822,6 +856,18 @@ _INSUFFICIENT_CONTENT_PATTERNS: dict[str, list[str]] = {
         "给发邮件",
         "写邮件给",
     ],
+    # Email reply patterns (English - post Semantic Pivot)
+    # Content = everything after the trigger pattern (e.g., 'reply "merci" to...' → "merci" is body)
+    "email_reply": [
+        "reply",
+        "respond to",
+    ],
+    # Email forward patterns (English - post Semantic Pivot)
+    "email_forward": [
+        "forward to",
+        "forward email to",
+        "forward the email to",
+    ],
     # Event creation patterns - detect "create event with X" without details
     "event": [
         # French
@@ -941,7 +987,9 @@ EARLY_RECIPIENT_PATTERNS: list[str] = [" to ", " for "]
 
 DRAFT_TYPE_EMOJIS: dict[str, str] = {
     # Email
-    "email": "✉️",
+    "email": "📧",
+    "email_reply": "↩️",
+    "email_forward": "↪️",
     # Calendar events
     "event": "📅",
     "event_update": "📝📅",
@@ -970,20 +1018,36 @@ DRAFT_TYPE_EMOJIS: dict[str, str] = {
 # Templates use Python format strings with named placeholders
 _DRAFT_SUMMARIES: dict[str, dict[str, str]] = {
     "email": {
-        "fr": 'Email pour {to}, sujet: "{subject}"',
-        "en": 'Email to {to}, subject: "{subject}"',
-        "es": 'Email para {to}, asunto: "{subject}"',
-        "de": 'E-Mail an {to}, Betreff: "{subject}"',
-        "it": 'Email a {to}, oggetto: "{subject}"',
-        "zh-CN": '发送邮件给 {to}，主题："{subject}"',
+        "fr": "**Destinataire** : {to}\n**Sujet** : {subject}",
+        "en": "**To** : {to}\n**Subject** : {subject}",
+        "es": "**Para** : {to}\n**Asunto** : {subject}",
+        "de": "**An** : {to}\n**Betreff** : {subject}",
+        "it": "**A** : {to}\n**Oggetto** : {subject}",
+        "zh-CN": "**收件人** : {to}\n**主题** : {subject}",
+    },
+    "email_reply": {
+        "fr": "↩️ **Réponse à** : {original_from}\n**Sujet** : {subject}",
+        "en": "↩️ **Reply to** : {original_from}\n**Subject** : {subject}",
+        "es": "↩️ **Respuesta a** : {original_from}\n**Asunto** : {subject}",
+        "de": "↩️ **Antwort an** : {original_from}\n**Betreff** : {subject}",
+        "it": "↩️ **Risposta a** : {original_from}\n**Oggetto** : {subject}",
+        "zh-CN": "↩️ **回复** : {original_from}\n**主题** : {subject}",
+    },
+    "email_forward": {
+        "fr": "↪️ **Transférer à** : {to}\n**Sujet** : {subject}",
+        "en": "↪️ **Forward to** : {to}\n**Subject** : {subject}",
+        "es": "↪️ **Reenviar a** : {to}\n**Asunto** : {subject}",
+        "de": "↪️ **Weiterleiten an** : {to}\n**Betreff** : {subject}",
+        "it": "↪️ **Inoltra a** : {to}\n**Oggetto** : {subject}",
+        "zh-CN": "↪️ **转发给** : {to}\n**主题** : {subject}",
     },
     "event": {
-        "fr": 'Événement "{summary}" le {start}',
-        "en": 'Event "{summary}" on {start}',
-        "es": 'Evento "{summary}" el {start}',
-        "de": 'Termin "{summary}" am {start}',
-        "it": 'Evento "{summary}" il {start}',
-        "zh-CN": '活动"{summary}"于 {start}',
+        "fr": "**{summary}**\n🕐 {start}",
+        "en": "**{summary}**\n🕐 {start}",
+        "es": "**{summary}**\n🕐 {start}",
+        "de": "**{summary}**\n🕐 {start}",
+        "it": "**{summary}**\n🕐 {start}",
+        "zh-CN": "**{summary}**\n🕐 {start}",
     },
     "event_update": {
         "fr": 'Modification événement: "{summary}"',

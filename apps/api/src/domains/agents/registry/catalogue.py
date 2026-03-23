@@ -37,6 +37,7 @@ from datetime import UTC, datetime
 from typing import Any, Literal
 
 from src.core.constants import DEFAULT_TOOL_TIMEOUT_MS
+from src.domains.agents.context.schemas import ContextSaveMode
 
 # =============================================================================
 # Tool Category for Strategy-Based Filtering
@@ -471,6 +472,7 @@ class ToolManifest:
     supports_dry_run: bool = False
     reference_fields: list[str] = field(default_factory=list)
     context_key: str | None = None
+    context_save_mode: ContextSaveMode | None = None  # Explicit LIST/DETAILS override for auto-save
     field_mappings: dict[str, str] | None = (
         None  # Maps user-friendly names to API-specific field names
     )

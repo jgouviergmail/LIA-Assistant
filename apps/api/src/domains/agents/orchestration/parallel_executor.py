@@ -1085,6 +1085,7 @@ async def _auto_save_wave_contexts(
                 result_data=enriched_result_data,  # Use enriched data with tool_name
                 config=save_config,
                 store=store,
+                explicit_mode=manifest.context_save_mode,
             )
 
             saved_count += 1

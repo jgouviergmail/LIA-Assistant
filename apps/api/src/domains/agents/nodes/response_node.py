@@ -39,7 +39,6 @@ from src.core.field_names import (
 )
 from src.core.i18n import _
 from src.core.i18n_api_messages import (
-    EMPTY_RESULT_MESSAGES,
     NO_EXTERNAL_AGENT_MESSAGES,
     APIMessages,
 )
@@ -507,44 +506,135 @@ async def _execute_draft_if_confirmed(
         }
 
 
+# Field rendering config for post-HITL result display: (draft_key, emoji, label_key, is_datetime)
+# Technical/internal fields (calendar_id, message_id, event_id, etc.) are excluded
+_DRAFT_RESULT_FIELD_CONFIG: dict[str, list[tuple[str, str, str, bool]]] = {
+    "event": [
+        ("summary", "📅", "event", False),
+        ("start_datetime", "🕐", "start", True),
+        ("end_datetime", "🏁", "end", True),
+        ("location", "📍", "location", False),
+        ("attendees", "👥", "attendees", False),
+        ("description", "📝", "body", False),
+    ],
+    "email": [
+        ("to", "📧", "to", False),
+        ("cc", "📋", "cc", False),
+        ("subject", "📝", "subject", False),
+        ("body", "💬", "body", False),
+    ],
+    "email_reply": [
+        ("to", "📧", "to", False),
+        ("subject", "📝", "subject", False),
+        ("body", "💬", "body", False),
+        ("original_from", "↩️", "from", False),
+    ],
+    "email_forward": [
+        ("to", "📧", "to", False),
+        ("cc", "📋", "cc", False),
+        ("subject", "📝", "subject", False),
+        ("body", "💬", "body", False),
+    ],
+    "contact": [
+        ("name", "👤", "contact", False),
+        ("email", "📧", "email", False),
+        ("phone", "📱", "phone", False),
+        ("organization", "🏢", "organization", False),
+        ("address", "📍", "location", False),
+        ("notes", "📝", "body", False),
+    ],
+    "task": [
+        ("title", "✅", "task", False),
+        ("due", "📅", "due", True),
+        ("notes", "📝", "body", False),
+    ],
+}
+
+
 def _format_draft_execution_result(result: dict[str, Any] | None) -> str:
     """
     Format draft execution result for LLM context.
+
+    Produces a rich, structured summary with domain-specific emojis
+    and key details extracted from the execution data.
 
     Args:
         result: Draft execution result dict with:
             - status: "success" | "cancelled" | "error"
             - message: Localized message
             - draft_type: Type of draft (contact, event, email, etc.)
-            - data: Result data dict (may contain html_link for clickable resources)
+            - data: Result data dict (may contain html_link, summary, etc.)
 
     Returns:
-        Formatted string for agent_results_summary
+        Formatted markdown string for agent_results_summary
     """
     if not result:
         return ""
 
+    from src.core.i18n_hitl import DRAFT_TYPE_EMOJIS
+
     status = result.get("status", "unknown")
     message = result.get("message", "")
     draft_type = result.get("draft_type", "action")
-    data = result.get("data", {})
+    data = result.get("data", {}) if isinstance(result.get("data"), dict) else {}
 
-    # Extract html_link for clickable resources (contacts, events, emails)
-    html_link = data.get("html_link") if isinstance(data, dict) else None
+    # Domain-specific emoji (fallback to generic status emoji)
+    domain_emoji = DRAFT_TYPE_EMOJIS.get(draft_type, "")
+
+    # Extract contextual details from execution data
+    html_link = data.get("html_link")
+    details: list[str] = []
 
     if status == "success":
+        # Use draft_content for comprehensive attribute display
+        draft = data.get("_draft_content", {}) if isinstance(data, dict) else {}
+
+        # Get preview labels for user's language
+        from src.core.i18n_drafts import get_draft_preview_labels
+        from src.core.time_utils import format_datetime_for_display
+
+        user_lang = draft.get("user_language") or "fr"
+        user_tz = draft.get("user_timezone") or "Europe/Paris"
+        labels = get_draft_preview_labels(user_lang)
+
+        # Find matching field config (try exact match, then base domain)
+        fields = _DRAFT_RESULT_FIELD_CONFIG.get(draft_type) or _DRAFT_RESULT_FIELD_CONFIG.get(
+            draft_type.split("_")[0], []
+        )
+
+        for draft_key, emoji, label_key, is_dt in fields:
+            value = draft.get(draft_key) or data.get(draft_key)
+            if value and str(value).strip():
+                label = labels.get(label_key, draft_key)
+                str_value = str(value)
+                # Format datetime fields to human-readable
+                if is_dt and isinstance(value, str) and "T" in value:
+                    try:
+                        str_value = format_datetime_for_display(
+                            value, user_tz, user_lang, include_time=True
+                        )
+                    except (ValueError, TypeError):
+                        pass  # Keep raw ISO if formatting fails
+                # Truncate long body content
+                if draft_key in ("body", "description", "notes") and len(str_value) > 200:
+                    str_value = str_value[:200] + "…"
+                details.append(f"{emoji} **{label}** : {str_value}")
+
         if html_link:
-            # Include clickable link for LLM to use in response
-            return (
-                f"\n\n✅ **{draft_type.capitalize()}**: {message}\n🔗 "
-                + _("Link")
-                + f": {html_link}"
-            )
-        return f"\n\n✅ **{draft_type.capitalize()}**: {message}"
+            details.append(f"🔗 [{_('Link', user_lang)}]({html_link})")
+
+        # Assemble
+        header = f"\n\n{domain_emoji} ✅ {message}"
+        if details:
+            detail_block = "\n".join(details)
+            return f"{header}\n{detail_block}"
+        return header
+
     elif status == "cancelled":
-        return f"\n\n🚫 **{draft_type.capitalize()}**: {message}"
+        return f"\n\n{domain_emoji} 🚫 {message}"
+
     elif status == "error":
-        return "\n\n❌ **" + _("Error") + f" {draft_type}**: {message}"
+        return f"\n\n{domain_emoji} ❌ {message}"
 
     return ""
 
@@ -1598,38 +1688,12 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             # Format draft execution result for response synthesis
             draft_summary = _format_draft_execution_result(draft_execution_result)
             if draft_summary:
-                # After HITL confirmation, replace draft preview with execution result.
-                # User already saw draft preview via streaming/HITL, showing it again is redundant.
-                # Only show: 1) pre-draft content (contacts, etc.) 2) execution success message.
-                #
-                # Draft preview detection: "📄 **" header + "<br/><br/>" action prompt marker
-                # These markers are unique to drafts (drive files use "📄" without "**")
-                if agent_results_summary in EMPTY_RESULT_MESSAGES:
-                    # Empty results - use execution result directly
-                    agent_results_summary = draft_summary.strip()
-                elif agent_results_summary:
-                    # Check for draft preview markers
-                    has_draft_preview = (
-                        "📄 **" in agent_results_summary and "<br/><br/>" in agent_results_summary
-                    )
-                    if has_draft_preview:
-                        # Extract content BEFORE draft preview (contacts, events, etc.)
-                        draft_start_idx = agent_results_summary.find("📄 **")
-                        pre_draft_content = agent_results_summary[:draft_start_idx].rstrip()
-
-                        if pre_draft_content:
-                            # Mixed content: keep pre-draft + add execution result
-                            agent_results_summary = (
-                                pre_draft_content + "\n\n" + draft_summary.strip()
-                            )
-                        else:
-                            # Draft only: use execution result
-                            agent_results_summary = draft_summary.strip()
-                    else:
-                        # No draft preview markers - append (safe fallback)
-                        agent_results_summary = agent_results_summary + draft_summary
-                else:
-                    agent_results_summary = draft_summary.strip()
+                # After HITL confirmation, REPLACE the entire agent_results_summary
+                # with only the execution result. The user already saw intermediate results
+                # (search results, draft preview) during the HITL critique streaming flow.
+                # Keeping them would produce noise like "[search] N event(s): ..." above
+                # the confirmation message.
+                agent_results_summary = draft_summary.strip()
 
             logger.info(
                 "draft_execution_result_added_to_summary",

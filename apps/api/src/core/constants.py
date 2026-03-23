@@ -2513,6 +2513,8 @@ INSUFFICIENT_CONTENT_MIN_CHARS_THRESHOLD_DEFAULT = 30
 # Domain identifiers for insufficient content detection
 # These must match the keys in i18n_hitl._INSUFFICIENT_CONTENT_QUESTIONS
 INSUFFICIENT_CONTENT_DOMAIN_EMAIL = "email"
+INSUFFICIENT_CONTENT_DOMAIN_EMAIL_REPLY = "email_reply"
+INSUFFICIENT_CONTENT_DOMAIN_EMAIL_FORWARD = "email_forward"
 INSUFFICIENT_CONTENT_DOMAIN_EVENT = "event"
 INSUFFICIENT_CONTENT_DOMAIN_TASK = "task"
 INSUFFICIENT_CONTENT_DOMAIN_CONTACT = "contact"
@@ -2521,8 +2523,8 @@ INSUFFICIENT_CONTENT_DOMAIN_CONTACT = "contact"
 # Maps tool name pattern → domain (for field lookup)
 INSUFFICIENT_CONTENT_TOOL_PATTERNS = {
     "send_email": INSUFFICIENT_CONTENT_DOMAIN_EMAIL,
-    "reply_email": INSUFFICIENT_CONTENT_DOMAIN_EMAIL,
-    "forward_email": INSUFFICIENT_CONTENT_DOMAIN_EMAIL,
+    "reply_email": INSUFFICIENT_CONTENT_DOMAIN_EMAIL_REPLY,
+    "forward_email": INSUFFICIENT_CONTENT_DOMAIN_EMAIL_FORWARD,
     "create_event": INSUFFICIENT_CONTENT_DOMAIN_EVENT,
     "create_task": INSUFFICIENT_CONTENT_DOMAIN_TASK,
     "create_contact": INSUFFICIENT_CONTENT_DOMAIN_CONTACT,
@@ -2542,7 +2544,7 @@ INSUFFICIENT_CONTENT_TOOL_PATTERNS = {
 # After user responds, re-check → ask next missing field → recursive until complete.
 
 INSUFFICIENT_CONTENT_REQUIRED_FIELDS: dict[str, list[dict]] = {
-    # Email: destinataire → objet → contenu
+    # Email send: destinataire → objet → contenu (all required)
     INSUFFICIENT_CONTENT_DOMAIN_EMAIL: [
         {
             "field": "recipient",
@@ -2563,6 +2565,33 @@ INSUFFICIENT_CONTENT_REQUIRED_FIELDS: dict[str, list[dict]] = {
             "param_names": ["body", "content", "content_instruction"],
             "required": True,
             "priority": 3,
+            "options": None,
+        },
+    ],
+    # Email reply: only body required (recipient = original sender, subject = Re: original)
+    INSUFFICIENT_CONTENT_DOMAIN_EMAIL_REPLY: [
+        {
+            "field": "body",
+            "param_names": ["body", "content", "content_instruction"],
+            "required": True,
+            "priority": 1,
+            "options": None,
+        },
+    ],
+    # Email forward: recipient + body (subject = Fwd: original)
+    INSUFFICIENT_CONTENT_DOMAIN_EMAIL_FORWARD: [
+        {
+            "field": "recipient",
+            "param_names": ["to", "recipient", "recipients"],
+            "required": True,
+            "priority": 1,
+            "options": None,
+        },
+        {
+            "field": "body",
+            "param_names": ["body", "content", "content_instruction"],
+            "required": False,  # Forward can be sent without additional body
+            "priority": 2,
             "options": None,
         },
     ],
@@ -2721,8 +2750,8 @@ EARLY_DETECTION_MUTATION_INTENTS: frozenset[str] = frozenset(
 EARLY_DETECTION_DOMAIN_MAP: dict[tuple[str, str], str] = {
     # Email mutations
     ("email", "send"): INSUFFICIENT_CONTENT_DOMAIN_EMAIL,
-    ("email", "reply"): INSUFFICIENT_CONTENT_DOMAIN_EMAIL,
-    ("email", "forward"): INSUFFICIENT_CONTENT_DOMAIN_EMAIL,
+    ("email", "reply"): INSUFFICIENT_CONTENT_DOMAIN_EMAIL_REPLY,
+    ("email", "forward"): INSUFFICIENT_CONTENT_DOMAIN_EMAIL_FORWARD,
     # Event/Calendar mutations
     ("event", "create"): INSUFFICIENT_CONTENT_DOMAIN_EVENT,
     ("event", "update"): INSUFFICIENT_CONTENT_DOMAIN_EVENT,

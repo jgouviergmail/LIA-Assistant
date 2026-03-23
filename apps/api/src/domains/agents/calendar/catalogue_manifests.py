@@ -13,6 +13,7 @@ from src.core.constants import (
     CALENDAR_TOOL_DEFAULT_LIMIT,
     GOOGLE_CALENDAR_SCOPES,
 )
+from src.domains.agents.context.schemas import ContextSaveMode
 from src.domains.agents.registry.catalogue import (
     CostProfile,
     DisplayMetadata,
@@ -33,6 +34,7 @@ _CALENDAR_ID_PARAM = ParameterSchema(
     type="string",
     required=False,
     description="Target calendar. Accepts 'primary', a specific ID, or a human name (e.g., 'Famille') resolved by backend.",
+    semantic_type="calendar_id",
 )
 
 # ============================================================================
@@ -176,6 +178,12 @@ get_events_catalogue_manifest = ToolManifest(
         OutputFieldSchema(
             path="events[].conferenceData", type="object", nullable=True, description="Video link"
         ),
+        OutputFieldSchema(
+            path="events[].calendar_id",
+            type="string",
+            description="Calendar ID where event is stored",
+            semantic_type="calendar_id",
+        ),
         OutputFieldSchema(path="total", type="integer", description="Count"),
     ],
     cost=CostProfile(est_tokens_in=150, est_tokens_out=800, est_cost_usd=0.002, est_latency_ms=500),
@@ -187,11 +195,13 @@ get_events_catalogue_manifest = ToolManifest(
     max_iterations=1,
     supports_dry_run=False,
     context_key="events",
+    context_save_mode=ContextSaveMode.LIST,
     reference_examples=[
         "events[0].id",
         "events[0].start.dateTime",
         "events[0].location",
         "events[0].description",
+        "events[0].calendar_id",
         "total",
     ],
     version="2.0.0",

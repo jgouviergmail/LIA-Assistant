@@ -41,6 +41,7 @@ from src.core.config import get_settings, settings
 from src.core.i18n_api_messages import APIMessages
 from src.domains.agents.constants import AGENT_TASK, CONTEXT_DOMAIN_TASKS
 from src.domains.agents.context import ContextTypeDefinition, ContextTypeRegistry
+from src.domains.agents.context.schemas import ContextSaveMode
 from src.domains.agents.data_registry.models import (
     RegistryItem,
     RegistryItemMeta,
@@ -1103,8 +1104,9 @@ class UpdateTaskDraftTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
         **kwargs: Any,
     ) -> dict[str, Any]:
         """
-        Prepare task update draft data (no API call yet).
+        Prepare task update draft data.
 
+        Fetches current task for before/after comparison in HITL critique.
         The actual update happens after user confirms via HITL.
         """
         task_id: str = require_field(kwargs, "task_id")
@@ -1116,6 +1118,29 @@ class UpdateTaskDraftTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
 
         # BugFix 2025-12-19: Resolve default task list from user preferences
         task_list_id = await _resolve_default_task_list(client, user_id, task_list_id_input)
+
+        # Fetch current task for before→after comparison in HITL draft critique
+        current_task: dict[str, Any] = {}
+        try:
+            current_task = await client.get_task(task_list_id, task_id)
+
+            # Convert current_task due date from UTC to user timezone for display consistency
+            # Google Tasks returns due in RFC 3339 UTC (e.g., "2025-01-15T00:00:00.000Z")
+            if current_task.get("due"):
+                from src.core.time_utils import (
+                    convert_to_user_timezone,
+                )  # Lazy: only needed when due exists
+
+                user_timezone, _ = await self.get_user_preferences_safe()
+                converted_dt = convert_to_user_timezone(current_task["due"], user_timezone)
+                if converted_dt:
+                    current_task["due"] = converted_dt.isoformat()
+        except Exception as e:
+            logger.warning(
+                "update_task_current_fetch_failed",
+                task_id=task_id,
+                error=str(e),
+            )
 
         logger.info(
             "update_task_draft_prepared",
@@ -1134,6 +1159,7 @@ class UpdateTaskDraftTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
             "due": due,
             "status": status,
             "task_list_id": task_list_id,
+            "current_task": current_task,
         }
 
     def format_registry_response(self, result: dict[str, Any]) -> UnifiedToolOutput:
@@ -1152,6 +1178,7 @@ class UpdateTaskDraftTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
             due=result.get("due"),
             status=result.get("status"),
             task_list_id=result.get("task_list_id", "@default"),
+            current_task=result.get("current_task"),
             source_tool="update_task_tool",
             user_language=self.get_user_language(),
         )
@@ -1602,6 +1629,7 @@ async def execute_task_delete_draft(
     name="get_tasks",
     agent_name=AGENT_TASK,
     context_domain=CONTEXT_DOMAIN_TASKS,
+    context_save_mode=ContextSaveMode.LIST,
     category="read",
 )
 async def get_tasks_tool(

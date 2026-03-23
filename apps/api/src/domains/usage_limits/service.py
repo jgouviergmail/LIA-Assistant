@@ -115,11 +115,13 @@ class UsageLimitService:
             redis = await get_redis_cache()
             cached = await cache_get_json(redis, cache_key)
             if cached:
+                # Unwrap "data" envelope from cache_set_json (stores as {"data": {...}, "cached_at": ...})
+                payload = cached.get("data", cached)
                 result = UsageLimitCheckResult(
-                    allowed=cached["allowed"],
-                    status=UsageLimitStatus(cached["status"]),
-                    blocked_reason=cached.get("blocked_reason"),
-                    exceeded_limit=cached.get("exceeded_limit"),
+                    allowed=payload["allowed"],
+                    status=UsageLimitStatus(payload["status"]),
+                    blocked_reason=payload.get("blocked_reason"),
+                    exceeded_limit=payload.get("exceeded_limit"),
                 )
                 usage_limit_check_total.labels(result=result.status.value).inc()
                 return result

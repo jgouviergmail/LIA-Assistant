@@ -48,6 +48,7 @@ from src.core.i18n_api_messages import APIMessages
 from src.core.time_utils import calculate_cache_age_seconds
 from src.domains.agents.constants import AGENT_CONTACT, CONTEXT_DOMAIN_CONTACTS
 from src.domains.agents.context import ContextTypeDefinition, ContextTypeRegistry
+from src.domains.agents.context.schemas import ContextSaveMode
 from src.domains.agents.tools.base import ConnectorTool
 from src.domains.agents.tools.decorators import connector_tool
 from src.domains.agents.tools.exceptions import ConnectorNotEnabledError, ToolValidationError
@@ -2702,6 +2703,7 @@ async def execute_contact_update_draft(
         phone=draft_content.get("phone"),
         organization=draft_content.get("organization"),
         notes=draft_content.get("notes"),
+        address=draft_content.get("address"),
     )
 
     # Get display name
@@ -2770,6 +2772,7 @@ async def execute_contact_delete_draft(
     name="get_contacts",
     agent_name=AGENT_CONTACT,
     context_domain=CONTEXT_DOMAIN_CONTACTS,
+    context_save_mode=ContextSaveMode.LIST,
     category="read",
 )
 async def get_contacts_tool(

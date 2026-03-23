@@ -171,6 +171,7 @@ class EmailReplyDraftInput(BaseDraftInput):
             "message_id": self.message_id,
             "body": self.body,
             "reply_all": self.reply_all,
+            "to": self.to,
         }
 
 

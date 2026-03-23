@@ -48,7 +48,10 @@ class EmailClientProtocol(Protocol):
         body: str,
         reply_all: bool = False,
         is_html: bool = False,
-    ) -> dict: ...
+        to: str | None = None,
+    ) -> dict:
+        """Reply to an email. If to is provided, overrides the default recipient (original sender)."""
+        ...
 
     async def forward_email(
         self,

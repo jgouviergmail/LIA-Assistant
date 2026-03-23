@@ -467,6 +467,19 @@ class ToolOutputMixin:
             # Add 1-based index for ordinal reference resolution
             email["index"] = idx
 
+            # Promote subject to top-level for Jinja/reference_examples access
+            # Gmail stores subject in payload.headers; Apple Mail may have it top-level
+            if "subject" not in email:
+                subject = next(
+                    (
+                        h.get("value", "")
+                        for h in email.get("payload", {}).get("headers", [])
+                        if h.get("name", "").lower() == "subject"
+                    ),
+                    "",
+                )
+                email["subject"] = subject
+
             # Convert dates to user's timezone
             convert_email_dates_in_payload(email, user_timezone, locale)
 
@@ -479,16 +492,7 @@ class ToolOutputMixin:
             )
             registry_updates[item_id] = registry_item
             item_ids.append(item_id)
-            # Extract subject from nested Gmail headers
-            subject = next(
-                (
-                    h.get("value", "")
-                    for h in email.get("payload", {}).get("headers", [])
-                    if h.get("name", "").lower() == "subject"
-                ),
-                "",
-            )
-            item_names.append(subject or item_id)
+            item_names.append(email.get("subject") or item_id)
 
         # Minimal summary for debug/logs only (not displayed to user)
         summary = f"[search] {len(emails)} email(s): {self._build_item_preview(item_names)}"

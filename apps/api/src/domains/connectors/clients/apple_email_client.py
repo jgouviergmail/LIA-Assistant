@@ -126,6 +126,7 @@ class AppleEmailClient(BaseAppleClient):
         body: str,
         reply_all: bool = False,
         is_html: bool = False,
+        to: str | None = None,
     ) -> dict[str, Any]:
         """Reply to an email."""
         return await self._execute_with_retry(
@@ -135,6 +136,7 @@ class AppleEmailClient(BaseAppleClient):
             body,
             reply_all,
             is_html,
+            to,
         )
 
     async def forward_email(
@@ -372,14 +374,28 @@ class AppleEmailClient(BaseAppleClient):
         body: str,
         reply_all: bool,
         is_html: bool,
+        to: str | None = None,
     ) -> dict[str, Any]:
-        """Reply to an email."""
+        """Reply to an email.
+
+        Args:
+            message_id: Original message ID to reply to.
+            body: Reply body content.
+            reply_all: Whether to reply to all recipients.
+            is_html: Whether body is HTML.
+            to: Override recipient address. If None, replies to original sender.
+
+        Returns:
+            Dict with sent message details (id, threadId, labelIds).
+        """
         original = await self.get_message(message_id)
 
         # Extract original headers
         headers = {h["name"]: h["value"] for h in original.get("payload", {}).get("headers", [])}
 
-        to = headers.get("From", "")
+        # Use override recipient if provided, otherwise reply to original sender
+        if not to:
+            to = headers.get("From", "")
         subject = headers.get("Subject", "")
         if not subject.lower().startswith("re:"):
             subject = f"Re: {subject}"
@@ -410,8 +426,20 @@ class AppleEmailClient(BaseAppleClient):
             msg["In-Reply-To"] = original_message_id
             msg["References"] = original_message_id
 
+        # Extract original body and append as quoted text
+        original_body = original.get("body", "")
+        original_date = headers.get("Date", "")
+        original_from_header = headers.get("From", "")
+
+        if original_body and not is_html:
+            quoted_lines = "\n".join(f"> {line}" for line in original_body.strip().splitlines())
+            quoted_block = f"\n\nOn {original_date}, {original_from_header} wrote:\n{quoted_lines}"
+            full_body = body + quoted_block
+        else:
+            full_body = body
+
         content_type = "html" if is_html else "plain"
-        msg.attach(MIMEText(body, content_type, "utf-8"))
+        msg.attach(MIMEText(full_body, content_type, "utf-8"))
 
         recipients = [addr.strip() for addr in to.split(",")]
         if cc:

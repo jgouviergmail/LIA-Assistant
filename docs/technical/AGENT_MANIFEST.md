@@ -4,7 +4,7 @@
 **Date**: 2025-12-27
 **Auteur**: Documentation Technique LIA
 **Statut**: ✅ Complète et Validée
-**Updated**: LOT 9/10 agents, Voice domain, Philips Hue Smart Home, 11 agents total
+**Updated**: LOT 9/10 agents, Voice domain, Philips Hue Smart Home, 11 agents total, context_save_mode field
 
 ---
 
@@ -245,6 +245,7 @@ class ToolManifest:
         supports_dry_run: Si True, tool supporte mode simulation
         reference_fields: Champs utilisables comme références contextuelles
         context_key: Clé pour auto-save dans Store (si applicable)
+        context_save_mode: Override LIST/DETAILS pour classify_save_mode (None = heuristique par nom)
         field_mappings: Mapping noms user-friendly vers noms API
         examples: Exemples input/output pour documentation et tests
         version: Version semver du tool
@@ -272,6 +273,7 @@ class ToolManifest:
     supports_dry_run: bool = False
     reference_fields: list[str] = field(default_factory=list)
     context_key: str | None = None
+    context_save_mode: ContextSaveMode | None = None  # LIST/DETAILS override
     field_mappings: dict[str, str] | None = None
 
     # Documentation

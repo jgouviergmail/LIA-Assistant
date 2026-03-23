@@ -472,6 +472,11 @@ async def _execute_confirmed_draft(
             result_keys=list(result_data.keys()) if result_data else [],
         )
 
+        # Enrich result_data with draft_content for comprehensive post-HITL display
+        # This allows _format_draft_execution_result to show ALL attributes
+        if result_data and isinstance(result_data, dict):
+            result_data["_draft_content"] = draft_content
+
         return DraftExecutionResult(
             success=True,
             draft_id=draft_id,

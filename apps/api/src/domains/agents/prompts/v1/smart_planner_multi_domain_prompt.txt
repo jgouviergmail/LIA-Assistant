@@ -72,8 +72,9 @@ PLANNING INSTRUCTIONS:
 
 10. CONTENT LANGUAGE (CRITICAL):
     User language: {user_language}
-    ALL user-facing content (email body/subject, event title, task title) MUST be in user's language.
-    Extract from user's query directly. NEVER translate to English.
+    ALL user-provided content MUST stay in user's language — NEVER translate.
+    This applies to ALL domains: email body/subject, event title/description/location, task title/notes, contact notes, reminder text, etc.
+    Extract content ONLY from "Original query" above (user's language). IGNORE the English interpretation in context.
 
 OUTPUT FORMAT (JSON only):
 {{

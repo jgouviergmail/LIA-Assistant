@@ -603,6 +603,7 @@ class ToolContextManager:
         result_data: dict[str, Any],
         config: RunnableConfig,
         store: BaseStore,
+        explicit_mode: ContextSaveMode | None = None,
     ) -> None:
         """
         Auto-save context from tool result (called by @auto_save_context decorator).
@@ -623,6 +624,8 @@ class ToolContextManager:
             result_data: Parsed JSON result from tool (dict).
             config: RunnableConfig with user_id and metadata.
             store: LangGraph BaseStore instance.
+            explicit_mode: Explicit LIST/DETAILS override from ToolManifest.context_save_mode.
+                If None, uses name-based heuristic in classify_save_mode().
 
         Example:
             >>> # Called by decorator after tool execution
@@ -724,7 +727,7 @@ class ToolContextManager:
         save_mode = self.classify_save_mode(
             tool_name=tool_name or "unknown_tool",
             result_count=len(items),
-            explicit_mode=None,  # TODO: Add explicit_mode from ToolManifest in future
+            explicit_mode=explicit_mode,
         )
 
         # DEBUG: Log classification result to trace persistence issue

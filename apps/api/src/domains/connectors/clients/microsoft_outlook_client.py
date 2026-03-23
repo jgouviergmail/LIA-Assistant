@@ -258,6 +258,7 @@ class MicrosoftOutlookClient(BaseMicrosoftClient):
         body: str,
         reply_all: bool = False,
         is_html: bool = False,
+        to: str | None = None,
     ) -> dict[str, Any]:
         """
         Reply to an email.
@@ -267,6 +268,7 @@ class MicrosoftOutlookClient(BaseMicrosoftClient):
             body: Reply body content.
             reply_all: Whether to reply to all recipients.
             is_html: Whether body is HTML.
+            to: Override recipient address. If None, replies to original sender.
 
         Returns:
             Dict with reply confirmation.
@@ -275,6 +277,12 @@ class MicrosoftOutlookClient(BaseMicrosoftClient):
         reply_body: dict[str, Any] = {
             "comment": body,
         }
+
+        # Override recipient if user specified a different one (draft modification)
+        if to:
+            reply_body["message"] = {
+                "toRecipients": _build_recipients(to),
+            }
 
         await self._make_request(
             "POST", f"/me/messages/{message_id}/{action}", json_data=reply_body
@@ -285,6 +293,7 @@ class MicrosoftOutlookClient(BaseMicrosoftClient):
             user_id=str(self.user_id),
             message_id=message_id,
             reply_all=reply_all,
+            to_override=to,
         )
 
         return {"id": message_id, "threadId": ""}
@@ -318,6 +327,9 @@ class MicrosoftOutlookClient(BaseMicrosoftClient):
 
         if body:
             forward_body["comment"] = body
+
+        if cc:
+            forward_body["ccRecipients"] = _build_recipients(cc)
 
         await self._make_request(
             "POST", f"/me/messages/{message_id}/forward", json_data=forward_body

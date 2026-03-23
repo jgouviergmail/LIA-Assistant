@@ -826,6 +826,7 @@ class GoogleGmailClient(BaseGoogleClient):
         body: str,
         reply_all: bool = False,
         is_html: bool = False,
+        to: str | None = None,
     ) -> dict[str, Any]:
         """
         Reply to an email via Gmail API.
@@ -837,6 +838,7 @@ class GoogleGmailClient(BaseGoogleClient):
             body: Reply body (text/plain or text/html).
             reply_all: If True, reply to all recipients (default False).
             is_html: True if body is HTML, False for plain text (default False).
+            to: Override recipient address. If None, replies to original sender.
 
         Returns:
             Dict with sent message details (id, threadId, labelIds).
@@ -866,8 +868,11 @@ class GoogleGmailClient(BaseGoogleClient):
         original_from = header_dict.get("from", "")
         original_cc = header_dict.get("cc", "")
 
-        # Determine reply-to address
-        if reply_all:
+        # Determine reply-to address (user override takes precedence)
+        if to:
+            # User explicitly specified recipient (e.g., via draft modification)
+            cc = None
+        elif reply_all:
             # Reply to all: original sender + original recipients (except self)
             to = original_from
             cc = original_cc if original_cc else None
@@ -890,6 +895,16 @@ class GoogleGmailClient(BaseGoogleClient):
 
         if cc:
             message["Cc"] = self._encode_email_header(cc)
+
+        # Extract original body and append as quoted text
+        original_date = header_dict.get("date", "")
+        original_body = self._extract_body_recursive(original.get("payload", {}))
+
+        if original_body and not is_html:
+            quoted_lines = "\n".join(f"> {line}" for line in original_body.strip().splitlines())
+            quoted_block = f"\n\nOn {original_date}, {original_from} wrote:\n{quoted_lines}"
+            # Replace body part with body + quoted original
+            message.set_payload((body + quoted_block).encode("utf-8"))
 
         # Encode to base64url
         raw_message = self._encode_base64url(message.as_string())

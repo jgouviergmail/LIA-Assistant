@@ -55,12 +55,14 @@ from src.domains.agents.constants import (
 from src.domains.agents.context import ContextTypeDefinition, ContextTypeRegistry
 from src.domains.agents.context.decorators import auto_save_context
 from src.domains.agents.context.manager import ToolContextManager
+from src.domains.agents.context.schemas import ContextSaveMode
 from src.domains.agents.tools.base import ConnectorTool
 from src.domains.agents.tools.decorators import connector_tool
 from src.domains.agents.tools.exceptions import ToolValidationError
 from src.domains.agents.tools.mixins import ToolOutputMixin
 from src.domains.agents.tools.output import StandardToolOutput, UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import (
+    ValidatedRuntimeConfig,
     get_user_preferences,
     parse_user_id,
     resolve_recipients_to_emails,
@@ -673,6 +675,7 @@ class GetEventDetailsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
             "user_timezone": user_timezone,
             "locale": locale,
             "mode": "single",
+            "calendar_id": calendar_id,
         }
 
     async def _execute_batch(
@@ -762,6 +765,7 @@ class GetEventDetailsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
             "locale": locale,
             "mode": "batch",
             "errors": errors if errors else None,
+            "calendar_id": calendar_id,
         }
 
     def format_registry_response(self, result: dict[str, Any]) -> UnifiedToolOutput:
@@ -789,12 +793,14 @@ class GetEventDetailsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
             events = [event] if event else []
             event_ids = [result.get("event_id", "")]
 
+        calendar_id = result.get("calendar_id")
         output = self.build_events_output(
             events=events,
             query=None,
             from_cache=from_cache,
             user_timezone=user_timezone,
             locale=locale,
+            calendar_id=calendar_id,
         )
 
         # Build enhanced message based on mode
@@ -1143,6 +1149,74 @@ async def create_event_tool(
 
 
 # ============================================================================
+# HELPER: Resolve calendar_id from context store (LIST then DETAILS fallback)
+# ============================================================================
+
+
+async def _resolve_calendar_id_from_context(
+    config: ValidatedRuntimeConfig,
+    event_id: str,
+) -> str | None:
+    """Resolve calendar_id from context store (LIST then DETAILS fallback).
+
+    Searches both LIST and DETAILS store keys for the event, because the
+    auto-save classification may route to either key depending on the code path
+    (parallel_executor saves to LIST, decorator may save to DETAILS for legacy
+    get_* tool names).
+
+    Args:
+        config: Validated runtime config with user_id, session_id, store.
+        event_id: Event ID to look up.
+
+    Returns:
+        calendar_id if found, None otherwise.
+    """
+    manager = ToolContextManager()
+    context_items: list[dict[str, Any]] | None = None
+
+    # Try LIST first (parallel_executor path with explicit context_save_mode=LIST)
+    context_list = await manager.get_list(
+        user_id=config.user_id,
+        session_id=config.session_id,
+        domain=CONTEXT_DOMAIN_EVENTS,
+        store=config.store,
+    )
+    if context_list and context_list.items:
+        context_items = context_list.items
+
+    # Fallback to DETAILS (decorator path or legacy classification)
+    if not context_items:
+        context_details = await manager.get_details(
+            user_id=config.user_id,
+            session_id=config.session_id,
+            domain=CONTEXT_DOMAIN_EVENTS,
+            store=config.store,
+        )
+        if context_details and context_details.items:
+            context_items = context_details.items
+
+    if context_items:
+        for item in context_items:
+            item_id = item.get("id") or item.get("event_id")
+            if item_id == event_id:
+                calendar_id = item.get("calendar_id")
+                logger.info(
+                    "calendar_id_resolved_from_context",
+                    event_id=event_id,
+                    calendar_id=calendar_id,
+                )
+                return calendar_id
+
+    logger.warning(
+        "calendar_id_context_resolution_failed",
+        event_id=event_id,
+        context_source="none" if not context_items else "not_found",
+        fallback="primary",
+    )
+    return None
+
+
+# ============================================================================
 # TOOL 4: UPDATE EVENT (Write Operation - Draft/HITL - LOT 9)
 # ============================================================================
 
@@ -1211,25 +1285,7 @@ class UpdateEventDraftTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
         if not calendar_id and self.runtime:
             config = validate_runtime_config(self.runtime, "update_event_tool")
             if not isinstance(config, UnifiedToolOutput):
-                manager = ToolContextManager()
-                context_list = await manager.get_list(
-                    user_id=config.user_id,
-                    session_id=config.session_id,
-                    domain=CONTEXT_DOMAIN_EVENTS,
-                    store=config.store,
-                )
-                if context_list and context_list.items:
-                    # Search for the event by ID in context
-                    for item in context_list.items:
-                        item_id = item.get("id") or item.get("event_id")
-                        if item_id == event_id:
-                            calendar_id = item.get("calendar_id")
-                            logger.info(
-                                "calendar_id_resolved_from_context",
-                                event_id=event_id,
-                                calendar_id=calendar_id,
-                            )
-                            break
+                calendar_id = await _resolve_calendar_id_from_context(config, event_id)
 
         # Fetch current event for comparison (use resolved calendar_id or default to "primary")
         current_event = await client.get_event(
@@ -1245,6 +1301,19 @@ class UpdateEventDraftTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
             calendar_id=calendar_id,
             summary=summary or current_event.get("summary"),
         )
+
+        # Convert current_event dates from UTC to user timezone for display consistency.
+        # Without this, the HITL draft critique LLM sees UTC dates for old values
+        # and user-tz dates for new values, causing wrong before→after comparisons.
+        if current_event and timezone:
+            from src.core.time_utils import convert_to_user_timezone
+
+            for date_field in ("start", "end"):
+                dt_obj = current_event.get(date_field, {})
+                if isinstance(dt_obj, dict) and "dateTime" in dt_obj:
+                    converted_dt = convert_to_user_timezone(dt_obj["dateTime"], timezone)
+                    if converted_dt:
+                        dt_obj["dateTime"] = converted_dt.isoformat()
 
         return {
             "event_id": event_id,
@@ -1395,31 +1464,29 @@ class DeleteEventDraftTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
         if not calendar_id and self.runtime:
             config = validate_runtime_config(self.runtime, "delete_event_tool")
             if not isinstance(config, UnifiedToolOutput):
-                manager = ToolContextManager()
-                context_list = await manager.get_list(
-                    user_id=config.user_id,
-                    session_id=config.session_id,
-                    domain=CONTEXT_DOMAIN_EVENTS,
-                    store=config.store,
-                )
-                if context_list and context_list.items:
-                    # Search for the event by ID in context
-                    for item in context_list.items:
-                        item_id = item.get("id") or item.get("event_id")
-                        if item_id == event_id:
-                            calendar_id = item.get("calendar_id")
-                            logger.info(
-                                "calendar_id_resolved_from_context",
-                                event_id=event_id,
-                                calendar_id=calendar_id,
-                            )
-                            break
+                calendar_id = await _resolve_calendar_id_from_context(config, event_id)
 
         # Fetch event details for confirmation display (use resolved calendar_id or default to "primary")
         event = await client.get_event(
             event_id=event_id,
             calendar_id=calendar_id or "primary",
         )
+
+        # Convert event dates from UTC to user timezone for HITL display consistency
+        try:
+            user_timezone, _, _ = await get_user_preferences(self.runtime)
+        except (ValueError, KeyError, AttributeError):
+            user_timezone = "UTC"
+
+        if event and user_timezone:
+            from src.core.time_utils import convert_to_user_timezone
+
+            for date_field in ("start", "end"):
+                dt_obj = event.get(date_field, {})
+                if isinstance(dt_obj, dict) and "dateTime" in dt_obj:
+                    converted_dt = convert_to_user_timezone(dt_obj["dateTime"], user_timezone)
+                    if converted_dt:
+                        dt_obj["dateTime"] = converted_dt.isoformat()
 
         logger.info(
             "delete_event_draft_prepared",
@@ -2036,6 +2103,7 @@ async def list_calendars_tool(
     name="get_events",
     agent_name=AGENT_EVENT,
     context_domain=CONTEXT_DOMAIN_EVENTS,
+    context_save_mode=ContextSaveMode.LIST,
     category="read",
 )
 async def get_events_tool(

@@ -28,6 +28,7 @@ from functools import wraps
 from typing import TYPE_CHECKING, Any, Union
 
 from src.domains.agents.context.manager import ToolContextManager
+from src.domains.agents.context.schemas import ContextSaveMode
 from src.infrastructure.observability.logging import get_logger
 
 if TYPE_CHECKING:
@@ -36,7 +37,10 @@ if TYPE_CHECKING:
 logger = get_logger(__name__)
 
 
-def auto_save_context(context_type: str) -> Callable:
+def auto_save_context(
+    context_type: str,
+    context_save_mode: ContextSaveMode | None = None,
+) -> Callable:
     """
     Decorator for automatic tool context persistence.
 
@@ -50,6 +54,8 @@ def auto_save_context(context_type: str) -> Callable:
 
     Args:
         context_type: Context type identifier ("contacts", "emails", "events").
+        context_save_mode: Explicit LIST/DETAILS override for auto-save classification.
+            If None, uses name-based heuristic in classify_save_mode().
 
     Returns:
         Decorator function.
@@ -179,6 +185,7 @@ def auto_save_context(context_type: str) -> Callable:
                                 result_data=result_data,
                                 config=config,
                                 store=store,
+                                explicit_mode=context_save_mode,
                             )
 
                             logger.debug(
@@ -272,7 +279,11 @@ def auto_save_context(context_type: str) -> Callable:
                 # Auto-save via manager
                 manager = ToolContextManager()
                 await manager.auto_save(
-                    context_type=context_type, result_data=result, config=config, store=store
+                    context_type=context_type,
+                    result_data=result,
+                    config=config,
+                    store=store,
+                    explicit_mode=context_save_mode,
                 )
 
                 logger.debug(

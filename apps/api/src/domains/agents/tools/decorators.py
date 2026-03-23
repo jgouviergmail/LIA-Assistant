@@ -50,6 +50,7 @@ from langchain_core.tools import tool
 
 from src.core.config import get_settings
 from src.domains.agents.context import auto_save_context
+from src.domains.agents.context.schemas import ContextSaveMode
 from src.domains.agents.utils.rate_limiting import rate_limit
 from src.infrastructure.observability.decorators import track_tool_metrics
 from src.infrastructure.observability.metrics_agents import (
@@ -81,6 +82,7 @@ def connector_tool(
     name: str,
     agent_name: str,
     context_domain: str | None = None,
+    context_save_mode: ContextSaveMode | None = None,
     category: Literal["read", "write", "expensive"] = "read",
     rate_limit_max_calls: int | Callable[[], int] | None = None,
     rate_limit_window_seconds: int | Callable[[], int] | None = None,
@@ -100,6 +102,8 @@ def connector_tool(
         name: Tool name for metrics/logging (e.g., "search_contacts")
         agent_name: Agent owning the tool (e.g., "contacts_agent")
         context_domain: Domain for context saving (e.g., "contacts"), or None to skip
+        context_save_mode: Explicit LIST/DETAILS override for context auto-save classification.
+            If None, uses name-based heuristic. Use ContextSaveMode.LIST for unified get_* tools.
         category: Rate limit category - "read" (20/min), "write" (5/min), or "expensive" (2/5min)
         rate_limit_max_calls: Override category default for max_calls
         rate_limit_window_seconds: Override category default for window_seconds
@@ -202,7 +206,7 @@ def connector_tool(
 
         # Step 3: Apply @auto_save_context (if context_domain provided)
         if context_domain is not None:
-            decorated = auto_save_context(context_domain)(decorated)
+            decorated = auto_save_context(context_domain, context_save_mode)(decorated)
 
         # Step 4: Apply @tool (outermost - LangChain registration)
         # Description comes from docstring if not provided

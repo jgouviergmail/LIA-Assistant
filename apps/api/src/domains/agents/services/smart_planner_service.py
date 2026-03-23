@@ -1063,18 +1063,28 @@ class SmartPlannerService:
             is_mutation=intelligence.is_mutation_intent,
         )
 
-        # FIX 2026-01-12: Use english_enriched_query (with resolved names like "marie dupond")
-        # instead of original_query (which may contain unresolved refs like "ma femme")
-        resolved_query = (
-            intelligence.english_enriched_query
-            if intelligence.english_enriched_query
-            else intelligence.original_query
-        )
+        # FIX 2026-03-23: Always use original_query (user's language) for content extraction.
+        # english_enriched_query contains translated content (e.g., "merci" → "Thank you")
+        # which causes the planner to extract English body/subject instead of the original.
+        # Resolved references (e.g., "ma femme" → "Marie Dupond") are passed separately in context.
+        resolved_query = intelligence.original_query
 
         # Build context with optional clarification response (DRY helper)
         context = self._build_context_with_clarification(
             intelligence, clarification_response, clarification_field, existing_plan
         )
+
+        # Append enriched English query with resolved references.
+        # All ordinal/pronoun references are ALREADY resolved here — the planner must use
+        # these values directly and NEVER call resolve_reference or any lookup tool.
+        # User-provided content (body, subject, title, description, notes) must be extracted
+        # from the Original query (user's language), not from this English version.
+        if intelligence.english_enriched_query:
+            context += (
+                f"\n\nResolved request (all references already resolved, use directly): "
+                f"{intelligence.english_enriched_query}\n"
+                f"CONTENT RULE: Extract user-provided content from Original query above (user's language)."
+            )
 
         # MCP reference content (read_me) — only when MCP domains are selected
         mcp_reference = self._build_mcp_reference(intelligence.domains)
@@ -1150,19 +1160,28 @@ class SmartPlannerService:
             is_mutation=intelligence.is_mutation_intent,
         )
 
-        # FIX 2026-01-12: Use english_enriched_query (with resolved names like "marie dupond")
-        # instead of original_query (which may contain unresolved refs like "ma femme")
-        # This prevents the planner from hallucinating names when the resolution is available.
-        resolved_query = (
-            intelligence.english_enriched_query
-            if intelligence.english_enriched_query
-            else intelligence.original_query
-        )
+        # FIX 2026-03-23: Always use original_query (user's language) for content extraction.
+        # english_enriched_query contains translated content (e.g., "merci" → "Thank you")
+        # which causes the planner to extract English body/subject instead of the original.
+        # Resolved references (e.g., "ma femme" → "Marie Dupond") are passed separately in context.
+        resolved_query = intelligence.original_query
 
         # Build context with optional clarification response (DRY helper)
         context = self._build_context_with_clarification(
             intelligence, clarification_response, clarification_field, existing_plan
         )
+
+        # Append enriched English query with resolved references.
+        # All ordinal/pronoun references are ALREADY resolved here — the planner must use
+        # these values directly and NEVER call resolve_reference or any lookup tool.
+        # User-provided content (body, subject, title, description, notes) must be extracted
+        # from the Original query (user's language), not from this English version.
+        if intelligence.english_enriched_query:
+            context += (
+                f"\n\nResolved request (all references already resolved, use directly): "
+                f"{intelligence.english_enriched_query}\n"
+                f"CONTENT RULE: Extract user-provided content from Original query above (user's language)."
+            )
 
         # MCP reference content (read_me) — only when MCP domains are selected
         mcp_reference = self._build_mcp_reference(intelligence.domains)

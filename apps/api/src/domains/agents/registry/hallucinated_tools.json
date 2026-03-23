@@ -34,10 +34,66 @@
       "query_preview": "Envoie un email à tous mes contacts",
       "timestamp": "2026-01-18T00:29:46.672607",
       "was_new": false
+    },
+    {
+      "tool": "resolve_reference",
+      "domain": "event",
+      "query_preview": "modifie le premier, fais le terminer à 15h30",
+      "timestamp": "2026-03-23T07:05:23.574782+00:00",
+      "was_new": false
+    },
+    {
+      "tool": "resolve_reference",
+      "domain": "event",
+      "query_preview": "modifie le premier, fais le terminer à 15h",
+      "timestamp": "2026-03-23T07:16:55.802309+00:00",
+      "was_new": false
+    },
+    {
+      "tool": "resolve_reference",
+      "domain": "event",
+      "query_preview": "modifie le premier, fais le terminer à 15h",
+      "timestamp": "2026-03-23T07:17:00.286243+00:00",
+      "was_new": false
+    },
+    {
+      "tool": "resolve_reference",
+      "domain": "event",
+      "query_preview": "modifie le premier, fais le terminer à 15h",
+      "timestamp": "2026-03-23T07:27:50.802622+00:00",
+      "was_new": false
+    },
+    {
+      "tool": "resolve_reference",
+      "domain": "event",
+      "query_preview": "modifie le premier pour le faire terminer à 15h30",
+      "timestamp": "2026-03-23T07:36:02.409295+00:00",
+      "was_new": false
+    },
+    {
+      "tool": "resolve_reference",
+      "domain": "event",
+      "query_preview": "modifie le premier pour le faire terminer à 15h30",
+      "timestamp": "2026-03-23T07:36:07.486016+00:00",
+      "was_new": false
+    },
+    {
+      "tool": "resolve_reference",
+      "domain": "event",
+      "query_preview": "modifie le premier pour le faire terminer à 15h30",
+      "timestamp": "2026-03-23T07:39:00.057485+00:00",
+      "was_new": false
+    },
+    {
+      "tool": "resolve_reference",
+      "domain": "event",
+      "query_preview": "modifie le premier pour le faire terminer à 15h",
+      "timestamp": "2026-03-23T08:05:39.288410+00:00",
+      "was_new": false
     }
   ],
   "stats": {
-    "total_detections": 3,
-    "last_updated": "2026-01-18T00:29:46.672622"
+    "total_detections": 11,
+    "last_updated": "2026-03-23T08:05:39.288430+00:00"
   }
 }

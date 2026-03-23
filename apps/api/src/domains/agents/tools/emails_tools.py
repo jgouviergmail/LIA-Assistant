@@ -51,6 +51,7 @@ from src.core.validators import validate_email
 from src.domains.agents.constants import AGENT_EMAIL, CONTEXT_DOMAIN_EMAILS
 from src.domains.agents.context import ContextTypeDefinition, ContextTypeRegistry
 from src.domains.agents.context.decorators import auto_save_context
+from src.domains.agents.context.schemas import ContextSaveMode
 from src.domains.agents.prompts import load_prompt
 from src.domains.agents.tools.base import ConnectorTool
 from src.domains.agents.tools.decorators import connector_tool
@@ -674,6 +675,7 @@ _get_emails_tool_instance = GetEmailsTool()
     name="get_emails",
     agent_name=AGENT_EMAIL,
     context_domain=CONTEXT_DOMAIN_EMAILS,
+    context_save_mode=ContextSaveMode.LIST,
     category="read",
 )
 @auto_save_context("emails")
@@ -2717,6 +2719,7 @@ async def execute_email_reply_draft(
         message_id=draft_content["message_id"],
         body=draft_content["body"],
         reply_all=draft_content.get("reply_all", False),
+        to=draft_content.get("to"),
     )
 
     logger.info(
@@ -2730,6 +2733,8 @@ async def execute_email_reply_draft(
         "success": True,
         "message_id": result.get("id"),
         "thread_id": result.get("threadId"),
+        "to": draft_content.get("to"),
+        "subject": draft_content.get("subject"),
         "message": APIMessages.reply_sent_successfully(),
     }
 
@@ -2768,6 +2773,7 @@ async def execute_email_forward_draft(
         "message_id": result.get("id"),
         "thread_id": result.get("threadId"),
         "to": draft_content["to"],
+        "subject": draft_content.get("subject"),
         "message": APIMessages.email_forwarded_successfully(draft_content["to"]),
     }
 

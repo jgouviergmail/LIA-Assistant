@@ -35,7 +35,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.9.4</strong> — Settings Priority Chain Enforcement & Config Architecture — March 2026
+  <strong>Version 1.9.5</strong> — Context Store Fix, HITL Enhancements, Cross-Provider Email Improvements — March 2026
 </p>
 
 ---
