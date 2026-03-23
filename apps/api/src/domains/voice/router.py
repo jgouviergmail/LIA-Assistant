@@ -97,7 +97,10 @@ async def create_websocket_ticket(
     redis = await get_redis_session()
     ticket_store = WebSocketTicketStore(redis)
 
-    ticket = await ticket_store.create_ticket(str(user.id))
+    ticket = await ticket_store.create_ticket(
+        str(user.id),
+        language=user.language or "",
+    )
 
     logger.info(
         "websocket_ticket_issued",
@@ -157,9 +160,9 @@ async def websocket_audio(
         redis_session = await get_redis_session()
         ticket_store = WebSocketTicketStore(redis_session)
 
-        user_id = await ticket_store.validate_and_consume_ticket(ticket)
+        ticket_data = await ticket_store.validate_and_consume_ticket(ticket)
 
-        if not user_id:
+        if not ticket_data:
             websocket_connections_total.labels(status="rejected_auth").inc()
             logger.warning(
                 "websocket_auth_failed",
@@ -168,6 +171,9 @@ async def websocket_audio(
             )
             await websocket.close(code=4001, reason="Invalid or expired ticket")
             return
+
+        user_id = ticket_data["user_id"]
+        user_language = ticket_data.get("language", "")
 
         # 2. Rate limit check
         try:
@@ -245,6 +251,7 @@ async def websocket_audio(
                             text = await stt_service.transcribe_async(
                                 audio_float.tolist(),
                                 sample_rate=stt_service.sample_rate,
+                                language=user_language,
                             )
 
                             # Send result

@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { useVoiceInput } from '@/hooks/useVoiceInput';
 import { useVoiceModeStore } from '@/stores/voiceModeStore';
 import { useFileUpload } from '@/hooks/useFileUpload';
+import { VOICE_PTT_TOUCH_PADDING_PX } from '@/lib/constants';
 import AttachmentPreview from '@/components/chat/AttachmentPreview';
 import { MessageAttachmentMeta } from '@/types/chat';
 
@@ -111,6 +112,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   // Voice input hook for push-to-talk
   const {
+    state: voiceState,
     isRecording,
     isProcessing,
     startRecording,
@@ -256,25 +258,26 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    // Don't send if recording - user is using push-to-talk
-    if (!isRecording && !isProcessing) {
+    // Don't send if any voice input phase is active (connecting, recording, processing)
+    if (!isRecording && !isProcessing && voiceState !== 'connecting') {
       handleSend();
     }
   };
 
   // Push-to-talk handlers
-  // Disabled when voice mode (active listening) is enabled to avoid mic conflicts
+  // Always attached to button (not conditional on showSendMode) to prevent race conditions
+  // where handlers become undefined during a touch event if state changes mid-press.
   const handlePressStart = useCallback(
     async (e: React.MouseEvent | React.TouchEvent) => {
-      // Prevent text selection on mobile
-      if ('touches' in e) {
-        e.preventDefault();
-      }
-
-      // Only start recording if there's no message to send and voice mode is not active
-      // This allows normal send behavior when there's text
-      // Voice mode uses wake word detection, so push-to-talk is disabled when active
+      // Only activate push-to-talk when all conditions are met.
+      // When conditions fail (text present, voice mode active, etc.), do nothing
+      // and let native events flow through (form submit on mobile).
       if (!message.trim() && voiceSupported && !disabled && apiAvailable && !voiceModeEnabled) {
+        // Prevent default ONLY for push-to-talk (blocks text selection, context menu).
+        // MUST NOT be called when there's text, or it suppresses synthetic click → breaks form submit on mobile.
+        if ('touches' in e) {
+          e.preventDefault();
+        }
         await startRecording();
       }
     },
@@ -283,16 +286,35 @@ export const ChatInput: React.FC<ChatInputProps> = ({
 
   const handlePressEnd = useCallback(
     (e?: React.MouseEvent | React.TouchEvent) => {
-      // Prevent text selection on mobile
-      if (e && 'touches' in e) {
+      // Only preventDefault on touch if we're actually stopping/cancelling voice input.
+      // Otherwise, let native events flow (form submit on mobile).
+      const isVoiceActive = isRecording || voiceState === 'connecting';
+      if (e && 'touches' in e && isVoiceActive) {
         e.preventDefault();
       }
+      // Always call stopRecording - it handles all states internally:
+      // 'idle' → noop, 'connecting' → cancel via cancelledRef, 'recording' → stop+process
+      stopRecording();
+    },
+    [isRecording, voiceState, stopRecording]
+  );
 
-      if (isRecording) {
-        stopRecording();
+  const handleTouchMove = useCallback(
+    (e: React.TouchEvent) => {
+      if (!isRecording) return;
+      const touch = e.touches[0];
+      if (!touch) return;
+      const rect = e.currentTarget.getBoundingClientRect();
+      if (
+        touch.clientX < rect.left - VOICE_PTT_TOUCH_PADDING_PX ||
+        touch.clientX > rect.right + VOICE_PTT_TOUCH_PADDING_PX ||
+        touch.clientY < rect.top - VOICE_PTT_TOUCH_PADDING_PX ||
+        touch.clientY > rect.bottom + VOICE_PTT_TOUCH_PADDING_PX
+      ) {
+        handlePressEnd();
       }
     },
-    [isRecording, stopRecording]
+    [isRecording, handlePressEnd]
   );
 
   // Determine button state and appearance
@@ -364,15 +386,20 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             size="lg"
             disabled={isButtonDisabled || (showSendMode && !hasMessage)}
             className={cn(
-              'gap-2 h-12 self-end transition-all duration-200 touch-manipulation',
+              'gap-2 h-12 self-end transition-all duration-200',
+              'touch-manipulation select-none [-webkit-touch-callout:none]',
               isRecording && 'bg-destructive hover:bg-destructive/90 animate-pulse'
             )}
-            // Push-to-talk: press and hold when no message
-            onMouseDown={!showSendMode ? handlePressStart : undefined}
-            onMouseUp={!showSendMode ? handlePressEnd : undefined}
-            onMouseLeave={!showSendMode && isRecording ? handlePressEnd : undefined}
-            onTouchStart={!showSendMode ? handlePressStart : undefined}
-            onTouchEnd={!showSendMode ? handlePressEnd : undefined}
+            // Handlers always attached to prevent race conditions when showSendMode
+            // changes during a touch event. Guards inside handlers filter non-PTT calls.
+            onMouseDown={handlePressStart}
+            onMouseUp={handlePressEnd}
+            onMouseLeave={isRecording ? handlePressEnd : undefined}
+            onTouchStart={handlePressStart}
+            onTouchEnd={handlePressEnd}
+            onTouchCancel={handlePressEnd}
+            onTouchMove={isRecording ? handleTouchMove : undefined}
+            onContextMenu={e => e.preventDefault()}
             aria-label={
               isRecording
                 ? t('chat.voice.recording')
@@ -383,15 +410,21 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                     : t('chat.voice.hold_to_speak')
             }
           >
-            {isProcessing ? (
-              <LoadingSpinner size="default" />
-            ) : isRecording ? (
-              <Mic className="h-4 w-4" />
-            ) : disabled ? (
-              <LoadingSpinner size="default" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
+            <span className="relative inline-flex items-center justify-center">
+              {isRecording ? (
+                <Mic className="h-4 w-4" />
+              ) : (
+                <Send
+                  className={cn(
+                    'h-4 w-4 transition-opacity',
+                    (disabled || isProcessing) && 'opacity-30'
+                  )}
+                />
+              )}
+              {(disabled || isProcessing) && !isRecording && (
+                <LoadingSpinner className="absolute inset-0 m-auto text-primary-foreground" />
+              )}
+            </span>
             <span className="hidden sm:inline">
               {isRecording
                 ? t('chat.voice.recording')

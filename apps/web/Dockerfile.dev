@@ -1,6 +1,9 @@
 # Multi-stage Dockerfile for Next.js 16 development in pnpm monorepo
 # This Dockerfile is designed to work with the monorepo structure and properly
 # handle pnpm workspace dependencies and .npmrc configuration
+#
+# Note: Voice mode WASM files are served from apps/web/public/models/sherpa-wasm/
+# which is mounted via docker-compose volume. Run scripts/setup-dev.sh to download them.
 
 FROM node:22-alpine
 

@@ -71,7 +71,7 @@ class WebSocketTicketStore:
         self._redis = redis_client
         self._ttl_seconds = settings.voice_ws_ticket_ttl_seconds
 
-    async def create_ticket(self, user_id: str) -> str:
+    async def create_ticket(self, user_id: str, language: str = "") -> str:
         """
         Create a short-lived WebSocket authentication ticket.
 
@@ -80,6 +80,7 @@ class WebSocketTicketStore:
 
         Args:
             user_id: Authenticated user's UUID (from session)
+            language: User's preferred language (ISO 639-1 code) for STT
 
         Returns:
             Ticket string (UUID format) for WebSocket connection
@@ -87,10 +88,11 @@ class WebSocketTicketStore:
         ticket = str(uuid4())
         key = f"{WS_TICKET_KEY_PREFIX}{ticket}"
 
-        # Store ticket data as JSON
+        # Store ticket data as JSON (includes language for STT)
         ticket_data = json.dumps(
             {
                 "user_id": user_id,
+                "language": language,
             }
         )
 
@@ -112,7 +114,7 @@ class WebSocketTicketStore:
 
         return ticket
 
-    async def validate_and_consume_ticket(self, ticket: str) -> str | None:
+    async def validate_and_consume_ticket(self, ticket: str) -> dict[str, str] | None:
         """
         Validate ticket and consume it (single-use pattern).
 
@@ -122,7 +124,7 @@ class WebSocketTicketStore:
             ticket: Ticket string from WebSocket query param
 
         Returns:
-            user_id if ticket is valid, None if invalid/expired/already-used
+            Dict with 'user_id' and 'language' if valid, None if invalid/expired/already-used
         """
         if not ticket:
             websocket_tickets_validated_total.labels(status="invalid").inc()
@@ -154,8 +156,8 @@ class WebSocketTicketStore:
             return None
 
         try:
-            ticket_data = json.loads(data)
-            user_id: str = ticket_data["user_id"]
+            ticket_data: dict[str, str] = json.loads(data)
+            user_id = ticket_data["user_id"]
 
             websocket_tickets_validated_total.labels(status="valid").inc()
 
@@ -166,7 +168,7 @@ class WebSocketTicketStore:
                 consumed=deleted > 0,
             )
 
-            return user_id
+            return ticket_data
 
         except (json.JSONDecodeError, KeyError) as e:
             websocket_tickets_validated_total.labels(status="invalid").inc()

@@ -200,8 +200,9 @@ export const VOICE_MODE_KWS_THRESHOLD = 0.25;
 /**
  * Voice Activity Detection silence threshold (milliseconds).
  * Duration of silence to detect end of speech.
+ * 750ms balances responsiveness with avoiding mid-sentence cuts.
  */
-export const VOICE_MODE_VAD_SILENCE_MS = 1000;
+export const VOICE_MODE_VAD_SILENCE_MS = 750;
 
 /**
  * VAD energy threshold for speech detection.
@@ -233,3 +234,16 @@ export const VOICE_MODE_IDLE_TIMEOUT_SECONDS = 300;
  * LocalStorage key for voice mode enabled preference.
  */
 export const VOICE_MODE_ENABLED_KEY = 'voice_mode_enabled';
+
+/**
+ * Touch padding tolerance (px) for push-to-talk touch move cancellation.
+ * Allows small finger movements without accidentally stopping the recording.
+ */
+export const VOICE_PTT_TOUCH_PADDING_PX = 20;
+
+/**
+ * Timeout (ms) for voice recording setup (getUserMedia + WebSocket connect).
+ * If setup takes longer than this, abort with an error to avoid blocking the user.
+ * Covers slow mobile networks, permission dialog left open, etc.
+ */
+export const VOICE_RECORDING_SETUP_TIMEOUT_MS = 10000;

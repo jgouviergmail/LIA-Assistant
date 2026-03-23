@@ -471,7 +471,14 @@
       "retry_button": "重试",
       "retry_failed": "无法获取您的位置。请检查GPS是否已启用。",
       "detection": {
-        "keywords": ["附近", "周围", "周边", "旁边", "邻近", "住处"],
+        "keywords": [
+          "附近",
+          "周围",
+          "周边",
+          "旁边",
+          "邻近",
+          "住处"
+        ],
         "patterns": [
           "(我|这)(附近|周围|周边)",
           "在我(附近|旁边)",
@@ -1423,7 +1430,7 @@
       "info_note": "💡 时区会影响对话和通知中显示的时间和日期。所有时区都使用 IANA 标准。"
     },
     "voice_mode": {
-      "title": "语音模式 (BETA)",
+      "title": "100%本地语音模式",
       "description": "配置唤醒词检测的语音输入",
       "enable": "启用语音模式",
       "enable_description": "允许通过唤醒词或点击进行语音输入",
@@ -3057,6 +3064,28 @@
             "answer": "5层纵深防御架构。基础设施故障时fail-open。"
           }
         }
+      },
+      "voice_mode": {
+        "title": "语音模式",
+        "icon": "mic",
+        "items": {
+          "voice_activate": {
+            "question": "如何激活语音模式？",
+            "answer": "前往设置 > 语音模式并启用它。聊天标题中会出现语音徽章。长按徽章可切换语音模式。启用后，说\"OK Guy\"（唤醒词）或点击徽章开始说话。"
+          },
+          "voice_ptt": {
+            "question": "按住说话是如何工作的？",
+            "answer": "当语音模式关闭且文本框为空时，按住发送按钮录制语音。松开停止 - LIA会转录您的语音并将文本放入输入框。适用于桌面和移动设备。"
+          },
+          "voice_language": {
+            "question": "语音识别是否支持我的语言？",
+            "answer": "是的！LIA使用Whisper（99+种语言），并自动使用您在设置中配置的首选语言进行转录。唤醒词检测使用英语模型（\"OK Guy\"），但主要的语音转文字功能支持任何语言。"
+          },
+          "voice_privacy": {
+            "question": "我的语音数据会发送到外部服务吗？",
+            "answer": "不会。唤醒词检测完全在您的浏览器中运行（Sherpa-onnx WASM）。语音识别在LIA自己的服务器上使用Whisper运行。没有任何音频会发送给第三方服务。"
+          }
+        }
       }
     },
     "contact": {
@@ -3741,8 +3770,12 @@
       "title_line2_highlight": "AI",
       "title_line2_after": "。",
       "title_line3": "你的规则。",
-      "subtitle_top": "LIA是打造定制AI的领先开源解决方案。它结合了最优秀的LLM和尖端功能，同时为你或你的家人提供完全的控制权。",
-      "subtitle": "LIA协调专业代理来管理你的邮件、日历、联系人、智能家居等——每一步都经过你的批准。",
+      "subtitle_top": "认识LIA：一个有个性、有记忆、有常识的助手。",
+      "subtitle_line1a": "告别冰冷重复的AI。",
+      "subtitle_line1b": "LIA从你的习惯中学习，保持自己的反思日记，发展独特的个性。",
+      "subtitle_line2a": "她既能恰到好处地讽刺，也能深切共情，",
+      "subtitle_line2b": "在幕后协调你的数字生活。",
+      "subtitle_line2c": "一切都很简单，一键可达，而你始终掌握最终控制权。",
       "cta_primary": "加入BETA",
       "cta_secondary": "了解更多",
       "scroll_hint": "向下滚动探索",
@@ -3798,8 +3831,8 @@
         "description": "多源网络搜索（Brave、Perplexity、Wikipedia）、实时天气及5天预报、附近地点和商店搜索、多模式路线规划（驾车、步行、骑行、公交）、自动地理定位。"
       },
       "voice_mode": {
-        "title": "语音模式 (BETA)",
-        "description": "与LIA对话并聆听回复。即时语音识别，自然多引擎语音合成。也可通过Telegram语音消息使用。"
+        "title": "100%本地语音模式",
+        "description": "与LIA对话并聆听回复。即时语音识别，自定义唤醒词和自然多引擎语音合成。也可通过Telegram语音消息使用。"
       },
       "natural_language": {
         "title": "自然语言",
@@ -4178,9 +4211,9 @@
         "body": "<h2>为什么人工验证至关重要</h2><p>语言模型可能产生幻觉或误解意图。LIA通过将<strong>人类置于每个关键决策的中心</strong>来解决这一问题。未经您的明确验证，不会发送任何邮件、创建任何日程或修改任何数据。</p><h2>6个审批级别</h2><p>LIA的HITL系统根据6个级别对每个操作进行分类：</p><ul><li><strong>计划审批</strong> — 在执行多步骤计划之前，LIA生成包含计划摘要和可修改参数的<code>PlanApprovalRequest</code>，然后等待您的批准。</li><li><strong>澄清</strong> — 如果意图不明确，LIA会请求更多信息，而不是猜测。</li><li><strong>草稿审查</strong> — 对于邮件或消息，LIA在发送前提交草稿供您审核。</li><li><strong>破坏性确认</strong> — 任何不可逆的删除或修改都需要明确确认。</li><li><strong>FOR_EACH确认</strong> — 对于批量操作，每个元素都可以单独验证。</li><li><strong>修改审查</strong> — 参数变更需提交验证。</li></ul><h2>5种决策与置信度</h2><p>HITL分类器生成包含5种可能决策的<strong>ClassificationResult</strong>，每种决策附带0.0到1.0之间的置信度分数：</p><ul><li><strong>APPROVE</strong> — 操作已验证，传递给<code>task_orchestrator</code></li><li><strong>REJECT</strong> — 操作被拒绝，流程重定向到<code>response</code>节点</li><li><strong>EDIT</strong> — 用户通过<code>edited_params</code>修改参数，<code>PlanEditor</code>应用修改</li><li><strong>REPLAN</strong> — 用户通过<code>reformulated_intent</code>重新表述意图，流程返回<code>planner</code></li><li><strong>AMBIGUOUS</strong> — 系统提出<code>clarification_question</code>以消除歧义</li></ul><h2>LangGraph原生中断</h2><p>从技术上讲，<code>approval_gate</code>节点使用LangGraph的<code>interrupt()</code>函数<strong>暂停图的执行</strong>并等待用户响应。状态持久化在PostgreSQL中，即使断开连接后也支持异步恢复。</p><h2>您始终拥有最终决定权</h2><p>在每个验证点，分类策略都是可组合的：基于工具清单、估计成本、数据敏感性和用户角色。LIA永远不会绕过这一步骤。</p>"
       },
       "llm-providers": {
-        "title": "多供应商AI：OpenAI、Anthropic、Google、DeepSeek、Ollama",
-        "excerpt": "LIA支持7个语言模型供应商，允许为每种任务类型配置不同的模型。",
-        "body": "<h2>7个供应商，一个助手</h2><p>LIA原生集成<strong>7个LLM供应商</strong>：OpenAI、Anthropic（Claude）、Google Gemini、DeepSeek、Qwen、Ollama（本地）和Perplexity（增强搜索）。每个供应商由LLM工厂中的专用适配器管理。</p><h2>20+种可单独配置的LLM类型</h2><p>LIA定义了<strong>20多种可单独配置的LLM类型</strong>：路由器、响应、规划器、每个领域智能体等。对于每种类型，您可以定义：<code>provider</code>、<code>model</code>、<code>temperature</code>、<code>top_p</code>、<code>frequency_penalty</code>、<code>presence_penalty</code>、<code>max_tokens</code>、<code>timeout</code>和<code>reasoning_effort</code>。</p><p>例如：</p><ul><li>快速经济的模型用于<strong>路由</strong>（gpt-4.1-mini）</li><li>强大的模型用于<strong>规划</strong>（claude-sonnet-4-5）</li><li>创意模型用于<strong>响应</strong>（gpt-4.1）</li><li>本地模型用于<strong>隐私保护</strong>（Ollama）</li></ul><h2>配置解析链</h2><p>每个LLM的配置遵循<strong>3级解析链</strong>：管理界面（存储在数据库中）→ 环境变量 → 代码默认值。<code>LLMConfigOverrideCache</code>缓存提供O(1)查找，运行时无需数据库查询。通过管理界面的修改由于缓存失效而<strong>立即生效</strong>。</p><h2>多供应商LLM工厂</h2><p>所有供应商统一入口：</p><pre><code class=\"language-python\">def get_llm(\n    llm_type: LLMType,\n    config_override: LLMAgentConfig | None = None,\n) -&gt; BaseChatModel:\n    if config_override is None:\n        agent_config = get_llm_config_for_agent(\n            settings, llm_type\n        )\n    else:\n        agent_config = config_override\n\n    return ProviderAdapter.create_llm(agent_config)\n\n# 使用示例\nrouter_llm = get_llm(\"router\")        # gpt-4.1-mini\nplanner_llm = get_llm(\"planner\")      # claude-sonnet-4-5\nresponse_llm = get_llm(\"response\")    # gpt-4.1</code></pre><h2>API密钥安全</h2><p>供应商的API密钥在存储到数据库之前通过<strong>Fernet</strong>（AES-128 CBC + HMAC）<strong>加密</strong>。任何密钥都不会以明文形式出现在日志或API响应中。</p><h2>推理模型</h2><p>LIA支持推理模型（o1、o3、Claude extended thinking），提供5级<code>reasoning_effort</code>：<code>none</code>、<code>low</code>、<code>medium</code>、<code>high</code>和<code>xhigh</code>。这允许仅在需要时启用深度推理，优化成本/性能比。</p><h2>使用Ollama本地部署</h2><p>为了最大程度的隐私保护，LIA可以通过Ollama完全在本地运行。没有任何数据离开您的基础设施。只需将配置变量指向您的本地Ollama实例即可。</p>"
+        "title": "多供应商AI：为每个任务选择合适的模型",
+        "excerpt": "LIA支持众多供应商，允许为每种任务类型配置不同的模型。",
+        "body": "<h2>众多供应商，一个助手</h2><p>LIA原生集成多个LLM供应商，涵盖<strong>云端专有模型</strong>、<strong>开源模型</strong>和<strong>本地模型</strong>。每个供应商由LLM工厂中的专用适配器管理。</p><h2>20+种可单独配置的LLM类型</h2><p>LIA定义了<strong>20多种可单独配置的LLM类型</strong>：路由器、响应、规划器、每个领域智能体等。对于每种类型，您可以定义：<code>provider</code>、<code>model</code>、<code>temperature</code>、<code>top_p</code>、<code>frequency_penalty</code>、<code>presence_penalty</code>、<code>max_tokens</code>、<code>timeout</code>和<code>reasoning_effort</code>。</p><p>例如：</p><ul><li>快速经济的模型用于<strong>路由</strong></li><li>强大的模型用于<strong>规划</strong></li><li>创意模型用于<strong>响应</strong></li><li>本地模型用于<strong>隐私保护</strong></li></ul><h2>配置解析链</h2><p>每个LLM的配置遵循<strong>3级解析链</strong>：管理界面（存储在数据库中）→ 环境变量 → 代码默认值。<code>LLMConfigOverrideCache</code>缓存提供O(1)查找，运行时无需数据库查询。通过管理界面的修改由于缓存失效而<strong>立即生效</strong>。</p><h2>多供应商LLM工厂</h2><p>所有供应商统一入口：</p><pre><code class=\"language-python\">def get_llm(\n    llm_type: LLMType,\n    config_override: LLMAgentConfig | None = None,\n) -&gt; BaseChatModel:\n    if config_override is None:\n        agent_config = get_llm_config_for_agent(\n            settings, llm_type\n        )\n    else:\n        agent_config = config_override\n\n    return ProviderAdapter.create_llm(agent_config)\n\n# 使用示例\nrouter_llm = get_llm(\"router\")        # 轻量级路由模型\nplanner_llm = get_llm(\"planner\")      # 强大规划模型\nresponse_llm = get_llm(\"response\")    # 创意响应模型</code></pre><h2>API密钥安全</h2><p>供应商的API密钥在存储到数据库之前通过<strong>Fernet</strong>（AES-128 CBC + HMAC）<strong>加密</strong>。任何密钥都不会以明文形式出现在日志或API响应中。</p><h2>推理模型</h2><p>LIA支持具备深度推理能力的模型，提供5级<code>reasoning_effort</code>：<code>none</code>、<code>low</code>、<code>medium</code>、<code>high</code>和<code>xhigh</code>。这允许仅在需要时启用深度推理，优化成本/性能比。</p><h2>100%本地部署</h2><p>为了最大程度的隐私保护，LIA可以完全在本地运行，使用本地模型供应商。没有任何数据离开您的基础设施。只需将配置变量指向您的本地模型实例即可。</p>"
       },
       "google-workspace": {
         "title": "Google Workspace集成：Gmail、Calendar、Contacts、Drive、Tasks",
@@ -4205,7 +4238,7 @@
       "voice-mode": {
         "title": "语音模式：像与个人助手一样与LIA对话",
         "excerpt": "LIA通过唤醒词、按住说话和离线语音识别理解您的声音。",
-        "body": "<h2>三种激活模式</h2><p>LIA支持三种语音交互方式：</p><ul><li><strong>唤醒词</strong> — 说\"OK Guy\"激活监听。检测基于在浏览器端通过WASM执行的<strong>VAD + Whisper转录 + 关键词匹配</strong>管线（Sherpa-onnx）。唤醒词检测不会将任何音频数据发送出浏览器。</li><li><strong>按住说话</strong> — 按住麦克风按钮说话</li><li><strong>语音活动自动检测（VAD）</strong> — 静默1秒后自动停止监听</li></ul><h2>离线语音识别（STT）</h2><p>语音转文本使用服务端的<strong>Sherpa-onnx Whisper Small INT8</strong>，<strong>16 kHz单声道</strong>模式。该模型支持<strong>99+种语言</strong>，完全离线运行——没有任何音频数据发送给第三方服务。INT8量化在CPU上提供了精度和性能的出色平衡。</p><h2>自然语音合成（TTS）</h2><p>LIA提供两个级别的语音合成质量：</p><ul><li><strong>Edge TTS（标准）</strong> — Microsoft神经网络语音，免费，丰富的语音和语言选择。默认使用。</li><li><strong>TTS HD（高级）</strong> — 可选<strong>OpenAI TTS</strong>或<strong>Google Gemini TTS</strong>，提供更自然和富有表现力的语音。</li></ul><p>支持的音频格式：<strong>MP3、Opus、AAC、FLAC、WAV和PCM</strong>。格式根据浏览器能力自动选择。</p><h2>语音评论</h2><p>LIA可以为其文本回复添加简短的<strong>语音评论</strong>。这些评论由<strong>gpt-4.1-nano</strong>生成，最多<strong>6句话</strong>，温度为<strong>0.7</strong>，以获得自然多变的语调。它们增添了个人化的风格，而不会加重回复负担。</p><h2>实时架构</h2><p>音频通过WebSocket流传输以实现最低延迟。BFF（Backend-for-Frontend）票证系统使用一次性Token（有效期60秒）保护连接安全。</p>"
+        "body": "<h2>三种激活模式</h2><p>LIA支持三种语音交互方式：</p><ul><li><strong>唤醒词</strong> — 说\"OK Guy\"激活监听。检测基于在浏览器端通过WASM执行的<strong>VAD + 语音转录 + 关键词匹配</strong>管线。唤醒词检测不会将任何音频数据发送出浏览器。</li><li><strong>按住说话</strong> — 按住麦克风按钮说话</li><li><strong>语音活动自动检测（VAD）</strong> — 静默1秒后自动停止监听</li></ul><h2>离线语音识别（STT）</h2><p>语音转文本使用服务端的<strong>离线语音识别引擎（Whisper Small INT8）</strong>，<strong>16 kHz单声道</strong>模式。该模型支持<strong>99+种语言</strong>，完全离线运行——没有任何音频数据发送给第三方服务。INT8量化在CPU上提供了精度和性能的出色平衡。</p><h2>自然语音合成（TTS）</h2><p>LIA提供两个级别的语音合成质量：</p><ul><li><strong>标准TTS — 免费神经网络语音</strong>，丰富的语音和语言选择。默认使用。</li><li><strong>TTS HD（高级）</strong> — 可选<strong>高级TTS供应商</strong>，提供更自然和富有表现力的语音。</li></ul><p>支持的音频格式：<strong>MP3、Opus、AAC、FLAC、WAV和PCM</strong>。格式根据浏览器能力自动选择。</p><h2>语音评论</h2><p>LIA可以为其文本回复添加简短的<strong>语音评论</strong>。这些评论由<strong>轻量级LLM模型</strong>生成，最多<strong>6句话</strong>，温度为<strong>0.7</strong>，以获得自然多变的语调。它们增添了个人化的风格，而不会加重回复负担。</p><h2>实时架构</h2><p>音频通过WebSocket流传输以实现最低延迟。BFF（Backend-for-Frontend）票证系统使用一次性Token（有效期60秒）保护连接安全。</p>"
       },
       "knowledge-spaces": {
         "title": "知识空间：将文档转化为AI智能",
@@ -4215,7 +4248,7 @@
       "personal-journals": {
         "title": "个人日志：当您的AI助手发展自己的记忆",
         "excerpt": "LIA保持主题日志，记录反思、观察和分析，影响其推理和回应。",
-        "body": "<h2>内省记忆</h2><p>个人日志是LIA的独特功能：助手维护<strong>主题个人日志</strong>，记录关于用户的反思、观察、想法和学习。这些笔记随时间推移丰富其推理并个性化其回复。</p><h2>4个主题</h2><p>每个条目归入4个主题之一：</p><ul><li><strong>SELF_REFLECTION</strong> — 对自身运作和交互的反思</li><li><strong>USER_OBSERVATIONS</strong> — 关于您的偏好、习惯和需求的记录</li><li><strong>IDEAS_ANALYSES</strong> — 联系、洞察和跨领域分析</li><li><strong>LEARNINGS</strong> — 从交互中获得的经验教训和新知识</li></ul><h2>5种心情</h2><p>每个条目带有反映助手内省状态的心情：<strong>REFLECTIVE</strong>（反思）、<strong>CURIOUS</strong>（好奇）、<strong>SATISFIED</strong>（满意）、<strong>CONCERNED</strong>（担忧）或<strong>INSPIRED</strong>（受启发）。</p><h2>3种写作来源</h2><p>条目来自三个不同的来源：</p><ul><li><strong>CONVERSATION</strong> — 对话后自动提取。内省分析最后一条消息加<strong>4条上下文消息</strong>，并加载<strong>10条近期条目</strong>以确保连续性并避免重复。</li><li><strong>CONSOLIDATION</strong> — 每<strong>4小时</strong>的定期综合，冷却期为<strong>12小时</strong>，最少<strong>3条条目</strong>才触发整合。</li><li><strong>MANUAL</strong> — 用户通过界面直接创建的条目。</li></ul><h2>基于Embeddings的语义搜索</h2><p>日志条目通过<strong>E5-small</strong>（384维）Embeddings索引，用于语义搜索。这允许通过语义相似性找到相关条目，即使确切用词不同。</p><h2>对回复的影响</h2><p>相关条目通过语义搜索注入到规划器和响应节点的提示中。LIA接收带有相似度分数的条目，自行决定使用哪些。</p><h2>数据完整性</h2><p>LLM在更新或删除日志条目时可能会产生UUID幻觉。LIA通过<strong>三层防护</strong>进行保护：带有ID参考表的提示指导、拒绝格式错误UUID的架构验证，以及静默丢弃引用不存在条目操作的运行时过滤。这确保了即使LLM出错，日志数据也能保持一致。</p><h2>调试可见性</h2><p>调试面板同时显示<strong>上下文注入</strong>（哪些条目被检索并注入到提示中，带有相似度分数）和<strong>后台提取</strong>（助手在对话后写了什么——操作类型、主题、标题、心情）。提取数据通过后台处理完成后的补充SSE事件到达。</p><h2>用户控制</h2><p>您可以在设置 > 功能中阅读、编辑和导出日志。该功能可按用户完全禁用。</p>"
+        "body": "<h2>内省记忆</h2><p>个人日志是LIA的独特功能：助手维护<strong>主题个人日志</strong>，记录关于用户的反思、观察、想法和学习。这些笔记随时间推移丰富其推理并个性化其回复。</p><h2>4个主题</h2><p>每个条目归入4个主题之一：</p><ul><li><strong>SELF_REFLECTION</strong> — 对自身运作和交互的反思</li><li><strong>USER_OBSERVATIONS</strong> — 关于您的偏好、习惯和需求的记录</li><li><strong>IDEAS_ANALYSES</strong> — 联系、洞察和跨领域分析</li><li><strong>LEARNINGS</strong> — 从交互中获得的经验教训和新知识</li></ul><h2>5种心情</h2><p>每个条目带有反映助手内省状态的心情：<strong>REFLECTIVE</strong>（反思）、<strong>CURIOUS</strong>（好奇）、<strong>SATISFIED</strong>（满意）、<strong>CONCERNED</strong>（担忧）或<strong>INSPIRED</strong>（受启发）。</p><h2>3种写作来源</h2><p>条目来自三个不同的来源：</p><ul><li><strong>CONVERSATION</strong> — 对话后自动提取。内省分析最后一条消息加<strong>4条上下文消息</strong>，并加载<strong>10条近期条目</strong>以确保连续性并避免重复。</li><li><strong>CONSOLIDATION</strong> — 每<strong>4小时</strong>的定期综合，冷却期为<strong>12小时</strong>，最少<strong>3条条目</strong>才触发整合。</li><li><strong>MANUAL</strong> — 用户通过界面直接创建的条目。</li></ul><h2>基于Embeddings的语义搜索</h2><p>日志条目通过<strong>轻量级</strong>（384维）Embeddings索引，用于语义搜索。这允许通过语义相似性找到相关条目，即使确切用词不同。</p><h2>对回复的影响</h2><p>相关条目通过语义搜索注入到规划器和响应节点的提示中。LIA接收带有相似度分数的条目，自行决定使用哪些。</p><h2>数据完整性</h2><p>LLM在更新或删除日志条目时可能会产生UUID幻觉。LIA通过<strong>三层防护</strong>进行保护：带有ID参考表的提示指导、拒绝格式错误UUID的架构验证，以及静默丢弃引用不存在条目操作的运行时过滤。这确保了即使LLM出错，日志数据也能保持一致。</p><h2>调试可见性</h2><p>调试面板同时显示<strong>上下文注入</strong>（哪些条目被检索并注入到提示中，带有相似度分数）和<strong>后台提取</strong>（助手在对话后写了什么——操作类型、主题、标题、心情）。提取数据通过后台处理完成后的补充SSE事件到达。</p><h2>用户控制</h2><p>您可以在设置 > 功能中阅读、编辑和导出日志。该功能可按用户完全禁用。</p>"
       },
       "proactive-notifications": {
         "title": "Heartbeat：主动的上下文感知通知",

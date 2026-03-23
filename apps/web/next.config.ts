@@ -79,14 +79,14 @@ const nextConfig: NextConfig = {
           },
           // COOP/COEP headers for WASM SharedArrayBuffer (Sherpa-onnx voice mode)
           // Note: OAuth uses redirect flow (not popups), so COOP won't break auth
-          // Using credentialless so MCP App iframes can load external resources
-          // (esm.sh CDN, fonts, etc.) without requiring CORP headers on every asset.
-          // Trade-off: Safari iOS doesn't enable crossOriginIsolated with credentialless,
-          // so SharedArrayBuffer (wake-word detection) is unavailable on Safari iOS only.
-          // Chrome/Firefox/Edge: both MCP Apps and SharedArrayBuffer work fine.
+          // require-corp enables crossOriginIsolated on ALL browsers including Safari iOS.
+          // Cross-origin resources (Google Fonts, Google profile images) are handled via:
+          // - Google Fonts: crossOrigin="anonymous" attribute (CORS-enabled by Google)
+          // - Google profile images: proxied via /api/v1/auth/profile-image-proxy
+          // - MCP App iframes: use srcDoc (inline), no cross-origin fetch needed
           {
             key: 'Cross-Origin-Embedder-Policy',
-            value: 'credentialless'
+            value: 'require-corp'
           },
           {
             key: 'Cross-Origin-Opener-Policy',

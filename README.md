@@ -35,7 +35,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.9.6</strong> — Unified LLM Tracking, Debug Panel LLM Pipeline — March 2026
+  <strong>Version 1.10.0</strong> — Voice Mode: Push-to-Talk & Wake Word Optimization, Per-User STT Language — March 2026
 </p>
 
 ---
@@ -159,7 +159,15 @@ LIA is available as a hosted service at **https://lia.jeyswork.com/** — no ins
 - **Parallel Execution**: asyncio.gather for independent domains
 - **Intelligent Context Compaction**: LLM-based conversation history summarization when token count exceeds dynamic threshold (ratio of response model context window). Preserves identifiers (UUIDs, URLs, emails). `/resume` command for manual trigger. 4 HITL safety conditions prevent compaction during active approval flows
 
-### Voice TTS Dual-Mode
+### Voice: Input & Output
+
+**Voice Input (STT)**
+- **Push-to-Talk**: Hold microphone button to speak, release to transcribe. Optimized for mobile (anti-long-press CSS, touch gesture handling)
+- **Wake Word**: Say "OK Guy" to activate hands-free recording. Sherpa-onnx WASM (Whisper Tiny.en) runs entirely in-browser — no audio sent externally for wake word detection
+- **Per-User Language**: STT transcription uses the user's preferred language setting (Whisper Small, 99+ languages, fully offline)
+- **Latency Optimized**: Mic stream reuse, WebSocket pre-warming, parallel setup, cached AudioWorklet (~50-100ms wake-to-record)
+
+**Voice Output (TTS)**
 
 | Mode | Provider | Cost | Quality |
 |------|----------|------|---------|

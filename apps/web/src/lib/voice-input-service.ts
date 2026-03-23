@@ -105,6 +105,14 @@ export class VoiceInputService {
   }
 
   /**
+   * Update callbacks for an existing service instance.
+   * Used when reusing a pre-warmed service whose original callbacks may be stale.
+   */
+  updateCallbacks(config: VoiceInputServiceConfig): void {
+    this.config = config;
+  }
+
+  /**
    * Check if WebSocket is currently connected.
    */
   get isConnected(): boolean {

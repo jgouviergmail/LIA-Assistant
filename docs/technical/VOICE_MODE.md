@@ -423,15 +423,21 @@ okay guys
 
 ### Modèles WASM
 
+Downloaded via `scripts/download-sherpa-wasm.sh` (or automatically during Docker build):
+
 ```
 apps/web/public/models/sherpa-wasm/
-├── app-vad-asr.js
-├── sherpa-onnx-asr.js
-├── sherpa-onnx-vad.js
-└── sherpa-onnx-wasm-main-vad-asr.js
+├── sherpa-onnx-vad.js                    (~8KB)   - VAD + CircularBuffer API
+├── sherpa-onnx-asr.js                    (~52KB)  - OfflineRecognizer API
+├── sherpa-onnx-wasm-main-vad-asr.js      (~96KB)  - Emscripten main module
+├── sherpa-onnx-wasm-main-vad-asr.wasm    (~12MB)  - WASM binary (SIMD)
+├── sherpa-onnx-wasm-main-vad-asr.data    (~100MB) - Bundled Silero VAD + Whisper Tiny.en
+└── app-vad-asr.js                        (optional - demo file)
 ```
 
-**Prérequis navigateur** : `SharedArrayBuffer` (requires COOP/COEP headers).
+**Setup**: `scripts/setup-dev.sh` (dev) or `Dockerfile.prod` model-downloader stage (prod).
+
+**Prérequis navigateur** : `SharedArrayBuffer` (requires `COEP: require-corp` + `COOP: same-origin` headers, configured in `next.config.ts`). Supported on all modern browsers including Safari iOS.
 
 ---
 
@@ -446,7 +452,7 @@ Algorithme energy-based pour détecter la fin de parole :
 ```typescript
 class VoiceActivityDetector {
   private readonly energyThreshold = 0.02;
-  private readonly silenceMs = 1000;
+  private readonly silenceMs = 750;  // VOICE_MODE_VAD_SILENCE_MS
   private readonly minSpeechMs = 500;
 
   process(samples: Float32Array): void {
@@ -745,6 +751,35 @@ Ajouter les headers COOP/COEP dans `next.config.ts`.
 - [ADR-050: Voice Domain TTS Architecture](../architecture/ADR-050-Voice-Domain-TTS-Architecture.md)
 - [ADR-054: Voice Input Architecture](../architecture/ADR-054-Voice-Input-Architecture.md)
 - [Sherpa-onnx](https://k2-fsa.github.io/sherpa/onnx/)
+
+---
+
+## Latency Optimizations
+
+### Push-to-Talk (`useVoiceInput`)
+
+| Optimization | Technique | Gain |
+|-------------|-----------|------|
+| WS pre-warm | `VoiceInputService` connected in background during idle state | ~100-400ms |
+| Parallel setup | `Promise.allSettled([getUserMedia, service.connect()])` | ~100-300ms |
+| Worklet cache | Blob URL created once via `useRef`, reused across recordings | ~20-50ms |
+| Cancel support | `cancelledRef` allows aborting during 'connecting' state | UX |
+| Setup timeout | `VOICE_RECORDING_SETUP_TIMEOUT_MS` (10s) prevents indefinite blocking | Reliability |
+
+### Voice Mode Wake Word (`useVoiceMode`)
+
+| Optimization | Technique | Gain |
+|-------------|-----------|------|
+| Stream reuse | KWS mic stream transferred to recording (skip `getUserMedia`) | ~200-800ms |
+| WS pre-warm | Service pre-connected during listening state | ~100-300ms |
+| Parallel fallback | `Promise.allSettled` when stream reuse unavailable | ~100-300ms |
+| Worklet cache | Same as push-to-talk | ~20-50ms |
+| VAD tuning | Silence threshold reduced from 1000ms to 750ms | ~250ms perceived |
+| Ready chime | Auditory feedback via Web Audio API oscillators (C5→E5 major third) | UX |
+
+### Per-User STT Language
+
+The user's preferred language (stored in `user.language` DB column) is passed through the WebSocket ticket to the backend STT service. `SherpaSttService` maintains a cache of `OfflineRecognizer` instances keyed by language code, so each user gets Whisper transcription biased to their language.
 
 ---
 

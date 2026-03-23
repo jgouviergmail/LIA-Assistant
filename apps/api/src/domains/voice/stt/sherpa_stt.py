@@ -23,10 +23,11 @@ Updated: 2026-02-01 - Migrated from SenseVoice to Whisper for French support
 """
 
 import asyncio
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from functools import lru_cache
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from src.core.config import get_settings
 from src.core.constants import STT_EXECUTOR_MAX_WORKERS, STT_EXECUTOR_THREAD_PREFIX
@@ -65,15 +66,17 @@ class SherpaSttService:
     Supports: French, English, German, Spanish, Italian, Chinese, and more.
 
     Thread-safe via ThreadPoolExecutor for async operations.
-    Each instance holds its own recognizer for isolation.
+    Maintains a cache of recognizers keyed by language code so that each
+    user's preferred language is used as a Whisper language hint, improving
+    transcription accuracy.
 
     Attributes:
-        _recognizer: Sherpa-onnx OfflineRecognizer instance
+        _recognizers: Dict of language → OfflineRecognizer instances
         _sample_rate: Expected audio sample rate (16000 Hz)
 
     Example:
         stt = get_stt_service()
-        text = await stt.transcribe_async(audio_float_samples)
+        text = await stt.transcribe_async(audio_float_samples, language="fr")
     """
 
     def __init__(self, settings: "Settings") -> None:
@@ -89,6 +92,8 @@ class SherpaSttService:
         # Lazy import to avoid import errors when sherpa_onnx not installed
         try:
             import sherpa_onnx
+
+            self._sherpa_onnx = sherpa_onnx
         except ImportError as e:
             logger.error(
                 "sherpa_onnx_import_failed",
@@ -111,27 +116,32 @@ class SherpaSttService:
             raise_stt_model_not_found(str(model_path))
 
         # Validate required Whisper model files
-        encoder_file = model_path / "encoder.onnx"
-        decoder_file = model_path / "decoder.onnx"
-        tokens_file = model_path / "tokens.txt"
+        self._encoder_file = model_path / "encoder.onnx"
+        self._decoder_file = model_path / "decoder.onnx"
+        self._tokens_file = model_path / "tokens.txt"
 
-        if not encoder_file.exists():
-            raise_stt_model_not_found(str(encoder_file))
-        if not decoder_file.exists():
-            raise_stt_model_not_found(str(decoder_file))
-        if not tokens_file.exists():
-            raise_stt_model_not_found(str(tokens_file))
+        if not self._encoder_file.exists():
+            raise_stt_model_not_found(str(self._encoder_file))
+        if not self._decoder_file.exists():
+            raise_stt_model_not_found(str(self._decoder_file))
+        if not self._tokens_file.exists():
+            raise_stt_model_not_found(str(self._tokens_file))
 
-        # Initialize recognizer with Whisper model
-        # Whisper supports 99+ languages including French
-        self._recognizer = sherpa_onnx.OfflineRecognizer.from_whisper(
-            encoder=str(encoder_file),
-            decoder=str(decoder_file),
-            tokens=str(tokens_file),
-            num_threads=settings.voice_stt_num_threads,
-            language=settings.voice_stt_language,
-            task=settings.voice_stt_task,
-        )
+        # Store settings for recognizer creation
+        self._num_threads = settings.voice_stt_num_threads
+        self._default_language = settings.voice_stt_language
+        self._task = settings.voice_stt_task
+
+        # Cache of recognizers keyed by language code (thread-safe)
+        # Each language gets its own recognizer with the appropriate language hint.
+        # Whisper uses the language parameter to bias transcription output.
+        # Type is Any because sherpa_onnx is imported dynamically at runtime
+        # and has no official Python type stubs (see github.com/k2-fsa/sherpa-onnx).
+        self._recognizers: dict[str, Any] = {}
+        self._recognizers_lock = threading.Lock()
+
+        # Pre-initialize the default language recognizer
+        self._get_recognizer(self._default_language)
 
         self._sample_rate = 16000  # Sherpa-onnx requires 16kHz
         self._max_duration = settings.voice_stt_max_duration_seconds
@@ -140,13 +150,53 @@ class SherpaSttService:
             "stt_service_initialized",
             model="whisper-small",
             model_path=str(model_path),
-            num_threads=settings.voice_stt_num_threads,
-            language=settings.voice_stt_language or "auto-detect",
-            task=settings.voice_stt_task,
+            num_threads=self._num_threads,
+            default_language=self._default_language or "auto-detect",
+            task=self._task,
             max_duration_seconds=self._max_duration,
         )
 
-    def transcribe(self, audio_samples: list[float], sample_rate: int = 16000) -> str:
+    def _get_recognizer(self, language: str) -> Any:
+        """
+        Get or create an OfflineRecognizer for the given language.
+
+        Recognizers are cached by language code. Thread-safe via lock.
+
+        Args:
+            language: ISO 639-1 language code (e.g. 'fr', 'en', 'de').
+                      Empty string means auto-detect.
+
+        Returns:
+            Sherpa-onnx OfflineRecognizer instance for the requested language
+        """
+        with self._recognizers_lock:
+            if language in self._recognizers:
+                return self._recognizers[language]
+
+            recognizer = self._sherpa_onnx.OfflineRecognizer.from_whisper(
+                encoder=str(self._encoder_file),
+                decoder=str(self._decoder_file),
+                tokens=str(self._tokens_file),
+                num_threads=self._num_threads,
+                language=language,
+                task=self._task,
+            )
+            self._recognizers[language] = recognizer
+
+            logger.info(
+                "stt_recognizer_created",
+                language=language or "auto-detect",
+                total_recognizers=len(self._recognizers),
+            )
+
+            return recognizer
+
+    def transcribe(
+        self,
+        audio_samples: list[float],
+        sample_rate: int = 16000,
+        language: str = "",
+    ) -> str:
         """
         Transcribe audio samples to text (SYNCHRONOUS).
 
@@ -156,6 +206,8 @@ class SherpaSttService:
         Args:
             audio_samples: PCM float samples normalized [-1.0, 1.0]
             sample_rate: Audio sample rate (must be 16000)
+            language: ISO 639-1 language code for transcription hint.
+                      Empty string means auto-detect (default).
 
         Returns:
             Transcribed text (may be empty if no speech detected)
@@ -179,13 +231,17 @@ class SherpaSttService:
                 max_seconds=self._max_duration,
             )
 
+        # Use language-specific or default recognizer
+        effective_language = language or self._default_language
+        recognizer = self._get_recognizer(effective_language)
+
         try:
             # Create stream and feed audio
-            stream = self._recognizer.create_stream()
+            stream = recognizer.create_stream()
             stream.accept_waveform(sample_rate, audio_samples)
 
             # Decode
-            self._recognizer.decode_stream(stream)
+            recognizer.decode_stream(stream)
 
             # Get result
             text: str = stream.result.text.strip()
@@ -199,6 +255,7 @@ class SherpaSttService:
                 error=str(e),
                 error_type=type(e).__name__,
                 audio_samples_count=len(audio_samples),
+                language=effective_language or "auto-detect",
             )
             raise_stt_error(
                 detail=f"Transcription failed: {e}",
@@ -209,6 +266,7 @@ class SherpaSttService:
         self,
         audio_samples: list[float],
         sample_rate: int = 16000,
+        language: str = "",
     ) -> str:
         """
         Transcribe audio samples to text (ASYNC, non-blocking).
@@ -219,6 +277,8 @@ class SherpaSttService:
         Args:
             audio_samples: PCM float samples normalized [-1.0, 1.0]
             sample_rate: Audio sample rate (must be 16000)
+            language: ISO 639-1 language code for transcription hint.
+                      Empty string means auto-detect (default).
 
         Returns:
             Transcribed text (may be empty if no speech detected)
@@ -238,6 +298,7 @@ class SherpaSttService:
                     self.transcribe,
                     audio_samples,
                     sample_rate,
+                    language,
                 )
 
             stt_transcriptions_total.labels(status="success").inc()

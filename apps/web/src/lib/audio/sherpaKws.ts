@@ -294,7 +294,14 @@ function isScriptInDOM(src: string): boolean {
 }
 
 /**
- * Load a script file and return a promise.
+ * Load a script file and execute it in the global scope.
+ *
+ * Uses fetch + indirect eval to ensure top-level `class` declarations
+ * become global properties (accessible on `window`). Direct `<script>` tags
+ * in strict mode do NOT put `class` declarations on `window`, only `function`
+ * declarations. The sherpa-onnx helper scripts declare `class CircularBuffer`
+ * and `class Vad` which must be globally accessible.
+ *
  * Skips if script was already loaded (prevents duplicate global declarations).
  * Also checks DOM to handle React Strict Mode re-mounts.
  */
@@ -312,24 +319,54 @@ function loadScript(src: string): Promise<void> {
     return Promise.resolve();
   }
 
-  return new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = src;
-    script.async = true;
-    script.onload = () => {
+  return (async () => {
+    try {
+      const response = await fetch(src);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status} for ${src}`);
+      }
+      const code = await response.text();
+
+      // Execute the script via a classic <script> tag with inline content.
+      // This is equivalent to loading via src but avoids CORS issues with eval.
+      // Top-level `function` declarations become window properties automatically.
+      // Top-level `class` declarations do NOT become window properties in strict mode,
+      // so we append a shim that explicitly assigns known exports to window.
+      const shimmedCode = code + `
+;if (typeof createVad === 'function' && typeof window !== 'undefined') { window.createVad = createVad; }
+;if (typeof CircularBuffer === 'function' && typeof window !== 'undefined') { window.CircularBuffer = CircularBuffer; }
+;if (typeof OfflineRecognizer === 'function' && typeof window !== 'undefined') { window.OfflineRecognizer = OfflineRecognizer; }
+;if (typeof createOnlineRecognizer === 'function' && typeof window !== 'undefined') { window.createOnlineRecognizer = createOnlineRecognizer; }
+`;
+
+      // Use a blob script tag to execute in global scope (not module scope)
+      const blob = new Blob([shimmedCode], { type: 'application/javascript' });
+      const blobUrl = URL.createObjectURL(blob);
+
+      await new Promise<void>((res, rej) => {
+        const scriptEl = document.createElement('script');
+        scriptEl.src = blobUrl;
+        scriptEl.onload = () => {
+          URL.revokeObjectURL(blobUrl);
+          res();
+        };
+        scriptEl.onerror = (err) => {
+          URL.revokeObjectURL(blobUrl);
+          rej(new Error(`Failed to execute script: ${src} (${String(err)})`));
+        };
+        document.head.appendChild(scriptEl);
+      });
+
       loadedScripts.add(src);
       logger.debug('sherpa_script_loaded', { component: 'sherpaKws', src });
-      resolve();
-    };
-    script.onerror = error => {
-      logger.error('sherpa_script_load_failed', new Error(String(error)), {
+    } catch (error) {
+      logger.error('sherpa_script_load_failed', error instanceof Error ? error : new Error(String(error)), {
         component: 'sherpaKws',
         src,
       });
-      reject(new Error(`Failed to load script: ${src}`));
-    };
-    document.head.appendChild(script);
-  });
+      throw new Error(`Failed to load script: ${src}`);
+    }
+  })();
 }
 
 /**

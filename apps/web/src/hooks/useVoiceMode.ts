@@ -44,6 +44,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { logger } from '@/lib/logger';
 import { VoiceInputService } from '@/lib/voice-input-service';
 import { VoiceActivityDetector } from '@/lib/audio/vad';
+import { playReadyChime } from '@/lib/audio/ready-chime';
 import { useSherpaKws } from '@/hooks/useSherpaKws';
 import { isSherpaKwsSupported } from '@/lib/audio/sherpaKws';
 import { useVoiceModeStore, type VoiceModeState } from '@/stores/voiceModeStore';
@@ -51,6 +52,7 @@ import {
   VOICE_INPUT_SAMPLE_RATE,
   VOICE_INPUT_CHUNK_SIZE,
   VOICE_MODE_MAX_RECORDING_SECONDS,
+  VOICE_RECORDING_SETUP_TIMEOUT_MS,
 } from '@/lib/constants';
 
 // ============================================================================
@@ -154,6 +156,12 @@ export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeRet
   // Ref to hold handleSpeechEnd callback to avoid stale closure in VAD
   const handleSpeechEndRef = useRef<(() => void) | null>(null);
 
+  // Tracks whether current recording was triggered by wake word (for audio chime)
+  const wakeWordTriggeredRef = useRef(false);
+
+  // Pre-warmed VoiceInputService (connected during listening state for lower latency)
+  const prewarmedServiceRef = useRef<VoiceInputService | null>(null);
+
   // Derived states
   const isRecording = state === 'recording';
   const isProcessing = state === 'processing';
@@ -246,6 +254,40 @@ export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeRet
       kwsAudioContextRef.current.close().catch(() => {});
       kwsAudioContextRef.current = null;
     }
+  }, [setKwsListening]);
+
+  /**
+   * Pause KWS audio but KEEP the media stream alive for reuse by recording.
+   * Disconnects audio nodes and closes AudioContext, but does NOT stop the
+   * MediaStream tracks. The caller is responsible for stopping or reusing the stream.
+   *
+   * Returns the preserved MediaStream (or null if none was active).
+   */
+  const pauseKwsAudioAndStealStream = useCallback((): MediaStream | null => {
+    setKwsListening(false);
+
+    // Disconnect KWS audio nodes
+    if (kwsSourceNodeRef.current) {
+      kwsSourceNodeRef.current.disconnect();
+      kwsSourceNodeRef.current = null;
+    }
+
+    if (kwsWorkletNodeRef.current) {
+      kwsWorkletNodeRef.current.disconnect();
+      kwsWorkletNodeRef.current = null;
+    }
+
+    // Take ownership of the media stream (do NOT stop tracks)
+    const stream = kwsMediaStreamRef.current;
+    kwsMediaStreamRef.current = null;
+
+    // Close KWS audio context
+    if (kwsAudioContextRef.current) {
+      kwsAudioContextRef.current.close().catch(() => {});
+      kwsAudioContextRef.current = null;
+    }
+
+    return stream;
   }, [setKwsListening]);
 
   /**
@@ -366,11 +408,14 @@ export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeRet
    * Ref to hold startRecording function for KWS callback.
    * This avoids circular dependency between handleKeywordDetected and startRecording.
    */
-  const startRecordingRef = useRef<(() => Promise<void>) | null>(null);
+  const startRecordingRef = useRef<((existingStream?: MediaStream) => Promise<void>) | null>(null);
 
   /**
    * Handle wake word detection from KWS.
    * Triggered when user says "OK" (universal wake word).
+   *
+   * Optimization: transfers the KWS microphone stream to the recording pipeline
+   * instead of stopping it and acquiring a new one (saves ~200-800ms getUserMedia).
    */
   const handleKeywordDetected = useCallback(
     (keyword: string) => {
@@ -393,16 +438,19 @@ export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeRet
       // Record wake word event in store
       recordWakeWord();
 
+      // Mark as wake-word-triggered so startRecording plays the ready chime
+      wakeWordTriggeredRef.current = true;
+
       // Notify callback
       onWakeWordDetected?.(keyword);
 
-      // Stop KWS audio and start recording
-      cleanupKwsAudio();
+      // Pause KWS but keep the mic stream alive for reuse
+      const reusableStream = pauseKwsAudioAndStealStream();
 
-      // Start recording via ref (set after startRecording is defined)
-      startRecordingRef.current?.();
+      // Start recording, passing the existing stream to skip getUserMedia
+      startRecordingRef.current?.(reusableStream ?? undefined);
     },
-    [state, recordWakeWord, onWakeWordDetected, cleanupKwsAudio]
+    [state, recordWakeWord, onWakeWordDetected, pauseKwsAudioAndStealStream]
   );
 
   /**
@@ -438,9 +486,16 @@ export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeRet
   }, [kwsIsReady, kwsIsLoading, setKwsReady, setKwsLoading]);
 
   /**
-   * Create AudioWorklet processor script.
+   * Cached recording worklet blob URL (created once, reused across recordings).
    */
-  const createWorkletScript = useCallback((): string => {
+  const recordingWorkletUrlRef = useRef<string | null>(null);
+
+  /**
+   * Get or create AudioWorklet processor script as a cached Blob URL.
+   */
+  const getOrCreateRecordingWorkletUrl = useCallback((): string => {
+    if (recordingWorkletUrlRef.current) return recordingWorkletUrlRef.current;
+
     const workletCode = `
       class VoiceModeProcessor extends AudioWorkletProcessor {
         constructor() {
@@ -485,7 +540,8 @@ export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeRet
     `;
 
     const blob = new Blob([workletCode], { type: 'application/javascript' });
-    return URL.createObjectURL(blob);
+    recordingWorkletUrlRef.current = URL.createObjectURL(blob);
+    return recordingWorkletUrlRef.current;
   }, []);
 
   /**
@@ -520,8 +576,16 @@ export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeRet
 
   /**
    * Start recording.
+   *
+   * Optimizations:
+   * - Accepts an existing MediaStream to skip getUserMedia (~200-800ms saved
+   *   when wake word transfers the KWS mic stream)
+   * - Parallelizes getUserMedia + WS connect via Promise.allSettled
+   * - Uses cached worklet blob URL (avoids Blob creation each time)
+   *
+   * @param existingStream Optional MediaStream to reuse (from KWS wake word flow)
    */
-  const startRecording = useCallback(async () => {
+  const startRecording = useCallback(async (existingStream?: MediaStream) => {
     if (!isSupported) {
       handleError(new Error('Voice input is not supported in this browser'));
       return;
@@ -537,26 +601,95 @@ export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeRet
       cleanupService();
       cleanupAudio();
 
-      // Step 1: Get microphone
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          sampleRate: VOICE_INPUT_SAMPLE_RATE,
-          channelCount: 1,
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
-      });
-      mediaStreamRef.current = stream;
+      // Step 1: Reuse pre-warmed WS service or create new one
+      let service: VoiceInputService;
+      const prewarmed = prewarmedServiceRef.current;
+      prewarmedServiceRef.current = null; // Take ownership
 
-      // Step 2: Create WebSocket service
-      const service = new VoiceInputService({
-        onTranscription: handleTranscription,
-        onConnectionChange: handleConnectionChange,
-        onError: handleError,
-      });
+      if (prewarmed && prewarmed.isConnected) {
+        // Reuse pre-warmed service — WS already connected, skip ticket + handshake
+        service = prewarmed;
+        // Re-wire callbacks (they may reference stale closures from pre-warm time)
+        service.updateCallbacks({
+          onTranscription: handleTranscription,
+          onConnectionChange: handleConnectionChange,
+          onError: handleError,
+        });
+        logger.debug('voice_mode_service_prewarmed', { component: 'useVoiceMode' });
+      } else {
+        // Dispose stale pre-warmed service if any
+        prewarmed?.dispose();
+        service = new VoiceInputService({
+          onTranscription: handleTranscription,
+          onConnectionChange: handleConnectionChange,
+          onError: handleError,
+        });
+      }
       serviceRef.current = service;
-      await service.connect();
+
+      // Step 2: Get mic + connect WS (with timeout protection)
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(
+          () => reject(new Error('Voice recording setup timed out')),
+          VOICE_RECORDING_SETUP_TIMEOUT_MS,
+        );
+      });
+
+      let stream: MediaStream;
+
+      if (existingStream && existingStream.active) {
+        // Reuse KWS mic stream (wake word flow) — skip getUserMedia entirely
+        stream = existingStream;
+        if (!service.isConnected) {
+          await Promise.race([service.connect(), timeoutPromise]);
+        }
+
+        logger.debug('voice_mode_stream_reused', { component: 'useVoiceMode' });
+      } else {
+        // Stop the passed stream if it's inactive (safety)
+        if (existingStream) {
+          existingStream.getTracks().forEach(track => track.stop());
+        }
+
+        // Launch mic (+ WS connect if not pre-warmed) in parallel with timeout
+        const connectIfNeeded = service.isConnected
+          ? Promise.resolve()
+          : service.connect();
+
+        const setupPromise = Promise.allSettled([
+          navigator.mediaDevices.getUserMedia({
+            audio: {
+              sampleRate: VOICE_INPUT_SAMPLE_RATE,
+              channelCount: 1,
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true,
+            },
+          }),
+          connectIfNeeded,
+        ]);
+
+        const [streamResult, connectResult] = await Promise.race([
+          setupPromise,
+          timeoutPromise,
+        ]) as [PromiseSettledResult<MediaStream>, PromiseSettledResult<void>];
+
+        // Handle partial failures
+        if (streamResult.status === 'rejected' || connectResult.status === 'rejected') {
+          if (streamResult.status === 'fulfilled') {
+            streamResult.value.getTracks().forEach(track => track.stop());
+          }
+          const reason =
+            streamResult.status === 'rejected'
+              ? streamResult.reason
+              : (connectResult as PromiseRejectedResult).reason;
+          throw reason instanceof Error ? reason : new Error(String(reason));
+        }
+
+        stream = streamResult.value;
+      }
+
+      mediaStreamRef.current = stream;
 
       // Step 3: Create AudioContext
       const audioContext = new AudioContext({
@@ -565,17 +698,13 @@ export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeRet
       audioContextRef.current = audioContext;
 
       // Step 4: Create VAD
-      // Use ref wrapper to avoid stale closure issue - VAD captures the callback at creation
-      // time but we need it to always call the latest handleSpeechEnd
       vadRef.current = new VoiceActivityDetector(
         {},
         { onSpeechEnd: () => handleSpeechEndRef.current?.() }
       );
 
-      // Step 5: Create AudioWorklet
-      const workletUrl = createWorkletScript();
-      await audioContext.audioWorklet.addModule(workletUrl);
-      URL.revokeObjectURL(workletUrl);
+      // Step 5: Create AudioWorklet (uses cached blob URL)
+      await audioContext.audioWorklet.addModule(getOrCreateRecordingWorkletUrl());
 
       const workletNode = new AudioWorkletNode(audioContext, 'voice-mode-processor');
       workletNodeRef.current = workletNode;
@@ -603,11 +732,16 @@ export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeRet
       }, VOICE_MODE_MAX_RECORDING_SECONDS * 1000);
 
       setState('recording');
-      isStartingRef.current = false;
+
+      // Play ready chime when recording starts after wake word detection
+      // (not on manual tap — tap has instant visual feedback, no delay to signal)
+      if (wakeWordTriggeredRef.current) {
+        wakeWordTriggeredRef.current = false;
+        playReadyChime();
+      }
 
       logger.info('voice_mode_recording_started', { component: 'useVoiceMode' });
     } catch (err) {
-      isStartingRef.current = false;
       const error = err instanceof Error ? err : new Error(String(err));
 
       if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
@@ -615,6 +749,8 @@ export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeRet
       } else {
         handleError(error);
       }
+    } finally {
+      isStartingRef.current = false;
     }
     // stopRecording is intentionally omitted - it's defined after this callback
     // and captured at runtime via closure when setTimeout executes
@@ -627,7 +763,7 @@ export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeRet
     handleTranscription,
     handleConnectionChange,
     handleError,
-    createWorkletScript,
+    getOrCreateRecordingWorkletUrl,
     setState,
   ]);
 
@@ -681,6 +817,11 @@ export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeRet
     cleanupAudio();
     cleanupKwsAudio();
     cleanupService();
+    // Dispose pre-warmed service
+    if (prewarmedServiceRef.current) {
+      prewarmedServiceRef.current.dispose();
+      prewarmedServiceRef.current = null;
+    }
     storeDisable();
     logger.info('voice_mode_disabled', { component: 'useVoiceMode' });
   }, [cleanupAudio, cleanupKwsAudio, cleanupService, storeDisable]);
@@ -780,6 +921,30 @@ export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeRet
         // Mark KWS as actively listening (mic is open and processing)
         setKwsListening(true);
         logger.info('voice_mode_kws_listening_started', { component: 'useVoiceMode' });
+
+        // Pre-warm WebSocket service in background for lower recording latency.
+        // When wake word is detected, the WS is already connected — saves ~100-300ms.
+        // Non-blocking: if it fails, startRecording will create a new connection.
+        try {
+          if (!prewarmedServiceRef.current || !prewarmedServiceRef.current.isConnected) {
+            prewarmedServiceRef.current?.dispose();
+            const warmService = new VoiceInputService({
+              onTranscription: () => {},  // Placeholder — will be rewired in startRecording
+              onConnectionChange: () => {},
+              onError: () => {},
+            });
+            await warmService.connect();
+            if (isMounted) {
+              prewarmedServiceRef.current = warmService;
+              logger.debug('voice_mode_ws_prewarmed', { component: 'useVoiceMode' });
+            } else {
+              warmService.dispose();
+            }
+          }
+        } catch {
+          // Non-critical — startRecording will create its own connection
+          logger.debug('voice_mode_ws_prewarm_failed', { component: 'useVoiceMode' });
+        }
       } catch (err) {
         if (!isMounted) return;
 
@@ -794,6 +959,11 @@ export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeRet
     return () => {
       isMounted = false;
       cleanupKwsAudio();
+      // Dispose pre-warmed service when leaving listening state
+      if (prewarmedServiceRef.current) {
+        prewarmedServiceRef.current.dispose();
+        prewarmedServiceRef.current = null;
+      }
     };
   }, [
     isEnabled,
@@ -812,6 +982,10 @@ export function useVoiceMode(options: UseVoiceModeOptions = {}): UseVoiceModeRet
       cleanupAudio();
       cleanupKwsAudio();
       cleanupService();
+      if (recordingWorkletUrlRef.current) {
+        URL.revokeObjectURL(recordingWorkletUrlRef.current);
+        recordingWorkletUrlRef.current = null;
+      }
     };
   }, [cleanupAudio, cleanupKwsAudio, cleanupService]);
 

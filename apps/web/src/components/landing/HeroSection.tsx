@@ -57,11 +57,20 @@ export async function HeroSection({ lng }: HeroSectionProps) {
         </h1>
 
         {/* Subtitle */}
-        <p className="text-lg mobile:text-xl text-foreground/70 dark:text-foreground/80 max-w-2xl mx-auto leading-relaxed mb-4">
+        <p className="text-lg mobile:text-xl font-bold text-foreground/90 dark:text-foreground/95 max-w-3xl mx-auto leading-relaxed mb-4 whitespace-nowrap">
           {t('landing.hero.subtitle_top')}
         </p>
+        <p className="text-lg mobile:text-xl text-foreground/70 dark:text-foreground/80 max-w-2xl mx-auto leading-relaxed mb-4">
+          {t('landing.hero.subtitle_line1a')}
+          <br />
+          {t('landing.hero.subtitle_line1b')}
+        </p>
         <p className="text-lg mobile:text-xl text-foreground/70 dark:text-foreground/80 max-w-2xl mx-auto leading-relaxed mb-8">
-          {t('landing.hero.subtitle')}
+          {t('landing.hero.subtitle_line2a')}
+          <br />
+          {t('landing.hero.subtitle_line2b')}
+          <br />
+          {t('landing.hero.subtitle_line2c')}
         </p>
 
         {/* CTAs */}

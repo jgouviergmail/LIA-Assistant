@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-03-23
+
+### Added
+
+- **Push-to-Talk Mobile Fix** — Comprehensive fix for push-to-talk on smartphones. CSS anti-long-press (`select-none`, `-webkit-touch-callout:none`, `onContextMenu`), handlers always attached (eliminates race condition when `showSendMode` changes mid-touch), `onTouchCancel` for system interruptions, `onTouchMove` for finger-slide cancellation. `e.preventDefault()` now conditional: only called during actual push-to-talk, preserving form submit on mobile. (`apps/web/src/components/chat/ChatInput.tsx`)
+- **Push-to-Talk Cancel Support** — Users can release the button during the async setup phase (state 'connecting') to cancel. `cancelledRef` flag checked after `Promise.allSettled` completes. `stopRecording()` extended to handle 'connecting' state. (`apps/web/src/hooks/useVoiceInput.ts`)
+- **Push-to-Talk Latency Optimization** — `getUserMedia` + WS connect parallelized via `Promise.allSettled` (saves ~100-500ms). Worklet Blob URL cached across recordings. WebSocket pre-warmed in background during idle state. Setup timeout (10s) prevents indefinite blocking on slow networks. (`apps/web/src/hooks/useVoiceInput.ts`, `apps/web/src/lib/constants.ts`)
+- **Voice Mode Latency Optimization** — KWS microphone stream reused for recording (eliminates `getUserMedia` call, saves ~200-800ms). WebSocket pre-connected during listening state. Recording worklet URL cached. VAD silence threshold reduced from 1000ms to 750ms for faster end-of-speech detection. (`apps/web/src/hooks/useVoiceMode.ts`)
+- **Ready Chime** — Short synthesized audio cue (ascending C5→E5 major third, ~250ms) plays when recording starts after wake word detection, providing auditory feedback that the app is ready. Uses Web Audio API oscillators, no external audio file. (`apps/web/src/lib/audio/ready-chime.ts`)
+- **Per-User STT Language** — User's preferred language (from DB `user.language` column) is now included in the WebSocket ticket and passed to the backend STT service. `SherpaSttService` maintains a thread-safe cache of `OfflineRecognizer` instances keyed by language code, biasing Whisper transcription to the user's language instead of auto-detection. (`apps/api/src/domains/voice/ticket_store.py`, `apps/api/src/domains/voice/stt/sherpa_stt.py`, `apps/api/src/domains/voice/router.py`)
+- **Send Button Loading State** — Send icon remains visible (at 30% opacity) with a spinning overlay when disabled, instead of being replaced by a spinner. Preserves visual landmark. Uses `text-primary-foreground` for correct light/dark mode rendering. (`apps/web/src/components/chat/ChatInput.tsx`)
+- **Sherpa WASM Setup Script** — New `scripts/download-sherpa-wasm.sh` downloads the pre-built sherpa-onnx WASM runtime (VAD + ASR + Whisper Tiny.en bundled, ~111MB) from GitHub releases. Integrated into `scripts/setup-dev.sh` as step 3/3 and `Dockerfile.prod` model-downloader stage. (`scripts/download-sherpa-wasm.sh`, `scripts/setup-dev.sh`, `apps/web/Dockerfile.prod`)
+- **Safari iOS Voice Mode Support** — Changed `Cross-Origin-Embedder-Policy` from `credentialless` to `require-corp`, enabling `crossOriginIsolated` (and thus `SharedArrayBuffer` for Sherpa WASM) on Safari iOS. Google Fonts `crossOrigin="anonymous"` attribute added. Google profile images already proxied via existing endpoint. (`apps/web/next.config.ts`, `apps/web/src/app/[lng]/layout.tsx`)
+- **VoiceInputService.updateCallbacks()** — Allows re-wiring callbacks on a pre-warmed service instance without creating a new connection. Used by both push-to-talk and voice mode pre-warm flows. (`apps/web/src/lib/voice-input-service.ts`)
+
+### Fixed
+
+- **Sherpa WASM Script Loading** — Browser `class` declarations at top-level of `<script>` tags don't become `window` properties in strict mode. Fixed by fetching script content, appending a shim that explicitly assigns `createVad`, `CircularBuffer`, and `OfflineRecognizer` to `window`, then executing via Blob `<script>` tag. (`apps/web/src/lib/audio/sherpaKws.ts`)
+- **VoiceModeBadge Stuck Initializing** — Badge remained in "Initializing..." state forever on browsers where KWS is not supported (missing `SharedArrayBuffer`). Fixed by checking `isKwsSupported` in the `isInitializing` condition. (`apps/web/src/components/voice/VoiceModeBadge.tsx`)
+- **handleSubmit Guard Incomplete** — Form submit was not blocked during push-to-talk 'connecting' state. Added `voiceState !== 'connecting'` to the guard. (`apps/web/src/components/chat/ChatInput.tsx`)
+
 ## [1.9.6] - 2026-03-23
 
 ### Added

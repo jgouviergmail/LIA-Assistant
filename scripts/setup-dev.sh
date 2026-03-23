@@ -8,6 +8,7 @@
 # Models downloaded:
 #   - Backend: Whisper Small (multilingual STT, ~375MB)
 #   - Frontend: Whisper Tiny.en (English-only wake word, ~103MB)
+#   - Frontend: Sherpa-onnx WASM runtime (VAD + ASR, ~7MB)
 #
 # Usage:
 #   chmod +x scripts/setup-dev.sh
@@ -37,7 +38,7 @@ cd "$ROOT_DIR"
 # Note: Backend model is baked into Docker image via Dockerfile.dev multi-stage build
 # This step is only needed for local development without Docker
 
-echo -e "${YELLOW}[1/2] Backend STT Model (Whisper Small)${NC}"
+echo -e "${YELLOW}[1/3] Backend STT Model (Whisper Small)${NC}"
 echo -e "  ${GREEN}✓${NC} Downloaded automatically during Docker build"
 echo -e "    (Multi-stage build in Dockerfile.dev downloads from HuggingFace)"
 
@@ -47,7 +48,7 @@ echo -e "    (Multi-stage build in Dockerfile.dev downloads from HuggingFace)"
 WHISPER_MODEL_DIR="apps/web/public/models/whisper-tiny-en"
 WHISPER_ENCODER="$WHISPER_MODEL_DIR/encoder.onnx"
 
-echo -e "${YELLOW}[2/2] Frontend Wake Word Model (Whisper Tiny.en)${NC}"
+echo -e "${YELLOW}[2/3] Frontend Wake Word Model (Whisper Tiny.en)${NC}"
 
 if [ -f "$WHISPER_ENCODER" ]; then
     FILE_SIZE=$(stat -f%z "$WHISPER_ENCODER" 2>/dev/null || stat -c%s "$WHISPER_ENCODER" 2>/dev/null || echo "0")
@@ -74,20 +75,36 @@ if [ ! -f "$WHISPER_ENCODER" ]; then
 fi
 
 # -----------------------------------------------------------------------------
-# 3. Check WASM files
+# 3. Sherpa-onnx WASM Runtime (VAD + ASR)
 # -----------------------------------------------------------------------------
 WASM_DIR="apps/web/public/models/sherpa-wasm"
 WASM_FILE="$WASM_DIR/sherpa-onnx-wasm-main-vad-asr.wasm"
 
-echo -e "${YELLOW}[3/3] WASM Runtime Files${NC}"
+echo -e "${YELLOW}[3/3] Sherpa-onnx WASM Runtime (VAD + ASR)${NC}"
 
 if [ -f "$WASM_FILE" ]; then
-    echo -e "  ${GREEN}✓${NC} WASM files present ($(du -sh "$WASM_DIR" 2>/dev/null | cut -f1))"
-else
-    echo -e "  ${RED}✗${NC} WASM files missing!"
-    echo -e "    The sherpa-onnx WASM files must be manually downloaded or built."
-    echo -e "    See: https://k2-fsa.github.io/sherpa/onnx/wasm/index.html"
-    # Don't exit - WASM files might be in git or manually provided
+    FILE_SIZE=$(stat -f%z "$WASM_FILE" 2>/dev/null || stat -c%s "$WASM_FILE" 2>/dev/null || echo "0")
+    if [ "$FILE_SIZE" -gt 1000000 ]; then
+        echo -e "  ${GREEN}✓${NC} Already downloaded ($(du -sh "$WASM_DIR" 2>/dev/null | cut -f1))"
+    else
+        echo -e "  ${YELLOW}!${NC} WASM file exists but seems corrupted, re-downloading..."
+        rm -rf "$WASM_DIR"
+    fi
+fi
+
+if [ ! -f "$WASM_FILE" ]; then
+    echo -e "  Downloading Sherpa-onnx WASM runtime (~7MB)..."
+
+    bash "$SCRIPT_DIR/download-sherpa-wasm.sh"
+
+    if [ -f "$WASM_FILE" ]; then
+        echo -e "  ${GREEN}✓${NC} Downloaded to $WASM_DIR"
+    else
+        echo -e "  ${RED}✗${NC} Download failed"
+        echo -e "    Voice mode (wake word detection) will not work without WASM files."
+        echo -e "    You can retry: ./scripts/download-sherpa-wasm.sh"
+        # Don't exit - app works without voice mode
+    fi
 fi
 
 # -----------------------------------------------------------------------------

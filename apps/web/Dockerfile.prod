@@ -5,25 +5,34 @@ FROM node:22-alpine AS base
 RUN corepack enable && corepack prepare pnpm@10.18.3 --activate
 
 # ============================================================================
-# Stage 0: Download WASM models for voice mode
+# Stage 0: Download Sherpa-onnx WASM runtime for voice mode (wake word)
 # ============================================================================
 FROM alpine:latest AS model-downloader
 
-RUN apk add --no-cache curl
+RUN apk add --no-cache curl tar
 
 WORKDIR /models
 
-# Download whisper-tiny.en model (English-only for wake word detection)
-# Source: HuggingFace csukuangfj/sherpa-onnx-whisper-tiny.en (~103MB total)
-ARG HF_WHISPER_URL=https://huggingface.co/csukuangfj/sherpa-onnx-whisper-tiny.en/resolve/main
+# Download sherpa-onnx WASM (VAD + ASR + Whisper Tiny.en bundled in .data)
+# Source: https://github.com/k2-fsa/sherpa-onnx/releases
+# The .data file bundles Silero VAD + Whisper Tiny.en models (~100MB)
+# No separate model download needed - everything is in the WASM package.
+ARG SHERPA_VERSION=1.12.32
+ARG SHERPA_TARBALL=sherpa-onnx-wasm-simd-${SHERPA_VERSION}-vad-asr-en-whisper_tiny.tar.bz2
 
-RUN mkdir -p whisper-tiny-en && \
-    curl -L -o whisper-tiny-en/encoder.onnx "${HF_WHISPER_URL}/tiny.en-encoder.int8.onnx" && \
-    curl -L -o whisper-tiny-en/decoder.onnx "${HF_WHISPER_URL}/tiny.en-decoder.int8.onnx" && \
-    curl -L -o whisper-tiny-en/tokens.txt "${HF_WHISPER_URL}/tiny.en-tokens.txt"
+RUN curl -L -o /tmp/sherpa-wasm.tar.bz2 \
+    "https://github.com/k2-fsa/sherpa-onnx/releases/download/v${SHERPA_VERSION}/${SHERPA_TARBALL}" && \
+    mkdir -p sherpa-wasm && \
+    tar -xjf /tmp/sherpa-wasm.tar.bz2 -C /tmp && \
+    cp /tmp/sherpa-onnx-wasm-simd-*/sherpa-onnx-vad.js sherpa-wasm/ && \
+    cp /tmp/sherpa-onnx-wasm-simd-*/sherpa-onnx-asr.js sherpa-wasm/ && \
+    cp /tmp/sherpa-onnx-wasm-simd-*/sherpa-onnx-wasm-main-vad-asr.js sherpa-wasm/ && \
+    cp /tmp/sherpa-onnx-wasm-simd-*/sherpa-onnx-wasm-main-vad-asr.wasm sherpa-wasm/ && \
+    cp /tmp/sherpa-onnx-wasm-simd-*/sherpa-onnx-wasm-main-vad-asr.data sherpa-wasm/ && \
+    rm -rf /tmp/sherpa-wasm.tar.bz2 /tmp/sherpa-onnx-wasm-simd-*
 
-# Create keywords file
-RUN echo -e "ok\nokay\nhey" > keywords.txt
+# Create wake words file
+RUN printf "ok\nokay\nguy\nguys\nok guy\nokay guy\nok guys\nokay guys\n" > keywords.txt
 
 # ============================================================================
 # Stage 1: Install dependencies
@@ -123,8 +132,9 @@ COPY --from=builder --chown=nextjs:nodejs /monorepo/node_modules/.pnpm /monorepo
 COPY --from=builder --chown=nextjs:nodejs /monorepo/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder --chown=nextjs:nodejs /monorepo/apps/web/public ./apps/web/public
 
-# Copy whisper-tiny.en model for wake word detection (downloaded in model-downloader stage)
-COPY --from=model-downloader --chown=nextjs:nodejs /models/whisper-tiny-en ./apps/web/public/models/whisper-tiny-en
+# Copy sherpa-onnx WASM runtime for wake word detection (downloaded in model-downloader stage)
+# The .data file includes Silero VAD + Whisper Tiny.en (no separate model dir needed)
+COPY --from=model-downloader --chown=nextjs:nodejs /models/sherpa-wasm ./apps/web/public/models/sherpa-wasm
 COPY --from=model-downloader --chown=nextjs:nodejs /models/keywords.txt ./apps/web/public/models/keywords.txt
 
 USER nextjs

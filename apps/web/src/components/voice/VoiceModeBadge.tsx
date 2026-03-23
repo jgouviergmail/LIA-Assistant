@@ -97,6 +97,7 @@ export function VoiceModeBadge({
     isSpeaking,
     isListening,
     isKwsListening,
+    isKwsSupported,
     toggle,
     startRecording,
     stopRecording,
@@ -110,8 +111,10 @@ export function VoiceModeBadge({
     },
   });
 
-  // Determine if we're in initialization phase (enabled but KWS mic not yet open)
-  const isInitializing = isEnabled && isListening && !isKwsListening;
+  // Determine if we're in initialization phase (enabled but KWS mic not yet open).
+  // When KWS is not supported (e.g. browser lacks SharedArrayBuffer/WASM), skip
+  // the initializing state — voice mode works via tap-to-speak without wake word.
+  const isInitializing = isEnabled && isListening && !isKwsListening && isKwsSupported;
 
   // Long-press state for toggle
   const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);

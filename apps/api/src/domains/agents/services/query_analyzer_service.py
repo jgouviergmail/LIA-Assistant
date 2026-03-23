@@ -450,17 +450,25 @@ class QueryAnalysisResult:
 
     @property
     def domains(self) -> list[str]:
-        """Get all domains (primary + secondary), with meta-domain deduplication.
+        """Get all domains (primary + secondary), deduplicated and order-preserved.
 
-        When a meta-domain (e.g., web_search) is present, its aggregated domains
-        (e.g., brave, perplexity, wikipedia) are removed to prevent redundant tool calls.
+        Handles:
+        - Simple duplicates: LLM may return primary_domain in secondary_domains too
+        - Meta-domain deduplication: web_search aggregates brave/perplexity/wikipedia
         """
         all_domains = (
             [self.primary_domain] + self.secondary_domains
             if self.primary_domain
             else list(self.secondary_domains)
         )
-        return _deduplicate_meta_domains(all_domains)
+        # Deduplicate while preserving order (primary first)
+        seen: set[str] = set()
+        unique_domains: list[str] = []
+        for d in all_domains:
+            if d not in seen:
+                seen.add(d)
+                unique_domains.append(d)
+        return _deduplicate_meta_domains(unique_domains)
 
     @property
     def is_action(self) -> bool:
