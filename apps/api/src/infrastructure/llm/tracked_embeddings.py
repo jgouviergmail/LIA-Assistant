@@ -247,6 +247,7 @@ class TrackedOpenAIEmbeddings(OpenAIEmbeddings):
                 token_count=token_count,
                 cost_usd=cost_usd,
                 operation="embed_documents",
+                duration_ms=latency * 1000,
             )
 
             return result
@@ -333,6 +334,7 @@ class TrackedOpenAIEmbeddings(OpenAIEmbeddings):
                 token_count=token_count,
                 cost_usd=cost_usd,
                 operation="embed_query",
+                duration_ms=latency * 1000,
             )
 
             return result

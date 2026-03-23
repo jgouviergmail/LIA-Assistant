@@ -575,6 +575,8 @@ export interface LLMCall {
   tokens_cache: number; // Cached input tokens
   cost_eur: number; // Cost in EUR for this call
   duration_ms?: number; // v3.2: LLM call duration in milliseconds
+  call_type?: 'chat' | 'embedding'; // v3.3: Type of LLM call
+  sequence?: number; // v3.3: Chronological order number
 }
 
 /**
@@ -582,6 +584,22 @@ export interface LLMCall {
  */
 export interface LLMSummary {
   total_calls: number;
+  total_tokens_in: number;
+  total_tokens_out: number;
+  total_tokens_cache: number;
+  total_cost_eur: number;
+}
+
+/**
+ * LLMPipelineMetrics - Chronological reconciliation of ALL LLM calls (v3.3)
+ * Provides a unified view of chat + embedding calls sorted by execution order
+ */
+export interface LLMPipelineMetrics {
+  calls: LLMCall[]; // All calls sorted by sequence
+  total_calls: number;
+  total_chat_calls: number;
+  total_embedding_calls: number;
+  total_duration_ms: number;
   total_tokens_in: number;
   total_tokens_out: number;
   total_tokens_cache: number;
@@ -922,6 +940,7 @@ export interface DebugMetrics {
   // LLM Token Tracking (CORRECTION 2)
   llm_calls?: LLMCall[]; // Optional: detailed per-node LLM calls
   llm_summary?: LLMSummary; // Optional: aggregated LLM summary
+  llm_pipeline?: LLMPipelineMetrics; // v3.3: chronological LLM call reconciliation
   // Google API Tracking
   google_api_calls?: GoogleApiCall[]; // Optional: detailed per-call Google API usage
   google_api_summary?: GoogleApiSummary; // Optional: aggregated Google API summary

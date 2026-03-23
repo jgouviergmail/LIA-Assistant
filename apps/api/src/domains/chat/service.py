@@ -50,6 +50,10 @@ class TokenUsageRecord(NamedTuple):
     usd_to_eur_rate: Decimal
     # Duration tracking for debug panel (v3.2)
     duration_ms: float = 0.0
+    # Call type for debug panel pipeline reconciliation (v3.3)
+    call_type: str = "chat"  # "chat" | "embedding"
+    # Monotonic sequence counter for chronological ordering (v3.3)
+    sequence: int = 0
 
 
 class GoogleApiRecord(NamedTuple):
@@ -135,6 +139,9 @@ class TrackingContext:
         # clears _node_records (timing issue: commit happens before debug metrics are built)
         self._committed_records_copy: list[TokenUsageRecord] = []
         self._committed_google_api_copy: list[GoogleApiRecord] = []
+
+        # v3.3: Monotonic counter for chronological ordering of LLM calls in debug panel
+        self._sequence_counter: int = 0
 
         # Phase 5.2B: Thread safety for parallel execution
         # Protect _node_records mutations when multiple workers call record_node_tokens() concurrently
@@ -230,6 +237,7 @@ class TrackingContext:
         cost_eur: float | None = None,
         usd_to_eur_rate: Decimal | None = None,
         duration_ms: float = 0.0,
+        call_type: str = "chat",
     ) -> None:
         """
         Record token usage for a single LLM node call.
@@ -248,6 +256,8 @@ class TrackingContext:
             cost_eur: Estimated cost in EUR (auto-calculated if None)
             usd_to_eur_rate: Exchange rate used (auto-fetched if None)
             duration_ms: LLM call duration in milliseconds (v3.2 debug panel)
+            call_type: Type of LLM call ("chat" for completions, "embedding" for
+                vector embeddings). Used by debug panel to distinguish call categories.
         """
         # Auto-calculate costs if not provided (modern callback path)
         # Use sync-safe pricing cache to avoid event loop issues in LangChain callbacks
@@ -272,20 +282,23 @@ class TrackingContext:
             # Get USD/EUR rate from cache (with built-in fallback to settings)
             usd_to_eur_rate = Decimal(str(get_cached_usd_eur_rate()))
 
-        record = TokenUsageRecord(
-            node_name=node_name,
-            model_name=model_name,
-            prompt_tokens=prompt_tokens,
-            completion_tokens=completion_tokens,
-            cached_tokens=cached_tokens,
-            cost_usd=float(cost_usd),
-            cost_eur=float(cost_eur),
-            usd_to_eur_rate=usd_to_eur_rate,
-            duration_ms=duration_ms,
-        )
-
         # Phase 5.2B: Thread-safe append for parallel execution
+        # v3.3: Sequence counter incremented under lock for chronological ordering
         async with self._lock:
+            self._sequence_counter += 1
+            record = TokenUsageRecord(
+                node_name=node_name,
+                model_name=model_name,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                cached_tokens=cached_tokens,
+                cost_usd=float(cost_usd),
+                cost_eur=float(cost_eur),
+                usd_to_eur_rate=usd_to_eur_rate,
+                duration_ms=duration_ms,
+                call_type=call_type,
+                sequence=self._sequence_counter,
+            )
             self._node_records.append(record)
 
         logger.debug(
@@ -451,6 +464,8 @@ class TrackingContext:
                 - tokens_cache: Cached tokens
                 - cost_eur: Cost in EUR for this call
                 - duration_ms: LLM call duration in milliseconds (v3.2)
+                - call_type: "chat" or "embedding" (v3.3)
+                - sequence: Chronological order number (v3.3)
         """
         # Use pending records if available, otherwise use committed copy
         # This handles timing: commit() clears _node_records but debug metrics
@@ -466,6 +481,8 @@ class TrackingContext:
                 "tokens_cache": r.cached_tokens,
                 "cost_eur": float(r.cost_eur),
                 "duration_ms": r.duration_ms,
+                "call_type": r.call_type,
+                "sequence": r.sequence,
             }
             for r in records
         ]

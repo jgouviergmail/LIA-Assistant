@@ -8,7 +8,7 @@
 import React from 'react';
 import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { MetricRow } from '../shared';
-import { NODE_COLORS, MODEL_NAME_TRUNCATE_LENGTH } from '../../utils/constants';
+import { getNodeColor, MODEL_NAME_TRUNCATE_LENGTH } from '../../utils/constants';
 import { formatTokenCount, formatCost, truncateText } from '../../utils/formatters';
 import { cn } from '@/lib/utils';
 import type { DebugMetrics } from '@/types/chat';
@@ -94,14 +94,9 @@ export const LLMCallsSection = React.memo(function LLMCallsSection({
             <div className="text-xs text-muted-foreground font-medium mb-2">Détail par node</div>
             <div className="space-y-2">
               {calls.map((call, index) => {
-                // Determine node color
-                const nodeColorClass = call.node_name.toLowerCase().includes('router')
-                  ? NODE_COLORS.router
-                  : call.node_name.toLowerCase().includes('planner')
-                    ? NODE_COLORS.planner
-                    : call.node_name.toLowerCase().includes('response')
-                      ? NODE_COLORS.response
-                      : NODE_COLORS.default;
+                const nodeColorClass = getNodeColor(call.node_name);
+                const callType = call.call_type ?? 'chat';
+                const isEmbedding = callType === 'embedding';
 
                 // Calculate per-call cache efficiency
                 const callInputTokens = call.tokens_in + call.tokens_cache;
@@ -113,16 +108,28 @@ export const LLMCallsSection = React.memo(function LLMCallsSection({
                     key={`${call.node_name}-${index}`}
                     className="border-l-2 border-border pl-3 pb-1"
                   >
-                    {/* Header: node + model */}
+                    {/* Header: type badge + node + model */}
                     <div className="flex items-center justify-between text-xs mb-1">
-                      <span
-                        className={cn(
-                          'text-[10px] px-1.5 py-0.5 rounded uppercase font-medium border',
-                          nodeColorClass
-                        )}
-                      >
-                        {call.node_name}
-                      </span>
+                      <div className="flex items-center gap-1">
+                        <span
+                          className={cn(
+                            'text-[10px] px-1 py-0.5 rounded uppercase font-medium border',
+                            isEmbedding
+                              ? 'bg-teal-500/20 text-teal-400 border-teal-500/30'
+                              : 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                          )}
+                        >
+                          {isEmbedding ? 'EMB' : 'CHAT'}
+                        </span>
+                        <span
+                          className={cn(
+                            'text-[10px] px-1.5 py-0.5 rounded uppercase font-medium border',
+                            nodeColorClass
+                          )}
+                        >
+                          {call.node_name}
+                        </span>
+                      </div>
                       <span
                         className="font-mono text-[10px] text-muted-foreground truncate ml-2"
                         title={call.model_name}
@@ -139,7 +146,11 @@ export const LLMCallsSection = React.memo(function LLMCallsSection({
                       </div>
                       <div className="flex justify-between">
                         <span>Out:</span>
-                        <span className="font-mono">{formatTokenCount(call.tokens_out)}</span>
+                        <span className="font-mono">
+                          {isEmbedding && call.tokens_out === 0
+                            ? '—'
+                            : formatTokenCount(call.tokens_out)}
+                        </span>
                       </div>
                       {call.tokens_cache > 0 && (
                         <div className="flex justify-between text-green-400">

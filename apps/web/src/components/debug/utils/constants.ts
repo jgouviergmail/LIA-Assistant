@@ -74,6 +74,7 @@ export const NODE_COLORS = {
   task_orchestrator: 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30',
   parallel_executor: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
   response: 'bg-primary/20 text-primary border-primary/30',
+  embedding: 'bg-teal-500/20 text-teal-400 border-teal-500/30',
   default: 'bg-muted text-muted-foreground border-border',
 } as const;
 
@@ -153,6 +154,8 @@ export const PIPELINE_NODE_ORDER = [
   'task_orchestrator',
   'parallel_executor',
   'response',
+  'embedding_embed_query',
+  'embedding_embed_documents',
 ] as const;
 
 /**
@@ -368,6 +371,8 @@ export function getNodeColor(nodeName: string): string {
   if (lowerName.includes('executor') || lowerName.includes('parallel'))
     return NODE_COLORS.parallel_executor;
   if (lowerName.includes('response') || lowerName.includes('resp')) return NODE_COLORS.response;
+  if (lowerName.includes('embedding') || lowerName.includes('embed'))
+    return NODE_COLORS.embedding;
 
   return NODE_COLORS.default;
 }

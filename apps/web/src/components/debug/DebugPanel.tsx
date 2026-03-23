@@ -56,6 +56,8 @@ import {
   JournalInjectionSection,
   // Skills activation
   SkillsSection,
+  // LLM Pipeline (v3.3 - chronological reconciliation)
+  LLMPipelineSection,
 } from './components/sections';
 
 // Constants
@@ -124,6 +126,7 @@ function MetricsSections({ metrics }: { metrics: DebugMetrics }) {
     query_info,
     llm_calls,
     llm_summary,
+    llm_pipeline,
     google_api_calls,
     google_api_summary,
     intelligent_mechanisms,
@@ -164,6 +167,7 @@ function MetricsSections({ metrics }: { metrics: DebugMetrics }) {
       <ForEachAnalysisSection data={for_each_analysis} />
       <ExecutionWavesSection data={execution_waves} />
       <RequestLifecycleSection data={request_lifecycle} />
+      <LLMPipelineSection data={llm_pipeline} />
       <LLMCallsSection calls={llm_calls} summary={llm_summary} />
       <GoogleApiCallsSection calls={google_api_calls} summary={google_api_summary} />
       <SkillsSection data={skills} />

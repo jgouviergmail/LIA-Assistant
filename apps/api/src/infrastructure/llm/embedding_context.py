@@ -156,19 +156,78 @@ async def persist_embedding_tokens(
     token_count: int,
     cost_usd: float,
     operation: str,
+    duration_ms: float = 0.0,
 ) -> None:
     """
-    Persist embedding tokens to database.
+    Record embedding tokens for tracking and billing.
+
+    Two strategies (in priority order):
+    1. If a conversation TrackingContext is active (via current_tracker ContextVar),
+       record directly into it. This makes embedding calls visible in the debug panel
+       and ensures they are persisted with the conversation's run_id.
+    2. Fallback: if no conversation tracker exists (background operations like RAG
+       indexing), create a standalone TrackingContext for separate DB persistence.
 
     Called by TrackedOpenAIEmbeddings after successful embedding.
-    Uses the current context to determine user attribution.
+    Prometheus metrics are emitted independently by TrackedOpenAIEmbeddings.
 
     Args:
-        model_name: Embedding model used
+        model_name: Embedding model used (e.g., "text-embedding-3-small")
         token_count: Number of tokens consumed
         cost_usd: Cost in USD
         operation: Operation type (embed_query, embed_documents)
+        duration_ms: Embedding API call duration in milliseconds
     """
+    # Skip zero-token operations
+    if token_count == 0:
+        return
+
+    # =========================================================================
+    # Strategy 1: Record into conversation's main TrackingContext
+    # Makes embedding calls visible in debug panel (LLM Calls, Pipeline, etc.)
+    # =========================================================================
+    from src.core.context import current_tracker
+
+    conv_tracker = current_tracker.get()
+    if conv_tracker is not None:
+        try:
+            await conv_tracker.record_node_tokens(
+                node_name=f"embedding_{operation}",
+                model_name=model_name,
+                prompt_tokens=token_count,
+                completion_tokens=0,
+                cached_tokens=0,
+                duration_ms=duration_ms,
+                call_type="embedding",
+            )
+            logger.info(
+                "embedding_tokens_recorded_in_conversation_tracker",
+                model_name=model_name,
+                token_count=token_count,
+                cost_usd=round(cost_usd, 6),
+                operation=operation,
+                duration_ms=round(duration_ms, 1),
+                run_id=conv_tracker.run_id,
+            )
+        except Exception as e:
+            # Graceful degradation - never break embeddings for tracking failure
+            logger.error(
+                "embedding_tokens_conversation_tracker_failed",
+                model_name=model_name,
+                token_count=token_count,
+                operation=operation,
+                error=str(e),
+                exc_info=True,
+            )
+        # Always return after Strategy 1 attempt (success or failure).
+        # Do NOT fall through to Strategy 2: creating a new TrackingContext
+        # would overwrite current_tracker ContextVar (the bug we're fixing).
+        return
+
+    # =========================================================================
+    # Strategy 2: Standalone persistence (background ops without conversation)
+    # e.g., RAG indexing, system space embedding, scheduled tasks
+    # =========================================================================
     context = get_embedding_context()
 
     if not context:
@@ -179,10 +238,6 @@ async def persist_embedding_tokens(
             token_count=token_count,
             operation=operation,
         )
-        return
-
-    # Skip zero-token operations
-    if token_count == 0:
         return
 
     try:

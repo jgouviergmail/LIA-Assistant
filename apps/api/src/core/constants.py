@@ -1312,6 +1312,9 @@ DEBUG_PIPELINE_NODE_ORDER: tuple[str, ...] = (
     "task_orchestrator",
     "parallel_executor",
     "response",
+    # Auxiliary: embedding operations (variable timing during pipeline)
+    "embedding_embed_query",
+    "embedding_embed_documents",
 )
 
 # Note: CARDINALITY_ALL = 999 is already defined in the FOR_EACH section above

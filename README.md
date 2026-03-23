@@ -35,7 +35,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.9.5</strong> — Context Store Fix, HITL Enhancements, Cross-Provider Email Improvements — March 2026
+  <strong>Version 1.9.6</strong> — Unified LLM Tracking, Debug Panel LLM Pipeline — March 2026
 </p>
 
 ---
@@ -405,7 +405,7 @@ A multi-section debug panel embedded in the chat interface, providing real-time 
 |----------|----------|
 | **Intent Analysis** | Intent classification, Domain detection, Routing decision (with confidence scores) |
 | **Execution Pipeline** | Planner output, Execution waves, Tool calls (inputs/outputs), ForEach analysis |
-| **LLM Internals** | LLM call details (model, tokens, latency), Token budget tracking, Google API calls |
+| **LLM Internals** | LLM Pipeline (chronological reconciliation of all LLM + embedding calls), LLM call details (model, tokens, latency), Token budget tracking, Google API calls |
 | **Context & Memory** | Context resolution, Memory injection, Knowledge enrichment, RAG injection (scores), Interest profile |
 | **Intelligence** | Intelligent mechanisms (cache hits, pattern learning, semantic expansion) |
 | **Lifecycle** | Full request lifecycle with timing breakdown per phase |

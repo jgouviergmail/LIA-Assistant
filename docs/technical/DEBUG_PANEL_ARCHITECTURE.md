@@ -371,6 +371,51 @@ console.log('[DebugPanel Selection]', {
 2. ✅ **Ajouter `tool_selection_result` au schema MessagesState** (models.py ligne 325)
    - Raison : LangGraph ne streame que les champs déclarés dans TypedDict
 
+---
+
+## Unified LLM Tracking (v3.3)
+
+### Overview
+
+As of v3.3, the debug panel tracks ALL LLM call types in a unified way:
+- **Chat completions** (router, planner, response, sub-agents) — via `TokenTrackingCallback`
+- **Embedding calls** (journal context, memory search, RAG retrieval) — via `persist_embedding_tokens()` recording into the conversation's `TrackingContext`
+- **TTS** (voice synthesis) — via direct `tracker.record_node_tokens()` call
+
+### Architecture: Embedding Token Tracking
+
+Previously, embedding tokens were persisted via a separate `TrackingContext` in `persist_embedding_tokens()`, making them invisible in the debug panel.
+
+v3.3 fixes this by using the `current_tracker` ContextVar (from `src/core/context.py`):
+
+```
+TrackedOpenAIEmbeddings.aembed_query()
+  → persist_embedding_tokens()
+    → current_tracker.get()  ← conversation's TrackingContext
+    → conv_tracker.record_node_tokens(call_type="embedding")
+    → Visible in debug panel via get_llm_calls_breakdown()
+```
+
+Fallback: when no conversation tracker exists (background operations), the existing standalone `TrackingContext` path is preserved.
+
+### New Fields
+
+- `TokenUsageRecord.call_type` — `"chat"` (default) or `"embedding"`
+- `TokenUsageRecord.sequence` — monotonic counter for chronological ordering
+
+### New Debug Panel Section: LLM Pipeline
+
+The `llm_pipeline` section in `debug_metrics` provides a chronological reconciliation of ALL LLM calls, sorted by `sequence`. Built in `StreamingService._add_debug_metrics_sections()` from the `llm_calls` data.
+
+Frontend component: `LLMPipelineSection.tsx`
+
+### Impact on Existing Sections
+
+- **LLM Calls**: Now shows embedding calls with `EMB` badge (teal color)
+- **Request Lifecycle**: Embedding nodes appear automatically (uses `getNodeColor()`)
+- **Token Budget**: Totals automatically include embedding tokens (cascade via `llm_summary`)
+- **LLM Summary**: Aggregates all call types (chat + embedding)
+
 3. ✅ **Fixer l'initialization SemanticToolSelector** (agent_registry.py lignes 1414-1432)
    - Raison : Utiliser les nouveaux paramètres V3 calibrés au lieu des anciens
 

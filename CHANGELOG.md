@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.6] - 2026-03-23
+
+### Added
+
+- **Unified LLM + Embedding Tracking** — Embedding calls (journal context, memory search, RAG retrieval via `TrackedOpenAIEmbeddings`) are now recorded in the conversation's main `TrackingContext` instead of a separate standalone tracker. This makes embedding token usage visible in the debug panel alongside chat completions and TTS. Dual-strategy approach: (1) when a conversation tracker is active (via `current_tracker` ContextVar), record directly into it; (2) fallback to standalone `TrackingContext` for background operations (RAG indexing, scheduled tasks). Graceful degradation with try/except ensures embedding calls never break on tracking failures. (`apps/api/src/infrastructure/llm/embedding_context.py`, `apps/api/src/infrastructure/llm/tracked_embeddings.py`)
+- **TokenUsageRecord call_type & sequence** — Two new fields on `TokenUsageRecord` NamedTuple: `call_type` (`"chat"` | `"embedding"`, default `"chat"`) distinguishes LLM call categories, and `sequence` (monotonic counter under asyncio lock) provides chronological ordering. Both fields are backward-compatible (keyword defaults). `get_llm_calls_breakdown()` now returns these fields for the debug panel. (`apps/api/src/domains/chat/service.py`)
+- **Debug Panel: LLM Pipeline Section** — New `LLMPipelineSection` component showing ALL LLM calls (chat + embedding) in chronological execution order. Each row displays: sequence number, type badge (CHAT/EMB), node badge with color, model name, duration, tokens IN/CACHE/OUT, and cost. Summary header shows total calls (split by type), duration, tokens, and cost. (`apps/web/src/components/debug/components/sections/LLMPipelineSection.tsx`)
+- **Debug Panel: Embedding Visibility** — Embedding calls now appear in existing debug sections: LLM Calls section shows `EMB` badge (teal) with `—` for tokens_out; Request Lifecycle section includes embedding nodes; Token Budget totals include embedding tokens; LLM Summary aggregates all call types. (`apps/web/src/components/debug/components/sections/LLMCallsSection.tsx`, `apps/web/src/components/debug/DebugPanel.tsx`)
+- **Embedding Duration Tracking** — `TrackedOpenAIEmbeddings` now passes `duration_ms` (latency in milliseconds) to `persist_embedding_tokens()`, enabling timing display in the debug panel. (`apps/api/src/infrastructure/llm/tracked_embeddings.py`)
+
+### Fixed
+
+- **Embedding ContextVar Overwrite Bug** — `persist_embedding_tokens()` previously created `async with TrackingContext(...)` which temporarily overwrote the `current_tracker` ContextVar, potentially corrupting concurrent access to the conversation tracker. The new approach avoids creating a new `TrackingContext` when a conversation tracker is already active. (`apps/api/src/infrastructure/llm/embedding_context.py`)
+- **LLMCallsSection Hardcoded Node Colors** — Node color determination in `LLMCallsSection` used inline `includes()` checks instead of the centralized `getNodeColor()` helper, causing new node types (like embedding) to always fall back to default color. Refactored to use `getNodeColor()`. (`apps/web/src/components/debug/components/sections/LLMCallsSection.tsx`)
+- **Zod Schema Gaps (v3.2 debt)** — `LLMCallSchema` was missing `duration_ms`, `LifecycleNodeSchema` was missing `duration_ms`, and `RequestLifecycleSchema` was missing `total_duration_ms`. Added as optional fields. (`apps/web/src/components/debug/validation/schemas.ts`)
+
 ## [1.9.5] - 2026-03-23
 
 ### Added

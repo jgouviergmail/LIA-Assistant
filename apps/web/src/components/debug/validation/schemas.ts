@@ -228,6 +228,9 @@ const LLMCallSchema = z.object({
   tokens_out: z.number().min(0),
   tokens_cache: z.number().min(0),
   cost_eur: z.number().min(0),
+  duration_ms: z.number().optional(), // v3.2
+  call_type: z.enum(['chat', 'embedding']).optional(), // v3.3
+  sequence: z.number().optional(), // v3.3
 });
 
 /**
@@ -240,6 +243,23 @@ const LLMSummarySchema = z
     total_tokens_out: z.number().min(0),
     total_tokens_cache: z.number().min(0),
     total_cost_eur: z.number().min(0),
+  })
+  .optional();
+
+/**
+ * Schema for LLM Pipeline (v3.3 - chronological reconciliation)
+ */
+const LLMPipelineSchema = z
+  .object({
+    calls: z.array(LLMCallSchema),
+    total_calls: z.number(),
+    total_chat_calls: z.number(),
+    total_embedding_calls: z.number(),
+    total_duration_ms: z.number(),
+    total_tokens_in: z.number(),
+    total_tokens_out: z.number(),
+    total_tokens_cache: z.number(),
+    total_cost_eur: z.number(),
   })
   .optional();
 
@@ -354,12 +374,14 @@ const LifecycleNodeSchema = z.object({
   tokens_cache: z.number(),
   cost_eur: z.number(),
   calls_count: z.number(),
+  duration_ms: z.number().optional(), // v3.2
 });
 
 export const RequestLifecycleSchema = z
   .object({
     nodes: z.array(LifecycleNodeSchema),
     total_nodes: z.number(),
+    total_duration_ms: z.number().optional(), // v3.2
   })
   .optional();
 
@@ -381,6 +403,7 @@ export const DebugMetricsSchema = z.object({
   execution_timeline: ExecutionTimelineSchema,
   llm_calls: z.array(LLMCallSchema).optional(),
   llm_summary: LLMSummarySchema,
+  llm_pipeline: LLMPipelineSchema, // v3.3
   intelligent_mechanisms: IntelligentMechanismsSchema,
   // v3.1 Debug Panel Enrichments
   for_each_analysis: ForEachAnalysisSchema,

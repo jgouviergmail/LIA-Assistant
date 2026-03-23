@@ -44,3 +44,5 @@ export {
 } from './JournalInjectionSection';
 // Skills activation
 export { SkillsSection, type SkillsSectionProps } from './SkillsSection';
+// LLM Pipeline (v3.3 - chronological reconciliation)
+export { LLMPipelineSection, type LLMPipelineSectionProps } from './LLMPipelineSection';

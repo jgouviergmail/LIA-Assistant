@@ -1962,6 +1962,40 @@ class StreamingService:
                 )
 
         # =================================================================
+        # LLM Pipeline: Chronological reconciliation of ALL LLM calls (v3.3)
+        # Provides a unified view of all LLM calls (chat + embedding) sorted
+        # by execution order, with per-type breakdowns for the debug panel.
+        # =================================================================
+        if "llm_calls" in debug_metrics:
+            try:
+                sorted_calls = sorted(
+                    debug_metrics["llm_calls"],
+                    key=lambda c: c.get("sequence", 0),
+                )
+                chat_calls = [c for c in sorted_calls if c.get("call_type", "chat") == "chat"]
+                embedding_calls = [c for c in sorted_calls if c.get("call_type") == "embedding"]
+                debug_metrics["llm_pipeline"] = {
+                    "calls": sorted_calls,
+                    "total_calls": len(sorted_calls),
+                    "total_chat_calls": len(chat_calls),
+                    "total_embedding_calls": len(embedding_calls),
+                    "total_duration_ms": round(
+                        sum(c.get("duration_ms", 0) for c in sorted_calls), 1
+                    ),
+                    "total_tokens_in": sum(c.get("tokens_in", 0) for c in sorted_calls),
+                    "total_tokens_out": sum(c.get("tokens_out", 0) for c in sorted_calls),
+                    "total_tokens_cache": sum(c.get("tokens_cache", 0) for c in sorted_calls),
+                    "total_cost_eur": round(sum(c.get("cost_eur", 0) for c in sorted_calls), 6),
+                }
+            except (KeyError, TypeError, ValueError) as pipeline_err:
+                logger.debug(
+                    "debug_metrics_llm_pipeline_failed",
+                    run_id=run_id,
+                    error=str(pipeline_err),
+                    error_type=type(pipeline_err).__name__,
+                )
+
+        # =================================================================
         # Knowledge Enrichment (Brave Search): Merge execution results
         # =================================================================
         # Base structure already created by QueryIntelligence.to_debug_metrics()
