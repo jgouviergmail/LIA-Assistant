@@ -36,7 +36,7 @@ opentelemetry-sdk==1.40.0
 opentelemetry-instrumentation-fastapi==0.61b0
 opentelemetry-exporter-otlp==1.40.0
 prometheus-client==0.24.1
-langfuse==3.14.5  # Phase 6 - LLM Observability
+langfuse==4.0.1  # Phase 6 - LLM Observability
 
 # Rate Limiting
 slowapi==0.1.9
