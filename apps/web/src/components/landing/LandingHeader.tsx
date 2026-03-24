@@ -22,6 +22,8 @@ const NAV_SECTIONS = [
   { id: 'security', key: 'landing.nav.security' },
   { id: 'technology', key: 'landing.nav.technology' },
   { id: 'blog', key: 'landing.nav.blog', href: '/blog' },
+  { id: 'why', key: 'landing.nav.philosophy', href: '/why' },
+  { id: 'how', key: 'landing.nav.technical', href: '/how' },
 ] as const;
 
 export function LandingHeader({ lng }: LandingHeaderProps) {

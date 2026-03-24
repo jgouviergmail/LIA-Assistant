@@ -190,9 +190,6 @@ class MCPToolAdapter(BaseTool):
             if manager is None:
                 raise RuntimeError("MCP client manager not initialized")
 
-            # Excalidraw: convert structured intent to elements via dedicated LLM
-            kwargs = await self._prepare_excalidraw(kwargs)
-
             result = await manager.call_tool(
                 self.server_name,
                 self.mcp_tool_name,
@@ -260,68 +257,6 @@ class MCPToolAdapter(BaseTool):
                 server_name=self.server_name,
                 tool_name=self.mcp_tool_name,
             ).observe(elapsed)
-
-    async def _prepare_excalidraw(self, kwargs: dict[str, Any]) -> dict[str, Any]:
-        """Handle Excalidraw intent-based element generation.
-
-        When the planner generates a structured intent JSON
-        (``{"intent": true, "components": [...], ...}``), the builder makes
-        a dedicated LLM call to produce the complete set of Excalidraw elements.
-
-        Non-intent elements are passed through unchanged to the MCP server.
-        """
-        from src.infrastructure.mcp.excalidraw.overrides import (
-            EXCALIDRAW_CREATE_VIEW_TOOL,
-            EXCALIDRAW_SERVER_NAME,
-        )
-
-        if (
-            self.server_name != EXCALIDRAW_SERVER_NAME
-            or self.mcp_tool_name != EXCALIDRAW_CREATE_VIEW_TOOL
-        ):
-            return kwargs
-
-        if "elements" not in kwargs:
-            return kwargs
-
-        elements_str = kwargs["elements"]
-        if not isinstance(elements_str, str):
-            return kwargs
-
-        from src.infrastructure.mcp.excalidraw.iterative_builder import (
-            build_from_intent,
-            is_intent,
-        )
-
-        intent = is_intent(elements_str)
-        if intent is not None:
-            cheat_sheet = self._fetch_excalidraw_cheat_sheet()
-
-            built = await build_from_intent(intent, cheat_sheet)
-            logger.info(
-                "excalidraw_build_from_intent",
-                input_length=len(elements_str),
-                output_length=len(built),
-                component_count=len(intent.get("components", [])),
-            )
-            return {**kwargs, "elements": built}
-
-        return kwargs
-
-    def _fetch_excalidraw_cheat_sheet(self) -> str:
-        """Get the read_me cheat sheet from the cached reference content."""
-        from src.infrastructure.mcp.client_manager import get_mcp_client_manager
-        from src.infrastructure.mcp.excalidraw.overrides import EXCALIDRAW_SERVER_NAME
-
-        manager = get_mcp_client_manager()
-        if manager is None:
-            logger.warning("excalidraw_cheat_sheet_no_manager")
-            return ""
-
-        content = manager.reference_content.get(EXCALIDRAW_SERVER_NAME, "")
-        if not content:
-            logger.warning("excalidraw_cheat_sheet_not_cached")
-        return content
 
     def _run(self, **kwargs: Any) -> str:
         """MCP tools are async only."""

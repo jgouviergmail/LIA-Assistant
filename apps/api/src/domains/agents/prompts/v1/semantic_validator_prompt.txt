@@ -19,9 +19,13 @@ Technical or logical error. User MUST NOT see this.
 - `OPTIM_ERROR`: Fetching excessive data without filters
 
 ### HALT (user interrupt)
-Irreversible action OR critical ambiguity.
+Irreversible action OR critical ambiguity. STRICT conditions:
 - `DANGER`: DELETE, SEND externally, PAYMENT
-- `AMBIGUITY`: Request could mean opposite outcomes
+- `AMBIGUITY`: Request could mean OPPOSITE outcomes (e.g. "delete" vs "archive")
+
+**NEVER HALT for read-only queries** (search, route, weather, info, list, get).
+Read-only operations are safe and reversible — prefer an approximate answer over asking
+clarifying questions. Minor ambiguity in read-only context → APPROVED, not HALT.
 
 ## ITERATION MECHANISM
 

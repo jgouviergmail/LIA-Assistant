@@ -19,9 +19,10 @@ from typing import TYPE_CHECKING, Any
 
 import structlog
 
+from src.core.config import settings
 from src.core.constants import MCP_REFERENCE_TOOL_NAME
 from src.domains.agents.constants import AGENT_MCP, CONTEXT_DOMAIN_MCP
-from src.infrastructure.mcp.schemas import MCPDiscoveredTool
+from src.infrastructure.mcp.schemas import MCPDiscoveredTool, MCPServerConfig
 from src.infrastructure.mcp.security import resolve_hitl_requirement
 from src.infrastructure.mcp.tool_adapter import MCPToolAdapter
 from src.infrastructure.mcp.utils import is_app_only
@@ -49,6 +50,42 @@ def get_admin_mcp_domains() -> dict[str, str]:
         E.g., {"mcp_google_flights": "Search flights, find airports, ..."}
     """
     return dict(_admin_mcp_domains)
+
+
+def _register_iterative_task_tool(task_tool_name: str) -> None:
+    """Register the generic mcp_server_task_tool under a per-server name.
+
+    Each iterative MCP server needs its own entry in ToolRegistry so the
+    parallel_executor can find the tool by the per-server manifest name
+    (e.g., ``mcp_excalidraw_task``). The actual tool function is the same
+    ``mcp_server_task_tool`` — only the registered name differs.
+
+    Args:
+        task_tool_name: Per-server tool name (e.g., "mcp_excalidraw_task").
+    """
+    from src.domains.agents.tools.tool_registry import get_tool, register_external_tool
+
+    # If already registered (e.g., module reload), skip
+    if get_tool(task_tool_name):
+        return
+
+    try:
+        from src.domains.agents.tools.mcp_react_tools import mcp_server_task_tool
+
+        # Create a named copy of the tool with the per-server name.
+        # BaseTool.name is a Pydantic field — model_copy creates a shallow copy.
+        named_tool = mcp_server_task_tool.model_copy(update={"name": task_tool_name})
+        register_external_tool(named_tool)
+        logger.info(
+            "mcp_iterative_task_tool_registered",
+            task_tool_name=task_tool_name,
+        )
+    except ImportError:
+        logger.warning(
+            "mcp_iterative_task_tool_import_failed",
+            task_tool_name=task_tool_name,
+            msg="mcp_react_tools module not available (MCP_REACT_ENABLED=false?)",
+        )
 
 
 def register_mcp_tools(
@@ -108,7 +145,57 @@ def register_mcp_tools(
         # Store for domain routing (read by collect_all_mcp_domains)
         _admin_mcp_domains[domain_slug] = description
 
-        # Create per-server agent manifest (excluding app-only and read_me tools)
+        # ADR-062: Iterative mode — delegate to ReAct sub-agent
+        is_iterative = (
+            server_config
+            and getattr(server_config, "iterative_mode", False)
+            and settings.mcp_react_enabled
+        )
+
+        if is_iterative:
+            # Iterative mode: register individual tools in tool_registry only
+            # (the ReAct agent needs them), but the CATALOGUE sees a single
+            # per-server task tool (the planner delegates to the ReAct agent).
+            for tool_item in tools:
+                adapter_name = f"mcp_{server_name}_{tool_item.tool_name}"
+                adapter = adapters.get(adapter_name)
+                if adapter:
+                    _register_tool_in_central_registry(adapter)
+                    registered_count += 1
+
+            # Per-server task tool name (unique to avoid manifest collision
+            # when multiple servers have iterative_mode=true).
+            # parallel_executor looks up this name in ToolRegistry.
+            task_tool_name = f"mcp_{server_name}_task"
+
+            # Register the generic mcp_server_task_tool under this per-server
+            # name so parallel_executor can find it.
+            _register_iterative_task_tool(task_tool_name)
+
+            task_manifest = _build_mcp_react_manifest(
+                react_tool_name=task_tool_name,
+                agent_name=agent_name,
+                server_name=server_name,
+                description=description,
+            )
+            agent_manifest = AgentManifest(
+                name=agent_name,
+                description=description,
+                tools=[task_tool_name],
+            )
+            registry.register_agent_manifest(agent_manifest)
+            registry.register_tool_manifest(task_manifest)
+
+            logger.info(
+                "mcp_server_registered_iterative",
+                server=server_name,
+                domain=domain_slug,
+                agent=agent_name,
+                individual_tools=registered_count,
+            )
+            continue
+
+        # Standard mode: register individual tools in catalogue + tool_registry
         server_tool_names = [
             f"mcp_{server_name}_{t.tool_name}"
             for t in tools
@@ -123,19 +210,21 @@ def register_mcp_tools(
         registry.register_agent_manifest(agent_manifest)
 
         # Register individual tools (manifest + instance + central registry)
-        for tool in tools:
+        for tool_item in tools:
             # MCP Apps: app-only tools are iframe-only → skip LLM catalogue.
-            if is_app_only(tool.app_visibility):
+            if is_app_only(tool_item.app_visibility):
                 logger.info(
                     "mcp_tool_app_only_skipped",
                     server=server_name,
-                    tool_name=tool.tool_name,
+                    tool_name=tool_item.tool_name,
                 )
                 continue
 
             # Skip read_me tool if its content was auto-fetched at discovery.
             # The content is injected into the planner prompt instead.
-            if tool.tool_name == MCP_REFERENCE_TOOL_NAME and reference_content.get(server_name):
+            if tool_item.tool_name == MCP_REFERENCE_TOOL_NAME and reference_content.get(
+                server_name
+            ):
                 logger.debug(
                     "mcp_tool_reference_skipped",
                     server=server_name,
@@ -143,7 +232,7 @@ def register_mcp_tools(
                 )
                 continue
 
-            adapter_name = f"mcp_{server_name}_{tool.tool_name}"
+            adapter_name = f"mcp_{server_name}_{tool_item.tool_name}"
             adapter = adapters.get(adapter_name)
             if not adapter:
                 logger.warning(
@@ -159,7 +248,7 @@ def register_mcp_tools(
 
             # Create ToolManifest with per-server agent_name
             tool_manifest = _mcp_tool_to_manifest(
-                discovered=tool,
+                discovered=tool_item,
                 adapter_name=adapter_name,
                 hitl_required=hitl_required,
                 agent_name=agent_name,
@@ -270,6 +359,90 @@ def build_mcp_tool_manifest(
     )
 
 
+def _build_mcp_react_manifest(
+    react_tool_name: str,
+    agent_name: str,
+    server_name: str,
+    description: str,
+) -> Any:
+    """Build a ToolManifest for the mcp_server_task_tool (iterative mode).
+
+    When iterative_mode=true, the planner sees this single tool instead of
+    individual MCP server tools. The tool delegates to a ReAct sub-agent.
+
+    The manifest name MUST match the @tool function name registered in
+    ToolRegistry by ``_import_tool_modules()`` so parallel_executor can
+    find the tool at execution time.
+
+    Args:
+        react_tool_name: Tool name matching the @tool function (e.g., "mcp_server_task_tool").
+        agent_name: Agent name for domain routing.
+        server_name: MCP server name (injected as default parameter value).
+        description: Server description for LLM context.
+
+    Returns:
+        ToolManifest instance for the task delegation tool.
+    """
+    from src.domains.agents.registry.catalogue import (
+        CostProfile,
+        DisplayMetadata,
+        OutputFieldSchema,
+        ParameterConstraint,
+        ParameterSchema,
+        PermissionProfile,
+        ToolManifest,
+    )
+
+    return ToolManifest(
+        name=react_tool_name,
+        agent=agent_name,
+        description=(
+            f"Execute a multi-step task on the '{server_name}' MCP server using "
+            f"an iterative agent. The agent reads documentation first, then "
+            f"executes tools in sequence. Server description: {description}"
+        ),
+        parameters=[
+            ParameterSchema(
+                name="server_name",
+                type="string",
+                required=True,
+                description=f"MCP server name. MUST be exactly '{server_name}'.",
+                constraints=[ParameterConstraint(kind="enum", value=[server_name])],
+            ),
+            ParameterSchema(
+                name="task",
+                type="string",
+                required=True,
+                description="Natural language description of the task to accomplish",
+            ),
+        ],
+        outputs=[
+            OutputFieldSchema(
+                path="result",
+                type="string",
+                description="Task result from the MCP server",
+            )
+        ],
+        cost=CostProfile(
+            est_tokens_in=5000,
+            est_tokens_out=5000,
+            est_latency_ms=15000,
+        ),
+        permissions=PermissionProfile(
+            hitl_required=False,
+            data_classification="INTERNAL",
+        ),
+        context_key=CONTEXT_DOMAIN_MCP,
+        semantic_keywords=[server_name, "task", "iterative", "react"],
+        display=DisplayMetadata(
+            emoji=_MCP_DISPLAY_EMOJI,
+            i18n_key="mcp_tool",
+            category="tool",
+        ),
+        tool_category=None,
+    )
+
+
 _STOP_WORDS = frozenset(
     {
         "with",
@@ -315,28 +488,12 @@ def _mcp_tool_to_manifest(
 ) -> Any:
     """Convert an MCPDiscoveredTool to a ToolManifest (admin MCP).
 
-    For Excalidraw create_view, the SPATIAL_SUFFIX is appended to the
-    description to instruct the planner to generate a structured intent
-    instead of raw Excalidraw elements.
-
     Args:
         agent_name: Per-server agent name for domain extraction.
             Defaults to AGENT_MCP for backward compatibility.
     """
-    from src.infrastructure.mcp.excalidraw.overrides import (
-        EXCALIDRAW_CREATE_VIEW_TOOL,
-        EXCALIDRAW_SERVER_NAME,
-        EXCALIDRAW_SPATIAL_SUFFIX,
-    )
-
     description = discovered.description
     input_schema = discovered.input_schema
-
-    if (
-        discovered.server_name == EXCALIDRAW_SERVER_NAME
-        and discovered.tool_name == EXCALIDRAW_CREATE_VIEW_TOOL
-    ):
-        description = description + EXCALIDRAW_SPATIAL_SUFFIX
 
     semantic_keywords = [
         discovered.server_name,

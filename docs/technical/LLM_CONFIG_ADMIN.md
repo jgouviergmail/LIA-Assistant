@@ -197,6 +197,8 @@ Pour un déploiement multi-workers, ajouter un compteur Redis `sys:llm_config:ve
 | **HITL** | `hitl_classifier`, `hitl_question_generator`, `hitl_plan_approval_question_generator` |
 | **Memory** | `memory_extraction`, `memory_reference_resolution` |
 | **Background** | `interest_extraction`, `interest_content`, `heartbeat_decision`, `heartbeat_message`, `broadcast_translator` |
+| **Initiative** | `initiative` — Post-execution cross-domain enrichment |
+| **MCP ReAct** | `mcp_react_agent` — Iterative sub-agent for MCP servers with `iterative_mode` |
 | **Specialized** | `voice_comment`, `mcp_description`, `mcp_excalidraw`, `evaluator` |
 
 ---

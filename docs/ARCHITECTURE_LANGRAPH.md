@@ -1,7 +1,7 @@
 # Architecture LangGraph - LIA
 
-**Version**: 5.7 (INTELLIPLANNER + INTELLIA v10.1 + SEMANTIC + REMINDERS + Architecture v3.5 + Sub-Agents + Browser Control + Journals + Philips Hue)
-**Date**: 2026-03-21
+**Version**: 5.8 (INTELLIPLANNER + INTELLIA v10.1 + SEMANTIC + REMINDERS + Architecture v3.5 + Sub-Agents + Browser Control + Journals + Philips Hue + Initiative Phase + MCP Iterative)
+**Date**: 2026-03-24
 **Status**: Production
 
 ---
@@ -321,11 +321,44 @@ LIA utilise **LangGraph v1.1.2** avec exécution parallèle native **asyncio** p
 │ ROUTING                                                         │
 │   • pending_hitl_interaction → hitl_dispatch_node               │
 │   • Plus d'agents à exécuter → agent node suivant               │
-│   • Terminé → response_node                                     │
+│   • Terminé → initiative_node                                    │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 2.7 hitl_dispatch_node
+### 2.7 initiative_node (ADR-062)
+
+**Fichier**: `nodes/initiative_node.py`
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    initiative_node                               │
+│               (Post-Execution Enrichment)                        │
+├─────────────────────────────────────────────────────────────────┤
+│ INPUT                                                           │
+│   • agent_results: Résultats d'exécution du tour                │
+│   • query_intelligence: Domaines exécutés                       │
+│   • Memory facts + User interests (injected)                    │
+├─────────────────────────────────────────────────────────────────┤
+│ TRAITEMENT                                                      │
+│   1. Pre-filter: domaines adjacents read-only disponibles?      │
+│   2. Format execution summary + adjacent tools                  │
+│   3. LLM structured output → InitiativeDecision                 │
+│   4. Si should_act: execute_plan_parallel (read-only tools)     │
+│   5. Merge initiative results into agent_results + registry     │
+│   6. Suggestion field for response_node context                 │
+├─────────────────────────────────────────────────────────────────┤
+│ OUTPUT                                                          │
+│   • initiative_results: Résultats des actions complémentaires   │
+│   • initiative_suggestion: Suggestion write-action (optional)   │
+│   • agent_results: Merged with initiative data                  │
+│   • registry: Merged with initiative registry items             │
+├─────────────────────────────────────────────────────────────────┤
+│ ROUTING                                                         │
+│   • Toujours → response_node                                    │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 2.8 hitl_dispatch_node
 
 **Fichier**: `nodes/hitl_dispatch_node.py`
 
@@ -356,7 +389,7 @@ LIA utilise **LangGraph v1.1.2** avec exécution parallèle native **asyncio** p
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 2.8 response_node (INTELLIA v10)
+### 2.9 response_node (INTELLIA v10)
 
 **Fichier**: `nodes/response_node.py`
 

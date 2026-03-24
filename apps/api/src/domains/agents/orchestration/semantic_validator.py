@@ -345,14 +345,15 @@ def should_trigger_semantic_validation(
             has_cardinality_risk = getattr(query_intelligence, "has_cardinality_risk", False)
             expected_domains = getattr(query_intelligence, "domains", [])
 
-    # CRITICAL: Check multi-domain mismatch FIRST (before single-step short-circuit)
-    # If LLM detected 2+ domains but plan has only 1 step → likely incomplete plan
-    # DISABLED 2026-01-11: CROSS_DOMAIN_CAPABLE_TOOLS was causing issues - plans with
-    # incomplete information were being accepted. Reverting to force validation.
+    # Check multi-domain mismatch (before single-step short-circuit)
+    # If LLM detected 2+ domains but plan has only 1 step → possibly incomplete plan
+    # BUT: Only force validation for MUTATION intents or cardinality risks.
+    # For read-only queries (route, search, weather, info), the planner often correctly
+    # consolidates multiple detected domains into a single tool call.
+    # Forcing validation on read-only queries causes spurious clarification loops.
     if len(expected_domains) >= 2 and len(plan.steps) == 1:
-        single_tool_name = plan.steps[0].tool_name or ""
-        # Force validation - planner might have missed steps for resolving entities
-        return True, f"multi_domain_expected_but_single_step:{expected_domains}"
+        if is_mutation_intent or has_cardinality_risk:
+            return True, f"multi_domain_expected_but_single_step:{expected_domains}"
 
     # CRITICAL: Detect intent-plan mismatch for single-step plans
     # If LLM detected mutation intent but plan has NO mutation tool → incomplete plan

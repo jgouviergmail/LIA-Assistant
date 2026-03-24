@@ -2160,6 +2160,30 @@ MCP_DESCRIPTION_MAX_TOOLS = 5  # Max number of tool descriptions to include
 MCP_DESCRIPTION_MAX_SENTENCE_LENGTH = 60  # Max chars per tool sentence
 MCP_DESCRIPTION_MAX_TOTAL_LENGTH = 400  # Max chars for algorithmic fallback description
 
+# MCP ReAct Sub-Agent (ADR-062)
+# Iterative multi-step interaction with MCP servers via ReAct agent loop.
+# Reference: tools/mcp_react_tools.py, tools/react_runner.py
+MCP_REACT_ENABLED_DEFAULT = False
+MCP_REACT_MAX_ITERATIONS_DEFAULT = 10  # create_react_agent recursion_limit
+
+# ============================================================================
+# INITIATIVE PHASE (ADR-062)
+# ============================================================================
+# Post-execution proactive enrichment via read-only tool calls.
+# Reference: nodes/initiative_node.py, ADR-062
+NODE_INITIATIVE = "initiative"
+STATE_KEY_INITIATIVE_ITERATION = "initiative_iteration"
+STATE_KEY_INITIATIVE_RESULTS = "initiative_results"
+STATE_KEY_INITIATIVE_SKIPPED_REASON = "initiative_skipped_reason"
+STATE_KEY_INITIATIVE_SUGGESTION = "initiative_suggestion"
+INITIATIVE_ENABLED_DEFAULT = False
+INITIATIVE_MAX_ITERATIONS_DEFAULT = 1  # Conservative: one evaluation pass
+INITIATIVE_MAX_ACTIONS_PER_ITERATION_DEFAULT = 3
+INITIATIVE_LLM_TIMEOUT_SECONDS = 10  # Structured output needs parsing time
+INITIATIVE_MEMORY_LIMIT = 3  # Max memory facts injected
+INITIATIVE_MEMORY_MIN_SCORE = 0.6  # High threshold for relevance
+INITIATIVE_INTERESTS_LIMIT = 5  # Top N active interests
+
 # ============================================================================
 # LOCALIZATION DEFAULTS
 # ============================================================================

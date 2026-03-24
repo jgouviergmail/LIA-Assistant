@@ -6,8 +6,8 @@ MCP (Model Context Protocol) support enables LIA to connect external tool server
 
 **Key principle**: MCP is infrastructure-level, NOT a new agent. Tools register in the existing catalogue and are usable by any agent via the standard planning/execution pipeline.
 
-**Version**: evolution F2 + F2.1 + F2.2 + F2.3 + F2.4 + F2.5 + F2.6 — v6.2
-**Status**: Admin MCP (F2) + Per-user MCP (F2.1) + Per-server domains (F2.2) + HTML Card Display (F2.3) + Structured Items Parsing (F2.4) + OAuth Scopes + Admin MCP Per-Server Routing & User Toggle (F2.5) + MCP Apps (F2.6) implemented.
+**Version**: evolution F2 + F2.1 + F2.2 + F2.3 + F2.4 + F2.5 + F2.6 + F2.7 — v6.3
+**Status**: Admin MCP (F2) + Per-user MCP (F2.1) + Per-server domains (F2.2) + HTML Card Display (F2.3) + Structured Items Parsing (F2.4) + OAuth Scopes + Admin MCP Per-Server Routing & User Toggle (F2.5) + MCP Apps (F2.6) + Iterative Mode / ReAct (F2.7) implemented.
 
 ---
 
@@ -20,9 +20,13 @@ Startup: MCPSettings → MCPClientManager.initialize() → session.list_tools()
          → MCPToolAdapter(BaseTool) → ToolManifest → AgentRegistry + tool_registry
          → domain_taxonomy "mcp" → _build_domain_index()
 
-Runtime: QueryAnalyzerService detects per-server domain (e.g., "mcp_huggingface_hub") → SmartCatalogueService includes MCP tools
+Runtime (standard): QueryAnalyzerService detects per-server domain → SmartCatalogueService includes MCP tools
          → Planner selects MCP tool → parallel_executor → tool_registry.get_tool()
          → MCPToolAdapter._arun() → session.call_tool()
+
+Runtime (iterative_mode): QueryAnalyzerService detects domain → Planner selects mcp_{server}_task
+         → parallel_executor → mcp_server_task_tool → ReactSubAgentRunner
+         → ReAct agent loop: read_me → understand API → call tools → return result
 
 Shutdown: MCPClientManager.shutdown() → closes sessions + exit_stacks
 ```
@@ -137,6 +141,7 @@ apps/api/src/infrastructure/mcp/
 | `hitl_required` | `bool \| null` | `null` | HITL override (`null` = use global) |
 | `description` | `string \| null` | `null` | Domain description for query routing. Helps the LLM select this server when analyzing user queries. |
 | `internal` | `bool` | `false` | Mark as Docker-internal service. Skips SSRF validation (allows HTTP and private IPs). Only for trusted admin-configured services. |
+| `iterative_mode` | `bool` | `false` | Enable ReAct agent loop instead of static planner for this server. When `true`, a sub-agent interacts iteratively with the server (reads docs, then calls tools). Requires `MCP_REACT_ENABLED=true`. Best for servers with complex APIs (e.g., Excalidraw). |
 
 #### JSON File (`MCP_SERVERS_CONFIG_PATH`)
 

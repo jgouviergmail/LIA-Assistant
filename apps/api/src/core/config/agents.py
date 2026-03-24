@@ -106,6 +106,9 @@ from src.core.constants import (
     HITL_QUESTION_GENERATOR_LLM_TEMPERATURE_DEFAULT,
     HITL_QUESTION_GENERATOR_LLM_TOP_P_DEFAULT,
     HITL_QUESTION_GENERATOR_PROMPT_VERSION_DEFAULT,
+    INITIATIVE_ENABLED_DEFAULT,
+    INITIATIVE_MAX_ACTIONS_PER_ITERATION_DEFAULT,
+    INITIATIVE_MAX_ITERATIONS_DEFAULT,
     INSUFFICIENT_CONTENT_MIN_CHARS_THRESHOLD_DEFAULT,
     INTEREST_ACTIVITY_COOLDOWN_MINUTES_DEFAULT,
     INTEREST_CONTENT_LOOKBACK_DAYS_DEFAULT,
@@ -128,6 +131,8 @@ from src.core.constants import (
     MAX_MESSAGES_HISTORY_DEFAULT,
     MAX_ROUTING_HISTORY_DEFAULT,
     MAX_TOKENS_HISTORY_DEFAULT,
+    MCP_REACT_ENABLED_DEFAULT,
+    MCP_REACT_MAX_ITERATIONS_DEFAULT,
     MEMORY_BM25_CACHE_MAX_USERS_DEFAULT,
     MEMORY_CLEANUP_HOUR_DEFAULT,
     MEMORY_CLEANUP_MINUTE_DEFAULT,
@@ -2654,6 +2659,45 @@ class AgentsSettings(BaseSettings):
         ge=30,
         le=600,
         description="Interval in seconds for the stale sub-agent recovery job.",
+    )
+
+    # ========================================================================
+    # Initiative Phase (ADR-062)
+    # ========================================================================
+    # Post-execution proactive enrichment via read-only tool calls.
+    initiative_enabled: bool = Field(
+        default=INITIATIVE_ENABLED_DEFAULT,
+        description="Enable post-execution initiative phase for proactive read-only actions.",
+    )
+    initiative_max_iterations: int = Field(
+        default=INITIATIVE_MAX_ITERATIONS_DEFAULT,
+        ge=1,
+        le=3,
+        description="Maximum initiative evaluation iterations per turn.",
+    )
+    initiative_max_actions: int = Field(
+        default=INITIATIVE_MAX_ACTIONS_PER_ITERATION_DEFAULT,
+        ge=1,
+        le=5,
+        description="Maximum read-only actions per initiative evaluation.",
+    )
+
+    # ========================================================================
+    # MCP ReAct Sub-Agent (ADR-062)
+    # ========================================================================
+    # Iterative multi-step MCP interaction via ReAct agent loop.
+    mcp_react_enabled: bool = Field(
+        default=MCP_REACT_ENABLED_DEFAULT,
+        description=(
+            "Enable MCP ReAct sub-agent for iterative MCP interactions. "
+            "When enabled, MCP servers with iterative_mode=true delegate to a ReAct agent."
+        ),
+    )
+    mcp_react_max_iterations: int = Field(
+        default=MCP_REACT_MAX_ITERATIONS_DEFAULT,
+        ge=3,
+        le=20,
+        description="Max ReAct iterations for MCP sub-agent (recursion_limit).",
     )
 
 

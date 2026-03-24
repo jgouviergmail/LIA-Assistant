@@ -434,8 +434,13 @@ class TokenTrackingCallback(AsyncCallbackHandler):
     def _store_call_context(self, run_id: UUID, metadata: dict[str, Any] | None) -> None:
         """Store per-call context for parallel-safe tracking (DRY helper)."""
         self._last_usage_metadata = None
+        md = metadata or {}
+        # node_name_override: set by ReactSubAgentRunner to display a
+        # user-friendly name (e.g., "MCP Iterative: excalidraw") instead
+        # of the internal graph node name ("agent").
+        node_name = md.get("node_name_override") or md.get("langgraph_node", "unknown")
         self._call_context[str(run_id)] = {
-            "node_name": (metadata or {}).get("langgraph_node", "unknown"),
+            "node_name": node_name,
             "start_time": time.time(),
         }
 

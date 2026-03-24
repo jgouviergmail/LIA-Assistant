@@ -90,7 +90,7 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         ),
         agent_names=["contact_agent"],
         result_key="contacts",  # $steps.step_N.contacts
-        related_domains=[],
+        related_domains=[],  # Reverse lookup: email→contact, event→contact cover adjacency
         priority=8,  # High priority: contacts are foundational
         metadata={
             "provider": "google",
@@ -131,7 +131,11 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         ),
         agent_names=["email_agent"],
         result_key="emails",  # $steps.step_N.emails
-        related_domains=["contact"],  # Emails needs contacts for recipient lookup
+        related_domains=[
+            "contact",
+            "event",
+            "task",
+        ],  # Emails mention people, meetings, action items
         priority=9,  # High priority: email is a core communication tool
         metadata={
             "provider": "google",
@@ -150,7 +154,7 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         ),
         agent_names=["event_agent"],
         result_key="events",  # $steps.step_N.events
-        related_domains=["contact"],  # Events often involve contacts
+        related_domains=["contact", "task"],  # Events involve people and may generate tasks
         priority=8,  # High priority: calendar is a core productivity tool
         metadata={
             "provider": "google",
@@ -170,7 +174,7 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         ),
         agent_names=["file_agent"],
         result_key="files",  # $steps.step_N.files
-        related_domains=[],  # Drive is standalone
+        related_domains=["email", "contact"],  # Files shared via email, owned by contacts
         priority=7,  # Medium-high priority: common for document access
         metadata={
             "provider": "google",
@@ -190,7 +194,7 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         ),
         agent_names=["task_agent"],
         result_key="tasks",  # $steps.step_N.tasks
-        related_domains=["event"],  # Tasks often relate to scheduled events
+        related_domains=[],  # Reverse lookup: event→task covers adjacency
         priority=6,  # Medium priority: task management
         metadata={
             "provider": "google",
@@ -210,7 +214,9 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         ),
         agent_names=["weather_agent"],
         result_key="weathers",  # $steps.step_N.weathers
-        related_domains=["event"],  # Weather often checked for events/planning
+        related_domains=[
+            "event"
+        ],  # Weather for events; place adjacency via reverse (place→weather)
         priority=5,  # Medium priority: informational
         metadata={
             "provider": "openweathermap",
@@ -252,7 +258,7 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         ),
         agent_names=["reminder_agent"],
         result_key="reminders",  # $steps.step_N.reminders
-        related_domains=[],  # Reminder is standalone
+        related_domains=["event", "task", "contact"],  # Reminders tied to events, tasks, and people
         priority=9,  # High priority: direct user action, override tasks/calendar
         metadata={
             "provider": "internal",

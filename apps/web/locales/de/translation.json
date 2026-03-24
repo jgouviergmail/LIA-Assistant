@@ -1357,7 +1357,9 @@
           "subagent": "Führt delegierte Aufgaben über spezialisierte Sub-Agenten aus (Recherche, Analyse, Synthese)",
           "browser_agent": "Interaktiver Web-Browsing-Agent (navigieren, klicken, Formulare ausfüllen)",
           "journal_extraction": "Extrahiert Tagebucheinträge aus Gesprächen (Assistenten-Selbstreflexion)",
-          "journal_consolidation": "Überprüft und konsolidiert Tagebucheinträge periodisch"
+          "journal_consolidation": "Überprüft und konsolidiert Tagebucheinträge periodisch",
+          "initiative": "Proaktive Anreicherung nach Ausführung (nur Leseprüfungen)",
+          "mcp_react_agent": "MCP iterativer Modus: liest die Server-Dokumentation, führt dann Tools schrittweise aus"
         },
         "no_compatible_model": "Kein Modell dieses Anbieters unterstützt diese Funktion",
         "ollama": {
@@ -1472,6 +1474,8 @@
       "field_oauth_scopes_placeholder": "z.B. repo project read:org",
       "field_oauth_scopes_help": "Berechtigungen, die bei der Autorisierung angefordert werden (durch Leerzeichen getrennt)",
       "field_timeout": "Timeout (Sekunden)",
+      "field_iterative_mode": "Iterativer Modus (ReAct-Agent)",
+      "field_iterative_mode_help": "Wenn aktiviert, interagiert der Assistent iterativ mit diesem Server für bessere Ergebnisse bei komplexen Aufgaben. Dies verursacht zusätzliche LLM-Kosten pro Anfrage.",
       "field_domain_description": "Domänenbeschreibung",
       "field_domain_description_placeholder": "Z.B.: ML-Modelle auf HuggingFace Hub suchen und entdecken",
       "field_domain_description_help": "Beschreiben Sie, was dieser Server tut, damit der Assistent weiß, wann er ihn verwenden soll",
@@ -3787,7 +3791,9 @@
       "security": "Sicherheit",
       "get_started": "BETA beitreten",
       "login": "Anmelden",
-      "blog": "Blog"
+      "blog": "Blog",
+      "philosophy": "Philosophie",
+      "technical": "Technik"
     },
     "hero": {
       "badge_beta": "BETA",
@@ -3797,11 +3803,11 @@
       "title_line2_highlight": "KI",
       "title_line2_after": ".",
       "title_line3": "Deine Regeln.",
-      "subtitle_top": "Lernen Sie LIA kennen: die Assistentin mit Charakter, Gedächtnis und gesundem Menschenverstand.",
+      "subtitle_top": "Lernen Sie LIA kennen, die Assistentin mit Charakter, Gedächtnis und gesundem Menschenverstand.",
       "subtitle_line1a": "Schluss mit kalten, sich wiederholenden KIs.",
-      "subtitle_line1b": "LIA lernt aus Ihren Gewohnheiten, führt eigene Reflexionstagebücher und entwickelt eine einzigartige Persönlichkeit.",
+      "subtitle_line1b": "LIA lernt aus Ihren Gewohnheiten und entwickelt eine einzigartige Persönlichkeit bei jeder Interaktion.",
       "subtitle_line2a": "Fähig zu gut platziertem Sarkasmus ebenso wie zu tiefer Empathie,",
-      "subtitle_line2b": "orchestriert sie Ihr digitales Leben im Hintergrund.",
+      "subtitle_line2b": "LIA orchestriert Ihr digitales Leben im Hintergrund.",
       "subtitle_line2c": "Alles ist einfach, mit einem Klick erreichbar, und Sie behalten immer die finale Kontrolle.",
       "cta_primary": "BETA beitreten",
       "cta_secondary": "Entdecken",
@@ -3870,8 +3876,8 @@
         "description": "E-Mails, Kalender, Kontakte, Dateien, Aufgaben, Wetter, Websuche, Wikipedia, Orte, Routen, Erinnerungen und mehr. Ein einziger Befehl aktiviert automatisch die richtigen Agenten."
       },
       "proactive": {
-        "title": "Intelligente Benachrichtigungen",
-        "description": "LIA informiert dich zum richtigen Zeitpunkt: anstehende Meetings, Wetteränderungen (Regen, Temperaturabfall), überfällige Aufgaben, wichtige E-Mails, Neuigkeiten zu deinen Interessen. Konfigurierbar nach Zeitfenster."
+        "title": "Proaktive Intelligenz",
+        "description": "Push-Benachrichtigungen zur richtigen Zeit (Wetter, Termine, Aufgaben). In Gesprächen gleicht LIA proaktiv verwandte Informationen ab: Regenvorhersage + Outdoor-Termin, E-Mail mit Terminvorschlag + Kalenderkonflikt. Voll konfigurierbar."
       },
       "interests": {
         "title": "Interessenverfolgung",
@@ -3899,7 +3905,7 @@
       },
       "mcp": {
         "title": "Erweiterbar (MCP)",
-        "description": "Verbinde deine eigenen Tools und MCP-Server, um LIAs Fähigkeiten grenzenlos zu erweitern. Kompatibel mit allen Standard-MCP-Servern und Protokollen."
+        "description": "Verbinde deine eigenen MCP-Server, um LIA grenzenlos zu erweitern. Iterativer Modus verfügbar: Ein dedizierter Agent liest die Server-Dokumentation und ruft dann die Tools korrekt auf — ideal für komplexe APIs."
       },
       "mcp_apps": {
         "title": "Interaktive MCP Apps",
@@ -4255,7 +4261,7 @@
       "mcp-protocol": {
         "title": "Model Context Protocol: LIA unbegrenzt erweitern",
         "excerpt": "Mit dem MCP-Protokoll von Anthropic kann LIA sich mit beliebigen externen Diensten verbinden.",
-        "body": "<h2>Was ist MCP?</h2><p>Das <strong>Model Context Protocol (MCP)</strong> ist ein offener Standard von Anthropic, der KI-Assistenten die Verbindung mit externen Tool-Servern ermöglicht. LIA implementiert dieses Protokoll mit <strong>benutzerspezifischen MCP-Servern</strong> und bietet damit unbegrenzte und personalisierte Erweiterbarkeit.</p><h2>Tool-Erkennung und Integration</h2><p>Sie konfigurieren Ihre MCP-Server in der LIA-Oberfläche. Bei der Verbindung ruft LIA <code>list_tools()</code> auf jedem Server auf, um die verfügbaren Tools dynamisch zu erkennen. Jedes MCP-Tool wird über <strong>MCPToolAdapter</strong> gekapselt, der <code>BaseTool</code> von LangChain erweitert, was eine nahtlose Integration in den Tool-Katalog des Agenten ermöglicht. Die MCP-Tools sind anschließend genauso verwendbar wie native Tools.</p><h2>Sicherer Transport</h2><p>LIA verwendet ausschließlich den <strong>Streamable-HTTP</strong>-Transport für MCP-Server. Der stdio-Transport ist aus <strong>Sicherheitsgründen deaktiviert</strong> (Risiko der Ausführung beliebiger Prozesse). Jeder Server unterliegt einem individuellen Rate-Limiting über <code>asyncio.Lock</code>, um Überlastung zu vermeiden.</p><h2>4 Authentifizierungstypen</h2><p>Jeder MCP-Server unterstützt einen der 4 Authentifizierungstypen:</p><ul><li><strong>NONE</strong> — Keine Authentifizierung (öffentliche oder interne Server)</li><li><strong>API_KEY</strong> — API-Schlüssel in den Headern übertragen</li><li><strong>BEARER</strong> — Bearer-Token für Standard-REST-APIs</li><li><strong>OAUTH2</strong> — Vollständiges OAuth 2.0 mit PKCE</li></ul><p>Alle Anmeldedaten werden vor der Speicherung in der Datenbank <strong>mit Fernet verschlüsselt</strong> (AES-128 CBC + HMAC). Kein Geheimnis wird im Klartext offengelegt.</p><h2>Mehrschichtige Sicherheit</h2><p>Die MCP-Sicherheit basiert auf mehreren Mechanismen:</p><ul><li><strong>Obligatorisches HITL</strong> — Alle MCP-Tools unterliegen standardmäßig der Human-in-the-Loop-Validierung</li><li><strong>SSRF-Schutz</strong> — Die Funktion <code>validate_http_endpoint()</code> blockiert URLs, die auf interne Netzwerke zeigen (127.0.0.1, 10.x, 192.168.x usw.)</li><li><strong>Health Checks</strong> — Der Zustand jedes MCP-Servers wird über eine dedizierte Prometheus-Gauge überwacht</li><li><strong>Konfigurierbare Limits</strong> — Anzahl der Server (10), Tools pro Server (20), Timeout pro Aufruf (30s)</li></ul>"
+        "body": "<h2>Was ist MCP?</h2><p>Das <strong>Model Context Protocol (MCP)</strong> ist ein offener Standard von Anthropic, der KI-Assistenten die Verbindung mit externen Tool-Servern ermöglicht. LIA implementiert dieses Protokoll mit <strong>benutzerspezifischen MCP-Servern</strong> und bietet damit unbegrenzte und personalisierte Erweiterbarkeit.</p><h2>Tool-Erkennung und Integration</h2><p>Sie konfigurieren Ihre MCP-Server in der LIA-Oberfläche. Bei der Verbindung ruft LIA <code>list_tools()</code> auf jedem Server auf, um die verfügbaren Tools dynamisch zu erkennen. Jedes MCP-Tool wird über <strong>MCPToolAdapter</strong> gekapselt, der <code>BaseTool</code> von LangChain erweitert, was eine nahtlose Integration in den Tool-Katalog des Agenten ermöglicht. Die MCP-Tools sind anschließend genauso verwendbar wie native Tools.</p><h2>Sicherer Transport</h2><p>LIA verwendet ausschließlich den <strong>Streamable-HTTP</strong>-Transport für MCP-Server. Der stdio-Transport ist aus <strong>Sicherheitsgründen deaktiviert</strong> (Risiko der Ausführung beliebiger Prozesse). Jeder Server unterliegt einem individuellen Rate-Limiting über <code>asyncio.Lock</code>, um Überlastung zu vermeiden.</p><h2>4 Authentifizierungstypen</h2><p>Jeder MCP-Server unterstützt einen der 4 Authentifizierungstypen:</p><ul><li><strong>NONE</strong> — Keine Authentifizierung (öffentliche oder interne Server)</li><li><strong>API_KEY</strong> — API-Schlüssel in den Headern übertragen</li><li><strong>BEARER</strong> — Bearer-Token für Standard-REST-APIs</li><li><strong>OAUTH2</strong> — Vollständiges OAuth 2.0 mit PKCE</li></ul><p>Alle Anmeldedaten werden vor der Speicherung in der Datenbank <strong>mit Fernet verschlüsselt</strong> (AES-128 CBC + HMAC). Kein Geheimnis wird im Klartext offengelegt.</p><h2>Mehrschichtige Sicherheit</h2><p>Die MCP-Sicherheit basiert auf mehreren Mechanismen:</p><ul><li><strong>Obligatorisches HITL</strong> — Alle MCP-Tools unterliegen standardmäßig der Human-in-the-Loop-Validierung</li><li><strong>SSRF-Schutz</strong> — Die Funktion <code>validate_http_endpoint()</code> blockiert URLs, die auf interne Netzwerke zeigen (127.0.0.1, 10.x, 192.168.x usw.)</li><li><strong>Health Checks</strong> — Der Zustand jedes MCP-Servers wird über eine dedizierte Prometheus-Gauge überwacht</li><li><strong>Konfigurierbare Limits</strong> — Anzahl der Server (10), Tools pro Server (20), Timeout pro Aufruf (30s)</li></ul><h2>Iterativer Modus (ReAct)</h2><p>Einige MCP-Server haben komplexe APIs, bei denen der statische Planer die richtigen Parameter nicht im Voraus generieren kann. Im <strong>iterativen Modus</strong> liest ein dedizierter ReAct-Agent zuerst die Server-Dokumentation, versteht das erwartete Format und ruft dann die Tools korrekt auf. Aktivierbar pro Server über den <code>iterative_mode</code>-Toggle.</p>"
       },
       "skills-system": {
         "title": "Skills: Expertenanweisungen zur Anpassung von LIA",
@@ -4278,9 +4284,9 @@
         "body": "<h2>Ein introspektives Gedächtnis</h2><p>Persönliche Tagebücher sind eine einzigartige Funktion von LIA: Der Assistent führt ein <strong>thematisches persönliches Tagebuch</strong>, in dem er seine Reflexionen, Beobachtungen über den Benutzer, Ideen und Erkenntnisse festhält. Diese Notizen bereichern sein Reasoning und personalisieren seine Antworten im Laufe der Zeit.</p><h2>4 Themen</h2><p>Jeder Eintrag wird einem der 4 Themen zugeordnet:</p><ul><li><strong>SELF_REFLECTION</strong> — Reflexionen über das eigene Funktionieren und die Interaktionen</li><li><strong>USER_OBSERVATIONS</strong> — Notizen zu Ihren Präferenzen, Gewohnheiten und Bedürfnissen</li><li><strong>IDEAS_ANALYSES</strong> — Verbindungen, Erkenntnisse und domänenübergreifende Analysen</li><li><strong>LEARNINGS</strong> — Lektionen aus Interaktionen und neues Wissen</li></ul><h2>5 Stimmungen</h2><p>Jeder Eintrag trägt eine Stimmung, die den introspektiven Zustand des Assistenten widerspiegelt: <strong>REFLECTIVE</strong> (reflektierend), <strong>CURIOUS</strong> (neugierig), <strong>SATISFIED</strong> (zufrieden), <strong>CONCERNED</strong> (besorgt) oder <strong>INSPIRED</strong> (inspiriert).</p><h2>3 Schreibquellen</h2><p>Die Einträge stammen aus drei verschiedenen Quellen:</p><ul><li><strong>CONVERSATION</strong> — Automatische Extraktion nach der Konversation. Die Introspektion analysiert die letzte Nachricht plus <strong>4 Kontextnachrichten</strong> und lädt die <strong>10 neuesten Einträge</strong>, um Kontinuität zu gewährleisten und Duplikate zu vermeiden.</li><li><strong>CONSOLIDATION</strong> — Periodische Synthese alle <strong>4 Stunden</strong> mit einem Cooldown von <strong>12 Stunden</strong> und einem Minimum von <strong>3 Einträgen</strong>, um die Konsolidierung auszulösen.</li><li><strong>MANUAL</strong> — Vom Benutzer direkt über die Oberfläche erstellte Einträge.</li></ul><h2>Semantische Suche über Embeddings</h2><p>Tagebucheinträge werden über <strong>leichte</strong> Embeddings (384 Dimensionen) für die semantische Suche indexiert. Dies ermöglicht das Auffinden relevanter Einträge durch Bedeutungsähnlichkeit, selbst wenn die genauen Begriffe unterschiedlich sind.</p><h2>Einfluss auf die Antworten</h2><p>Relevante Einträge werden über semantische Suche in die Prompts des Planers und des Antwortknotens injiziert. LIA erhält die Einträge mit ihrem Ähnlichkeitswert und entscheidet selbst, welche er verwenden möchte.</p><h2>Datenintegrität</h2><p>LLMs können UUIDs halluzinieren, wenn sie Tagebucheinträge aktualisieren oder löschen. LIA schützt sich mit <strong>drei Schichten</strong>: Prompt-Anleitungen mit ID-Referenztabellen, Schema-Validierung die fehlerhafte UUIDs ablehnt, und Laufzeit-Filterung die Aktionen mit nicht existierenden Einträgen stillschweigend verwirft. Dies garantiert die Datenkonsistenz, auch wenn das LLM Fehler macht.</p><h2>Debug-Sichtbarkeit</h2><p>Das Debug-Panel zeigt sowohl <strong>Kontext-Injektion</strong> (welche Einträge abgerufen und in Prompts injiziert wurden, mit Ähnlichkeitswerten) als auch <strong>Hintergrund-Extraktion</strong> (was der Assistent nach dem Gespräch geschrieben hat — Aktionstyp, Thema, Titel, Stimmung). Extraktionsdaten kommen über ein zusätzliches SSE-Event nach Abschluss der Hintergrundverarbeitung.</p><h2>Benutzerkontrolle</h2><p>Sie können Ihre Tagebücher unter Einstellungen > Funktionen lesen, bearbeiten und exportieren. Die Funktion ist pro Benutzer vollständig deaktivierbar.</p>"
       },
       "proactive-notifications": {
-        "title": "Heartbeat: Proaktive, kontextbewusste Benachrichtigungen",
-        "excerpt": "LIA analysiert Kalender, Wetter, Aufgaben und Interessen für relevante Benachrichtigungen.",
-        "body": "<h2>Ein Assistent, der Ihre Bedürfnisse antizipiert</h2><p>Das <strong>Heartbeat</strong>-System von LIA analysiert periodisch Ihren persönlichen Kontext, um zu entscheiden, ob es etwas Nützliches mitzuteilen hat. Es unterbricht Sie nur, wenn es relevant ist.</p><h2>9 Kontextquellen</h2><p>Bei jedem Zyklus aggregiert Heartbeat parallel:</p><ul><li><strong>Kalender</strong> — Termine der nächsten <strong>6 Stunden</strong></li><li><strong>Aufgaben</strong> — Anstehende Aufgaben der nächsten <strong>2 Tage</strong></li><li><strong>E-Mails</strong> — Bis zu <strong>5 ungelesene E-Mails</strong> der letzten Zeit</li><li><strong>Wetter</strong> — Aktuelle Bedingungen mit Alarmschwellen (Regen, extreme Temperaturen, starker Wind)</li><li><strong>Interessen</strong> — Ihre Lieblingsthemen für gezielte Vorschläge</li><li><strong>Erinnerungen</strong> — Bis zu <strong>5 relevante Langzeiterinnerungen</strong></li><li><strong>Aktivität</strong> — Zeitstempel der letzten Nachricht (Inaktivitätserkennung)</li><li><strong>Uhrzeit</strong> — Zeitlicher Kontext mit Benutzer-Zeitzone</li><li><strong>Letzte Heartbeats</strong> — Verlauf der letzten Benachrichtigungen für die <strong>Anti-Redundanz</strong> (dieselbe Information nicht wiederholen)</li></ul><h2>Zweiphasen-LLM-Entscheidung</h2><p>Heartbeat verwendet eine <strong>zweiphasige</strong> LLM-Pipeline:</p><ul><li><strong>select_target()</strong> — Analysiert den gesamten Kontext und entscheidet, ob benachrichtigt werden soll und wenn ja, welches Thema am relevantesten ist.</li><li><strong>generate_content()</strong> — Generiert die Nachricht im Stil der <strong>aktiven Persönlichkeit</strong> des Assistenten.</li></ul><h2>Scheduling und Schutzmaßnahmen</h2><p>Der Heartbeat-Scheduler läuft alle <strong>30 Minuten</strong> und verarbeitet Benutzer in Batches von <strong>50</strong>. Die Schutzmaßnahmen sind streng:</p><ul><li>Maximal <strong>3 Benachrichtigungen pro Tag</strong>, mindestens <strong>1 pro Tag</strong></li><li>Erlaubter Zeitraum: <strong>9:00-22:00 Uhr</strong> (Ortszeit des Benutzers)</li><li>Cooldown von <strong>2 Stunden</strong> zwischen zwei Benachrichtigungen</li><li>Automatische Deaktivierung nach <strong>7 Tagen Inaktivität</strong></li></ul>"
+        "title": "Proaktive Intelligenz: Benachrichtigungen & Initiative",
+        "excerpt": "LIA antizipiert Ihre Bedürfnisse: Push-Benachrichtigungen via Heartbeat und konversationelle Initiative, die verwandte Informationen in Echtzeit abgleicht.",
+        "body": "<h2>Ein Assistent, der Ihre Bedürfnisse antizipiert</h2><p>Das <strong>Heartbeat</strong>-System von LIA analysiert periodisch Ihren persönlichen Kontext, um zu entscheiden, ob es etwas Nützliches mitzuteilen hat. Es unterbricht Sie nur, wenn es relevant ist.</p><h2>9 Kontextquellen</h2><p>Bei jedem Zyklus aggregiert Heartbeat parallel:</p><ul><li><strong>Kalender</strong> — Termine der nächsten <strong>6 Stunden</strong></li><li><strong>Aufgaben</strong> — Anstehende Aufgaben der nächsten <strong>2 Tage</strong></li><li><strong>E-Mails</strong> — Bis zu <strong>5 ungelesene E-Mails</strong> der letzten Zeit</li><li><strong>Wetter</strong> — Aktuelle Bedingungen mit Alarmschwellen (Regen, extreme Temperaturen, starker Wind)</li><li><strong>Interessen</strong> — Ihre Lieblingsthemen für gezielte Vorschläge</li><li><strong>Erinnerungen</strong> — Bis zu <strong>5 relevante Langzeiterinnerungen</strong></li><li><strong>Aktivität</strong> — Zeitstempel der letzten Nachricht (Inaktivitätserkennung)</li><li><strong>Uhrzeit</strong> — Zeitlicher Kontext mit Benutzer-Zeitzone</li><li><strong>Letzte Heartbeats</strong> — Verlauf der letzten Benachrichtigungen für die <strong>Anti-Redundanz</strong> (dieselbe Information nicht wiederholen)</li></ul><h2>Zweiphasen-LLM-Entscheidung</h2><p>Heartbeat verwendet eine <strong>zweiphasige</strong> LLM-Pipeline:</p><ul><li><strong>select_target()</strong> — Analysiert den gesamten Kontext und entscheidet, ob benachrichtigt werden soll und wenn ja, welches Thema am relevantesten ist.</li><li><strong>generate_content()</strong> — Generiert die Nachricht im Stil der <strong>aktiven Persönlichkeit</strong> des Assistenten.</li></ul><h2>Scheduling und Schutzmaßnahmen</h2><p>Der Heartbeat-Scheduler läuft alle <strong>30 Minuten</strong> und verarbeitet Benutzer in Batches von <strong>50</strong>. Die Schutzmaßnahmen sind streng:</p><ul><li>Maximal <strong>3 Benachrichtigungen pro Tag</strong>, mindestens <strong>1 pro Tag</strong></li><li>Erlaubter Zeitraum: <strong>9:00-22:00 Uhr</strong> (Ortszeit des Benutzers)</li><li>Cooldown von <strong>2 Stunden</strong> zwischen zwei Benachrichtigungen</li><li>Automatische Deaktivierung nach <strong>7 Tagen Inaktivität</strong></li></ul><h2>Konversationelle Initiative</h2><p>Über geplante Benachrichtigungen hinaus ist LIA auch <strong>während Gesprächen</strong> proaktiv. Nach der Ausführung Ihrer Anfrage analysiert ein <strong>Initiative-Agent</strong> die Ergebnisse und prüft eigenständig verwandte Informationen über Domänen hinweg. Zeigt die Wettervorhersage Regen am Samstag und Sie haben eine Outdoor-Wanderung geplant, erwähnt LIA es. 100% prompt-gesteuert, nur Leseaktionen, angereichert durch Ihr Gedächtnis und Ihre Interessen.</p>"
       },
       "reminders-scheduling": {
         "title": "Erinnerungen und geplante Aktionen: Automatisieren Sie Ihren Alltag",
@@ -4382,6 +4388,72 @@
       "cost": "Kosten",
       "title_period": "Periodenlimits",
       "title_absolute": "Globale Limits"
+    }
+  },
+  "why": {
+    "meta": {
+      "title": "Warum LIA? — Der souveräne persönliche KI-Assistent",
+      "description": "Entdecken Sie die Philosophie, Alleinstellungsmerkmale und Vision von LIA — einem quelloffenen, selbst hostbaren, souveränen Multi-Agenten-KI-Assistenten."
+    },
+    "breadcrumb": "Warum LIA?",
+    "hero": {
+      "title": "Warum LIA?",
+      "subtitle": "Philosophie, Vision und Alleinstellungsmerkmale eines souveränen persönlichen KI-Assistenten in einer Welt proprietärer Cloud-Agenten."
+    },
+    "toc": {
+      "world_changed": "Die Welt hat sich verändert",
+      "thesis": "LIAs These",
+      "sovereignty": "Souveränität: Kontrolle zurückgewinnen",
+      "transparency": "Radikale Transparenz",
+      "depth": "Beziehungstiefe",
+      "orchestration": "Orchestrierung in der Produktion",
+      "human_control": "Menschliche Kontrolle",
+      "act": "In Ihrem digitalen Leben handeln",
+      "proactivity": "Kontextuelle Proaktivität",
+      "voice": "Stimme als Schnittstelle",
+      "openness": "Offenheit als Strategie",
+      "intelligence": "Selbstoptimierende Intelligenz",
+      "fabric": "Wie alles zusammenwirkt",
+      "honesty": "Was LIA nicht zu sein behauptet",
+      "vision": "Vision: Wohin geht LIA"
+    }
+  },
+  "how": {
+    "meta": {
+      "title": "Wie funktioniert LIA? — Technischer Leitfaden",
+      "description": "Architektur, Engineering-Muster und Designentscheidungen von LIA — einem Multi-Agenten-KI-Assistenten basierend auf LangGraph, FastAPI und Next.js."
+    },
+    "breadcrumb": "Wie es funktioniert",
+    "hero": {
+      "title": "Wie funktioniert LIA?",
+      "subtitle": "Architektur, Engineering-Muster und technische Entscheidungen eines produktionsreifen Multi-Agenten-KI-Assistenten."
+    },
+    "toc": {
+      "context": "Kontext und Grundentscheidungen",
+      "stack": "Technologie-Stack",
+      "ddd": "DDD-Architektur",
+      "langgraph": "LangGraph: Orchestrierung",
+      "pipeline": "Ausführungs-Pipeline",
+      "planning": "Planungssystem",
+      "smart_services": "Smart Services",
+      "semantic": "Semantisches Routing",
+      "hitl": "Human-in-the-Loop",
+      "state": "State und Message Windowing",
+      "memory": "Gedächtnis und psychologisches Profil",
+      "llm": "LLM-Infrastruktur",
+      "connectors": "Multi-Provider-Konnektoren",
+      "mcp": "Model Context Protocol",
+      "voice": "Sprachsystem",
+      "proactivity": "Proaktivität",
+      "rag": "RAG Spaces",
+      "browser": "Browser-Steuerung",
+      "security": "Sicherheit",
+      "observability": "Observability",
+      "performance": "Performance",
+      "cicd": "CI/CD und Qualität",
+      "patterns": "Querschnittsmuster",
+      "adr": "Architekturentscheidungen",
+      "extensibility": "Erweiterbarkeit"
     }
   }
 }

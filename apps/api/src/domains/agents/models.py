@@ -359,6 +359,14 @@ class MessagesState(TypedDict):
     compaction_summary: str | None  # Last compaction summary (for debug/audit)
     compaction_count: int  # Number of compactions performed in this session
 
+    # Initiative Phase: Post-execution proactive enrichment (ADR-062)
+    # The initiative node evaluates execution results and may execute read-only
+    # complementary actions or suggest write actions to the user.
+    initiative_iteration: int  # Iteration counter (0 = not evaluated yet)
+    initiative_results: list[dict[str, Any]]  # Actions executed + reasoning per iteration
+    initiative_skipped_reason: str | None  # Why initiative was skipped (debug panel)
+    initiative_suggestion: str | None  # Proactive write suggestion for response_node
+
 
 class AgentMessagesState(TypedDict):
     """
@@ -518,6 +526,11 @@ def create_initial_state(
         # Context Compaction (F4)
         compaction_summary=None,  # Last compaction summary
         compaction_count=0,  # Compactions performed
+        # Initiative Phase (ADR-062)
+        initiative_iteration=0,
+        initiative_results=[],
+        initiative_skipped_reason=None,
+        initiative_suggestion=None,
     )
 
 

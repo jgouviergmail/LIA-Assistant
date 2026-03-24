@@ -82,6 +82,16 @@ class MCPServerConfig(BaseModel):
             "(allows HTTP and private IPs). Only use for trusted admin-configured services."
         ),
     )
+    iterative_mode: bool = Field(
+        default=False,
+        description=(
+            "When true, the planner delegates to a ReAct sub-agent instead of "
+            "generating tool parameters directly. The ReAct agent calls read_me "
+            "first, then executes tools iteratively. Use for MCP servers that "
+            "require multi-step interactions (e.g., Excalidraw: read format "
+            "reference, then create diagram with correct elements)."
+        ),
+    )
 
     @model_validator(mode="after")
     def validate_transport_fields(self) -> MCPServerConfig:

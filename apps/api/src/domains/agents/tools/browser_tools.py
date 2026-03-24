@@ -194,27 +194,12 @@ async def browser_task_tool(
         # Ensure browser session exists
         pool, session = await _get_session(runtime, user_id)
 
-        # Build a lightweight ReAct agent for this task
-        from langchain_core.messages import HumanMessage
-        from langchain_core.runnables import RunnableConfig
-        from langgraph.prebuilt import create_react_agent
+        # Delegate to ReactSubAgentRunner (ADR-062: factorized ReAct pattern)
+        from src.domains.agents.tools.react_runner import ReactSubAgentRunner
 
-        from src.core.time_utils import get_prompt_datetime_formatted
-        from src.domains.agents.prompts.prompt_loader import load_prompt
-        from src.infrastructure.llm.factory import get_llm
-
-        llm = get_llm("browser_agent")
-        prompt = load_prompt("browser_agent_prompt", version="v1").format(
-            current_datetime=get_prompt_datetime_formatted(),
-            context_instructions="",
-        )
-
-        # Propagate store from parent graph so sub-tools pass validate_runtime_config
-        parent_store = runtime.store if runtime else None
-
-        # ReAct agent with browser tools (navigate, snapshot, click, fill, press_key)
-        react_agent = create_react_agent(
-            llm,
+        runner = ReactSubAgentRunner("browser_agent", "browser_agent_prompt")
+        react_result = await runner.run(
+            task=task,
             tools=[
                 browser_navigate_tool,
                 browser_snapshot_tool,
@@ -222,36 +207,12 @@ async def browser_task_tool(
                 browser_fill_tool,
                 browser_press_key_tool,
             ],
-            prompt=prompt,
-            store=parent_store,
-        )
-
-        # Build clean config for nested agent (avoid LangGraph internal state conflicts)
-        parent_config = runtime.config if runtime else {}
-        parent_configurable = parent_config.get("configurable", {})
-        nested_config = RunnableConfig(
-            configurable={
-                "user_id": parent_configurable.get("user_id"),
-                "thread_id": f"browser_{user_id}",
-                "__deps": parent_configurable.get("__deps"),
-                "user_timezone": parent_configurable.get("user_timezone", "UTC"),
-                "user_language": parent_configurable.get("user_language", "fr"),
-            },
-            callbacks=parent_config.get("callbacks"),
+            prompt_vars={"context_instructions": ""},
+            parent_runtime=runtime,
+            thread_prefix="browser",
             recursion_limit=15,
         )
-
-        result = await react_agent.ainvoke(
-            {"messages": [HumanMessage(content=task)]},
-            config=nested_config,
-        )
-
-        # Extract the final response from the agent
-        messages = result.get("messages", [])
-        final_message = ""
-        if messages:
-            last_msg = messages[-1]
-            final_message = last_msg.content if hasattr(last_msg, "content") else str(last_msg)
+        final_message = react_result.final_message
 
         # Get current page info for registry
         current_url = session.page.url if session.page and not session.page.is_closed() else ""

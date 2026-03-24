@@ -626,3 +626,49 @@ def route_from_semantic_validator(
     ).inc()
 
     return "approval_gate"
+
+
+def route_from_initiative(state: MessagesState) -> Literal["initiative", "response"]:
+    """Route from initiative node.
+
+    Routes back to initiative if actions were executed AND iteration budget remains.
+    Otherwise routes to response for final synthesis.
+
+    When initiative_enabled=False, the initiative node returns {} (pass-through)
+    and this function routes to response immediately.
+
+    Args:
+        state: Current graph state.
+
+    Returns:
+        Next node name.
+    """
+    from src.core.config import settings
+    from src.core.constants import (
+        NODE_INITIATIVE,
+        STATE_KEY_INITIATIVE_ITERATION,
+        STATE_KEY_INITIATIVE_RESULTS,
+    )
+
+    if not settings.initiative_enabled:
+        return NODE_RESPONSE
+
+    iteration = state.get(STATE_KEY_INITIATIVE_ITERATION, 0)
+    if iteration <= 0:
+        return NODE_RESPONSE
+
+    results = state.get(STATE_KEY_INITIATIVE_RESULTS, [])
+    if results and iteration < settings.initiative_max_iterations:
+        last = results[-1]
+        if last.get("actions_executed", 0) > 0:
+            langgraph_conditional_edges_total.labels(
+                edge_name="route_from_initiative",
+                decision=NODE_INITIATIVE,
+            ).inc()
+            return NODE_INITIATIVE
+
+    langgraph_conditional_edges_total.labels(
+        edge_name="route_from_initiative",
+        decision=NODE_RESPONSE,
+    ).inc()
+    return NODE_RESPONSE

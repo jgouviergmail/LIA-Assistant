@@ -34,6 +34,7 @@ export interface UserMCPServer {
   domain_description: string | null;
   timeout_seconds: number;
   hitl_required: boolean | null;
+  iterative_mode: boolean;
   header_name: string | null;
   has_credentials: boolean;
   has_oauth_credentials: boolean;
@@ -62,6 +63,7 @@ export interface UserMCPServerCreate {
   domain_description?: string;
   timeout_seconds?: number;
   hitl_required?: boolean | null;
+  iterative_mode?: boolean;
 }
 
 /**
@@ -80,6 +82,7 @@ export interface UserMCPServerUpdate {
   domain_description?: string;
   timeout_seconds?: number;
   hitl_required?: boolean | null;
+  iterative_mode?: boolean;
 }
 
 /**

@@ -2,7 +2,7 @@
 
 > Carte complète de toute la documentation du projet LIA - Assistant IA multi-agent avec LangGraph
 
-**Version**: 6.6
+**Version**: 6.7
 **Dernière mise à jour**: 2026-03-24
 **Statut**: Complète (190+ documents)
 
@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 50+ |
 | Guides pratiques | 15+ |
 | Runbooks | 34+ |
-| ADRs | 59 |
+| ADRs | 62 |
 | Skills Claude | 10 |
 
 ---
@@ -244,6 +244,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Titre | Date |
 |-----|-------|------|
+| ADR-062 | Agent Initiative Phase + MCP Iterative Sub-Agent | 2026-03 |
 | ADR-061 | Centralized Component Activation/Deactivation Control | 2026-03 |
 | ADR-059 | Browser Control Architecture (Playwright) | 2026-03 |
 | ADR-058 | System RAG Spaces for App Self-Knowledge | 2026-03 |

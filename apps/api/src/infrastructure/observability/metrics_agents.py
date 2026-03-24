@@ -645,6 +645,39 @@ mcp_connection_errors_total = Counter(
     ["server_name", "error_type"],
 )
 
+# ADR-062: MCP ReAct Sub-Agent metrics
+mcp_react_invocations_total = Counter(
+    "mcp_react_invocations_total",
+    "MCP ReAct sub-agent invocations",
+    ["server_name", "status"],  # status: success/error
+)
+
+mcp_react_iterations_histogram = Histogram(
+    "mcp_react_iterations_histogram",
+    "Number of ReAct iterations per MCP task",
+    ["server_name"],
+    buckets=[1, 2, 3, 5, 8, 10, 15],
+)
+
+# ADR-062: Initiative Phase metrics
+initiative_evaluations_total = Counter(
+    "initiative_evaluations_total",
+    "Initiative phase evaluations",
+    ["decision"],  # "act" | "skip" | "prefilter_skip"
+)
+
+initiative_actions_executed_total = Counter(
+    "initiative_actions_executed_total",
+    "Initiative actions executed",
+    ["tool_name"],
+)
+
+initiative_duration_seconds = Histogram(
+    "initiative_duration_seconds",
+    "Initiative phase total duration",
+    buckets=[0.1, 0.5, 1.0, 2.0, 3.0, 5.0],
+)
+
 context_resolution_duration_seconds = Histogram(
     "context_resolution_duration_seconds",
     "Time spent resolving context per turn type",

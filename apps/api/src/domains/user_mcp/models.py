@@ -139,6 +139,17 @@ class UserMCPServer(BaseModel):
         nullable=True,
         doc="Per-server HITL override. None = inherit global MCP_HITL_REQUIRED",
     )
+    iterative_mode: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="false",
+        doc=(
+            "Enable ReAct iterative mode for this server. When true, the planner "
+            "delegates to a ReAct sub-agent that interacts with the server's tools "
+            "iteratively. Incurs additional LLM costs (multiple tool calls per request)."
+        ),
+    )
 
     # Tool discovery cache
     discovered_tools_cache: Mapped[dict | None] = mapped_column(

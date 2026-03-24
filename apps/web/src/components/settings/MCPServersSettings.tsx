@@ -63,6 +63,7 @@ interface FormState {
   oauth_scopes: string;
   domain_description: string;
   timeout_seconds: number;
+  iterative_mode: boolean;
 }
 
 const EMPTY_FORM: FormState = {
@@ -77,6 +78,7 @@ const EMPTY_FORM: FormState = {
   oauth_scopes: '',
   domain_description: '',
   timeout_seconds: 30,
+  iterative_mode: false,
 };
 
 function getStatusBadgeVariant(
@@ -174,6 +176,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
       oauth_scopes: server.oauth_scopes ?? '',
       domain_description: server.domain_description ?? '',
       timeout_seconds: server.timeout_seconds,
+      iterative_mode: server.iterative_mode ?? false,
     });
     setEditingServer(server);
     setTestResult(null);
@@ -207,6 +210,8 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
         if (form.oauth_client_secret) update.oauth_client_secret = form.oauth_client_secret;
         if (form.oauth_scopes !== (editingServer.oauth_scopes ?? ''))
           update.oauth_scopes = form.oauth_scopes;
+        if (form.iterative_mode !== (editingServer.iterative_mode ?? false))
+          update.iterative_mode = form.iterative_mode;
 
         if (Object.keys(update).length === 0) {
           setEditingServer(null);
@@ -225,6 +230,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
           url: form.url,
           auth_type: form.auth_type,
           timeout_seconds: form.timeout_seconds,
+          iterative_mode: form.iterative_mode,
           ...(form.domain_description && { domain_description: form.domain_description }),
         };
         if (form.auth_type === 'api_key') {
@@ -591,6 +597,25 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
               type="number"
               min={5}
               max={120}
+            />
+          </div>
+
+          {/* Iterative Mode (ADR-062) */}
+          <div className="flex items-center justify-between py-2">
+            <div className="space-y-0.5">
+              <Label htmlFor="mcp-iterative-mode" className="text-sm font-medium">
+                {t('settings.mcp.field_iterative_mode')}
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                {t('settings.mcp.field_iterative_mode_help')}
+              </p>
+            </div>
+            <Switch
+              id="mcp-iterative-mode"
+              checked={form.iterative_mode}
+              onCheckedChange={checked =>
+                setForm(f => ({ ...f, iterative_mode: checked }))
+              }
             />
           </div>
 

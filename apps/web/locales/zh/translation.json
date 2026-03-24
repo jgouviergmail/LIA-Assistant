@@ -1363,7 +1363,9 @@
           "subagent": "通过专业子代理执行委派任务（研究、分析、综合）",
           "browser_agent": "交互式网页浏览代理（导航、点击、填写表单）",
           "journal_extraction": "从对话中提取日志条目（助手自省）",
-          "journal_consolidation": "定期审查和整合日志条目"
+          "journal_consolidation": "定期审查和整合日志条目",
+          "initiative": "执行后主动丰富（只读检查）",
+          "mcp_react_agent": "MCP迭代模式：先读取服务器文档，然后逐步执行工具"
         },
         "no_compatible_model": "该提供商没有支持此功能的模型",
         "ollama": {
@@ -1478,6 +1480,8 @@
       "field_oauth_scopes_placeholder": "例如：repo project read:org",
       "field_oauth_scopes_help": "授权时请求的权限（以空格分隔）",
       "field_timeout": "超时（秒）",
+      "field_iterative_mode": "迭代模式（ReAct代理）",
+      "field_iterative_mode_help": "启用后，助手将以迭代方式与此服务器交互，以在复杂任务上获得更好的结果。这会产生额外的LLM调用费用。",
       "field_domain_description": "领域描述",
       "field_domain_description_placeholder": "例如：在 HuggingFace Hub 上搜索和发现 ML 模型",
       "field_domain_description_help": "描述此服务器的功能，以便助手知道何时使用它",
@@ -3782,7 +3786,9 @@
       "security": "安全",
       "get_started": "加入BETA",
       "login": "登录",
-      "blog": "博客"
+      "blog": "博客",
+      "philosophy": "理念",
+      "technical": "技术"
     },
     "hero": {
       "badge_beta": "BETA",
@@ -3792,11 +3798,11 @@
       "title_line2_highlight": "AI",
       "title_line2_after": "。",
       "title_line3": "你的规则。",
-      "subtitle_top": "认识LIA：一个有个性、有记忆、有常识的助手。",
+      "subtitle_top": "认识LIA，一个有个性、有记忆、有常识的助手。",
       "subtitle_line1a": "告别冰冷重复的AI。",
-      "subtitle_line1b": "LIA从你的习惯中学习，保持自己的反思日记，发展独特的个性。",
+      "subtitle_line1b": "LIA从你的习惯中学习，在每次互动中发展独特的个性。",
       "subtitle_line2a": "她既能恰到好处地讽刺，也能深切共情，",
-      "subtitle_line2b": "在幕后协调你的数字生活。",
+      "subtitle_line2b": "LIA在幕后协调你的数字生活。",
       "subtitle_line2c": "一切都很简单，一键可达，而你始终掌握最终控制权。",
       "cta_primary": "加入BETA",
       "cta_secondary": "了解更多",
@@ -3865,8 +3871,8 @@
         "description": "邮件、日历、联系人、文件、任务、天气、网络搜索、Wikipedia、地点、路线、提醒等。一条指令自动激活正确的智能体。"
       },
       "proactive": {
-        "title": "智能通知",
-        "description": "LIA在合适的时间提醒您：即将到来的会议、天气变化（降雨、温度下降）、逾期任务、重要邮件、您关注领域的新闻。可按时间段配置。"
+        "title": "主动智能",
+        "description": "在正确的时间推送通知（天气、会议、任务）。对话中，LIA会主动交叉检查相关信息：降雨预报+户外活动、提到会议的邮件+日历冲突。完全可配置。"
       },
       "interests": {
         "title": "兴趣追踪",
@@ -3894,7 +3900,7 @@
       },
       "mcp": {
         "title": "可扩展 (MCP)",
-        "description": "连接你自己的工具和MCP服务器，无限扩展LIA的能力。兼容所有标准MCP服务器和协议，轻松集成各类API与第三方服务。"
+        "description": "连接您自己的MCP服务器，无限扩展LIA的能力。提供迭代模式：专用代理先阅读服务器文档，然后正确调用工具——非常适合复杂API。"
       },
       "mcp_apps": {
         "title": "交互式MCP Apps",
@@ -4250,7 +4256,7 @@
       "mcp-protocol": {
         "title": "Model Context Protocol：无限扩展LIA",
         "excerpt": "通过Anthropic的MCP协议，LIA可以连接任何外部服务。",
-        "body": "<h2>什么是MCP？</h2><p><strong>Model Context Protocol（MCP）</strong>是Anthropic开发的开放标准，使AI助手能够连接外部工具服务器。LIA实现了该协议，支持<strong>每用户MCP服务器</strong>，提供无限且个性化的扩展性。</p><h2>工具发现与集成</h2><p>您在LIA界面中配置MCP服务器。连接时，LIA对每个服务器调用<code>list_tools()</code>动态发现可用工具。每个MCP工具通过<strong>MCPToolAdapter</strong>封装，扩展LangChain的<code>BaseTool</code>，实现与智能体工具目录的无缝集成。MCP工具随后可以像原生工具一样使用。</p><h2>安全传输</h2><p>LIA专门使用<strong>Streamable HTTP</strong>传输方式连接MCP服务器。stdio传输<strong>出于安全原因被禁用</strong>（存在任意进程执行风险）。每个服务器通过<code>asyncio.Lock</code>进行独立的速率限制以防止过载。</p><h2>4种认证类型</h2><p>每个MCP服务器支持以下4种认证类型之一：</p><ul><li><strong>NONE</strong> — 无认证（公共或内部服务器）</li><li><strong>API_KEY</strong> — 通过headers传输的API密钥</li><li><strong>BEARER</strong> — 标准REST API的Bearer Token</li><li><strong>OAUTH2</strong> — 完整的OAuth 2.0 + PKCE</li></ul><p>所有凭据在存储到数据库之前通过<strong>Fernet</strong>（AES-128 CBC + HMAC）<strong>加密</strong>。没有任何密钥以明文暴露。</p><h2>多层安全</h2><p>MCP安全基于多重机制：</p><ul><li><strong>强制HITL</strong> — 所有MCP工具默认需要Human-in-the-Loop验证</li><li><strong>SSRF防护</strong> — <code>validate_http_endpoint()</code>函数阻止指向内部网络（127.0.0.1、10.x、192.168.x等）的URL</li><li><strong>健康检查</strong> — 每个MCP服务器的状态通过专用Prometheus gauge监控</li><li><strong>可配置限制</strong> — 服务器数量（10）、每服务器工具数（20）、每次调用超时（30秒）</li></ul>"
+        "body": "<h2>什么是MCP？</h2><p><strong>Model Context Protocol（MCP）</strong>是Anthropic开发的开放标准，使AI助手能够连接外部工具服务器。LIA实现了该协议，支持<strong>每用户MCP服务器</strong>，提供无限且个性化的扩展性。</p><h2>工具发现与集成</h2><p>您在LIA界面中配置MCP服务器。连接时，LIA对每个服务器调用<code>list_tools()</code>动态发现可用工具。每个MCP工具通过<strong>MCPToolAdapter</strong>封装，扩展LangChain的<code>BaseTool</code>，实现与智能体工具目录的无缝集成。MCP工具随后可以像原生工具一样使用。</p><h2>安全传输</h2><p>LIA专门使用<strong>Streamable HTTP</strong>传输方式连接MCP服务器。stdio传输<strong>出于安全原因被禁用</strong>（存在任意进程执行风险）。每个服务器通过<code>asyncio.Lock</code>进行独立的速率限制以防止过载。</p><h2>4种认证类型</h2><p>每个MCP服务器支持以下4种认证类型之一：</p><ul><li><strong>NONE</strong> — 无认证（公共或内部服务器）</li><li><strong>API_KEY</strong> — 通过headers传输的API密钥</li><li><strong>BEARER</strong> — 标准REST API的Bearer Token</li><li><strong>OAUTH2</strong> — 完整的OAuth 2.0 + PKCE</li></ul><p>所有凭据在存储到数据库之前通过<strong>Fernet</strong>（AES-128 CBC + HMAC）<strong>加密</strong>。没有任何密钥以明文暴露。</p><h2>多层安全</h2><p>MCP安全基于多重机制：</p><ul><li><strong>强制HITL</strong> — 所有MCP工具默认需要Human-in-the-Loop验证</li><li><strong>SSRF防护</strong> — <code>validate_http_endpoint()</code>函数阻止指向内部网络（127.0.0.1、10.x、192.168.x等）的URL</li><li><strong>健康检查</strong> — 每个MCP服务器的状态通过专用Prometheus gauge监控</li><li><strong>可配置限制</strong> — 服务器数量（10）、每服务器工具数（20）、每次调用超时（30秒）</li></ul><h2>迭代模式 (ReAct)</h2><p>某些MCP服务器有复杂的API，静态规划器无法预先生成正确的参数。在<strong>迭代模式</strong>下，专用ReAct代理先阅读服务器文档，理解预期格式，然后正确调用工具。可通过<code>iterative_mode</code>开关按服务器启用。</p>"
       },
       "skills-system": {
         "title": "技能：专家指令定制LIA",
@@ -4273,9 +4279,9 @@
         "body": "<h2>内省记忆</h2><p>个人日志是LIA的独特功能：助手维护<strong>主题个人日志</strong>，记录关于用户的反思、观察、想法和学习。这些笔记随时间推移丰富其推理并个性化其回复。</p><h2>4个主题</h2><p>每个条目归入4个主题之一：</p><ul><li><strong>SELF_REFLECTION</strong> — 对自身运作和交互的反思</li><li><strong>USER_OBSERVATIONS</strong> — 关于您的偏好、习惯和需求的记录</li><li><strong>IDEAS_ANALYSES</strong> — 联系、洞察和跨领域分析</li><li><strong>LEARNINGS</strong> — 从交互中获得的经验教训和新知识</li></ul><h2>5种心情</h2><p>每个条目带有反映助手内省状态的心情：<strong>REFLECTIVE</strong>（反思）、<strong>CURIOUS</strong>（好奇）、<strong>SATISFIED</strong>（满意）、<strong>CONCERNED</strong>（担忧）或<strong>INSPIRED</strong>（受启发）。</p><h2>3种写作来源</h2><p>条目来自三个不同的来源：</p><ul><li><strong>CONVERSATION</strong> — 对话后自动提取。内省分析最后一条消息加<strong>4条上下文消息</strong>，并加载<strong>10条近期条目</strong>以确保连续性并避免重复。</li><li><strong>CONSOLIDATION</strong> — 每<strong>4小时</strong>的定期综合，冷却期为<strong>12小时</strong>，最少<strong>3条条目</strong>才触发整合。</li><li><strong>MANUAL</strong> — 用户通过界面直接创建的条目。</li></ul><h2>基于Embeddings的语义搜索</h2><p>日志条目通过<strong>轻量级</strong>（384维）Embeddings索引，用于语义搜索。这允许通过语义相似性找到相关条目，即使确切用词不同。</p><h2>对回复的影响</h2><p>相关条目通过语义搜索注入到规划器和响应节点的提示中。LIA接收带有相似度分数的条目，自行决定使用哪些。</p><h2>数据完整性</h2><p>LLM在更新或删除日志条目时可能会产生UUID幻觉。LIA通过<strong>三层防护</strong>进行保护：带有ID参考表的提示指导、拒绝格式错误UUID的架构验证，以及静默丢弃引用不存在条目操作的运行时过滤。这确保了即使LLM出错，日志数据也能保持一致。</p><h2>调试可见性</h2><p>调试面板同时显示<strong>上下文注入</strong>（哪些条目被检索并注入到提示中，带有相似度分数）和<strong>后台提取</strong>（助手在对话后写了什么——操作类型、主题、标题、心情）。提取数据通过后台处理完成后的补充SSE事件到达。</p><h2>用户控制</h2><p>您可以在设置 > 功能中阅读、编辑和导出日志。该功能可按用户完全禁用。</p>"
       },
       "proactive-notifications": {
-        "title": "Heartbeat：主动的上下文感知通知",
-        "excerpt": "LIA分析您的日历、天气、任务和兴趣，发送相关通知。",
-        "body": "<h2>预见您需求的助手</h2><p>LIA的<strong>Heartbeat</strong>系统定期分析您的个人上下文，决定是否有有用的信息需要传达。它只在相关时才打扰您。</p><h2>9个上下文来源</h2><p>每个周期，Heartbeat并行聚合以下信息：</p><ul><li><strong>日历</strong> — 未来<strong>6小时</strong>的日程</li><li><strong>任务</strong> — 未来<strong>2天</strong>的待办任务</li><li><strong>邮件</strong> — 最多<strong>5封</strong>近期未读邮件</li><li><strong>天气</strong> — 当前天气状况，含警报阈值（雨、极端温度、强风）</li><li><strong>兴趣</strong> — 您的收藏主题，用于定向建议</li><li><strong>记忆</strong> — 最多<strong>5条</strong>相关长期记忆</li><li><strong>活动</strong> — 最后一条消息的时间戳（检测不活跃状态）</li><li><strong>时间</strong> — 包含用户时区的时间上下文</li><li><strong>近期Heartbeat</strong> — 近期通知历史，用于<strong>防重复</strong>（不重复相同信息）</li></ul><h2>两阶段LLM决策</h2><p>Heartbeat使用<strong>两阶段</strong>LLM管线：</p><ul><li><strong>select_target()</strong> — 分析全部上下文，决定是否需要通知，如果需要，选择最相关的主题。</li><li><strong>generate_content()</strong> — 以助手<strong>当前活跃个性</strong>的风格生成消息。</li></ul><h2>调度与安全机制</h2><p>Heartbeat调度器每<strong>30分钟</strong>执行一次，每批处理<strong>50</strong>个用户。安全机制非常严格：</p><ul><li>每天最多<strong>3条通知</strong>，最少<strong>1条</strong></li><li>允许的时间范围：<strong>9:00-22:00</strong>（用户本地时间）</li><li>两次通知之间<strong>2小时</strong>冷却期</li><li><strong>7天不活跃</strong>后自动停用</li></ul>"
+        "title": "主动智能：通知与主动行动",
+        "excerpt": "LIA预见您的需求：通过Heartbeat推送通知，以及在对话中实时交叉检查相关信息的会话主动性。",
+        "body": "<h2>预见您需求的助手</h2><p>LIA的<strong>Heartbeat</strong>系统定期分析您的个人上下文，决定是否有有用的信息需要传达。它只在相关时才打扰您。</p><h2>9个上下文来源</h2><p>每个周期，Heartbeat并行聚合以下信息：</p><ul><li><strong>日历</strong> — 未来<strong>6小时</strong>的日程</li><li><strong>任务</strong> — 未来<strong>2天</strong>的待办任务</li><li><strong>邮件</strong> — 最多<strong>5封</strong>近期未读邮件</li><li><strong>天气</strong> — 当前天气状况，含警报阈值（雨、极端温度、强风）</li><li><strong>兴趣</strong> — 您的收藏主题，用于定向建议</li><li><strong>记忆</strong> — 最多<strong>5条</strong>相关长期记忆</li><li><strong>活动</strong> — 最后一条消息的时间戳（检测不活跃状态）</li><li><strong>时间</strong> — 包含用户时区的时间上下文</li><li><strong>近期Heartbeat</strong> — 近期通知历史，用于<strong>防重复</strong>（不重复相同信息）</li></ul><h2>两阶段LLM决策</h2><p>Heartbeat使用<strong>两阶段</strong>LLM管线：</p><ul><li><strong>select_target()</strong> — 分析全部上下文，决定是否需要通知，如果需要，选择最相关的主题。</li><li><strong>generate_content()</strong> — 以助手<strong>当前活跃个性</strong>的风格生成消息。</li></ul><h2>调度与安全机制</h2><p>Heartbeat调度器每<strong>30分钟</strong>执行一次，每批处理<strong>50</strong>个用户。安全机制非常严格：</p><ul><li>每天最多<strong>3条通知</strong>，最少<strong>1条</strong></li><li>允许的时间范围：<strong>9:00-22:00</strong>（用户本地时间）</li><li>两次通知之间<strong>2小时</strong>冷却期</li><li><strong>7天不活跃</strong>后自动停用</li></ul><h2>会话主动性</h2><p>除了定时通知外，LIA在<strong>对话过程中</strong>也具有主动性。执行您的请求后，<strong>主动代理</strong>分析结果并自主检查跨域相关信息。如果天气预报显示周六下雨而您有户外远足计划，LIA会提醒您。100%提示驱动，仅限只读操作，利用您的记忆和兴趣丰富。</p>"
       },
       "reminders-scheduling": {
         "title": "提醒和计划操作：自动化您的日常",
@@ -4377,6 +4383,72 @@
       "cost": "费用",
       "title_period": "周期限制",
       "title_absolute": "全局限制"
+    }
+  },
+  "why": {
+    "meta": {
+      "title": "为什么选择 LIA？— 主权个人AI助手",
+      "description": "了解 LIA 的理念、差异化因素和愿景 — 一个开源、可自托管的主权多代理AI助手。"
+    },
+    "breadcrumb": "为什么选择 LIA？",
+    "hero": {
+      "title": "为什么选择 LIA？",
+      "subtitle": "在专有云代理世界中，一个主权个人AI助手的理念、愿景和差异化因素。"
+    },
+    "toc": {
+      "world_changed": "世界已经改变",
+      "thesis": "LIA 的理念",
+      "sovereignty": "主权：重新掌控",
+      "transparency": "彻底透明",
+      "depth": "关系深度",
+      "orchestration": "生产中的编排",
+      "human_control": "人类控制",
+      "act": "在数字生活中行动",
+      "proactivity": "上下文主动性",
+      "voice": "语音作为界面",
+      "openness": "开放作为策略",
+      "intelligence": "自优化智能",
+      "fabric": "一切如何交织",
+      "honesty": "LIA 不自称什么",
+      "vision": "愿景：LIA 的未来"
+    }
+  },
+  "how": {
+    "meta": {
+      "title": "LIA 如何工作？— 技术指南",
+      "description": "LIA 的架构、工程模式和设计决策 — 基于 LangGraph、FastAPI 和 Next.js 的多代理AI助手。"
+    },
+    "breadcrumb": "如何工作",
+    "hero": {
+      "title": "LIA 如何工作？",
+      "subtitle": "生产级多代理AI助手的架构、工程模式和技术决策。"
+    },
+    "toc": {
+      "context": "背景和基础选择",
+      "stack": "技术栈",
+      "ddd": "DDD 架构",
+      "langgraph": "LangGraph：编排",
+      "pipeline": "执行管道",
+      "planning": "规划系统",
+      "smart_services": "智能服务",
+      "semantic": "语义路由",
+      "hitl": "人机协作",
+      "state": "状态和消息窗口",
+      "memory": "记忆和心理画像",
+      "llm": "LLM 基础设施",
+      "connectors": "多供应商连接器",
+      "mcp": "模型上下文协议",
+      "voice": "语音系统",
+      "proactivity": "主动性",
+      "rag": "RAG 空间",
+      "browser": "浏览器控制",
+      "security": "安全",
+      "observability": "可观测性",
+      "performance": "性能",
+      "cicd": "CI/CD 和质量",
+      "patterns": "横切模式",
+      "adr": "架构决策",
+      "extensibility": "可扩展性"
     }
   }
 }

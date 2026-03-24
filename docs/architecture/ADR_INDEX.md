@@ -2138,6 +2138,29 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 
 ---
 
+### ADR-062: Agent Initiative Phase + MCP Iterative Sub-Agent
+
+**Status**: ✅ IMPLEMENTED (2026-03-24) — Phase 1 + Phase 2
+**Fichier**: `docs/architecture/ADR-062-Agent-Initiative-Phase.md`
+
+**Décision**: Ajouter une phase d'initiative post-exécution (read-only) et un sub-agent ReAct pour les MCP servers nécessitant des interactions multi-étapes.
+
+**Problème résolu**:
+- ❌ L'assistant ne peut pas réagir aux résultats d'exécution (ex: email propose un rdv → pas de vérification du calendrier)
+- ❌ Les MCP servers complexes (Excalidraw) produisent des résultats incohérents car le planner pré-génère tous les paramètres
+
+**Solution**:
+- ✅ `ReactSubAgentRunner` : runner générique pour agents ReAct (factorise browser + MCP)
+- ✅ `mcp_server_task_tool` + `_MCPReActWrapper` : interaction MCP itérative avec propagation des MCP App widgets
+- ⏳ `initiative_node` : évaluation post-exécution avec actions read-only proactives (Phase 2)
+
+**Impact**:
+- ✅ Excalidraw génère des diagrammes cohérents (l'agent lit la doc d'abord)
+- ✅ Pattern réutilisable pour tout futur sub-agent ReAct
+- ✅ Feature flags (defaut: off) — zero impact sur le comportement existant
+
+---
+
 ## ADRs Archivés
 
 ### ADR-005 (Version Originale): Workflow-Based HITL

@@ -118,6 +118,9 @@ LLMType = Literal[
     # Personal Journals (Carnets de Bord)
     "journal_extraction",  # Journals: extract entries from conversations
     "journal_consolidation",  # Journals: periodic review and maintenance
+    # ADR-062: Initiative Phase + MCP ReAct
+    "initiative",  # Initiative: post-execution read-only enrichment evaluation
+    "mcp_react_agent",  # MCP ReAct: iterative multi-step MCP interaction
 ]
 
 

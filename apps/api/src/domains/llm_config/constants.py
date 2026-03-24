@@ -358,6 +358,21 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         description_key="settings.admin.llmConfig.types.journal_consolidation",
         required_capabilities=[],
     ),
+    # ADR-062: Initiative Phase + MCP ReAct
+    "initiative": LLMTypeMetadata(
+        llm_type="initiative",
+        display_name="Initiative Node",
+        category=CATEGORY_PIPELINE,
+        description_key="settings.admin.llmConfig.types.initiative",
+        required_capabilities=["structured_output"],
+    ),
+    "mcp_react_agent": LLMTypeMetadata(
+        llm_type="mcp_react_agent",
+        display_name="MCP Iterative (ReAct)",
+        category=CATEGORY_DOMAIN_AGENTS,
+        description_key="settings.admin.llmConfig.types.mcp_react_agent",
+        required_capabilities=["tool_calling"],
+    ),
 }
 
 
@@ -800,6 +815,26 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=2000,
+    ),
+    # ADR-062: Initiative Phase + MCP ReAct
+    "initiative": LLMAgentConfig(
+        provider="openai",
+        model="gpt-5-mini",
+        temperature=0.1,
+        top_p=1.0,
+        frequency_penalty=0.0,
+        presence_penalty=0.0,
+        max_tokens=5000,
+        reasoning_effort="medium",
+    ),
+    "mcp_react_agent": LLMAgentConfig(
+        provider="anthropic",
+        model="claude-sonnet-4-6",
+        temperature=0.2,
+        top_p=1.0,
+        frequency_penalty=0.0,
+        presence_penalty=0.0,
+        max_tokens=16000,
     ),
 }
 

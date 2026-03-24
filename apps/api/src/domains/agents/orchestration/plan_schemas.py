@@ -55,7 +55,7 @@ from enum import Enum
 from typing import Any, Literal
 from uuid import uuid4
 
-from pydantic import BaseModel, Field, ValidationInfo, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 
 from src.core.config import settings
 from src.core.field_names import FIELD_AGENT_NAME, FIELD_STEP_ID
@@ -72,6 +72,9 @@ class ParameterValue(BaseModel):
     OpenAI strict mode requires all object types to have defined properties.
     This class provides a strict-compatible representation for dynamic parameter values.
 
+    Uses ``extra="forbid"`` to generate ``additionalProperties: false``
+    in JSON schema, required by OpenAI strict structured output mode.
+
     The value can be:
     - string: For text values, JSON references ($steps.X), dates, etc.
     - number: For numeric values
@@ -85,6 +88,8 @@ class ParameterValue(BaseModel):
         string_value: String representation of the value (used for all types)
         value_type: Type hint for deserialization ("string", "number", "boolean", "null", "json")
     """
+
+    model_config = ConfigDict(extra="forbid")
 
     string_value: str | None = Field(
         default=None,
@@ -159,6 +164,8 @@ class ParameterItem(BaseModel):
         name: Parameter name (e.g., "query", "contact_id", "limit")
         value: Parameter value with type information
     """
+
+    model_config = ConfigDict(extra="forbid")
 
     name: str = Field(description="Parameter name (e.g., 'query', 'contact_id', 'limit')")
     value: ParameterValue = Field(

@@ -30,6 +30,8 @@ Settings → "*MCP Servers*" section → **Add** button
 4. **Authentication**: choose the type (none, API key, bearer token, OAuth 2.1)
 5. **Timeout**: maximum call duration (5-120 seconds)
 
+6. **Iterative mode** (optional): enable for servers with complex APIs that require multi-step interaction (e.g., Excalidraw). When enabled, a dedicated AI agent reads the server documentation first, then calls tools with correct parameters. Uses more tokens but produces better results.
+
 **🔗 After creation:**
 Click **Test Connection** to verify the server is reachable and discover available tools.
 

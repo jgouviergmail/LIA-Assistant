@@ -99,6 +99,14 @@ class UserMCPServerCreate(BaseModel):
         default=None,
         description="Per-server HITL override. None = inherit global MCP_HITL_REQUIRED",
     )
+    iterative_mode: bool = Field(
+        default=False,
+        description=(
+            "Enable ReAct iterative mode. When true, the assistant interacts with "
+            "this server's tools iteratively (multiple calls per request) for better "
+            "results on complex tasks. Incurs additional LLM costs."
+        ),
+    )
 
     @model_validator(mode="after")
     def validate_credentials_match_auth_type(self) -> UserMCPServerCreate:
@@ -192,6 +200,10 @@ class UserMCPServerUpdate(BaseModel):
         default=None,
         description="Per-server HITL override",
     )
+    iterative_mode: bool | None = Field(
+        default=None,
+        description="Enable/disable ReAct iterative mode",
+    )
 
     @model_validator(mode="after")
     def validate_credentials_match_auth_type(self) -> UserMCPServerUpdate:
@@ -230,6 +242,7 @@ class UserMCPServerResponse(BaseModel):
     domain_description: str | None = None
     timeout_seconds: int
     hitl_required: bool | None
+    iterative_mode: bool = False
     # Non-sensitive credential metadata (extracted from encrypted blob)
     header_name: str | None = Field(
         default=None,

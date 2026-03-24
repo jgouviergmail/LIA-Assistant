@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-03-24
+
+### Added
+
+- **ADR-062: Agent Initiative Phase** — Post-execution enrichment node in the LangGraph pipeline. After the task orchestrator executes the user's request, the initiative node analyzes results, detects cross-domain signals, and proactively performs read-only verifications to enrich the response. Example: weather forecast shows rain → initiative checks calendar for outdoor events → response warns the user. Fully prompt-driven (no hardcoded logic), configurable via `INITIATIVE_ENABLED`, `INITIATIVE_MAX_ITERATIONS`, `INITIATIVE_MAX_ACTIONS`. Uses structured output with `InitiativeDecision` schema (OpenAI strict mode compatible). Includes pre-filter (skips when no adjacent read-only tools), memory/interests injection, and suggestion field for write-action proposals. (`src/domains/agents/nodes/initiative_node.py`, `src/domains/agents/prompts/v1/initiative_prompt.txt`, `src/domains/agents/registry/domain_taxonomy.py`)
+- **MCP Iterative Mode (ReAct Sub-Agent)** — MCP servers with `iterative_mode: true` are now handled by a ReAct agent loop instead of the static planner. The agent interacts with the MCP server iteratively (reads documentation, then calls tools with correct parameters), solving the fundamental limitation where the planner pre-generated all parameters without understanding the server's API. Powered by a generic `ReactSubAgentRunner` (also used by browser agent). Configurable via `MCP_REACT_ENABLED`, `MCP_REACT_MAX_ITERATIONS`. Per-server activation via `iterative_mode` attribute on admin and user MCP configs. (`src/domains/agents/tools/react_runner.py`, `src/domains/agents/tools/mcp_react_tools.py`, `src/domains/agents/prompts/v1/mcp_react_agent_prompt.txt`)
+- **ReactSubAgentRunner** — Generic, reusable runner for LangGraph ReAct sub-agents. Handles LLM creation, prompt loading, tool wrapping, MCP App registry propagation, and graceful error handling. Used by both browser agent and MCP iterative mode. Replaces 60+ lines of duplicated code in browser_tools.py. (`src/domains/agents/tools/react_runner.py`)
+- **Domain Taxonomy Enrichment** — `related_domains` updated across all domain configs to enable richer cross-domain initiative detection: weather↔event (bidirectional), email↔contact↔event, task↔event↔contact, place↔weather↔route, file↔contact, reminder↔contact↔event. (`src/domains/agents/registry/domain_taxonomy.py`)
+- **User MCP `iterative_mode`** — New boolean attribute on user MCP server configuration. Users can enable iterative mode per-server via the Settings UI. Includes Alembic migration, Pydantic schema update, frontend toggle with cost warning tooltip, and i18n in 6 languages. (`src/domains/user_mcp/models.py`, `src/domains/user_mcp/schemas.py`, `apps/web/src/components/settings/MCPServersSettings.tsx`)
+- **Token Tracking `node_name_override`** — `TokenTrackingCallback` now supports a `node_name_override` in config metadata, allowing sub-agents to display meaningful names in the debug panel instead of internal graph node names. (`src/infrastructure/observability/callbacks.py`)
+- **Initiative Prometheus Metrics** — 3 new metrics: `initiative_evaluations_total` (by decision: skip/act/error), `initiative_actions_executed_total`, `initiative_duration_seconds_histogram`. (`src/infrastructure/observability/metrics_agents.py`)
+- **MCP ReAct Prometheus Metrics** — 2 new metrics: `mcp_react_invocations_total` (by server/status), `mcp_react_iterations_histogram`. (`src/infrastructure/observability/metrics_agents.py`)
+
+### Changed
+
+- **Browser Agent Refactoring** — `browser_task_tool` now uses `ReactSubAgentRunner` instead of inline ReAct agent creation. Removes ~60 lines of duplicated code. Functionally identical. (`src/domains/agents/tools/browser_tools.py`)
+- **Excalidraw Cleanup** — Removed `SPATIAL_SUFFIX` override, `iterative_builder.py`, and `position_corrector.py`. Excalidraw now uses the generic MCP iterative mode (ReAct agent) which handles `read_me` → `create_view` flow naturally. (`src/infrastructure/mcp/excalidraw/overrides.py`, `src/infrastructure/mcp/tool_adapter.py`)
+- **Smart Planner MCP Reference Filtering** — When a server uses `iterative_mode`, its `reference_content` is no longer injected into the planner prompt (the ReAct agent reads it itself via `read_me`). Saves ~27K tokens per Excalidraw request. (`src/domains/agents/services/smart_planner_service.py`)
+- **OpenAI Strict Mode Compatibility** — Added `ConfigDict(extra="forbid")` to `ParameterValue`, `ParameterItem`, `InitiativeAction`, and `InitiativeDecision` to ensure `additionalProperties: false` in JSON schemas. Required for OpenAI structured output mode. (`src/domains/agents/orchestration/plan_schemas.py`, `src/domains/agents/nodes/initiative_node.py`)
+
+### Fixed
+
+- **Excalidraw Incoherent Diagrams** — Diagrams generated by the static planner were spatially incoherent (texts and arrows scattered randomly). Root cause: the planner is not specialized for Excalidraw JSON format and the 27K-char cheat sheet was being ignored in the complex planning context. Fix: MCP iterative mode lets a dedicated ReAct agent read the documentation and generate elements correctly.
+
 ## [1.10.2] - 2026-03-24
 
 ### Fixed

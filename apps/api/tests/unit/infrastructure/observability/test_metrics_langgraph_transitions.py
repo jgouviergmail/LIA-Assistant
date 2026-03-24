@@ -326,7 +326,13 @@ class TestRouteFromOrchestratorMetrics:
     """Test metrics tracking for route_from_orchestrator function."""
 
     def test_tracks_transition_to_response_no_next_agent(self):
-        """Verify metrics are tracked when all agents are done."""
+        """Verify metrics are tracked when all agents are done.
+
+        ADR-062: route_from_orchestrator now routes to NODE_INITIATIVE
+        instead of NODE_RESPONSE when no next agent exists.
+        """
+        from src.core.constants import NODE_INITIATIVE
+
         state: MessagesState = {
             STATE_KEY_MESSAGES: [],
             # Empty orchestration_plan means all agents done
@@ -334,7 +340,7 @@ class TestRouteFromOrchestratorMetrics:
 
         result = route_from_orchestrator(state)
 
-        assert result == NODE_RESPONSE
+        assert result == NODE_INITIATIVE
 
         # Check conditional edge metric
         conditional_edge_samples = langgraph_conditional_edges_total.collect()[0].samples
@@ -342,7 +348,7 @@ class TestRouteFromOrchestratorMetrics:
             s
             for s in conditional_edge_samples
             if s.labels.get("edge_name") == "route_from_orchestrator"
-            and s.labels.get("decision") == NODE_RESPONSE
+            and s.labels.get("decision") == NODE_INITIATIVE
         ]
         assert len(response_samples) > 0
         assert response_samples[0].value >= 1.0
@@ -353,7 +359,7 @@ class TestRouteFromOrchestratorMetrics:
             s
             for s in transition_samples
             if s.labels.get("from_node") == NODE_TASK_ORCHESTRATOR
-            and s.labels.get("to_node") == NODE_RESPONSE
+            and s.labels.get("to_node") == NODE_INITIATIVE
         ]
         assert len(orchestrator_to_response_samples) > 0
         assert orchestrator_to_response_samples[0].value >= 1.0

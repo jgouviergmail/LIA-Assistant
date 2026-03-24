@@ -1583,11 +1583,25 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             journal_context=journal_context,  # Personal journal context
         )
 
+        # ADR-062: Inject initiative suggestion into prompt if available
+        from src.core.constants import STATE_KEY_INITIATIVE_SUGGESTION
+
+        initiative_suggestion = state.get(STATE_KEY_INITIATIVE_SUGGESTION)
+        if initiative_suggestion:
+            base_system_prompt += (
+                "\n\n<InitiativeSuggestion>\n"
+                "The assistant proactively identified a useful follow-up action. "
+                "Include this suggestion naturally in your response as a helpful offer:\n"
+                f"{initiative_suggestion}\n"
+                "</InitiativeSuggestion>"
+            )
+
         logger.debug(
             "response_node_prompt_loaded",
             run_id=run_id,
             viewport=user_viewport,
             has_filtering_data=bool(data_for_filtering),
+            has_initiative_suggestion=initiative_suggestion is not None,
             user_query_for_prompt=user_query_for_prompt[:80] if user_query_for_prompt else "",
             last_user_message=last_user_message[:80] if last_user_message else "",
             used_original_query=user_query_for_prompt != last_user_message,

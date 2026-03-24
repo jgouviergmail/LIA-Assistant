@@ -23,6 +23,7 @@ from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
 from src.core.config import Settings, settings
+from src.core.constants import NODE_INITIATIVE
 from src.domains.agents.constants import (
     # Agent constants (v3.2 convention: singular domain names)
     AGENT_BROWSER,
@@ -67,8 +68,10 @@ from src.domains.agents.nodes import (
     task_orchestrator_node,
 )
 from src.domains.agents.nodes.hitl_dispatch_node import hitl_dispatch_node
+from src.domains.agents.nodes.initiative_node import initiative_node
 from src.domains.agents.nodes.routing import (
     route_from_approval_gate,
+    route_from_initiative,
     route_from_planner,
     route_from_semantic_validator,
 )
@@ -285,22 +288,22 @@ def route_from_orchestrator(state: MessagesState) -> str:
     next_agent = get_next_agent_from_plan(state)
 
     if not next_agent:
-        # All agents executed or no plan → go to response for synthesis
-        logger.debug("route_from_orchestrator_to_response")
+        # All agents executed or no plan → initiative evaluates results (ADR-062)
+        logger.debug("route_from_orchestrator_to_initiative")
 
         # PHASE 2.5 - LangGraph Observability: Track conditional edge decision
         langgraph_conditional_edges_total.labels(
             edge_name="route_from_orchestrator",
-            decision=NODE_RESPONSE,
+            decision=NODE_INITIATIVE,
         ).inc()
 
         # Track node transition
         langgraph_node_transitions_total.labels(
             from_node=NODE_TASK_ORCHESTRATOR,
-            to_node=NODE_RESPONSE,
+            to_node=NODE_INITIATIVE,
         ).inc()
 
-        return NODE_RESPONSE
+        return NODE_INITIATIVE
 
     logger.debug(
         "route_from_orchestrator_to_agent",
@@ -675,32 +678,42 @@ async def build_graph(
             AGENT_HUE: AGENT_HUE,
             # Browser agent (F7 - conditional)
             **({AGENT_BROWSER: AGENT_BROWSER} if _browser_registered else {}),
-            # Terminal
-            NODE_RESPONSE: NODE_RESPONSE,
+            # Terminal → initiative evaluation (ADR-062)
+            NODE_INITIATIVE: NODE_INITIATIVE,
         },
     )
 
-    # LOT 6: Draft critique always goes to response after user decision
-    # The draft_critique_node handles confirm/edit/cancel via interrupt()
-    # After processing, results go to response for synthesis
-    graph.add_edge(NODE_DRAFT_CRITIQUE, NODE_RESPONSE)
+    # LOT 6: Draft critique goes to initiative for post-execution evaluation (ADR-062)
+    graph.add_edge(NODE_DRAFT_CRITIQUE, NODE_INITIATIVE)
 
-    # All agents go to response for synthesis
+    # All agents go to initiative for post-execution evaluation (ADR-062)
     # OAuth agents (Google) - v3.2 naming: singular domain names
-    graph.add_edge(AGENT_CONTACT, NODE_RESPONSE)
-    graph.add_edge(AGENT_EMAIL, NODE_RESPONSE)
-    graph.add_edge(AGENT_EVENT, NODE_RESPONSE)
-    graph.add_edge(AGENT_FILE, NODE_RESPONSE)
-    graph.add_edge(AGENT_TASK, NODE_RESPONSE)
+    graph.add_edge(AGENT_CONTACT, NODE_INITIATIVE)
+    graph.add_edge(AGENT_EMAIL, NODE_INITIATIVE)
+    graph.add_edge(AGENT_EVENT, NODE_INITIATIVE)
+    graph.add_edge(AGENT_FILE, NODE_INITIATIVE)
+    graph.add_edge(AGENT_TASK, NODE_INITIATIVE)
     # API key agents (global key)
-    graph.add_edge(AGENT_WEATHER, NODE_RESPONSE)
-    graph.add_edge(AGENT_WIKIPEDIA, NODE_RESPONSE)
-    graph.add_edge(AGENT_PERPLEXITY, NODE_RESPONSE)
-    graph.add_edge(AGENT_PLACE, NODE_RESPONSE)
-    graph.add_edge(AGENT_ROUTE, NODE_RESPONSE)  # LOT 12: Google Routes
+    graph.add_edge(AGENT_WEATHER, NODE_INITIATIVE)
+    graph.add_edge(AGENT_WIKIPEDIA, NODE_INITIATIVE)
+    graph.add_edge(AGENT_PERPLEXITY, NODE_INITIATIVE)
+    graph.add_edge(AGENT_PLACE, NODE_INITIATIVE)
+    graph.add_edge(AGENT_ROUTE, NODE_INITIATIVE)  # LOT 12: Google Routes
     # Browser agent (F7 - conditional)
     if _browser_registered:
-        graph.add_edge(AGENT_BROWSER, NODE_RESPONSE)
+        graph.add_edge(AGENT_BROWSER, NODE_INITIATIVE)
+
+    # ADR-062: Initiative node evaluates results, optionally executes read-only
+    # actions, then routes to response. Pass-through when feature flag is off.
+    graph.add_node(NODE_INITIATIVE, initiative_node)
+    graph.add_conditional_edges(
+        NODE_INITIATIVE,
+        route_from_initiative,
+        {
+            NODE_INITIATIVE: NODE_INITIATIVE,  # Loop: re-evaluate after actions
+            NODE_RESPONSE: NODE_RESPONSE,  # Done: proceed to synthesis
+        },
+    )
 
     # Response is terminal
     graph.add_edge(NODE_RESPONSE, END)

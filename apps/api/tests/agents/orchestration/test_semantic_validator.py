@@ -1137,5 +1137,169 @@ class TestValidateForEachPatterns:
         assert "RESERVED KEYWORD" in feedback
 
 
+class TestShouldTriggerSemanticValidation:
+    """Test suite for should_trigger_semantic_validation function.
+
+    Covers the multi-domain single-step logic that was causing spurious
+    clarification loops on read-only queries (e.g. route/weather/search).
+    """
+
+    def test_read_only_multi_domain_single_step_skips_validation(self):
+        """Read-only query with multiple detected domains but 1 step should skip validation.
+
+        Regression test: "Je dois partir quand pour arriver à Bastille à 21h"
+        was triggering clarification loops because query_analyzer detected
+        route+place+weather+web_search domains but planner correctly generated 1 step.
+        """
+        from src.domains.agents.orchestration.plan_schemas import (
+            ExecutionPlan,
+            ExecutionStep,
+            StepType,
+        )
+        from src.domains.agents.orchestration.semantic_validator import (
+            should_trigger_semantic_validation,
+        )
+
+        plan = ExecutionPlan(
+            user_id="test_user",
+            steps=[
+                ExecutionStep(
+                    step_id="step_1",
+                    step_type=StepType.TOOL,
+                    agent_name="route_agent",
+                    tool_name="get_route_tool",
+                    parameters={"origin": "home", "destination": "Bastille"},
+                ),
+            ],
+        )
+
+        # Non-mutation, no cardinality risk, but 4 detected domains
+        qi = {
+            "is_mutation_intent": False,
+            "has_cardinality_risk": False,
+            "domains": ["route", "place", "weather", "web_search"],
+        }
+
+        should, reason = should_trigger_semantic_validation(
+            plan, "quand partir pour arriver à Bastille à 21h", query_intelligence=qi
+        )
+
+        assert should is False
+        assert reason == "single_step_trivial"
+
+    def test_mutation_multi_domain_single_step_triggers_validation(self):
+        """Mutation query with multiple detected domains and 1 step SHOULD trigger validation."""
+        from src.domains.agents.orchestration.plan_schemas import (
+            ExecutionPlan,
+            ExecutionStep,
+            StepType,
+        )
+        from src.domains.agents.orchestration.semantic_validator import (
+            should_trigger_semantic_validation,
+        )
+
+        plan = ExecutionPlan(
+            user_id="test_user",
+            steps=[
+                ExecutionStep(
+                    step_id="step_1",
+                    step_type=StepType.TOOL,
+                    agent_name="email_agent",
+                    tool_name="send_email_tool",
+                    parameters={"to": "test@example.com", "subject": "test"},
+                ),
+            ],
+        )
+
+        qi = {
+            "is_mutation_intent": True,
+            "has_cardinality_risk": False,
+            "domains": ["email", "contacts"],
+        }
+
+        should, reason = should_trigger_semantic_validation(
+            plan, "envoie un email à Jean", query_intelligence=qi
+        )
+
+        assert should is True
+        assert "multi_domain_expected_but_single_step" in reason
+
+    def test_cardinality_risk_multi_domain_single_step_triggers_validation(self):
+        """Query with cardinality risk and multiple domains should trigger validation."""
+        from src.domains.agents.orchestration.plan_schemas import (
+            ExecutionPlan,
+            ExecutionStep,
+            StepType,
+        )
+        from src.domains.agents.orchestration.semantic_validator import (
+            should_trigger_semantic_validation,
+        )
+
+        plan = ExecutionPlan(
+            user_id="test_user",
+            steps=[
+                ExecutionStep(
+                    step_id="step_1",
+                    step_type=StepType.TOOL,
+                    agent_name="calendar_agent",
+                    tool_name="get_events_tool",
+                    parameters={"max_results": 10},
+                ),
+            ],
+        )
+
+        qi = {
+            "is_mutation_intent": False,
+            "has_cardinality_risk": True,
+            "domains": ["calendar", "contacts"],
+        }
+
+        should, reason = should_trigger_semantic_validation(
+            plan,
+            "pour chaque contact, liste ses événements",
+            query_intelligence=qi,
+        )
+
+        assert should is True
+        assert "multi_domain_expected_but_single_step" in reason
+
+    def test_single_domain_single_step_skips_validation(self):
+        """Single domain, single step, no mutation → trivial skip."""
+        from src.domains.agents.orchestration.plan_schemas import (
+            ExecutionPlan,
+            ExecutionStep,
+            StepType,
+        )
+        from src.domains.agents.orchestration.semantic_validator import (
+            should_trigger_semantic_validation,
+        )
+
+        plan = ExecutionPlan(
+            user_id="test_user",
+            steps=[
+                ExecutionStep(
+                    step_id="step_1",
+                    step_type=StepType.TOOL,
+                    agent_name="weather_agent",
+                    tool_name="get_weather_forecast_tool",
+                    parameters={"location": "Paris"},
+                ),
+            ],
+        )
+
+        qi = {
+            "is_mutation_intent": False,
+            "has_cardinality_risk": False,
+            "domains": ["weather"],
+        }
+
+        should, reason = should_trigger_semantic_validation(
+            plan, "quel temps fait-il à Paris", query_intelligence=qi
+        )
+
+        assert should is False
+        assert reason == "single_step_trivial"
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])

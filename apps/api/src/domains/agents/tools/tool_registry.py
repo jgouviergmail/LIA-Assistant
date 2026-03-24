@@ -362,6 +362,11 @@ def _import_tool_modules() -> None:
     if getattr(get_settings(), "sub_agents_enabled", False):
         tool_modules.append(("src.domains.agents.tools.sub_agent_tools", "sub_agent_tools"))
 
+    # MCP ReAct tools (ADR-062): loaded by _register_iterative_task_tool()
+    # in registration.py at MCP startup, NOT here. The generic mcp_server_task_tool
+    # is registered under per-server names (e.g., mcp_excalidraw_task) via model_copy.
+    # Loading it here would create a ghost "mcp_server_task_tool" entry used by no manifest.
+
     for module_path, module_name in tool_modules:
         try:
             # Dynamic import

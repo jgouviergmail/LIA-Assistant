@@ -776,7 +776,16 @@ class SmartPlannerService:
         if admin_manager:
             admin_ref = admin_manager.reference_content
             admin_keys_lower = {k.lower() for k in admin_ref}
+            # ADR-062: Skip reference_content for iterative_mode servers
+            # (the ReAct agent calls read_me itself — always gets fresh content)
+            iterative_servers: set[str] = set()
+            if _settings.mcp_react_enabled:
+                for sname, sconfig in admin_manager.server_configs.items():
+                    if getattr(sconfig, "iterative_mode", False):
+                        iterative_servers.add(sname.lower())
             for name, content in admin_ref.items():
+                if name.lower() in iterative_servers:
+                    continue
                 if name.lower() in mcp_server_keys:
                     all_references[name.lower()] = content
 

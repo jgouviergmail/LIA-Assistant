@@ -642,6 +642,35 @@ def infer_tool_category(tool_name: str) -> ToolCategory:
     """
     name_lower = tool_name.lower()
 
+    # Strip MCP prefix before analysis (mcp_{server}_{real_tool_name})
+    # Server names can contain underscores (e.g., "google_flights").
+    # Strategy: try matching known action prefixes from the end of the name.
+    if name_lower.startswith("mcp_"):
+        # Remove "mcp_" prefix, then check if remainder contains an action prefix
+        without_mcp = name_lower[4:]  # "excalidraw_create_view", "google_flights_search_flights"
+        for prefix in (
+            "create_",
+            "update_",
+            "modify_",
+            "delete_",
+            "remove_",
+            "send_",
+            "reply_",
+            "forward_",
+            "get_",
+            "search_",
+            "list_",
+        ):
+            idx = without_mcp.find(f"_{prefix}")
+            if idx >= 0:
+                name_lower = without_mcp[idx + 1 :]  # "create_view", "search_flights"
+                break
+        else:
+            # No known action prefix found — use last segment after server name
+            parts = without_mcp.split("_", 1)
+            if len(parts) >= 2:
+                name_lower = parts[1]  # Best effort
+
     # System tools (check first - highest priority)
     if tool_name in SYSTEM_TOOL_NAMES:
         return "system"
@@ -701,6 +730,29 @@ def get_tool_category(manifest: ToolManifest) -> ToolCategory:
 def is_system_tool(tool_name: str) -> bool:
     """Check if tool is a system tool that should always be included."""
     return tool_name in SYSTEM_TOOL_NAMES
+
+
+# Categories that are safe for initiative phase (read-only actions)
+READ_ONLY_CATEGORIES: frozenset[ToolCategory] = frozenset({"search", "readonly", "system"})
+
+
+def is_read_only_tool(manifest: ToolManifest) -> bool:
+    """Check if a tool is read-only (safe for initiative phase).
+
+    Read-only tools cannot modify user data. They include:
+    - search: get_emails, get_contacts, get_events, etc.
+    - readonly: weather, wikipedia, perplexity
+    - system: context tools
+
+    Write tools (create, update, delete, send) are excluded.
+
+    Args:
+        manifest: Tool manifest to check.
+
+    Returns:
+        True if the tool only reads data.
+    """
+    return get_tool_category(manifest) in READ_ONLY_CATEGORIES
 
 
 # ============================================================================

@@ -114,6 +114,9 @@ PromptName = Literal[
     "journal_introspection_prompt",
     "journal_introspection_personality_addon",
     "journal_consolidation_prompt",
+    # ADR-062: Initiative Phase + MCP ReAct
+    "initiative_prompt",
+    "mcp_react_agent_prompt",
     # Future prompts:
     # "emails_agent_prompt",
     # "calendar_agent_prompt",
