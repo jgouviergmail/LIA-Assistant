@@ -71,7 +71,9 @@ export function Page2Connectors({ lng }: Page2ConnectorsProps) {
       {/* Provider note */}
       <div className="flex items-start gap-3 p-3 rounded-lg bg-blue-500/5 border border-blue-500/15 mb-6">
         <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
-        <p className="text-xs sm:text-sm text-muted-foreground">{t('onboarding.page2.provider_note')}</p>
+        <p className="text-xs sm:text-sm text-muted-foreground">
+          {t('onboarding.page2.provider_note')}
+        </p>
       </div>
 
       {/* External connectors title */}
@@ -88,8 +90,7 @@ export function Page2Connectors({ lng }: Page2ConnectorsProps) {
                 <option.icon className={`w-5 h-5 ${option.color}`} />
               </div>
               <span className="text-sm">
-                <strong>{t(option.nameKey)}</strong>{' '}
-                {t(option.descKey)}
+                <strong>{t(option.nameKey)}</strong> {t(option.descKey)}
               </span>
             </CardContent>
           </Card>

@@ -371,8 +371,7 @@ export function getNodeColor(nodeName: string): string {
   if (lowerName.includes('executor') || lowerName.includes('parallel'))
     return NODE_COLORS.parallel_executor;
   if (lowerName.includes('response') || lowerName.includes('resp')) return NODE_COLORS.response;
-  if (lowerName.includes('embedding') || lowerName.includes('embed'))
-    return NODE_COLORS.embedding;
+  if (lowerName.includes('embedding') || lowerName.includes('embed')) return NODE_COLORS.embedding;
 
   return NODE_COLORS.default;
 }

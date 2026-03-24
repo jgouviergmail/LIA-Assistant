@@ -341,9 +341,7 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
       serviceRef.current = service;
 
       // Step 2: Launch mic (+ WS if not pre-warmed) in parallel with timeout
-      const connectIfNeeded = service.isConnected
-        ? Promise.resolve()
-        : service.connect();
+      const connectIfNeeded = service.isConnected ? Promise.resolve() : service.connect();
 
       const setupPromise = Promise.allSettled([
         navigator.mediaDevices.getUserMedia({
@@ -361,14 +359,14 @@ export function useVoiceInput(options: UseVoiceInputOptions = {}): UseVoiceInput
       const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(
           () => reject(new Error('Voice recording setup timed out')),
-          VOICE_RECORDING_SETUP_TIMEOUT_MS,
+          VOICE_RECORDING_SETUP_TIMEOUT_MS
         );
       });
 
-      const [streamResult, connectResult] = await Promise.race([
+      const [streamResult, connectResult] = (await Promise.race([
         setupPromise,
         timeoutPromise,
-      ]) as [PromiseSettledResult<MediaStream>, PromiseSettledResult<void>];
+      ])) as [PromiseSettledResult<MediaStream>, PromiseSettledResult<void>];
 
       // Handle partial failures - clean up whatever succeeded
       if (streamResult.status === 'rejected' || connectResult.status === 'rejected') {

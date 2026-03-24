@@ -513,9 +513,7 @@ export function createInitialState(): ChatState {
       const stored = sessionStorage.getItem(DEBUG_HISTORY_STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
-        debugMetricsHistory = Array.isArray(parsed)
-          ? parsed.slice(-DEBUG_HISTORY_MAX_ENTRIES)
-          : [];
+        debugMetricsHistory = Array.isArray(parsed) ? parsed.slice(-DEBUG_HISTORY_MAX_ENTRIES) : [];
       }
     } catch {
       // Ignore parse errors — start fresh
@@ -529,9 +527,7 @@ export function createInitialState(): ChatState {
  * Called from useChat via useEffect to keep reducer pure.
  * Truncates to the most recent DEBUG_HISTORY_MAX_ENTRIES entries.
  */
-export function persistDebugMetricsHistory(
-  history: ChatState['debugMetricsHistory'],
-): void {
+export function persistDebugMetricsHistory(history: ChatState['debugMetricsHistory']): void {
   if (typeof window === 'undefined') return;
   try {
     const trimmed = history.slice(-DEBUG_HISTORY_MAX_ENTRIES);

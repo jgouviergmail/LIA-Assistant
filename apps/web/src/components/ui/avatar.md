@@ -33,11 +33,7 @@ The `Avatar` component is a generic, reusable UI component for displaying profil
 ```tsx
 import { Avatar } from '@/components/ui/avatar';
 
-<Avatar
-  src="https://example.com/photo.jpg"
-  alt="John Doe"
-  name="John Doe"
-/>
+<Avatar src="https://example.com/photo.jpg" alt="John Doe" name="John Doe" />;
 ```
 
 ### Fallback to Initials (No Image)
@@ -50,13 +46,7 @@ import { Avatar } from '@/components/ui/avatar';
 ### With Status Badge
 
 ```tsx
-<Avatar
-  src="https://..."
-  name="Alice"
-  status="online"
-  variant="circular"
-  size="md"
-/>
+<Avatar src="https://..." name="Alice" status="online" variant="circular" size="md" />
 ```
 
 ---
@@ -65,32 +55,32 @@ import { Avatar } from '@/components/ui/avatar';
 
 ### `AvatarProps`
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `src` | `string` | `undefined` | Image source URL |
-| `alt` | `string` | `undefined` | Alt text for accessibility (required if src provided) |
-| `name` | `string` | `''` | Display name (used for initials fallback and color generation) |
-| `variant` | `'circular'` \| `'rounded'` \| `'square'` | `'circular'` | Shape of the avatar |
-| `size` | `'xs'` \| `'sm'` \| `'md'` \| `'lg'` \| `'xl'` \| `'2xl'` | `'md'` | Size variant |
-| `effect` | `'none'` \| `'glass'` \| `'glow'` | `'glass'` | Visual effect style |
-| `status` | `'online'` \| `'offline'` \| `'away'` \| `'busy'` \| `'verified'` | `undefined` | Status badge |
-| `className` | `string` | `undefined` | Additional CSS classes |
-| `disableHover` | `boolean` | `false` | Disable hover effects |
-| `loading` | `boolean` | `false` | Show loading skeleton |
-| `onClick` | `() => void` | `undefined` | Click handler (makes avatar clickable) |
+| Prop           | Type                                                              | Default      | Description                                                    |
+| -------------- | ----------------------------------------------------------------- | ------------ | -------------------------------------------------------------- |
+| `src`          | `string`                                                          | `undefined`  | Image source URL                                               |
+| `alt`          | `string`                                                          | `undefined`  | Alt text for accessibility (required if src provided)          |
+| `name`         | `string`                                                          | `''`         | Display name (used for initials fallback and color generation) |
+| `variant`      | `'circular'` \| `'rounded'` \| `'square'`                         | `'circular'` | Shape of the avatar                                            |
+| `size`         | `'xs'` \| `'sm'` \| `'md'` \| `'lg'` \| `'xl'` \| `'2xl'`         | `'md'`       | Size variant                                                   |
+| `effect`       | `'none'` \| `'glass'` \| `'glow'`                                 | `'glass'`    | Visual effect style                                            |
+| `status`       | `'online'` \| `'offline'` \| `'away'` \| `'busy'` \| `'verified'` | `undefined`  | Status badge                                                   |
+| `className`    | `string`                                                          | `undefined`  | Additional CSS classes                                         |
+| `disableHover` | `boolean`                                                         | `false`      | Disable hover effects                                          |
+| `loading`      | `boolean`                                                         | `false`      | Show loading skeleton                                          |
+| `onClick`      | `() => void`                                                      | `undefined`  | Click handler (makes avatar clickable)                         |
 
 ---
 
 ## Size Reference
 
-| Size | Dimensions | Font Size | Use Case |
-|------|-----------|-----------|----------|
-| `xs` | 24px × 24px | 10px | Tiny icons, inline mentions |
-| `sm` | 32px × 32px | 12px | Compact lists, comments |
-| `md` | 48px × 48px | 14px | **Default**, standard lists |
-| `lg` | 64px × 64px | 16px | Prominent display, cards |
-| `xl` | 96px × 96px | 18px | Profile headers, contact details |
-| `2xl` | 128px × 128px | 20px | Large profile pages |
+| Size  | Dimensions    | Font Size | Use Case                         |
+| ----- | ------------- | --------- | -------------------------------- |
+| `xs`  | 24px × 24px   | 10px      | Tiny icons, inline mentions      |
+| `sm`  | 32px × 32px   | 12px      | Compact lists, comments          |
+| `md`  | 48px × 48px   | 14px      | **Default**, standard lists      |
+| `lg`  | 64px × 64px   | 16px      | Prominent display, cards         |
+| `xl`  | 96px × 96px   | 18px      | Profile headers, contact details |
+| `2xl` | 128px × 128px | 20px      | Large profile pages              |
 
 ---
 
@@ -101,13 +91,7 @@ import { Avatar } from '@/components/ui/avatar';
 Perfect for profile photos, user avatars.
 
 ```tsx
-<Avatar
-  src="https://..."
-  name="John Doe"
-  variant="circular"
-  size="lg"
-  effect="glass"
-/>
+<Avatar src="https://..." name="John Doe" variant="circular" size="lg" effect="glass" />
 ```
 
 **Visual**: Perfectly round with glassmorphism effect, gradient overlay, border.
@@ -117,12 +101,7 @@ Perfect for profile photos, user avatars.
 Good for app icons, organization logos.
 
 ```tsx
-<Avatar
-  src="https://..."
-  name="Acme Corp"
-  variant="rounded"
-  size="md"
-/>
+<Avatar src="https://..." name="Acme Corp" variant="rounded" size="md" />
 ```
 
 **Visual**: Rounded corners (`rounded-lg`), softer than square.
@@ -132,12 +111,7 @@ Good for app icons, organization logos.
 For geometric designs, album art.
 
 ```tsx
-<Avatar
-  src="https://..."
-  alt="Album Cover"
-  variant="square"
-  size="xl"
-/>
+<Avatar src="https://..." alt="Album Cover" variant="square" size="xl" />
 ```
 
 ---
@@ -201,6 +175,7 @@ Add a status indicator in the bottom-right corner:
 ```
 
 **Available Statuses**:
+
 - `online`: Green (success color)
 - `offline`: Gray (muted color)
 - `away`: Orange (warning color)
@@ -218,30 +193,30 @@ import { AvatarGroup } from '@/components/ui/avatar';
 
 <AvatarGroup
   avatars={[
-    { src: "https://...", name: "Alice" },
-    { src: "https://...", name: "Bob" },
-    { name: "Charlie" },
-    { name: "Diana" },
-    { name: "Eve" },
-    { name: "Frank" },
+    { src: 'https://...', name: 'Alice' },
+    { src: 'https://...', name: 'Bob' },
+    { name: 'Charlie' },
+    { name: 'Diana' },
+    { name: 'Eve' },
+    { name: 'Frank' },
   ]}
   max={5}
   size="sm"
   spacing="tight"
-/>
+/>;
 ```
 
 **Result**: Shows 5 avatars + "+1" badge for the remaining.
 
 ### `AvatarGroupProps`
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `avatars` | `AvatarProps[]` | **required** | Array of avatar configurations |
-| `max` | `number` | `5` | Maximum avatars to display before "+N" |
-| `size` | AvatarProps['size'] | `'md'` | Size of all avatars in group |
-| `spacing` | `'tight'` \| `'normal'` \| `'loose'` | `'normal'` | Negative space between avatars |
-| `className` | `string` | `undefined` | Additional CSS classes |
+| Prop        | Type                                 | Default      | Description                            |
+| ----------- | ------------------------------------ | ------------ | -------------------------------------- |
+| `avatars`   | `AvatarProps[]`                      | **required** | Array of avatar configurations         |
+| `max`       | `number`                             | `5`          | Maximum avatars to display before "+N" |
+| `size`      | AvatarProps['size']                  | `'md'`       | Size of all avatars in group           |
+| `spacing`   | `'tight'` \| `'normal'` \| `'loose'` | `'normal'`   | Negative space between avatars         |
+| `className` | `string`                             | `undefined`  | Additional CSS classes                 |
 
 ---
 
@@ -250,6 +225,7 @@ import { AvatarGroup } from '@/components/ui/avatar';
 ### Color-Hashed Initials
 
 When no `src` is provided, the component generates:
+
 1. **Initials**: First + Last initial (e.g., "John Doe" → "JD")
 2. **Background Color**: Deterministic hash from name → HSL hue (0-360°)
 
@@ -266,8 +242,8 @@ When no `src` is provided, the component generates:
 ```tsx
 import { stringToColor, getInitials } from '@/components/ui/avatar';
 
-const color = stringToColor("Alice"); // "hsl(203, 60%, 50%)"
-const initials = getInitials("Bob Jones"); // "BJ"
+const color = stringToColor('Alice'); // "hsl(203, 60%, 50%)"
+const initials = getInitials('Bob Jones'); // "BJ"
 ```
 
 ### Lazy Loading
@@ -278,11 +254,12 @@ Built-in lazy loading with skeleton placeholder:
 <Avatar
   src="https://slow-server.com/image.jpg"
   name="Loading User"
-  loading={true}  // Shows skeleton
+  loading={true} // Shows skeleton
 />
 ```
 
 **Automatic Behavior**:
+
 - Image starts loading when component mounts (`loading="lazy"`)
 - Skeleton shows during load (`Skeleton` component)
 - Fade-in transition when loaded (`opacity-0` → `opacity-100`)
@@ -293,14 +270,11 @@ Built-in lazy loading with skeleton placeholder:
 Make avatars interactive:
 
 ```tsx
-<Avatar
-  src="https://..."
-  name="Alice"
-  onClick={() => router.push('/profile/alice')}
-/>
+<Avatar src="https://..." name="Alice" onClick={() => router.push('/profile/alice')} />
 ```
 
 **Behavior**:
+
 - Cursor changes to pointer
 - Active state: `scale(0.95)` on click
 - Keyboard accessible (tabIndex=0)
@@ -344,15 +318,8 @@ summary += f"![Photo]({photo_url})\n"
 
 ```tsx
 <div className="flex items-start gap-3">
-  <Avatar
-    src={message.sender.avatar}
-    name={message.sender.name}
-    size="sm"
-    variant="circular"
-  />
-  <div className="message-content">
-    {message.text}
-  </div>
+  <Avatar src={message.sender.avatar} name={message.sender.name} size="sm" variant="circular" />
+  <div className="message-content">{message.text}</div>
 </div>
 ```
 
@@ -363,7 +330,7 @@ summary += f"![Photo]({photo_url})\n"
   avatars={team.members.map(m => ({
     src: m.avatar,
     name: m.name,
-    status: m.onlineStatus
+    status: m.onlineStatus,
   }))}
   max={10}
   size="md"
@@ -411,6 +378,7 @@ The Avatar component follows WCAG 2.1 AA standards:
 ## Theme Integration
 
 The Avatar component automatically adapts to:
+
 - **Theme Variants**: Professional, Ocean, Forest (via CSS variables)
 - **Dark Mode**: `dark:` variants for border, shadow, overlay
 - **OKLCH Color Space**: All colors use OKLCH for perceptual uniformity
@@ -479,6 +447,7 @@ test('shows skeleton during loading', () => {
 ## Changelog
 
 **v1.0.0** (2025-11-13):
+
 - Initial release
 - CVA-based variants
 - Lazy loading with skeleton
@@ -493,6 +462,7 @@ test('shows skeleton during loading', () => {
 ## Support
 
 For questions or issues:
+
 1. Check this documentation
 2. Review examples in `/components/chat/MarkdownContent.tsx`
 3. Consult Tailwind 4.0 docs for custom styling

@@ -47,9 +47,7 @@ export const LLMPipelineSection = React.memo(function LLMPipelineSection({
               {formatDuration(data.total_duration_ms)}
             </span>
           )}
-          <span className="text-xs text-primary font-mono">
-            {formatCost(data.total_cost_eur)}
-          </span>
+          <span className="text-xs text-primary font-mono">{formatCost(data.total_cost_eur)}</span>
         </div>
       </AccordionTrigger>
       <AccordionContent>
@@ -60,9 +58,7 @@ export const LLMPipelineSection = React.memo(function LLMPipelineSection({
               <span className="font-medium">{data.total_calls} appels</span>
               {' · '}
               {data.total_chat_calls} chat
-              {data.total_embedding_calls > 0 && (
-                <> + {data.total_embedding_calls} emb</>
-              )}
+              {data.total_embedding_calls > 0 && <> + {data.total_embedding_calls} emb</>}
               {' · '}
               <span className="text-blue-400">{formatDuration(data.total_duration_ms)}</span>
               {' · '}
@@ -138,7 +134,11 @@ export const LLMPipelineSection = React.memo(function LLMPipelineSection({
                     <span className="font-mono shrink-0 w-28 text-right">
                       <span>{formatTokenCount(call.tokens_in)}</span>
                       <span className="text-muted-foreground mx-0.5">/</span>
-                      <span className={call.tokens_cache > 0 ? 'text-green-400' : 'text-muted-foreground'}>
+                      <span
+                        className={
+                          call.tokens_cache > 0 ? 'text-green-400' : 'text-muted-foreground'
+                        }
+                      >
                         {call.tokens_cache > 0 ? formatTokenCount(call.tokens_cache) : '—'}
                       </span>
                       <span className="text-muted-foreground mx-0.5">/</span>

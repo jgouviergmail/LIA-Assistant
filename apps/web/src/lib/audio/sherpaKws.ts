@@ -332,7 +332,9 @@ function loadScript(src: string): Promise<void> {
       // Top-level `function` declarations become window properties automatically.
       // Top-level `class` declarations do NOT become window properties in strict mode,
       // so we append a shim that explicitly assigns known exports to window.
-      const shimmedCode = code + `
+      const shimmedCode =
+        code +
+        `
 ;if (typeof createVad === 'function' && typeof window !== 'undefined') { window.createVad = createVad; }
 ;if (typeof CircularBuffer === 'function' && typeof window !== 'undefined') { window.CircularBuffer = CircularBuffer; }
 ;if (typeof OfflineRecognizer === 'function' && typeof window !== 'undefined') { window.OfflineRecognizer = OfflineRecognizer; }
@@ -350,7 +352,7 @@ function loadScript(src: string): Promise<void> {
           URL.revokeObjectURL(blobUrl);
           res();
         };
-        scriptEl.onerror = (err) => {
+        scriptEl.onerror = err => {
           URL.revokeObjectURL(blobUrl);
           rej(new Error(`Failed to execute script: ${src} (${String(err)})`));
         };
@@ -360,10 +362,14 @@ function loadScript(src: string): Promise<void> {
       loadedScripts.add(src);
       logger.debug('sherpa_script_loaded', { component: 'sherpaKws', src });
     } catch (error) {
-      logger.error('sherpa_script_load_failed', error instanceof Error ? error : new Error(String(error)), {
-        component: 'sherpaKws',
-        src,
-      });
+      logger.error(
+        'sherpa_script_load_failed',
+        error instanceof Error ? error : new Error(String(error)),
+        {
+          component: 'sherpaKws',
+          src,
+        }
+      );
       throw new Error(`Failed to load script: ${src}`);
     }
   })();

@@ -905,75 +905,76 @@ export default function AdminLLMConfigSection({ lng, collapsible = true }: BaseS
 
   // Only show loading spinner on initial load, not during refetches
   // (refetches set loading=true which would unmount the entire content and cause focus loss)
-  const content = loading && configs.length === 0 ? (
-    <div className="animate-pulse text-sm text-muted-foreground">{t('common.loading')}</div>
-  ) : (
-    <div className="space-y-8">
-      {/* Provider Keys Section */}
-      <div>
-        <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-          <Key className="h-4 w-4" />
-          {t('settings.admin.llmConfig.providers.title')}
-        </h3>
-        <p className="text-xs text-muted-foreground mb-3">
-          {t('settings.admin.llmConfig.providers.description')}
-        </p>
-        <div className="space-y-2">
-          {providers.map(p => (
-            <ProviderKeyRow
-              key={p.provider}
-              provider={p}
-              onUpdate={updateProviderKey}
-              onDelete={deleteProviderKey}
-              updating={updatingKey}
-              t={t}
-            />
-          ))}
+  const content =
+    loading && configs.length === 0 ? (
+      <div className="animate-pulse text-sm text-muted-foreground">{t('common.loading')}</div>
+    ) : (
+      <div className="space-y-8">
+        {/* Provider Keys Section */}
+        <div>
+          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+            <Key className="h-4 w-4" />
+            {t('settings.admin.llmConfig.providers.title')}
+          </h3>
+          <p className="text-xs text-muted-foreground mb-3">
+            {t('settings.admin.llmConfig.providers.description')}
+          </p>
+          <div className="space-y-2">
+            {providers.map(p => (
+              <ProviderKeyRow
+                key={p.provider}
+                provider={p}
+                onUpdate={updateProviderKey}
+                onDelete={deleteProviderKey}
+                updating={updatingKey}
+                t={t}
+              />
+            ))}
+          </div>
         </div>
-      </div>
 
-      {/* LLM Types Section */}
-      <div>
-        <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-          <Cpu className="h-4 w-4" />
-          {t('settings.admin.llmConfig.types.title')}
-        </h3>
-        <p className="text-xs text-muted-foreground mb-4">
-          {t('settings.admin.llmConfig.types.description')}
-        </p>
+        {/* LLM Types Section */}
+        <div>
+          <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+            <Cpu className="h-4 w-4" />
+            {t('settings.admin.llmConfig.types.title')}
+          </h3>
+          <p className="text-xs text-muted-foreground mb-4">
+            {t('settings.admin.llmConfig.types.description')}
+          </p>
 
-        {LLM_CATEGORIES_ORDER.map(cat => {
-          const catConfigs = configsByCategory[cat];
-          if (!catConfigs?.length) return null;
+          {LLM_CATEGORIES_ORDER.map(cat => {
+            const catConfigs = configsByCategory[cat];
+            if (!catConfigs?.length) return null;
 
-          return (
-            <div key={cat} className="mb-6">
-              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                {t(`settings.admin.llmConfig.categories.${cat}`)}
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                {catConfigs.map(c => (
-                  <LLMTypeCard key={c.llm_type} config={c} onEdit={setEditingConfig} t={t} />
-                ))}
+            return (
+              <div key={cat} className="mb-6">
+                <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                  {t(`settings.admin.llmConfig.categories.${cat}`)}
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {catConfigs.map(c => (
+                    <LLMTypeCard key={c.llm_type} config={c} onEdit={setEditingConfig} t={t} />
+                  ))}
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
 
-      {/* Edit Dialog */}
-      <LLMConfigDialog
-        config={editingConfig}
-        open={!!editingConfig}
-        onClose={() => setEditingConfig(null)}
-        onSave={updateConfig}
-        onReset={resetConfig}
-        saving={updatingConfig}
-        metadata={metadata}
-        t={t}
-      />
-    </div>
-  );
+        {/* Edit Dialog */}
+        <LLMConfigDialog
+          config={editingConfig}
+          open={!!editingConfig}
+          onClose={() => setEditingConfig(null)}
+          onSave={updateConfig}
+          onReset={resetConfig}
+          saving={updatingConfig}
+          metadata={metadata}
+          t={t}
+        />
+      </div>
+    );
 
   return (
     <SettingsSection

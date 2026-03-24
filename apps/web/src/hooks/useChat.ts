@@ -8,7 +8,11 @@ import {
   DebugMetrics,
 } from '@/types/chat';
 import { ConversationTotals, ChatAction, DebugMetricsEntry } from '@/types/chat-state';
-import { chatReducer, createInitialState, persistDebugMetricsHistory } from '@/reducers/chat-reducer';
+import {
+  chatReducer,
+  createInitialState,
+  persistDebugMetricsHistory,
+} from '@/reducers/chat-reducer';
 import { validateReducerAction } from '@/reducers/chat-reducer-errors';
 import { chatSSEClient } from '@/lib/api/chat';
 import { useAuth } from '@/hooks/useAuth';

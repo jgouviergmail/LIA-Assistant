@@ -35,7 +35,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.10.1</strong> — Centralized Component Activation, GPT-5.4 Support, Onboarding Overhaul, Debug Panel Improvements — March 2026
+  <strong>Version 1.10.2</strong> — HITL Draft Modification Audit, CC/BCC Fix — March 2026
 </p>
 
 ---

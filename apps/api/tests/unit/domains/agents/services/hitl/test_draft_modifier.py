@@ -21,16 +21,17 @@ class TestPreservedFieldsConstants:
     """Tests for PRESERVED_FIELDS constant."""
 
     def test_email_preserved_fields(self):
-        """Test that email preserves cc and bcc."""
-        assert "cc" in PRESERVED_FIELDS["email"]
-        assert "bcc" in PRESERVED_FIELDS["email"]
-        # to can now be modified
-        assert "to" not in PRESERVED_FIELDS["email"]
+        """Test that email has no preserved fields (to, cc, bcc all modifiable)."""
+        assert PRESERVED_FIELDS["email"] == []
 
     def test_email_reply_preserved_fields(self):
         """Test that email_reply preserves thread context."""
-        assert "in_reply_to" in PRESERVED_FIELDS["email_reply"]
+        assert "message_id" in PRESERVED_FIELDS["email_reply"]
         assert "thread_id" in PRESERVED_FIELDS["email_reply"]
+
+    def test_email_forward_preserved_fields(self):
+        """Test that email_forward preserves source message reference."""
+        assert "message_id" in PRESERVED_FIELDS["email_forward"]
 
     def test_event_preserved_fields(self):
         """Test that event preserves calendar_id."""
@@ -61,10 +62,44 @@ class TestContentFieldsConstants:
     """Tests for CONTENT_FIELDS constant."""
 
     def test_email_content_fields(self):
-        """Test that email has expected content fields."""
+        """Test that email has expected content fields including cc and bcc."""
         assert "to" in CONTENT_FIELDS["email"]
+        assert "cc" in CONTENT_FIELDS["email"]
+        assert "bcc" in CONTENT_FIELDS["email"]
         assert "subject" in CONTENT_FIELDS["email"]
         assert "body" in CONTENT_FIELDS["email"]
+
+    def test_email_reply_content_fields(self):
+        """Test that email_reply only has fields supported by reply protocol."""
+        assert "to" in CONTENT_FIELDS["email_reply"]
+        assert "body" in CONTENT_FIELDS["email_reply"]
+        # Not supported by connector protocol (reply_email signature)
+        assert "cc" not in CONTENT_FIELDS["email_reply"]
+        assert "bcc" not in CONTENT_FIELDS["email_reply"]
+        assert "subject" not in CONTENT_FIELDS["email_reply"]
+
+    def test_email_forward_content_fields(self):
+        """Test that email_forward only has fields supported by forward protocol."""
+        assert "to" in CONTENT_FIELDS["email_forward"]
+        assert "cc" in CONTENT_FIELDS["email_forward"]
+        assert "body" in CONTENT_FIELDS["email_forward"]
+        # Not supported by connector protocol (forward_email signature)
+        assert "bcc" not in CONTENT_FIELDS["email_forward"]
+        assert "subject" not in CONTENT_FIELDS["email_forward"]
+
+    def test_contact_update_content_fields_include_address(self):
+        """Test that contact_update includes address field."""
+        assert "address" in CONTENT_FIELDS["contact_update"]
+
+    def test_task_preserved_fields_use_correct_field_name(self):
+        """Test that task preserved fields use task_list_id (not tasklist_id)."""
+        assert "task_list_id" in PRESERVED_FIELDS["task"]
+        assert "task_list_id" in PRESERVED_FIELDS["task_update"]
+
+    def test_event_preserved_fields_include_timezone(self):
+        """Test that event types preserve timezone."""
+        assert "timezone" in PRESERVED_FIELDS["event"]
+        assert "timezone" in PRESERVED_FIELDS["event_update"]
 
     def test_event_content_fields(self):
         """Test that event has expected content fields."""
@@ -344,6 +379,38 @@ class TestParseModificationResponse:
         result = service._parse_modification_response(response, content_fields, original)
 
         assert "subject" not in result
+        assert result["body"] == "Content"
+
+    def test_allows_clearing_cc_field(self, service):
+        """Test that cc can be explicitly cleared (set to empty string)."""
+        response = '{"cc": "", "body": "Content"}'
+        content_fields = ["cc", "body"]
+        original = {"cc": "old@example.com"}
+
+        result = service._parse_modification_response(response, content_fields, original)
+
+        assert result["cc"] == ""
+        assert result["body"] == "Content"
+
+    def test_allows_clearing_bcc_field(self, service):
+        """Test that bcc can be explicitly cleared (set to empty string)."""
+        response = '{"bcc": "", "body": "Content"}'
+        content_fields = ["bcc", "body"]
+        original = {"bcc": "old@example.com"}
+
+        result = service._parse_modification_response(response, content_fields, original)
+
+        assert result["bcc"] == ""
+
+    def test_adds_cc_field(self, service):
+        """Test that cc can be added via modification."""
+        response = '{"cc": "new@example.com", "body": "Content"}'
+        content_fields = ["cc", "body"]
+        original = {}
+
+        result = service._parse_modification_response(response, content_fields, original)
+
+        assert result["cc"] == "new@example.com"
         assert result["body"] == "Content"
 
     def test_returns_empty_when_no_fields_extracted(self, service):

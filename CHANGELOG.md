@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.2] - 2026-03-24
+
+### Fixed
+
+- **HITL Draft CC/BCC Modification** — CC and BCC fields were not modifiable during HITL draft review (EDIT action). When a user requested to add, change, or remove CC/BCC recipients on an email draft, the modification was silently ignored. Root cause: `cc` and `bcc` were in `PRESERVED_FIELDS` (immutable) instead of `CONTENT_FIELDS` (LLM-modifiable). Same pattern as the `to` field fix from 2026-01-11, but `cc`/`bcc` were missed. Additionally, `_parse_modification_response()` now supports `clearable_fields` (`cc`, `bcc`) so that returning an empty string explicitly removes recipients instead of preserving originals. (`src/domains/agents/services/hitl/draft_modifier.py`)
+- **HITL Draft Field Configuration Audit** — Comprehensive audit and correction of `PRESERVED_FIELDS` and `CONTENT_FIELDS` across all 9 draft types to align with actual Pydantic models and connector protocol signatures:
+  - `email_reply`: `in_reply_to` renamed to `message_id` (matching `EmailReplyDraftInput`); `cc`/`bcc`/`subject` excluded from `CONTENT_FIELDS` (not supported by `reply_email` protocol across Google/Apple/Microsoft connectors)
+  - `email_forward`: `original_message_id` renamed to `message_id` (matching `EmailForwardDraftInput`); `bcc`/`subject` excluded (not supported by `forward_email` protocol); `cc` confirmed as supported
+  - `event`/`event_update`: added `timezone` to `PRESERVED_FIELDS` (prevents LLM from inadvertently changing timezone during content edits)
+  - `contact_update`: added `address` to `CONTENT_FIELDS` (field existed in `ContactUpdateDraftInput` but was not modifiable)
+  - `task`/`task_update`: fixed `tasklist_id` → `task_list_id` (matching actual field name in `TaskDraftInput`/`TaskUpdateDraftInput`)
+  (`src/domains/agents/services/hitl/draft_modifier.py`)
+
 ## [1.10.1] - 2026-03-24
 
 ### Added

@@ -1502,7 +1502,7 @@ HITL_BUTTON_LABELS = {
 | hitl_classifier.py | 801 | User response classification |
 | question_generator.py | 766 | LLM question generation |
 | resumption_strategies.py | 1,437 | **Plan resumption logic** |
-| draft_modifier.py | 360 | Draft editing during HITL |
+| draft_modifier.py | 407 | Draft editing during HITL |
 | validator.py | 464 | HITL security validation |
 | schema_validator.py | 322 | Schema compliance |
 | parameter_enrichment.py | 337 | Parameter enrichment |
