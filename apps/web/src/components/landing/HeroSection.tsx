@@ -7,6 +7,7 @@ import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 import type { Language } from '@/i18n/settings';
 import { HeroBackground } from './HeroBackground';
 import { LANDING_STATS } from './constants';
+import { APP_VERSION, LAST_UPDATED } from '@/lib/version';
 
 const GITHUB_REPO_URL = 'https://github.com/jgouviergmail/LIA-Assistant';
 
@@ -17,6 +18,13 @@ interface HeroSectionProps {
 export async function HeroSection({ lng }: HeroSectionProps) {
   const { t } = await initI18next(lng);
   const registerHref = buildLocalizedPath('/register', lng as Language);
+  const localeMap: Record<string, string> = {
+    fr: 'fr-FR', en: 'en-US', de: 'de-DE', es: 'es-ES', it: 'it-IT', zh: 'zh-CN',
+  };
+  const formattedDate = new Date(LAST_UPDATED).toLocaleDateString(
+    localeMap[lng] || 'en-US',
+    { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' },
+  );
 
   return (
     <section className="relative min-h-screen flex items-center overflow-hidden">
@@ -44,6 +52,11 @@ export async function HeroSection({ lng }: HeroSectionProps) {
           </a>
           <Badge variant="secondary">{t('landing.hero.badge')}</Badge>
         </div>
+
+        {/* Version + last updated */}
+        <p className="text-sm text-muted-foreground mb-4">
+          v{APP_VERSION} · {t('landing.footer.last_updated', { date: formattedDate })}
+        </p>
 
         {/* Tagline */}
         <h1 className="text-5xl mobile:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.1] mb-6">

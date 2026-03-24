@@ -53,8 +53,8 @@ export function GuideMarkdown({ content, sectionIds = [], sectionIcons = [] }: G
         prose-td:py-2 prose-td:px-3 prose-td:text-muted-foreground
         prose-tr:border-b prose-tr:border-border/50
         prose-thead:border-b-2 prose-thead:border-border
-        prose-pre:bg-muted/60 prose-pre:border prose-pre:border-border/50 prose-pre:text-xs
-        prose-code:text-xs prose-code:bg-muted/60 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded
+        prose-pre:bg-zinc-100 prose-pre:text-zinc-800 dark:prose-pre:bg-zinc-900 dark:prose-pre:text-zinc-200 prose-pre:border prose-pre:border-border/50 prose-pre:text-xs
+        prose-code:text-xs prose-code:bg-zinc-100 prose-code:text-zinc-800 dark:prose-code:bg-zinc-800 dark:prose-code:text-zinc-200 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded
         prose-a:text-primary prose-a:no-underline hover:prose-a:underline
         prose-hr:border-border/50 prose-hr:my-8"
     >
