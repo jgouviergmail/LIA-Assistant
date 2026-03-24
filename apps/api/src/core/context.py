@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from langchain_core.tools import BaseTool
 
+    from src.domains.agents.registry.agent_registry import AgentRegistry
     from src.domains.agents.registry.catalogue import ToolManifest
     from src.domains.chat.service import TrackingContext
 
@@ -151,3 +152,70 @@ admin_mcp_disabled_ctx: ContextVar[set[str] | None] = ContextVar(
 # Set per-request in AgentService._stream_with_new_services() via SkillPreferenceService.
 # Read by build_skills_catalog(), response_node, and skill_bypass to filter by inclusion.
 active_skills_ctx: ContextVar[set[str] | None] = ContextVar("active_skills_ctx", default=None)
+
+
+# ---------------------------------------------------------------------------
+# Per-request filtered tool manifests (centralized catalogue).
+# Built ONCE at request start from:
+#   1. Global registry manifests (admin + native tools)
+#   2. Minus admin MCP servers disabled by user (admin_mcp_disabled_ctx)
+#   3. Plus user MCP tools (user_mcp_tools_ctx)
+# All consumers read via get_request_tool_manifests() instead of
+# registry.list_tool_manifests() + manual filtering.
+# ---------------------------------------------------------------------------
+request_tool_manifests_ctx: ContextVar[list["ToolManifest"] | None] = ContextVar(
+    "request_tool_manifests_ctx", default=None
+)
+
+
+def build_request_tool_manifests(
+    registry: "AgentRegistry",
+) -> list["ToolManifest"]:
+    """Build the per-request available tool manifests list.
+
+    Single source of truth for tool availability. Combines global registry
+    with user-specific filtering (admin MCP disabled, user MCP enabled).
+
+    Must be called AFTER admin_mcp_disabled_ctx and user_mcp_tools_ctx are set.
+
+    Args:
+        registry: Global AgentRegistry singleton.
+
+    Returns:
+        Filtered and merged manifest list.
+    """
+    from src.domains.agents.registry.domain_taxonomy import (
+        filter_admin_mcp_disabled_manifests,
+    )
+
+    # 1. Global registry - admin MCP disabled by user
+    manifests = filter_admin_mcp_disabled_manifests(registry.list_tool_manifests())
+
+    # 2. + user MCP tools (already filtered by is_enabled + status at setup time)
+    user_ctx = user_mcp_tools_ctx.get()
+    if user_ctx and user_ctx.tool_manifests:
+        manifests = list(manifests) + user_ctx.tool_manifests
+
+    return manifests
+
+
+def get_request_tool_manifests() -> list["ToolManifest"]:
+    """Get the per-request available tool manifests.
+
+    Returns the pre-built list from request_tool_manifests_ctx.
+    Falls back to empty list with warning if called outside request lifecycle.
+
+    Returns:
+        List of available ToolManifest for the current request.
+    """
+    from src.infrastructure.observability.logging import get_logger
+
+    result = request_tool_manifests_ctx.get()
+    if result is None:
+        _logger = get_logger(__name__)
+        _logger.warning(
+            "request_tool_manifests_ctx_not_set",
+            message="Accessed outside request lifecycle, returning empty list",
+        )
+        return []
+    return result

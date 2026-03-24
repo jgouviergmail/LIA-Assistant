@@ -14,8 +14,10 @@
 6. [Database Models](#database-models)
 7. [Exemples pratiques](#exemples-pratiques)
 8. [Testing](#testing)
-9. [Troubleshooting](#troubleshooting)
-10. [Ressources](#ressources)
+9. [Integration with Usage Limits (v1.9.0)](#integration-with-usage-limits-v190)
+10. [Run-Level Token Aggregation (v1.10.1)](#run-level-token-aggregation-v1101)
+11. [Troubleshooting](#troubleshooting)
+12. [Ressources](#ressources)
 
 ---
 
@@ -2038,6 +2040,113 @@ This ensures that:
 Token calculation for limits includes cached tokens: `cycle_prompt + cycle_completion + cycle_cached` (matching dashboard).
 
 See: [USAGE_LIMITS.md](USAGE_LIMITS.md)
+
+---
+
+## Run-Level Token Aggregation (v1.10.1)
+
+### Overview
+
+Before v1.10.1, each `TrackingContext` kept its token records entirely in-memory and
+isolated from sibling contexts. This meant that background tasks (memory extraction,
+interest extraction, journal extraction) that share the same `run_id` as the primary
+pipeline context were invisible to the debug panel: it only showed LLM calls made by
+the main `TrackingContext`.
+
+v1.10.1 introduces two module-level collectors in `apps/api/src/domains/chat/service.py`
+that act as a shared bus for all `TrackingContext` instances that belong to the same
+pipeline turn:
+
+```python
+# Module-level collectors — keyed by run_id
+_run_records: dict[str, list[TokenUsageRecord]] = {}
+_run_google_api_records: dict[str, list[GoogleApiRecord]] = {}
+```
+
+### Lifecycle
+
+```
+TrackingContext A (pipeline)          TrackingContext B (memory extraction)
+  run_id = "run_abc"                    run_id = "run_abc"  ← same run_id
+       │                                       │
+  _persist_to_database()              _persist_to_database()
+       │                                       │
+       └──► _run_records["run_abc"]  ◄─────────┘
+                  (merged list)
+                       │
+          get_llm_calls_breakdown()   ← returns ALL calls (A + B)
+                       │
+           debug panel SSE event
+                       │
+          cleanup_run_records(run_id) ← free memory
+```
+
+**Step-by-step:**
+
+1. **Population** — `TrackingContext._persist_to_database()` appends committed records
+   to the run-level collectors immediately after writing them to PostgreSQL:
+
+   ```python
+   _run_records.setdefault(self.run_id, []).extend(self._node_records)
+   _run_google_api_records.setdefault(self.run_id, []).extend(self._google_api_records)
+   ```
+
+2. **Reading** — `get_llm_calls_breakdown()` and `get_google_api_calls_breakdown()`
+   merge the run-level collector with any still-pending (not-yet-committed) records
+   from the current context, via the private helper `_get_all_run_records()`:
+
+   ```python
+   def _get_all_run_records(self) -> list[TokenUsageRecord]:
+       committed = _run_records.get(self.run_id, [])
+       return committed + list(self._node_records)
+   ```
+
+3. **Background task synchronization** — The streaming service awaits all background
+   tasks registered under the same `run_id` (up to 15 seconds) before reading
+   DB-aggregated totals. This ensures cost figures shown in the chat bubble are
+   accurate and include memory/interest/journal extraction costs:
+
+   ```python
+   awaited = await await_run_id_tasks(run_id, timeout=15.0)
+   # Then read DB-aggregated totals via tracker.get_aggregated_summary_dto_from_db()
+   ```
+
+4. **Cleanup** — Once the debug panel SSE event has been emitted, the streaming
+   service calls `TrackingContext.cleanup_run_records(run_id)` to free the
+   module-level entries and prevent unbounded memory growth:
+
+   ```python
+   TrackingContext.cleanup_run_records(run_id)
+   # Internally: _run_records.pop(run_id, None)
+   #             _run_google_api_records.pop(run_id, None)
+   ```
+
+### What the debug panel now shows
+
+| Before v1.10.1 | From v1.10.1 |
+|---|---|
+| Only pipeline LLM calls (router, planner, response…) | All LLM calls: pipeline + memory extraction + interest extraction + journal extraction |
+| Background task costs invisible in debug panel | Every background `TrackingContext` contributes its records |
+| DB-aggregated cost could be read before background tasks finished | Streaming service waits up to 15 s for background tasks before reading DB totals |
+
+### Thread-safety note
+
+The module-level dicts are safe under asyncio's cooperative multitasking model: there
+is no `await` point between the `setdefault` and `extend` calls, so no other coroutine
+can interleave. If the server is ever migrated to a multi-threaded WSGI/ASGI worker
+model, these structures must be replaced with thread-safe equivalents (e.g.
+`threading.Lock`-protected dicts or per-request storage).
+
+### Key API reference
+
+| Symbol | Location | Description |
+|---|---|---|
+| `_run_records` | `chat/service.py` (module-level) | LLM call records per `run_id` |
+| `_run_google_api_records` | `chat/service.py` (module-level) | Google API call records per `run_id` |
+| `TrackingContext._get_all_run_records()` | `chat/service.py` | Merges collector + pending records |
+| `TrackingContext.get_llm_calls_breakdown()` | `chat/service.py` | Debug panel LLM call list |
+| `TrackingContext.get_google_api_calls_breakdown()` | `chat/service.py` | Debug panel Google API call list |
+| `TrackingContext.cleanup_run_records(run_id)` | `chat/service.py` | Frees run-level memory after debug panel emission |
 
 ---
 

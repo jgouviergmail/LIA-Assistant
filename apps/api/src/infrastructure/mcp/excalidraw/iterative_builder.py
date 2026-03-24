@@ -3,8 +3,8 @@ Excalidraw Iterative Builder — LLM-driven diagram construction.
 
 The core principle: the LLM is the creative engine.  It decides positions, sizes,
 colors, and layout.  Python code ONLY orchestrates the LLM call and parses the result.
-No coordinate computation in this module — the position_corrector.py fallback
-handles raw elements if the planner doesn't generate an intent.
+No coordinate computation in this module — non-intent elements are passed through
+unchanged to the MCP server.
 
 Flow:
     1. Receive structured intent (components, connections, layout) from planner

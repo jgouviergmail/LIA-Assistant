@@ -496,6 +496,55 @@ class QueryAnalysisResult:
 # =============================================================================
 
 
+def _build_available_domains() -> list[dict[str, str]]:
+    """Build the list of available domains for the query analyzer prompt.
+
+    Includes routable domains enriched with semantic types, plus admin and user MCP
+    per-server domains (filtered by user preferences).
+
+    Returns:
+        List of dicts with 'name' and 'description' keys.
+    """
+    from src.core.context import admin_mcp_disabled_ctx, user_mcp_tools_ctx
+    from src.domains.agents.registry.domain_taxonomy import (
+        DOMAIN_REGISTRY,
+        collect_all_mcp_domains,
+        get_routable_domains,
+    )
+    from src.domains.agents.semantic.expansion_service import get_expansion_service
+    from src.infrastructure.mcp.registration import get_admin_mcp_domains
+
+    expansion_service = get_expansion_service()
+    available_domains: list[dict[str, str]] = []
+
+    for domain_name in get_routable_domains():
+        config = DOMAIN_REGISTRY.get(domain_name)
+        if config:
+            semantic_types = expansion_service.get_types_for_domain(domain_name)
+            description = config.description
+            if semantic_types:
+                user_facing_types = [
+                    t
+                    for t in semantic_types
+                    if not t.endswith("_id") and t not in ("Identifier", "Intangible")
+                ]
+                if user_facing_types:
+                    description += f" (provides: {', '.join(sorted(user_facing_types)[:6])})"
+            available_domains.append({"name": domain_name, "description": description})
+
+    # F2.2+F2.5: Unified MCP per-server domain injection (admin + user).
+    mcp_domains = collect_all_mcp_domains(
+        admin_domains=get_admin_mcp_domains(),
+        admin_disabled=admin_mcp_disabled_ctx.get(),
+        user_ctx=user_mcp_tools_ctx.get(),
+    )
+    if mcp_domains:
+        available_domains = [d for d in available_domains if d["name"] != "mcp"]
+        available_domains.extend(mcp_domains)
+
+    return available_domains
+
+
 async def analyze_query(
     query: str,
     available_domains: list[dict[str, str]] | None = None,
@@ -536,10 +585,6 @@ async def analyze_query(
     from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
     from src.core.time_utils import get_current_datetime_context
     from src.domains.agents.prompts.prompt_loader import load_prompt
-    from src.domains.agents.registry.domain_taxonomy import (
-        DOMAIN_REGISTRY,
-        get_routable_domains,
-    )
     from src.infrastructure.llm import get_llm
     from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metadata
 
@@ -549,51 +594,7 @@ async def analyze_query(
 
         # Build available domains string enriched with semantic types
         if available_domains is None:
-            from src.domains.agents.semantic.expansion_service import get_expansion_service
-
-            expansion_service = get_expansion_service()
-            available_domains = []
-
-            for domain_name in get_routable_domains():
-                config = DOMAIN_REGISTRY.get(domain_name)
-                if config:
-                    # Get semantic types provided by this domain from registry
-                    semantic_types = expansion_service.get_types_for_domain(domain_name)
-
-                    # Build enriched description
-                    description = config.description
-                    if semantic_types:
-                        # Filter to most relevant user-facing types (exclude internal IDs)
-                        user_facing_types = [
-                            t
-                            for t in semantic_types
-                            if not t.endswith("_id") and t not in ("Identifier", "Intangible")
-                        ]
-                        if user_facing_types:
-                            description += (
-                                f" (provides: {', '.join(sorted(user_facing_types)[:6])})"
-                            )
-
-                    available_domains.append({"name": domain_name, "description": description})
-
-            # F2.2+F2.5: Unified MCP per-server domain injection (admin + user).
-            # Single code path via collect_all_mcp_domains() — DRY for both admin
-            # (from startup registration) and user (from per-request ContextVar) MCP.
-            from src.core.context import admin_mcp_disabled_ctx, user_mcp_tools_ctx
-            from src.domains.agents.registry.domain_taxonomy import (
-                collect_all_mcp_domains,
-            )
-            from src.infrastructure.mcp.registration import get_admin_mcp_domains
-
-            mcp_domains = collect_all_mcp_domains(
-                admin_domains=get_admin_mcp_domains(),
-                admin_disabled=admin_mcp_disabled_ctx.get(),
-                user_ctx=user_mcp_tools_ctx.get(),
-            )
-            if mcp_domains:
-                # Remove generic "mcp" — replaced by per-server entries
-                available_domains = [d for d in available_domains if d["name"] != "mcp"]
-                available_domains.extend(mcp_domains)
+            available_domains = _build_available_domains()
 
         domains_str = "\n".join(f"- **{d['name']}**: {d['description']}" for d in available_domains)
 
@@ -639,7 +640,7 @@ async def analyze_query(
         )
 
         # Enrich config for token tracking
-        config = enrich_config_with_node_metadata(base_config or {}, "query_analyzer")  # type: ignore
+        config = enrich_config_with_node_metadata(base_config or {}, "query_analyzer")
 
         # Call LLM with structured output
         llm = get_llm("query_analyzer")
@@ -658,6 +659,27 @@ async def analyze_query(
             is_mutation_intent=result.is_mutation_intent,
             has_cardinality_risk=result.has_cardinality_risk,
         )
+
+        # Validate LLM domains against available_domains.
+        # The LLM may hallucinate or return domains not in the provided list
+        # (e.g., disabled MCP servers). Strip them to enforce activation rules.
+        available_domain_names = {d["name"] for d in available_domains}
+        if result.primary_domain and result.primary_domain not in available_domain_names:
+            logger.warning(
+                "domain_not_available_stripped",
+                domain=result.primary_domain,
+                available_count=len(available_domain_names),
+            )
+            result.primary_domain = None
+        invalid_secondary = [d for d in result.secondary_domains if d not in available_domain_names]
+        if invalid_secondary:
+            logger.warning(
+                "domain_not_available_stripped",
+                domains=invalid_secondary,
+            )
+            result.secondary_domains = [
+                d for d in result.secondary_domains if d in available_domain_names
+            ]
 
         return QueryAnalysisResult(
             intent=result.intent,
@@ -856,8 +878,14 @@ class QueryAnalyzerService:
             user_location = state.get("user_location")
 
             # === STEP 2: LLM Analysis ===
+            # Build available_domains once — passed to analyze() for prompt construction
+            # AND used post-expansion for domain validation (prevents re-introduction
+            # of disabled domains via semantic expansion).
+            available_domains = _build_available_domains()
+
             analysis_result = await self.analyze(
                 query=query,
+                available_domains=available_domains,
                 memory_facts=memory_facts,
                 conversation_history=conversation_history,
                 user_location=user_location,
@@ -950,13 +978,25 @@ class QueryAnalyzerService:
                     expansion_reasons=expansion_reasons,
                 )
                 if expanded_domains != domains:
-                    domains = expanded_domains
-                    reasoning_trace.append(f"Semantic expansion: {expanded_domains}")
+                    # Validate expanded domains against available_domains to prevent
+                    # semantic expansion from re-introducing disabled domains.
+                    available_names = {d["name"] for d in available_domains}
+                    valid_expanded = [d for d in expanded_domains if d in available_names]
+                    stripped_by_validation = [
+                        d for d in expanded_domains if d not in available_names
+                    ]
+                    if stripped_by_validation:
+                        logger.warning(
+                            "expansion_domain_not_available_stripped",
+                            domains=stripped_by_validation,
+                        )
+                    domains = valid_expanded
+                    reasoning_trace.append(f"Semantic expansion: {valid_expanded}")
                     intelligent_mechanisms["semantic_expansion"] = {
                         "applied": True,
                         "original_domains": original_domains,
-                        "expanded_domains": list(expanded_domains),
-                        "added_domains": [d for d in expanded_domains if d not in original_domains],
+                        "expanded_domains": list(valid_expanded),
+                        "added_domains": [d for d in valid_expanded if d not in original_domains],
                         "reasons": expansion_reasons,
                         "has_person_reference": has_person_reference,
                     }

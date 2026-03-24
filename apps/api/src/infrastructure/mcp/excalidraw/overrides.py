@@ -62,4 +62,4 @@ RULES:
 - "layout": "top-to-bottom" | "left-to-right" (flow direction)
 - Order components logically: inputs first, processing middle, outputs last
 - Keep it focused: 3-10 components for best results
-- ALWAYS call read_me BEFORE create_view to learn the element format"""
+- Do NOT generate raw Excalidraw elements — ONLY the intent object above"""

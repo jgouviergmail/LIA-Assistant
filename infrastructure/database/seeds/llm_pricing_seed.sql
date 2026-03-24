@@ -6,7 +6,7 @@
 -- Disable triggers for faster bulk insert
 SET session_replication_role = replica;
 
--- Insert LLM Model Pricing (115 models)
+-- Insert LLM Model Pricing (117 models)
 INSERT INTO llm_model_pricing (
     id,
     model_name,
@@ -37,6 +37,10 @@ INSERT INTO llm_model_pricing (
     (gen_random_uuid(), 'gpt-5.1-codex', 1.250000, 0.125000, 10.000000, NOW(), true, NOW(), NOW()),
     (gen_random_uuid(), 'gpt-5.1-codex-max', 1.250000, 0.125000, 10.000000, NOW(), true, NOW(), NOW()),
     (gen_random_uuid(), 'gpt-5.1-codex-mini', 0.250000, 0.025000, 2.000000, NOW(), true, NOW(), NOW()),
+
+    -- GPT-5.4 Series
+    (gen_random_uuid(), 'gpt-5.4', 2.500000, 0.250000, 15.000000, NOW(), true, NOW(), NOW()),
+    (gen_random_uuid(), 'gpt-5.4-mini', 0.750000, 0.075000, 4.500000, NOW(), true, NOW(), NOW()),
 
     -- GPT-5.2/5.3 Series
     (gen_random_uuid(), 'gpt-5.2', 1.750000, 0.175000, 14.000000, NOW(), true, NOW(), NOW()),
@@ -237,7 +241,7 @@ BEGIN
     RAISE NOTICE '  - % active LLM model pricing entries', model_count;
     RAISE NOTICE '  - % active currency exchange rates', rate_count;
 
-    IF model_count < 115 THEN
-        RAISE WARNING 'Expected at least 115 models, but found %', model_count;
+    IF model_count < 117 THEN
+        RAISE WARNING 'Expected at least 117 models, but found %', model_count;
     END IF;
 END $$;

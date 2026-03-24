@@ -209,6 +209,9 @@ async def browser_task_tool(
             context_instructions="",
         )
 
+        # Propagate store from parent graph so sub-tools pass validate_runtime_config
+        parent_store = runtime.store if runtime else None
+
         # ReAct agent with browser tools (navigate, snapshot, click, fill, press_key)
         react_agent = create_react_agent(
             llm,
@@ -220,6 +223,7 @@ async def browser_task_tool(
                 browser_press_key_tool,
             ],
             prompt=prompt,
+            store=parent_store,
         )
 
         # Build clean config for nested agent (avoid LangGraph internal state conflicts)

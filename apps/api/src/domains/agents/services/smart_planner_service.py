@@ -814,11 +814,6 @@ class SmartPlannerService:
                 f"follow the exact structure, field names, types, and enum values "
                 f"described below. Match parameter names from the catalogue above "
                 f"to the format documented here.\n\n"
-                f"IMPORTANT: For parameters that expect a JSON string (type='string' "
-                f"containing JSON data like element arrays), you MAY provide the value "
-                f"as a native JSON array/object in the plan — it will be auto-converted "
-                f"to a JSON string. This avoids error-prone double-escaping.\n"
-                f'Example: "elements": [{{"type":"rectangle","x":100,...}}] is valid.\n\n'
                 f"{truncated}"
             )
 

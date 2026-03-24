@@ -148,31 +148,29 @@ async def router_node_v3(
     tool_scores_dict = None
     if intelligence.route_to == "planner" and intelligence.domains:
         try:
-            from src.domains.agents.registry import get_global_registry
             from src.domains.agents.services.tool_selector import get_tool_selector
 
             selector = await get_tool_selector()
             if selector.is_initialized():
-                # Get tools from detected domains only
-                registry = get_global_registry()
-                domain_tool_manifests = []
-                for manifest in registry.list_tool_manifests():
-                    tool_domain = (
-                        manifest.agent.removesuffix("_agent") if hasattr(manifest, "agent") else ""
-                    )
-                    if tool_domain in intelligence.domains:
-                        domain_tool_manifests.append(manifest)  # Keep full manifest, not just name
-
-                # Include user MCP tools when any MCP domain detected (F2.2: per-server)
-                from src.core.context import user_mcp_tools_ctx
+                # Get tools from detected domains (pre-filtered by request context)
+                from src.core.context import get_request_tool_manifests, user_mcp_tools_ctx
                 from src.domains.agents.registry.domain_taxonomy import is_mcp_domain
 
-                user_ctx = user_mcp_tools_ctx.get()
+                all_manifests = get_request_tool_manifests()
+                domain_tool_manifests = [
+                    m
+                    for m in all_manifests
+                    if (m.agent.removesuffix("_agent") if hasattr(m, "agent") else "")
+                    in intelligence.domains
+                ]
+
+                # User MCP embeddings needed for semantic scoring
                 extra_emb = None
-                has_mcp = any(is_mcp_domain(d) for d in intelligence.domains)
-                if user_ctx and user_ctx.tool_manifests and has_mcp:
-                    domain_tool_manifests.extend(user_ctx.tool_manifests)
-                    extra_emb = user_ctx.tool_embeddings or None
+                user_ctx = user_mcp_tools_ctx.get()
+                if user_ctx and user_ctx.tool_embeddings:
+                    has_mcp = any(is_mcp_domain(d) for d in intelligence.domains)
+                    if has_mcp:
+                        extra_emb = user_ctx.tool_embeddings
 
                 # Calculate scores for domain tools
                 if domain_tool_manifests:

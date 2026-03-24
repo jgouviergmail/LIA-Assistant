@@ -84,6 +84,8 @@ OLLAMA_BASE_URL=http://localhost:11434  # URL du serveur Ollama local
 | `gpt-5-nano` | 1M | 16K | **Reasoning** | $0.05 / $0.40 |
 | `gpt-5.1` | 1M | 65K | **Reasoning** | $1.25 / $10.00 |
 | `gpt-5.2` | 1M | 65K | **Reasoning** | $1.75 / $14.00 |
+| `gpt-5.4` | 1M | 65K | **Reasoning** | $2.50 / $15.00 |
+| `gpt-5.4-mini` | 1M | 16K | **Reasoning** | $0.75 / $4.50 |
 | `o4-mini` | 200K | 100K | **Reasoning** | $1.10 / $4.40 |
 | `o3` | 200K | 100K | **Reasoning** | $2.00 / $8.00 |
 | `o3-mini` | 200K | 100K | **Reasoning** | $1.10 / $4.40 |
@@ -360,7 +362,9 @@ Le middleware detecte automatiquement le provider a partir du nom du modele et t
 
 ### Responses API (OpenAI)
 
-Les modeles OpenAI eligibles utilisent automatiquement la Responses API pour un cache ameliore (40-80%). En cas d'echec, fallback transparent vers Chat Completions. Les modeles eligibles incluent : `gpt-4.1`, `gpt-4.1-mini`, `gpt-4.1-nano`, `gpt-4o`, `gpt-4o-mini`, `o3`, `o3-mini`, `o4-mini`, `gpt-5`, `gpt-5-mini`, `gpt-5-nano`, `gpt-5.1`, `gpt-5.2`.
+Les modeles OpenAI eligibles utilisent automatiquement la Responses API pour un cache ameliore (40-80%). En cas d'echec, fallback transparent vers Chat Completions.
+
+L'eligibilite est determinee par le pattern regex `^(gpt-4\.1|gpt-5|o[1-9])`, ce qui rend la liste **auto-extensible** pour les futurs modeles de ces familles sans modification de code. Les modeles legacy (`gpt-4o`, `gpt-4-turbo`, `gpt-3.5`) ne sont **pas** eligibles et continuent d'utiliser Chat Completions.
 
 ---
 
@@ -384,6 +388,7 @@ Les modeles OpenAI eligibles utilisent automatiquement la Responses API pour un 
 3. **Ollama/Perplexity** + agent domaine -> **Warning** : support tools non garanti
 4. **Reasoning model OpenAI** + `temperature != 1.0` -> temperature **omis** automatiquement
 5. **Reasoning model OpenAI** + `top_p`/`frequency_penalty`/`presence_penalty` -> **retires** automatiquement
+6. **`gpt-5.4` et versions ulterieures** (`/v1/chat/completions`) + function tools -> `reasoning_effort` **omis** automatiquement par l'adapter. L'API OpenAI ne supporte pas `reasoning_effort` simultanement avec des function tools sur ces modeles. Les appels sans tools conservent `reasoning_effort` normalement.
 
 ---
 
@@ -518,6 +523,8 @@ ProviderAdapter.create_llm()
   +-- provider == "deepseek" --> _create_deepseek_llm() [ChatDeepSeek]
   +-- provider == "gemini"   --> _create_gemini_llm() [ChatGoogleGenerativeAI]
   +-- provider == "openai" && Responses API eligible --> _create_openai_responses_llm() [ResponsesLLM]
+  |     ResponsesLLM delegates tool schema conversion to convert_to_openai_function() (LangChain),
+  |     which correctly filters InjectedToolArg parameters from tool signatures before submission.
   +-- provider == "openai"    --> _prepare_provider_config() --> init_chat_model() [ChatOpenAI]
   +-- provider == "anthropic" --> _prepare_provider_config() --> init_chat_model() [ChatAnthropic]
   +-- provider == "ollama"    --> _prepare_provider_config(base_url=OLLAMA_URL) --> init_chat_model() [ChatOpenAI compat]

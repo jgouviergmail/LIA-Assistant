@@ -57,64 +57,28 @@ from src.infrastructure.observability.logging import get_logger
 logger = get_logger(__name__)
 
 
-# Models eligible for Responses API (GPT-4.1+ series, GPT-5.x, o-series)
-RESPONSES_API_ELIGIBLE_MODELS = {
-    # GPT-4.1 series
-    "gpt-4.1",
-    "gpt-4.1-mini",
-    "gpt-4.1-nano",
-    "gpt-4.1-mini-2025-04-14",
-    "gpt-4.1-2025-04-14",
-    "gpt-4.1-nano-2025-04-14",
-    # GPT-5 series
-    "gpt-5",
-    "gpt-5-mini",
-    "gpt-5-nano",
-    "gpt-5.1",
-    "gpt-5.2",
-    "gpt-5.1-codex",
-    "gpt-5.1-codex-max",
-    "gpt-5.1-codex-mini",
-    "gpt-5.2-codex",
-    "gpt-5.3-codex",
-    "gpt-5-chat-latest",
-    "gpt-5.1-chat-latest",
-    "gpt-5.2-chat-latest",
-    "gpt-5.3-chat-latest",
-    # o-series reasoning models
-    "o1",
-    "o1-mini",
-    "o1-preview",
-    "o3",
-    "o3-mini",
-    "o4-mini",
-}
+# Responses API eligibility: pattern-based detection instead of hardcoded list.
+# All GPT-4.1+, GPT-5.x, and o-series models support the Responses API.
+# Only legacy models (gpt-4o, gpt-4-turbo, gpt-3.5) do NOT.
+_RESPONSES_API_PATTERN = re.compile(
+    r"^(gpt-4\.1|gpt-5|o[1-9])",
+    re.IGNORECASE,
+)
 
 
 def is_responses_api_eligible(model: str) -> bool:
-    """
-    Check if a model is eligible for Responses API.
+    """Check if a model is eligible for Responses API.
+
+    Uses pattern matching: GPT-4.1+, GPT-5.x, and o-series models are eligible.
+    Legacy models (gpt-4o, gpt-4-turbo, gpt-3.5) are not.
 
     Args:
-        model: Model identifier
+        model: Model identifier.
 
     Returns:
-        True if model supports Responses API
+        True if model supports Responses API.
     """
-    model_lower = model.lower()
-    # Check exact match first
-    if model_lower in RESPONSES_API_ELIGIBLE_MODELS:
-        return True
-
-    # Check versioned model match (e.g., "gpt-4.1-mini-2025-04-14")
-    # Only match if model starts with eligible name followed by "-YYYY" (date pattern)
-    for eligible in RESPONSES_API_ELIGIBLE_MODELS:
-        if model_lower.startswith(eligible + "-"):
-            # Verify it's a date suffix (e.g., "-2025-04-14") not another model variant
-            suffix = model_lower[len(eligible) + 1 :]
-            if suffix and suffix[0].isdigit():
-                return True
-    return False
+    return bool(_RESPONSES_API_PATTERN.match(model))
 
 
 class ResponsesLLM(BaseChatModel):
@@ -478,21 +442,23 @@ class ResponsesLLM(BaseChatModel):
             else:
                 api_params["max_tokens"] = self.max_tokens
 
-        # Reasoning effort for reasoning models (Chat Completions syntax)
-        # Default to "low" if unconfigured (same guard as Responses API path)
-        if self._is_reasoning_model():
-            api_params["reasoning_effort"] = self.reasoning_effort or "low"
-
-        if stop:
-            api_params["stop"] = stop
-
         # Add tools if provided (from bind_tools)
         tools = kwargs.get("tools")
-        if tools:
+        has_tools = bool(tools)
+        if has_tools:
             api_params["tools"] = tools
             tool_choice = kwargs.get("tool_choice", "auto")
             if tool_choice:
                 api_params["tool_choice"] = tool_choice
+
+        # Reasoning effort for reasoning models (Chat Completions syntax)
+        # IMPORTANT: gpt-5.4+ does NOT support reasoning_effort + function tools
+        # in /v1/chat/completions — omit reasoning_effort when tools are present.
+        if self._is_reasoning_model() and not has_tools:
+            api_params["reasoning_effort"] = self.reasoning_effort or "low"
+
+        if stop:
+            api_params["stop"] = stop
 
         response = self._client.chat.completions.create(**api_params)
 
@@ -796,41 +762,33 @@ class ResponsesLLM(BaseChatModel):
         return static_prefix
 
     def _convert_tools(self, tools: list[Any]) -> list[dict[str, Any]]:
-        """
-        Convert tools to Responses API format.
+        """Convert tools to Responses API format.
 
-        Supports:
-        - Dict format (from bind_tools/_format_tools_for_binding): passed through
-        - LangChain tool objects (with .name, .description): converted
+        Delegates to ``convert_to_openai_function`` for safe conversion that
+        handles InjectedToolArg and other non-serializable annotations.
 
         Args:
-            tools: Tool definitions in various formats
+            tools: Tool definitions in various formats.
 
         Returns:
-            Responses API tool format
+            Responses API tool format.
         """
+        from langchain_core.utils.function_calling import convert_to_openai_function
+
         converted = []
         for tool in tools:
             if isinstance(tool, dict):
-                # Already in dict format (from bind_tools) — pass through
                 converted.append(tool)
-            elif hasattr(tool, "name") and hasattr(tool, "description"):
-                # LangChain tool object — convert to dict
-                tool_def: dict[str, Any] = {
-                    "type": "function",
-                    "function": {
-                        "name": tool.name,
-                        "description": tool.description,
-                    },
-                }
-                if hasattr(tool, "args_schema") and tool.args_schema:
-                    tool_def["function"]["parameters"] = tool.args_schema.model_json_schema()
-                converted.append(tool_def)
             else:
-                logger.warning(
-                    "responses_api_unknown_tool_format",
-                    tool_type=type(tool).__name__,
-                )
+                try:
+                    fn_def = convert_to_openai_function(tool)
+                    converted.append({"type": "function", "function": fn_def})
+                except Exception:
+                    logger.warning(
+                        "responses_api_tool_conversion_failed",
+                        tool_type=type(tool).__name__,
+                        tool_name=getattr(tool, "name", "?"),
+                    )
         return converted
 
     def _stream(
@@ -1109,21 +1067,23 @@ class ResponsesLLM(BaseChatModel):
             else:
                 api_params["max_tokens"] = self.max_tokens
 
-        # Reasoning effort for reasoning models (Chat Completions syntax)
-        # Default to "low" if unconfigured (same guard as Responses API path)
-        if self._is_reasoning_model():
-            api_params["reasoning_effort"] = self.reasoning_effort or "low"
-
-        if stop:
-            api_params["stop"] = stop
-
         # Add tools if provided (from bind_tools)
         tools = kwargs.get("tools")
-        if tools:
+        has_tools = bool(tools)
+        if has_tools:
             api_params["tools"] = tools
             tool_choice = kwargs.get("tool_choice", "auto")
             if tool_choice:
                 api_params["tool_choice"] = tool_choice
+
+        # Reasoning effort for reasoning models (Chat Completions syntax)
+        # IMPORTANT: gpt-5.4+ does NOT support reasoning_effort + function tools
+        # in /v1/chat/completions — omit reasoning_effort when tools are present.
+        if self._is_reasoning_model() and not has_tools:
+            api_params["reasoning_effort"] = self.reasoning_effort or "low"
+
+        if stop:
+            api_params["stop"] = stop
 
         # Stream from Chat Completions API
         response_stream = self._client.chat.completions.create(**api_params)
@@ -1255,55 +1215,36 @@ class ResponsesLLM(BaseChatModel):
         return self.bind(**bind_kwargs)
 
     def _format_tools_for_binding(self, tools: list[Any]) -> list[dict[str, Any]]:
-        """
-        Format tools for binding, handling various input formats.
+        """Format tools for binding using LangChain's standard conversion.
 
-        Supports:
-        - LangChain tools (with name, description, args_schema)
-        - Dict format (already formatted)
-        - Pydantic models (converted to function schema)
+        Delegates to ``convert_to_openai_function`` which correctly handles
+        InjectedToolArg filtering, LangChain tools, Pydantic models, and
+        plain dicts — avoiding manual ``model_json_schema()`` calls that
+        crash on non-serializable types (CallableSchema).
 
         Args:
-            tools: Tools in various formats
+            tools: Tools in various formats (LangChain tools, dicts, Pydantic models).
 
         Returns:
-            List of tools in OpenAI function format
+            List of tools in OpenAI function format.
         """
+        from langchain_core.utils.function_calling import convert_to_openai_function
+
         formatted = []
         for tool in tools:
             if isinstance(tool, dict):
-                # Already formatted - use as-is
                 formatted.append(tool)
-            elif hasattr(tool, "name") and hasattr(tool, "description"):
-                # LangChain tool format
-                tool_def: dict[str, Any] = {
-                    "type": "function",
-                    "function": {
-                        "name": tool.name,
-                        "description": tool.description,
-                    },
-                }
-                if hasattr(tool, "args_schema") and tool.args_schema:
-                    tool_def["function"]["parameters"] = tool.args_schema.model_json_schema()
-                formatted.append(tool_def)
-            elif hasattr(tool, "model_json_schema"):
-                # Pydantic model - convert to function
-                schema = tool.model_json_schema()
-                tool_def = {
-                    "type": "function",
-                    "function": {
-                        "name": schema.get("title", tool.__name__),
-                        "description": schema.get("description", ""),
-                        "parameters": schema,
-                    },
-                }
-                formatted.append(tool_def)
             else:
-                logger.warning(
-                    "responses_llm_unknown_tool_format",
-                    tool_type=type(tool).__name__,
-                    msg="Skipping unknown tool format",
-                )
+                try:
+                    fn_def = convert_to_openai_function(tool)
+                    formatted.append({"type": "function", "function": fn_def})
+                except Exception:
+                    logger.warning(
+                        "responses_llm_tool_conversion_failed",
+                        tool_type=type(tool).__name__,
+                        tool_name=getattr(tool, "name", "?"),
+                        msg="Skipping tool that could not be converted",
+                    )
         return formatted
 
     def with_structured_output(

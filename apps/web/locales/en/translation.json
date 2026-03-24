@@ -2255,7 +2255,7 @@
         },
         "excalidraw": {
           "title": "🎨 Excalidraw Generation",
-          "description": "LLM-driven diagram generation with structured intent mode: a single LLM call generates all elements (shapes and arrows) for precise visual output. Supports architecture diagrams, workflows, org charts and more. Raw elements fallback with automatic position correction (overlap fixing and centering)."
+          "description": "LLM-driven diagram generation with structured intent mode: the planner generates a high-level intent (components, connections, layout), then dedicated LLM calls produce all Excalidraw elements (shapes and arrows). Supports architecture diagrams, workflows, org charts and more. Cheat sheet injected for format accuracy. Configurable dedicated LLM (MCP_EXCALIDRAW_LLM_*)."
         },
         "multichannel": {
           "title": "📲 Multi-Channel (Telegram)",
@@ -2842,7 +2842,7 @@
           },
           "q9": {
             "question": "How do I generate Excalidraw diagrams and schemas?",
-            "answer": "LIA can create architecture diagrams, workflows, org charts and more using the Excalidraw MCP server:<br><br><strong>📝 How to use:</strong><br>Simply describe what you want in natural language:<br>• \"<em>Create a client-server architecture with a database</em>\"<br>• \"<em>Draw a 5-step onboarding workflow</em>\"<br>• \"<em>Make an org chart for a marketing team</em>\"<br><br><strong>⚙️ How it works (2-step process):</strong><br>1. LIA generates a <strong>structured intent</strong> describing components and relationships<br>2. A first dedicated LLM call creates the <strong>shapes</strong> (boxes, circles, text)<br>3. A second LLM call adds the <strong>arrows</strong> (connections between shapes)<br>4. Automatic position correction fixes overlaps and centering<br><br><strong>💡 Tips for best results:</strong><br>• Describe the <strong>components</strong> you want (servers, databases, users...)<br>• Specify <strong>relationships</strong> between them (connects to, sends data to...)<br>• Mention the <strong>layout type</strong> if desired (flowchart, hierarchy, network...)<br><br><strong>⚠️ Prerequisite:</strong><br>The Excalidraw MCP server must be configured and active in your MCP server settings."
+            "answer": "LIA can create architecture diagrams, workflows, org charts and more using the Excalidraw MCP server:<br><br><strong>📝 How to use:</strong><br>Simply describe what you want in natural language:<br>• \"<em>Create a client-server architecture with a database</em>\"<br>• \"<em>Draw a 5-step onboarding workflow</em>\"<br>• \"<em>Make an org chart for a marketing team</em>\"<br><br><strong>⚙️ How it works (3-step process):</strong><br>1. LIA generates a <strong>structured intent</strong> describing components and relationships<br>2. A first dedicated LLM call creates the <strong>shapes</strong> (boxes, circles, text)<br>3. A second LLM call adds the <strong>arrows</strong> (connections between shapes)<br><br><strong>💡 Tips for best results:</strong><br>• Describe the <strong>components</strong> you want (servers, databases, users...)<br>• Specify <strong>relationships</strong> between them (connects to, sends data to...)<br>• Mention the <strong>layout type</strong> if desired (flowchart, hierarchy, network...)<br><br><strong>⚠️ Prerequisite:</strong><br>The Excalidraw MCP server must be configured and active in your MCP server settings."
           }
         }
       },
@@ -3524,25 +3524,36 @@
     "page1": {
       "title": "Welcome to LIA!",
       "subtitle": "Your intelligent personal assistant",
-      "description": "To get the best experience, we recommend completing the following essential actions:",
+      "intro_line1": "LIA is not ChatGPT, nor Claude, nor Perplexity, nor Gemini.",
+      "intro_line2": "It's an intelligent companion whose purpose is to become your personal assistant.",
+      "intro_line3": "Its strength lies in contextualizing and connecting your data, as well as the range of tools and capabilities at its disposal.",
+      "intro_line4": "The more you use it, the more it will learn about you and the more its awareness will develop.",
+      "description": "To get the best experience, I recommend completing the following essential actions:",
       "actions": {
         "connectors": "1 - Enable connectors",
         "personality": "2 - Choose personality",
         "memory": "3 - Feed the memory",
         "notifications": "4 - Enable push notifications"
       },
-      "footer": "There are many more features to discover!",
       "faq_highlight": "Check out the FAQ to learn everything about LIA"
     },
     "page2": {
       "title": "Connectors",
       "subtitle": "Connect LIA to your services",
-      "warning": "Without connectors, LIA is just a standard AI. To make it YOUR personal assistant, enable connectors in settings.",
-      "description": "Some connectors can be customized according to your preferences:",
+      "description": "To connect to your daily data, I recommend enabling Google, Microsoft or Apple connectors.",
+      "provider_note": "You can mix providers but for now you can only enable one provider per service (if you enable Google Mails you cannot also enable Apple Mail or Microsoft Mails).",
+      "external_title": "To activate LIA's minimum capabilities, I recommend enabling at least the following external connectors:",
       "options": {
-        "calendar": "Google Calendar: choose the default calendar",
-        "places": "Google Places: enable geolocation, set home address",
-        "tasks": "Google Tasks: choose the default task list"
+        "brave_name": "Brave Search",
+        "brave_desc": "to get up-to-date data from the internet (free API key from brave.com/search/api/)",
+        "wikipedia_name": "Wikipedia",
+        "wikipedia_desc": "to get general information from the internet (no key required, free)",
+        "places_name": "Google Places",
+        "places_desc": "to search for venues, shops, routes, etc. (no key required)",
+        "weather_name": "OpenWeatherMap",
+        "weather_desc": "for weather search and 5-day forecasts (free API key from openweathermap.org/api)",
+        "browser_name": "Browser",
+        "browser_desc": "to search and browse the internet (no key required, free)"
       }
     },
     "page3": {
@@ -3560,7 +3571,8 @@
     "page4": {
       "title": "Long-term Memory",
       "subtitle": "Help LIA get to know you better",
-      "description": "Share personal information for a tailored experience. Use atomic and precise information:",
+      "description": "For a tailored experience, LIA autonomously memorizes information through your conversations and you can modify them at your convenience.",
+      "description_extra": "You can also enter information directly into its memory. Start by introducing yourself to personalize your exchanges!",
       "examples": {
         "identity": "Name, gender, date and place of birth",
         "addresses": "Home and work address",
@@ -3568,12 +3580,13 @@
         "preferences": "Pets, preferences, interests"
       },
       "tip": "The more LIA knows you, the more relevant its responses!",
-      "pin_tip": "Remember to pin important memories to keep them."
+      "pin_tip": "Remember to pin important memories so it doesn't forget them over time!",
+      "settings_tip": "You can manage memories in settings."
     },
     "page5": {
       "title": "Your Interests",
       "subtitle": "LIA learns what you're passionate about",
-      "description": "As you chat, LIA automatically detects your interests to personalize your exchanges:",
+      "description": "Through conversations, LIA automatically detects your interests to personalize exchanges, notify you of news or share its reflections and much more. You can edit each interest and create new ones directly.",
       "examples": {
         "music": "Music and favorite artists",
         "cinema": "Movies and TV shows",
@@ -3587,12 +3600,21 @@
     "page6": {
       "title": "Push Notifications",
       "subtitle": "Never miss a reminder",
-      "description": "LIA can create personalized reminders. To be notified at the right time, enable push notifications on your devices.",
+      "description": "LIA can create personalized reminders. To be notified at the right time, install the app on your home screen from the web and enable push notifications on your devices in settings.",
       "mobile_tip": "On mobile, install the app to receive notifications."
     },
     "page7": {
       "title": "Command Examples",
-      "subtitle": "Here are some examples of what you can ask LIA, the only limit is your imagination!",
+      "subtitle": "LIA has many tools and features that I recommend you discover gradually:",
+      "features": {
+        "skills": "Skills to develop its expertise or guide its actions (auto-generated)",
+        "mcp": "MCPs to extend its capabilities with market tools (in two clicks)",
+        "rag": "RAG to enrich its knowledge from your documents",
+        "scheduled": "Scheduled actions to automate recurring tasks",
+        "voice": "Voice mode (push to talk, wake word)",
+        "more": "And many more features to discover in the FAQ or by simply asking LIA"
+      },
+      "subtitle_extra": "Here are some non-exhaustive examples of what you can ask LIA, the only limit is your imagination!",
       "cta": "Let's go!",
       "categories": {
         "contacts": {

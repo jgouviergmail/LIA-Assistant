@@ -1687,8 +1687,7 @@ Les modules MCP utilisent `structlog.get_logger(__name__)` avec les noms de logg
 | `src.infrastructure.mcp.security` | `security.py` | Validation SSRF, URL whitelisting |
 | `src.infrastructure.mcp.oauth_flow` | `oauth_flow.py` | OAuth flow pour serveurs MCP |
 | `src.infrastructure.mcp.user_context` | `user_context.py` | ContextVar pour isolation per-request |
-| `src.infrastructure.mcp.excalidraw.iterative_builder` | `excalidraw/iterative_builder.py` | LLM-driven Excalidraw diagram builder |
-| `src.infrastructure.mcp.excalidraw.position_corrector` | `excalidraw/position_corrector.py` | Correction overlaps et centrage texte |
+| `src.infrastructure.mcp.excalidraw.iterative_builder` | `excalidraw/iterative_builder.py` | LLM-driven Excalidraw diagram builder (intent-only mode) |
 
 **Activer les logs DEBUG MCP** :
 
@@ -1801,20 +1800,19 @@ LOG_LEVEL=DEBUG
 
 ```python
 # Le builder fait 1 seul appel LLM qui génère tous les éléments (shapes + arrows)
-# Loggers : src.infrastructure.mcp.excalidraw.iterative_builder
-#           src.infrastructure.mcp.excalidraw.position_corrector
+# Excalidraw utilise désormais l'intent-only mode : le planner génère un intent JSON
+# (pas des raw elements), et build_from_intent() construit le diagramme complet.
+# Logger : src.infrastructure.mcp.excalidraw.iterative_builder
 
 # Events clés :
 #   excalidraw_build_from_intent_start   → intent JSON reçu
 #   excalidraw_diagram_generated         → résultat de l'appel LLM (tous les éléments)
-#   excalidraw_positions_corrected       → corrections appliquées
 ```
 
 **Solutions** :
 1. Vérifier les settings `MCP_EXCALIDRAW_LLM_PROVIDER` et `MCP_EXCALIDRAW_LLM_MODEL` dans `.env`
 2. Vérifier que le provider Anthropic n'envoie pas `temperature` + `top_p` ensemble (Claude 4.5+ rejette cette combinaison)
-3. Activer `LOG_LEVEL=DEBUG` pour voir les éléments bruts avant/après correction
-4. Le `position_corrector` corrige automatiquement les overlaps et le centrage texte — vérifier ses logs si le rendu est décalé
+3. Activer `LOG_LEVEL=DEBUG` pour voir les éléments générés par le LLM
 
 ### LogQL queries MCP
 

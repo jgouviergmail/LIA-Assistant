@@ -1491,8 +1491,7 @@ Ce mecanisme est particulierement important pour les outils MCP dont le `build_a
 | `infrastructure/mcp/utils.py` | `build_mcp_app_output()`, `is_app_only()`, `extract_app_meta()` |
 | `infrastructure/mcp/registration.py` | `register_mcp_tools()`, `build_mcp_tool_manifest()`, `json_schema_to_parameters()` |
 | `infrastructure/mcp/excalidraw/overrides.py` | `EXCALIDRAW_SPATIAL_SUFFIX`, constantes serveur |
-| `infrastructure/mcp/excalidraw/iterative_builder.py` | `build_from_intent()` — builder LLM iteratif |
-| `infrastructure/mcp/excalidraw/position_corrector.py` | `correct_positions()` — correction overlaps |
+| `infrastructure/mcp/excalidraw/iterative_builder.py` | `build_from_intent()` — builder LLM iteratif (intent-only mode) |
 | `domains/agents/orchestration/parallel_executor.py` | `_coerce_args_to_schema()` |
 | `domains/agents/orchestration/type_coercion.py` | `coerce_string_to_list()`, `is_list_type()` |
 

@@ -23,9 +23,12 @@ Usage Example:
 
 import re
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from src.domains.agents.constants import MCP_DOMAIN_PREFIX
+
+if TYPE_CHECKING:
+    from src.domains.agents.registry.catalogue import ToolManifest
 
 
 @dataclass(frozen=True)
@@ -567,6 +570,54 @@ def is_mcp_domain(domain_name: str) -> bool:
         True if the domain is a per-server MCP domain (``mcp_*``).
     """
     return domain_name.startswith(MCP_DOMAIN_PREFIX)
+
+
+def filter_admin_mcp_disabled_manifests(
+    manifests: list["ToolManifest"],
+    admin_disabled: set[str] | None = None,
+) -> list["ToolManifest"]:
+    """Filter out tool manifests belonging to admin MCP servers disabled by the user.
+
+    Extracts the server key from each manifest's agent field (e.g. ``mcp_excalidraw_agent``
+    → ``excalidraw``) and removes it if the key is in ``admin_disabled``.
+
+    If ``admin_disabled`` is None, reads from ``admin_mcp_disabled_ctx`` ContextVar.
+
+    Args:
+        manifests: List of ToolManifest objects.
+        admin_disabled: Set of disabled server keys. If None, reads from ContextVar.
+
+    Returns:
+        Filtered list with disabled admin MCP tool manifests removed.
+    """
+    if admin_disabled is None:
+        from src.core.context import admin_mcp_disabled_ctx
+
+        admin_disabled = admin_mcp_disabled_ctx.get()
+
+    if not admin_disabled:
+        return manifests
+
+    def _is_disabled(manifest: "ToolManifest") -> bool:
+        # Extract domain from agent field: "mcp_excalidraw_agent" → "mcp_excalidraw"
+        agent = getattr(manifest, "agent", None) or ""
+        domain = agent.removesuffix("_agent") if agent else ""
+        if not domain:
+            # Fallback: extract from tool name "mcp_excalidraw_create_view" → "mcp_excalidraw"
+            name = getattr(manifest, "name", "") or ""
+            if name.startswith(MCP_DOMAIN_PREFIX):
+                # Split after "mcp_" and take server key (first segment)
+                rest = name[len(MCP_DOMAIN_PREFIX) :]
+                parts = rest.split("_")
+                # Server key can be multi-segment (e.g. "google_flights")
+                # Use agent field preferentially; fallback heuristic: longest prefix match
+                domain = MCP_DOMAIN_PREFIX + parts[0] if parts else ""
+        if domain.startswith(MCP_DOMAIN_PREFIX):
+            server_key = domain[len(MCP_DOMAIN_PREFIX) :]
+            return server_key in admin_disabled
+        return False
+
+    return [m for m in manifests if not _is_disabled(m)]
 
 
 def get_domain_config(domain_name: str) -> DomainConfig | None:

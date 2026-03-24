@@ -2241,7 +2241,7 @@
         },
         "excalidraw": {
           "title": "🎨 Excalidraw生成",
-          "description": "通过LLM生成Excalidraw图表和示意图。两种模式：结构化意图（规划器生成组件+连接，单次LLM调用生成所有元素）和原始元素回退（自动修正位置/重叠）。read_me速查表注入提示词。可配置的专用LLM（MCP_EXCALIDRAW_LLM_*）。交互式图表通过Excalidraw MCP服务器渲染。"
+          "description": "通过LLM生成Excalidraw图表和示意图。结构化意图模式：规划器生成组件+连接，专用LLM调用生成所有Excalidraw元素（形状和箭头）。read_me速查表注入提示词。可配置的专用LLM（MCP_EXCALIDRAW_LLM_*）。交互式图表通过Excalidraw MCP服务器渲染。"
         },
         "multichannel": {
           "title": "📲 多渠道（Telegram）",
@@ -3370,32 +3370,43 @@
     "dialog_description": "引导式介绍LIA的功能特点",
     "page1": {
       "title": "欢迎使用LIA！",
-      "subtitle": "您的智能个人助手",
-      "description": "为了获得最佳体验，我们建议您完成以下基本操作：",
+      "subtitle": "你的智能个人助手",
+      "intro_line1": "LIA不是ChatGPT，不是Claude，不是Perplexity，也不是Gemini。",
+      "intro_line2": "它是一个智能伙伴，其使命是成为你的个人助手。",
+      "intro_line3": "它的优势在于对你的数据进行上下文化和关联，以及其丰富的工具和能力。",
+      "intro_line4": "你使用得越多，它就越了解你，它的意识也会越来越强。",
+      "description": "为了获得最佳体验，我建议你完成以下基本操作：",
       "actions": {
         "connectors": "1 - 启用连接器",
         "personality": "2 - 选择个性",
         "memory": "3 - 填充记忆",
         "notifications": "4 - 启用推送通知"
       },
-      "footer": "还有更多功能等待发现！",
       "faq_highlight": "查看常见问题以了解LIA的全部功能"
     },
     "page2": {
       "title": "连接器",
-      "subtitle": "将LIA连接到您的服务",
-      "warning": "没有连接器，LIA只是一个标准AI。要使其成为您的个人助手，请在设置中启用连接器。",
-      "description": "部分连接器可以根据您的偏好进行自定义：",
+      "subtitle": "将LIA连接到你的服务",
+      "description": "要连接你的日常数据，我建议你启用Google、Microsoft或Apple连接器。",
+      "provider_note": "你可以混合使用不同的提供商，但目前每个服务只能启用一个提供商（如果启用了Google邮件，则无法同时启用Apple邮件或Microsoft邮件）。",
+      "external_title": "要激活LIA的基本能力，我建议你至少启用以下外部连接器：",
       "options": {
-        "calendar": "Google日历：选择默认日历",
-        "places": "Google地点：启用地理定位，设置家庭地址",
-        "tasks": "Google任务：选择默认任务列表"
+        "brave_name": "Brave Search",
+        "brave_desc": "从互联网获取最新数据（在brave.com/search/api/获取免费API密钥）",
+        "wikipedia_name": "Wikipedia",
+        "wikipedia_desc": "从互联网获取通用信息（无需密钥，免费）",
+        "places_name": "Google Places",
+        "places_desc": "搜索场所、商店、路线等（无需密钥）",
+        "weather_name": "OpenWeatherMap",
+        "weather_desc": "搜索天气和5天预报（在openweathermap.org/api获取免费API密钥）",
+        "browser_name": "Browser",
+        "browser_desc": "互联网搜索和浏览（无需密钥，免费）"
       }
     },
     "page3": {
       "title": "个性",
-      "subtitle": "给您的助手一个灵魂",
-      "description": "个性定义了LIA回复的语气和风格。请在设置中选择最适合您的个性。",
+      "subtitle": "给你的助手一个灵魂",
+      "description": "个性定义了LIA回复的语气和风格。在设置中选择最适合你的个性。",
       "examples": {
         "cynique": "😏 愤世嫉俗者：尖刻的叛逆者，黑色幽默和犀利真相。",
         "professeur": "🎓 教授：有耐心且关怀，清晰有条理的解释。",
@@ -3406,40 +3417,51 @@
     },
     "page4": {
       "title": "长期记忆",
-      "subtitle": "帮助LIA更好地了解您",
-      "description": "分享个人信息以获得定制体验。请使用原子化且精确的信息：",
+      "subtitle": "帮助LIA更好地了解你",
+      "description": "为了定制体验，LIA会自主地通过你的对话记忆信息，你可以随时修改它们。",
+      "description_extra": "你也可以直接在它的记忆中输入信息。先自我介绍一下来个性化你的对话吧！",
       "examples": {
         "identity": "姓名、性别、出生日期和地点",
         "addresses": "家庭和工作地址",
         "relations": "家庭关系（兄弟、妻子、孩子...）",
         "preferences": "宠物、偏好、兴趣"
       },
-      "tip": "LIA越了解您，回复就越相关！",
-      "pin_tip": "记得置顶重要的记忆以便保存。"
+      "tip": "LIA越了解你，回复就越相关！",
+      "pin_tip": "记得置顶重要的记忆，以免它随时间遗忘！",
+      "settings_tip": "你可以在设置中管理记忆。"
     },
     "page5": {
-      "title": "您的兴趣爱好",
-      "subtitle": "LIA学习您的热情所在",
-      "description": "在聊天过程中，LIA会自动检测您的兴趣，以个性化您的对话：",
+      "title": "你的兴趣爱好",
+      "subtitle": "LIA学习你的热情所在",
+      "description": "在对话过程中，LIA会自动检测你的兴趣，以个性化对话、通知你新闻或分享它的思考等更多内容。你可以修改每个兴趣并直接创建新的兴趣。",
       "examples": {
         "music": "音乐和喜爱的艺术家",
         "cinema": "电影和电视剧",
         "cuisine": "烹饪和美食",
         "travel": "旅行和目的地"
       },
-      "tip": "您聊得越多，LIA越了解您的喜好！",
-      "learning_tip": "兴趣会根据您的对话随时间变化。",
-      "settings_tip": "您可以在设置中管理您的兴趣。"
+      "tip": "你聊得越多，LIA越了解你的喜好！",
+      "learning_tip": "兴趣会根据你的对话随时间变化。",
+      "settings_tip": "你可以在设置中管理你的兴趣。"
     },
     "page6": {
       "title": "推送通知",
       "subtitle": "不再错过任何提醒",
-      "description": "LIA可以创建个性化提醒。要在正确的时间收到通知，请在您的设备上启用推送通知。",
+      "description": "LIA可以创建个性化提醒。要在正确的时间收到通知，请从网页将应用安装到主屏幕，并在设置中启用设备的推送通知。",
       "mobile_tip": "在移动设备上，安装应用程序以接收通知。"
     },
     "page7": {
       "title": "命令示例",
-      "subtitle": "以下是您可以向LIA提问的一些示例，唯一的限制是您的想象力！",
+      "subtitle": "LIA拥有众多工具和功能，建议你逐步探索：",
+      "features": {
+        "skills": "Skills用于发展其专业知识或引导其行动（可自动生成）",
+        "mcp": "MCP用于通过市场工具扩展其能力（只需两次点击）",
+        "rag": "RAG用于从你的文档中丰富其知识",
+        "scheduled": "计划行动用于自动化重复任务",
+        "voice": "语音模式（按键说话、唤醒词）",
+        "more": "还有更多功能等你在FAQ中发现，或者直接问LIA"
+      },
+      "subtitle_extra": "以下是你可以向LIA提问的一些非穷举示例，唯一的限制是你的想象力！",
       "cta": "开始吧！",
       "categories": {
         "contacts": {

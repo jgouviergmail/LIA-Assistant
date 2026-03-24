@@ -349,6 +349,13 @@ class MCPClientManager:
             RuntimeError: If server disconnected, rate limited, or tool error
             asyncio.TimeoutError: If tool execution exceeds timeout
         """
+        # Defense in depth: block admin MCP servers disabled by the current user
+        from src.core.context import admin_mcp_disabled_ctx
+
+        admin_disabled = admin_mcp_disabled_ctx.get()
+        if admin_disabled and server_name in admin_disabled:
+            raise RuntimeError(f"MCP server '{server_name}' is disabled for this user")
+
         session = self._sessions.get(server_name)
         if not session:
             raise RuntimeError(
@@ -438,6 +445,13 @@ class MCPClientManager:
         Returns:
             Text content as string, or ``None`` on error.
         """
+        # Defense in depth: block admin MCP servers disabled by the current user
+        from src.core.context import admin_mcp_disabled_ctx
+
+        admin_disabled = admin_mcp_disabled_ctx.get()
+        if admin_disabled and server_name in admin_disabled:
+            return None
+
         session = self._sessions.get(server_name)
         if not session:
             return None

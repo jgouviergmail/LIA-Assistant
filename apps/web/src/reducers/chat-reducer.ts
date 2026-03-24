@@ -499,9 +499,44 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
   }
 }
 
+const DEBUG_HISTORY_STORAGE_KEY = 'lia_debug_metrics_history';
+/** Keep only the N most recent entries to avoid filling sessionStorage (5 MB limit). */
+const DEBUG_HISTORY_MAX_ENTRIES = 50;
+
 /**
- * Helper to create initial state (useful for testing).
+ * Helper to create initial state, hydrating debug metrics history from sessionStorage.
  */
 export function createInitialState(): ChatState {
-  return initialChatState;
+  let debugMetricsHistory: ChatState['debugMetricsHistory'] = [];
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = sessionStorage.getItem(DEBUG_HISTORY_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        debugMetricsHistory = Array.isArray(parsed)
+          ? parsed.slice(-DEBUG_HISTORY_MAX_ENTRIES)
+          : [];
+      }
+    } catch {
+      // Ignore parse errors — start fresh
+    }
+  }
+  return { ...initialChatState, debugMetricsHistory };
+}
+
+/**
+ * Persist debug metrics history to sessionStorage.
+ * Called from useChat via useEffect to keep reducer pure.
+ * Truncates to the most recent DEBUG_HISTORY_MAX_ENTRIES entries.
+ */
+export function persistDebugMetricsHistory(
+  history: ChatState['debugMetricsHistory'],
+): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const trimmed = history.slice(-DEBUG_HISTORY_MAX_ENTRIES);
+    sessionStorage.setItem(DEBUG_HISTORY_STORAGE_KEY, JSON.stringify(trimmed));
+  } catch {
+    // sessionStorage full or unavailable — ignore
+  }
 }

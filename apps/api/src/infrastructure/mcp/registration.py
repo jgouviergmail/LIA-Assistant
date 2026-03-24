@@ -315,8 +315,9 @@ def _mcp_tool_to_manifest(
 ) -> Any:
     """Convert an MCPDiscoveredTool to a ToolManifest (admin MCP).
 
-    For Excalidraw create_view, spatial layout guidelines are appended
-    to the description to guide the LLM's element positioning.
+    For Excalidraw create_view, the SPATIAL_SUFFIX is appended to the
+    description to instruct the planner to generate a structured intent
+    instead of raw Excalidraw elements.
 
     Args:
         agent_name: Per-server agent name for domain extraction.
@@ -331,8 +332,6 @@ def _mcp_tool_to_manifest(
     description = discovered.description
     input_schema = discovered.input_schema
 
-    # Excalidraw create_view: append spatial guidelines to help the LLM
-    # produce well-spaced elements. Schema is unchanged (native format).
     if (
         discovered.server_name == EXCALIDRAW_SERVER_NAME
         and discovered.tool_name == EXCALIDRAW_CREATE_VIEW_TOOL

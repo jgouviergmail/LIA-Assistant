@@ -700,6 +700,9 @@ mcp>=1.0.0    # Model Context Protocol SDK (Anthropic)
 > **Implémentation** :
 > - `infrastructure/mcp/excalidraw/iterative_builder.py` : `build_from_intent()` — intercepte l'intent JSON structuré du planner, effectue un appel LLM unique pour générer tous les éléments via les settings `MCP_EXCALIDRAW_LLM_*`
 > - `infrastructure/mcp/excalidraw/position_corrector.py` : `correct_positions()` — corrige le centrage du texte et résout les overlaps sur les éléments bruts (fallback ou post-processing)
+>
+> **Note**: `position_corrector.py` was subsequently removed in v1.10.1. The system now uses intent-only mode — non-intent elements are passed through unchanged to the MCP server.
+>
 > - `infrastructure/mcp/excalidraw/overrides.py` : `EXCALIDRAW_SPATIAL_SUFFIX` — instructions intent JSON ajoutées à la description de l'outil `create_view` dans le catalogue
 > - Interception dans `tool_adapter.py` : `_prepare_excalidraw()` détecte les appels `create_view` et route vers le mode intent (préféré) ou le fallback éléments bruts
 > - Filtrage `top_p` pour Anthropic dans `adapter.py` (Claude 4.5+ rejette `temperature` + `top_p` ensemble)
@@ -1518,7 +1521,7 @@ class Settings(
 | 2026-03-07 | F2.7 | Excalidraw Iterative Builder (`infrastructure/mcp/excalidraw/`) | Intent JSON → 1 LLM call (tous les éléments) pour diagrammes propres |
 | 2026-03-07 | F2.7 | `MCP_EXCALIDRAW_LLM_*` settings dédiées | Provider/model/temperature indépendants du planner |
 | 2026-03-07 | F2.7 | `EXCALIDRAW_SPATIAL_SUFFIX` dans le catalogue | Instruit le planner à générer un intent structuré |
-| 2026-03-07 | F2.7 | `position_corrector.py` fallback | Re-centrage texte + résolution overlaps sur éléments bruts |
+| 2026-03-07 | F2.7 | `position_corrector.py` fallback | Re-centrage texte + résolution overlaps sur éléments bruts (removed in v1.10.1 — intent-only mode) |
 | 2026-03-07 | F2.7 | Filtrage `top_p` pour Anthropic dans `adapter.py` | Claude 4.5+ rejette `temperature` + `top_p` ensemble |
 
 ---

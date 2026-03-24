@@ -190,7 +190,7 @@ class MCPToolAdapter(BaseTool):
             if manager is None:
                 raise RuntimeError("MCP client manager not initialized")
 
-            # Excalidraw: iterative LLM-driven building or position correction
+            # Excalidraw: convert structured intent to elements via dedicated LLM
             kwargs = await self._prepare_excalidraw(kwargs)
 
             result = await manager.call_tool(
@@ -262,15 +262,13 @@ class MCPToolAdapter(BaseTool):
             ).observe(elapsed)
 
     async def _prepare_excalidraw(self, kwargs: dict[str, Any]) -> dict[str, Any]:
-        """Handle Excalidraw-specific element generation.
+        """Handle Excalidraw intent-based element generation.
 
-        Three modes:
-        1. Intent mode (preferred): LLM generates a structured intent JSON
-           (``{"intent": true, "components": [...], ...}``). The builder makes
-           a single LLM call to produce all elements (shapes + arrows).
-        2. Fallback: LLM generates raw Excalidraw elements (JSON array).
-           The position corrector fixes overlaps and text centering.
-        3. Passthrough: non-Excalidraw tools or non-string elements.
+        When the planner generates a structured intent JSON
+        (``{"intent": true, "components": [...], ...}``), the builder makes
+        a dedicated LLM call to produce the complete set of Excalidraw elements.
+
+        Non-intent elements are passed through unchanged to the MCP server.
         """
         from src.infrastructure.mcp.excalidraw.overrides import (
             EXCALIDRAW_CREATE_VIEW_TOOL,
@@ -290,7 +288,6 @@ class MCPToolAdapter(BaseTool):
         if not isinstance(elements_str, str):
             return kwargs
 
-        # ── Intent mode: single LLM call for complete diagram ────────────
         from src.infrastructure.mcp.excalidraw.iterative_builder import (
             build_from_intent,
             is_intent,
@@ -298,7 +295,6 @@ class MCPToolAdapter(BaseTool):
 
         intent = is_intent(elements_str)
         if intent is not None:
-            # Use cached read_me cheat sheet (auto-fetched at startup)
             cheat_sheet = self._fetch_excalidraw_cheat_sheet()
 
             built = await build_from_intent(intent, cheat_sheet)
@@ -310,28 +306,10 @@ class MCPToolAdapter(BaseTool):
             )
             return {**kwargs, "elements": built}
 
-        # ── Fallback: raw elements — fix overlaps and text centering ────
-        if elements_str.strip().startswith("["):
-            from src.infrastructure.mcp.excalidraw.position_corrector import (
-                correct_positions,
-            )
-
-            corrected = correct_positions(elements_str)
-            logger.info(
-                "excalidraw_positions_corrected_fallback",
-                input_length=len(elements_str),
-                output_length=len(corrected),
-            )
-            return {**kwargs, "elements": corrected}
-
         return kwargs
 
     def _fetch_excalidraw_cheat_sheet(self) -> str:
-        """Get the read_me cheat sheet from the cached reference content.
-
-        The cheat sheet is auto-fetched at startup by MCPClientManager and
-        cached in ``reference_content``. No runtime call_tool needed.
-        """
+        """Get the read_me cheat sheet from the cached reference content."""
         from src.infrastructure.mcp.client_manager import get_mcp_client_manager
         from src.infrastructure.mcp.excalidraw.overrides import EXCALIDRAW_SERVER_NAME
 

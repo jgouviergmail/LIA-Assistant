@@ -4,30 +4,47 @@ import { useTranslation } from '@/i18n/client';
 import { type Language } from '@/i18n/settings';
 import { OnboardingPageLayout } from '../OnboardingPageLayout';
 import { Card, CardContent } from '@/components/ui/card';
-import { Calendar, MapPin, CheckSquare, AlertTriangle } from 'lucide-react';
+import { Search, BookOpen, MapPin, Cloud, Globe, Info } from 'lucide-react';
 
 interface Page2ConnectorsProps {
   lng: Language;
 }
 
-const connectorOptions = [
+const externalConnectors = [
   {
-    icon: Calendar,
-    titleKey: 'onboarding.page2.options.calendar',
-    color: 'text-blue-600 dark:text-blue-400',
-    bgColor: 'bg-blue-500/10',
+    icon: Search,
+    nameKey: 'onboarding.page2.options.brave_name',
+    descKey: 'onboarding.page2.options.brave_desc',
+    color: 'text-orange-600 dark:text-orange-400',
+    bgColor: 'bg-orange-500/10',
+  },
+  {
+    icon: BookOpen,
+    nameKey: 'onboarding.page2.options.wikipedia_name',
+    descKey: 'onboarding.page2.options.wikipedia_desc',
+    color: 'text-slate-600 dark:text-slate-400',
+    bgColor: 'bg-slate-500/10',
   },
   {
     icon: MapPin,
-    titleKey: 'onboarding.page2.options.places',
+    nameKey: 'onboarding.page2.options.places_name',
+    descKey: 'onboarding.page2.options.places_desc',
     color: 'text-red-600 dark:text-red-400',
     bgColor: 'bg-red-500/10',
   },
   {
-    icon: CheckSquare,
-    titleKey: 'onboarding.page2.options.tasks',
-    color: 'text-green-600 dark:text-green-400',
-    bgColor: 'bg-green-500/10',
+    icon: Cloud,
+    nameKey: 'onboarding.page2.options.weather_name',
+    descKey: 'onboarding.page2.options.weather_desc',
+    color: 'text-sky-600 dark:text-sky-400',
+    bgColor: 'bg-sky-500/10',
+  },
+  {
+    icon: Globe,
+    nameKey: 'onboarding.page2.options.browser_name',
+    descKey: 'onboarding.page2.options.browser_desc',
+    color: 'text-indigo-600 dark:text-indigo-400',
+    bgColor: 'bg-indigo-500/10',
   },
 ];
 
@@ -46,26 +63,34 @@ export function Page2Connectors({ lng }: Page2ConnectorsProps) {
       subtitleKey="onboarding.page2.subtitle"
       lng={lng}
     >
-      {/* Warning box */}
-      <div className="flex items-start gap-3 p-4 rounded-lg bg-amber-500/10 border border-amber-500/20 mb-6">
-        <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-        <p className="text-sm text-muted-foreground">{t('onboarding.page2.warning')}</p>
-      </div>
-
-      {/* Description */}
-      <p className="text-center text-sm sm:text-base text-muted-foreground mb-6">
+      {/* Provider description */}
+      <p className="text-center text-sm sm:text-base text-muted-foreground mb-4">
         {t('onboarding.page2.description')}
       </p>
 
-      {/* Connector Options */}
+      {/* Provider note */}
+      <div className="flex items-start gap-3 p-3 rounded-lg bg-blue-500/5 border border-blue-500/15 mb-6">
+        <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+        <p className="text-xs sm:text-sm text-muted-foreground">{t('onboarding.page2.provider_note')}</p>
+      </div>
+
+      {/* External connectors title */}
+      <p className="text-center text-sm sm:text-base text-muted-foreground mb-4">
+        {t('onboarding.page2.external_title')}
+      </p>
+
+      {/* External Connector Options */}
       <div className="space-y-3">
-        {connectorOptions.map(option => (
-          <Card key={option.titleKey} className="border-border/50 bg-card/50">
+        {externalConnectors.map(option => (
+          <Card key={option.nameKey} className="border-border/50 bg-card/50">
             <CardContent className="p-4 flex items-center gap-3">
               <div className={`p-2 rounded-lg ${option.bgColor}`}>
                 <option.icon className={`w-5 h-5 ${option.color}`} />
               </div>
-              <span className="text-sm">{t(option.titleKey)}</span>
+              <span className="text-sm">
+                <strong>{t(option.nameKey)}</strong>{' '}
+                {t(option.descKey)}
+              </span>
             </CardContent>
           </Card>
         ))}

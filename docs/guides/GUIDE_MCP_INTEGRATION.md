@@ -62,7 +62,6 @@ apps/api/src/infrastructure/mcp/
     __init__.py
     overrides.py           # Constantes + SPATIAL_SUFFIX pour l'intent JSON
     iterative_builder.py   # Builder LLM-driven (1 appel : tous les éléments)
-    position_corrector.py  # Correction overlaps/centering pour raw elements
 
 apps/api/src/domains/user_mcp/
   models.py               # UserMCPServer, UserMCPAuthType, UserMCPServerStatus
@@ -268,6 +267,14 @@ Le prompt est defini dans `apps/api/src/domains/agents/prompts/v1/mcp_descriptio
 ### Toggle per-user des serveurs admin
 
 Chaque utilisateur peut activer/desactiver individuellement les serveurs admin depuis les parametres. L'endpoint `PATCH /mcp/admin-servers/{server_key}/toggle` ajoute/retire le `server_key` de `user.admin_mcp_disabled_servers`.
+
+### Systeme d'activation centralise
+
+Quand un utilisateur desactive un serveur admin MCP, les effets sont appliques de facon centralisee a tous les niveaux de la pipeline :
+
+1. **Query analysis** — Le domaine associe au serveur est filtre par le `QueryAnalyzerService` ; la requete n'est pas routee vers ce domaine.
+2. **Catalogue** — Les manifests d'outils du serveur desactive sont exclus de `request_tool_manifests_ctx` ; le planner ne les voit jamais.
+3. **Proxy endpoints** — Les appels aux endpoints proxy MCP du serveur desactive retournent `HTTP 403 Forbidden`.
 
 ---
 
@@ -500,7 +507,7 @@ Le header `Cross-Origin-Embedder-Policy: credentialless` (pas `require-corp`) pe
 
 ### Principe
 
-Le Excalidraw Iterative Builder intercepte les appels a l'outil `create_view` du serveur MCP Excalidraw et remplace les raw elements par une construction iterative pilotee par LLM.
+Le Excalidraw Iterative Builder intercepte les appels a l'outil `create_view` du serveur MCP Excalidraw. Il fonctionne exclusivement en **intent-only mode** : le planner genere un intent JSON (jamais des raw elements), et `build_from_intent()` construit le diagramme complet en 1 seul appel LLM.
 
 ### Intent mode (mode prefere)
 
@@ -529,23 +536,13 @@ Le planner genere un **intent JSON** (pas des raw elements) grace au `EXCALIDRAW
 _prepare_excalidraw() dans MCPToolAdapter._arun():
   1. Detecte server_name == "excalidraw" && tool_name == "create_view"
   2. is_intent() verifie si elements contient {"intent": true, "components": [...]}
-  3. Si intent:
-     a. Fetch cheat_sheet (read_me du serveur Excalidraw)
-     b. build_from_intent() fait 1 seul appel LLM:
-        - _generate_diagram(): camera + background + composants + labels + fleches
-     c. Les elements generes remplacent l'intent dans kwargs
-  4. Si raw elements (fallback):
-     a. correct_positions() corrige les overlaps et le centrage texte
+  3. Fetch cheat_sheet (read_me du serveur Excalidraw)
+  4. build_from_intent() fait 1 seul appel LLM:
+     - _generate_diagram(): camera + background + composants + labels + fleches
+  5. Les elements generes remplacent l'intent dans kwargs
 ```
 
-### Position Corrector (fallback)
-
-Quand le planner genere des raw elements Excalidraw (pas un intent), le `position_corrector.py` applique des corrections ciblees :
-
-1. **Re-centre les textes** : Applique la formule `x = shape.x + (shape.width - text.width) / 2`
-2. **Resout les overlaps** : Pousse les shapes qui se chevauchent en preservant le layout row/column
-3. **Redimensionne les backgrounds** : Ajuste les shapes de fond pour englober le contenu
-4. **Fixe la camera** : Ajuste le `cameraUpdate` pour cadrer tout le contenu
+> **Intent-only mode** : Excalidraw n'accepte plus de raw elements. Le planner doit toujours generer un intent JSON (detecte par `is_intent()`). Le `position_corrector` (fallback raw elements) a ete supprime.
 
 ### Configuration LLM dediee
 
@@ -577,7 +574,7 @@ Le hook `useMcpAppBridge` detecte les appels `create_view` Excalidraw et envoie 
 | **Pool** | `MCPClientManager` (singleton) | `UserMCPClientPool` (per-user entries) |
 | **Connexion** | Persistante (session cached) | Ephemere (connect-call-close) |
 | **Structured parsing** | Non (result brut) | Oui (JSON arrays → N RegistryItems) |
-| **Excalidraw** | Oui (intent + position_corrector) | Non |
+| **Excalidraw** | Oui (intent-only mode) | Non |
 
 ### Parsing JSON structure (F2.4)
 
@@ -734,7 +731,6 @@ def test_derive_collection_key():
 
 Fichiers :
 - `apps/api/tests/unit/infrastructure/mcp/test_excalidraw_iterative_builder.py`
-- `apps/api/tests/unit/infrastructure/mcp/test_excalidraw_position_corrector.py`
 
 ### Tests d'integration
 

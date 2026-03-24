@@ -35,7 +35,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.10.0</strong> — Voice Mode: Push-to-Talk & Wake Word Optimization, Per-User STT Language — March 2026
+  <strong>Version 1.10.1</strong> — Centralized Component Activation, GPT-5.4 Support, Onboarding Overhaul, Debug Panel Improvements — March 2026
 </p>
 
 ---
@@ -356,7 +356,7 @@ ExecutionStep(
 
 - **Sandboxed iframes**: MCP applications rendered in secure iframes (CSP + COEP `credentialless`)
 - **JSON-RPC Bridge**: Bidirectional communication between iframe app and chat via PostMessage JSON-RPC 2.0
-- **Excalidraw Iterative Builder**: Diagram generation via a single LLM call (all elements) with automatic position correction
+- **Excalidraw Iterative Builder**: Intent-based diagram generation via dedicated LLM calls (shapes + arrows) with cheat sheet injection for format accuracy
 - **`read_me` convention**: MCP servers exposing a `read_me` tool have their content auto-injected into the planner prompt
 - **Auto-generated descriptions**: LLM analysis of discovered tools for domain description optimized for routing
 - **App-only tools**: Tools with `visibility: ["app"]` filtered from the LLM catalogue (iframe only)
@@ -669,7 +669,7 @@ apps/api/src/
 
 | Provider | Models | Use Case |
 |----------|--------|----------|
-| OpenAI | GPT-5.2, GPT-5.1, GPT-5, GPT-5-mini/nano, GPT-4.1, GPT-4.1-mini/nano, GPT-4o, o1, o3-mini | Primary (prompt caching, reasoning) |
+| OpenAI | GPT-5.4, GPT-5.4-mini, GPT-5.2, GPT-5.1, GPT-5, GPT-5-mini/nano, GPT-4.1, GPT-4.1-mini/nano, GPT-4o, o1, o3-mini | Primary (prompt caching, reasoning) |
 | Anthropic | Claude Opus 4.6/4.5/4, Claude Sonnet 4.6/4.5/4, Claude Haiku 4.5 | Alternative (extended thinking) |
 | Google | Gemini 3.1/3/2.5 Pro, Gemini 3/2.5/2.0 Flash | Multimodal |
 | DeepSeek | deepseek-chat (V3), deepseek-reasoner (R1) | Cost-effective reasoning |

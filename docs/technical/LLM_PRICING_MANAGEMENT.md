@@ -631,6 +631,8 @@ conversation_cost = await calculate_conversation_cost(state, pricing_service)
 |----------|-------|--------------|---------------|---------------|
 | **OpenAI** | gpt-4.1-mini | $2.50 | $10.00 | - |
 | | gpt-4.1-mini-mini | $0.15 | $0.60 | - |
+| | gpt-5.4 | $2.50 | $15.00 | $0.25 |
+| | gpt-5.4-mini | $0.75 | $4.50 | $0.075 |
 | | o1 | $15.00 | $60.00 | - |
 | | o1-mini | $3.00 | $12.00 | - |
 | **Anthropic** | claude-sonnet-4 | $3.00 | $15.00 | $0.30 |

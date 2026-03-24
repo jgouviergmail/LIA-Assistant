@@ -107,15 +107,9 @@ class NormalFilteringStrategy:
         # Build ToolFilter from intelligence
         tool_filter = ToolFilter.from_intelligence(intelligence)
 
-        all_manifests = self.service.registry.list_tool_manifests()
+        from src.core.context import get_request_tool_manifests
 
-        # Inject user MCP tool manifests (evolution F2.1)
-        # F2.2: Per-server domains are detected by the LLM (no force-include needed)
-        from src.core.context import user_mcp_tools_ctx
-
-        user_ctx = user_mcp_tools_ctx.get()
-        if user_ctx and user_ctx.tool_manifests:
-            all_manifests = list(all_manifests) + user_ctx.tool_manifests
+        all_manifests = get_request_tool_manifests()
 
         # Extract semantic scores for filtering (exclude low-scoring tools)
         tool_scores: dict[str, float] = {}

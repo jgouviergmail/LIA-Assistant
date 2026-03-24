@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.1] - 2026-03-24
+
+### Added
+
+- **ADR-061: Centralized Component Activation** — Three-layer defense system for component enable/disable control. Layer 1: domain gate-keeper validates LLM-output domains against `available_domains` (strips hallucinated/disabled domains post-LLM and post-expansion in `query_analyzer_service.py`). Layer 2: per-request `request_tool_manifests_ctx` ContextVar built once at request start, combining registry manifests minus admin MCP disabled plus user MCP tools — all consumers read filtered manifests from a single source instead of 7+ scattered filter sites. Layer 3: API guard returns 403 on admin MCP proxy endpoints (`call-tool`, `read-resource`) for disabled servers, with defense-in-depth in `MCPClientManager`. (`src/core/context.py`, `src/domains/agents/services/query_analyzer_service.py`, `src/domains/agents/api/service.py`, `src/domains/user_mcp/admin_router.py`, `src/infrastructure/mcp/client_manager.py`)
+- **GPT-5.4 Model Support** — Added `gpt-5.4` and `gpt-5.4-mini` model profiles with full capabilities (reasoning, vision, structured output, streaming). Pricing seeded in `llm_pricing_seed.sql` (117 models). (`src/infrastructure/llm/model_profiles.py`, `infrastructure/database/seeds/llm_pricing_seed.sql`)
+- **Run-Level Token Tracking** — All `TrackingContext` instances sharing the same `run_id` now publish their committed records to a module-level collector (`_run_records`, `_run_google_api_records`). The debug panel shows EVERY LLM call (pipeline + background tasks like memory/interest/journal extraction) in a single unified view. `cleanup_run_records(run_id)` prevents memory leaks after the debug panel is emitted. (`src/domains/chat/service.py`, `src/domains/agents/services/streaming/service.py`)
+- **Debug Metrics sessionStorage Persistence** — Debug metrics history is persisted to `sessionStorage` so it survives page navigation within the same tab. Hydrated on `createInitialState()`, updated via `useEffect`. Capped at 50 entries to stay within the 5 MB storage limit. (`apps/web/src/reducers/chat-reducer.ts`, `apps/web/src/hooks/useChat.ts`)
+- **Onboarding Pages Overhaul** — Complete redesign of the onboarding flow: Page 1 adds a 4-line intro explaining what makes LIA different from ChatGPT/Claude/Gemini. Page 2 replaces Google-specific connector options with 5 essential external connectors (Brave Search, Wikipedia, Google Places, OpenWeatherMap, Browser) with descriptions and provider mixing note. Page 4 adds autonomous memory description and settings management tip. Page 7 adds a feature discovery list (Skills, MCPs, RAG, Scheduled Actions, Voice Mode) before the example categories. All 6 locale files updated (en, fr, de, es, it, zh). (`apps/web/src/components/onboarding/pages/Page1Welcome.tsx`, `Page2Connectors.tsx`, `Page4Memory.tsx`, `Page7Examples.tsx`)
+- **Background Task Token Awaiting** — Debug panel now awaits background tasks (memory, interest, journal extraction) up to 15s before reading DB-aggregated totals, ensuring the debug panel shows the same cost as the chat bubble. (`src/domains/agents/services/streaming/service.py`)
+
+### Changed
+
+- **Responses API Pattern-Based Eligibility** — Replaced hardcoded `RESPONSES_API_ELIGIBLE_MODELS` set (30+ entries) with a single regex pattern `^(gpt-4\.1|gpt-5|o[1-9])`. Auto-extensible for future GPT-5.x and o-series models. (`src/infrastructure/llm/providers/responses_adapter.py`)
+- **Tool Conversion via `convert_to_openai_function`** — `ResponsesLLM._convert_tools()` and `_format_tools_for_binding()` now delegate to LangChain's `convert_to_openai_function()` instead of manual `model_json_schema()` calls. Fixes crash on tools with `InjectedToolArg` annotations (non-serializable `CallableSchema`). (`src/infrastructure/llm/providers/responses_adapter.py`)
+- **Excalidraw Intent-Only Mode** — Removed `position_corrector.py` (384 lines) and its test file. The tool adapter no longer has a fallback path for raw Excalidraw elements — only structured intent objects are processed through the iterative builder. Simplified `_prepare_excalidraw()`, updated documentation strings and prompt override. (`src/infrastructure/mcp/tool_adapter.py`, `src/infrastructure/mcp/excalidraw/`)
+- **Centralized Tool Manifest Access** — Router node, normal/panic filtering strategies, and expansion service now read from `get_request_tool_manifests()` instead of `registry.list_tool_manifests()` + manual per-consumer filtering. Eliminates duplicate filtering logic across 7+ locations. (`src/domains/agents/nodes/router_node_v3.py`, `src/domains/agents/services/catalogue/strategies/`, `src/domains/agents/semantic/expansion_service.py`)
+- **Query Analyzer Domain Builder Extraction** — Extracted `_build_available_domains()` helper from inline code in `analyze_query()`. Called once per request and reused for both LLM prompt construction and post-expansion domain validation. (`src/domains/agents/services/query_analyzer_service.py`)
+- **HeroSection Responsive Subtitle** — Removed `whitespace-nowrap` from hero subtitle for proper text wrapping on mobile. (`apps/web/src/components/landing/HeroSection.tsx`)
+
+### Fixed
+
+- **Disabled MCP Server Tool Execution** — When a user disabled an admin MCP app (e.g., Excalidraw), the system continued routing queries to that domain and executing its tools. Root cause: LLM-output domains were never validated against `available_domains`, and semantic expansion could re-introduce disabled domains. Fixed by ADR-061 three-layer defense. (`src/domains/agents/services/query_analyzer_service.py`, `src/core/context.py`)
+- **GPT-5.4 reasoning_effort + Tools Incompatibility** — `gpt-5.4` and later models do not support `reasoning_effort` parameter simultaneously with function tools in `/v1/chat/completions`. Fixed by omitting `reasoning_effort` when tools are present. Applied to both `_generate()` and `_stream()` paths. (`src/infrastructure/llm/providers/responses_adapter.py`)
+- **Browser Tool Store Propagation** — `browser_task_tool` nested ReAct agent was missing the parent graph's `InMemoryStore`, causing `validate_runtime_config` failures. Fixed by passing `runtime.store` to `create_react_agent()`. (`src/domains/agents/tools/browser_tools.py`)
+- **AdminLLMConfigSection Loading Flicker** — Loading spinner was shown during refetches (not just initial load), causing the entire content to unmount and lose focus. Fixed by conditioning spinner on `loading && configs.length === 0`. (`apps/web/src/components/settings/AdminLLMConfigSection.tsx`)
+- **Debug Panel Missing Background Task Costs** — The debug panel displayed token costs only from the main pipeline, missing memory/interest/journal extraction costs. Fixed by run-level token aggregation and background task awaiting. (`src/domains/chat/service.py`, `src/domains/agents/services/streaming/service.py`)
+
+### Removed
+
+- **Excalidraw Position Corrector** — Deleted `position_corrector.py` and `test_excalidraw_position_corrector.py`. The module corrected text centering and shape overlaps in raw LLM-generated Excalidraw elements, but is no longer needed since the system now exclusively uses intent-based diagram generation via the iterative builder.
+
 ## [1.10.0] - 2026-03-23
 
 ### Added

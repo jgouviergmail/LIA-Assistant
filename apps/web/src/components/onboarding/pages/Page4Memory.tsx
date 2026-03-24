@@ -4,7 +4,7 @@ import { useTranslation } from '@/i18n/client';
 import { type Language } from '@/i18n/settings';
 import { OnboardingPageLayout } from '../OnboardingPageLayout';
 import { Card, CardContent } from '@/components/ui/card';
-import { User, Home, Users, Heart, Sparkles, Pin } from 'lucide-react';
+import { User, Home, Users, Heart, Sparkles, Pin, Settings } from 'lucide-react';
 
 interface Page4MemoryProps {
   lng: Language;
@@ -53,9 +53,10 @@ export function Page4Memory({ lng }: Page4MemoryProps) {
       lng={lng}
     >
       {/* Description */}
-      <p className="text-center text-sm sm:text-base text-muted-foreground mb-6">
-        {t('onboarding.page4.description')}
-      </p>
+      <div className="text-center text-sm sm:text-base text-muted-foreground mb-6 space-y-3">
+        <p>{t('onboarding.page4.description')}</p>
+        <p>{t('onboarding.page4.description_extra')}</p>
+      </div>
 
       {/* Examples Grid */}
       <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
@@ -80,6 +81,10 @@ export function Page4Memory({ lng }: Page4MemoryProps) {
         <div className="flex items-center justify-center gap-2 text-xs sm:text-sm text-muted-foreground">
           <Pin className="w-4 h-4 text-amber-500" />
           <span>{t('onboarding.page4.pin_tip')}</span>
+        </div>
+        <div className="flex items-center justify-center gap-2 text-xs sm:text-sm text-muted-foreground">
+          <Settings className="w-4 h-4 text-muted-foreground" />
+          <span>{t('onboarding.page4.settings_tip')}</span>
         </div>
       </div>
     </OnboardingPageLayout>

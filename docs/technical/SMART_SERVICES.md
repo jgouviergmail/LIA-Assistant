@@ -102,6 +102,49 @@ intelligence = await analyzer.analyze_full(
 9. Return QueryIntelligence
 ```
 
+### Domain Validation and Activation Control
+
+> See also: [ADR-061 — Centralized Component Activation/Deactivation Control](../architecture/ADR-061-Centralized-Component-Activation.md)
+
+#### `_build_available_domains()` helper
+
+`_build_available_domains()` is a module-level helper called once per request inside `analyze_full()`. It builds the list of routable domains that are actually enabled for the current request context:
+
+- Iterates `get_routable_domains()` from `domain_taxonomy.py` and enriches each entry with its semantic types (e.g., `"contacts (provides: email_address, person_name, physical_address)"`).
+- Appends per-server MCP domains (admin + user) via `collect_all_mcp_domains()`, replacing the generic `mcp` entry.
+- Respects `admin_mcp_disabled_ctx` and `user_mcp_tools_ctx` ContextVars so disabled servers are absent from the list.
+
+The result is passed both to `analyze()` (for prompt construction) and reused for post-expansion validation (see below).
+
+#### Post-LLM domain validation (`analyze_query()`)
+
+After the LLM returns its structured output, `analyze_query()` validates both `primary_domain` and `secondary_domains` against `available_domain_names` (the set built from `available_domains`). Any domain not present in that set is stripped and logged at `WARNING` level:
+
+```python
+# In analyze_query()
+available_domain_names = {d["name"] for d in available_domains}
+if result.primary_domain and result.primary_domain not in available_domain_names:
+    result.primary_domain = None  # stripped
+result.secondary_domains = [d for d in result.secondary_domains if d in available_domain_names]
+```
+
+This prevents hallucinated or previously-seen-but-now-disabled domains from entering the pipeline regardless of what the LLM returns.
+
+#### Post-expansion domain validation (`analyze_full()`)
+
+After semantic expansion (`_expand_domains_for_semantic_types()`), `analyze_full()` re-validates the expanded domain list against the same `available_domains` snapshot built at step 2. This prevents expansion from re-introducing a domain that was already correctly absent from the LLM output:
+
+```python
+# In analyze_full() — STEP 3
+available_names = {d["name"] for d in available_domains}
+valid_expanded = [d for d in expanded_domains if d in available_names]
+stripped_by_validation = [d for d in expanded_domains if d not in available_names]
+# stripped_by_validation are logged and discarded
+domains = valid_expanded
+```
+
+A domain absent from `available_domains` therefore cannot enter the pipeline at any point — not via LLM output, not via semantic expansion.
+
 ### QueryIntelligence Output
 
 ```python
@@ -446,6 +489,20 @@ FULL contacts catalogue:     ~5,500 tokens
 FILTERED (search only):        ~200 tokens
 REDUCTION: 96%
 ```
+
+### Tool Manifest Source: `get_request_tool_manifests()`
+
+> See also: [ADR-061 — Centralized Component Activation/Deactivation Control](../architecture/ADR-061-Centralized-Component-Activation.md)
+
+All consumers of tool manifests — `SmartCatalogueService`, catalogue filtering strategies (`normal_filtering.py`, `panic_filtering.py`), `SemanticExpansionService`, and sub-agents — read from the centralized ContextVar accessor:
+
+```python
+from src.core.context import get_request_tool_manifests
+
+manifests = get_request_tool_manifests()  # pre-filtered for the current request
+```
+
+This list is built once per request by `build_request_tool_manifests(registry)` in `src/core/context.py` (called from `AgentService._stream_with_new_services()`), combining all registered manifests minus disabled admin MCP tools plus user MCP tools. Consumers no longer call `registry.list_tool_manifests()` and apply manual filtering independently — the pre-filtered list is the single source of truth for what tools exist in a given request.
 
 ### Strategies de Filtrage
 

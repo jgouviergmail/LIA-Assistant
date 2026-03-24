@@ -72,6 +72,27 @@ class GoogleApiRecord(NamedTuple):
     cached: bool = False
 
 
+# =============================================================================
+# Run-level record collector
+# =============================================================================
+# All TrackingContext instances sharing the same run_id publish their committed
+# records here.  This allows the debug panel to show EVERY LLM call (pipeline +
+# background tasks like memory/interest/journal extraction) in a single view.
+#
+# Lifecycle:
+#   - Populated by TrackingContext._persist_to_database() after each commit
+#   - Read by TrackingContext.get_llm_calls_breakdown() / get_total_tokens()
+#   - Cleaned up by TrackingContext.cleanup_run_records(run_id)
+#     (called in service.py after the debug panel has been emitted)
+# =============================================================================
+# Safety: these module-level dicts are safe under asyncio's single-threaded
+# cooperative model (no yield point between dict mutation operations).
+# If the server moves to multi-threaded workers, these MUST be replaced
+# with thread-safe structures (e.g. threading.Lock or per-request storage).
+_run_records: dict[str, list[TokenUsageRecord]] = {}
+_run_google_api_records: dict[str, list[GoogleApiRecord]] = {}
+
+
 class TrackingContext:
     """
     Context manager for tracking tokens and messages per LangGraph execution.
@@ -443,17 +464,36 @@ class TrackingContext:
 
         return summary
 
-    def get_llm_calls_breakdown(self) -> list[dict]:
+    @staticmethod
+    def cleanup_run_records(run_id: str) -> None:
+        """Remove all collected records for a run_id to prevent memory leaks.
+
+        Must be called after the debug panel has been emitted and the run is complete.
+
+        Args:
+            run_id: The pipeline run_id to clean up.
         """
-        Get detailed LLM calls for debug panel display.
+        _run_records.pop(run_id, None)
+        _run_google_api_records.pop(run_id, None)
 
-        Returns a list of dictionaries, one per LLM call recorded,
-        containing token usage, cost, and duration details per node.
+    def _get_all_run_records(self) -> list[TokenUsageRecord]:
+        """Return all LLM call records for this run_id from the run-level collector.
 
-        Note:
-            Uses _committed_records_copy as fallback when _node_records is empty.
-            This handles the timing issue where commit() is called in
-            execute_graph_stream() finally block before debug metrics are built.
+        Includes records from ALL TrackingContexts that share this run_id
+        (pipeline + background tasks) plus any pending records not yet committed.
+
+        Returns:
+            Combined list of TokenUsageRecord from collector + pending.
+        """
+        run_id = getattr(self, "run_id", None)
+        committed = _run_records.get(run_id, []) if run_id else []
+        return committed + list(self._node_records)
+
+    def get_llm_calls_breakdown(self) -> list[dict]:
+        """Get detailed LLM calls for debug panel display.
+
+        Returns ALL LLM calls across every TrackingContext sharing this run_id,
+        including background tasks (memory, interest, journal extraction).
 
         Returns:
             List of dicts with per-call metrics:
@@ -467,11 +507,6 @@ class TrackingContext:
                 - call_type: "chat" or "embedding" (v3.3)
                 - sequence: Chronological order number (v3.3)
         """
-        # Use pending records if available, otherwise use committed copy
-        # This handles timing: commit() clears _node_records but debug metrics
-        # are built later and need access to the LLM call breakdown
-        records = self._node_records if self._node_records else self._committed_records_copy
-
         return [
             {
                 "node_name": r.node_name,
@@ -484,7 +519,7 @@ class TrackingContext:
                 "call_type": r.call_type,
                 "sequence": r.sequence,
             }
-            for r in records
+            for r in self._get_all_run_records()
         ]
 
     def get_cumulative_tokens(self) -> int:
@@ -496,19 +531,13 @@ class TrackingContext:
         Returns:
             Total tokens (prompt + completion) across all LLM calls in this context.
         """
-        records = self._node_records if self._node_records else self._committed_records_copy
+        records = self._get_all_run_records()
         return sum(r.prompt_tokens + r.completion_tokens for r in records)
 
     def get_google_api_calls_breakdown(self) -> list[dict]:
-        """
-        Get detailed Google API calls for debug panel display.
+        """Get detailed Google API calls for debug panel display.
 
-        Returns a list of dictionaries, one per Google API call recorded,
-        containing endpoint, cost, and cache status.
-
-        Note:
-            Uses _committed_google_api_copy as fallback when _google_api_records is empty.
-            This handles the timing issue where commit() is called before debug metrics.
+        Returns ALL Google API calls across every TrackingContext sharing this run_id.
 
         Returns:
             List of dicts with per-call metrics:
@@ -518,12 +547,8 @@ class TrackingContext:
                 - cost_eur: Cost in EUR for this call
                 - cached: Whether result was served from cache
         """
-        # Use pending records if available, otherwise use committed copy
-        records = (
-            self._google_api_records
-            if self._google_api_records
-            else getattr(self, "_committed_google_api_copy", [])
-        )
+        committed = _run_google_api_records.get(self.run_id, [])
+        records = committed + list(self._google_api_records)
 
         return [
             {
@@ -823,10 +848,13 @@ class TrackingContext:
         self._total_committed_records += records_committed_count
         self._message_count_committed = True
 
-        # Debug Panel: Preserve copy of records for debug metrics
-        # get_llm_calls_breakdown() and get_google_api_calls_breakdown() need access after commit
-        # Timing: commit happens in execute_graph_stream() finally block,
-        # but _add_debug_metrics_sections() is called later in stream_sse_chunks()
+        # Debug Panel: Publish records to run-level collector so that ALL
+        # TrackingContexts sharing this run_id (pipeline + background tasks)
+        # contribute to a single unified view in the debug panel.
+        _run_records.setdefault(self.run_id, []).extend(self._node_records)
+        _run_google_api_records.setdefault(self.run_id, []).extend(self._google_api_records)
+
+        # Legacy: keep local copy for backward compatibility
         self._committed_records_copy.extend(self._node_records)
         self._committed_google_api_copy.extend(self._google_api_records)
 

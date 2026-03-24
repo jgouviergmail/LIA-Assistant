@@ -10,12 +10,15 @@
 | **OpenAI standard** (gpt-4o, gpt-4.1, gpt-4.1-mini/nano) | 0-2.0 | ✅ | -2 to 2 | -2 to 2 | — | `max_tokens` |
 | **OpenAI reasoning** (gpt-5, gpt-5-mini/nano, o-series) | ❌ | ❌ | ❌ | ❌ | ✅ (varies) | `max_completion_tokens` |
 | **OpenAI gpt-5.1/5.2 + effort=none** | 0-2.0 | ✅ | ❌ | ❌ | ✅ (incl. `none`) | `max_completion_tokens` |
+| **OpenAI gpt-5.4, gpt-5.4-mini** (reasoning + vision) | ❌ | ❌ | ❌ | ❌ | ✅⁵ | `max_completion_tokens` |
 | **Anthropic** (Claude 3.5+, 4.x) | 0-1.0 | ❌¹ | ❌ | ❌ | ✅ → `effort` | `max_tokens` |
 | **Gemini** (2.0-flash, 2.5-flash/pro) | 0-2.0 | ✅ | ❌ | ❌ | ✅ → `thinking_level`² | `max_output_tokens` |
 | **DeepSeek chat** (V3) | 0-2.0 | ✅ | ✅ | ✅ | — | `max_tokens` (cap 8192) |
 | **DeepSeek reasoner** (R1) | ❌ | ❌ | ❌ | ❌ | — | `max_tokens` (cap 64000) |
 | **Perplexity** (sonar, sonar-pro) | 0-2.0 | ✅ | 1.0-2.0³ | -2 to 2 | — | `max_tokens` |
 | **Ollama** | 0-2.0 | ✅ | ~⁴ | ~⁴ | — | `max_tokens` |
+
+⁵ gpt-5.4/gpt-5.4-mini: `reasoning_effort` is **NOT** sent when function tools are present in `/v1/chat/completions` — the two are mutually exclusive. `ResponsesLLM` automatically omits `reasoning_effort` when tools are bound.
 
 ¹ Anthropic: `top_p` technically supported but mutually exclusive with `temperature` (Claude 4.5+ rejects both together). Our adapter drops `top_p` defensively.
 
@@ -39,7 +42,7 @@ All sampling parameters are fully supported. No restrictions.
 
 ### OpenAI — Reasoning Models
 
-**Models**: `gpt-5`, `gpt-5-mini`, `gpt-5-nano`, `o1`, `o1-mini`, `o3`, `o3-mini`, `o4-mini`
+**Models**: `gpt-5`, `gpt-5-mini`, `gpt-5-nano`, `gpt-5.4`, `gpt-5.4-mini`, `o1`, `o1-mini`, `o3`, `o3-mini`, `o4-mini`
 
 Detected by: `REASONING_MODELS_PATTERN = r"^(o[0-9](-.*)?|gpt-5([.-].*)?)$"`
 
@@ -62,13 +65,16 @@ Detected by: `REASONING_MODELS_PATTERN = r"^(o[0-9](-.*)?|gpt-5([.-].*)?)$"`
 | `gpt-5-nano` | `minimal`, `low`, `medium`, `high` |
 | `gpt-5.1` | `none`, `low`, `medium`, `high` |
 | `gpt-5.2` | `none`, `minimal`, `low`, `medium`, `high`, `xhigh` |
+| `gpt-5.4`, `gpt-5.4-mini` | `low`, `medium`, `high` (omitted when tools are present — see §gpt-5.4 constraint below) |
 
 **Backend enforcement** (`responses_adapter.py`):
-- `_is_reasoning_model()` — detects model family via regex
+- `_is_reasoning_model()` — detects model family via `REASONING_MODELS_PATTERN` regex
 - `_supports_sampling_params()` — returns `False` for reasoning models, **except** gpt-5.1/5.2+ with `reasoning_effort="none"`
+- `is_responses_api_eligible()` — pattern-based check using `_RESPONSES_API_PATTERN = r"^(gpt-4\.1|gpt-5|o[1-9])"` (not a hardcoded list). All GPT-4.1+, GPT-5.x (including gpt-5.4), and o-series models are eligible; legacy models (gpt-4o, gpt-4-turbo, gpt-3.5) are not.
 - Responses API path: temperature/top_p conditionally included via `_supports_sampling_params()`
 - Chat Completions fallback: same conditional + `max_completion_tokens` always for reasoning models
 - **Default reasoning_effort fallback**: If a reasoning model has no `reasoning_effort` configured (NULL in DB, absent from `LLM_DEFAULTS`), the adapter defaults to `"low"` across all 6 code paths (sync/streaming × Responses API/Chat Completions/Structured Output). This prevents models from consuming the entire output token budget on internal thinking and producing empty visible text. A structured log `reasoning_effort_defaulted` is emitted when this fallback activates
+- **gpt-5.4+ tools guard**: `reasoning_effort` is omitted from Chat Completions requests when function tools are present (`has_tools` check in both sync and streaming paths)
 
 **Backend enforcement** (`adapter.py`):
 - `is_gpt51_plus_none` — inline check skips sampling param filtering for gpt-5.1+ with effort=none
@@ -90,6 +96,38 @@ Detected by: `REASONING_MODELS_PATTERN = r"^(o[0-9](-.*)?|gpt-5([.-].*)?)$"`
 - All other reasoning models (gpt-5, gpt-5-mini, o-series): displays "Default (model)" — sends NULL, backend defaults to `"low"`
 
 **Tile display**: Shows `E:none + T:0.5` to indicate the hybrid state.
+
+### OpenAI — gpt-5.4 / gpt-5.4-mini
+
+**Models**: `gpt-5.4`, `gpt-5.4-mini`
+
+These are reasoning models with **vision support** (image inputs accepted). They fall under `REASONING_MODELS_PATTERN` and behave like other gpt-5.x reasoning models, with one additional API-level constraint:
+
+#### reasoning_effort + tools incompatibility
+
+`gpt-5.4` and `gpt-5.4-mini` do **NOT** support `reasoning_effort` simultaneously with function tools in `/v1/chat/completions`. Sending both causes an API error.
+
+**Backend enforcement** (`responses_adapter.py`):
+- Both `_invoke_chat_completions()` and `_stream_chat_completions()` check `has_tools` before including `reasoning_effort`:
+  ```python
+  # IMPORTANT: gpt-5.4+ does NOT support reasoning_effort + function tools
+  # in /v1/chat/completions — omit reasoning_effort when tools are present.
+  if self._is_reasoning_model() and not has_tools:
+      api_params["reasoning_effort"] = self.reasoning_effort or "low"
+  ```
+- This guard applies to **all** reasoning models (not only gpt-5.4) but is the primary motivation for the check.
+- When `reasoning_effort` is omitted due to tools being present, no warning is logged — this is expected behaviour.
+
+**Responses API path**: The Responses API does not have this restriction; `reasoning_effort` can coexist with tools. The constraint is specific to the `/v1/chat/completions` fallback path.
+
+| Parameter | Behavior |
+|-----------|----------|
+| `temperature` | Not supported (reasoning model) |
+| `top_p` | Not supported |
+| `frequency_penalty` / `presence_penalty` | Not supported |
+| `vision / image inputs` | **Supported** |
+| `reasoning_effort` | Supported — omitted when tools are bound (Chat Completions only) |
+| `max_tokens` | Use `max_completion_tokens` |
 
 ### Anthropic
 

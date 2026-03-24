@@ -164,11 +164,10 @@ Simply describe what you want in natural language:
 • "*Draw a 5-step onboarding workflow*"
 • "*Make an org chart for a marketing team*"
 
-**⚙️ How it works (2-step process):**
+**⚙️ How it works (3-step process):**
 1. LIA generates a **structured intent** describing components and relationships
 2. A first dedicated LLM call creates the **shapes** (boxes, circles, text)
 3. A second LLM call adds the **arrows** (connections between shapes)
-4. Automatic position correction fixes overlaps and centering
 
 **💡 Tips for best results:**
 • Describe the **components** you want (servers, databases, users...)

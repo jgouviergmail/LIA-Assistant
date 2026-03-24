@@ -542,8 +542,21 @@ class StreamingService:
                             has_routing_decision="routing_decision" in debug_metrics,
                         )
 
-                        # Fetch DB-aggregated totals for HITL flows
-                        # (includes tokens from prior SSE request: router, planner, HITL question)
+                        # Wait for background tasks (memory, interest, journal extraction)
+                        # so their token costs are persisted before we read the DB totals.
+                        # This ensures the debug panel shows the same cost as the bubble.
+                        if run_id:
+                            from src.infrastructure.async_utils import await_run_id_tasks
+
+                            awaited = await await_run_id_tasks(run_id, timeout=15.0)
+                            if awaited:
+                                logger.info(
+                                    "debug_panel_awaited_background_tasks",
+                                    run_id=run_id,
+                                    tasks_awaited=awaited,
+                                )
+
+                        # Fetch DB-aggregated totals (now includes background task costs)
                         db_aggregated = None
                         if self.tracker and hasattr(
                             self.tracker, "get_aggregated_summary_dto_from_db"
@@ -1809,9 +1822,8 @@ class StreamingService:
                     # v3.3: For HITL flows, the DB-aggregated summary includes
                     # ALL committed data (HITL request + post-approval + sub-agents).
                     # Use it when available as it's the most complete source.
-                    # Fall back to in-memory tracker data for non-HITL flows.
+                    # Fall back to in-memory run-level data for non-HITL flows.
                     if "token_budget" in debug_metrics:
-                        # Default: in-memory tracker data (current request only)
                         tokens_in = debug_metrics["llm_summary"]["total_tokens_in"]
                         tokens_out = debug_metrics["llm_summary"]["total_tokens_out"]
                         tokens_cache = debug_metrics["llm_summary"]["total_tokens_cache"]
@@ -1827,7 +1839,7 @@ class StreamingService:
                             db_cost_eur = float(getattr(db_aggregated, "cost_eur", 0.0))
                             db_total = db_total_in + db_total_out
                             mem_total = tokens_in + tokens_out
-                            # Use DB if it has more data (includes prior requests)
+                            # Use DB if it has more data (includes prior HITL requests)
                             if db_total > mem_total:
                                 tokens_in = db_total_in
                                 tokens_out = db_total_out

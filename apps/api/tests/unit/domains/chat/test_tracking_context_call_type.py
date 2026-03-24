@@ -254,12 +254,19 @@ class TestTrackingContextCallType:
                 call_type="embedding",
             )
 
-        # Simulate commit: copy records then clear
+        # Simulate commit: publish to run-level collector + copy records then clear
+        from src.domains.chat.service import _run_records
+
+        _run_records.setdefault(ctx.run_id, []).extend(ctx._node_records)
         ctx._committed_records_copy.extend(ctx._node_records)
         ctx._node_records.clear()
 
-        # get_llm_calls_breakdown should fall back to committed copy
-        breakdown = ctx.get_llm_calls_breakdown()
-        assert len(breakdown) == 1
-        assert breakdown[0]["call_type"] == "embedding"
-        assert breakdown[0]["sequence"] == 1
+        # get_llm_calls_breakdown should use run-level collector after commit
+        try:
+            breakdown = ctx.get_llm_calls_breakdown()
+            assert len(breakdown) == 1
+            assert breakdown[0]["call_type"] == "embedding"
+            assert breakdown[0]["sequence"] == 1
+        finally:
+            # Cleanup run-level collector to avoid leaking into other tests
+            _run_records.pop(ctx.run_id, None)

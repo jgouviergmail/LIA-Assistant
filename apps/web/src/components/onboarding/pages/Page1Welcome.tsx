@@ -52,6 +52,22 @@ export function Page1Welcome({ lng }: Page1WelcomeProps) {
       subtitleKey="onboarding.page1.subtitle"
       lng={lng}
     >
+      {/* Intro - What makes LIA different */}
+      <div className="space-y-2 mb-6 p-4 rounded-xl bg-gradient-to-br from-primary/5 to-primary/10 border border-primary/15">
+        <p className="text-sm sm:text-base text-foreground font-medium text-center">
+          {t('onboarding.page1.intro_line1')}
+        </p>
+        <p className="text-sm sm:text-base text-muted-foreground text-center">
+          {t('onboarding.page1.intro_line2')}
+        </p>
+        <p className="text-sm sm:text-base text-muted-foreground text-center">
+          {t('onboarding.page1.intro_line3')}
+        </p>
+        <p className="text-sm sm:text-base text-muted-foreground text-center">
+          {t('onboarding.page1.intro_line4')}
+        </p>
+      </div>
+
       {/* Description */}
       <p className="text-center text-sm sm:text-base text-muted-foreground mb-6">
         {t('onboarding.page1.description')}
@@ -71,13 +87,8 @@ export function Page1Welcome({ lng }: Page1WelcomeProps) {
         ))}
       </div>
 
-      {/* Footer note */}
-      <p className="text-center text-xs sm:text-sm text-muted-foreground mt-6">
-        {t('onboarding.page1.footer')}
-      </p>
-
       {/* FAQ highlight - more visible */}
-      <div className="flex items-center justify-center gap-2 mt-4 p-3 rounded-lg bg-primary/5 border border-primary/20">
+      <div className="flex items-center justify-center gap-2 mt-6 p-3 rounded-lg bg-primary/5 border border-primary/20">
         <HelpCircle className="w-5 h-5 text-primary" />
         <span className="text-sm font-medium text-primary">
           {t('onboarding.page1.faq_highlight')}

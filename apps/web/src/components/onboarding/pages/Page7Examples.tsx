@@ -26,6 +26,11 @@ import {
   Layers,
   Rocket,
   ChevronLeft,
+  Sparkles,
+  Plug,
+  FileText,
+  Clock,
+  Mic,
 } from 'lucide-react';
 
 interface Page7ExamplesProps {
@@ -54,6 +59,15 @@ const EXAMPLE_CATEGORIES = [
   { id: 'multi', icon: Layers, color: 'text-teal-600 dark:text-teal-400' },
 ] as const;
 
+/** Feature items displayed as a styled list below the subtitle */
+const FEATURE_ITEMS = [
+  { key: 'skills', icon: Sparkles, color: 'text-purple-500' },
+  { key: 'mcp', icon: Plug, color: 'text-blue-500' },
+  { key: 'rag', icon: FileText, color: 'text-emerald-500' },
+  { key: 'scheduled', icon: Clock, color: 'text-amber-500' },
+  { key: 'voice', icon: Mic, color: 'text-pink-500' },
+] as const;
+
 /** Maximum number of examples to attempt loading per category */
 const EXAMPLES_PER_CATEGORY = 8;
 
@@ -74,6 +88,28 @@ export function Page7Examples({ lng, onFinish, onPrevious, isLoading }: Page7Exa
       subtitleKey="onboarding.page7.subtitle"
       lng={lng}
     >
+      {/* Feature list */}
+      <ul className="space-y-2 -mt-2 mb-4">
+        {FEATURE_ITEMS.map(item => {
+          const FeatureIcon = item.icon;
+          return (
+            <li key={item.key} className="flex items-start gap-2.5 text-sm text-muted-foreground">
+              <FeatureIcon className={`w-4 h-4 shrink-0 mt-0.5 ${item.color}`} />
+              <span>{t(`onboarding.page7.features.${item.key}`)}</span>
+            </li>
+          );
+        })}
+        <li className="flex items-start gap-2.5 text-sm text-muted-foreground italic">
+          <Rocket className="w-4 h-4 shrink-0 mt-0.5 text-primary" />
+          <span>{t('onboarding.page7.features.more')}</span>
+        </li>
+      </ul>
+
+      {/* Subtitle extra */}
+      <p className="text-center text-sm sm:text-base text-muted-foreground mb-4 font-medium">
+        {t('onboarding.page7.subtitle_extra')}
+      </p>
+
       {/* Accordion with categories */}
       <Accordion type="single" collapsible className="w-full">
         {EXAMPLE_CATEGORIES.map(category => {

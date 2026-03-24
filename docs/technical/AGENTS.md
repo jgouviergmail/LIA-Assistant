@@ -1797,6 +1797,41 @@ class AgentService(
 - `GraphManagementMixin` : Lifecycle du graph (build, rebuild)
 - `StreamingMixin` : Conversion des événements LangGraph → SSE
 
+### Context Variable Setup in `_stream_with_new_services()`
+
+The actual per-request streaming entry point is `_stream_with_new_services()`. It is responsible for
+setting up and tearing down all Python `contextvars.ContextVar` tokens that make request-scoped
+state available to downstream nodes and tools without explicit parameter threading.
+
+The setup sequence, executed before the main `async with tracker:` block, is:
+
+1. **`admin_mcp_disabled_ctx`** — set to the user's `admin_mcp_disabled_servers` JSONB field (set
+   of server IDs the user has individually disabled).
+2. **`user_mcp_tools_ctx`** (via `setup_user_mcp_tools()`) — populated with the MCP tools fetched
+   and registered for this specific user for the duration of the request.
+3. **`request_tool_manifests_ctx`** (via `build_request_tool_manifests(registry)`) — populated with
+   the per-request filtered tool manifests built from the global `AgentRegistry`. This gives every
+   node access to the complete, pre-built manifest map without re-querying the registry on each
+   node invocation. See **ADR-061** for the centralized component activation design that motivates
+   this pattern.
+
+All three tokens are reset in **both the success path and the error/exception path** to guarantee
+that no stale context bleeds across requests, even on unhandled exceptions:
+
+```python
+# Success path (after streaming completes)
+cleanup_user_mcp_tools(_user_mcp_token)
+admin_mcp_disabled_ctx.reset(_admin_mcp_token)
+active_skills_ctx.reset(_active_skills_token)
+request_tool_manifests_ctx.reset(_manifests_token)
+
+# Error path (except block — identical cleanup)
+cleanup_user_mcp_tools(_user_mcp_token)
+admin_mcp_disabled_ctx.reset(_admin_mcp_token)
+active_skills_ctx.reset(_active_skills_token)
+request_tool_manifests_ctx.reset(_manifests_token)
+```
+
 ---
 
 ## Testing et Troubleshooting

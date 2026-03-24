@@ -496,13 +496,12 @@ def _get_output_paths_by_semantic_type(
         >>> _get_output_paths_by_semantic_type("email_address", ["contacts"])
         [("get_contacts_tool", "contacts[0].emailAddresses[0].value")]
     """
-    from src.domains.agents.registry import get_global_registry
+    from src.core.context import get_request_tool_manifests
 
     paths: list[tuple[str, str]] = []
 
     try:
-        registry = get_global_registry()
-        all_manifests = registry.list_tool_manifests()
+        all_manifests = get_request_tool_manifests()
 
         for manifest in all_manifests:
             # Filter by domain - extract domain from agent name
@@ -784,6 +783,7 @@ def generate_jinja2_suggestions(
         ["$steps.search_contacts.contacts[0].addresses[0].formattedValue",
          "$steps.fetch_events.events[0].location"]
     """
+    from src.core.context import get_request_tool_manifests
     from src.domains.agents.registry import get_global_registry
     from src.domains.agents.registry.agent_registry import ToolManifestNotFound
 
@@ -831,7 +831,7 @@ def generate_jinja2_suggestions(
                 step_tool_name = step_tool_mapping[step_id]
             else:
                 # Fallback: heuristic matching (step_id often contains tool name or vice versa)
-                all_manifests = registry.list_tool_manifests()
+                all_manifests = get_request_tool_manifests()
                 for manifest in all_manifests:
                     tool_name = manifest.name
                     # Convention: step_id often matches tool_name pattern

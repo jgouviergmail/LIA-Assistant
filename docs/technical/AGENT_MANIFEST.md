@@ -12,16 +12,17 @@
 
 1. [Vue d'Ensemble](#vue-densemble)
 2. [Architecture du Catalogue](#architecture-du-catalogue)
-3. [Tool Manifest](#tool-manifest)
-4. [Agent Manifest](#agent-manifest)
-5. [Manifest Builder Pattern](#manifest-builder-pattern)
-6. [Catalogue Loader](#catalogue-loader)
-7. [Export pour Planner](#export-pour-planner)
-8. [Validation](#validation)
-9. [Testing et Troubleshooting](#testing-et-troubleshooting)
-10. [Exemples Pratiques](#exemples-pratiques)
-11. [Best Practices](#best-practices)
-12. [Ressources](#ressources)
+3. [Per-Request Manifest Context](#per-request-manifest-context)
+4. [Tool Manifest](#tool-manifest)
+5. [Agent Manifest](#agent-manifest)
+6. [Manifest Builder Pattern](#manifest-builder-pattern)
+7. [Catalogue Loader](#catalogue-loader)
+8. [Export pour Planner](#export-pour-planner)
+9. [Validation](#validation)
+10. [Testing et Troubleshooting](#testing-et-troubleshooting)
+11. [Exemples Pratiques](#exemples-pratiques)
+12. [Best Practices](#best-practices)
+13. [Ressources](#ressources)
 
 ---
 
@@ -210,6 +211,124 @@ sequenceDiagram
     Registry-->>Validator: ToolManifest
     Validator->>Validator: Check permissions, cost, params
 ```
+
+---
+
+## Per-Request Manifest Context
+
+> See also: [ADR-061 — Centralized Component Activation/Deactivation Control](../architecture/ADR-061-Centralized-Component-Activation.md)
+
+### Overview
+
+At request start, a single pre-filtered snapshot of all available tool manifests is built once and stored in a per-request `ContextVar`. Every pipeline component reads from this snapshot instead of calling `registry.list_tool_manifests()` and applying its own filtering logic.
+
+This follows the established `active_skills_ctx` pattern: set once, read everywhere, propagated automatically to sub-agents via Python's async context variable mechanism.
+
+### ContextVar: `request_tool_manifests_ctx`
+
+**File**: `apps/api/src/core/context.py`
+
+```python
+request_tool_manifests_ctx: ContextVar[list["ToolManifest"] | None] = ContextVar(
+    "request_tool_manifests_ctx", default=None
+)
+```
+
+The ContextVar holds the merged, filtered manifest list for the current request. It is:
+
+- **Built once** at request start in `AgentService._stream_with_new_services()`, after `admin_mcp_disabled_ctx` and `user_mcp_tools_ctx` are already set.
+- **Read everywhere** via `get_request_tool_manifests()` — router node, catalogue strategies (normal and panic), semantic expansion service, planner service, and any sub-agents.
+- **Never written** by consumers. Consumers call `get_request_tool_manifests()` and treat the list as read-only.
+
+### Builder: `build_request_tool_manifests()`
+
+**File**: `apps/api/src/core/context.py`
+
+```python
+def build_request_tool_manifests(registry: "AgentRegistry") -> list["ToolManifest"]:
+    """Build the per-request available tool manifests list."""
+    from src.domains.agents.registry.domain_taxonomy import (
+        filter_admin_mcp_disabled_manifests,
+    )
+    # 1. Global registry manifests minus admin MCP servers disabled by user
+    manifests = filter_admin_mcp_disabled_manifests(registry.list_tool_manifests())
+    # 2. Plus user MCP tools (already filtered at setup time)
+    user_ctx = user_mcp_tools_ctx.get()
+    if user_ctx and user_ctx.tool_manifests:
+        manifests = list(manifests) + user_ctx.tool_manifests
+    return manifests
+```
+
+The builder is the **single source of truth** for tool availability. It combines:
+
+1. All globally registered manifests (native tools + admin MCP tools).
+2. Minus any admin MCP servers the current user has disabled (`admin_mcp_disabled_ctx`).
+3. Plus the user's own MCP tools (`user_mcp_tools_ctx`), already filtered by enabled/status at session setup.
+
+### Accessor: `get_request_tool_manifests()`
+
+**File**: `apps/api/src/core/context.py`
+
+```python
+def get_request_tool_manifests() -> list["ToolManifest"]:
+    """Get the per-request available tool manifests."""
+    result = request_tool_manifests_ctx.get()
+    if result is None:
+        # Warns and returns empty list if called outside request lifecycle
+        ...
+    return result
+```
+
+All pipeline consumers call this function. It logs a structured warning (`request_tool_manifests_ctx_not_set`) if invoked outside a request lifecycle (e.g., in tests or background tasks), and returns an empty list rather than raising.
+
+### Helper: `filter_admin_mcp_disabled_manifests()`
+
+**File**: `apps/api/src/domains/agents/registry/domain_taxonomy.py`
+
+```python
+def filter_admin_mcp_disabled_manifests(
+    manifests: list["ToolManifest"],
+    admin_disabled: set[str] | None = None,
+) -> list["ToolManifest"]:
+```
+
+Extracts the server key from each manifest's `agent` field (e.g. `mcp_excalidraw_agent` → `excalidraw`) and removes entries whose key appears in the disabled set. If `admin_disabled` is `None`, the function reads from `admin_mcp_disabled_ctx` automatically.
+
+**This function is called in exactly one place**: `build_request_tool_manifests()`. It is not scattered across individual consumers — each consumer that previously called `registry.list_tool_manifests()` and filtered independently has been migrated to `get_request_tool_manifests()`.
+
+### Request Lifecycle
+
+```
+AgentService._stream_with_new_services()
+  │
+  ├─ set admin_mcp_disabled_ctx    (from User.admin_mcp_disabled_servers)
+  ├─ set user_mcp_tools_ctx        (from user MCP session setup)
+  │
+  ├─ manifests = build_request_tool_manifests(registry)
+  │     └─ filter_admin_mcp_disabled_manifests()  ← called once here only
+  │
+  └─ request_tool_manifests_ctx.set(manifests)
+        │
+        ├─ router_node_v3          ← get_request_tool_manifests()
+        ├─ query_analyzer_service  ← get_request_tool_manifests()
+        ├─ normal_filtering        ← get_request_tool_manifests()
+        ├─ panic_filtering         ← get_request_tool_manifests()
+        ├─ expansion_service       ← get_request_tool_manifests()
+        ├─ smart_planner_service   ← get_request_tool_manifests()
+        └─ sub-agents              ← inherited via async ContextVar propagation
+```
+
+### Comparison with `active_skills_ctx`
+
+| Aspect | `active_skills_ctx` | `request_tool_manifests_ctx` |
+|--------|--------------------|-----------------------------|
+| Type | `set[str] \| None` | `list[ToolManifest] \| None` |
+| Set by | `SkillPreferenceService` | `build_request_tool_manifests()` |
+| Read by | `build_skills_catalog()`, response node, skill bypass | All catalogue consumers |
+| Sub-agent propagation | Yes (async ContextVar) | Yes (async ContextVar) |
+| ADR | — | ADR-061 |
+
+Both follow the same principle: compute once at request entry, propagate implicitly, never recompute inside the pipeline.
 
 ---
 
@@ -1658,6 +1777,10 @@ manifest = (
 - `apps/api/src/domains/agents/registry/manifest_builder.py` - Builder pattern fluent API
 - `apps/api/src/domains/agents/registry/catalogue_loader.py` - Catalogue initialization (11 agents, 56+ tools)
 - `apps/api/src/domains/agents/registry/agent_registry.py` - Registry avec export methods
+- `apps/api/src/domains/agents/registry/domain_taxonomy.py` - `filter_admin_mcp_disabled_manifests()` helper
+
+**Per-Request Context:**
+- `apps/api/src/core/context.py` - `request_tool_manifests_ctx`, `build_request_tool_manifests()`, `get_request_tool_manifests()`
 
 **Domain Catalogue Manifests:**
 - `apps/api/src/domains/agents/google_contacts/catalogue_manifests.py` - Contacts (6 tools)

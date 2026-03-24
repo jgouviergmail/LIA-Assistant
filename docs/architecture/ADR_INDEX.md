@@ -2114,6 +2114,30 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 
 ---
 
+### ADR-061: Centralized Component Activation/Deactivation Control
+
+**Status**: ✅ IMPLEMENTED (2026-03-23)
+**Fichier**: `docs/architecture/ADR-061-Centralized-Component-Activation.md`
+
+**Décision**: Centraliser le contrôle d'activation/désactivation des composants (MCP, skills, sub-agents) via validation des domaines LLM + ContextVar catalogue pré-filtré.
+
+**Problème résolu**:
+- ❌ Un utilisateur désactive un MCP app mais l'outil est quand même exécuté
+- ❌ Filtrage dispersé dans 7+ fichiers (chaque consommateur filtre indépendamment)
+- ❌ Les domaines LLM ne sont jamais validés contre la liste `available_domains`
+
+**Solution**:
+- ✅ Gate-keeper domaine : validation post-LLM dans `query_analyzer_service.py`
+- ✅ `request_tool_manifests_ctx` : ContextVar pré-filtré, set once, lu partout
+- ✅ API guard : 403 + defense-in-depth pour chemins hors-pipeline (proxy iframe)
+
+**Impact**:
+- ✅ Un domaine inéligible ne peut plus traverser le pipeline
+- ✅ Ajout d'un nouveau composant toggleable = 1 point de modification (pas 7)
+- ✅ Sub-agents héritent automatiquement les restrictions via propagation ContextVar
+
+---
+
 ## ADRs Archivés
 
 ### ADR-005 (Version Originale): Workflow-Based HITL

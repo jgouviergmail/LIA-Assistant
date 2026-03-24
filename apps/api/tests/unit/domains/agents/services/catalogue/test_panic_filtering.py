@@ -58,6 +58,11 @@ class MockIntelligence:
 
 def _build_mock_service(manifests: list[MockManifest]) -> MagicMock:
     """Build a mock SmartCatalogueService with given manifests."""
+    from src.core.context import request_tool_manifests_ctx
+
+    # Set the per-request ContextVar so get_request_tool_manifests() works in tests
+    request_tool_manifests_ctx.set(manifests)
+
     service = MagicMock()
     service.registry.list_tool_manifests.return_value = manifests
     service._metrics = CatalogueMetrics()

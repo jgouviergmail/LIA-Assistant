@@ -47,6 +47,11 @@ Response Node → synthesizes final answer for user
 - **Individual tools** (ReAct-facing): `navigate`, `snapshot`, `click`, `fill`,
   `press_key`, `screenshot` — used by the ReAct agent, not by the planner directly.
 
+> **Note**: The parent graph's `InMemoryStore` (`runtime.store`) is propagated to the nested
+> browser ReAct agent via the `store` parameter of `create_react_agent`. This ensures that
+> `validate_runtime_config` (and any other store-dependent validation) behaves identically
+> inside the nested agent as it does in the top-level graph.
+
 ## Configuration
 
 All settings in `.env` (technical tuning only — activation via admin connector panel):

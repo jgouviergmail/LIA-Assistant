@@ -903,7 +903,9 @@ export default function AdminLLMConfigSection({ lng, collapsible = true }: BaseS
     {} as Record<string, LLMTypeConfig[]>
   );
 
-  const content = loading ? (
+  // Only show loading spinner on initial load, not during refetches
+  // (refetches set loading=true which would unmount the entire content and cause focus loss)
+  const content = loading && configs.length === 0 ? (
     <div className="animate-pulse text-sm text-muted-foreground">{t('common.loading')}</div>
   ) : (
     <div className="space-y-8">

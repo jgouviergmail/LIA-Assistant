@@ -524,7 +524,12 @@ class AgentService(
             )
 
             # Import MCP tools setup before try block to ensure cleanup is always accessible
-            from src.core.context import active_skills_ctx, admin_mcp_disabled_ctx
+            from src.core.context import (
+                active_skills_ctx,
+                admin_mcp_disabled_ctx,
+                build_request_tool_manifests,
+                request_tool_manifests_ctx,
+            )
             from src.infrastructure.mcp.user_context import (
                 cleanup_user_mcp_tools,
                 setup_user_mcp_tools,
@@ -543,10 +548,18 @@ class AgentService(
                 _active_skills_token = active_skills_ctx.set(_active_skills)
 
             _user_mcp_token = None  # Initialized before try for safe cleanup in except
+            _manifests_token = None  # Initialized before try for safe cleanup in except
             try:
                 async with tracker:
                     # === Per-user MCP tools setup (evolution F2.1) ===
                     _user_mcp_token = await setup_user_mcp_tools(user_id, db)
+
+                    # === Build per-request filtered tool manifests (centralized) ===
+                    from src.domains.agents.registry import get_global_registry
+
+                    _manifests_token = request_tool_manifests_ctx.set(
+                        build_request_tool_manifests(get_global_registry())
+                    )
 
                     # === Step 2: Load or create state using OrchestrationService ===
                     state = await orchestration_service.load_or_create_state(
@@ -1135,6 +1148,9 @@ class AgentService(
                         message_increment=messages_archived,
                     )
 
+                # Cleanup run-level record collector (prevents memory leak)
+                TrackingContext.cleanup_run_records(run_id)
+
                 # === PHASE 3.3 DAY 3: Cleanup pending_hitl after successful HITL completion ===
                 # If this was a HITL resumption (original_run_id provided), check if we need
                 # to cleanup the pending_hitl data from Redis to prevent it from being
@@ -1530,6 +1546,9 @@ class AgentService(
                 # Cleanup disabled skills ContextVar
                 if _active_skills_token is not None:
                     active_skills_ctx.reset(_active_skills_token)
+                # Cleanup per-request tool manifests ContextVar
+                if _manifests_token is not None:
+                    request_tool_manifests_ctx.reset(_manifests_token)
 
             except Exception as e:
                 # Cleanup user MCP tools ContextVar on error (evolution F2.1)
@@ -1540,6 +1559,9 @@ class AgentService(
                 # Cleanup disabled skills ContextVar on error
                 if _active_skills_token is not None:
                     active_skills_ctx.reset(_active_skills_token)
+                # Cleanup per-request tool manifests ContextVar on error
+                if _manifests_token is not None:
+                    request_tool_manifests_ctx.reset(_manifests_token)
 
                 logger.error(
                     "new_service_architecture_error",

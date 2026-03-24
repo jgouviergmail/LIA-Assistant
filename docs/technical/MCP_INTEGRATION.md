@@ -822,6 +822,50 @@ This replaces the previous separate admin/user injection blocks in `query_analyz
 | ContextVar | `admin_mcp_disabled_ctx` | Propagated per-request in `AgentService._stream_with_new_services()` |
 | Filter | `collect_all_mcp_domains()` | Filters out disabled servers before query analysis |
 
+### Defense-in-Depth for Per-User Server Toggle (ADR-061)
+
+When a user disables an admin MCP server, three independent layers enforce the restriction. See [ADR-061](../architecture/ADR-061-Centralized-Component-Activation.md) for the full rationale.
+
+```
+Layer 1 — Domain gate-keeper (query_analyzer_service.py)
+  Validates LLM-output domains against available_domains.
+  Disabled server's domain is stripped before it can enter the pipeline
+  → 0 tools from that domain are scored, planned, or executed.
+
+Layer 2 — Centralized tool manifest ContextVar (context.py)
+  request_tool_manifests_ctx holds a pre-filtered manifest list built once
+  per request (after admin_mcp_disabled_ctx is set). Every consumer
+  (router, catalogue strategies, expansion service, planner) reads the
+  same pre-filtered list — no per-consumer filtering needed.
+
+Layer 3 — API guard (admin_router.py + client_manager.py)
+  The MCP Apps proxy endpoints (POST admin-servers/{key}/app/call-tool and
+  admin-servers/{key}/app/read-resource) bypass the agent pipeline entirely
+  (iframe → HTTP → MCP client). These endpoints return HTTP 403 when the
+  target server is in the user's disabled list. MCPClientManager performs
+  an additional check as defense in depth.
+```
+
+| Layer | Component | Mechanism |
+|-------|-----------|-----------|
+| 1 — Domain gate-keeper | `query_analyzer_service.py` | Strips disabled domains from LLM output |
+| 2 — Manifest ContextVar | `context.py` → `request_tool_manifests_ctx` | Pre-filtered manifests, set once, read everywhere |
+| 3 — API guard | `admin_router.py` + `MCPClientManager` | HTTP 403 on proxy endpoints + client-level check |
+
+#### `request_tool_manifests_ctx` — Centralized Tool Manifest ContextVar
+
+`request_tool_manifests_ctx` is a per-request `ContextVar[list[ToolManifest]]` that serves as the **single source of truth** for tool availability during a request. It replaces the previous pattern of scattered `registry.list_tool_manifests()` calls that each had to independently apply their own disabled-server filtering.
+
+| Item | Detail |
+|------|--------|
+| **Builder** | `build_request_tool_manifests(registry)` in `src/core/context.py` — combines registry manifests minus disabled admin MCP, plus user MCP tools from `user_mcp_tools_ctx` |
+| **Accessor** | `get_request_tool_manifests()` — returns the pre-built list; logs a warning if called outside the request lifecycle |
+| **Setup** | `AgentService._stream_with_new_services()`, after `admin_mcp_disabled_ctx` and `user_mcp_tools_ctx` are set |
+| **Consumers** | Router node, catalogue strategies (normal + panic), expansion service, planner — all read from this ContextVar instead of calling the registry directly |
+| **Sub-agents** | Automatically inherit the filtered list via async `ContextVar` propagation |
+
+Adding a new toggleable component type requires only filtering it in `build_request_tool_manifests()` (manifest level) or `_build_available_domains()` (domain level) — no changes needed in any consumer.
+
 ### Docker-Internal Servers
 
 Admin MCP servers running as Docker containers (e.g., `google-flights`) need the `internal: true` flag to bypass SSRF validation:
@@ -1117,7 +1161,6 @@ Module: `infrastructure/mcp/excalidraw/`
 |------|------|
 | `overrides.py` | Constants (`EXCALIDRAW_SERVER_NAME`, `EXCALIDRAW_CREATE_VIEW_TOOL`, `EXCALIDRAW_SPATIAL_SUFFIX`) |
 | `iterative_builder.py` | LLM-driven builder: single call (all elements) |
-| `position_corrector.py` | Fallback: fixes text centering + shape overlaps in raw elements |
 
 ### Flow
 
@@ -1127,15 +1170,14 @@ Planner generates intent JSON
         v
 MCPToolAdapter._prepare_excalidraw()
         |
-        +-- Intent mode (preferred):
+        +-- Intent mode (only supported path):
         |     is_intent() detects {"intent": true, ...}
         |     build_from_intent() makes a single LLM call:
         |       All elements (camera + background + shapes + labels + arrows)
         |     Uses read_me cheat sheet from MCP server
         |
-        +-- Fallback mode:
-        |     Raw JSON array from planner
-        |     correct_positions() fixes overlaps + text centering
+        +-- Non-intent elements:
+        |     Passed through unchanged (no position correction)
         |
         v
 call_tool("create_view", {elements: ...})

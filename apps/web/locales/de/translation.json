@@ -2246,7 +2246,7 @@
         },
         "excalidraw": {
           "title": "🎨 Excalidraw-Generierung",
-          "description": "LLM-gesteuerte Generierung von Excalidraw-Schemata und -Diagrammen. Zwei Modi: strukturierter Intent (der Planer generiert Komponenten + Verbindungen, ein einziger LLM-Aufruf generiert alle Elemente) und Fallback mit rohen Elementen (automatische Positions-/Überlappungskorrektur). Cheat-Sheet read_me wird in die Prompts injiziert. Dedizierter LLM konfigurierbar (MCP_EXCALIDRAW_LLM_*). Interaktive Diagramme gerendert über den MCP-Excalidraw-Server."
+          "description": "LLM-gesteuerte Generierung von Excalidraw-Schemata und -Diagrammen. Strukturierter Intent-Modus: Der Planer generiert Komponenten + Verbindungen, dedizierte LLM-Aufrufe erzeugen alle Excalidraw-Elemente (Formen und Pfeile). Cheat-Sheet read_me wird in die Prompts injiziert. Dedizierter LLM konfigurierbar (MCP_EXCALIDRAW_LLM_*). Interaktive Diagramme gerendert über den MCP-Excalidraw-Server."
         },
         "multichannel": {
           "title": "📲 Multi-Kanal (Telegram)",
@@ -3375,76 +3375,98 @@
     "dialog_description": "Eine geführte Tour zur Vorstellung der LIA-Funktionen",
     "page1": {
       "title": "Willkommen bei LIA!",
-      "subtitle": "Ihr intelligenter persönlicher Assistent",
-      "description": "Für die beste Erfahrung empfehlen wir, die folgenden wesentlichen Aktionen durchzuführen:",
+      "subtitle": "Dein intelligenter persönlicher Assistent",
+      "intro_line1": "LIA ist weder ChatGPT, noch Claude, noch Perplexity, noch Gemini.",
+      "intro_line2": "Es ist ein intelligenter Begleiter, dessen Berufung es ist, dein persönlicher Assistent zu werden.",
+      "intro_line3": "Seine Stärke liegt in der Kontextualisierung und Verknüpfung deiner Daten sowie in der Vielfalt der Werkzeuge und Fähigkeiten, die ihm zur Verfügung stehen.",
+      "intro_line4": "Je mehr du es benutzt, desto mehr lernt es über dich und desto mehr entwickelt sich sein Bewusstsein.",
+      "description": "Für die beste Erfahrung empfehle ich dir, die folgenden wesentlichen Aktionen durchzuführen:",
       "actions": {
         "connectors": "1 - Konnektoren aktivieren",
         "personality": "2 - Persönlichkeit wählen",
         "memory": "3 - Gedächtnis füttern",
         "notifications": "4 - Push-Benachrichtigungen aktivieren"
       },
-      "footer": "Es gibt viele weitere Funktionen zu entdecken!",
-      "faq_highlight": "Schauen Sie in die FAQ, um alles über LIA zu erfahren"
+      "faq_highlight": "Schau dir die FAQ an, um alles über LIA zu erfahren"
     },
     "page2": {
       "title": "Die Konnektoren",
-      "subtitle": "Verbinden Sie LIA mit Ihren Diensten",
-      "warning": "Ohne Konnektoren ist LIA nur eine Standard-KI. Um es zu IHREM persönlichen Assistenten zu machen, aktivieren Sie die Konnektoren in den Einstellungen.",
-      "description": "Einige Konnektoren können nach Ihren Vorlieben angepasst werden:",
+      "subtitle": "Verbinde LIA mit deinen Diensten",
+      "description": "Um auf deine Alltagsdaten zuzugreifen, empfehle ich dir, die Google-, Microsoft- oder Apple-Konnektoren zu aktivieren.",
+      "provider_note": "Du kannst Provider mischen, aber derzeit kannst du nur einen Provider pro Dienst aktivieren (wenn du Google Mails aktivierst, kannst du nicht gleichzeitig Apple Mail oder Microsoft Mails aktivieren).",
+      "external_title": "Um die Mindestfähigkeiten von LIA zu aktivieren, empfehle ich dir, mindestens die folgenden externen Konnektoren zu aktivieren:",
       "options": {
-        "calendar": "Google Calendar: Standardkalender wählen",
-        "places": "Google Places: Geolokalisierung aktivieren, Heimadresse festlegen",
-        "tasks": "Google Tasks: Standard-Aufgabenliste wählen"
+        "brave_name": "Brave Search",
+        "brave_desc": "um aktuelle Daten aus dem Internet abzurufen (kostenloser API-Schlüssel auf brave.com/search/api/)",
+        "wikipedia_name": "Wikipedia",
+        "wikipedia_desc": "um allgemeine Informationen aus dem Internet abzurufen (kein Schlüssel erforderlich, kostenlos)",
+        "places_name": "Google Places",
+        "places_desc": "um Orte, Geschäfte, Routen usw. zu suchen (kein Schlüssel erforderlich)",
+        "weather_name": "OpenWeatherMap",
+        "weather_desc": "um Wetter und 5-Tage-Vorhersagen zu suchen (kostenloser API-Schlüssel auf openweathermap.org/api)",
+        "browser_name": "Browser",
+        "browser_desc": "für Suche und Navigation im Internet (kein Schlüssel erforderlich, kostenlos)"
       }
     },
     "page3": {
       "title": "Die Persönlichkeit",
-      "subtitle": "Geben Sie Ihrem Assistenten eine Seele",
-      "description": "Die Persönlichkeit bestimmt Ton und Stil der Antworten von LIA. Wählen Sie in den Einstellungen die, die am besten zu Ihnen passt.",
+      "subtitle": "Gib deinem Assistenten eine Seele",
+      "description": "Die Persönlichkeit bestimmt Ton und Stil der Antworten von LIA. Wähle in den Einstellungen die, die am besten zu dir passt.",
       "examples": {
         "cynique": "😏 Zyniker: Ätzender Rebell, schwarzer Humor und harte Wahrheiten.",
         "professeur": "🎓 Professor: Pädagogisch und fürsorglich, klare und strukturierte Erklärungen.",
         "philosophe": "🤔 Philosoph: Tiefe Reflexion, nuancierte Perspektiven und Weisheit.",
         "adolescent": "💀 Teenager: Ein Teenager in voller hormoneller Veränderung."
       },
-      "note": "Und viele mehr! Probieren Sie sie gerne aus."
+      "note": "Und viele mehr! Probiere sie gerne aus."
     },
     "page4": {
       "title": "Das Langzeitgedächtnis",
-      "subtitle": "Helfen Sie LIA, Sie besser kennenzulernen",
-      "description": "Teilen Sie persönliche Informationen für ein maßgeschneidertes Erlebnis. Verwenden Sie atomare und präzise Informationen:",
+      "subtitle": "Hilf LIA, dich besser kennenzulernen",
+      "description": "Für ein maßgeschneidertes Erlebnis merkt sich LIA automatisch Informationen aus deinen Gesprächen, und du kannst sie nach Belieben ändern.",
+      "description_extra": "Du kannst auch direkt Informationen in sein Gedächtnis eingeben. Stelle dich zunächst vor, um deine Gespräche zu personalisieren!",
       "examples": {
         "identity": "Name, Geschlecht, Geburtsdatum und -ort",
         "addresses": "Heim- und Arbeitsadresse",
         "relations": "Familiäre Beziehungen (Bruder, Ehefrau, Kinder...)",
         "preferences": "Haustiere, Vorlieben, Interessen"
       },
-      "tip": "Je mehr LIA Sie kennt, desto relevanter sind die Antworten!",
-      "pin_tip": "Denken Sie daran, wichtige Erinnerungen anzupinnen, um sie zu behalten."
+      "tip": "Je mehr LIA dich kennt, desto relevanter sind die Antworten!",
+      "pin_tip": "Denke daran, wichtige Erinnerungen anzupinnen, damit es sie nicht mit der Zeit vergisst!",
+      "settings_tip": "Du kannst die Erinnerungen in den Einstellungen verwalten."
     },
     "page5": {
-      "title": "Ihre Interessen",
-      "subtitle": "LIA lernt, was Sie begeistert",
-      "description": "Während Sie chatten, erkennt LIA automatisch Ihre Interessen, um Ihre Gespräche zu personalisieren:",
+      "title": "Deine Interessen",
+      "subtitle": "LIA lernt, was dich begeistert",
+      "description": "Im Laufe der Gespräche erkennt LIA automatisch deine Interessen, um Gespräche zu personalisieren, dich über Neuigkeiten zu informieren oder seine Überlegungen mit dir zu teilen und vieles mehr. Du kannst jedes Interesse bearbeiten und direkt neue erstellen.",
       "examples": {
         "music": "Musik und Lieblingskünstler",
         "cinema": "Filme und Serien",
         "cuisine": "Kochen und Gastronomie",
         "travel": "Reisen und Destinationen"
       },
-      "tip": "Je mehr Sie chatten, desto besser versteht LIA Ihren Geschmack!",
-      "learning_tip": "Die Interessen entwickeln sich im Laufe der Zeit basierend auf Ihren Gesprächen.",
-      "settings_tip": "Sie können Ihre Interessen in den Einstellungen verwalten."
+      "tip": "Je mehr du chattest, desto besser versteht LIA deinen Geschmack!",
+      "learning_tip": "Die Interessen entwickeln sich im Laufe der Zeit basierend auf deinen Gesprächen.",
+      "settings_tip": "Du kannst deine Interessen in den Einstellungen verwalten."
     },
     "page6": {
       "title": "Die Push-Benachrichtigungen",
-      "subtitle": "Verpassen Sie keine Erinnerung mehr",
-      "description": "LIA kann personalisierte Erinnerungen erstellen. Um zur richtigen Zeit benachrichtigt zu werden, aktivieren Sie Push-Benachrichtigungen auf Ihren Geräten.",
-      "mobile_tip": "Auf dem Handy installieren Sie die App, um Benachrichtigungen zu erhalten."
+      "subtitle": "Verpasse keine Erinnerung mehr",
+      "description": "LIA kann personalisierte Erinnerungen erstellen. Um zur richtigen Zeit benachrichtigt zu werden, installiere die App auf deinem Startbildschirm über den Browser und aktiviere Push-Benachrichtigungen auf deinen Geräten in den Einstellungen.",
+      "mobile_tip": "Auf dem Handy installiere die App, um Benachrichtigungen zu erhalten."
     },
     "page7": {
       "title": "Befehlsbeispiele",
-      "subtitle": "Hier sind einige Beispiele, was Sie LIA fragen können, die einzige Grenze ist Ihre Fantasie!",
+      "subtitle": "LIA verfügt über viele Werkzeuge und Funktionen, die ich dir empfehle, schrittweise zu entdecken:",
+      "features": {
+        "skills": "Skills zur Entwicklung seiner Expertise oder um seine Aktionen zu leiten (automatisch generierbar)",
+        "mcp": "MCPs zur Erweiterung seiner Fähigkeiten mit Markttools (in zwei Klicks)",
+        "rag": "RAG zur Wissensanreicherung aus deinen Dokumenten",
+        "scheduled": "Geplante Aktionen zur Automatisierung wiederkehrender Aufgaben",
+        "voice": "Sprachmodus (Push to Talk, Wake Word)",
+        "more": "Und viele weitere Funktionen, die du in der FAQ oder einfach durch Fragen an LIA entdecken kannst"
+      },
+      "subtitle_extra": "Hier sind einige nicht erschöpfende Beispiele, was du LIA fragen kannst, die einzige Grenze ist deine Fantasie!",
       "cta": "Los geht's!",
       "categories": {
         "contacts": {

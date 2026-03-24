@@ -158,7 +158,17 @@ async def admin_app_proxy_call_tool(
     user: User = Depends(get_current_active_session),
 ) -> McpAppCallToolResponse:
     """Proxy a tool call from an MCP App iframe to an admin MCP server."""
+    from src.core.exceptions import raise_permission_denied
     from src.infrastructure.mcp.client_manager import get_mcp_client_manager
+
+    # Block if user has disabled this admin MCP server
+    disabled_servers: list[str] = getattr(user, "admin_mcp_disabled_servers", None) or []
+    if server_key in disabled_servers:
+        raise_permission_denied(
+            action="call_tool",
+            resource_type="admin_mcp_server",
+            details=f"Admin MCP server '{server_key}' is disabled for this user",
+        )
 
     manager = get_mcp_client_manager()
     if not manager or server_key not in manager.discovered_tools:
@@ -196,7 +206,17 @@ async def admin_app_proxy_read_resource(
     user: User = Depends(get_current_active_session),
 ) -> McpAppReadResourceResponse:
     """Proxy a resource read from an MCP App iframe to an admin MCP server."""
+    from src.core.exceptions import raise_permission_denied
     from src.infrastructure.mcp.client_manager import get_mcp_client_manager
+
+    # Block if user has disabled this admin MCP server
+    disabled_servers: list[str] = getattr(user, "admin_mcp_disabled_servers", None) or []
+    if server_key in disabled_servers:
+        raise_permission_denied(
+            action="read_resource",
+            resource_type="admin_mcp_server",
+            details=f"Admin MCP server '{server_key}' is disabled for this user",
+        )
 
     manager = get_mcp_client_manager()
     if not manager or server_key not in manager.discovered_tools:

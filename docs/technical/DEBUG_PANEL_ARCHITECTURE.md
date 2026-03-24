@@ -409,6 +409,37 @@ The `llm_pipeline` section in `debug_metrics` provides a chronological reconcili
 
 Frontend component: `LLMPipelineSection.tsx`
 
+### Run-level Token Tracking
+
+The debug panel shows **all** LLM calls that belong to a single logical user request, not just those from the primary `TrackingContext`.
+
+**Problem solved**: A single user message may trigger several independent async operations — the main pipeline (router → planner → agents → response) plus background tasks (memory extraction, interest extraction, journal extraction). Each background task creates its own `TrackingContext`. Without coordination, their token records would be invisible to the debug panel.
+
+**Mechanism**: A module-level dict `_run_records` in `src/domains/chat/service.py` acts as a run-scoped collector:
+
+```
+Every TrackingContext._persist_to_database()
+  → appends committed TokenUsageRecords to _run_records[run_id]
+
+TrackingContext.get_llm_calls_breakdown()
+  → returns _run_records[run_id] + self._node_records  (all contexts, all call types)
+
+TrackingContext.cleanup_run_records(run_id)
+  → removes the entry from _run_records  (called after debug panel is emitted)
+```
+
+**Background task await** (`apps/api/src/domains/agents/api/service.py`):
+
+```python
+# After the LangGraph stream ends, wait up to 15 s for background tasks
+# so their tokens are committed to the DB before the debug panel is built.
+await await_run_id_tasks(run_id, timeout=15.0)
+```
+
+Memory and interest extraction are scheduled in `response_node` via `safe_fire_and_forget` and UPSERT their tokens into the same `MessageTokenSummary` DB record. The streaming service reads DB totals only after this await, ensuring the aggregated count is complete.
+
+**Result**: The LLM Pipeline section in the debug panel reflects the true end-to-end cost of a request — pipeline calls, embedding calls, and background extraction calls — all sorted chronologically by `TokenUsageRecord.sequence`.
+
 ### Impact on Existing Sections
 
 - **LLM Calls**: Now shows embedding calls with `EMB` badge (teal color)
@@ -501,6 +532,41 @@ case 'DEBUG_METRICS_UPDATE': {
 - Il est distinct de `debug_metrics` (émis à chaque chunk values)
 - Le frontend merge les données supplémentaires dans l'état existant (pas de remplacement)
 - Le registre d'extraction (`_extraction_debug_results`) a un TTL de 5 minutes pour éviter les fuites mémoire
+
+---
+
+### sessionStorage Persistence (v1.9.6)
+
+**Context**: `debugMetricsHistory` (the cumulative per-request metrics log shown in the debug panel) is now persisted across page navigations within the same browser tab. Navigating away from the chat page and returning no longer resets the history.
+
+**Storage key**: `lia_debug_metrics_history`
+
+**Cap**: 50 entries (enforced on both write and read to respect the sessionStorage 5 MB limit).
+
+**Lifecycle**:
+
+```
+chatReducer (chat-reducer.ts)
+  └── createInitialState()
+        └── sessionStorage.getItem('lia_debug_metrics_history')
+              └── JSON.parse() → slice(-50) → hydrates debugMetricsHistory
+
+useChat.ts
+  └── useEffect([state.debugMetricsHistory])
+        └── persistDebugMetricsHistory(state.debugMetricsHistory)
+              └── sessionStorage.setItem('lia_debug_metrics_history', JSON.stringify(trimmed))
+```
+
+**Key implementation points**:
+
+- `createInitialState()` (`chat-reducer.ts`) replaces the bare `initialChatState` constant as the argument to `useReducer`. It reads from `sessionStorage` on mount, falling back silently to `[]` if the key is absent or the stored value is corrupt.
+- `persistDebugMetricsHistory()` is a pure helper exported from `chat-reducer.ts`. It is called from a `useEffect` in `useChat.ts` (not from inside the reducer itself) so the reducer remains a pure function.
+- Clearing messages (`CLEAR_MESSAGES` action) still resets `debugMetricsHistory` to `[]` in-memory; the next `useEffect` flush then overwrites `sessionStorage` with the empty array.
+- `sessionStorage` (not `localStorage`) is intentional: history is tab-scoped and does not persist across browser restarts.
+
+**Files**:
+- `apps/web/src/reducers/chat-reducer.ts` — `DEBUG_HISTORY_STORAGE_KEY`, `DEBUG_HISTORY_MAX_ENTRIES`, `createInitialState()`, `persistDebugMetricsHistory()`
+- `apps/web/src/hooks/useChat.ts` — `useReducer(chatReducer, createInitialState())` + `useEffect` for persistence
 
 ---
 

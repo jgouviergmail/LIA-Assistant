@@ -2246,7 +2246,7 @@
         },
         "excalidraw": {
           "title": "🎨 Generación Excalidraw",
-          "description": "Generación de esquemas y diagramas vía LLM. Modo intent estructurado (una única llamada LLM genera todos los elementos). Fallback con corrección automática de posiciones y centrado."
+          "description": "Generación de esquemas y diagramas vía LLM. Modo intent estructurado: el planificador genera componentes + conexiones, llamadas LLM dedicadas producen todos los elementos Excalidraw (formas y flechas). Cheat sheet read_me inyectado en los prompts. LLM dedicado configurable (MCP_EXCALIDRAW_LLM_*). Diagramas interactivos renderizados a través del servidor MCP Excalidraw."
         },
         "multichannel": {
           "title": "📲 Multi-Canal (Telegram)",
@@ -2833,7 +2833,7 @@
           },
           "q9": {
             "question": "¿Cómo generar esquemas y diagramas Excalidraw?",
-            "answer": "LIA puede crear <strong>diagramas interactivos Excalidraw</strong> directamente en la conversación:<br><br><strong>🎨 Cómo usarlo:</strong><br>• Pide a LIA que cree un diagrama, esquema o mapa mental<br>• Ejemplos: \"<em>Haz un diagrama de arquitectura microservicios</em>\", \"<em>Crea un esquema del ciclo del agua</em>\", \"<em>Diagrama de flujo para un proceso de compra</em>\"<br><br><strong>⚙️ Proceso en 2 etapas:</strong><br>1. <strong>Formas</strong>: un LLM genera los elementos (rectángulos, elipses, texto) con sus posiciones y dimensiones<br>2. <strong>Flechas</strong>: un segundo LLM crea las conexiones entre elementos con etiquetas<br>• Corrección automática de posiciones: centrado de textos y eliminación de solapamientos<br><br><strong>📌 Tipos de diagramas soportados:</strong><br>• Diagramas de arquitectura<br>• Diagramas de flujo<br>• Mapas mentales<br>• Organigramas<br>• Esquemas de proceso<br>• Diagramas de secuencia simplificados<br><br><strong>💡 Consejos:</strong><br>• Sea preciso en su descripción para obtener un diagrama más fiel<br>• Puede pedir modificaciones iterativas del diagrama<br>• El resultado es interactivo: puede hacer zoom, desplazar y explorar<br><br><strong>⚠️ Prerrequisito:</strong><br>Requiere un servidor MCP Excalidraw configurado y activo."
+            "answer": "LIA puede crear <strong>diagramas interactivos Excalidraw</strong> directamente en la conversación:<br><br><strong>🎨 Cómo usarlo:</strong><br>• Pide a LIA que cree un diagrama, esquema o mapa mental<br>• Ejemplos: \"<em>Haz un diagrama de arquitectura microservicios</em>\", \"<em>Crea un esquema del ciclo del agua</em>\", \"<em>Diagrama de flujo para un proceso de compra</em>\"<br><br><strong>⚙️ Proceso en 2 etapas:</strong><br>1. <strong>Formas</strong>: un LLM genera los elementos (rectángulos, elipses, texto) con sus posiciones y dimensiones<br>2. <strong>Flechas</strong>: un segundo LLM crea las conexiones entre elementos con etiquetas<br><br><strong>📌 Tipos de diagramas soportados:</strong><br>• Diagramas de arquitectura<br>• Diagramas de flujo<br>• Mapas mentales<br>• Organigramas<br>• Esquemas de proceso<br>• Diagramas de secuencia simplificados<br><br><strong>💡 Consejos:</strong><br>• Sea preciso en su descripción para obtener un diagrama más fiel<br>• Puede pedir modificaciones iterativas del diagrama<br>• El resultado es interactivo: puede hacer zoom, desplazar y explorar<br><br><strong>⚠️ Prerrequisito:</strong><br>Requiere un servidor MCP Excalidraw configurado y activo."
           }
         }
       },
@@ -3376,25 +3376,36 @@
     "page1": {
       "title": "¡Bienvenido a LIA!",
       "subtitle": "Tu asistente personal inteligente",
-      "description": "Para obtener la mejor experiencia, te recomendamos completar las siguientes acciones esenciales:",
+      "intro_line1": "LIA no es ChatGPT, ni Claude, ni Perplexity, ni Gemini.",
+      "intro_line2": "Es un compañero inteligente cuya vocación es convertirse en tu asistente personal.",
+      "intro_line3": "Su fuerza reside en la contextualización y la interrelación de tus datos, así como en el abanico de herramientas y capacidades a su disposición.",
+      "intro_line4": "Cuanto más lo uses, más aprenderá de ti y más se desarrollará su consciencia.",
+      "description": "Para obtener la mejor experiencia, te recomiendo completar las siguientes acciones esenciales:",
       "actions": {
         "connectors": "1 - Activar conectores",
         "personality": "2 - Elegir personalidad",
         "memory": "3 - Alimentar la memoria",
         "notifications": "4 - Activar notificaciones push"
       },
-      "footer": "¡Hay muchas más funciones por descubrir!",
       "faq_highlight": "Consulta las FAQ para saber todo sobre LIA"
     },
     "page2": {
       "title": "Los conectores",
       "subtitle": "Conecta LIA a tus servicios",
-      "warning": "Sin conectores, LIA es solo una IA estándar. Para convertirlo en TU asistente personal, activa los conectores en configuración.",
-      "description": "Algunos conectores pueden personalizarse según tus preferencias:",
+      "description": "Para conectarte a los datos de tu día a día, te recomiendo activar los conectores de Google, Microsoft o Apple.",
+      "provider_note": "Puedes mezclar proveedores, pero por ahora solo puedes activar un proveedor por servicio (si activas Google Mails no puedes activar simultáneamente Apple Mail o Microsoft Mails).",
+      "external_title": "Para activar las capacidades mínimas de LIA, te recomiendo activar al menos los siguientes conectores externos:",
       "options": {
-        "calendar": "Google Calendar: elegir el calendario predeterminado",
-        "places": "Google Places: activar geolocalización, definir dirección de casa",
-        "tasks": "Google Tasks: elegir la lista de tareas predeterminada"
+        "brave_name": "Brave Search",
+        "brave_desc": "para obtener datos actualizados de internet (clave API gratuita en brave.com/search/api/)",
+        "wikipedia_name": "Wikipedia",
+        "wikipedia_desc": "para obtener información general de internet (sin clave, gratuito)",
+        "places_name": "Google Places",
+        "places_desc": "para buscar sitios, comercios, rutas, etc. (sin clave)",
+        "weather_name": "OpenWeatherMap",
+        "weather_desc": "para buscar el tiempo y previsiones a 5 días (clave API gratuita en openweathermap.org/api)",
+        "browser_name": "Browser",
+        "browser_desc": "para búsqueda y navegación en internet (sin clave, gratuito)"
       }
     },
     "page3": {
@@ -3412,7 +3423,8 @@
     "page4": {
       "title": "La memoria a largo plazo",
       "subtitle": "Ayuda a LIA a conocerte mejor",
-      "description": "Comparte información personal para una experiencia personalizada. Usa información atómica y precisa:",
+      "description": "Para una experiencia personalizada, LIA memoriza de forma autónoma la información a través de las conversaciones que tengas con él y podrás modificarlas a tu conveniencia.",
+      "description_extra": "También puedes introducir información directamente en su memoria. ¡Empieza por presentarte para personalizar tus intercambios!",
       "examples": {
         "identity": "Nombre, género, fecha y lugar de nacimiento",
         "addresses": "Dirección de casa y trabajo",
@@ -3420,12 +3432,13 @@
         "preferences": "Mascotas, preferencias, intereses"
       },
       "tip": "¡Cuanto más te conozca LIA, más relevantes serán sus respuestas!",
-      "pin_tip": "Recuerda fijar las memorias importantes para conservarlas."
+      "pin_tip": "Recuerda fijar las memorias importantes para que no las olvide con el tiempo!",
+      "settings_tip": "Puedes gestionar las memorias en la configuración."
     },
     "page5": {
       "title": "Tus intereses",
       "subtitle": "LIA aprende lo que te apasiona",
-      "description": "A medida que conversas, LIA detecta automáticamente tus intereses para personalizar tus intercambios:",
+      "description": "A lo largo de las conversaciones, LIA detecta automáticamente tus intereses para personalizar los intercambios, notificarte de la actualidad o compartirte sus reflexiones y mucho más. Puedes modificar cada interés y crear nuevos directamente.",
       "examples": {
         "music": "Música y artistas favoritos",
         "cinema": "Películas y series",
@@ -3439,12 +3452,21 @@
     "page6": {
       "title": "Las notificaciones push",
       "subtitle": "No te pierdas ningún recordatorio",
-      "description": "LIA puede crear recordatorios personalizados. Para ser notificado en el momento adecuado, activa las notificaciones push en tus dispositivos.",
+      "description": "LIA puede crear recordatorios personalizados. Para ser notificado en el momento adecuado, instala la aplicación en tu pantalla de inicio desde la web y activa las notificaciones push en tus dispositivos en los ajustes.",
       "mobile_tip": "En móvil, instala la aplicación para recibir notificaciones."
     },
     "page7": {
       "title": "Ejemplos de comandos",
-      "subtitle": "Aquí hay algunos ejemplos de lo que puedes pedirle a LIA, ¡el único límite es tu imaginación!",
+      "subtitle": "LIA dispone de numerosas herramientas y funcionalidades que te recomiendo descubrir progresivamente:",
+      "features": {
+        "skills": "Skills para desarrollar sus conocimientos o guiar sus acciones (auto generables)",
+        "mcp": "MCPs para ampliar sus capacidades con herramientas del mercado (en dos clics)",
+        "rag": "RAG para enriquecer sus conocimientos a partir de tus documentos",
+        "scheduled": "Acciones planificadas para automatizar tareas recurrentes",
+        "voice": "Modo vocal (push to talk, wake word)",
+        "more": "Y muchas más funcionalidades por descubrir en las FAQ o simplemente preguntándole a LIA"
+      },
+      "subtitle_extra": "¡Aquí algunos ejemplos no exhaustivos de lo que puedes pedirle a LIA, el único límite es tu imaginación!",
       "cta": "¡Vamos!",
       "categories": {
         "contacts": {

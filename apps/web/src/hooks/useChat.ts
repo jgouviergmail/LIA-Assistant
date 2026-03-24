@@ -8,7 +8,7 @@ import {
   DebugMetrics,
 } from '@/types/chat';
 import { ConversationTotals, ChatAction, DebugMetricsEntry } from '@/types/chat-state';
-import { chatReducer, createInitialState } from '@/reducers/chat-reducer';
+import { chatReducer, createInitialState, persistDebugMetricsHistory } from '@/reducers/chat-reducer';
 import { validateReducerAction } from '@/reducers/chat-reducer-errors';
 import { chatSSEClient } from '@/lib/api/chat';
 import { useAuth } from '@/hooks/useAuth';
@@ -91,6 +91,11 @@ export const useChat = ({
 
   // State management with useReducer (replaces multiple useState calls)
   const [state, baseDispatch] = useReducer(chatReducer, createInitialState());
+
+  // Persist debug metrics history to sessionStorage so it survives page navigation
+  useEffect(() => {
+    persistDebugMetricsHistory(state.debugMetricsHistory);
+  }, [state.debugMetricsHistory]);
 
   /**
    * Validated dispatch wrapper - logs errors before passing to pure reducer.

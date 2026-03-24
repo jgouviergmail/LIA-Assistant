@@ -2248,7 +2248,7 @@
         },
         "excalidraw": {
           "title": "🎨 Generazione Excalidraw",
-          "description": "Generazione di schemi e diagrammi Excalidraw tramite LLM. Due modalità: intent strutturato (il pianificatore genera componenti + connessioni, una singola chiamata LLM genera tutti gli elementi) e fallback raw elements (correzione automatica delle posizioni/sovrapposizioni). Cheat sheet read_me iniettato nei prompt. LLM dedicato configurabile (MCP_EXCALIDRAW_LLM_*). Diagrammi interattivi renderizzati tramite il server MCP Excalidraw."
+          "description": "Generazione di schemi e diagrammi Excalidraw tramite LLM. Modalità intent strutturato: il pianificatore genera componenti + connessioni, chiamate LLM dedicate producono tutti gli elementi Excalidraw (forme e frecce). Cheat sheet read_me iniettato nei prompt. LLM dedicato configurabile (MCP_EXCALIDRAW_LLM_*). Diagrammi interattivi renderizzati tramite il server MCP Excalidraw."
         },
         "multichannel": {
           "title": "📲 Multi-Canale (Telegram)",
@@ -3378,25 +3378,36 @@
     "page1": {
       "title": "Benvenuto su LIA!",
       "subtitle": "Il tuo assistente personale intelligente",
-      "description": "Per ottenere la migliore esperienza, ti consigliamo di completare le seguenti azioni essenziali:",
+      "intro_line1": "LIA non è ChatGPT, né Claude, né Perplexity, né Gemini.",
+      "intro_line2": "È un compagno intelligente la cui vocazione è diventare il tuo assistente personale.",
+      "intro_line3": "La sua forza risiede nella contestualizzazione e nella correlazione dei tuoi dati, nonché nella gamma di strumenti e capacità a sua disposizione.",
+      "intro_line4": "Più lo userai, più imparerà da te e più la sua coscienza si svilupperà.",
+      "description": "Per ottenere la migliore esperienza, ti consiglio di completare le seguenti azioni essenziali:",
       "actions": {
         "connectors": "1 - Attivare i connettori",
         "personality": "2 - Scegliere la personalità",
         "memory": "3 - Alimentare la memoria",
         "notifications": "4 - Attivare le notifiche push"
       },
-      "footer": "Ci sono molte altre funzionalità da scoprire!",
       "faq_highlight": "Consulta le FAQ per sapere tutto su LIA"
     },
     "page2": {
       "title": "I connettori",
       "subtitle": "Collega LIA ai tuoi servizi",
-      "warning": "Senza connettori, LIA è solo un'IA standard. Per farlo diventare il TUO assistente personale, attiva i connettori nelle impostazioni.",
-      "description": "Alcuni connettori possono essere personalizzati secondo le tue preferenze:",
+      "description": "Per connetterti ai dati della tua vita quotidiana, ti consiglio di attivare i connettori Google, Microsoft o Apple.",
+      "provider_note": "Puoi mescolare i provider ma al momento puoi attivare solo un provider per servizio (se attivi Google Mails non puoi attivare contemporaneamente Apple Mail o Microsoft Mails).",
+      "external_title": "Per attivare le capacità minime di LIA, ti consiglio di attivare almeno i seguenti connettori esterni:",
       "options": {
-        "calendar": "Google Calendar: scegliere il calendario predefinito",
-        "places": "Google Places: attivare la geolocalizzazione, definire l'indirizzo di casa",
-        "tasks": "Google Tasks: scegliere la lista attività predefinita"
+        "brave_name": "Brave Search",
+        "brave_desc": "per ottenere dati aggiornati da internet (chiave API gratuita su brave.com/search/api/)",
+        "wikipedia_name": "Wikipedia",
+        "wikipedia_desc": "per ottenere informazioni generali da internet (senza chiave, gratuito)",
+        "places_name": "Google Places",
+        "places_desc": "per cercare luoghi, negozi, percorsi, ecc. (senza chiave)",
+        "weather_name": "OpenWeatherMap",
+        "weather_desc": "per cercare meteo e previsioni a 5 giorni (chiave API gratuita su openweathermap.org/api)",
+        "browser_name": "Browser",
+        "browser_desc": "per ricerca e navigazione su internet (senza chiave, gratuito)"
       }
     },
     "page3": {
@@ -3414,7 +3425,8 @@
     "page4": {
       "title": "La memoria a lungo termine",
       "subtitle": "Aiuta LIA a conoscerti meglio",
-      "description": "Condividi informazioni personali per un'esperienza su misura. Usa informazioni atomiche e precise:",
+      "description": "Per un'esperienza su misura, LIA memorizza autonomamente le informazioni attraverso le conversazioni che avrai con lui e potrai modificarle a tuo piacimento.",
+      "description_extra": "Puoi anche inserire direttamente informazioni nella sua memoria. Inizia presentandoti per personalizzare i tuoi scambi!",
       "examples": {
         "identity": "Nome, genere, data e luogo di nascita",
         "addresses": "Indirizzo di casa e lavoro",
@@ -3422,12 +3434,13 @@
         "preferences": "Animali domestici, preferenze, interessi"
       },
       "tip": "Più LIA ti conosce, più le sue risposte sono pertinenti!",
-      "pin_tip": "Ricorda di fissare i ricordi importanti per conservarli."
+      "pin_tip": "Ricorda di fissare i ricordi importanti per evitare che li dimentichi col tempo!",
+      "settings_tip": "Puoi gestire i ricordi nelle impostazioni."
     },
     "page5": {
       "title": "I tuoi interessi",
       "subtitle": "LIA impara cosa ti appassiona",
-      "description": "Mentre chatti, LIA rileva automaticamente i tuoi interessi per personalizzare le tue conversazioni:",
+      "description": "Nel corso delle conversazioni, LIA rileva automaticamente i tuoi interessi per personalizzare le conversazioni, notificarti dell'attualità o condividere le sue riflessioni e molto altro ancora. Puoi modificare ogni interesse e crearne di nuovi direttamente.",
       "examples": {
         "music": "Musica e artisti preferiti",
         "cinema": "Film e serie TV",
@@ -3441,12 +3454,21 @@
     "page6": {
       "title": "Le notifiche push",
       "subtitle": "Non perdere mai un promemoria",
-      "description": "LIA può creare promemoria personalizzati. Per essere avvisato al momento giusto, attiva le notifiche push sui tuoi dispositivi.",
+      "description": "LIA può creare promemoria personalizzati. Per essere avvisato al momento giusto, installa l'app sulla schermata iniziale dal web e attiva le notifiche push sui tuoi dispositivi nelle impostazioni.",
       "mobile_tip": "Su mobile, installa l'applicazione per ricevere le notifiche."
     },
     "page7": {
       "title": "Esempi di comandi",
-      "subtitle": "Ecco alcuni esempi di ciò che puoi chiedere a LIA, l'unico limite è la tua immaginazione!",
+      "subtitle": "LIA dispone di numerosi strumenti e funzionalità che ti consiglio di scoprire progressivamente:",
+      "features": {
+        "skills": "Skills per sviluppare le sue competenze o guidare le sue azioni (auto generabili)",
+        "mcp": "MCP per estendere le sue capacità con strumenti di mercato (in due clic)",
+        "rag": "RAG per arricchire le sue conoscenze dai tuoi documenti",
+        "scheduled": "Azioni pianificate per automatizzare compiti ricorrenti",
+        "voice": "Modalità vocale (push to talk, wake word)",
+        "more": "E molte altre funzionalità da scoprire nelle FAQ o semplicemente chiedendo a LIA"
+      },
+      "subtitle_extra": "Ecco alcuni esempi non esaustivi di ciò che puoi chiedere a LIA, l'unico limite è la tua immaginazione!",
       "cta": "OK andiamo!",
       "categories": {
         "contacts": {

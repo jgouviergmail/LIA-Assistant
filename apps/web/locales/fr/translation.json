@@ -2260,7 +2260,7 @@
         },
         "excalidraw": {
           "title": "🎨 Génération Excalidraw",
-          "description": "Génération de schémas et diagrammes Excalidraw via LLM. Deux modes : intent structuré (le planificateur génère composants + connexions, un appel LLM unique génère tous les éléments) et fallback raw elements (correction automatique des positions/overlaps). Cheat sheet read_me injecté dans les prompts. LLM dédié configurable (MCP_EXCALIDRAW_LLM_*). Diagrammes interactifs rendus via le serveur MCP Excalidraw."
+          "description": "Génération de schémas et diagrammes Excalidraw via LLM. Mode intent structuré : le planificateur génère composants + connexions, des appels LLM dédiés produisent tous les éléments Excalidraw (formes et flèches). Cheat sheet read_me injecté dans les prompts. LLM dédié configurable (MCP_EXCALIDRAW_LLM_*). Diagrammes interactifs rendus via le serveur MCP Excalidraw."
         },
         "multichannel": {
           "title": "📲 Multi-Canal (Telegram)",
@@ -2847,7 +2847,7 @@
           },
           "q9": {
             "question": "Comment générer des schémas et diagrammes Excalidraw ?",
-            "answer": "LIA peut créer des <strong>diagrammes Excalidraw</strong> directement dans la conversation grâce au serveur MCP Excalidraw :<br><br><strong>🎨 Ce que LIA peut créer :</strong><br>• Diagrammes d'architecture<br>• Organigrammes et workflows<br>• Schémas de processus<br>• Diagrammes de flux<br>• Mind maps et structures hiérarchiques<br><br><strong>📝 Comment demander :</strong><br>• \"<em>Crée un schéma d'architecture client-serveur avec une base de données</em>\"<br>• \"<em>Dessine un workflow d'onboarding en 5 étapes</em>\"<br>• \"<em>Fais un organigramme avec Directeur, 3 managers et 6 employés</em>\"<br>• \"<em>Schéma du cycle de l'eau</em>\"<br><br><strong>⚙️ Comment ça fonctionne :</strong><br>1. LIA analyse votre demande et crée un <strong>intent structuré</strong> (composants, connexions, layout)<br>2. Un LLM dédié génère tous les éléments visuels (formes, textes, positions)<br>3. Un second appel génère les flèches et connexions<br>4. Le diagramme interactif s'affiche directement dans la conversation<br><br><strong>💡 Conseils :</strong><br>• Décrivez les <strong>composants</strong> et leurs <strong>relations</strong> pour un meilleur résultat<br>• Précisez le type de layout souhaité (haut en bas, gauche à droite, grille)<br>• Vous pouvez demander des modifications après génération<br><br><strong>⚠️ Prérequis :</strong><br>Le serveur MCP Excalidraw doit être configuré et actif (configuration administrateur)."
+            "answer": "LIA peut créer des <strong>diagrammes Excalidraw</strong> directement dans la conversation grâce au serveur MCP Excalidraw :<br><br><strong>🎨 Ce que LIA peut créer :</strong><br>• Diagrammes d'architecture<br>• Organigrammes et workflows<br>• Schémas de processus<br>• Diagrammes de flux<br>• Mind maps et structures hiérarchiques<br><br><strong>📝 Comment demander :</strong><br>• \"<em>Crée un schéma d'architecture client-serveur avec une base de données</em>\"<br>• \"<em>Dessine un workflow d'onboarding en 5 étapes</em>\"<br>• \"<em>Fais un organigramme avec Directeur, 3 managers et 6 employés</em>\"<br>• \"<em>Schéma du cycle de l'eau</em>\"<br><br><strong>⚙️ Comment ça fonctionne :</strong><br>1. LIA analyse votre demande et crée un <strong>intent structuré</strong> (composants, connexions, layout)<br>2. Un LLM dédié génère tous les éléments visuels (formes, textes, positions)<br>3. Un second appel LLM génère les flèches et connexions — le diagramme interactif s'affiche dans la conversation<br><br><strong>💡 Conseils :</strong><br>• Décrivez les <strong>composants</strong> et leurs <strong>relations</strong> pour un meilleur résultat<br>• Précisez le type de layout souhaité (haut en bas, gauche à droite, grille)<br>• Vous pouvez demander des modifications après génération<br><br><strong>⚠️ Prérequis :</strong><br>Le serveur MCP Excalidraw doit être configuré et actif (configuration administrateur)."
           }
         }
       },
@@ -3528,76 +3528,98 @@
     "dialog_description": "Une visite guidée pour découvrir les fonctionnalités de LIA",
     "page1": {
       "title": "Bienvenue sur LIA !",
-      "subtitle": "Votre assistant personnel intelligent",
-      "description": "Afin de bénéficier de la meilleure expérience possible, nous vous conseillons d'effectuer les actions minimales suivantes :",
+      "subtitle": "Ton assistant personnel intelligent",
+      "intro_line1": "LIA n'est pas ChatGPT, ni Claude, ni Perplexity, ni Gemini.",
+      "intro_line2": "C'est un compagnon intelligent dont la vocation est de devenir ton assistant personnel.",
+      "intro_line3": "Sa force réside dans la contextualisation et la mise en relation de tes données ainsi que le panel d'outils et de capacités mis à sa disposition.",
+      "intro_line4": "Plus tu l'utiliseras plus il apprendra de toi et plus sa conscience se développera.",
+      "description": "Afin de bénéficier de la meilleure expérience possible, je te conseille d'effectuer les actions minimales suivantes :",
       "actions": {
         "connectors": "1 - Activer les connecteurs",
         "personality": "2 - Choisir la personnalité",
         "memory": "3 - Alimenter la mémoire",
         "notifications": "4 - Activer les notifications push"
       },
-      "footer": "Il y a bien d'autres fonctionnalités à découvrir !",
-      "faq_highlight": "Consultez la FAQ pour tout savoir sur LIA"
+      "faq_highlight": "Consulte la FAQ pour tout savoir sur LIA"
     },
     "page2": {
       "title": "Les connecteurs",
-      "subtitle": "Connectez LIA à vos services",
-      "warning": "Sans connecteur, LIA est une IA standard. Pour en faire VOTRE assistant personnel, activez les connecteurs dans les paramètres.",
-      "description": "Quelques connecteurs peuvent être personnalisés selon vos préférences :",
+      "subtitle": "Connecte LIA à tes services",
+      "description": "Pour te connecter sur les données de ton quotidien je te recommande d'activer les connecteurs Google, Microsoft ou Apple.",
+      "provider_note": "Tu peux mixer mais pour le moment tu ne peux activer qu'un provider par service (si tu actives Google Mails tu ne peux pas activer en même temps Apple Mail ou Microsoft Mails).",
+      "external_title": "Pour activer les capacités minimales de LIA je te recommande d'activer au moins les connecteurs externes suivants :",
       "options": {
-        "calendar": "Google Calendar : choisir le calendrier par défaut",
-        "places": "Google Places : activer la géolocalisation, définir l'adresse du domicile",
-        "tasks": "Google Tasks : choisir la liste de tâches par défaut"
+        "brave_name": "Brave Search",
+        "brave_desc": "pour obtenir des données à jour sur internet (clé gratuite à obtenir sur brave.com/search/api/)",
+        "wikipedia_name": "Wikipedia",
+        "wikipedia_desc": "pour obtenir des informations généralistes sur internet (activation sans clé et gratuit)",
+        "places_name": "Google Places",
+        "places_desc": "pour rechercher des sites, des commerces, des itinéraires, etc. (activation sans clé)",
+        "weather_name": "OpenWeatherMap",
+        "weather_desc": "pour rechercher la météo et prévisions à 5 jours (clé gratuite à obtenir sur openweathermap.org/api)",
+        "browser_name": "Browser",
+        "browser_desc": "pour recherche et navigation sur internet (activation sans clé et gratuit)"
       }
     },
     "page3": {
       "title": "La personnalité",
-      "subtitle": "Donnez une âme à votre assistant",
-      "description": "La personnalité définit le ton et le style des réponses de LIA. Choisissez celle qui vous correspond le mieux dans les paramètres.",
+      "subtitle": "Donne une âme à ton assistant",
+      "description": "La personnalité définit le ton et le style des réponses de LIA. Choisis celle qui te correspond le mieux dans les paramètres.",
       "examples": {
         "cynique": "😏 Cynique : Rebelle caustique, humour noir et vérités percutantes.",
         "professeur": "🎓 Professeur : Pédagogue et bienveillant, explications claires et structurées.",
         "philosophe": "🤔 Philosophe : Réflexion approfondie, perspectives nuancées et sagesse.",
         "adolescent": "💀 Adolescent : Un ado dans la fleur de sa mutation hormonale."
       },
-      "note": "Et bien d'autres ! N'hésitez pas à les essayer."
+      "note": "Et bien d'autres ! N'hésite pas à les essayer."
     },
     "page4": {
       "title": "La mémoire long terme",
-      "subtitle": "Aidez LIA à mieux vous connaître",
-      "description": "Partagez des informations personnelles pour une expérience sur mesure. Privilégiez des informations atomiques et précises :",
+      "subtitle": "Aide LIA à mieux te connaître",
+      "description": "Pour une expérience sur-mesure LIA mémorise de manière autonome les informations à travers les échanges que tu auras avec lui et tu pourras les modifier à ta convenance.",
+      "description_extra": "Tu peux également saisir directement des informations dans sa mémoire. Commence par te présenter afin de personnaliser tes échanges !",
       "examples": {
         "identity": "Nom, genre, date et lieu de naissance",
         "addresses": "Adresse du domicile et du travail",
         "relations": "Relations familiales (frère, épouse, enfants...)",
         "preferences": "Animaux, préférences, centres d'intérêt"
       },
-      "tip": "Plus LIA vous connaît, plus ses réponses sont pertinentes !",
-      "pin_tip": "Pensez à épingler les mémoires importantes pour les conserver."
+      "tip": "Plus LIA te connaît, plus ses réponses sont pertinentes !",
+      "pin_tip": "Pense à épingler les mémoires importantes pour éviter qu'il les oublie avec le temps !",
+      "settings_tip": "Tu peux gérer les mémoires dans les paramètres."
     },
     "page5": {
-      "title": "Vos centres d'intérêt",
-      "subtitle": "LIA apprend ce qui vous passionne",
-      "description": "Au fil de vos conversations, LIA détecte automatiquement vos centres d'intérêt pour personnaliser vos échanges :",
+      "title": "Tes centres d'intérêt",
+      "subtitle": "LIA apprend ce qui te passionne",
+      "description": "Au fil des conversations, LIA détecte automatiquement tes centres d'intérêt pour personnaliser les échanges, te notifier de l'actualité ou te partager ses réflexions et bien d'autres choses encore. Tu peux modifier chaque centre d'intérêts et en créer de nouveaux directement.",
       "examples": {
         "music": "Musique et artistes préférés",
         "cinema": "Films et séries",
         "cuisine": "Cuisine et gastronomie",
         "travel": "Voyages et destinations"
       },
-      "tip": "Plus vous échangez, plus LIA cerne vos goûts !",
-      "learning_tip": "Les intérêts évoluent au fil du temps selon vos conversations.",
-      "settings_tip": "Vous pouvez gérer vos centres d'intérêt dans les paramètres."
+      "tip": "Plus tu échanges, plus LIA cerne tes goûts !",
+      "learning_tip": "Les intérêts évoluent au fil du temps selon tes conversations.",
+      "settings_tip": "Tu peux gérer tes centres d'intérêt dans les paramètres."
     },
     "page6": {
       "title": "Les notifications push",
-      "subtitle": "Ne manquez plus aucun rappel",
-      "description": "LIA peut vous créer des rappels personnalisés. Pour être notifié au bon moment, activez les notifications push sur vos appareils.",
-      "mobile_tip": "Sur mobile, installez l'application pour recevoir les notifications."
+      "subtitle": "Ne manque plus aucun rappel",
+      "description": "LIA peut créer des rappels personnalisés. Pour être notifié au bon moment, installe l'application sur ton écran d'accueil depuis le web et active les notifications push sur tes appareils dans les réglages.",
+      "mobile_tip": "Sur mobile, installe l'application pour recevoir les notifications."
     },
     "page7": {
       "title": "Exemples de commandes",
-      "subtitle": "Voici quelques exemples de ce que vous pouvez demander à LIA, la seule limite c'est votre imagination !",
+      "subtitle": "LIA dispose de nombreux outils et fonctionnalités que je te recommande de découvrir progressivement :",
+      "features": {
+        "skills": "Des Skills pour développer ses expertises ou le guider dans ses actions (auto générables)",
+        "mcp": "Des MCP pour étendre ses capacités avec des outils du marché (en deux clicks)",
+        "rag": "Du RAG pour enrichir ses connaissances à partir de tes documents",
+        "scheduled": "Des actions planifiées pour automatiser des tâches récurrentes",
+        "voice": "Un mode vocal (push to talk, wake word)",
+        "more": "Et bien d'autres fonctionnalités à découvrir dans la FAQ ou en demandant simplement à LIA"
+      },
+      "subtitle_extra": "Voici quelques exemples non exhaustifs de ce que tu peux demander à LIA, la seule limite c'est ton imagination !",
       "cta": "OK on y va !",
       "categories": {
         "contacts": {
@@ -3781,12 +3803,12 @@
       "title_line2_highlight": "IA",
       "title_line2_after": ".",
       "title_line3": "Tes règles.",
-      "subtitle_top": "Rencontrez LIA : l'assistant qui a du caractère, de la mémoire et du bon sens.",
+      "subtitle_top": "Rencontre LIA : l'assistant qui a du caractère, de la mémoire et du bon sens.",
       "subtitle_line1a": "Fini les IA froides et répétitives.",
-      "subtitle_line1b": "LIA apprend de vos habitudes, tient ses propres carnets de réflexion et développe une personnalité unique.",
+      "subtitle_line1b": "LIA apprend de tes habitudes, tient ses propres carnets de réflexion et développe une personnalité unique.",
       "subtitle_line2a": "Capable d'un sarcasme bien placé comme d'une profonde empathie,",
-      "subtitle_line2b": "elle orchestre votre vie numérique en coulisses.",
-      "subtitle_line2c": "Tout est simple, accessible en un clic, et c'est toujours vous qui gardez le contrôle final.",
+      "subtitle_line2b": "elle orchestre ta vie numérique en coulisses.",
+      "subtitle_line2c": "Tout est simple, accessible en un clic, et c'est toujours toi qui gardes le contrôle final.",
       "cta_primary": "Rejoins la BETA",
       "cta_secondary": "Découvrir",
       "scroll_hint": "Défiler pour explorer",

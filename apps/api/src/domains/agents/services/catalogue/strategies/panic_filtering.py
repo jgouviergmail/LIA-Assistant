@@ -141,16 +141,14 @@ class PanicFilteringStrategy:
         # KISS: Replicate the filtering logic from normal strategy
         # but use expanded_filter instead of building from intelligence
 
-        all_manifests = self.service.registry.list_tool_manifests()
+        from src.core.context import get_request_tool_manifests, user_mcp_tools_ctx
 
-        # Inject user MCP tool manifests (evolution F2.1)
-        # F2.2: Panic mode = safety net → force-include ALL per-server MCP domains
-        from src.core.context import user_mcp_tools_ctx
+        all_manifests = get_request_tool_manifests()
 
+        # Panic mode: force-include ALL user MCP domains for safety net
         user_ctx = user_mcp_tools_ctx.get()
-        if user_ctx and user_ctx.tool_manifests:
-            all_manifests = list(all_manifests) + user_ctx.tool_manifests
-            for slug in (user_ctx.server_domains or {}).values():
+        if user_ctx and user_ctx.server_domains:
+            for slug in user_ctx.server_domains.values():
                 if slug not in expanded_filter.domains:
                     expanded_filter.domains = [*expanded_filter.domains, slug]
 

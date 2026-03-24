@@ -2487,7 +2487,6 @@ Le domaine MCP est couvert par deux groupes de tests : les tests d'infrastructur
 | `test_security.py` | Sécurité des connexions MCP, validation des URLs |
 | `test_oauth_flow.py` | Flux OAuth pour serveurs MCP nécessitant une authentification |
 | `test_excalidraw_iterative_builder.py` | `build_from_intent()` : génération de diagrammes en 1 appel LLM unique (tous les éléments) |
-| `test_excalidraw_position_corrector.py` | `correct_positions()` : correction des chevauchements et centrage du texte |
 
 **Domaine User MCP** — `tests/unit/domains/user_mcp/` :
 
