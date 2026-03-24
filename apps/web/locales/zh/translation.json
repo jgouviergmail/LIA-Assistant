@@ -4097,6 +4097,7 @@
     },
     "footer": {
       "copyright": "© {{year}} LIA. 保留所有权利。",
+      "last_updated": "更新于 {{date}}",
       "docs": "文档",
       "privacy": "隐私政策",
       "github": "GitHub"

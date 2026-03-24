@@ -1,7 +1,7 @@
 import { initI18next } from '@/i18n';
 import Image from 'next/image';
 import { Github } from 'lucide-react';
-import { APP_VERSION } from '@/lib/version';
+import { APP_VERSION, LAST_UPDATED } from '@/lib/version';
 
 const GITHUB_REPO_URL = 'https://github.com/jgouviergmail/LIA-Assistant';
 
@@ -12,6 +12,13 @@ interface LandingFooterProps {
 export async function LandingFooter({ lng }: LandingFooterProps) {
   const { t } = await initI18next(lng);
   const year = new Date().getFullYear();
+  const localeMap: Record<string, string> = {
+    fr: 'fr-FR', en: 'en-US', de: 'de-DE', es: 'es-ES', it: 'it-IT', zh: 'zh-CN',
+  };
+  const formattedDate = new Date(LAST_UPDATED).toLocaleDateString(
+    localeMap[lng] || 'en-US',
+    { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' },
+  );
 
   return (
     <footer className="border-t border-border py-8">
@@ -27,7 +34,7 @@ export async function LandingFooter({ lng }: LandingFooterProps) {
               className="rounded-md"
             />
             <span className="text-sm text-muted-foreground">
-              {t('landing.footer.copyright', { year })} · v{APP_VERSION}
+              {t('landing.footer.copyright', { year })} · v{APP_VERSION} · {t('landing.footer.last_updated', { date: formattedDate })}
             </span>
           </div>
 

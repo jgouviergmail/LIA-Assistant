@@ -4102,6 +4102,7 @@
     },
     "footer": {
       "copyright": "© {{year}} LIA. Todos los derechos reservados.",
+      "last_updated": "Actualizado el {{date}}",
       "docs": "Documentación",
       "privacy": "Privacidad",
       "github": "GitHub"
