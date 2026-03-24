@@ -32,6 +32,11 @@ export async function HeroSection({ lng }: HeroSectionProps) {
       <HeroBackground />
 
       <div className="relative z-10 w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
+        {/* Version + last updated */}
+        <p className="text-sm text-muted-foreground mb-4">
+          v{APP_VERSION} · {t('landing.footer.last_updated', { date: formattedDate })}
+        </p>
+
         {/* Badges */}
         <div className="flex items-center gap-3 justify-center mb-6">
           <Badge
@@ -52,11 +57,6 @@ export async function HeroSection({ lng }: HeroSectionProps) {
           </a>
           <Badge variant="secondary">{t('landing.hero.badge')}</Badge>
         </div>
-
-        {/* Version + last updated */}
-        <p className="text-sm text-muted-foreground mb-4">
-          v{APP_VERSION} · {t('landing.footer.last_updated', { date: formattedDate })}
-        </p>
 
         {/* Tagline */}
         <h1 className="text-5xl mobile:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.1] mb-6">
