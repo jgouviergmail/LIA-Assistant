@@ -247,11 +247,11 @@ class MCPSettings(BaseSettings):
 
     # Description auto-generation LLM
     mcp_description_llm_provider: str = Field("openai", env="MCP_DESCRIPTION_LLM_PROVIDER")
-    mcp_description_llm_model: str = Field("gpt-4.1-nano", env="MCP_DESCRIPTION_LLM_MODEL")
+    mcp_description_llm_model: str = Field("gpt-4.1-mini", env="MCP_DESCRIPTION_LLM_MODEL")
 
     # Excalidraw Iterative Builder LLM
-    mcp_excalidraw_llm_provider: str = Field("openai", env="MCP_EXCALIDRAW_LLM_PROVIDER")
-    mcp_excalidraw_llm_model: str = Field("gpt-4.1-mini", env="MCP_EXCALIDRAW_LLM_MODEL")
+    mcp_excalidraw_llm_provider: str = Field("anthropic", env="MCP_EXCALIDRAW_LLM_PROVIDER")
+    mcp_excalidraw_llm_model: str = Field("claude-opus-4-6", env="MCP_EXCALIDRAW_LLM_MODEL")
 
     # read_me convention
     mcp_reference_content_max_chars: int = Field(30000, env="MCP_REFERENCE_CONTENT_MAX_CHARS")

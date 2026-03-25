@@ -891,11 +891,11 @@ MCP_APPS_MAX_HTML_SIZE=500000
 
 # LLM-based domain description auto-generation
 MCP_DESCRIPTION_LLM_PROVIDER=openai
-MCP_DESCRIPTION_LLM_MODEL=gpt-4.1-nano
+MCP_DESCRIPTION_LLM_MODEL=gpt-4.1-mini
 
 # Excalidraw Iterative Builder (diagrams)
-MCP_EXCALIDRAW_LLM_PROVIDER=openai
-MCP_EXCALIDRAW_LLM_MODEL=gpt-4.1-mini
+MCP_EXCALIDRAW_LLM_PROVIDER=anthropic
+MCP_EXCALIDRAW_LLM_MODEL=claude-opus-4-6
 ```
 
 > See [MCP_INTEGRATION.md](./technical/MCP_INTEGRATION.md) and [GUIDE_MCP_INTEGRATION.md](./guides/GUIDE_MCP_INTEGRATION.md) for complete documentation.

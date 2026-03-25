@@ -17,8 +17,6 @@ References:
     - ADR-001: Constants Centralization Strategy
 """
 
-import os
-
 # ============================================================================
 # APPLICATION IDENTITY
 # ============================================================================
@@ -78,7 +76,7 @@ PLACES_TOOL_DEFAULT_LIMIT = 10
 PLACES_TOOL_DEFAULT_MAX_RESULTS = 20  # Google Places API limit
 PLACES_MAX_GALLERY_PHOTOS = 5  # Max photos in place gallery lightbox
 # Carousel: when False, only 1 photo per place (for accurate Google API billing)
-PLACE_CAROUSEL_ENABLED = os.environ.get("PLACE_CAROUSEL_ENABLED", "false").lower() == "true"
+PLACE_CAROUSEL_ENABLED_DEFAULT = False
 
 # Google Places API validation constraints
 # See: https://developers.google.com/maps/documentation/places/web-service/search-text

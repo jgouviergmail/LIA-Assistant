@@ -83,6 +83,7 @@ from src.core.constants import (
     OAUTH_PROACTIVE_REFRESH_INTERVAL_MINUTES,
     OAUTH_PROACTIVE_REFRESH_MARGIN_SECONDS,
     PERPLEXITY_SEARCH_MODEL_DEFAULT,
+    PLACE_CAROUSEL_ENABLED_DEFAULT,
     PLACES_TOOL_DEFAULT_MAX_RESULTS_DEFAULT,
     PLACES_TOOL_DEFAULT_RADIUS_METERS_DEFAULT,
     RATE_LIMIT_DEFAULT_EXPENSIVE_CALLS_DEFAULT,
@@ -487,6 +488,10 @@ class ConnectorsSettings(BaseSettings):
         gt=0,
         le=50000,
         description="Default search radius in meters for nearby places search (max 50km)",
+    )
+    place_carousel_enabled: bool = Field(
+        default=PLACE_CAROUSEL_ENABLED_DEFAULT,
+        description="Enable multi-photo carousel per place (false = 1 photo, accurate billing)",
     )
     drive_tool_default_max_results: int = Field(
         default=DRIVE_TOOL_DEFAULT_MAX_RESULTS_DEFAULT,

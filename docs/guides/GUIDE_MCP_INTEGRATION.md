@@ -153,10 +153,10 @@ Toutes les variables sont definies dans `MCPSettings` (`apps/api/src/core/config
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
 | `MCP_EXCALIDRAW_LLM_PROVIDER` | `str` | `anthropic` | Provider LLM pour les diagrammes |
-| `MCP_EXCALIDRAW_LLM_MODEL` | `str` | `claude-sonnet-4-20250514` | Modele LLM |
-| `MCP_EXCALIDRAW_LLM_TEMPERATURE` | `float` | `0.2` | Temperature (basse pour JSON fiable) |
-| `MCP_EXCALIDRAW_LLM_MAX_TOKENS` | `int` | `8000` | Tokens max par appel |
-| `MCP_EXCALIDRAW_STEP_TIMEOUT_SECONDS` | `int` | `90` | Timeout pour create_view (appel LLM unique) |
+| `MCP_EXCALIDRAW_LLM_MODEL` | `str` | `claude-opus-4-6` | Modele LLM |
+| `MCP_EXCALIDRAW_LLM_TEMPERATURE` | `float` | `0.3` | Temperature (basse pour JSON fiable) |
+| `MCP_EXCALIDRAW_LLM_MAX_TOKENS` | `int` | `16000` | Tokens max par appel |
+| `MCP_EXCALIDRAW_STEP_TIMEOUT_SECONDS` | `int` | `60` | Timeout pour create_view (appel LLM unique) |
 
 #### Description LLM (auto-generation)
 
@@ -550,10 +550,10 @@ Le builder utilise un LLM dedie (peut differer du planner) configure via `MCP_EX
 
 ```bash
 MCP_EXCALIDRAW_LLM_PROVIDER=anthropic
-MCP_EXCALIDRAW_LLM_MODEL=claude-sonnet-4-20250514
-MCP_EXCALIDRAW_LLM_TEMPERATURE=0.2
-MCP_EXCALIDRAW_LLM_MAX_TOKENS=8000
-MCP_EXCALIDRAW_STEP_TIMEOUT_SECONDS=90
+MCP_EXCALIDRAW_LLM_MODEL=claude-opus-4-6
+MCP_EXCALIDRAW_LLM_TEMPERATURE=0.3
+MCP_EXCALIDRAW_LLM_MAX_TOKENS=16000
+MCP_EXCALIDRAW_STEP_TIMEOUT_SECONDS=60
 ```
 
 **Attention Anthropic** : Les providers Claude 4.5+ rejettent `temperature` + `top_p` ensemble. Le provider filtre `top_p` automatiquement.
@@ -843,8 +843,8 @@ async def test_user_mcp_call(mock_get_pool):
 **Verifications** :
 1. Les logs `excalidraw_llm_call_failed` indiquent une erreur LLM
 2. Le `cheat_sheet` (read_me) est bien fetche (logs `excalidraw_cheat_sheet_fetched`)
-3. `MCP_EXCALIDRAW_LLM_MAX_TOKENS` est suffisant (defaut 8000)
-4. `MCP_EXCALIDRAW_STEP_TIMEOUT_SECONDS` n'est pas trop bas (defaut 90s pour l'appel LLM unique)
+3. `MCP_EXCALIDRAW_LLM_MAX_TOKENS` est suffisant (defaut 16000)
+4. `MCP_EXCALIDRAW_STEP_TIMEOUT_SECONDS` n'est pas trop bas (defaut 60s pour l'appel LLM unique)
 5. Pour Anthropic : verifier que `top_p` est bien filtre (Claude 4.5+ rejette `temperature` + `top_p`)
 
 ---

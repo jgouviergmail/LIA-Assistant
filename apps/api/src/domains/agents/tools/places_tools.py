@@ -32,7 +32,6 @@ from pydantic import BaseModel
 
 from src.core.config import get_settings, settings
 from src.core.constants import (
-    PLACE_CAROUSEL_ENABLED,
     PLACES_MAX_GALLERY_PHOTOS,
     PLACES_MIN_RATING_MAX,
     PLACES_MIN_RATING_MIN,
@@ -201,10 +200,10 @@ def _format_place(
             # Track the thumbnail photo API call
             track_google_api_call("places", "/{photo}/media", cached=False)
 
-            # Carousel photos (only if enabled via PLACE_CAROUSEL_ENABLED env var)
+            # Carousel photos (only if enabled via settings.place_carousel_enabled)
             # When disabled: 1 photo per place = accurate billing
             # When enabled: N photos per place but carousel photos are NOT tracked for billing
-            if PLACE_CAROUSEL_ENABLED:
+            if settings.place_carousel_enabled:
                 formatted["photo_urls"] = [
                     f"/api/v1/connectors/google-places/photo/{name}"
                     for name in photo_names[:PLACES_MAX_GALLERY_PHOTOS]
@@ -922,10 +921,10 @@ class GetPlaceDetailsTool(ToolOutputMixin, ConnectorTool[GooglePlacesClient]):
                 # Track the thumbnail photo API call
                 track_google_api_call("places", "/{photo}/media", cached=False)
 
-                # Carousel photos (only if enabled via PLACE_CAROUSEL_ENABLED env var)
+                # Carousel photos (only if enabled via settings.place_carousel_enabled)
                 # When disabled: 1 photo per place = accurate billing
                 # When enabled: N photos per place but carousel photos are NOT tracked for billing
-                if PLACE_CAROUSEL_ENABLED:
+                if settings.place_carousel_enabled:
                     details["photo_urls"] = [
                         f"/api/v1/connectors/google-places/photo/{name}"
                         for name in photo_names[:PLACES_MAX_GALLERY_PHOTOS]

@@ -1198,10 +1198,10 @@ The iterative builder uses a dedicated LLM instance via `MCP_EXCALIDRAW_LLM_*` s
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `MCP_EXCALIDRAW_LLM_PROVIDER` | `anthropic` | LLM provider |
-| `MCP_EXCALIDRAW_LLM_MODEL` | `claude-sonnet-4-20250514` | Model ID |
-| `MCP_EXCALIDRAW_LLM_TEMPERATURE` | `0.2` | Low temperature for deterministic output |
-| `MCP_EXCALIDRAW_LLM_MAX_TOKENS` | `8000` | Enough for complex diagrams |
-| `MCP_EXCALIDRAW_STEP_TIMEOUT_SECONDS` | `90` | Extended timeout (single LLM call) |
+| `MCP_EXCALIDRAW_LLM_MODEL` | `claude-opus-4-6` | Model ID |
+| `MCP_EXCALIDRAW_LLM_TEMPERATURE` | `0.3` | Low temperature for deterministic output |
+| `MCP_EXCALIDRAW_LLM_MAX_TOKENS` | `16000` | Enough for complex diagrams |
+| `MCP_EXCALIDRAW_STEP_TIMEOUT_SECONDS` | `60` | Timeout per Excalidraw step |
 
 ### SPATIAL_SUFFIX
 

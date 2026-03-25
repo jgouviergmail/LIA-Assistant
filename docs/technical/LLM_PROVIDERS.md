@@ -1,4 +1,4 @@
-# LLM Providers - Guide de Configuration .env
+# LLM Providers - Guide de Configuration
 
 **Statut** : Actif
 **Derniere mise a jour** : 2026-03-07
@@ -23,7 +23,11 @@
 
 ## Vue d'ensemble
 
-Chaque composant LLM du pipeline (router, planner, response, agents, etc.) est configurable independamment via le `.env`. La configuration suit le pattern :
+Chaque composant LLM du pipeline (router, planner, response, agents, etc.) est configurable independamment. Il existe deux mécanismes de configuration :
+
+**1. Admin UI (recommandé — sans redémarrage)** : Settings > Administration > LLM Configuration. Overrides stockés en DB, effectifs immédiatement. Voir [LLM_CONFIG_ADMIN.md](./LLM_CONFIG_ADMIN.md).
+
+**2. Variables d'environnement (fallback)** : Chaque type LLM peut être configuré via `.env` selon le pattern ci-dessous. Les valeurs `.env` sont les defaults code si aucun override DB n'existe.
 
 ```
 {LLM_TYPE}_LLM_PROVIDER=<provider>
@@ -37,7 +41,9 @@ Chaque composant LLM du pipeline (router, planner, response, agents, etc.) est c
 {LLM_TYPE}_LLM_PROVIDER_CONFIG=<JSON>
 ```
 
-**Flux** : `.env` -> `LLMSettings`/`AgentsSettings` -> `LLMAgentConfig` -> `ProviderAdapter.create_llm()` -> `BaseChatModel`
+> **Note** : Les clés per-agent LLM ne sont pas incluses dans `.env.example` — la configuration via Admin UI est préférable. Les valeurs defaults code sont définies dans `LLM_DEFAULTS` (`domains/llm_config/constants.py`).
+
+**Flux** : `LLM_DEFAULTS` (code) → DB override (Admin UI) → Config effective → `ProviderAdapter.create_llm()` → `BaseChatModel`
 
 ---
 
@@ -295,7 +301,7 @@ Chaque composant du pipeline a sa propre configuration LLM independante :
 
 ### Pipeline principal
 
-| LLM Type (prefixe `.env`) | Role | Besoin tools | Besoin structured output | Temperature recommandee |
+| LLM Type | Role | Besoin tools | Besoin structured output | Temperature recommandee |
 |----------------------------|------|:---:|:---:|:-:|
 | `ROUTER` | Classification de la requete | Non | Oui | 0.0 |
 | `QUERY_ANALYZER` | Analyse semantique | Non | Oui | 0.0 |
@@ -307,7 +313,7 @@ Chaque composant du pipeline a sa propre configuration LLM independante :
 
 ### Agents domaine (tool-using)
 
-| LLM Type (prefixe `.env`) | Domaine | Temperature recommandee |
+| LLM Type | Domaine | Temperature recommandee |
 |----------------------------|---------|:-:|
 | `CONTACTS_AGENT` | Google Contacts | 0.0 |
 | `EMAILS_AGENT` | Gmail | 0.0 |
@@ -327,7 +333,7 @@ Chaque composant du pipeline a sa propre configuration LLM independante :
 
 ### Services auxiliaires
 
-| LLM Type (prefixe `.env`) | Role | Config dans |
+| LLM Type | Role | Config dans |
 |----------------------------|------|-------------|
 | `HITL_CLASSIFIER` | Classification HITL | `agents.py` |
 | `HITL_QUESTION_GENERATOR` | Generation questions HITL | `agents.py` |

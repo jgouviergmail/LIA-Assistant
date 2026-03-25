@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.2] - 2026-03-25
+
+### Changed
+
+- **Complete Environment Configuration Overhaul** — All 8 `.env` files reorganized into 73 numbered sections with Table of Contents, standardized English comments (usage, impact, valid values), and full cross-file consistency. Files: `.env`, `.env.example`, `.env.prod`, `.env.prod.example`, `.env.min.prod`, `apps/web/.env.local.example`, `apps/web/.env.local.prod`, `apps/api/.env.test`. Section numbering is consistent across dev and prod files (prod skips `[07] SSL`). All comments are succinct inline format with column-aligned padding.
+- **98 Missing Settings Keys Added** — Audit of all 18 Pydantic config modules (645 total fields) against `.env.example` revealed 98 non-LLM Settings fields that had no `.env` entry. All added with default values from `constants.py`, organized in their correct sections. Categories: scoring thresholds (18), HITL (9), context resolution (6), planner/orchestration (11), memory extraction (5), browser (7), RAG (6), and more.
+
+### Fixed
+
+- **`PLACE_CAROUSEL_ENABLED` Settings Violation** — Was read directly via `os.environ.get()` in `constants.py`, bypassing the Settings system. Migrated to `ConnectorsSettings.place_carousel_enabled` field with `PLACE_CAROUSEL_ENABLED_DEFAULT` constant. Removed orphan `import os` from `constants.py`. Updated both usages in `places_tools.py` to read from `settings.place_carousel_enabled`. (`src/core/constants.py`, `src/core/config/connectors.py`, `src/domains/agents/tools/places_tools.py`)
+- **`RATE_LIMITING_ENABLED` Typo in `.env.test`** — Was `RATE_LIMITING_ENABLED=false` (non-existent field), corrected to `RATE_LIMIT_ENABLED=false` (actual `ConnectorsSettings.rate_limit_enabled` field).
+- **`list[str]` Fields JSON Format** — `APPROVAL_AUTO_APPROVE_ROLES` and `APPROVAL_SENSITIVE_CLASSIFICATIONS` were added with comma-separated format (`admin,power_user`) which Pydantic-settings cannot parse for `list[str]` fields. Fixed to JSON format (`["admin","power_user"]`).
+- **`ASSISTANT_NAME` Removed from `.env.min.prod`** — Was present as an env var but is actually a hardcoded constant in `constants.py` (not a Settings field). Removed to prevent confusion.
+- **`.env.prod.example` Section Numbering** — SSL section removal caused all subsequent sections to be renumbered `[07]-[72]` instead of keeping `[08]-[73]`. Fixed to maintain consistent numbering with `.env.example`. Also fixed em-dash `—` replaced by `--` in section headers.
+
+### Documentation
+
+- Updated `docs/technical/MCP_INTEGRATION.md` with MCP settings completeness
+- Updated `docs/technical/LLM_CONFIG_ADMIN.md` with note about LLM per-agent keys not in `.env`
+- Updated `docs/knowledge/11_mcp_servers.md` with new MCP config keys
+
 ## [1.11.1] - 2026-03-25
 
 ### Added

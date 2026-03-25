@@ -36,7 +36,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.11.1</strong> — Cross-Worker Cache Invalidation, Initiative &amp; Tool Selection Fixes — March 2026
+  <strong>Version 1.11.2</strong> — Environment Configuration Overhaul, Settings Compliance &amp; Documentation — March 2026
 </p>
 
 ---

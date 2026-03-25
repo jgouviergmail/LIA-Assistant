@@ -66,6 +66,8 @@ BaseChatModel
 
 > **Note**: La résolution API key utilise le DB en priorité, avec fallback `.env`. La migration `llm_config_002` a importé les clés `.env` existantes en DB. `_require_api_key()` dans `adapter.py` lève `ValueError` si aucune des deux sources n'a de clé.
 
+> **Scope de ce système**: Ce système Admin UI gère les **34 types LLM agent** (router, planner, contacts_agent, etc.). Les configurations LLM d'infrastructure (Excalidraw, MCP description generation) restent dans `.env` via `MCPSettings`. Les clés API provider (OPENAI_API_KEY, etc.) sont dans `.env` comme fallback.
+
 ### Contraintes Provider (filtrage automatique dans `adapter.py`)
 
 | Provider | temperature | top_p | frequency_penalty | presence_penalty | reasoning_effort | Notes |
