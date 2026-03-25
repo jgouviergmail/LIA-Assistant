@@ -4,8 +4,8 @@
 >
 > Documentazione di presentazione tecnica destinata ad architetti, ingegneri ed esperti tecnici.
 
-**Versione**: 2.0
-**Data**: 2026-03-24
+**Versione**: 2.1
+**Data**: 2026-03-25
 **Applicazione**: LIA v1.11.4
 **Licenza**: AGPL-3.0 (Open Source)
 
@@ -35,7 +35,7 @@
 20. [Osservabilità e monitoring](#20-osservabilità-e-monitoring)
 21. [Performance: ottimizzazioni e metriche](#21-performance--ottimizzazioni-e-metriche)
 22. [CI/CD e qualità](#22-cicd-e-qualità)
-23. [Pattern ingegneristici trasversali](#23-pattern-ingegneristici-trasversali)
+23. [Pattern di ingegneria trasversali](#23-pattern-di-ingegneria-trasversali)
 24. [Architettura delle decisioni (ADR)](#24-architettura-delle-decisioni-adr)
 25. [Potenziale di evoluzione ed estensibilità](#25-potenziale-di-evoluzione-ed-estensibilità)
 
@@ -273,6 +273,14 @@ L'`AgentRegistry` centralizza la registrazione degli agenti (`registry.register_
 
 **Perché un registro centralizzato?** Senza di esso, l'aggiunta di un agente richiedeva la modifica di 5+ file. Con il registro, un nuovo agente si dichiara in un singolo punto ed è automaticamente disponibile per il routing, la pianificazione e l'esecuzione.
 
+### 4.5. Domain Taxonomy
+
+Ogni dominio è un `DomainConfig` dichiarativo: nome, agenti, `result_key` (chiave canonica per i riferimenti `$steps`), `related_domains`, priorità e instradabilità. Il `DOMAIN_REGISTRY` è l'unica fonte di verità consumata da tre sottosistemi: SmartCatalogue (filtraggio), espansione semantica (domini adiacenti) e fase Initiative (pre-filtro strutturale).
+
+### 4.6. Tool Manifests
+
+Ogni tool dichiara un `ToolManifest` tramite un `ToolManifestBuilder` fluido: parametri, output, profilo di costo, permessi e `semantic_keywords` multilingue per il routing. I manifesti sono consumati dal planner (iniezione catalogo), dal router semantico (matching per parole chiave) e dall'agent builder (cablaggio dei tool). Vedi sezione 23 per l'architettura completa dei tool.
+
 ---
 
 ## 5. La pipeline di esecuzione conversazionale
@@ -350,6 +358,18 @@ Il `parallel_executor.py` organizza gli step in ondate (DAG):
 4. Alimenta il Data Registry con i risultati
 5. Ripete fino al completamento del piano
 
+### 6.4. Validatore Semantico
+
+Prima dell'approvazione HITL, un LLM dedicato (distinto dal planner, per evitare il bias di autovalidazione) ispeziona il piano secondo 14 tipi di anomalie in quattro categorie: **Critico** (capacità allucinata, dipendenza fantasma, ciclo logico), **Semantico** (disallineamento di cardinalità, overflow/underflow di scope, parametri errati), **Sicurezza** (ambiguità pericolosa, assunzione implicita) e **FOR_EACH** (cardinalità mancante, riferimento invalido). Cortocircuito per piani banali (1 step), timeout ottimistico di 1 s.
+
+### 6.5. Validazione dei Riferimenti
+
+I riferimenti tra step (`$steps.get_meetings.events[0].title`) vengono validati al momento della pianificazione con messaggi di errore strutturati: campo invalido, alternative disponibili ed esempi corretti — permettendo al planner di autocorreggersi nel retry invece di produrre fallimenti silenziosi.
+
+### 6.6. Re-Planner Adattivo (Panic Mode)
+
+In caso di fallimento dell'esecuzione, un analizzatore rule-based (senza LLM) classifica il pattern di fallimento (risultati vuoti, fallimento parziale, timeout, errore di riferimento) e seleziona una strategia di recovery: retry identico, replan con scope ampliato, escalation all'utente o abort. In **Panic Mode**, il SmartCatalogue si espande per includere tutti i tool in un unico retry — risolvendo i casi in cui il filtraggio per dominio era troppo aggressivo.
+
 ---
 
 ## 7. Smart Services: ottimizzazione intelligente
@@ -372,6 +392,14 @@ Senza ottimizzazione, lo scaling a 10+ domini faceva esplodere i costi: passare 
 **Salvaguardie**: K-anonimato (minimo 3 osservazioni per suggerimento, 10 per bypass), matching esatto dei domini, massimo 3 pattern iniettati (~45 token di overhead), timeout rigoroso di 5 ms.
 
 **Inizializzazione**: 50+ golden pattern predefiniti all'avvio, ciascuno con 20 successi simulati (= 95,7% di confidenza iniziale).
+
+### 7.3. QueryIntelligence
+
+Il QueryAnalyzer produce molto più della rilevazione di domini — genera una struttura `QueryIntelligence` profonda: intento immediato vs obiettivo finale (`UserGoal`: FIND_INFORMATION, TAKE_ACTION, COMMUNICATE...), intenti impliciti (es: "trovare contatto" probabilmente significa "inviare qualcosa"), strategie di fallback anticipate, indizi di cardinalità FOR_EACH e punteggi di confidenza per dominio calibrati con softmax. Questo dà al planner una visione più ricca della semplice estrazione di parole chiave.
+
+### 7.4. Pivot Semantico
+
+Le query in qualsiasi lingua vengono automaticamente tradotte in inglese prima del confronto di embedding, migliorando la precisione cross-linguistica. Cache Redis (TTL 5 min, ~5 ms in hit vs ~500 ms in miss), tramite un LLM veloce.
 
 ---
 
@@ -423,7 +451,11 @@ La Fase 8 (attuale) sottopone il **piano completo** all'utente **prima** di qual
 
 Per le bozze, un prompt dedicato genera una critica strutturata con template markdown per dominio, emoji dei campi, confronto before/after con strikethrough per gli aggiornamenti e avvisi di irreversibilità. I risultati post-HITL mostrano label i18n e link cliccabili.
 
-### 9.4. Compaction Safety
+### 9.4. Classificazione delle Risposte
+
+Quando l'utente risponde a un prompt di approvazione, un classificatore full-LLM (non regex) categorizza la risposta in 5 decisioni: **APPROVE**, **REJECT**, **EDIT** (stessa azione, parametri diversi), **REPLAN** (azione completamente diversa) o **AMBIGUOUS**. Una logica di degradazione previene i falsi positivi: un EDIT con parametri mancanti viene degradato ad AMBIGUOUS, attivando una richiesta di chiarimento.
+
+### 9.5. Compaction Safety
 
 4 condizioni impediscono la compaction LLM (riassunto dei messaggi precedenti) durante i flussi di approvazione attivi. Senza questa protezione, un riassunto potrebbe eliminare il contesto critico di un'interruzione in corso.
 
@@ -543,7 +575,11 @@ ConnectorTool (base.py) → ClientRegistry → resolve_client(type) → Protocol
 
 **Perché i protocol Python?** Il duck typing strutturale permette di aggiungere un nuovo provider senza modificare il codice chiamante. Il `ProviderResolver` garantisce che un solo fornitore sia attivo per categoria funzionale.
 
-### 13.2. Pattern riutilizzabili
+### 13.2. Normalizer
+
+Ogni provider restituisce dati nel proprio formato. Normalizer dedicati (`calendar_normalizer`, `contacts_normalizer`, `email_normalizer`, `tasks_normalizer`) convertono le risposte specifiche di ogni provider in modelli di dominio unificati. Aggiungere un nuovo provider richiede solo l'implementazione del protocollo e del suo normalizer — il codice chiamante rimane invariato.
+
+### 13.3. Pattern riutilizzabili
 
 `BaseOAuthClient` (template method con 3 hook), `BaseGoogleClient` (paginazione tramite pageToken), `BaseMicrosoftClient` (OData). Circuit breaker, rate limiting Redis distribuito, refresh token con double-check pattern e Redis locking contro il thundering herd.
 
@@ -743,35 +779,47 @@ ESLint + TypeScript check           CodeQL (Python + JS)
 
 ---
 
-## 23. Pattern ingegneristici trasversali
+## 23. Pattern di ingegneria trasversali
 
-### 23.1. Tool System
+### 23.1. Sistema di Tool: architettura a 5 livelli
 
-```python
-@tool
-async def my_tool(param: str) -> dict:
-    try:
-        result = await do_something(param)
-        return ToolResponse(success=True, data=result).model_dump()
-    except Exception as e:
-        return ToolErrorModel.from_exception(e, context={"tool": "my_tool"}).to_response()
-```
+Il sistema di tool è costruito in cinque livelli componibili, riducendo il boilerplate per tool da ~150 righe a ~8 righe (riduzione del 94%):
 
-`@connector_tool` per iniezione di credenziali, `@auto_save_context` per persistenza nel Data Registry.
+| Livello | Componente | Ruolo |
+|---------|-----------|------|
+| 1 | `ConnectorTool[ClientType]` | Base generica: OAuth auto-refresh, cache client, dependency injection |
+| 2 | `@connector_tool` | Meta-decoratore che compone `@tool` + metriche + rate limiting + salvataggio contesto |
+| 3 | Formatter | `ContactFormatter`, `EmailFormatter`... — normalizzazione risultati per dominio |
+| 4 | `ToolManifest` + Builder | Dichiarazione dichiarativa: parametri, output, costi, permessi, keyword semantiche |
+| 5 | Catalogue Loader | Introspezione dinamica, generazione manifesti, raggruppamento per dominio |
 
-### 23.2. Prompt System
+I limiti di frequenza sono per categoria: Read (20/min), Write (5/min), Expensive (2/5 min). I tool possono produrre una stringa (legacy) o un `UnifiedToolOutput` strutturato (modalità Data Registry).
 
-57 file `.txt` versionati in `src/domains/agents/prompts/v1/`, caricati tramite `load_prompt()` con LRU cache (32 voci). Versioni configurabili tramite variabili d'ambiente.
+### 23.2. Data Registry
 
-### 23.3. Centralized Component Activation (ADR-061)
+Il Data Registry (`InMemoryStore`) disaccoppia i risultati dei tool dalla cronologia dei messaggi. I risultati vengono memorizzati per richiesta tramite `@auto_save_context` e sopravvivono al windowing dei messaggi — questo è ciò che rende praticabile il windowing aggressivo per nodo (5/10/20 turni) senza perdere il contesto delle uscite dei tool. I riferimenti tra step (`$steps.X.field`) risolvono contro il registry, non contro i messaggi.
 
-Sistema a 3 livelli che risolve un problema di duplicazione: prima di ADR-061, il filtraggio dei componenti attivati/disattivati era disperso in 7+ punti. Da allora:
+### 23.3. Architettura degli Errori
+
+Tutti i tool restituiscono `ToolResponse` (successo) o `ToolErrorModel` (fallimento) con un enum `ToolErrorCode` (18+ tipi: INVALID_INPUT, RATE_LIMIT_EXCEEDED, TEMPLATE_EVALUATION_FAILED...) e un flag `recoverability`. Lato API, raiser di eccezioni centralizzati (`raise_user_not_found`, `raise_permission_denied`...) sostituiscono ovunque le HTTPException grezze — garantendo contratti di errore coerenti.
+
+### 23.4. Sistema di Prompt
+
+57 file `.txt` versionati in `src/domains/agents/prompts/v1/`, caricati tramite `load_prompt()` con cache LRU (32 voci). Versioni configurabili tramite variabili d'ambiente.
+
+### 23.5. Attivazione Centralizzata dei Componenti (ADR-061)
+
+Sistema a 3 livelli che risolve un problema di duplicazione: prima dell'ADR-061, il filtraggio dei componenti attivati/disattivati era disperso in 7+ punti. Ora:
 
 | Livello | Meccanismo |
 |---------|-----------|
-| Layer 1 | Gate-keeper dominio: valida i domini LLM-output contro `available_domains` |
-| Layer 2 | `request_tool_manifests_ctx`: ContextVar costruito una volta per richiesta |
-| Layer 3 | API guard 403 sugli endpoint MCP proxy |
+| Livello 1 | Gate-keeper di dominio: valida i domini LLM contro `available_domains` |
+| Livello 2 | `request_tool_manifests_ctx`: ContextVar costruito una volta per richiesta |
+| Livello 3 | Guard API 403 sugli endpoint proxy MCP |
+
+### 23.6. Feature Flag
+
+Ogni sottosistema opzionale è controllato da un flag `{FEATURE}_ENABLED`, verificato all'avvio (registrazione scheduler), al cablaggio delle rotte e all'ingresso dei nodi (cortocircuito istantaneo). Questo permette di distribuire il codebase completo attivando progressivamente i sottosistemi.
 
 ---
 

@@ -4,8 +4,8 @@
 >
 > Technical presentation documentation for architects, engineers and technical experts.
 
-**Version**: 2.0
-**Date**: 2026-03-24
+**Version**: 2.1
+**Date**: 2026-03-25
 **Application**: LIA v1.11.4
 **License**: AGPL-3.0 (Open Source)
 
@@ -273,6 +273,14 @@ The `AgentRegistry` centralizes agent registration (`registry.register_agent()` 
 
 **Why a centralized registry?** Without it, adding an agent required modifying 5+ files. With the registry, a new agent declares itself at a single point and is automatically available for routing, planning, and execution.
 
+### 4.5. Domain Taxonomy
+
+Each domain is a declarative `DomainConfig`: name, agents, `result_key` (canonical key for `$steps` references), `related_domains`, priority, and routability. The `DOMAIN_REGISTRY` is the single source of truth consumed by three subsystems: SmartCatalogue (filtering), semantic expansion (adjacent domains), and Initiative phase (structural pre-filter).
+
+### 4.6. Tool Manifests
+
+Each tool declares a `ToolManifest` via a fluent `ToolManifestBuilder`: parameters, outputs, cost profile, permissions, and multilingual `semantic_keywords` for routing. Manifests are consumed by the planner (catalogue injection), the semantic router (keyword matching), and the agent builder (tool wiring). See section 23 for the full tool architecture.
+
 ---
 
 ## 5. The conversational execution pipeline
@@ -350,6 +358,18 @@ The `parallel_executor.py` organizes steps into waves (DAG):
 4. Feeds the Data Registry with results
 5. Repeats until plan completion
 
+### 6.4. Semantic Validator
+
+Before HITL approval, a dedicated LLM (distinct from the planner, to avoid self-validation bias) inspects the plan against 14 issue types across four categories: **Critical** (hallucinated capability, ghost dependency, logical cycle), **Semantic** (cardinality mismatch, scope overflow/underflow, wrong parameters), **Safety** (dangerous ambiguity, implicit assumption), and **FOR_EACH** (missing cardinality, invalid reference). Short-circuit for trivial plans (1 step), optimistic 1 s timeout.
+
+### 6.5. Reference Validation
+
+Cross-step references (`$steps.get_meetings.events[0].title`) are validated at plan time with structured error messages: invalid field, available alternatives, and corrected examples — so the planner can self-correct on retry instead of producing silent failures.
+
+### 6.6. Adaptive Re-Planner (Panic Mode)
+
+When execution fails, a rule-based (no LLM) analyser classifies the failure pattern (empty results, partial failure, timeout, reference error) and selects a recovery strategy: retry same, replan with broader scope, escalate to user, or abort. In **Panic Mode**, the SmartCatalogue expands to include all tools for a single retry — solving cases where domain filtering was too aggressive.
+
 ---
 
 ## 7. Smart Services: intelligent optimization
@@ -372,6 +392,14 @@ Without optimization, scaling to 10+ domains caused costs to explode: going from
 **Safeguards**: K-anonymity (minimum 3 observations for suggestion, 10 for bypass), exact domain matching, maximum 3 injected patterns (~45 tokens overhead), strict 5 ms timeout.
 
 **Bootstrapping**: 50+ predefined golden patterns at startup, each with 20 simulated successes (= 95.7% initial confidence).
+
+### 7.3. QueryIntelligence
+
+The QueryAnalyzer does more than detect domains — it produces a deep `QueryIntelligence` structure: immediate intent vs ultimate goal (`UserGoal`: FIND_INFORMATION, TAKE_ACTION, COMMUNICATE...), implicit intents (e.g. "find contact" probably means "send something"), anticipated fallback strategies, FOR_EACH cardinality hints, and softmax-calibrated domain confidence scores. This gives the planner a richer picture than simple keyword extraction.
+
+### 7.4. Semantic Pivot
+
+Queries in any language are automatically translated to English before embedding comparison, improving cross-lingual accuracy. Redis-cached (5 min TTL, ~5 ms on hit vs ~500 ms on miss), using a fast LLM.
 
 ---
 
@@ -423,7 +451,11 @@ Phase 8 (current) submits the **complete plan** to the user **before** any execu
 
 For drafts, a dedicated prompt generates a structured critique with per-domain markdown templates, field emojis, before/after comparison with strikethrough for updates, and irreversibility warnings. Post-HITL results display i18n labels and clickable links.
 
-### 9.4. Compaction Safety
+### 9.4. Response Classification
+
+When the user responds to an approval prompt, a full-LLM classifier (not regex) categorizes the answer into 5 decisions: **APPROVE**, **REJECT**, **EDIT** (same action, different parameters), **REPLAN** (different action entirely), or **AMBIGUOUS**. Demotion logic prevents false positives: an EDIT with missing parameters is demoted to AMBIGUOUS, triggering a clarification follow-up.
+
+### 9.5. Compaction Safety
 
 4 conditions prevent LLM compaction (summarization of old messages) during active approval flows. Without this protection, a summary could delete the critical context of an ongoing interruption.
 
@@ -543,7 +575,11 @@ ConnectorTool (base.py) → ClientRegistry → resolve_client(type) → Protocol
 
 **Why Python protocols?** Structural duck typing allows adding a new provider without modifying calling code. The `ProviderResolver` guarantees that only one provider is active per functional category.
 
-### 13.2. Reusable patterns
+### 13.2. Normalizers
+
+Each provider returns data in its own format. Dedicated normalizers (`calendar_normalizer`, `contacts_normalizer`, `email_normalizer`, `tasks_normalizer`) convert provider-specific responses into unified domain models. Adding a new provider requires only implementing the protocol and its normalizer — calling code remains unchanged.
+
+### 13.3. Reusable patterns
 
 `BaseOAuthClient` (template method with 3 hooks), `BaseGoogleClient` (pagination via pageToken), `BaseMicrosoftClient` (OData). Circuit breaker, distributed Redis rate limiting, refresh token with double-check pattern and Redis locking against thundering herd.
 
@@ -745,25 +781,33 @@ ESLint + TypeScript check           CodeQL (Python + JS)
 
 ## 23. Cross-cutting engineering patterns
 
-### 23.1. Tool System
+### 23.1. Tool System: 5-layer architecture
 
-```python
-@tool
-async def my_tool(param: str) -> dict:
-    try:
-        result = await do_something(param)
-        return ToolResponse(success=True, data=result).model_dump()
-    except Exception as e:
-        return ToolErrorModel.from_exception(e, context={"tool": "my_tool"}).to_response()
-```
+The tool system is built in five composable layers, reducing per-tool boilerplate from ~150 lines to ~8 lines (94% reduction):
 
-`@connector_tool` for credential injection, `@auto_save_context` for Data Registry persistence.
+| Layer | Component | Role |
+|-------|-----------|------|
+| 1 | `ConnectorTool[ClientType]` | Generic base: OAuth auto-refresh, client caching, dependency injection |
+| 2 | `@connector_tool` | Meta-decorator composing `@tool` + metrics + rate limiting + context save |
+| 3 | Formatters | `ContactFormatter`, `EmailFormatter`... — normalize results per domain |
+| 4 | `ToolManifest` + Builder | Declarative declaration: params, outputs, cost, permissions, semantic keywords |
+| 5 | Catalogue Loader | Dynamic introspection, manifest generation, domain grouping |
 
-### 23.2. Prompt System
+Rate limits are category-based: Read (20/min), Write (5/min), Expensive (2/5 min). Tools can produce either a string (legacy) or a structured `UnifiedToolOutput` (Data Registry mode).
+
+### 23.2. Data Registry
+
+The Data Registry (`InMemoryStore`) decouples tool results from message history. Results are stored per-request via `@auto_save_context` and survive message windowing — this is what makes aggressive per-node windowing (5/10/20 turns) viable without losing tool output context. Cross-step references (`$steps.X.field`) resolve against the registry, not messages.
+
+### 23.3. Error Architecture
+
+All tools return `ToolResponse` (success) or `ToolErrorModel` (failure) with a `ToolErrorCode` enum (18+ types: INVALID_INPUT, RATE_LIMIT_EXCEEDED, TEMPLATE_EVALUATION_FAILED...) and a `recoverability` flag. On the API side, centralized exception raisers (`raise_user_not_found`, `raise_permission_denied`...) replace raw HTTPException everywhere — ensuring consistent error contracts.
+
+### 23.4. Prompt System
 
 57 versioned `.txt` files in `src/domains/agents/prompts/v1/`, loaded via `load_prompt()` with LRU cache (32 entries). Versions configurable via environment variables.
 
-### 23.3. Centralized Component Activation (ADR-061)
+### 23.5. Centralized Component Activation (ADR-061)
 
 3-layer system solving a duplication problem: before ADR-061, filtering of enabled/disabled components was scattered across 7+ sites. Now:
 
@@ -772,6 +816,10 @@ async def my_tool(param: str) -> dict:
 | Layer 1 | Domain gate-keeper: validates LLM-output domains against `available_domains` |
 | Layer 2 | `request_tool_manifests_ctx`: ContextVar built once per request |
 | Layer 3 | API guard 403 on MCP proxy endpoints |
+
+### 23.6. Feature Flags
+
+Every optional subsystem is controlled by a `{FEATURE}_ENABLED` flag, checked at startup (scheduler registration), route wiring, and node entry (instant short-circuit). This allows deploying the full codebase while activating subsystems incrementally.
 
 ---
 

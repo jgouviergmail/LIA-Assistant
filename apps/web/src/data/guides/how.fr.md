@@ -4,8 +4,8 @@
 >
 > Documentation de présentation technique destinée aux architectes, ingénieurs et experts techniques.
 
-**Version** : 2.0
-**Date** : 2026-03-24
+**Version** : 2.1
+**Date** : 2026-03-25
 **Application** : LIA v1.11.4
 **Licence** : AGPL-3.0 (Open Source)
 
@@ -273,6 +273,14 @@ Le `AgentRegistry` centralise l'enregistrement des agents (`registry.register_ag
 
 **Pourquoi un registre centralisé ?** Sans lui, l'ajout d'un agent nécessitait de modifier 5+ fichiers. Avec le registre, un nouvel agent se déclare en un seul point et est automatiquement disponible pour le routage, la planification et l'exécution.
 
+### 4.5. Domain Taxonomy
+
+Chaque domaine est un `DomainConfig` déclaratif : nom, agents, `result_key` (clé canonique pour les références `$steps`), `related_domains`, priorité et routabilité. Le `DOMAIN_REGISTRY` est la source de vérité unique consommée par trois sous-systèmes : SmartCatalogue (filtrage), expansion sémantique (domaines adjacents) et phase Initiative (pré-filtre structurel).
+
+### 4.6. Tool Manifests
+
+Chaque tool déclare un `ToolManifest` via un `ToolManifestBuilder` fluide : paramètres, sorties, profil de coût, permissions et `semantic_keywords` multilingues pour le routage. Les manifestes sont consommés par le planner (injection de catalogue), le routeur sémantique (matching par mots-clés) et le builder d'agents (câblage des tools). Voir section 23 pour l'architecture complète des tools.
+
 ---
 
 ## 5. Le pipeline d'exécution conversationnel
@@ -350,6 +358,18 @@ Le `parallel_executor.py` organise les étapes en vagues (DAG) :
 4. Alimente le Data Registry avec les résultats
 5. Répète jusqu'à complétion du plan
 
+### 6.4. Validateur Sémantique
+
+Avant l'approbation HITL, un LLM dédié (distinct du planner, pour éviter le biais d'auto-validation) inspecte le plan selon 14 types d'anomalies répartis en quatre catégories : **Critique** (capacité hallucinée, dépendance fantôme, cycle logique), **Sémantique** (incohérence de cardinalité, débordement/sous-couverture de périmètre, paramètres incorrects), **Sécurité** (ambiguïté dangereuse, hypothèse implicite) et **FOR_EACH** (cardinalité manquante, référence invalide). Court-circuit pour les plans triviaux (1 étape), timeout optimiste de 1 s.
+
+### 6.5. Validation des Références
+
+Les références inter-étapes (`$steps.get_meetings.events[0].title`) sont validées au moment du plan avec des messages d'erreur structurés : champ invalide, alternatives disponibles et exemples corrigés — permettant au planner de s'auto-corriger lors d'un retry au lieu de produire des échecs silencieux.
+
+### 6.6. Re-Planner Adaptatif (Panic Mode)
+
+En cas d'échec d'exécution, un analyseur rule-based (sans LLM) classifie le pattern d'échec (résultats vides, échec partiel, timeout, erreur de référence) et sélectionne une stratégie de recovery : retry identique, replan avec périmètre élargi, escalade utilisateur ou abandon. En **Panic Mode**, le SmartCatalogue s'élargit pour inclure tous les outils lors d'un unique retry — résolvant les cas où le filtrage par domaine était trop agressif.
+
 ---
 
 ## 7. Smart Services : optimisation intelligente
@@ -372,6 +392,14 @@ Sans optimisation, le scaling à 10+ domaines faisait exploser les coûts : pass
 **Garde-fous** : K-anonymité (minimum 3 observations pour suggestion, 10 pour bypass), matching exact de domaines, maximum 3 patterns injectés (~45 tokens overhead), timeout strict de 5 ms.
 
 **Amorçage** : 50+ golden patterns prédéfinis au démarrage, chacun avec 20 succès simulés (= 95,7 % de confiance initiale).
+
+### 7.3. QueryIntelligence
+
+Le QueryAnalyzer produit bien plus qu'une détection de domaines — il génère une structure `QueryIntelligence` profonde : intent immédiat vs objectif final (`UserGoal` : FIND_INFORMATION, TAKE_ACTION, COMMUNICATE...), intents implicites (ex : « trouver un contact » signifie probablement « envoyer quelque chose »), stratégies de fallback anticipées, indices de cardinalité FOR_EACH et scores de confiance par domaine calibrés par softmax. Cela donne au planner une vision plus riche qu'une simple extraction de mots-clés.
+
+### 7.4. Pivot Sémantique
+
+Les requêtes en toute langue sont automatiquement traduites en anglais avant la comparaison d'embeddings, améliorant la précision cross-lingue. Cache Redis (TTL 5 min, ~5 ms en hit vs ~500 ms en miss), via un LLM rapide.
 
 ---
 
@@ -423,7 +451,11 @@ La Phase 8 (actuelle) soumet le **plan complet** à l'utilisateur **avant** tout
 
 Pour les brouillons, un prompt dédié génère une critique structurée avec templates markdown par domaine, emojis de champs, comparaison before/after avec strikethrough pour les mises à jour, et avertissements d'irréversibilité. Les résultats post-HITL affichent labels i18n et liens cliquables.
 
-### 9.4. Compaction Safety
+### 9.4. Classification des Réponses
+
+Lorsque l'utilisateur répond à un prompt d'approbation, un classifieur full-LLM (pas de regex) catégorise la réponse en 5 décisions : **APPROVE**, **REJECT**, **EDIT** (même action, paramètres différents), **REPLAN** (action entièrement différente) ou **AMBIGUOUS**. Une logique de démotion prévient les faux positifs : un EDIT avec paramètres manquants est rétrogradé en AMBIGUOUS, déclenchant une clarification.
+
+### 9.5. Compaction Safety
 
 4 conditions empêchent la compaction LLM (résumé des anciens messages) pendant les flux d'approbation actifs. Sans cette protection, un résumé pourrait supprimer le contexte critique d'une interruption en cours.
 
@@ -543,7 +575,11 @@ ConnectorTool (base.py) → ClientRegistry → resolve_client(type) → Protocol
 
 **Pourquoi des protocoles Python ?** Le duck typing structurel permet d'ajouter un nouveau provider sans modifier le code appelant. Le `ProviderResolver` garantit qu'un seul fournisseur est actif par catégorie fonctionnelle.
 
-### 13.2. Patterns réutilisables
+### 13.2. Normalizers
+
+Chaque provider retourne des données dans son propre format. Des normalizers dédiés (`calendar_normalizer`, `contacts_normalizer`, `email_normalizer`, `tasks_normalizer`) convertissent les réponses spécifiques à chaque provider en modèles de domaine unifiés. Ajouter un nouveau provider nécessite uniquement d'implémenter le protocole et son normalizer — le code appelant reste inchangé.
+
+### 13.3. Patterns réutilisables
 
 `BaseOAuthClient` (template method avec 3 hooks), `BaseGoogleClient` (pagination via pageToken), `BaseMicrosoftClient` (OData). Circuit breaker, rate limiting Redis distribué, refresh token avec double-check pattern et Redis locking contre le thundering herd.
 
@@ -745,33 +781,45 @@ ESLint + TypeScript check           CodeQL (Python + JS)
 
 ## 23. Patterns d'ingénierie transversaux
 
-### 23.1. Tool System
+### 23.1. Système de Tools : architecture en 5 couches
 
-```python
-@tool
-async def my_tool(param: str) -> dict:
-    try:
-        result = await do_something(param)
-        return ToolResponse(success=True, data=result).model_dump()
-    except Exception as e:
-        return ToolErrorModel.from_exception(e, context={"tool": "my_tool"}).to_response()
-```
+Le système de tools est construit en cinq couches composables, réduisant le boilerplate par tool de ~150 lignes à ~8 lignes (réduction de 94 %) :
 
-`@connector_tool` pour injection de credentials, `@auto_save_context` pour persistance dans le Data Registry.
+| Couche | Composant | Rôle |
+|--------|-----------|------|
+| 1 | `ConnectorTool[ClientType]` | Base générique : OAuth auto-refresh, cache client, injection de dépendances |
+| 2 | `@connector_tool` | Méta-décorateur composant `@tool` + métriques + rate limiting + sauvegarde contexte |
+| 3 | Formatters | `ContactFormatter`, `EmailFormatter`... — normalisation des résultats par domaine |
+| 4 | `ToolManifest` + Builder | Déclaration déclarative : params, sorties, coût, permissions, mots-clés sémantiques |
+| 5 | Catalogue Loader | Introspection dynamique, génération de manifestes, regroupement par domaine |
 
-### 23.2. Prompt System
+Les limites de débit sont catégorisées : Read (20/min), Write (5/min), Expensive (2/5 min). Les tools peuvent produire soit une chaîne (legacy) soit un `UnifiedToolOutput` structuré (mode Data Registry).
 
-57 fichiers `.txt` versionnés dans `src/domains/agents/prompts/v1/`, chargés via `load_prompt()` avec LRU cache (32 entrées). Versions configurables via variables d'environnement.
+### 23.2. Data Registry
 
-### 23.3. Centralized Component Activation (ADR-061)
+Le Data Registry (`InMemoryStore`) découple les résultats des tools de l'historique de messages. Les résultats sont stockés par requête via `@auto_save_context` et survivent au windowing des messages — c'est ce qui rend le windowing agressif par nœud (5/10/20 tours) viable sans perdre le contexte des sorties de tools. Les références inter-étapes (`$steps.X.field`) résolvent contre le registry, pas contre les messages.
 
-Système à 3 couches résolvant un problème de duplication : avant ADR-061, le filtrage des composants activés/désactivés était dispersé dans 7+ sites. Désormais :
+### 23.3. Architecture d'Erreurs
+
+Tous les tools retournent `ToolResponse` (succès) ou `ToolErrorModel` (échec) avec un enum `ToolErrorCode` (18+ types : INVALID_INPUT, RATE_LIMIT_EXCEEDED, TEMPLATE_EVALUATION_FAILED...) et un flag `recoverability`. Côté API, des raisers d'exceptions centralisés (`raise_user_not_found`, `raise_permission_denied`...) remplacent partout les HTTPException brutes — garantissant des contrats d'erreur cohérents.
+
+### 23.4. Système de Prompts
+
+57 fichiers `.txt` versionnés dans `src/domains/agents/prompts/v1/`, chargés via `load_prompt()` avec cache LRU (32 entrées). Versions configurables par variables d'environnement.
+
+### 23.5. Activation Centralisée des Composants (ADR-061)
+
+Système en 3 couches résolvant un problème de duplication : avant l'ADR-061, le filtrage des composants activés/désactivés était dispersé dans 7+ endroits. Maintenant :
 
 | Couche | Mécanisme |
 |--------|-----------|
-| Layer 1 | Gate-keeper domaine : valide les domaines LLM-output contre `available_domains` |
-| Layer 2 | `request_tool_manifests_ctx` : ContextVar construit une fois par requête |
-| Layer 3 | API guard 403 sur les endpoints MCP proxy |
+| Couche 1 | Gate-keeper de domaine : valide les domaines LLM contre `available_domains` |
+| Couche 2 | `request_tool_manifests_ctx` : ContextVar construit une fois par requête |
+| Couche 3 | Guard API 403 sur les endpoints proxy MCP |
+
+### 23.6. Feature Flags
+
+Chaque sous-système optionnel est contrôlé par un flag `{FEATURE}_ENABLED`, vérifié au démarrage (enregistrement scheduler), au câblage des routes et à l'entrée des nœuds (court-circuit instantané). Cela permet de déployer le codebase complet tout en activant les sous-systèmes progressivement.
 
 ---
 

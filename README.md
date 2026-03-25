@@ -629,6 +629,26 @@ apps/api/src/
     └── observability/       # Metrics, logging, tracing
 ```
 
+### Key Design Patterns
+
+**Tool System (5-layer architecture)** — Tools are built in five composable layers: `ConnectorTool[ClientType]` (generic base with OAuth auto-refresh), `@connector_tool` (meta-decorator composing metrics + rate limiting + context save), Formatters (domain-specific result normalization), `ToolManifest` + Builder (declarative declaration with semantic keywords), and Catalogue Loader (dynamic introspection). Per-tool boilerplate reduced from ~150 to ~8 lines (94% reduction). Category-based rate limits: Read (20/min), Write (5/min), Expensive (2/5 min).
+
+**Domain Taxonomy** — Each domain is a declarative `DomainConfig` (agents, `result_key`, `related_domains`, priority, routability). The `DOMAIN_REGISTRY` is the single source of truth consumed by SmartCatalogue (filtering), semantic expansion (adjacent domains), and the Initiative phase (structural pre-filter).
+
+**Data Registry** — An `InMemoryStore` decouples tool results from message history. Results survive per-node message windowing (5/10/20 turns) via `@auto_save_context`, and cross-step references (`$steps.X.field`) resolve against the registry — this is what makes aggressive windowing viable without losing tool output context.
+
+**Semantic Validator** — Before HITL approval, a dedicated LLM (distinct from the planner) inspects plans against 14 issue types across four categories: Critical (hallucinated capability, ghost dependency), Semantic (cardinality mismatch, scope overflow), Safety (dangerous ambiguity), and FOR_EACH-specific validations.
+
+**Adaptive Re-Planner** — On execution failure, a rule-based analyser classifies the failure pattern and selects a recovery strategy. In **Panic Mode**, the SmartCatalogue expands to all tools for one retry, solving cases where domain filtering was too aggressive.
+
+**Connector Abstraction** — Python protocols enable transparent switching between Google, Apple, and Microsoft providers. Normalizers convert provider-specific responses into unified domain models. The `ProviderResolver` guarantees only one provider per functional category (email, calendar, contacts, tasks).
+
+**Error Architecture** — All tools return `ToolResponse`/`ToolErrorModel` with a `ToolErrorCode` enum (18+ types) and a `recoverability` flag. API-side centralized exception raisers replace raw HTTPException everywhere.
+
+**Feature Flags** — Every optional subsystem is controlled by a `{FEATURE}_ENABLED` flag, checked at startup, route wiring, and node entry (instant short-circuit).
+
+> Full technical details: [How does LIA work?](https://lia.jeyswork.com/how) — 25-section architecture guide
+
 ---
 
 ## Technologies
