@@ -1112,6 +1112,21 @@ services/hitl/interactions/
 └── clarification.py (300 lines) - Clarification questions
 ```
 
+### Draft Modification Service (v1.11.4)
+
+**File**: `apps/api/src/domains/agents/services/hitl/draft_modifier.py`
+
+When a user requests changes during draft critique (e.g., "non envoi à jgouvier@hotmail.com"), the `DraftModificationService` regenerates the draft content via LLM. The service uses a three-layer approach for recipient changes:
+
+1. **LLM-based modification** — The `draft_modifier_prompt.txt` instructs the LLM to modify all content fields including `to`/`cc` when the user explicitly requests it.
+2. **Explicit recipient override (post-processing)** — `_apply_explicit_recipient_override()` detects email addresses in user instructions via regex. If the LLM failed to change the `to` field, the extracted email is applied directly. This handles cases where the LLM ignores recipient change instructions.
+3. **Contact name resolution (fallback)** — If no email is found in instructions, the service matches contact names against the `contact_context` (from the user's connected accounts) and resolves to the first email address.
+
+**Observability** (debug level):
+- `draft_modification_prompt_built` — System prompt preview sent to LLM
+- `draft_modification_llm_raw_response` — Raw LLM output for diagnosis
+- `draft_modification_completed` with `actual_changes` — Fields that truly changed (not just returned by LLM)
+
 ---
 
 ## 🔄 Resumption Strategies (Advanced HITL)
@@ -1502,7 +1517,7 @@ HITL_BUTTON_LABELS = {
 | hitl_classifier.py | 801 | User response classification |
 | question_generator.py | 766 | LLM question generation |
 | resumption_strategies.py | 1,437 | **Plan resumption logic** |
-| draft_modifier.py | 407 | Draft editing during HITL |
+| draft_modifier.py | 480 | Draft editing during HITL (v1.11.4: recipient override post-processing, debug logging) |
 | validator.py | 464 | HITL security validation |
 | schema_validator.py | 322 | Schema compliance |
 | parameter_enrichment.py | 337 | Parameter enrichment |

@@ -63,6 +63,7 @@ apps/api/src/domains/agents/prompts/
     ├── hitl_question_generator_prompt.txt
     ├── hitl_plan_approval_question_prompt.txt
     ├── hitl_draft_critique_prompt.txt
+    ├── draft_modifier_prompt.txt               # Draft modification during HITL edit
     │
     ├── hierarchical_stage1_routing_prompt.txt  # Hierarchical planner
     ├── hierarchical_stage2_subplanning_prompt.txt

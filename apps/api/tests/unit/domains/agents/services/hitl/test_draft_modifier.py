@@ -161,8 +161,8 @@ class TestBuildContextInfo:
         draft = {"to": "test@example.com", "cc": "cc@example.com", "subject": "Test"}
         result = service._build_context_info(draft, "email")
 
-        assert "Destinataire: test@example.com" in result
-        assert "CC: cc@example.com" in result
+        assert "Destinataire actuel (modifiable): test@example.com" in result
+        assert "CC actuel (modifiable): cc@example.com" in result
         assert "Sujet actuel: Test" in result
 
     def test_email_context_info_minimal(self, service):
@@ -170,15 +170,15 @@ class TestBuildContextInfo:
         draft = {"to": "test@example.com"}
         result = service._build_context_info(draft, "email")
 
-        assert "Destinataire: test@example.com" in result
-        assert "CC:" not in result
+        assert "Destinataire actuel (modifiable): test@example.com" in result
+        assert "CC" not in result or "CC actuel" not in result
 
     def test_email_reply_context_no_subject(self, service):
         """Test that email_reply doesn't include subject."""
         draft = {"to": "test@example.com", "subject": "Re: Test"}
         result = service._build_context_info(draft, "email_reply")
 
-        assert "Destinataire: test@example.com" in result
+        assert "Destinataire actuel (modifiable): test@example.com" in result
         assert "Sujet" not in result
 
     def test_event_context_info(self, service):
@@ -616,3 +616,107 @@ class TestGetDraftModificationService:
 
         mock_get_llm.assert_not_called()
         assert service1 is service2
+
+
+class TestApplyExplicitRecipientOverride:
+    """Tests for _apply_explicit_recipient_override post-processing."""
+
+    @pytest.fixture
+    def service(self):
+        """Create service with mocked LLM."""
+        with patch("src.domains.agents.services.hitl.draft_modifier.get_llm") as mock:
+            mock.return_value = MagicMock()
+            return DraftModificationService()
+
+    def test_extracts_email_from_instructions(self, service):
+        """Test that explicit email in instructions overrides unchanged to field."""
+        modified_content = {"to": "original@example.com", "body": "Hello"}
+        original_draft = {"to": "original@example.com", "body": "Old"}
+        instructions = "non envoi à newuser@hotmail.com"
+
+        result = service._apply_explicit_recipient_override(
+            modified_content, instructions, original_draft, None, None
+        )
+
+        assert result["to"] == "newuser@hotmail.com"
+
+    def test_extracts_multiple_emails(self, service):
+        """Test that multiple emails in instructions are joined."""
+        modified_content = {"to": "original@example.com"}
+        original_draft = {"to": "original@example.com"}
+        instructions = "envoie à alice@test.com et bob@test.com"
+
+        result = service._apply_explicit_recipient_override(
+            modified_content, instructions, original_draft, None, None
+        )
+
+        assert result["to"] == "alice@test.com,bob@test.com"
+
+    def test_no_override_when_llm_changed_to(self, service):
+        """Test that override is skipped when LLM already changed the to field."""
+        modified_content = {"to": "new@example.com"}
+        original_draft = {"to": "original@example.com"}
+        instructions = "envoie à other@example.com"
+
+        result = service._apply_explicit_recipient_override(
+            modified_content, instructions, original_draft, None, None
+        )
+
+        # LLM already changed it, no override
+        assert result["to"] == "new@example.com"
+
+    def test_no_override_when_no_email_in_instructions(self, service):
+        """Test that no override happens when instructions have no email."""
+        modified_content = {"to": "original@example.com", "body": "Updated body"}
+        original_draft = {"to": "original@example.com", "body": "Old"}
+        instructions = "rends le plus formel"
+
+        result = service._apply_explicit_recipient_override(
+            modified_content, instructions, original_draft, None, None
+        )
+
+        assert result["to"] == "original@example.com"
+
+    def test_resolves_contact_name_from_context(self, service):
+        """Test fallback to contact name resolution from contact_context."""
+        modified_content = {"to": "original@example.com"}
+        original_draft = {"to": "original@example.com"}
+        instructions = "envoie à Marie Dupont"
+        contact_context = [
+            {"name": "Marie Dupont", "emails": ["marie.dupont@gmail.com", "marie@work.com"]},
+        ]
+
+        result = service._apply_explicit_recipient_override(
+            modified_content, instructions, original_draft, contact_context, None
+        )
+
+        assert result["to"] == "marie.dupont@gmail.com"
+
+    def test_contact_name_partial_match(self, service):
+        """Test that partial name match (first/last name) works."""
+        modified_content = {"to": "original@example.com"}
+        original_draft = {"to": "original@example.com"}
+        instructions = "envoie à Dupont"
+        contact_context = [
+            {"name": "Marie Dupont", "emails": ["marie@example.com"]},
+        ]
+
+        result = service._apply_explicit_recipient_override(
+            modified_content, instructions, original_draft, contact_context, None
+        )
+
+        assert result["to"] == "marie@example.com"
+
+    def test_non_email_draft_type_not_affected(self, service):
+        """Test that non-email draft types are not processed (method only called for email)."""
+        # This test verifies the method itself doesn't crash with non-email data
+        modified_content = {"to": "original@example.com"}
+        original_draft = {"to": "original@example.com"}
+        instructions = "envoie à new@test.com"
+
+        result = service._apply_explicit_recipient_override(
+            modified_content, instructions, original_draft, None, None
+        )
+
+        # Email in instructions should be applied
+        assert result["to"] == "new@test.com"

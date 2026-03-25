@@ -99,6 +99,8 @@ LOG_LEVEL_SQLALCHEMY=INFO  # Voir toutes les queries SQL
 LOG_LEVEL_HTTPX=DEBUG  # Voir tous les appels HTTP externes
 ```
 
+> **Note (v1.11.4)**: `docker-compose.dev.yml` now sets `LOG_LEVEL=DEBUG` by default for the API container. No `.env` changes needed for dev. Key debug events include `draft_modification_prompt_built`, `draft_modification_llm_raw_response`, and `actual_changes` in `draft_modification_completed`.
+
 ---
 
 ## Debugging Agents LangGraph

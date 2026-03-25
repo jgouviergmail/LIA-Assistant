@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.4] - 2026-03-25
+
+### Fixed
+
+- **HITL Draft Recipient Modification Ignored by LLM** — When a user requested a recipient change during draft critique (e.g., "non envoi à jgouvier@hotmail.com"), the HITL classifier correctly detected `REPLAN` (converted to `EDIT`), and the `DraftModificationService` called the LLM, but the LLM consistently returned the original recipients unchanged. Root cause: the draft modifier prompt rule 2 ("Respect existing context (recipient, structure, etc.)") contradicted recipient change instructions, and rule 6 only covered contact references (`@carven`) — not direct email addresses. Fixed with a three-layer approach: (1) prompt rule 2 reworded to not protect recipients, rule 6 expanded to cover direct email addresses; (2) `_build_context_info()` now labels recipients as "modifiable" instead of presenting them as fixed context; (3) new `_apply_explicit_recipient_override()` post-processing extracts email addresses from instructions via regex and applies them directly when the LLM fails to change the `to`/`cc` fields. Also resolves contact names from instructions against the contact context as fallback. (`src/domains/agents/services/hitl/draft_modifier.py`, `src/domains/agents/prompts/v1/draft_modifier_prompt.txt`)
+
+### Changed
+
+- **Docker Dev Log Level Set to DEBUG** — `docker-compose.dev.yml` now overrides `LOG_LEVEL=DEBUG` for the API container, ensuring all debug-level logs (including LLM prompts, raw responses, and detailed state transitions) are visible during development without requiring `.env` changes. (`docker-compose.dev.yml`)
+- **Draft Modifier Debug Observability** — Added 3 debug-level logs to `DraftModificationService`: `draft_modification_prompt_built` (system prompt preview), `draft_modification_llm_raw_response` (LLM raw output), and `actual_changes` field in `draft_modification_completed` (lists only fields that actually changed vs. all fields returned). Enables rapid diagnosis of LLM modification failures. (`src/domains/agents/services/hitl/draft_modifier.py`)
+
 ## [1.11.3] - 2026-03-25
 
 ### Security

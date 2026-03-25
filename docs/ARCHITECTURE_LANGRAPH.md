@@ -822,6 +822,10 @@ class MessagesState(TypedDict):
 │   • Evenement a creer                                               │
 │   • Contact a ajouter                                               │
 │                                                                      │
+│   EDIT flow (v1.11.4):                                              │
+│   DraftModificationService + recipient override post-processing     │
+│   (extracts emails from instructions when LLM ignores changes)      │
+│                                                                      │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 

@@ -65,7 +65,7 @@
 
 **Description**: Flux complet Human-in-the-Loop avec:
 - Approval Gate (analyse du plan)
-- Draft Modifier (emails/events/contacts)
+- Draft Modifier (emails/events/contacts) with explicit recipient override (v1.11.4)
 - Destructive Confirmation (delete ≥3 items)
 - FOR_EACH Confirmation (bulk mutations)
 - Severity Levels (INFO, WARNING, CRITICAL)

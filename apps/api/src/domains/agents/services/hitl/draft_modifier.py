@@ -26,6 +26,7 @@ Created: 2025-12-23
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 import structlog
@@ -159,6 +160,15 @@ class DraftModificationService:
             contact_context=contact_context,
         )
 
+        # Log the system prompt for debugging
+        system_content = prompt[0]["content"] if prompt else ""
+        logger.debug(
+            "draft_modification_prompt_built",
+            run_id=run_id,
+            system_prompt_preview=system_content[:800],
+            instructions=instructions[:200],
+        )
+
         # Create instrumented config
         config = create_instrumented_config(
             llm_type="draft_modifier",
@@ -176,20 +186,41 @@ class DraftModificationService:
             result = await self.llm.ainvoke(prompt, config=config)
             content = result.content if isinstance(result.content, str) else str(result.content)
 
+            logger.debug(
+                "draft_modification_llm_raw_response",
+                run_id=run_id,
+                response_preview=content[:500],
+            )
+
             # Parse the response
             modified_content = self._parse_modification_response(
                 content, content_fields, original_draft
             )
 
+            # Post-processing: if the LLM didn't change recipient fields but the
+            # instructions contain explicit email addresses, apply them directly.
+            # This handles cases where the LLM ignores recipient change instructions.
+            if draft_type in ("email", "email_reply", "email_forward"):
+                modified_content = self._apply_explicit_recipient_override(
+                    modified_content, instructions, original_draft, contact_context, run_id
+                )
+
             # Merge with preserved fields from original
             modified_draft = original_draft.copy()
             modified_draft.update(modified_content)
 
+            # Log actual changes for debugging
+            actual_changes = {
+                k: {"old": original_draft.get(k), "new": v}
+                for k, v in modified_content.items()
+                if original_draft.get(k) != v
+            }
             logger.info(
                 "draft_modification_completed",
                 run_id=run_id,
                 draft_type=draft_type,
                 modified_fields=list(modified_content.keys()),
+                actual_changes=list(actual_changes.keys()),
             )
 
             return modified_draft
@@ -295,9 +326,9 @@ class DraftModificationService:
             to_addr = draft.get("to", "non spécifié")
             cc = draft.get("cc", "")
             subject = draft.get("subject", "")
-            parts = [f"Destinataire: {to_addr}"]
+            parts = [f"Destinataire actuel (modifiable): {to_addr}"]
             if cc:
-                parts.append(f"CC: {cc}")
+                parts.append(f"CC actuel (modifiable): {cc}")
             if subject and draft_type == "email":
                 parts.append(f"Sujet actuel: {subject}")
             return "\n".join(parts)
@@ -321,6 +352,96 @@ class DraftModificationService:
     def _format_expected_fields(self, fields: list[str]) -> str:
         """Format expected JSON fields for the prompt."""
         return ",\n".join([f'  "{field}": "contenu modifié"' for field in fields])
+
+    # Regex for extracting email addresses from free-text instructions
+    _EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}")
+
+    def _apply_explicit_recipient_override(
+        self,
+        modified_content: dict[str, Any],
+        instructions: str,
+        original_draft: dict[str, Any],
+        contact_context: list[dict[str, Any]] | None,
+        run_id: str | None,
+    ) -> dict[str, Any]:
+        """Apply explicit recipient changes from instructions when the LLM failed to do so.
+
+        Detects email addresses or contact names in the instructions and overrides
+        the to/cc fields if the LLM returned unchanged values.
+
+        Args:
+            modified_content: Content returned by the LLM (parsed)
+            instructions: User's modification instructions
+            original_draft: Original draft before modification
+            contact_context: Available contacts with their emails
+            run_id: Run ID for logging
+
+        Returns:
+            modified_content with recipient fields corrected if needed
+        """
+        original_to = original_draft.get("to", "")
+        llm_to = modified_content.get("to", original_to)
+
+        # Only intervene if the LLM didn't change the 'to' field
+        if llm_to == original_to:
+            # Strategy 1: Extract explicit email addresses from instructions
+            emails_in_instructions = self._EMAIL_RE.findall(instructions)
+            if emails_in_instructions:
+                new_to = ",".join(emails_in_instructions)
+                modified_content["to"] = new_to
+                logger.info(
+                    "draft_modification_recipient_override_email",
+                    run_id=run_id,
+                    extracted_emails=emails_in_instructions,
+                    original_to=original_to,
+                    new_to=new_to,
+                )
+                return modified_content
+
+            # Strategy 2: Resolve contact names from instructions via contact_context
+            if contact_context:
+                resolved_email = self._resolve_contact_from_instructions(
+                    instructions, contact_context
+                )
+                if resolved_email:
+                    modified_content["to"] = resolved_email
+                    logger.info(
+                        "draft_modification_recipient_override_contact",
+                        run_id=run_id,
+                        original_to=original_to,
+                        new_to=resolved_email,
+                    )
+                    return modified_content
+
+        return modified_content
+
+    def _resolve_contact_from_instructions(
+        self,
+        instructions: str,
+        contact_context: list[dict[str, Any]],
+    ) -> str | None:
+        """Try to resolve a contact name mentioned in instructions to an email.
+
+        Args:
+            instructions: User's modification instructions
+            contact_context: Available contacts with their emails
+
+        Returns:
+            Email address if a contact name match is found, None otherwise
+        """
+        instructions_lower = instructions.lower()
+        for contact in contact_context:
+            name = contact.get("name", "")
+            emails = contact.get("emails", [])
+            if not name or not emails:
+                continue
+            # Match full name or individual name parts (first/last)
+            name_parts = name.lower().split()
+            if name.lower() in instructions_lower or any(
+                part in instructions_lower for part in name_parts if len(part) > 2
+            ):
+                return emails[0]
+        return None
 
     def _parse_modification_response(
         self,
