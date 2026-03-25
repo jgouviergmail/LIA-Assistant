@@ -689,6 +689,7 @@ Les `semantic_keywords` permettent la découverte sémantique des outils via E5 
 | **Style** | Phrases naturelles courtes | ✅ "set alert for meeting" |
 | **Verbes** | Actions variées synonymes | "create", "add", "set", "make", "schedule" |
 | **Contexte** | Inclure objets typiques | "reminder for appointment", "alert for deadline" |
+| **Discriminant** | Distinguish read vs write intent | ✅ "which appointment do I have" for read, "schedule appointment" for write |
 
 #### Exemple Complet
 

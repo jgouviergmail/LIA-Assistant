@@ -354,7 +354,8 @@ apps/api/src/
 └── infrastructure/              # Cross-cutting infrastructure
     ├── cache/                   # Redis abstractions
     │   ├── redis.py             # Redis client
-    │   └── session_store.py     # SessionStore (BFF)
+    │   ├── session_store.py     # SessionStore (BFF)
+    │   └── invalidation.py      # Cross-worker cache invalidation via Redis Pub/Sub (ADR-063)
     ├── rate_limiting/           # ⭐ Distributed rate limiting (Phase 2.4)
     │   └── redis_limiter.py     #    RedisRateLimiter (sliding window, Lua scripts)
     ├── llm/                     # LLM infrastructure
@@ -3309,7 +3310,7 @@ data/skills/
 | Fichier | Rôle |
 |---------|------|
 | `domains/skills/loader.py` | Parse SKILL.md, scan des répertoires |
-| `domains/skills/cache.py` | `SkillsCache` singleton en mémoire |
+| `domains/skills/cache.py` | `SkillsCache` singleton en mémoire (cross-worker invalidation via ADR-063) |
 | `domains/skills/injection.py` | Constructeur du catalogue L1 (XML) |
 | `domains/skills/activation.py` | Wrapping structuré L2 |
 | `domains/skills/executor.py` | Exécution scripts en subprocess sandboxé |

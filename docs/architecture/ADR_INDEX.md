@@ -2161,6 +2161,28 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 
 ---
 
+### ADR-063: Cross-Worker Cache Invalidation via Redis Pub/Sub
+
+**Status**: ✅ IMPLEMENTED (2026-03-24)
+**Fichier**: `docs/architecture/ADR-063-Cross-Worker-Cache-Invalidation.md`
+
+**Décision**: Utiliser Redis Pub/Sub pour synchroniser les caches in-memory entre les workers uvicorn. Chaque cache expose `load_*()` (startup/subscriber) et `invalidate_and_reload()` (runtime = load + publish).
+
+**Problème résolu**:
+- ❌ Avec `--workers 4`, modifier une config admin ne met à jour que 1 worker sur 4
+- ❌ Bug constaté : changement de modèle LLM Initiative ignoré par 75% des requêtes
+
+**Solution**:
+- ✅ `src/infrastructure/cache/invalidation.py` : registry + publisher + subscriber centralisés
+- ✅ Pattern `load_*()` / `invalidate_and_reload()` sur 4 caches (LLMConfig, Skills, Pricing, GoogleApiPricing)
+- ✅ `verify_registry_completeness()` au startup pour détecter les oublis
+
+**Impact**:
+- ✅ Toute modification admin est propagée instantanément à tous les workers
+- ✅ Pattern documenté et extensible pour les futurs caches
+
+---
+
 ## ADRs Archivés
 
 ### ADR-005 (Version Originale): Workflow-Based HITL

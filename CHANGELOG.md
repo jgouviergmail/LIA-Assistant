@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.1] - 2026-03-25
+
+### Added
+
+- **ADR-063: Cross-Worker Cache Invalidation via Redis Pub/Sub** — When running with `uvicorn --workers N`, in-memory caches (class/module-level variables) are per-process. Modifying a config via the admin API only reloaded one worker — the other N-1 workers kept stale data. New centralized `invalidation.py` module uses Redis Pub/Sub to broadcast invalidation events. Each cache exposes `load_*()` (startup/subscriber) and `invalidate_and_reload()` (runtime = load + publish). Publisher includes `os.getpid()` to skip self-reload. `verify_registry_completeness()` at startup detects missing registrations. Applied to 4 caches: `LLMConfigOverrideCache`, `SkillsCache`, `PricingCacheService`, `GoogleApiPricingService`. (`src/infrastructure/cache/invalidation.py`, `src/core/constants.py`)
+- **Calendar Tool Semantic Keywords** — Added 5 appointment-lookup keywords to `get_events_tool` catalogue manifest to fix semantic tool selection misranking read queries as update/create operations. Keywords: "which appointment do I have on Saturday", "what appointments this week", "do I have any appointments on that day", "what is on my calendar this weekend", "any events planned for Saturday". (`src/domains/agents/calendar/catalogue_manifests.py`)
+
+### Fixed
+
+- **Initiative Node Per-Turn State Reset** — `initiative_iteration` was never reset between conversation turns. Since LangGraph state is checkpointed to PostgreSQL, after the first turn (which increments `initiative_iteration` to 1), all subsequent turns arrived with `iteration >= max_iterations` (default 1), causing the initiative node to be systematically skipped with `reason: max_iterations`. Fixed by resetting all 4 initiative state fields (`initiative_iteration`, `initiative_results`, `initiative_skipped_reason`, `initiative_suggestion`) in the router node's per-turn state clearing block, alongside the existing `planner_iteration` reset. (`src/domains/agents/nodes/router_node_v3.py`)
+- **Calendar Event Tool Selection Misranking** — Asking "quel rdv samedi ?" (which appointment Saturday?) caused the semantic tool selector to rank `update_event_tool` (0.656) and `create_event_tool` (0.341) above `get_events_tool` (0.002). The correct read-only tool was excluded by the catalogue score threshold (0.07), forcing the planner to delegate to a sub-agent, which triggered an unnecessary HITL approval prompt. Root cause: `get_events_tool` lacked appointment-lookup keywords while update/create tools had "change appointment time" and "schedule appointment" keywords that matched better. Fixed by adding targeted read-only appointment keywords. (`src/domains/agents/calendar/catalogue_manifests.py`)
+- **Skills Cache Cross-Worker Invalidation** — All skill CRUD endpoints (`import`, `delete`, `update_description`, `translate`) now use `SkillsCache.invalidate_and_reload()` instead of local-only `load_from_disk()`. Reload endpoint explicitly publishes after `sync_from_disk()` commit. (`src/domains/skills/router.py`, `src/domains/skills/cache.py`)
+- **LLM Config Cache Cross-Worker Invalidation** — `LLMConfigOverrideCache.invalidate_and_reload()` now publishes to Redis Pub/Sub after local reload. Previously, config changes (e.g., switching Initiative LLM model) were only effective on ~25% of requests (1 worker out of 4). (`src/domains/llm_config/cache.py`)
+- **Google API Pricing Cache Cross-Worker Invalidation** — `GoogleApiPricingService.invalidate_and_reload()` added and wired to admin pricing reload endpoint. (`src/domains/google_api/pricing_service.py`, `src/domains/google_api/router.py`)
+- **Pricing Cache Cross-Worker Invalidation** — `PricingCacheService.invalidate_and_refresh()` added for future runtime pricing modifications. (`src/infrastructure/cache/pricing_cache.py`)
+
 ## [1.11.0] - 2026-03-24
 
 ### Added

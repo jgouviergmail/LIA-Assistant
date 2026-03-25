@@ -817,7 +817,7 @@ user@example.com,125000,45000,80000,150,1.234567,25,0.456789,1.691356
 
 - **ConsumptionExportSection** (v1.9.1): Shared dual-mode component (`mode: 'admin' | 'user'`). Admin mode shows user filter with autocomplete; user mode shows date filters only.
 - **AdminConsumptionExportSection**: Thin wrapper calling `ConsumptionExportSection` with `mode="admin"`.
-- **AdminGoogleApiPricingSection**: CRUD pricing Google API with cache reload.
+- **AdminGoogleApiPricingSection**: CRUD pricing Google API with cache reload. Cross-worker invalidation via Redis Pub/Sub (ADR-063).
 
 ---
 

@@ -128,6 +128,12 @@ class MessagesState(TypedDict):
     compaction_summary: str | None  # Last compaction summary (debug/audit)
     compaction_count: int  # Number of compactions in this session
 
+    # === Initiative Phase (ADR-062) ===
+    initiative_iteration: int  # Iteration counter (0 = not evaluated yet)
+    initiative_results: list[dict[str, Any]]  # Results from initiative actions
+    initiative_skipped_reason: str | None  # Why initiative was skipped (e.g., "max_iterations_reached")
+    initiative_suggestion: str | None  # Write-action suggestion for response_node
+
     # === Schema Versioning ===
     _schema_version: str  # Current: "1.1"
 ```

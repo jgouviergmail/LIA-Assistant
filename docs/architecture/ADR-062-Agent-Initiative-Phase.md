@@ -102,3 +102,7 @@ Phase 2 (Initiative):
 - Feature flags default to `false` — zero impact when disabled
 - Browser task tool refactored with zero functional change
 - No new database tables, migrations, or API endpoints
+
+## Post-Implementation Fix (v1.11.1)
+
+**Bug**: `initiative_iteration` was not reset between conversation turns. Since LangGraph state is checkpointed to PostgreSQL, after the first turn the counter persisted at `max_iterations`, causing the initiative node to be skipped on all subsequent turns. **Fix**: Added per-turn reset of `initiative_iteration`, `initiative_results`, `initiative_skipped_reason`, and `initiative_suggestion` in `router_node_v3`'s state clearing block (same pattern as `planner_iteration`).

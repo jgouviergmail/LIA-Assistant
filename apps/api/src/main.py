@@ -214,6 +214,17 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         # Non-critical - callbacks will use default prices (0.0 cost)
         logger.warning("pricing_cache_initialization_failed", error=str(exc))
 
+    # Register pricing cache for cross-worker invalidation (ADR-063)
+    from src.core.constants import CACHE_NAME_PRICING
+    from src.infrastructure.cache.invalidation import register_cache
+
+    async def _reload_pricing_cache() -> None:
+        from src.infrastructure.cache.pricing_cache import refresh_pricing_cache as _refresh
+
+        await _refresh()
+
+    register_cache(CACHE_NAME_PRICING, _reload_pricing_cache)
+
     # Initialize Google API pricing cache (for cost tracking in tools and endpoints)
     try:
         from src.domains.google_api.pricing_service import GoogleApiPricingService
@@ -225,6 +236,18 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     except Exception as exc:
         # Non-critical - tracking will use zero cost if cache not loaded
         logger.warning("google_api_pricing_cache_initialization_failed", error=str(exc))
+
+    # Register Google API pricing cache for cross-worker invalidation (ADR-063)
+    from src.core.constants import CACHE_NAME_GOOGLE_API_PRICING
+
+    async def _reload_google_api_pricing_cache() -> None:
+        from src.domains.google_api.pricing_service import GoogleApiPricingService
+        from src.infrastructure.database.session import get_db_context
+
+        async with get_db_context() as db:
+            await GoogleApiPricingService.load_pricing_cache(db)
+
+    register_cache(CACHE_NAME_GOOGLE_API_PRICING, _reload_google_api_pricing_cache)
 
     # Initialize LangGraph checkpointer
     checkpointer = None
@@ -261,6 +284,18 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     except Exception as exc:
         logger.warning("llm_config_cache_initialization_failed", error=str(exc))
 
+    # Register LLM config cache for cross-worker invalidation (ADR-063)
+    from src.core.constants import CACHE_NAME_LLM_CONFIG
+
+    async def _reload_llm_config_cache() -> None:
+        from src.domains.llm_config.cache import LLMConfigOverrideCache
+        from src.infrastructure.database.session import get_db_context
+
+        async with get_db_context() as db:
+            await LLMConfigOverrideCache.load_from_db(db)
+
+    register_cache(CACHE_NAME_LLM_CONFIG, _reload_llm_config_cache)
+
     # Initialize Skills cache (agentskills.io standard — SKILL.md files on disk)
     # Then sync DB (skills + user_skill_states) with disk state.
     if getattr(settings, "skills_enabled", False):
@@ -286,6 +321,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 )
         except Exception as exc:
             logger.warning("skills_cache_initialization_failed", error=str(exc))
+
+        # Register skills cache for cross-worker invalidation (ADR-063)
+        from src.core.constants import CACHE_NAME_SKILLS
+
+        async def _reload_skills_cache() -> None:
+            from src.domains.skills.cache import SkillsCache
+
+            SkillsCache.load_from_disk(settings.skills_system_path, settings.skills_users_path)
+
+        register_cache(CACHE_NAME_SKILLS, _reload_skills_cache)
 
     # Initialize AgentRegistry with checkpointer and store
     # Note: Legacy tool catalogue (tools/catalogue.py) removed in Phase 5
@@ -866,6 +911,20 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     except (RuntimeError, ImportError) as exc:
         logger.error("lifetime_metrics_updater_failed", error=str(exc), exc_info=True)
 
+    # Start cross-worker cache invalidation subscriber (Redis Pub/Sub — ADR-063)
+    cache_invalidation_task = None
+    try:
+        from src.infrastructure.cache.invalidation import (
+            run_invalidation_subscriber,
+            verify_registry_completeness,
+        )
+
+        verify_registry_completeness()
+        cache_invalidation_task = asyncio.create_task(run_invalidation_subscriber())
+        logger.info("cache_invalidation_subscriber_started")
+    except (RuntimeError, ImportError) as exc:
+        logger.error("cache_invalidation_subscriber_start_failed", error=str(exc), exc_info=True)
+
     logger.info("application_ready")
 
     yield
@@ -1000,6 +1059,18 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Close database connections
     await close_db()
     logger.info("database_closed")
+
+    # Stop cross-worker cache invalidation subscriber (ADR-063)
+    if cache_invalidation_task:
+        try:
+            cache_invalidation_task.cancel()
+            try:
+                await cache_invalidation_task
+            except asyncio.CancelledError:
+                pass
+            logger.info("cache_invalidation_subscriber_stopped")
+        except RuntimeError as exc:
+            logger.error("cache_invalidation_subscriber_shutdown_failed", error=str(exc))
 
     # Close Redis connections
     await close_redis()

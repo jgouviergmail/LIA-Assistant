@@ -179,9 +179,9 @@ override = LLMConfigOverrideCache.get_override("router")  # Dict lookup
 api_key = LLMConfigOverrideCache.get_api_key("openai")     # Dict lookup
 ```
 
-### Multi-Workers (futur)
+### Multi-Workers (ADR-063)
 
-Pour un déploiement multi-workers, ajouter un compteur Redis `sys:llm_config:version` comme signal de refresh inter-process. Non nécessaire pour single-worker (Raspberry Pi).
+Cross-worker cache invalidation is handled via Redis Pub/Sub (ADR-063). When `invalidate_and_reload()` is called, it reloads locally then publishes an event to `cache:invalidation` Redis channel. Other workers' subscriber tasks receive the event and call `load_from_db()`. The publisher PID is included to skip self-reload. See `src/infrastructure/cache/invalidation.py`.
 
 ---
 

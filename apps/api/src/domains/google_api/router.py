@@ -411,7 +411,7 @@ async def reload_pricing_cache(
     """
     from src.domains.google_api.pricing_service import GoogleApiPricingService
 
-    await GoogleApiPricingService.load_pricing_cache(db)
+    await GoogleApiPricingService.invalidate_and_reload(db)
 
     # Create audit log entry
     audit_entry = AdminAuditLog(

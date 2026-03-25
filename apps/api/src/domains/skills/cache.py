@@ -100,6 +100,20 @@ class SkillsCache:
         ]
 
     @classmethod
+    async def invalidate_and_reload(cls) -> None:
+        """Reload skills from disk and notify all workers.
+
+        Called by router endpoints after skill modifications.
+        Publishes cross-worker invalidation via Redis Pub/Sub (ADR-063).
+        """
+        from src.core.config import settings
+        from src.core.constants import CACHE_NAME_SKILLS
+        from src.infrastructure.cache.invalidation import publish_cache_invalidation
+
+        cls.load_from_disk(settings.skills_system_path, settings.skills_users_path)
+        await publish_cache_invalidation(CACHE_NAME_SKILLS)
+
+    @classmethod
     def is_loaded(cls) -> bool:
         """Check if cache has been initialized."""
         return cls._loaded

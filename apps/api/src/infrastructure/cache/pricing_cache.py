@@ -284,6 +284,23 @@ class PricingCacheService:
         await self.redis.delete(self._cache_key)
         logger.info("pricing_cache_invalidated")
 
+    async def invalidate_and_refresh(self) -> bool:
+        """Refresh pricing cache and notify all workers.
+
+        Called by admin endpoints after pricing modifications.
+        Publishes cross-worker invalidation via Redis Pub/Sub (ADR-063).
+
+        Returns:
+            True if refresh succeeded, False otherwise.
+        """
+        from src.core.constants import CACHE_NAME_PRICING
+        from src.infrastructure.cache.invalidation import publish_cache_invalidation
+
+        success = await self.refresh_from_database()
+        if success:
+            await publish_cache_invalidation(CACHE_NAME_PRICING)
+        return success
+
 
 # ============================================================================
 # MODULE-LEVEL FUNCTIONS (for use in callbacks)

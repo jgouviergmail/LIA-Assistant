@@ -16,6 +16,12 @@ from typing import Any
 
 from langchain_core.runnables import RunnableConfig
 
+from src.core.constants import (
+    STATE_KEY_INITIATIVE_ITERATION,
+    STATE_KEY_INITIATIVE_RESULTS,
+    STATE_KEY_INITIATIVE_SKIPPED_REASON,
+    STATE_KEY_INITIATIVE_SUGGESTION,
+)
 from src.core.field_names import FIELD_RUN_ID
 from src.domains.agents.constants import (
     STATE_KEY_DETECTED_INTENT,
@@ -230,6 +236,12 @@ async def router_node_v3(
         STATE_KEY_VALIDATION_RESULT: None,
         STATE_KEY_SEMANTIC_VALIDATION: None,  # Clear so pattern learning works per-turn
         STATE_KEY_PLANNER_ITERATION: 0,
+        # Initiative phase reset (ADR-062): must reset per-turn to avoid
+        # max_iterations skip on subsequent turns (checkpoint persists state)
+        STATE_KEY_INITIATIVE_ITERATION: 0,
+        STATE_KEY_INITIATIVE_RESULTS: [],
+        STATE_KEY_INITIATIVE_SKIPPED_REASON: None,
+        STATE_KEY_INITIATIVE_SUGGESTION: None,
         # STREAMING FIX 2026-01: Clear persisted content_final_replacement from previous turn
         # Root cause: PostgreSQL checkpointer persists this value between turns.
         # If previous turn had HTML injection (truthy value), streaming service

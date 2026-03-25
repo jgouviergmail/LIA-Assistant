@@ -77,6 +77,19 @@ class GoogleApiPricingService:
         )
 
     @classmethod
+    async def invalidate_and_reload(cls, db: AsyncSession) -> None:
+        """Reload pricing cache from DB and notify all workers.
+
+        Called by admin endpoint after pricing modifications.
+        Publishes cross-worker invalidation via Redis Pub/Sub (ADR-063).
+        """
+        from src.core.constants import CACHE_NAME_GOOGLE_API_PRICING
+        from src.infrastructure.cache.invalidation import publish_cache_invalidation
+
+        await cls.load_pricing_cache(db)
+        await publish_cache_invalidation(CACHE_NAME_GOOGLE_API_PRICING)
+
+    @classmethod
     def get_cost_per_request(
         cls,
         api_name: str,

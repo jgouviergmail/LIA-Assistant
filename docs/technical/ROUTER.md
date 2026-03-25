@@ -263,6 +263,13 @@ async def router_node(state: MessagesState, config: RunnableConfig) -> dict[str,
             STATE_KEY_PLAN_APPROVED: None,
             STATE_KEY_PLAN_REJECTION_REASON: None,
             STATE_KEY_VALIDATION_RESULT: None,
+            STATE_KEY_SEMANTIC_VALIDATION: None,
+            STATE_KEY_PLANNER_ITERATION: 0,
+            # Initiative phase reset (ADR-062): checkpoint persists state between turns
+            STATE_KEY_INITIATIVE_ITERATION: 0,
+            STATE_KEY_INITIATIVE_RESULTS: [],
+            STATE_KEY_INITIATIVE_SKIPPED_REASON: None,
+            STATE_KEY_INITIATIVE_SUGGESTION: None,
         }
 
     except Exception as e:
@@ -288,6 +295,12 @@ async def router_node(state: MessagesState, config: RunnableConfig) -> dict[str,
             STATE_KEY_PLAN_APPROVED: None,
             STATE_KEY_PLAN_REJECTION_REASON: None,
             STATE_KEY_VALIDATION_RESULT: None,
+            STATE_KEY_SEMANTIC_VALIDATION: None,
+            STATE_KEY_PLANNER_ITERATION: 0,
+            STATE_KEY_INITIATIVE_ITERATION: 0,
+            STATE_KEY_INITIATIVE_RESULTS: [],
+            STATE_KEY_INITIATIVE_SKIPPED_REASON: None,
+            STATE_KEY_INITIATIVE_SUGGESTION: None,
         }
 ```
 

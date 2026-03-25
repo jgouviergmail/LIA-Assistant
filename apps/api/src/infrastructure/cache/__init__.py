@@ -19,6 +19,11 @@ from .conversation_cache import (
     get_conversation_id_cached,
     invalidate_conversation_id_cache,
 )
+from .invalidation import (
+    publish_cache_invalidation,
+    register_cache,
+    run_invalidation_subscriber,
+)
 from .llm_cache import cache_llm_response, invalidate_llm_cache
 from .places_cache import PlacesCache
 from .pricing_cache import (
@@ -63,5 +68,8 @@ __all__ = [
     "invalidate_conversation_id_cache",
     "invalidate_llm_cache",
     "is_cache_initialized",
+    "publish_cache_invalidation",
     "refresh_pricing_cache",
+    "register_cache",
+    "run_invalidation_subscriber",
 ]

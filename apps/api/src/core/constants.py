@@ -1000,6 +1000,16 @@ REDIS_KEY_GMAIL_LABELS_PREFIX = "gmail:labels:"
 # Interest analysis cache keys
 REDIS_KEY_INTEREST_ANALYSIS_PREFIX = "interest_analysis:"
 
+# Cross-worker cache invalidation (Redis Pub/Sub) — ADR-063
+# When uvicorn runs with --workers N, in-memory caches are per-process.
+# After a local cache reload, publish to this channel so other workers reload too.
+# See: src/infrastructure/cache/invalidation.py, docs/architecture/ADR-063
+REDIS_CHANNEL_CACHE_INVALIDATION = "cache:invalidation"
+CACHE_NAME_LLM_CONFIG = "llm_config"
+CACHE_NAME_SKILLS = "skills"
+CACHE_NAME_PRICING = "pricing"
+CACHE_NAME_GOOGLE_API_PRICING = "google_api_pricing"
+
 # ============================================================================
 # GOOGLE API SCOPES
 # ============================================================================

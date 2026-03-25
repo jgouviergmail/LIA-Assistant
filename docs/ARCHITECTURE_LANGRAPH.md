@@ -1,7 +1,7 @@
 # Architecture LangGraph - LIA
 
-**Version**: 5.8 (INTELLIPLANNER + INTELLIA v10.1 + SEMANTIC + REMINDERS + Architecture v3.5 + Sub-Agents + Browser Control + Journals + Philips Hue + Initiative Phase + MCP Iterative)
-**Date**: 2026-03-24
+**Version**: 5.9 (INTELLIPLANNER + INTELLIA v10.1 + SEMANTIC + REMINDERS + Architecture v3.5 + Sub-Agents + Browser Control + Journals + Philips Hue + Initiative Phase + MCP Iterative + Cross-Worker Cache Invalidation)
+**Date**: 2026-03-25
 **Status**: Production
 
 ---
@@ -357,6 +357,8 @@ LIA utilise **LangGraph v1.1.2** avec exécution parallèle native **asyncio** p
 │   • Toujours → response_node                                    │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+**Per-turn state reset** (v1.11.1 fix): Initiative state fields (`initiative_iteration`, `initiative_results`, `initiative_skipped_reason`, `initiative_suggestion`) are reset to their defaults by `router_node_v3` at the start of each turn. Without this reset, the `initiative_iteration` counter persisted across turns via PostgreSQL checkpoints, causing the initiative node to be skipped on all turns after the first (`max_iterations` reached).
 
 ### 2.8 hitl_dispatch_node
 

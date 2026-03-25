@@ -278,13 +278,14 @@ def _save_translations(skill_dir: Path, translations: dict[str, str]) -> None:
     )
 
 
-def _validate_and_reload(target_dir: Path) -> dict[str, Any]:
-    """Parse SKILL.md in target_dir, reload cache, clean up on failure."""
-    from src.core.config import get_settings
-    from src.domains.skills.cache import SkillsCache
+def _validate_skill(target_dir: Path) -> dict[str, Any]:
+    """Parse and validate SKILL.md in target_dir, clean up on failure.
+
+    Does NOT reload cache — caller is responsible for calling
+    ``await SkillsCache.invalidate_and_reload()`` after DB commit (ADR-063).
+    """
     from src.domains.skills.loader import parse_skill_file
 
-    settings = get_settings()
     skill_file = target_dir / "SKILL.md"
     skill = parse_skill_file(skill_file)
     if not skill:
@@ -294,7 +295,6 @@ def _validate_and_reload(target_dir: Path) -> dict[str, Any]:
             detail="SKILL.md validation failed (missing description or invalid format)",
         )
 
-    SkillsCache.load_from_disk(settings.skills_system_path, settings.skills_users_path)
     return skill
 
 
@@ -384,11 +384,9 @@ async def delete_admin_skill(
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """Delete a system skill from disk + DB and reload the cache."""
-    from src.core.config import get_settings
     from src.domains.skills.cache import SkillsCache
     from src.domains.skills.preference_service import SkillPreferenceService
 
-    settings = get_settings()
     skill = SkillsCache.get_by_name(skill_name)
     if not skill or skill.get("scope") != "admin":
         raise HTTPException(
@@ -404,8 +402,8 @@ async def delete_admin_skill(
     svc = SkillPreferenceService(db)
     await svc.delete_skill(skill_name)
     await db.commit()
+    await SkillsCache.invalidate_and_reload()
 
-    SkillsCache.load_from_disk(settings.skills_system_path, settings.skills_users_path)
     logger.info("admin_skill_deleted", skill_name=skill_name, user_id=str(user.id))
 
 
@@ -424,7 +422,6 @@ async def update_admin_skill_description(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Update description → translate to EN (SKILL.md) + all 6 langs (DB + disk) → reload."""
-    from src.core.config import get_settings
     from src.domains.skills.cache import SkillsCache
     from src.domains.skills.preference_service import SkillPreferenceService
     from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metadata
@@ -481,8 +478,8 @@ async def update_admin_skill_description(
     await svc.admin_update_description(skill_name, english_desc, translations)
     await db.commit()
 
-    settings = get_settings()
-    SkillsCache.load_from_disk(settings.skills_system_path, settings.skills_users_path)
+    await SkillsCache.invalidate_and_reload()
+
     logger.info(
         "admin_skill_description_updated",
         skill_name=skill_name,
@@ -553,7 +550,7 @@ async def import_skill(
     content = await file.read()
     base_dir = Path(settings.skills_users_path) / user_id
     target_dir = _extract_skill_to_dir(content, file.filename or "SKILL.md", base_dir)
-    skill = _validate_and_reload(target_dir)
+    skill = _validate_skill(target_dir)
 
     # Register in DB
     svc = SkillPreferenceService(db)
@@ -565,6 +562,7 @@ async def import_skill(
         descriptions=skill.get("descriptions"),
     )
     await db.commit()
+    await SkillsCache.invalidate_and_reload()
 
     logger.info("skill_imported", skill_name=skill["name"], user_id=user_id)
     return _skill_to_response(skill, "user")
@@ -583,6 +581,7 @@ async def import_admin_skill(
 ) -> dict[str, Any]:
     """Import a skill to the system (admin) directory."""
     from src.core.config import get_settings
+    from src.domains.skills.cache import SkillsCache
     from src.domains.skills.preference_service import SkillPreferenceService
 
     settings = get_settings()
@@ -591,7 +590,7 @@ async def import_admin_skill(
 
     content = await file.read()
     target_dir = _extract_skill_to_dir(content, file.filename or "SKILL.md", system_base)
-    skill = _validate_and_reload(target_dir)
+    skill = _validate_skill(target_dir)
 
     # Register in DB + create states for all users
     svc = SkillPreferenceService(db)
@@ -602,6 +601,7 @@ async def import_admin_skill(
         descriptions=skill.get("descriptions"),
     )
     await db.commit()
+    await SkillsCache.invalidate_and_reload()
 
     logger.info("admin_skill_imported", skill_name=skill["name"], user_id=str(user.id))
     return _skill_to_response(skill, "admin")
@@ -619,11 +619,9 @@ async def delete_skill(
     db: AsyncSession = Depends(get_db),
 ) -> None:
     """Delete a user skill (cannot delete admin skills)."""
-    from src.core.config import get_settings
     from src.domains.skills.cache import SkillsCache
     from src.domains.skills.preference_service import SkillPreferenceService
 
-    settings = get_settings()
     user_id = str(user.id)
 
     skill = SkillsCache.get_by_name_for_user(skill_name, user_id)
@@ -655,7 +653,7 @@ async def delete_skill(
     await svc.delete_skill(skill_name)
     await db.commit()
 
-    SkillsCache.load_from_disk(settings.skills_system_path, settings.skills_users_path)
+    await SkillsCache.invalidate_and_reload()
     logger.info("skill_deleted", skill_name=skill_name, user_id=user_id)
 
 
@@ -741,7 +739,6 @@ async def translate_skill_description(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Translate a system skill description to all 6 languages via LLM."""
-    from src.core.config import get_settings
     from src.domains.skills.cache import SkillsCache
     from src.domains.skills.preference_service import SkillPreferenceService
     from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metadata
@@ -790,8 +787,7 @@ async def translate_skill_description(
     await svc.admin_update_description(skill_name, skill["description"], translations)
     await db.commit()
 
-    settings = get_settings()
-    SkillsCache.load_from_disk(settings.skills_system_path, settings.skills_users_path)
+    await SkillsCache.invalidate_and_reload()
 
     logger.info(
         "skill_description_translated",
@@ -817,12 +813,19 @@ async def reload_skills(
     from src.domains.skills.preference_service import SkillPreferenceService
 
     settings = get_settings()
+    # Local reload first — sync_from_disk() needs fresh cache to compare disk vs DB
     SkillsCache.load_from_disk(settings.skills_system_path, settings.skills_users_path)
 
     # Sync DB with disk
     svc = SkillPreferenceService(db)
     sync_result = await svc.sync_from_disk()
     await db.commit()
+
+    # Notify other workers after commit (ADR-063)
+    from src.core.constants import CACHE_NAME_SKILLS
+    from src.infrastructure.cache.invalidation import publish_cache_invalidation
+
+    await publish_cache_invalidation(CACHE_NAME_SKILLS)
 
     skills = SkillsCache.get_all()
     logger.info(

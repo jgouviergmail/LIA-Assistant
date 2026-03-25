@@ -226,6 +226,7 @@ search_emails_catalogue_manifest = ToolManifest(
 4. **Natural language phrases** : Inclure des phrases comme l'utilisateur pourrait les dire
 5. **No duplicates** : Chaque keyword unique (max-pooling élimine la redondance)
 6. **10-20 keywords** : Sweet spot pour coverage vs précision
+7. **Discriminate read vs write** : Ensure read-only tools have keywords distinct from mutation tools. Example: `get_events_tool` needs "which appointment do I have on Saturday" (read intent) to avoid being outranked by `update_event_tool`'s "change appointment time" keyword (write intent). Without discriminant keywords, the hybrid scorer may rank the wrong tool higher (see v1.11.1 fix).
 
 ---
 

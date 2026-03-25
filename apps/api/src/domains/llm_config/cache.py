@@ -118,8 +118,14 @@ class LLMConfigOverrideCache:
         """Invalidate cache and reload from DB.
 
         Called by admin service after each PUT/DELETE operation.
+        Publishes cross-worker invalidation via Redis Pub/Sub (ADR-063).
         """
         await cls.load_from_db(db)
+
+        from src.core.constants import CACHE_NAME_LLM_CONFIG
+        from src.infrastructure.cache.invalidation import publish_cache_invalidation
+
+        await publish_cache_invalidation(CACHE_NAME_LLM_CONFIG)
 
     @classmethod
     def is_loaded(cls) -> bool:

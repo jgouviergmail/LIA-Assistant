@@ -87,6 +87,12 @@ get_events_catalogue_manifest = ToolManifest(
         "what meetings are on my agenda today",
         "list appointments for tomorrow on calendar",
         "upcoming events this week in schedule",
+        # Appointment lookup (read-only queries)
+        "which appointment do I have on Saturday",
+        "what appointments this week",
+        "do I have any appointments on that day",
+        "what is on my calendar this weekend",
+        "any events planned for Saturday",
         # Calendar availability
         "when am I free on my calendar",
         "check availability in my schedule",

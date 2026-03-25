@@ -23,6 +23,7 @@
   <a href="https://python.langchain.com/"><img src="https://img.shields.io/badge/LangChain-1.2.12-4B8BBE?style=flat-square" alt="LangChain"></a>
   <a href="#internationalization-i18n--6-languages"><img src="https://img.shields.io/badge/i18n-6%20languages-E040FB?style=flat-square" alt="6 languages"></a>
   <a href="#license"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue?style=flat-square" alt="License"></a>
+  <a href="https://deepwiki.com/jgouviergmail/LIA-Assistant"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
 </p>
 
 <p align="center">
@@ -35,7 +36,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.11.0</strong> — Agent Initiative Phase, MCP Iterative (ReAct) — March 2026
+  <strong>Version 1.11.1</strong> — Cross-Worker Cache Invalidation, Initiative &amp; Tool Selection Fixes — March 2026
 </p>
 
 ---

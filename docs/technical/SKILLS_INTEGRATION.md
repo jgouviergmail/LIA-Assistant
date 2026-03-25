@@ -205,7 +205,7 @@ When `PATCH /skills/admin/{name}/description` is called with `{ description, sou
 1. LLM translates the description to all 6 languages (fr, en, es, de, it, zh) in a single call
 2. The `en` translation is written back to `SKILL.md` (YAML frontmatter update)
 3. All 6 translations are saved to `translations.json` in the skill directory
-4. The in-memory `SkillsCache` is reloaded
+4. `SkillsCache.invalidate_and_reload()` reloads from disk and publishes cross-worker invalidation via Redis Pub/Sub (ADR-063)
 
 The translation uses the existing `skill_description_translation_prompt.txt` which accepts any source language and produces all 6 outputs simultaneously.
 

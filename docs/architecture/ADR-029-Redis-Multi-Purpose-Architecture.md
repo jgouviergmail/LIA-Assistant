@@ -16,6 +16,7 @@ L'application nécessitait Redis pour plusieurs use cases :
 3. **Rate Limiting** : Protection API distribuée
 4. **Distributed Locks** : Prévention race conditions OAuth refresh
 5. **Application Cache** : Réduction latence et coûts LLM
+6. **Cross-Worker Cache Invalidation** : Pub/Sub for in-memory cache synchronization across uvicorn workers (ADR-063)
 
 **Question** : Comment architecturer Redis pour ces usages multiples avec isolation ?
 
