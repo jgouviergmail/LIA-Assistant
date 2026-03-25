@@ -2,7 +2,7 @@
 
 ## Overview
 
-Personal Journals give the AI assistant a living, evolving personality through introspective notebooks. The assistant writes its own reflections, observations, analyses and learnings, colored by its active personality. These notes influence future responses via semantic context injection.
+Personal Journals give the AI assistant a living, evolving personality through operational notebooks. The assistant writes behavioral directives, observations, analyses and learnings using a dedicated analyst persona (decoupled from the conversational personality). These directives influence future responses and planning via semantic context injection. Preferred format: WHEN [context] → DO [action] (BECAUSE [observation]).
 
 **Key distinction from memories**: Memories store factual data about the user (psychological profile). Journals store the assistant's own perspective and reflections.
 
@@ -118,7 +118,7 @@ Conversation
 - `JOURNAL_CONSOLIDATION_HISTORY_MAX_DAYS` — Max lookback days (default: 7)
 - `JOURNAL_DEFAULT_MAX_TOTAL_CHARS` — Default max size (default: 40000)
 - `JOURNAL_DEFAULT_CONTEXT_MAX_CHARS` — Default injection budget (default: 1500)
-- `JOURNAL_MAX_ENTRY_CHARS` — Default max per entry (default: 2000)
+- `JOURNAL_MAX_ENTRY_CHARS` — Default max per entry (default: 800)
 - `JOURNAL_CONTEXT_MAX_RESULTS` — Default max search results (default: 10)
 - `JOURNAL_CONTEXT_MIN_SCORE` — Min cosine similarity for prefiltering (default: 0.3)
 

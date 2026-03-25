@@ -36,7 +36,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.11.4</strong> — HITL Draft Modification Fix &amp; Dev Observability — March 2026
+  <strong>Version 1.11.5</strong> — Currency Cache &amp; Timezone Normalization — March 2026
 </p>
 
 ---

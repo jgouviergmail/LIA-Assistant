@@ -129,7 +129,7 @@ class JournalsSettings(BaseSettings):
     journal_max_entry_chars: int = Field(
         default=JOURNAL_MAX_ENTRY_CHARS_DEFAULT,
         ge=100,
-        le=5000,
+        le=2000,
         description="Maximum characters per individual journal entry.",
     )
 

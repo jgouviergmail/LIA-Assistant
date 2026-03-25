@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.5] - 2026-03-25
+
+### Fixed
+
+- **Chat Message Bubble Content Truncation** — Markdown tables (and occasionally other long content) caused the assistant's response bubble to visually cut off. Root cause: `overflow: hidden` on `.message-bubble` and `.message-bubble-assistant` created an implicit scroll container that miscalculated intrinsic height when nested elements (like `table-wrapper`) had their own overflow. Fixed by replacing `overflow: hidden` with `overflow-x: clip; overflow-y: visible` — clips horizontal overflow without creating a scroll container, allowing the bubble to size correctly to its content. (`apps/web/src/styles/globals.css`)
+- **76-Second Latency Spike After Response (Currency API Timeout Storm)** — After each assistant response, a ~76-second delay blocked the debug panel and new messages. Root cause: `CurrencyRateService` was instantiated fresh on every call in `business_metrics`, losing its in-memory cache each time. When the frankfurter.app currency API became unreachable from Docker, each instance retried 3 times × 5s timeout + exponential backoff = ~19s per call × 4 sequential calls = 76s blocking in `response_node`. Fixed with three changes: (1) cache promoted from instance-level to class-level (`_rate_cache` class dict shared across all instances); (2) negative-result cache (`_negative_cache`, 5-minute TTL) prevents retries after API failure; (3) retry policy reduced from 3 attempts to 2, with shorter backoff (`min=1, max=3` instead of `min=2, max=10`). Worst case drops from ~76s to ~6s on first failure, then 0s for 5 minutes. (`src/infrastructure/external/currency_api.py`, `tests/unit/test_currency_api.py`)
+- **Route Arrival/Departure Time Off by 1 Hour (Naive Datetime Treated as UTC)** — When the user asked "arrive at 21h", the LLM passed `2026-03-26T21:00:00` (naive, no timezone) to the route tool. `parse_datetime()` defaulted naive datetimes to UTC, then `convert_to_user_timezone()` converted UTC 21:00 → Paris 22:00. The map and response showed 22h instead of 21h. Fixed by adding `normalize_user_datetime()` utility in `time_utils.py` that detects naive datetime strings (no `Z` or `+/-` offset) and attaches the user's timezone offset directly, without UTC conversion. Applied to both `arrival_time` and `departure_time` in `get_route_tool`. Datetimes with explicit timezone (from calendar events, APIs) are left unchanged. (`src/core/time_utils.py`, `src/domains/agents/tools/routes_tools.py`)
+
 ## [1.11.4] - 2026-03-25
 
 ### Fixed
@@ -814,7 +822,8 @@ First public open-source release of LIA.
 - Circuit breaker, rate limiting, and distributed locks
 - SOPS/Age encryption for secrets management
 
-[Unreleased]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.8.2...HEAD
+[Unreleased]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.11.5...HEAD
+[1.11.5]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.11.4...v1.11.5
 [1.8.2]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.8.1...v1.8.2
 [1.8.1]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.8.0...v1.8.1
 [1.8.0]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.7.2...v1.8.0

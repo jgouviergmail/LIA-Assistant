@@ -1,13 +1,13 @@
 # Personal Journals (Carnets de Bord)
 
 ## What are personal journals?
-Personal journals are **thematic notebooks** where the AI assistant records its own reflections, observations, analyses, and learnings. Unlike user memories (which store facts about you), journals contain the **assistant's own perspective** — written in first person, colored by its active personality.
+Personal journals are **thematic notebooks** where the AI assistant records its own behavioral directives, observations, analyses, and learnings. Unlike user memories (which store facts about you), journals contain the **assistant's own perspective** — written in first person as actionable directives (preferred format: WHEN [context] → DO [action] BECAUSE [observation]).
 
 **📓 4 themes:**
-• **Self-reflection** — Thoughts about its own behavior, style, and growth
-• **User observations** — Patterns in your communication, preferences (complementary to memories)
-• **Ideas & analyses** — Creative ideas, analytical frameworks, hypotheses
-• **Learnings** — Lessons from interactions, mistakes, successes
+• **Learnings** — Concrete lessons from mistakes or successes (highest priority)
+• **User observations** — User preference directives — patterns in communication, expectations, reactions
+• **Self-reflection** — Behavioral adjustments to communication style, tone, or approach
+• **Ideas & analyses** — Reusable analytical frameworks applicable across conversations
 
 **🎭 5 moods** (emotional tone per entry):
 • 😌 **Reflective** — Thoughtful, introspective tone
@@ -65,7 +65,7 @@ Yes! In **Settings > Features > Personal Journals**, you can:
 **📏 Numeric settings:**
 • **Max journal size** — Total character budget across all entries (default: 40,000)
 • **Prompt injection budget** — Characters injected into prompts (default: 1,500)
-• **Max entry size** — Characters per individual entry (default: 2,000)
+• **Max entry size** — Characters per individual entry (default: 800)
 • **Max search results** — Entries returned by semantic search (default: 10)
 
 **📐 Size management:**

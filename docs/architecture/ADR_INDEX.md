@@ -2183,6 +2183,29 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 
 ---
 
+### ADR-064: Journal Analyst Persona Replaces Personality Addon
+
+**Status**: ✅ IMPLEMENTED (2026-03-25)
+**Fichier**: `docs/architecture/ADR-064-Journal-Analyst-Persona.md`
+
+**Décision**: Remplacer l'injection de la personnalité conversationnelle dans les journaux par un persona analyste fixe optimisé pour la production de directives comportementales actionnables.
+
+**Problème résolu**:
+- ❌ La personnalité conversationnelle (ex: `cynic`) contaminait la rédaction → prose littéraire sans valeur opérationnelle
+- ❌ 0 `learnings` en prod, taux d'injection <10%, redondance massive
+
+**Solution**:
+- ✅ `journal_analyst_persona.txt` : persona analyste fixe, toujours injecté
+- ✅ Format directif : WHEN [context] → DO [action] (BECAUSE [observation])
+- ✅ Consolidation avec dedup obligatoire en premier pas
+- ✅ Taille max réduite de 2000 à 800 chars
+
+**Impact**:
+- ✅ Entrées journal actionnables qui améliorent effectivement le planner et le response node
+- ✅ Personnalité conversationnelle découplée de l'écriture journal
+
+---
+
 ## ADRs Archivés
 
 ### ADR-005 (Version Originale): Workflow-Based HITL

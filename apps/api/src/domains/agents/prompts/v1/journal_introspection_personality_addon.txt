@@ -1,5 +1,0 @@
-## YOUR PERSONALITY
-{personality_instruction}
-
-Write your journal entries in a voice that reflects this personality.
-Your personality colors HOW you reflect, not WHAT you reflect on.

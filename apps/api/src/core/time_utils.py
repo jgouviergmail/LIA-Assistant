@@ -238,6 +238,85 @@ def normalize_to_rfc3339(dt_str: str | None) -> str | None:
 
 
 # =============================================================================
+# USER-INPUT DATETIME NORMALIZATION
+# =============================================================================
+
+
+def _has_explicit_timezone(dt_str: str) -> bool:
+    """Check if a datetime string carries explicit timezone information.
+
+    Args:
+        dt_str: ISO 8601 datetime string
+
+    Returns:
+        True if the string contains ``Z``, ``+HH:MM``, or ``-HH:MM`` offset.
+    """
+    stripped = dt_str.rstrip()
+    if stripped.endswith("Z"):
+        return True
+    if len(stripped) >= 6 and stripped[-6] in "+-" and stripped[-3] == ":":
+        return True
+    return False
+
+
+def normalize_user_datetime(dt_str: str | None, user_timezone: str) -> str | None:
+    """Ensure a user-provided datetime string carries timezone information.
+
+    LLM tool calls express user intent in the user's local timezone.  When the
+    LLM produces a naive datetime (no ``Z`` or ``+/-`` offset), this function
+    attaches the user's timezone offset so downstream code interprets the time
+    correctly.
+
+    Strings that already carry timezone info are returned unchanged.
+
+    Args:
+        dt_str: ISO 8601 datetime string (may be naive or aware).
+        user_timezone: User's IANA timezone (e.g., ``"Europe/Paris"``).
+
+    Returns:
+        The same string if it already has timezone info, or the string with the
+        user's offset appended.  ``None`` if *dt_str* is ``None`` or unparseable.
+
+    Examples:
+        >>> normalize_user_datetime("2026-03-26T21:00:00", "Europe/Paris")
+        '2026-03-26T21:00:00+01:00'
+
+        >>> normalize_user_datetime("2026-03-26T21:00:00Z", "Europe/Paris")
+        '2026-03-26T21:00:00Z'
+
+        >>> normalize_user_datetime("2026-03-26T21:00:00+02:00", "Europe/Paris")
+        '2026-03-26T21:00:00+02:00'
+    """
+    if not dt_str:
+        return None
+
+    if _has_explicit_timezone(dt_str):
+        return dt_str
+
+    # Naive string → localize to user's timezone (no UTC conversion)
+    try:
+        dt = datetime.fromisoformat(dt_str)
+    except (ValueError, TypeError):
+        logger.warning(
+            "normalize_user_datetime_parse_failed",
+            input=dt_str[:50],
+        )
+        return dt_str  # Return as-is rather than losing information
+
+    try:
+        user_tz = ZoneInfo(user_timezone)
+        return dt.replace(tzinfo=user_tz).isoformat()
+    except Exception as e:
+        logger.warning(
+            "normalize_user_datetime_tz_failed",
+            input=dt_str[:50],
+            timezone=user_timezone,
+            error=str(e),
+        )
+        return dt_str
+
+
+# =============================================================================
 # TIMEZONE CONVERSION UTILITIES
 # =============================================================================
 

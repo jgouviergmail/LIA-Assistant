@@ -149,7 +149,7 @@ PREVIOUS VALIDATION FEEDBACK (if replanning):
 LEARNED AND VALIDATED PLAN PATTERNS:
 {learned_patterns}
 
-PERSONAL JOURNAL CONTEXT (your own reflections and learnings):
+PERSONAL JOURNAL — BEHAVIORAL DIRECTIVES:
 {journal_context}
-If any reflection above is relevant, let it inform your planning choices — preferred approach,
-known user pattern, or past lesson learned. Apply these insights silently, do not reference them.
+If any directive above matches the current planning context, apply it silently — use the
+preferred approach, respect a known user pattern, or avoid a past mistake.

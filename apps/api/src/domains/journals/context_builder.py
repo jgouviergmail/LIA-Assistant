@@ -185,13 +185,15 @@ async def build_journal_context(
 
         # Format entries with scores, respecting max_chars budget
         lines = [
-            "## CARNET DE BORD PERSONNEL",
+            "## PERSONAL JOURNAL — BEHAVIORAL DIRECTIVES",
             (
-                "These are YOUR own reflections and observations. "
-                "Entries marked [recent] are your latest thoughts; scored entries match "
-                "the current context semantically."
+                "These are YOUR behavioral directives from past interactions. "
+                "Most follow the format: WHEN [context] → DO [action] "
+                "(BECAUSE [observation]). "
+                "Entries marked [recent] are your latest directives; scored entries "
+                "match the current context semantically."
             ),
-            "Use freely whichever notes seem pertinent to you.",
+            "Apply matching directives silently — do not reference them explicitly.",
             "",
         ]
         current_chars = sum(len(line) for line in lines)

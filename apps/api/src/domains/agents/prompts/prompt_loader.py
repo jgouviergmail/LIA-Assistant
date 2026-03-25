@@ -112,8 +112,8 @@ PromptName = Literal[
     "app_identity_prompt",
     # Personal Journals (Carnets de Bord)
     "journal_introspection_prompt",
-    "journal_introspection_personality_addon",
     "journal_consolidation_prompt",
+    "journal_analyst_persona",
     # ADR-062: Initiative Phase + MCP ReAct
     "initiative_prompt",
     "mcp_react_agent_prompt",

@@ -44,9 +44,9 @@ def _get_consolidation_prompt() -> str:
     return str(load_prompt("journal_consolidation_prompt"))
 
 
-def _get_personality_addon_prompt() -> str:
-    """Load the journal personality addon prompt from file."""
-    return str(load_prompt("journal_introspection_personality_addon"))
+def _get_analyst_persona_prompt() -> str:
+    """Load the journal analyst persona prompt from file."""
+    return str(load_prompt("journal_analyst_persona"))
 
 
 def _format_all_entries(entries: list[JournalEntry]) -> str:
@@ -262,11 +262,10 @@ async def consolidate_journals_for_user(
             size_management_instruction=size_management_instruction,
         )
 
-        # Add personality addon
-        if personality_instruction:
-            prompt += "\n\n" + _get_personality_addon_prompt().format(
-                personality_instruction=personality_instruction
-            )
+        # Add analyst persona (always injected, independent of conversational personality)
+        prompt += "\n\n" + _get_analyst_persona_prompt().format(
+            personality_code=personality_code or "none"
+        )
 
         # Call LLM
         llm = get_llm("journal_consolidation")

@@ -6,7 +6,7 @@
 
 **Versión**: 2.1
 **Fecha**: 2026-03-25
-**Aplicación**: LIA v1.11.4
+**Aplicación**: LIA v1.11.5
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -875,4 +875,4 @@ La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesia
 
 ---
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (190+ documentos), de los 63 ADRs y del changelog (v1.0 a v1.11.4). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (190+ documentos), de los 63 ADRs y del changelog (v1.0 a v1.11.5). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

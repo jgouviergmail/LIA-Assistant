@@ -10,7 +10,7 @@ used across journal services, repository, and router.
 # =========================================================================
 
 JOURNAL_ENTRY_TITLE_MAX_LENGTH = 200
-JOURNAL_ENTRY_CONTENT_MAX_LENGTH = 2000
+JOURNAL_ENTRY_CONTENT_MAX_LENGTH = 800
 
 # =========================================================================
 # Extraction defaults

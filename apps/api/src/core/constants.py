@@ -3304,7 +3304,7 @@ JOURNAL_CONSOLIDATION_HISTORY_MAX_DAYS_DEFAULT = 7
 
 # Size defaults (user-configurable)
 JOURNAL_MAX_TOTAL_CHARS_DEFAULT = 40000  # ~10k tokens total budget
-JOURNAL_MAX_ENTRY_CHARS_DEFAULT = 2000  # per entry
+JOURNAL_MAX_ENTRY_CHARS_DEFAULT = 800  # per entry (directive format is compact)
 JOURNAL_CONTEXT_MAX_CHARS_DEFAULT = 2000  # ~500 tokens injection budget
 JOURNAL_CONTEXT_MAX_RESULTS_DEFAULT = 5  # max semantic search results
 JOURNAL_CONTEXT_MIN_SCORE_DEFAULT = 0.55  # min cosine similarity to include in context

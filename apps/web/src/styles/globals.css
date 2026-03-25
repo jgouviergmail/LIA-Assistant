@@ -676,10 +676,13 @@
      2 modes: Mobile (<880px) / Tablet & Desktop (≥880px)
      ============================================ */
 
-  /* Mobile: no width limit for bubbles, but prevent overflow */
+  /* Mobile: no width limit for bubbles, clip horizontal overflow without
+     creating a scroll container (overflow:hidden causes implicit scroll
+     containers that can miscalculate intrinsic height with nested tables) */
   .message-bubble {
     max-width: 100%;
-    overflow: hidden;
+    overflow-x: clip;
+    overflow-y: visible;
     transition:
       max-width 0.2s ease,
       width 0.2s ease;
@@ -687,7 +690,8 @@
 
   .message-bubble-assistant {
     max-width: 100%;
-    overflow: hidden;
+    overflow-x: clip;
+    overflow-y: visible;
   }
 
   /* Tablet & Desktop (≥880px): bubbles stop before avatar width (3rem = avatar + gap) */

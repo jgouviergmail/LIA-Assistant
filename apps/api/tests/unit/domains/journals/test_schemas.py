@@ -47,12 +47,12 @@ class TestJournalEntryCreate:
             )
 
     def test_content_too_long(self) -> None:
-        """Content exceeding 2000 chars is rejected."""
+        """Content exceeding max entry chars (800) is rejected."""
         with pytest.raises(ValidationError):
             JournalEntryCreate(
                 theme="learnings",
                 title="Title",
-                content="x" * 2001,
+                content="x" * 801,
             )
 
     def test_empty_title_rejected(self) -> None:

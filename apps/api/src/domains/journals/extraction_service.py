@@ -110,9 +110,9 @@ def _get_introspection_prompt() -> str:
     return str(load_prompt("journal_introspection_prompt"))
 
 
-def _get_personality_addon_prompt() -> str:
-    """Load the journal personality addon prompt from file."""
-    return str(load_prompt("journal_introspection_personality_addon"))
+def _get_analyst_persona_prompt() -> str:
+    """Load the journal analyst persona prompt from file."""
+    return str(load_prompt("journal_analyst_persona"))
 
 
 def _format_messages_for_extraction(messages: list[BaseMessage]) -> str:
@@ -613,11 +613,10 @@ async def extract_journal_entry_background(
             max_entry_chars=max_entry_chars,
         )
 
-        # Add personality addon if available
-        if personality_instruction:
-            prompt += "\n\n" + _get_personality_addon_prompt().format(
-                personality_instruction=personality_instruction
-            )
+        # Add analyst persona (always injected, independent of conversational personality)
+        prompt += "\n\n" + _get_analyst_persona_prompt().format(
+            personality_code=personality_code or "none"
+        )
 
         # Call LLM
         llm = get_llm("journal_extraction")

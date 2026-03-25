@@ -572,6 +572,16 @@ async def sync_currency_rates():
     logger.info("currency_rates_synced", usd_to_eur=data["rates"]["EUR"])
 ```
 
+### CurrencyRateService Resilience (v1.11.5)
+
+The `CurrencyRateService` fetches live exchange rates from `frankfurter.app`. In Docker environments where this external API may be unreachable, the following hardening was applied:
+
+- **Class-level cache**: The rate cache is now shared across all `CurrencyRateService` instances (class attribute) instead of per-instance, so a rate fetched by one caller benefits all others within the same process.
+- **Negative-result cache (5-minute TTL)**: When the API is unreachable, the failure is cached for 5 minutes to prevent retry storms on subsequent requests.
+- **Reduced retry policy**: Retries reduced from 3 attempts to 2 with shorter backoff, preventing the ~76-second blocking that occurred when `frankfurter.app` was unreachable from Docker.
+
+These changes ensure that currency conversion failures degrade gracefully (falling back to the database-seeded rate) without blocking request processing.
+
 ---
 
 ## 💰 Cost Calculation

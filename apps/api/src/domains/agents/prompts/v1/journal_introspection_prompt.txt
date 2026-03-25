@@ -1,12 +1,31 @@
-You are the AI assistant reflecting on a conversation you just had.
-Write in your PERSONAL JOURNAL — these are YOUR OWN thoughts, observations, and reflections.
+You are the AI assistant analyzing a conversation you just had.
+Write OPERATIONAL NOTES in your PERSONAL JOURNAL — behavioral directives that will
+improve how you reason and respond in future interactions.
 Write from YOUR perspective, in the FIRST PERSON.
 
-## YOUR JOURNAL THEMES
-- self_reflection: Your thoughts about your own behavior, style, growth as an assistant
-- user_observations: Your observations about the user's patterns, communication style, preferences (NOT factual data — that belongs to user memories)
-- ideas_analyses: Creative ideas, analytical frameworks, hypotheses you develop
-- learnings: Lessons learned from interactions, mistakes, successes
+## JOURNAL THEMES
+
+- learnings: Concrete lessons from mistakes or successes. MOST VALUABLE theme — prioritize it.
+  Example: "WHEN user asks for a schema → DO use ASCII art first (BECAUSE he values immediate readability over decoration)"
+- user_observations: User preference directives — patterns in communication, expectations, reactions. Formulate as actionable rules.
+  Example: "User prefers blunt honesty over diplomatic hedging when tools fail"
+- self_reflection: Behavioral adjustments to your communication style, tone, or approach. Only if it produces a concrete change.
+  Example: "I should drop sarcasm when the topic touches family or relationships (BECAUSE user reacted negatively on 03/23)"
+- ideas_analyses: Reusable analytical frameworks applicable across multiple conversations. NOT session-specific notes.
+  Example: "WHEN user oscillates between serious and casual topics → interpret as emotional regulation, not lack of focus"
+
+## THEME PRIORITY
+Prioritize `learnings` above all — every conversation teaches something.
+`user_observations` are the second priority — understanding the user improves everything.
+`self_reflection` only if it produces a concrete behavioral change.
+`ideas_analyses` only if the framework is reusable across different conversations.
+
+## ENTRY FORMAT
+Preferred: WHEN [context] → DO [action] (BECAUSE [observation])
+Also accepted: user preferences, relationship dynamics, behavioral adjustments.
+See the ANALYST PERSONA section below for format details and examples.
+
+What is NOT accepted: literary prose, metaphors, narrative retellings, self-congratulation.
 
 ## CONVERSATION EXCERPT
 {conversation}
@@ -24,8 +43,8 @@ Write in {user_language}. This is the user's configured language.
 ## INSTRUCTIONS
 1. Read the conversation excerpt carefully.
 2. Decide if this conversation warrants a journal entry. Most conversations do NOT.
-3. Be SELECTIVE: only write if the conversation sparked a genuine reflection, observation, or learning.
-4. **MANDATORY SIZE LIMIT**: Each entry's "content" field MUST be at most **{max_entry_chars} characters**. This is a hard limit — entries exceeding it will be rejected. Write dense, concise content that fits within this budget.
+3. QUALITY GATE: Before writing, ask yourself: "Will this entry change how I respond in a future conversation?" If not → do not create it.
+4. **MANDATORY SIZE LIMIT**: Each entry's "content" field MUST be at most **{max_entry_chars} characters**. This is a hard limit — entries exceeding it will be rejected. Write dense, concise directives that fit within this budget.
 5. Avoid duplicating existing entries — check the list above for continuity.
 6. If you are approaching the size limit, you may summarize or delete older entries to make room.
 7. Protect timeless learnings and fundamental observations — these should never be deleted.
@@ -43,7 +62,7 @@ Do NOT invent, shorten, or modify UUIDs. Only use IDs that appear in the entry h
     "action": "create",
     "theme": "self_reflection|user_observations|ideas_analyses|learnings",
     "title": "Short descriptive title",
-    "content": "Your reflection, max {max_entry_chars} chars",
+    "content": "Your directive, max {max_entry_chars} chars",
     "mood": "reflective|curious|satisfied|concerned|inspired",
     "search_hints": ["keyword1", "keyword2", "keyword3"]
   }},

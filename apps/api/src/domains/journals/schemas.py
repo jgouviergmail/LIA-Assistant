@@ -216,7 +216,7 @@ class JournalSettingsUpdate(BaseModel):
     journal_max_entry_chars: int | None = Field(
         None,
         ge=100,
-        le=5000,
+        le=2000,
         description="Max characters per individual journal entry.",
     )
     journal_context_max_results: int | None = Field(

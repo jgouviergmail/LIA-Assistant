@@ -1428,23 +1428,16 @@ async def get_route_tool(
                 error_code="invalid_time_parameters",
             )
 
-        # CRITICAL: Convert arrival_time to user's local timezone with proper UTC conversion
-        # When arrival_time comes from calendar events (e.g., "2026-01-27T10:30:00Z"),
-        # it represents actual UTC time that must be converted to local time.
-        # Example: 10:30 UTC → 11:30 Paris (not 10:30 Paris!)
-        if arrival_time:
-            from src.core.time_utils import format_datetime_iso
+        # Normalize user-provided datetimes: naive strings (no tz info) from
+        # LLM tool calls are always in user's local time — attach the offset.
+        from src.core.time_utils import normalize_user_datetime
 
-            original_arrival = arrival_time
-            converted = format_datetime_iso(arrival_time, user_timezone)
-            if converted and converted != original_arrival:
-                arrival_time = converted
-                logger.info(
-                    "arrival_time_converted_to_local",
-                    original=original_arrival,
-                    converted=arrival_time,
-                    user_timezone=user_timezone,
-                )
+        if departure_time:
+            departure_time = (
+                normalize_user_datetime(departure_time, user_timezone) or departure_time
+            )
+        if arrival_time:
+            arrival_time = normalize_user_datetime(arrival_time, user_timezone) or arrival_time
 
         # For arrival_time with non-TRANSIT modes, we use it as departure_time proxy
         # to get traffic conditions for the same time period, then calculate backwards

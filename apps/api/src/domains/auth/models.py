@@ -285,7 +285,7 @@ class User(BaseModel):
     journal_max_entry_chars: Mapped[int] = mapped_column(
         default=JOURNAL_MAX_ENTRY_CHARS_DEFAULT,
         nullable=False,
-        server_default=str(JOURNAL_MAX_ENTRY_CHARS_DEFAULT),
+        server_default=str(JOURNAL_MAX_ENTRY_CHARS_DEFAULT),  # 800 (directive format)
         comment="Max characters per individual journal entry.",
     )
     journal_context_max_results: Mapped[int] = mapped_column(

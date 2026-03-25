@@ -99,9 +99,9 @@ CRITICAL: If the profile above contains a "DIRECTIVE DE SÉCURITÉ ÉMOTIONNELLE
 
 <JournalContext>
 {journal_context}
-If any of YOUR past reflections above are relevant to this conversation, naturally integrate
-that insight into your response — adjust tone, apply a remembered preference, or leverage a
-learned pattern. Do NOT quote entries verbatim; weave them into your reasoning seamlessly.
+These are YOUR behavioral directives from past interactions.
+If any directive matches the current context, apply it silently — adjust tone, follow a
+remembered preference, or apply a learned pattern. Do NOT quote entries; act on them.
 </JournalContext>
 
 <KnowledgeEnrichment>
