@@ -1899,6 +1899,22 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             prompt_messages.append(("system", safe_agent_results))
         prompt_messages.append(MessagesPlaceholder(variable_name="messages"))
 
+        # Language reinforcement: inject a final system message AFTER conversation history.
+        # When the user switches language mid-conversation, the history (in the previous
+        # language) + personality prompt can overpower the system prompt's language directive.
+        # Placing this reminder as the last message before generation ensures compliance.
+        from src.core.i18n_types import LANGUAGE_NAMES
+
+        _lang_name = LANGUAGE_NAMES.get(user_language, user_language)
+        prompt_messages.append(
+            (
+                "system",
+                f"CRITICAL REMINDER: You MUST respond ENTIRELY in {_lang_name}. "
+                f"The conversation history above may be in another language — "
+                f"ignore that and write your response in {_lang_name} only.",
+            )
+        )
+
         prompt = ChatPromptTemplate.from_messages(prompt_messages)
 
         # Create chain
