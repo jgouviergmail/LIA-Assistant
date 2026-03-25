@@ -1067,7 +1067,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             try:
                 await cache_invalidation_task
             except asyncio.CancelledError:
-                pass
+                pass  # Expected: task was just cancelled above
             logger.info("cache_invalidation_subscriber_stopped")
         except RuntimeError as exc:
             logger.error("cache_invalidation_subscriber_shutdown_failed", error=str(exc))

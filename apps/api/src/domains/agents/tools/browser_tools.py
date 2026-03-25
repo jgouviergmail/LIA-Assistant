@@ -221,7 +221,7 @@ async def browser_task_tool(
             try:
                 current_title = await session.page.title()
             except Exception:
-                pass
+                pass  # Best-effort: page may be navigating or closed
 
         # Update Redis with final page state
         if current_url:

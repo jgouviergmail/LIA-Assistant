@@ -209,7 +209,7 @@ async def run_invalidation_subscriber() -> None:
                     await pubsub.unsubscribe(REDIS_CHANNEL_CACHE_INVALIDATION)
                     await pubsub.close()
                 except Exception:
-                    pass
+                    pass  # Best-effort cleanup: pubsub may already be closed
             raise
         except Exception:
             logger.error(
@@ -221,5 +221,5 @@ async def run_invalidation_subscriber() -> None:
                 try:
                     await pubsub.close()
                 except Exception:
-                    pass
+                    pass  # Best-effort cleanup: pubsub may already be closed
             await asyncio.sleep(reconnect_delay)

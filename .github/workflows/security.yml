@@ -58,7 +58,8 @@ jobs:
 
       - name: pip-audit (Python)
         working-directory: ./apps/api
-        run: pip-audit --desc --fix --dry-run
+        # CVE-2026-4539: Pygments ReDoS in AdlLexer (local-only, low severity, no fix available upstream)
+        run: pip-audit --desc --fix --dry-run --ignore-vuln CVE-2026-4539
 
       - name: Setup pnpm
         uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4
