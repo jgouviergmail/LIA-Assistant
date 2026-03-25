@@ -160,7 +160,19 @@ if (-not $SkipEncrypt) {
         Write-Info "Chiffrement de .env.prod..."
         if (-not $DryRun) {
             $env:SOPS_AGE_KEY_FILE = $KeysProd
+            # SOPS dotenv does not support inline comments — strip them in place,
+            # encrypt, then restore the original file
+            $envProdBackup = "$envProd.bak"
+            Copy-Item $envProd $envProdBackup -Force
+            $cleanLines = Get-Content $envProd | ForEach-Object {
+                if ($_ -match '^[A-Za-z_]') {
+                    $_ -replace '\s+#\s.*$', ''
+                } else { $_ }
+            }
+            $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+            [IO.File]::WriteAllText($envProd, ($cleanLines -join "`n") + "`n", $utf8NoBom)
             $result = sops --encrypt --input-type dotenv --output-type dotenv $envProd 2>&1
+            Move-Item -Force $envProdBackup $envProd
             if ($LASTEXITCODE -eq 0) {
                 $result | Out-File -FilePath $envProdEnc -Encoding utf8
                 Write-Success ".env.prod.encrypted cree"
@@ -182,7 +194,19 @@ if (-not $SkipEncrypt) {
         Write-Info "Chiffrement de .env (dev)..."
         if (-not $DryRun) {
             $env:SOPS_AGE_KEY_FILE = $KeysDev
+            # SOPS dotenv does not support inline comments — strip them in place,
+            # encrypt, then restore the original file
+            $envDevBackup = "$envDev.bak"
+            Copy-Item $envDev $envDevBackup -Force
+            $cleanLines = Get-Content $envDev | ForEach-Object {
+                if ($_ -match '^[A-Za-z_]') {
+                    $_ -replace '\s+#\s.*$', ''
+                } else { $_ }
+            }
+            $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+            [IO.File]::WriteAllText($envDev, ($cleanLines -join "`n") + "`n", $utf8NoBom)
             $result = sops --encrypt --input-type dotenv --output-type dotenv $envDev 2>&1
+            Move-Item -Force $envDevBackup $envDev
             if ($LASTEXITCODE -eq 0) {
                 $result | Out-File -FilePath $envDevEnc -Encoding utf8
                 Write-Success ".env.encrypted cree"
