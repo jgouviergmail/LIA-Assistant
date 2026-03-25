@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import { useTranslation } from 'react-i18next';
-import { cn, proxyGoogleImageUrl } from '@/lib/utils';
+import { cn, GOOGLE_IMAGE_DOMAINS, proxyGoogleImageUrl } from '@/lib/utils';
 import { ImageLightbox } from '@/components/ui/image-lightbox';
 import { InlinePlaceCarousel } from '@/components/ui/inline-place-carousel';
 import { formatPhonesInText } from '@/lib/format';
@@ -302,7 +302,14 @@ const MarkdownImage = memo(
     const isPlacePhoto = src.includes('/connectors/google-places/photo');
     const isProfilePhoto =
       !isPlacePhoto &&
-      (src.includes('googleusercontent.com') || alt?.toLowerCase().includes('photo'));
+      (() => {
+        try {
+          const parsed = new URL(src);
+          return GOOGLE_IMAGE_DOMAINS.includes(parsed.hostname);
+        } catch {
+          return alt?.toLowerCase().includes('photo') ?? false;
+        }
+      })();
 
     // Place photo - clickable with lightbox (2x zoom: 200px -> 400px)
     if (isPlacePhoto) {

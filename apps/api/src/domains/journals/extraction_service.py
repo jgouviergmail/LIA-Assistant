@@ -302,7 +302,7 @@ def _parse_journal_extraction_result(result_text: str) -> list[ExtractedJournalE
                         )
                         return items
             except json.JSONDecodeError:
-                pass
+                logger.debug("journal_extraction_json_recovery_failed")
 
         return []
 
@@ -359,7 +359,10 @@ async def _persist_journal_tokens(
             try:
                 conv_uuid = UUID(conversation_id)
             except ValueError:
-                pass
+                logger.debug(
+                    "journal_invalid_conversation_id",
+                    conversation_id=conversation_id,
+                )
 
         async with TrackingContext(
             run_id=run_id,
@@ -575,8 +578,12 @@ async def extract_journal_entry_background(
                     personality = await ps.get_by_id(user.personality_id)
                     if personality:
                         personality_code = personality.code
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning(
+                        "journal_personality_load_failed",
+                        error=str(e),
+                        user_id=str(user.id),
+                    )
 
         # Format existing entries for prompt context
         existing_context = _format_existing_entries_for_context(existing_entries)
@@ -584,15 +591,15 @@ async def extract_journal_entry_background(
         # Build size warning
         usage_pct = (total_chars / max_total_chars * 100) if max_total_chars > 0 else 0
         size_warning = ""
-        if usage_pct > 80:
-            size_warning = (
-                "WARNING: You are approaching the size limit. "
-                "Consider summarizing or deleting older entries to make room."
-            )
-        elif usage_pct > 100:
+        if usage_pct > 100:
             size_warning = (
                 "CRITICAL: You have EXCEEDED the size limit. "
                 "You MUST summarize or delete entries to get back within the limit."
+            )
+        elif usage_pct > 80:
+            size_warning = (
+                "WARNING: You are approaching the size limit. "
+                "Consider summarizing or deleting older entries to make room."
             )
 
         # Build prompt

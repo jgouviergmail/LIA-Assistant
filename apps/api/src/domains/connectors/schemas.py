@@ -5,6 +5,7 @@ Connectors domain schemas (Pydantic models for API).
 import re
 from datetime import datetime
 from enum import Enum
+from ipaddress import IPv4Address, ip_address
 from typing import Any
 from uuid import UUID
 
@@ -331,7 +332,27 @@ class HueBridgeDiscoveryResponse(BaseModel):
     bridges: list[HueBridgeInfo] = Field(default_factory=list, description="Discovered bridges")
 
 
-class HuePairingRequest(BaseModel):
+class _HueBridgeIpValidatorMixin(BaseModel):
+    """Mixin validating bridge_ip is a private, non-loopback IPv4 address."""
+
+    @field_validator("bridge_ip", check_fields=False)
+    @classmethod
+    def validate_bridge_ip(cls, v: str) -> str:
+        """Validate bridge_ip is a private IPv4 address (RFC 1918)."""
+        try:
+            ip = ip_address(v)
+        except ValueError as e:
+            raise ValueError(f"Invalid IP address format: {v}") from e
+        if not isinstance(ip, IPv4Address):
+            raise ValueError("Bridge IP must be an IPv4 address")
+        if ip.is_loopback:
+            raise ValueError("Loopback addresses are not allowed")
+        if not ip.is_private:
+            raise ValueError("Bridge IP must be a private network address (RFC 1918)")
+        return v
+
+
+class HuePairingRequest(_HueBridgeIpValidatorMixin):
     """Request to pair with a Hue Bridge via press-link."""
 
     bridge_ip: str = Field(..., description="Bridge IP from discovery step")
@@ -347,7 +368,7 @@ class HuePairingResponse(BaseModel):
     error: str | None = Field(None, description="Error message if pairing failed")
 
 
-class HueLocalActivationRequest(BaseModel):
+class HueLocalActivationRequest(_HueBridgeIpValidatorMixin):
     """Request to activate Hue connector in local mode."""
 
     bridge_ip: str = Field(..., description="Bridge internal IP address")

@@ -114,7 +114,7 @@ def resolve_color(color_input: str) -> tuple[float, float] | None:
             if 0.0 <= x <= 1.0 and 0.0 <= y <= 1.0:
                 return (x, y)
     except ValueError:
-        pass
+        pass  # Expected: input is not x,y coordinates, fall through to return None
 
     return None
 
@@ -617,6 +617,7 @@ class PhilipsHueClient:
             API response: [{"success": {"username": "...", "clientkey": "..."}}]
             or [{"error": {"type": 101, "description": "link button not pressed"}}].
         """
+        # Hue bridges use self-signed TLS certificates by design (local network only)
         async with httpx.AsyncClient(verify=False, timeout=HUE_PAIRING_TIMEOUT_SECONDS) as client:
             response = await client.post(
                 f"https://{bridge_ip}/api",

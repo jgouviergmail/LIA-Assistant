@@ -127,7 +127,7 @@ class BrowserSession:
                 if self.page and not self.page.is_closed():
                     await self.page.close()
             except Exception:
-                pass
+                pass  # Best-effort cleanup: page may already be crashed
             self.page = None
             raise nav_error
 
@@ -339,12 +339,12 @@ class BrowserSession:
             if self.page and not self.page.is_closed():
                 await self.page.close()
         except Exception:
-            pass
+            pass  # Best-effort cleanup: page may already be closed or disconnected
 
         try:
             await self.context.close()
         except Exception:
-            pass
+            pass  # Best-effort cleanup: context may already be closed
 
         self.page = None
         logger.info("browser_session_closed", user_id=self.user_id[:8])

@@ -36,7 +36,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.11.2</strong> — Environment Configuration Overhaul, Settings Compliance &amp; Documentation — March 2026
+  <strong>Version 1.11.3</strong> — Security Hardening: 19 CodeQL Alerts Resolved (SSRF, URL Injection, Code Quality) — March 2026
 </p>
 
 ---

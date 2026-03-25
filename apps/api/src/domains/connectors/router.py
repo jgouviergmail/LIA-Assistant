@@ -1996,17 +1996,30 @@ async def hue_oauth_callback(
 
     if error:
         logger.warning("hue_oauth_callback_error", error=error)
-        return RedirectResponse(url=f"{app_settings.frontend_url}/settings?hue_error={error}")
+        return handle_oauth_callback_error_redirect(
+            ValueError(f"OAuth provider error: {error}"),
+            "philips_hue",
+        )
 
     service = ConnectorService(db)
     try:
-        await service.handle_hue_oauth_callback(code=code, state=state)
-        return RedirectResponse(url=f"{app_settings.frontend_url}/settings?hue_connected=true")
-    except Exception as e:
-        logger.error("hue_oauth_callback_failed", error=str(e))
-        return RedirectResponse(
-            url=f"{app_settings.frontend_url}/settings?hue_error=callback_failed"
+        connector = await service.handle_hue_oauth_callback(code=code, state=state)
+
+        redirect_url = (
+            f"{app_settings.frontend_url}/dashboard/settings?"
+            f"connector_added=true&connector_id={connector.id}"
+            f"&connector_type=philips_hue"
         )
+
+        logger.info(
+            "hue_oauth_callback_success",
+            connector_id=str(connector.id),
+            user_id=str(connector.user_id),
+        )
+
+        return RedirectResponse(url=redirect_url, status_code=302)
+    except Exception as e:
+        return handle_oauth_callback_error_redirect(e, "philips_hue")
 
 
 @router.post(

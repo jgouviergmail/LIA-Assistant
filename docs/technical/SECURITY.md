@@ -1,8 +1,8 @@
 # SECURITY.md
 
 **Documentation Technique - LIA**
-**Version**: 1.2
-**Dernière mise à jour**: 2026-03-02
+**Version**: 1.3
+**Dernière mise à jour**: 2026-03-25
 **Statut**: ✅ Production-Ready
 
 ---
@@ -2719,8 +2719,39 @@ bandit -r apps/api/src/
 - All browser-extracted content wrapped in `<external_content>` markers
 - `[UNTRUSTED EXTERNAL CONTENT]` warning for prompt injection prevention
 
+## Backend HTTP Proxy & Connector SSRF Prevention
+
+*(Added v1.11.3)*
+
+Beyond MCP and browser tools, the backend exposes HTTP endpoints that fetch external resources on behalf of users. These endpoints require SSRF prevention:
+
+### Profile Image Proxy (`/api/v1/auth/profile-image-proxy`)
+
+Proxies Google profile images for COEP compatibility. Security layers:
+
+1. **Pre-fetch hostname allowlist**: `ALLOWED_IMAGE_DOMAINS` frozenset (`lh3-6.googleusercontent.com`)
+2. **HTTPS-only**: Rejects non-HTTPS schemes
+3. **Post-redirect validation**: After following redirects, validates the final response URL hostname against the same allowlist. Prevents redirect-based SSRF where a whitelisted domain redirects to internal services.
+4. **Authentication required**: `Depends(get_current_active_session)` — prevents unauthenticated abuse
+
+### Philips Hue Bridge IP Validation
+
+Hue bridge pairing/activation accepts a user-provided `bridge_ip`. Security layers:
+
+1. **Pydantic `_HueBridgeIpValidatorMixin`**: Validates IP is a private IPv4 address (RFC 1918), rejects loopback (`127.0.0.0/8`), public IPs, and IPv6
+2. **TLS certificate bypass (justified)**: `verify=False` is required because Hue bridges use self-signed certificates by design. This is scoped exclusively to local bridge connections — remote mode uses `verify=True`
+3. **Applied to**: `HuePairingRequest` and `HueLocalActivationRequest` schemas
+
+### OAuth Callback Redirect Sanitization
+
+All 10 OAuth callbacks (Gmail, Google Contacts/Calendar/Drive/Tasks, Microsoft Outlook/Calendar/Contacts/Tasks, Philips Hue) use the centralized `handle_oauth_callback_error_redirect()` handler. This handler:
+
+1. Classifies errors via `OAuthCallbackErrorCode` enum (safe, bounded values)
+2. Never embeds raw user/provider input in redirect URLs
+3. Logs full error context server-side for debugging
+
 ---
 
-**Dernière révision** : 2026-03-19
-**Prochaine révision** : 2026-06-19 (tous les 3 mois)
+**Dernière révision** : 2026-03-25
+**Prochaine révision** : 2026-06-25 (tous les 3 mois)
 **Responsable** : Security Team

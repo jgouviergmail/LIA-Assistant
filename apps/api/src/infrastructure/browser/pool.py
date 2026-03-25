@@ -275,7 +275,7 @@ class BrowserPool:
                         browser_memory_bytes.set(kb * 1024)  # Convert kB → bytes
                         return mb
         except (FileNotFoundError, OSError, ValueError):
-            pass
+            pass  # Graceful fallback: /proc not available on non-Linux platforms
         return None
 
     async def close(self) -> None:

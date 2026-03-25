@@ -115,3 +115,15 @@ Remote mode tokens expire every 7 days (refresh token valid 112 days). Token ref
 - The Hue Bridge uses a self-signed TLS certificate
 - `verify=False` is set only for local mode connections
 - Remote mode uses standard TLS via `api.meethue.com`
+
+### Bridge IP validation (v1.11.3)
+- `bridge_ip` is validated at the Pydantic schema level (`_HueBridgeIpValidatorMixin`)
+- Only private IPv4 addresses are accepted (RFC 1918: `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`)
+- Loopback (`127.0.0.0/8`), public IPs, and IPv6 addresses are rejected
+- Applied to both `HuePairingRequest` and `HueLocalActivationRequest`
+- Prevents SSRF attacks where a crafted IP could reach cloud metadata endpoints or internal services
+
+### OAuth callback security (v1.11.3)
+- Hue remote mode OAuth callback uses the centralized `handle_oauth_callback_error_redirect()` handler
+- Error parameters from the OAuth provider are classified via `OAuthCallbackErrorCode` enum — raw provider input is never embedded in redirect URLs
+- Success redirects use the standard `/dashboard/settings?connector_added=true` pattern (aligned with all other connectors)

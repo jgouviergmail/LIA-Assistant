@@ -186,9 +186,11 @@ async def build_journal_context(
         # Format entries with scores, respecting max_chars budget
         lines = [
             "## CARNET DE BORD PERSONNEL",
-            "These are YOUR own reflections and observations. "
-            "Entries marked [recent] are your latest thoughts; scored entries match "
-            "the current context semantically.",
+            (
+                "These are YOUR own reflections and observations. "
+                "Entries marked [recent] are your latest thoughts; scored entries match "
+                "the current context semantically."
+            ),
             "Use freely whichever notes seem pertinent to you.",
             "",
         ]

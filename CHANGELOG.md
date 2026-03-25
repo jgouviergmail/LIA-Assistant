@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.11.3] - 2026-03-25
+
+### Security
+
+- **SSRF Prevention in Profile Image Proxy** — `GET /profile-image-proxy` validated the initial URL hostname against `ALLOWED_IMAGE_DOMAINS` but used `follow_redirects=True` without post-redirect validation. An authenticated attacker could craft a Google CDN URL that redirects to internal services (metadata endpoints, private network). Fixed by validating the final response URL hostname after redirects. Reuses the same allowlist pattern as the pre-fetch check. (`src/domains/auth/router.py`)
+- **SSRF Prevention in Philips Hue Pairing** — `POST /connectors/philips-hue/pair` accepted an unvalidated `bridge_ip` string parameter, allowing requests to arbitrary hosts (including cloud metadata endpoints, internal services). Added `_HueBridgeIpValidatorMixin` Pydantic validator enforcing private IPv4 addresses only (RFC 1918), rejecting loopback, public IPs, and IPv6. Applied to both `HuePairingRequest` and `HueLocalActivationRequest` schemas. (`src/domains/connectors/schemas.py`)
+- **OAuth Redirect Parameter Injection** — Hue OAuth callback embedded the raw `error` query parameter from the OAuth provider directly into the redirect URL without sanitization. This was the only OAuth callback (out of 10) that bypassed the centralized `handle_oauth_callback_error_redirect()` handler. Fixed by aligning with the pattern used by all 9 other callbacks (Gmail, Google Contacts/Calendar/Drive/Tasks, Microsoft x4), which classifies errors via `OAuthCallbackErrorCode` enum values. Also aligned success redirect path to `/dashboard/settings` for consistency. (`src/domains/connectors/router.py`)
+- **Incomplete URL Substring Sanitization** — `MarkdownContent.tsx` used `src.includes('googleusercontent.com')` to detect Google profile photos, which could match substrings in unrelated hostnames (e.g., `evil-googleusercontent.com`). Fixed by using `new URL(src).hostname` with exact match against the existing `GOOGLE_IMAGE_DOMAINS` array (exported from `utils.ts`). (`apps/web/src/components/chat/MarkdownContent.tsx`, `apps/web/src/lib/utils.ts`)
+
+### Fixed
+
+- **Journal Size Warning Logic** — `if usage_pct > 80` / `elif usage_pct > 100` conditions were ordered incorrectly: the first branch captured all values above 80 (including >100), making the "CRITICAL: exceeded limit" message unreachable. Users exceeding 100% saw the softer "approaching limit" warning instead. Fixed by reversing condition order (>100 first, then >80). (`src/domains/journals/extraction_service.py`)
+- **Duplicate Constant Definition** — `MAX_AGENT_RESULTS_DEFAULT` was defined twice in `constants.py` (lines 1687 and 1891) with identical value. Removed the duplicate at line 1891 (misplaced in the observability section). (`src/core/constants.py`)
+- **Implicit String Concatenation in List** — Adjacent string literals in `context_builder.py` list were implicitly concatenated without parentheses, creating a fragile pattern where a missing comma could silently change behavior. Wrapped in explicit parentheses. (`src/domains/journals/context_builder.py`)
+- **Empty Except Blocks (10 alerts)** — Added explanatory comments to 6 justified cleanup/fallback `except` blocks (browser session close, pool memory probe, leader elector task cancel, Hue color parsing). Added `logger.debug()` to 2 parsing fallbacks (JSON recovery, UUID validation) and `logger.warning()` to 1 service load failure (personality service in journal extraction). 1 alert was a false positive (browser_tools.py except block was not actually empty). (`src/infrastructure/browser/session.py`, `src/infrastructure/browser/pool.py`, `src/infrastructure/scheduler/leader_elector.py`, `src/domains/journals/extraction_service.py`, `src/domains/connectors/clients/philips_hue_client.py`)
+- **TLS Certificate Validation Comment** — Added explicit justification comment for `verify=False` in Hue bridge pairing (bridges use self-signed certificates by design). (`src/domains/connectors/clients/philips_hue_client.py`)
+
 ## [1.11.2] - 2026-03-25
 
 ### Changed

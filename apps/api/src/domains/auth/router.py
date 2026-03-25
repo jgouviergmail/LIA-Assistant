@@ -981,6 +981,20 @@ async def proxy_profile_image(
                 },
             )
 
+            # Security: validate final URL after redirects (SSRF prevention)
+            final_hostname = urlparse(str(response.url)).hostname
+            if final_hostname not in ALLOWED_IMAGE_DOMAINS:
+                logger.warning(
+                    "profile_image_proxy_redirect_blocked",
+                    user_id=str(user_id),
+                    original_url=url[:100],
+                    final_hostname=final_hostname,
+                )
+                raise_invalid_input(
+                    "Redirect to disallowed domain",
+                    domain=final_hostname,
+                )
+
             if response.status_code != 200:
                 logger.warning(
                     "profile_image_proxy_fetch_failed",

@@ -8,7 +8,7 @@ export function cn(...inputs: ClassValue[]) {
 /**
  * Google image domains that need proxying for COEP: require-corp compatibility.
  */
-const GOOGLE_IMAGE_DOMAINS = [
+export const GOOGLE_IMAGE_DOMAINS = [
   'lh3.googleusercontent.com',
   'lh4.googleusercontent.com',
   'lh5.googleusercontent.com',

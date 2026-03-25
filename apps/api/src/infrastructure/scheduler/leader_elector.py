@@ -146,7 +146,7 @@ class SchedulerLeaderElector:
             try:
                 await self._re_election_task
             except asyncio.CancelledError:
-                pass
+                pass  # Expected: task was just cancelled above
             logger.debug(
                 "scheduler_leader_re_election_cancelled",
                 worker_id=self._worker_id,
