@@ -9,6 +9,7 @@
     "edit": "Editar",
     "search": "Buscar",
     "close": "Cerrar",
+    "download": "Descargar",
     "back": "Atrás",
     "next": "Siguiente",
     "next_short": "Sig.",
@@ -2387,14 +2388,15 @@
         "v1_12": {
           "title": "v1.12 — Generación de imágenes y navegación web",
           "date": "Marzo 2026",
-          "count": "6",
+          "count": "7",
           "items": {
             "i1": "<b>Generación de imágenes con IA</b> — Cree imágenes a partir de descripciones de texto, con opciones de calidad, tamaño y formato",
             "i2": "<b>Edición de imágenes</b> — Modifique imágenes existentes con instrucciones en lenguaje natural",
             "i3": "<b>Preferencias de imagen</b> — Calidad (baja/media/alta), tamaño (cuadrado/retrato/paisaje) y formato (PNG/WebP) configurable por usuario",
             "i4": "<b>Capturas en directo</b> — Durante la navegación web, las capturas se muestran en tiempo real en la conversación",
             "i5": "<b>Deduplicación de diarios</b> — Las entradas similares se fusionan automáticamente para evitar duplicados",
-            "i6": "<b>Tarifas de imágenes</b> — Panel de administración para gestionar los precios de generación por modelo, calidad y tamaño"
+            "i6": "<b>Tarifas de imágenes</b> — Panel de administración para gestionar los precios de generación por modelo, calidad y tamaño",
+            "i7": "<b>Descarga de imágenes</b> — Descarga imágenes generadas y capturas de pantalla directamente desde el chat mediante un botón o pulsación larga en el móvil"
           }
         },
         "v1_11": {
@@ -3306,7 +3308,7 @@
       "image_generation": {
         "title": "Generacion de imagenes IA",
         "description": "Generar y editar imagenes con IA",
-        "count": "4",
+        "count": "5",
         "questions": {
           "q1": {
             "question": "Como genero una imagen?",
@@ -3323,6 +3325,10 @@
           "q4": {
             "question": "Cuanto cuesta?",
             "answer": "<p>Para gpt-image-1: Baja $0.011-$0.016, Media $0.042-$0.063, Alta $0.167-$0.250 por imagen.</p>"
+          },
+          "q5": {
+            "question": "¿Cómo descargo una imagen generada?",
+            "answer": "<p>Tres opciones: <strong>(1)</strong> Haga clic en el botón de descarga (icono de flecha) que aparece al pasar el cursor sobre la imagen — en móvil, el botón siempre es visible. <strong>(2)</strong> Haga clic en la imagen para abrirla en pantalla completa y use el botón de descarga en la esquina superior derecha. <strong>(3)</strong> En móvil, mantenga presionada la imagen para usar el menú nativo «Guardar imagen».</p>"
           }
         }
       }

@@ -1,7 +1,17 @@
 import { memo, useState, useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Message, MessageAttachmentMeta } from '@/types/chat';
-import { User, AlertCircle, ThumbsUp, ThumbsDown, Ban, FileText, X, Globe } from 'lucide-react';
+import {
+  User,
+  AlertCircle,
+  ThumbsUp,
+  ThumbsDown,
+  Ban,
+  FileText,
+  X,
+  Globe,
+  Download,
+} from 'lucide-react';
 import { formatNumber, formatEuro } from '@/lib/format';
 import { proxyGoogleImageUrl } from '@/lib/utils';
 import { MarkdownContent } from './MarkdownContent';
@@ -15,6 +25,7 @@ import { toast } from 'sonner';
 import { formatFileSize } from '@/lib/utils/image-compress';
 import { API_ENDPOINTS } from '@/lib/api-config';
 import { ImageLightbox } from '@/components/ui/image-lightbox';
+import { downloadImage } from '@/lib/utils/download-image';
 
 export interface ChatMessageProps {
   message: Message;
@@ -119,6 +130,7 @@ function InterestFeedbackButtons({
  * In dev with self-signed certs, images may not load through the proxy.
  */
 function GeneratedImageCards({ images }: { images: { url: string; alt: string }[] }) {
+  const { t } = useTranslation();
   const [lightboxImage, setLightboxImage] = useState<{ url: string; alt: string } | null>(null);
 
   return (
@@ -128,14 +140,26 @@ function GeneratedImageCards({ images }: { images: { url: string; alt: string }[
           // Use relative URL to go through Next.js rewrite proxy
           const displayUrl = img.url;
           return (
-            <div key={i} className="relative w-full max-w-[512px] mx-auto">
+            <div key={i} className="group relative w-full max-w-[512px] mx-auto">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={displayUrl}
                 alt={img.alt}
-                className="w-full h-auto rounded-lg shadow-md cursor-pointer hover:shadow-lg transition-shadow"
+                className="w-full h-auto rounded-lg shadow-md cursor-pointer hover:shadow-lg transition-shadow [-webkit-touch-callout:default]"
                 onClick={() => setLightboxImage({ url: displayUrl, alt: img.alt })}
               />
+              {/* Discrete download button — visible on hover (desktop) or always visible (touch) */}
+              <button
+                type="button"
+                onClick={e => {
+                  e.stopPropagation();
+                  downloadImage(displayUrl, img.alt);
+                }}
+                className="absolute bottom-2 right-2 p-1.5 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70 max-sm:opacity-70"
+                aria-label={t('common.download')}
+              >
+                <Download className="w-4 h-4" />
+              </button>
             </div>
           );
         })}
@@ -167,15 +191,27 @@ function BrowserScreenshotCard({ screenshot }: { screenshot: { url: string; alt:
   return (
     <>
       <div className="mt-3">
-        <div className="relative w-full max-w-[512px] mx-auto">
+        <div className="group relative w-full max-w-[512px] mx-auto">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={screenshot.url}
             alt={screenshot.alt}
-            className="w-full h-auto rounded-lg shadow-md cursor-pointer hover:shadow-lg transition-shadow"
+            className="w-full h-auto rounded-lg shadow-md cursor-pointer hover:shadow-lg transition-shadow [-webkit-touch-callout:default]"
             crossOrigin="use-credentials"
             onClick={() => setLightboxOpen(true)}
           />
+          {/* Discrete download button — visible on hover (desktop) or always visible (touch) */}
+          <button
+            type="button"
+            onClick={e => {
+              e.stopPropagation();
+              downloadImage(screenshot.url, screenshot.alt);
+            }}
+            className="absolute bottom-8 right-2 p-1.5 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70 max-sm:opacity-70"
+            aria-label={t('common.download')}
+          >
+            <Download className="w-4 h-4" />
+          </button>
           <div className="flex items-center gap-1.5 mt-1.5 px-1">
             <Globe className="h-3 w-3 text-muted-foreground flex-shrink-0" />
             <span className="text-[10px] text-muted-foreground truncate">

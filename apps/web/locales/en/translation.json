@@ -9,6 +9,7 @@
     "edit": "Edit",
     "search": "Search",
     "close": "Close",
+    "download": "Download",
     "back": "Back",
     "next": "Next",
     "next_short": "Next",
@@ -2396,14 +2397,15 @@
         "v1_12": {
           "title": "v1.12 — Image Generation & Web Browsing",
           "date": "March 2026",
-          "count": "6",
+          "count": "7",
           "items": {
             "i1": "<b>AI Image Generation</b> — Create images from text descriptions, with quality, size and format options",
             "i2": "<b>Image Editing</b> — Modify existing images using natural language instructions",
             "i3": "<b>Image Preferences</b> — Quality (low/medium/high), size (square/portrait/landscape) and format (PNG/WebP) configurable per user",
             "i4": "<b>Live Screenshots</b> — During web browsing, screenshots are displayed in real-time in the conversation",
             "i5": "<b>Journal Deduplication</b> — Similar entries are automatically merged to avoid duplicates",
-            "i6": "<b>Image Pricing</b> — Admin panel to manage image generation pricing by model, quality and size"
+            "i6": "<b>Image Pricing</b> — Admin panel to manage image generation pricing by model, quality and size",
+            "i7": "<b>Image Download</b> — Download generated images and screenshots directly from the chat via a button or long-press on mobile"
           }
         },
         "v1_11": {
@@ -3315,7 +3317,7 @@
       "image_generation": {
         "title": "AI Image Generation",
         "description": "Generate and edit images using AI",
-        "count": "4",
+        "count": "5",
         "questions": {
           "q1": {
             "question": "How do I generate an image?",
@@ -3332,6 +3334,10 @@
           "q4": {
             "question": "How much does image generation cost?",
             "answer": "<p>For gpt-image-1: Low $0.011-$0.016, Medium $0.042-$0.063, High $0.167-$0.250 per image. Costs appear in the debug panel.</p>"
+          },
+          "q5": {
+            "question": "How do I download a generated image?",
+            "answer": "<p>Three options: <strong>(1)</strong> Click the download button (arrow icon) that appears when hovering over the image — on mobile, the button is always visible. <strong>(2)</strong> Click the image to open full-screen, then use the download button in the top-right corner. <strong>(3)</strong> On mobile, long-press the image to use the native \"Save Image\" menu.</p>"
           }
         }
       }

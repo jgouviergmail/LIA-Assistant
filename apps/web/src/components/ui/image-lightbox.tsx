@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
-import { X } from 'lucide-react';
+import { downloadImage } from '@/lib/utils/download-image';
+import { Download, Loader2, X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 interface ImageLightboxProps {
@@ -21,6 +22,7 @@ interface ImageLightboxProps {
  * Features:
  * - Click outside to close
  * - ESC key to close
+ * - Download button (fetch + blob for cross-origin support)
  * - Smooth fade-in animation
  * - Dark backdrop with glassmorphism
  */
@@ -32,6 +34,7 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
   minWidth,
 }) => {
   const { t } = useTranslation();
+  const [isDownloading, setIsDownloading] = useState(false);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -52,6 +55,15 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
     };
   }, [isOpen, onClose]);
 
+  const handleDownload = useCallback(async () => {
+    setIsDownloading(true);
+    try {
+      await downloadImage(src, alt);
+    } finally {
+      setIsDownloading(false);
+    }
+  }, [src, alt]);
+
   if (!isOpen) return null;
 
   return (
@@ -63,21 +75,47 @@ export const ImageLightbox: React.FC<ImageLightboxProps> = ({
       )}
       onClick={onClose}
     >
-      {/* Close button */}
-      <button
-        onClick={onClose}
-        className={cn(
-          'absolute top-4 right-4 z-10',
-          'p-2 rounded-full',
-          'bg-background/80 hover:bg-background',
-          'border border-border/50',
-          'transition-all duration-200',
-          'hover:scale-110'
-        )}
-        aria-label={t('common.close')}
-      >
-        <X className="w-6 h-6 text-foreground" />
-      </button>
+      {/* Action buttons */}
+      <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+        {/* Download button */}
+        <button
+          onClick={e => {
+            e.stopPropagation();
+            handleDownload();
+          }}
+          disabled={isDownloading}
+          className={cn(
+            'p-2 rounded-full',
+            'bg-background/80 hover:bg-background',
+            'border border-border/50',
+            'transition-all duration-200',
+            'hover:scale-110',
+            'disabled:opacity-50 disabled:cursor-not-allowed'
+          )}
+          aria-label={t('common.download')}
+        >
+          {isDownloading ? (
+            <Loader2 className="w-6 h-6 text-foreground animate-spin" />
+          ) : (
+            <Download className="w-6 h-6 text-foreground" />
+          )}
+        </button>
+
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          className={cn(
+            'p-2 rounded-full',
+            'bg-background/80 hover:bg-background',
+            'border border-border/50',
+            'transition-all duration-200',
+            'hover:scale-110'
+          )}
+          aria-label={t('common.close')}
+        >
+          <X className="w-6 h-6 text-foreground" />
+        </button>
+      </div>
 
       {/* Image container - 3x larger than original */}
       <div

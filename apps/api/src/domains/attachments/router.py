@@ -89,10 +89,17 @@ async def get_attachment(
 
         raise_attachment_not_found(attachment_id)
 
+    # Use "inline" disposition for images so browsers recognise the resource
+    # as a displayable image — this enables the native long-press "Save Image"
+    # context menu on mobile (iOS Safari, Android Chrome).
+    # Non-image attachments keep "attachment" to trigger a download prompt.
+    is_image = attachment.mime_type.startswith("image/")
+
     return FileResponse(
         path=str(file_path),
         media_type=attachment.mime_type,
         filename=attachment.original_filename,
+        content_disposition_type="inline" if is_image else "attachment",
     )
 
 

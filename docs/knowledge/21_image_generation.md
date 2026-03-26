@@ -15,5 +15,8 @@ Cost depends on the model, quality, and size. For gpt-image-1: Low quality $0.01
 ## Is the image generation feature enabled by default?
 Yes, image generation is enabled by default for all users. The administrator can disable it globally via the IMAGE_GENERATION_ENABLED environment variable. Individual users can toggle it in Settings > Preferences.
 
+## How do I download a generated image?
+Three options: **(1)** Click the download button (arrow icon) that appears on hover over the image in the chat — on mobile, the button is always visible. **(2)** Open the full-screen lightbox by clicking the image, then use the download button in the top-right corner. **(3)** On mobile, long-press the image to trigger the native browser "Save Image" menu, just like on any other website.
+
 ## Are my generated images saved?
 Yes, images are saved as attachments on disk and linked to your conversation. They persist across page reloads. When you delete a conversation, all associated images are automatically cleaned up.

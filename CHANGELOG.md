@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.3] - 2026-03-26
+
+### Added
+
+- **Image Download Button** — Discrete download button on generated images and browser screenshots in the chat. Visible on hover (desktop) or always semi-visible (mobile). Also available in the full-screen lightbox with loading spinner. Uses `fetch` + Blob to bypass cross-origin `<a download>` restrictions. Shared utility `downloadImage()` in `apps/web/src/lib/utils/download-image.ts` with robust MIME extension parsing (`jpeg→jpg`, `svg+xml→svg`), Unicode-safe filename sanitisation, and `response.ok` guard against error blob downloads. (`apps/web/src/components/chat/ChatMessage.tsx`, `apps/web/src/components/ui/image-lightbox.tsx`)
+
+### Fixed
+
+- **Mobile Long-Press "Save Image"** — Native browser context menu ("Save Image") now works on generated images and browser screenshots on iOS Safari and Android Chrome. Root cause: Starlette `FileResponse` defaulted to `Content-Disposition: attachment` when `filename` was provided, which prevented mobile browsers from recognising the resource as a displayable image. Fixed by using `content_disposition_type="inline"` for image MIME types, while keeping `attachment` for non-image files (PDF). (`apps/api/src/domains/attachments/router.py`)
+
 ## [1.12.2] - 2026-03-26
 
 ### Added

@@ -36,7 +36,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.12.2</strong> — Progressive Browser Screenshots &amp; SSE Side-Channel — March 2026
+  <strong>Version 1.12.3</strong> — Image Download &amp; Mobile Long-Press Fix — March 2026
 </p>
 
 ---

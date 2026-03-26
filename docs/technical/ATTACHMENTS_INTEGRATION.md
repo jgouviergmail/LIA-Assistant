@@ -175,6 +175,7 @@ Upload d'une piece jointe (multipart/form-data).
 Telecharge le fichier original.
 
 **Response** : `FileResponse` avec `Content-Type` et `Content-Disposition` corrects.
+Images use `Content-Disposition: inline` (enables native browser "Save Image" on long-press), other files use `attachment`.
 
 **Erreurs** :
 - `401` : non authentifie

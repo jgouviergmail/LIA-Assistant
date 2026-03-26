@@ -9,6 +9,7 @@
     "edit": "Bearbeiten",
     "search": "Suchen",
     "close": "Schließen",
+    "download": "Herunterladen",
     "back": "Zurück",
     "next": "Weiter",
     "next_short": "Vor",
@@ -2387,14 +2388,15 @@
         "v1_12": {
           "title": "v1.12 — Bildgenerierung & Web-Navigation",
           "date": "März 2026",
-          "count": "6",
+          "count": "7",
           "items": {
             "i1": "<b>KI-Bildgenerierung</b> — Erstellen Sie Bilder aus Textbeschreibungen mit Qualitäts-, Größen- und Formatoptionen",
             "i2": "<b>Bildbearbeitung</b> — Bearbeiten Sie bestehende Bilder mit natürlichsprachlichen Anweisungen",
             "i3": "<b>Bildeinstellungen</b> — Qualität (niedrig/mittel/hoch), Größe (quadratisch/Hochformat/Querformat) und Format (PNG/WebP) pro Benutzer konfigurierbar",
             "i4": "<b>Live-Screenshots</b> — Während der Web-Navigation werden Screenshots in Echtzeit im Chat angezeigt",
             "i5": "<b>Journal-Deduplizierung</b> — Ähnliche Einträge werden automatisch zusammengeführt",
-            "i6": "<b>Bildtarife</b> — Admin-Panel zur Verwaltung der Bildgenerierungspreise nach Modell, Qualität und Größe"
+            "i6": "<b>Bildtarife</b> — Admin-Panel zur Verwaltung der Bildgenerierungspreise nach Modell, Qualität und Größe",
+            "i7": "<b>Bild-Download</b> — Generierte Bilder und Screenshots direkt aus dem Chat per Button oder langem Drücken auf dem Smartphone herunterladen"
           }
         },
         "v1_11": {
@@ -3306,7 +3308,7 @@
       "image_generation": {
         "title": "KI-Bildgenerierung",
         "description": "Bilder mit KI generieren und bearbeiten",
-        "count": "4",
+        "count": "5",
         "questions": {
           "q1": {
             "question": "Wie generiere ich ein Bild?",
@@ -3323,6 +3325,10 @@
           "q4": {
             "question": "Was kostet die Bildgenerierung?",
             "answer": "<p>Fuer gpt-image-1: Niedrig $0.011-$0.016, Mittel $0.042-$0.063, Hoch $0.167-$0.250 pro Bild.</p>"
+          },
+          "q5": {
+            "question": "Wie lade ich ein generiertes Bild herunter?",
+            "answer": "<p>Drei Möglichkeiten: <strong>(1)</strong> Klicken Sie auf den Download-Button (Pfeil-Symbol), der beim Überfahren des Bildes erscheint — auf dem Smartphone ist der Button immer sichtbar. <strong>(2)</strong> Klicken Sie auf das Bild, um es im Vollbild zu öffnen, und verwenden Sie den Download-Button oben rechts. <strong>(3)</strong> Auf dem Smartphone: Drücken Sie lange auf das Bild, um das native Menü «Bild speichern» zu nutzen.</p>"
           }
         }
       }

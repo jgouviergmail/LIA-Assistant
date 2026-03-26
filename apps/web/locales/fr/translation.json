@@ -9,6 +9,7 @@
     "edit": "Modifier",
     "search": "Rechercher",
     "close": "Fermer",
+    "download": "Télécharger",
     "back": "Retour",
     "next": "Suivant",
     "next_short": "Suiv.",
@@ -2401,14 +2402,15 @@
         "v1_12": {
           "title": "v1.12 — Génération d'images & Navigation web",
           "date": "Mars 2026",
-          "count": "6",
+          "count": "7",
           "items": {
             "i1": "<b>Génération d'images par IA</b> — Créez des images à partir de descriptions textuelles, avec choix de qualité, taille et format",
             "i2": "<b>Édition d'images</b> — Modifiez vos images existantes par instructions en langage naturel",
             "i3": "<b>Préférences image</b> — Qualité (basse/moyenne/haute), taille (carré/portrait/paysage) et format (PNG/WebP) configurables par utilisateur",
             "i4": "<b>Captures d'écran en direct</b> — Pendant la navigation web, les captures s'affichent en temps réel dans la conversation",
             "i5": "<b>Dédoublonnage des journaux</b> — Les entrées similaires sont automatiquement fusionnées pour éviter les doublons",
-            "i6": "<b>Tarification images</b> — Panneau d'administration pour gérer les prix de génération d'images par modèle, qualité et taille"
+            "i6": "<b>Tarification images</b> — Panneau d'administration pour gérer les prix de génération d'images par modèle, qualité et taille",
+            "i7": "<b>Téléchargement d'images</b> — Téléchargez les images générées et captures d'écran directement depuis le chat via un bouton ou un appui long sur mobile"
           }
         },
         "v1_11": {
@@ -3320,7 +3322,7 @@
       "image_generation": {
         "title": "Génération d’images IA",
         "description": "Générer et modifier des images par IA",
-        "count": "4",
+        "count": "5",
         "questions": {
           "q1": {
             "question": "Comment générer une image ?",
@@ -3337,6 +3339,10 @@
           "q4": {
             "question": "Combien coûte la génération d’images ?",
             "answer": "<p>Pour gpt-image-1 : Basse 0,011–0,016 $, Moyenne 0,042–0,063 $, Haute 0,167–0,250 $ par image. Les coûts sont dans le panneau de débogage.</p>"
+          },
+          "q5": {
+            "question": "Comment télécharger une image générée ?",
+            "answer": "<p>Trois options : <strong>(1)</strong> Cliquez sur le bouton de téléchargement (icône flèche) qui apparaît au survol de l’image — sur mobile, le bouton est toujours visible. <strong>(2)</strong> Cliquez sur l’image pour l’ouvrir en plein écran, puis utilisez le bouton de téléchargement en haut à droite. <strong>(3)</strong> Sur mobile, appuyez longuement sur l’image pour utiliser le menu natif « Enregistrer l’image ».</p>"
           }
         }
       }
