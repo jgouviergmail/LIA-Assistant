@@ -4,7 +4,7 @@
 
 **Version**: 2.0
 **Date**: 2026-03-24
-**Application**: LIA v1.12.0
+**Application**: LIA v1.12.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -206,7 +206,7 @@ The assistant maintains its own reflections, organized into four themes: self-re
 
 This is not just another memory layer. It is a form of **artificial introspection** — the assistant reflecting on its interactions, noting its own learnings, developing its own perspectives. When it has written "the user prefers concise explanations on technical topics," this observation organically influences future responses, without any hard-coded rule.
 
-Journals are triggered by two mechanisms: post-conversation extraction (after each exchange) and periodic consolidation (every 4 hours, reviewing and reorganizing notes). Users retain full control: reading, editing, deleting, enabling/disabling.
+Journals are triggered by two mechanisms: post-conversation extraction (after each exchange) and periodic consolidation (every 4 hours, reviewing and reorganizing notes). A **semantic dedup guard** ensures the journal remains dense rather than repetitive: when a new insight is too similar to an existing note, the system enriches the existing entry instead of creating a duplicate. Users retain full control: reading, editing, deleting, enabling/disabling.
 
 ### 5.5. The interest system
 
@@ -486,4 +486,4 @@ It is not a chatbot. It is not a cloud platform. It is a **sovereign digital com
 
 ---
 
-*Document written based on the source code of LIA v1.12.0, 190+ technical documents, 63 ADRs, the complete changelog, and an analysis of the AI competitive landscape as of March 2026. All described features are implemented and verifiable in the code. Market data sourced from Gartner, IBM, and official publications from OpenAI, Google, Microsoft, and Anthropic.*
+*Document written based on the source code of LIA v1.12.1, 190+ technical documents, 63 ADRs, the complete changelog, and an analysis of the AI competitive landscape as of March 2026. All described features are implemented and verifiable in the code. Market data sourced from Gartner, IBM, and official publications from OpenAI, Google, Microsoft, and Anthropic.*

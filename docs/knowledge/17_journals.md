@@ -3,8 +3,8 @@
 ## What are personal journals?
 Personal journals are **thematic notebooks** where the AI assistant records its own behavioral directives, observations, analyses, and learnings. Unlike user memories (which store facts about you), journals contain the **assistant's own perspective** — written in first person as actionable directives (preferred format: WHEN [context] → DO [action] BECAUSE [observation]).
 
-**📓 4 themes:**
-• **Learnings** — Concrete lessons from mistakes or successes (highest priority)
+**📓 4 themes** (balanced — the assistant selects the theme that best fits each insight):
+• **Learnings** — Concrete lessons from mistakes or successes
 • **User observations** — User preference directives — patterns in communication, expectations, reactions
 • **Self-reflection** — Behavioral adjustments to communication style, tone, or approach
 • **Ideas & analyses** — Reusable analytical frameworks applicable across conversations
@@ -23,10 +23,11 @@ The assistant writes through **two mechanisms**:
 • After each conversation (4+ messages), the assistant may write a reflection
 • Analyzes only the last message + context (lightweight, non-blocking)
 • Most conversations produce nothing — the assistant is selective
+• **Smart dedup**: If the new insight is too similar to an existing entry, the assistant enriches the existing entry instead of creating a duplicate — information is never lost, just refined
 
 **🔄 Periodic consolidation:**
 • Every few hours, the assistant reviews all its notes
-• Merges similar entries, summarizes verbose ones, removes obsolete observations
+• Merges similar entries (mandatory first step), summarizes verbose ones, removes obsolete observations
 • Can optionally analyze recent conversation history (configurable, higher cost)
 
 ## How do journals influence responses?
@@ -74,7 +75,7 @@ The assistant manages its own journals autonomously via prompt engineering. A gl
 ## How much does it cost?
 Journal operations use **background LLM calls**:
 
-• **Extraction**: One call per qualifying conversation (most return empty — selective)
+• **Extraction**: One call per qualifying conversation (most return empty — selective). An additional lightweight merge call may occur when deduplication is triggered
 • **Consolidation**: One call per consolidation cycle (every 4-12h per user)
 • LLM models are configurable in **Admin > LLM Configuration** (category: Background)
 • Real costs visible in Settings > Features > Personal Journals (tokens in/out + EUR)

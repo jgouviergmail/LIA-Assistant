@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.1] - 2026-03-26
+
+### Added
+
+- **Image Pricing Admin Panel** — New admin section "LLM Image Pricing" under Settings → Administration. Full CRUD for managing per-image pricing by (model, quality, size). Follows the same pattern as LLM Text Pricing: paginated table with search and sorting, create/edit modal, soft-delete with temporal versioning, audit logging, and cache reload. React 19 `useOptimistic` + `useTransition` for instant UI feedback. 5 backend endpoints at `/admin/image-pricing/pricing` (list, create, update, delete, reload-cache). i18n in 6 languages. (`src/domains/image_generation/router.py`, `src/domains/image_generation/schemas.py`, `apps/web/src/components/settings/AdminImagePricingSection.tsx`)
+
+### Changed
+
+- **Admin Section Naming** — Standardized administration section titles across all 6 languages: "Administration des LLM" → "Tarification LLM Texte", "Administration des API Google" → "Tarification API Google", "Tarification génération d'images" → "Tarification LLM Image".
+
+- **Journal Semantic Dedup Guard** — New programmatic guard in journal extraction that prevents duplicate entries. When the LLM proposes a new entry semantically similar to existing ones (cosine similarity ≥ configurable threshold), the system calls a merge LLM to fuse all matching entries into a single enriched directive instead of creating a duplicate. Supports N→1 consolidation: if multiple existing entries match, they are all merged into the primary and the secondaries are deleted. Configurable via `JOURNAL_DEDUP_SIMILARITY_THRESHOLD` (default: 0.72). New `journal_merge_prompt.txt` for LLM-driven entry fusion. Graceful degradation on any failure (embedding, search, or merge). (`src/domains/journals/extraction_service.py`, `prompts/v1/journal_merge_prompt.txt`)
+
+### Changed
+
+- **Admin Section Naming** — Standardized administration section titles across all 6 languages: "Administration des LLM" → "Tarification LLM Texte", "Administration des API Google" → "Tarification API Google", "Tarification génération d'images" → "Tarification LLM Image".
+- **Journal Introspection Prompt Rebalanced** — Replaced the hard "prioritize learnings above all" directive with a neutral theme selection guide. Each theme now has multiple non-exhaustive examples and a classification decision tree. Added thematic diversity directive to avoid over-concentration in a single theme. Result: entries are now distributed across `learnings`, `user_observations`, `self_reflection`, and `ideas_analyses` instead of 87% learnings. (`prompts/v1/journal_introspection_prompt.txt`)
+
+### Fixed
+
+- **Image Edit Auto-Resolution** — `edit_image` tool no longer requires a valid UUID for `source_attachment_id`. When the planner passes a textual description instead of a UUID, the tool automatically resolves the most recent image attachment from the database. (`src/domains/agents/tools/image_generation_tools.py`)
+- **UnifiedToolOutput.failure Signature** — All 23 `failure()` calls in image generation tools were missing the required `error_code` positional argument, causing `TypeError` on any error path in production. Fixed with appropriate codes (`TOOL_ERROR`, `NOT_FOUND`, `AUTH_ERROR`). (`src/domains/agents/tools/image_generation_tools.py`)
+- **Image Generation Timeout on High Quality** — gpt-image-1 in high quality takes 40-90 seconds. The parallel executor now enforces a minimum 90-second timeout for image tools, overriding the planner's default 30s. (`src/domains/agents/orchestration/parallel_executor.py`)
+- **Journal Consolidation Prompt Contradiction** — The consolidation prompt contained contradictory instructions: "most runs should produce few actions" vs "dedup is always mandatory." Removed the inhibiting phrase and strengthened STEP 1 (MANDATORY DEDUP) with explicit semantic similarity guidance (same topic from different angles = duplicate). (`prompts/v1/journal_consolidation_prompt.txt`)
+
+### Security
+
+- **Dependency Vulnerability Fix** — Pinned `picomatch@4.0.4` (was 4.0.3 + 2.3.1) to fix 4 Dependabot alerts: 2 high-severity ReDoS via extglob quantifiers and 2 medium-severity method injection in POSIX character classes. Pinned `flatted@3.4.2` for consistency. All overrides use exact versions. (`package.json`)
+
 ## [1.12.0] - 2026-03-26
 
 ### Added
@@ -845,7 +873,8 @@ First public open-source release of LIA.
 - Circuit breaker, rate limiting, and distributed locks
 - SOPS/Age encryption for secrets management
 
-[Unreleased]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.12.0...HEAD
+[Unreleased]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.12.1...HEAD
+[1.12.1]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.12.0...v1.12.1
 [1.12.0]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.11.5...v1.12.0
 [1.11.5]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.11.4...v1.11.5
 [1.8.2]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.8.1...v1.8.2

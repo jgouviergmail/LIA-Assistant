@@ -4,7 +4,7 @@
 
 **Version** : 2.0
 **Date** : 2026-03-24
-**Application** : LIA v1.12.0
+**Application** : LIA v1.12.1
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -206,7 +206,7 @@ L'assistant tient ses propres réflexions, organisées en quatre thèmes : auto-
 
 Ce n'est pas une mémoire de plus. C'est une forme d'**introspection artificielle** — l'assistant qui réfléchit sur ses interactions, note ses propres apprentissages, développe ses propres perspectives. Quand il a écrit "l'utilisateur préfère les explications concises sur les sujets techniques", cette observation influence organiquement ses réponses futures, sans règle codée en dur.
 
-Les journaux sont déclenchés par deux mécanismes : extraction post-conversation (après chaque échange) et consolidation périodique (toutes les 4 heures, révision et réorganisation des notes). L'utilisateur garde un contrôle total : lecture, édition, suppression, activation/désactivation.
+Les journaux sont déclenchés par deux mécanismes : extraction post-conversation (après chaque échange) et consolidation périodique (toutes les 4 heures, révision et réorganisation des notes). Un **garde-fou sémantique de déduplication** garantit que le journal reste dense plutôt que répétitif : quand un nouvel insight est trop similaire à une note existante, le système enrichit l'entrée existante au lieu de créer un doublon. L'utilisateur garde un contrôle total : lecture, édition, suppression, activation/désactivation.
 
 ### 5.5. Le système d'intérêts
 
@@ -486,4 +486,4 @@ Ce n'est pas un chatbot. Ce n'est pas une plateforme cloud. C'est un **compagnon
 
 ---
 
-*Document rédigé sur la base du code source de LIA v1.12.0, de 190+ documents techniques, de 63 ADRs, du changelog complet, et d'une analyse du paysage concurrentiel IA de mars 2026. Toutes les fonctionnalités décrites sont implémentées et vérifiables dans le code. Les données de marché proviennent de Gartner, IBM, et des publications officielles d'OpenAI, Google, Microsoft et Anthropic.
+*Document rédigé sur la base du code source de LIA v1.12.1, de 190+ documents techniques, de 63 ADRs, du changelog complet, et d'une analyse du paysage concurrentiel IA de mars 2026. Toutes les fonctionnalités décrites sont implémentées et vérifiables dans le code. Les données de marché proviennent de Gartner, IBM, et des publications officielles d'OpenAI, Google, Microsoft et Anthropic.

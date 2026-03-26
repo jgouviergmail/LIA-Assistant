@@ -30,6 +30,7 @@ import AdminUsersSection from '@/components/settings/AdminUsersSection';
 import AdminConnectorsSection from '@/components/settings/AdminConnectorsSection';
 import AdminLLMPricingSection from '@/components/settings/AdminLLMPricingSection';
 import AdminGoogleApiPricingSection from '@/components/settings/AdminGoogleApiPricingSection';
+import AdminImagePricingSection from '@/components/settings/AdminImagePricingSection';
 import AdminPersonalitiesSection from '@/components/settings/AdminPersonalitiesSection';
 import AdminVoiceSettingsSection from '@/components/settings/AdminVoiceSettingsSection';
 import AdminBroadcastSection from '@/components/settings/AdminBroadcastSection';
@@ -344,6 +345,7 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               <AdminConnectorsSection lng={lng} />
               <AdminLLMPricingSection lng={lng} />
               <AdminGoogleApiPricingSection lng={lng} />
+              <AdminImagePricingSection lng={lng} />
               <FeatureErrorBoundary feature="llm-config">
                 <AdminLLMConfigSection lng={lng} />
               </FeatureErrorBoundary>

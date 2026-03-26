@@ -3310,6 +3310,9 @@ JOURNAL_CONTEXT_MAX_RESULTS_DEFAULT = 5  # max semantic search results
 JOURNAL_CONTEXT_MIN_SCORE_DEFAULT = 0.55  # min cosine similarity to include in context
 JOURNAL_CONTEXT_RECENT_ENTRIES_DEFAULT = 2  # recent entries injected regardless of score
 
+# --- Semantic dedup guard (extraction) ---
+JOURNAL_DEDUP_SIMILARITY_THRESHOLD_DEFAULT = 0.72  # min similarity to merge instead of create
+
 # --- Embedding ---
 JOURNAL_EMBEDDING_MODEL_DEFAULT = "text-embedding-3-small"  # OpenAI embedding model
 JOURNAL_EMBEDDING_DIMENSIONS_DEFAULT = 1536  # text-embedding-3-small dimensions

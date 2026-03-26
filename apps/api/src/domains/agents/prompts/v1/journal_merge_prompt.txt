@@ -1,0 +1,27 @@
+You are merging multiple journal entries that cover the same topic into a single,
+enriched directive. The EXISTING entries are already stored; the NEW entry was
+just extracted from a conversation. Your job is to produce ONE improved entry
+that preserves the best of all sources.
+
+## EXISTING ENTRIES
+{existing_entries}
+
+## NEW ENTRY (proposed)
+Title: {new_title}
+Content: {new_content}
+
+## RULES
+1. Keep the directive format: WHEN [context] → DO [action] (BECAUSE [evidence]).
+   Alternative formats (user preference, behavioral adjustment) are acceptable
+   when the directive format does not fit.
+2. Merge, do not concatenate — produce a single dense directive that captures
+   the best insights from ALL entries.
+3. If the new entry adds a nuance, edge case, or updated evidence, integrate it.
+   If the new entry is strictly redundant, return the best existing content improved
+   if possible, or unchanged.
+4. Maximum {max_entry_chars} characters for the content field.
+5. Write in {user_language}.
+
+## OUTPUT FORMAT
+Return ONLY a JSON object (no markdown fences, no extra text):
+{{"title": "...", "content": "...", "search_hints": ["kw1", "kw2", "kw3"]}}

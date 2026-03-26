@@ -1099,8 +1099,8 @@
         "error_update": "Update error"
       },
       "llm": {
-        "title": "LLM Administration",
-        "description": "Manage LLM models and their pricing (USD per million tokens). Changes automatically create a new price history.",
+        "title": "LLM Text Pricing",
+        "description": "Manage per-model text generation pricing (cost per 1M tokens)",
         "search_placeholder": "Search by model name...",
         "add_model": "Add Model",
         "results_count": "{{total}} model found",
@@ -1573,6 +1573,49 @@
           "error": "Failed to save configuration",
           "resetButton": "Reset"
         }
+      },
+      "image_pricing": {
+        "title": "LLM Image Pricing",
+        "description": "Manage per-image generation pricing by model, quality, and size",
+        "search_placeholder": "Search by model name...",
+        "reload_cache": "Reload cache",
+        "add_entry": "Add pricing",
+        "edit": "Edit",
+        "disable": "Disable",
+        "results_count": "{{total}} pricing entries",
+        "table": {
+          "model": "Model",
+          "quality": "Quality",
+          "size": "Size",
+          "cost_usd": "Cost/image (USD)",
+          "actions": "Actions"
+        },
+        "modal": {
+          "title_add": "Add Image Pricing",
+          "title_edit": "Edit Image Pricing",
+          "model_label": "Model",
+          "quality_label": "Quality",
+          "size_label": "Size",
+          "cost_label": "Cost per image (USD)",
+          "cancel": "Cancel",
+          "submit_create": "Create",
+          "submit_edit": "Save"
+        },
+        "confirm": {
+          "edit_message": "Update this pricing entry? A new version will be created.",
+          "deactivate_message": "Deactivate pricing for {{name}}?"
+        },
+        "errors": {
+          "loading": "Error loading image pricing",
+          "create": "Error creating pricing entry",
+          "update": "Error updating pricing entry",
+          "disable": "Error deactivating pricing entry",
+          "reload_cache": "Error reloading cache"
+        }
+      },
+      "google_api_pricing": {
+        "title": "Google API Pricing",
+        "description": "Manage Google API pricing (Places, Geocoding, Routes)"
       }
     },
     "language": {

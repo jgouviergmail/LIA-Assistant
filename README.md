@@ -36,7 +36,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.12.0</strong> — Currency Cache &amp; Timezone Normalization — March 2026
+  <strong>Version 1.12.1</strong> — AI Image Generation &amp; Journal Semantic Dedup — March 2026
 </p>
 
 ---

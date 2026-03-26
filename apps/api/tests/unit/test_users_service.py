@@ -26,7 +26,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domains.auth.models import User
 from src.domains.users.models import AdminAuditLog
-from src.domains.users.schemas import (
+from src.infrastructure.database.registry import import_all_models
+
+# Ensure all SQLAlchemy models are loaded so relationship() references resolve
+import_all_models()
+from src.domains.users.schemas import (  # noqa: E402
     UserActivationResponse,
     UserActivationUpdate,
     UserListResponse,
@@ -35,8 +39,8 @@ from src.domains.users.schemas import (
     UserSearchParams,
     UserUpdate,
 )
-from src.domains.users.service import UserService
-from tests.fixtures.factories import UserFactory
+from src.domains.users.service import UserService  # noqa: E402
+from tests.fixtures.factories import UserFactory  # noqa: E402
 
 # ============================================================================
 # Fixtures

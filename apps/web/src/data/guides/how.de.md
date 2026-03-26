@@ -6,7 +6,7 @@
 
 **Version**: 2.1
 **Datum**: 2026-03-25
-**Application**: LIA v1.12.0
+**Application**: LIA v1.12.1
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -524,7 +524,9 @@ Kombination mit konfigurierbarem Alpha (Standard 0.6 semantisch / 0.4 BM25). 10 
 
 ### 11.5. Tagebücher (Journals)
 
-Der Assistent führt introspektive Reflexionen in vier Themen (Selbstreflexion, Benutzerbeobachtungen, Ideen/Analysen, Erkenntnisse). Zwei Auslöser: Post-Konversations-Extraktion + periodische Konsolidierung (4h). OpenAI-Embeddings 1536d mit `search_hints` (LLM-Schlüsselwörter im Benutzervokabular). Injection in den Prompt des **Response Node und des Planner Node** — letzterer verwendet `intelligence.original_query` als semantische Anfrage.
+Der Assistent führt introspektive Reflexionen in vier ausgewogenen Themen (Selbstreflexion, Benutzerbeobachtungen, Ideen/Analysen, Erkenntnisse). Zwei Auslöser: Post-Konversations-Extraktion + periodische Konsolidierung (4h). OpenAI-Embeddings 1536d mit `search_hints` (LLM-Schlüsselwörter im Benutzervokabular). Injection in den Prompt des **Response Node und des Planner Node** — letzterer verwendet `intelligence.original_query` als semantische Anfrage.
+
+**Semantischer Dedup-Guard** (v1.12.1): Bevor ein neuer Eintrag erstellt wird, prüft das System die semantische Ähnlichkeit mit bestehenden Einträgen. Überschreitet ein Treffer den konfigurierbaren Schwellenwert (`JOURNAL_DEDUP_SIMILARITY_THRESHOLD`, Standard 0.72), fusioniert ein Merge-LLM alle übereinstimmenden Einträge zu einer einzigen angereicherten Direktive — N→1-Konsolidierung mit Löschung der sekundären Einträge. Graceful Degradation bei Fehler.
 
 Anti-Halluzinations-UUID: `field_validator`, Referenz-ID-Tabelle, Filterung nach bekannten IDs bei Extraktion und Konsolidierung.
 
@@ -875,4 +877,4 @@ Die Verflechtung der Subsysteme — psychologisches Gedächtnis, bayessches Lern
 
 ---
 
-*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (190+ Dokumente), der 63 ADRs und des Changelogs (v1.0 bis v1.12.0). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*
+*Dokument verfasst auf Grundlage der Analyse des Quellcodes (`apps/api/src/`, `apps/web/src/`), der technischen Dokumentation (190+ Dokumente), der 63 ADRs und des Changelogs (v1.0 bis v1.12.1). Alle genannten Metriken, Versionen und Patterns sind in der Codebase verifizierbar.*

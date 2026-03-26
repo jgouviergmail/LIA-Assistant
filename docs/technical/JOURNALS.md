@@ -19,9 +19,10 @@ apps/api/src/domains/journals/
 ├── repository.py            # Data access layer (CRUD + semantic search with min_score)
 ├── service.py               # Business logic (CRUD + embedding + size tracking)
 ├── router.py                # FastAPI endpoints (CRUD + settings + export)
-├── extraction_service.py    # Background post-conversation extraction + debug registry
+├── extraction_service.py    # Background extraction + semantic dedup guard + merge
 ├── consolidation_service.py # Periodic journal maintenance + hallucinated UUID filtering
-└── context_builder.py       # Prompt injection via semantic relevance (with debug data)
+├── context_builder.py       # Prompt injection via semantic relevance (with debug data)
+└── embedding.py             # Lazy-initialized TrackedOpenAIEmbeddings singleton
 ```
 
 ### Database Schema
@@ -79,6 +80,7 @@ Conversation
     │                      └── [EXTRACTION] extract_journal_entry_background()
     │                          → fire-and-forget → LLM introspection → create/update/delete entries
     │                          → UUID validation + hallucinated ID filtering (v1.8.1)
+    │                          → semantic dedup guard: merge similar entries instead of duplicating (v1.12.1)
     │                          → debug results stored in _extraction_debug_results registry
     │
     ├── planner_node_v3.py ── [INJECTION] build_journal_context(query=goal+intent)
@@ -121,6 +123,7 @@ Conversation
 - `JOURNAL_MAX_ENTRY_CHARS` — Default max per entry (default: 800)
 - `JOURNAL_CONTEXT_MAX_RESULTS` — Default max search results (default: 10)
 - `JOURNAL_CONTEXT_MIN_SCORE` — Min cosine similarity for prefiltering (default: 0.3)
+- `JOURNAL_DEDUP_SIMILARITY_THRESHOLD` — Min similarity to trigger merge instead of create (default: 0.72)
 
 **User (Settings > Features)**:
 - Enable/disable journals (data preserved when disabled)
@@ -150,6 +153,34 @@ Personal Journals are integrated as a context source for proactive heartbeat not
 - **Budget**: Limited to 3 entries to keep the heartbeat prompt small
 - **Prefiltering**: Same `JOURNAL_CONTEXT_MIN_SCORE` threshold applies
 - **Prompt injection**: Journal entries appear as "ASSISTANT JOURNAL ENTRIES (your own reflections)" in the heartbeat context, allowing the assistant to personalize notification tone and content
+
+### Semantic Dedup Guard (v1.12.1)
+
+When the extraction LLM proposes a `create` action, a programmatic guard checks for semantic duplicates before persisting:
+
+1. **Embedding**: Generate an embedding for the proposed entry (title + content + search_hints)
+2. **Search**: Query existing entries via pgvector cosine similarity (threshold: `JOURNAL_DEDUP_SIMILARITY_THRESHOLD`, default 0.72)
+3. **Merge (N→1)**: If one or more existing entries exceed the threshold:
+   - Call the merge LLM (`journal_merge_prompt.txt`) with ALL matching entries + the new proposal
+   - **Update** the primary entry (highest score) with the merged content
+   - **Delete** all secondary matching entries (absorbed into primary)
+4. **Fallback**: If no match → normal `create`. If merge fails → graceful degradation to `create`.
+
+This prevents the accumulation of near-duplicate entries on the same topic (e.g., 10 entries about "image generation limits" from different angles). The consolidation job remains a secondary safety net.
+
+**LLM types**: `journal_extraction` (reused for merge calls), tracked as `journal_merge` in token accounting.
+
+**Logging**: `journal_dedup_guard_match_found` (with scores), `journal_dedup_guard_merged` (with deleted IDs), `journal_dedup_guard_merge_fallback` (on failure).
+
+### Theme Distribution (v1.12.1)
+
+The introspection prompt uses a neutral theme selection guide instead of hard priority ordering. Each theme has multiple non-exhaustive examples and a classification decision tree:
+- "I got something wrong or learned a better approach" → `learnings`
+- "I noticed something about the user's preferences" → `user_observations`
+- "I should change how I communicate" → `self_reflection`
+- "I see a pattern across many situations" → `ideas_analyses`
+
+A diversity directive encourages the LLM to look for underrepresented themes when the journal is imbalanced.
 
 ### Anti-Hallucination Guards (v1.8.1)
 
@@ -204,3 +235,4 @@ The extraction debug registry (`_extraction_debug_results` in `extraction_servic
 ## Related ADRs
 
 - [ADR-057: Personal Journals](../architecture/ADR-057-Personal-Journals.md)
+- [ADR-064: Journal Analyst Persona](../architecture/ADR-064-Journal-Analyst-Persona.md)

@@ -2232,6 +2232,27 @@ DELETE /admin/llm/pricing/{pricing_id}
 # is_active = False (history preserved)
 ```
 
+**Image Generation Pricing** (`/admin/image-pricing/pricing`) :
+
+```python
+# List all active image pricing (with pagination)
+GET /admin/image-pricing/pricing?search=gpt&page=1&page_size=20&sort_by=model&sort_order=asc
+Response: ImagePricingListResponse {
+    total: 9, entries: [
+        { id, model: "gpt-image-1", quality: "low", size: "1024x1024",
+          cost_per_image_usd: "0.011000", effective_from, is_active: true }
+    ]
+}
+
+# Create / Update (versioned) / Deactivate
+POST /admin/image-pricing/pricing
+PUT /admin/image-pricing/pricing/{pricing_id}
+DELETE /admin/image-pricing/pricing/{pricing_id}
+
+# Reload in-memory cache (cross-worker via Redis Pub/Sub)
+POST /admin/image-pricing/pricing/reload-cache
+```
+
 **Currency Exchange Rates** (`/admin/llm/currencies`) :
 
 ```python

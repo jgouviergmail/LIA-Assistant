@@ -76,6 +76,10 @@ class UserFactory:
             voice_enabled=voice_enabled,
             theme="system",  # Default theme for test users
             color_theme="default",  # Default color theme for test users
+            image_generation_enabled=True,
+            image_generation_default_quality="low",
+            image_generation_default_size="1024x1536",
+            image_generation_output_format="png",
         )
 
     @staticmethod

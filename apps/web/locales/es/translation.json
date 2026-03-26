@@ -948,8 +948,8 @@
         "error_update": "Error al actualizar"
       },
       "llm": {
-        "title": "Administración de LLM",
-        "description": "Gestiona los modelos LLM y sus precios (USD por millón de tokens). Los cambios crean automáticamente un nuevo historial de precios.",
+        "title": "Precios LLM Texto",
+        "description": "Gestionar precios de generación de texto por modelo (costo por 1M tokens)",
         "search_placeholder": "Buscar por nombre de modelo...",
         "add_model": "Agregar modelo",
         "results_count": "{{total}} modelo encontrado",
@@ -1422,6 +1422,49 @@
           "error": "Error al guardar la configuración",
           "resetButton": "Restablecer"
         }
+      },
+      "image_pricing": {
+        "title": "Precios LLM Imagen",
+        "description": "Gestionar precios de generación de imagen por modelo, calidad y tamaño",
+        "search_placeholder": "Buscar por modelo...",
+        "reload_cache": "Recargar caché",
+        "add_entry": "Añadir precio",
+        "edit": "Editar",
+        "disable": "Desactivar",
+        "results_count": "{{total}} entradas de precios",
+        "table": {
+          "model": "Modelo",
+          "quality": "Calidad",
+          "size": "Tamaño",
+          "cost_usd": "Costo/imagen (USD)",
+          "actions": "Acciones"
+        },
+        "modal": {
+          "title_add": "Añadir precio de imagen",
+          "title_edit": "Editar precio de imagen",
+          "model_label": "Modelo",
+          "quality_label": "Calidad",
+          "size_label": "Tamaño",
+          "cost_label": "Costo por imagen (USD)",
+          "cancel": "Cancelar",
+          "submit_create": "Crear",
+          "submit_edit": "Guardar"
+        },
+        "confirm": {
+          "edit_message": "¿Actualizar este precio?",
+          "deactivate_message": "¿Desactivar precio para {{name}}?"
+        },
+        "errors": {
+          "loading": "Error al cargar precios",
+          "create": "Error al crear",
+          "update": "Error al actualizar",
+          "disable": "Error al desactivar",
+          "reload_cache": "Error al recargar caché"
+        }
+      },
+      "google_api_pricing": {
+        "title": "Precios API Google",
+        "description": "Gestionar precios de API Google (Places, Geocoding, Routes)"
       }
     },
     "timezone": {

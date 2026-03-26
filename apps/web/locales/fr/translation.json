@@ -1286,8 +1286,8 @@
         "error_update": "Erreur lors de la mise à jour"
       },
       "llm": {
-        "title": "Administration des LLM",
-        "description": "Gérez les modèles LLM et leurs tarifs (USD par million de tokens). Les modifications créent automatiquement un nouvel historique de prix.",
+        "title": "Tarification LLM Texte",
+        "description": "Gérer les tarifs de génération de texte par modèle (coût par 1M de tokens)",
         "search_placeholder": "Rechercher par nom de modèle...",
         "add_model": "Ajouter un modèle",
         "results_count": "{{total}} modèle trouvé",
@@ -1760,6 +1760,49 @@
           "error": "Erreur lors de la sauvegarde",
           "resetButton": "Réinitialiser"
         }
+      },
+      "image_pricing": {
+        "title": "Tarification LLM Image",
+        "description": "Gérer les tarifs de génération d’image par modèle, qualité et taille",
+        "search_placeholder": "Rechercher par modèle...",
+        "reload_cache": "Recharger le cache",
+        "add_entry": "Ajouter un tarif",
+        "edit": "Modifier",
+        "disable": "Désactiver",
+        "results_count": "{{total}} entrées tarifaires",
+        "table": {
+          "model": "Modèle",
+          "quality": "Qualité",
+          "size": "Taille",
+          "cost_usd": "Coût/image (USD)",
+          "actions": "Actions"
+        },
+        "modal": {
+          "title_add": "Ajouter un tarif image",
+          "title_edit": "Modifier le tarif image",
+          "model_label": "Modèle",
+          "quality_label": "Qualité",
+          "size_label": "Taille",
+          "cost_label": "Coût par image (USD)",
+          "cancel": "Annuler",
+          "submit_create": "Créer",
+          "submit_edit": "Enregistrer"
+        },
+        "confirm": {
+          "edit_message": "Mettre à jour ce tarif ? Une nouvelle version sera créée.",
+          "deactivate_message": "Désactiver le tarif pour {{name}} ?"
+        },
+        "errors": {
+          "loading": "Erreur de chargement des tarifs image",
+          "create": "Erreur lors de la création du tarif",
+          "update": "Erreur lors de la modification du tarif",
+          "disable": "Erreur lors de la désactivation du tarif",
+          "reload_cache": "Erreur lors du rechargement du cache"
+        }
+      },
+      "google_api_pricing": {
+        "title": "Tarification API Google",
+        "description": "Gérer les tarifs des API Google (Places, Géocodage, Routes)"
       }
     },
     "skills": {

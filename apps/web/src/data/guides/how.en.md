@@ -6,7 +6,7 @@
 
 **Version**: 2.1
 **Date**: 2026-03-25
-**Application**: LIA v1.12.0
+**Application**: LIA v1.12.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -524,7 +524,9 @@ Combination with configurable alpha (default 0.6 semantic / 0.4 BM25). 10% boost
 
 ### 11.5. Journals
 
-The assistant maintains introspective reflections across four themes (self-reflection, user observations, ideas/analyses, learnings). Two triggers: post-conversation extraction + periodic consolidation (4h). OpenAI 1536d embeddings with `search_hints` (LLM keywords in the user's vocabulary). Injected into the **Response Node and Planner Node** prompt — the latter uses `intelligence.original_query` as the semantic query.
+The assistant maintains introspective reflections across four balanced themes (self-reflection, user observations, ideas/analyses, learnings) with a neutral classification guide that avoids over-concentration in any single theme. Two triggers: post-conversation extraction + periodic consolidation (4h). OpenAI 1536d embeddings with `search_hints` (LLM keywords in the user's vocabulary). Injected into the **Response Node and Planner Node** prompt — the latter uses `intelligence.original_query` as the semantic query.
+
+**Semantic dedup guard** (v1.12.1): Before creating a new entry, the system checks semantic similarity against existing entries. If a match exceeds the configurable threshold (`JOURNAL_DEDUP_SIMILARITY_THRESHOLD`, default 0.72), a merge LLM fuses all matching entries into a single enriched directive — N→1 consolidation with secondary entries deleted. Graceful degradation on failure.
 
 Anti-hallucination UUID: `field_validator`, reference ID table, filtering by known IDs in extraction and consolidation.
 
@@ -875,4 +877,4 @@ The interweaving of subsystems — psychological memory, Bayesian learning, sema
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (190+ documents), 63 ADRs, and the changelog (v1.0 to v1.12.0). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (190+ documents), 63 ADRs, and the changelog (v1.0 to v1.12.1). All metrics, versions, and patterns cited are verifiable in the codebase.*

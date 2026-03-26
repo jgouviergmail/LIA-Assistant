@@ -192,6 +192,250 @@ def _format_existing_entries_for_context(
     return "\n".join(id_lines) + "\n\n" + "\n".join(entry_lines)
 
 
+# =============================================================================
+# Semantic Dedup Guard
+# =============================================================================
+
+
+def _get_merge_prompt() -> str:
+    """Load the journal merge prompt from file."""
+    return str(load_prompt("journal_merge_prompt"))
+
+
+async def _merge_with_existing(
+    existing_entries: list[tuple[str, str]],
+    new_title: str,
+    new_content: str,
+    user_language: str,
+    max_entry_chars: int,
+    user_id: str,
+    session_id: str,
+) -> dict[str, Any] | None:
+    """Call the merge LLM to fuse a new entry into one or more existing entries.
+
+    Produces a single enriched version that preserves the best of all entries.
+    Returns None on failure (graceful degradation — the create proceeds as-is).
+
+    Args:
+        existing_entries: List of (title, content) tuples for existing entries to merge
+        new_title: Title of the proposed new entry
+        new_content: Content of the proposed new entry
+        user_language: User's language code for output
+        max_entry_chars: Maximum content length
+        user_id: User ID for instrumentation
+        session_id: Session ID for instrumentation
+
+    Returns:
+        Dict with 'title', 'content', and optional 'search_hints', or None on error
+    """
+    try:
+        # Format existing entries for the prompt
+        existing_lines = []
+        for i, (title, content) in enumerate(existing_entries, 1):
+            existing_lines.append(f"### Entry {i}\nTitle: {title}\nContent: {content}")
+        existing_entries_text = "\n\n".join(existing_lines)
+
+        prompt = _get_merge_prompt().format(
+            existing_entries=existing_entries_text,
+            new_title=new_title,
+            new_content=new_content,
+            user_language=user_language,
+            max_entry_chars=max_entry_chars,
+        )
+
+        llm = get_llm("journal_extraction")
+        result = await invoke_with_instrumentation(
+            llm=llm,
+            llm_type="journal_merge",
+            messages=prompt,
+            user_id=user_id,
+            session_id=session_id,
+        )
+        result_text = result.content if isinstance(result.content, str) else str(result.content)
+
+        # Persist merge token cost
+        model_name = get_llm_config_for_agent(settings, "journal_extraction").model
+        await _persist_journal_tokens(
+            user_id=user_id,
+            session_id=session_id,
+            conversation_id=None,
+            result=result,
+            model_name=model_name,
+            node_name="journal_merge",
+        )
+
+        # Parse JSON response
+        cleaned = result_text.strip()
+        if cleaned.startswith("```"):
+            lines = cleaned.split("\n")
+            cleaned = "\n".join(lines[1:])
+            if "```" in cleaned:
+                cleaned = cleaned[: cleaned.rindex("```")]
+
+        parsed = json.loads(cleaned)
+        if isinstance(parsed, dict) and "title" in parsed and "content" in parsed:
+            return parsed
+
+        logger.warning(
+            "journal_merge_unexpected_format",
+            user_id=user_id,
+            result_preview=result_text[:200],
+        )
+        return None
+
+    except Exception as e:
+        logger.warning(
+            "journal_merge_failed",
+            user_id=user_id,
+            error=str(e),
+            error_type=type(e).__name__,
+        )
+        return None
+
+
+async def _apply_semantic_dedup_guard(
+    actions: list[ExtractedJournalEntry],
+    user_id: str,
+    session_id: str,
+    user_language: str,
+    max_entry_chars: int,
+) -> list[ExtractedJournalEntry]:
+    """Check proposed create actions against existing entries for semantic similarity.
+
+    For each 'create' action, generates an embedding and searches existing entries.
+    If a match exceeds settings.journal_dedup_similarity_threshold, the create is converted
+    into an update of the existing entry via an LLM merge call — enriching rather
+    than duplicating.
+
+    Non-create actions pass through unchanged.
+
+    Args:
+        actions: Parsed extraction actions from the LLM
+        user_id: User UUID string
+        session_id: Current session ID
+        user_language: User's language code
+        max_entry_chars: Max content length per entry
+
+    Returns:
+        Modified action list where some creates may have been converted to updates
+    """
+    from src.domains.journals.embedding import get_journal_embeddings
+    from src.domains.journals.repository import JournalEntryRepository
+    from src.domains.journals.service import _build_embedding_text
+    from src.infrastructure.database import get_db_context
+
+    embeddings = get_journal_embeddings()
+    result_actions: list[ExtractedJournalEntry] = []
+
+    for action in actions:
+        # Pass through non-create actions unchanged
+        if action.action != "create" or not action.title or not action.content:
+            result_actions.append(action)
+            continue
+
+        try:
+            # Generate embedding for the proposed entry
+            embed_text = _build_embedding_text(action.title, action.content, action.search_hints)
+            query_embedding = await embeddings.aembed_query(embed_text)
+
+            # Search existing entries for semantic similarity (all matches above threshold)
+            async with get_db_context() as db:
+                repo = JournalEntryRepository(db)
+                matches = await repo.search_by_relevance(
+                    user_id=UUID(user_id),
+                    query_embedding=query_embedding,
+                    limit=10,
+                    min_score=settings.journal_dedup_similarity_threshold,
+                )
+
+            if not matches:
+                # No semantic duplicate — keep the create as-is
+                result_actions.append(action)
+                continue
+
+            # Primary entry: highest similarity — will be updated with merged content
+            primary_entry, primary_score = matches[0]
+            # Secondary entries: additional duplicates — will be deleted after merge
+            secondary_entries = [(entry, score) for entry, score in matches[1:]]
+
+            logger.info(
+                "journal_dedup_guard_match_found",
+                user_id=user_id,
+                new_title=action.title[:50],
+                primary_title=primary_entry.title[:50],
+                primary_entry_id=str(primary_entry.id),
+                primary_score=round(primary_score, 4),
+                secondary_count=len(secondary_entries),
+                threshold=settings.journal_dedup_similarity_threshold,
+            )
+
+            # Call merge LLM with all matching entries
+            all_existing = [(primary_entry.title, primary_entry.content)] + [
+                (entry.title, entry.content) for entry, _ in secondary_entries
+            ]
+            merged = await _merge_with_existing(
+                existing_entries=all_existing,
+                new_title=action.title,
+                new_content=action.content,
+                user_language=user_language,
+                max_entry_chars=max_entry_chars,
+                user_id=user_id,
+                session_id=session_id,
+            )
+
+            if merged:
+                # Update primary entry with merged content
+                merged_hints = merged.get("search_hints")
+                update_action = ExtractedJournalEntry(
+                    action="update",
+                    entry_id=str(primary_entry.id),
+                    title=merged["title"],
+                    content=merged["content"],
+                    mood=action.mood,
+                    search_hints=merged_hints if isinstance(merged_hints, list) else None,
+                )
+                result_actions.append(update_action)
+
+                # Delete secondary entries (now absorbed into primary)
+                for secondary_entry, _sec_score in secondary_entries:
+                    delete_action = ExtractedJournalEntry(
+                        action="delete",
+                        entry_id=str(secondary_entry.id),
+                    )
+                    result_actions.append(delete_action)
+
+                logger.info(
+                    "journal_dedup_guard_merged",
+                    user_id=user_id,
+                    primary_entry_id=str(primary_entry.id),
+                    primary_score=round(primary_score, 4),
+                    deleted_count=len(secondary_entries),
+                    deleted_ids=[str(e.id) for e, _ in secondary_entries],
+                    original_title=action.title[:50],
+                    merged_title=merged["title"][:50],
+                )
+            else:
+                # Merge failed — fall back to create (graceful degradation)
+                result_actions.append(action)
+                logger.info(
+                    "journal_dedup_guard_merge_fallback",
+                    user_id=user_id,
+                    reason="merge_llm_failed",
+                )
+
+        except Exception as e:
+            # Graceful degradation — dedup failure must never block extraction
+            result_actions.append(action)
+            logger.warning(
+                "journal_dedup_guard_error",
+                user_id=user_id,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+
+    return result_actions
+
+
 def _parse_journal_extraction_result(result_text: str) -> list[ExtractedJournalEntry]:
     """Parse LLM extraction result into ExtractedJournalEntry objects.
 
@@ -690,6 +934,15 @@ async def extract_journal_entry_background(
                 filtered_count=len(actions) - len(valid_actions),
             )
         actions = valid_actions
+
+        # Semantic dedup guard: convert redundant creates into enriched updates
+        actions = await _apply_semantic_dedup_guard(
+            actions=actions,
+            user_id=user_id,
+            session_id=session_id,
+            user_language=user_language,
+            max_entry_chars=max_entry_chars,
+        )
 
         # Apply actions via JournalService (handles char_count + embeddings)
         # Set embedding tracking context for cost attribution to parent message

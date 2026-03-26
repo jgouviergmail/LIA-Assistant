@@ -954,8 +954,8 @@
         "error_update": "更新时出错"
       },
       "llm": {
-        "title": "LLM 管理",
-        "description": "管理LLM模型及其费率（美元每百万令牌）。更改会自动创建新的价格历史。",
+        "title": "LLM文本定价",
+        "description": "按模型管理文本生成定价（每1M token费用）",
         "search_placeholder": "按模型名称搜索...",
         "add_model": "添加模型",
         "results_count": "找到{{total}}个模型",
@@ -1428,6 +1428,49 @@
           "error": "保存配置时出错",
           "resetButton": "重置"
         }
+      },
+      "image_pricing": {
+        "title": "LLM图像定价",
+        "description": "按模型、质量和尺寸管理图像生成定价",
+        "search_placeholder": "按模型名称搜索...",
+        "reload_cache": "重新加载缓存",
+        "add_entry": "添加价格",
+        "edit": "编辑",
+        "disable": "停用",
+        "results_count": "{{total}} 个价格条目",
+        "table": {
+          "model": "模型",
+          "quality": "质量",
+          "size": "尺寸",
+          "cost_usd": "每张费用 (USD)",
+          "actions": "操作"
+        },
+        "modal": {
+          "title_add": "添加图像价格",
+          "title_edit": "编辑图像价格",
+          "model_label": "模型",
+          "quality_label": "质量",
+          "size_label": "尺寸",
+          "cost_label": "每张图像费用 (USD)",
+          "cancel": "取消",
+          "submit_create": "创建",
+          "submit_edit": "保存"
+        },
+        "confirm": {
+          "edit_message": "更新此价格？",
+          "deactivate_message": "停用 {{name}} 的价格？"
+        },
+        "errors": {
+          "loading": "加载价格失败",
+          "create": "创建失败",
+          "update": "更新失败",
+          "disable": "停用失败",
+          "reload_cache": "重新加载缓存失败"
+        }
+      },
+      "google_api_pricing": {
+        "title": "Google API定价",
+        "description": "管理Google API定价（Places、Geocoding、Routes）"
       }
     },
     "timezone": {

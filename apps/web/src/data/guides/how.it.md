@@ -6,7 +6,7 @@
 
 **Versione**: 2.1
 **Data**: 2026-03-25
-**Applicazione**: LIA v1.12.0
+**Applicazione**: LIA v1.12.1
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -524,7 +524,9 @@ Combinazione con alpha configurabile (default 0.6 semantica / 0.4 BM25). Boost d
 
 ### 11.5. Diari di bordo (Journals)
 
-L'assistente tiene riflessioni introspettive su quattro temi (auto-riflessione, osservazioni sull'utente, idee/analisi, apprendimenti). Due trigger: estrazione post-conversazione + consolidamento periodico (4h). Embeddings OpenAI 1536d con `search_hints` (parole chiave LLM nel vocabolario dell'utente). Iniezione nel prompt del **Response Node e del Planner Node** — quest'ultimo utilizza `intelligence.original_query` come query semantica.
+L'assistente mantiene riflessioni introspettive su quattro temi bilanciati (auto-riflessione, osservazioni sull'utente, idee/analisi, apprendimenti). Due trigger: estrazione post-conversazione + consolidamento periodico (4h). Embeddings OpenAI 1536d con `search_hints` (parole chiave LLM nel vocabolario dell'utente). Iniezione nel prompt del **Response Node e del Planner Node** — quest'ultimo utilizza `intelligence.original_query` come query semantica.
+
+**Guard semantico di dedup** (v1.12.1): Prima di creare una nuova voce, il sistema verifica la somiglianza semantica con le voci esistenti. Se una corrispondenza supera la soglia configurabile (`JOURNAL_DEDUP_SIMILARITY_THRESHOLD`, predefinito 0.72), un LLM di fusione combina tutte le voci corrispondenti in un'unica direttiva arricchita — consolidamento N→1 con eliminazione delle voci secondarie. Degradazione elegante in caso di errore.
 
 Anti-allucinazione UUID: `field_validator`, tabella di riferimento ID, filtraggio per ID noti nell'estrazione e nel consolidamento.
 
@@ -875,4 +877,4 @@ L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, r
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (190+ documenti), dei 63 ADR e del changelog (v1.0 a v1.12.0). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (190+ documenti), dei 63 ADR e del changelog (v1.0 a v1.12.1). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

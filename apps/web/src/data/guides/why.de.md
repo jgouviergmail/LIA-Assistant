@@ -4,7 +4,7 @@
 
 **Version**: 2.0
 **Datum**: 2026-03-24
-**Application**: LIA v1.12.0
+**Application**: LIA v1.12.1
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -206,7 +206,7 @@ Der Assistent führt eigene Reflexionen, gegliedert in vier Themenbereiche: Selb
 
 Das ist nicht einfach eine weitere Gedächtnisebene. Es ist eine Form **künstlicher Introspektion** — der Assistent, der über seine Interaktionen nachdenkt, eigene Erkenntnisse festhält und eigene Perspektiven entwickelt. Wenn er notiert hat "der Nutzer bevorzugt knappe Erklärungen bei technischen Themen", beeinflusst diese Beobachtung organisch seine künftigen Antworten, ohne fest kodierte Regel.
 
-Die Journale werden durch zwei Mechanismen ausgelöst: Post-Conversation-Extraktion (nach jedem Gespräch) und periodische Konsolidierung (alle 4 Stunden, Überarbeitung und Neuordnung der Notizen). Der Nutzer behält die volle Kontrolle: Lesen, Bearbeiten, Löschen, Aktivieren/Deaktivieren.
+Die Journale werden durch zwei Mechanismen ausgelöst: Post-Conversation-Extraktion (nach jedem Gespräch) und periodische Konsolidierung (alle 4 Stunden, Überarbeitung und Neuordnung der Notizen). Ein **semantischer Dedup-Guard** stellt sicher, dass das Journal dicht statt repetitiv bleibt: Wenn eine neue Erkenntnis einer bestehenden Notiz zu ähnlich ist, reichert das System den bestehenden Eintrag an, anstatt ein Duplikat zu erstellen. Der Nutzer behält die volle Kontrolle: Lesen, Bearbeiten, Löschen, Aktivieren/Deaktivieren.
 
 ### 5.5. Das Interessensystem
 
@@ -486,4 +486,4 @@ Das ist kein Chatbot. Das ist keine Cloud-Plattform. Das ist ein **souveräner d
 
 ---
 
-*Dokument verfasst auf Grundlage des Quellcodes von LIA v1.12.0, 190+ technischer Dokumente, 63 ADRs, des vollständigen Changelogs sowie einer Analyse der KI-Wettbewerbslandschaft vom März 2026. Alle beschriebenen Funktionen sind implementiert und im Code überprüfbar. Die Marktdaten stammen von Gartner, IBM und den offiziellen Veröffentlichungen von OpenAI, Google, Microsoft und Anthropic.*
+*Dokument verfasst auf Grundlage des Quellcodes von LIA v1.12.1, 190+ technischer Dokumente, 63 ADRs, des vollständigen Changelogs sowie einer Analyse der KI-Wettbewerbslandschaft vom März 2026. Alle beschriebenen Funktionen sind implementiert und im Code überprüfbar. Die Marktdaten stammen von Gartner, IBM und den offiziellen Veröffentlichungen von OpenAI, Google, Microsoft und Anthropic.*

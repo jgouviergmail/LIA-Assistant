@@ -46,7 +46,7 @@ class TestJournalAnalystPersona:
     def test_extraction_prompt_loads(self) -> None:
         """Extraction prompt loads with new theme definitions."""
         prompt = load_prompt("journal_introspection_prompt")
-        assert "THEME PRIORITY" in prompt
+        assert "THEME SELECTION GUIDE" in prompt
         assert "QUALITY GATE" in prompt
 
     def test_consolidation_prompt_loads(self) -> None:

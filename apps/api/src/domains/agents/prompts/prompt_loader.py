@@ -114,6 +114,7 @@ PromptName = Literal[
     "journal_introspection_prompt",
     "journal_consolidation_prompt",
     "journal_analyst_persona",
+    "journal_merge_prompt",
     # ADR-062: Initiative Phase + MCP ReAct
     "initiative_prompt",
     "mcp_react_agent_prompt",

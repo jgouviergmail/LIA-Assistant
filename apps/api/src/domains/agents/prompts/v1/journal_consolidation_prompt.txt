@@ -20,10 +20,14 @@ Write in {user_language}. This is the user's configured language.
 ## YOUR MISSION (execute steps in order)
 
 ### STEP 1: MANDATORY DEDUP (always execute first)
-Scan ALL entries above. If 2+ entries express the same insight, observation, or directive:
+Scan ALL entries above. If 2+ entries cover the same TOPIC, capability, or user preference
+— even if phrased differently or approaching it from different angles —
+they are duplicates and MUST be merged:
 → CREATE one merged entry combining the best elements into a single, dense directive
 → DELETE all source entries
 This is NOT optional. Redundancy is the #1 quality problem.
+Semantic similarity matters more than lexical similarity: entries about "image generation limits",
+"image editing limits", and "image modification capabilities" are all about the same topic.
 
 ### STEP 2: PROGRESSIVE REFORMAT (max 5 entries per run)
 Identify entries that are narrative prose without actionable content.
@@ -53,8 +57,8 @@ After dedup and reformat, you may also:
 
 ## OUTPUT FORMAT
 Return a JSON array of actions. Return [] if no maintenance is needed.
-Most consolidation runs should produce few actions — only act when genuinely useful.
-Exception: dedup (STEP 1) is always mandatory if duplicates exist.
+Dedup (STEP 1) is ALWAYS mandatory if duplicates exist — do not hold back on merging.
+Steps 2 and 3 are discretionary — only act when genuinely useful.
 
 CRITICAL: For update/delete actions, you MUST copy-paste the EXACT entry_id UUID from the entries listed above.
 Do NOT invent, shorten, or modify UUIDs. Only use IDs that appear in the entry headers above (inside [ ] brackets).

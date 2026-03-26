@@ -6,7 +6,7 @@
 
 **Version** : 2.1
 **Date** : 2026-03-25
-**Application** : LIA v1.12.0
+**Application** : LIA v1.12.1
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -524,7 +524,9 @@ Combinaison avec alpha configurable (défaut 0.6 sémantique / 0.4 BM25). Boost 
 
 ### 11.5. Carnets de bord (Journals)
 
-L'assistant tient des réflexions introspectives en quatre thèmes (auto-réflexion, observations utilisateur, idées/analyses, apprentissages). Deux déclencheurs : extraction post-conversation + consolidation périodique (4h). Embeddings OpenAI 1536d avec `search_hints` (mots-clés LLM dans le vocabulaire utilisateur). Injection dans le prompt du **Response Node et du Planner Node** — ce dernier utilise `intelligence.original_query` comme requête sémantique.
+L'assistant tient des réflexions introspectives en quatre thèmes équilibrés (auto-réflexion, observations utilisateur, idées/analyses, apprentissages) avec un guide de classification neutre qui évite la surconcentration dans un seul thème. Deux déclencheurs : extraction post-conversation + consolidation périodique (4h). Embeddings OpenAI 1536d avec `search_hints` (mots-clés LLM dans le vocabulaire utilisateur). Injection dans le prompt du **Response Node et du Planner Node** — ce dernier utilise `intelligence.original_query` comme requête sémantique.
+
+**Garde-fou sémantique de dédup** (v1.12.1) : Avant de créer une nouvelle entrée, le système vérifie la similarité sémantique avec les entrées existantes. Si un match dépasse le seuil configurable (`JOURNAL_DEDUP_SIMILARITY_THRESHOLD`, défaut 0.72), un LLM de fusion combine toutes les entrées correspondantes en une seule directive enrichie — consolidation N→1 avec suppression des entrées secondaires. Dégradation gracieuse en cas d'échec.
 
 Anti-hallucination UUID : `field_validator`, table de référence d'IDs, filtrage par IDs connus dans extraction et consolidation.
 
@@ -875,4 +877,4 @@ L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayé
 
 ---
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (190+ documents), des 63 ADRs, et du changelog (v1.0 à v1.12.0). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (190+ documents), des 63 ADRs, et du changelog (v1.0 à v1.12.1). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

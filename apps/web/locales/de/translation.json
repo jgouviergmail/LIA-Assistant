@@ -948,8 +948,8 @@
         "error_update": "Aktualisierungsfehler"
       },
       "llm": {
-        "title": "LLM-Verwaltung",
-        "description": "Verwalten Sie LLM-Modelle und deren Preise (USD pro Million Tokens). Änderungen erstellen automatisch eine neue Preishistorie.",
+        "title": "LLM-Text-Preise",
+        "description": "Textgenerierungspreise nach Modell verwalten (Kosten pro 1M Token)",
         "search_placeholder": "Nach Modellname suchen...",
         "add_model": "Modell hinzufügen",
         "results_count": "{{total}} Modell gefunden",
@@ -1422,6 +1422,49 @@
           "error": "Fehler beim Speichern der Konfiguration",
           "resetButton": "Zurücksetzen"
         }
+      },
+      "image_pricing": {
+        "title": "LLM-Bild-Preise",
+        "description": "Bildgenerierungspreise nach Modell, Qualität und Größe verwalten",
+        "search_placeholder": "Nach Modellname suchen...",
+        "reload_cache": "Cache neu laden",
+        "add_entry": "Preis hinzufügen",
+        "edit": "Bearbeiten",
+        "disable": "Deaktivieren",
+        "results_count": "{{total}} Preiseinträge",
+        "table": {
+          "model": "Modell",
+          "quality": "Qualität",
+          "size": "Größe",
+          "cost_usd": "Kosten/Bild (USD)",
+          "actions": "Aktionen"
+        },
+        "modal": {
+          "title_add": "Bildpreis hinzufügen",
+          "title_edit": "Bildpreis bearbeiten",
+          "model_label": "Modell",
+          "quality_label": "Qualität",
+          "size_label": "Größe",
+          "cost_label": "Kosten pro Bild (USD)",
+          "cancel": "Abbrechen",
+          "submit_create": "Erstellen",
+          "submit_edit": "Speichern"
+        },
+        "confirm": {
+          "edit_message": "Diesen Preis aktualisieren?",
+          "deactivate_message": "Preis für {{name}} deaktivieren?"
+        },
+        "errors": {
+          "loading": "Fehler beim Laden",
+          "create": "Fehler beim Erstellen",
+          "update": "Fehler beim Aktualisieren",
+          "disable": "Fehler beim Deaktivieren",
+          "reload_cache": "Fehler beim Cache-Neuladen"
+        }
+      },
+      "google_api_pricing": {
+        "title": "Google-API-Preise",
+        "description": "Google-API-Preise verwalten (Places, Geocoding, Routes)"
       }
     },
     "timezone": {

@@ -27,7 +27,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.domains.auth.schemas import UserLoginRequest, UserRegisterRequest
 from src.domains.auth.service import AuthService
 from src.domains.users.models import User
+from src.infrastructure.database.registry import import_all_models
 from tests.fixtures.factories import UserFactory
+
+# Ensure all SQLAlchemy models are loaded so relationship() references resolve
+import_all_models()
 
 # ============================================================================
 # Fixtures
@@ -1074,6 +1078,10 @@ class TestEdgeCases:
             is_verified=False,
             is_superuser=False,
             timezone="Europe/Paris",
+            image_generation_enabled=True,
+            image_generation_default_quality="low",
+            image_generation_default_size="1024x1536",
+            image_generation_output_format="png",
         )
         new_user.id = uuid4()
         new_user.created_at = datetime.now(UTC)

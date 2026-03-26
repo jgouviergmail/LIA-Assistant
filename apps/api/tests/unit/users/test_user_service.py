@@ -27,6 +27,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.domains.users.models import User
 from src.domains.users.schemas import UserActivationUpdate, UserSearchParams, UserUpdate
 from src.domains.users.service import UserService
+from src.infrastructure.database.registry import import_all_models
+
+# Ensure all SQLAlchemy models are loaded so relationship() references resolve
+import_all_models()
 
 # ==============================================================================
 # FACTORY FUNCTIONS
@@ -72,6 +76,11 @@ def create_mock_user(
         color_theme=color_theme,
         created_at=created_at or now,
         updated_at=updated_at or now,
+        # Image generation defaults (required by UserProfile schema)
+        image_generation_enabled=True,
+        image_generation_default_quality="low",
+        image_generation_default_size="portrait",
+        image_generation_output_format="png",
     )
     return user
 

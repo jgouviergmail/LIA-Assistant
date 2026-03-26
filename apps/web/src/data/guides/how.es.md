@@ -6,7 +6,7 @@
 
 **Versión**: 2.1
 **Fecha**: 2026-03-25
-**Aplicación**: LIA v1.12.0
+**Aplicación**: LIA v1.12.1
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -524,7 +524,9 @@ Combinación con alpha configurable (por defecto 0.6 semántica / 0.4 BM25). Boo
 
 ### 11.5. Cuadernos de bitácora (Journals)
 
-El asistente mantiene reflexiones introspectivas en cuatro temas (auto-reflexión, observaciones del usuario, ideas/análisis, aprendizajes). Dos desencadenantes: extracción post-conversación + consolidación periódica (4h). Embeddings OpenAI 1536d con `search_hints` (palabras clave LLM en el vocabulario del usuario). Inyección en el prompt del **Response Node y del Planner Node** — este último utiliza `intelligence.original_query` como consulta semántica.
+El asistente mantiene reflexiones introspectivas en cuatro temas equilibrados (auto-reflexión, observaciones del usuario, ideas/análisis, aprendizajes). Dos desencadenantes: extracción post-conversación + consolidación periódica (4h). Embeddings OpenAI 1536d con `search_hints` (palabras clave LLM en el vocabulario del usuario). Inyección en el prompt del **Response Node y del Planner Node** — este último utiliza `intelligence.original_query` como consulta semántica.
+
+**Guardia semántica de dedup** (v1.12.1): Antes de crear una nueva entrada, el sistema verifica la similitud semántica con las entradas existentes. Si una coincidencia supera el umbral configurable (`JOURNAL_DEDUP_SIMILARITY_THRESHOLD`, predeterminado 0.72), un LLM de fusión combina todas las entradas coincidentes en una única directiva enriquecida — consolidación N→1 con eliminación de las entradas secundarias. Degradación elegante en caso de fallo.
 
 Anti-alucinación UUID: `field_validator`, tabla de referencia de IDs, filtrado por IDs conocidos en extracción y consolidación.
 
@@ -875,4 +877,4 @@ La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesia
 
 ---
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (190+ documentos), de los 63 ADRs y del changelog (v1.0 a v1.12.0). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (190+ documentos), de los 63 ADRs y del changelog (v1.0 a v1.12.1). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

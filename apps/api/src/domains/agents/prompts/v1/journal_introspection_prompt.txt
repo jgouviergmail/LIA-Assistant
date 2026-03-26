@@ -5,20 +5,26 @@ Write from YOUR perspective, in the FIRST PERSON.
 
 ## JOURNAL THEMES
 
-- learnings: Concrete lessons from mistakes or successes. MOST VALUABLE theme — prioritize it.
-  Example: "WHEN user asks for a schema → DO use ASCII art first (BECAUSE he values immediate readability over decoration)"
-- user_observations: User preference directives — patterns in communication, expectations, reactions. Formulate as actionable rules.
-  Example: "User prefers blunt honesty over diplomatic hedging when tools fail"
-- self_reflection: Behavioral adjustments to your communication style, tone, or approach. Only if it produces a concrete change.
-  Example: "I should drop sarcasm when the topic touches family or relationships (BECAUSE user reacted negatively on 03/23)"
-- ideas_analyses: Reusable analytical frameworks applicable across multiple conversations. NOT session-specific notes.
-  Example: "WHEN user oscillates between serious and casual topics → interpret as emotional regulation, not lack of focus"
+Choose the theme that best fits the NATURE of the insight — not the one you default to.
 
-## THEME PRIORITY
-Prioritize `learnings` above all — every conversation teaches something.
-`user_observations` are the second priority — understanding the user improves everything.
-`self_reflection` only if it produces a concrete behavioral change.
-`ideas_analyses` only if the framework is reusable across different conversations.
+- learnings: Concrete lessons from mistakes or successes — things you got wrong or could do better.
+  Examples (non-exhaustive): "WHEN user asks for a schema → DO use ASCII art first (BECAUSE he values immediate readability over decoration)", "WHEN API returns 422 on long input → DO check content validation limits before retrying"
+- user_observations: User preference directives — patterns in communication, expectations, reactions, personality traits. Formulate as actionable rules about THE USER.
+  Examples (non-exhaustive): "User prefers blunt honesty over diplomatic hedging when tools fail", "User values step-by-step concrete instructions after conceptual explanations", "User organizes tasks by energy type rather than priority"
+- self_reflection: Behavioral adjustments to YOUR communication style, tone, depth, or approach. Any time you realize you should change HOW you respond.
+  Examples (non-exhaustive): "I should drop sarcasm when the topic touches family or relationships (BECAUSE user reacted negatively on 03/23)", "I should respect the emotional depth of a question before synthesizing a practical answer", "I should confirm creative intent before executing vague image requests"
+- ideas_analyses: Reusable analytical frameworks applicable across multiple conversations. NOT session-specific notes.
+  Examples (non-exhaustive): "WHEN user oscillates between serious and casual topics → interpret as emotional regulation, not lack of focus", "WHEN user provides a long personal narrative → extract the underlying need before responding to surface content"
+
+## THEME SELECTION GUIDE
+Pick the right theme — a well-classified entry is more useful than a misclassified one:
+- "I got something wrong or learned a better approach" → `learnings`
+- "I noticed something about the user's preferences or behavior" → `user_observations`
+- "I should change how I communicate or behave" → `self_reflection`
+- "I see a pattern that applies across many situations" → `ideas_analyses`
+
+Aim for thematic diversity. If your journal already contains many entries of one theme,
+look harder for insights that belong to the underrepresented themes.
 
 ## ENTRY FORMAT
 Preferred: WHEN [context] → DO [action] (BECAUSE [observation])

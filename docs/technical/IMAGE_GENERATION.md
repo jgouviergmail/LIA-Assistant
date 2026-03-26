@@ -20,6 +20,7 @@ LIA can generate images from text descriptions using AI models (OpenAI gpt-image
 | Multi-provider | Extensible factory (OpenAI today, add Gemini/Stability later) |
 | User preferences | Quality (low/medium/high), size (square/landscape/portrait), format (PNG) |
 | Admin LLM Config | Model/provider selection via admin UI (LLM_TYPES_REGISTRY) |
+| Admin Pricing | Full CRUD admin panel for image pricing (model, quality, size → cost/image) |
 | Cost tracking | Per-image pricing (DB-cached), consolidated into TrackingContext |
 | Attachment storage | Disk + DB with TTL-based cleanup via existing attachment system |
 | Usage limits | Image costs included in per-user usage limit enforcement |
@@ -108,7 +109,10 @@ Task Orchestrator → parallel_executor invokes edit_image tool
 | `src/domains/image_generation/resize.py` | Intelligent resize to nearest supported dimension |
 | `src/domains/agents/tools/image_generation_tools.py` | `generate_image` + `edit_image` tools |
 | `src/domains/agents/image_generation/catalogue_manifests.py` | Agent + Tool manifests |
+| `src/domains/image_generation/router.py` | Admin CRUD endpoints (`/admin/image-pricing/pricing`) |
+| `src/domains/image_generation/schemas.py` | Pydantic request/response schemas for admin API |
 | `apps/web/src/components/settings/ImageGenerationSettings.tsx` | User settings UI |
+| `apps/web/src/components/settings/AdminImagePricingSection.tsx` | Admin pricing management UI |
 
 ### Modified Files
 

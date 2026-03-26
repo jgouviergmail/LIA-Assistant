@@ -395,3 +395,115 @@ export async function reloadGoogleApiPricingCache(): Promise<ActionResponse> {
     };
   }
 }
+
+// ============================================================================
+// Image Generation Pricing Admin
+// ============================================================================
+
+interface ImagePricingData {
+  model: string;
+  quality: string;
+  size: string;
+  cost_per_image_usd: string;
+}
+
+/**
+ * Create new image generation pricing entry.
+ */
+export async function createImagePricing(data: ImagePricingData): Promise<ActionResponse> {
+  try {
+    const apiServer = await createServerApiClient();
+    await apiServer.post('/admin/image-pricing/pricing', data);
+    return {
+      success: true,
+      message: `Pricing ${data.model}/${data.quality}/${data.size} created.`,
+    };
+  } catch (error) {
+    const err = error as { response?: { data?: { detail?: string } } };
+    logger.error('create_image_pricing_failed', error as Error, {
+      component: 'ServerActions',
+      action: 'createImagePricing',
+    });
+    return {
+      success: false,
+      error: err.response?.data?.detail || 'Error creating image pricing',
+    };
+  }
+}
+
+/**
+ * Update image generation pricing entry (creates new version).
+ */
+export async function updateImagePricing(
+  pricingId: string,
+  data: Partial<ImagePricingData> & { cost_per_image_usd: string }
+): Promise<ActionResponse> {
+  try {
+    const apiServer = await createServerApiClient();
+    await apiServer.put(`/admin/image-pricing/pricing/${pricingId}`, data);
+    return {
+      success: true,
+      message: 'Image pricing updated. New version created.',
+    };
+  } catch (error) {
+    const err = error as { response?: { data?: { detail?: string } } };
+    logger.error('update_image_pricing_failed', error as Error, {
+      component: 'ServerActions',
+      action: 'updateImagePricing',
+      pricingId,
+    });
+    return {
+      success: false,
+      error: err.response?.data?.detail || 'Error updating image pricing',
+    };
+  }
+}
+
+/**
+ * Deactivate image generation pricing entry (soft delete).
+ */
+export async function deactivateImagePricing(pricingId: string): Promise<ActionResponse> {
+  try {
+    const apiServer = await createServerApiClient();
+    await apiServer.delete(`/admin/image-pricing/pricing/${pricingId}`);
+    return {
+      success: true,
+      message: 'Image pricing deactivated.',
+    };
+  } catch (error) {
+    const err = error as { response?: { data?: { detail?: string } } };
+    logger.error('deactivate_image_pricing_failed', error as Error, {
+      component: 'ServerActions',
+      action: 'deactivateImagePricing',
+      pricingId,
+    });
+    return {
+      success: false,
+      error: err.response?.data?.detail || 'Error deactivating image pricing',
+    };
+  }
+}
+
+/**
+ * Reload image generation pricing cache.
+ */
+export async function reloadImagePricingCache(): Promise<ActionResponse> {
+  try {
+    const apiServer = await createServerApiClient();
+    await apiServer.post('/admin/image-pricing/pricing/reload-cache');
+    return {
+      success: true,
+      message: 'Image pricing cache reloaded.',
+    };
+  } catch (error) {
+    const err = error as { response?: { data?: { detail?: string } } };
+    logger.error('reload_image_pricing_cache_failed', error as Error, {
+      component: 'ServerActions',
+      action: 'reloadImagePricingCache',
+    });
+    return {
+      success: false,
+      error: err.response?.data?.detail || 'Error reloading cache',
+    };
+  }
+}

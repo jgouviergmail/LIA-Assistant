@@ -27,6 +27,7 @@ from src.core.constants import (
     JOURNAL_CONTEXT_MAX_RESULTS_DEFAULT,
     JOURNAL_CONTEXT_MIN_SCORE_DEFAULT,
     JOURNAL_CONTEXT_RECENT_ENTRIES_DEFAULT,
+    JOURNAL_DEDUP_SIMILARITY_THRESHOLD_DEFAULT,
     JOURNAL_EMBEDDING_DIMENSIONS_DEFAULT,
     JOURNAL_EMBEDDING_MODEL_DEFAULT,
     JOURNAL_EXTRACTION_MIN_MESSAGES_DEFAULT,
@@ -67,6 +68,17 @@ class JournalsSettings(BaseSettings):
         ge=1,
         le=20,
         description="Minimum number of messages in conversation before extraction triggers.",
+    )
+
+    journal_dedup_similarity_threshold: float = Field(
+        default=JOURNAL_DEDUP_SIMILARITY_THRESHOLD_DEFAULT,
+        ge=0.5,
+        le=0.95,
+        description=(
+            "Cosine similarity threshold for the semantic dedup guard. "
+            "When a proposed new entry exceeds this score against an existing entry, "
+            "the two are merged via LLM instead of creating a duplicate."
+        ),
     )
 
     # ========================================================================
