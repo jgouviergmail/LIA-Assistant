@@ -38,6 +38,8 @@ PLANNING INSTRUCTIONS:
    - User data is stored in USER'S LANGUAGE - do NOT translate search terms
    - Example: "rdv médecin" → query="médecin", NOT "doctor"
    - ENTITY PRESERVATION: Original query contains PRE-RESOLVED names → use VERBATIM, never substitute
+   - DEVICE/ROOM/SCENE NAMES: IoT device names, room names, scene names, and any external resource identifiers
+     MUST stay in the user's original language — they are lookup keys, NOT translatable words.
 
 6. GENERIC LISTING vs SPECIFIC SEARCH:
    Decompose query into: ACTION verb + CATEGORY word + DISCRIMINANT TARGET

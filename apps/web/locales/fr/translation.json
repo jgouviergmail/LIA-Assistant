@@ -526,6 +526,19 @@
       "features": "Fonctionnalités",
       "administration": "Administration"
     },
+    "groups": {
+      "personalization": "Personnalisation",
+      "notifications_communication": "Notifications & Communication",
+      "voice_media": "Voix & Médias",
+      "connections_integrations": "Connexions & Intégrations",
+      "identity_memory": "Identité & Mémoire",
+      "automation_tracking": "Automatisation & Suivi",
+      "extensions_data": "Extensions & Données",
+      "users_access": "Utilisateurs & Accès",
+      "ai_connectors": "IA & Connecteurs",
+      "content_extensions": "Contenu & Extensions",
+      "system": "Système"
+    },
     "theme": {
       "title": "Apparence",
       "description": "Choisissez votre thème préféré",
@@ -624,6 +637,22 @@
       "disabled_success": "Mode vocal désactivé",
       "info": "Lorsqu'il est activé, un badge vocal apparaît dans l'en-tête du chat. Appuyez pour parler ou dites « ok guy » ou « ok guys » pour activer la saisie vocale.",
       "experimental_note": "⚠️ Fonctionnalité expérimentale sur mobile. La détection du mot d'activation peut être moins fiable sur téléphone."
+    },
+    "image_generation": {
+      "title": "Generation d'images IA",
+      "description": "Configurer la generation d'images par intelligence artificielle",
+      "enable": "Activer la generation d'images",
+      "enable_description": "Autoriser la creation d'images a partir de descriptions textuelles",
+      "updated": "Preference mise a jour",
+      "quality": "Qualite par defaut",
+      "quality_low": "Basse",
+      "quality_medium": "Moyenne",
+      "quality_high": "Haute",
+      "size": "Taille par defaut",
+      "size_square": "Carre",
+      "size_landscape": "Paysage",
+      "size_portrait": "Portrait",
+      "format": "Format de sortie"
     },
     "admin_mcp": {
       "title": "MCP Applicatifs",
@@ -1681,7 +1710,8 @@
           "journal_extraction": "Extraction d'entrées de journal à partir des conversations (introspection de l'assistant)",
           "journal_consolidation": "Revue et consolidation périodique des entrées de journal",
           "initiative": "Enrichissement proactif post-exécution (vérifications en lecture seule)",
-          "mcp_react_agent": "MCP mode itératif : lit la documentation du serveur, puis exécute les outils étape par étape"
+          "mcp_react_agent": "MCP mode itératif : lit la documentation du serveur, puis exécute les outils étape par étape",
+          "image_generation": "Génération d'images par IA à partir de descriptions textuelles (gpt-image-1, etc.)"
         },
         "no_compatible_model": "Aucun modèle de ce provider ne supporte cette fonctionnalité",
         "ollama": {
@@ -3109,6 +3139,29 @@
             "answer": "Non. La détection du mot de réveil s'exécute entièrement dans votre navigateur (Sherpa-onnx WASM). La reconnaissance vocale s'exécute sur le serveur de LIA avec Whisper. Aucun audio n'est envoyé à un service tiers."
           }
         }
+      },
+      "image_generation": {
+        "title": "Génération d’images IA",
+        "description": "Générer et modifier des images par IA",
+        "count": "4",
+        "questions": {
+          "q1": {
+            "question": "Comment générer une image ?",
+            "answer": "<p>Demandez simplement à l’assistant de créer une image. Par exemple : <em>« Génère une image d’un chat astronaute »</em>. L’image apparaît sous forme de carte sous la réponse.</p>"
+          },
+          "q2": {
+            "question": "Puis-je modifier une image générée ?",
+            "answer": "<p>Oui ! Après avoir généré une image, demandez à l’assistant de la modifier : <em>« Rends-la plus réaliste »</em>. L’assistant utilise automatiquement la dernière image.</p>"
+          },
+          "q3": {
+            "question": "Comment configurer la qualité et la taille ?",
+            "answer": "<p>Allez dans <strong>Réglages > Préférences > Génération d’images IA</strong>. Choisissez qualité (Basse/Moyenne/Haute), taille (Carré/Portrait/Paysage), et format (PNG/WebP).</p>"
+          },
+          "q4": {
+            "question": "Combien coûte la génération d’images ?",
+            "answer": "<p>Pour gpt-image-1 : Basse 0,011–0,016 $, Moyenne 0,042–0,063 $, Haute 0,167–0,250 $ par image. Les coûts sont dans le panneau de débogage.</p>"
+          }
+        }
       }
     },
     "contact": {
@@ -3616,6 +3669,7 @@
       "title": "Exemples de commandes",
       "subtitle": "LIA dispose de nombreux outils et fonctionnalités que je te recommande de découvrir progressivement :",
       "features": {
+        "image_generation": "La génération et l'édition d'images par IA (DALL·E, GPT Image)",
         "skills": "Des Skills pour développer ses expertises ou le guider dans ses actions (auto générables)",
         "mcp": "Des MCP pour étendre ses capacités avec des outils du marché (en deux clicks)",
         "rag": "Du RAG pour enrichir ses connaissances à partir de tes documents",
@@ -3976,6 +4030,10 @@
       "usage_limits": {
         "title": "Quotas d'utilisation",
         "description": "Limites par utilisateur sur les tokens, messages et coûts avec monitoring temps réel et enforcement 5 couches. Les administrateurs contrôlent les budgets avec blocage/déblocage instantané."
+      },
+      "image_generation": {
+        "title": "Génération d’images IA",
+        "description": "Générez et modifiez des images à partir de descriptions textuelles. Architecture multi-fournisseur avec préférences de qualité par utilisateur et suivi des coûts."
       }
     },
     "use_cases": {

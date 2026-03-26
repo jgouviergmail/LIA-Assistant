@@ -18,6 +18,8 @@ from src.core.field_names import (
     FIELD_COST_EUR,
     FIELD_GOOGLE_API_COST_EUR,
     FIELD_GOOGLE_API_REQUESTS,
+    FIELD_IMAGE_GENERATION_COST_EUR,
+    FIELD_IMAGE_GENERATION_REQUESTS,
     FIELD_MESSAGE_COUNT,
     FIELD_MODEL_NAME,
     FIELD_NODE_NAME,
@@ -221,6 +223,10 @@ class ChatRepository(BaseRepository[MessageTokenSummary]):
                 total_cost_eur=Decimal(str(summary_data[FIELD_COST_EUR])),
                 google_api_requests=summary_data.get(FIELD_GOOGLE_API_REQUESTS, 0),
                 google_api_cost_eur=Decimal(str(summary_data.get(FIELD_GOOGLE_API_COST_EUR, 0))),
+                image_generation_requests=summary_data.get(FIELD_IMAGE_GENERATION_REQUESTS, 0),
+                image_generation_cost_eur=Decimal(
+                    str(summary_data.get(FIELD_IMAGE_GENERATION_COST_EUR, 0))
+                ),
             )
 
             stmt = stmt.on_conflict_do_update(
@@ -238,6 +244,10 @@ class ChatRepository(BaseRepository[MessageTokenSummary]):
                     + stmt.excluded.google_api_requests,
                     "google_api_cost_eur": MessageTokenSummary.google_api_cost_eur
                     + stmt.excluded.google_api_cost_eur,
+                    "image_generation_requests": MessageTokenSummary.image_generation_requests
+                    + stmt.excluded.image_generation_requests,
+                    "image_generation_cost_eur": MessageTokenSummary.image_generation_cost_eur
+                    + stmt.excluded.image_generation_cost_eur,
                     "updated_at": func.now(),
                 },
             )
@@ -610,6 +620,13 @@ class UserStatisticsRepository(BaseRepository[UserStatistics]):
                 stats.total_google_api_cost_eur += Decimal(
                     str(summary_data.get(FIELD_GOOGLE_API_COST_EUR, 0))
                 )
+                # Image Generation totals
+                stats.total_image_generation_requests += summary_data.get(
+                    FIELD_IMAGE_GENERATION_REQUESTS, 0
+                )
+                stats.total_image_generation_cost_eur += Decimal(
+                    str(summary_data.get(FIELD_IMAGE_GENERATION_COST_EUR, 0))
+                )
 
                 if is_new_cycle:
                     # Reset cycle counters
@@ -624,6 +641,13 @@ class UserStatisticsRepository(BaseRepository[UserStatistics]):
                     stats.cycle_google_api_cost_eur = Decimal(
                         str(summary_data.get(FIELD_GOOGLE_API_COST_EUR, 0))
                     )
+                    # Image Generation cycle (reset)
+                    stats.cycle_image_generation_requests = summary_data.get(
+                        FIELD_IMAGE_GENERATION_REQUESTS, 0
+                    )
+                    stats.cycle_image_generation_cost_eur = Decimal(
+                        str(summary_data.get(FIELD_IMAGE_GENERATION_COST_EUR, 0))
+                    )
                 else:
                     # Increment cycle counters
                     stats.cycle_prompt_tokens += summary_data[FIELD_TOKENS_IN]
@@ -637,6 +661,13 @@ class UserStatisticsRepository(BaseRepository[UserStatistics]):
                     )
                     stats.cycle_google_api_cost_eur += Decimal(
                         str(summary_data.get(FIELD_GOOGLE_API_COST_EUR, 0))
+                    )
+                    # Image Generation cycle (increment)
+                    stats.cycle_image_generation_requests += summary_data.get(
+                        FIELD_IMAGE_GENERATION_REQUESTS, 0
+                    )
+                    stats.cycle_image_generation_cost_eur += Decimal(
+                        str(summary_data.get(FIELD_IMAGE_GENERATION_COST_EUR, 0))
                     )
 
                 await self.db.flush()
@@ -664,6 +695,7 @@ class UserStatisticsRepository(BaseRepository[UserStatistics]):
                     total_google_api_cost_eur=Decimal(
                         str(summary_data.get(FIELD_GOOGLE_API_COST_EUR, 0))
                     ),
+                    # (Image Generation totals and cycle are set below)
                     cycle_prompt_tokens=summary_data[FIELD_TOKENS_IN],
                     cycle_completion_tokens=summary_data[FIELD_TOKENS_OUT],
                     cycle_cached_tokens=summary_data[FIELD_TOKENS_CACHE],
@@ -673,6 +705,20 @@ class UserStatisticsRepository(BaseRepository[UserStatistics]):
                     cycle_google_api_requests=summary_data.get(FIELD_GOOGLE_API_REQUESTS, 0),
                     cycle_google_api_cost_eur=Decimal(
                         str(summary_data.get(FIELD_GOOGLE_API_COST_EUR, 0))
+                    ),
+                    # Image Generation totals
+                    total_image_generation_requests=summary_data.get(
+                        FIELD_IMAGE_GENERATION_REQUESTS, 0
+                    ),
+                    total_image_generation_cost_eur=Decimal(
+                        str(summary_data.get(FIELD_IMAGE_GENERATION_COST_EUR, 0))
+                    ),
+                    # Image Generation cycle
+                    cycle_image_generation_requests=summary_data.get(
+                        FIELD_IMAGE_GENERATION_REQUESTS, 0
+                    ),
+                    cycle_image_generation_cost_eur=Decimal(
+                        str(summary_data.get(FIELD_IMAGE_GENERATION_COST_EUR, 0))
                     ),
                 )
                 self.db.add(stats)

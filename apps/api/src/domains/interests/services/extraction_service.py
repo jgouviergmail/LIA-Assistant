@@ -100,6 +100,9 @@ class InterestAnalysisResult:
     analyzed_message: str | None = None
     context_messages_count: int = 0
 
+    # LLM call duration for debug panel
+    llm_duration_ms: float = 0.0
+
     # Raw AIMessage for token persistence (not serialized to cache)
     _raw_result: AIMessage | None = field(default=None, repr=False)
 
@@ -231,6 +234,7 @@ async def _persist_interest_tokens(
     result: AIMessage,
     model_name: str,
     parent_run_id: str | None = None,
+    duration_ms: float = 0.0,
 ) -> None:
     """
     Persist token usage from interest extraction LLM call to database.
@@ -310,6 +314,7 @@ async def _persist_interest_tokens(
                 prompt_tokens=input_tokens,
                 completion_tokens=output_tokens,
                 cached_tokens=cached_tokens,
+                duration_ms=duration_ms,
             )
             await tracker.commit()
 
@@ -402,6 +407,7 @@ async def _persist_interest_tokens_from_metadata(
                 prompt_tokens=input_tokens,
                 completion_tokens=output_tokens,
                 cached_tokens=cached_tokens,
+                # Cache hit: no LLM call, duration unknown
             )
             await tracker.commit()
 
@@ -821,6 +827,9 @@ async def _analyze_interests_core(
         )
 
         # Invoke LLM with instrumentation for token tracking
+        import time as _time
+
+        _llm_start = _time.time()
         result = await invoke_with_instrumentation(
             llm=llm,
             llm_type="interest_extraction",
@@ -828,6 +837,7 @@ async def _analyze_interests_core(
             session_id=session_id,
             user_id=user_id,
         )
+        _llm_duration_ms = (_time.time() - _llm_start) * 1000
         result_content = result.content if isinstance(result.content, str) else str(result.content)
 
         # DEBUG: Log LLM response
@@ -862,6 +872,7 @@ async def _analyze_interests_core(
                 message_content[:200] + "..." if len(message_content) > 200 else message_content
             ),
             context_messages_count=len(context_messages),
+            llm_duration_ms=_llm_duration_ms,
             _raw_result=result,
         )
 
@@ -959,6 +970,7 @@ async def extract_interests_background(
                 model_name=analysis.llm_model
                 or get_llm_config_for_agent(settings, "interest_extraction").model,
                 parent_run_id=parent_run_id,
+                duration_ms=analysis.llm_duration_ms,
             )
         elif analysis.llm_input_tokens > 0 or analysis.llm_output_tokens > 0:
             # From cache - persist using stored metadata

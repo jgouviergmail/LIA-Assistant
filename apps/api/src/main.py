@@ -249,6 +249,32 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     register_cache(CACHE_NAME_GOOGLE_API_PRICING, _reload_google_api_pricing_cache)
 
+    # Initialize Image Generation pricing cache (for cost tracking in tools)
+    if getattr(settings, "image_generation_enabled", False):
+        try:
+            from src.domains.image_generation.pricing_service import ImageGenerationPricingService
+            from src.infrastructure.database.session import get_db_context
+
+            async with get_db_context() as db:
+                await ImageGenerationPricingService.load_pricing_cache(db)
+            logger.info("image_generation_pricing_cache_initialized")
+        except Exception as exc:
+            logger.warning("image_generation_pricing_cache_initialization_failed", error=str(exc))
+
+        # Register for cross-worker invalidation (ADR-063)
+        from src.core.constants import CACHE_NAME_IMAGE_GENERATION_PRICING
+
+        async def _reload_image_generation_pricing_cache() -> None:
+            from src.domains.image_generation.pricing_service import (
+                ImageGenerationPricingService,
+            )
+            from src.infrastructure.database.session import get_db_context
+
+            async with get_db_context() as db:
+                await ImageGenerationPricingService.load_pricing_cache(db)
+
+        register_cache(CACHE_NAME_IMAGE_GENERATION_PRICING, _reload_image_generation_pricing_cache)
+
     # Initialize LangGraph checkpointer
     checkpointer = None
     try:

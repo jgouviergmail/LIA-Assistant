@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-03-26
+
+### Added
+
+- **AI Image Generation** — New domain `image_generation` with multi-provider abstract architecture (`ImageGenerationClient` → `OpenAIImageClient` factory). Users can generate images from text prompts via the `generate_image` tool, with results displayed as cards below the assistant response. Supports gpt-image-1 (low/medium/high quality, 3 size presets). Images saved as attachments on disk with ownership tracking. Cost tracking integrated into `TrackingContext` → `MessageTokenSummary` → `UserStatistics` → `UsageLimits`. Pricing loaded at startup with class-level in-memory cache and cross-worker Redis Pub/Sub invalidation. (`src/domains/image_generation/`, `src/domains/agents/tools/image_generation_tools.py`)
+- **AI Image Editing** — New `edit_image` tool for modifying existing images via text instructions using the OpenAI Responses API (`images.generate` with `image` parameter). Auto-resolves the most recent image attachment when no UUID is provided — the planner never needs to know attachment IDs. Includes intelligent resize to the nearest supported dimension (1024×1024, 1024×1536, 1536×1024) preserving aspect ratio, with size-aware cost calculation. (`src/domains/agents/tools/image_generation_tools.py`, `src/domains/image_generation/resize.py`)
+- **Image Generation User Preferences** — Per-user settings for quality (low/medium/high), size (square/portrait/landscape), and output format (png/webp). Defaults: enabled, low quality, portrait, PNG. Configurable in Settings → Preferences. Tools always use user preferences for cost control — planner cannot override. (`src/domains/auth/models.py`, `apps/web/src/components/settings/ImageGenerationSettings.tsx`)
+- **Image Generation Admin Configuration** — `image_generation` LLM type added to `LLM_TYPES_REGISTRY` (category: specialized). Administrators can select model and provider in the LLM Configuration panel. Pricing seed data for gpt-image-1 (9 combinations: 3 qualities × 3 sizes). (`src/domains/llm_config/constants.py`, `infrastructure/database/seeds/image_generation_pricing_seed.sql`)
+- **Image Generation Debug Panel** — Image generation calls appear in LLM Pipeline, LLM Calls, and Execution Times sections of the debug panel. Synthetic node record with model, quality, size, image count, and cost. (`src/domains/agents/api/service.py`)
+- **Image Generation Catalogue & Domain** — `image_generation` domain registered in `domain_taxonomy.py` with `image_generation_agent` containing `generate_image` and `edit_image` tools. Full catalogue manifests with semantic keywords, cost profiles, and parameter schemas. 120-second agent timeout to accommodate high-quality generation latency. (`src/domains/agents/image_generation/catalogue_manifests.py`, `src/domains/agents/registry/domain_taxonomy.py`)
+- **Generated Image Persistence** — Images stored as attachments with conversation-scoped metadata (`generated_images` array in message metadata). Survive page reload via `loadConversationMessages` metadata extraction. SSE `done` chunk includes `generated_images` for real-time display. Cascade deletion on conversation delete via existing attachment cleanup. (`apps/web/src/components/chat/ChatMessage.tsx`, `apps/web/src/hooks/useConversation.ts`)
+
+### Fixed
+
+- **Image Generation Tool Timeout on High Quality** — gpt-image-1 in high quality takes 40-90 seconds, but the parallel executor imposed a 30-second timeout (from planner LLM or default). Added minimum timeout enforcement for image tools: `max(step_timeout, 90s)` capped at 120s. (`src/domains/agents/orchestration/parallel_executor.py`)
+- **Adaptive Replanner Marking Image Results as Empty** — `generate_image` returned a plain string, which the adaptive replanner classified as `empty_results`, triggering an unnecessary replan. Fixed by returning `UnifiedToolOutput.action_success()` with structured data. (`src/domains/agents/tools/image_generation_tools.py`, `src/domains/agents/orchestration/adaptive_replanner.py`)
+- **UnifiedToolOutput.failure Missing error_code** — All 23 `failure()` calls in image generation tools were missing the required `error_code` positional argument, causing `TypeError` on any error path. Fixed with appropriate error codes (`TOOL_ERROR`, `NOT_FOUND`, `AUTH_ERROR`). (`src/domains/agents/tools/image_generation_tools.py`)
+- **Edit Image Auto-Resolution** — Planner passed textual descriptions (e.g., "the photo of the black and white cat") instead of UUIDs for `source_attachment_id`. Fixed by making the parameter optional and auto-resolving the most recent image attachment from the database when no valid UUID is provided. (`src/domains/agents/tools/image_generation_tools.py`)
+
+### Changed
+
+- **Settings Layout Reorganization** — Moved Channels, Voice Mode, and Image Generation from Features tab to Preferences tab for better UX grouping. (`apps/web/src/app/[lng]/dashboard/settings/page.tsx`)
+
 ## [1.11.5] - 2026-03-25
 
 ### Fixed
@@ -822,7 +845,8 @@ First public open-source release of LIA.
 - Circuit breaker, rate limiting, and distributed locks
 - SOPS/Age encryption for secrets management
 
-[Unreleased]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.11.5...HEAD
+[Unreleased]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.12.0...HEAD
+[1.12.0]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.11.5...v1.12.0
 [1.11.5]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.11.4...v1.11.5
 [1.8.2]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.8.1...v1.8.2
 [1.8.1]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.8.0...v1.8.1

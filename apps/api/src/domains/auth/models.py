@@ -19,6 +19,10 @@ from src.core.constants import (
     HEARTBEAT_NOTIFY_END_HOUR_DEFAULT,
     HEARTBEAT_NOTIFY_START_HOUR_DEFAULT,
     HEARTBEAT_PUSH_ENABLED_DEFAULT,
+    IMAGE_GENERATION_ENABLED_DEFAULT,
+    IMAGE_GENERATION_OUTPUT_FORMAT_DEFAULT,
+    IMAGE_GENERATION_QUALITY_DEFAULT,
+    IMAGE_GENERATION_SIZE_DEFAULT,
     INTEREST_NOTIFY_END_HOUR_DEFAULT,
     INTEREST_NOTIFY_MAX_PER_DAY_DEFAULT,
     INTEREST_NOTIFY_MIN_PER_DAY_DEFAULT,
@@ -329,6 +333,35 @@ class User(BaseModel):
         nullable=False,
         server_default="false",
         comment="User has completed/dismissed the onboarding tutorial.",
+    )
+
+    # Image Generation preferences (evolution — AI Image Generation)
+    image_generation_enabled: Mapped[bool] = mapped_column(
+        default=IMAGE_GENERATION_ENABLED_DEFAULT,
+        nullable=False,
+        server_default="true",
+        comment="User opt-in for AI image generation feature.",
+    )
+    image_generation_default_quality: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default=IMAGE_GENERATION_QUALITY_DEFAULT,
+        server_default=IMAGE_GENERATION_QUALITY_DEFAULT,
+        comment="Default image quality: low, medium, high.",
+    )
+    image_generation_default_size: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default=IMAGE_GENERATION_SIZE_DEFAULT,
+        server_default=IMAGE_GENERATION_SIZE_DEFAULT,
+        comment="Default image size: 1024x1024, 1536x1024, 1024x1536.",
+    )
+    image_generation_output_format: Mapped[str] = mapped_column(
+        String(10),
+        nullable=False,
+        default=IMAGE_GENERATION_OUTPUT_FORMAT_DEFAULT,
+        server_default=IMAGE_GENERATION_OUTPUT_FORMAT_DEFAULT,
+        comment="Default output format: png, jpeg, webp.",
     )
 
     # Admin MCP per-user toggle (evolution F2.5)

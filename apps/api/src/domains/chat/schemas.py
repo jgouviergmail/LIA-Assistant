@@ -12,7 +12,10 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from src.core.field_names import (
     FIELD_COST_EUR,
+    FIELD_GOOGLE_API_COST_EUR,
     FIELD_GOOGLE_API_REQUESTS,
+    FIELD_IMAGE_GENERATION_COST_EUR,
+    FIELD_IMAGE_GENERATION_REQUESTS,
     FIELD_MESSAGE_COUNT,
     FIELD_TOKENS_CACHE,
     FIELD_TOKENS_IN,
@@ -108,9 +111,12 @@ class TokenSummaryDTO:
     tokens_in: int
     tokens_out: int
     tokens_cache: int
-    cost_eur: float
+    cost_eur: float  # LLM token cost only (consolidation in to_metadata)
     message_count: int
     google_api_requests: int = 0
+    google_api_cost_eur: float = 0.0
+    image_generation_requests: int = 0
+    image_generation_cost_eur: float = 0.0
 
     @classmethod
     def from_tracker(cls, tracker: Any) -> "TokenSummaryDTO":
@@ -135,6 +141,9 @@ class TokenSummaryDTO:
             cost_eur=mem_summary[FIELD_COST_EUR],
             message_count=mem_summary[FIELD_MESSAGE_COUNT],
             google_api_requests=mem_summary.get(FIELD_GOOGLE_API_REQUESTS, 0),
+            google_api_cost_eur=mem_summary.get(FIELD_GOOGLE_API_COST_EUR, 0.0),
+            image_generation_requests=mem_summary.get(FIELD_IMAGE_GENERATION_REQUESTS, 0),
+            image_generation_cost_eur=mem_summary.get(FIELD_IMAGE_GENERATION_COST_EUR, 0.0),
         )
 
     @classmethod
@@ -159,6 +168,9 @@ class TokenSummaryDTO:
             cost_eur=data.get(FIELD_COST_EUR, 0.0),
             message_count=data.get(FIELD_MESSAGE_COUNT, 0),
             google_api_requests=data.get(FIELD_GOOGLE_API_REQUESTS, 0),
+            google_api_cost_eur=data.get(FIELD_GOOGLE_API_COST_EUR, 0.0),
+            image_generation_requests=data.get(FIELD_IMAGE_GENERATION_REQUESTS, 0),
+            image_generation_cost_eur=data.get(FIELD_IMAGE_GENERATION_COST_EUR, 0.0),
         )
 
     @classmethod
@@ -196,11 +208,14 @@ class TokenSummaryDTO:
             >>> assert "tokens_in" in metadata
             >>> assert "cost_eur" in metadata
         """
+        # Consolidate all costs (LLM tokens + Google API + image generation)
+        # into cost_eur so the frontend shows the true total
+        total_cost = self.cost_eur + self.google_api_cost_eur + self.image_generation_cost_eur
         return {
             FIELD_TOKENS_IN: self.tokens_in,
             FIELD_TOKENS_OUT: self.tokens_out,
             FIELD_TOKENS_CACHE: self.tokens_cache,
-            FIELD_COST_EUR: self.cost_eur,
+            FIELD_COST_EUR: total_cost,
             FIELD_MESSAGE_COUNT: self.message_count,
             FIELD_GOOGLE_API_REQUESTS: self.google_api_requests,
         }

@@ -3369,3 +3369,33 @@ USAGE_LIMIT_BLOCKED_REASON_MAX_LENGTH: int = 500
 USAGE_LIMIT_WS_TICKET_TTL_SECONDS_DEFAULT: int = 60
 USAGE_LIMIT_WS_PUSH_INTERVAL_SECONDS: int = 10
 USAGE_LIMIT_WS_IDLE_TIMEOUT_SECONDS: int = 120
+
+# ============================================================================
+# IMAGE GENERATION (AI Image Creation)
+# ============================================================================
+# Feature flag
+IMAGE_GENERATION_ENABLED_DEFAULT: bool = True
+
+# Generation constraints
+IMAGE_GENERATION_MAX_IMAGES_DEFAULT: int = 1
+
+# Valid parameter values (used by validators and tool input checks)
+IMAGE_GENERATION_VALID_QUALITIES: tuple[str, ...] = ("low", "medium", "high")
+IMAGE_GENERATION_VALID_SIZES: tuple[str, ...] = ("1024x1024", "1536x1024", "1024x1536")
+IMAGE_GENERATION_VALID_FORMATS: tuple[str, ...] = ("png", "jpeg", "webp")
+
+# User preference defaults
+IMAGE_GENERATION_QUALITY_DEFAULT: str = "low"
+IMAGE_GENERATION_SIZE_DEFAULT: str = "1024x1536"
+IMAGE_GENERATION_OUTPUT_FORMAT_DEFAULT: str = "png"
+
+# LLM config key (for LLMConfigOverrideCache lookup)
+IMAGE_GENERATION_LLM_TYPE: str = "image_generation"
+
+# Text model used by the Responses API for image editing ("Generate vs Edit").
+# The Responses API requires a TEXT model (not an image model). The image model
+# is selected internally by the image_generation tool within the Responses API.
+IMAGE_EDIT_RESPONSES_MODEL: str = "gpt-4.1-mini"
+
+# Cross-worker cache invalidation (ADR-063)
+CACHE_NAME_IMAGE_GENERATION_PRICING: str = "image_generation_pricing"

@@ -47,6 +47,8 @@ PLANNING INSTRUCTIONS:
 6. SEARCH LANGUAGE (CRITICAL):
    - User data is stored in USER'S LANGUAGE - do NOT translate search terms
    - ENTITY PRESERVATION: Original query contains PRE-RESOLVED names → use VERBATIM, never substitute
+   - DEVICE/ROOM/SCENE NAMES: IoT device names, room names, scene names, and any external resource identifiers
+     MUST stay in the user's original language — they are lookup keys, NOT translatable words.
 
 7. GENERIC LISTING vs SPECIFIC SEARCH:
    Decompose query into: ACTION verb + CATEGORY word + DISCRIMINANT TARGET

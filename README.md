@@ -36,7 +36,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.11.5</strong> — Currency Cache &amp; Timezone Normalization — March 2026
+  <strong>Version 1.12.0</strong> — Currency Cache &amp; Timezone Normalization — March 2026
 </p>
 
 ---
@@ -155,6 +155,7 @@ LIA is available as a hosted service at **https://lia.jeyswork.com/** — no ins
 - **MCP (Model Context Protocol)**: Per-user external tool servers with OAuth 2.1, SSRF protection, structured items parsing, MCP Apps (interactive iframe widgets), **Iterative Mode (ReAct)** for complex servers — a dedicated agent reads docs then calls tools correctly
 - **Agent Initiative Phase**: Post-execution cross-domain enrichment — the assistant proactively verifies related information (e.g., weather shows rain → checks calendar for outdoor events). Prompt-driven, read-only, fully configurable
 - **Skills (agentskills.io)**: Open standard for expert instructions (SKILL.md), model-driven activation, progressive disclosure (L1/L2/L3), sandboxed scripts, marketplace import, auto-translated multi-language descriptions, ZIP download, admin management. **Planner skill guard**: multi-domain deterministic skills are protected from false-positive early clarification requests via domain overlap detection (`_has_potential_skill_match`). **Built-in Skill Generator**: create custom skills in natural language — the assistant guides you through need analysis, archetype selection, and produces a ready-to-import SKILL.md with automatic validation
+- **AI Image Generation & Editing**: Generate images from text prompts (gpt-image-1), edit existing images with natural language instructions. Multi-provider factory architecture, per-user quality/size preferences, cost tracking with DB-cached pricing, attachment-based storage with cascade cleanup
 - **File Attachments (Images, PDF)**: Upload with client-side compression, configurable LLM vision analysis, PDF text extraction, strict per-user isolation
 - **Semantic Routing**: Binary classification with confidence scoring (high >0.85, medium >0.65)
 - **Multi-Step Planning**: ExecutionPlan DSL with dependencies and conditions

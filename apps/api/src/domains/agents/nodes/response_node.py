@@ -209,6 +209,7 @@ ALLOWED_PHOTO_PATH_PREFIXES: tuple[str, ...] = (
     "/api/v1/connectors/google-places/photo/",
     "/api/v1/connectors/google-drive/thumbnail/",
     "/api/v1/connectors/",
+    "/api/v1/attachments/",  # Generated images (AI Image Generation)
 )
 
 # ============================================================================

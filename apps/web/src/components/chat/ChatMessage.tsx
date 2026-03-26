@@ -14,6 +14,7 @@ import { useApiMutation } from '@/hooks/useApiMutation';
 import { toast } from 'sonner';
 import { formatFileSize } from '@/lib/utils/image-compress';
 import { API_ENDPOINTS } from '@/lib/api-config';
+import { ImageLightbox } from '@/components/ui/image-lightbox';
 
 export interface ChatMessageProps {
   message: Message;
@@ -108,6 +109,50 @@ function InterestFeedbackButtons({
         <Ban className="h-4 w-4" />
       </Button>
     </div>
+  );
+}
+
+/**
+ * AI-generated image cards — rendered outside markdown to avoid
+ * HTML nesting violations (<div> inside <p>).
+ * Uses relative URLs served by the reverse proxy in production.
+ * In dev with self-signed certs, images may not load through the proxy.
+ */
+function GeneratedImageCards({ images }: { images: { url: string; alt: string }[] }) {
+  const [lightboxImage, setLightboxImage] = useState<{ url: string; alt: string } | null>(null);
+
+  return (
+    <>
+      <div className="mt-3 space-y-3">
+        {images.map((img, i) => {
+          // Use relative URL to go through Next.js rewrite proxy
+          const displayUrl = img.url;
+          return (
+            <div key={i} className="relative w-full max-w-[512px] mx-auto">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={displayUrl}
+                alt={img.alt}
+                className="w-full h-auto rounded-lg shadow-md cursor-pointer hover:shadow-lg transition-shadow"
+                onClick={() => setLightboxImage({ url: displayUrl, alt: img.alt })}
+              />
+            </div>
+          );
+        })}
+      </div>
+      {lightboxImage &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <ImageLightbox
+            src={lightboxImage.url}
+            alt={lightboxImage.alt}
+            isOpen={true}
+            onClose={() => setLightboxImage(null)}
+            minWidth={512}
+          />,
+          document.body
+        )}
+    </>
   );
 }
 
@@ -341,6 +386,10 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(({ message, isUser }
               />
             )}
           </div>
+          {/* AI-generated images — rendered as cards after the message bubble */}
+          {message.generatedImages && message.generatedImages.length > 0 && (
+            <GeneratedImageCards images={message.generatedImages} />
+          )}
           <span className="text-[11px] mobile:text-xs text-muted-foreground mt-1.5 px-1 font-medium whitespace-nowrap w-full text-right">
             {formatTime(message.timestamp)}
             {tokensIn !== undefined && showTokens && (

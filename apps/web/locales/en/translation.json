@@ -521,6 +521,19 @@
       "features": "Features",
       "administration": "Administration"
     },
+    "groups": {
+      "personalization": "Personalization",
+      "notifications_communication": "Notifications & Communication",
+      "voice_media": "Voice & Media",
+      "connections_integrations": "Connections & Integrations",
+      "identity_memory": "Identity & Memory",
+      "automation_tracking": "Automation & Tracking",
+      "extensions_data": "Extensions & Data",
+      "users_access": "Users & Access",
+      "ai_connectors": "AI & Connectors",
+      "content_extensions": "Content & Extensions",
+      "system": "System"
+    },
     "theme": {
       "title": "Appearance",
       "description": "Choose your preferred theme",
@@ -619,6 +632,22 @@
       "disabled_success": "Voice mode disabled",
       "info": "When enabled, a voice badge appears in the chat header. Tap to speak or say \"ok guy\" or \"ok guys\" to activate voice input.",
       "experimental_note": "⚠️ Experimental feature on mobile. Wake word detection may be less reliable on phones."
+    },
+    "image_generation": {
+      "title": "AI Image Generation",
+      "description": "Configure AI-powered image generation settings",
+      "enable": "Enable image generation",
+      "enable_description": "Allow creating images from text descriptions",
+      "updated": "Preference updated",
+      "quality": "Default quality",
+      "quality_low": "Low",
+      "quality_medium": "Medium",
+      "quality_high": "High",
+      "size": "Default size",
+      "size_square": "Square",
+      "size_landscape": "Landscape",
+      "size_portrait": "Portrait",
+      "format": "Output format"
     },
     "admin_mcp": {
       "title": "Application MCP",
@@ -1494,7 +1523,8 @@
           "journal_extraction": "Extracts journal entries from conversations (assistant introspection)",
           "journal_consolidation": "Reviews and consolidates journal entries periodically",
           "initiative": "Post-execution proactive enrichment (read-only checks)",
-          "mcp_react_agent": "MCP iterative mode: reads server documentation, then executes tools step by step"
+          "mcp_react_agent": "MCP iterative mode: reads server documentation, then executes tools step by step",
+          "image_generation": "AI image generation from text descriptions (gpt-image-1, etc.)"
         },
         "no_compatible_model": "No model from this provider supports this feature",
         "ollama": {
@@ -3104,6 +3134,29 @@
             "answer": "No. Wake word detection runs entirely in your browser (Sherpa-onnx WASM). Speech-to-text runs on LIA's own server using Whisper. No audio is sent to any third-party service."
           }
         }
+      },
+      "image_generation": {
+        "title": "AI Image Generation",
+        "description": "Generate and edit images using AI",
+        "count": "4",
+        "questions": {
+          "q1": {
+            "question": "How do I generate an image?",
+            "answer": "<p>Simply ask the assistant to create an image. For example: <em>\"Generate an image of an astronaut cat\"</em>. The image appears as a card below the response.</p>"
+          },
+          "q2": {
+            "question": "Can I edit a generated image?",
+            "answer": "<p>Yes! After generating an image, ask the assistant to modify it: <em>\"Make it more realistic\"</em>. The assistant automatically uses the most recent image.</p>"
+          },
+          "q3": {
+            "question": "How do I configure quality and size?",
+            "answer": "<p>Go to <strong>Settings > Preferences > AI Image Generation</strong>. Choose quality (Low/Medium/High), size (Square/Portrait/Landscape), and format (PNG/WebP). Higher quality costs more.</p>"
+          },
+          "q4": {
+            "question": "How much does image generation cost?",
+            "answer": "<p>For gpt-image-1: Low $0.011-$0.016, Medium $0.042-$0.063, High $0.167-$0.250 per image. Costs appear in the debug panel.</p>"
+          }
+        }
       }
     },
     "contact": {
@@ -3611,6 +3664,7 @@
       "title": "Command Examples",
       "subtitle": "LIA has many tools and features that I recommend you discover gradually:",
       "features": {
+        "image_generation": "AI image generation and editing (DALL·E, GPT Image)",
         "skills": "Skills to develop its expertise or guide its actions (auto-generated)",
         "mcp": "MCPs to extend its capabilities with market tools (in two clicks)",
         "rag": "RAG to enrich its knowledge from your documents",
@@ -3971,6 +4025,10 @@
       "usage_limits": {
         "title": "Usage Quotas",
         "description": "Per-user limits on tokens, messages and cost with real-time monitoring and 5-layer enforcement. Administrators control budgets with instant block/unblock."
+      },
+      "image_generation": {
+        "title": "AI Image Generation",
+        "description": "Generate and edit images from text prompts. Multi-provider architecture with per-user quality preferences and cost tracking."
       }
     },
     "use_cases": {

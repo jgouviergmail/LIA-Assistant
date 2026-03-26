@@ -501,6 +501,19 @@
       "features": "Funcionalidades",
       "administration": "Administracion"
     },
+    "groups": {
+      "personalization": "Personalización",
+      "notifications_communication": "Notificaciones y Comunicación",
+      "voice_media": "Voz y Medios",
+      "connections_integrations": "Conexiones e Integraciones",
+      "identity_memory": "Identidad y Memoria",
+      "automation_tracking": "Automatización y Seguimiento",
+      "extensions_data": "Extensiones y Datos",
+      "users_access": "Usuarios y Acceso",
+      "ai_connectors": "IA y Conectores",
+      "content_extensions": "Contenido y Extensiones",
+      "system": "Sistema"
+    },
     "theme": {
       "title": "Apariencia",
       "description": "Elige tu tema preferido",
@@ -1359,7 +1372,8 @@
           "journal_extraction": "Extrae entradas de diario de las conversaciones (introspección del asistente)",
           "journal_consolidation": "Revisa y consolida las entradas del diario periódicamente",
           "initiative": "Enriquecimiento proactivo post-ejecución (verificaciones de solo lectura)",
-          "mcp_react_agent": "MCP modo iterativo: lee la documentación del servidor, luego ejecuta herramientas paso a paso"
+          "mcp_react_agent": "MCP modo iterativo: lee la documentación del servidor, luego ejecuta herramientas paso a paso",
+          "image_generation": "Generación de imágenes por IA a partir de descripciones de texto (gpt-image-1, etc.)"
         },
         "no_compatible_model": "Ningún modelo de este proveedor soporta esta funcionalidad",
         "ollama": {
@@ -1434,6 +1448,22 @@
       "disabled_success": "Modo de voz desactivado",
       "info": "Cuando está activado, aparece una insignia de voz en el encabezado del chat. Toque para hablar o diga \"ok guy\" u \"ok guys\" para activar la entrada de voz.",
       "experimental_note": "⚠️ Función experimental en móviles. La detección de la palabra de activación puede ser menos fiable en teléfonos."
+    },
+    "image_generation": {
+      "title": "Generacion de imagenes IA",
+      "description": "Configurar la generacion de imagenes por inteligencia artificial",
+      "enable": "Activar generacion de imagenes",
+      "enable_description": "Permitir crear imagenes a partir de descripciones de texto",
+      "updated": "Preferencia actualizada",
+      "quality": "Calidad por defecto",
+      "quality_low": "Baja",
+      "quality_medium": "Media",
+      "quality_high": "Alta",
+      "size": "Tamano por defecto",
+      "size_square": "Cuadrado",
+      "size_landscape": "Horizontal",
+      "size_portrait": "Vertical",
+      "format": "Formato de salida"
     },
     "admin_mcp": {
       "title": "MCP Aplicativos",
@@ -3095,6 +3125,29 @@
             "answer": "No. La detección de palabra de activación se ejecuta completamente en su navegador (Sherpa-onnx WASM). El reconocimiento de voz se ejecuta en el servidor de LIA con Whisper. No se envía audio a ningún servicio de terceros."
           }
         }
+      },
+      "image_generation": {
+        "title": "Generacion de imagenes IA",
+        "description": "Generar y editar imagenes con IA",
+        "count": "4",
+        "questions": {
+          "q1": {
+            "question": "Como genero una imagen?",
+            "answer": "<p>Pide al asistente que cree una imagen: <em>\"Genera una imagen de un gato astronauta\"</em>. La imagen aparece como tarjeta debajo de la respuesta.</p>"
+          },
+          "q2": {
+            "question": "Puedo editar una imagen generada?",
+            "answer": "<p>Si! Pide al asistente: <em>\"Hazla mas realista\"</em>. Usa automaticamente la imagen mas reciente.</p>"
+          },
+          "q3": {
+            "question": "Como configuro la calidad y el tamano?",
+            "answer": "<p>Ve a <strong>Configuracion > Preferencias > Generacion de imagenes IA</strong>. Elige calidad, tamano y formato.</p>"
+          },
+          "q4": {
+            "question": "Cuanto cuesta?",
+            "answer": "<p>Para gpt-image-1: Baja $0.011-$0.016, Media $0.042-$0.063, Alta $0.167-$0.250 por imagen.</p>"
+          }
+        }
       }
     },
     "contact": {
@@ -3463,6 +3516,7 @@
       "title": "Ejemplos de comandos",
       "subtitle": "LIA dispone de numerosas herramientas y funcionalidades que te recomiendo descubrir progresivamente:",
       "features": {
+        "image_generation": "Generación y edición de imágenes por IA (DALL·E, GPT Image)",
         "skills": "Skills para desarrollar sus conocimientos o guiar sus acciones (auto generables)",
         "mcp": "MCPs para ampliar sus capacidades con herramientas del mercado (en dos clics)",
         "rag": "RAG para enriquecer sus conocimientos a partir de tus documentos",
@@ -3970,6 +4024,10 @@
       "usage_limits": {
         "title": "Cuotas de uso",
         "description": "Límites por usuario en tokens, mensajes y costos con monitoreo en tiempo real y 5 capas de control. Los administradores gestionan presupuestos con bloqueo/desbloqueo instantáneo."
+      },
+      "image_generation": {
+        "title": "Generación de imágenes IA",
+        "description": "Genera y edita imágenes a partir de descripciones de texto. Arquitectura multi-proveedor con preferencias de calidad por usuario y seguimiento de costos."
       }
     },
     "use_cases": {

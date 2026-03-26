@@ -101,6 +101,7 @@ class ModelCapabilities(BaseModel):
     supports_structured_output: bool
     supports_vision: bool
     is_reasoning_model: bool
+    is_image_model: bool = False
     cost_input: float | None = None
     cost_output: float | None = None
 

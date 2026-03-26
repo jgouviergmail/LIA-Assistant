@@ -58,6 +58,7 @@ import {
   BookOpen,
   Bot,
   Monitor,
+  ImageIcon,
 } from 'lucide-react';
 
 interface FAQContentProps {
@@ -90,6 +91,7 @@ const sectionIcons = {
   skills: Blocks,
   sub_agents: Bot,
   rag_spaces: Library,
+  image_generation: ImageIcon,
   journals: BookOpen,
   privacy: Shield,
   other: HelpCircle,
@@ -110,6 +112,7 @@ const sections = [
   'skills',
   'sub_agents',
   'rag_spaces',
+  'image_generation',
   'journals',
   'privacy',
   'other',

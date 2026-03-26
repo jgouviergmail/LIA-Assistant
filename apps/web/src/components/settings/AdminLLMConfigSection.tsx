@@ -438,6 +438,7 @@ function LLMConfigDialog({
         supports_vision?: boolean;
         supports_tools?: boolean;
         supports_structured_output?: boolean;
+        is_image_model?: boolean;
       }[]
     >;
   };
@@ -523,9 +524,14 @@ function LLMConfigDialog({
   const modelSource = isOllamaWithDynamic
     ? ollamaData!.models
     : (metadata.providers[form.provider ?? ''] ?? []);
+  const isImageType = config?.info.llm_type === 'image_generation';
   const availableModels = form.provider
     ? modelSource
         .filter(m => {
+          // Image generation type: only show image models
+          // Other types: only show non-image (chat) models
+          if (isImageType && !m.is_image_model) return false;
+          if (!isImageType && m.is_image_model) return false;
           if (requiredCaps.includes('vision') && !m.supports_vision) return false;
           if (requiredCaps.includes('tools') && !m.supports_tools) return false;
           if (requiredCaps.includes('structured_output') && !m.supports_structured_output)

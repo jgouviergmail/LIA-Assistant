@@ -1530,16 +1530,28 @@ async def _execute_single_step_async(
 
     # Get timeout from step or use default, capped at MAX
     # F6: Sub-agent delegation needs more time (full graph execution)
+    # Image generation needs more time (OpenAI API can take 30-60s for high quality)
     _SUBAGENT_TOOL_TIMEOUT = 120.0
-    effective_default = (
-        _SUBAGENT_TOOL_TIMEOUT
-        if step.tool_name == "delegate_to_sub_agent_tool"
-        else DEFAULT_TOOL_TIMEOUT_SECONDS
-    )
-    timeout_seconds = min(
-        step.timeout_seconds or effective_default,
-        MAX_TOOL_TIMEOUT_SECONDS,
-    )
+    _IMAGE_TOOL_TIMEOUT = 90.0
+    _IMAGE_TOOLS = {"generate_image", "edit_image"}
+    if step.tool_name == "delegate_to_sub_agent_tool":
+        effective_default = _SUBAGENT_TOOL_TIMEOUT
+    elif step.tool_name in _IMAGE_TOOLS:
+        effective_default = _IMAGE_TOOL_TIMEOUT
+    else:
+        effective_default = DEFAULT_TOOL_TIMEOUT_SECONDS
+    # Use max(step, default) for tools with known high latency (image gen, sub-agents)
+    # to prevent the planner from imposing a too-short timeout
+    if step.tool_name in _IMAGE_TOOLS or step.tool_name == "delegate_to_sub_agent_tool":
+        timeout_seconds = min(
+            max(step.timeout_seconds or effective_default, effective_default),
+            MAX_TOOL_TIMEOUT_SECONDS,
+        )
+    else:
+        timeout_seconds = min(
+            step.timeout_seconds or effective_default,
+            MAX_TOOL_TIMEOUT_SECONDS,
+        )
 
     logger.info(
         "step_execution_started",

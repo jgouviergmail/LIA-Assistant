@@ -750,6 +750,18 @@ def initialize_catalogue(registry: AgentRegistry) -> None:
         registry.register_agent_manifest(SUB_AGENT_MANIFEST)
         registry.register_tool_manifest(delegate_to_sub_agent_catalogue_manifest)
 
+    # Register Image Generation tool manifest (feature-flagged)
+    if getattr(_get_settings(), "image_generation_enabled", False):
+        from src.domains.agents.image_generation.catalogue_manifests import (
+            edit_image_catalogue_manifest,
+            generate_image_catalogue_manifest,
+            image_agent_manifest,
+        )
+
+        registry.register_agent_manifest(image_agent_manifest)
+        registry.register_tool_manifest(generate_image_catalogue_manifest)
+        registry.register_tool_manifest(edit_image_catalogue_manifest)
+
     # Dynamic counting from registry (no more hardcoded values)
     registered_agents = list(registry._agent_manifests.keys())
     registered_tools = list(registry._tool_manifests.keys())

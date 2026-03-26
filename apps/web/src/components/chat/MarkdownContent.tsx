@@ -1,4 +1,5 @@
 import React, { useState, useMemo, memo, useEffect, lazy, Suspense } from 'react';
+import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
@@ -329,13 +330,17 @@ const MarkdownImage = memo(
             onLoad={handleLoad}
             onClick={() => setIsLightboxOpen(true)}
           />
-          <ImageLightbox
-            src={src}
-            alt={alt || 'Photo du lieu'}
-            isOpen={isLightboxOpen}
-            onClose={() => setIsLightboxOpen(false)}
-            minWidth={400}
-          />
+          {typeof document !== 'undefined' &&
+            createPortal(
+              <ImageLightbox
+                src={src}
+                alt={alt || 'Photo du lieu'}
+                isOpen={isLightboxOpen}
+                onClose={() => setIsLightboxOpen(false)}
+                minWidth={400}
+              />,
+              document.body
+            )}
         </>
       );
     }
@@ -364,13 +369,17 @@ const MarkdownImage = memo(
               onClick={() => setIsLightboxOpen(true)}
             />
           </span>
-          <ImageLightbox
-            src={proxiedSrc}
-            alt={alt || 'Photo de profil'}
-            isOpen={isLightboxOpen}
-            onClose={() => setIsLightboxOpen(false)}
-            minWidth={250}
-          />
+          {typeof document !== 'undefined' &&
+            createPortal(
+              <ImageLightbox
+                src={proxiedSrc}
+                alt={alt || 'Photo de profil'}
+                isOpen={isLightboxOpen}
+                onClose={() => setIsLightboxOpen(false)}
+                minWidth={250}
+              />,
+              document.body
+            )}
         </>
       );
     }

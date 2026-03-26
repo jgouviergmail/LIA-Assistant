@@ -72,15 +72,19 @@ def _build_user_stats_columns() -> list[Any]:
         # Current usage
         cycle_tokens.label("cycle_tokens"),
         func.coalesce(UserStatistics.cycle_messages, 0).label("cycle_messages"),
-        # Cost = LLM cost + Google API cost (matches dashboard calculation)
+        # Cost = LLM cost + Google API cost + Image Generation cost
         func.coalesce(
-            UserStatistics.cycle_cost_eur + UserStatistics.cycle_google_api_cost_eur,
+            UserStatistics.cycle_cost_eur
+            + UserStatistics.cycle_google_api_cost_eur
+            + UserStatistics.cycle_image_generation_cost_eur,
             Decimal("0"),
         ).label("cycle_cost"),
         total_tokens.label("total_tokens"),
         func.coalesce(UserStatistics.total_messages, 0).label("total_messages"),
         func.coalesce(
-            UserStatistics.total_cost_eur + UserStatistics.total_google_api_cost_eur,
+            UserStatistics.total_cost_eur
+            + UserStatistics.total_google_api_cost_eur
+            + UserStatistics.total_image_generation_cost_eur,
             Decimal("0"),
         ).label("total_cost"),
         # Cycle tracking

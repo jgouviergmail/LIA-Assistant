@@ -501,6 +501,19 @@
       "features": "Funktionen",
       "administration": "Verwaltung"
     },
+    "groups": {
+      "personalization": "Personalisierung",
+      "notifications_communication": "Benachrichtigungen & Kommunikation",
+      "voice_media": "Stimme & Medien",
+      "connections_integrations": "Verbindungen & Integrationen",
+      "identity_memory": "Identität & Gedächtnis",
+      "automation_tracking": "Automatisierung & Überwachung",
+      "extensions_data": "Erweiterungen & Daten",
+      "users_access": "Benutzer & Zugang",
+      "ai_connectors": "KI & Konnektoren",
+      "content_extensions": "Inhalte & Erweiterungen",
+      "system": "System"
+    },
     "theme": {
       "title": "Erscheinungsbild",
       "description": "Wählen Sie Ihr bevorzugtes Design",
@@ -1359,7 +1372,8 @@
           "journal_extraction": "Extrahiert Tagebucheinträge aus Gesprächen (Assistenten-Selbstreflexion)",
           "journal_consolidation": "Überprüft und konsolidiert Tagebucheinträge periodisch",
           "initiative": "Proaktive Anreicherung nach Ausführung (nur Leseprüfungen)",
-          "mcp_react_agent": "MCP iterativer Modus: liest die Server-Dokumentation, führt dann Tools schrittweise aus"
+          "mcp_react_agent": "MCP iterativer Modus: liest die Server-Dokumentation, führt dann Tools schrittweise aus",
+          "image_generation": "KI-Bildgenerierung aus Textbeschreibungen (gpt-image-1 usw.)"
         },
         "no_compatible_model": "Kein Modell dieses Anbieters unterstützt diese Funktion",
         "ollama": {
@@ -1434,6 +1448,22 @@
       "disabled_success": "Sprachmodus deaktiviert",
       "info": "Wenn aktiviert, erscheint ein Sprach-Badge im Chat-Header. Tippen Sie zum Sprechen oder sagen Sie \"ok guy\" oder \"ok guys\" für die Spracheingabe.",
       "experimental_note": "⚠️ Experimentelle Funktion auf Mobilgeräten. Die Aktivierungswort-Erkennung kann auf Telefonen weniger zuverlässig sein."
+    },
+    "image_generation": {
+      "title": "KI-Bildgenerierung",
+      "description": "KI-gestutzte Bildgenerierung konfigurieren",
+      "enable": "Bildgenerierung aktivieren",
+      "enable_description": "Bilder aus Textbeschreibungen erstellen lassen",
+      "updated": "Einstellung aktualisiert",
+      "quality": "Standardqualitat",
+      "quality_low": "Niedrig",
+      "quality_medium": "Mittel",
+      "quality_high": "Hoch",
+      "size": "Standardgrosse",
+      "size_square": "Quadrat",
+      "size_landscape": "Querformat",
+      "size_portrait": "Hochformat",
+      "format": "Ausgabeformat"
     },
     "admin_mcp": {
       "title": "Anwendungs-MCP",
@@ -3095,6 +3125,29 @@
             "answer": "Nein. Die Aktivierungsworterkennung läuft vollständig in Ihrem Browser (Sherpa-onnx WASM). Die Spracherkennung läuft auf LIAs eigenem Server mit Whisper. Kein Audio wird an Drittanbieterdienste gesendet."
           }
         }
+      },
+      "image_generation": {
+        "title": "KI-Bildgenerierung",
+        "description": "Bilder mit KI generieren und bearbeiten",
+        "count": "4",
+        "questions": {
+          "q1": {
+            "question": "Wie generiere ich ein Bild?",
+            "answer": "<p>Bitten Sie den Assistenten einfach, ein Bild zu erstellen: <em>\"Generiere ein Bild einer Astronautenkatze\"</em>. Das Bild erscheint als Karte unter der Antwort.</p>"
+          },
+          "q2": {
+            "question": "Kann ich ein generiertes Bild bearbeiten?",
+            "answer": "<p>Ja! Bitten Sie den Assistenten: <em>\"Mach es realistischer\"</em>. Er verwendet automatisch das neueste Bild.</p>"
+          },
+          "q3": {
+            "question": "Wie konfiguriere ich Qualitaet und Groesse?",
+            "answer": "<p>Gehen Sie zu <strong>Einstellungen > Einstellungen > KI-Bildgenerierung</strong>. Waehlen Sie Qualitaet, Groesse und Format.</p>"
+          },
+          "q4": {
+            "question": "Was kostet die Bildgenerierung?",
+            "answer": "<p>Fuer gpt-image-1: Niedrig $0.011-$0.016, Mittel $0.042-$0.063, Hoch $0.167-$0.250 pro Bild.</p>"
+          }
+        }
       }
     },
     "contact": {
@@ -3463,6 +3516,7 @@
       "title": "Befehlsbeispiele",
       "subtitle": "LIA verfügt über viele Werkzeuge und Funktionen, die ich dir empfehle, schrittweise zu entdecken:",
       "features": {
+        "image_generation": "KI-Bildgenerierung und -bearbeitung (DALL·E, GPT Image)",
         "skills": "Skills zur Entwicklung seiner Expertise oder um seine Aktionen zu leiten (automatisch generierbar)",
         "mcp": "MCPs zur Erweiterung seiner Fähigkeiten mit Markttools (in zwei Klicks)",
         "rag": "RAG zur Wissensanreicherung aus deinen Dokumenten",
@@ -3970,6 +4024,10 @@
       "usage_limits": {
         "title": "Nutzungskontingente",
         "description": "Pro-Benutzer-Limits für Token, Nachrichten und Kosten mit Echtzeit-Monitoring und 5-Schichten-Durchsetzung. Administratoren steuern Budgets mit sofortiger Sperre/Entsperrung."
+      },
+      "image_generation": {
+        "title": "KI-Bildgenerierung",
+        "description": "Bilder aus Textbeschreibungen generieren und bearbeiten. Multi-Provider-Architektur mit benutzerspezifischen Qualitätseinstellungen und Kostenverfolgung."
       }
     },
     "use_cases": {

@@ -150,6 +150,67 @@ class FontFamilyValidatorMixin:
 
 
 # ============================================================================
+# Image Generation Validation
+# ============================================================================
+
+
+class ImageGenerationValidatorMixin:
+    """Mixin providing image generation field validation.
+
+    Add to any Pydantic model that has image_generation_default_quality,
+    image_generation_default_size, or image_generation_output_format fields.
+    """
+
+    @field_validator("image_generation_default_quality", mode="before", check_fields=False)
+    @classmethod
+    def validate_image_generation_quality(cls, v: str | None) -> str | None:
+        """Validate image generation quality is supported."""
+        if v is None:
+            return v
+
+        from src.core.constants import IMAGE_GENERATION_VALID_QUALITIES
+
+        if v not in IMAGE_GENERATION_VALID_QUALITIES:
+            raise ValueError(
+                f"Invalid image quality: {v}. "
+                f"Must be one of {', '.join(IMAGE_GENERATION_VALID_QUALITIES)}"
+            )
+        return v
+
+    @field_validator("image_generation_default_size", mode="before", check_fields=False)
+    @classmethod
+    def validate_image_generation_size(cls, v: str | None) -> str | None:
+        """Validate image generation size is supported."""
+        if v is None:
+            return v
+
+        from src.core.constants import IMAGE_GENERATION_VALID_SIZES
+
+        if v not in IMAGE_GENERATION_VALID_SIZES:
+            raise ValueError(
+                f"Invalid image size: {v}. "
+                f"Must be one of {', '.join(IMAGE_GENERATION_VALID_SIZES)}"
+            )
+        return v
+
+    @field_validator("image_generation_output_format", mode="before", check_fields=False)
+    @classmethod
+    def validate_image_generation_format(cls, v: str | None) -> str | None:
+        """Validate image generation output format is supported."""
+        if v is None:
+            return v
+
+        from src.core.constants import IMAGE_GENERATION_VALID_FORMATS
+
+        if v not in IMAGE_GENERATION_VALID_FORMATS:
+            raise ValueError(
+                f"Invalid image format: {v}. "
+                f"Must be one of {', '.join(IMAGE_GENERATION_VALID_FORMATS)}"
+            )
+        return v
+
+
+# ============================================================================
 # Password Validation
 # ============================================================================
 
@@ -233,6 +294,18 @@ class UserBase(BaseModel, TimezoneValidatorMixin, ThemeValidatorMixin, FontFamil
         default="system",
         description="User font family: system, noto-sans, plus-jakarta-sans, ibm-plex-sans, geist, source-sans-pro, merriweather, libre-baskerville, fira-code",
     )
+    # Image Generation preferences
+    image_generation_enabled: bool = Field(default=False, description="AI image generation enabled")
+    image_generation_default_quality: str = Field(
+        default="medium", description="Default image quality: low, medium, high"
+    )
+    image_generation_default_size: str = Field(
+        default="1024x1024", description="Default image size"
+    )
+    image_generation_output_format: str = Field(
+        default="png", description="Default output format: png, jpeg, webp"
+    )
+
     created_at: datetime = Field(..., description="Account creation timestamp")
     updated_at: datetime = Field(..., description="Last update timestamp")
 

@@ -1895,6 +1895,57 @@ class StreamingService:
                 )
 
         # =================================================================
+        # Image Generation Calls Breakdown: Per-call details
+        # =================================================================
+        if self.tracker and hasattr(self.tracker, "get_image_generation_calls_breakdown"):
+            try:
+                image_gen_calls = self.tracker.get_image_generation_calls_breakdown()
+                if image_gen_calls:
+                    debug_metrics["image_generation_calls"] = image_gen_calls
+                    debug_metrics["image_generation_summary"] = {
+                        "total_calls": len(image_gen_calls),
+                        "total_images": sum(c.get("image_count", 0) for c in image_gen_calls),
+                        "total_cost_usd": round(
+                            sum(c.get("cost_usd", 0) for c in image_gen_calls), 6
+                        ),
+                        "total_cost_eur": round(
+                            sum(c.get("cost_eur", 0) for c in image_gen_calls), 6
+                        ),
+                    }
+
+                    # Inject into llm_calls as a synthetic entry so it appears
+                    # in LLM Pipeline and Execution Times in the debug panel
+                    if "llm_calls" not in debug_metrics:
+                        debug_metrics["llm_calls"] = []
+                    for ig_call in image_gen_calls:
+                        debug_metrics["llm_calls"].append(
+                            {
+                                "node_name": "image_generation",
+                                "model_name": ig_call["model"],
+                                "tokens_in": 0,
+                                "tokens_out": 0,
+                                "tokens_cache": 0,
+                                "cost_eur": ig_call["cost_eur"],
+                                "duration_ms": ig_call.get("duration_ms", 0),
+                                "call_type": "image_generation",
+                                "sequence": 9999,  # After all LLM calls
+                            }
+                        )
+
+                    logger.debug(
+                        "debug_metrics_image_generation_calls_added",
+                        run_id=run_id,
+                        total_calls=len(image_gen_calls),
+                    )
+            except (AttributeError, ValueError, RuntimeError) as img_err:
+                logger.debug(
+                    "debug_metrics_image_generation_calls_failed",
+                    run_id=run_id,
+                    error=str(img_err),
+                    error_type=type(img_err).__name__,
+                )
+
+        # =================================================================
         # Execution Waves: Parallel visualization (v3.1)
         # SYNC: DependencyGraph.get_wave_info() is pure computation, no I/O
         # =================================================================

@@ -760,7 +760,16 @@ class UserService:
         tokens_cache = stats.total_cached_tokens if stats else 0
         total_tokens = tokens_in + tokens_out + tokens_cache
         total_messages = stats.total_messages if stats else 0
-        total_cost_eur = float(stats.total_cost_eur) if stats else 0.0
+        # Consolidate all costs (LLM + Google API + Image Generation) into totals
+        total_cost_eur = (
+            (
+                float(stats.total_cost_eur)
+                + float(getattr(stats, "total_google_api_cost_eur", 0) or 0)
+                + float(getattr(stats, "total_image_generation_cost_eur", 0) or 0)
+            )
+            if stats
+            else 0.0
+        )
         total_google_api_requests = stats.total_google_api_requests if stats else 0
 
         # Calculate statistics - Current billing cycle
@@ -770,7 +779,15 @@ class UserService:
         cycle_tokens = cycle_prompt + cycle_completion + cycle_cache
         cycle_messages = stats.cycle_messages if stats else 0
         cycle_google_api_requests = stats.cycle_google_api_requests if stats else 0
-        cycle_cost_eur = float(stats.cycle_cost_eur) if stats else 0.0
+        cycle_cost_eur = (
+            (
+                float(stats.cycle_cost_eur)
+                + float(getattr(stats, "cycle_google_api_cost_eur", 0) or 0)
+                + float(getattr(stats, "cycle_image_generation_cost_eur", 0) or 0)
+            )
+            if stats
+            else 0.0
+        )
 
         return UserProfileWithStats(
             # Base profile fields

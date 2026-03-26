@@ -572,7 +572,7 @@ async def sync_currency_rates():
     logger.info("currency_rates_synced", usd_to_eur=data["rates"]["EUR"])
 ```
 
-### CurrencyRateService Resilience (v1.11.5)
+### CurrencyRateService Resilience (v1.12.0)
 
 The `CurrencyRateService` fetches live exchange rates from `frankfurter.app`. In Docker environments where this external API may be unreachable, the following hardening was applied:
 

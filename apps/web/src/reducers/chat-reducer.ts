@@ -290,6 +290,9 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
                   costEur: metadata.cost_eur,
                   googleApiRequests: metadata.google_api_requests,
                   skillName: metadata.skill_name,
+                  generatedImages: metadata.generated_images as
+                    | { url: string; alt: string }[]
+                    | undefined,
                 }
               : m
           );
@@ -323,6 +326,9 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
                       costEur: metadata.cost_eur,
                       googleApiRequests: metadata.google_api_requests,
                       skillName: metadata.skill_name,
+                      generatedImages: metadata.generated_images as
+                        | { url: string; alt: string }[]
+                        | undefined,
                     }
                   : m
               );

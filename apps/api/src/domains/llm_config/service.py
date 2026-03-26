@@ -302,7 +302,13 @@ class LLMConfigService:
 
     @staticmethod
     def get_provider_models() -> ProviderModelsMetadata:
-        """Get available models grouped by provider (from FALLBACK_PROFILES)."""
+        """Get available models grouped by provider (from FALLBACK_PROFILES).
+
+        Includes both chat models (from FALLBACK_PROFILES) and image generation
+        models (from IMAGE_GENERATION_MODELS) so the admin UI can list all
+        available models for every LLM type.
+        """
+        from src.domains.llm_config.constants import IMAGE_GENERATION_MODELS
         from src.infrastructure.llm.model_profiles import FALLBACK_PROFILES
 
         providers: dict[str, list[ModelCapabilities]] = {}
@@ -333,6 +339,25 @@ class LLMConfigService:
                     )
                 )
             providers[provider] = caps
+
+        # Append image generation models (they don't have chat model capabilities)
+        for provider, model_ids in IMAGE_GENERATION_MODELS.items():
+            existing = providers.get(provider, [])
+            existing_ids = {m.model_id for m in existing}
+            for model_id in model_ids:
+                if model_id not in existing_ids:
+                    existing.append(
+                        ModelCapabilities(
+                            model_id=model_id,
+                            max_output_tokens=0,
+                            supports_tools=False,
+                            supports_structured_output=False,
+                            supports_vision=False,
+                            is_reasoning_model=False,
+                            is_image_model=True,
+                        )
+                    )
+            providers[provider] = existing
 
         return ProviderModelsMetadata(providers=providers)
 

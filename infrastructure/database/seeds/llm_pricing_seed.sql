@@ -91,9 +91,8 @@ INSERT INTO llm_model_pricing (
     (gen_random_uuid(), 'gpt-audio', 2.500000, NULL, 10.000000, NOW(), true, NOW(), NOW()),
     (gen_random_uuid(), 'gpt-audio-1.5', 2.500000, NULL, 10.000000, NOW(), true, NOW(), NOW()),
     (gen_random_uuid(), 'gpt-audio-mini', 0.600000, NULL, 2.400000, NOW(), true, NOW(), NOW()),
-    (gen_random_uuid(), 'gpt-image-1', 5.000000, 1.250000, 0.000000, NOW(), true, NOW(), NOW()),
-    (gen_random_uuid(), 'gpt-image-1.5', 5.000000, 1.250000, 10.000000, NOW(), true, NOW(), NOW()),
-    (gen_random_uuid(), 'gpt-image-1-mini', 2.000000, 0.200000, 0.000000, NOW(), true, NOW(), NOW()),
+    -- Note: gpt-image-* models are NOT text LLMs — their pricing is in
+    -- image_generation_pricing table (per-image cost, not per-token).
 
     -- Specialized (codex, computer-use, chatgpt-image)
     (gen_random_uuid(), 'codex-mini-latest', 1.500000, 0.375000, 6.000000, NOW(), true, NOW(), NOW()),

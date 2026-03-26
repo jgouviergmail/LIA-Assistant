@@ -89,6 +89,7 @@ export interface ModelCapabilities {
   supports_structured_output: boolean;
   supports_vision: boolean;
   is_reasoning_model: boolean;
+  is_image_model?: boolean;
   cost_input: number | null;
   cost_output: number | null;
 }

@@ -8,7 +8,22 @@ import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Accordion } from '@/components/ui/accordion';
-import { Settings, Shield, Puzzle } from 'lucide-react';
+import {
+  Settings,
+  Shield,
+  Puzzle,
+  Palette,
+  Bell,
+  Mic,
+  Plug,
+  Brain,
+  Zap,
+  Blocks,
+  Users,
+  Cpu,
+  Sparkles,
+  Wrench,
+} from 'lucide-react';
 import { CONNECTOR_LABELS, isValidConnectorType } from '@/constants/connectors';
 import UserConnectorsSection from '@/components/settings/UserConnectorsSection';
 import AdminUsersSection from '@/components/settings/AdminUsersSection';
@@ -41,7 +56,9 @@ import { AdminSkillsSection } from '@/components/settings/AdminSkillsSection';
 import { AdminUsageLimitsSection } from '@/components/settings/AdminUsageLimitsSection';
 import { SpacesSettingsSection } from '@/components/spaces/SpacesSettingsSection';
 import { VoiceModeSettings } from '@/components/settings/VoiceModeSettings';
+import { ImageGenerationSettings } from '@/components/settings/ImageGenerationSettings';
 import { UserDebugSettings } from '@/components/settings/UserDebugSettings';
+import { SettingsGroupLabel } from '@/components/settings/SettingsGroupLabel';
 import ConsumptionExportSection from '@/components/settings/ConsumptionExportSection';
 import { useDebugPanelEnabled } from '@/hooks/useDebugPanelEnabled';
 import { useTranslation } from '@/i18n/client';
@@ -201,6 +218,41 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               onValueChange={setAppearanceSections}
               className="space-y-4"
             >
+              {/* Group: Personalization */}
+              <SettingsGroupLabel
+                label={t('settings.groups.personalization')}
+                icon={Palette}
+              />
+              <LanguageSettings lng={lng} />
+              <TimezoneSelector lng={lng} />
+              <ThemeSelector lng={lng} />
+              <FontSettings lng={lng} />
+
+              {/* Group: Notifications & Communication */}
+              <SettingsGroupLabel
+                label={t('settings.groups.notifications_communication')}
+                icon={Bell}
+              />
+              <NotificationSettings lng={lng} />
+              <FeatureErrorBoundary feature="channels">
+                <ChannelSettings lng={lng} />
+              </FeatureErrorBoundary>
+
+              {/* Group: Voice & Media */}
+              <SettingsGroupLabel
+                label={t('settings.groups.voice_media')}
+                icon={Mic}
+              />
+              <VoiceModeSettings lng={lng} />
+              <FeatureErrorBoundary feature="image-generation">
+                <ImageGenerationSettings lng={lng} />
+              </FeatureErrorBoundary>
+
+              {/* Group: Connections & Integrations */}
+              <SettingsGroupLabel
+                label={t('settings.groups.connections_integrations')}
+                icon={Plug}
+              />
               <FeatureErrorBoundary feature="connectors">
                 <UserConnectorsSection lng={lng} />
               </FeatureErrorBoundary>
@@ -210,11 +262,6 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               <FeatureErrorBoundary feature="mcp-servers">
                 <MCPServersSettings lng={lng} />
               </FeatureErrorBoundary>
-              <LanguageSettings lng={lng} />
-              <TimezoneSelector lng={lng} />
-              <ThemeSelector lng={lng} />
-              <FontSettings lng={lng} />
-              <NotificationSettings lng={lng} />
             </Accordion>
           </TabsContent>
 
@@ -226,11 +273,22 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               onValueChange={setFeaturesSections}
               className="space-y-4"
             >
+              {/* Group: Identity & Memory */}
+              <SettingsGroupLabel
+                label={t('settings.groups.identity_memory')}
+                icon={Brain}
+              />
               <PersonalitySettings lng={lng} />
               <FeatureErrorBoundary feature="memory-settings">
                 <MemorySettings lng={lng} />
               </FeatureErrorBoundary>
               <InterestsSettings lng={lng} />
+
+              {/* Group: Automation & Tracking */}
+              <SettingsGroupLabel
+                label={t('settings.groups.automation_tracking')}
+                icon={Zap}
+              />
               <FeatureErrorBoundary feature="heartbeat">
                 <HeartbeatSettings lng={lng} />
               </FeatureErrorBoundary>
@@ -240,16 +298,18 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               <FeatureErrorBoundary feature="journals">
                 <JournalsSettings lng={lng} />
               </FeatureErrorBoundary>
+
+              {/* Group: Extensions & Data */}
+              <SettingsGroupLabel
+                label={t('settings.groups.extensions_data')}
+                icon={Blocks}
+              />
               <FeatureErrorBoundary feature="skills">
                 <SkillsSettings lng={lng} />
               </FeatureErrorBoundary>
               <FeatureErrorBoundary feature="rag-spaces">
                 <SpacesSettingsSection lng={lng} />
               </FeatureErrorBoundary>
-              <FeatureErrorBoundary feature="channels">
-                <ChannelSettings lng={lng} />
-              </FeatureErrorBoundary>
-              <VoiceModeSettings lng={lng} />
               <FeatureErrorBoundary feature="user-consumption-export">
                 <ConsumptionExportSection lng={lng} mode="user" />
               </FeatureErrorBoundary>
@@ -264,39 +324,49 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               onValueChange={setConnectorSections}
               className="space-y-4"
             >
-              {/* 1. Administration des utilisateurs */}
+              {/* Group: Users & Access */}
+              <SettingsGroupLabel
+                label={t('settings.groups.users_access')}
+                icon={Users}
+              />
               <AdminUsersSection lng={lng} />
-              {/* 2. Administration des limites */}
               <FeatureErrorBoundary feature="usage-limits">
                 <AdminUsageLimitsSection lng={lng} />
               </FeatureErrorBoundary>
-              {/* 3. Export des consommations */}
               <AdminConsumptionExportSection lng={lng} />
-              {/* 4. Message broadcast */}
               <AdminBroadcastSection lng={lng} />
-              {/* 5. Administration des connecteurs */}
+
+              {/* Group: AI & Connectors */}
+              <SettingsGroupLabel
+                label={t('settings.groups.ai_connectors')}
+                icon={Cpu}
+              />
               <AdminConnectorsSection lng={lng} />
-              {/* 6. Administration des LLM */}
               <AdminLLMPricingSection lng={lng} />
-              {/* 7. Administration des API Google */}
               <AdminGoogleApiPricingSection lng={lng} />
-              {/* 8. Configuration LLM */}
               <FeatureErrorBoundary feature="llm-config">
                 <AdminLLMConfigSection lng={lng} />
               </FeatureErrorBoundary>
-              {/* 9. Administration des personnalités */}
+
+              {/* Group: Content & Extensions */}
+              <SettingsGroupLabel
+                label={t('settings.groups.content_extensions')}
+                icon={Sparkles}
+              />
               <AdminPersonalitiesSection lng={lng} />
-              {/* 10. Administration des skills système */}
               <FeatureErrorBoundary feature="admin-skills">
                 <AdminSkillsSection lng={lng} />
               </FeatureErrorBoundary>
-              {/* 11. Administration des RAG système */}
               <FeatureErrorBoundary feature="rag-spaces-admin">
                 <AdminRAGSpacesSection lng={lng} />
               </FeatureErrorBoundary>
-              {/* 12. Paramètres vocaux */}
+
+              {/* Group: System */}
+              <SettingsGroupLabel
+                label={t('settings.groups.system')}
+                icon={Wrench}
+              />
               <AdminVoiceSettingsSection lng={lng} />
-              {/* 13. Panneau de Debug */}
               <AdminDebugSettingsSection lng={lng} />
             </Accordion>
           </TabsContent>
@@ -323,6 +393,41 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               onValueChange={setAllSections}
               className="space-y-4"
             >
+              {/* Group: Personalization */}
+              <SettingsGroupLabel
+                label={t('settings.groups.personalization')}
+                icon={Palette}
+              />
+              <LanguageSettings lng={lng} />
+              <TimezoneSelector lng={lng} />
+              <ThemeSelector lng={lng} />
+              <FontSettings lng={lng} />
+
+              {/* Group: Notifications & Communication */}
+              <SettingsGroupLabel
+                label={t('settings.groups.notifications_communication')}
+                icon={Bell}
+              />
+              <NotificationSettings lng={lng} />
+              <FeatureErrorBoundary feature="channels">
+                <ChannelSettings lng={lng} />
+              </FeatureErrorBoundary>
+
+              {/* Group: Voice & Media */}
+              <SettingsGroupLabel
+                label={t('settings.groups.voice_media')}
+                icon={Mic}
+              />
+              <VoiceModeSettings lng={lng} />
+              <FeatureErrorBoundary feature="image-generation">
+                <ImageGenerationSettings lng={lng} />
+              </FeatureErrorBoundary>
+
+              {/* Group: Connections & Integrations */}
+              <SettingsGroupLabel
+                label={t('settings.groups.connections_integrations')}
+                icon={Plug}
+              />
               <FeatureErrorBoundary feature="connectors">
                 <UserConnectorsSection lng={lng} />
               </FeatureErrorBoundary>
@@ -332,11 +437,6 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               <FeatureErrorBoundary feature="mcp-servers">
                 <MCPServersSettings lng={lng} />
               </FeatureErrorBoundary>
-              <LanguageSettings lng={lng} />
-              <TimezoneSelector lng={lng} />
-              <ThemeSelector lng={lng} />
-              <FontSettings lng={lng} />
-              <NotificationSettings lng={lng} />
               {userAccessAvailable && <UserDebugSettings lng={lng} />}
             </Accordion>
           </TabsContent>
@@ -349,11 +449,22 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               onValueChange={setFeaturesSections}
               className="space-y-4"
             >
+              {/* Group: Identity & Memory */}
+              <SettingsGroupLabel
+                label={t('settings.groups.identity_memory')}
+                icon={Brain}
+              />
               <PersonalitySettings lng={lng} />
               <FeatureErrorBoundary feature="memory-settings">
                 <MemorySettings lng={lng} />
               </FeatureErrorBoundary>
               <InterestsSettings lng={lng} />
+
+              {/* Group: Automation & Tracking */}
+              <SettingsGroupLabel
+                label={t('settings.groups.automation_tracking')}
+                icon={Zap}
+              />
               <FeatureErrorBoundary feature="heartbeat">
                 <HeartbeatSettings lng={lng} />
               </FeatureErrorBoundary>
@@ -363,16 +474,18 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               <FeatureErrorBoundary feature="journals">
                 <JournalsSettings lng={lng} />
               </FeatureErrorBoundary>
+
+              {/* Group: Extensions & Data */}
+              <SettingsGroupLabel
+                label={t('settings.groups.extensions_data')}
+                icon={Blocks}
+              />
               <FeatureErrorBoundary feature="skills">
                 <SkillsSettings lng={lng} />
               </FeatureErrorBoundary>
               <FeatureErrorBoundary feature="rag-spaces">
                 <SpacesSettingsSection lng={lng} />
               </FeatureErrorBoundary>
-              <FeatureErrorBoundary feature="channels">
-                <ChannelSettings lng={lng} />
-              </FeatureErrorBoundary>
-              <VoiceModeSettings lng={lng} />
               <FeatureErrorBoundary feature="user-consumption-export">
                 <ConsumptionExportSection lng={lng} mode="user" />
               </FeatureErrorBoundary>

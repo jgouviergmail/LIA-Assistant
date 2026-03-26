@@ -497,6 +497,26 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
             "requires_api_key": False,
         },
     ),
+    # AI Image Generation (evolution)
+    "image_generation": DomainConfig(
+        name="image_generation",
+        display_name="Image Generation",
+        description=(
+            "Generate images from text descriptions using AI. "
+            "Create illustrations, logos, art, designs from natural language prompts. "
+            "NOT for editing existing images or photos."
+        ),
+        agent_names=["image_generation_agent"],
+        result_key="image_generations",
+        related_domains=[],
+        priority=5,  # Medium priority: creative/on-demand
+        is_routable=True,
+        metadata={
+            "provider": "openai",
+            "requires_oauth": False,
+            "requires_api_key": False,  # Uses global OpenAI key from LLM Config
+        },
+    ),
     # Smart Home domains
     "hue": DomainConfig(
         name="hue",

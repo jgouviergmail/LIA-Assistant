@@ -30,6 +30,7 @@ def import_all_models() -> None:
     import src.domains.conversations.models  # noqa: F401
     import src.domains.google_api.models  # noqa: F401
     import src.domains.heartbeat.models  # noqa: F401
+    import src.domains.image_generation.models  # noqa: F401
     import src.domains.interests.models  # noqa: F401
     import src.domains.journals.models  # noqa: F401
     import src.domains.llm_config.models  # noqa: F401

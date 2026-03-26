@@ -320,6 +320,7 @@ async def _persist_journal_tokens(
     model_name: str,
     parent_run_id: str | None = None,
     node_name: str = "journal_extraction",
+    duration_ms: float = 0.0,
 ) -> None:
     """Persist token usage from journal LLM call to database.
 
@@ -377,6 +378,7 @@ async def _persist_journal_tokens(
                 prompt_tokens=input_tokens,
                 completion_tokens=output_tokens,
                 cached_tokens=cached_tokens,
+                duration_ms=duration_ms,
             )
             await tracker.commit()
 
@@ -619,7 +621,10 @@ async def extract_journal_entry_background(
         )
 
         # Call LLM
+        import time as _time
+
         llm = get_llm("journal_extraction")
+        _llm_start = _time.time()
         result = await invoke_with_instrumentation(
             llm=llm,
             llm_type="journal_extraction",
@@ -627,6 +632,7 @@ async def extract_journal_entry_background(
             session_id=session_id,
             user_id=user_id,
         )
+        _llm_duration_ms = (_time.time() - _llm_start) * 1000
         result_content = result.content if isinstance(result.content, str) else str(result.content)
 
         # Persist token usage (use effective config, not defaults — admin overrides matter)
@@ -638,6 +644,7 @@ async def extract_journal_entry_background(
             result=result,
             model_name=model_name,
             parent_run_id=parent_run_id,
+            duration_ms=_llm_duration_ms,
         )
 
         # Update user's last cost for Settings UI

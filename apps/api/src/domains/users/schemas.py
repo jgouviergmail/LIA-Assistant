@@ -11,6 +11,7 @@ from pydantic_core.core_schema import ValidationInfo
 from src.core.field_names import FIELD_IS_ACTIVE
 from src.domains.shared.schemas import (
     FontFamilyValidatorMixin,
+    ImageGenerationValidatorMixin,
     LanguageValidatorMixin,
     ThemeValidatorMixin,
     TimezoneValidatorMixin,
@@ -24,6 +25,7 @@ class UserUpdate(
     LanguageValidatorMixin,
     ThemeValidatorMixin,
     FontFamilyValidatorMixin,
+    ImageGenerationValidatorMixin,
 ):
     """Schema for updating user profile."""
 
@@ -51,6 +53,20 @@ class UserUpdate(
         description="User font family: 'system', 'noto-sans', 'plus-jakarta-sans', 'ibm-plex-sans', 'geist', 'source-sans-pro', 'merriweather', 'libre-baskerville', 'fira-code'",
     )
 
+    # Image Generation preferences
+    image_generation_enabled: bool | None = Field(
+        None, description="Enable AI image generation feature"
+    )
+    image_generation_default_quality: str | None = Field(
+        None, description="Default image quality: 'low', 'medium', 'high'"
+    )
+    image_generation_default_size: str | None = Field(
+        None, description="Default image size: '1024x1024', '1536x1024', '1024x1536'"
+    )
+    image_generation_output_format: str | None = Field(
+        None, description="Default output format: 'png', 'jpeg', 'webp'"
+    )
+
     model_config = {"from_attributes": True}
 
 
@@ -65,6 +81,16 @@ class UserProfile(UserBase, LanguageValidatorMixin):
     home_address: str | None = Field(
         None, description="User's home address (decrypted for display)"
     )
+
+    # Image Generation preferences
+    image_generation_enabled: bool = Field(default=False, description="AI image generation enabled")
+    image_generation_default_quality: str = Field(
+        default="medium", description="Default image quality"
+    )
+    image_generation_default_size: str = Field(
+        default="1024x1024", description="Default image size"
+    )
+    image_generation_output_format: str = Field(default="png", description="Default output format")
 
 
 class UserListResponse(BaseModel):

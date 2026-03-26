@@ -32,6 +32,8 @@ export interface Message {
   googleApiRequests?: number;
   // Skill activation metadata (only for assistant messages)
   skillName?: string;
+  // AI-generated images (only for assistant messages with image generation)
+  generatedImages?: { url: string; alt: string }[];
   // Voice input metadata (only for user messages)
   source?: 'text' | 'voice';
   audioDurationSeconds?: number;
@@ -110,6 +112,8 @@ export interface DoneMetadata {
   google_api_requests?: number;
   // Skill activation
   skill_name?: string;
+  // AI-generated images
+  generated_images?: { url: string; alt: string }[];
 }
 
 export interface RouterMetadata {

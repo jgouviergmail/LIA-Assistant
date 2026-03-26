@@ -78,7 +78,7 @@ Calcule un itinéraire entre deux points.
 | `avoid_ferries` | bool | Éviter les ferries |
 | `departure_time` | datetime | Heure de départ pour traffic prediction |
 
-> **Timezone handling (v1.11.5):** Naive datetimes from LLM tool calls (without
+> **Timezone handling (v1.12.0):** Naive datetimes from LLM tool calls (without
 > timezone info) are now normalized to the user's local timezone via
 > `normalize_user_datetime()` from `time_utils.py` before being processed.
 > Previously, naive datetimes were treated as UTC, causing a 1-hour offset for

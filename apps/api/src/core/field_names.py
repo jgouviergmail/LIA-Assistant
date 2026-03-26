@@ -121,6 +121,12 @@ FIELD_BLOCKED_REASON = "blocked_reason"
 FIELD_USAGE_LIMIT_STATUS = "usage_limit_status"
 
 # ============================================================
+# IMAGE GENERATION (cost tracking)
+# ============================================================
+FIELD_IMAGE_GENERATION_REQUESTS = "image_generation_requests"
+FIELD_IMAGE_GENERATION_COST_EUR = "image_generation_cost_eur"
+
+# ============================================================
 # FIELD GROUPS (for validation, serialization)
 # ============================================================
 
@@ -284,6 +290,9 @@ __all__ = [
     "FIELD_IS_USAGE_BLOCKED",
     "FIELD_BLOCKED_REASON",
     "FIELD_USAGE_LIMIT_STATUS",
+    # Image Generation
+    "FIELD_IMAGE_GENERATION_REQUESTS",
+    "FIELD_IMAGE_GENERATION_COST_EUR",
     # Helpers
     "is_identity_field",
     "is_token_field",

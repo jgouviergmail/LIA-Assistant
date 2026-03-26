@@ -58,6 +58,7 @@ AGENT_WEB_FETCH = "web_fetch_agent"  # Web page content fetching (evolution F1)
 AGENT_MCP = "mcp_agent"  # Virtual agent grouping all MCP tools (evolution F2)
 AGENT_BROWSER = "browser_agent"  # Interactive web browsing (evolution F7)
 AGENT_HUE = "hue_agent"  # Philips Hue smart lighting (Smart Home)
+AGENT_IMAGE = "image_generation_agent"  # AI image generation (evolution)
 
 # Per-server MCP domain prefix (evolution F2.2)
 # Each user MCP server gets its own domain: mcp_<slugified_server_name>

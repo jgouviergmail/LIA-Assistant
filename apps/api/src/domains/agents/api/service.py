@@ -1077,6 +1077,19 @@ class AgentService(
                             if is_hitl_resumption:
                                 assistant_metadata["hitl_approved"] = True
 
+                            # Persist generated image URLs in message metadata
+                            # so they survive page reload (frontend reads them back)
+                            if getattr(settings, "image_generation_enabled", False):
+                                from src.domains.image_generation.image_store import (
+                                    peek_pending_images,
+                                )
+
+                                peeked = peek_pending_images(str(conversation_id))
+                                if peeked:
+                                    assistant_metadata["generated_images"] = [
+                                        {"url": img.url, "alt": img.alt_text} for img in peeked
+                                    ]
+
                             await conv_service.archive_message(
                                 conversation_id,
                                 "assistant",
@@ -1528,6 +1541,21 @@ class AgentService(
                     }
                     if streaming_service.activated_skill_name:
                         done_metadata["skill_name"] = streaming_service.activated_skill_name
+
+                    # === IMAGE GENERATION: Include image URLs in done metadata ===
+                    # Images are saved as Attachments by the tool. We pass the
+                    # URLs in done metadata so the frontend renders them as
+                    # dedicated cards (not inside markdown, avoiding proxy/hydration issues).
+                    if getattr(settings, "image_generation_enabled", False):
+                        from src.domains.image_generation.image_store import (
+                            get_and_clear_pending_images,
+                        )
+
+                        pending_images = get_and_clear_pending_images(str(conversation_id))
+                        if pending_images:
+                            done_metadata["generated_images"] = [
+                                {"url": img.url, "alt": img.alt_text} for img in pending_images
+                            ]
 
                     yield ChatStreamChunk(
                         type="done",

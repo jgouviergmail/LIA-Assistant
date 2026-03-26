@@ -507,6 +507,19 @@
       "features": "功能",
       "administration": "管理"
     },
+    "groups": {
+      "personalization": "个性化",
+      "notifications_communication": "通知与沟通",
+      "voice_media": "语音与媒体",
+      "connections_integrations": "连接与集成",
+      "identity_memory": "身份与记忆",
+      "automation_tracking": "自动化与跟踪",
+      "extensions_data": "扩展与数据",
+      "users_access": "用户与访问",
+      "ai_connectors": "AI 与连接器",
+      "content_extensions": "内容与扩展",
+      "system": "系统"
+    },
     "theme": {
       "title": "外观",
       "description": "选择您喜欢的主题",
@@ -1365,7 +1378,8 @@
           "journal_extraction": "从对话中提取日志条目（助手自省）",
           "journal_consolidation": "定期审查和整合日志条目",
           "initiative": "执行后主动丰富（只读检查）",
-          "mcp_react_agent": "MCP迭代模式：先读取服务器文档，然后逐步执行工具"
+          "mcp_react_agent": "MCP迭代模式：先读取服务器文档，然后逐步执行工具",
+          "image_generation": "从文本描述生成AI图像（gpt-image-1等）"
         },
         "no_compatible_model": "该提供商没有支持此功能的模型",
         "ollama": {
@@ -1440,6 +1454,22 @@
       "disabled_success": "语音模式已禁用",
       "info": "启用后，聊天头部会出现语音徽章。点击说话或说 \"ok guy\" 或 \"ok guys\" 激活语音输入。",
       "experimental_note": "⚠️ 移动端实验性功能。唤醒词检测在手机上可能不太可靠。"
+    },
+    "image_generation": {
+      "title": "AI 图像生成",
+      "description": "配置 AI 图像生成设置",
+      "enable": "启用图像生成",
+      "enable_description": "允许通过文字描述创建图像",
+      "updated": "设置已更新",
+      "quality": "默认质量",
+      "quality_low": "低",
+      "quality_medium": "中",
+      "quality_high": "高",
+      "size": "默认尺寸",
+      "size_square": "正方形",
+      "size_landscape": "横向",
+      "size_portrait": "纵向",
+      "format": "输出格式"
     },
     "admin_mcp": {
       "title": "应用MCP",
@@ -3090,6 +3120,29 @@
             "answer": "不会。唤醒词检测完全在您的浏览器中运行（Sherpa-onnx WASM）。语音识别在LIA自己的服务器上使用Whisper运行。没有任何音频会发送给第三方服务。"
           }
         }
+      },
+      "image_generation": {
+        "title": "AI图像生成",
+        "description": "使用AI生成和编辑图像",
+        "count": "4",
+        "questions": {
+          "q1": {
+            "question": "如何生成图像？",
+            "answer": "<p>要求助手创建图像：<em>\"生成一张宇航员猫的图像\"</em>。图像以卡片形式显示在回复下方。</p>"
+          },
+          "q2": {
+            "question": "可以编辑已生成的图像吗？",
+            "answer": "<p>可以！要求助手：<em>\"让它更逼真\"</em>。会自动使用最新的图像。</p>"
+          },
+          "q3": {
+            "question": "如何配置质量和尺寸？",
+            "answer": "<p>前往<strong>设置 > 偏好 > AI图像生成</strong>。选择质量、尺寸和格式。</p>"
+          },
+          "q4": {
+            "question": "费用是多少？",
+            "answer": "<p>gpt-image-1：低$0.011-$0.016，中$0.042-$0.063，高$0.167-$0.250每张。</p>"
+          }
+        }
       }
     },
     "contact": {
@@ -3458,6 +3511,7 @@
       "title": "命令示例",
       "subtitle": "LIA拥有众多工具和功能，建议你逐步探索：",
       "features": {
+        "image_generation": "AI图像生成与编辑（DALL·E、GPT Image）",
         "skills": "Skills用于发展其专业知识或引导其行动（可自动生成）",
         "mcp": "MCP用于通过市场工具扩展其能力（只需两次点击）",
         "rag": "RAG用于从你的文档中丰富其知识",
@@ -3965,6 +4019,10 @@
       "usage_limits": {
         "title": "使用配额",
         "description": "每用户的令牌、消息和成本限制，实时监控和5层执行。管理员可即时封禁/解封控制预算。"
+      },
+      "image_generation": {
+        "title": "AI图像生成",
+        "description": "从文本描述生成和编辑图像。多提供商架构，支持每用户质量偏好和费用跟踪。"
       }
     },
     "use_cases": {

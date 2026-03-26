@@ -17,6 +17,8 @@ from src.core.field_names import (
     FIELD_COST_EUR,
     FIELD_GOOGLE_API_COST_EUR,
     FIELD_GOOGLE_API_REQUESTS,
+    FIELD_IMAGE_GENERATION_COST_EUR,
+    FIELD_IMAGE_GENERATION_REQUESTS,
     FIELD_MESSAGE_COUNT,
     FIELD_MODEL_NAME,
     FIELD_NODE_NAME,
@@ -56,6 +58,35 @@ class TokenUsageRecord(NamedTuple):
     sequence: int = 0
 
 
+class ImageGenerationRecord(NamedTuple):
+    """
+    In-memory record of an image generation call (immutable).
+
+    Used by TrackingContext to aggregate image generation costs before DB persistence.
+    Mirrors GoogleApiRecord pattern for consistency.
+
+    Attributes:
+        model: Image generation model used (e.g., "gpt-image-1").
+        quality: Quality level used (e.g., "medium").
+        size: Image dimensions used (e.g., "1024x1024").
+        image_count: Number of images generated.
+        cost_usd: Total cost in USD for this call.
+        cost_eur: Total cost in EUR for this call.
+        usd_to_eur_rate: Exchange rate used.
+        prompt_preview: First 200 characters of the prompt (for audit).
+    """
+
+    model: str
+    quality: str
+    size: str
+    image_count: int
+    cost_usd: Decimal
+    cost_eur: Decimal
+    usd_to_eur_rate: Decimal
+    prompt_preview: str
+    duration_ms: float = 0.0
+
+
 class GoogleApiRecord(NamedTuple):
     """
     In-memory record of a Google API call (immutable).
@@ -91,6 +122,7 @@ class GoogleApiRecord(NamedTuple):
 # with thread-safe structures (e.g. threading.Lock or per-request storage).
 _run_records: dict[str, list[TokenUsageRecord]] = {}
 _run_google_api_records: dict[str, list[GoogleApiRecord]] = {}
+_run_image_generation_records: dict[str, list[ImageGenerationRecord]] = {}
 
 
 class TrackingContext:
@@ -154,6 +186,9 @@ class TrackingContext:
 
         # Google API tracking (Places, Routes, Geocoding, Static Maps)
         self._google_api_records: list[GoogleApiRecord] = []
+
+        # Image Generation tracking (gpt-image-1, etc.)
+        self._image_generation_records: list[ImageGenerationRecord] = []
 
         # Debug Panel: Keep a copy of records after commit for debug metrics
         # This allows get_llm_calls_breakdown() to return data even after commit()
@@ -398,12 +433,65 @@ class TrackingContext:
         self._google_api_records.append(record)
 
         logger.debug(
-            "google_api_call_recorded",
+            "google_api_call_recorded_in_context",
             run_id=self.run_id,
             api_name=api_name,
             endpoint=endpoint,
             cost_eur=float(record.cost_eur),
             cached=cached,
+        )
+
+    def record_image_generation_call(
+        self,
+        model: str,
+        quality: str,
+        size: str,
+        image_count: int,
+        prompt_preview: str,
+        duration_ms: float = 0.0,
+    ) -> None:
+        """Record an image generation call (synchronous - uses pre-loaded pricing cache).
+
+        Called by image generation tool to track cost.
+        Uses ContextVar for implicit access via tracker helper.
+
+        Args:
+            model: Image generation model (e.g., "gpt-image-1").
+            quality: Quality level (e.g., "medium").
+            size: Image dimensions (e.g., "1024x1024").
+            image_count: Number of images generated.
+            prompt_preview: Prompt text (truncated to 200 chars for audit).
+            duration_ms: API call duration in milliseconds (for debug panel).
+        """
+        from src.domains.image_generation.pricing_service import ImageGenerationPricingService
+
+        cost_usd, cost_eur, usd_to_eur_rate = ImageGenerationPricingService.get_cost_per_image(
+            model, quality, size
+        )
+        total_cost_usd = cost_usd * image_count
+        total_cost_eur = cost_eur * image_count
+
+        record = ImageGenerationRecord(
+            model=model,
+            quality=quality,
+            size=size,
+            image_count=image_count,
+            cost_usd=total_cost_usd,
+            cost_eur=total_cost_eur,
+            usd_to_eur_rate=usd_to_eur_rate,
+            prompt_preview=prompt_preview[:200],
+            duration_ms=duration_ms,
+        )
+        self._image_generation_records.append(record)
+
+        logger.debug(
+            "image_generation_call_recorded",
+            run_id=self.run_id,
+            model=model,
+            quality=quality,
+            size=size,
+            image_count=image_count,
+            cost_eur=float(total_cost_eur),
         )
 
     def get_summary(self) -> dict:
@@ -430,6 +518,10 @@ class TrackingContext:
         google_api_requests = len([r for r in self._google_api_records if not r.cached])
         google_api_cost_eur = sum(float(r.cost_eur) for r in self._google_api_records)
 
+        # Image Generation: sum all image counts and costs
+        image_generation_requests = sum(r.image_count for r in self._image_generation_records)
+        image_generation_cost_eur = sum(float(r.cost_eur) for r in self._image_generation_records)
+
         summary = {
             FIELD_TOKENS_IN: sum(r.prompt_tokens for r in self._node_records),
             FIELD_TOKENS_OUT: sum(r.completion_tokens for r in self._node_records),
@@ -439,6 +531,9 @@ class TrackingContext:
             # Google API tracking
             FIELD_GOOGLE_API_REQUESTS: google_api_requests,
             FIELD_GOOGLE_API_COST_EUR: google_api_cost_eur,
+            # Image Generation tracking
+            FIELD_IMAGE_GENERATION_REQUESTS: image_generation_requests,
+            FIELD_IMAGE_GENERATION_COST_EUR: image_generation_cost_eur,
         }
 
         # DEBUG: Log detailed breakdown by node for token verification
@@ -475,6 +570,7 @@ class TrackingContext:
         """
         _run_records.pop(run_id, None)
         _run_google_api_records.pop(run_id, None)
+        _run_image_generation_records.pop(run_id, None)
 
     def _get_all_run_records(self) -> list[TokenUsageRecord]:
         """Return all LLM call records for this run_id from the run-level collector.
@@ -561,6 +657,39 @@ class TrackingContext:
             for r in records
         ]
 
+    def get_image_generation_calls_breakdown(self) -> list[dict]:
+        """Get detailed image generation calls for debug panel display.
+
+        Returns ALL image generation calls across every TrackingContext
+        sharing this run_id.
+
+        Returns:
+            List of dicts with per-call metrics:
+                - model: Image generation model (e.g., "gpt-image-1")
+                - quality: Quality level
+                - size: Image dimensions
+                - image_count: Number of images generated
+                - cost_usd: Cost in USD
+                - cost_eur: Cost in EUR
+                - prompt_preview: Truncated prompt text
+        """
+        committed = _run_image_generation_records.get(self.run_id, [])
+        records = committed + list(self._image_generation_records)
+
+        return [
+            {
+                "model": r.model,
+                "quality": r.quality,
+                "size": r.size,
+                "image_count": r.image_count,
+                "cost_usd": float(r.cost_usd),
+                "cost_eur": float(r.cost_eur),
+                "duration_ms": r.duration_ms,
+                "prompt_preview": r.prompt_preview,
+            }
+            for r in records
+        ]
+
     async def get_aggregated_summary_from_db(self) -> dict:
         """
         Get aggregated token summary from database after persistence.
@@ -602,16 +731,22 @@ class TrackingContext:
                     cost_eur=float(summary.total_cost_eur),
                     google_api_requests=summary.google_api_requests,
                 )
-                # Include Google API costs in total cost for accurate billing display
-                total_cost = float(summary.total_cost_eur) + float(summary.google_api_cost_eur or 0)
+                # Return raw DB values — cost consolidation happens in TokenSummaryDTO.to_metadata()
                 return {
                     FIELD_TOKENS_IN: summary.total_prompt_tokens,
                     FIELD_TOKENS_OUT: summary.total_completion_tokens,
                     FIELD_TOKENS_CACHE: summary.total_cached_tokens,
-                    FIELD_COST_EUR: total_cost,
+                    FIELD_COST_EUR: float(summary.total_cost_eur),
                     FIELD_MESSAGE_COUNT: self._message_count,
                     FIELD_GOOGLE_API_REQUESTS: summary.google_api_requests,
                     FIELD_GOOGLE_API_COST_EUR: float(summary.google_api_cost_eur or 0),
+                    FIELD_IMAGE_GENERATION_REQUESTS: getattr(
+                        summary, "image_generation_requests", 0
+                    )
+                    or 0,
+                    FIELD_IMAGE_GENERATION_COST_EUR: float(
+                        getattr(summary, "image_generation_cost_eur", 0) or 0
+                    ),
                 }
             else:
                 # Fallback to in-memory if DB not yet updated (should not happen normally)
@@ -853,6 +988,9 @@ class TrackingContext:
         # contribute to a single unified view in the debug panel.
         _run_records.setdefault(self.run_id, []).extend(self._node_records)
         _run_google_api_records.setdefault(self.run_id, []).extend(self._google_api_records)
+        _run_image_generation_records.setdefault(self.run_id, []).extend(
+            self._image_generation_records
+        )
 
         # Legacy: keep local copy for backward compatibility
         self._committed_records_copy.extend(self._node_records)
@@ -860,6 +998,7 @@ class TrackingContext:
 
         self._node_records.clear()
         self._google_api_records.clear()
+        self._image_generation_records.clear()
 
     async def _update_user_statistics(self, db: AsyncSession, summary: dict) -> None:
         """

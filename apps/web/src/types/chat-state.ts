@@ -146,6 +146,7 @@ export type ChatAction =
           message_count?: number;
           google_api_requests?: number;
           skill_name?: string;
+          generated_images?: { url: string; alt: string }[];
         };
       };
     }

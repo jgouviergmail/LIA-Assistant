@@ -373,6 +373,14 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         description_key="settings.admin.llmConfig.types.mcp_react_agent",
         required_capabilities=["tool_calling"],
     ),
+    # AI Image Generation (evolution)
+    "image_generation": LLMTypeMetadata(
+        llm_type="image_generation",
+        display_name="Image Generation",
+        category=CATEGORY_SPECIALIZED,
+        description_key="settings.admin.llmConfig.types.image_generation",
+        required_capabilities=[],  # Images API, not chat completions
+    ),
 }
 
 
@@ -836,7 +844,34 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         presence_penalty=0.0,
         max_tokens=16000,
     ),
+    # AI Image Generation (evolution)
+    # Note: This LLM type is special — it does NOT pass through get_llm()/BaseChatModel.
+    # The tool reads provider+model from LLMConfigOverrideCache and uses
+    # create_image_client(provider) to call the provider's Images API directly.
+    # temperature/max_tokens are ignored (Images API has no such params).
+    "image_generation": LLMAgentConfig(
+        provider="openai",
+        model="gpt-image-1",
+        temperature=0.0,
+        top_p=1.0,
+        frequency_penalty=0.0,
+        presence_penalty=0.0,
+        max_tokens=1,  # Ignored — Images API does not use max_tokens
+    ),
 }
+
+# --- Image Generation Models ---
+# These are NOT chat models — they use the provider's Images API.
+# Listed separately from FALLBACK_PROFILES (which only contains chat models).
+# Used by the admin LLM Config UI to populate the model dropdown for image_generation.
+IMAGE_GENERATION_MODELS: dict[str, list[str]] = {
+    "openai": [
+        "gpt-image-1.5",
+        "gpt-image-1",
+        "gpt-image-1-mini",
+    ],
+}
+
 
 # Validate that REGISTRY and DEFAULTS are synchronized
 assert set(LLM_TYPES_REGISTRY.keys()) == set(LLM_DEFAULTS.keys()), (

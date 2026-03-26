@@ -71,6 +71,7 @@ async def _persist_memory_tokens(
     result: AIMessage,
     model_name: str,
     parent_run_id: str | None = None,
+    duration_ms: float = 0.0,
 ) -> None:
     """
     Persist token usage from memory extraction LLM call to database.
@@ -157,6 +158,7 @@ async def _persist_memory_tokens(
                 prompt_tokens=input_tokens,
                 completion_tokens=output_tokens,
                 cached_tokens=cached_tokens,
+                duration_ms=duration_ms,
             )
 
             # Manually commit to persist
@@ -571,6 +573,9 @@ async def extract_memories_background(
 
         # Invoke LLM with instrumentation for token tracking
         # Uses node_name="memory_extraction" for cost attribution in metrics
+        import time as _time
+
+        _llm_start = _time.time()
         result = await invoke_with_instrumentation(
             llm=llm,
             llm_type="memory_extraction",
@@ -578,6 +583,7 @@ async def extract_memories_background(
             session_id=session_id,
             user_id=user_id,
         )
+        _llm_duration_ms = (_time.time() - _llm_start) * 1000
         result_content = result.content if isinstance(result.content, str) else str(result.content)
 
         # Persist token usage to database (deferred update for user statistics)
@@ -589,6 +595,7 @@ async def extract_memories_background(
             result=result,
             model_name=get_llm_config_for_agent(settings, "memory_extraction").model,
             parent_run_id=parent_run_id,
+            duration_ms=_llm_duration_ms,
         )
 
         # Parse extraction result

@@ -101,6 +101,12 @@ class MessageTokenSummary(BaseModel):
     google_api_requests: Mapped[int] = mapped_column(Integer, default=0)
     google_api_cost_eur: Mapped[Decimal] = mapped_column(Numeric(10, 6), default=Decimal("0.0"))
 
+    # Image Generation tracking (gpt-image-1, etc.)
+    image_generation_requests: Mapped[int] = mapped_column(Integer, default=0)
+    image_generation_cost_eur: Mapped[Decimal] = mapped_column(
+        Numeric(10, 6), default=Decimal("0.0")
+    )
+
     # Sub-agent cost attribution (F6): links background sub-agent run to parent turn
     parent_run_id: Mapped[str | None] = mapped_column(
         String(255),
@@ -171,6 +177,18 @@ class UserStatistics(BaseModel):
     # Current billing cycle Google API
     cycle_google_api_requests: Mapped[int] = mapped_column(BigInteger, default=0)
     cycle_google_api_cost_eur: Mapped[Decimal] = mapped_column(
+        Numeric(12, 6), default=Decimal("0.0")
+    )
+
+    # Lifetime Image Generation totals
+    total_image_generation_requests: Mapped[int] = mapped_column(BigInteger, default=0)
+    total_image_generation_cost_eur: Mapped[Decimal] = mapped_column(
+        Numeric(12, 6), default=Decimal("0.0")
+    )
+
+    # Current billing cycle Image Generation
+    cycle_image_generation_requests: Mapped[int] = mapped_column(BigInteger, default=0)
+    cycle_image_generation_cost_eur: Mapped[Decimal] = mapped_column(
         Numeric(12, 6), default=Decimal("0.0")
     )
 

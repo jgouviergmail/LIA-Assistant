@@ -834,6 +834,16 @@ def analyze_execution_results(
                         result_count += 1
                         has_results = True
 
+            # Action tools (UnifiedToolOutput.action_success) store their
+            # confirmation message in a "result" key (singular).  This is NOT
+            # a data-query result but it IS a meaningful result that must not
+            # be treated as "empty".
+            if not has_results and "result" in step_data:
+                result_value = step_data["result"]
+                if result_value:
+                    has_results = True
+                    result_count = max(result_count, 1)
+
             # Also check for count/total field
             count_value = step_data.get("count") or step_data.get("total") or 0
             if count_value > 0:
