@@ -31,7 +31,8 @@
   "packageManager": "pnpm@10.18.3",
   "pnpm": {
     "overrides": {
-      "flatted": ">=3.4.2"
+      "flatted": "3.4.2",
+      "picomatch": "4.0.4"
     }
   }
 }
