@@ -1482,6 +1482,37 @@ async def resolve_recipients_to_emails(
     return recipients
 
 
+# =============================================================================
+# SIDE-CHANNEL SSE EMISSION
+# =============================================================================
+
+
+def emit_side_channel_chunk(
+    runtime: ToolRuntime | None,
+    chunk: Any,
+) -> None:
+    """Put a ChatStreamChunk into the side-channel queue for direct SSE emission.
+
+    This is the generic mechanism for any tool to emit SSE events directly to the
+    frontend without going through the LLM response. The chunk is yielded as-is by
+    the SSE generator in service.py.
+
+    Fire-and-forget. Never raises — silently drops the chunk if the queue is
+    unavailable (e.g., running outside graph context, or in tests).
+
+    Args:
+        runtime: Tool runtime for accessing configurable queue. None-safe.
+        chunk: A ChatStreamChunk instance to emit. Must be fully constructed by caller.
+    """
+    try:
+        configurable = (runtime.config.get("configurable") or {}) if runtime else {}
+        queue = configurable.get("__side_channel_queue")
+        if queue is not None:
+            queue.put_nowait(chunk)
+    except Exception:
+        pass
+
+
 __all__ = [
     "ResolvedLocation",
     "ValidatedRuntimeConfig",
@@ -1503,5 +1534,6 @@ __all__ = [
     "resolve_location",
     "resolve_recipients_to_emails",
     "save_to_context_store",
+    "emit_side_channel_chunk",
     "validate_runtime_config",
 ]

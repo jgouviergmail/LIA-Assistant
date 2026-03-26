@@ -11,11 +11,16 @@ Phase: evolution F7 — Browser Control (Playwright)
 from __future__ import annotations
 
 import time
+from io import BytesIO
 from typing import TYPE_CHECKING
 
 import structlog
 
 from src.core.config import settings
+from src.core.constants import (
+    BROWSER_SCREENSHOT_THUMBNAIL_QUALITY,
+    BROWSER_SCREENSHOT_THUMBNAIL_WIDTH,
+)
 from src.infrastructure.browser.accessibility import AccessibilityTreeExtractor, AXNode
 from src.infrastructure.browser.models import PageSnapshot
 from src.infrastructure.browser.security import BrowserSecurityPolicy
@@ -310,28 +315,46 @@ class BrowserSession:
 
         return await self.get_snapshot()
 
-    async def screenshot(self) -> bytes:
-        """Take a JPEG screenshot of the current page.
+    async def screenshot_with_thumbnail(
+        self,
+    ) -> tuple[bytes | None, bytes | None]:
+        """Capture a full-res screenshot AND a reduced thumbnail in a single call.
+
+        One Playwright screenshot call produces two outputs:
+        - full_res: Original 1280x720 JPEG quality 80 (for persistent card, ~100-150KB)
+        - thumbnail: 640px-wide JPEG quality 60 (for ephemeral SSE overlay, ~50-80KB)
+
+        Never raises — returns (None, None) on any failure to avoid disrupting
+        tool execution.
 
         Returns:
-            JPEG image bytes (max 1280px wide, quality 80).
-
-        Raises:
-            ValueError: If screenshots disabled or no page open.
+            Tuple of (full_res_bytes, thumbnail_bytes). Both None on error.
         """
-        if not settings.browser_screenshot_enabled:
-            raise ValueError("Screenshot feature is disabled")
+        try:
+            if self.page is None or self.page.is_closed():
+                return None, None
 
-        if self.page is None or self.page.is_closed():
-            raise ValueError("No page is currently open")
+            # Lazy import: Pillow is heavy and only needed for thumbnails
+            from PIL import Image
 
-        self.last_activity = time.monotonic()
+            # Single Playwright call — reused for both outputs
+            full_res = await self.page.screenshot(type="jpeg", quality=80, full_page=False)
 
-        return await self.page.screenshot(
-            type="jpeg",
-            quality=80,
-            full_page=False,
-        )
+            # Thumbnail: resize for SSE side-channel overlay
+            img = Image.open(BytesIO(full_res))
+            # thumbnail() like resize.py — in-place, preserves aspect ratio
+            img.thumbnail(
+                (BROWSER_SCREENSHOT_THUMBNAIL_WIDTH, BROWSER_SCREENSHOT_THUMBNAIL_WIDTH),
+                Image.Resampling.LANCZOS,
+            )
+
+            buf = BytesIO()
+            img.save(buf, format="JPEG", quality=BROWSER_SCREENSHOT_THUMBNAIL_QUALITY)
+            thumbnail = buf.getvalue()
+
+            return full_res, thumbnail
+        except Exception:
+            return None, None
 
     async def close(self) -> None:
         """Close the page and browser context, releasing all resources."""

@@ -157,8 +157,8 @@ export async function FeaturesSection({ lng }: FeaturesSectionProps) {
         {/* All functional features */}
         <div className="grid grid-cols-1 sm:grid-cols-2 mobile:grid-cols-3 gap-4">
           {FUNCTIONAL_FEATURES.map(({ key, icon: Icon }, i) => (
-            <div key={key}>
-              <FadeInOnScroll delay={i * 60}>
+            <div key={key} className="h-full">
+              <FadeInOnScroll delay={i * 60} className="h-full">
                 <Card className="hover-lift hover-glow h-full border-border/60">
                   <CardHeader className="space-y-3 p-5">
                     <div className="flex items-center gap-3">

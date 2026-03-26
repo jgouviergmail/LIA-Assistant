@@ -2744,7 +2744,7 @@
           },
           "q18": {
             "question": "What is Browser Control and when should I use it?",
-            "answer": "Browser Control lets LIA interact with websites like a real user: navigate, search, click, fill forms, and extract data from JavaScript-rendered pages.<br><br><strong>Use for:</strong> searching products on e-commerce, filling forms, extracting dynamic content.<br><strong>Examples:</strong><br>- Go to amazon.fr and search for MacBook Pro M4<br>- Go to nike.com and find white Nike Air for men with prices"
+            "answer": "Browser Control lets LIA interact with websites like a real user: navigate, search, click, fill forms, and extract data from JavaScript-rendered pages.<br><br><strong>Use for:</strong> searching products on e-commerce, filling forms, extracting dynamic content.<br><strong>Examples:</strong><br>- Use the web browser to go to amazon.fr and search for MacBook Pro M4<br>- Use the web browser to go to nike.com and find white Nike Air for men with prices"
           },
           "q19": {
             "question": "How does the browser agent work?",
@@ -4051,7 +4051,7 @@
       },
       "browser_control": {
         "title": "Browser Control",
-        "description": "Navigate websites autonomously: search products, fill forms, extract data from dynamic pages powered by JavaScript"
+        "description": "Navigate websites autonomously: search products, fill forms, extract data from dynamic pages powered by JavaScript. Follow the navigation in real time with progressive screenshots displayed directly in the conversation."
       },
       "self_knowledge": {
         "title": "App Self-Knowledge",
@@ -4241,7 +4241,12 @@
     "click": "Click element",
     "fill": "Fill form field",
     "press_key": "Press key",
-    "screenshot": "Take screenshot"
+    "screenshot": {
+      "viewing": "Viewing page",
+      "close": "Close preview",
+      "finalCard": "Final browser screenshot",
+      "label": "Take screenshot"
+    }
   },
   "journals": {
     "title": "Personal Journals",

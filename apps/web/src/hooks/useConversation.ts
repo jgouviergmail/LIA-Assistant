@@ -122,6 +122,9 @@ export const useConversation = (): UseConversationReturn => {
         generatedImages: (msg.message_metadata?.generated_images as
           | { url: string; alt: string }[]
           | undefined) ?? undefined,
+        browserScreenshot: (msg.message_metadata?.browser_screenshot as
+          | { url: string; alt: string }
+          | undefined) ?? undefined,
       }));
 
       logger.info(

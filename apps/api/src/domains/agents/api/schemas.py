@@ -147,6 +147,8 @@ class ChatStreamChunk(BaseModel):
         "voice_audio_chunk",  # Voice: Audio chunk (base64 MP3)
         "voice_complete",  # Voice: Voice comment completed
         "voice_error",  # Voice: TTS error (graceful degradation)
+        # Browser: Progressive screenshot side-channel
+        "browser_screenshot",  # Browser: Progressive screenshot thumbnail (base64 JPEG)
         "error",
         "done",
     ] = Field(description="Type of stream chunk")

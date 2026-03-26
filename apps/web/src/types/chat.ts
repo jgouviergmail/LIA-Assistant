@@ -34,6 +34,8 @@ export interface Message {
   skillName?: string;
   // AI-generated images (only for assistant messages with image generation)
   generatedImages?: { url: string; alt: string }[];
+  // Browser screenshot card (only for assistant messages with browser automation)
+  browserScreenshot?: { url: string; alt: string };
   // Voice input metadata (only for user messages)
   source?: 'text' | 'voice';
   audioDurationSeconds?: number;
@@ -76,7 +78,9 @@ export type SSEChunkType =
   | 'voice_comment_start'
   | 'voice_audio_chunk'
   | 'voice_complete'
-  | 'voice_error';
+  | 'voice_error'
+  // Browser screenshots: progressive screenshot overlay
+  | 'browser_screenshot';
 
 export interface ChatStreamChunk {
   type: SSEChunkType;
@@ -114,6 +118,8 @@ export interface DoneMetadata {
   skill_name?: string;
   // AI-generated images
   generated_images?: { url: string; alt: string }[];
+  // Browser screenshot card
+  browser_screenshot?: { url: string; alt: string };
 }
 
 export interface RouterMetadata {
@@ -291,6 +297,16 @@ export interface ChatRequest {
  * VoiceAudioChunk - Audio chunk for voice comment streaming.
  * Contains base64-encoded audio data and metadata for playback.
  */
+/**
+ * BrowserScreenshotData - Progressive screenshot data from browser automation.
+ * Sent via SSE during browsing to show real-time page captures.
+ */
+export interface BrowserScreenshotData {
+  image_base64: string;
+  url: string;
+  title: string;
+}
+
 export interface VoiceAudioChunk {
   audio_base64: string; // Base64-encoded audio data (MP3)
   phrase_index: number; // Index of the phrase (0-based)

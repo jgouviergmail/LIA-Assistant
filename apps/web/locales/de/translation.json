@@ -4050,7 +4050,7 @@
       },
       "browser_control": {
         "title": "Browser-Steuerung",
-        "description": "Navigiert autonom auf Websites: Produkte suchen, Formulare ausfüllen, Daten aus dynamischen JavaScript-Seiten extrahieren"
+        "description": "Navigiert autonom auf Websites: Produkte suchen, Formulare ausfüllen, Daten aus dynamischen JavaScript-Seiten extrahieren. Verfolgen Sie die Navigation in Echtzeit mit progressiven Screenshots direkt im Chat."
       },
       "self_knowledge": {
         "title": "App-Selbstwissen",
@@ -4240,7 +4240,12 @@
     "click": "Element anklicken",
     "fill": "Feld ausfüllen",
     "press_key": "Taste drücken",
-    "screenshot": "Screenshot aufnehmen"
+    "screenshot": {
+      "viewing": "Seite wird angezeigt",
+      "close": "Vorschau schließen",
+      "finalCard": "Abschließender Browser-Screenshot",
+      "label": "Screenshot aufnehmen"
+    }
   },
   "journals": {
     "title": "Persönliche Tagebücher",

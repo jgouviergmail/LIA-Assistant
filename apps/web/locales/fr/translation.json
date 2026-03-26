@@ -2749,7 +2749,7 @@
           },
           "q18": {
             "question": "Qu est-ce que le Controle navigateur et quand l utiliser ?",
-            "answer": "Le Controle navigateur permet a LIA d interagir avec les sites web : naviguer, rechercher, cliquer, remplir des formulaires et extraire des donnees des pages JavaScript.<br><br><strong>Utilisez pour :</strong> rechercher des produits, remplir des formulaires, extraire du contenu dynamique.<br><strong>Exemples :</strong><br>- Va sur amazon.fr et cherche MacBook Pro M4<br>- Va sur nike.com et trouve les Nike Air blanches pour homme"
+            "answer": "Le Controle navigateur permet a LIA d interagir avec les sites web : naviguer, rechercher, cliquer, remplir des formulaires et extraire des donnees des pages JavaScript.<br><br><strong>Utilisez pour :</strong> rechercher des produits, remplir des formulaires, extraire du contenu dynamique.<br><strong>Exemples :</strong><br>- Utilise le navigateur web pour aller sur amazon.fr et cherche MacBook Pro M4<br>- Utilise le navigateur web pour aller sur nike.com et trouve les Nike Air blanches pour homme"
           },
           "q19": {
             "question": "Comment l agent navigateur parcourt-il les sites web ?",
@@ -4056,7 +4056,7 @@
       },
       "browser_control": {
         "title": "Contrôle navigateur",
-        "description": "Navigue sur les sites web de façon autonome : recherche de produits, remplissage de formulaires, extraction de données depuis les pages dynamiques JavaScript"
+        "description": "Navigue sur les sites web de façon autonome : recherche de produits, remplissage de formulaires, extraction de données depuis les pages dynamiques JavaScript. Visualisez la navigation en temps réel grâce aux captures d'écran progressives affichées dans la conversation."
       },
       "self_knowledge": {
         "title": "Auto-connaissance",
@@ -4246,7 +4246,12 @@
     "click": "Cliquer sur un élément",
     "fill": "Remplir un champ",
     "press_key": "Appuyer sur une touche",
-    "screenshot": "Capturer l'écran"
+    "screenshot": {
+      "viewing": "Page en cours",
+      "close": "Fermer l'aperçu",
+      "finalCard": "Capture finale du navigateur",
+      "label": "Capturer l'écran"
+    }
   },
   "journals": {
     "title": "Journaux personnels",

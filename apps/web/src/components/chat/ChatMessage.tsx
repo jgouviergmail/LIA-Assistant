@@ -1,7 +1,7 @@
 import { memo, useState, useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Message, MessageAttachmentMeta } from '@/types/chat';
-import { User, AlertCircle, ThumbsUp, ThumbsDown, Ban, FileText, X } from 'lucide-react';
+import { User, AlertCircle, ThumbsUp, ThumbsDown, Ban, FileText, X, Globe } from 'lucide-react';
 import { formatNumber, formatEuro } from '@/lib/format';
 import { proxyGoogleImageUrl } from '@/lib/utils';
 import { MarkdownContent } from './MarkdownContent';
@@ -149,6 +149,49 @@ function GeneratedImageCards({ images }: { images: { url: string; alt: string }[
             isOpen={true}
             onClose={() => setLightboxImage(null)}
             minWidth={512}
+          />,
+          document.body
+        )}
+    </>
+  );
+}
+
+/**
+ * Browser screenshot card — rendered after the message bubble for
+ * messages that include a final browser screenshot (persisted in metadata).
+ * Uses ImageLightbox for full-screen viewing.
+ */
+function BrowserScreenshotCard({ screenshot }: { screenshot: { url: string; alt: string } }) {
+  const { t } = useTranslation();
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  return (
+    <>
+      <div className="mt-3">
+        <div className="relative w-full max-w-[512px] mx-auto">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={screenshot.url}
+            alt={screenshot.alt}
+            className="w-full h-auto rounded-lg shadow-md cursor-pointer hover:shadow-lg transition-shadow"
+            crossOrigin="use-credentials"
+            onClick={() => setLightboxOpen(true)}
+          />
+          <div className="flex items-center gap-1.5 mt-1.5 px-1">
+            <Globe className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+            <span className="text-[10px] text-muted-foreground truncate">
+              {t('browser.screenshot.finalCard')}
+            </span>
+          </div>
+        </div>
+      </div>
+      {lightboxOpen &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <ImageLightbox
+            src={screenshot.url}
+            alt={screenshot.alt}
+            isOpen={lightboxOpen}
+            onClose={() => setLightboxOpen(false)}
           />,
           document.body
         )}
@@ -377,6 +420,10 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(({ message, isUser }
                 </span>
               </div>
             )}
+            {/* Browser screenshot — displayed first as visual context for the response */}
+            {message.browserScreenshot && (
+              <BrowserScreenshotCard screenshot={message.browserScreenshot} />
+            )}
             <MarkdownContent content={message.content} isUser={false} />
             {/* Feedback buttons for proactive interest notifications */}
             {showFeedbackButtons && (
@@ -385,11 +432,11 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(({ message, isUser }
                 onFeedbackSubmitted={() => setFeedbackSubmitted(true)}
               />
             )}
+            {/* AI-generated images — inside bubble after text content */}
+            {message.generatedImages && message.generatedImages.length > 0 && (
+              <GeneratedImageCards images={message.generatedImages} />
+            )}
           </div>
-          {/* AI-generated images — rendered as cards after the message bubble */}
-          {message.generatedImages && message.generatedImages.length > 0 && (
-            <GeneratedImageCards images={message.generatedImages} />
-          )}
           <span className="text-[11px] mobile:text-xs text-muted-foreground mt-1.5 px-1 font-medium whitespace-nowrap w-full text-right">
             {formatTime(message.timestamp)}
             {tokensIn !== undefined && showTokens && (

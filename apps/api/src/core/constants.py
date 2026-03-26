@@ -3277,6 +3277,10 @@ BROWSER_CONTENT_ROLES = frozenset(
 # URL schemes blocked for browser navigation (SSRF prevention)
 BROWSER_BLOCKED_SCHEMES = frozenset({"file", "javascript", "data", "chrome", "about", "blob"})
 
+# Progressive screenshots: SSE side-channel thumbnails during browser actions
+BROWSER_SCREENSHOT_THUMBNAIL_WIDTH: int = 640
+BROWSER_SCREENSHOT_THUMBNAIL_QUALITY: int = 60
+
 # ============================================================================
 # PERSONAL JOURNALS (Carnets de Bord — Assistant Logbooks)
 # ============================================================================

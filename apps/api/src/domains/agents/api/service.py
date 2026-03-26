@@ -137,6 +137,68 @@ class AgentService(
             )
             raise
 
+    @staticmethod
+    async def _interleave_side_channel(
+        sse_stream: AsyncGenerator[tuple[Any, str], None],
+        side_queue: asyncio.Queue,
+        poll_interval: float = 0.3,
+    ) -> AsyncGenerator[tuple[Any, str], None]:
+        """Interleave SSE stream with side-channel queue polling.
+
+        Ensures side-channel items (progressive screenshots, etc.) are yielded
+        promptly even when the graph is blocked in a long node execution
+        (e.g., ReAct browser loop). Polls the queue every poll_interval seconds.
+
+        Args:
+            sse_stream: The main SSE chunk stream from StreamingService.
+            side_queue: Side-channel asyncio.Queue populated by tools.
+            poll_interval: Seconds between queue polls when graph is idle.
+
+        Yields:
+            (chunk, content_fragment) tuples — either from the SSE stream
+            or (side_chunk, "") for side-channel items.
+        """
+        sse_aiter = sse_stream.__aiter__()
+        pending: asyncio.Task | None = None
+
+        try:
+            while True:
+                # Start fetching next SSE chunk if not already pending
+                if pending is None:
+                    pending = asyncio.ensure_future(sse_aiter.__anext__())
+
+                # Wait for SSE chunk OR timeout (to drain side-channel)
+                done, _ = await asyncio.wait({pending}, timeout=poll_interval)
+
+                # Drain any pending side-channel items
+                while not side_queue.empty():
+                    try:
+                        yield side_queue.get_nowait(), ""
+                    except asyncio.QueueEmpty:
+                        break
+
+                # If SSE chunk arrived, yield it
+                if done:
+                    try:
+                        result = pending.result()
+                        pending = None
+                        yield result
+                    except StopAsyncIteration:
+                        break
+                # Otherwise: timeout — loop back and poll again
+        finally:
+            if pending is not None and not pending.done():
+                pending.cancel()
+            # Note: no yield in finally — avoids RuntimeError if exception propagating.
+            # Final drain is done below (only reached on normal exit, not on exception).
+
+        # Final drain after clean stream completion (unreachable on exception)
+        while not side_queue.empty():
+            try:
+                yield side_queue.get_nowait(), ""
+            except asyncio.QueueEmpty:
+                break
+
     async def _stream_voice_chunks_to_queue(
         self,
         voice_service: Any,
@@ -714,12 +776,14 @@ class AgentService(
                         debug_panel_enabled=debug_panel_for_user,
                     )
 
+                    # Side-channel queue: generic mechanism for tools to emit SSE chunks
+                    # directly to the frontend (bypasses LLM, not persisted).
+                    # Created unconditionally — tools decide individually whether to emit.
+                    side_channel_queue: asyncio.Queue = asyncio.Queue()
+
                     # === StreamingService handles everything: SSE formatting + HITL ===
                     try:
-                        async for (
-                            sse_chunk,
-                            content_fragment,
-                        ) in streaming_service.stream_sse_chunks(
+                        sse_stream = streaming_service.stream_sse_chunks(
                             graph_stream=orchestration_service.execute_graph_stream(
                                 graph=self.graph,
                                 state=state,
@@ -733,10 +797,19 @@ class AgentService(
                                 user_message=user_message,  # For location phrase detection
                                 user_memory_enabled=user_memory_enabled,  # User memory preference
                                 user_journals_enabled=user_journals_enabled,  # User journals preference
+                                side_channel_queue=side_channel_queue,  # SSE side-channel
                             ),
                             conversation_id=conversation_id,
                             run_id=run_id,
-                        ):
+                        )
+
+                        # Wrap SSE stream to interleave side-channel queue items
+                        # (screenshots, etc.) even when the graph is busy in a long
+                        # node execution like the ReAct browser loop.
+                        async for (
+                            sse_chunk,
+                            content_fragment,
+                        ) in self._interleave_side_channel(sse_stream, side_channel_queue):
                             # Track response content for archiving
                             # ✅ CRITICAL FIX: content_replacement should REPLACE, not append
                             # When photos are injected via post-processing, StreamingService emits
@@ -1089,6 +1162,81 @@ class AgentService(
                                     assistant_metadata["generated_images"] = [
                                         {"url": img.url, "alt": img.alt_text} for img in peeked
                                     ]
+
+                            # Persist last browser screenshot as Attachment for card display
+                            browser_screenshot_card_url: str | None = None
+                            if getattr(settings, "browser_progressive_screenshots", False):
+                                from src.domains.agents.tools.browser_screenshot_store import (
+                                    get_and_clear_last_screenshot,
+                                )
+
+                                last_screenshot_bytes = get_and_clear_last_screenshot(
+                                    str(conversation_id)
+                                )
+                                if last_screenshot_bytes:
+                                    try:
+                                        from datetime import UTC, datetime, timedelta
+                                        from pathlib import Path
+
+                                        from src.domains.attachments.models import (
+                                            AttachmentContentType,
+                                            AttachmentStatus,
+                                        )
+                                        from src.domains.attachments.repository import (
+                                            AttachmentRepository,
+                                        )
+                                        from src.infrastructure.database.session import (
+                                            get_db_context,
+                                        )
+
+                                        stored_fn = f"browser_{uuid.uuid4()}.jpg"
+                                        rel_path = f"{user_id}/{stored_fn}"
+                                        abs_path = (
+                                            Path(settings.attachments_storage_path) / rel_path
+                                        )
+                                        abs_path.parent.mkdir(parents=True, exist_ok=True)
+                                        abs_path.write_bytes(last_screenshot_bytes)
+
+                                        async with get_db_context() as attach_db:
+                                            attach_repo = AttachmentRepository(attach_db)
+                                            attachment = await attach_repo.create(
+                                                {
+                                                    "user_id": user_id,
+                                                    "original_filename": stored_fn,
+                                                    "stored_filename": stored_fn,
+                                                    "mime_type": "image/jpeg",
+                                                    "file_size": len(last_screenshot_bytes),
+                                                    "file_path": rel_path,
+                                                    "content_type": AttachmentContentType.IMAGE,
+                                                    "status": AttachmentStatus.READY,
+                                                    "expires_at": datetime.now(UTC)
+                                                    + timedelta(
+                                                        hours=settings.attachments_ttl_hours,
+                                                    ),
+                                                }
+                                            )
+                                            await attach_db.commit()
+
+                                        browser_screenshot_card_url = (
+                                            f"/api/v1/attachments/{attachment.id}"
+                                        )
+                                        assistant_metadata["browser_screenshot"] = {
+                                            "url": browser_screenshot_card_url,
+                                            "alt": "Browser screenshot",
+                                        }
+
+                                        logger.debug(
+                                            "browser_screenshot_card_saved",
+                                            run_id=run_id,
+                                            attachment_id=str(attachment.id),
+                                        )
+                                    except Exception as bsc_err:
+                                        logger.warning(
+                                            "browser_screenshot_card_save_failed",
+                                            run_id=run_id,
+                                            error=str(bsc_err),
+                                            error_type=type(bsc_err).__name__,
+                                        )
 
                             await conv_service.archive_message(
                                 conversation_id,
@@ -1556,6 +1704,13 @@ class AgentService(
                             done_metadata["generated_images"] = [
                                 {"url": img.url, "alt": img.alt_text} for img in pending_images
                             ]
+
+                    # Browser screenshot card: reuse URL computed at archive time
+                    if browser_screenshot_card_url:
+                        done_metadata["browser_screenshot"] = {
+                            "url": browser_screenshot_card_url,
+                            "alt": "Browser screenshot",
+                        }
 
                     yield ChatStreamChunk(
                         type="done",

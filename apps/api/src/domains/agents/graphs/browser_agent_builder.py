@@ -10,7 +10,6 @@ Pattern: graphs/wikipedia_agent_builder.py
 
 from typing import Any
 
-from src.core.config import settings
 from src.core.time_utils import get_prompt_datetime_formatted
 from src.domains.agents.graphs.base_agent_builder import (
     build_generic_agent,
@@ -26,7 +25,7 @@ def build_browser_agent() -> Any:
     """Build and compile the browser agent using the generic agent builder template.
 
     Creates a LangChain v1.0 agent with browser interaction tools
-    (navigate, snapshot, click, fill, press_key, screenshot).
+    (navigate, snapshot, click, fill, press_key).
     No authentication required — uses local Playwright + Chromium.
 
     Returns:
@@ -56,12 +55,6 @@ def build_browser_agent() -> Any:
             browser_press_key_tool,
         ],
     )
-
-    # Conditionally add screenshot tool
-    if settings.browser_screenshot_enabled:
-        from src.domains.agents.tools.browser_tools import browser_screenshot_tool
-
-        tools.append(browser_screenshot_tool)
 
     # Load versioned prompt template
     browser_agent_prompt_template = load_prompt("browser_agent_prompt", version="v1")

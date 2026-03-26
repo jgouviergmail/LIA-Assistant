@@ -183,6 +183,8 @@ class ReactSubAgentRunner:
                 "user_id": user_id,
                 "thread_id": f"{thread_prefix}_{user_id}",
                 "__deps": parent_configurable.get("__deps"),
+                "__side_channel_queue": parent_configurable.get("__side_channel_queue"),
+                "__parent_thread_id": parent_configurable.get("thread_id"),
                 "user_timezone": parent_configurable.get("user_timezone", "UTC"),
                 "user_language": parent_configurable.get("user_language", "fr"),
             },

@@ -45,7 +45,7 @@ Response Node → synthesizes final answer for user
   a `create_react_agent` ReAct loop with all browser tools internally. The planner
   only sees this one tool.
 - **Individual tools** (ReAct-facing): `navigate`, `snapshot`, `click`, `fill`,
-  `press_key`, `screenshot` — used by the ReAct agent, not by the planner directly.
+  `press_key` — used by the ReAct agent, not by the planner directly.
 
 > **Note**: The parent graph's `InMemoryStore` (`runtime.store`) is propagated to the nested
 > browser ReAct agent via the `store` parameter of `create_react_agent`. This ensures that
@@ -84,6 +84,59 @@ BROWSER_RATE_LIMIT_WRITE_CALLS=40    # Rate limit for write tools
 - Cross-worker recovery: if follow-up lands on different worker, re-navigates to stored URL
 - Global session count coordinated via Redis key counting (excludes own recovery)
 - Page crash recovery: corrupted pages are closed and recreated on next navigation
+
+## Progressive Screenshots (SSE Side-Channel)
+
+During browser navigation, LIA streams progressive screenshots to the frontend
+via an SSE side-channel. These screenshots are **not processed by the LLM** — they
+provide real-time visual feedback to the user during browsing.
+
+### How It Works
+
+```
+Browser tool action (navigate/click/fill/press_key/snapshot)
+  → session.screenshot_with_thumbnail()  (one Playwright call → full-res + thumbnail)
+  → _emit_progressive_screenshot()
+      ├── Thumbnail (640px, JPEG q60, ~30KB) → asyncio.Queue → SSE → frontend overlay
+      └── Full-res (1280px, JPEG q80, ~120KB) → browser_screenshot_store (module-level)
+
+service.py: _interleave_side_channel() polls queue every 300ms
+  → yields side-channel chunks independently of graph stream timing
+
+On STREAM_DONE:
+  → Full-res saved as Attachment (disk + DB, TTL-based cleanup)
+  → URL in done_metadata["browser_screenshot"] + assistant_metadata
+  → Frontend renders persistent card inside assistant bubble
+```
+
+### Configuration
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `BROWSER_PROGRESSIVE_SCREENSHOTS` | `true` | Enable/disable progressive screenshot SSE streaming |
+| `BROWSER_SCREENSHOT_DEBOUNCE_SECONDS` | `0.1` | Min interval between screenshots per user |
+
+### Key Design Decisions
+
+- **Side-channel queue** (`__side_channel_queue`): Generic `asyncio.Queue` in `RunnableConfig.configurable`, reusable by any tool for direct-to-frontend SSE events.
+- **`_interleave_side_channel()`**: Wrapper that polls the queue every 300ms even when the graph is blocked in long node executions (ReAct browser loop).
+- **`__parent_thread_id`**: Forwarded in ReAct `nested_config` to ensure the `browser_screenshot_store` uses the real `conversation_id` (not the synthetic ReAct `thread_id`).
+- **Two outputs per capture**: Thumbnail for lightweight SSE overlay, full-res for persistent card (Retina-ready at 1.43x density for 448px card).
+- **No auto-dismiss**: Overlay stays visible until replaced by a new screenshot or cleared by `STREAM_DONE`.
+- **Final card in bubble**: Rendered before markdown content, with lightbox support (click to expand).
+
+### Files
+
+| File | Purpose |
+|------|---------|
+| `src/infrastructure/browser/session.py` | `screenshot_with_thumbnail()` method |
+| `src/domains/agents/tools/browser_tools.py` | `_emit_progressive_screenshot()` helper + 5 call sites |
+| `src/domains/agents/tools/browser_screenshot_store.py` | Module-level store for final card (pattern: `image_store.py`) |
+| `src/domains/agents/tools/runtime_helpers.py` | `emit_side_channel_chunk()` generic helper |
+| `src/domains/agents/api/service.py` | `_interleave_side_channel()` + queue creation + card Attachment save |
+| `src/domains/agents/api/schemas.py` | `"browser_screenshot"` SSE chunk type |
+| `apps/web/src/components/chat/BrowserScreenshotOverlay.tsx` | Inline overlay component |
+| `apps/web/src/components/chat/ChatMessage.tsx` | `BrowserScreenshotCard` inline component |
 
 ## Metrics (Prometheus)
 

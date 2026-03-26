@@ -34,6 +34,8 @@ import {
   handleVoiceAudioChunk,
   handleVoiceComplete,
   handleVoiceError,
+  // Browser screenshot handler
+  handleBrowserScreenshot,
   // Error handler
   handleError,
   // Helper
@@ -77,6 +79,9 @@ const SSE_HANDLERS: SSEHandlerMap = {
   voice_audio_chunk: handleVoiceAudioChunk,
   voice_complete: handleVoiceComplete,
   voice_error: handleVoiceError,
+
+  // Browser screenshot events
+  browser_screenshot: handleBrowserScreenshot,
 
   // Error events
   error: handleError,

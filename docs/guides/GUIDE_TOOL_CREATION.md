@@ -1311,6 +1311,7 @@ async def my_tool(user_id_raw, runtime):
 |--------|--------|-------|
 | `parse_user_id` | `runtime_helpers.py` | Parse UUID/ULID |
 | `handle_connector_api_error` | `runtime_helpers.py` | Error handling unifié |
+| `emit_side_channel_chunk` | `runtime_helpers.py` | Emit SSE chunks directly to frontend via side-channel queue |
 | `_extract_name`, `_extract_emails`, etc. | `ContactsFormatter` | Extraction données contacts |
 
 **Exemple CORRECT** :
@@ -1330,6 +1331,42 @@ def _parse_user_id(user_id):
         return user_id
     # ... logique dupliquée
 ```
+
+---
+
+## SSE Side-Channel (Direct Tool-to-Frontend Events)
+
+Tools can emit SSE events directly to the frontend without going through the LLM
+response stream. This is used for progressive browser screenshots but is generic
+and reusable by any tool.
+
+### How it works
+
+1. The graph runner creates an `asyncio.Queue` and stores it in
+   `RunnableConfig.configurable["__side_channel_queue"]`.
+2. Tools call `emit_side_channel_chunk(runtime, chunk)` to put a
+   `ChatStreamChunk` into the queue. Fire-and-forget, never raises.
+3. `_interleave_side_channel()` in `service.py` polls the queue every 300ms
+   and yields chunks to the SSE generator, even when the graph is blocked in
+   long node executions.
+
+### Usage
+
+```python
+from src.domains.agents.tools.runtime_helpers import emit_side_channel_chunk
+from src.domains.agents.api.schemas import ChatStreamChunk
+
+# Build a ChatStreamChunk with your custom type
+chunk = ChatStreamChunk(type="my_custom_event", data={"key": "value"})
+emit_side_channel_chunk(runtime, chunk)
+```
+
+### Nested agents (ReAct)
+
+When creating a nested agent (e.g., `create_react_agent` for browser), forward
+the `__side_channel_queue` in the nested `RunnableConfig.configurable` so that
+tools inside the nested agent can also emit side-channel events. See
+`browser_tools.py` for an example with `__parent_thread_id` forwarding.
 
 ---
 

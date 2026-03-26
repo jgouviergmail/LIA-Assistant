@@ -6,6 +6,7 @@ import {
   RegistryItem,
   BrowserContext,
   DebugMetrics,
+  BrowserScreenshotData,
 } from '@/types/chat';
 import { ConversationTotals, ChatAction, DebugMetricsEntry } from '@/types/chat-state';
 import {
@@ -66,6 +67,9 @@ export interface UseChatReturn {
   currentDebugMetrics: DebugMetrics | null;
   // Debug Panel: Cumulative history of all request metrics (collapsible display)
   debugMetricsHistory: DebugMetricsEntry[];
+  // Browser Screenshots: Current overlay data
+  browserScreenshot: BrowserScreenshotData | null;
+  clearBrowserScreenshot: () => void;
 }
 
 export const useChat = ({
@@ -488,6 +492,15 @@ export const useChat = ({
     [state.registry]
   );
 
+  /**
+   * Clear the browser screenshot overlay.
+   * Called when user dismisses the overlay or auto-dismiss timer fires.
+   */
+  const clearBrowserScreenshot = useCallback(() => {
+    dispatch({ type: 'BROWSER_SCREENSHOT_CLEAR' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // dispatch excluded: stable from useReducer
+
   // Derived state (computed from reducer state)
   const isTyping = state.status === 'streaming' || state.status === 'sending';
   const isConnected = state.apiAvailable && state.streaming.sseStatus !== 'error';
@@ -510,5 +523,8 @@ export const useChat = ({
     currentDebugMetrics: state.currentDebugMetrics,
     // Debug Panel: Cumulative history of all request metrics
     debugMetricsHistory: state.debugMetricsHistory,
+    // Browser Screenshots: Current overlay data
+    browserScreenshot: state.browserScreenshot,
+    clearBrowserScreenshot,
   };
 };

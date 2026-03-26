@@ -4050,7 +4050,7 @@
       },
       "browser_control": {
         "title": "Control del navegador",
-        "description": "Navega por sitios web de forma autónoma: buscar productos, rellenar formularios, extraer datos de páginas dinámicas con JavaScript"
+        "description": "Navega por sitios web de forma autónoma: buscar productos, rellenar formularios, extraer datos de páginas dinámicas con JavaScript. Siga la navegación en tiempo real con capturas de pantalla progresivas mostradas directamente en la conversación."
       },
       "self_knowledge": {
         "title": "Autoconocimiento",
@@ -4240,7 +4240,12 @@
     "click": "Hacer clic en elemento",
     "fill": "Rellenar campo",
     "press_key": "Pulsar tecla",
-    "screenshot": "Capturar pantalla"
+    "screenshot": {
+      "viewing": "Viendo página",
+      "close": "Cerrar vista previa",
+      "finalCard": "Captura final del navegador",
+      "label": "Capturar pantalla"
+    }
   },
   "journals": {
     "title": "Diarios personales",

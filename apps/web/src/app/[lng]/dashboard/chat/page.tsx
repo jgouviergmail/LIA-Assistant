@@ -31,6 +31,7 @@ import { useUsageLimits } from '@/hooks/useUsageLimits';
 import { UsageBlockedBanner } from '@/components/usage/UsageBlockedBanner';
 import { ActiveSpacesIndicator } from '@/components/spaces/ActiveSpacesIndicator';
 
+
 export default function ChatPage() {
   const { user, isLoading } = useAuth();
   const { liaBackgroundImage, mounted: liaImageMounted } = useLiaGender();
@@ -76,6 +77,7 @@ export default function ChatPage() {
     clearMessages,
     currentDebugMetrics, // Debug Panel: Scoring metrics for current request
     debugMetricsHistory, // Debug Panel: Cumulative history of all request metrics
+    browserScreenshot, // Browser Screenshots: Current overlay data
   } = useChat({ debugPanelVisible: showDebugPanel });
   const { loadConversationHistory, loadConversationTotals, resetConversation } = useConversation();
   const router = useLocalizedRouter();
@@ -522,7 +524,11 @@ export default function ChatPage() {
             {/* Scrollable messages container with thin scrollbar */}
             <div className="relative z-10 h-full overflow-y-auto chat-scrollbar">
               <RegistryProvider value={registry}>
-                <ChatMessageList messages={messages} isTyping={isTyping} />
+                <ChatMessageList
+                  messages={messages}
+                  isTyping={isTyping}
+                  browserScreenshot={browserScreenshot}
+                />
               </RegistryProvider>
             </div>
           </div>

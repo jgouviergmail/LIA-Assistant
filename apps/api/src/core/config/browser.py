@@ -102,9 +102,22 @@ class BrowserSettings(BaseSettings):
         description="Memory limit per browser instance (MB). Navigation refused if exceeded.",
     )
 
-    browser_screenshot_enabled: bool = Field(
-        default=False,
-        description="Enable screenshot tool (off by default due to high token cost).",
+    browser_progressive_screenshots: bool = Field(
+        default=True,
+        description=(
+            "Enable progressive screenshot streaming via SSE during browser actions. "
+            "Side-channel only (not processed by LLM)."
+        ),
+    )
+
+    browser_screenshot_debounce_seconds: float = Field(
+        default=0.1,
+        ge=0.0,
+        le=10.0,
+        description=(
+            "Minimum interval in seconds between progressive screenshots for the same user. "
+            "Prevents flooding during rapid browser action sequences."
+        ),
     )
 
     # ========================================================================

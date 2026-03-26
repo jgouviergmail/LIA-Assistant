@@ -36,7 +36,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.12.1</strong> — AI Image Generation &amp; Journal Semantic Dedup — March 2026
+  <strong>Version 1.12.2</strong> — Progressive Browser Screenshots &amp; SSE Side-Channel — March 2026
 </p>
 
 ---
@@ -151,7 +151,7 @@ LIA is available as a hosted service at **https://lia.jeyswork.com/** — no ins
 
 ### Multi-Agent Intelligence (LangGraph 1.x)
 
-- **19+ Specialized Agents**: Contacts, Emails, Calendar, Drive, Tasks, Reminders, Places, Routes, Weather, Wikipedia, Perplexity, Brave, Web Search, Web Fetch, Browser Control, Smart Home (Philips Hue), Context, Query + dynamic MCP agents
+- **19+ Specialized Agents**: Contacts, Emails, Calendar, Drive, Tasks, Reminders, Places, Routes, Weather, Wikipedia, Perplexity, Brave, Web Search, Web Fetch, Browser Control (with progressive screenshot streaming), Smart Home (Philips Hue), Context, Query + dynamic MCP agents
 - **MCP (Model Context Protocol)**: Per-user external tool servers with OAuth 2.1, SSRF protection, structured items parsing, MCP Apps (interactive iframe widgets), **Iterative Mode (ReAct)** for complex servers — a dedicated agent reads docs then calls tools correctly
 - **Agent Initiative Phase**: Post-execution cross-domain enrichment — the assistant proactively verifies related information (e.g., weather shows rain → checks calendar for outdoor events). Prompt-driven, read-only, fully configurable
 - **Skills (agentskills.io)**: Open standard for expert instructions (SKILL.md), model-driven activation, progressive disclosure (L1/L2/L3), sandboxed scripts, marketplace import, auto-translated multi-language descriptions, ZIP download, admin management. **Planner skill guard**: multi-domain deterministic skills are protected from false-positive early clarification requests via domain overlap detection (`_has_potential_skill_match`). **Built-in Skill Generator**: create custom skills in natural language — the assistant guides you through need analysis, archetype selection, and produces a ready-to-import SKILL.md with automatic validation

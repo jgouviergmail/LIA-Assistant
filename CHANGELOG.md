@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.2] - 2026-03-26
+
+### Added
+
+- **Progressive Browser Screenshots** — During browser navigation, screenshots are streamed in real-time via an SSE side-channel to the frontend, displayed as inline overlays in the chat flow. Thumbnails (640px, JPEG q60, ~30KB) provide lightweight visual feedback without LLM processing. Five capture points: navigate, click, fill, press_key, and the new `browser_snapshot_tool`. (`src/infrastructure/browser/session.py`, `src/domains/agents/tools/browser_tools.py`, `apps/web/src/components/chat/BrowserScreenshotOverlay.tsx`)
+- **Final Browser Screenshot Card** — Last screenshot from each browsing session saved as an Attachment (full-res 1280px, JPEG q80) and displayed inside the assistant message bubble before markdown content. Persists on page reload via `loadConversationMessages` metadata extraction. Supports lightbox click-to-expand. (`apps/web/src/components/chat/ChatMessage.tsx`, `src/domains/agents/api/service.py`)
+- **Generic Side-Channel Queue** — New `__side_channel_queue` in `RunnableConfig.configurable`, a generic `asyncio.Queue` mechanism for any tool to emit SSE events directly to the frontend without going through the LLM response. Fire-and-forget with graceful degradation. (`src/domains/agents/tools/runtime_helpers.py`)
+- **`emit_side_channel_chunk()` Helper** — Generic helper in `runtime_helpers.py` for putting `ChatStreamChunk` instances into the side-channel queue. None-safe, never raises, silently drops chunks if queue unavailable. Reusable by any tool domain. (`src/domains/agents/tools/runtime_helpers.py`)
+- **`browser_snapshot_tool`** — Fifth screenshot capture point added to the browser ReAct agent, providing a dedicated tool for explicit page snapshots alongside the implicit captures on navigate/click/fill/press_key. (`src/domains/agents/tools/browser_tools.py`)
+
+### Changed
+
+- **Side-Channel Interleaving** — `_interleave_side_channel()` in `service.py` polls the queue every 300ms even during long graph node executions (ReAct browser loop), ensuring real-time screenshot delivery regardless of graph stream timing. (`src/domains/agents/api/service.py`)
+
+### Removed
+
+- **`BROWSER_SCREENSHOT_ENABLED`** — Removed the legacy setting and `browser_screenshot_tool` that sent screenshots to the LLM as base64 text. The LLM cannot analyze images visually, making this tool useless. Replaced by progressive screenshots which stream directly to the user. (`src/core/config/browser.py`, `src/domains/agents/tools/browser_tools.py`)
+
 ## [1.12.1] - 2026-03-26
 
 ### Added
@@ -873,7 +891,8 @@ First public open-source release of LIA.
 - Circuit breaker, rate limiting, and distributed locks
 - SOPS/Age encryption for secrets management
 
-[Unreleased]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.12.1...HEAD
+[Unreleased]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.12.2...HEAD
+[1.12.2]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.12.1...v1.12.2
 [1.12.1]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.12.0...v1.12.1
 [1.12.0]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.11.5...v1.12.0
 [1.11.5]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.11.4...v1.11.5

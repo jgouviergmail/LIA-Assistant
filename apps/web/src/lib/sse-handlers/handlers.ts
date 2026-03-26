@@ -16,6 +16,7 @@ import {
   RegistryUpdateMetadata,
   DebugMetrics,
   VoiceAudioChunk,
+  BrowserScreenshotData,
 } from '@/types/chat';
 import { DebugMetricsEntry } from '@/types/chat-state';
 import { SSEHandlerContext, ProgressMessageMetadata } from './types';
@@ -605,6 +606,29 @@ export function handleVoiceError(chunk: ChatStreamChunk, context: SSEHandlerCont
       error_type: (chunk.metadata as Record<string, unknown>)?.error_type,
     })
   );
+}
+
+// ============================================================================
+// Browser Screenshot Event Handler
+// ============================================================================
+
+/**
+ * Handle browser_screenshot: Progressive screenshot overlay during browsing
+ */
+export function handleBrowserScreenshot(chunk: ChatStreamChunk, context: SSEHandlerContext): void {
+  const { dispatch, withContext } = context;
+  const screenshotData = chunk.content as unknown as BrowserScreenshotData;
+
+  if (screenshotData?.image_base64) {
+    dispatch({ type: 'BROWSER_SCREENSHOT', payload: screenshotData });
+    logger.debug(
+      'chat_browser_screenshot',
+      withContext({
+        component: 'useChat',
+        url: screenshotData.url?.slice(0, 100),
+      })
+    );
+  }
 }
 
 // ============================================================================

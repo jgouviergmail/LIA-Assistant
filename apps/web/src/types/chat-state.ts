@@ -13,7 +13,7 @@
  * - Immutable state updates
  */
 
-import { Message, RegistryItem, DebugMetrics } from './chat';
+import { Message, RegistryItem, DebugMetrics, BrowserScreenshotData } from './chat';
 
 // ============================================================================
 // SSE Constants
@@ -108,6 +108,9 @@ export interface ChatState {
   // Allows collapsible display of past requests for comparison and debugging
   // Most recent entry is displayed first and expanded by default
   debugMetricsHistory: DebugMetricsEntry[];
+
+  // Browser Screenshots: Current overlay data (progressive screenshots during browsing)
+  browserScreenshot: BrowserScreenshotData | null;
 }
 
 // ============================================================================
@@ -147,6 +150,7 @@ export type ChatAction =
           google_api_requests?: number;
           skill_name?: string;
           generated_images?: { url: string; alt: string }[];
+          browser_screenshot?: { url: string; alt: string };
         };
       };
     }
@@ -186,7 +190,11 @@ export type ChatAction =
   | { type: 'DEBUG_METRICS_UPDATE'; payload: { metrics: Partial<DebugMetrics> } }
 
   // Debug Panel: Clear all debug metrics (current + history)
-  | { type: 'DEBUG_METRICS_CLEAR' };
+  | { type: 'DEBUG_METRICS_CLEAR' }
+
+  // Browser Screenshots: Progressive screenshot overlay
+  | { type: 'BROWSER_SCREENSHOT'; payload: BrowserScreenshotData }
+  | { type: 'BROWSER_SCREENSHOT_CLEAR' };
 
 // ============================================================================
 // Initial State
@@ -213,6 +221,7 @@ export const initialChatState: ChatState = {
   registry: {}, // LARS: Empty registry at start
   currentDebugMetrics: null, // Debug Panel: No current metrics at start
   debugMetricsHistory: [], // Debug Panel: Empty history at start
+  browserScreenshot: null, // Browser Screenshots: No overlay at start
 };
 
 // ============================================================================

@@ -1187,6 +1187,7 @@ class OrchestrationService:
         user_message: str = "",  # Original user message for location phrase detection
         user_memory_enabled: bool = True,  # User preference for long-term memory
         user_journals_enabled: bool = False,  # User preference for personal journals
+        side_channel_queue: asyncio.Queue | None = None,  # SSE side-channel for tools
     ) -> AsyncGenerator[tuple[str, Any], None]:
         """
         Execute graph with streaming and yield raw (mode, chunk) tuples.
@@ -1266,6 +1267,7 @@ class OrchestrationService:
                 "__deps": tool_deps,
                 "__browser_context": browser_context,  # For location-aware tools (weather, places)
                 "__user_message": user_message,  # Original message for location phrase detection
+                "__side_channel_queue": side_channel_queue,  # SSE side-channel for tools
                 # User preferences for planner temporal context (datetime injection)
                 "user_timezone": user_timezone,
                 "user_language": user_language,

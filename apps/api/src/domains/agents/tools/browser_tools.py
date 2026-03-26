@@ -23,8 +23,10 @@ Phase: evolution F7 — Browser Control (Playwright)
 Reference: docs/technical/BROWSER_CONTROL.md
 """
 
+import base64
+import time
 from datetime import UTC, datetime
-from typing import Annotated
+from typing import Annotated, Any
 
 import structlog
 from langchain.tools import ToolRuntime
@@ -51,6 +53,89 @@ from src.infrastructure.observability.metrics_agents import (
 )
 
 logger = structlog.get_logger(__name__)
+
+# Debounce tracking for progressive screenshots (per-user, monotonic clock)
+_screenshot_debounce: dict[str, float] = {}
+
+
+async def _emit_progressive_screenshot(
+    runtime: ToolRuntime | None,
+    session: Any,
+    url: str = "",
+    title: str = "",
+) -> None:
+    """Emit a progressive screenshot to the SSE side-channel queue.
+
+    Non-blocking, fire-and-forget. Never raises — failures are silently logged.
+    Respects debounce interval to prevent flooding during rapid action sequences.
+
+    Args:
+        runtime: Tool runtime for accessing configurable queue.
+        session: Browser session with screenshot_with_thumbnail() method.
+        url: Current page URL (for frontend display).
+        title: Current page title (for frontend display).
+    """
+    if not settings.browser_progressive_screenshots:
+        return
+
+    try:
+        configurable = (runtime.config.get("configurable") or {}) if runtime else {}
+        queue = configurable.get("__side_channel_queue")
+        if queue is None:
+            return
+
+        # Debounce: skip if too soon after last emission for this user
+        user_id = configurable.get("user_id", "unknown")
+        now = time.monotonic()
+        last_time = _screenshot_debounce.get(user_id, 0.0)
+        if now - last_time < settings.browser_screenshot_debounce_seconds:
+            return
+        _screenshot_debounce[user_id] = now
+
+        # Capture full-res + thumbnail in single Playwright call
+        full_res_bytes, thumbnail_bytes = await session.screenshot_with_thumbnail()
+        if thumbnail_bytes is None:
+            return
+
+        # SSE overlay: send lightweight thumbnail
+        image_b64 = base64.b64encode(thumbnail_bytes).decode("ascii")
+
+        from src.domains.agents.api.schemas import ChatStreamChunk
+
+        queue.put_nowait(
+            ChatStreamChunk(
+                type="browser_screenshot",
+                content={
+                    "image_base64": image_b64,
+                    "url": url,
+                    "title": title,
+                },
+                metadata=None,
+            ),
+        )
+
+        # Card finale: store full-res for Attachment saving (pattern: image_store.py)
+        # Use __parent_thread_id (forwarded from parent graph) — NOT thread_id
+        # which is a synthetic ID in ReAct nested_config (e.g., "browser_task_agent_xxx")
+        conversation_id = configurable.get("__parent_thread_id") or configurable.get(
+            "thread_id", ""
+        )
+        if conversation_id and full_res_bytes:
+            from src.domains.agents.tools.browser_screenshot_store import (
+                store_last_browser_screenshot,
+            )
+
+            store_last_browser_screenshot(str(conversation_id), full_res_bytes)
+
+        logger.debug(
+            "browser_progressive_screenshot_emitted",
+            user_id=user_id,
+            url=url[:100],
+            thumbnail_kb=len(thumbnail_bytes) // 1024,
+            full_res_kb=len(full_res_bytes) // 1024 if full_res_bytes else 0,
+        )
+    except Exception as e:
+        logger.debug("browser_progressive_screenshot_failed", error=str(e))
 
 
 # ============================================================================
@@ -307,6 +392,9 @@ async def browser_navigate_tool(
         # Update Redis with current URL for cross-worker recovery
         await pool.update_session_redis(user_id, snapshot.url, snapshot.title)
 
+        # Progressive screenshot for SSE side-channel (fire-and-forget)
+        await _emit_progressive_screenshot(runtime, session, snapshot.url, snapshot.title)
+
         # Wrap content for prompt injection prevention
         wrapped_tree = wrap_external_content(
             snapshot.content,
@@ -383,6 +471,9 @@ async def browser_snapshot_tool(
         _, session = await _get_session(runtime, str(config.user_id))
         snapshot = await session.get_snapshot()
 
+        # Progressive screenshot for SSE side-channel (fire-and-forget)
+        await _emit_progressive_screenshot(runtime, session, snapshot.url, snapshot.title)
+
         wrapped_tree = wrap_external_content(
             snapshot.content,
             snapshot.url,
@@ -447,6 +538,9 @@ async def browser_click_tool(
         _, session = await _get_session(runtime, str(config.user_id))
         snapshot = await session.click(ref)
 
+        # Progressive screenshot for SSE side-channel (fire-and-forget)
+        await _emit_progressive_screenshot(runtime, session, snapshot.url, snapshot.title)
+
         wrapped_tree = wrap_external_content(
             snapshot.content,
             snapshot.url,
@@ -510,6 +604,9 @@ async def browser_fill_tool(
         _, session = await _get_session(runtime, str(config.user_id))
         snapshot = await session.fill(ref, value)
 
+        # Progressive screenshot for SSE side-channel (fire-and-forget)
+        await _emit_progressive_screenshot(runtime, session, snapshot.url, snapshot.title)
+
         wrapped_tree = wrap_external_content(
             snapshot.content,
             snapshot.url,
@@ -571,6 +668,9 @@ async def browser_press_key_tool(
         _, session = await _get_session(runtime, str(config.user_id))
         snapshot = await session.press_key(key)
 
+        # Progressive screenshot for SSE side-channel (fire-and-forget)
+        await _emit_progressive_screenshot(runtime, session, snapshot.url, snapshot.title)
+
         wrapped_tree = wrap_external_content(
             snapshot.content,
             snapshot.url,
@@ -600,59 +700,5 @@ async def browser_press_key_tool(
         logger.error("browser_press_key_error", key=key, error=str(e))
         return UnifiedToolOutput.failure(
             message=f"Key press failed: {type(e).__name__}",
-            error_code="EXTERNAL_API_ERROR",
-        )
-
-
-@tool
-@track_tool_metrics(
-    tool_name="browser_screenshot",
-    agent_name=AGENT_BROWSER,
-    duration_metric=agent_tool_duration_seconds,
-    counter_metric=agent_tool_invocations,
-)
-@rate_limit(
-    max_calls=lambda: settings.browser_rate_limit_expensive_calls,
-    window_seconds=lambda: settings.browser_rate_limit_expensive_window,
-    scope="user",
-)
-async def browser_screenshot_tool(
-    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
-) -> UnifiedToolOutput:
-    """Take a screenshot of the current page (requires browser_screenshot_enabled).
-
-    Returns a JPEG screenshot of the visible viewport.
-    Useful for visual verification when the accessibility tree is insufficient.
-    """
-    config = validate_runtime_config(runtime, "browser_screenshot")
-    if isinstance(config, UnifiedToolOutput):
-        return config
-
-    try:
-        _, session = await _get_session(runtime, str(config.user_id))
-        image_bytes = await session.screenshot()
-
-        import base64
-
-        image_b64 = base64.b64encode(image_bytes).decode("ascii")
-
-        return UnifiedToolOutput.data_success(
-            message="Screenshot captured.",
-            structured_data={
-                "image_base64": image_b64,
-                "format": "jpeg",
-                "width": 1280,
-            },
-        )
-
-    except ValueError as e:
-        error_code = "CONFIGURATION_ERROR" if "disabled" in str(e) else "DEPENDENCY_ERROR"
-        logger.warning("browser_screenshot_error", error=str(e))
-        return UnifiedToolOutput.failure(message=str(e), error_code=error_code)
-
-    except Exception as e:
-        logger.error("browser_screenshot_error", error=str(e))
-        return UnifiedToolOutput.failure(
-            message=f"Screenshot failed: {type(e).__name__}",
             error_code="EXTERNAL_API_ERROR",
         )

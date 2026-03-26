@@ -41,6 +41,8 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         },
         // Clear debug metrics to avoid showing stale data from previous request
         currentDebugMetrics: null,
+        // Clear browser screenshot overlay from previous request
+        browserScreenshot: null,
       };
 
     case 'CLEAR_MESSAGES':
@@ -65,6 +67,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
 
         currentDebugMetrics: null, // Debug Panel: Clear current metrics when clearing messages
         debugMetricsHistory: [], // Debug Panel: Clear history when clearing messages
+        browserScreenshot: null, // Browser Screenshots: Clear overlay when clearing messages
       };
 
     case 'SET_MESSAGES': {
@@ -293,6 +296,9 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
                   generatedImages: metadata.generated_images as
                     | { url: string; alt: string }[]
                     | undefined,
+                  browserScreenshot: metadata.browser_screenshot as
+                    | { url: string; alt: string }
+                    | undefined,
                 }
               : m
           );
@@ -329,6 +335,9 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
                       generatedImages: metadata.generated_images as
                         | { url: string; alt: string }[]
                         | undefined,
+                      browserScreenshot: metadata.browser_screenshot as
+                        | { url: string; alt: string }
+                        | undefined,
                     }
                   : m
               );
@@ -361,6 +370,7 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
           streamBuffer: '',
           sseStatus: 'disconnected',
         },
+        browserScreenshot: null, // Clear overlay when stream completes
       };
     }
 
@@ -491,6 +501,16 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
         currentDebugMetrics: null,
         debugMetricsHistory: [],
       };
+
+    // ========================================================================
+    // Browser Screenshots: Progressive overlay during browsing
+    // ========================================================================
+
+    case 'BROWSER_SCREENSHOT':
+      return { ...state, browserScreenshot: action.payload };
+
+    case 'BROWSER_SCREENSHOT_CLEAR':
+      return { ...state, browserScreenshot: null };
 
     // ========================================================================
     // Default

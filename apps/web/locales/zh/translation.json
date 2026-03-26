@@ -4045,7 +4045,7 @@
       },
       "browser_control": {
         "title": "浏览器控制",
-        "description": "自主浏览网站：搜索产品、填写表单、从JavaScript动态页面提取数据"
+        "description": "自主浏览网站：搜索产品、填写表单、从JavaScript动态页面提取数据。通过在对话中直接显示的渐进式截图，实时跟踪浏览进度。"
       },
       "self_knowledge": {
         "title": "应用自知",
@@ -4235,7 +4235,12 @@
     "click": "点击元素",
     "fill": "填写表单字段",
     "press_key": "按键",
-    "screenshot": "截图"
+    "screenshot": {
+      "viewing": "正在查看页面",
+      "close": "关闭预览",
+      "finalCard": "浏览器最终截图",
+      "label": "截图"
+    }
   },
   "journals": {
     "title": "个人日记",

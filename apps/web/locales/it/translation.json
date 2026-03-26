@@ -4052,7 +4052,7 @@
       },
       "browser_control": {
         "title": "Controllo browser",
-        "description": "Naviga sui siti web in modo autonomo: cercare prodotti, compilare moduli, estrarre dati da pagine dinamiche JavaScript"
+        "description": "Naviga sui siti web in modo autonomo: cercare prodotti, compilare moduli, estrarre dati da pagine dinamiche JavaScript. Segui la navigazione in tempo reale con screenshot progressivi mostrati direttamente nella conversazione."
       },
       "self_knowledge": {
         "title": "Auto-conoscenza",
@@ -4242,7 +4242,12 @@
     "click": "Clicca elemento",
     "fill": "Compila campo",
     "press_key": "Premi tasto",
-    "screenshot": "Cattura schermata"
+    "screenshot": {
+      "viewing": "Visualizzazione pagina",
+      "close": "Chiudi anteprima",
+      "finalCard": "Screenshot finale del browser",
+      "label": "Cattura schermata"
+    }
   },
   "journals": {
     "title": "Diari personali",

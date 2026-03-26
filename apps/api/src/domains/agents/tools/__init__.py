@@ -131,7 +131,6 @@ try:
         browser_fill_tool,
         browser_navigate_tool,
         browser_press_key_tool,
-        browser_screenshot_tool,
         browser_snapshot_tool,
         browser_task_tool,
     )
@@ -243,6 +242,5 @@ if _BROWSER_TOOLS_AVAILABLE:
             "browser_click_tool",
             "browser_fill_tool",
             "browser_press_key_tool",
-            "browser_screenshot_tool",
         ]
     )

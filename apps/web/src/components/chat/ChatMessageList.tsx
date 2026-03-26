@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
-import { Message } from '@/types/chat';
+import { Message, BrowserScreenshotData } from '@/types/chat';
 import { ChatMessage } from './ChatMessage';
+import { BrowserScreenshotOverlay } from './BrowserScreenshotOverlay';
 import { TypingIndicator } from './TypingIndicator';
 import { MessageSquare } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -9,9 +10,14 @@ import { logger } from '@/lib/logger';
 export interface ChatMessageListProps {
   messages: Message[];
   isTyping?: boolean;
+  browserScreenshot?: BrowserScreenshotData | null;
 }
 
-export const ChatMessageList: React.FC<ChatMessageListProps> = ({ messages, isTyping = false }) => {
+export const ChatMessageList: React.FC<ChatMessageListProps> = ({
+  messages,
+  isTyping = false,
+  browserScreenshot,
+}) => {
   const { t } = useTranslation();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -117,6 +123,11 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({ messages, isTy
             <ChatMessage message={message} isUser={message.role === 'user'} />
           </div>
         ))}
+
+        {/* Browser progressive screenshot — inline in chat flow */}
+        {browserScreenshot && (
+          <BrowserScreenshotOverlay screenshot={browserScreenshot} />
+        )}
 
         {/* Typing indicator */}
         {isTyping && (
