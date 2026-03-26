@@ -31,7 +31,7 @@ import {
   FileText,
   Clock,
   Mic,
-  Image,
+  ImageIcon,
 } from 'lucide-react';
 
 interface Page7ExamplesProps {
@@ -62,7 +62,7 @@ const EXAMPLE_CATEGORIES = [
 
 /** Feature items displayed as a styled list below the subtitle */
 const FEATURE_ITEMS = [
-  { key: 'image_generation', icon: Image, color: 'text-rose-500' },
+  { key: 'image_generation', icon: ImageIcon, color: 'text-rose-500' },
   { key: 'skills', icon: Sparkles, color: 'text-purple-500' },
   { key: 'mcp', icon: Plug, color: 'text-blue-500' },
   { key: 'rag', icon: FileText, color: 'text-emerald-500' },
