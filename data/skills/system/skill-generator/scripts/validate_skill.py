@@ -43,6 +43,9 @@ VALID_AGENTS: frozenset[str] = frozenset({
     "web_search_agent",
     "web_fetch_agent",
     "mcp_agent",
+    "browser_agent",
+    "hue_agent",
+    "image_generation_agent",
 })
 
 VALID_STEP_TYPES: frozenset[str] = frozenset({

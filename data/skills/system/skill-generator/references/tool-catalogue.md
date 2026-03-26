@@ -408,6 +408,61 @@ No parameters. Returns list of domains with active context.
 
 ---
 
+## Browser — `browser_agent`
+
+No OAuth. Domain: `browser`. Interactive web browsing via Playwright + accessibility tree.
+
+### browser_task_tool (primary)
+Execute a complete browsing task autonomously (navigate, click, fill, search, extract).
+- `task` (string, required) — Natural language description of the browsing task
+
+> Internal tools used by the browser agent ReAct loop (not directly callable in plan_template):
+> `browser_navigate_tool`, `browser_snapshot_tool`, `browser_click_tool`, `browser_fill_tool`, `browser_press_key_tool`
+
+---
+
+## Philips Hue — `hue_agent`
+
+Requires Hue Bridge connector. Domain: `hue`. Smart lighting control via CLIP v2 API.
+
+### list_hue_lights_tool
+No parameters. Lists all lights with their current state (on/off, brightness, color).
+
+### control_hue_light_tool
+- `light_name_or_id` (string, required) — Name or ID of the light (e.g., "Bedroom lamp")
+- `on` (bool) — Turn light on (true) or off (false)
+- `brightness` (int) — Brightness percentage 0-100
+- `color` (string) — Color name (red, blue, warm_white, etc.) or CIE "x,y" coordinates
+
+### list_hue_rooms_tool
+No parameters. Lists all rooms with their devices.
+
+### control_hue_room_tool
+- `room_name_or_id` (string, required) — Name or ID of the room
+- `on` (bool) — Turn all lights on (true) or off (false)
+- `brightness` (int) — Brightness percentage 0-100 for all lights
+
+### list_hue_scenes_tool
+No parameters. Lists all available preset scenes.
+
+### activate_hue_scene_tool
+- `scene_name_or_id` (string, required) — Name or ID of the scene to activate (e.g., "Movie", "Relax")
+
+---
+
+## Image Generation — `image_generation_agent`
+
+No OAuth. Domain: `image_generation`. AI image generation and editing.
+
+### generate_image
+- `prompt` (string, required) — Detailed text description of the image to generate
+
+### edit_image
+- `prompt` (string, required) — Text description of the desired modification
+- `source_attachment_id` (string) — UUID of the image to edit (auto-resolves to latest if omitted)
+
+---
+
 ## MCP — `mcp_agent`
 
 Virtual agent. Domain: `mcp`. Tools are dynamically registered from external MCP servers.
@@ -430,4 +485,4 @@ They cannot be used in plan_template steps.
 
 ---
 
-*Last updated: 2026-03-17. Source: apps/api/src/domains/agents/tools/*
+*Last updated: 2026-03-26. Source: apps/api/src/domains/agents/tools/*
