@@ -998,7 +998,7 @@
         }
       },
       "google_api": {
-        "title": "Amministrazione API Google",
+        "title": "Tariffe API Google",
         "description": "Gestisci le tariffe delle API di Google Maps Platform (Places, Routes, Geocoding). Le modifiche creano automaticamente una nuova cronologia dei prezzi.",
         "search_placeholder": "Cerca per API, endpoint o SKU...",
         "add_entry": "Aggiungi tariffa",
@@ -2381,6 +2381,140 @@
         }
       },
       "diagram_alt": "Diagramma dell'architettura di LIA"
+    },
+    "changelog": {
+      "title": "Cronologia delle versioni",
+      "description": "Novità funzionali di LIA versione per versione",
+      "versions": {
+        "v1_12": {
+          "title": "v1.12 — Generazione immagini e navigazione web",
+          "date": "Marzo 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>Generazione immagini IA</b> — Create immagini da descrizioni testuali, con scelta di qualità, dimensione e formato",
+            "i2": "<b>Modifica immagini</b> — Modificate le immagini esistenti con istruzioni in linguaggio naturale",
+            "i3": "<b>Preferenze immagine</b> — Qualità (bassa/media/alta), dimensione (quadrato/verticale/orizzontale) e formato (PNG/WebP) configurabili per utente",
+            "i4": "<b>Screenshot in diretta</b> — Durante la navigazione web, gli screenshot vengono visualizzati in tempo reale nella conversazione",
+            "i5": "<b>Deduplicazione diari</b> — Le voci simili vengono automaticamente unite per evitare duplicati",
+            "i6": "<b>Tariffe immagini</b> — Pannello di amministrazione per gestire i prezzi di generazione per modello, qualità e dimensione"
+          }
+        },
+        "v1_11": {
+          "title": "v1.11 — Iniziativa proattiva e sicurezza",
+          "date": "Marzo 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>Iniziativa proattiva</b> — Dopo aver risposto, LIA rileva segnali complementari e arricchisce la risposta (es: previsione pioggia → verifica eventi all'aperto)",
+            "i2": "<b>Modalità iterativa MCP</b> — Migliore generazione diagrammi Excalidraw con agente ReAct dedicato",
+            "i3": "<b>Supporto GPT-5.4</b> — Nuovi modelli GPT-5.4 e GPT-5.4-mini disponibili",
+            "i4": "<b>Correzione orario percorso</b> — Gli orari di arrivo e partenza rispettano ora il fuso orario dell'utente",
+            "i5": "<b>Modifica CC/BCC</b> — I destinatari CC e BCC possono essere modificati durante la revisione della bozza",
+            "i6": "<b>Sicurezza rafforzata</b> — Prevenzione SSRF, validazione OAuth, protezione contro l'iniezione di parametri"
+          }
+        },
+        "v1_10": {
+          "title": "v1.10 — Voce e Push-to-Talk",
+          "date": "Marzo 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>Push-to-Talk mobile</b> — Gestione touch migliorata su smartphone (annullamento con scorrimento, nessun menu contestuale)",
+            "i2": "<b>Latenza vocale ridotta</b> — Connessioni parallelizzate e preriscaldate, rilevamento fine parlato più rapido",
+            "i3": "<b>Segnale sonoro</b> — Un suono breve conferma che LIA è pronta ad ascoltare dopo la parola di attivazione",
+            "i4": "<b>Lingua di riconoscimento</b> — Il riconoscimento vocale utilizza la lingua preferita dell'utente",
+            "i5": "<b>Safari iOS</b> — La modalità vocale funziona ora su Safari (iPhone/iPad)",
+            "i6": "<b>Revisione HITL arricchita</b> — Visualizzazione dettagliata delle bozze con emoji, confronto prima/dopo e link cliccabili"
+          }
+        },
+        "v1_9": {
+          "title": "v1.9 — Limiti di utilizzo ed esportazioni",
+          "date": "Marzo 2026",
+          "count": "7",
+          "items": {
+            "i1": "<b>Limiti di utilizzo</b> — Quote per utente (token, messaggi, costo) con ciclo mensile e limiti globali",
+            "i2": "<b>Dashboard limiti</b> — Interfaccia amministratore per gestire quote e bloccare/sbloccare utenti",
+            "i3": "<b>Blocco intelligente</b> — La chat viene disattivata con un messaggio chiaro al superamento della quota",
+            "i4": "<b>Esportazione consumi</b> — Ogni utente può esportare il proprio consumo (token LLM, API Google, riepilogo) in CSV",
+            "i5": "<b>Ricerca semantica diari</b> — Migrazione a embedding di alta qualità con parole chiave di ricerca",
+            "i6": "<b>Sicurezza emotiva</b> — Direttive comportamentali adattate ai temi sensibili rilevati nella memoria",
+            "i7": "<b>Correzioni email</b> — Risposta, inoltro, CC/BCC e destinatari corretti su tutti i provider"
+          }
+        },
+        "v1_8": {
+          "title": "v1.8 — Casa connessa",
+          "date": "Marzo 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>Connettore Philips Hue</b> — Controllate le luci con la voce: \"spegni il soggiorno\", \"metti l'ufficio in blu\"",
+            "i2": "<b>Accoppiamento Hue</b> — Assistente di scoperta e accoppiamento dei bridge Hue (locale e cloud)",
+            "i3": "<b>6 strumenti domotica</b> — Elencare/controllare luci, stanze e scene con risoluzione approssimativa dei nomi",
+            "i4": "<b>Temperatura min/max</b> — Le schede meteo mostrano ora l'intervallo di temperatura della giornata"
+          }
+        },
+        "v1_7": {
+          "title": "v1.7 — Diari personali e blog",
+          "date": "Marzo 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>Diari personali</b> — LIA tiene diari tematici (riflessioni, osservazioni, analisi, apprendimenti)",
+            "i2": "<b>Consolidamento automatico</b> — Riorganizzazione periodica degli appunti con fusione e sintesi intelligente",
+            "i3": "<b>Iniezione contestuale</b> — I diari arricchiscono le risposte e il ragionamento del pianificatore",
+            "i4": "<b>Blog tecnico</b> — 20 articoli dettagliati su architettura, integrazioni e funzionalità (6 lingue)",
+            "i5": "<b>Autoconoscenza</b> — LIA risponde alle domande su se stessa grazie a una base di conoscenza FAQ integrata"
+          }
+        },
+        "v1_6": {
+          "title": "v1.6 — Navigazione web e nuovi provider",
+          "date": "Marzo 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>Navigazione web</b> — LIA può navigare siti web, compilare moduli ed estrarre informazioni",
+            "i2": "<b>Provider Qwen</b> — Supporto modelli Alibaba Cloud (qwen3-max, qwen3.5-plus, qwen3.5-flash)",
+            "i3": "<b>Modelli Ollama</b> — Scoperta automatica dei modelli installati sul vostro server Ollama",
+            "i4": "<b>15 formati RAG</b> — PDF, DOCX, XLSX, PPTX, EPUB, CSV, HTML, RTF e altro",
+            "i5": "<b>Sincronizzazione Google Drive</b> — Collegate una cartella Drive a uno spazio RAG per la vettorizzazione automatica"
+          }
+        },
+        "v1_5": {
+          "title": "v1.5 — Sub-agenti e competenze",
+          "date": "Marzo 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>Sub-agenti specializzati</b> — Delegate compiti complessi a esperti (ricerca, redazione, analisi dati)",
+            "i2": "<b>Generatore di competenze</b> — Create le vostre competenze personalizzate in linguaggio naturale",
+            "i3": "<b>Gestione competenze</b> — Attivazione/disattivazione per utente e per amministratore"
+          }
+        },
+        "v1_4": {
+          "title": "v1.4 — RAG, ricerca web e notifiche",
+          "date": "Marzo 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>Spazi di conoscenza RAG</b> — Importate i vostri documenti per arricchire le risposte di LIA",
+            "i2": "<b>Compattazione intelligente</b> — La cronologia delle conversazioni viene riassunta automaticamente per ottimizzare i costi",
+            "i3": "<b>Cache ricerca web</b> — I risultati Brave e Perplexity vengono memorizzati nella cache per risposte più rapide",
+            "i4": "<b>Protezione contenuti esterni</b> — I contenuti web vengono incapsulati per prevenire l'iniezione di prompt",
+            "i5": "<b>Email nelle notifiche</b> — Le notifiche proattive includono le vostre email urgenti non lette",
+            "i6": "<b>Comando /resume</b> — Forzate la sintesi della cronologia per liberare contesto"
+          }
+        },
+        "v1_3": {
+          "title": "v1.3 — Stabilità e prestazioni",
+          "date": "Marzo 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>Aggiornamento FastAPI</b> — Migrazione a FastAPI 0.135 per una migliore gestione delle disconnessioni in streaming",
+            "i2": "<b>Stabilità SSE</b> — Le disconnessioni del client durante lo streaming vengono gestite correttamente"
+          }
+        },
+        "v1_1": {
+          "title": "v1.1 — Accesso rete locale",
+          "date": "Marzo 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>Accesso LAN</b> — Configurate l'accesso da altri dispositivi nella vostra rete locale (mobile, tablet)"
+          }
+        }
+      }
     },
     "sections": {
       "getting_started": {

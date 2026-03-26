@@ -59,6 +59,7 @@ import {
   Bot,
   Monitor,
   ImageIcon,
+  History,
 } from 'lucide-react';
 
 interface FAQContentProps {
@@ -231,6 +232,20 @@ function highlightTextContent(text: string, normalizedQuery: string): string {
   return result;
 }
 
+const changelogVersionKeys = [
+  'v1_12',
+  'v1_11',
+  'v1_10',
+  'v1_9',
+  'v1_8',
+  'v1_7',
+  'v1_6',
+  'v1_5',
+  'v1_4',
+  'v1_3',
+  'v1_1',
+];
+
 const featureIcons = {
   architecture: Network,
   queryAnalyzer: Compass,
@@ -301,6 +316,7 @@ export function FAQContent({ lng, onShowWelcome, showWelcomeButton = false }: FA
   const { t } = useTranslation(lng);
   const [searchQuery, setSearchQuery] = useState('');
   const [showIntro, setShowIntro] = useState(false);
+  const [showChangelog, setShowChangelog] = useState(false);
 
   // Build searchable FAQ data
   const faqData = useMemo(() => {
@@ -457,6 +473,73 @@ export function FAQContent({ lng, onShowWelcome, showWelcomeButton = false }: FA
                   priority={false}
                 />
               </div>
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* Changelog Section - Collapsible */}
+      {!isSearching && (
+        <Card className="overflow-hidden">
+          <button
+            onClick={() => setShowChangelog(!showChangelog)}
+            className="w-full p-6 flex items-center justify-between hover:bg-muted/50 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className="rounded-lg bg-gradient-to-br from-primary/20 to-primary/10 p-2">
+                <History className="h-5 w-5 text-primary" />
+              </div>
+              <div className="text-left">
+                <h2 className="text-xl font-semibold">{t('faq.changelog.title')}</h2>
+                <p className="text-sm text-muted-foreground">{t('faq.changelog.description')}</p>
+              </div>
+            </div>
+            {showChangelog ? (
+              <ChevronUp className="h-5 w-5 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="h-5 w-5 text-muted-foreground" />
+            )}
+          </button>
+
+          {showChangelog && (
+            <div className="px-6 pb-6 pt-2 border-t">
+              <Accordion type="multiple" className="w-full">
+                {changelogVersionKeys.map(versionKey => {
+                  const itemCount = parseInt(
+                    t(`faq.changelog.versions.${versionKey}.count`)
+                  );
+                  return (
+                    <AccordionItem key={versionKey} value={`changelog-${versionKey}`}>
+                      <AccordionTrigger className="text-left">
+                        <div className="flex items-center gap-3">
+                          <span className="font-semibold">
+                            {t(`faq.changelog.versions.${versionKey}.title`)}
+                          </span>
+                          <span className="text-xs text-muted-foreground font-normal">
+                            {t(`faq.changelog.versions.${versionKey}.date`)}
+                          </span>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <ul className="space-y-2 text-sm text-muted-foreground">
+                          {Array.from({ length: itemCount }, (_, i) => (
+                            <li key={i} className="flex gap-2">
+                              <span className="text-primary mt-0.5">•</span>
+                              <span
+                                dangerouslySetInnerHTML={{
+                                  __html: t(
+                                    `faq.changelog.versions.${versionKey}.items.i${i + 1}`
+                                  ),
+                                }}
+                              />
+                            </li>
+                          ))}
+                        </ul>
+                      </AccordionContent>
+                    </AccordionItem>
+                  );
+                })}
+              </Accordion>
             </div>
           )}
         </Card>

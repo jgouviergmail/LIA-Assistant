@@ -2206,6 +2206,30 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 
 ---
 
+### ADR-065: Legacy Domain Agent LangGraph Nodes — Dead Code Analysis
+
+**Status**: ✅ ACCEPTED (2026-03-26)
+**Fichier**: `docs/architecture/ADR-065-Legacy-Domain-Agent-Nodes.md`
+
+**Décision**: Documenter que les 15 domain agent LangGraph nodes (event_agent, contact_agent, etc.) sont du code mort depuis Phase 5.2B (parallel executor) et ne sont jamais invoqués en conditions normales.
+
+**Problème résolu**:
+- ❌ Les LLM types "Agents domaine" en admin n'apparaissaient pas dans le debug panel
+- ❌ Investigation a révélé que ces LLM ne sont jamais appelés (les outils sont exécutés directement par le `parallel_executor`)
+- ❌ ~300 lignes de code mort dans graph.py, orchestrator.py, base_agent_builder.py
+
+**Solution**:
+- ✅ ADR documentant l'analyse complète et les preuves (logs Docker, analyse du routing)
+- ✅ Identification du chemin mort : Router (binaire) → Planner → ExecutionPlan → parallel_executor (appels outils directs)
+- ✅ Recommandation de cleanup futur (Phase 2) avec suppression des nodes et du routing legacy
+
+**Impact**:
+- ✅ Clarification architecturale pour les contributeurs
+- ✅ Le debug panel montre correctement tous les LLM réellement invoqués
+- ✅ Base pour un futur nettoyage du graphe
+
+---
+
 ## ADRs Archivés
 
 ### ADR-005 (Version Originale): Workflow-Based HITL

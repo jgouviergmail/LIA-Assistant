@@ -485,6 +485,10 @@ def create_agent_wrapper_node(
                         # 🔥 TAG: Identifier subgraph for Langfuse filtering
                         "subgraph": agent_constant,
                         "parent_node": "main_graph",
+                        # Override internal node name ("agent") with domain agent name
+                        # so TokenTrackingCallback records under the correct name
+                        # in the debug panel (same pattern as ReactSubAgentRunner)
+                        "node_name_override": agent_constant,
                     },
                 }
 
@@ -541,6 +545,56 @@ def create_agent_wrapper_node(
                 tool_calls=tool_calls,
                 status="success",
             )
+
+            # Record domain agent LLM token usage in TrackingContext for debug panel.
+            # Isolated subgraphs (with their own checkpointer) do NOT propagate parent
+            # callbacks, so TokenTrackingCallback never fires for domain agent LLM calls.
+            # We extract usage_metadata from result AIMessages and record explicitly.
+            from langchain_core.messages import AIMessage
+
+            from src.core.context import current_tracker
+
+            tracker = current_tracker.get()
+            if tracker:
+                duration_ms = duration * 1000
+                for msg in result.get(STATE_KEY_MESSAGES, []):
+                    if isinstance(msg, AIMessage) and getattr(msg, "usage_metadata", None):
+                        usage = msg.usage_metadata
+                        input_tokens = usage.get("input_tokens", 0)
+                        output_tokens = usage.get("output_tokens", 0)
+                        # Extract cached tokens from input_token_details
+                        input_details = usage.get("input_token_details", {})
+                        cached_tokens = (
+                            (input_details.get("cache_read", 0) or 0) if input_details else 0
+                        )
+                        # Subtract cached from input (same logic as TokenExtractor)
+                        net_input = input_tokens - cached_tokens
+                        # Extract model name from response_metadata
+                        model_name = "unknown"
+                        resp_meta = getattr(msg, "response_metadata", None)
+                        if resp_meta:
+                            model_name = resp_meta.get("model_name", "unknown")
+
+                        await tracker.record_node_tokens(
+                            node_name=agent_constant,
+                            model_name=model_name,
+                            prompt_tokens=net_input,
+                            completion_tokens=output_tokens,
+                            cached_tokens=cached_tokens,
+                            duration_ms=duration_ms,
+                        )
+                        logger.info(
+                            "domain_agent_tokens_recorded",
+                            agent=agent_constant,
+                            model=model_name,
+                            input_tokens=net_input,
+                            output_tokens=output_tokens,
+                            cached_tokens=cached_tokens,
+                            duration_ms=round(duration_ms, 1),
+                        )
+                        # Use full duration for first call only, zero for subsequent
+                        # (duration covers the entire agent execution, not individual calls)
+                        duration_ms = 0.0
 
         except Exception as e:
             # PHASE 2.5 - P4: Track failed subgraph invocation

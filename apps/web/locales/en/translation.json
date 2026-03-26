@@ -1147,7 +1147,7 @@
         }
       },
       "google_api": {
-        "title": "Google API Administration",
+        "title": "Google API Pricing",
         "description": "Manage Google Maps Platform API pricing (Places, Routes, Geocoding). Changes automatically create a new price history.",
         "search_placeholder": "Search by API, endpoint or SKU...",
         "add_entry": "Add Pricing",
@@ -2388,6 +2388,140 @@
         }
       },
       "diagram_alt": "LIA architecture diagram"
+    },
+    "changelog": {
+      "title": "Version History",
+      "description": "LIA functional updates version by version",
+      "versions": {
+        "v1_12": {
+          "title": "v1.12 — Image Generation & Web Browsing",
+          "date": "March 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>AI Image Generation</b> — Create images from text descriptions, with quality, size and format options",
+            "i2": "<b>Image Editing</b> — Modify existing images using natural language instructions",
+            "i3": "<b>Image Preferences</b> — Quality (low/medium/high), size (square/portrait/landscape) and format (PNG/WebP) configurable per user",
+            "i4": "<b>Live Screenshots</b> — During web browsing, screenshots are displayed in real-time in the conversation",
+            "i5": "<b>Journal Deduplication</b> — Similar entries are automatically merged to avoid duplicates",
+            "i6": "<b>Image Pricing</b> — Admin panel to manage image generation pricing by model, quality and size"
+          }
+        },
+        "v1_11": {
+          "title": "v1.11 — Proactive Initiative & Security",
+          "date": "March 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>Proactive Initiative</b> — After responding, LIA detects complementary signals and enriches its response (e.g., rainy forecast → checks for outdoor events)",
+            "i2": "<b>MCP Iterative Mode</b> — Better Excalidraw diagram generation with a dedicated ReAct agent",
+            "i3": "<b>GPT-5.4 Support</b> — New GPT-5.4 and GPT-5.4-mini models available",
+            "i4": "<b>Route Time Fix</b> — Arrival and departure times now respect the user's timezone",
+            "i5": "<b>CC/BCC Modification</b> — CC and BCC recipients can now be modified during draft review",
+            "i6": "<b>Enhanced Security</b> — SSRF prevention, OAuth validation, parameter injection protection"
+          }
+        },
+        "v1_10": {
+          "title": "v1.10 — Voice & Push-to-Talk",
+          "date": "March 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>Mobile Push-to-Talk</b> — Improved touch handling on smartphones (swipe cancellation, no context menu interference)",
+            "i2": "<b>Reduced Voice Latency</b> — Parallelized and pre-warmed connections, faster end-of-speech detection",
+            "i3": "<b>Ready Chime</b> — A short sound confirms LIA is ready to listen after the wake word",
+            "i4": "<b>Speech Language</b> — Voice recognition uses the user's preferred language",
+            "i5": "<b>Safari iOS</b> — Voice mode now works on Safari (iPhone/iPad)",
+            "i6": "<b>Rich HITL Review</b> — Detailed draft display with emojis, before/after comparison and clickable links"
+          }
+        },
+        "v1_9": {
+          "title": "v1.9 — Usage Limits & Exports",
+          "date": "March 2026",
+          "count": "7",
+          "items": {
+            "i1": "<b>Usage Limits</b> — Per-user quotas (tokens, messages, cost) with monthly cycle and global limits",
+            "i2": "<b>Limits Dashboard</b> — Admin interface to manage quotas and block/unblock users",
+            "i3": "<b>Smart Blocking</b> — Chat is disabled with a clear message when quota is exceeded",
+            "i4": "<b>Consumption Export</b> — Each user can export their usage (LLM tokens, Google API, summary) as CSV",
+            "i5": "<b>Journal Semantic Search</b> — Migration to high-quality embeddings with search keywords",
+            "i6": "<b>Emotional Safety</b> — Adaptive behavioral directives for sensitive topics detected in memory",
+            "i7": "<b>Email Fixes</b> — Reply, forward, CC/BCC and recipients fixed across all providers (Google, Apple, Microsoft)"
+          }
+        },
+        "v1_8": {
+          "title": "v1.8 — Smart Home",
+          "date": "March 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>Philips Hue Connector</b> — Control your lights by voice: \"turn off the living room\", \"set the office to blue\"",
+            "i2": "<b>Hue Pairing</b> — Bridge discovery and pairing wizard (local and cloud)",
+            "i3": "<b>6 Smart Home Tools</b> — List/control lights, rooms and scenes with fuzzy name matching",
+            "i4": "<b>Min/Max Temperature</b> — Weather cards now show the day's temperature range"
+          }
+        },
+        "v1_7": {
+          "title": "v1.7 — Personal Journals & Blog",
+          "date": "March 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>Personal Journals</b> — LIA maintains thematic journals (reflections, observations, analyses, learnings)",
+            "i2": "<b>Auto Consolidation</b> — Periodic reorganization of notes with intelligent merging and synthesis",
+            "i3": "<b>Context Injection</b> — Journals enrich both responses and planner reasoning",
+            "i4": "<b>Technical Blog</b> — 20 detailed articles on architecture, integrations and features (6 languages)",
+            "i5": "<b>Self-Knowledge</b> — LIA answers questions about itself through a built-in FAQ knowledge base"
+          }
+        },
+        "v1_6": {
+          "title": "v1.6 — Web Browsing & New Providers",
+          "date": "March 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>Web Browsing</b> — LIA can navigate websites, fill forms and extract information",
+            "i2": "<b>Qwen Provider</b> — Alibaba Cloud model support (qwen3-max, qwen3.5-plus, qwen3.5-flash)",
+            "i3": "<b>Ollama Models</b> — Automatic discovery of models installed on your Ollama server",
+            "i4": "<b>15 RAG Formats</b> — PDF, DOCX, XLSX, PPTX, EPUB, CSV, HTML, RTF and more",
+            "i5": "<b>Google Drive Sync</b> — Link a Drive folder to a RAG space for automatic vectorization"
+          }
+        },
+        "v1_5": {
+          "title": "v1.5 — Sub-Agents & Skills",
+          "date": "March 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>Specialized Sub-Agents</b> — Delegate complex tasks to experts (research, writing, data analysis)",
+            "i2": "<b>Skill Generator</b> — Create your own custom skills using natural language",
+            "i3": "<b>Skill Management</b> — Per-user and per-admin activation/deactivation"
+          }
+        },
+        "v1_4": {
+          "title": "v1.4 — RAG, Web Search & Notifications",
+          "date": "March 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>RAG Knowledge Spaces</b> — Import your documents to enrich LIA's responses",
+            "i2": "<b>Smart Compaction</b> — Conversation history is automatically summarized to optimize costs",
+            "i3": "<b>Web Search Cache</b> — Brave and Perplexity results are cached for faster responses",
+            "i4": "<b>External Content Protection</b> — Web content is wrapped to prevent prompt injection",
+            "i5": "<b>Email Notifications</b> — Proactive notifications now include your urgent unread emails",
+            "i6": "<b>/resume Command</b> — Force history synthesis to free up context"
+          }
+        },
+        "v1_3": {
+          "title": "v1.3 — Stability & Performance",
+          "date": "March 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>FastAPI Update</b> — Migration to FastAPI 0.135 for better streaming disconnection handling",
+            "i2": "<b>SSE Stability</b> — Client disconnections during streaming are handled gracefully"
+          }
+        },
+        "v1_1": {
+          "title": "v1.1 — LAN Access",
+          "date": "March 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>LAN Access</b> — Configure access from other devices on your local network (mobile, tablet)"
+          }
+        }
+      }
     },
     "sections": {
       "getting_started": {
