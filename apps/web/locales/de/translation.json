@@ -2388,7 +2388,7 @@
         "v1_12": {
           "title": "v1.12 — Bildgenerierung & Web-Navigation",
           "date": "März 2026",
-          "count": "7",
+          "count": "8",
           "items": {
             "i1": "<b>KI-Bildgenerierung</b> — Erstellen Sie Bilder aus Textbeschreibungen mit Qualitäts-, Größen- und Formatoptionen",
             "i2": "<b>Bildbearbeitung</b> — Bearbeiten Sie bestehende Bilder mit natürlichsprachlichen Anweisungen",
@@ -2396,7 +2396,8 @@
             "i4": "<b>Live-Screenshots</b> — Während der Web-Navigation werden Screenshots in Echtzeit im Chat angezeigt",
             "i5": "<b>Journal-Deduplizierung</b> — Ähnliche Einträge werden automatisch zusammengeführt",
             "i6": "<b>Bildtarife</b> — Admin-Panel zur Verwaltung der Bildgenerierungspreise nach Modell, Qualität und Größe",
-            "i7": "<b>Bild-Download</b> — Generierte Bilder und Screenshots direkt aus dem Chat per Button oder langem Drücken auf dem Smartphone herunterladen"
+            "i7": "<b>Bild-Download</b> — Generierte Bilder und Screenshots direkt aus dem Chat per Button oder langem Drücken auf dem Smartphone herunterladen",
+            "i8": "<b>Präzise Hue-Lichtsteuerung</b> — LIA unterscheidet nun ein bestimmtes Licht (z.B. ‚Deckenleuchte im Wohnzimmer') vom gesamten Raum dank automatischer Geräteerkennung vor jedem Befehl"
           }
         },
         "v1_11": {

@@ -727,6 +727,103 @@ class SmartPlannerService:
         return context
 
     @staticmethod
+    async def _build_iot_device_context(
+        domains: list[str] | None,
+        config: RunnableConfig,
+    ) -> str:
+        """Discover IoT device names and inject them into planner context.
+
+        When Hue domain is active, performs a lightweight discovery call to the
+        Hue Bridge API to fetch available light and room names. This allows the
+        planner to map user descriptions to exact device names, avoiding
+        paraphrased names (e.g., "plafond du salon" vs "Plafond salon").
+
+        Follows the same pattern as MCP reference discovery: fetch external
+        resource metadata before planning so the LLM can make informed decisions.
+
+        Args:
+            domains: Detected domains for the current query.
+            config: RunnableConfig with user/session info for credential lookup.
+
+        Returns:
+            IoT context string with available device names, or empty string.
+        """
+        from src.domains.agents.constants import INTENTION_HUE
+
+        if not domains or INTENTION_HUE not in domains:
+            return ""
+
+        try:
+            from uuid import UUID
+
+            from src.domains.connectors.clients.philips_hue_client import PhilipsHueClient
+            from src.domains.connectors.service import ConnectorService
+            from src.infrastructure.database.session import AsyncSessionLocal
+
+            configurable = config.get("configurable", {})
+            user_id = configurable.get("user_id")
+            if not user_id:
+                return ""
+
+            user_uuid = UUID(str(user_id)) if not isinstance(user_id, UUID) else user_id
+
+            # Create a short-lived session for credential lookup
+            async with AsyncSessionLocal() as db_session:
+                connector_service = ConnectorService(db_session)
+                credentials = await connector_service.get_hue_credentials(user_uuid)
+                if not credentials:
+                    return ""
+
+                client = PhilipsHueClient(user_uuid, credentials, connector_service)
+
+                # Discovery calls — lightweight GET requests to the Hue Bridge
+                lights = await client.list_lights()
+                rooms = await client.list_rooms()
+
+            light_names = [
+                lt.get("metadata", {}).get("name", "")
+                for lt in lights
+                if lt.get("metadata", {}).get("name")
+            ]
+            room_names = [
+                rm.get("metadata", {}).get("name", "")
+                for rm in rooms
+                if rm.get("metadata", {}).get("name")
+            ]
+
+            if not light_names and not room_names:
+                return ""
+
+            parts: list[str] = []
+            if light_names:
+                parts.append(
+                    "AVAILABLE HUE LIGHTS (use EXACT name for light_name_or_id):\n"
+                    + ", ".join(f'"{n}"' for n in light_names)
+                )
+            if room_names:
+                parts.append(
+                    "AVAILABLE HUE ROOMS (use EXACT name for room_name_or_id):\n"
+                    + ", ".join(f'"{n}"' for n in room_names)
+                )
+
+            logger.debug(
+                "iot_device_context_injected",
+                domain=INTENTION_HUE,
+                light_count=len(light_names),
+                room_count=len(room_names),
+            )
+            return "\n".join(parts)
+
+        except Exception as e:
+            logger.debug(
+                "iot_device_context_failed",
+                domain=INTENTION_HUE,
+                error=str(e),
+                error_type=type(e).__name__,
+            )
+            return ""
+
+    @staticmethod
     def _build_mcp_reference(selected_domains: list[str] | None = None) -> str:
         """Build MCP reference documentation for planner prompt injection.
 
@@ -1078,6 +1175,11 @@ class SmartPlannerService:
             intelligence, clarification_response, clarification_field, existing_plan
         )
 
+        # Inject IoT device names for strict name resolution
+        iot_context = await self._build_iot_device_context(intelligence.domains, config)
+        if iot_context:
+            context = f"{context}\n\n{iot_context}" if context else iot_context
+
         # Append enriched English query with resolved references.
         # All ordinal/pronoun references are ALREADY resolved here — the planner must use
         # these values directly and NEVER call resolve_reference or any lookup tool.
@@ -1174,6 +1276,11 @@ class SmartPlannerService:
         context = self._build_context_with_clarification(
             intelligence, clarification_response, clarification_field, existing_plan
         )
+
+        # Inject IoT device names for strict name resolution
+        iot_context = await self._build_iot_device_context(intelligence.domains, config)
+        if iot_context:
+            context = f"{context}\n\n{iot_context}" if context else iot_context
 
         # Append enriched English query with resolved references.
         # All ordinal/pronoun references are ALREADY resolved here — the planner must use

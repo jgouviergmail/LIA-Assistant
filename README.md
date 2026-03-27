@@ -36,7 +36,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.12.3</strong> — Image Download &amp; Mobile Long-Press Fix — March 2026
+  <strong>Version 1.12.4</strong> — Hue Smart Light Precision &amp; Landing Page Refresh — March 2026
 </p>
 
 ---

@@ -2388,7 +2388,7 @@
         "v1_12": {
           "title": "v1.12 — Generación de imágenes y navegación web",
           "date": "Marzo 2026",
-          "count": "7",
+          "count": "8",
           "items": {
             "i1": "<b>Generación de imágenes con IA</b> — Cree imágenes a partir de descripciones de texto, con opciones de calidad, tamaño y formato",
             "i2": "<b>Edición de imágenes</b> — Modifique imágenes existentes con instrucciones en lenguaje natural",
@@ -2396,7 +2396,8 @@
             "i4": "<b>Capturas en directo</b> — Durante la navegación web, las capturas se muestran en tiempo real en la conversación",
             "i5": "<b>Deduplicación de diarios</b> — Las entradas similares se fusionan automáticamente para evitar duplicados",
             "i6": "<b>Tarifas de imágenes</b> — Panel de administración para gestionar los precios de generación por modelo, calidad y tamaño",
-            "i7": "<b>Descarga de imágenes</b> — Descarga imágenes generadas y capturas de pantalla directamente desde el chat mediante un botón o pulsación larga en el móvil"
+            "i7": "<b>Descarga de imágenes</b> — Descarga imágenes generadas y capturas de pantalla directamente desde el chat mediante un botón o pulsación larga en el móvil",
+            "i8": "<b>Control preciso de luces Hue</b> — LIA distingue ahora una luz específica (ej: 'techo del salón') de la habitación entera, gracias al descubrimiento automático de dispositivos antes de cada comando"
           }
         },
         "v1_11": {

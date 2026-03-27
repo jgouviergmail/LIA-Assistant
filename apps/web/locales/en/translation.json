@@ -2397,7 +2397,7 @@
         "v1_12": {
           "title": "v1.12 — Image Generation & Web Browsing",
           "date": "March 2026",
-          "count": "7",
+          "count": "8",
           "items": {
             "i1": "<b>AI Image Generation</b> — Create images from text descriptions, with quality, size and format options",
             "i2": "<b>Image Editing</b> — Modify existing images using natural language instructions",
@@ -2405,7 +2405,8 @@
             "i4": "<b>Live Screenshots</b> — During web browsing, screenshots are displayed in real-time in the conversation",
             "i5": "<b>Journal Deduplication</b> — Similar entries are automatically merged to avoid duplicates",
             "i6": "<b>Image Pricing</b> — Admin panel to manage image generation pricing by model, quality and size",
-            "i7": "<b>Image Download</b> — Download generated images and screenshots directly from the chat via a button or long-press on mobile"
+            "i7": "<b>Image Download</b> — Download generated images and screenshots directly from the chat via a button or long-press on mobile",
+            "i8": "<b>Precise Hue Light Control</b> — LIA now distinguishes a specific light (e.g., 'living room ceiling') from the entire room, thanks to automatic device discovery before each command"
           }
         },
         "v1_11": {

@@ -2,7 +2,7 @@
 Catalogue manifests for Philips Hue smart lighting tools.
 
 Defines tool and agent manifests for the Smart Planner catalogue.
-Semantic keywords are multilingual (en, fr, de, es, it, zh).
+Semantic keywords are English-only (matching the codebase convention).
 """
 
 from datetime import UTC, datetime
@@ -103,12 +103,7 @@ list_hue_lights_catalogue_manifest = ToolManifest(
         "list all smart lights hue",
         "show my lights status",
         "what lights are on",
-        "quelles lumières sont allumées",
-        "liste mes ampoules hue",
-        "zeige meine Hue Lichter",
-        "mostrar luces inteligentes",
-        "mostra luci hue",
-        "显示所有灯泡",
+        "hue bulbs current state",
     ],
     parameters=[],
     outputs=[
@@ -141,16 +136,10 @@ control_hue_light_catalogue_manifest = ToolManifest(
         "**Use for**: 'Turn on bedroom light', 'Dim the lamp', 'Set light to blue'."
     ),
     semantic_keywords=[
-        "turn on off hue light",
-        "dim the light brightness",
-        "change light color to blue red",
-        "allume éteins la lumière",
-        "règle la luminosité",
-        "change la couleur",
-        "Licht einschalten ausschalten",
-        "enciende apaga la luz",
-        "accendi spegni la luce",
-        "开关灯",
+        "turn on off a specific light",
+        "dim light brightness",
+        "change light color",
+        "control individual hue bulb",
     ],
     parameters=[_LIGHT_NAME_PARAM, _ON_PARAM, _BRIGHTNESS_PARAM, _COLOR_PARAM],
     outputs=[
@@ -187,11 +176,7 @@ list_hue_rooms_catalogue_manifest = ToolManifest(
         "list hue rooms zones",
         "show my rooms",
         "what rooms are configured",
-        "quelles pièces ai-je",
-        "liste mes pièces hue",
-        "zeige meine Räume",
-        "mostrar habitaciones",
-        "显示房间",
+        "hue room groups",
     ],
     parameters=[],
     outputs=[
@@ -222,14 +207,10 @@ control_hue_room_catalogue_manifest = ToolManifest(
         "**Use for**: 'Turn on living room', 'Dim the bedroom', 'Lights off in kitchen'."
     ),
     semantic_keywords=[
-        "turn on off room lights",
-        "dim the room brightness",
-        "allume éteins le salon la chambre",
-        "éclairage de la pièce",
-        "Raum Licht einschalten",
-        "enciende apaga la habitación",
-        "accendi spegni la stanza",
-        "开关房间灯",
+        "turn on off all lights in room",
+        "control entire room lighting",
+        "dim whole room brightness",
+        "room level light control",
     ],
     parameters=[_ROOM_NAME_PARAM, _ON_PARAM, _BRIGHTNESS_PARAM],
     outputs=[
@@ -264,11 +245,7 @@ list_hue_scenes_catalogue_manifest = ToolManifest(
         "list hue scenes ambiances",
         "show available scenes",
         "what scenes do I have",
-        "quelles scènes sont disponibles",
-        "liste mes ambiances hue",
-        "zeige meine Szenen",
-        "mostrar escenas disponibles",
-        "显示场景",
+        "lighting presets moods",
     ],
     parameters=[],
     outputs=[
@@ -300,14 +277,9 @@ activate_hue_scene_catalogue_manifest = ToolManifest(
     ),
     semantic_keywords=[
         "activate hue scene ambiance",
-        "set scene mode",
+        "set scene mode preset",
+        "apply lighting mood",
         "movie relax concentrate scene",
-        "active la scène ambiance",
-        "mode film lecture détente",
-        "Szene aktivieren",
-        "activar escena modo",
-        "attiva scena",
-        "激活场景",
     ],
     parameters=[_SCENE_NAME_PARAM],
     outputs=[

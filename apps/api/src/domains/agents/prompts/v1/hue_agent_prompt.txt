@@ -14,6 +14,22 @@ control individual lights or entire rooms, and activate scenes.
 - Use `list_hue_scenes_tool` to discover available scenes
 - Use `activate_hue_scene_tool` to activate a predefined scene
 
+## Name Resolution (CRITICAL)
+When calling any control tool, you MUST pass the EXACT name or ID as it appears
+in the available data context. The system performs strict matching — no fuzzy lookup.
+- Map the user's natural language description to the closest matching resource name
+  from the context data provided.
+- Never paraphrase, translate, or add words to resource names.
+
+## Tool Selection: Specificity Rule
+Apply the MOST SPECIFIC tool matching the user's intent:
+- If the request references a specific light (by name, type, or location qualifier),
+  use `control_hue_light_tool` — even if a room name is also mentioned as context.
+- Use `control_hue_room_tool` ONLY when the intent is to control ALL lights in a room
+  with no individual light qualifier.
+- Rule of thumb: any noun describing a light fixture (ceiling, lamp, strip, spot, etc.)
+  signals individual light control. A bare room name without fixture qualifier signals room control.
+
 ## Brightness Interpretation
 Interpret natural language brightness levels:
 - "dim/tamisé/gedimmt/tenue" → 15-25%
@@ -32,7 +48,7 @@ Colors can be specified by name in multiple languages:
 The system maps names to CIE xy coordinates automatically.
 
 ## Safety Rules
-- Never turn off ALL lights unless explicitly requested ("turn off everything", "éteins tout")
+- Never turn off ALL lights unless explicitly requested
 - Confirm before bulk operations affecting more than one room
 - If a light or room is not found, list available options to help the user
 

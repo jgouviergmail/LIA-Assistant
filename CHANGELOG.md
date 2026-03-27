@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.4] - 2026-03-27
+
+### Added
+
+- **IoT Discovery-before-Planning** — When controlling Philips Hue lights, the planner now performs a lightweight discovery call to the Hue Bridge before generating the execution plan. Light and room names are injected into the planner context, enabling the LLM to resolve user descriptions (e.g., "plafond du salon") to exact device names ("Plafond salon"). Follows the same pattern as MCP reference discovery. (`src/domains/agents/services/smart_planner_service.py`)
+
+### Changed
+
+- **Landing Page Hero Subtitle** — Reworked hero subtitle into 3 concise lines: personality, orchestration, simplicity. Updated all 6 locale files. (`apps/web/locales/`)
+- **Landing Page Image Generation Description** — Updated to cover all 3 use cases: generate from text, refine generated images, edit photos sent as attachments. Updated all 6 locale files. (`apps/web/locales/`)
+- **Hue Semantic Keywords** — Aligned with codebase convention: English-only keywords (was the only multilingual outlier across 20 agent catalogues). (`src/domains/agents/hue/catalogue_manifests.py`)
+
+### Fixed
+
+- **Hue Light vs Room Control** — When asking to control a specific light in a room (e.g., "éteins le plafond du salon"), LIA now correctly targets the individual light instead of turning off the entire room. Root cause: semantic keywords in `control_hue_room_tool` contained room names ("salon") causing higher match scores, and `_find_resource_by_name()` used bidirectional partial matching. Fixed via: specificity rule in Hue agent prompt, strict exact-match in `_find_resource_by_name()`, and IoT discovery context injection. (`src/domains/agents/tools/hue_tools.py`, `src/domains/agents/prompts/v1/hue_agent_prompt.txt`, `src/domains/agents/prompts/v1/smart_planner_prompt.txt`)
+
 ## [1.12.3] - 2026-03-26
 
 ### Added

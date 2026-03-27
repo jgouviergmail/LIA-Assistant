@@ -38,6 +38,33 @@ LIA Agent → hue_tools.py → PhilipsHueClient → Hue Bridge (local/remote)
 | `list_hue_scenes_tool` | List available scenes |
 | `activate_hue_scene_tool` | Activate a scene |
 
+## IoT Discovery & Name Resolution (v1.12.4)
+
+When a user requests a Hue action (e.g., "éteins le plafond du salon"), the system must resolve their natural language description to the **exact device name** configured on the bridge (e.g., "Plafond salon").
+
+### Discovery-before-planning pattern
+
+Before generating an execution plan, `SmartPlannerService._build_iot_device_context()` performs a lightweight discovery call to the Hue Bridge to fetch all available light and room names. These are injected into the planner's context:
+
+```
+AVAILABLE HUE LIGHTS (use EXACT name for light_name_or_id):
+"Plafond salon", "Bureau", "Lampe cuisine", ...
+AVAILABLE HUE ROOMS (use EXACT name for room_name_or_id):
+"Salon", "Chambre", "Cuisine", ...
+```
+
+This follows the same pattern as MCP reference discovery (`_build_mcp_reference`): fetch external resource metadata before planning so the LLM can make informed tool parameter decisions.
+
+### Strict matching
+
+`_find_resource_by_name()` in `hue_tools.py` performs **exact match only** (ID or case-insensitive name). No fuzzy or partial matching is applied — the planner is responsible for resolving user descriptions to exact names using the discovery context.
+
+### Tool selection: specificity rule
+
+The Hue agent prompt instructs the LLM to select the most specific tool:
+- Mention of a **light fixture** (ceiling, lamp, strip, spot) → `control_hue_light_tool`
+- Bare **room name** without fixture qualifier → `control_hue_room_tool`
+
 ## Setup
 
 ### Local Mode (Recommended)

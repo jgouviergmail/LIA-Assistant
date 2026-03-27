@@ -91,10 +91,15 @@ def _find_resource_by_name(
     name_or_id: str,
 ) -> dict[str, Any] | None:
     """
-    Find a Hue resource by name or ID.
+    Find a Hue resource by exact name or ID.
 
-    Searches resources by exact ID match first, then by case-insensitive
-    name match in metadata.name field.
+    Performs strict matching only — no fuzzy or partial matching.
+    The planner is responsible for resolving user descriptions to exact
+    device names via IoT discovery context injection.
+
+    Search order:
+    1. Exact ID match
+    2. Case-insensitive exact name match on metadata.name
 
     Args:
         resources: List of Hue API resource dicts.
@@ -113,12 +118,6 @@ def _find_resource_by_name(
     for r in resources:
         resource_name = r.get("metadata", {}).get("name", "").strip().lower()
         if resource_name == search:
-            return r
-
-    # Try partial match
-    for r in resources:
-        resource_name = r.get("metadata", {}).get("name", "").strip().lower()
-        if search in resource_name or resource_name in search:
             return r
 
     return None
