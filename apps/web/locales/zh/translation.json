@@ -4036,11 +4036,9 @@
       "title_line2_after": "。",
       "title_line3": "你的规则。",
       "subtitle_top": "认识LIA，一个有个性、有记忆、有常识的助手。",
-      "subtitle_line1a": "告别冰冷重复的AI。",
-      "subtitle_line1b": "LIA从你的习惯中学习，在每次互动中发展独特的个性。",
-      "subtitle_line2a": "她既能恰到好处地讽刺，也能深切共情，",
-      "subtitle_line2b": "LIA在幕后协调你的数字生活。",
-      "subtitle_line2c": "一切都很简单，一键可达，而你始终掌握最终控制权。",
+      "subtitle_line1": "LIA向你学习，发展独特的个性。",
+      "subtitle_line2": "她在幕后协调你的数字生活——从讽刺到共情。",
+      "subtitle_line3": "一键即达，而你始终拥有最终决定权。",
       "cta_primary": "加入BETA",
       "cta_secondary": "了解更多",
       "scroll_hint": "向下滚动探索",
@@ -4205,7 +4203,7 @@
       },
       "image_generation": {
         "title": "AI图像生成",
-        "description": "从文本描述生成和编辑图像。多提供商架构，支持每用户质量偏好和费用跟踪。"
+        "description": "根据文字描述生成图像，对其进行修改，或编辑您发送的附件照片。可调节质量，内置费用跟踪。"
       }
     },
     "use_cases": {

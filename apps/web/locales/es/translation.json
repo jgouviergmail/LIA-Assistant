@@ -4041,11 +4041,9 @@
       "title_line2_after": ".",
       "title_line3": "Tus reglas.",
       "subtitle_top": "Conoce a LIA, la asistente con carácter, memoria y sentido común.",
-      "subtitle_line1a": "Se acabaron las IA frías y repetitivas.",
-      "subtitle_line1b": "LIA aprende de tus hábitos y desarrolla una personalidad única con cada interacción.",
-      "subtitle_line2a": "Capaz de un sarcasmo bien colocado tanto como de una profunda empatía,",
-      "subtitle_line2b": "LIA orquesta tu vida digital entre bastidores.",
-      "subtitle_line2c": "Todo es simple, accesible con un clic, y siempre mantienes el control final.",
+      "subtitle_line1": "LIA aprende de ti y desarrolla una personalidad única.",
+      "subtitle_line2": "Orquesta tu vida digital entre bastidores — del sarcasmo a la empatía.",
+      "subtitle_line3": "Un clic basta, y siempre eres tú quien decide.",
       "cta_primary": "Únete a la BETA",
       "cta_secondary": "Descubrir",
       "scroll_hint": "Desplázate para explorar",
@@ -4210,7 +4208,7 @@
       },
       "image_generation": {
         "title": "Generación de imágenes IA",
-        "description": "Genera y edita imágenes a partir de descripciones de texto. Arquitectura multi-proveedor con preferencias de calidad por usuario y seguimiento de costos."
+        "description": "Genera imágenes a partir de descripciones textuales, retócalas o edita tus propias fotos enviadas como adjuntos. Calidad ajustable y seguimiento de costos integrado."
       }
     },
     "use_cases": {

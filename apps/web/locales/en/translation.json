@@ -4042,11 +4042,9 @@
       "title_line2_after": ".",
       "title_line3": "Your rules.",
       "subtitle_top": "Meet LIA, the assistant with personality, memory, and common sense.",
-      "subtitle_line1a": "No more cold, repetitive AIs.",
-      "subtitle_line1b": "LIA learns from your habits and develops a unique personality through every interaction.",
-      "subtitle_line2a": "Capable of well-placed sarcasm as much as deep empathy,",
-      "subtitle_line2b": "LIA orchestrates your digital life behind the scenes.",
-      "subtitle_line2c": "Everything is simple, one click away, and you always keep final control.",
+      "subtitle_line1": "LIA learns from you and develops a unique personality.",
+      "subtitle_line2": "She orchestrates your digital life behind the scenes — from sarcasm to empathy.",
+      "subtitle_line3": "One click is all it takes, and you always have the final say.",
       "cta_primary": "Join the BETA",
       "cta_secondary": "Learn more",
       "scroll_hint": "Scroll to explore",
@@ -4211,7 +4209,7 @@
       },
       "image_generation": {
         "title": "AI Image Generation",
-        "description": "Generate and edit images from text prompts. Multi-provider architecture with per-user quality preferences and cost tracking."
+        "description": "Generate images from text descriptions, refine them, or edit your own photos sent as attachments. Adjustable quality and built-in cost tracking."
       }
     },
     "use_cases": {

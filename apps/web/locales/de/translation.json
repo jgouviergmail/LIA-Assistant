@@ -4041,11 +4041,9 @@
       "title_line2_after": ".",
       "title_line3": "Deine Regeln.",
       "subtitle_top": "Lernen Sie LIA kennen, die Assistentin mit Charakter, Gedächtnis und gesundem Menschenverstand.",
-      "subtitle_line1a": "Schluss mit kalten, sich wiederholenden KIs.",
-      "subtitle_line1b": "LIA lernt aus Ihren Gewohnheiten und entwickelt eine einzigartige Persönlichkeit bei jeder Interaktion.",
-      "subtitle_line2a": "Fähig zu gut platziertem Sarkasmus ebenso wie zu tiefer Empathie,",
-      "subtitle_line2b": "LIA orchestriert Ihr digitales Leben im Hintergrund.",
-      "subtitle_line2c": "Alles ist einfach, mit einem Klick erreichbar, und Sie behalten immer die finale Kontrolle.",
+      "subtitle_line1": "LIA lernt von dir und entwickelt eine einzigartige Persönlichkeit.",
+      "subtitle_line2": "Sie orchestriert dein digitales Leben im Hintergrund — von Sarkasmus bis Empathie.",
+      "subtitle_line3": "Ein Klick genügt, und du behältst immer das letzte Wort.",
       "cta_primary": "BETA beitreten",
       "cta_secondary": "Entdecken",
       "scroll_hint": "Scrollen zum Entdecken",
@@ -4210,7 +4208,7 @@
       },
       "image_generation": {
         "title": "KI-Bildgenerierung",
-        "description": "Bilder aus Textbeschreibungen generieren und bearbeiten. Multi-Provider-Architektur mit benutzerspezifischen Qualitätseinstellungen und Kostenverfolgung."
+        "description": "Erstellen Sie Bilder aus Textbeschreibungen, verfeinern Sie sie oder bearbeiten Sie eigene Fotos als Anhang. Einstellbare Qualität und integrierte Kostenverfolgung."
       }
     },
     "use_cases": {
