@@ -90,9 +90,9 @@ class TestHueToolManifests:
         ],
     )
     def test_has_semantic_keywords(self, manifest: object) -> None:
-        """Test all manifests have multilingual semantic keywords."""
+        """Test all manifests have English-only semantic keywords."""
         keywords = manifest.semantic_keywords  # type: ignore[attr-defined]
-        assert len(keywords) >= 5  # At least 5 keywords per tool
+        assert len(keywords) >= 3  # At least 3 keywords per tool
 
     def test_tool_names_match_functions(self) -> None:
         """Test manifest names match @tool function names."""
