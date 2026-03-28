@@ -67,18 +67,23 @@ ENV PYTHONUNBUFFERED=1 \
     PATH=/home/appuser/.local/bin:$PATH \
     PLAYWRIGHT_BROWSERS_PATH=/home/appuser/.local/playwright-browsers
 
+# Install prerequisites for repository setup (curl, gnupg needed for apt key imports)
+RUN apt-get update && apt-get install -y --no-install-recommends curl gnupg \
+    && rm -rf /var/lib/apt/lists/*
+
+# Add Node.js 22.x and Docker CE repositories
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian bookworm stable" > /etc/apt/sources.list.d/docker.list
+
 # Install runtime dependencies, security patches, Chromium system deps, Node.js, and Docker CLI
 # Chromium deps required for Playwright browser agent (evolution F7)
 # Node.js required for Claude Code CLI (DevOps remote management)
 # Docker CLI required for DevOps container management from within the container
-RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
-    && curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg \
-    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian bookworm stable" > /etc/apt/sources.list.d/docker.list \
-    && apt-get update && apt-get upgrade -y && apt-get install -y \
+RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     nodejs \
     docker-ce-cli \
     postgresql-client \
-    curl \
     ffmpeg \
     # Playwright Chromium runtime dependencies (headless)
     libnss3 \
