@@ -193,6 +193,14 @@
       "have_account": "已有账号？",
       "login_link": "登录"
     },
+    "registration_success": {
+      "title": "注册成功！",
+      "message": "验证邮件已发送到您的邮箱地址。请点击链接验证您的邮箱。",
+      "spam_warning_title": "找不到邮件？",
+      "spam_warning_message": "请检查您的垃圾邮件或垃圾箱文件夹。邮件可能被错误地归类到那里。",
+      "link_expires": "验证链接将在24小时后过期。",
+      "back_to_login": "返回登录"
+    },
     "oauth_callback": {
       "error": "OAuth登录错误",
       "redirecting": "重定向到登录页面...",
@@ -324,6 +332,8 @@
     "message": "您的LIA账户已创建，正在等待管理员激活。",
     "info_title": "下一步：",
     "info_message": "您的账户激活后，您将收到确认电子邮件。届时您可以登录并使用LIA。",
+    "spam_warning_title": "找不到邮件？",
+    "spam_warning_message": "请检查您的垃圾邮件或垃圾箱文件夹。邮件可能被错误地归类到那里。",
     "help": "如果几天后仍未收到电子邮件，请联系您组织的管理员。",
     "logout": "注销",
     "refresh": "刷新页面",
@@ -4481,7 +4491,7 @@
       "execution-plans": {
         "title": "ExecutionPlan：LIA如何规划和执行复杂请求",
         "excerpt": "LIA将您的多步骤请求分解为结构化执行计划，经过语义验证并并行执行。",
-        "body": "<h2>结构化计划语言</h2><p>LIA的规划器生成<strong>ExecutionPlan</strong>：一个经过Pydantic验证的对象，包含<code>plan_id</code>（UUID）、<code>execution_mode</code>（顺序或并行）、<code>max_cost_usd</code>、<code>estimated_cost_usd</code>和<code>version</code>版本号。每个计划包含一组<strong>ExecutionStep</strong>，字段包括：<code>step_id</code>、<code>step_type</code>（TOOL、CONDITIONAL、REPLAN或HUMAN）、<code>agent_name</code>、<code>tool_name</code>、<code>parameters</code>、<code>depends_on</code>和<code>timeout_seconds</code>。</p><p>例如，对于\"明天早上给Jean发一份天气摘要\"，计划将包含：(1) 获取明天的天气，(2) 查找联系人Jean，(3) 编写并发送邮件——步骤1→3和2→3之间存在依赖关系。</p><h2>FOR_EACH模式</h2><p>对于批量操作，步骤支持<code>for_each</code>字段，可迭代前一步骤产生的集合。<code>for_each_max</code>参数限制迭代次数，每个元素的错误独立处理，不会中断整个批次。</p><h2>11项语义验证检查</h2><p>在执行之前，<strong>语义验证器</strong>检查11类问题：</p><ul><li><strong>HALLUCINATED_CAPABILITY</strong> — LLM编造的工具或能力</li><li><strong>GHOST_DEPENDENCY</strong> — 引用不存在的步骤</li><li><strong>LOGICAL_CYCLE</strong> — 循环依赖</li><li><strong>CARDINALITY_MISMATCH</strong> — 步骤间基数不匹配</li><li><strong>SCOPE_OVERFLOW / SCOPE_UNDERFLOW</strong> — 计划范围过大或不足</li><li><strong>WRONG_PARAMETERS</strong> — 工具参数不正确</li><li><strong>MISSING_STEP</strong> — 缺少满足请求所需的步骤</li><li><strong>DANGEROUS_AMBIGUITY</strong> — 可能导致错误的歧义</li><li><strong>IMPLICIT_ASSUMPTION / INSUFFICIENT_CONTENT</strong> — 未经验证的假设</li></ul><h2>波次并行执行</h2><p><strong>DependencyGraph</strong>计算执行波次：所有无依赖的步骤构成第一波并行执行。后续波次等待其前置步骤完成。这一机制使得涉及3到5个领域的复杂请求能够以接近简单请求的响应时间处理。</p><h2>自适应重新规划</h2><p>如果某个步骤失败，系统可以通过<code>REPLAN</code>类型动态重新规划。例如，如果未找到联系人，LIA可以向用户请求澄清，而不是放弃整个计划。</p>"
+        "body": "<h2>结构化计划语言</h2><p>LIA的规划器生成<strong>ExecutionPlan</strong>：一个经过Pydantic验证的对象，包含<code>plan_id</code>（UUID）、<code>execution_mode</code>（顺序或并行）、<code>max_cost_usd</code>、<code>estimated_cost_usd</code>和<code>version</code>版本号。每个计划包含一组<strong>ExecutionStep</strong>，字段包括：<code>step_id</code>、<code>step_type</code>（TOOL、CONDITIONAL、REPLAN或HUMAN）、<code>agent_name</code>、<code>tool_name</code>、<code>parameters</code>、<code>depends_on</code>和<code>timeout_seconds</code>。</p><p>例如，对于\"明天早上给Jean发一份天气摘要\"，计划将包含：(1) 获取明天的天气，(2) 查找联系人Jean，(3) 编写并发送邮件——步骤1→3和2→3之间存在依赖关系。</p><h2>FOR_EACH模式</h2><p>对于批量操作，步骤支持<code>for_each</code>字段，可迭代前一步骤产生的集合。<code>for_each_max</code>参数限制迭代次数，每个元素的错误独立处理，不会中断整个批次。</p><h2>11项语义验证检查</h2><p>在执行之前，<strong>语义验证器</strong>检查11类问题：</p><ul><li><strong>HALLUCINATED_CAPABILITY</strong> — LLM编造的工具或能力</li><li><strong>GHOST_DEPENDENCY</strong> — 引用不存在的步骤</li><li><strong>LOGICAL_CYCLE</strong> — 循环依赖</li><li><strong>CARDINALITY_MISMATCH</strong> — 步骤间基数不匹配</li><li><strong>SCOPE_OVERFLOW / SCOPE_UNDERFLOW</strong> — 计划范围过大或不足</li><li><strong>WRONG_PARAMETERS</strong> — 工具参数不正确</li><li><strong>MISSING_STEP</strong> — 缺少满足请求所需的步骤</li><li><strong>DANGEROUS_AMBIGUITY</strong> — 可能导致错误的歧义</li><li><strong>IMPLICIT_ASSUMPTION / INSUFFICIENT_CONTENT</strong> — 未经验证的假设</li></ul><h2>波次并行执行</h2><p><strong>DependencyGraph</strong>计算执行波次：所有无依赖的步骤构成第一波并行执行。后续波次等待其前置步骤完成。这一机制使得涉及3到5个领域的复杂请求能够以接近简单请求的响应时间处理。</p><h2>自适应重新规划</h2><p>如果某个步骤失败，系统可以通过<code>REPLAN</code>类型动态重新规划。例如，如果未找到联系人，LIA可以向用户请求澄清，而不是放弃整个计划。</p><h2>自增强反幻觉注册表</h2><p>LLM有时会在计划中发明不存在的工具。LIA维护一个持久化的幻觉模式注册表（<code>hallucinated_tools.json</code>），每次检测到新的幻觉时自动更新。在计划验证期间，每个工具都会与此注册表进行核对——幻觉步骤被移除，规划器被强制使用真实的目录工具重新规划。</p>"
       },
       "human-in-the-loop": {
         "title": "人在回路中：6级审批保持您的控制",

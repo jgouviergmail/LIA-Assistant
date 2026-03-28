@@ -1116,7 +1116,7 @@ services/hitl/interactions/
 
 **File**: `apps/api/src/domains/agents/services/hitl/draft_modifier.py`
 
-When a user requests changes during draft critique (e.g., "non envoi à jgouvier@hotmail.com"), the `DraftModificationService` regenerates the draft content via LLM. The service uses a three-layer approach for recipient changes:
+When a user requests changes during draft critique (e.g., "non envoi à user@example.com"), the `DraftModificationService` regenerates the draft content via LLM. The service uses a three-layer approach for recipient changes:
 
 1. **LLM-based modification** — The `draft_modifier_prompt.txt` instructs the LLM to modify all content fields including `to`/`cc` when the user explicitly requests it.
 2. **Explicit recipient override (post-processing)** — `_apply_explicit_recipient_override()` detects email addresses in user instructions via regex. If the LLM failed to change the `to` field, the extracted email is applied directly. This handles cases where the LLM ignores recipient change instructions.

@@ -312,6 +312,15 @@ class SearchEventsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
         # CRITICAL FIX: Always default time_min to NOW if not specified
         # This prevents returning past events from 2017!
         # The Google Calendar API returns ALL events if no timeMin is set.
+        # Get user timezone for DST-safe normalization
+        from src.core.time_utils import normalize_user_datetime
+
+        _user_tz = "UTC"
+        try:
+            _user_tz, _, _ = await get_user_preferences(self.runtime)
+        except Exception:
+            pass
+
         if not time_min:
             now = datetime.utcnow()
             time_min = now.isoformat() + "Z"
@@ -321,17 +330,14 @@ class SearchEventsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
                 reason="no_time_min_specified",
             )
         else:
-            # Normalize time_min to ensure it has timezone suffix (RFC3339)
-            # LLM may output bare ISO datetime without timezone
-            time_min = normalize_to_rfc3339(time_min)
+            time_min = normalize_to_rfc3339(normalize_user_datetime(time_min, _user_tz) or time_min)
 
         # Default time_max to 30 days from now if searching future events
         if not time_max:
             now = datetime.utcnow()
             time_max = (now + timedelta(days=30)).isoformat() + "Z"
         else:
-            # Normalize time_max to ensure it has timezone suffix (RFC3339)
-            time_max = normalize_to_rfc3339(time_max)
+            time_max = normalize_to_rfc3339(normalize_user_datetime(time_max, _user_tz) or time_max)
 
         # Resolve default calendar from user preferences if not explicitly specified
         if not calendar_id_input or calendar_id_input == "primary":
@@ -1014,6 +1020,8 @@ class CreateEventDraftTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
         The actual creation happens after user confirms via HITL.
         This method only validates and prepares the data.
         """
+        from src.core.time_utils import normalize_user_datetime
+
         summary: str = require_field(kwargs, "summary")
         start_datetime: str = require_field(kwargs, "start_datetime")
         end_datetime: str = require_field(kwargs, "end_datetime")
@@ -1036,6 +1044,11 @@ class CreateEventDraftTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
                 timezone = user_timezone
             except (ValueError, KeyError, AttributeError):
                 timezone = "UTC"
+
+        # Normalize datetimes: strip wrong LLM offset and re-localize to user timezone.
+        # The LLM may send +01:00 for a date in CEST (+02:00) — this corrects it.
+        start_datetime = normalize_user_datetime(start_datetime, timezone) or start_datetime
+        end_datetime = normalize_user_datetime(end_datetime, timezone) or end_datetime
 
         logger.info(
             "create_event_draft_prepared",
@@ -1089,10 +1102,14 @@ _create_event_draft_tool_instance = CreateEventDraftTool()
 async def create_event_tool(
     summary: Annotated[str, "Event title/summary (required)"],
     start_datetime: Annotated[
-        str, "Start datetime in ISO format, e.g. '2025-01-15T10:00:00' (required)"
+        str,
+        "Start datetime in LOCAL time (user's timezone), ISO format WITHOUT offset. "
+        "e.g. '2025-01-15T10:00:00'. Do NOT convert to UTC — the tool handles timezone.",
     ],
     end_datetime: Annotated[
-        str, "End datetime in ISO format, e.g. '2025-01-15T11:00:00' (required)"
+        str,
+        "End datetime in LOCAL time (user's timezone), ISO format WITHOUT offset. "
+        "e.g. '2025-01-15T11:00:00'. Do NOT convert to UTC — the tool handles timezone.",
     ],
     timezone: Annotated[
         str | None, "Timezone (optional, uses user's configured timezone if not specified)"
@@ -1280,6 +1297,14 @@ class UpdateEventDraftTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
             except (ValueError, KeyError, AttributeError):
                 timezone = "UTC"
 
+        # Normalize datetimes: strip wrong LLM offset and re-localize to user timezone
+        from src.core.time_utils import normalize_user_datetime
+
+        if start_datetime:
+            start_datetime = normalize_user_datetime(start_datetime, timezone) or start_datetime
+        if end_datetime:
+            end_datetime = normalize_user_datetime(end_datetime, timezone) or end_datetime
+
         # If no calendar_id provided, try to look it up from context store
         # This handles cases where the planner forgets to pass calendar_id
         if not calendar_id and self.runtime:
@@ -1361,8 +1386,14 @@ _update_event_draft_tool_instance = UpdateEventDraftTool()
 async def update_event_tool(
     event_id: Annotated[str, "Google Calendar event ID to update (required)"],
     summary: Annotated[str | None, "New event title/summary (optional)"] = None,
-    start_datetime: Annotated[str | None, "New start datetime in ISO format (optional)"] = None,
-    end_datetime: Annotated[str | None, "New end datetime in ISO format (optional)"] = None,
+    start_datetime: Annotated[
+        str | None,
+        "New start datetime in LOCAL time (user's timezone), ISO format WITHOUT offset. Do NOT convert to UTC.",
+    ] = None,
+    end_datetime: Annotated[
+        str | None,
+        "New end datetime in LOCAL time (user's timezone), ISO format WITHOUT offset. Do NOT convert to UTC.",
+    ] = None,
     timezone: Annotated[
         str | None, "Timezone (optional, uses user's configured timezone if not specified)"
     ] = None,

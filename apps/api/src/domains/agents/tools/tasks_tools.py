@@ -256,6 +256,16 @@ class ListTasksTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
         due_min: str | None = kwargs.get("due_min")
         due_max: str | None = kwargs.get("due_max")
 
+        # Normalize due date filters: fix wrong LLM offset for DST
+        if due_min or due_max:
+            from src.core.time_utils import normalize_user_datetime
+
+            _user_tz, _ = await self.get_user_preferences_safe()
+            if due_min:
+                due_min = normalize_user_datetime(due_min, _user_tz) or due_min
+            if due_max:
+                due_max = normalize_user_datetime(due_max, _user_tz) or due_max
+
         # TOKEN EXPLOSION PREVENTION STRATEGY (Tasks):
         # Unlike Emails (where date filtering is essential), Tasks uses a different strategy:
         # 1. default_max_results=10 limits response size
@@ -742,6 +752,13 @@ class CreateTaskDraftTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
         due: str | None = kwargs.get("due")
         task_list_id_input: str = kwargs.get("task_list_id", "@default")
 
+        # Normalize due date: strip wrong LLM offset and re-localize to user timezone
+        if due:
+            from src.core.time_utils import normalize_user_datetime
+
+            _user_tz, _ = await self.get_user_preferences_safe()
+            due = normalize_user_datetime(due, _user_tz) or due
+
         # BugFix 2025-12-19: Resolve default task list from user preferences
         task_list_id = await _resolve_default_task_list(client, user_id, task_list_id_input)
 
@@ -1115,6 +1132,13 @@ class UpdateTaskDraftTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
         due: str | None = kwargs.get("due")
         status: str | None = kwargs.get("status")
         task_list_id_input: str = kwargs.get("task_list_id", "@default")
+
+        # Normalize due date: strip wrong LLM offset and re-localize to user timezone
+        if due:
+            from src.core.time_utils import normalize_user_datetime
+
+            _user_tz, _ = await self.get_user_preferences_safe()
+            due = normalize_user_datetime(due, _user_tz) or due
 
         # BugFix 2025-12-19: Resolve default task list from user preferences
         task_list_id = await _resolve_default_task_list(client, user_id, task_list_id_input)

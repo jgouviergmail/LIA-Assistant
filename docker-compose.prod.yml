@@ -66,7 +66,7 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: 256M
+          memory: 128M  # Was 256M — actual usage ~7M
         reservations:
           cpus: '0.1'
           memory: 64M
@@ -176,7 +176,7 @@ services:
       resources:
         limits:
           cpus: '1'
-          memory: 512M
+          memory: 256M  # Was 512M — actual usage ~105M
         reservations:
           cpus: '0.25'
           memory: 128M
@@ -205,7 +205,7 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: 512M
+          memory: 768M  # Was 512M — actual usage ~459M (90%)
         reservations:
           cpus: '0.1'
           memory: 128M
@@ -238,7 +238,7 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: 512M
+          memory: 256M  # Was 512M — actual usage ~98M
         reservations:
           cpus: '0.1'
           memory: 128M
@@ -271,7 +271,7 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: 512M
+          memory: 256M  # Was 512M — actual usage ~86M
         reservations:
           cpus: '0.1'
           memory: 128M
@@ -295,7 +295,7 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: 512M
+          memory: 256M  # Was 512M — actual usage ~66M
         reservations:
           cpus: '0.1'
           memory: 128M
@@ -450,7 +450,7 @@ services:
       resources:
         limits:
           cpus: '0.25'
-          memory: 256M
+          memory: 128M  # Was 256M — actual usage ~20M
         reservations:
           cpus: '0.05'
           memory: 64M

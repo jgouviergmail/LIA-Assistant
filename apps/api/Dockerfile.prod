@@ -15,7 +15,11 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
 
 # Copy requirements and install dependencies
 COPY requirements.txt .
-RUN pip install --user --no-cache-dir -r requirements.txt
+RUN pip install --user --no-cache-dir -r requirements.txt \
+    # Replace PyTorch CUDA with CPU-only version (saves ~700Mo RAM per worker on ARM64/non-GPU)
+    # sentence-transformers pulls torch+cu13 by default; override with CPU index
+    && pip install --user --no-cache-dir \
+       torch --index-url https://download.pytorch.org/whl/cpu
 
 # Install Playwright Chromium browser binary (stored in ~/.local/)
 # Required for browser agent (evolution F7). ARM64-compatible.

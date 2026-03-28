@@ -7,7 +7,7 @@ based on detected domains, preventing prompt explosion and improving scalability
 
 Architecture Pattern: v3.1 LLM-based (Pure LLM Reasoning)
 - QueryAnalyzerService uses LLM to analyze queries and detect domains
-- Registry provides domain metadata (relationships, priority, agent bindings)
+- Registry provides domain metadata (relationships, agent bindings)
 - No keyword matching - LLM intelligence handles domain detection
 
 Best Practices:
@@ -44,7 +44,6 @@ class DomainConfig:
         result_key: Canonical key for step results in $steps references (e.g., "contacts", "weathers").
                     This is THE source of truth for result naming - used by executor, prompts, and tools.
         related_domains: Domains often used together (for smart expansion)
-        priority: Priority score 1-10 for tie-breaking (higher = more important)
         is_routable: Whether this domain can be selected by router
         metadata: Additional domain-specific metadata
 
@@ -52,7 +51,6 @@ class DomainConfig:
         - Frozen dataclass ensures immutability (thread-safe)
         - v3.1: Domain detection handled by QueryAnalyzerService LLM
         - Related domains enable smart expansion (e.g., contacts → email)
-        - Priority used when limiting domains (max 3) to select most relevant
         - result_key is the SINGLE source of truth for naming step results
     """
 
@@ -62,7 +60,6 @@ class DomainConfig:
     agent_names: list[str]
     result_key: str  # Canonical key for $steps.STEP_ID.{result_key} references
     related_domains: list[str] = field(default_factory=list)
-    priority: int = 5  # Default: medium priority (1=low, 10=high)
     is_routable: bool = True  # Can be selected by router (False for internal/technical domains)
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -72,8 +69,6 @@ class DomainConfig:
             raise ValueError("Domain name cannot be empty")
         if not self.agent_names:
             raise ValueError(f"Domain '{self.name}' must have at least one agent")
-        if not 1 <= self.priority <= 10:
-            raise ValueError(f"Priority must be 1-10, got {self.priority}")
         if not self.result_key:
             raise ValueError(f"Domain '{self.name}' must have a result_key")
 
@@ -91,7 +86,6 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         agent_names=["contact_agent"],
         result_key="contacts",  # $steps.step_N.contacts
         related_domains=[],  # Reverse lookup: email→contact, event→contact cover adjacency
-        priority=8,  # High priority: contacts are foundational
         metadata={
             "provider": "google",
             "requires_oauth": True,
@@ -107,7 +101,6 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         agent_names=["context_agent"],
         result_key="contexts",  # Internal domain, rarely referenced in $steps
         related_domains=[],  # Context is standalone, works with all domains
-        priority=10,  # Maximum priority: always loaded (cross-domain utility)
         is_routable=False,  # Internal domain - not selectable by router
         metadata={
             "provider": "internal",
@@ -136,7 +129,6 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
             "event",
             "task",
         ],  # Emails mention people, meetings, action items
-        priority=9,  # High priority: email is a core communication tool
         metadata={
             "provider": "google",
             "requires_oauth": True,
@@ -155,7 +147,6 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         agent_names=["event_agent"],
         result_key="events",  # $steps.step_N.events
         related_domains=["contact", "task"],  # Events involve people and may generate tasks
-        priority=8,  # High priority: calendar is a core productivity tool
         metadata={
             "provider": "google",
             "requires_oauth": True,
@@ -175,7 +166,6 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         agent_names=["file_agent"],
         result_key="files",  # $steps.step_N.files
         related_domains=["email", "contact"],  # Files shared via email, owned by contacts
-        priority=7,  # Medium-high priority: common for document access
         metadata={
             "provider": "google",
             "requires_oauth": True,
@@ -195,7 +185,6 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         agent_names=["task_agent"],
         result_key="tasks",  # $steps.step_N.tasks
         related_domains=[],  # Reverse lookup: event→task covers adjacency
-        priority=6,  # Medium priority: task management
         metadata={
             "provider": "google",
             "requires_oauth": True,
@@ -217,7 +206,6 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         related_domains=[
             "event"
         ],  # Weather for events; place adjacency via reverse (place→weather)
-        priority=5,  # Medium priority: informational
         metadata={
             "provider": "openweathermap",
             "requires_oauth": False,
@@ -234,7 +222,6 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         agent_names=["query_agent"],
         result_key="querys",  # $steps.step_N.querys (domain + "s" pattern)
         related_domains=[],  # Query works with all domains
-        priority=3,  # Lower priority: used after data retrieval
         is_routable=False,  # Internal domain - not selectable by router
         metadata={
             "provider": "internal",
@@ -259,7 +246,6 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         agent_names=["reminder_agent"],
         result_key="reminders",  # $steps.step_N.reminders
         related_domains=["event", "task", "contact"],  # Reminders tied to events, tasks, and people
-        priority=9,  # High priority: direct user action, override tasks/calendar
         metadata={
             "provider": "internal",
             "requires_oauth": False,
@@ -290,7 +276,6 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
             "event",
             "contact",
         ],  # Places often combined with weather or events
-        priority=5,  # Medium priority: local information
         metadata={
             "provider": "google",
             "requires_oauth": False,
@@ -315,7 +300,6 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
             "event",
             "contact",
         ],  # Routes often involves places, events, or contact addresses
-        priority=7,  # Medium-high priority: directions are actionable
         metadata={
             "provider": "google",
             "requires_oauth": False,
@@ -335,7 +319,6 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         agent_names=["wikipedia_agent"],
         result_key="wikipedias",  # $steps.step_N.wikipedias (domain + "s" pattern)
         related_domains=[],  # Wikipedia is standalone
-        priority=4,  # Lower priority: informational/research
         metadata={
             "provider": "wikipedia",
             "requires_oauth": False,
@@ -354,7 +337,6 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         agent_names=["perplexity_agent"],
         result_key="perplexitys",  # $steps.step_N.perplexitys (domain + "s" pattern)
         related_domains=["wikipedia"],  # Web search complements Wikipedia
-        priority=6,  # Medium-high: useful for current information
         metadata={
             "provider": "perplexity",
             "requires_oauth": False,
@@ -374,7 +356,6 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         agent_names=["brave_agent"],
         result_key="braves",  # $steps.step_N.braves (domain + "s" pattern)
         related_domains=["perplexity", "wikipedia"],  # Web search related domains
-        priority=6,  # Medium-high: useful for web searches
         metadata={
             "provider": "brave",
             "requires_oauth": False,
@@ -394,7 +375,6 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         agent_names=["web_search_agent"],
         result_key="web_searchs",  # $steps.step_N.web_searchs (domain + "s" pattern)
         related_domains=["perplexity", "brave", "wikipedia"],
-        priority=8,  # High priority: general web searches go here
         is_routable=True,
         metadata={
             "provider": "internal",
@@ -420,7 +400,6 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         agent_names=["web_fetch_agent"],
         result_key="web_fetchs",  # $steps.step_N.web_fetchs (domain + "s" pattern)
         related_domains=["web_search", "brave"],
-        priority=5,  # Medium priority: informational
         is_routable=True,
         metadata={
             "provider": "internal",
@@ -443,7 +422,6 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         agent_names=["sub_agent_agent"],
         result_key="sub_agents",
         related_domains=[],
-        priority=3,
         is_routable=False,  # Internal/transversal — not selectable by router
         metadata={
             "provider": "internal",
@@ -462,7 +440,6 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         agent_names=["mcp_agent"],  # Virtual agent, not compiled
         result_key="mcps",  # $steps.step_N.mcps
         related_domains=[],
-        priority=4,  # Below native domains
         is_routable=True,  # Router CAN detect MCP relevance
         metadata={
             "provider": "mcp",
@@ -489,7 +466,6 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         agent_names=["browser_agent"],
         result_key="browsers",  # $steps.step_N.browsers (domain + "s" pattern)
         related_domains=["web_fetch", "web_search"],
-        priority=5,
         is_routable=True,
         metadata={
             "provider": "internal",
@@ -509,7 +485,6 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         agent_names=["image_generation_agent"],
         result_key="image_generations",
         related_domains=[],
-        priority=5,  # Medium priority: creative/on-demand
         is_routable=True,
         metadata={
             "provider": "openai",
@@ -529,7 +504,6 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         agent_names=["hue_agent"],
         result_key="hues",
         related_domains=[],
-        priority=5,
         is_routable=True,
         metadata={
             "provider": "philips_hue",
@@ -541,13 +515,15 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         name="devops",
         display_name="DevOps (Claude CLI)",
         description=(
-            "Remote server management via Claude CLI: inspect logs, diagnose issues, "
-            "restart containers, check system health, analyze deployments. Admin only."
+            "Server infrastructure and DevOps administration via SSH and CLI. "
+            "Use for: Docker container logs, docker-compose status, server health checks, "
+            "service restart, disk/memory/CPU monitoring, deployment diagnostics, "
+            "production error analysis, infrastructure troubleshooting. "
+            "NOT for calendar events, emails, contacts, weather, or any user-facing data."
         ),
         agent_names=["devops_agent"],
         result_key="server_results",
         related_domains=[],
-        priority=9,
         is_routable=True,
         metadata={
             "requires_admin": True,
@@ -693,7 +669,6 @@ def get_domain_config(domain_name: str) -> DomainConfig | None:
             agent_names=[f"{domain_name}_agent"],
             result_key="mcps",
             related_domains=[],
-            priority=4,
             is_routable=True,
             metadata={"provider": "mcp", "dynamic": True},
         )
@@ -820,25 +795,6 @@ def get_result_key_for_tool(tool_name: str) -> str | None:
             return config.result_key
 
     return None
-
-
-def get_domains_by_priority(limit: int | None = None) -> list[str]:
-    """
-    Get domains sorted by priority (highest first).
-
-    Args:
-        limit: Optional limit on number of domains returned
-
-    Returns:
-        List of domain names sorted by priority descending
-
-    Example:
-        >>> top_domains = get_domains_by_priority(limit=3)
-        >>> # Returns top 3 priority domains for default loading
-    """
-    sorted_domains = sorted(DOMAIN_REGISTRY.items(), key=lambda x: x[1].priority, reverse=True)
-    domain_names = [name for name, _ in sorted_domains]
-    return domain_names[:limit] if limit else domain_names
 
 
 def export_context_labels_for_router() -> str:

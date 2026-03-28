@@ -1083,17 +1083,33 @@ class QueryAnalyzerService:
             reasoning_trace.append(f"Goal: {user_goal.value} ({goal_reasoning})")
 
             # === STEP 8: Domain Selection for References ===
+            # Cross-domain coherence: context references can only confirm domains
+            # detected by the query analyzer, or fill in when no domain was detected.
+            # They can never add or replace with an unrelated domain.
+            # Prevents: "the last docker log" after a briefing → context=event overriding devops.
             source_domain = None
             if context_result and context_result.items:
                 source_domain = context_result.source_domain
                 if source_domain:
-                    if turn_type == "REFERENCE_PURE":
+                    if not domains:
+                        # No domains from analyzer → pure follow-up, context decides
                         domains = [source_domain]
-                        reasoning_trace.append(f"REFERENCE_PURE with context → [{source_domain}]")
-                    elif source_domain not in domains:
-                        domains = domains + [source_domain]
                         reasoning_trace.append(
-                            f"REFERENCE_ACTION: {domains} (source={source_domain})"
+                            f"REFERENCE (no analyzer domain) → [{source_domain}]"
+                        )
+                    elif source_domain in domains:
+                        # Coherent: context confirms one of the detected domains
+                        reasoning_trace.append(f"REFERENCE coherent: {source_domain} in {domains}")
+                    else:
+                        # Incoherent: analyzer says X, context says Y → keep analyzer
+                        logger.info(
+                            "context_reference_cross_domain_mismatch",
+                            analyzer_domains=domains,
+                            context_source_domain=source_domain,
+                            action="keeping analyzer domains",
+                        )
+                        reasoning_trace.append(
+                            f"Context reference ignored: analyzer={domains} vs context={source_domain}"
                         )
 
             # === STEP 9: Semantic Fallback Check ===

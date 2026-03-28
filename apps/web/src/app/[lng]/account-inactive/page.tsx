@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useTranslation } from 'react-i18next';
-import { AlertTriangle, Info } from 'lucide-react';
+import { AlertTriangle, Info, MailWarning } from 'lucide-react';
 import { proxyGoogleImageUrl } from '@/lib/utils';
 
 /**
@@ -86,6 +86,17 @@ export default function AccountInactivePage() {
               <p className="text-sm md:text-base text-blue-700 dark:text-blue-300">
                 <strong>{t('account_inactive.info_title')}</strong>{' '}
                 {t('account_inactive.info_message')}
+              </p>
+            </div>
+          </div>
+
+          {/* Spam warning */}
+          <div className="bg-amber-50 dark:bg-amber-950/50 border-l-4 border-amber-500 p-4 md:p-5 rounded-r-lg">
+            <div className="flex gap-3">
+              <MailWarning className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+              <p className="text-sm md:text-base text-amber-700 dark:text-amber-300">
+                <strong>{t('account_inactive.spam_warning_title')}</strong>{' '}
+                {t('account_inactive.spam_warning_message')}
               </p>
             </div>
           </div>

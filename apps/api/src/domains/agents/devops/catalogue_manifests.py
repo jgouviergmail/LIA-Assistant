@@ -18,8 +18,6 @@ claude_server_task_catalogue_manifest = ToolManifest(
         "Claude will independently inspect, diagnose, and report on the server.\n"
         "**Use for**: Log inspection, Docker container management, system health checks, "
         "deployment status, error diagnosis, service restart.\n"
-        "**IMPORTANT**: This tool must be called EVERY TIME the user asks about server state. "
-        "Results are NOT cached — server state changes constantly. Always invoke for fresh data.\n"
         "**Output**: Claude CLI's analysis and findings, with session ID for follow-up."
     ),
     parameters=[
@@ -80,24 +78,13 @@ claude_server_task_catalogue_manifest = ToolManifest(
         data_classification="RESTRICTED",
     ),
     semantic_keywords=[
-        "check server logs",
-        "inspect docker containers",
-        "restart service",
-        "server health check",
-        "diagnose production issue",
-        "check deployment status",
-        "analyze error logs",
-        "server monitoring",
-        "container status",
-        "system disk space memory",
-        "check server uptime",
-        "relancer le container",
-        "vérifier les logs",
-        "état du serveur",
-        "problème en production",
-        "diagnostiquer une erreur",
-        "inspecter le serveur",
-        "redémarrer le service",
+        "devops check docker container logs",
+        "devops inspect docker container status",
+        "devops restart docker service container",
+        "devops server health check disk memory cpu",
+        "devops diagnose production server issue",
+        "devops analyze docker error logs stderr",
+        "devops deployment status docker compose",
     ],
     tool_category="readonly",
     version="1.0.0",

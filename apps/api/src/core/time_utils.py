@@ -260,40 +260,36 @@ def _has_explicit_timezone(dt_str: str) -> bool:
 
 
 def normalize_user_datetime(dt_str: str | None, user_timezone: str) -> str | None:
-    """Ensure a user-provided datetime string carries timezone information.
+    """Normalize a user-provided datetime to the correct timezone offset.
 
-    LLM tool calls express user intent in the user's local timezone.  When the
-    LLM produces a naive datetime (no ``Z`` or ``+/-`` offset), this function
-    attaches the user's timezone offset so downstream code interprets the time
-    correctly.
-
-    Strings that already carry timezone info are returned unchanged.
+    LLM tool calls express user intent in the user's local timezone. The LLM
+    may produce either a naive datetime (no offset) or one with the WRONG offset
+    (e.g. +01:00 for a date that should be +02:00 due to DST). This function
+    always re-localizes to the user's timezone using the correct offset for the
+    target date.
 
     Args:
         dt_str: ISO 8601 datetime string (may be naive or aware).
         user_timezone: User's IANA timezone (e.g., ``"Europe/Paris"``).
 
     Returns:
-        The same string if it already has timezone info, or the string with the
-        user's offset appended.  ``None`` if *dt_str* is ``None`` or unparseable.
+        ISO string with the correct offset for the target date, or ``None``
+        if *dt_str* is ``None`` or unparseable.
 
     Examples:
         >>> normalize_user_datetime("2026-03-26T21:00:00", "Europe/Paris")
         '2026-03-26T21:00:00+01:00'
 
-        >>> normalize_user_datetime("2026-03-26T21:00:00Z", "Europe/Paris")
-        '2026-03-26T21:00:00Z'
+        >>> # LLM sent +01:00 but 29 mars is CEST (+02:00) → corrected
+        >>> normalize_user_datetime("2026-03-29T15:00:00+01:00", "Europe/Paris")
+        '2026-03-29T15:00:00+02:00'
 
-        >>> normalize_user_datetime("2026-03-26T21:00:00+02:00", "Europe/Paris")
-        '2026-03-26T21:00:00+02:00'
+        >>> normalize_user_datetime("2026-03-26T21:00:00Z", "Europe/Paris")
+        '2026-03-26T22:00:00+01:00'
     """
     if not dt_str:
         return None
 
-    if _has_explicit_timezone(dt_str):
-        return dt_str
-
-    # Naive string → localize to user's timezone (no UTC conversion)
     try:
         dt = datetime.fromisoformat(dt_str)
     except (ValueError, TypeError):
@@ -301,11 +297,29 @@ def normalize_user_datetime(dt_str: str | None, user_timezone: str) -> str | Non
             "normalize_user_datetime_parse_failed",
             input=dt_str[:50],
         )
-        return dt_str  # Return as-is rather than losing information
+        return dt_str
 
     try:
         user_tz = ZoneInfo(user_timezone)
-        return dt.replace(tzinfo=user_tz).isoformat()
+
+        if dt.tzinfo is not None:
+            # Aware datetime: the LLM may have used the wrong offset (e.g. CET
+            # instead of CEST). Strip the offset and re-localize using the
+            # user's timezone, which picks the correct offset for the target date.
+            # The hour value is treated as local time (user intent), not UTC.
+            naive = dt.replace(tzinfo=None)
+            result = naive.replace(tzinfo=user_tz)
+            if result.isoformat() != dt_str:
+                logger.debug(
+                    "normalize_user_datetime_offset_corrected",
+                    original=dt_str,
+                    corrected=result.isoformat(),
+                    timezone=user_timezone,
+                )
+            return result.isoformat()
+        else:
+            # Naive datetime: attach user's timezone
+            return dt.replace(tzinfo=user_tz).isoformat()
     except Exception as e:
         logger.warning(
             "normalize_user_datetime_tz_failed",

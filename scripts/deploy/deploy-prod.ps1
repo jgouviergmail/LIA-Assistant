@@ -255,7 +255,7 @@ foreach ($file in $filesToRemove) {
         }
         Write-Success "$(Split-Path -Leaf $file) supprime"
     } else {
-        Write-Info "$(Split-Path -Leaf $file) n'existe pas, skip"
+        Write-Info "$(Split-Path -Leaf $file) absent, skip"
     }
 }
 
@@ -461,7 +461,34 @@ if (-not $DryRun) {
 }
 
 # ============================================================================
-# Etape 8: Execution du script de deploiement sur le serveur
+# Etape 8: Setup DevOps (DOCKER_GID + Claude CLI credentials) — BEFORE deploy
+# ============================================================================
+# Must run BEFORE deploy.sh because docker compose up reads DOCKER_GID from .env
+Write-Step "Setting up DevOps prerequisites on remote server..."
+
+# Ensure DOCKER_GID is set in remote .env (required for Docker socket access)
+Invoke-WithRetry -OperationName "Set DOCKER_GID" -Command @"
+ssh $SshOptionsStr -p $SshPort ${SshUser}@${SshHost} "grep -q DOCKER_GID ~/${RemoteDir}/.env 2>/dev/null || echo DOCKER_GID=`$(stat -c '%g' /var/run/docker.sock) >> ~/${RemoteDir}/.env && echo DOCKER_GID set"
+"@
+
+# Deploy Claude CLI credentials (same auth as dev — same Anthropic account)
+$LocalCreds = Join-Path $env:USERPROFILE ".claude\.credentials.json"
+if (Test-Path $LocalCreds) {
+    Invoke-WithRetry -OperationName "Create remote .claude directory" -Command @"
+ssh $SshOptionsStr -p $SshPort ${SshUser}@${SshHost} "mkdir -p ~/.claude"
+"@
+
+    Invoke-WithRetry -OperationName "Copy Claude CLI credentials" -Command @"
+scp $SshOptionsStr -P $SshPort "$LocalCreds" ${SshUser}@${SshHost}:~/.claude/.credentials.json
+"@
+
+    Write-Success "Claude CLI credentials deployed"
+} else {
+    Write-Warning "No local Claude CLI credentials. Run 'claude auth login' locally first."
+}
+
+# ============================================================================
+# Etape 9: Execution du script de deploiement sur le serveur
 # ============================================================================
 Write-Step "Execution du deploiement sur le serveur..."
 
@@ -470,8 +497,6 @@ $deployCmd = "cd ~/$RemoteDir && chmod +x deploy.sh && ./deploy.sh"
 Write-Info "Commande: $deployCmd"
 
 if (-not $DryRun) {
-    # Le deploiement lui-meme ne devrait pas etre retry (idempotence non garantie)
-    # Mais on utilise les options SSH pour maintenir la connexion
     $fullDeployCmd = "ssh -p $SshPort $SshOptionsStr $sshTarget `"$deployCmd`""
     Write-Info "Execution: $fullDeployCmd"
     cmd /c $fullDeployCmd
@@ -482,29 +507,6 @@ if (-not $DryRun) {
     Write-Success "Deploiement termine"
 } else {
     Write-Info "[DRY RUN] ssh -p $SshPort $SshOptionsStr $sshTarget `"$deployCmd`""
-}
-
-# ============================================================================
-# Etape 9 (optional): Setup Claude CLI for DevOps remote management
-# ============================================================================
-# Always deploy Claude CLI credentials (same auth as dev — same Anthropic account)
-Write-Step "Deploying Claude CLI credentials to remote server..."
-
-$LocalCreds = Join-Path $env:USERPROFILE ".claude\.credentials.json"
-if (Test-Path $LocalCreds) {
-    # Ensure remote .claude directory exists
-    Invoke-WithRetry -OperationName "Create remote .claude directory" -Command @"
-ssh $SshOptionsStr -p $SshPort ${SshUser}@${SshHost} "mkdir -p ~/.claude"
-"@
-
-    # Copy credentials from dev machine to prod host
-    Invoke-WithRetry -OperationName "Copy Claude CLI credentials" -Command @"
-scp $SshOptionsStr -P $SshPort "$LocalCreds" ${SshUser}@${SshHost}:~/.claude/.credentials.json
-"@
-
-    Write-Success "Claude CLI credentials deployed (mounted into container via docker-compose)"
-} else {
-    Write-Warning "No local Claude CLI credentials at $LocalCreds — run 'claude auth login' locally first"
 }
 
 # ============================================================================
@@ -520,7 +522,7 @@ if (Test-Path $ProdDir) {
         Write-Info "[DRY RUN] Remove-Item -Recurse -Force `"$ProdDir`""
     }
 } else {
-    Write-Info "Dossier PROD n'existe pas, skip"
+    Write-Info "Dossier PROD absent, skip"
 }
 
 # ============================================================================

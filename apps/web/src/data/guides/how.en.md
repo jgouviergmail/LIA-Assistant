@@ -6,7 +6,7 @@
 
 **Version**: 2.1
 **Date**: 2026-03-28
-**Application**: LIA v1.13.0
+**Application**: LIA v1.13.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -361,6 +361,9 @@ The `parallel_executor.py` organizes steps into waves (DAG):
 ### 6.4. Semantic Validator
 
 Before HITL approval, a dedicated LLM (distinct from the planner, to avoid self-validation bias) inspects the plan against 14 issue types across four categories: **Critical** (hallucinated capability, ghost dependency, logical cycle), **Semantic** (cardinality mismatch, scope overflow/underflow, wrong parameters), **Safety** (dangerous ambiguity, implicit assumption), and **FOR_EACH** (missing cardinality, invalid reference). Short-circuit for trivial plans (1 step), optimistic 1 s timeout.
+
+
+Additionally, a **self-enriching anti-hallucination registry** (`hallucinated_tools.json`) detects tools invented by the LLM (e.g. `resolve_reference_tool`) via persistent regex patterns. Each new hallucination is automatically added to the registry for faster detection in subsequent plans. Hallucinated steps are removed and the planner is forced to replan with real catalogue tools — eliminating an entire class of execution failures without human intervention.
 
 ### 6.5. Reference Validation
 

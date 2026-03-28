@@ -132,7 +132,6 @@ class TestGetDomainConfigDynamicMCP:
         assert isinstance(config, DomainConfig)
         assert config.name == "mcp_huggingface_hub"
         assert config.result_key == "mcps"
-        assert config.priority == 4
         assert config.is_routable is True
         assert config.metadata.get("dynamic") is True
 

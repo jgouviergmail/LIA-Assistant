@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.13.1] - 2026-03-28
+
+### Fixed
+
+- **Calendar/Reminder/Task Timezone DST Bug** — When creating events for dates across DST boundaries (e.g. March 29 during CET→CEST transition), the LLM sent the current offset (+01:00) instead of the target date's offset (+02:00), causing events to be scheduled 1 hour late. `normalize_user_datetime()` now always strips and re-localizes to the correct offset for the target date. Applied to: create/update event, create/update task (due dates), create reminder (trigger_datetime), and event search (time_min/max). (`src/core/time_utils.py`, `src/domains/agents/tools/calendar_tools.py`, `src/domains/agents/tools/tasks_tools.py`, `src/domains/agents/tools/reminder_tools.py`)
+- **Context Resolver Cross-Domain Contamination** — Queries like "show me the last email" after viewing calendar events were incorrectly routed to the event domain instead of email. Root cause: the reference resolver detected "the last" as a contextual reference to the previous turn's domain. Fix: context references can only confirm domains already detected by the query analyzer, or fill in when no domain was detected — never override with an unrelated domain. (`src/domains/agents/services/query_analyzer_service.py`)
+- **DevOps Semantic Keywords Overmatch** — DevOps tool keywords were too generic ("check server logs", "vérifier les logs"), causing the briefing skill and other requests to be routed to devops. Replaced with Docker-specific prefixed keywords ("devops check docker container logs"). Removed French keywords (English-only convention). (`src/domains/agents/devops/catalogue_manifests.py`)
+- **Prod Docker Socket Permissions** — Deploy scripts now auto-detect the host Docker group GID and inject `DOCKER_GID` into `.env` before running `docker compose up`, ensuring `appuser` has socket access on first deploy. (`scripts/deploy/deploy-prod.ps1`, `scripts/deploy/deploy.sh`)
+- **Personal Data in Documentation** — Removed personal email addresses and private IP addresses from public documentation files. (`docs/technical/HITL.md`, `docs/guides/GUIDE_DEVOPS_CLAUDE_CLI.md`, `CHANGELOG.md`)
+
+### Changed
+
+- **Prod Memory Optimization** — Replaced PyTorch CUDA with CPU-only version in Dockerfile.prod (~700MB saved per worker on ARM64). Reventilated container RAM limits: Tempo 512M→768M, Web/Prometheus/Grafana/Loki 512M→256M, Redis/Portainer 256M→128M. API stays at 8GB with ~78% usage (was 94%). (`Dockerfile.prod`, `docker-compose.prod.yml`)
+- **DomainConfig Priority Removed** — Removed unused `priority` field from `DomainConfig` dataclass and `get_domains_by_priority()` function. Domain selection is handled by LLM intelligence, not numeric priority. (`src/domains/agents/registry/domain_taxonomy.py`)
+- **Blog & Guides Enriched** — Added self-enriching anti-hallucination registry documentation to "Execution Plans" blog article (6 languages) and technical guide section 6.4. (`apps/web/locales/`, `apps/web/src/data/guides/how.*.md`)
+
 ## [1.13.0] - 2026-03-28
 
 ### Added
@@ -137,7 +153,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **HITL Draft Recipient Modification Ignored by LLM** — When a user requested a recipient change during draft critique (e.g., "non envoi à jgouvier@hotmail.com"), the HITL classifier correctly detected `REPLAN` (converted to `EDIT`), and the `DraftModificationService` called the LLM, but the LLM consistently returned the original recipients unchanged. Root cause: the draft modifier prompt rule 2 ("Respect existing context (recipient, structure, etc.)") contradicted recipient change instructions, and rule 6 only covered contact references (`@carven`) — not direct email addresses. Fixed with a three-layer approach: (1) prompt rule 2 reworded to not protect recipients, rule 6 expanded to cover direct email addresses; (2) `_build_context_info()` now labels recipients as "modifiable" instead of presenting them as fixed context; (3) new `_apply_explicit_recipient_override()` post-processing extracts email addresses from instructions via regex and applies them directly when the LLM fails to change the `to`/`cc` fields. Also resolves contact names from instructions against the contact context as fallback. (`src/domains/agents/services/hitl/draft_modifier.py`, `src/domains/agents/prompts/v1/draft_modifier_prompt.txt`)
+- **HITL Draft Recipient Modification Ignored by LLM** — When a user requested a recipient change during draft critique (e.g., "non envoi à user@example.com"), the HITL classifier correctly detected `REPLAN` (converted to `EDIT`), and the `DraftModificationService` called the LLM, but the LLM consistently returned the original recipients unchanged. Root cause: the draft modifier prompt rule 2 ("Respect existing context (recipient, structure, etc.)") contradicted recipient change instructions, and rule 6 only covered contact references (`@carven`) — not direct email addresses. Fixed with a three-layer approach: (1) prompt rule 2 reworded to not protect recipients, rule 6 expanded to cover direct email addresses; (2) `_build_context_info()` now labels recipients as "modifiable" instead of presenting them as fixed context; (3) new `_apply_explicit_recipient_override()` post-processing extracts email addresses from instructions via regex and applies them directly when the LLM fails to change the `to`/`cc` fields. Also resolves contact names from instructions against the contact context as fallback. (`src/domains/agents/services/hitl/draft_modifier.py`, `src/domains/agents/prompts/v1/draft_modifier_prompt.txt`)
 
 ### Changed
 
@@ -940,7 +956,8 @@ First public open-source release of LIA.
 - Circuit breaker, rate limiting, and distributed locks
 - SOPS/Age encryption for secrets management
 
-[Unreleased]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.13.0...HEAD
+[Unreleased]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.13.1...HEAD
+[1.13.1]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.13.0...v1.13.1
 [1.13.0]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.12.4...v1.13.0
 [1.12.2]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.12.1...v1.12.2
 [1.12.1]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.12.0...v1.12.1

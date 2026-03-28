@@ -68,7 +68,7 @@ export function RegisterForm() {
         timezone || undefined,
         language || undefined
       );
-      router.push('/dashboard');
+      router.push('/registration-success');
     } catch (err) {
       logger.error('Register error', err as Error, {
         component: 'RegisterForm',

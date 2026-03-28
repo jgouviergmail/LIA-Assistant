@@ -261,13 +261,13 @@ create_event_catalogue_manifest = ToolManifest(
             name="start_datetime",
             type="string",
             required=True,
-            description="Start ISO format. Prefer including offset.",
+            description="Start in LOCAL time (user timezone), ISO WITHOUT offset e.g. '2025-01-15T19:00:00'. NEVER convert to UTC.",
         ),
         ParameterSchema(
             name="end_datetime",
             type="string",
             required=True,
-            description="End ISO format. Prefer including offset.",
+            description="End in LOCAL time (user timezone), ISO WITHOUT offset e.g. '2025-01-15T20:00:00'. NEVER convert to UTC.",
         ),
         ParameterSchema(
             name="timezone",
@@ -357,10 +357,16 @@ update_event_catalogue_manifest = ToolManifest(
         ),
         ParameterSchema(name="summary", type="string", required=False, description="New title"),
         ParameterSchema(
-            name="start_datetime", type="string", required=False, description="New start ISO"
+            name="start_datetime",
+            type="string",
+            required=False,
+            description="New start in LOCAL time (user timezone), ISO WITHOUT offset. NEVER convert to UTC.",
         ),
         ParameterSchema(
-            name="end_datetime", type="string", required=False, description="New end ISO"
+            name="end_datetime",
+            type="string",
+            required=False,
+            description="New end in LOCAL time (user timezone), ISO WITHOUT offset. NEVER convert to UTC.",
         ),
         ParameterSchema(
             name="timezone",

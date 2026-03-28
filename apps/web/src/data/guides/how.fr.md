@@ -6,7 +6,7 @@
 
 **Version** : 2.1
 **Date** : 2026-03-28
-**Application** : LIA v1.13.0
+**Application** : LIA v1.13.1
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -361,6 +361,8 @@ Le `parallel_executor.py` organise les étapes en vagues (DAG) :
 ### 6.4. Validateur Sémantique
 
 Avant l'approbation HITL, un LLM dédié (distinct du planner, pour éviter le biais d'auto-validation) inspecte le plan selon 14 types d'anomalies répartis en quatre catégories : **Critique** (capacité hallucinée, dépendance fantôme, cycle logique), **Sémantique** (incohérence de cardinalité, débordement/sous-couverture de périmètre, paramètres incorrects), **Sécurité** (ambiguïté dangereuse, hypothèse implicite) et **FOR_EACH** (cardinalité manquante, référence invalide). Court-circuit pour les plans triviaux (1 étape), timeout optimiste de 1 s.
+
+En complément, un **registre anti-hallucination auto-enrichissant** (`hallucinated_tools.json`) détecte les outils inventés par le LLM (ex : `resolve_reference_tool`) via des patterns regex persistants. Chaque nouvelle hallucination est automatiquement ajoutée au registre pour une détection plus rapide lors des plans suivants. Les étapes hallucinées sont supprimées du plan et le planner est forcé à replanifier avec les outils réels du catalogue — éliminant une classe entière d'échecs d'exécution sans intervention humaine.
 
 ### 6.5. Validation des Références
 

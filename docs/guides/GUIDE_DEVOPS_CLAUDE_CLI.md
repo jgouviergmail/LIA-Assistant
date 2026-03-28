@@ -71,20 +71,20 @@ This creates `~/.claude/.credentials.json` on the host.
 
 ### Step 3: Docker Compose mounts credentials automatically
 
-The `docker-compose.dev.yml` and `docker-compose.prod.yml` already mount:
+The `docker-compose.dev.yml` and `docker-compose.prod.yml` mount the host `~/.claude/` directory into the container:
 
 ```yaml
 volumes:
-  # Auth credentials from host (read-only)
-  - ~/.claude/.credentials.json:/root/.claude/.credentials.json:ro  # dev (root)
-  - ~/.claude/.credentials.json:/home/appuser/.claude/.credentials.json:ro  # prod (appuser)
+  # Entire .claude directory (credentials + session data, writable)
+  - ~/.claude:/root/.claude              # dev (root user)
+  - ~/.claude:/home/appuser/.claude      # prod (appuser)
   # Docker socket for container management
   - /var/run/docker.sock:/var/run/docker.sock
   # Server context for Claude CLI
   - ./infrastructure/claude-cli/CLAUDE.server.md:/opt/claude-workspace/CLAUDE.md:ro
-  # Persistent auth cache (session data, etc.)
-  - claude_auth:/root/.claude  # or /home/appuser/.claude
 ```
+
+**Production Docker socket permissions**: The prod container runs as `appuser` (non-root), which needs access to the Docker socket. The `docker-compose.prod.yml` uses `group_add: "${DOCKER_GID:-999}"` to add the host's Docker group GID. The deploy scripts auto-detect this GID via `stat -c '%g' /var/run/docker.sock` and add `DOCKER_GID=<gid>` to the remote `.env`.
 
 ### Step 4: Verify inside the container
 
@@ -97,6 +97,20 @@ docker exec lia-api-prod bash -c "claude auth status"
 ```
 
 Expected output: `"loggedIn": true`
+
+### Token renewal
+
+Claude CLI OAuth tokens expire periodically. When you re-authenticate locally (`claude auth login`), the fresh credentials need to be propagated to the containers.
+
+**Dev**: Automatic — the `~/.claude/` directory is bind-mounted from the host, so the container always reads the latest credentials.
+
+**Prod**: Requires copying the fresh credentials to the remote host:
+```bash
+scp -P <SSH_PORT> ~/.claude/.credentials.json <USER>@<HOST>:~/.claude/.credentials.json
+```
+The container picks them up immediately (bind-mounted, no restart needed).
+
+This copy is also done automatically at each `task deploy:prod` run. Between deployments, use the `scp` command above if you re-authenticate.
 
 ---
 
@@ -111,6 +125,7 @@ Expected output: `"loggedIn": true`
 | `DEVOPS_COMMAND_TIMEOUT` | `300` | Claude CLI execution timeout in seconds |
 | `DEVOPS_MAX_OUTPUT_CHARS` | `50000` | Max output chars before truncation |
 | `DEVOPS_SERVERS` | `[]` | JSON array of server configurations |
+| `DOCKER_GID` | `999` | Host Docker group GID (auto-detected by deploy scripts via `stat -c '%g' /var/run/docker.sock`) |
 
 ### Server Configuration
 
@@ -182,7 +197,7 @@ Each server in `DEVOPS_SERVERS` supports:
 
 Claude CLI runs directly inside the API container via `asyncio.create_subprocess_exec`. No SSH involved. This is the default for both dev and prod.
 
-### SSH Mode (`host: "192.168.0.14"`)
+### SSH Mode (`host: "<your-server-ip>"`)
 
 Claude CLI runs on a remote server via SSH (`asyncssh`). Useful if Claude CLI is installed on a separate host. Requires SSH key authentication.
 
@@ -268,9 +283,33 @@ If empty, verify host auth: `claude auth status` on the host machine.
 
 ### Docker commands fail inside container
 
-Verify Docker socket is mounted:
+**Dev (root)**: Verify Docker socket is mounted:
 ```bash
 docker exec lia-api-dev bash -c "docker ps"
 ```
+
+**Prod (appuser)**: The container needs the host Docker group GID. The deploy scripts auto-detect this, but you can verify/fix manually:
+```bash
+# Check current groups inside container
+docker exec lia-api-prod id
+# Should show the Docker GID (e.g. groups=1000(appuser),984)
+
+# If Docker GID is missing, check .env on the host
+grep DOCKER_GID ~/lia/.env
+# If absent, add it:
+echo "DOCKER_GID=$(stat -c '%g' /var/run/docker.sock)" >> ~/lia/.env
+# Then recreate the container:
+docker compose -f docker-compose.prod.yml up -d --force-recreate api
+```
+
+### Automated deployment
+
+The deploy scripts (`deploy.sh` and `deploy-prod.ps1`) handle all DevOps setup automatically:
+1. **DOCKER_GID**: Auto-detected from host Docker socket and injected into `.env`
+2. **Claude CLI credentials**: Copied from local `~/.claude/.credentials.json` to remote host
+3. **CLAUDE.server.md**: Copied to `infrastructure/claude-cli/` on remote host
+4. **Docker image**: Claude CLI + Docker CLI + Node.js baked in (Dockerfile.dev/prod)
+
+No manual steps required after initial `claude auth login` on the host.
 
 If permission denied, the socket permissions may need adjustment on the host.

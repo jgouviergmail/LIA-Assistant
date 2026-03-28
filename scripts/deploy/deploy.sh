@@ -339,6 +339,11 @@ main() {
     create_remote_directory
     copy_files
 
+    # Ensure DOCKER_GID is set in remote .env for DevOps Docker socket access
+    log_info "Ensuring DOCKER_GID is set on remote server..."
+    $SSH_CMD "${DEPLOY_USER}@${DEPLOY_HOST}" \
+        "grep -q DOCKER_GID ${DEPLOY_PATH}/.env 2>/dev/null || echo DOCKER_GID=\$(stat -c '%g' /var/run/docker.sock) >> ${DEPLOY_PATH}/.env"
+
     # Deploy Claude CLI credentials for DevOps remote management
     setup_claude_cli
 

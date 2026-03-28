@@ -364,7 +364,12 @@ async def create_reminder_tool(
                     error_code="invalid_relative_trigger",
                 )
         else:
-            final_trigger_datetime = trigger_datetime
+            # Normalize: strip wrong LLM offset and re-localize to user timezone
+            from src.core.time_utils import normalize_user_datetime
+
+            final_trigger_datetime = (
+                normalize_user_datetime(trigger_datetime, user_timezone) or trigger_datetime
+            )
 
         async with get_db_context() as db:
             service = ReminderService(db)

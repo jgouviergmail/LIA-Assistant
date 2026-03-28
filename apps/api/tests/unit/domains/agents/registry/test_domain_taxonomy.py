@@ -15,7 +15,6 @@ from src.domains.agents.registry.domain_taxonomy import (
     export_context_labels_for_router,
     get_all_domains,
     get_domain_config,
-    get_domains_by_priority,
     get_result_key,
     get_result_key_for_tool,
     get_routable_domains,
@@ -43,7 +42,6 @@ class TestDomainConfigDataclass:
         assert config.display_name == "Test Domain"
         assert config.agent_names == ["test_agent"]
         assert config.result_key == "tests"
-        assert config.priority == 5  # default
         assert config.is_routable is True  # default
         assert config.related_domains == []
         assert config.metadata == {}
@@ -57,11 +55,9 @@ class TestDomainConfigDataclass:
             agent_names=["agent1", "agent2"],
             result_key="customs",
             related_domains=["other"],
-            priority=8,
             is_routable=False,
             metadata={"provider": "test"},
         )
-        assert config.priority == 8
         assert config.is_routable is False
         assert config.related_domains == ["other"]
         assert config.metadata == {"provider": "test"}
@@ -101,30 +97,6 @@ class TestDomainConfigDataclass:
                 result_key="tests",
             )
         assert "must have at least one agent" in str(exc_info.value)
-
-    def test_validation_invalid_priority_raises(self):
-        """Test validation raises on priority outside 1-10."""
-        with pytest.raises(ValueError) as exc_info:
-            DomainConfig(
-                name="test",
-                display_name="Test",
-                description="Test",
-                agent_names=["test"],
-                result_key="tests",
-                priority=0,
-            )
-        assert "Priority must be 1-10" in str(exc_info.value)
-
-        with pytest.raises(ValueError) as exc_info:
-            DomainConfig(
-                name="test",
-                display_name="Test",
-                description="Test",
-                agent_names=["test"],
-                result_key="tests",
-                priority=11,
-            )
-        assert "Priority must be 1-10" in str(exc_info.value)
 
     def test_validation_empty_result_key_raises(self):
         """Test validation raises on empty result_key."""
@@ -354,45 +326,6 @@ class TestGetResultKeyForTool:
 
 
 # ============================================================================
-# get_domains_by_priority Tests
-# ============================================================================
-
-
-class TestGetDomainsByPriority:
-    """Tests for get_domains_by_priority function."""
-
-    def test_returns_sorted_by_priority(self):
-        """Test domains are sorted by priority descending."""
-        domains = get_domains_by_priority()
-        priorities = [DOMAIN_REGISTRY[d].priority for d in domains]
-        assert priorities == sorted(priorities, reverse=True)
-
-    def test_with_limit(self):
-        """Test limit parameter works."""
-        top_3 = get_domains_by_priority(limit=3)
-        assert len(top_3) == 3
-
-        # Should be highest priority domains
-        all_sorted = get_domains_by_priority()
-        assert top_3 == all_sorted[:3]
-
-    def test_without_limit(self):
-        """Test without limit returns all domains."""
-        all_domains = get_domains_by_priority()
-        assert len(all_domains) == len(DOMAIN_REGISTRY)
-
-    def test_high_priority_domains_first(self):
-        """Test high priority domains come first."""
-        top_3 = get_domains_by_priority(limit=3)
-        # Context has priority 10 (highest)
-        # Email has priority 9
-        # Reminder has priority 9
-        # These should be among the top
-        high_priority = set(top_3)
-        assert "context" in high_priority or "email" in high_priority or "reminder" in high_priority
-
-
-# ============================================================================
 # export_context_labels_for_router Tests
 # ============================================================================
 
@@ -512,14 +445,10 @@ class TestDomainTaxonomyIntegration:
         routable = get_routable_domains()
         assert len(routable) > 0
 
-        # 2. Get top priority domains
-        top_domains = get_domains_by_priority(limit=3)
-        assert len(top_domains) == 3
-
-        # 3. Get config for a specific domain
+        # 2. Get config for a specific domain
         email_config = get_domain_config("email")
         assert email_config is not None
 
-        # 4. Get result key for a tool
+        # 3. Get result key for a tool
         result_key = get_result_key_for_tool("send_email_tool")
         assert result_key == "emails"

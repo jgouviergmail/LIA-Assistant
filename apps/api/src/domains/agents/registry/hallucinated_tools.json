@@ -90,10 +90,24 @@
       "query_preview": "modifie le premier pour le faire terminer à 15h",
       "timestamp": "2026-03-23T08:05:39.288410+00:00",
       "was_new": false
+    },
+    {
+      "tool": "resolve_reference",
+      "domain": "event",
+      "query_preview": "recherche le dernier email recu",
+      "timestamp": "2026-03-28T13:52:13.576625+00:00",
+      "was_new": false
+    },
+    {
+      "tool": "get_context_list",
+      "domain": "event",
+      "query_preview": "recherche le dernier email recu",
+      "timestamp": "2026-03-28T13:52:25.853594+00:00",
+      "was_new": false
     }
   ],
   "stats": {
-    "total_detections": 11,
-    "last_updated": "2026-03-23T08:05:39.288430+00:00"
+    "total_detections": 13,
+    "last_updated": "2026-03-28T13:52:25.853611+00:00"
   }
 }

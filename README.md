@@ -36,7 +36,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.13.0</strong> — DevOps Claude CLI Integration &amp; Infrastructure Fixes — March 2026
+  <strong>Version 1.13.1</strong> — Timezone DST Fix, Context Resolver &amp; Prod Optimization — March 2026
 </p>
 
 ---
