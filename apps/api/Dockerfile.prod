@@ -143,8 +143,8 @@ RUN mkdir -p /app/data/attachments && chown -R appuser:appuser /app/data
 # Auth is persisted via Docker volume (~/.claude/)
 # CLAUDE.md workspace is mounted via docker-compose
 RUN npm install -g @anthropic-ai/claude-code \
-    && mkdir -p /opt/claude-workspace \
-    && chown appuser:appuser /opt/claude-workspace
+    && mkdir -p /opt/claude-workspace /home/appuser/.claude \
+    && chown appuser:appuser /opt/claude-workspace /home/appuser/.claude
 
 # Switch to non-root user
 USER appuser

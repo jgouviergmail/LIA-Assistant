@@ -160,7 +160,8 @@ $infraDirs = @(
     "logwatch",
     "observability",
     "pgadmin",
-    "database"
+    "database",
+    "claude-cli"
 )
 
 foreach ($dir in $infraDirs) {

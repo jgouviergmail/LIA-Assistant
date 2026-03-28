@@ -78,6 +78,8 @@ services:
       dockerfile: Dockerfile.prod
     container_name: lia-api-prod
     restart: unless-stopped
+    group_add:
+      - "${DOCKER_GID:-999}"  # Host docker group GID for DevOps Claude CLI socket access
     security_opt:
       - no-new-privileges:true
     env_file:
@@ -110,8 +112,7 @@ services:
       - skills_data:/app/data/skills/users
       # DevOps Claude CLI: Docker socket for container management + auth + workspace
       - /var/run/docker.sock:/var/run/docker.sock
-      - claude_auth:/home/appuser/.claude
-      - ~/.claude/.credentials.json:/home/appuser/.claude/.credentials.json:ro
+      - ~/.claude:/home/appuser/.claude
       - ./infrastructure/claude-cli/CLAUDE.server.md:/opt/claude-workspace/CLAUDE.md:ro
     ports:
       - "8000:8000"
@@ -465,7 +466,6 @@ volumes:
   huggingface_cache:  # Persistent storage for E5 embedding model (~500MB)
   attachments_data:  # Persistent storage for file attachments (images, PDF)
   skills_data:  # Persistent storage for user-imported skills
-  claude_auth:  # Persistent Claude CLI auth (survives container rebuilds)
   portainer_data:
 
 networks:

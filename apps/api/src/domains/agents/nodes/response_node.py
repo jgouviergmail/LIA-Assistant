@@ -1897,7 +1897,12 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         if safe_rejection_override:
             prompt_messages.append(("system", safe_rejection_override))
         if safe_agent_results:
-            prompt_messages.append(("system", safe_agent_results))
+            # Prefix data with authority reminder to override contradictory history
+            data_prefix = (
+                "CURRENT TURN DATA (AUTHORITATIVE — overrides any contradictory "
+                "information from conversation history above):\n\n"
+            )
+            prompt_messages.append(("system", data_prefix + safe_agent_results))
         prompt_messages.append(MessagesPlaceholder(variable_name="messages"))
 
         # Language reinforcement: inject a final human message AFTER conversation history.

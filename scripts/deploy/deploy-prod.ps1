@@ -15,7 +15,6 @@
 param(
     [switch]$SkipEncrypt = $false,
     [switch]$DryRun = $false,
-    [switch]$SetupClaudeCli = $false,
     [string]$SshHost = "your-server-ip",
     [int]$SshPort = 22,
     [string]$SshUser = "deploy",
@@ -488,28 +487,24 @@ if (-not $DryRun) {
 # ============================================================================
 # Etape 9 (optional): Setup Claude CLI for DevOps remote management
 # ============================================================================
-if ($SetupClaudeCli) {
-    Write-Step "Setting up Claude CLI on remote server..."
+# Always deploy Claude CLI credentials (same auth as dev — same Anthropic account)
+Write-Step "Deploying Claude CLI credentials to remote server..."
 
-    Invoke-WithRetry -OperationName "Upload Claude CLI setup script" -Command @"
-scp $SshOptionsStr -P $SshPort scripts/deploy/setup-claude-cli.sh ${SshUser}@${SshHost}:~/${RemoteDir}/
+$LocalCreds = Join-Path $env:USERPROFILE ".claude\.credentials.json"
+if (Test-Path $LocalCreds) {
+    # Ensure remote .claude directory exists
+    Invoke-WithRetry -OperationName "Create remote .claude directory" -Command @"
+ssh $SshOptionsStr -p $SshPort ${SshUser}@${SshHost} "mkdir -p ~/.claude"
 "@
 
-    Invoke-WithRetry -OperationName "Install/update Claude CLI" -Command @"
-ssh $SshOptionsStr -p $SshPort ${SshUser}@${SshHost} "bash ~/${RemoteDir}/setup-claude-cli.sh"
+    # Copy credentials from dev machine to prod host
+    Invoke-WithRetry -OperationName "Copy Claude CLI credentials" -Command @"
+scp $SshOptionsStr -P $SshPort "$LocalCreds" ${SshUser}@${SshHost}:~/.claude/.credentials.json
 "@
 
-    Invoke-WithRetry -OperationName "Copy CLAUDE.md to workspace" -Command @"
-ssh $SshOptionsStr -p $SshPort ${SshUser}@${SshHost} "mkdir -p ~/lia-workspace"
-"@
-
-    Invoke-WithRetry -OperationName "Copy CLAUDE.md" -Command @"
-scp $SshOptionsStr -P $SshPort infrastructure/claude-cli/CLAUDE.server.md ${SshUser}@${SshHost}:~/lia-workspace/CLAUDE.md
-"@
-
-    Write-Success "Claude CLI setup completed on remote server"
+    Write-Success "Claude CLI credentials deployed (mounted into container via docker-compose)"
 } else {
-    Write-Info "Claude CLI setup skipped (use -SetupClaudeCli to enable)"
+    Write-Warning "No local Claude CLI credentials at $LocalCreds — run 'claude auth login' locally first"
 }
 
 # ============================================================================

@@ -164,6 +164,13 @@ copy_files() {
         log_success "Monitoring configs copied"
     fi
 
+    # Copy Claude CLI server context (DevOps feature)
+    if [ -d "infrastructure/claude-cli" ]; then
+        $SSH_CMD "${DEPLOY_USER}@${DEPLOY_HOST}" "mkdir -p ${DEPLOY_PATH}/infrastructure/claude-cli"
+        $SCP_CMD infrastructure/claude-cli/CLAUDE.server.md "${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/infrastructure/claude-cli/"
+        log_success "Claude CLI server context copied"
+    fi
+
     # Copy system knowledge files for RAG FAQ indexation
     if [ -d "docs/knowledge" ] && ls docs/knowledge/*.md &>/dev/null; then
         $SSH_CMD "${DEPLOY_USER}@${DEPLOY_HOST}" "mkdir -p ${DEPLOY_PATH}/docs/knowledge"
@@ -266,15 +273,37 @@ EOF
 }
 
 setup_claude_cli() {
-    log_info "Setting up Claude CLI authentication..."
+    log_info "Setting up Claude CLI credentials on remote server..."
 
-    # Claude CLI is installed in the Docker image (Dockerfile.dev/prod).
-    # CLAUDE.md is mounted via docker-compose volume.
-    # Only manual step: run 'docker exec -it lia-api-prod claude auth login' once.
-    log_info "Claude CLI is bundled in the Docker image."
-    log_info "If first deploy, authenticate with: docker exec -it lia-api-prod claude auth login"
+    # Claude CLI runs inside the Docker container (installed in Dockerfile).
+    # Auth credentials are mounted from host ~/.claude/.credentials.json.
+    # This function ensures the credentials exist on the remote host.
 
-    log_success "Claude CLI setup completed"
+    # Check if credentials already exist on remote
+    if $SSH_CMD "${DEPLOY_USER}@${DEPLOY_HOST}" "test -f ~/.claude/.credentials.json" 2>/dev/null; then
+        log_success "Claude CLI credentials already present on remote"
+        return
+    fi
+
+    # Check if local credentials exist (dev machine)
+    LOCAL_CREDS="$HOME/.claude/.credentials.json"
+    if [ ! -f "$LOCAL_CREDS" ]; then
+        log_warning "No local Claude CLI credentials found at $LOCAL_CREDS"
+        log_warning "Run 'claude auth login' locally first, then redeploy with DEPLOY_CLAUDE_CLI=true"
+        return
+    fi
+
+    # Create remote .claude directory and copy credentials
+    log_info "Copying Claude CLI credentials to remote server..."
+    $SSH_CMD "${DEPLOY_USER}@${DEPLOY_HOST}" "mkdir -p ~/.claude"
+    $SCP_CMD "$LOCAL_CREDS" "${DEPLOY_USER}@${DEPLOY_HOST}:~/.claude/.credentials.json"
+
+    # Verify
+    if $SSH_CMD "${DEPLOY_USER}@${DEPLOY_HOST}" "test -f ~/.claude/.credentials.json" 2>/dev/null; then
+        log_success "Claude CLI credentials deployed successfully"
+    else
+        log_warning "Failed to copy credentials — Claude CLI DevOps will not work"
+    fi
 }
 
 show_status() {
@@ -310,10 +339,8 @@ main() {
     create_remote_directory
     copy_files
 
-    # Optional: Install/update Claude CLI for DevOps remote management
-    if [ "${DEPLOY_CLAUDE_CLI:-false}" = "true" ]; then
-        setup_claude_cli
-    fi
+    # Deploy Claude CLI credentials for DevOps remote management
+    setup_claude_cli
 
     pull_images
     run_migrations

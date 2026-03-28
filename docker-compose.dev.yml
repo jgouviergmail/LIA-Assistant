@@ -125,8 +125,7 @@ services:
       - ./data/skills:/app/data/skills
       # DevOps Claude CLI: Docker socket for container management + auth + workspace
       - /var/run/docker.sock:/var/run/docker.sock
-      - claude_auth:/root/.claude
-      - ~/.claude/.credentials.json:/root/.claude/.credentials.json:ro
+      - ~/.claude:/root/.claude
       - ./infrastructure/claude-cli/CLAUDE.server.md:/opt/claude-workspace/CLAUDE.md:ro
       # Note: STT model is baked into Docker image (Dockerfile.dev multi-stage build)
     # HTTPS required for Google OAuth callbacks
@@ -674,7 +673,6 @@ volumes:
   minio_data:
   huggingface_cache:  # Persistent storage for E5 embedding model (~500MB)
   attachments_data:  # Persistent storage for file attachments (images, PDF)
-  claude_auth:  # Persistent Claude CLI auth (survives container rebuilds)
 
 networks:
   lia-network:
