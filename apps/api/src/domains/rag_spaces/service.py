@@ -371,16 +371,21 @@ class RAGSpaceService:
         if doc_count >= settings.rag_spaces_max_docs_per_space:
             raise_document_limit_exceeded(settings.rag_spaces_max_docs_per_space)
 
-        # Validate MIME type from client header
+        # Resolve MIME type: use client header, fall back to extension mapping
+        # (browsers often send application/octet-stream for .md, .csv, etc.)
         content_type = file.content_type or "application/octet-stream"
+        original_filename = file.filename or "unnamed"
+        ext = Path(original_filename).suffix.lower()
+        expected_mime = _EXT_TO_MIME.get(ext)
+
+        if content_type == "application/octet-stream" and expected_mime:
+            content_type = expected_mime
+
         allowed_types = [t.strip() for t in settings.rag_spaces_allowed_types.split(",")]
         if content_type not in allowed_types:
             raise_file_type_not_allowed(content_type)
 
         # Validate file extension matches claimed MIME type (defense-in-depth)
-        original_filename = file.filename or "unnamed"
-        ext = Path(original_filename).suffix.lower()
-        expected_mime = _EXT_TO_MIME.get(ext)
         if expected_mime and expected_mime != content_type:
             raise_file_type_not_allowed(content_type)
 

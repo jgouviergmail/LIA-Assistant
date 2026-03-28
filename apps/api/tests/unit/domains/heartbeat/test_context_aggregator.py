@@ -652,9 +652,14 @@ class TestFormatEventTime:
         """Test event happening today shows only HH:MM without date."""
         user_tz = ZoneInfo("Europe/Paris")
         now = datetime.now(user_tz)
-        # Build a dateTime for today at 18:00 UTC
-        today_str = now.strftime("%Y-%m-%d")
-        result = _format_event_time({"dateTime": f"{today_str}T18:00:00+01:00"}, user_tz)
+        # Build a dateTime for today at 18:00 local time with correct UTC offset
+        today_18 = now.replace(hour=18, minute=0, second=0, microsecond=0)
+        offset = today_18.strftime("%z")  # e.g., "+0100" or "+0200" depending on DST
+        offset_formatted = f"{offset[:3]}:{offset[3:]}"  # "+01:00" or "+02:00"
+        today_str = today_18.strftime("%Y-%m-%d")
+        result = _format_event_time(
+            {"dateTime": f"{today_str}T18:00:00{offset_formatted}"}, user_tz
+        )
         assert result == "18:00"
 
     def test_all_day_event(self):

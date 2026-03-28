@@ -661,10 +661,53 @@ class TestUploadDocument:
 
     @pytest.mark.asyncio
     @patch("src.domains.rag_spaces.service.settings")
-    async def test_upload_document_no_content_type_defaults(
+    async def test_upload_document_octet_stream_resolved_from_extension(
         self, mock_settings, service, user_id, space_id, sample_space
     ) -> None:
-        """Should default to 'application/octet-stream' when content_type is None."""
+        """Should resolve octet-stream to actual MIME type from file extension."""
+        mock_settings.rag_spaces_max_docs_per_space = 50
+        mock_settings.rag_spaces_allowed_types = "text/markdown"
+        mock_settings.rag_spaces_max_file_size_mb = 10
+        mock_settings.rag_spaces_storage_path = "/tmp/rag_storage"
+        service.space_repo.get_by_id = AsyncMock(return_value=sample_space)
+        service.doc_repo.count_for_space = AsyncMock(return_value=0)
+
+        mock_file = AsyncMock()
+        mock_file.content_type = None  # Browser sends None / octet-stream for .md
+        mock_file.filename = "notes.md"
+        mock_file.read = AsyncMock(side_effect=[b"# Hello", b""])
+
+        mock_doc = MagicMock()
+        mock_doc.id = uuid.uuid4()
+        service.doc_repo.create = AsyncMock(return_value=mock_doc)
+
+        with patch("src.domains.rag_spaces.service.Path") as path_mock:
+
+            def path_side_effect(arg: object) -> MagicMock:
+                m = MagicMock()
+                if arg == "notes.md":
+                    m.suffix = ".md"
+                else:
+                    storage_dir = MagicMock()
+                    storage_dir.mkdir = MagicMock()
+                    file_path = MagicMock()
+                    file_path.write_bytes = MagicMock()
+                    storage_dir.__truediv__ = MagicMock(return_value=file_path)
+                    m.__truediv__ = MagicMock(return_value=storage_dir)
+                return m
+
+            path_mock.side_effect = path_side_effect
+
+            # Should NOT raise 415 — octet-stream resolved to text/markdown via .md ext
+            result = await service.upload_document(space_id, user_id, mock_file)
+            assert result is not None
+
+    @pytest.mark.asyncio
+    @patch("src.domains.rag_spaces.service.settings")
+    async def test_upload_document_octet_stream_unknown_ext_rejected(
+        self, mock_settings, service, user_id, space_id, sample_space
+    ) -> None:
+        """Should reject octet-stream when extension is unknown."""
         mock_settings.rag_spaces_max_docs_per_space = 50
         mock_settings.rag_spaces_allowed_types = "application/pdf"
         service.space_repo.get_by_id = AsyncMock(return_value=sample_space)
@@ -672,9 +715,8 @@ class TestUploadDocument:
 
         mock_file = AsyncMock()
         mock_file.content_type = None  # No content type
-        mock_file.filename = "doc.pdf"
+        mock_file.filename = "data.xyz"  # Unknown extension
 
-        # octet-stream is not in allowed types, so it should be rejected
         with pytest.raises(BaseAPIException) as exc_info:
             await service.upload_document(space_id, user_id, mock_file)
 
