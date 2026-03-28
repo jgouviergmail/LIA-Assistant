@@ -117,3 +117,6 @@ striprtf>=0.0.26  # RTF text extraction for RAG Spaces (pure Python)
 odfpy>=1.4.1  # ODF (ODT/ODS/ODP) text extraction for RAG Spaces
 ebooklib>=0.18  # EPUB text extraction for RAG Spaces
 defusedxml>=0.7.1  # Secure XML parsing (prevents XXE, XML bombs) for RAG Spaces
+
+# DevOps — Claude CLI Remote Server Management
+asyncssh>=2.18.0  # Async SSH client for remote Claude CLI execution

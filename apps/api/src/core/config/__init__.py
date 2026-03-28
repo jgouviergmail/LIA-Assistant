@@ -31,6 +31,7 @@ from .browser import BrowserSettings
 from .channels import ChannelsSettings
 from .connectors import ConnectorsSettings
 from .database import DatabaseSettings
+from .devops import DevOpsSettings
 from .image_generation import ImageGenerationSettings
 from .journals import JournalsSettings
 from .llm import (
@@ -92,6 +93,7 @@ class Settings(
     JournalsSettings,
     UsageLimitsSettings,
     ImageGenerationSettings,
+    DevOpsSettings,
     BaseSettings,
 ):
     """
@@ -118,7 +120,8 @@ class Settings(
         16. JournalsSettings (Personal Journals: assistant logbooks)
         17. UsageLimitsSettings (Per-user usage limits: tokens, messages, cost)
         18. ImageGenerationSettings (AI image generation: gpt-image-1, multi-provider)
-        19. BaseSettings (Pydantic base class)
+        19. DevOpsSettings (Claude CLI remote server management via SSH)
+        20. BaseSettings (Pydantic base class)
 
     All settings can be overridden via .env file or environment variables.
     """
@@ -354,4 +357,5 @@ __all__ = [
     "JournalsSettings",
     "UsageLimitsSettings",
     "ImageGenerationSettings",
+    "DevOpsSettings",
 ]

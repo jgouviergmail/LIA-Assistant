@@ -1533,16 +1533,20 @@ async def _execute_single_step_async(
     # Image generation needs more time (OpenAI API can take 30-60s for high quality)
     _SUBAGENT_TOOL_TIMEOUT = 120.0
     _IMAGE_TOOL_TIMEOUT = 90.0
+    _DEVOPS_TOOL_TIMEOUT = 120.0  # Claude CLI can take 15-60s per investigation
     _IMAGE_TOOLS = {"generate_image", "edit_image"}
+    _HIGH_LATENCY_TOOLS = _IMAGE_TOOLS | {"delegate_to_sub_agent_tool", "claude_server_task_tool"}
     if step.tool_name == "delegate_to_sub_agent_tool":
         effective_default = _SUBAGENT_TOOL_TIMEOUT
     elif step.tool_name in _IMAGE_TOOLS:
         effective_default = _IMAGE_TOOL_TIMEOUT
+    elif step.tool_name == "claude_server_task_tool":
+        effective_default = _DEVOPS_TOOL_TIMEOUT
     else:
         effective_default = DEFAULT_TOOL_TIMEOUT_SECONDS
-    # Use max(step, default) for tools with known high latency (image gen, sub-agents)
+    # Use max(step, default) for tools with known high latency (image gen, sub-agents, devops)
     # to prevent the planner from imposing a too-short timeout
-    if step.tool_name in _IMAGE_TOOLS or step.tool_name == "delegate_to_sub_agent_tool":
+    if step.tool_name in _HIGH_LATENCY_TOOLS:
         timeout_seconds = min(
             max(step.timeout_seconds or effective_default, effective_default),
             MAX_TOOL_TIMEOUT_SECONDS,

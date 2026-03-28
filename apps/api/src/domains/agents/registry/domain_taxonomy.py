@@ -537,6 +537,23 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
             "requires_api_key": False,
         },
     ),
+    "devops": DomainConfig(
+        name="devops",
+        display_name="DevOps (Claude CLI)",
+        description=(
+            "Remote server management via Claude CLI: inspect logs, diagnose issues, "
+            "restart containers, check system health, analyze deployments. Admin only."
+        ),
+        agent_names=["devops_agent"],
+        result_key="server_results",
+        related_domains=[],
+        priority=9,
+        is_routable=True,
+        metadata={
+            "requires_admin": True,
+            "uses_ssh": True,
+        },
+    ),
 }
 
 

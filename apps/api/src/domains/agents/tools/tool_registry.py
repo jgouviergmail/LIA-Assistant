@@ -368,6 +368,10 @@ def _import_tool_modules() -> None:
             ("src.domains.agents.tools.image_generation_tools", "image_generation_tools")
         )
 
+    # DevOps: Claude CLI remote server management
+    if getattr(get_settings(), "devops_enabled", False):
+        tool_modules.append(("src.domains.agents.tools.devops_tools", "devops_tools"))
+
     # MCP ReAct tools (ADR-062): loaded by _register_iterative_task_tool()
     # in registration.py at MCP startup, NOT here. The generic mcp_server_task_tool
     # is registered under per-server names (e.g., mcp_excalidraw_task) via model_copy.

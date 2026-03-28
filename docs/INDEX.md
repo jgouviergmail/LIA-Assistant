@@ -214,6 +214,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [GUIDE_HEARTBEAT_PROACTIVE_NOTIFICATIONS.md](./guides/GUIDE_HEARTBEAT_PROACTIVE_NOTIFICATIONS.md) | Guide pratique Heartbeat (ProactiveTask, ContextAggregator) | ✅ |
 | [GUIDE_SCHEDULED_ACTIONS.md](./guides/GUIDE_SCHEDULED_ACTIONS.md) | Guide pratique Actions Planifiees (recurrentes, timezone, retry) | ✅ |
 | [GUIDE_RAG_SPACES.md](./guides/GUIDE_RAG_SPACES.md) | Guide RAG Spaces (espaces de connaissances, upload, hybrid search) | ✅ |
+| [GUIDE_DEVOPS_CLAUDE_CLI.md](./guides/GUIDE_DEVOPS_CLAUDE_CLI.md) | Guide DevOps Claude CLI (remote server management, setup, security) | ✅ |
 | [docs/knowledge/](./knowledge/) | System Knowledge: FAQ Markdown files for system RAG indexation (17 files, 119+ Q/A) | ✅ |
 
 ### Operations

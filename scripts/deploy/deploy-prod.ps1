@@ -15,6 +15,7 @@
 param(
     [switch]$SkipEncrypt = $false,
     [switch]$DryRun = $false,
+    [switch]$SetupClaudeCli = $false,
     [string]$SshHost = "your-server-ip",
     [int]$SshPort = 22,
     [string]$SshUser = "deploy",
@@ -485,7 +486,34 @@ if (-not $DryRun) {
 }
 
 # ============================================================================
-# Etape 9: Nettoyage du dossier PROD local
+# Etape 9 (optional): Setup Claude CLI for DevOps remote management
+# ============================================================================
+if ($SetupClaudeCli) {
+    Write-Step "Setting up Claude CLI on remote server..."
+
+    Invoke-WithRetry -OperationName "Upload Claude CLI setup script" -Command @"
+scp $SshOptionsStr -P $SshPort scripts/deploy/setup-claude-cli.sh ${SshUser}@${SshHost}:~/${RemoteDir}/
+"@
+
+    Invoke-WithRetry -OperationName "Install/update Claude CLI" -Command @"
+ssh $SshOptionsStr -p $SshPort ${SshUser}@${SshHost} "bash ~/${RemoteDir}/setup-claude-cli.sh"
+"@
+
+    Invoke-WithRetry -OperationName "Copy CLAUDE.md to workspace" -Command @"
+ssh $SshOptionsStr -p $SshPort ${SshUser}@${SshHost} "mkdir -p ~/lia-workspace"
+"@
+
+    Invoke-WithRetry -OperationName "Copy CLAUDE.md" -Command @"
+scp $SshOptionsStr -P $SshPort infrastructure/claude-cli/CLAUDE.server.md ${SshUser}@${SshHost}:~/lia-workspace/CLAUDE.md
+"@
+
+    Write-Success "Claude CLI setup completed on remote server"
+} else {
+    Write-Info "Claude CLI setup skipped (use -SetupClaudeCli to enable)"
+}
+
+# ============================================================================
+# Etape 10: Nettoyage du dossier PROD local
 # ============================================================================
 Write-Step "Nettoyage du dossier PROD local..."
 

@@ -5,8 +5,8 @@
 > Technical presentation documentation for architects, engineers and technical experts.
 
 **Version**: 2.1
-**Date**: 2026-03-25
-**Application**: LIA v1.12.4
+**Date**: 2026-03-28
+**Application**: LIA v1.13.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -719,6 +719,9 @@ Debug metrics persist in `sessionStorage` (50 entries max).
 
 ---
 
+### 20.3. DevOps Claude CLI (v1.13.0 — admin only)
+
+Administrators can interact with Claude Code CLI directly from the LIA conversation to diagnose server issues in natural language: *"Check the logs to see if everything is working"*, *"Check disk space"*, *"Which container uses the most RAM?"*. Claude CLI is installed inside the API Docker container and executed locally via subprocess, with Docker socket access to inspect all containers. Permissions are configurable per environment (`--allowedTools`/`--disallowedTools`) and access is restricted to superusers via a direct DB check. Sessions are persistent for multi-turn investigations.
 ## 21. Performance: optimizations and metrics
 
 ### 21.1. Key metrics (P95)
@@ -877,4 +880,4 @@ The interweaving of subsystems — psychological memory, Bayesian learning, sema
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (190+ documents), 63 ADRs, and the changelog (v1.0 to v1.12.4). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (190+ documents), 63 ADRs, and the changelog (v1.0 to v1.13.0). All metrics, versions, and patterns cited are verifiable in the codebase.*

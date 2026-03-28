@@ -67,9 +67,16 @@ ENV PYTHONUNBUFFERED=1 \
     PATH=/home/appuser/.local/bin:$PATH \
     PLAYWRIGHT_BROWSERS_PATH=/home/appuser/.local/playwright-browsers
 
-# Install runtime dependencies, security patches, and Chromium system deps
+# Install runtime dependencies, security patches, Chromium system deps, Node.js, and Docker CLI
 # Chromium deps required for Playwright browser agent (evolution F7)
-RUN apt-get update && apt-get upgrade -y && apt-get install -y \
+# Node.js required for Claude Code CLI (DevOps remote management)
+# Docker CLI required for DevOps container management from within the container
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian bookworm stable" > /etc/apt/sources.list.d/docker.list \
+    && apt-get update && apt-get upgrade -y && apt-get install -y \
+    nodejs \
+    docker-ce-cli \
     postgresql-client \
     curl \
     ffmpeg \
@@ -126,6 +133,13 @@ RUN mkdir -p /app/docs/knowledge
 
 # Create data directories for volumes (owned by appuser before USER switch)
 RUN mkdir -p /app/data/attachments && chown -R appuser:appuser /app/data
+
+# Install Claude Code CLI for DevOps remote server management
+# Auth is persisted via Docker volume (~/.claude/)
+# CLAUDE.md workspace is mounted via docker-compose
+RUN npm install -g @anthropic-ai/claude-code \
+    && mkdir -p /opt/claude-workspace \
+    && chown appuser:appuser /opt/claude-workspace
 
 # Switch to non-root user
 USER appuser

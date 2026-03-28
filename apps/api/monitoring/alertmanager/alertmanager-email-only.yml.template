@@ -1,0 +1,137 @@
+# ===================================================================
+# AlertManager Configuration - LIA (Email Only)
+# ===================================================================
+# Used when Slack/PagerDuty webhooks are not configured.
+# All alerts are sent via email only.
+# ===================================================================
+
+global:
+  resolve_timeout: 5m
+  smtp_from: '${ALERTMANAGER_SMTP_FROM}'
+  smtp_smarthost: '${ALERTMANAGER_SMTP_SMARTHOST}'
+  smtp_auth_username: '${ALERTMANAGER_SMTP_AUTH_USERNAME}'
+  smtp_auth_password: '${ALERTMANAGER_SMTP_AUTH_PASSWORD}'
+  smtp_require_tls: true
+
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# Routing
+route:
+  receiver: 'default-email'
+  group_by: ['alertname', 'component', 'severity']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+
+  routes:
+    # Critical alerts — faster grouping
+    - match:
+        severity: critical
+      receiver: 'critical-email'
+      group_wait: 10s
+      group_interval: 2m
+      repeat_interval: 30m
+
+    # Warning alerts
+    - match:
+        severity: warning
+      receiver: 'warning-email'
+      group_wait: 1m
+      group_interval: 10m
+      repeat_interval: 2h
+
+    # LLM Budget alerts
+    - match:
+        component: llm
+        severity: critical
+      receiver: 'budget-email'
+      group_by: ['alertname', 'budget_type']
+      group_wait: 5s
+      repeat_interval: 15m
+
+    # Database alerts
+    - match:
+        component: postgresql
+      receiver: 'database-email'
+      group_by: ['alertname', 'datname']
+
+    # Security alerts
+    - match:
+        component: oauth
+        severity: critical
+      receiver: 'security-email'
+      group_wait: 5s
+      repeat_interval: 30m
+
+# Inhibition rules
+inhibit_rules:
+  - source_match:
+      alertname: 'ServiceDown'
+    target_match:
+      component: 'api'
+    target_match_re:
+      alertname: '(HighErrorRate|HighLatency.*|CriticalLatency.*)'
+    equal: ['service']
+
+  - source_match:
+      alertname: 'RedisDown'
+    target_match:
+      component: 'redis'
+    target_match_re:
+      alertname: '(RedisConnectionsHigh|RedisMemoryHigh)'
+
+  - source_match:
+      alertname: 'PostgreSQLDown'
+    target_match:
+      component: 'postgresql'
+    target_match_re:
+      alertname: '(HighDatabaseConnections|CriticalDatabaseConnections|SlowQueries)'
+
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'component']
+
+# Receivers (email only)
+receivers:
+  - name: 'default-email'
+    email_configs:
+      - to: '${ALERTMANAGER_BACKEND_TEAM_EMAIL}'
+        send_resolved: true
+
+  - name: 'critical-email'
+    email_configs:
+      - to: '${ALERTMANAGER_BACKEND_TEAM_EMAIL}'
+        headers:
+          Subject: '[CRITICAL] LIA: {{ .GroupLabels.alertname }}'
+        send_resolved: true
+
+  - name: 'warning-email'
+    email_configs:
+      - to: '${ALERTMANAGER_BACKEND_TEAM_EMAIL}'
+        headers:
+          Subject: '[WARNING] LIA: {{ .GroupLabels.alertname }}'
+        send_resolved: true
+
+  - name: 'budget-email'
+    email_configs:
+      - to: '${ALERTMANAGER_FINANCE_TEAM_EMAIL}'
+        headers:
+          Subject: '[BUDGET] LLM Cost Alert: {{ .GroupLabels.alertname }}'
+        send_resolved: true
+
+  - name: 'database-email'
+    email_configs:
+      - to: '${ALERTMANAGER_BACKEND_TEAM_EMAIL}'
+        headers:
+          Subject: '[DATABASE] {{ .GroupLabels.alertname }}'
+        send_resolved: true
+
+  - name: 'security-email'
+    email_configs:
+      - to: '${ALERTMANAGER_SECURITY_TEAM_EMAIL}'
+        headers:
+          Subject: '[SECURITY] {{ .GroupLabels.alertname }}'
+        send_resolved: true

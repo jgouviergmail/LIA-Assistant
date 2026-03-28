@@ -180,7 +180,7 @@ export const BLOG_ARTICLES: BlogArticle[] = [
     icon: 'Activity',
     date: '2026-03-17',
     readTime: 5,
-    tags: ['prometheus', 'grafana', 'langfuse', 'metrics', 'observability'],
+    tags: ['prometheus', 'grafana', 'langfuse', 'metrics', 'observability', 'devops', 'claude-cli'],
   },
   {
     slug: 'prompt-engineering',

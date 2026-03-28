@@ -30,6 +30,7 @@ import {
   BookOpen,
   Lightbulb,
   Gauge,
+  Terminal,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -100,6 +101,7 @@ const FUNCTIONAL_FEATURES: FeatureItem[] = [
   { key: 'browser_control', icon: Monitor },
   { key: 'self_knowledge', icon: HelpCircle },
   { key: 'journals', icon: BookOpen },
+  { key: 'devops_cli', icon: Terminal },
 ];
 
 // Responsible & simple

@@ -1422,6 +1422,19 @@ curl -f -X POST "$API_URL/api/v1/agents/chat" \
 echo "✅ All smoke tests passed!"
 ```
 
+### DevOps Claude CLI (v1.13.0)
+
+Administrators can diagnose server issues directly from the LIA chat using natural language. Claude Code CLI is installed in the API Docker image and runs locally inside the container.
+
+**First-time setup** (one-time per environment):
+1. Install Claude CLI on the host machine (for OAuth only): `npm install -g @anthropic-ai/claude-code`
+2. Authenticate: `claude auth login`
+3. Credentials are mounted into the container automatically via `docker-compose`
+
+**Configuration**: Set `DEVOPS_ENABLED=true` and configure `DEVOPS_SERVERS` in `.env`.
+
+See [GUIDE_DEVOPS_CLAUDE_CLI.md](./GUIDE_DEVOPS_CLAUDE_CLI.md) for full setup instructions.
+
 ---
 
 ## Rollback Strategy

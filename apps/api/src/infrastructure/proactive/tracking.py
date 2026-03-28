@@ -146,7 +146,7 @@ async def track_proactive_tokens(
             run_id=run_id,
             user_id=user_id,
             session_id=f"proactive_{task_type}_{target_id[:12]}",
-            conversation_id=conversation_id or UUID("00000000-0000-0000-0000-000000000000"),
+            conversation_id=conversation_id,  # None when heartbeat skips (no notification sent)
             auto_commit=False,
             db=db,  # Pass external session for transaction composition
         ) as tracker:

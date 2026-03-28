@@ -26,7 +26,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./infrastructure/docker/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
     networks:
       - lia-network
 
@@ -123,6 +123,11 @@ services:
       - attachments_data:/app/data/attachments
       # Skills directories (full bind-mount for dev — both system and user skills editable)
       - ./data/skills:/app/data/skills
+      # DevOps Claude CLI: Docker socket for container management + auth + workspace
+      - /var/run/docker.sock:/var/run/docker.sock
+      - claude_auth:/root/.claude
+      - ~/.claude/.credentials.json:/root/.claude/.credentials.json:ro
+      - ./infrastructure/claude-cli/CLAUDE.server.md:/opt/claude-workspace/CLAUDE.md:ro
       # Note: STT model is baked into Docker image (Dockerfile.dev multi-stage build)
     # HTTPS required for Google OAuth callbacks
     # Next.js proxy uses NODE_TLS_REJECT_UNAUTHORIZED=0 for self-signed certs
@@ -226,6 +231,7 @@ services:
     volumes:
       - ./apps/api/monitoring/alertmanager/docker-entrypoint.sh:/docker-entrypoint.sh:ro
       - ./apps/api/monitoring/alertmanager/alertmanager.yml.template:/etc/alertmanager/alertmanager.yml.template:ro
+      - ./apps/api/monitoring/alertmanager/alertmanager-email-only.yml.template:/etc/alertmanager/alertmanager-email-only.yml.template:ro
       - ./apps/api/monitoring/alertmanager/templates:/etc/alertmanager/templates:ro
       - alertmanager_data:/alertmanager
     env_file:
@@ -668,6 +674,7 @@ volumes:
   minio_data:
   huggingface_cache:  # Persistent storage for E5 embedding model (~500MB)
   attachments_data:  # Persistent storage for file attachments (images, PDF)
+  claude_auth:  # Persistent Claude CLI auth (survives container rebuilds)
 
 networks:
   lia-network:

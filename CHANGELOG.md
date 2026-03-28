@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.13.0] - 2026-03-28
+
+### Added
+
+- **DevOps Claude CLI Integration (Admin-only)** — New `devops` domain with `claude_server_task_tool` that allows administrators to interact with Claude Code CLI installed inside the API Docker containers. Claude CLI independently inspects logs, diagnoses issues, checks container health, and manages Docker services — all through natural language via the LIA assistant. Features: local subprocess execution (no SSH needed), real-time streaming progress via SSE `execution_step` events, session persistence for multi-turn investigations (`--resume`), configurable `--allowedTools`/`--disallowedTools` per server profile (dev: full access, prod: read-only investigation). Access controlled by `is_superuser` DB check with default-deny. (`src/domains/agents/devops/`, `src/domains/agents/tools/devops_tools.py`, `src/domains/agents/services/devops_ssh_service.py`)
+- **Claude CLI in Docker Images** — Node.js 22 + Claude Code CLI + Docker CLI installed in both `Dockerfile.dev` and `Dockerfile.prod`. Docker socket mounted for container management. Auth credentials mounted read-only from host. (`Dockerfile.dev`, `Dockerfile.prod`, `docker-compose.dev.yml`, `docker-compose.prod.yml`)
+- **DevOps Documentation** — Comprehensive guide covering architecture, prerequisites, deployment, security model, and troubleshooting. (`docs/guides/GUIDE_DEVOPS_CLAUDE_CLI.md`, `docs/INDEX.md`)
+- **Alertmanager Email-Only Template** — Simplified template for environments without Slack/PagerDuty. Auto-selected by entrypoint when webhooks are not configured. (`apps/api/monitoring/alertmanager/alertmanager-email-only.yml.template`)
+
+### Changed
+
+- **DevOps Tool Timeout** — `claude_server_task_tool` added to high-latency tools list in parallel executor with 120s timeout (default 30s was causing CancelledError). (`src/domains/agents/orchestration/parallel_executor.py`)
+- **Alertmanager Entrypoint** — Rewritten to gracefully handle missing SMTP (minimal log-only config), missing Slack/PagerDuty (email-only template), and inline env comment parsing bug. (`apps/api/monitoring/alertmanager/docker-entrypoint.sh`)
+
+### Fixed
+
+- **PostgreSQL Health Check FATAL Spam** — `pg_isready` health check was missing `-d ${POSTGRES_DB}`, causing PostgreSQL to attempt connection to a database named after the user (~720 FATAL/hour). Fixed in `compose.services.yml`, `docker-compose.dev.yml`, and `docker-compose.prod.yml`.
+- **Philips Hue ConnectorType LookupError (Prod)** — Alembic migration inserted `philips_hue` (enum `.value`, lowercase) but SQLAlchemy expects `PHILIPS_HUE` (enum `.name`, uppercase). Fixed migration to use `.name` and added UPDATE for existing data. (`alembic/versions/2026_03_20_0001-add_philips_hue_global_config.py`)
+- **Heartbeat ForeignKeyViolation (Prod)** — Proactive heartbeat used a nil UUID (`00000000-...`) as `conversation_id` fallback instead of `None`, violating the FK constraint on `message_token_summary`. Fixed to pass `None` (column is nullable). (`src/infrastructure/proactive/tracking.py`)
+- **Heartbeat Journal Embedding Dimension Mismatch (Prod)** — Heartbeat used `get_local_embeddings()` (E5-small, 384 dim) to search journals indexed with OpenAI embeddings (1536 dim). Fixed to use `get_journal_embeddings()`. (`src/domains/heartbeat/context_aggregator.py`)
+- **Missing LLM Pricing: claude-3-5-haiku-latest** — Added alias to pricing seed. (`infrastructure/database/seeds/llm_pricing_seed.sql`)
+- **Alertmanager Config Error** — `.env` inline comments (`SLACK_WEBHOOK=  # comment`) were parsed as non-empty values, causing `unsupported scheme "" for URL`. Fixed by commenting out unused webhook variables. (`.env`)
+
 ## [1.12.4] - 2026-03-27
 
 ### Added
@@ -917,7 +940,8 @@ First public open-source release of LIA.
 - Circuit breaker, rate limiting, and distributed locks
 - SOPS/Age encryption for secrets management
 
-[Unreleased]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.12.2...HEAD
+[Unreleased]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.13.0...HEAD
+[1.13.0]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.12.4...v1.13.0
 [1.12.2]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.12.1...v1.12.2
 [1.12.1]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.12.0...v1.12.1
 [1.12.0]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.11.5...v1.12.0

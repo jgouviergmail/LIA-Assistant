@@ -232,6 +232,19 @@ if _SUB_AGENT_TOOLS_AVAILABLE:
         ]
     )
 
+# DevOps Tools (Claude CLI Remote Server Management — feature-flagged)
+# Conditional import: only load when DEVOPS_ENABLED=true
+_DEVOPS_TOOLS_AVAILABLE = False
+try:
+    from src.core.config import settings as _devops_settings
+
+    if getattr(_devops_settings, "devops_enabled", False):
+        from src.domains.agents.tools.devops_tools import claude_server_task_tool
+
+        _DEVOPS_TOOLS_AVAILABLE = True
+except Exception:
+    _DEVOPS_TOOLS_AVAILABLE = False
+
 # Conditionally extend __all__ with browser tools
 if _BROWSER_TOOLS_AVAILABLE:
     __all__.extend(
@@ -242,5 +255,13 @@ if _BROWSER_TOOLS_AVAILABLE:
             "browser_click_tool",
             "browser_fill_tool",
             "browser_press_key_tool",
+        ]
+    )
+
+# Conditionally extend __all__ with devops tools
+if _DEVOPS_TOOLS_AVAILABLE:
+    __all__.extend(
+        [
+            "claude_server_task_tool",
         ]
     )

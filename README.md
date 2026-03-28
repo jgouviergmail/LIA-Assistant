@@ -36,7 +36,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.12.4</strong> — Hue Smart Light Precision &amp; Landing Page Refresh — March 2026
+  <strong>Version 1.13.0</strong> — DevOps Claude CLI Integration &amp; Infrastructure Fixes — March 2026
 </p>
 
 ---

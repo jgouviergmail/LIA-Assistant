@@ -1,112 +1,42 @@
 # AlertManager Configuration - LIA
 # Production-ready configuration with routing, inhibition, and multi-channel notifications
 #
-# Environment Variables Required:
-#   ALERTMANAGER_SMTP_FROM         - Email sender address
-#   ALERTMANAGER_SMTP_SMARTHOST    - SMTP server (e.g., smtp.gmail.com:587)
-#   ALERTMANAGER_SMTP_AUTH_USER    - SMTP username
-#   ALERTMANAGER_SMTP_AUTH_PASSWORD - SMTP password
-#   ALERTMANAGER_EMAIL_TO_CRITICAL - Email for critical alerts
-#   ALERTMANAGER_EMAIL_TO_WARNING  - Email for warning alerts
-#   ALERTMANAGER_SLACK_WEBHOOK_URL - Slack webhook for alerts (optional)
-#   ALERTMANAGER_PAGERDUTY_SERVICE_KEY - PagerDuty integration key (optional)
+# NOTE: Alertmanager OSS does NOT support Go template env expansion ({{ env "..." }}).
+# Use docker-compose environment variable substitution or envsubst for dynamic values.
+# Currently configured with static receivers. To enable notifications:
+#   1. Set receiver URLs directly in this file, or
+#   2. Use a pre-processor (envsubst) in docker-compose entrypoint
+#
+# Docs: https://prometheus.io/docs/alerting/latest/configuration/
 
 global:
-  # Time to wait before sending a notification about a new alert
   resolve_timeout: 5m
-
-  # SMTP configuration (for email notifications)
-  smtp_from: '{{ env "ALERTMANAGER_SMTP_FROM" | default "alertmanager@lia.example.com" }}'
-  smtp_smarthost: '{{ env "ALERTMANAGER_SMTP_SMARTHOST" | default "smtp.gmail.com:587" }}'
-  smtp_auth_username: '{{ env "ALERTMANAGER_SMTP_AUTH_USER" }}'
-  smtp_auth_password: '{{ env "ALERTMANAGER_SMTP_AUTH_PASSWORD" }}'
-  smtp_require_tls: true
-
-# Templates for notification messages
-templates:
-  - '/etc/alertmanager/templates/*.tmpl'
 
 # Route configuration
 route:
-  # Default receiver if no route matches
-  receiver: 'default-email'
-
-  # Group alerts by these labels to reduce notification spam
+  receiver: 'default-log'
   group_by: ['alertname', 'component', 'severity']
-
-  # Wait time before sending first notification for a group
   group_wait: 30s
-
-  # Wait time before sending notification about new alerts added to a group
   group_interval: 5m
-
-  # Minimum wait time before re-sending notifications for an alert
   repeat_interval: 4h
 
-  # Child routes with specific routing logic
   routes:
-    # ===== CRITICAL ALERTS =====
-    # Route critical alerts to multiple channels (email + Slack + PagerDuty)
+    # Critical alerts — faster grouping
     - match:
         severity: critical
-      receiver: 'critical-multi-channel'
-      group_wait: 10s          # Send faster for critical alerts
+      receiver: 'default-log'
+      group_wait: 10s
       group_interval: 2m
-      repeat_interval: 30m     # Repeat more frequently
-      continue: false          # Don't evaluate other routes
+      repeat_interval: 30m
+      continue: false
 
-    # ===== WARNING ALERTS =====
-    # Route warnings to email + Slack (no PagerDuty)
+    # Warning alerts
     - match:
         severity: warning
-      receiver: 'warning-email-slack'
+      receiver: 'default-log'
       group_wait: 1m
       group_interval: 10m
       repeat_interval: 2h
-      continue: false
-
-    # ===== COMPONENT-SPECIFIC ROUTING =====
-
-    # LLM Budget Alerts (critical for cost control)
-    - match:
-        component: llm
-        severity: critical
-      receiver: 'llm-budget-critical'
-      group_by: ['alertname', 'budget_type']
-      group_wait: 5s           # Immediate notification for budget alerts
-      repeat_interval: 15m
-      continue: false
-
-    # Agent Performance Alerts (SLA violations)
-    - match:
-        component: agents
-      receiver: 'agents-performance'
-      group_by: ['alertname', 'intention', 'sla']
-      group_wait: 1m
-      repeat_interval: 1h
-      continue: false
-
-    # Database Alerts
-    - match:
-        component: postgresql
-      receiver: 'database-team'
-      group_by: ['alertname', 'datname']
-      continue: false
-
-    # Redis Alerts
-    - match:
-        component: redis
-      receiver: 'redis-team'
-      group_by: ['alertname']
-      continue: false
-
-    # OAuth Security Alerts (immediate attention)
-    - match:
-        component: oauth
-        severity: critical
-      receiver: 'security-team'
-      group_wait: 5s
-      repeat_interval: 30m
       continue: false
 
 # Inhibition rules (prevent notification spam)
@@ -151,119 +81,25 @@ inhibit_rules:
     equal: ['alertname', 'component']
 
 # Receiver configurations
+# Currently using webhook_configs with a null URL — alerts are logged by Alertmanager
+# but not forwarded. Replace with real endpoints when notification channels are set up.
+#
+# To add Slack notifications:
+#   - name: 'slack-critical'
+#     slack_configs:
+#       - api_url: 'https://hooks.slack.com/services/YOUR/WEBHOOK/URL'
+#         channel: '#alerts'
+#
+# To add email notifications:
+#   - name: 'email-ops'
+#     email_configs:
+#       - to: 'ops@yourcompany.com'
+#         from: 'alertmanager@lia.local'
+#         smarthost: 'smtp.gmail.com:587'
+#         auth_username: '...'
+#         auth_password: '...'
+
 receivers:
-  # ===== DEFAULT RECEIVER =====
-  - name: 'default-email'
-    email_configs:
-      - to: '{{ env "ALERTMANAGER_EMAIL_TO_WARNING" | default "ops@lia.example.com" }}'
-        headers:
-          Subject: '[LIA] Alert: {{ .GroupLabels.alertname }}'
-        html: '{{ template "email.default.html" . }}'
-
-  # ===== CRITICAL MULTI-CHANNEL =====
-  - name: 'critical-multi-channel'
-    # Email notification
-    email_configs:
-      - to: '{{ env "ALERTMANAGER_EMAIL_TO_CRITICAL" | default "ops-critical@lia.example.com" }}'
-        headers:
-          Subject: '[CRITICAL] LIA: {{ .GroupLabels.alertname }}'
-        html: '{{ template "email.critical.html" . }}'
-        send_resolved: true
-
-    # Slack notification (if configured)
-    slack_configs:
-      - api_url: '{{ env "ALERTMANAGER_SLACK_WEBHOOK_URL" }}'
-        channel: '#alerts-critical'
-        title: ':fire: CRITICAL Alert: {{ .GroupLabels.alertname }}'
-        text: '{{ range .Alerts }}{{ .Annotations.summary }}\n{{ .Annotations.description }}{{ end }}'
-        send_resolved: true
-        color: '{{ if eq .Status "firing" }}danger{{ else }}good{{ end }}'
-
-    # PagerDuty notification (if configured)
-    pagerduty_configs:
-      - service_key: '{{ env "ALERTMANAGER_PAGERDUTY_SERVICE_KEY" }}'
-        description: '{{ .GroupLabels.alertname }} - {{ .GroupLabels.component }}'
-        details:
-          firing: '{{ .Alerts.Firing | len }}'
-          resolved: '{{ .Alerts.Resolved | len }}'
-
-  # ===== WARNING EMAIL + SLACK =====
-  - name: 'warning-email-slack'
-    email_configs:
-      - to: '{{ env "ALERTMANAGER_EMAIL_TO_WARNING" | default "ops@lia.example.com" }}'
-        headers:
-          Subject: '[WARNING] LIA: {{ .GroupLabels.alertname }}'
-        html: '{{ template "email.warning.html" . }}'
-        send_resolved: true
-
-    slack_configs:
-      - api_url: '{{ env "ALERTMANAGER_SLACK_WEBHOOK_URL" }}'
-        channel: '#alerts-warning'
-        title: ':warning: Warning: {{ .GroupLabels.alertname }}'
-        text: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
-        send_resolved: true
-        color: 'warning'
-
-  # ===== LLM BUDGET CRITICAL =====
-  - name: 'llm-budget-critical'
-    email_configs:
-      - to: '{{ env "ALERTMANAGER_EMAIL_TO_CRITICAL" | default "finance@lia.example.com,ops@lia.example.com" }}'
-        headers:
-          Subject: '[CRITICAL - BUDGET] LLM Cost Alert: {{ .GroupLabels.alertname }}'
-        html: '{{ template "email.budget.html" . }}'
-        send_resolved: true
-
-    slack_configs:
-      - api_url: '{{ env "ALERTMANAGER_SLACK_WEBHOOK_URL" }}'
-        channel: '#alerts-llm-budget'
-        title: ':money_with_wings: LLM Budget Alert: {{ .GroupLabels.alertname }}'
-        text: '{{ range .Alerts }}{{ .Annotations.summary }}\nCurrent: {{ .Annotations.current_cost }}\nBudget: {{ .Annotations.budget_limit }}{{ end }}'
-        send_resolved: true
-        color: 'danger'
-
-  # ===== AGENTS PERFORMANCE =====
-  - name: 'agents-performance'
-    email_configs:
-      - to: '{{ env "ALERTMANAGER_EMAIL_TO_WARNING" | default "agents-team@lia.example.com" }}'
-        headers:
-          Subject: '[SLA] Agent Performance Alert: {{ .GroupLabels.alertname }}'
-        html: '{{ template "email.agents.html" . }}'
-        send_resolved: true
-
-    slack_configs:
-      - api_url: '{{ env "ALERTMANAGER_SLACK_WEBHOOK_URL" }}'
-        channel: '#alerts-agents'
-        title: ':robot_face: Agent SLA: {{ .GroupLabels.alertname }}'
-        text: '{{ range .Alerts }}{{ .Annotations.summary }}\nRunbook:\n{{ .Annotations.runbook }}{{ end }}'
-        send_resolved: true
-
-  # ===== DATABASE TEAM =====
-  - name: 'database-team'
-    email_configs:
-      - to: '{{ env "ALERTMANAGER_EMAIL_TO_WARNING" | default "database@lia.example.com" }}'
-        headers:
-          Subject: '[DATABASE] {{ .GroupLabels.alertname }}'
-        html: '{{ template "email.database.html" . }}'
-        send_resolved: true
-
-  # ===== REDIS TEAM =====
-  - name: 'redis-team'
-    email_configs:
-      - to: '{{ env "ALERTMANAGER_EMAIL_TO_WARNING" | default "redis@lia.example.com" }}'
-        headers:
-          Subject: '[REDIS] {{ .GroupLabels.alertname }}'
-        html: '{{ template "email.redis.html" . }}'
-        send_resolved: true
-
-  # ===== SECURITY TEAM =====
-  - name: 'security-team'
-    email_configs:
-      - to: '{{ env "ALERTMANAGER_EMAIL_TO_CRITICAL" | default "security@lia.example.com" }}'
-        headers:
-          Subject: '[SECURITY] OAuth Alert: {{ .GroupLabels.alertname }}'
-        html: '{{ template "email.security.html" . }}'
-        send_resolved: true
-
-    pagerduty_configs:
-      - service_key: '{{ env "ALERTMANAGER_PAGERDUTY_SERVICE_KEY" }}'
-        description: 'Security Alert: {{ .GroupLabels.alertname }}'
+  - name: 'default-log'
+    # No notification channel configured — alerts are visible in Alertmanager UI only.
+    # Alertmanager logs fired alerts to stdout for Loki/Promtail ingestion.

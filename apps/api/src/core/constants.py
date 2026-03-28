@@ -3406,3 +3406,15 @@ IMAGE_EDIT_RESPONSES_MODEL: str = "gpt-4.1-mini"
 
 # Cross-worker cache invalidation (ADR-063)
 CACHE_NAME_IMAGE_GENERATION_PRICING: str = "image_generation_pricing"
+
+# ============================================================================
+# DEVOPS (Claude CLI Remote Server Management)
+# ============================================================================
+DEVOPS_DOMAIN_NAME: str = "devops"
+DEVOPS_AGENT_NAME: str = "devops_agent"
+DEVOPS_DEFAULT_SSH_PORT: int = 22
+DEVOPS_DEFAULT_SSH_TIMEOUT: int = 30
+DEVOPS_DEFAULT_COMMAND_TIMEOUT: int = 300
+DEVOPS_DEFAULT_MAX_OUTPUT_CHARS: int = 50000
+DEVOPS_CLAUDE_OUTPUT_FORMAT: str = "json"
+DEVOPS_DEFAULT_ALLOWED_TOOLS: tuple[str, ...] = ("Read", "Grep", "Glob", "Bash")

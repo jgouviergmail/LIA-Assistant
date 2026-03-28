@@ -30,7 +30,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./infrastructure/docker/postgres-init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -108,6 +108,11 @@ services:
       - ./data/skills/system:/app/data/skills/system:ro
       # User-imported skills (persisted across deploys)
       - skills_data:/app/data/skills/users
+      # DevOps Claude CLI: Docker socket for container management + auth + workspace
+      - /var/run/docker.sock:/var/run/docker.sock
+      - claude_auth:/home/appuser/.claude
+      - ~/.claude/.credentials.json:/home/appuser/.claude/.credentials.json:ro
+      - ./infrastructure/claude-cli/CLAUDE.server.md:/opt/claude-workspace/CLAUDE.md:ro
     ports:
       - "8000:8000"
       - "9091:9091"  # Prometheus metrics (HTTP-only, no TLS)
@@ -460,6 +465,7 @@ volumes:
   huggingface_cache:  # Persistent storage for E5 embedding model (~500MB)
   attachments_data:  # Persistent storage for file attachments (images, PDF)
   skills_data:  # Persistent storage for user-imported skills
+  claude_auth:  # Persistent Claude CLI auth (survives container rebuilds)
   portainer_data:
 
 networks:

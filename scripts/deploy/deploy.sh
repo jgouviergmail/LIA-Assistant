@@ -265,6 +265,18 @@ EOF
     log_success "Cleanup completed"
 }
 
+setup_claude_cli() {
+    log_info "Setting up Claude CLI authentication..."
+
+    # Claude CLI is installed in the Docker image (Dockerfile.dev/prod).
+    # CLAUDE.md is mounted via docker-compose volume.
+    # Only manual step: run 'docker exec -it lia-api-prod claude auth login' once.
+    log_info "Claude CLI is bundled in the Docker image."
+    log_info "If first deploy, authenticate with: docker exec -it lia-api-prod claude auth login"
+
+    log_success "Claude CLI setup completed"
+}
+
 show_status() {
     log_info "Checking deployment status..."
 
@@ -297,6 +309,12 @@ main() {
     setup_ssh
     create_remote_directory
     copy_files
+
+    # Optional: Install/update Claude CLI for DevOps remote management
+    if [ "${DEPLOY_CLAUDE_CLI:-false}" = "true" ]; then
+        setup_claude_cli
+    fi
+
     pull_images
     run_migrations
     deploy_services

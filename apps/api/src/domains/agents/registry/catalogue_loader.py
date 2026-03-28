@@ -442,6 +442,25 @@ WEB_FETCH_AGENT_MANIFEST = AgentManifest(
 )
 
 
+DEVOPS_AGENT_MANIFEST = AgentManifest(
+    name="devops_agent",
+    description=(
+        "Remote server management agent using Claude CLI over SSH. "
+        "Autonomously inspects logs, diagnoses issues, checks system health, "
+        "and manages Docker containers on remote servers."
+    ),
+    tools=[
+        "claude_server_task_tool",
+    ],
+    max_parallel_runs=1,
+    default_timeout_ms=360000,  # 6 min — must be > DEVOPS_COMMAND_TIMEOUT (300s)
+    prompt_version="v1",
+    owner_team="Team AI",
+    version="1.0.0",
+    updated_at=datetime.now(UTC),
+)
+
+
 # ============================================================================
 # Initialization Function
 # ============================================================================
@@ -761,6 +780,15 @@ def initialize_catalogue(registry: AgentRegistry) -> None:
         registry.register_agent_manifest(image_agent_manifest)
         registry.register_tool_manifest(generate_image_catalogue_manifest)
         registry.register_tool_manifest(edit_image_catalogue_manifest)
+
+    # DevOps: Claude CLI remote server management (feature-flagged)
+    if getattr(_get_settings(), "devops_enabled", False):
+        from src.domains.agents.devops.catalogue_manifests import (
+            claude_server_task_catalogue_manifest,
+        )
+
+        registry.register_agent_manifest(DEVOPS_AGENT_MANIFEST)
+        registry.register_tool_manifest(claude_server_task_catalogue_manifest)
 
     # Dynamic counting from registry (no more hardcoded values)
     registered_agents = list(registry._agent_manifests.keys())

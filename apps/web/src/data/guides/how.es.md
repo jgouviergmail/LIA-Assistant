@@ -6,7 +6,7 @@
 
 **Versión**: 2.1
 **Fecha**: 2026-03-25
-**Aplicación**: LIA v1.12.4
+**Aplicación**: LIA v1.13.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -719,6 +719,9 @@ Las métricas debug persisten en `sessionStorage` (50 entradas máx.).
 
 ---
 
+### 20.3. DevOps Claude CLI (v1.13.0 — solo admin)
+
+Los administradores pueden interactuar con Claude Code CLI directamente desde la conversación de LIA para diagnosticar problemas del servidor en lenguaje natural. Claude CLI está instalado dentro del contenedor Docker de la API y se ejecuta localmente via subprocess, con acceso al Docker socket para inspeccionar todos los contenedores. Los permisos son configurables por entorno y el acceso está restringido a superusuarios.
 ## 21. Rendimiento: optimizaciones y métricas
 
 ### 21.1. Métricas clave (P95)
@@ -877,4 +880,4 @@ La imbricación de los subsistemas — memoria psicológica, aprendizaje bayesia
 
 ---
 
-*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (190+ documentos), de los 63 ADRs y del changelog (v1.0 a v1.12.4). Todas las métricas, versiones y patrones citados son verificables en el codebase.*
+*Documento redactado sobre la base del análisis del código fuente (`apps/api/src/`, `apps/web/src/`), de la documentación técnica (190+ documentos), de los 63 ADRs y del changelog (v1.0 a v1.13.0). Todas las métricas, versiones y patrones citados son verificables en el codebase.*

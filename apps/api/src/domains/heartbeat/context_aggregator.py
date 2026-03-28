@@ -1105,12 +1105,14 @@ class ContextAggregator:
             return None
 
         try:
+            from src.domains.journals.embedding import get_journal_embeddings
             from src.domains.journals.repository import JournalEntryRepository
-            from src.infrastructure.llm.local_embeddings import get_local_embeddings
 
             repo = JournalEntryRepository(self._db)
 
-            embeddings = get_local_embeddings()
+            # Use the same embedding model as journal creation (OpenAI, 1536 dim)
+            # NOT get_local_embeddings() which is E5-small (384 dim) — dimension mismatch
+            embeddings = get_journal_embeddings()
             search_query = query or "user preferences observations patterns priorities"
             query_embedding = embeddings.embed_query(search_query)
 

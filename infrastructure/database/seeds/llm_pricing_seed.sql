@@ -107,6 +107,7 @@ INSERT INTO llm_model_pricing (
     (gen_random_uuid(), 'claude-haiku-3', 0.250000, 0.030000, 1.250000, NOW(), true, NOW(), NOW()),
     (gen_random_uuid(), 'claude-haiku-3-5', 0.800000, 0.080000, 4.000000, NOW(), true, NOW(), NOW()),
     (gen_random_uuid(), 'claude-haiku-3.5', 0.800000, 0.080000, 4.000000, NOW(), true, NOW(), NOW()),
+    (gen_random_uuid(), 'claude-3-5-haiku-latest', 0.800000, 0.080000, 4.000000, NOW(), true, NOW(), NOW()),
     (gen_random_uuid(), 'claude-haiku-4-5', 1.000000, 0.100000, 5.000000, NOW(), true, NOW(), NOW()),
     (gen_random_uuid(), 'claude-haiku-4.5', 1.000000, 0.100000, 5.000000, NOW(), true, NOW(), NOW()),
     (gen_random_uuid(), 'claude-opus-3', 15.000000, 1.500000, 75.000000, NOW(), true, NOW(), NOW()),

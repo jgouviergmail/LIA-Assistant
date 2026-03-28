@@ -5,8 +5,8 @@
 > Documentation de présentation technique destinée aux architectes, ingénieurs et experts techniques.
 
 **Version** : 2.1
-**Date** : 2026-03-25
-**Application** : LIA v1.12.4
+**Date** : 2026-03-28
+**Application** : LIA v1.13.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -717,6 +717,10 @@ Les métriques debug persistent dans `sessionStorage` (50 entrées max).
 
 **Pourquoi un debug panel dans l'UI ?** Dans un écosystème où les agents IA sont notoirement difficiles à debugger (comportement non déterministe, chaînes d'appels opaques), rendre les métriques accessibles directement dans l'interface élimine la friction de devoir ouvrir Grafana ou lire des logs. L'opérateur voit immédiatement pourquoi une requête a coûté cher ou pourquoi le routeur a choisi tel domaine.
 
+### 20.3. DevOps Claude CLI (v1.13.0 — admin uniquement)
+
+Les administrateurs peuvent interagir avec Claude Code CLI directement depuis la conversation LIA pour diagnostiquer les problèmes serveur en langage naturel : *"Regarde les logs pour voir si tout fonctionne"*, *"Vérifie l'espace disque"*, *"Quel container utilise le plus de RAM ?"*. Claude CLI est installé dans le container Docker API et exécuté localement via subprocess, avec accès au Docker socket pour inspecter tous les containers. Les permissions sont configurables par environnement (`--allowedTools`/`--disallowedTools`) et l'accès est restreint aux superusers via un check DB direct. Les sessions sont persistantes pour permettre des investigations multi-tours.
+
 ---
 
 ## 21. Performance : optimisations et métriques
@@ -877,4 +881,4 @@ L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayé
 
 ---
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (190+ documents), des 63 ADRs, et du changelog (v1.0 à v1.12.4). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (190+ documents), des 63 ADRs, et du changelog (v1.0 à v1.13.0). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
