@@ -807,12 +807,12 @@ _DISPLAY_FEELS_LIKE: dict[str, str] = {
 }
 
 _DISPLAY_TEMP_RANGE: dict[str, str] = {
-    "fr": "Min / Max",
-    "en": "Low / High",
-    "es": "Mín / Máx",
-    "de": "Min / Max",
-    "it": "Min / Max",
-    "zh-CN": "最低 / 最高",
+    "fr": "Températures",
+    "en": "Temperatures",
+    "es": "Temperaturas",
+    "de": "Temperaturen",
+    "it": "Temperature",
+    "zh-CN": "温度",
 }
 
 _DISPLAY_HUMIDITY: dict[str, str] = {
@@ -3800,6 +3800,34 @@ class V3Messages:
         lang = V3Messages._normalize_language(language)
         pay_dict = _DISPLAY_PAYMENT.get(key, {})
         return pay_dict.get(lang, pay_dict.get("en", ""))
+
+    @staticmethod
+    def get_accessibility_title(language: str) -> str:
+        """Get 'Accessibility' section title."""
+        lang = V3Messages._normalize_language(language)
+        titles = {
+            "fr": "Accessibilité",
+            "en": "Accessibility",
+            "de": "Barrierefreiheit",
+            "es": "Accesibilidad",
+            "it": "Accessibilità",
+            "zh-CN": "无障碍设施",
+        }
+        return titles.get(lang, titles["en"])
+
+    @staticmethod
+    def get_payment_title(language: str) -> str:
+        """Get 'Payment options' section title."""
+        lang = V3Messages._normalize_language(language)
+        titles = {
+            "fr": "Paiements",
+            "en": "Payment",
+            "de": "Zahlungsmethoden",
+            "es": "Pagos",
+            "it": "Pagamenti",
+            "zh-CN": "支付方式",
+        }
+        return titles.get(lang, titles["en"])
 
     # =========================================================================
     # SEARCH RESULT COMPONENT STRINGS

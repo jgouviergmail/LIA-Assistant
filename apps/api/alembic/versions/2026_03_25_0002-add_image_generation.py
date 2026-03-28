@@ -99,7 +99,7 @@ def upgrade() -> None:
             "image_generation_enabled",
             sa.Boolean(),
             nullable=False,
-            server_default=sa.text("false"),
+            server_default=sa.text("true"),
         ),
     )
     op.add_column(
@@ -108,7 +108,7 @@ def upgrade() -> None:
             "image_generation_default_quality",
             sa.String(20),
             nullable=False,
-            server_default="medium",
+            server_default="low",
         ),
     )
     op.add_column(
@@ -117,7 +117,7 @@ def upgrade() -> None:
             "image_generation_default_size",
             sa.String(20),
             nullable=False,
-            server_default="1024x1024",
+            server_default="1024x1536",
         ),
     )
     op.add_column(

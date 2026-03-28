@@ -27,7 +27,12 @@ from src.domains.agents.display.components.base import (
     BaseComponent,
     RenderContext,
     escape_html,
+    render_card_hero,
+    render_card_top,
+    render_chip,
+    render_chip_row,
     render_collapsible,
+    render_d_row,
     wrap_with_response,
 )
 from src.domains.agents.display.icons import (
@@ -207,106 +212,97 @@ class RouteCard(BaseComponent):
         suggested_departure_formatted: str,
         ctx: RenderContext,
     ) -> str:
-        """Unified route card - CSS handles responsive adaptation."""
+        """Unified route card using Design System v4 components."""
         nested_class = self._nested_class(ctx)
 
-        # Static map image (clickable, CSS handles responsive sizing)
-        map_html = ""
+        # --- Hero: static map image ---
+        hero_html = ""
         if static_map_url:
-            # Use desktop dimensions for high-quality base image (CSS scales down on mobile)
             map_url = f"{static_map_url}&width={STATIC_MAP_DESKTOP_WIDTH}&height={STATIC_MAP_DESKTOP_HEIGHT}"
-            map_content = (
-                f'<img src="{map_url}" alt="Route map" '
-                f'class="lia-route__map-image" loading="lazy" />'
-            )
-            if maps_url:
-                map_html = (
-                    f'<a href="{maps_url}" target="_blank" rel="noopener noreferrer" '
-                    f'class="lia-route__map-link">{map_content}</a>'
-                )
-            else:
-                map_html = f'<div class="lia-route__map">{map_content}</div>'
+            hero_html = render_card_hero(map_url, "Route map")
 
-        # Travel mode icon and label
+        # --- Card top: travel mode icon + "Origin → Destination" ---
         mode_icon = get_travel_mode_icon(travel_mode)
-        mode_label = V3Messages.get_travel_mode(ctx.language, travel_mode)
+        # Traffic condition determines illus color
+        traffic_color_map = {
+            "NORMAL": "green",
+            "LIGHT": "green",
+            "MODERATE": "amber",
+            "HEAVY": "red",
+        }
+        illus_color = traffic_color_map.get(traffic_conditions, "green")
+        # Title: just "→ Destination" (origin shown in endpoints below)
+        route_title = f"→ {escape_html(str(destination))}"
+        title_html = f'<span class="lia-card-top__title">{route_title}</span>'
+        card_top_html = render_card_top(mode_icon, illus_color, title_html)
 
-        # Header with mode badge (with link to Google Maps)
-        mode_badge_content = (
-            f'<span class="lia-badge lia-badge--accent">'
-            f'{icon(mode_icon, size="sm", color="white")} {mode_label}'
-            f"</span>"
-        )
-        if maps_url:
-            header_badge = (
-                f'<a href="{maps_url}" target="_blank" rel="noopener noreferrer" '
-                f'class="lia-route__maps-link">{mode_badge_content}</a>'
+        # --- Chip row 1: arrival + traffic ---
+        chips_row1 = []
+        if eta_formatted:
+            eta_label = V3Messages.get_arrival_time(ctx.language)
+            chips_row1.append(render_chip(f"{eta_label} {eta_formatted}", "indigo", Icons.SCHEDULE))
+        if is_arrival_based and suggested_departure_formatted:
+            departure_label = V3Messages.get_suggested_departure(ctx.language)
+            chips_row1.append(
+                render_chip(
+                    f"{departure_label} {suggested_departure_formatted}", "amber", Icons.SCHEDULE
+                )
             )
-        else:
-            header_badge = mode_badge_content
+        if traffic_conditions:
+            traffic_label = V3Messages.get_traffic_condition(ctx.language, traffic_conditions)
+            traffic_variant = {
+                "NORMAL": "green",
+                "LIGHT": "green",
+                "MODERATE": "amber",
+                "HEAVY": "red",
+            }.get(traffic_conditions, "")
+            chips_row1.append(render_chip(traffic_label, traffic_variant, "traffic"))
+        chip_row_1 = render_chip_row(" ".join(chips_row1)) if chips_row1 else ""
 
-        # Distance badge (next to mode badge)
-        distance_badge = self._build_distance_badge(distance_km)
-
-        # Traffic badge (right after distance badge) - uses DRY helper
-        traffic_badge = self._build_traffic_badge(traffic_conditions, ctx.language)
-
-        # Avoidances badges (inline with header)
-        avoidances = []
+        # --- Chip row 2: duration + distance + avoidances (with separator below) ---
+        chips_row2 = []
+        if duration_formatted:
+            chips_row2.append(render_chip(duration_formatted, "green", "timer"))
+        if distance_km:
+            distance_str = (
+                f"{distance_km:.1f} km" if distance_km >= 1 else f"{int(distance_km * 1000)} m"
+            )
+            chips_row2.append(render_chip(distance_str, "", "straighten"))
         if avoid_tolls:
-            avoidances.append(
-                f'<span class="lia-badge lia-badge--subtle">'
-                f'{icon(Icons.TOLL, size="xs")} {V3Messages.get_route_avoidance(ctx.language, "tolls")}'
-                f"</span>"
+            chips_row2.append(
+                render_chip(V3Messages.get_route_avoidance(ctx.language, "tolls"), "", Icons.TOLL)
             )
         if avoid_highways:
-            avoidances.append(
-                f'<span class="lia-badge lia-badge--subtle">'
-                f'{icon(Icons.HIGHWAY, size="xs")} {V3Messages.get_route_avoidance(ctx.language, "highways")}'
-                f"</span>"
+            chips_row2.append(
+                render_chip(
+                    V3Messages.get_route_avoidance(ctx.language, "highways"), "", Icons.HIGHWAY
+                )
             )
         if avoid_ferries:
-            avoidances.append(
-                f'<span class="lia-badge lia-badge--subtle">'
-                f'{icon(Icons.FERRY, size="xs")} {V3Messages.get_route_avoidance(ctx.language, "ferries")}'
-                f"</span>"
+            chips_row2.append(
+                render_chip(
+                    V3Messages.get_route_avoidance(ctx.language, "ferries"), "", Icons.FERRY
+                )
             )
-        avoidances_html = " ".join(avoidances)
-
-        # Duration - prominent with link to Google Maps
-        duration_content = (
-            f'<span class="lia-route__duration">{escape_html(duration_formatted)}</span>'
-        )
-        if maps_url:
-            duration_html = (
-                f'<a href="{maps_url}" target="_blank" rel="noopener noreferrer" '
-                f'class="lia-route__maps-link">{duration_content}</a>'
-            )
-        else:
-            duration_html = duration_content
-
-        # Arrival/departure time display (DRY: uses shared helper)
-        eta_html, departure_html = self._build_arrival_departure_html(
-            ctx,
-            eta_formatted,
-            is_arrival_based,
-            target_arrival_formatted,
-            suggested_departure_formatted,
+        chip_row_2 = (
+            render_chip_row(" ".join(chips_row2), separator_pos="bottom") if chips_row2 else ""
         )
 
-        # Toll info badge (if available and not avoided)
-        toll_html = ""
+        # --- Toll info ---
+        extra_rows = []
         if toll_info and not avoid_tolls:
             toll_formatted = toll_info.get("formatted", "")
             if toll_formatted:
                 toll_label = V3Messages.get_toll_label(ctx.language)
-                toll_html = f'<span class="lia-badge lia-badge--subtle">{icon(Icons.TOLL, size="xs")} {toll_label}: {toll_formatted}</span>'
+                extra_rows.append(
+                    render_d_row(Icons.TOLL, f"{toll_label}: {escape_html(toll_formatted)}")
+                )
+        extra_html = "\n".join(extra_rows)
 
-        # Origin and destination
+        # --- Endpoints (preserved existing structure) ---
         origin_label = V3Messages.get_origin(ctx.language)
         dest_label = V3Messages.get_destination_label(ctx.language)
 
-        # Waypoints
         waypoints_html = ""
         if waypoints:
             via_label = V3Messages.get_via(ctx.language)
@@ -316,25 +312,15 @@ class RouteCard(BaseComponent):
             ]
             waypoints_html = f'<div class="lia-route__waypoints">{icon(Icons.FLAG_START, size="sm")} {via_label}: {", ".join(waypoint_items)}</div>'
 
-        # Collapsible steps
+        # Collapsible steps (preserved existing format)
         collapsible_html = self._render_collapsible_steps(steps, ctx)
 
-        # Build meta section (toll only, traffic badge moved to header badges)
-        meta_items = [item for item in [toll_html] if item]
-        meta_html = (
-            f'<div class="lia-route__meta">{" ".join(meta_items)}</div>' if meta_items else ""
-        )
-
         return f"""<div class="lia-card lia-route {nested_class}">
-{map_html}
-<div class="lia-route__header">
-<div class="lia-route__header-badges">{distance_badge} {header_badge} {traffic_badge} {avoidances_html}</div>
-</div>
-<div class="lia-route__main-info">
-<div class="lia-route__duration-row">{duration_html}{eta_html}</div>
-{departure_html}
-{meta_html}
-</div>
+{hero_html}
+{card_top_html}
+{chip_row_1}
+{chip_row_2}
+{extra_html}
 <div class="lia-route__endpoints">
 <div class="lia-route__endpoint">
 <span class="lia-route__endpoint-icon">{icon(Icons.FLAG_START, size="sm", domain="route")}</span>
@@ -566,78 +552,6 @@ class RouteCard(BaseComponent):
             if remaining_minutes:
                 return f"{hours}h{remaining_minutes:02d}"
             return f"{hours}h"
-
-    def _build_arrival_departure_html(
-        self,
-        ctx: RenderContext,
-        eta_formatted: str,
-        is_arrival_based: bool,
-        target_arrival_formatted: str,
-        suggested_departure_formatted: str,
-    ) -> tuple[str, str]:
-        """
-        Build HTML for arrival time and suggested departure display.
-
-        For arrival-based routes (calendar events): shows target arrival and departure time.
-        For normal routes: shows ETA only.
-
-        Returns:
-            Tuple of (eta_html, departure_html)
-        """
-        eta_html = ""
-        departure_html = ""
-
-        if is_arrival_based and target_arrival_formatted:
-            arrival_label = V3Messages.get_arrival_time(ctx.language)
-            eta_html = (
-                f'<span class="lia-route__eta"> • {arrival_label} {target_arrival_formatted}</span>'
-            )
-            if suggested_departure_formatted:
-                departure_label = V3Messages.get_suggested_departure(ctx.language)
-                departure_html = f'<div class="lia-route__departure">{icon(Icons.ALARM, size="xs")} {departure_label} {suggested_departure_formatted}</div>'
-        elif eta_formatted:
-            arrival_label = V3Messages.get_arrival_time(ctx.language)
-            eta_html = f'<span class="lia-route__eta"> • {arrival_label} {eta_formatted}</span>'
-
-        return eta_html, departure_html
-
-    def _build_distance_badge(self, distance_km: float) -> str:
-        """
-        Build distance badge HTML.
-
-        Args:
-            distance_km: Distance in kilometers
-
-        Returns:
-            HTML string for the distance badge
-        """
-        return (
-            f'<span class="lia-badge lia-badge--subtle">'
-            f'{icon(Icons.DISTANCE, size="xs")} {distance_km:.1f} km'
-            f"</span>"
-        )
-
-    def _build_traffic_badge(self, traffic_conditions: str, language: str) -> str:
-        """
-        Build traffic conditions badge HTML.
-
-        Args:
-            traffic_conditions: Traffic condition string (NORMAL, LIGHT, MODERATE, HEAVY)
-            language: Language code for i18n
-
-        Returns:
-            HTML string for the traffic badge, or empty string if no conditions
-        """
-        if not traffic_conditions:
-            return ""
-
-        traffic_class = self.TRAFFIC_CLASS.get(traffic_conditions.upper(), "lia-badge--subtle")
-        traffic_label = V3Messages.get_traffic_condition(language, traffic_conditions)
-        return (
-            f'<span class="lia-badge {traffic_class}">'
-            f'{icon(Icons.TRAFFIC, size="xs")} {traffic_label}'
-            f"</span>"
-        )
 
     def _build_route_url(
         self,

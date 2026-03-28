@@ -19,10 +19,14 @@ from src.domains.agents.display.components.base import (
     BaseComponent,
     RenderContext,
     escape_html,
+    render_card_top,
+    render_chip,
+    render_kv_rows,
+    render_raw_block,
     truncate,
     wrap_with_response,
 )
-from src.domains.agents.display.icons import Icons, icon
+from src.domains.agents.display.icons import Icons
 
 # Fields used to auto-detect a meaningful title for structured MCP items
 _TITLE_FIELDS = ("name", "title", "subject", "label", "display_name", "full_name")
@@ -128,16 +132,7 @@ class McpResultCard(BaseComponent):
         tool_name = data.get("tool_name", "")
         nested_class = self._nested_class(ctx)
 
-        # Badge
-        badge_html = (
-            f'<div class="lia-badge-row">'
-            f'<span class="lia-badge lia-badge--primary">'
-            f"{icon(Icons.EXTENSION)} MCP · {escape_html(server_name)}"
-            f"</span>"
-            f"</div>"
-        )
-
-        # Title — auto-detect from well-known fields
+        # v4: card-top + description + kv-rows
         title_value = None
         for field in _TITLE_FIELDS:
             candidate = data.get(field)
@@ -146,13 +141,12 @@ class McpResultCard(BaseComponent):
                 break
         if not title_value:
             title_value = tool_name.replace("_", " ").title() if tool_name else "MCP"
-        title_html = (
-            f'<div class="lia-title-row">'
-            f'<span class="lia-title-row__text">{escape_html(title_value)}</span>'
-            f"</div>"
-        )
 
-        # Description — optional
+        title_html = f'<span class="lia-card-top__title">{escape_html(title_value)}</span>'
+        server_badge = render_chip(server_name, "", Icons.EXTENSION)
+        card_top_html = render_card_top("extension", "teal", title_html, badges_html=server_badge)
+
+        # Description
         desc_html = ""
         used_fields = {f for f in _TITLE_FIELDS if data.get(f)}
         for field in _DESCRIPTION_FIELDS:
@@ -161,16 +155,16 @@ class McpResultCard(BaseComponent):
                 used_fields.add(field)
                 desc_truncated = truncate(candidate, _MAX_DESCRIPTION_LENGTH)
                 desc_html = (
-                    f'<div class="lia-mcp__description">' f"{escape_html(desc_truncated)}" f"</div>"
+                    f'<p style="font-size:var(--lia-text-sm);color:var(--lia-text-secondary);'
+                    f'margin-top:var(--lia-space-xs)">{escape_html(desc_truncated)}</p>'
                 )
                 break
 
-        # Detail fields — top N remaining scalar fields
-        detail_parts: list[str] = []
+        # Detail fields as KV rows
+        kv_pairs: list[tuple[str, str]] = []
         for key, value in data.items():
-            if len(detail_parts) >= _MAX_DETAIL_FIELDS:
+            if len(kv_pairs) >= _MAX_DETAIL_FIELDS:
                 break
-            # Skip internal, already-used, or complex fields
             if key in used_fields or key in _EXCLUDED_FIELDS:
                 continue
             if any(key.startswith(p) for p in _EXCLUDED_FIELD_PREFIXES):
@@ -183,17 +177,13 @@ class McpResultCard(BaseComponent):
             if len(str_value) > _MAX_DETAIL_VALUE_LENGTH:
                 str_value = str_value[:_MAX_DETAIL_VALUE_LENGTH] + "..."
             label = _humanise_field_name(key)
-            detail_parts.append(f"{escape_html(label)}: {escape_html(str_value)}")
+            kv_pairs.append((label, str_value))
 
-        details_html = ""
-        if detail_parts:
-            details_text = " · ".join(detail_parts)
-            details_html = f'<div class="lia-mcp__details">{details_text}</div>'
+        details_html = render_kv_rows(kv_pairs) if kv_pairs else ""
 
         card_html = (
             f'<div class="lia-card lia-mcp {nested_class}">'
-            f"{badge_html}"
-            f"{title_html}"
+            f"{card_top_html}"
             f"{desc_html}"
             f"{details_html}"
             f"</div>"
@@ -224,36 +214,24 @@ class McpResultCard(BaseComponent):
         is_first_item: bool = True,
         is_last_item: bool = True,
     ) -> str:
-        """Render MCP tool result as raw text/JSON card."""
+        """Render MCP tool result as raw text/JSON card using v4 components."""
         tool_name = data.get("tool_name", "")
         server_name = data.get("server_name", "MCP")
         result = data.get("result", "")
         nested_class = self._nested_class(ctx)
 
-        # Badge: server name
-        badge_html = (
-            f'<div class="lia-badge-row">'
-            f'<span class="lia-badge lia-badge--primary">'
-            f"{icon(Icons.EXTENSION)} MCP · {escape_html(server_name)}"
-            f"</span>"
-            f"</div>"
-        )
-
-        # Title: tool name (humanized)
+        # v4 card-top
         display_name = tool_name.replace("_", " ").title() if tool_name else "MCP"
-        title_html = (
-            f'<div class="lia-title-row">'
-            f'<span class="lia-title-row__text">{escape_html(display_name)}</span>'
-            f"</div>"
-        )
+        title_html = f'<span class="lia-card-top__title">{escape_html(display_name)}</span>'
+        server_badge = render_chip(server_name, "", Icons.EXTENSION)
+        card_top_html = render_card_top("extension", "teal", title_html, badges_html=server_badge)
 
-        # Content: JSON detection or plain text
-        content_html = self._render_content(result)
+        # Content: use v4 raw-block for JSON, or plain text
+        content_html = self._render_content_v4(result)
 
         card_html = (
             f'<div class="lia-card lia-mcp {nested_class}">'
-            f"{badge_html}"
-            f"{title_html}"
+            f"{card_top_html}"
             f"{content_html}"
             f"</div>"
         )
@@ -269,24 +247,16 @@ class McpResultCard(BaseComponent):
             )
         return card_html
 
-    def _render_content(self, result: str) -> str:
-        """Render result content — JSON formatted or plain text.
-
-        JSON heuristic: content starting with { or [ is rendered
-        in a <pre> block for readability. Otherwise, plain text
-        is truncated to 2000 chars and line breaks converted to <br>.
-        """
+    def _render_content_v4(self, result: str) -> str:
+        """Render result content using v4 raw-block for JSON, plain text otherwise."""
         if not result:
             return ""
-
         stripped = result.strip()
         if stripped and stripped[0] in "{[":
-            return (
-                f'<pre class="lia-mcp__content lia-mcp__content--json">'
-                f"{escape_html(result)}"
-                f"</pre>"
-            )
-
+            return render_raw_block(result)
         truncated = truncate(result, 2000)
         formatted = escape_html(truncated).replace("\n", "<br>")
-        return f'<div class="lia-mcp__content">{formatted}</div>'
+        return (
+            f'<div style="font-size:var(--lia-text-sm);color:var(--lia-text-secondary);'
+            f'margin-top:var(--lia-space-xs)">{formatted}</div>'
+        )

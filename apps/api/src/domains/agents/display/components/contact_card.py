@@ -26,6 +26,8 @@ from src.domains.agents.display.components.base import (
     format_phone,
     phone_for_tel,
     render_collapsible,
+    render_d_row,
+    render_type_badge,
     wrap_with_response,
 )
 from src.domains.agents.display.icons import Icons, get_relation_icon, icon
@@ -157,159 +159,156 @@ class ContactCard(BaseComponent):
         ctx: RenderContext,
         data: dict[str, Any],
     ) -> str:
-        """Unified contact card - CSS handles responsive adaptation."""
-        avatar = self._render_avatar(name, photo_url, size="md")
-        name_html = escape_html(name)
+        """Unified contact card using Design System v4 components."""
         nested_class = self._nested_class(ctx)
 
-        # Subtitle (company + title)
+        # --- Card top: avatar (photo or initials) + name + subtitle ---
+        name_link = f'<a class="lia-card-top__title" href="{escape_html(url)}" target="_blank">{escape_html(name)}</a>'
         subtitle_parts = []
         if company:
             subtitle_parts.append(escape_html(company))
         if title:
             subtitle_parts.append(escape_html(title))
-        subtitle = " · ".join(subtitle_parts)
+        subtitle_html = " · ".join(subtitle_parts)
+        subtitle_with_icon = (
+            f'{icon(Icons.WORK, size="xs")} {subtitle_html}' if subtitle_html else ""
+        )
 
-        # Email list
-        email_html = self._render_email_list(emails, ctx)
+        # Build card-top with photo or initials in the illus slot
+        if photo_url:
+            illus_html = (
+                f'<div class="lia-illus lia-illus--indigo" style="overflow:hidden;padding:0">'
+                f'<img src="{escape_html(photo_url)}" alt="" '
+                f'style="width:100%;height:100%;object-fit:cover;border-radius:inherit">'
+                f"</div>"
+            )
+        else:
+            initials = "".join(word[0].upper() for word in name.split()[:2]) if name else "?"
+            illus_html = (
+                f'<div class="lia-illus lia-illus--indigo">'
+                f'<span style="font-size:var(--lia-text-base);font-weight:600">'
+                f"{escape_html(initials)}</span></div>"
+            )
 
-        # Phone list
-        phone_html = self._render_phone_list(phones, ctx)
+        card_top_html = (
+            f'<div class="lia-card-top">'
+            f"{illus_html}"
+            f'<div class="lia-card-top__info">'
+            f"{name_link}"
+            f'{f"<div class=lia-card-top__subtitle>{subtitle_with_icon}</div>" if subtitle_with_icon else ""}'
+            f"</div></div>"
+        )
 
-        # Primary address and birthday (shown in base section)
-        address_html = self._render_primary_address(data, ctx)
-        birthday_html = self._render_birthday(data, ctx)
+        # --- Details: emails, phones, address, birthday (all left-aligned) ---
+        email_html = self._render_email_list_v4(emails, ctx)
+        phone_html = self._render_phone_list_v4(phones, ctx)
+        address_html = self._render_primary_address_v4(data, ctx)
+        birthday_html = self._render_birthday_v4(data, ctx)
 
-        # Collapsible extended details
+        # --- Collapsible extended details ---
         collapsible_html = self._render_collapsible_details(data, ctx)
 
         return f"""<div class="lia-card lia-contact {nested_class}">
-<div class="lia-contact__header">
-{avatar}
-<div class="lia-contact__info">
-<a href="{escape_html(url)}" class="lia-contact__name" target="_blank">{name_html}</a>
-{f'<span class="lia-contact__subtitle">{subtitle}</span>' if subtitle else ''}
-</div>
-</div>
-<div class="lia-contact__details">
+{card_top_html}
 {email_html}
 {phone_html}
 {address_html}
 {birthday_html}
-</div>
 {collapsible_html}
 </div>"""
 
-    def _render_email_list(self, emails: list, ctx: RenderContext) -> str:
-        """Render email addresses list with localized type badges."""
+    def _render_email_list_v4(self, emails: list, ctx: RenderContext) -> str:
+        """Render email addresses using v4 d-row + type badges."""
         if not emails:
             return ""
-
-        email_items = []
+        items = []
         for e in emails[:3]:
             val = e.get("value") if isinstance(e, dict) else str(e)
             etype = e.get("type", "") if isinstance(e, dict) else ""
-            # Translate data type (home, work, etc.)
             type_label = V3Messages.get_data_type(ctx.language, etype) if etype else ""
-            type_badge = (
-                f'<span class="lia-badge lia-badge--subtle">{escape_html(type_label)}</span>'
-                if type_label
-                else ""
+            link = f'<a href="mailto:{escape_html(val)}">{escape_html(val)}</a>'
+            badge = (
+                render_type_badge(type_label, self._type_to_variant(etype)) if type_label else ""
             )
-            email_items.append(
-                f'<div class="lia-contact__item">'
-                f"{icon(Icons.EMAIL)}"
-                f'<a href="mailto:{escape_html(val)}">{escape_html(val)}</a>'
-                f"{type_badge}"
-                f"</div>"
-            )
-        return "\n".join(email_items)
+            items.append(render_d_row(Icons.EMAIL, f"{link} {badge}"))
+        return "\n".join(items)
 
-    def _render_phone_list(self, phones: list, ctx: RenderContext) -> str:
-        """Render phone numbers list with localized type badges."""
+    def _render_phone_list_v4(self, phones: list, ctx: RenderContext) -> str:
+        """Render phone numbers using v4 d-row + type badges."""
         if not phones:
             return ""
-
-        phone_items = []
+        items = []
         for p in phones[:3]:
             val = p.get("value") if isinstance(p, dict) else str(p)
             ptype = p.get("type", "") if isinstance(p, dict) else ""
             formatted = format_phone(val)
-            # Translate data type (home, work, mobile, etc.)
             type_label = V3Messages.get_data_type(ctx.language, ptype) if ptype else ""
-            type_badge = (
-                f'<span class="lia-badge lia-badge--subtle">{escape_html(type_label)}</span>'
-                if type_label
-                else ""
+            link = f'<a href="tel:{phone_for_tel(val)}">{escape_html(formatted)}</a>'
+            badge = (
+                render_type_badge(type_label, self._type_to_variant(ptype)) if type_label else ""
             )
-            phone_items.append(
-                f'<div class="lia-contact__item">'
-                f"{icon(Icons.PHONE)}"
-                f'<a href="tel:{phone_for_tel(val)}">{escape_html(formatted)}</a>'
-                f"{type_badge}"
-                f"</div>"
-            )
-        return "\n".join(phone_items)
+            items.append(render_d_row(Icons.PHONE, f"{link} {badge}"))
+        return "\n".join(items)
 
-    def _render_primary_address(self, data: dict[str, Any], ctx: RenderContext) -> str:
-        """Render primary address with clickable directions link and localized type badge."""
+    def _render_primary_address_v4(self, data: dict[str, Any], ctx: RenderContext) -> str:
+        """Render primary address using v4 d-row."""
         addresses = data.get("addresses", [])
         if not addresses:
             return ""
-
         addr = addresses[0]
-        if isinstance(addr, dict):
-            formatted = addr.get("formattedValue") or addr.get("formatted", "")
-            atype = addr.get("type", "")
-        else:
-            formatted = str(addr)
-            atype = ""
-
+        formatted = (
+            addr.get("formattedValue") or addr.get("formatted", "")
+            if isinstance(addr, dict)
+            else str(addr)
+        )
+        atype = addr.get("type", "") if isinstance(addr, dict) else ""
         if not formatted:
             return ""
-
-        # Translate data type (home, work, etc.)
         type_label = V3Messages.get_data_type(ctx.language, atype) if atype else ""
-        type_badge = (
-            f'<span class="lia-badge lia-badge--subtle">{escape_html(type_label)}</span>'
-            if type_label
-            else ""
-        )
-
-        # Make address clickable with directions link
         directions_url = build_directions_url(formatted)
-        return (
-            f'<div class="lia-contact__item lia-contact__item--address">'
-            f"{icon(Icons.LOCATION)}"
-            f'<a href="{directions_url}" target="_blank">{escape_html(formatted)}</a>'
-            f"{type_badge}"
-            f"</div>"
+        link = (
+            f'<a href="{escape_html(directions_url)}" target="_blank">{escape_html(formatted)}</a>'
+        )
+        badge = render_type_badge(type_label, self._type_to_variant(atype)) if type_label else ""
+        return render_d_row(
+            Icons.LOCATION,
+            f"{link} {badge}",
+            icon_style="font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 20;color:#ef4444",
         )
 
-    def _render_birthday(self, data: dict[str, Any], ctx: RenderContext) -> str:
-        """Render birthday with age."""
+    def _render_birthday_v4(self, data: dict[str, Any], ctx: RenderContext) -> str:
+        """Render birthday using v4 d-row."""
         birthdays = data.get("birthdays", [])
         if not birthdays:
             return ""
-
         bday_str, age = self._format_birthday(
             birthdays[0], include_year=True, language=ctx.language
         )
         if not bday_str:
             return ""
-
         years_old_label = V3Messages.get_years_old(ctx.language)
         age_str = f" ({age} {years_old_label})" if age else ""
-        return (
-            f'<div class="lia-contact__item">'
-            f"{icon(Icons.BIRTHDAY)}"
-            f"<span>{escape_html(bday_str)}{age_str}</span>"
-            f"</div>"
+        return render_d_row(
+            Icons.BIRTHDAY,
+            f"{escape_html(bday_str)}{age_str}",
+            icon_style="font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 20;color:#f59e0b",
         )
 
+    @staticmethod
+    def _type_to_variant(data_type: str) -> str:
+        """Map contact data type to tbadge color variant."""
+        dt = data_type.lower() if data_type else ""
+        if dt in ("work", "travail", "arbeit", "trabajo", "lavoro"):
+            return "work"
+        elif dt in ("home", "domicile", "maison", "zuhause", "casa", "hogar"):
+            return "home"
+        elif dt in ("mobile", "cell", "portable", "mobil", "movil", "cellulare"):
+            return "mobile"
+        return "other"
+
     def _render_collapsible_details(self, data: dict[str, Any], ctx: RenderContext) -> str:
-        """Render collapsible section with extended details."""
-        detail_sections = []
+        """Render collapsible section using v4 d-row + type badges (same as main card)."""
+        detail_sections: list[str] = []
 
         # Additional addresses (beyond the first)
         addresses = data.get("addresses", [])
@@ -322,19 +321,14 @@ class ContactCard(BaseComponent):
                     formatted = str(addr)
                     atype = ""
                 if formatted:
-                    # Translate data type (home, work, etc.)
                     type_label = V3Messages.get_data_type(ctx.language, atype) if atype else ""
-                    type_badge = (
-                        f'<span class="lia-badge lia-badge--subtle">{escape_html(type_label)}</span>'
+                    badge = (
+                        render_type_badge(type_label, self._type_to_variant(atype))
                         if type_label
                         else ""
                     )
                     detail_sections.append(
-                        f'<div class="lia-contact__item lia-contact__item--address">'
-                        f"{icon(Icons.LOCATION)}"
-                        f"<span>{escape_html(formatted)}</span>"
-                        f"{type_badge}"
-                        f"</div>"
+                        render_d_row(Icons.LOCATION, f"{escape_html(formatted)} {badge}")
                     )
 
         # Nicknames
@@ -348,13 +342,10 @@ class ContactCard(BaseComponent):
             if nick_values:
                 nicknames_label = V3Messages.get_nicknames(ctx.language)
                 detail_sections.append(
-                    f'<div class="lia-contact__item">'
-                    f"{icon(Icons.MOOD)}"
-                    f'<span>{nicknames_label}: {", ".join(nick_values)}</span>'
-                    f"</div>"
+                    render_d_row(Icons.MOOD, f'{nicknames_label}: {", ".join(nick_values)}')
                 )
 
-        # Relations - one line per relation with type-specific icon
+        # Relations — same d-row + type badge pattern as main card
         relations = data.get("relations", [])
         if relations:
             for rel in relations[:5]:
@@ -365,21 +356,11 @@ class ContactCard(BaseComponent):
                     person = str(rel)
                     rtype = ""
                 if person:
-                    # Get specific icon for this relation type
                     relation_icon = get_relation_icon(rtype)
-                    # Translate relation type for the badge
                     type_label = V3Messages.get_relation_type(ctx.language, rtype) if rtype else ""
-                    type_badge = (
-                        f'<span class="lia-badge lia-badge--subtle">{escape_html(type_label)}</span>'
-                        if type_label
-                        else ""
-                    )
+                    badge = render_type_badge(type_label, "other") if type_label else ""
                     detail_sections.append(
-                        f'<div class="lia-contact__item">'
-                        f"{icon(relation_icon)}"
-                        f"<span>{escape_html(person)}</span>"
-                        f"{type_badge}"
-                        f"</div>"
+                        render_d_row(relation_icon, f"{escape_html(person)} {badge}")
                     )
 
         # Biography/Notes
@@ -390,12 +371,7 @@ class ContactCard(BaseComponent):
             if bio_text:
                 if len(bio_text) > 150:
                     bio_text = bio_text[:147] + "..."
-                detail_sections.append(
-                    f'<div class="lia-contact__item lia-contact__bio">'
-                    f"{icon(Icons.NOTE)}"
-                    f"<span>{escape_html(bio_text)}</span>"
-                    f"</div>"
-                )
+                detail_sections.append(render_d_row(Icons.NOTE, escape_html(bio_text)))
 
         # Skills
         skills = data.get("skills", [])
@@ -408,10 +384,7 @@ class ContactCard(BaseComponent):
             if skill_values:
                 skills_label = V3Messages.get_skills(ctx.language)
                 detail_sections.append(
-                    f'<div class="lia-contact__item">'
-                    f"{icon(Icons.SKILLS)}"
-                    f'<span>{skills_label}: {", ".join(skill_values)}</span>'
-                    f"</div>"
+                    render_d_row(Icons.SKILLS, f'{skills_label}: {", ".join(skill_values)}')
                 )
 
         # Interests
@@ -425,10 +398,7 @@ class ContactCard(BaseComponent):
             if int_values:
                 interests_label = V3Messages.get_interests(ctx.language)
                 detail_sections.append(
-                    f'<div class="lia-contact__item">'
-                    f"{icon(Icons.INTERESTS)}"
-                    f'<span>{interests_label}: {", ".join(int_values)}</span>'
-                    f"</div>"
+                    render_d_row(Icons.INTERESTS, f'{interests_label}: {", ".join(int_values)}')
                 )
 
         # Occupations
@@ -442,10 +412,7 @@ class ContactCard(BaseComponent):
             if occ_values:
                 occupation_label = V3Messages.get_occupation(ctx.language)
                 detail_sections.append(
-                    f'<div class="lia-contact__item">'
-                    f"{icon(Icons.WORK)}"
-                    f'<span>{occupation_label}: {", ".join(occ_values)}</span>'
-                    f"</div>"
+                    render_d_row(Icons.WORK, f'{occupation_label}: {", ".join(occ_values)}')
                 )
 
         # IM clients
@@ -459,12 +426,7 @@ class ContactCard(BaseComponent):
                     if protocol and username:
                         im_items.append(f"{escape_html(protocol)}: {escape_html(username)}")
             if im_items:
-                detail_sections.append(
-                    f'<div class="lia-contact__item">'
-                    f"{icon(Icons.CHAT)}"
-                    f'<span>{"; ".join(im_items)}</span>'
-                    f"</div>"
-                )
+                detail_sections.append(render_d_row(Icons.CHAT, "; ".join(im_items)))
 
         # Personal events (anniversaries, etc.)
         events = data.get("events", [])
@@ -479,17 +441,13 @@ class ContactCard(BaseComponent):
                         month = date_obj.get("month", "")
                         year = date_obj.get("year", "")
                         if day and month:
-                            # Locale-aware date formatting
                             date_str = self._format_date_components(day, month, year, ctx.language)
                             label = f"{escape_html(etype)}: " if etype else ""
                             event_items.append(f"{label}{date_str}")
             if event_items:
                 events_label = V3Messages.get_events(ctx.language)
                 detail_sections.append(
-                    f'<div class="lia-contact__item">'
-                    f"{icon(Icons.EVENT)}"
-                    f'<span>{events_label}: {"; ".join(event_items)}</span>'
-                    f"</div>"
+                    render_d_row(Icons.EVENT, f'{events_label}: {"; ".join(event_items)}')
                 )
 
         # Locations
@@ -506,10 +464,7 @@ class ContactCard(BaseComponent):
             if loc_items:
                 locations_label = V3Messages.get_locations(ctx.language)
                 detail_sections.append(
-                    f'<div class="lia-contact__item">'
-                    f"{icon(Icons.LOCATION)}"
-                    f'<span>{locations_label}: {"; ".join(loc_items)}</span>'
-                    f"</div>"
+                    render_d_row(Icons.LOCATION, f'{locations_label}: {"; ".join(loc_items)}')
                 )
 
         # Calendar URLs
@@ -523,38 +478,24 @@ class ContactCard(BaseComponent):
                     cal_url = cal.get("url", "")
                     if cal_url:
                         cal_items.append(
-                            f'<a href="{escape_html(cal_url)}" target="_blank">{escape_html(label)}</a>'
+                            f'<a href="{escape_html(cal_url)}" target="_blank">'
+                            f"{escape_html(label)}</a>"
                         )
             if cal_items:
-                detail_sections.append(
-                    f'<div class="lia-contact__item">'
-                    f"{icon(Icons.DATE_RANGE)}"
-                    f'<span>{"; ".join(cal_items)}</span>'
-                    f"</div>"
-                )
+                detail_sections.append(render_d_row(Icons.DATE_RANGE, "; ".join(cal_items)))
 
-        # If we have details, wrap in collapsible
+        # Wrap in collapsible
         if detail_sections:
             content_html = "\n".join(detail_sections)
             return render_collapsible(
                 trigger_text=V3Messages.get_see_more(ctx.language),
-                content_html=f'<div class="lia-contact__extended">{content_html}</div>',
+                content_html=content_html,
                 initially_open=False,
                 language=ctx.language,
+                with_separator=False,
             )
 
         return ""
-
-    def _render_avatar(self, name: str, photo_url: str, size: str = "md") -> str:
-        """Render avatar with photo or initials."""
-        if photo_url:
-            return (
-                f'<img src="{escape_html(photo_url)}" alt="" class="lia-avatar lia-avatar--{size}">'
-            )
-
-        # Generate initials
-        initials = "".join(word[0].upper() for word in name.split()[:2]) if name else "?"
-        return f'<div class="lia-avatar lia-avatar--{size} lia-avatar--initials">{escape_html(initials)}</div>'
 
     def _get_name(self, data: dict, language: str = "fr") -> str:
         """Extract display name from various formats."""

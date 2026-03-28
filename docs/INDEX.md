@@ -204,6 +204,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [GUIDE_TOOL_CREATION.md](./guides/GUIDE_TOOL_CREATION.md) | Créer un nouveau tool | ✅ |
 | [GUIDE_PROMPTS.md](./guides/GUIDE_PROMPTS.md) | Optimiser les prompts, versioning | ✅ |
 | [GUIDE_TESTING.md](./guides/GUIDE_TESTING.md) | Tests unitaires, integration, E2E | ✅ |
+| [GUIDE_DESIGN_SYSTEM.md](./guides/GUIDE_DESIGN_SYSTEM.md) | Design System v4 — HTML card components | ✅ |
 | [GUIDE_DEBUGGING.md](./guides/GUIDE_DEBUGGING.md) | Debug LangGraph, logs, breakpoints | ✅ |
 | [GUIDE_CONNECTOR_IMPLEMENTATION.md](./guides/GUIDE_CONNECTOR_IMPLEMENTATION.md) | Implémenter un nouveau connecteur | ✅ |
 | [GUIDE_CONFIG_ARCHITECTURE.md](./guides/GUIDE_CONFIG_ARCHITECTURE.md) | Architecture configuration modulaire | ✅ |

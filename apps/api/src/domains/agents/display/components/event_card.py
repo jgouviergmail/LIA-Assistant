@@ -28,7 +28,16 @@ from src.domains.agents.display.components.base import (
     format_duration,
     format_full_date,
     format_time,
+    render_att_row,
+    render_card_top,
+    render_chip,
+    render_chip_row,
     render_collapsible,
+    render_d_item,
+    render_d_row,
+    render_desc_block,
+    render_part_list,
+    render_section_header,
     wrap_with_response,
 )
 from src.domains.agents.display.icons import Icons, icon
@@ -209,42 +218,87 @@ class EventCard(BaseComponent):
         ctx: RenderContext,
         data: dict[str, Any],
     ) -> str:
-        """Unified event card - CSS handles responsive adaptation."""
+        """Unified event card using Design System v4 components."""
         nested_class = self._nested_class(ctx)
-        # Response status class for left border color (accepted/pending/declined)
         response_class = self._get_response_status_class(data)
 
-        # Status badge
-        status_html = self._render_status_badge(status, ctx)
+        # --- Card top: illustration + title + participant count ---
+        illus_icon, illus_color = self._get_illus_for_status(data)
+        title_html = f'<a class="lia-card-top__title" href="{escape_html(url)}" target="_blank">{escape_html(title)}</a>'
 
-        # Time display
-        time_html = self._render_time_display(start_str, end_str, duration, is_all_day, ctx)
+        # Only status badge in card-top (participant count shown with avatars below)
+        badges_parts = []
+        status_badge = self._render_status_badge(status, ctx)
+        if status_badge:
+            badges_parts.append(status_badge)
 
-        # Location with link
-        location_html = self._render_location(location, ctx)
+        card_top_html = render_card_top(
+            icon_name=illus_icon,
+            illus_color=illus_color,
+            title_html=title_html,
+            badges_html=" ".join(badges_parts) if badges_parts else "",
+        )
 
-        # Attendees badge - in header for desktop
-        attendees_header_html = ""
+        # --- Chips row: date + time + duration ---
+        chips = []
+        if date_str:
+            chips.append(render_chip(date_str, "indigo", Icons.CALENDAR))
+        if is_all_day:
+            chips.append(
+                render_chip(
+                    V3Messages.get_all_day(ctx.language, long_form=True), "allday", "wb_sunny"
+                )
+            )
+        else:
+            if start_str and end_str:
+                chips.append(render_chip(f"{start_str} - {end_str}", "time", Icons.SCHEDULE))
+            if duration:
+                chips.append(render_chip(duration, "", "timer"))
+        chip_row_html = render_chip_row(" ".join(chips), separator_pos="bottom")
+
+        # --- Location ---
+        location_html = self._render_location_v4(location, ctx)
+
+        # --- Attendee avatars with "N participants" label ---
         if attendees:
-            count = len(attendees)
-            participant_label = V3Messages.get_participant(ctx.language, count)
-            attendees_header_html = f'<span class="lia-badge lia-badge--subtle">{icon(Icons.GROUP, size="xs")} {count} {participant_label}</span>'
+            participant_label = V3Messages.get_participant(ctx.language, len(attendees))
+            attendees_html = render_att_row(attendees, label_text=participant_label)
+        else:
+            attendees_html = ""
 
-        # Collapsible details
+        # --- Collapsible details ---
         collapsible_html = self._render_collapsible_details(data, attendees, ctx)
 
         return f"""<div class="lia-card lia-event {response_class} {nested_class}">
-<div class="lia-event__main">
-<div class="lia-event__header">
-<a href="{escape_html(url)}" class="lia-event__title" target="_blank">{escape_html(title)}</a>
-<div class="lia-event__header-right">{status_html}{attendees_header_html}</div>
-</div>
-<span class="lia-event__date">{icon(Icons.CALENDAR, size="sm")} {escape_html(date_str)}</span>
-<div class="lia-event__time-row">{time_html}</div>
-<div class="lia-event__meta">{location_html}</div>
+{card_top_html}
+{chip_row_html}
+{location_html}
+{attendees_html}
 {collapsible_html}
-</div>
 </div>"""
+
+    def _get_illus_for_status(self, data: dict[str, Any]) -> tuple[str, str]:
+        """Get illustration icon and color based on user's response status."""
+        status = self._get_user_response_status(data)
+        if status == "accepted":
+            return "event_available", "green"
+        elif status == "declined":
+            return "event_busy", "red"
+        return "pending", "amber"
+
+    def _render_location_v4(self, location: str, ctx: RenderContext) -> str:
+        """Render location using v4 d-row component."""
+        if not location:
+            return ""
+        if "meet.google.com" in location:
+            link = f'<a href="{escape_html(location)}" target="_blank">Google Meet</a>'
+            return render_d_row(Icons.VIDEO_CALL, link)
+        link = f'<a href="{build_directions_url(location)}" target="_blank">{escape_html(location)}</a>'
+        return render_d_row(
+            Icons.LOCATION,
+            link,
+            icon_style="font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 20;color:#ef4444",
+        )
 
     def _render_status_badge(self, status: str, ctx: RenderContext) -> str:
         """Render status badge for non-confirmed events."""
@@ -258,77 +312,56 @@ class EventCard(BaseComponent):
                 return f'<span class="lia-badge {badge_class}">{badge_text}</span>'
         return ""
 
-    def _render_time_display(
-        self,
-        start_str: str,
-        end_str: str,
-        duration: str,
-        is_all_day: bool,
-        ctx: RenderContext,
-        compact: bool = False,
-    ) -> str:
-        """Render time display with start, end, and duration."""
-        if is_all_day:
-            label = V3Messages.get_all_day(ctx.language, long_form=not compact)
-            return f'<span class="lia-badge lia-badge--accent">{label}</span>'
-
-        # Clock icon before time display
-        time_html = f'{icon(Icons.SCHEDULE, size="sm")} <span class="lia-event__time">{escape_html(start_str)} - {escape_html(end_str)}</span>'
-        if duration:
-            time_html += f' <span class="lia-event__duration">({escape_html(duration)})</span>'
-        return time_html
-
-    def _render_location(self, location: str, ctx: RenderContext) -> str:
-        """Render location with appropriate link (Maps or Meet)."""
-        if not location:
-            return ""
-
-        if "meet.google.com" in location:
-            return f"""<div class="lia-event__location">
-{icon(Icons.VIDEO_CALL)}
-<a href="{escape_html(location)}" target="_blank">Google Meet</a>
-</div>"""
-
-        return f"""<div class="lia-event__location">
-{icon(Icons.LOCATION)}
-<a href="{build_directions_url(location)}" target="_blank">{escape_html(location)}</a>
-</div>"""
-
     def _render_collapsible_details(
         self,
         data: dict[str, Any],
         attendees: list,
         ctx: RenderContext,
     ) -> str:
-        """Render collapsible section with extended details."""
-        detail_sections = []
+        """Render collapsible section with extended details using v4 components."""
+        detail_sections: list[str] = []
 
-        # Description
+        # Description block
         description = data.get("description", "")
         if description:
             desc_preview = description[:300] + "..." if len(description) > 300 else description
-            # Clean HTML tags
             desc_clean = re.sub(r"<[^>]+>", " ", desc_preview).strip()
             desc_clean = re.sub(r"\s+", " ", desc_clean)
             if desc_clean:
-                detail_sections.append(
-                    f'<div class="lia-event__description">'
-                    f'{icon(Icons.DESCRIPTION, size="sm")}'
-                    f"<span>{escape_html(desc_clean)}</span>"
-                    f"</div>"
-                )
+                detail_sections.append(render_desc_block(escape_html(desc_clean)))
 
-        # Organizer
+        # Organizer with email
         organizer = data.get("organizer", {})
         if organizer and isinstance(organizer, dict):
             org_name = organizer.get("displayName") or organizer.get("email", "")
+            org_email = organizer.get("email", "")
+            # Skip non-human emails (calendar groups, resources)
+            is_human_email = bool(
+                org_email
+                and "@group.calendar.google.com" not in org_email
+                and "@resource.calendar.google.com" not in org_email
+            )
             if org_name:
                 organized_by_label = V3Messages.get_organized_by(ctx.language)
+                if is_human_email:
+                    name_html = (
+                        f'<a href="mailto:{escape_html(org_email)}">' f"{escape_html(org_name)}</a>"
+                    )
+                    email_suffix = (
+                        f' <span style="color:var(--lia-text-muted);'
+                        f'font-size:var(--lia-text-xs)">'
+                        f"{escape_html(org_email)}</span>"
+                        if org_email != org_name
+                        else ""
+                    )
+                else:
+                    name_html = escape_html(org_name)
+                    email_suffix = ""
                 detail_sections.append(
-                    f'<div class="lia-event__detail-item">'
-                    f'{icon(Icons.PERSON, size="sm")}'
-                    f"<span>{organized_by_label} {escape_html(org_name)}</span>"
-                    f"</div>"
+                    render_d_item(
+                        Icons.PERSON,
+                        f"{organized_by_label} {name_html}{email_suffix}",
+                    )
                 )
 
         # Conference link
@@ -341,57 +374,24 @@ class EventCard(BaseComponent):
                     if meet_url:
                         join_meet_label = V3Messages.get_join_meet(ctx.language)
                         detail_sections.append(
-                            f'<div class="lia-event__detail-item">'
-                            f'{icon(Icons.VIDEO_CALL, size="sm")}'
-                            f'<a href="{escape_html(meet_url)}" target="_blank">{join_meet_label}</a>'
-                            f"</div>"
+                            render_d_item(
+                                Icons.VIDEO_CALL,
+                                f'<a href="{escape_html(meet_url)}" target="_blank">'
+                                f"{join_meet_label}</a>",
+                            )
                         )
                         break
-
-        # Detailed attendees list (if not too many) - each on separate line
-        if attendees and len(attendees) <= 10:
-            att_lines = []
-            for att in attendees[:8]:
-                if isinstance(att, dict):
-                    att_name = att.get("displayName") or att.get("email", "")
-                    att_status = att.get("responseStatus", "")
-                    # Use Material Symbols for status
-                    status_icon = {
-                        "accepted": f'{icon(Icons.SUCCESS, size="xs")}',
-                        "declined": f'{icon(Icons.CLOSE, size="xs")}',
-                        "tentative": f'{icon(Icons.HELP, size="xs")}',
-                        "needsAction": f'{icon(Icons.SCHEDULE, size="xs")}',
-                    }.get(att_status, "")
-                    if att_name:
-                        att_lines.append(
-                            f'<div class="lia-event__attendee-item">'
-                            f"{status_icon} {escape_html(att_name)}"
-                            f"</div>"
-                        )
-            if att_lines:
-                participants_label = V3Messages.get_participants(ctx.language)
-                detail_sections.append(
-                    f'<div class="lia-event__attendees-section">'
-                    f'<div class="lia-event__attendees-header">{icon(Icons.GROUP, size="sm")} {participants_label}</div>'
-                    f'<div class="lia-event__attendees-list">{"".join(att_lines)}</div>'
-                    f"</div>"
-                )
 
         # Recurrence info
         recurrence = data.get("recurrence", [])
         if recurrence:
             recurring_label = V3Messages.get_recurring_event(ctx.language)
-            detail_sections.append(
-                f'<div class="lia-event__detail-item">'
-                f'{icon(Icons.DATE_RANGE, size="sm")}'
-                f"<span>{recurring_label}</span>"
-                f"</div>"
-            )
+            detail_sections.append(render_d_item(Icons.DATE_RANGE, recurring_label))
 
-        # Reminders - no title, just icon + values
+        # Reminders
         reminders = data.get("reminders", {})
         if reminders:
-            reminder_items = []
+            reminder_items: list[str] = []
             overrides = reminders.get("overrides", [])
             if overrides:
                 for r in overrides[:3]:
@@ -403,14 +403,14 @@ class EventCard(BaseComponent):
                         )
             elif reminders.get("useDefault"):
                 reminder_items.append(V3Messages.get_default_reminder(ctx.language))
-
             if reminder_items:
-                detail_sections.append(
-                    f'<div class="lia-event__detail-item">'
-                    f'{icon(Icons.REMINDER, size="sm")}'
-                    f'<span>{", ".join(reminder_items)}</span>'
-                    f"</div>"
-                )
+                detail_sections.append(render_d_item(Icons.REMINDER, ", ".join(reminder_items)))
+
+        # Participants section with status + name + email
+        if attendees and len(attendees) <= 10:
+            participants_label = V3Messages.get_participants(ctx.language)
+            detail_sections.append(render_section_header(participants_label, Icons.GROUP, "indigo"))
+            detail_sections.append(render_part_list(attendees))
 
         # Attachments
         attachments = data.get("attachments", [])
@@ -423,27 +423,26 @@ class EventCard(BaseComponent):
                     file_url = att.get("fileUrl", "") or att.get("url", "")
                     if file_url:
                         att_items.append(
-                            f'<a href="{escape_html(file_url)}" target="_blank">{escape_html(att_title)}</a>'
+                            f'<a href="{escape_html(file_url)}" target="_blank">'
+                            f"{escape_html(att_title)}</a>"
                         )
                     else:
                         att_items.append(escape_html(att_title))
             if att_items:
                 attachments_label = V3Messages.get_attachments(ctx.language)
                 detail_sections.append(
-                    f'<div class="lia-event__detail-item">'
-                    f'{icon(Icons.ATTACHMENT, size="sm")}'
-                    f'<span>{attachments_label} : {", ".join(att_items)}</span>'
-                    f"</div>"
+                    render_d_item(Icons.ATTACHMENT, f'{attachments_label} : {", ".join(att_items)}')
                 )
 
-        # If we have details, wrap in collapsible
+        # Wrap in collapsible (no separator — chip-row above already has one)
         if detail_sections:
             content_html = "\n".join(detail_sections)
             return render_collapsible(
                 trigger_text=V3Messages.get_see_more(ctx.language),
-                content_html=f'<div class="lia-event__extended">{content_html}</div>',
+                content_html=content_html,
                 initially_open=False,
                 language=ctx.language,
+                with_separator=False,
             )
 
         return ""

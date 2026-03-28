@@ -21,6 +21,9 @@ from src.domains.agents.display.components.base import (
     BaseComponent,
     RenderContext,
     escape_html,
+    render_desc_block,
+    render_section_header,
+    render_src_link,
     truncate,
 )
 from src.domains.agents.display.icons import Icons, icon
@@ -97,9 +100,47 @@ class WebSearchCard(BaseComponent):
 
         content = "\n".join(sections)
 
+        # v4: card-top with sources ABOVE title
+        source_chips = self._render_source_indicators(sources_used)
+        title_html = (
+            f'<span class="lia-card-top__title">{escape_html(query)}</span>' if query else ""
+        )
+        # Custom card-top: sources above title
+        card_top_html = (
+            f'<div class="lia-card-top">'
+            f'<div class="lia-illus lia-illus--blue">'
+            f'<span class="material-symbols-outlined" style="font-size:22px;'
+            f"font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 24\">"
+            f"travel_explore</span></div>"
+            f'<div class="lia-card-top__info">'
+            f'<div class="lia-card-top__badges" style="margin-bottom:var(--lia-space-2xs)">'
+            f"{source_chips}</div>"
+            f"{title_html}"
+            f"</div></div>"
+        )
+
         return f"""<div class="lia-card lia-web-search {nested_class}">
+{card_top_html}
 {content}
 </div>"""
+
+    def _render_source_indicators(self, sources_used: list[str]) -> str:
+        """Render source indicator chips (active/inactive)."""
+        source_icons = {
+            WEB_SEARCH_SOURCE_PERPLEXITY: (Icons.AI, "Perplexity"),
+            WEB_SEARCH_SOURCE_BRAVE: (Icons.WEB, "Brave"),
+            WEB_SEARCH_SOURCE_WIKIPEDIA: (Icons.BOOK, "Wikipedia"),
+        }
+        parts = []
+        for source in WEB_SEARCH_ALL_SOURCES:
+            icon_type, label = source_icons[source]
+            is_active = source in sources_used
+            active_class = "lia-web-search__source--active" if is_active else ""
+            parts.append(
+                f'<span class="lia-web-search__source {active_class}">'
+                f"{icon(icon_type)} {label}</span>"
+            )
+        return " ".join(parts)
 
     def _render_header(
         self,
@@ -107,62 +148,24 @@ class WebSearchCard(BaseComponent):
         sources_used: list[str],
         ctx: RenderContext,
     ) -> str:
-        """Render header with query and sources indicator."""
-        # Source badges
-        source_badges = []
-        source_icons = {
-            WEB_SEARCH_SOURCE_PERPLEXITY: (Icons.AI, "Perplexity"),
-            WEB_SEARCH_SOURCE_BRAVE: (Icons.WEB, "Brave"),
-            WEB_SEARCH_SOURCE_WIKIPEDIA: (Icons.BOOK, "Wikipedia"),
-        }
-
-        for source in WEB_SEARCH_ALL_SOURCES:
-            icon_type, label = source_icons[source]
-            is_active = source in sources_used
-            active_class = "lia-web-search__source--active" if is_active else ""
-            source_badges.append(
-                f'<span class="lia-web-search__source {active_class}">'
-                f"{icon(icon_type)} {label}"
-                f"</span>"
-            )
-
-        sources_html = " ".join(source_badges)
-
-        # Title row
-        title_html = ""
-        if query:
-            title_html = f'<div class="lia-title-row"><span class="lia-title-row__text">{escape_html(query)}</span></div>'
-
-        search_label = V3Messages.get_internet(ctx.language)
-
-        return f"""<div class="lia-web-search__header">
-  <div class="lia-badge-row">
-    <span class="lia-badge lia-badge--primary">{icon(Icons.SEARCH)} {search_label}</span>
-    <div class="lia-web-search__sources">{sources_html}</div>
-  </div>
-  {title_html}
-</div>"""
+        """Header is now handled by card-top in render(). Return empty."""
+        return ""
 
     def _render_synthesis(self, synthesis: str, ctx: RenderContext) -> str:
-        """Render Perplexity AI synthesis section."""
-        # Format synthesis text
+        """Render Perplexity AI synthesis section using v4 components."""
         formatted = self._format_text(synthesis)
-
         synthesis_label = V3Messages.get_ai_synthesis(ctx.language)
-
-        return f"""<div class="lia-web-search__synthesis">
-  <div class="lia-web-search__section-label">
-    {icon(Icons.AI)} {synthesis_label}
-  </div>
-  <div class="lia-web-search__synthesis-content">
-    {formatted}
-  </div>
-</div>"""
+        return render_section_header(
+            synthesis_label, Icons.AI, "indigo", first=True
+        ) + render_desc_block(formatted)
 
     def _render_results(self, results: list[dict[str, Any]], ctx: RenderContext) -> str:
-        """Render Brave Search web results."""
+        """Render Brave Search web results using v4 section header."""
         if not results:
             return ""
+
+        results_label = V3Messages.get_web_results(ctx.language)
+        header = render_section_header(results_label, Icons.WEB, "indigo")
 
         result_items = []
         for result in results[:5]:
@@ -171,85 +174,58 @@ class WebSearchCard(BaseComponent):
             snippet = result.get("snippet", "")
             domain = self._extract_domain(url)
 
-            result_items.append(f"""<div class="lia-web-search__result">
-  <a href="{escape_html(url)}" class="lia-web-search__result-title" target="_blank" rel="noopener">
-    {escape_html(title)}
-  </a>
-  <span class="lia-web-search__result-domain">{escape_html(domain)}</span>
-  <p class="lia-web-search__result-snippet">{escape_html(truncate(snippet, 120))}</p>
-</div>""")
+            result_items.append(
+                f'<div class="lia-web-search__result">'
+                f'<a href="{escape_html(url)}" class="lia-web-search__result-title" '
+                f'target="_blank" rel="noopener">{escape_html(title)}</a>'
+                f'<span class="lia-web-search__result-domain">{escape_html(domain)}</span>'
+                f'<p class="lia-web-search__result-snippet">{escape_html(truncate(snippet, 120))}</p>'
+                f"</div>"
+            )
 
-        results_label = V3Messages.get_web_results(ctx.language)
-
-        return f"""<div class="lia-web-search__results">
-  <div class="lia-web-search__section-label">
-    {icon(Icons.WEB)} {results_label}
-  </div>
-  <div class="lia-web-search__results-list">
-    {chr(10).join(result_items)}
-  </div>
-</div>"""
+        return header + "".join(result_items)
 
     def _render_wikipedia(self, wikipedia: dict[str, Any], ctx: RenderContext) -> str:
-        """Render Wikipedia section."""
+        """Render Wikipedia section using v4 components."""
         title = wikipedia.get("title", "")
         summary = wikipedia.get("summary", "")
         url = wikipedia.get("url", "")
-
-        # Truncate summary for display
         display_summary = truncate(summary, 300)
 
-        return f"""<div class="lia-web-search__wikipedia">
-  <div class="lia-web-search__section-label">
-    {icon(Icons.BOOK)} Wikipedia
-  </div>
-  <div class="lia-web-search__wikipedia-content">
-    <a href="{escape_html(url)}" class="lia-web-search__wikipedia-title" target="_blank" rel="noopener">
-      {escape_html(title)}
-    </a>
-    <p class="lia-web-search__wikipedia-summary">{escape_html(display_summary)}</p>
-  </div>
-</div>"""
+        header = render_section_header("Wikipedia", Icons.BOOK, "indigo")
+        content = (
+            f'<div style="font-size:var(--lia-text-sm);color:var(--lia-text-secondary);line-height:var(--lia-leading-normal)">'
+            f'<a href="{escape_html(url)}" target="_blank" rel="noopener" '
+            f'style="color:var(--lia-primary);text-decoration:none;font-weight:600">'
+            f"{escape_html(title)}</a>"
+            f" — {escape_html(display_summary)}"
+            f"</div>"
+        )
+        return header + content
 
     def _render_citations(self, citations: list[str], ctx: RenderContext) -> str:
-        """Render source citations."""
-        source_items = []
-        for url in citations[:5]:
-            domain = self._extract_domain(url)
-            source_items.append(
-                f'<a href="{escape_html(url)}" class="lia-source" target="_blank" rel="noopener">'
-                f'<span class="lia-source__icon">{icon(Icons.LINK)}</span>'
-                f'<span class="lia-source__domain">{escape_html(domain)}</span>'
-                f"</a>"
-            )
-
+        """Render source citations using v4 src-link component."""
         sources_label = V3Messages.get_sources(ctx.language)
-
-        return f"""<div class="lia-web-search__citations">
-  <span class="lia-web-search__section-label">{sources_label} :</span>
-  <div class="lia-web-search__citations-list">
-    {chr(10).join(source_items)}
-  </div>
-</div>"""
+        links_html = "".join(render_src_link(url) for url in citations[:5])
+        return render_section_header(sources_label, Icons.LINK, "indigo") + links_html
 
     def _render_related_questions(
         self,
         questions: list[str],
         ctx: RenderContext,
     ) -> str:
-        """Render related questions."""
-        q_items = [
-            f'<li class="lia-web-search__related-item">{escape_html(q)}</li>' for q in questions[:3]
-        ]
-
+        """Render related questions using v4 section header."""
         related_label = V3Messages.get_related_questions(ctx.language)
-
-        return f"""<div class="lia-web-search__related">
-  <span class="lia-web-search__section-label">{related_label} :</span>
-  <ul class="lia-web-search__related-list">
-    {chr(10).join(q_items)}
-  </ul>
-</div>"""
+        q_items = [
+            f'<li style="font-size:var(--lia-text-sm);color:var(--lia-text-secondary)">{escape_html(q)}</li>'
+            for q in questions[:3]
+        ]
+        return (
+            render_section_header(related_label, "help_outline", "indigo")
+            + '<ul style="margin:var(--lia-space-xs) 0 0 var(--lia-space-lg);line-height:1.8">'
+            + "".join(q_items)
+            + "</ul>"
+        )
 
     def _extract_domain(self, url: str) -> str:
         """Extract domain from URL."""

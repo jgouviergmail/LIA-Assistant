@@ -1020,6 +1020,7 @@ def render_collapsible(
     content_html: str,
     initially_open: bool = False,
     language: str = "fr",
+    with_separator: bool = True,
 ) -> str:
     """
     Render a collapsible section using <details>/<summary>.
@@ -1029,6 +1030,9 @@ def render_collapsible(
         content_html: HTML content to show when expanded
         initially_open: If True, section starts expanded
         language: Language for accessibility labels
+        with_separator: If True (default), adds an <hr> separator above the
+            collapsible. Set to False when the preceding element already
+            provides a visual separator (e.g., a chip-row with border-bottom).
 
     Returns:
         Collapsible HTML using native <details>/<summary>
@@ -1038,10 +1042,13 @@ def render_collapsible(
 
     open_attr = " open" if initially_open else ""
     escaped_trigger = escape_html(trigger_text)
+    separator_html = (
+        '<hr class="lia-separator lia-separator--collapsible" />' if with_separator else ""
+    )
 
     return compact_html(f"""
         <div class="lia-collapsible-wrapper">
-            <hr class="lia-separator lia-separator--collapsible" />
+            {separator_html}
             <details class="lia-collapsible"{open_attr}>
                 <summary class="lia-collapsible__trigger">
                     <span>{escaped_trigger}</span>
@@ -1431,3 +1438,473 @@ def render_quote_block(
     """
     style = f' style="border-left-color: {accent_color}"' if accent_color else ""
     return f'<div class="lia-quote-block"{style}>{escape_html(content)}</div>'
+
+
+# =============================================================================
+# Design System v4 — Standardized Reusable Components
+# Each function produces generic HTML usable by ANY card.
+# =============================================================================
+
+
+def render_card_top(
+    icon_name: str,
+    illus_color: str,
+    title_html: str,
+    badges_html: str = "",
+    subtitle_html: str = "",
+) -> str:
+    """Render a standardized card header: illustration + title + optional badges.
+
+    Args:
+        icon_name: Material Symbols icon name for the illustration
+        illus_color: Color variant (green, red, amber, blue, indigo, purple, teal, orange, gray)
+        title_html: Pre-built HTML for the title (may include <a> link)
+        badges_html: Optional pre-built HTML for inline badges/chips
+        subtitle_html: Optional subtitle line (company, description, etc.)
+
+    Returns:
+        HTML for the lia-card-top component
+    """
+    subtitle = f'<div class="lia-card-top__subtitle">{subtitle_html}</div>' if subtitle_html else ""
+    badges = f'<div class="lia-card-top__badges">{badges_html}</div>' if badges_html else ""
+
+    return compact_html(f"""
+        <div class="lia-card-top">
+            <div class="lia-illus lia-illus--{illus_color}">
+                <span class="material-symbols-outlined">{escape_html(icon_name)}</span>
+            </div>
+            <div class="lia-card-top__info">
+                {title_html}
+                {subtitle}
+                {badges}
+            </div>
+        </div>
+    """)
+
+
+def render_card_hero(image_url: str, alt_text: str = "") -> str:
+    """Render a full-width hero image at the top of a card.
+
+    Args:
+        image_url: URL of the image
+        alt_text: Alt text for accessibility
+
+    Returns:
+        HTML for the lia-card-hero component, or empty string if no URL
+    """
+    if not image_url:
+        return ""
+    return compact_html(f"""
+        <div class="lia-card-hero">
+            <img src="{escape_html(image_url)}" alt="{escape_html(alt_text)}" loading="lazy">
+        </div>
+    """)
+
+
+def render_chip(
+    text: str,
+    variant: str = "",
+    icon_name: str = "",
+) -> str:
+    """Render a single chip (inline metadata tag with optional icon).
+
+    Args:
+        text: Chip text content
+        variant: Color variant (green, amber, red, indigo, time, stars, thread, attach, allday)
+        icon_name: Optional Material Symbols icon name
+
+    Returns:
+        HTML for a lia-chip span
+    """
+    variant_class = f" lia-chip--{variant}" if variant else ""
+    icon_html = (
+        f'<span class="material-symbols-outlined">{escape_html(icon_name)}</span>'
+        if icon_name
+        else ""
+    )
+    return f'<span class="lia-chip{variant_class}">{icon_html}{escape_html(text)}</span>'
+
+
+def render_chip_stars(rating: float, count: int = 0) -> str:
+    """Render a star-rating chip with filled/empty stars.
+
+    Args:
+        rating: Rating value (0-5)
+        count: Number of reviews (0 to hide count)
+
+    Returns:
+        HTML for a lia-chip--stars chip
+    """
+    full = int(rating)
+    stars_html = "".join('<span class="material-symbols-outlined">star</span>' for _ in range(full))
+    empty_html = "".join(
+        '<span class="material-symbols-outlined lia-chip__star-empty">star</span>'
+        for _ in range(5 - full)
+    )
+    count_text = f" {rating}"
+    if count:
+        count_text += f" ({count})"
+    return f'<span class="lia-chip lia-chip--stars">{stars_html}{empty_html}{escape_html(count_text)}</span>'
+
+
+def render_chip_row(
+    chips_html: str,
+    separator_pos: str = "",
+) -> str:
+    """Render a row of chips with optional separators.
+
+    Args:
+        chips_html: Pre-built HTML of lia-chip elements
+        separator_pos: Where to add border separators:
+            "" = no separator, "top", "bottom", "both"
+
+    Returns:
+        HTML for a lia-chip-row div
+    """
+    sep_class = f" lia-chip-row--sep-{separator_pos}" if separator_pos else ""
+    return f'<div class="lia-chip-row{sep_class}">{chips_html}</div>'
+
+
+def render_section_header(
+    label: str,
+    icon_name: str,
+    illus_color: str = "indigo",
+    first: bool = False,
+) -> str:
+    """Render a section header with mini-illustration inside collapsible content.
+
+    Args:
+        label: Section label text (will be displayed uppercase)
+        icon_name: Material Symbols icon name
+        illus_color: Color variant for the mini-illustration
+        first: If True, no border-top separator (first section after card-top)
+
+    Returns:
+        HTML for a lia-sec header
+    """
+    first_class = " lia-sec--first" if first else ""
+    return compact_html(f"""
+        <div class="lia-sec{first_class}">
+            <div class="lia-illus-sm lia-illus--{illus_color}">
+                <span class="material-symbols-outlined">{escape_html(icon_name)}</span>
+            </div>
+            <span class="lia-sec__label">{escape_html(label)}</span>
+        </div>
+    """)
+
+
+def render_d_row(
+    icon_name: str,
+    content_html: str,
+    icon_style: str = "",
+) -> str:
+    """Render a detail row (icon + text) in the main card body.
+
+    Args:
+        icon_name: Material Symbols icon name
+        content_html: Pre-built HTML content (may contain links)
+        icon_style: Optional inline style for the icon (e.g.,
+            "font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 20;color:#ef4444")
+
+    Returns:
+        HTML for a lia-d-row div
+    """
+    style_attr = f' style="{icon_style}"' if icon_style else ""
+    return (
+        f'<div class="lia-d-row">'
+        f'<span class="material-symbols-outlined"{style_attr}>{escape_html(icon_name)}</span>'
+        f"{content_html}"
+        f"</div>"
+    )
+
+
+def render_d_item(
+    icon_name: str,
+    content_html: str,
+    icon_style: str = "",
+) -> str:
+    """Render a detail item (icon + text) inside collapsible sections.
+
+    Smaller than d_row, used for secondary information.
+
+    Args:
+        icon_name: Material Symbols icon name
+        content_html: Pre-built HTML content (may contain links)
+        icon_style: Optional inline style for the icon
+
+    Returns:
+        HTML for a lia-d-item div
+    """
+    style_attr = f' style="{icon_style}"' if icon_style else ""
+    return (
+        f'<div class="lia-d-item">'
+        f'<span class="material-symbols-outlined"{style_attr}>{escape_html(icon_name)}</span>'
+        f"<span>{content_html}</span>"
+        f"</div>"
+    )
+
+
+def render_desc_block(
+    content_html: str,
+    with_border: bool = True,
+) -> str:
+    """Render a description/quote block with subtle background.
+
+    Args:
+        content_html: HTML content (already formatted)
+        with_border: If True, adds indigo left border. If False, just background.
+
+    Returns:
+        HTML for a lia-desc-block div
+    """
+    border_class = "" if with_border else " lia-desc-block--no-border"
+    return f'<div class="lia-desc-block{border_class}">{content_html}</div>'
+
+
+def render_att_row(
+    attendees: list[dict[str, Any]],
+    max_shown: int = 4,
+    label_text: str = "",
+) -> str:
+    """Render stacked attendee avatars with count label.
+
+    Args:
+        attendees: List of attendee dicts with displayName and optionally email
+        max_shown: Maximum number of individual avatars before "+N"
+        label_text: Optional text after count (e.g., "participants")
+
+    Returns:
+        HTML for a lia-att-row, or empty string if no attendees
+    """
+    if not attendees:
+        return ""
+
+    # Color palette for avatars
+    avatar_colors = [
+        ("linear-gradient(135deg, #c7d2fe, #a5b4fc)", "#3730a3"),
+        ("linear-gradient(135deg, #fecaca, #fca5a5)", "#991b1b"),
+        ("linear-gradient(135deg, #bbf7d0, #86efac)", "#166534"),
+        ("linear-gradient(135deg, #fef08a, #fde047)", "#854d0e"),
+        ("linear-gradient(135deg, #fbcfe8, #f9a8d4)", "#9d174d"),
+    ]
+
+    avatars_html = ""
+    shown = min(len(attendees), max_shown)
+    for i in range(shown):
+        att = attendees[i]
+        name = att.get("displayName") or att.get("email", "?")
+        initials = "".join(w[0].upper() for w in name.split()[:2]) if name else "?"
+        bg, fg = avatar_colors[i % len(avatar_colors)]
+        avatars_html += (
+            f'<div class="lia-att-av" style="background:{bg};color:{fg}">'
+            f"{escape_html(initials)}</div>"
+        )
+
+    remaining = len(attendees) - shown
+    if remaining > 0:
+        avatars_html += f'<div class="lia-att-av lia-att-av--more">+{remaining}</div>'
+
+    count = len(attendees)
+    label = f"{count} {escape_html(label_text)}" if label_text else str(count)
+    return compact_html(f"""
+        <div class="lia-att-row">
+            <div class="lia-att-row__avatars">{avatars_html}</div>
+            <span class="lia-att-row__label">{label}</span>
+        </div>
+    """)
+
+
+def render_part_list(
+    participants: list[dict[str, Any]],
+    max_shown: int = 10,
+) -> str:
+    """Render a vertical participant list with status icon + name + email.
+
+    Args:
+        participants: List of participant dicts with:
+            - displayName or email (required)
+            - email (optional)
+            - responseStatus (optional: accepted, declined, tentative, needsAction)
+        max_shown: Maximum participants to display
+
+    Returns:
+        HTML for a lia-part-list, or empty string if no participants
+    """
+    if not participants:
+        return ""
+
+    status_icons = {
+        "accepted": ("check_circle", "color:#16a34a"),
+        "declined": ("cancel", "color:#dc2626"),
+        "tentative": ("help", "color:#d97706"),
+        "needsAction": ("schedule", "color:#d97706"),
+    }
+
+    items_html = ""
+    for p in participants[:max_shown]:
+        if not isinstance(p, dict):
+            continue
+        name = p.get("displayName") or p.get("email", "")
+        email = p.get("email", "")
+        status = p.get("responseStatus", "needsAction")
+        icon_name, icon_color = status_icons.get(status, ("schedule", "color:#d97706"))
+
+        name_html = (
+            f'<a href="mailto:{escape_html(email)}">{escape_html(name)}</a>'
+            if email
+            else escape_html(name)
+        )
+        email_html = (
+            f'<span class="lia-part-item__email">{escape_html(email)}</span>'
+            if email and email != name
+            else ""
+        )
+        items_html += (
+            f'<div class="lia-part-item">'
+            f'<span class="material-symbols-outlined" style="{icon_color}">{icon_name}</span>'
+            f"{name_html} {email_html}"
+            f"</div>"
+        )
+
+    remaining = len(participants) - max_shown
+    if remaining > 0:
+        items_html += (
+            f'<div class="lia-part-item" style="font-style:italic;color:var(--lia-text-muted)">'
+            f"... +{remaining}</div>"
+        )
+
+    return f'<div class="lia-part-list">{items_html}</div>'
+
+
+def render_type_badge(label: str, variant: str = "other") -> str:
+    """Render a small colored type badge (for contacts, files, etc.).
+
+    Args:
+        label: Badge text
+        variant: Color variant (work, home, mobile, other)
+
+    Returns:
+        HTML for a lia-tbadge span
+    """
+    return f'<span class="lia-tbadge lia-tbadge--{variant}">{escape_html(label)}</span>'
+
+
+def render_src_link(url: str, domain: str = "") -> str:
+    """Render a source link with icon (one per line).
+
+    Args:
+        url: Source URL
+        domain: Display domain (extracted from URL if not provided)
+
+    Returns:
+        HTML for a lia-src-link div
+    """
+    if not domain:
+        from urllib.parse import urlparse
+
+        try:
+            parsed = urlparse(url)
+            domain = parsed.netloc
+            if domain.startswith("www."):
+                domain = domain[4:]
+        except Exception:
+            domain = url[:30] if url else ""
+
+    return (
+        f'<div class="lia-src-link">'
+        f'<span class="material-symbols-outlined">link</span>'
+        f'<a href="{escape_html(url)}" target="_blank" rel="noopener">{escape_html(domain)}</a>'
+        f"</div>"
+    )
+
+
+def render_kv_rows(pairs: list[tuple[str, str]]) -> str:
+    """Render a generic key-value grid (hours, MCP fields, stats).
+
+    Args:
+        pairs: List of (key, value) tuples
+
+    Returns:
+        HTML for a lia-kv-rows container
+    """
+    if not pairs:
+        return ""
+
+    rows_html = "".join(
+        f'<div class="lia-kv-row">'
+        f'<span class="lia-kv-row__key">{escape_html(k)}</span>'
+        f'<span class="lia-kv-row__value">{escape_html(v)}</span>'
+        f"</div>"
+        for k, v in pairs
+    )
+    return f'<div class="lia-kv-rows">{rows_html}</div>'
+
+
+def render_review(
+    author: str,
+    time_text: str,
+    rating: int,
+    text: str,
+) -> str:
+    """Render a review item with author, time, stars, and text.
+
+    Args:
+        author: Reviewer name
+        time_text: Relative time (e.g., "2 weeks ago")
+        rating: Star rating (1-5)
+        text: Review text
+
+    Returns:
+        HTML for a lia-review div
+    """
+    stars_html = "".join(
+        '<span class="material-symbols-outlined">star</span>' for _ in range(rating)
+    )
+    empty_html = "".join(
+        '<span class="material-symbols-outlined" style="opacity:0.3">star</span>'
+        for _ in range(5 - rating)
+    )
+    time_html = (
+        f'<span class="lia-review__time">{escape_html(time_text)}</span>' if time_text else ""
+    )
+
+    return compact_html(f"""
+        <div class="lia-review">
+            <div class="lia-review__hdr">
+                <strong>{escape_html(author)}</strong>
+                {time_html}
+                {stars_html}{empty_html}
+            </div>
+            <div class="lia-review__text">{escape_html(text)}</div>
+        </div>
+    """)
+
+
+def render_raw_block(content: str) -> str:
+    """Render a monospace block for JSON or raw text.
+
+    Args:
+        content: Text content (will be HTML escaped)
+
+    Returns:
+        HTML for a lia-raw-block pre element
+    """
+    return f'<div class="lia-raw-block">{escape_html(content)}</div>'
+
+
+def render_file_meta(icon_name: str, text: str) -> str:
+    """Render a file metadata line with small icon.
+
+    Args:
+        icon_name: Material Symbols icon name (12px)
+        text: Metadata text
+
+    Returns:
+        HTML for a lia-file-meta div
+    """
+    return (
+        f'<div class="lia-file-meta">'
+        f'<span class="material-symbols-outlined">{escape_html(icon_name)}</span>'
+        f"{escape_html(text)}"
+        f"</div>"
+    )

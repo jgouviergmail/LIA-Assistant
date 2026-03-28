@@ -27,10 +27,13 @@ from src.domains.agents.display.components.base import (
     format_date,
     format_email_body,
     markdown_links_to_html,
-    render_attachment_badge,
     render_attachments,
+    render_chip,
+    render_chip_row,
     render_collapsible,
-    render_thread_badge,
+    render_desc_block,
+    render_part_list,
+    render_section_header,
     truncate,
     wrap_with_response,
 )
@@ -155,79 +158,219 @@ class EmailCard(BaseComponent):
         ctx: RenderContext,
         data: dict[str, Any],
     ) -> str:
-        """Unified email card - CSS handles responsive adaptation."""
+        """Unified email card using Design System v4 components."""
         unread_class = "lia-email--unread" if is_unread else "lia-email--read"
         important_class = "lia-email--important" if is_important else ""
         nested_class = self._nested_class(ctx)
 
-        # Avatar
-        avatar_html = self._render_avatar(sender_name)
-
-        # Build badges
-        badges = []
-        if thread_count > 1:
-            badges.append(render_thread_badge(thread_count))
-        if has_attachments:
-            att_count = len(attachments) or 1
-            badges.append(render_attachment_badge(att_count))
-        badges_html = " ".join(badges)
-
-        # Unread badge
-        unread_badge = self._render_unread_badge(is_unread, ctx.language)
-
-        # Labels
-        labels_html = self._render_user_labels(data.get("labelIds", []))
-
-        # Body content with recipients inside collapsible
-        body_html = self._render_body(data, snippet, url, ctx)
-
-        # Collapsible details (attachments)
-        collapsible_html = self._render_collapsible_details(attachments, ctx)
-
-        # Sender name is always a mailto: link
-        # Show email separately only if different from name
-        if sender_email:
-            sender_name_html = f'<a href="mailto:{escape_html(sender_email)}" class="lia-email__sender-name">{escape_html(sender_name)}</a>'
-            if sender_email.lower() != sender_name.lower():
-                sender_email_html = f'<a href="mailto:{escape_html(sender_email)}" class="lia-email__sender-email">{escape_html(sender_email)}</a>'
-            else:
-                sender_email_html = ""
-        else:
-            sender_name_html = (
-                f'<span class="lia-email__sender-name">{escape_html(sender_name)}</span>'
-            )
-            sender_email_html = ""
-
-        # Status icons (important/unread) - under date on desktop
+        # --- Card top: initials illus (square rounded) + sender info + date ---
+        initials = self._get_initials(sender_name)
+        # Build subtitle with sender email + date + status icons
+        subtitle_parts = []
+        if sender_email and sender_email.lower() != sender_name.lower():
+            subtitle_parts.append(escape_html(sender_email))
+        subtitle_parts.append(escape_html(date_formatted))
         status_icons_html = self._render_status_icons(is_unread, is_important)
 
-        return compact_html(f"""
-            <div class="lia-card lia-email {unread_class} {important_class} {nested_class}">
-                <div class="lia-email__avatar">{avatar_html}</div>
-                <div class="lia-email__content">
-                    <div class="lia-email__header-row">
-                        <div class="lia-email__sender">
-                            {sender_name_html}
-                            {sender_email_html}
-                        </div>
-                        <div class="lia-email__header-right">
-                            <span class="lia-email__date">{escape_html(date_formatted)}</span>
-                            {status_icons_html}
-                        </div>
-                    </div>
-                    <a href="{escape_html(url)}" class="lia-email__subject" target="_blank" rel="noopener">
-                        {escape_html(subject)}
-                    </a>
-                    <div class="lia-email__meta">
-                        {unread_badge}
-                        {labels_html}
-                        <div class="lia-email__badges">{badges_html}</div>
-                    </div>
-                    {body_html}
-                    {collapsible_html}
+        # Sender name as mailto link
+        if sender_email:
+            title_html = (
+                f'<a class="lia-card-top__title" href="mailto:{escape_html(sender_email)}">'
+                f"{escape_html(sender_name)}</a>"
+            )
+        else:
+            title_html = f'<span class="lia-card-top__title">{escape_html(sender_name)}</span>'
+
+        subtitle_html = " · ".join(subtitle_parts)
+        if status_icons_html:
+            subtitle_html += f" {status_icons_html}"
+
+        # Choose illus color based on email status
+        if is_unread and is_important:
+            illus_color = "red"
+        elif is_unread:
+            illus_color = "green"
+        elif is_important:
+            illus_color = "amber"
+        else:
+            illus_color = "gray"
+
+        # Build card-top manually to insert initials text in illus
+        card_top_html = compact_html(f"""
+            <div class="lia-card-top">
+                <div class="lia-illus lia-illus--{illus_color}">
+                    <span style="font-size:var(--lia-text-sm);font-weight:600;letter-spacing:-0.02em">{escape_html(initials)}</span>
+                </div>
+                <div class="lia-card-top__info">
+                    {title_html}
+                    <div class="lia-card-top__subtitle">{subtitle_html}</div>
                 </div>
             </div>
         """)
+
+        # --- Subject line ---
+        bold_class = "font-weight:700" if is_unread else "font-weight:600"
+        subject_html = (
+            f'<a href="{escape_html(url)}" class="lia-email__subject" '
+            f'target="_blank" rel="noopener" style="{bold_class}">'
+            f"{escape_html(subject)}</a>"
+        )
+
+        # --- Chips row: thread + attachments ---
+        chips = []
+        if thread_count > 1:
+            chips.append(render_chip(f"{thread_count}", "thread", Icons.FORUM))
+        if has_attachments:
+            att_count = len(attachments) or 1
+            chips.append(render_chip(f"{att_count}", "attach", Icons.ATTACHMENT))
+        chip_row_html = render_chip_row(" ".join(chips)) if chips else ""
+
+        # --- Labels ---
+        labels_html = self._render_user_labels(data.get("labelIds", []))
+
+        # --- Snippet ---
+        snippet_html = (
+            f'<p class="lia-email__snippet">{escape_html(truncate(snippet, 200))}</p>'
+            if snippet
+            else ""
+        )
+
+        # --- Collapsible body (recipients + content + attachments) ---
+        body_html = self._render_body_v4(data, url, ctx)
+        collapsible_attachments = self._render_collapsible_details(attachments, ctx)
+
+        return compact_html(f"""
+            <div class="lia-card lia-email {unread_class} {important_class} {nested_class}">
+                {card_top_html}
+                {subject_html}
+                {chip_row_html}
+                {labels_html}
+                {snippet_html}
+                {body_html}
+                {collapsible_attachments}
+            </div>
+        """)
+
+    def _render_body_v4(
+        self,
+        data: dict[str, Any],
+        url: str,
+        ctx: RenderContext,
+    ) -> str:
+        """Render email body in collapsible with v4 components.
+
+        Includes recipients (To/Cc) with name+email per line,
+        then body content without blue left border.
+        """
+        content_parts: list[str] = []
+
+        # To recipients section
+        to_recipients = data.get("to", [])
+        if to_recipients:
+            to_label = V3Messages.get_to(ctx.language)
+            content_parts.append(
+                render_section_header(to_label, Icons.PERSON, "indigo", first=True)
+            )
+            # Build participant-like list from recipients
+            part_data = self._recipients_to_part_data(to_recipients)
+            content_parts.append(render_part_list(part_data))
+
+        # Cc recipients section
+        cc_recipients = data.get("cc", [])
+        if cc_recipients:
+            cc_label = V3Messages.get_cc(ctx.language)
+            content_parts.append(render_section_header(cc_label, Icons.GROUP, "indigo"))
+            part_data = self._recipients_to_part_data(cc_recipients)
+            content_parts.append(render_part_list(part_data))
+
+        # Body content
+        body = data.get("body") or data.get("bodyPreview", "")
+        if body:
+            body_text, is_truncated = format_email_body(
+                body,
+                max_length=settings.emails_body_max_length,
+                preserve_links=True,
+            )
+
+            # Read more link
+            read_more_html = ""
+            if is_truncated and url:
+                provider = data.get("_provider", "")
+                read_more_label = V3Messages.get_read_more(ctx.language, provider)
+                read_more_html = (
+                    f'<a href="{escape_html(url)}" class="lia-email__read-more" '
+                    f'target="_blank" rel="noopener">{escape_html(read_more_label)} '
+                    f"{icon(Icons.OPEN_IN_NEW)}</a>"
+                )
+
+            # Format body
+            url_threshold = settings.emails_url_shorten_threshold
+            link_label = V3Messages.get_link(ctx.language)
+            body_lines = body_text.split("\n")
+            body_formatted = "<br>".join(
+                markdown_links_to_html(line, url_threshold, link_label) for line in body_lines
+            )
+
+            email_content_label = V3Messages.get_email_content(ctx.language)
+            content_parts.append(
+                render_section_header(email_content_label, Icons.DESCRIPTION, "indigo")
+            )
+            content_parts.append(render_desc_block(body_formatted, with_border=False))
+            if read_more_html:
+                content_parts.append(read_more_html)
+
+        if content_parts:
+            return render_collapsible(
+                trigger_text=V3Messages.get_see_more(ctx.language),
+                content_html="".join(content_parts),
+                initially_open=False,
+                language=ctx.language,
+                with_separator=False,
+            )
+
+        elif data.get("snippet"):
+            return (
+                f'<p class="lia-email__snippet">{escape_html(truncate(data["snippet"], 200))}</p>'
+            )
+
+        return ""
+
+    def _recipients_to_part_data(self, recipients: list[Any] | Any) -> list[dict[str, Any]]:
+        """Convert email recipients to participant-list compatible format.
+
+        Args:
+            recipients: List of recipient dicts or strings
+
+        Returns:
+            List of dicts with displayName and email keys
+        """
+        if not isinstance(recipients, list):
+            recipients = [recipients]
+
+        result = []
+        for r in recipients:
+            if isinstance(r, dict):
+                name = r.get("name") or r.get("email", "")
+                email = r.get("email", "")
+            else:
+                r_str = str(r)
+                if "<" in r_str:
+                    name = r_str.split("<")[0].strip().strip('"')
+                    email = r_str.split("<")[1].rstrip(">").strip()
+                elif "@" in r_str:
+                    name = r_str
+                    email = r_str
+                else:
+                    name = r_str
+                    email = ""
+            result.append(
+                {
+                    "displayName": name,
+                    "email": email,
+                    "responseStatus": "accepted",  # No status for email recipients
+                }
+            )
+        return result
 
     # =========================================================================
     # Rendering Helpers
@@ -264,11 +407,6 @@ class EmailCard(BaseComponent):
 
         return f'<div class="lia-email__status-icons">{" ".join(icons)}</div>'
 
-    def _render_avatar(self, sender_name: str) -> str:
-        """Render sender avatar with initials."""
-        initials = self._get_initials(sender_name)
-        return f'<div class="lia-email__avatar-circle">{escape_html(initials)}</div>'
-
     def _get_initials(self, name: str) -> str:
         """Extract initials from name (max 2 chars)."""
         if not name:
@@ -277,15 +415,6 @@ class EmailCard(BaseComponent):
         if len(parts) >= 2:
             return (parts[0][0] + parts[-1][0]).upper()
         return name[0].upper()
-
-    def _render_unread_badge(self, is_unread: bool, language: str) -> str:
-        """Render unread/read status badge.
-
-        Note: Badge disabled - unread state is already indicated by the
-        colored left border (liseré), making the badge redundant.
-        """
-        # Unread state shown via border-left color, badge is redundant
-        return ""
 
     def _render_user_labels(self, label_ids: list[str]) -> str:
         """Render user-defined Gmail labels (excluding system labels)."""
@@ -322,169 +451,6 @@ class EmailCard(BaseComponent):
             f'<span class="lia-email__label">{escape_html(label)}</span>' for label in user_labels
         ]
         return f'<div class="lia-email__labels">{" ".join(labels_parts)}</div>'
-
-    def _render_recipients(self, data: dict[str, Any], ctx: RenderContext) -> str:
-        """Render To/Cc recipients (icons only, no labels - redundant)."""
-        parts = []
-
-        to_recipients = data.get("to", [])
-        if to_recipients:
-            to_list = self._format_recipients_list(to_recipients)
-            parts.append(
-                f'<div class="lia-email__recipient-row">'
-                f"{icon(Icons.PERSON)}"
-                f'<span class="lia-email__recipient-list">{escape_html(to_list)}</span>'
-                f"</div>"
-            )
-
-        cc_recipients = data.get("cc", [])
-        if cc_recipients:
-            cc_list = self._format_recipients_list(cc_recipients)
-            parts.append(
-                f'<div class="lia-email__recipient-row">'
-                f"{icon(Icons.GROUP)}"
-                f'<span class="lia-email__recipient-list">{escape_html(cc_list)}</span>'
-                f"</div>"
-            )
-
-        if not parts:
-            return ""
-
-        return f'<div class="lia-email__recipients">{" ".join(parts)}</div>'
-
-    def _render_body(
-        self,
-        data: dict[str, Any],
-        snippet: str,
-        url: str,
-        ctx: RenderContext,
-    ) -> str:
-        """Render email body in a collapsible 'Voir plus' section with responsive design.
-
-        Recipients (To/Cc) are placed before the body content.
-        """
-        body = data.get("body") or data.get("bodyPreview", "")
-        content_parts = []
-
-        # Add recipients (To) section FIRST - with icon, aligned with title
-        to_recipients = data.get("to", [])
-        if to_recipients:
-            to_label = V3Messages.get_to(ctx.language)
-            to_list_html = self._render_recipients_vertical(to_recipients)
-            content_parts.append(compact_html(f"""
-                <div class="lia-email__recipients-section">
-                    <div class="lia-email__recipients-header">
-                        {icon(Icons.PERSON, size="sm")}
-                        <span>{escape_html(to_label)}</span>
-                    </div>
-                    <div class="lia-email__recipients-list">{to_list_html}</div>
-                </div>
-            """))
-
-        # Add CC recipients section - with icon, aligned with title
-        cc_recipients = data.get("cc", [])
-        if cc_recipients:
-            cc_label = V3Messages.get_cc(ctx.language)
-            cc_list_html = self._render_recipients_vertical(cc_recipients)
-            content_parts.append(compact_html(f"""
-                <div class="lia-email__recipients-section">
-                    <div class="lia-email__recipients-header">
-                        {icon(Icons.PERSON, size="sm")}
-                        <span>{escape_html(cc_label)}</span>
-                    </div>
-                    <div class="lia-email__recipients-list">{cc_list_html}</div>
-                </div>
-            """))
-
-        # Add body content AFTER recipients
-        if body:
-            # Convert HTML to clean text with preserved links in Markdown format
-            body_text, is_truncated = format_email_body(
-                body,
-                max_length=settings.emails_body_max_length,
-                preserve_links=True,
-            )
-
-            # Read more link (provider-aware: Gmail, Outlook, etc.)
-            read_more_html = ""
-            if is_truncated and url:
-                provider = data.get("_provider", "")
-                read_more_label = V3Messages.get_read_more(ctx.language, provider)
-                read_more_html = (
-                    f'<a href="{escape_html(url)}" class="lia-email__read-more" target="_blank" rel="noopener">'
-                    f"{escape_html(read_more_label)} {icon(Icons.OPEN_IN_NEW)}"
-                    f"</a>"
-                )
-
-            # Format body: convert Markdown links to HTML, preserve line breaks
-            url_threshold = settings.emails_url_shorten_threshold
-            link_label = V3Messages.get_link(ctx.language)
-            body_lines = body_text.split("\n")
-            body_formatted = "<br>".join(
-                markdown_links_to_html(line, url_threshold, link_label) for line in body_lines
-            )
-
-            # Body content inside responsive container with header
-            email_content_label = V3Messages.get_email_content(ctx.language)
-            content_parts.append(compact_html(f"""
-                <div class="lia-email__body-panel">
-                    <div class="lia-email__body-header">
-                        {icon(Icons.DESCRIPTION)}
-                        <span>{email_content_label}</span>
-                    </div>
-                    <div class="lia-email__body">{body_formatted}</div>
-                    {read_more_html}
-                </div>
-            """))
-
-        # If we have content, wrap in collapsible
-        if content_parts:
-            see_more_label = V3Messages.get_see_more(ctx.language)
-            return render_collapsible(
-                trigger_text=see_more_label,
-                content_html="".join(content_parts),
-                initially_open=False,
-                language=ctx.language,
-            )
-
-        elif snippet:
-            return f'<p class="lia-email__snippet">{escape_html(truncate(snippet, 200))}</p>'
-
-        return ""
-
-    def _render_recipients_vertical(self, recipients: list[Any] | Any, max_count: int = 10) -> str:
-        """Render recipients as a vertical list (one per line), limited to max_count.
-
-        Each recipient is rendered as a mailto: link.
-        """
-        if not recipients:
-            return ""
-
-        if not isinstance(recipients, list):
-            recipients = [recipients]
-
-        lines = []
-        for recipient in recipients[:max_count]:
-            display_name = self._format_recipient(recipient)
-            email = self._extract_recipient_email(recipient)
-            if display_name:
-                if email:
-                    lines.append(
-                        f'<div class="lia-email__recipient-item"><a href="mailto:{escape_html(email)}">{escape_html(display_name)}</a></div>'
-                    )
-                else:
-                    lines.append(
-                        f'<div class="lia-email__recipient-item">{escape_html(display_name)}</div>'
-                    )
-
-        # Add ellipsis if truncated
-        if len(recipients) > max_count:
-            remaining = len(recipients) - max_count
-            lines.append(
-                f'<div class="lia-email__recipient-item lia-email__recipient-more">... (+{remaining})</div>'
-            )
-
-        return "".join(lines)
 
     def _render_collapsible_details(
         self,

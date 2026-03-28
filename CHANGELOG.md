@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.13.2] - 2026-03-28
+
+### Added
+
+- **Design System v4 — Standardized HTML Card Components** — Complete visual redesign of all 14 HTML cards using a unified component library. 19 reusable CSS components (`lia-card-top`, `lia-illus`, `lia-chip`, `lia-chip-row`, `lia-sec`, `lia-d-row`, `lia-d-item`, `lia-desc-block`, `lia-card-hero`, `lia-tbadge`, `lia-att-row`, `lia-att-av`, `lia-part-list`, `lia-src-link`, `lia-kv-rows`, `lia-review`, `lia-raw-block`, `lia-file-meta`, `lia-illus-sm`). 17 Python helper functions in `base.py`. Every card now uses the same building blocks — zero domain-specific CSS classes. (`apps/web/src/styles/lia-components.css`, `apps/api/src/domains/agents/display/components/base.py`)
+- **42px Illustration Vignettes** — Each card header features a colored square-rounded icon (9 color variants: green, red, amber, blue, indigo, purple, teal, orange, gray) with gradient backgrounds and filled Material Symbols icons. Dark mode uses `rgba()` backgrounds.
+- **Chip System** — New inline metadata tags with borders and icons (9 variants: green, amber, red, indigo, time, stars, thread, attach, allday). Replaces inconsistent badge usage across cards.
+- **Section Headers with Mini-Vignettes** — Collapsible "Voir plus" sections now use 28px mini-illustrations for each section (hours, reviews, services, participants, sources, etc.).
+- **Attendee Avatars** — Stacked colored circle avatars showing participant initials with "+N" overflow indicator.
+- **Participant Lists with Emails** — Event and email collapsible sections now show each participant with status icon + name + email (mailto: link).
+- **Design System Guide** — Comprehensive documentation covering all components, color variants, responsive rules, Python helpers, and how to create new cards. (`docs/guides/GUIDE_DESIGN_SYSTEM.md`)
+
+### Changed
+
+- **All 14 HTML Cards Migrated** — EventCard, EmailCard, ContactCard, PlaceCard, WeatherCard (3 variants), RouteCard, TaskItem, ReminderCard, FileItem, ArticleCard, WebSearchCard, SearchResultCard, McpResultCard — all now use v4 components.
+- **Card Layout Normalization** — All cards with `display: flex` (email, event, task, file, article) corrected to `flex-direction: column` for proper v4 vertical layout.
+- **Contact Card** — Type badges colored by category (work=indigo, home=green, mobile=amber). Details aligned left. Collapsible uses same `render_d_row` + `render_type_badge` as main card.
+- **Place Card** — Photo hero preserved. Chips organized in 3 rows (stars / type+status / price+distance). Collapsible sections with mini-vignettes (hours as KV grid, reviews, services, accessibility, payment).
+- **Weather Card** — French weather descriptions added to icon mapping (~20 terms: ciel dégagé, nuageux, pluie, orage, neige, brouillard). Label "Min / Max" changed to "Températures" (6 languages). Sunrise/sunset icon alignment fixed.
+- **Route Card** — Title simplified to "→ Destination". ETA displayed as indigo chip. Chips split into 2 rows (arrival+traffic / duration+distance). "Voiture" badge removed (redundant with illustration icon).
+- **Task Card** — Unified mobile/desktop rendering (was 2 separate methods). Notes shown directly without "Voir plus".
+- **Reminder Card** — Badge + title on same line. "Créé le" prefix added to creation date.
+- **File Card** — Type-colored illustration (doc=blue, sheet=green, pdf=red, folder=amber). Chips with separator below.
+- **Email Card** — Square-rounded initials avatar. Full-width separator under header. Recipients with emails in collapsible.
+- **Article Card** — Wikipedia badge above title. Separator above categories.
+- **WebSearch Card** — Source chips above title. Results web with spacing. Sources as icon+link per line.
+- **MCP Card** — KV rows for structured data. Raw block for JSON.
+- **Event Organizer Email Filter** — Calendar group emails (`@group.calendar.google.com`, `@resource.calendar.google.com`) no longer displayed as organizer email.
+- **`render_collapsible()` Enhancement** — New `with_separator` parameter (default `True`). Cards pass `False` when the preceding element already provides a separator.
+- **i18n Labels** — Added `get_accessibility_title()` and `get_payment_title()` to V3Messages (6 languages).
+
+### Fixed
+
+- **Email Card Crash** — `V3Messages.get_messages()` and `get_files()` were called but didn't exist, causing silent render failure. Fixed by using numeric-only chip labels.
+- **22 Dead Methods Removed** — Cleaned up legacy rendering methods no longer called after v4 migration across 8 card files.
+
 ## [1.13.1] - 2026-03-28
 
 ### Fixed
@@ -956,7 +992,8 @@ First public open-source release of LIA.
 - Circuit breaker, rate limiting, and distributed locks
 - SOPS/Age encryption for secrets management
 
-[Unreleased]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.13.1...HEAD
+[Unreleased]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.13.2...HEAD
+[1.13.2]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.13.1...v1.13.2
 [1.13.1]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.13.0...v1.13.1
 [1.13.0]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.12.4...v1.13.0
 [1.12.2]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.12.1...v1.12.2

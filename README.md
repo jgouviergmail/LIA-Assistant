@@ -36,7 +36,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.13.1</strong> — Timezone DST Fix, Context Resolver &amp; Prod Optimization — March 2026
+  <strong>Version 1.13.2</strong> — HTML Card Visual Redesign (Design System v4) — March 2026
 </p>
 
 ---

@@ -23,6 +23,7 @@ from src.domains.agents.display.components.base import (
     format_full_date,
     format_time,
     render_collapsible,
+    render_d_item,
     wrap_with_response,
 )
 from src.domains.agents.display.icons import Icons, icon
@@ -44,27 +45,37 @@ class WeatherCard(BaseComponent):
     # Complete weather condition to icon/class mapping
     # icon_name is a Material Symbols icon name
     WEATHER_ICONS: dict[str, tuple[str, str]] = {
-        # Clear/Sunny conditions
+        # Clear/Sunny conditions (EN + FR + DE + ES + IT)
         "clear": (Icons.SUNNY, "sunny"),
         "sunny": (Icons.SUNNY, "sunny"),
         "clear sky": (Icons.SUNNY, "sunny"),
         "fine": (Icons.SUNNY, "sunny"),
         "fair": (Icons.SUNNY, "sunny"),
-        # Partly cloudy
+        "ciel dégagé": (Icons.SUNNY, "sunny"),
+        "ciel clair": (Icons.SUNNY, "sunny"),
+        "ensoleillé": (Icons.SUNNY, "sunny"),
+        "dégagé": (Icons.SUNNY, "sunny"),
+        # Partly cloudy (EN + FR)
         "partly cloudy": (Icons.PARTLY_CLOUDY, "partly-cloudy"),
         "partly_cloudy": (Icons.PARTLY_CLOUDY, "partly-cloudy"),
         "few clouds": (Icons.PARTLY_CLOUDY, "partly-cloudy"),
         "scattered clouds": (Icons.PARTLY_CLOUDY, "partly-cloudy"),
         "mostly sunny": (Icons.PARTLY_CLOUDY, "partly-cloudy"),
         "mostly clear": (Icons.PARTLY_CLOUDY, "partly-cloudy"),
-        # Cloudy conditions
+        "partiellement nuageux": (Icons.PARTLY_CLOUDY, "partly-cloudy"),
+        "partiellement couvert": (Icons.PARTLY_CLOUDY, "partly-cloudy"),
+        "éclaircies": (Icons.PARTLY_CLOUDY, "partly-cloudy"),
+        # Cloudy conditions (EN + FR)
         "clouds": (Icons.CLOUDY, "cloudy"),
         "cloudy": (Icons.CLOUDY, "cloudy"),
         "broken clouds": (Icons.CLOUDY, "cloudy"),
         "overcast": (Icons.CLOUDY, "overcast"),
         "overcast clouds": (Icons.CLOUDY, "overcast"),
         "mostly cloudy": (Icons.CLOUDY, "cloudy"),
-        # Rain conditions
+        "nuageux": (Icons.CLOUDY, "cloudy"),
+        "couvert": (Icons.CLOUDY, "overcast"),
+        "très nuageux": (Icons.CLOUDY, "overcast"),
+        # Rain conditions (EN + FR)
         "rain": (Icons.RAINY, "rainy"),
         "light rain": (Icons.RAINY, "light-rain"),
         "moderate rain": (Icons.RAINY, "rainy"),
@@ -74,22 +85,35 @@ class WeatherCard(BaseComponent):
         "drizzle": (Icons.RAINY, "drizzle"),
         "light drizzle": (Icons.RAINY, "drizzle"),
         "patchy rain": (Icons.RAINY, "light-rain"),
-        # Thunderstorm
+        "pluie": (Icons.RAINY, "rainy"),
+        "pluie légère": (Icons.RAINY, "light-rain"),
+        "pluie modérée": (Icons.RAINY, "rainy"),
+        "pluie forte": (Icons.RAINY, "heavy-rain"),
+        "bruine": (Icons.RAINY, "drizzle"),
+        "averses": (Icons.RAINY, "rainy"),
+        # Thunderstorm (EN + FR)
         "thunderstorm": (Icons.STORMY, "stormy"),
+        "orage": (Icons.STORMY, "stormy"),
+        "orageux": (Icons.STORMY, "stormy"),
         "thunder": (Icons.STORMY, "stormy"),
         "storm": (Icons.STORMY, "stormy"),
         "thundery": (Icons.STORMY, "stormy"),
         "lightning": (Icons.STORMY, "stormy"),
-        # Snow conditions
+        # Snow conditions (EN + FR)
         "snow": (Icons.SNOWY, "snowy"),
+        "neige": (Icons.SNOWY, "snowy"),
+        "neige légère": (Icons.SNOWY, "light-snow"),
+        "neige forte": (Icons.SNOWY, "heavy-snow"),
         "light snow": (Icons.SNOWY, "light-snow"),
         "heavy snow": (Icons.SNOWY, "heavy-snow"),
         "sleet": (Icons.SNOWY, "sleet"),
         "freezing rain": (Icons.SNOWY, "sleet"),
         "blizzard": (Icons.SNOWY, "blizzard"),
         "flurries": (Icons.SNOWY, "light-snow"),
-        # Fog/Mist conditions
+        # Fog/Mist conditions (EN + FR)
         "mist": (Icons.CLOUDY, "misty"),
+        "brouillard": (Icons.CLOUDY, "foggy"),
+        "brume": (Icons.CLOUDY, "misty"),
         "fog": (Icons.CLOUDY, "foggy"),
         "haze": (Icons.CLOUDY, "hazy"),
         "smoke": (Icons.CLOUDY, "smoky"),
@@ -274,8 +298,8 @@ class WeatherCard(BaseComponent):
 </div>"""
 
     def _render_extended_details(self, data: dict[str, Any], ctx: RenderContext) -> str:
-        """Render collapsible section with extended weather details."""
-        detail_sections = []
+        """Render collapsible section with extended weather details using v4 d-item."""
+        detail_sections: list[str] = []
 
         # i18n labels
         uv_index_label = V3Messages.get_uv_index(ctx.language)
@@ -293,10 +317,10 @@ class WeatherCard(BaseComponent):
             if temp_min and temp_max:
                 temp_range_label = V3Messages.get_temp_range(ctx.language)
                 detail_sections.append(
-                    f'<div class="lia-weather__detail-item">'
-                    f"{icon(Icons.TEMPERATURE)}"
-                    f"<span>{temp_range_label}: {escape_html(temp_min)} / {escape_html(temp_max)}</span>"
-                    f"</div>"
+                    render_d_item(
+                        Icons.TEMPERATURE,
+                        f"{temp_range_label}: {escape_html(temp_min)} / {escape_html(temp_max)}",
+                    )
                 )
 
         # UV Index
@@ -304,88 +328,79 @@ class WeatherCard(BaseComponent):
         if uv_index:
             uv_level_label = self._get_uv_label(uv_index, ctx.language)
             detail_sections.append(
-                f'<div class="lia-weather__detail-item">'
-                f"{icon(Icons.SUNNY)}"
-                f"<span>{uv_index_label}: {escape_html(str(uv_index))} ({uv_level_label})</span>"
-                f"</div>"
+                render_d_item(
+                    Icons.SUNNY,
+                    f"{uv_index_label}: {escape_html(str(uv_index))} ({uv_level_label})",
+                )
             )
 
         # Pressure
         pressure = data.get("pressure", "")
         if pressure:
             detail_sections.append(
-                f'<div class="lia-weather__detail-item">'
-                f"{icon(Icons.PRESSURE)}"
-                f"<span>{pressure_label}: {escape_html(str(pressure))}</span>"
-                f"</div>"
+                render_d_item(Icons.PRESSURE, f"{pressure_label}: {escape_html(str(pressure))}")
             )
 
         # Visibility
         visibility = data.get("visibility", "")
         if visibility:
             detail_sections.append(
-                f'<div class="lia-weather__detail-item">'
-                f"{icon(Icons.VISIBILITY)}"
-                f"<span>{visibility_label}: {escape_html(str(visibility))}</span>"
-                f"</div>"
+                render_d_item(
+                    Icons.VISIBILITY, f"{visibility_label}: {escape_html(str(visibility))}"
+                )
             )
 
         # Cloud cover
         clouds = data.get("clouds") or data.get("cloud_cover", "")
         if clouds:
             detail_sections.append(
-                f'<div class="lia-weather__detail-item">'
-                f"{icon(Icons.CLOUD_COVER)}"
-                f"<span>{cloud_cover_label}: {escape_html(str(clouds))}%</span>"
-                f"</div>"
+                render_d_item(
+                    Icons.CLOUD_COVER, f"{cloud_cover_label}: {escape_html(str(clouds))}%"
+                )
             )
 
         # Sunrise/Sunset (locale-aware time formatting)
         sunrise = data.get("sunrise", "")
         sunset = data.get("sunset", "")
         if sunrise or sunset:
-            sun_info = []
+            sun_parts = []
             if sunrise:
                 sunrise_fmt = format_time(sunrise, ctx.language, ctx.timezone)
-                sun_info.append(f"{icon(Icons.SUNRISE)} {escape_html(sunrise_fmt)}")
+                sun_parts.append(escape_html(sunrise_fmt))
             if sunset:
                 sunset_fmt = format_time(sunset, ctx.language, ctx.timezone)
-                sun_info.append(f"{icon(Icons.SUNSET)} {escape_html(sunset_fmt)}")
-            detail_sections.append(
-                f'<div class="lia-weather__detail-item">'
-                f'<span>{" · ".join(sun_info)}</span>'
-                f"</div>"
-            )
+                # Use raw material-symbols-outlined (same size as d-item icon) for alignment
+                sunset_icon = f'<span class="material-symbols-outlined" style="font-size:15px;vertical-align:middle">{Icons.SUNSET}</span>'
+                sun_parts.append(f"{sunset_icon} {escape_html(sunset_fmt)}")
+            detail_sections.append(render_d_item(Icons.SUNRISE, " · ".join(sun_parts)))
 
         # Air quality (if available)
         aqi = data.get("aqi") or data.get("air_quality", "")
         if aqi:
             aqi_level_label = self._get_aqi_label(aqi, ctx.language)
             detail_sections.append(
-                f'<div class="lia-weather__detail-item">'
-                f"{icon(Icons.WIND)}"
-                f"<span>{air_quality_label}: {escape_html(str(aqi))} ({aqi_level_label})</span>"
-                f"</div>"
+                render_d_item(
+                    Icons.WIND,
+                    f"{air_quality_label}: {escape_html(str(aqi))} ({aqi_level_label})",
+                )
             )
 
         # Precipitation probability
         precip = data.get("precipitation_probability") or data.get("pop", "")
         if precip:
             detail_sections.append(
-                f'<div class="lia-weather__detail-item">'
-                f"{icon(Icons.RAINY)}"
-                f"<span>{precipitation_label}: {escape_html(str(precip))}%</span>"
-                f"</div>"
+                render_d_item(Icons.RAINY, f"{precipitation_label}: {escape_html(str(precip))}%")
             )
 
-        # If we have details, wrap in collapsible
+        # Wrap in collapsible using v4 component
         if detail_sections:
             content_html = "\n".join(detail_sections)
             return render_collapsible(
                 trigger_text=V3Messages.get_see_more(ctx.language),
-                content_html=f'<div class="lia-weather__extended">{content_html}</div>',
+                content_html=content_html,
                 initially_open=False,
                 language=ctx.language,
+                with_separator=True,
             )
 
         return ""
@@ -400,7 +415,7 @@ class WeatherCard(BaseComponent):
         # Get location from parent data, fallback to first forecast item
         location = self._get_location(data) or self._get_location(forecasts[0])
         # Get date from first forecast item
-        first_date = self._get_date(forecasts[0], ctx) if forecasts else ""
+        # Date removed from forecast header (multi-day, date not meaningful)
 
         days_html = []
         # Limit days (configurable via WEATHER_FORECAST_MAX_DAYS env var)
@@ -437,20 +452,13 @@ class WeatherCard(BaseComponent):
 
         V3Messages.get_forecast(ctx.language)
 
-        # Same layout as current weather: date left, city right
-        # CSS flex with justify-content: space-between handles alignment
-        date_html = (
-            f'<span class="lia-weather__date">{escape_html(first_date)}</span>'
-            if first_date
-            else ""
-        )
+        # Forecast header: just city (no date — it's a multi-day forecast)
         location_html = (
             f'<span class="lia-weather__city">{escape_html(location)}</span>' if location else ""
         )
 
         return f"""<div class="lia-card lia-weather lia-weather--forecast {nested_class}">
 <div class="lia-weather__header-row">
-{date_html}
 {location_html}
 </div>
 <div class="lia-weather__forecast-days">
@@ -485,22 +493,15 @@ class WeatherCard(BaseComponent):
 <span class="lia-weather__hour-temp">{escape_html(temp)}</span>
 </div>""")
 
-        # Unified layout for ALL viewports: icon + date (left), city (right)
-        # No "hourly" label, no separator
-        date_html = (
-            f'{icon(Icons.SCHEDULE)} <span class="lia-weather__date">{escape_html(date_str)}</span>'
-            if date_str
-            else f"{icon(Icons.SCHEDULE)}"
-        )
-        # City only (not full address) - location already returns city from _get_location
+        # City + date stacked vertically
         city_html = (
             f'<span class="lia-weather__city">{escape_html(location)}</span>' if location else ""
         )
 
         return f"""<div class="lia-card lia-weather lia-weather--hourly {nested_class}">
-<div class="lia-weather__header-row">
-<div class="lia-weather__header-left">{date_html}</div>
+<div style="margin-bottom:var(--lia-space-sm)">
 {city_html}
+<div style="font-size:var(--lia-text-sm);color:var(--lia-text-muted);margin-top:var(--lia-space-2xs)">{escape_html(date_str)}</div>
 </div>
 <div class="lia-weather__hourly-strip">
 {chr(10).join(hours_html)}

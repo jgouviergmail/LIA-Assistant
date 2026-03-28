@@ -43,12 +43,11 @@ class TestMcpResultCardRender:
         }
         html = card.render(data, ctx)
 
-        assert "<pre" in html
-        assert "lia-mcp__content--json" in html
+        assert "lia-raw-block" in html
         assert "&quot;status&quot;" in html  # Escaped JSON
 
     def test_render_json_array(self, card: McpResultCard, ctx: RenderContext) -> None:
-        """Should detect JSON array and render in <pre> block."""
+        """Should detect JSON array and render in raw block."""
         data = {
             "tool_name": "list_items",
             "server_name": "Data Server",
@@ -56,8 +55,7 @@ class TestMcpResultCardRender:
         }
         html = card.render(data, ctx)
 
-        assert "<pre" in html
-        assert "lia-mcp__content--json" in html
+        assert "lia-raw-block" in html
 
     def test_render_long_text_truncated(self, card: McpResultCard, ctx: RenderContext) -> None:
         """Should truncate plain text exceeding 2000 chars."""
@@ -130,9 +128,8 @@ class TestMcpResultCardRender:
         }
         html = card.render(data, ctx)
 
-        assert "MCP" in html
         assert "My Custom Server" in html
-        assert "lia-badge" in html
+        assert "lia-chip" in html or "lia-card-top" in html
 
     def test_render_newlines_converted_to_br(self, card: McpResultCard, ctx: RenderContext) -> None:
         """Should convert newlines to <br> in plain text content."""
@@ -274,4 +271,4 @@ class TestMcpResultCardStructuredRendering:
         # Should render raw content, not structured
         assert "pong response" in html
         assert "Ping" in html  # Humanised tool name as title
-        assert "lia-mcp__content" in html  # Raw content div
+        assert "pong response" in html  # Content rendered

@@ -405,6 +405,690 @@
 }
 
 /* =============================================================================
+   DESIGN SYSTEM v4 — Standardized Reusable Components
+   All cards use the SAME components. Only colors and data change.
+   ============================================================================= */
+
+/* --- Card Top: Illustration 42px + Title, with separator below --- */
+.lia-card-top {
+  display: flex;
+  gap: var(--lia-space-md);
+  align-items: center;
+  padding-bottom: var(--lia-space-sm);
+  border-bottom: 1px solid var(--lia-border);
+  margin-bottom: var(--lia-space-sm);
+}
+
+.lia-card-top__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.lia-card-top__title {
+  font-size: var(--lia-text-lg);
+  font-weight: 700;
+  color: var(--lia-text);
+  text-decoration: none;
+  line-height: var(--lia-leading-tight);
+  display: block;
+}
+
+.lia-card-top__title:hover {
+  color: var(--lia-primary);
+}
+
+.lia-card-top__subtitle {
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-secondary);
+  margin-top: var(--lia-space-2xs);
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-xs);
+}
+
+.lia-card-top__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lia-space-xs);
+  align-items: center;
+  margin-top: var(--lia-space-2xs);
+}
+
+/* --- Illustration Vignette 42px (square rounded, gradient bg, filled icon) --- */
+.lia-illus {
+  width: 42px;
+  height: 42px;
+  border-radius: var(--lia-radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.lia-illus .material-symbols-outlined {
+  font-size: 22px;
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+/* Illustration color variants (light mode) */
+.lia-illus--green { background: linear-gradient(135deg, #dcfce7, #bbf7d0); color: #16a34a; }
+.lia-illus--red { background: linear-gradient(135deg, #fee2e2, #fecaca); color: #dc2626; }
+.lia-illus--amber { background: linear-gradient(135deg, #fef3c7, #fde68a); color: #d97706; }
+.lia-illus--blue { background: linear-gradient(135deg, #dbeafe, #bfdbfe); color: #2563eb; }
+.lia-illus--indigo { background: linear-gradient(135deg, #e0e7ff, #c7d2fe); color: #4f46e5; }
+.lia-illus--purple { background: linear-gradient(135deg, #ede9fe, #ddd6fe); color: #7c3aed; }
+.lia-illus--teal { background: linear-gradient(135deg, #ccfbf1, #99f6e4); color: #0d9488; }
+.lia-illus--orange { background: linear-gradient(135deg, #ffedd5, #fed7aa); color: #ea580c; }
+.lia-illus--gray { background: linear-gradient(135deg, #f3f4f6, #e5e7eb); color: #6b7280; }
+
+/* --- Mini Illustration 28px (for section headers in collapsible) --- */
+.lia-illus-sm {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--lia-radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.lia-illus-sm .material-symbols-outlined {
+  font-size: 16px;
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+}
+
+/* Mini illustration inherits same color classes as lia-illus */
+.lia-illus-sm.lia-illus--green { background: linear-gradient(135deg, #dcfce7, #bbf7d0); color: #16a34a; }
+.lia-illus-sm.lia-illus--red { background: linear-gradient(135deg, #fee2e2, #fecaca); color: #dc2626; }
+.lia-illus-sm.lia-illus--amber { background: linear-gradient(135deg, #fef3c7, #fde68a); color: #d97706; }
+.lia-illus-sm.lia-illus--blue { background: linear-gradient(135deg, #dbeafe, #bfdbfe); color: #2563eb; }
+.lia-illus-sm.lia-illus--indigo { background: linear-gradient(135deg, #e0e7ff, #c7d2fe); color: #4f46e5; }
+.lia-illus-sm.lia-illus--purple { background: linear-gradient(135deg, #ede9fe, #ddd6fe); color: #7c3aed; }
+.lia-illus-sm.lia-illus--teal { background: linear-gradient(135deg, #ccfbf1, #99f6e4); color: #0d9488; }
+.lia-illus-sm.lia-illus--orange { background: linear-gradient(135deg, #ffedd5, #fed7aa); color: #ea580c; }
+
+/* --- Chip: inline metadata tag with icon + text + border --- */
+.lia-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--lia-space-xs);
+  padding: var(--lia-space-2xs) var(--lia-space-sm);
+  border-radius: var(--lia-radius-sm);
+  font-size: var(--lia-text-xs);
+  font-weight: 500;
+  background: var(--lia-surface-hover);
+  color: var(--lia-text);
+  border: 1px solid var(--lia-border);
+  line-height: 1.3;
+}
+
+.lia-chip .material-symbols-outlined {
+  font-size: 14px;
+  color: var(--lia-text-secondary);
+}
+
+/* Chip color variants */
+.lia-chip--green { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+.lia-chip--green .material-symbols-outlined { color: #16a34a; }
+
+.lia-chip--amber { background: #fef3c7; border-color: #fde68a; color: #92400e; }
+.lia-chip--amber .material-symbols-outlined { color: #d97706; }
+
+.lia-chip--red { background: #fee2e2; border-color: #fecaca; color: #991b1b; }
+.lia-chip--red .material-symbols-outlined { color: #dc2626; }
+
+.lia-chip--indigo { background: #eef2ff; border-color: #c7d2fe; color: #4338ca; }
+.lia-chip--indigo .material-symbols-outlined { color: #6366f1; }
+
+.lia-chip--time { background: #f0fdf4; border-color: #bbf7d0; color: #166534; font-weight: 600; }
+.lia-chip--time .material-symbols-outlined { color: #16a34a; }
+
+.lia-chip--stars { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+.lia-chip--stars .material-symbols-outlined {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+  color: #f59e0b;
+  font-size: 13px;
+}
+.lia-chip--stars .lia-chip__star-empty {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+  color: #f59e0b;
+  font-size: 13px;
+  opacity: 0.3;
+}
+
+.lia-chip--thread { background: #eef2ff; border-color: #c7d2fe; color: #4338ca; }
+.lia-chip--thread .material-symbols-outlined { color: #6366f1; }
+
+.lia-chip--attach { background: #fefce8; border-color: #fde68a; color: #854d0e; }
+.lia-chip--attach .material-symbols-outlined { color: #d97706; }
+
+.lia-chip--allday { background: #fef3c7; border-color: #fde68a; color: #92400e; }
+.lia-chip--allday .material-symbols-outlined { color: #d97706; }
+
+/* --- Chip Row: flex container for chips --- */
+.lia-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--lia-space-xs);
+  align-items: center;
+  margin-top: var(--lia-space-sm);
+}
+
+/* Chip row separator variants (applied via modifier classes) */
+.lia-chip-row--sep-top {
+  padding-top: var(--lia-space-sm);
+  border-top: 1px solid var(--lia-border);
+}
+
+.lia-chip-row--sep-bottom {
+  padding-bottom: var(--lia-space-sm);
+  border-bottom: 1px solid var(--lia-border);
+}
+
+.lia-chip-row--sep-both {
+  padding-top: var(--lia-space-sm);
+  padding-bottom: var(--lia-space-sm);
+  border-top: 1px solid var(--lia-border);
+  border-bottom: 1px solid var(--lia-border);
+}
+
+/* --- Section Header: mini-illus + label, separator above --- */
+.lia-sec {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-sm);
+  margin-top: var(--lia-space-md);
+  padding-top: var(--lia-space-sm);
+  border-top: 1px solid var(--lia-border);
+  margin-bottom: var(--lia-space-xs);
+}
+
+/* First section: no border-top (card-top separator is enough) */
+.lia-sec--first {
+  border-top: none;
+  padding-top: 0;
+  margin-top: var(--lia-space-sm);
+}
+
+.lia-sec__label {
+  font-size: var(--lia-text-xs);
+  font-weight: 600;
+  color: var(--lia-text);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* --- Detail Row: icon + text inline (main card body) --- */
+.lia-d-row {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-xs);
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-secondary);
+  margin-top: var(--lia-space-xs);
+}
+
+.lia-d-row .material-symbols-outlined {
+  font-size: 16px;
+  flex-shrink: 0;
+  color: var(--lia-text-muted);
+}
+
+.lia-d-row a {
+  color: var(--lia-text);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.lia-d-row a:hover {
+  color: var(--lia-primary);
+}
+
+/* --- Detail Item: icon + text in collapsible (smaller than d-row) --- */
+/* Same vertical spacing as d-row for homogeneity between main card and collapsible */
+.lia-d-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--lia-space-xs);
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-secondary);
+  line-height: var(--lia-leading-normal);
+  margin-top: var(--lia-space-xs);
+}
+
+.lia-d-item .material-symbols-outlined {
+  font-size: 15px;
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--lia-text-muted);
+}
+
+.lia-d-item a {
+  color: var(--lia-primary);
+  text-decoration: none;
+}
+
+.lia-d-item a:hover {
+  text-decoration: underline;
+}
+
+/* --- Description Block: subtle bg with optional left border --- */
+.lia-desc-block {
+  background: var(--lia-surface-hover);
+  border-left: 3px solid var(--lia-primary);
+  border-radius: 0 var(--lia-radius-sm) var(--lia-radius-sm) 0;
+  padding: var(--lia-space-sm) var(--lia-space-md);
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-secondary);
+  line-height: var(--lia-leading-relaxed);
+}
+
+.lia-desc-block--no-border {
+  border-left: none;
+  border-radius: var(--lia-radius-sm);
+}
+
+/* --- Hero Image: full-width image at top of card --- */
+.lia-card-hero {
+  margin: calc(-1 * var(--lia-space-lg)) calc(-1 * var(--lia-space-lg)) 0;
+  border-radius: var(--lia-radius-lg) var(--lia-radius-lg) 0 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.lia-card-hero img {
+  width: 100%;
+  height: auto;
+  max-height: 200px;
+  object-fit: cover;
+  display: block;
+}
+
+.lia-card-hero::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.05));
+}
+
+/* --- Type Badge: small colored label (contacts, files) --- */
+.lia-tbadge {
+  font-size: 0.625rem;
+  padding: var(--lia-space-2xs) var(--lia-space-xs);
+  border-radius: var(--lia-radius-sm);
+  font-weight: 600;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.lia-tbadge--work { background: #eef2ff; color: #4338ca; }
+.lia-tbadge--home { background: #f0fdf4; color: #166534; }
+.lia-tbadge--mobile { background: #fefce8; color: #854d0e; }
+.lia-tbadge--other { background: var(--lia-surface-hover); color: var(--lia-text-secondary); }
+
+/* --- Attendee Row: stacked avatars + count label --- */
+.lia-att-row {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-sm);
+  margin-top: var(--lia-space-sm);
+}
+
+.lia-att-row__avatars {
+  display: flex;
+}
+
+.lia-att-av {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--lia-radius-full);
+  background: linear-gradient(135deg, #c7d2fe, #a5b4fc);
+  color: #3730a3;
+  font-size: 0.5625rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--lia-surface);
+  margin-left: -5px;
+}
+
+.lia-att-av:first-child {
+  margin-left: 0;
+}
+
+.lia-att-av--more {
+  background: var(--lia-surface-hover);
+  color: var(--lia-text-secondary);
+}
+
+.lia-att-row__label {
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-secondary);
+}
+
+/* --- Participant List: vertical list with status+name+email --- */
+.lia-part-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lia-space-xs);
+  margin-left: calc(28px + var(--lia-space-sm));
+  font-size: var(--lia-text-sm);
+  color: var(--lia-text-secondary);
+}
+
+.lia-part-item {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-xs);
+}
+
+.lia-part-item .material-symbols-outlined {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.lia-part-item a {
+  color: var(--lia-text);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.lia-part-item a:hover {
+  color: var(--lia-primary);
+}
+
+.lia-part-item__email {
+  color: var(--lia-text-muted);
+  font-size: var(--lia-text-xs);
+}
+
+/* --- Source Link: icon + clickable URL, one per line --- */
+.lia-src-link {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-xs);
+  font-size: var(--lia-text-sm);
+  padding: var(--lia-space-2xs) 0;
+}
+
+.lia-src-link .material-symbols-outlined {
+  font-size: 15px;
+  color: var(--lia-primary);
+  flex-shrink: 0;
+}
+
+.lia-src-link a {
+  color: var(--lia-primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.lia-src-link a:hover {
+  text-decoration: underline;
+}
+
+/* --- KV Rows: generic key-value grid (hours, MCP, stats) --- */
+.lia-kv-rows {
+  background: var(--lia-surface-hover);
+  border-radius: var(--lia-radius-sm);
+  padding: var(--lia-space-sm) var(--lia-space-md);
+  border: 1px solid var(--lia-border-light);
+}
+
+.lia-kv-row {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--lia-space-2xs) 0;
+  font-size: var(--lia-text-xs);
+  border-bottom: 1px solid var(--lia-border-light);
+}
+
+.lia-kv-row:last-child {
+  border-bottom: none;
+}
+
+.lia-kv-row__key {
+  font-weight: 600;
+  color: var(--lia-text);
+}
+
+.lia-kv-row__value {
+  color: var(--lia-text-secondary);
+}
+
+/* --- Review: author+date+stars header + text --- */
+.lia-review {
+  padding: var(--lia-space-xs) 0;
+  border-bottom: 1px solid var(--lia-border-light);
+  font-size: var(--lia-text-sm);
+}
+
+.lia-review:last-child {
+  border-bottom: none;
+}
+
+.lia-review__hdr {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-xs);
+  margin-bottom: var(--lia-space-2xs);
+  font-weight: 600;
+  color: var(--lia-text);
+  font-size: var(--lia-text-xs);
+}
+
+.lia-review__hdr .material-symbols-outlined {
+  font-size: 12px;
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+  color: var(--lia-warning);
+}
+
+.lia-review__time {
+  color: var(--lia-text-muted);
+  font-weight: 400;
+}
+
+.lia-review__text {
+  color: var(--lia-text-secondary);
+  line-height: var(--lia-leading-normal);
+}
+
+/* --- Raw Block: monospace for JSON/text --- */
+.lia-raw-block {
+  background: var(--lia-surface-hover);
+  border: 1px solid var(--lia-border-light);
+  border-radius: var(--lia-radius-sm);
+  padding: var(--lia-space-sm) var(--lia-space-md);
+  font-size: var(--lia-text-xs);
+  font-family: var(--lia-font-mono);
+  color: var(--lia-text-secondary);
+  overflow-x: auto;
+  line-height: var(--lia-leading-normal);
+  white-space: pre;
+}
+
+/* --- File Meta: small icon + text line --- */
+.lia-file-meta {
+  font-size: var(--lia-text-xs);
+  color: var(--lia-text-muted);
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-xs);
+  margin-top: var(--lia-space-2xs);
+}
+
+.lia-file-meta .material-symbols-outlined {
+  font-size: 12px;
+}
+
+/* =============================================================================
+   DESIGN SYSTEM v4 — Dark Mode Overrides
+   ============================================================================= */
+
+.dark .lia-card-top {
+  border-bottom-color: var(--lia-border);
+}
+
+.dark .lia-illus--green { background: rgba(52, 211, 153, 0.15); color: #6ee7b7; }
+.dark .lia-illus--red { background: rgba(248, 113, 113, 0.15); color: #fca5a5; }
+.dark .lia-illus--amber { background: rgba(251, 191, 36, 0.15); color: #fde68a; }
+.dark .lia-illus--blue { background: rgba(59, 130, 246, 0.15); color: #93c5fd; }
+.dark .lia-illus--indigo { background: rgba(99, 102, 241, 0.15); color: #c7d2fe; }
+.dark .lia-illus--purple { background: rgba(124, 58, 237, 0.15); color: #ddd6fe; }
+.dark .lia-illus--teal { background: rgba(13, 148, 136, 0.15); color: #99f6e4; }
+.dark .lia-illus--orange { background: rgba(234, 88, 12, 0.15); color: #fed7aa; }
+.dark .lia-illus--gray { background: rgba(107, 114, 128, 0.15); color: #d1d5db; }
+
+/* Dark mini-illus inherits from lia-illus color classes above */
+
+.dark .lia-chip {
+  background: var(--lia-surface-active);
+  color: var(--lia-text-secondary);
+  border-color: var(--lia-border);
+}
+
+.dark .lia-chip .material-symbols-outlined {
+  color: var(--lia-text-muted);
+}
+
+.dark .lia-chip--green { background: rgba(16, 185, 129, 0.12); border-color: rgba(16, 185, 129, 0.25); color: #a7f3d0; }
+.dark .lia-chip--green .material-symbols-outlined { color: #6ee7b7; }
+.dark .lia-chip--amber { background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.25); color: #fde68a; }
+.dark .lia-chip--amber .material-symbols-outlined { color: #fbbf24; }
+.dark .lia-chip--red { background: rgba(239, 68, 68, 0.12); border-color: rgba(239, 68, 68, 0.25); color: #fca5a5; }
+.dark .lia-chip--red .material-symbols-outlined { color: #f87171; }
+.dark .lia-chip--indigo { background: rgba(99, 102, 241, 0.15); border-color: rgba(99, 102, 241, 0.3); color: #c7d2fe; }
+.dark .lia-chip--indigo .material-symbols-outlined { color: #a5b4fc; }
+.dark .lia-chip--time { background: rgba(16, 185, 129, 0.12); border-color: rgba(16, 185, 129, 0.25); color: #a7f3d0; }
+.dark .lia-chip--time .material-symbols-outlined { color: #6ee7b7; }
+.dark .lia-chip--stars { background: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.2); color: #fde68a; }
+.dark .lia-chip--thread { background: rgba(99, 102, 241, 0.15); border-color: rgba(99, 102, 241, 0.3); color: #c7d2fe; }
+.dark .lia-chip--thread .material-symbols-outlined { color: #a5b4fc; }
+.dark .lia-chip--attach { background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.25); color: #fde68a; }
+.dark .lia-chip--attach .material-symbols-outlined { color: #fbbf24; }
+.dark .lia-chip--allday { background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.25); color: #fde68a; }
+.dark .lia-chip--allday .material-symbols-outlined { color: #fbbf24; }
+
+.dark .lia-chip-row--sep-top,
+.dark .lia-chip-row--sep-bottom,
+.dark .lia-chip-row--sep-both {
+  border-color: var(--lia-border);
+}
+
+.dark .lia-sec {
+  border-top-color: var(--lia-border);
+}
+
+.dark .lia-sec__label {
+  color: var(--lia-text-secondary);
+}
+
+.dark .lia-desc-block {
+  background: var(--lia-surface-active);
+  border-left-color: var(--lia-primary-light);
+  color: var(--lia-text-secondary);
+}
+
+.dark .lia-card-hero::after {
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.15));
+}
+
+.dark .lia-tbadge--work { background: rgba(99, 102, 241, 0.15); color: #c7d2fe; }
+.dark .lia-tbadge--home { background: rgba(16, 185, 129, 0.12); color: #a7f3d0; }
+.dark .lia-tbadge--mobile { background: rgba(245, 158, 11, 0.12); color: #fde68a; }
+.dark .lia-tbadge--other { background: var(--lia-surface-active); color: var(--lia-text-muted); }
+
+.dark .lia-att-av {
+  border-color: var(--lia-surface);
+}
+
+.dark .lia-att-av--more {
+  background: var(--lia-surface-active);
+  color: var(--lia-text-muted);
+}
+
+.dark .lia-kv-rows {
+  background: var(--lia-surface-active);
+  border-color: var(--lia-border);
+}
+
+.dark .lia-kv-row {
+  border-bottom-color: var(--lia-border);
+}
+
+.dark .lia-kv-row__key {
+  color: var(--lia-text-secondary);
+}
+
+.dark .lia-kv-row__value {
+  color: var(--lia-text-muted);
+}
+
+.dark .lia-review {
+  border-bottom-color: var(--lia-border);
+}
+
+.dark .lia-review__hdr {
+  color: var(--lia-text-secondary);
+}
+
+.dark .lia-raw-block {
+  background: var(--lia-surface-active);
+  border-color: var(--lia-border);
+  color: var(--lia-text-secondary);
+}
+
+/* =============================================================================
+   DESIGN SYSTEM v4 — Responsive (Container Queries)
+   ============================================================================= */
+
+@container card (max-width: 430px) {
+  .lia-chip {
+    font-size: 0.6875rem;
+    padding: 2px var(--lia-space-xs);
+  }
+
+  .lia-chip .material-symbols-outlined {
+    font-size: 12px;
+  }
+
+  .lia-att-av {
+    width: 20px;
+    height: 20px;
+    font-size: 0.5rem;
+    margin-left: -4px;
+  }
+
+  .lia-d-row {
+    font-size: var(--lia-text-xs);
+  }
+
+  .lia-d-item {
+    font-size: var(--lia-text-xs);
+  }
+
+  .lia-part-list {
+    margin-left: var(--lia-space-md);
+  }
+
+  .lia-kv-row {
+    font-size: 0.6875rem;
+  }
+
+  .lia-file-meta {
+    font-size: 0.625rem;
+  }
+
+  .lia-card-hero img {
+    max-height: 140px;
+  }
+}
+
+/* =============================================================================
    Material Symbols - Modern Icon System
    ============================================================================= */
 
@@ -745,8 +1429,9 @@
 }
 
 /* Align collapsible with name */
+/* v4: collapsible aligned left (no avatar offset) */
 .lia-contact .lia-collapsible {
-  margin-left: calc(40px + var(--lia-space-md)); /* Align with name: avatar + gap */
+  margin-left: 0;
 }
 
 .lia-contact__item {
@@ -877,10 +1562,10 @@
    ============================================================================= */
 
 /* Base email card layout */
+/* v4: email card uses vertical layout (card-top + subject + chips + snippet) */
 .lia-email {
   display: flex;
-  align-items: flex-start;
-  gap: var(--lia-space-md);
+  flex-direction: column;
   border-left: 4px solid transparent;
   transition: all var(--lia-transition-fast);
 }
@@ -1313,9 +1998,10 @@ a.lia-email__sender-email:hover {
    Event Card
    ============================================================================= */
 
+/* v4: event card uses vertical layout (card-top + chips + location + attendees) */
 .lia-event {
   display: flex;
-  gap: var(--lia-space-md);
+  flex-direction: column;
   border-left: 4px solid transparent;
   transition: all var(--lia-transition-fast);
 }
@@ -1544,10 +2230,10 @@ a.lia-email__sender-email:hover {
    Task Item
    ============================================================================= */
 
+/* v4: task card uses vertical layout (card-top + chips + notes) */
 .lia-task {
   display: flex;
-  align-items: flex-start;
-  gap: var(--lia-space-md);
+  flex-direction: column;
 }
 
 .lia-task__checkbox {
@@ -3008,10 +3694,10 @@ a.lia-email__sender-email:hover {
    File Item
    ============================================================================= */
 
+/* v4: file card uses vertical layout (card-top + chips + meta) */
 .lia-file {
   display: flex;
-  align-items: center;
-  gap: var(--lia-space-md);
+  flex-direction: column;
 }
 
 /* Icon-wrap DEPRECATED - badge type is now sufficient */
@@ -3184,9 +3870,10 @@ a.lia-email__sender-email:hover {
    Article Card (Wikipedia)
    ============================================================================= */
 
+/* v4: article card uses vertical layout (card-top + summary + categories) */
 .lia-article {
   display: flex;
-  gap: var(--lia-space-md);
+  flex-direction: column;
 }
 
 .lia-article__thumb {
@@ -3469,11 +4156,12 @@ a.lia-email__sender-email:hover {
 .lia-web-search__source {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: var(--lia-space-2xs) var(--lia-space-xs);
+  gap: 3px;
+  padding: 1px var(--lia-space-xs);
   background: var(--lia-surface-hover);
-  border-radius: var(--lia-radius-sm);
-  font-size: var(--lia-text-xs);
+  border-radius: var(--lia-radius-xs);
+  font-size: 0.6875rem;
+  line-height: 1.2;
   color: var(--lia-text-muted);
   border: 1px solid var(--lia-border-light);
   opacity: 0.5;
@@ -3533,6 +4221,7 @@ a.lia-email__sender-email:hover {
 
 .lia-web-search__result {
   padding: var(--lia-space-sm);
+  margin-bottom: var(--lia-space-sm);
   background: linear-gradient(135deg, var(--lia-surface-hover), var(--lia-surface));
   border-radius: var(--lia-radius-sm);
   transition: all var(--lia-transition-fast);

@@ -15,6 +15,10 @@ from src.domains.agents.display.components.base import (
     RenderContext,
     escape_html,
     format_full_date,
+    render_card_top,
+    render_chip,
+    render_chip_row,
+    render_file_meta,
     wrap_with_response,
 )
 from src.domains.agents.display.icons import Icons, icon
@@ -187,39 +191,6 @@ class FileItem(BaseComponent):
         created_label = V3Messages.get_created(ctx.language)
         modified_label = V3Messages.get_modified(ctx.language)
 
-        # 1. Badges: type first, then starred, then shared
-        badges = []
-        badges.append(f'<span class="lia-badge lia-badge--subtle">{escape_html(type_label)}</span>')
-        if is_starred:
-            badges.append(
-                f'<span class="lia-badge lia-badge--warning">{icon(Icons.STAR)} {escape_html(favorite_label)}</span>'
-            )
-        if is_shared:
-            badges.append(
-                f'<span class="lia-badge lia-badge--accent">{escape_html(shared_label)}</span>'
-            )
-        badges_html = " ".join(badges)
-
-        # 3. Size + owner line
-        size_owner_parts = []
-        if size_str:
-            size_owner_parts.append(escape_html(size_str))
-        if owner:
-            size_owner_parts.append(escape_html(owner))
-        size_owner_html = " · ".join(size_owner_parts) if size_owner_parts else ""
-
-        # 5. Footer with created date + icon
-        footer_html = ""
-        if data:
-            created = data.get("createdTime", "")
-            if created:
-                created_str = format_full_date(
-                    created, ctx.language, ctx.timezone, include_time=True
-                )
-                footer_html = f"""<div class="lia-file__footer">
-      <span class="lia-file__created">{icon(Icons.CALENDAR, size="sm")} {escape_html(created_label)} : {escape_html(created_str)}</span>
-    </div>"""
-
         # =====================================================================
         # DETAIL FIELDS: Only rendered if present (details mode has them)
         # =====================================================================
@@ -271,28 +242,67 @@ class FileItem(BaseComponent):
         if thumb_html:
             thumb_section = f'<div class="lia-file__thumb-wrap">{thumb_html}</div>'
 
-        # File path (full folder hierarchy) above the title
-        path_html = ""
+        # --- v4: card-top (icon + title) + chip row + file meta lines ---
+        # Determine illus color from file type
+        file_color_map = {
+            "doc": "blue",
+            "docx": "blue",
+            "word": "blue",
+            "sheet": "green",
+            "xlsx": "green",
+            "excel": "green",
+            "slides": "orange",
+            "pptx": "orange",
+            "powerpoint": "orange",
+            "pdf": "red",
+            "image": "purple",
+            "video": "purple",
+            "audio": "purple",
+            "folder": "amber",
+            "form": "indigo",
+            "text": "gray",
+            "archive": "gray",
+        }
+        illus_color = file_color_map.get(file_class, "gray")
+        title_html = f'<a class="lia-card-top__title" href="{escape_html(url)}" target="_blank">{escape_html(title)}</a>'
+        card_top_html = render_card_top(icon_name, illus_color, title_html)
+
+        # Chip row: type + shared? + starred? (separator both)
+        chips = []
+        chips.append(render_chip(type_label, illus_color.replace("gray", ""), icon_name))
+        if is_starred:
+            chips.append(render_chip(favorite_label, "stars", Icons.STAR))
+        if is_shared:
+            chips.append(render_chip(shared_label, "indigo", Icons.GROUP))
+        chip_row_html = render_chip_row(" ".join(chips), separator_pos="bottom")
+
+        # File meta lines
+        meta_parts = []
+        if data and data.get("parentPath"):
+            meta_parts.append(render_file_meta(Icons.FOLDER, data["parentPath"]))
+        if size_str:
+            size_owner_text = size_str
+            if owner:
+                size_owner_text += f" · {owner}"
+            meta_parts.append(render_file_meta("straighten", size_owner_text))
+        meta_parts.append(render_file_meta(Icons.EDIT, f"{modified_label} : {modified}"))
         if data:
-            parent_path = data.get("parentPath", "")
-            if parent_path:
-                path_html = f'<div class="lia-file__path">{icon(Icons.FOLDER, size="sm")} {escape_html(parent_path)}</div>'
+            created = data.get("createdTime", "")
+            if created:
+                created_str = format_full_date(
+                    created, ctx.language, ctx.timezone, include_time=True
+                )
+                meta_parts.append(
+                    render_file_meta(Icons.CALENDAR, f"{created_label} : {created_str}")
+                )
+        meta_html = "\n".join(meta_parts)
 
         return f"""<div class="lia-card lia-file lia-file--{file_class} {nested_class}">
-  {thumb_section}
-  <div class="lia-file__content">
-    {path_html}
-    <div class="lia-file__header">
-      <a href="{escape_html(url)}" class="lia-file__name" target="_blank">{escape_html(title)}</a>
-      <div class="lia-file__badges">{badges_html}</div>
-    </div>
-    <div class="lia-file__meta">
-      {f'<div class="lia-file__size-owner">{size_owner_html}</div>' if size_owner_html else ''}
-      <div class="lia-file__modified">{icon(Icons.EDIT, size="sm")} {escape_html(modified_label)} : {escape_html(modified)}</div>
-    </div>
-    {footer_html}
-    {detail_html}
-  </div>
+{thumb_section}
+{card_top_html}
+{chip_row_html}
+{meta_html}
+{detail_html}
 </div>"""
 
     def _get_file_visual(self, mime_type: str) -> tuple[str, str, str]:
@@ -320,21 +330,6 @@ class FileItem(BaseComponent):
             if isinstance(owner, dict):
                 return owner.get("displayName") or owner.get("emailAddress", "")  # type: ignore[no-any-return]
         return ""
-
-    def _format_size(self, size: str | int) -> str:
-        """Format file size (French default for backward compat)."""
-        try:
-            bytes_size = int(size)
-            if bytes_size < 1024:
-                return f"{bytes_size} o"
-            elif bytes_size < 1024 * 1024:
-                return f"{bytes_size // 1024} Ko"
-            elif bytes_size < 1024 * 1024 * 1024:
-                return f"{bytes_size // (1024 * 1024)} Mo"
-            else:
-                return f"{bytes_size // (1024 * 1024 * 1024)} Go"
-        except (ValueError, TypeError):
-            return str(size) if size else ""
 
     def _format_size_i18n(self, size: str | int, language: str) -> str:
         """Format file size with i18n support."""

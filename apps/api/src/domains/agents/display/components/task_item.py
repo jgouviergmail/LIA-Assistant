@@ -20,11 +20,14 @@ from src.domains.agents.constants import CONTEXT_DOMAIN_TASKS
 from src.domains.agents.display.components.base import (
     BaseComponent,
     RenderContext,
-    Viewport,
     escape_html,
     format_full_date,
     format_relative_date,
+    render_card_top,
+    render_chip,
+    render_chip_row,
     render_collapsible,
+    render_d_item,
     wrap_with_response,
 )
 from src.domains.agents.display.icons import Icons, icon
@@ -84,26 +87,20 @@ class TaskItem(BaseComponent):
         if suggested_actions is None:
             suggested_actions = self._build_default_actions(url, is_completed, ctx)
 
-        # Render based on viewport (mobile vs desktop)
-        if ctx.viewport == Viewport.MOBILE:
-            card_html = self._render_mobile(
-                title, url, due, is_completed, is_overdue, task_list_name, completed_date, ctx
-            )
-        else:
-            # Desktop (and tablet)
-            card_html = self._render_desktop(
-                title,
-                url,
-                due,
-                notes,
-                is_completed,
-                is_overdue,
-                priority,
-                task_list_name,
-                completed_date,
-                ctx,
-                data,
-            )
+        # Unified render — CSS container queries handle responsive
+        card_html = self._render_card_v4(
+            title,
+            url,
+            due,
+            notes,
+            is_completed,
+            is_overdue,
+            priority,
+            task_list_name,
+            completed_date,
+            ctx,
+            data,
+        )
 
         # Wrap with response zones if requested
         if with_wrapper:
@@ -138,48 +135,7 @@ class TaskItem(BaseComponent):
 
         return actions
 
-    def _render_mobile(
-        self,
-        title: str,
-        url: str,
-        due: str,
-        is_completed: bool,
-        is_overdue: bool,
-        task_list_name: str,
-        completed_date: str,
-        ctx: RenderContext,
-    ) -> str:
-        """Compact mobile task."""
-        nested_class = self._nested_class(ctx)
-        status_class = "lia-task--completed" if is_completed else ""
-        overdue_class = "lia-task--overdue" if is_overdue and not is_completed else ""
-
-        checkbox_icon = icon(Icons.TASK) if is_completed else icon(Icons.CHECKBOX_BLANK)
-
-        # Task list badge (always visible)
-        list_badge_html = self._render_list_badge(task_list_name, compact=True)
-
-        # Date badge: completion date for completed tasks, due date otherwise
-        date_html = ""
-        if is_completed and completed_date:
-            completed_str = format_full_date(
-                completed_date, ctx.language, ctx.timezone, include_time=True
-            )
-            date_html = f'<span class="lia-badge lia-badge--success">{icon(Icons.CHECK)} {escape_html(completed_str)}</span>'
-        elif due and not is_completed:
-            due_str = format_relative_date(due, ctx.language, ctx.timezone)
-            due_class = "lia-task__due--overdue" if is_overdue else ""
-            date_html = f'<span class="lia-task__due {due_class}">{escape_html(due_str)}</span>'
-
-        return f"""<div class="lia-card lia-task {status_class} {overdue_class} {nested_class}">
-<span class="lia-task__checkbox">{checkbox_icon}</span>
-<div class="lia-task__content">
-<a href="{escape_html(url)}" class="lia-task__title" target="_blank">{escape_html(title)}</a>
-<div class="lia-task__badges">{list_badge_html}{date_html}</div>
-</div>
-</div>"""
-
-    def _render_desktop(
+    def _render_card_v4(
         self,
         title: str,
         url: str,
@@ -193,59 +149,62 @@ class TaskItem(BaseComponent):
         ctx: RenderContext,
         data: dict[str, Any],
     ) -> str:
-        """Full desktop task card with collapsible details."""
+        """Unified task card using Design System v4 components."""
         nested_class = self._nested_class(ctx)
         status_class = "lia-task--completed" if is_completed else ""
         overdue_class = "lia-task--overdue" if is_overdue and not is_completed else ""
 
-        # Checkbox
+        # --- Determine illus icon and color based on status ---
         if is_completed:
-            checkbox_html = f'<div class="lia-task__checkbox lia-task__checkbox--checked">{icon(Icons.CHECK)}</div>'
+            illus_icon, illus_color = "check_circle", "green"
+        elif is_overdue:
+            illus_icon, illus_color = "error", "red"
         else:
-            checkbox_html = '<div class="lia-task__checkbox"></div>'
+            illus_icon, illus_color = "radio_button_unchecked", "amber"
 
-        # Task list badge (always visible)
-        list_badge_html = self._render_list_badge(task_list_name)
+        # --- Card top: illus + title ---
+        title_style = (
+            ' style="text-decoration:line-through;color:var(--lia-text-muted)"'
+            if is_completed
+            else ""
+        )
+        title_html = f'<a class="lia-card-top__title" href="{escape_html(url)}" target="_blank"{title_style}>{escape_html(title)}</a>'
+        card_top_html = render_card_top(illus_icon, illus_color, title_html)
 
-        # Date badge: completion date for completed tasks, due date otherwise
-        date_html = ""
+        # --- Chips: status/date + task list name ---
+        chips = []
         if is_completed and completed_date:
             completed_str = format_full_date(
                 completed_date, ctx.language, ctx.timezone, include_time=True
             )
-            date_html = f'<span class="lia-badge lia-badge--success">{icon(Icons.CHECK)} {escape_html(completed_str)}</span>'
+            chips.append(render_chip(completed_str, "green", "event_available"))
         elif due:
             due_str = format_relative_date(due, ctx.language, ctx.timezone)
             if is_overdue and not is_completed:
-                date_html = f'<span class="lia-badge lia-badge--danger">{icon(Icons.WARNING)} {escape_html(due_str)}</span>'
+                chips.append(render_chip(due_str, "red", "warning"))
             elif not is_completed:
-                date_html = f'<span class="lia-badge lia-badge--subtle">{icon(Icons.CALENDAR)} {escape_html(due_str)}</span>'
+                chips.append(render_chip(due_str, "amber", Icons.CALENDAR))
 
-        # Priority badge
-        priority_html = self._render_priority_badge(priority, is_completed, ctx)
+        # Task list badge
+        if task_list_name:
+            display_name = task_list_name if task_list_name != "@default" else "Tasks"
+            chips.append(render_chip(display_name, "", Icons.CHECKLIST))
 
-        # Notes preview
+        chip_row_html = render_chip_row(" ".join(chips)) if chips else ""
+
+        # --- Notes shown directly (no "Voir plus" for short notes) ---
         notes_html = ""
-        if notes and ctx.show_secondary and len(notes) <= 100:
-            notes_html = f'<p class="lia-task__notes">{escape_html(notes)}</p>'
+        if notes and len(notes) <= 100:
+            notes_html = render_d_item(Icons.NOTE, escape_html(notes))
 
-        # Collapsible extended details
+        # --- Collapsible for long notes + subtasks + parent + links ---
         collapsible_html = self._render_collapsible_details(data, is_completed, ctx)
 
         return f"""<div class="lia-card lia-task {status_class} {overdue_class} {nested_class}">
-{checkbox_html}
-<div class="lia-task__main">
-<div class="lia-task__header">
-<a href="{escape_html(url)}" class="lia-task__title" target="_blank">{escape_html(title)}</a>
-<div class="lia-task__badges">
-{list_badge_html}
-{priority_html}
-{date_html}
-</div>
-</div>
+{card_top_html}
+{chip_row_html}
 {notes_html}
 {collapsible_html}
-</div>
 </div>"""
 
     def _render_priority_badge(

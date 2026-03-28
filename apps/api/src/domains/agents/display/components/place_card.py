@@ -13,7 +13,6 @@ Renders places with:
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from src.core.i18n_v3 import V3Messages
@@ -26,11 +25,20 @@ from src.domains.agents.display.components.base import (
     escape_html,
     format_phone,
     phone_for_tel,
+    render_card_hero,
+    render_card_top,
+    render_chip,
+    render_chip_row,
+    render_chip_stars,
     render_collapsible,
-    stars_rating,
+    render_d_item,
+    render_d_row,
+    render_kv_rows,
+    render_review,
+    render_section_header,
     wrap_with_response,
 )
-from src.domains.agents.display.icons import Icons, icon
+from src.domains.agents.display.icons import Icons
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -197,64 +205,72 @@ class PlaceCard(BaseComponent):
         ctx: RenderContext,
         data: dict[str, Any],
     ) -> str:
-        """Unified place card - CSS handles responsive adaptation."""
+        """Unified place card using Design System v4 components."""
         nested_class = self._nested_class(ctx)
         open_class = self._open_status_class(is_open)
 
-        # Photo section (with gallery URLs for frontend lightbox)
-        photo_html = self._render_photo_section(photo_url, name, data)
+        # --- Hero photo ---
+        hero_html = render_card_hero(photo_url, name) if photo_url else ""
 
-        # Rating with stars + reviews count
-        # Note: stars_rating() already includes the rating value
-        rating_html = ""
-        if rating:
-            reviews_label = V3Messages.get_reviews(ctx.language)
-            reviews_text = f"({reviews_count} {reviews_label})" if reviews_count else ""
-            rating_html = f"""<div class="lia-place__rating-block">
-{stars_rating(rating)}
-<span class="lia-place__reviews">{reviews_text}</span>
-</div>"""
-
-        # Status badge
-        self._render_status_badge(is_open, ctx, full_label=True)
-
-        # Header badges (top-right): type + budget + distance
-        header_badges = []
+        # --- Card top: illustration + name ---
+        illus_color = "green" if is_open else ("red" if is_open is False else "gray")
         type_tag = self._get_type_tag(types, ctx.language)
-        if type_tag:
-            header_badges.append(f'<span class="lia-badge lia-badge--accent">{type_tag}</span>')
-        # Budget badge between type and distance
-        if price_level:
-            header_badges.append(
-                f'<span class="lia-badge lia-badge--subtle">{icon(Icons.PAYMENTS)} {self._format_price(price_level, ctx.language)}</span>'
-            )
-        if distance:
-            header_badges.append(
-                f'<span class="lia-badge lia-badge--subtle">{icon(Icons.DIRECTIONS)} {escape_html(distance)}</span>'
-            )
-        header_badges_html = " ".join(header_badges)
+        illus_icon = self._get_place_icon(types)
+        title_html = f'<a class="lia-card-top__title" href="{escape_html(url)}" target="_blank">{escape_html(name)}</a>'
+        card_top_html = render_card_top(illus_icon, illus_color, title_html)
 
-        # Meta badges: opening time if closed
-        meta_badges = []
-        if is_open is False:
+        # --- Chip row 1: stars ---
+        chip_row_1 = ""
+        if rating:
+            chip_row_1 = render_chip_row(render_chip_stars(rating, reviews_count))
+
+        # --- Chip row 2: type + status ---
+        chips_type = []
+        if type_tag:
+            # No icon — already shown in card-top illus
+            chips_type.append(render_chip(type_tag, "indigo"))
+        if is_open is True:
+            open_label = V3Messages.get_open(ctx.language)
+            chips_type.append(render_chip(open_label, "green", "check_circle"))
+        elif is_open is False:
+            closed_label = V3Messages.get_closed(ctx.language)
+            chips_type.append(render_chip(closed_label, "red", "cancel"))
             next_open = self._get_next_open_time(data, ctx)
             if next_open:
                 opens_at_label = V3Messages.get_opens_at(ctx.language)
-                meta_badges.append(
-                    f'<span class="lia-badge lia-badge--subtle">{icon(Icons.SCHEDULE)} {opens_at_label} {escape_html(next_open)}</span>'
-                )
-        meta_badges_html = " ".join(meta_badges)
+                chips_type.append(render_chip(f"{opens_at_label} {next_open}", "", Icons.SCHEDULE))
+        chip_row_2 = render_chip_row(" ".join(chips_type)) if chips_type else ""
 
-        # Phone info visible on main card
+        # --- Chip row 3: price + distance (with separator below) ---
+        chips_meta = []
+        if price_level:
+            chips_meta.append(
+                render_chip(self._format_price(price_level, ctx.language), "", Icons.PAYMENTS)
+            )
+        if distance:
+            chips_meta.append(render_chip(distance, "", Icons.DIRECTIONS))
+        chip_row_3 = (
+            render_chip_row(" ".join(chips_meta), separator_pos="bottom") if chips_meta else ""
+        )
+
+        # --- Address ---
+        address_html = ""
+        if address:
+            directions_url = build_directions_url(address)
+            link = f'<a href="{escape_html(directions_url)}" target="_blank">{escape_html(address)}</a>'
+            address_html = render_d_row(
+                Icons.LOCATION,
+                link,
+                icon_style="font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 20;color:#ef4444",
+            )
+
+        # --- Phone ---
         phone_html = ""
         if phone:
-            phone_html = f"""<div class="lia-place__phone">
-{icon(Icons.PHONE, domain="place")}
-<a href="tel:{phone_for_tel(phone)}">{escape_html(format_phone(phone))}</a>
-</div>"""
+            link = f'<a href="tel:{phone_for_tel(phone)}">{escape_html(format_phone(phone))}</a>'
+            phone_html = render_d_row(Icons.PHONE, link)
 
-        # Editorial summary (show preview on main card) - AFTER phone
-        # Support both API raw format (editorialSummary.text) and tool normalized (description)
+        # --- Editorial summary ---
         editorial_html = ""
         summary_text = ""
         editorial = data.get("editorialSummary", {})
@@ -265,95 +281,197 @@ class PlaceCard(BaseComponent):
         if not summary_text:
             summary_text = data.get("description", "")
         if summary_text:
-            # Show full description on desktop (not truncated)
-            editorial_html = f'<p class="lia-place__summary">{escape_html(summary_text)}</p>'
+            editorial_html = f'<p class="lia-place__summary" style="font-size:var(--lia-text-sm);color:var(--lia-text-secondary);margin-top:var(--lia-space-xs);font-style:italic">{escape_html(summary_text)}</p>'
 
-        # Collapsible extended details
-        collapsible_html = self._render_collapsible_details(data, ctx)
+        # --- Collapsible ---
+        collapsible_html = self._render_collapsible_details_v4(data, ctx)
 
         return f"""<div class="lia-card lia-place {open_class} {nested_class}">
-{photo_html}
-<div class="lia-place__content">
-<div class="lia-place__header">
-<a href="{escape_html(url)}" class="lia-place__name" target="_blank">{escape_html(name)}</a>
-<div class="lia-place__header-right">
-{header_badges_html}
-</div>
-</div>
-{rating_html}
-<div class="lia-place__meta">
-{f'<div class="lia-place__badges">{meta_badges_html}</div>' if meta_badges_html else ''}
-{self._render_address(address, ctx, full=True) if address else ''}
+{hero_html}
+{card_top_html}
+{chip_row_1}
+{chip_row_2}
+{chip_row_3}
+{address_html}
 {phone_html}
 {editorial_html}
-</div>
 {collapsible_html}
-</div>
 </div>"""
 
-    def _render_status_badge(
-        self,
-        is_open: bool | None,
-        ctx: RenderContext,
-        full_label: bool = False,
-        hide_if_budget: bool = False,
-    ) -> str:
-        """Render open/closed status badge.
+    def _get_place_icon(self, types: list) -> str:
+        """Get Material Symbols icon name for place type."""
+        type_icons = {
+            "restaurant": "restaurant",
+            "cafe": "coffee",
+            "bar": "local_bar",
+            "hotel": "hotel",
+            "store": "store",
+            "shopping_mall": "shopping_bag",
+            "gym": "fitness_center",
+            "hospital": "local_hospital",
+            "pharmacy": "local_pharmacy",
+            "school": "school",
+            "museum": "museum",
+            "park": "park",
+            "gas_station": "local_gas_station",
+            "airport": "flight",
+            "train_station": "train",
+        }
+        for t in types:
+            if t in type_icons:
+                return type_icons[t]
+        return "location_on"
 
-        Badge is rendered only when:
-        - hide_if_budget=False (no budget badge present)
-        - is_open is known (not None)
+    def _render_collapsible_details_v4(self, data: dict[str, Any], ctx: RenderContext) -> str:
+        """Render collapsible details using v4 components with section headers."""
+        detail_sections: list[str] = []
+        is_first = True
 
-        Args:
-            is_open: True if open, False if closed, None if unknown
-            ctx: Render context
-            full_label: Show full label like "Ouvert" vs "O" (not used, kept for compat)
-            hide_if_budget: If True (budget badge present), don't show status badge
+        # 1. Opening hours as KV rows
+        weekday_text = None
+        opening_hours = data.get("currentOpeningHours", {}) or data.get("openingHours", {})
+        if opening_hours and isinstance(opening_hours, dict):
+            weekday_text = opening_hours.get("weekdayDescriptions", []) or opening_hours.get(
+                "weekday_text", []
+            )
+        if not weekday_text:
+            weekday_text = data.get("opening_hours", [])
+        if weekday_text and isinstance(weekday_text, list) and len(weekday_text) > 0:
+            hours_label = V3Messages.get_opening_hours(ctx.language)
+            detail_sections.append(
+                render_section_header(hours_label, Icons.SCHEDULE, "amber", first=is_first)
+            )
+            is_first = False
+            # Parse hours into key-value pairs
+            pairs = []
+            for h in weekday_text[:7]:
+                h_str = str(h)
+                if ":" in h_str:
+                    parts = h_str.split(":", 1)
+                    day = parts[0].strip()
+                    time_range = parts[1].strip() if len(parts) > 1 else ""
+                    pairs.append((day, time_range))
+                else:
+                    pairs.append((h_str, ""))
+            detail_sections.append(render_kv_rows(pairs))
 
-        Returns:
-            HTML for status badge, or empty string
-        """
-        # Don't show badge if budget is present (redundant with border color)
-        if hide_if_budget:
-            return ""
+        # 2. Services & features
+        features = data.get("features", [])
+        if features:
+            feature_items = self._format_features(features, ctx.language)
+            if feature_items:
+                services_label = V3Messages.get_services_amenities(ctx.language)
+                detail_sections.append(
+                    render_section_header(services_label, Icons.STAR, "purple", first=is_first)
+                )
+                is_first = False
+                detail_sections.append(
+                    f'<div style="display:flex;flex-wrap:wrap;gap:var(--lia-space-xs)">'
+                    f'{" ".join(feature_items)}</div>'
+                )
 
-        if is_open is None:
-            return ""
+        # 3. Reviews
+        reviews = data.get("reviews", [])
+        if reviews and isinstance(reviews, list):
+            review_items = []
+            for rev in reviews[:5]:
+                if isinstance(rev, dict):
+                    author = ""
+                    author_attr = rev.get("authorAttribution", {})
+                    if isinstance(author_attr, dict):
+                        author = author_attr.get("displayName", "")
+                    if not author:
+                        author = rev.get("author_name", "") or rev.get("author", "")
 
-        if is_open:
-            open_label = V3Messages.get_open(ctx.language)
-            return f'<span class="lia-badge lia-badge--success">{open_label}</span>'
-        else:
-            closed_label = V3Messages.get_closed(ctx.language)
-            return f'<span class="lia-badge lia-badge--error">{closed_label}</span>'
+                    text = ""
+                    text_obj = rev.get("text", "")
+                    if isinstance(text_obj, dict):
+                        text = text_obj.get("text", "")
+                    elif isinstance(text_obj, str):
+                        text = text_obj
 
-    def _render_photo_section(self, photo_url: str, name: str, data: dict[str, Any]) -> str:
-        """Render photo section with optional gallery URLs for frontend lightbox.
+                    review_rating = int(rev.get("rating", 0))
+                    relative_time = rev.get("relative_time", "") or rev.get(
+                        "relativePublishTimeDescription", ""
+                    )
 
-        DRY: Shared between _render_mobile() and _render_desktop().
+                    if text and author:
+                        text_preview = text[:100] + "..." if len(text) > 100 else text
+                        review_items.append(
+                            render_review(author, relative_time, review_rating, text_preview)
+                        )
+            if review_items:
+                reviews_title = V3Messages.get_reviews(ctx.language).capitalize()
+                detail_sections.append(
+                    render_section_header(reviews_title, Icons.CHAT, "indigo", first=is_first)
+                )
+                is_first = False
+                detail_sections.extend(review_items)
 
-        Args:
-            photo_url: Main photo URL for thumbnail display
-            name: Place name for alt text
-            data: Full place data containing photo_urls array
+        # 4. Accessibility
+        accessibility = data.get("accessibilityOptions", {})
+        if accessibility:
+            acc_features = []
+            if accessibility.get("wheelchairAccessibleEntrance"):
+                acc_features.append(V3Messages.get_accessibility(ctx.language, "entrance"))
+            if accessibility.get("wheelchairAccessibleParking"):
+                acc_features.append(V3Messages.get_accessibility(ctx.language, "parking"))
+            if accessibility.get("wheelchairAccessibleSeating"):
+                acc_features.append(V3Messages.get_accessibility(ctx.language, "seating"))
+            if accessibility.get("wheelchairAccessibleRestroom"):
+                acc_features.append(V3Messages.get_accessibility(ctx.language, "restroom"))
+            if acc_features:
+                detail_sections.append(
+                    render_section_header(
+                        V3Messages.get_accessibility_title(ctx.language),
+                        Icons.ACCESSIBLE,
+                        "blue",
+                        first=is_first,
+                    )
+                )
+                is_first = False
+                detail_sections.append(
+                    render_d_item(
+                        "check_circle", ", ".join(acc_features), icon_style="color:#10b981"
+                    )
+                )
 
-        Returns:
-            HTML for photo section, or empty string if no photo
-        """
-        if not photo_url:
-            return ""
+        # 5. Payment options
+        payment = data.get("paymentOptions", {})
+        if payment:
+            pay_methods = []
+            if payment.get("acceptsCreditCards"):
+                pay_methods.append(V3Messages.get_payment(ctx.language, "credit_cards"))
+            if payment.get("acceptsCashOnly"):
+                pay_methods.append(V3Messages.get_payment(ctx.language, "cash_only"))
+            if payment.get("acceptsNfc"):
+                pay_methods.append(V3Messages.get_payment(ctx.language, "contactless"))
+            if pay_methods:
+                detail_sections.append(
+                    render_section_header(
+                        V3Messages.get_payment_title(ctx.language),
+                        Icons.CREDIT_CARD,
+                        "teal",
+                        first=is_first,
+                    )
+                )
+                detail_sections.append(
+                    render_d_item(
+                        "check_circle", ", ".join(pay_methods), icon_style="color:#10b981"
+                    )
+                )
 
-        # Add data-photo-urls attribute if multiple photos available
-        photo_urls_attr = ""
-        photo_urls = data.get("photo_urls", [])
-        if photo_urls:
-            photo_urls_attr = f' data-photo-urls="{escape_html(json.dumps(photo_urls))}"'
+        if detail_sections:
+            content_html = "\n".join(detail_sections)
+            return render_collapsible(
+                trigger_text=V3Messages.get_see_more(ctx.language),
+                content_html=content_html,
+                initially_open=False,
+                language=ctx.language,
+                with_separator=False,
+            )
 
-        return f"""<div class="lia-place__photo"{photo_urls_attr}>
-<img src="{escape_html(photo_url)}" alt="{escape_html(name)}" loading="lazy">
-</div>"""
-
-    def _get_next_open_time(self, data: dict[str, Any], ctx: RenderContext) -> str:
+        return ""
         """Get next opening time if place is closed."""
         # Try to extract next opening from opening hours
         weekday_text = None
@@ -384,197 +502,6 @@ class PlaceCard(BaseComponent):
                                 return open_time  # type: ignore[no-any-return]
             except (ValueError, IndexError, TypeError):
                 logger.debug("place_card_opening_hours_parse_error")
-        return ""
-
-    def _render_collapsible_details(self, data: dict[str, Any], ctx: RenderContext) -> str:
-        """Render collapsible section with extended details.
-
-        Order:
-        1. Description (editorial summary)
-        2. Opening hours
-        3. Services & features
-        4. Reviews (5 max)
-        5. Accessibility
-        6. Payment options
-        """
-        detail_sections = []
-
-        # Note: Editorial summary/description is now shown in main section for all viewports
-        # (CSS handles truncation on mobile via .lia-place__summary styling)
-
-        # 1. Opening hours - support both API raw format AND tool normalized format
-        weekday_text = None
-        opening_hours = data.get("currentOpeningHours", {}) or data.get("openingHours", {})
-        if opening_hours and isinstance(opening_hours, dict):
-            weekday_text = opening_hours.get("weekdayDescriptions", []) or opening_hours.get(
-                "weekday_text", []
-            )
-        if not weekday_text:
-            weekday_text = data.get("opening_hours", [])
-        if weekday_text and isinstance(weekday_text, list) and len(weekday_text) > 0:
-            hours_label = V3Messages.get_opening_hours(ctx.language)
-            hours_items = []
-            for h in weekday_text[:7]:
-                h_str = str(h)
-                if ":" in h_str:
-                    parts = h_str.split(":", 1)
-                    day = parts[0].strip()
-                    time_range = parts[1].strip() if len(parts) > 1 else ""
-                    hours_items.append(
-                        f'<div class="lia-place__hours-row">'
-                        f'<span class="lia-place__hours-day">{escape_html(day)}</span>'
-                        f'<span class="lia-place__hours-time">{escape_html(time_range)}</span>'
-                        f"</div>"
-                    )
-                else:
-                    hours_items.append(
-                        f'<div class="lia-place__hours-row">{escape_html(h_str)}</div>'
-                    )
-            hours_html = "".join(hours_items)
-            detail_sections.append(
-                f'<div class="lia-place__hours">'
-                f'<div class="lia-place__section-header">{icon(Icons.SCHEDULE)} {hours_label}</div>'
-                f'<div class="lia-place__hours-list">{hours_html}</div>'
-                f"</div>"
-            )
-
-        # 3. Services & features
-        features = data.get("features", [])
-        if features:
-            feature_items = self._format_features(features, ctx.language)
-            if feature_items:
-                services_label = V3Messages.get_services_amenities(ctx.language)
-                detail_sections.append(
-                    f'<div class="lia-place__features">'
-                    f'<div class="lia-place__section-header">{icon(Icons.STAR)} {services_label}</div>'
-                    f'<div class="lia-place__features-list">{" ".join(feature_items)}</div>'
-                    f"</div>"
-                )
-
-        # 4. Reviews (show up to 5) - support both API raw and tool normalized formats
-        # API raw: reviews[].text.text, reviews[].authorAttribution.displayName
-        # Tool normalized: reviews[].text (string), reviews[].relative_time
-        reviews = data.get("reviews", [])
-        if reviews and isinstance(reviews, list):
-            review_items = []
-            for review in reviews[:5]:
-                if isinstance(review, dict):
-                    # Author: try API format then tool format
-                    author = ""
-                    author_attr = review.get("authorAttribution", {})
-                    if isinstance(author_attr, dict):
-                        author = author_attr.get("displayName", "")
-                    if not author:
-                        author = review.get("author_name", "") or review.get("author", "")
-
-                    # Text: try API format (nested) then tool format (string)
-                    text = ""
-                    text_obj = review.get("text", "")
-                    if isinstance(text_obj, dict):
-                        text = text_obj.get("text", "")
-                    elif isinstance(text_obj, str):
-                        text = text_obj
-
-                    review_rating = review.get("rating", 0)
-                    relative_time = review.get("relative_time", "") or review.get(
-                        "relativePublishTimeDescription", ""
-                    )
-
-                    if text:
-                        text_preview = text[:100] + "..." if len(text) > 100 else text
-                        # Format: Author - relative_time - ★★★★☆ (colored stars at end)
-                        # Generate colored star icons
-                        stars_html = ""
-                        if review_rating:
-                            full_stars = int(review_rating)
-                            empty_stars = 5 - full_stars
-                            stars_html = (
-                                '<span class="lia-place__review-stars">'
-                                + "".join(
-                                    f'<span class="lia-star lia-star--full">{icon(Icons.STAR, size="sm")}</span>'
-                                    for _ in range(full_stars)
-                                )
-                                + "".join(
-                                    f'<span class="lia-star lia-star--empty">{icon(Icons.STAR_OUTLINE, size="sm")}</span>'
-                                    for _ in range(empty_stars)
-                                )
-                                + "</span>"
-                            )
-                        # Build info line: author - time  ★★★★☆ (space before stars, not dash)
-                        info_parts = []
-                        if author:
-                            info_parts.append(f"<strong>{escape_html(author)}</strong>")
-                        if relative_time:
-                            info_parts.append(
-                                f'<span class="lia-place__review-time">{escape_html(relative_time)}</span>'
-                            )
-                        info_html = " - ".join(info_parts)
-                        if stars_html:
-                            # Space before stars (like the rating under title), not " - "
-                            info_html = f"{info_html} {stars_html}" if info_html else stars_html
-                        review_items.append(
-                            f'<div class="lia-place__review">'
-                            f'<div class="lia-place__review-header">{info_html}</div>'
-                            f"<p>{escape_html(text_preview)}</p>"
-                            f"</div>"
-                        )
-            if review_items:
-                reviews_title = V3Messages.get_reviews(ctx.language).capitalize()
-                detail_sections.append(
-                    f'<div class="lia-place__reviews-section">'
-                    f'<div class="lia-place__section-header">{icon(Icons.CHAT)} {reviews_title}</div>'
-                    f'<div class="lia-place__reviews-list">{"".join(review_items)}</div>'
-                    f"</div>"
-                )
-
-        # Accessibility options
-        accessibility = data.get("accessibilityOptions", {})
-        if accessibility:
-            acc_features = []
-            if accessibility.get("wheelchairAccessibleEntrance"):
-                acc_features.append(V3Messages.get_accessibility(ctx.language, "entrance"))
-            if accessibility.get("wheelchairAccessibleParking"):
-                acc_features.append(V3Messages.get_accessibility(ctx.language, "parking"))
-            if accessibility.get("wheelchairAccessibleSeating"):
-                acc_features.append(V3Messages.get_accessibility(ctx.language, "seating"))
-            if accessibility.get("wheelchairAccessibleRestroom"):
-                acc_features.append(V3Messages.get_accessibility(ctx.language, "restroom"))
-            if acc_features:
-                detail_sections.append(
-                    f'<div class="lia-place__detail-item">'
-                    f"{icon(Icons.ACCESSIBLE)}"
-                    f'<span>{", ".join(acc_features)}</span>'
-                    f"</div>"
-                )
-
-        # Payment options
-        payment = data.get("paymentOptions", {})
-        if payment:
-            pay_methods = []
-            if payment.get("acceptsCreditCards"):
-                pay_methods.append(V3Messages.get_payment(ctx.language, "credit_cards"))
-            if payment.get("acceptsCashOnly"):
-                pay_methods.append(V3Messages.get_payment(ctx.language, "cash_only"))
-            if payment.get("acceptsNfc"):
-                pay_methods.append(V3Messages.get_payment(ctx.language, "contactless"))
-            if pay_methods:
-                detail_sections.append(
-                    f'<div class="lia-place__detail-item">'
-                    f"{icon(Icons.CREDIT_CARD)}"
-                    f'<span>{", ".join(pay_methods)}</span>'
-                    f"</div>"
-                )
-
-        # If we have details, wrap in collapsible
-        if detail_sections:
-            content_html = "\n".join(detail_sections)
-            return render_collapsible(
-                trigger_text=V3Messages.get_see_more(ctx.language),
-                content_html=f'<div class="lia-place__extended">{content_html}</div>',
-                initially_open=False,
-                language=ctx.language,
-            )
-
         return ""
 
     def _format_price(self, price_level: str, language: str = "fr") -> str:
@@ -629,20 +556,3 @@ class PlaceCard(BaseComponent):
                         f'<span class="lia-badge lia-badge--subtle">{feature_label}</span>'
                     )
         return result
-
-    def _render_address(
-        self, address: str, ctx: RenderContext, full: bool = False, with_icon: bool = True
-    ) -> str:
-        """Render address with optional icon and directions link."""
-        if not address:
-            return ""
-
-        # Truncate for tablet view
-        display_address = address if full else address[:50] + ("..." if len(address) > 50 else "")
-        directions_url = build_directions_url(address)
-
-        icon_html = f"{icon(Icons.DIRECTIONS)}\n" if with_icon else ""
-
-        return f"""<div class="lia-place__address">
-{icon_html}<a href="{escape_html(directions_url)}" target="_blank" title="{V3Messages.get_directions(ctx.language)}">{escape_html(display_address)}</a>
-</div>"""

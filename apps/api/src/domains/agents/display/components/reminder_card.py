@@ -22,6 +22,7 @@ from src.domains.agents.display.components.base import (
     BaseComponent,
     RenderContext,
     escape_html,
+    render_chip,
     wrap_with_response,
 )
 from src.domains.agents.display.icons import Icons, icon
@@ -147,35 +148,39 @@ class ReminderCard(BaseComponent):
         nested_class = self._nested_class(ctx)
         imminent_class = "lia-reminder--imminent" if is_imminent else ""
 
-        # Icon with animation if imminent
-        icon_class = "lia-reminder__icon--pulse" if is_imminent else ""
-        icon_html = f'<span class="lia-reminder__icon {icon_class}">{icon(Icons.REMINDER)}</span>'
+        # v4 layout: illus + [trigger chip + title] on same line, created below
+        illus_color = "red" if is_imminent else "amber"
+        illus_icon = Icons.ALARM if is_imminent else Icons.REMINDER
 
-        # Icon wrapper (circle background on desktop, inline on mobile)
-        icon_wrapper_html = f'<span class="lia-reminder__icon-wrapper">{icon_html}</span>'
+        # Trigger chip
+        trigger_chip = ""
+        if trigger_at_formatted:
+            chip_variant = "red" if is_imminent else "amber"
+            trigger_chip = render_chip(trigger_at_formatted, chip_variant, Icons.SCHEDULE)
 
-        # Content label (title) - Desktop: 2nd position, Mobile: Row 2 full width
-        label_html = f'<span class="lia-reminder__label">{escape_html(content)}</span>'
-
-        # Created time - with calendar icon
+        # Created time with "Créé le" prefix
         created_html = ""
         if created_at_formatted:
-            created_html = f'<span class="lia-reminder__meta">{icon(Icons.CALENDAR)} {escape_html(created_at_formatted)}</span>'
+            created_label = V3Messages.get_created(ctx.language)
+            created_html = (
+                f'<div style="font-size:var(--lia-text-xs);color:var(--lia-text-muted);'
+                f'margin-top:var(--lia-space-xs)">'
+                f"{icon(Icons.CALENDAR)} {created_label} : {escape_html(created_at_formatted)}</div>"
+            )
 
-        # Trigger time - prominent badge
-        trigger_html = ""
-        if trigger_at_formatted:
-            badge_class = "lia-badge--danger" if is_imminent else "lia-badge--warning"
-            trigger_html = f'<span class="lia-badge {badge_class} lia-reminder__trigger">{icon(Icons.ALARM)} {escape_html(trigger_at_formatted)}</span>'
-
-        # Flat structure - CSS handles layout via flex-wrap + order
-        # Desktop: icon-wrapper | label | meta | trigger (single line)
-        # Mobile: icon-wrapper + meta + trigger (Row 1) | label (Row 2, full width)
         return f"""<div class="lia-card lia-reminder {imminent_class} {nested_class}" data-reminder-id="{escape_html(reminder_id)}">
-{icon_wrapper_html}
-{label_html}
+<div style="display:flex;gap:var(--lia-space-md);align-items:flex-start">
+<div class="lia-illus lia-illus--{illus_color}" style="width:36px;height:36px;border-radius:10px">
+<span class="material-symbols-outlined" style="font-size:20px;font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 20">{illus_icon}</span>
+</div>
+<div style="flex:1;min-width:0">
+<div style="display:flex;align-items:center;gap:var(--lia-space-sm);flex-wrap:wrap">
+{trigger_chip}
+<span class="lia-reminder__label">{escape_html(content)}</span>
+</div>
 {created_html}
-{trigger_html}
+</div>
+</div>
 </div>"""
 
     def _is_imminent(self, trigger_at: str | None) -> bool:
