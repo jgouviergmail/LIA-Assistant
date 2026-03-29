@@ -14,15 +14,19 @@ Date: 2025-12-21
 """
 
 import json
+import time
 
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 
 from src.core.llm_agent_config import LLMAgentConfig
 from src.domains.agents.services.memory_extractor import (
+    _cache_debug_result,
     _format_messages_for_extraction,
     _generate_memory_key,
+    _memory_extraction_debug_cache,
     _parse_extraction_result,
+    get_memory_extraction_debug,
 )
 from src.domains.agents.tools.memory_tools import MemorySchema
 
@@ -362,3 +366,86 @@ class TestMemorySchema:
                 content="Test",
                 category="invalid_category",
             )
+
+
+@pytest.mark.unit
+class TestMemoryExtractionDebugCache:
+    """Tests for the debug cache used by Memory Detection in the debug panel."""
+
+    def setup_method(self):
+        """Clear the cache before each test to avoid cross-contamination."""
+        _memory_extraction_debug_cache.clear()
+
+    def teardown_method(self):
+        """Clear the cache after each test."""
+        _memory_extraction_debug_cache.clear()
+
+    def test_cache_and_retrieve_debug_data(self):
+        """Test that debug data can be cached and retrieved by run_id."""
+        debug_data = {
+            "enabled": True,
+            "extracted_memories": [{"content": "User likes hiking", "category": "preference"}],
+            "existing_similar": [],
+            "llm_metadata": {"model": "gpt-4.1-mini", "input_tokens": 100},
+            "skipped_reason": None,
+        }
+
+        _cache_debug_result("run-123", debug_data)
+        result = get_memory_extraction_debug("run-123")
+
+        assert result is not None
+        assert result["enabled"] is True
+        assert len(result["extracted_memories"]) == 1
+        assert result["extracted_memories"][0]["content"] == "User likes hiking"
+
+    def test_retrieve_consumes_entry(self):
+        """Test that retrieval removes the entry from the cache (consume semantics)."""
+        _cache_debug_result("run-456", {"enabled": True, "extracted_memories": []})
+
+        # First retrieval succeeds
+        result = get_memory_extraction_debug("run-456")
+        assert result is not None
+
+        # Second retrieval returns None (already consumed)
+        result2 = get_memory_extraction_debug("run-456")
+        assert result2 is None
+
+    def test_retrieve_unknown_run_id_returns_none(self):
+        """Test that retrieving a non-existent run_id returns None."""
+        result = get_memory_extraction_debug("non-existent-run-id")
+        assert result is None
+
+    def test_ttl_eviction(self):
+        """Test that stale entries are evicted based on TTL."""
+        # Insert an entry with a manually backdated timestamp
+        _memory_extraction_debug_cache["old-run"] = (
+            time.monotonic() - 300.0,  # 5 minutes ago (well past 120s TTL)
+            {"enabled": True, "extracted_memories": []},
+        )
+
+        # Insert a fresh entry
+        _cache_debug_result("fresh-run", {"enabled": True, "extracted_memories": []})
+
+        # Retrieve fresh entry (triggers lazy eviction of old entry)
+        result = get_memory_extraction_debug("fresh-run")
+        assert result is not None
+
+        # Old entry should have been evicted
+        assert "old-run" not in _memory_extraction_debug_cache
+
+    def test_max_size_eviction(self):
+        """Test that oldest entries are evicted when cache exceeds max size."""
+        from src.domains.agents.services.memory_extractor import _MEMORY_DEBUG_CACHE_MAX_SIZE
+
+        # Fill cache to max
+        for i in range(_MEMORY_DEBUG_CACHE_MAX_SIZE):
+            _cache_debug_result(f"run-{i}", {"enabled": True, "index": i})
+
+        assert len(_memory_extraction_debug_cache) == _MEMORY_DEBUG_CACHE_MAX_SIZE
+
+        # Adding one more should evict the oldest
+        _cache_debug_result("run-overflow", {"enabled": True, "index": "overflow"})
+
+        assert len(_memory_extraction_debug_cache) == _MEMORY_DEBUG_CACHE_MAX_SIZE
+        # The overflow entry should be present
+        assert "run-overflow" in _memory_extraction_debug_cache

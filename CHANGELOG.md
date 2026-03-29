@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.13.5] - 2026-03-29
+
+### Added
+
+- **Debug Panel — Memory Detection Section** — New debug panel section showing memories extracted and stored in long-term memory from each user message. Displays: extracted memories with category, emotional weight (-10/+10), importance score, trigger topic, and storage status (success/failure); existing similar memories found during deduplication with semantic similarity scores; LLM metadata (model, input/output/cached tokens). Header badge shows `stored/extracted` count and dedup matches. Mirrors the Interest Detection pattern. (`apps/api/src/domains/agents/services/memory_extractor.py`, `apps/web/src/components/debug/components/sections/MemoryDetectionSection.tsx`)
+- **Memory Extraction Debug Cache** — Module-level TTL cache (`_memory_extraction_debug_cache`) in `memory_extractor.py` captures debug data from `extract_memories_background()` keyed by `parent_run_id`. Consumed by `streaming_service.py` via `get_memory_extraction_debug(run_id)` after `await_run_id_tasks` completes. TTL 120s, max 100 entries, lazy eviction on read. 5 unit tests for cache/consume/TTL/size semantics.
+
+### Changed
+
+- **DRY — `getEmotionalLabel` Factorized** — Emotional weight label helper (TRAUMA/NEG/NEU/POS/TRES+) extracted from `MemoryInjectionSection.tsx` and `MemoryDetectionSection.tsx` into shared `formatters.ts`. Both sections now import from the centralized utility.
+
+### Fixed
+
+- **Conversation Deletion — Nested Transaction Error** — `ConversationService.delete_conversation()` wrapped store cleanup SQL in a redundant `async with db.begin()` block, causing `InvalidRequestError` ("A transaction is already begun on this Session") when the session already had an active implicit transaction. Removed the nested `begin()` and executed raw SQL directly on the existing session. (`apps/api/src/domains/conversations/service.py`)
+
+### Documentation
+
+- **6 files updated** — `DEBUG_PANEL_ARCHITECTURE.md` (Memory Detection cache mechanism), `LONG_TERM_MEMORY.md` (troubleshooting point 5: Memory Detection section), `CHANGELOG.md`, `README.md`, version bumps in 16 guide files.
+
 ## [1.13.4] - 2026-03-29
 
 ### Changed

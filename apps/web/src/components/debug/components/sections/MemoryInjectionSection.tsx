@@ -17,6 +17,7 @@ import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/
 import { cn } from '@/lib/utils';
 import { SectionBadge } from '../shared';
 import { INFO_SECTION_CLASSES, DEBUG_TEXT_SIZES } from '../../utils/constants';
+import { getEmotionalLabel } from '../../utils/formatters';
 import type { MemoryInjectionMetrics, MemoryInjectionDebugItem } from '@/types/chat';
 
 export interface MemoryInjectionSectionProps {
@@ -30,21 +31,6 @@ function getScoreColor(score: number): string {
   if (score >= 0.8) return 'bg-green-500';
   if (score >= 0.6) return 'bg-yellow-500';
   return 'bg-orange-500';
-}
-
-/**
- * Emotional label with color
- */
-function getEmotionalLabel(weight: number): { label: string; className: string } {
-  if (weight <= -7)
-    return { label: 'TRAUMA', className: 'bg-red-500/30 text-red-300 border-red-500/40' };
-  if (weight <= -3)
-    return { label: 'NEG', className: 'bg-red-500/20 text-red-400 border-red-500/30' };
-  if (weight >= 7)
-    return { label: 'TRES+', className: 'bg-green-500/30 text-green-300 border-green-500/40' };
-  if (weight >= 3)
-    return { label: 'POS', className: 'bg-green-500/20 text-green-400 border-green-500/30' };
-  return { label: 'NEU', className: 'bg-muted/50 text-muted-foreground border-border/50' };
 }
 
 /**

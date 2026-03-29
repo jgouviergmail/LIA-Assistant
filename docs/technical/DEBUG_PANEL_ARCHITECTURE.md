@@ -438,6 +438,8 @@ await await_run_id_tasks(run_id, timeout=15.0)
 
 Memory and interest extraction are scheduled in `response_node` via `safe_fire_and_forget` and UPSERT their tokens into the same `MessageTokenSummary` DB record. The streaming service reads DB totals only after this await, ensuring the aggregated count is complete.
 
+**Memory Detection debug data**: `extract_memories_background()` caches its debug results (extracted memories, dedup similar memories, LLM metadata) in a module-level TTL cache keyed by `parent_run_id`. After `await_run_id_tasks` completes, the streaming service calls `get_memory_extraction_debug(run_id)` to retrieve and consume the cached data, adding it to `debug_metrics["memory_detection"]`.
+
 **Result**: The LLM Pipeline section in the debug panel reflects the true end-to-end cost of a request — pipeline calls, embedding calls, and background extraction calls — all sorted chronologically by `TokenUsageRecord.sequence`.
 
 ### Impact on Existing Sections

@@ -687,6 +687,7 @@ logger.debug(
 2. Vérifier `MEMORY_MIN_SEARCH_SCORE` (trop haut = moins de résultats)
 3. Vérifier que le namespace existe
 4. Utiliser le **Debug Panel > Memory Injection** pour visualiser les mémoires injectées avec leurs scores de similarité, catégories, et poids émotionnels. Affiche aussi les settings actifs (`min_score`, `max_results`, `hybrid_enabled`) pour faciliter le tuning.
+5. Utiliser le **Debug Panel > Memory Detection** pour visualiser les mémoires extraites et stockées en mémoire long-terme depuis le message courant. Affiche les mémoires nouvellement créées (catégorie, poids émotionnel, importance, statut de stockage), les mémoires similaires trouvées lors de la déduplication, et les métadonnées LLM (modèle, tokens).
 
 #### Erreurs de semantic search
 

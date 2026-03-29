@@ -50,6 +50,8 @@ import {
   KnowledgeEnrichmentSection,
   // Memory Injection (debug tuning)
   MemoryInjectionSection,
+  // Memory Detection (long-term memory extraction)
+  MemoryDetectionSection,
   // RAG Injection (Knowledge Spaces)
   RAGInjectionSection,
   // Journal Injection (Personal Journals)
@@ -136,6 +138,7 @@ function MetricsSections({ metrics }: { metrics: DebugMetrics }) {
     interest_profile,
     knowledge_enrichment,
     memory_injection,
+    memory_detection,
     rag_injection,
     journal_injection,
     journal_planner_injection,
@@ -153,6 +156,7 @@ function MetricsSections({ metrics }: { metrics: DebugMetrics }) {
       <QuerySection data={query_info} />
       <IntelligentMechanismsSection data={intelligent_mechanisms} />
       <MemoryInjectionSection data={memory_injection} />
+      <MemoryDetectionSection data={memory_detection} />
       <InterestProfileSection data={interest_profile} />
       <KnowledgeEnrichmentSection data={knowledge_enrichment} />
       <RAGInjectionSection data={rag_injection} />

@@ -629,6 +629,37 @@ class StreamingService:
                                     error_type=type(interest_err).__name__,
                                 )
 
+                        # =============================================================
+                        # Memory Detection: Show memories extracted from this message
+                        # =============================================================
+                        # Retrieves debug data cached by extract_memories_background()
+                        # which has already completed (awaited via await_run_id_tasks).
+                        if run_id:
+                            try:
+                                from src.domains.agents.services.memory_extractor import (
+                                    get_memory_extraction_debug,
+                                )
+
+                                memory_detection = get_memory_extraction_debug(run_id)
+                                if memory_detection:
+                                    debug_metrics["memory_detection"] = memory_detection
+
+                                    logger.debug(
+                                        "debug_metrics_memory_detection_added",
+                                        run_id=run_id,
+                                        enabled=memory_detection.get("enabled", False),
+                                        extracted_count=len(
+                                            memory_detection.get("extracted_memories", [])
+                                        ),
+                                    )
+                            except (ImportError, ValueError, RuntimeError) as mem_det_err:
+                                logger.debug(
+                                    "debug_metrics_memory_detection_failed",
+                                    run_id=run_id,
+                                    error=str(mem_det_err),
+                                    error_type=type(mem_det_err).__name__,
+                                )
+
                         logger.debug(
                             "debug_metrics_sections_added",
                             run_id=run_id,
@@ -638,6 +669,7 @@ class StreamingService:
                             has_llm_calls="llm_calls" in debug_metrics,
                             has_interest_profile="interest_profile" in debug_metrics,
                             has_memory_injection="memory_injection" in debug_metrics,
+                            has_memory_detection="memory_detection" in debug_metrics,
                         )
 
                         # Emit debug_metrics chunk

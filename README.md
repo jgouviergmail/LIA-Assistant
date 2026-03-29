@@ -36,7 +36,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.13.4</strong> — Skills Guide Redesign, Admin Dashboard Enhancements &amp; Multi-Provider Naming — March 2026
+  <strong>Version 1.13.5</strong> — Debug Panel Memory Detection &amp; Conversation Deletion Fix — March 2026
 </p>
 
 ---

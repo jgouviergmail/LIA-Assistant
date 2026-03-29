@@ -288,3 +288,29 @@ export function formatTimeAgo(timestamp: Date | string): string {
     return '-';
   }
 }
+
+/**
+ * Emotional weight label with color.
+ *
+ * Maps a -10..+10 emotional weight to a human-readable label and
+ * Tailwind badge classes. Used by both Memory Injection and Memory Detection
+ * sections.
+ *
+ * @param weight Emotional weight value (-10 to +10)
+ * @returns Object with label string and className for badge styling
+ *
+ * @example
+ * getEmotionalLabel(-8) // { label: "TRAUMA", className: "bg-red-500/30 ..." }
+ * getEmotionalLabel(5)  // { label: "POS",    className: "bg-green-500/20 ..." }
+ */
+export function getEmotionalLabel(weight: number): { label: string; className: string } {
+  if (weight <= -7)
+    return { label: 'TRAUMA', className: 'bg-red-500/30 text-red-300 border-red-500/40' };
+  if (weight <= -3)
+    return { label: 'NEG', className: 'bg-red-500/20 text-red-400 border-red-500/30' };
+  if (weight >= 7)
+    return { label: 'TRES+', className: 'bg-green-500/30 text-green-300 border-green-500/40' };
+  if (weight >= 3)
+    return { label: 'POS', className: 'bg-green-500/20 text-green-400 border-green-500/30' };
+  return { label: 'NEU', className: 'bg-muted/50 text-muted-foreground border-border/50' };
+}

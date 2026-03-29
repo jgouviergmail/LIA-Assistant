@@ -944,6 +944,59 @@ export interface JournalExtractionMetrics {
 }
 
 /**
+ * ExtractedMemory - Memory extracted from conversation by background LLM analysis
+ */
+export interface ExtractedMemory {
+  content: string;
+  category: string; // preference | personal | relationship | event | pattern | sensitivity
+  emotional_weight: number; // -10 (trauma) to +10 (joy)
+  importance: number; // 0.0-1.0
+  trigger_topic: string;
+  stored: boolean; // Whether the memory was successfully persisted
+}
+
+/**
+ * ExistingSimilarMemory - Existing memory found during deduplication search
+ */
+export interface ExistingSimilarMemory {
+  content: string;
+  category: string;
+  score: number; // Semantic similarity score (0.0-1.0)
+}
+
+/**
+ * MemoryDetectionLLMMetadata - Token and model info from memory extraction LLM call
+ */
+export interface MemoryDetectionLLMMetadata {
+  model: string;
+  input_tokens: number;
+  output_tokens: number;
+  cached_tokens: number;
+  total_tokens: number;
+}
+
+/**
+ * MemoryDetectionMetrics - Memory detection/extraction for debug panel
+ * Shows memories extracted from the current user message by background LLM analysis.
+ *
+ * Note: Data is captured from extract_memories_background() which runs as a
+ * fire-and-forget task, awaited before SSE done emission.
+ */
+export interface MemoryDetectionMetrics {
+  enabled: boolean; // Whether memory extraction is enabled globally
+  // Memories extracted and stored from current message
+  extracted_memories: ExtractedMemory[];
+  // Existing similar memories found during deduplication
+  existing_similar: ExistingSimilarMemory[];
+  // LLM call metadata (tokens, model)
+  llm_metadata: MemoryDetectionLLMMetadata | null;
+  // Why extraction was skipped (if no memories extracted)
+  skipped_reason?: string;
+  // Error if any
+  error?: string;
+}
+
+/**
  * DebugMetrics - Complete debug metrics from QueryIntelligence
  * Emitted via SSE when DEBUG=true in backend
  */
@@ -976,6 +1029,8 @@ export interface DebugMetrics {
   knowledge_enrichment?: KnowledgeEnrichmentMetrics; // Optional: Brave Search knowledge enrichment
   // Memory Injection (debug tuning)
   memory_injection?: MemoryInjectionMetrics; // Optional: injected memories with scores for tuning
+  // Memory Detection (long-term memory extraction)
+  memory_detection?: MemoryDetectionMetrics; // Optional: memories extracted and stored from current message
   // RAG Injection (Knowledge Spaces)
   rag_injection?: RAGInjectionMetrics; // Optional: injected RAG chunks with scores
   // Journal Injection (Personal Journals - Response)

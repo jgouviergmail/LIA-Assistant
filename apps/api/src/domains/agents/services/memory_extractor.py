@@ -28,8 +28,10 @@ Example:
 """
 
 import json
+import time
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
@@ -57,6 +59,17 @@ from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.store.semantic_store import MemoryNamespace, search_semantic
 
 logger = get_logger(__name__)
+
+# Per-run_id debug results cache for memory extraction.
+# Stores debug data from background extraction so the streaming service
+# can include it in debug_metrics after await_run_id_tasks completes.
+# Each entry is (timestamp, data) to allow TTL-based eviction.
+_memory_extraction_debug_cache: dict[str, tuple[float, dict[str, Any]]] = {}
+
+# Maximum number of entries before forced eviction of oldest
+_MEMORY_DEBUG_CACHE_MAX_SIZE = 100
+# Entries older than this (seconds) are evicted on access
+_MEMORY_DEBUG_CACHE_TTL_SECONDS = 120.0
 
 
 # ============================================================================
@@ -373,6 +386,58 @@ def _generate_memory_key() -> str:
     return f"mem_{uuid.uuid4().hex[:12]}"
 
 
+def _cache_debug_result(run_id: str, data: dict[str, Any]) -> None:
+    """
+    Store debug data in the cache with timestamp and size enforcement.
+
+    Args:
+        run_id: Pipeline run_id key.
+        data: Debug data dict to cache.
+    """
+    # Enforce max size: evict oldest entries if full
+    while len(_memory_extraction_debug_cache) >= _MEMORY_DEBUG_CACHE_MAX_SIZE:
+        oldest_key = min(
+            _memory_extraction_debug_cache,
+            key=lambda k: _memory_extraction_debug_cache[k][0],
+        )
+        _memory_extraction_debug_cache.pop(oldest_key, None)
+
+    _memory_extraction_debug_cache[run_id] = (time.monotonic(), data)
+
+
+def get_memory_extraction_debug(run_id: str) -> dict[str, Any] | None:
+    """
+    Retrieve and consume debug data from background memory extraction.
+
+    Called by streaming_service after await_run_id_tasks to include
+    memory detection data in the debug_metrics SSE event.
+
+    Also performs lazy eviction of stale cache entries to prevent
+    memory leaks if streaming_service fails to consume some entries.
+
+    Args:
+        run_id: Pipeline run_id used when scheduling the extraction task.
+
+    Returns:
+        Debug dict with extracted memories, dedup info, and LLM metadata,
+        or None if no data is available for this run_id.
+    """
+    # Lazy eviction of stale entries (TTL-based)
+    now = time.monotonic()
+    stale_keys = [
+        k
+        for k, (ts, _) in _memory_extraction_debug_cache.items()
+        if now - ts > _MEMORY_DEBUG_CACHE_TTL_SECONDS
+    ]
+    for k in stale_keys:
+        _memory_extraction_debug_cache.pop(k, None)
+
+    entry = _memory_extraction_debug_cache.pop(run_id, None)
+    if entry is None:
+        return None
+    return entry[1]  # Return data, discard timestamp
+
+
 async def extract_memories_background(
     store: BaseStore,
     user_id: str,
@@ -405,6 +470,9 @@ async def extract_memories_background(
         session_id: Current session ID for logging
         personality_instruction: Optional personality context for nuance adaptation
         conversation_id: Optional conversation UUID for linking token costs
+        parent_run_id: Pipeline run_id for UPSERT into the originating message's
+            token summary and for caching debug data retrievable via
+            ``get_memory_extraction_debug(run_id)``.
 
     Returns:
         Number of new memories extracted and stored
@@ -425,6 +493,17 @@ async def extract_memories_background(
                 "memory_extraction_disabled",
                 user_id=user_id,
             )
+            if parent_run_id:
+                _cache_debug_result(
+                    parent_run_id,
+                    {
+                        "enabled": False,
+                        "extracted_memories": [],
+                        "existing_similar": [],
+                        "llm_metadata": None,
+                        "skipped_reason": "Feature disabled globally",
+                    },
+                )
             return 0
 
         # Skip if no messages
@@ -433,6 +512,17 @@ async def extract_memories_background(
                 "memory_extraction_skipped_no_messages",
                 user_id=user_id,
             )
+            if parent_run_id:
+                _cache_debug_result(
+                    parent_run_id,
+                    {
+                        "enabled": True,
+                        "extracted_memories": [],
+                        "existing_similar": [],
+                        "llm_metadata": None,
+                        "skipped_reason": "No messages to analyze",
+                    },
+                )
             return 0
 
         # Set embedding context for DB persistence of embedding tokens
@@ -459,6 +549,17 @@ async def extract_memories_background(
                 "memory_extraction_skipped_no_human_message",
                 user_id=user_id,
             )
+            if parent_run_id:
+                _cache_debug_result(
+                    parent_run_id,
+                    {
+                        "enabled": True,
+                        "extracted_memories": [],
+                        "existing_similar": [],
+                        "llm_metadata": None,
+                        "skipped_reason": "No human message found",
+                    },
+                )
             return 0
 
         # Get minimal context: last 4 messages before the target message
@@ -573,9 +674,7 @@ async def extract_memories_background(
 
         # Invoke LLM with instrumentation for token tracking
         # Uses node_name="memory_extraction" for cost attribution in metrics
-        import time as _time
-
-        _llm_start = _time.time()
+        _llm_start = time.time()
         result = await invoke_with_instrumentation(
             llm=llm,
             llm_type="memory_extraction",
@@ -583,8 +682,11 @@ async def extract_memories_background(
             session_id=session_id,
             user_id=user_id,
         )
-        _llm_duration_ms = (_time.time() - _llm_start) * 1000
+        _llm_duration_ms = (time.time() - _llm_start) * 1000
         result_content = result.content if isinstance(result.content, str) else str(result.content)
+
+        # Resolve LLM config once for both token persistence and debug metadata
+        llm_config = get_llm_config_for_agent(settings, "memory_extraction")
 
         # Persist token usage to database (deferred update for user statistics)
         # This enables memory costs to appear in dashboard and conversation totals
@@ -593,10 +695,36 @@ async def extract_memories_background(
             session_id=session_id,
             conversation_id=conversation_id,
             result=result,
-            model_name=get_llm_config_for_agent(settings, "memory_extraction").model,
+            model_name=llm_config.model,
             parent_run_id=parent_run_id,
             duration_ms=_llm_duration_ms,
         )
+
+        # Build LLM metadata for debug panel
+        usage_metadata = getattr(result, "usage_metadata", None) or {}
+        raw_input_tokens = usage_metadata.get("input_tokens", 0)
+        output_tokens = usage_metadata.get("output_tokens", 0)
+        input_details = usage_metadata.get("input_token_details", {})
+        cached_tokens = input_details.get("cache_read", 0) if input_details else 0
+
+        llm_metadata_debug: dict[str, Any] = {
+            "model": llm_config.model,
+            "input_tokens": raw_input_tokens - cached_tokens,
+            "output_tokens": output_tokens,
+            "cached_tokens": cached_tokens,
+            "total_tokens": raw_input_tokens + output_tokens,
+        }
+
+        # Build existing similar memories debug data
+        existing_similar_debug = [
+            {
+                "content": r.value.get("content", ""),
+                "category": r.value.get("category", "unknown"),
+                "score": round(getattr(r, "score", 0.0), 3),
+            }
+            for r in existing_results
+            if isinstance(r.value, dict) and r.value.get("content")
+        ]
 
         # Parse extraction result
         new_memories = _parse_extraction_result(result_content)
@@ -607,6 +735,17 @@ async def extract_memories_background(
                 user_id=user_id,
                 session_id=session_id,
             )
+            if parent_run_id:
+                _cache_debug_result(
+                    parent_run_id,
+                    {
+                        "enabled": True,
+                        "extracted_memories": [],
+                        "existing_similar": existing_similar_debug,
+                        "llm_metadata": llm_metadata_debug,
+                        "skipped_reason": None,
+                    },
+                )
             return 0
 
         # Persist new memories
@@ -621,6 +760,7 @@ async def extract_memories_background(
         )
 
         now = datetime.now(UTC).isoformat()
+        stored_memories_debug: list[dict[str, Any]] = []
 
         for memory in new_memories:
             try:
@@ -646,7 +786,8 @@ async def extract_memories_background(
 
                 # Verify storage immediately
                 verification = await store.aget(namespace_tuple, memory_key)
-                if verification:
+                stored = verification is not None
+                if stored:
                     stored_count += 1
                     logger.info(
                         "memory_stored_verified",
@@ -663,12 +804,35 @@ async def extract_memories_background(
                         message="aput succeeded but aget returned None",
                     )
 
+                # Collect debug data for each extracted memory
+                stored_memories_debug.append(
+                    {
+                        "content": memory.content,
+                        "category": memory.category,
+                        "emotional_weight": memory.emotional_weight,
+                        "importance": round(memory.importance, 2),
+                        "trigger_topic": memory.trigger_topic,
+                        "stored": stored,
+                    }
+                )
+
             except Exception as e:
                 logger.warning(
                     "memory_storage_failed",
                     user_id=user_id,
                     error=str(e),
                     content_preview=memory.content[:50] if memory.content else "",
+                )
+                # Still record as failed in debug
+                stored_memories_debug.append(
+                    {
+                        "content": memory.content,
+                        "category": memory.category,
+                        "emotional_weight": memory.emotional_weight,
+                        "importance": round(memory.importance, 2),
+                        "trigger_topic": memory.trigger_topic,
+                        "stored": False,
+                    }
                 )
                 continue
 
@@ -680,6 +844,19 @@ async def extract_memories_background(
             stored_count=stored_count,
         )
 
+        # Cache debug data for streaming_service to pick up
+        if parent_run_id:
+            _cache_debug_result(
+                parent_run_id,
+                {
+                    "enabled": True,
+                    "extracted_memories": stored_memories_debug,
+                    "existing_similar": existing_similar_debug,
+                    "llm_metadata": llm_metadata_debug,
+                    "skipped_reason": None,
+                },
+            )
+
         return stored_count
 
     except Exception as e:
@@ -690,6 +867,18 @@ async def extract_memories_background(
             error=str(e),
             exc_info=True,
         )
+        if parent_run_id:
+            _cache_debug_result(
+                parent_run_id,
+                {
+                    "enabled": True,
+                    "extracted_memories": [],
+                    "existing_similar": [],
+                    "llm_metadata": None,
+                    "skipped_reason": None,
+                    "error": str(e),
+                },
+            )
         return 0
 
     finally:
