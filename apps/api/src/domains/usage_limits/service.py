@@ -496,6 +496,8 @@ class UsageLimitService:
         page_size: int,
         search: str | None = None,
         blocked_only: bool = False,
+        sort_by: str = "created_at",
+        sort_order: str = "desc",
     ) -> AdminUserUsageLimitListResponse:
         """Get paginated admin list with limits and usage.
 
@@ -504,11 +506,20 @@ class UsageLimitService:
             page_size: Items per page.
             search: Optional search query.
             blocked_only: If True, only return manually blocked users.
+            sort_by: Column to sort by (email, is_usage_blocked, created_at).
+            sort_order: Sort order (asc or desc).
 
         Returns:
             AdminUserUsageLimitListResponse with paginated results.
         """
-        rows, total = await self.repo.get_all_with_stats(page, page_size, search, blocked_only)
+        rows, total = await self.repo.get_all_with_stats(
+            page,
+            page_size,
+            search,
+            blocked_only,
+            sort_by,
+            sort_order,
+        )
         total_pages = self.repo.compute_total_pages(total, page_size)
 
         users = [self._build_admin_response_from_row(row) for row in rows]

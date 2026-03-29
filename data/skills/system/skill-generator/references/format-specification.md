@@ -33,7 +33,7 @@ Fields like version, archetype, author, tags, trigger_phrases do NOT exist and w
 | Field | Type | Required | Description |
 |-------|------|:--------:|-------------|
 | plan_template | object | no | Deterministic execution plan. See schema below. |
-| compatibility | string | no | Prerequisites shown in catalogue. Use for OAuth-dependent skills. Example: "Requires Google Calendar and Gmail OAuth" |
+| compatibility | string | no | Prerequisites shown in catalogue. Use for connector-dependent skills. Example: "Requires Calendar and Email connectors" |
 
 ### Advanced Fields (rarely needed)
 

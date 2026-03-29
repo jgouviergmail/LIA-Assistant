@@ -80,6 +80,12 @@ export async function CtaSection({ lng }: CtaSectionProps) {
           <Link href={registerHref}>{t('landing.cta.button')}</Link>
         </Button>
         <p className="text-sm text-white/60 mt-6">{t('landing.cta.note_beta')}</p>
+        <Link
+          href={buildLocalizedPath('/why', lng as Language)}
+          className="inline-flex items-center gap-1 text-sm text-white/50 hover:text-white/80 transition-colors mt-3"
+        >
+          {t('landing.cta.philosophy_link')} →
+        </Link>
       </div>
     </section>
   );

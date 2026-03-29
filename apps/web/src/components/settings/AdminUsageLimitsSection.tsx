@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Gauge, Search, Shield, ShieldOff } from 'lucide-react';
+import { ArrowDown, ArrowUp, Gauge, Search, Shield, ShieldOff } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { apiClient, ApiError } from '@/lib/api-client';
@@ -40,6 +40,8 @@ export function AdminUsageLimitsSection({ lng: _lng }: AdminUsageLimitsSectionPr
   const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState<'email' | 'is_usage_blocked' | 'created_at'>('created_at');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [loading, setLoading] = useState(true);
   const [editUser, setEditUser] = useState<AdminUserUsageLimitResponse | null>(null);
   const [featureDisabled, setFeatureDisabled] = useState(false);
@@ -51,6 +53,8 @@ export function AdminUsageLimitsSection({ lng: _lng }: AdminUsageLimitsSectionPr
       const params: Record<string, string | number> = {
         page,
         page_size: PAGE_SIZE,
+        sort_by: sortBy,
+        sort_order: sortOrder,
       };
       if (search) params.search = search;
 
@@ -74,7 +78,7 @@ export function AdminUsageLimitsSection({ lng: _lng }: AdminUsageLimitsSectionPr
     } finally {
       setLoading(false);
     }
-  }, [page, search, t]);
+  }, [page, search, sortBy, sortOrder, t]);
 
   useEffect(() => {
     fetchUsers();
@@ -89,6 +93,17 @@ export function AdminUsageLimitsSection({ lng: _lng }: AdminUsageLimitsSectionPr
     }, 300);
     return () => clearTimeout(timer);
   }, [searchInput]);
+
+  // Sort handler
+  const handleSort = (column: typeof sortBy) => {
+    if (sortBy === column) {
+      setSortOrder(prev => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortBy(column);
+      setSortOrder('asc');
+    }
+    setPage(1);
+  };
 
   // Block toggle handler with optimistic update and revert on error
   const handleBlockToggle = async (user: AdminUserUsageLimitResponse) => {
@@ -164,12 +179,36 @@ export function AdminUsageLimitsSection({ lng: _lng }: AdminUsageLimitsSectionPr
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b text-left text-muted-foreground">
-              <th className="pb-2 pr-3 font-medium w-40">{t('usage_limits.table.email')}</th>
+              <th
+                className="pb-2 pr-3 font-medium w-40 cursor-pointer hover:text-foreground transition-colors select-none"
+                onClick={() => handleSort('email')}
+              >
+                <span className="inline-flex items-center gap-1">
+                  {t('usage_limits.table.email')}
+                  {sortBy === 'email' &&
+                    (sortOrder === 'asc' ? (
+                      <ArrowUp className="h-3 w-3" />
+                    ) : (
+                      <ArrowDown className="h-3 w-3" />
+                    ))}
+                </span>
+              </th>
               <th className="pb-2 pr-3 font-medium">{t('usage_limits.table.tokens')}</th>
               <th className="pb-2 pr-3 font-medium">{t('usage_limits.table.messages')}</th>
               <th className="pb-2 pr-3 font-medium">{t('usage_limits.table.cost')}</th>
-              <th className="pb-2 pr-2 font-medium w-12 text-center">
-                {t('usage_limits.table.blocked')}
+              <th
+                className="pb-2 pr-2 font-medium w-12 text-center cursor-pointer hover:text-foreground transition-colors select-none"
+                onClick={() => handleSort('is_usage_blocked')}
+              >
+                <span className="inline-flex items-center gap-1 justify-center">
+                  {t('usage_limits.table.blocked')}
+                  {sortBy === 'is_usage_blocked' &&
+                    (sortOrder === 'asc' ? (
+                      <ArrowUp className="h-3 w-3" />
+                    ) : (
+                      <ArrowDown className="h-3 w-3" />
+                    ))}
+                </span>
               </th>
               <th className="pb-2 font-medium w-20">{t('usage_limits.table.actions')}</th>
             </tr>

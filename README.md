@@ -36,7 +36,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.13.3</strong> — Design System v4 Visual Polish &amp; Place Card Fix — March 2026
+  <strong>Version 1.13.3</strong> — Skills Guide Redesign, Admin Dashboard Enhancements &amp; Multi-Provider Naming — March 2026
 </p>
 
 ---

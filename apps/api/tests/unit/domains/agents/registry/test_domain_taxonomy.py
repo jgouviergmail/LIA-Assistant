@@ -162,7 +162,7 @@ class TestDomainRegistry:
     def test_email_domain_config(self):
         """Test email domain has correct configuration."""
         email_config = DOMAIN_REGISTRY["email"]
-        assert email_config.display_name == "Emails"
+        assert email_config.display_name == "Email"
         assert email_config.result_key == "emails"
         assert email_config.is_routable is True
         assert "contact" in email_config.related_domains
@@ -187,7 +187,7 @@ class TestGetDomainConfig:
         config = get_domain_config("email")
         assert config is not None
         assert config.name == "email"
-        assert config.display_name == "Emails"
+        assert config.display_name == "Email"
 
     def test_get_non_existing_domain(self):
         """Test getting a non-existing domain returns None."""

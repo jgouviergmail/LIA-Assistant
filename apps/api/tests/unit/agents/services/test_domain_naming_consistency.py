@@ -34,7 +34,7 @@ def test_domain_registry_uses_email_canonical():
     # Verify email domain config
     email_config = DOMAIN_REGISTRY["email"]
     assert email_config.name == "email"
-    assert email_config.display_name == "Emails"
+    assert email_config.display_name == "Email"
     assert email_config.result_key == "emails"  # result_key is plural
 
 

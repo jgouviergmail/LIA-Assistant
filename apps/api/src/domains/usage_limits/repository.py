@@ -178,6 +178,8 @@ class UsageLimitRepository(BaseRepository[UserUsageLimit]):
         page_size: int,
         search: str | None = None,
         blocked_only: bool = False,
+        sort_by: str = "created_at",
+        sort_order: str = "desc",
     ) -> tuple[list[Row[Any]], int]:
         """Get paginated users with limits and usage stats.
 
@@ -189,6 +191,8 @@ class UsageLimitRepository(BaseRepository[UserUsageLimit]):
             page_size: Items per page.
             search: Optional search query (email or name).
             blocked_only: If True, only return manually blocked users.
+            sort_by: Column to sort by (email, is_usage_blocked, created_at).
+            sort_order: Sort order (asc or desc).
 
         Returns:
             Tuple of (rows, total_count).
@@ -218,11 +222,21 @@ class UsageLimitRepository(BaseRepository[UserUsageLimit]):
         total_result = await self.db.execute(count_query)
         total = total_result.scalar_one()
 
+        # Apply dynamic sorting
+        sort_map = {
+            "email": User.email,
+            "is_usage_blocked": UserUsageLimit.is_usage_blocked,
+            "created_at": User.created_at,
+        }
+        sort_column = sort_map.get(sort_by, User.created_at)
+        if sort_order.lower() == "asc":
+            order_clause = sort_column.asc().nulls_last()
+        else:
+            order_clause = sort_column.desc().nulls_last()
+
         # Apply pagination and ordering
         paginated_query = (
-            base_query.order_by(User.created_at.desc())
-            .limit(page_size)
-            .offset((page - 1) * page_size)
+            base_query.order_by(order_clause).limit(page_size).offset((page - 1) * page_size)
         )
 
         result = await self.db.execute(paginated_query)

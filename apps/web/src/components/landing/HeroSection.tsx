@@ -81,13 +81,18 @@ export async function HeroSection({ lng }: HeroSectionProps) {
           {t('landing.hero.subtitle_line3')}
         </p>
 
+        {/* Intro paragraph — SEO-rich factual description */}
+        <p className="text-base text-muted-foreground max-w-3xl mx-auto leading-relaxed mb-8">
+          {t('landing.hero.intro_paragraph')}
+        </p>
+
         {/* CTAs */}
         <div className="flex flex-col sm:flex-row gap-3 justify-center mb-8">
-          <Button asChild size="lg" className="text-base px-8">
-            <Link href={registerHref}>{t('landing.hero.cta_primary')}</Link>
-          </Button>
           <Button asChild variant="outline" size="lg" className="text-base px-8">
             <a href="#features">{t('landing.hero.cta_secondary')}</a>
+          </Button>
+          <Button asChild size="lg" className="text-base px-8">
+            <Link href={registerHref}>{t('landing.hero.cta_primary')}</Link>
           </Button>
           <Button asChild variant="outline" size="lg" className="text-base px-8 gap-2">
             <a href={GITHUB_REPO_URL} target="_blank" rel="noopener noreferrer">

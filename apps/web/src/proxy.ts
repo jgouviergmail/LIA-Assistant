@@ -11,7 +11,7 @@
  * and browser's Accept-Language is ignored to respect user's choice.
  */
 
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { i18nRouter } from 'next-i18n-router';
 import { languages, fallbackLng, cookieName } from './i18n/settings';
 import type { Language } from './i18n/settings';
@@ -111,7 +111,25 @@ const i18nConfig = {
 };
 
 export function proxy(request: NextRequest) {
-  return i18nRouter(request, i18nConfig);
+  const response = i18nRouter(request, i18nConfig);
+
+  // Force 301 (permanent) instead of 307 (temporary) for SEO.
+  // next-i18n-router uses NextResponse.redirect() without status,
+  // which defaults to 307. Google does not consolidate ranking signals
+  // with temporary redirects, causing "duplicate without canonical" issues.
+  if (response.status === 307) {
+    const location = response.headers.get('location');
+    if (location) {
+      const permanentResponse = NextResponse.redirect(new URL(location, request.url), 301);
+      // Preserve cookies set by i18nRouter
+      for (const cookie of response.cookies.getAll()) {
+        permanentResponse.cookies.set(cookie);
+      }
+      return permanentResponse;
+    }
+  }
+
+  return response;
 }
 
 // Apply middleware to all routes except:

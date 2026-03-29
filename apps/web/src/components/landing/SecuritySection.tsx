@@ -1,5 +1,8 @@
+import Link from 'next/link';
 import { initI18next } from '@/i18n';
 import { EyeOff, Shield, KeyRound, Scale } from 'lucide-react';
+import { buildLocalizedPath } from '@/utils/i18n-path-utils';
+import type { Language } from '@/i18n/settings';
 import { FadeInOnScroll } from './FadeInOnScroll';
 
 interface SecuritySectionProps {
@@ -43,6 +46,15 @@ export async function SecuritySection({ lng }: SecuritySectionProps) {
               <p className="text-lg text-muted-foreground italic">
                 {t('landing.security.subtitle')}
               </p>
+              <p className="text-sm text-muted-foreground leading-relaxed mt-4">
+                {t('landing.security.intro')}
+              </p>
+              <Link
+                href={buildLocalizedPath('/privacy', lng as Language)}
+                className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/80 transition-colors mt-3"
+              >
+                {t('landing.security.privacy_link')} →
+              </Link>
             </div>
           </FadeInOnScroll>
 

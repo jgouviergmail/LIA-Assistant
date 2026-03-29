@@ -1,7 +1,10 @@
+import Link from 'next/link';
 import { initI18next } from '@/i18n';
 import { GitBranch, Cpu, TrendingUp, Search, Radio, Layers } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
+import { buildLocalizedPath } from '@/utils/i18n-path-utils';
+import type { Language } from '@/i18n/settings';
 import { FadeInOnScroll } from './FadeInOnScroll';
 
 interface TechSectionProps {
@@ -47,6 +50,9 @@ export async function TechSection({ lng }: TechSectionProps) {
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
               {t('landing.tech.subtitle')}
             </p>
+            <p className="text-muted-foreground text-sm max-w-2xl mx-auto mt-4 leading-relaxed">
+              {t('landing.tech.intro')}
+            </p>
           </div>
         </FadeInOnScroll>
 
@@ -70,6 +76,17 @@ export async function TechSection({ lng }: TechSectionProps) {
             </FadeInOnScroll>
           ))}
         </div>
+
+        <FadeInOnScroll>
+          <div className="text-center mt-8">
+            <Link
+              href={buildLocalizedPath('/how', lng as Language)}
+              className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/80 transition-colors"
+            >
+              {t('landing.tech.deep_dive_link')} →
+            </Link>
+          </div>
+        </FadeInOnScroll>
       </div>
     </section>
   );

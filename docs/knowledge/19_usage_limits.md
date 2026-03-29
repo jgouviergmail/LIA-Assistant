@@ -6,7 +6,7 @@ Usage limits are **quotas set by your administrator** to control resource consum
 **3 dimensions:**
 - **Tokens** (prompt + response + cache) — volume of data processed by AI
 - **Messages** — number of messages sent
-- **Cost (EUR)** — combined LLM + Google API cost
+- **Cost (EUR)** — combined LLM + API + image generation cost
 
 **2 modes:**
 - **Per period** — monthly rolling cycle from account creation
@@ -32,7 +32,7 @@ When a limit is reached:
 - Contact your administrator to adjust your quotas
 
 ## Can administrators manually block a user?
-Yes. Administrators can **block or unblock** any user instantly via **Settings > Administration > Limits Administration**. A reason can be provided and will be shown to the user.
+Yes. Administrators can **block or unblock** any user instantly via **Settings > Administration > Limits Administration**. A reason can be provided and will be shown to the user. The admin table supports **sorting by Email and Blocked status** for quick management.
 
 ## What types of limits can be set?
 **3 dimensions × 2 modes = 6 possible limits:**

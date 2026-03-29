@@ -242,6 +242,8 @@
       "oauth_separator": "或",
       "google_register": "使用Google注册",
       "terms": "创建账户即表示您同意我们的{{terms}}和{{privacy}}",
+      "terms_prefix": "创建账户即表示您同意我们的",
+      "terms_and": "和",
       "terms_link": "服务条款",
       "privacy_link": "隐私政策"
     },
@@ -914,6 +916,11 @@
           "connectors": "活动连接器",
           "memories": "已保存记忆",
           "interests": "兴趣",
+          "skills": "用户技能",
+          "mcp_servers": "MCP 服务器",
+          "scheduled_actions": "计划操作",
+          "rag_spaces": "RAG 空间",
+          "blocked": "已封锁",
           "actions": "操作",
           "last_message": "最后消息",
           "messages_short": "消息",
@@ -1860,28 +1867,223 @@
       "edit_description_success": "\"{{name}}\"的描述已更新并翻译。",
       "edit_description_error": "无法更新描述。",
       "guide_button": "指南",
-      "guide_modal_title": "创建技能（Skill）",
+      "guide_modal_title": "技能指南",
+      "guide_modal_subtitle": "学习如何创建技能来定制和扩展 LIA 的能力。",
+      "guide_tab_fundamentals": "基础",
+      "guide_tab_create": "创建技能",
+      "guide_tab_advanced": "高级",
+
       "guide_modal_what_title": "什么是技能（Skill）？",
-      "guide_modal_what_body": "技能是一个 SKILL.md 文件，为助手提供特定领域的专家指令。助手会读取这些指令并在相关情况下自动应用——无需每次重复说明上下文。",
-      "guide_modal_format_title": "SKILL.md 文件格式",
-      "guide_modal_format_intro": "SKILL.md 文件以 YAML 头部（在 --- 之间）开头，包含元数据，然后是 Markdown 正文，包含详细的指令内容。",
-      "guide_modal_struct_title": "文件夹结构（可选）",
-      "guide_modal_struct_body": "对于复杂的技能，可导入包含 SKILL.md 和子文件夹的 .zip 文件：references/ 用于参考文档，scripts/ 用于可执行 Python 脚本，assets/ 用于模板和资源。",
+      "guide_modal_what_body": "技能是一个 SKILL.md 文件，为助手提供特定领域的专家指令。助手会读取这些指令并在相关情况下自动应用——无需每次重复说明上下文。技能可以包含参考文档、Python 脚本和模板。",
+
+      "guide_archetypes_title": "3 种技能类型",
+      "guide_archetype_prompt_expert_name": "Prompt Expert",
+      "guide_archetype_prompt_expert_badge": "纯指令",
+      "guide_archetype_prompt_expert_desc": "助手为某个领域遵循的专家指令（教练、写作、方法论…）。无特定工具——助手应用其会话专长。",
+      "guide_archetype_advisory_name": "Advisory",
+      "guide_archetype_advisory_badge": "指令 + 工具",
+      "guide_archetype_advisory_desc": "助手有机地使用可用工具（日历、邮件、联系人…）的结构化方法论。根据上下文决定调用哪些工具。",
+      "guide_archetype_plan_template_name": "Plan Template",
+      "guide_archetype_plan_template_badge": "自动化",
+      "guide_archetype_plan_template_desc": "具有预定义工具调用的确定性工作流，按顺序或并行执行。适合重复性例程（简报、报告、审计…）。",
+
+      "guide_activation_title": "激活机制",
+      "guide_activation_body": "技能使用 3 层加载模型来优化 token 消耗：",
+      "guide_tier_l1": "目录 — 会话开始时加载名称和描述（约 50 token/技能）",
+      "guide_tier_l2": "指令 — 技能激活时加载完整的 SKILL.md 内容（< 5000 token）",
+      "guide_tier_l3": "资源 — 按需加载单个文件（references/、scripts/、assets/）",
+
       "guide_modal_tips_title": "最佳实践",
-      "guide_modal_tip_1": "以第三人称描述：\"生成...\", \"提供...\", \"指导...\"",
+      "guide_modal_tip_1": "用英语第三人称描述：\"Generates...\", \"Provides...\", \"Guides...\"",
       "guide_modal_tip_2": "描述应包括技能的功能以及何时使用它（触发条件）。",
       "guide_modal_tip_3": "保持指令简洁有条理——优先使用编号列表。",
-      "guide_modal_tip_4": "技能名称使用小写字母，不含空格：使用 my-skill（kebab-case）格式。",
-      "guide_modal_plan_title": "自动计划（可选）",
+      "guide_modal_tip_4": "技能名称使用 kebab-case：my-skill（小写、连字符、无空格）。",
+      "guide_modal_tip_5": "在 SKILL.md 末尾列出可用资源，包含相对路径和描述。",
+      "guide_modal_tip_6": "先用简单查询测试，再增加技能复杂度。",
+
+      "guide_modal_format_title": "SKILL.md 文件格式",
+      "guide_modal_format_intro": "SKILL.md 文件以 YAML 头部（在 --- 之间）开头，包含元数据，然后是 Markdown 正文，包含详细的指令内容。",
+      "guide_frontmatter_title": "YAML 头部字段：",
+      "guide_field_name": "kebab-case 格式的唯一标识符（2-64 个字符）",
+      "guide_field_description": "英文描述，第三人称，最多 1024 个字符",
+      "guide_field_category": "UI 分组（quotidien, recherche, communication, organisation, productivite, developpement）",
+      "guide_field_priority": "显示顺序（默认：50，越高越靠前）",
+      "guide_field_plan_template": "确定性执行计划（见高级标签页）",
+      "guide_field_always_loaded": "始终注入指令（每次对话都消耗 token）",
+
+      "guide_example_simple_title": "示例：Prompt Expert 技能",
+      "guide_example_simple_desc": "最简单的类型——助手在话题出现时遵循的纯指令。无需工具或计划。",
+      "guide_example_advisory_title": "示例：Advisory 技能",
+      "guide_example_advisory_desc": "助手遵循方法论，根据需要有机地使用可用工具（日历、邮件、联系人）。",
+
+      "guide_modal_struct_title": "文件夹结构",
+      "guide_modal_struct_body": "对于复杂的技能，可导入包含 SKILL.md 和可选子文件夹的 .zip 文件：",
+      "guide_struct_skillmd": "主文件（必需）",
+      "guide_struct_references": "按需加载的参考文档",
+      "guide_struct_scripts": "在沙箱中执行的 Python 脚本",
+      "guide_struct_assets": "模板、图片和静态资源",
+      "guide_struct_translations": "多语言描述（6 种语言）",
+
+      "guide_resources_title": "使用资源",
+      "guide_resource_references_desc": "文本文档（.md、.txt），助手可通过 read_skill_resource 按需查阅。适合存储详细指南、模板或对 SKILL.md 来说过大的参考数据。",
+      "guide_resource_references_usage": "用法：在 SKILL.md 的「可用资源」部分提及文件——助手会自动读取。",
+      "guide_resource_scripts_desc": "Python 脚本（.py），通过 run_skill_script 在隔离沙箱中执行。通过 stdin 接收 JSON 数据，通过 stdout 返回 JSON 结果。",
+      "guide_resource_scripts_usage": "用法：在 SKILL.md 中描述脚本及其参数。助手会在需要时执行。",
+      "guide_resource_assets_desc": "静态文件（图片、HTML/CSV 模板、JSON 数据），可读取访问。适合输出模板、图标或配置。",
+      "guide_resource_assets_usage": "用法：在指令中引用它们。助手可以读取并用于格式化响应。",
+
+      "guide_import_title": "如何导入",
+      "guide_import_body": "导入单个 SKILL.md 文件用于简单技能，或包含完整文件夹（SKILL.md + references/ + scripts/ + assets/）的 .zip 文件。使用上方的「导入」按钮。限制：SKILL.md 100 KB，每个资源文件 50 KB，每用户最多 20 个技能。",
+
+      "guide_modal_plan_title": "Plan Template（自动化）",
       "guide_modal_plan_body": "plan_template 定义自动执行的工具序列，无需经过 LLM 规划器。适合重复性、可预测的工作流。没有 depends_on 的步骤并行执行。",
       "guide_modal_plan_fields_title": "步骤（step）字段说明：",
       "guide_modal_plan_field_step_id": "步骤的唯一标识符（如：get_events）",
-      "guide_modal_plan_field_agent": "要使用的代理名称（见下方表格）",
-      "guide_modal_plan_field_tool": "要调用的工具名称",
-      "guide_modal_plan_field_params": "传递给工具的参数（如：{days: 3}）",
-      "guide_modal_plan_field_depends": "[] = 并行，[\"step_id\"] = 在该步骤之后顺序执行",
-      "guide_modal_plan_agents": "可用代理及其主要工具：",
-      "guide_modal_plan_note": "每个代理还有其他工具（create、update、delete 等），此处仅列出读取类工具。",
+      "guide_modal_plan_field_agent_name": "要使用的代理名称（见下方目录）",
+      "guide_modal_plan_field_tool_name": "要调用的工具名称",
+      "guide_modal_plan_field_parameters": "传递给工具的参数（如：{days: 3}）",
+      "guide_modal_plan_field_depends_on": "[] = 并行，[\"step_id\"] = 在该步骤之后顺序执行",
+      "guide_modal_plan_field_step_type": "类型：TOOL（默认）、CONDITIONAL、PARALLEL 或 RESPONSE",
+
+      "guide_autotrigger_title": "自动触发",
+      "guide_autotrigger_body": "带有 plan_template 的技能在用户查询覆盖模板中所有领域时自动触发。例如：包含 event_agent + weather_agent 的技能在用户同时询问日程和天气时触发。",
+
+      "guide_tools_title": "代理和工具目录",
+      "guide_tools_intro": "代理及其工具的完整参考，包括参数和类型。在 plan_template 的 agent_name 和 tool_name 中使用确切名称。标有 * 的参数为必填。",
+      "guide_cat_productivity": "生产力（日历、邮件、联系人、云盘、任务）",
+      "guide_cat_web_search": "网络搜索",
+      "guide_cat_location_weather": "位置和天气",
+      "guide_cat_other": "其他（提醒、浏览器、IoT、图像）",
+      "guide_tools_note": "标有「Connector」的工具支持 Google、Microsoft 或 Apple，具体取决于已连接的提供商。MCP 代理（外部服务器）是动态的，不能用于静态 plan_template。",
+
+      "tool_get_events": "搜索/列出事件",
+      "tool_create_event": "创建事件",
+      "tool_update_event": "修改事件",
+      "tool_delete_event": "删除事件",
+      "tool_list_calendars": "列出日历",
+      "tool_get_emails": "搜索/列出邮件",
+      "tool_send_email": "发送邮件",
+      "tool_reply_email": "回复邮件",
+      "tool_forward_email": "转发邮件",
+      "tool_apply_labels": "应用标签",
+      "tool_get_contacts": "搜索/列出联系人",
+      "tool_create_contact": "创建联系人",
+      "tool_get_files": "搜索/列出文件",
+      "tool_get_tasks": "搜索/列出任务",
+      "tool_create_task": "创建任务",
+      "tool_complete_task": "标记任务为已完成",
+      "tool_web_search": "统一网络搜索（Perplexity + Brave + Wikipedia）",
+      "tool_fetch_page": "获取网页内容",
+      "tool_search_wikipedia": "搜索维基百科",
+      "tool_get_article": "阅读维基百科文章",
+      "tool_perplexity_search": "AI 搜索（含引用）",
+      "tool_perplexity_ask": "向 Perplexity 提问",
+      "tool_brave_search": "Brave 网络搜索",
+      "tool_brave_news": "Brave 新闻搜索",
+      "tool_get_places": "搜索地点",
+      "tool_get_route": "计算路线",
+      "tool_current_weather": "当前天气",
+      "tool_weather_forecast": "天气预报（天数）",
+      "tool_hourly_forecast": "逐小时预报",
+      "tool_create_reminder": "创建提醒",
+      "tool_list_reminders": "列出活跃提醒",
+      "tool_cancel_reminder": "取消提醒",
+      "tool_browser_task": "执行网页浏览任务",
+      "tool_list_lights": "列出 Hue 灯具",
+      "tool_control_light": "控制灯具",
+      "tool_activate_scene": "激活 Hue 场景",
+      "tool_generate_image": "AI 生成图像",
+      "tool_edit_image": "编辑现有图像",
+
+      "param_search_query": "搜索查询",
+      "param_event_id": "事件 ID",
+      "param_time_min": "时间范围起点（ISO 8601）",
+      "param_time_max": "时间范围终点（ISO 8601）",
+      "param_days_ahead": "获取的天数",
+      "param_max_results": "最大结果数",
+      "param_event_summary": "事件标题",
+      "param_start_dt": "开始日期/时间（ISO 8601）",
+      "param_end_dt": "结束日期/时间（ISO 8601）",
+      "param_timezone": "时区（如：Europe/Paris）",
+      "param_description": "描述",
+      "param_location": "地点或地址",
+      "param_attendees": "参与者邮箱地址",
+      "param_show_hidden": "包含隐藏日历",
+      "param_gmail_query": "Gmail 查询（如：in:inbox newer_than:1d）",
+      "param_message_id": "消息 ID",
+      "param_email_to": "收件人邮箱地址",
+      "param_email_subject": "邮件主题",
+      "param_email_body": "消息正文",
+      "param_content_instruction": "AI 指令来撰写正文",
+      "param_cc": "抄送收件人",
+      "param_is_html": "以 HTML 格式发送",
+      "param_reply_all": "回复所有人",
+      "param_label_names": "要应用的标签名称",
+      "param_resource_name": "联系人资源标识符",
+      "param_contact_name": "全名",
+      "param_contact_email": "邮箱地址",
+      "param_contact_phone": "电话号码",
+      "param_organization": "公司/组织",
+      "param_file_id": "文件 ID",
+      "param_folder_id": "文件夹 ID",
+      "param_include_content": "包含文件内容",
+      "param_search_mode": "模式：name_only 或 full_text",
+      "param_task_id": "任务 ID",
+      "param_task_list_id": "任务列表 ID",
+      "param_show_completed": "包含已完成任务",
+      "param_task_title": "任务标题",
+      "param_task_notes": "备注/描述",
+      "param_task_due": "截止日期（ISO 8601）",
+      "param_recency": "过滤：day、week 或 month",
+      "param_url": "页面 URL",
+      "param_extract_mode": "模式：article（主要内容）或 full",
+      "param_max_length": "最大字符长度",
+      "param_language": "语言代码（如：fr、en）",
+      "param_article_title": "文章标题",
+      "param_question": "要提出的问题",
+      "param_context": "附加上下文",
+      "param_count": "结果数量（1-10）",
+      "param_freshness": "新鲜度：pd（天）、pw（周）、pm（月）",
+      "param_place_type": "地点类型（restaurant、hospital…）",
+      "param_radius": "搜索半径（米）",
+      "param_open_now": "仅显示当前营业的地点",
+      "param_min_rating": "最低评分（1.0-5.0）",
+      "param_destination": "目的地地址",
+      "param_origin": "出发地址（默认：当前位置）",
+      "param_travel_mode": "模式：DRIVE、WALK、BICYCLE、TRANSIT",
+      "param_departure": "出发时间（ISO 8601）",
+      "param_waypoints": "中间站点",
+      "param_units": "单位：metric 或 imperial",
+      "param_forecast_days": "预报天数（1-5）",
+      "param_hours": "小时数（1-48）",
+      "param_reminder_content": "提醒内容",
+      "param_original_message": "用户原始消息",
+      "param_trigger_dt": "触发日期/时间（ISO 8601）",
+      "param_relative_trigger": "相对触发（如：30 分钟后）",
+      "param_reminder_id": "提醒 ID 或描述",
+      "param_browser_task": "自然语言任务描述",
+      "param_light_name": "灯具名称或 ID",
+      "param_light_on": "开灯（true）或关灯（false）",
+      "param_brightness": "亮度百分比（0-100）",
+      "param_color": "颜色（red、blue、warm_white… 或 CIE x,y）",
+      "param_scene_name": "场景名称或 ID",
+      "param_image_prompt": "详细的图像描述",
+      "param_source_image": "要编辑的源图像 UUID",
+
+      "guide_scripts_title": "Python 脚本",
+      "guide_scripts_body": "技能可以包含在隔离沙箱中执行的 Python 脚本。脚本通过 stdin 接收数据（JSON），通过 stdout 返回结果（JSON）。适用于计算、数据转换或自定义处理。",
+      "guide_scripts_rules_title": "脚本规则：",
+      "guide_scripts_rule_1": "仅允许 scripts/ 文件夹中的 .py 文件",
+      "guide_scripts_rule_2": "脚本在具有有限超时的沙箱中运行",
+      "guide_scripts_rule_3": "通过 stdin/stdout 以 JSON 格式通信",
+      "guide_scripts_rule_4": "需要启用 SKILLS_SCRIPTS_ENABLED 功能标志",
+
+      "guide_skill_tools_title": "技能内部工具",
+      "guide_skill_tools_body": "助手有 3 个特殊工具来与已激活的技能交互。这些工具会自动调用——您无需在指令中引用它们。",
+      "guide_skilltool_activate": "加载技能的完整指令（L2）",
+      "guide_skilltool_read": "从技能中读取参考或资源文件",
+      "guide_skilltool_run": "执行 scripts/ 文件夹中的 Python 脚本",
+
       "guide_modal_compat_title": "开放标准 agentskills.io",
       "guide_modal_compat_body": "技能与 agentskills.io 生态系统 100% 兼容——Claude Code、Cursor、VS Code、GitHub Copilot 及 30+ 其他产品使用相同格式。可从 skillsmp.com 等市场导入技能。",
       "guide_modal_link": "了解更多关于 agentskills.io 标准"
@@ -2390,6 +2592,20 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_13": {
+          "title": "v1.13 — Design System v4、技能和管理",
+          "date": "2026年3月",
+          "count": "7",
+          "items": {
+            "i1": "<b>Design System v4</b> — 14 张 HTML 卡片全面视觉重设计，采用可复用组件、彩色图标、标签、头像和可折叠区域",
+            "i2": "<b>技能指南重新设计</b> — 新的 3 标签综合指南（基础、创建、高级）包含完整的代理、工具和参数目录",
+            "i3": "<b>增强管理</b> — 用户管理新增 5 个计数器（技能、MCP、计划操作、RAG 空间、已封锁）及限额中可按邮箱/封锁状态排序",
+            "i4": "<b>多供应商</b> — 日历、邮件、联系人、云盘和任务工具现在显示为兼容 Google、Microsoft 和 Apple",
+            "i5": "<b>DevOps Claude CLI</b> — 管理员可通过 Claude Code 用自然语言直接从 LIA 诊断服务器",
+            "i6": "<b>日历夏令时修复</b> — 在夏令时切换期间创建的事件现在时间正确",
+            "i7": "<b>跨域上下文修复</b> — 查看日历后说「显示最后一封邮件」现在能正确工作"
+          }
+        },
         "v1_12": {
           "title": "v1.12 — 图像生成与网页浏览",
           "date": "2026年3月",
@@ -4036,7 +4252,8 @@
       "login": "登录",
       "blog": "博客",
       "philosophy": "理念",
-      "technical": "技术"
+      "technical": "技术",
+      "faq": "常见问题"
     },
     "hero": {
       "badge_beta": "BETA",
@@ -4058,7 +4275,8 @@
       "trust_voices": "语音语言",
       "trust_gdpr": "符合GDPR",
       "badge_opensource": "开源项目",
-      "cta_github": "GitHub"
+      "cta_github": "GitHub",
+      "intro_paragraph": "LIA是一个开源的个人AI助手，协调16个专业代理来管理您的邮件、日历、联系人、文件、任务、提醒、网络搜索、天气、路线和智能家居。兼容Google Workspace、Apple iCloud和Microsoft 365，LIA使用自然语言工作，对每个敏感操作进行人工验证。"
     },
     "chat_mockup": {
       "user_message": "给Marie发一封邮件说我今晚会迟到，用幽默的语气",
@@ -4224,6 +4442,7 @@
     "use_cases": {
       "title": "使用场景",
       "subtitle": "LIA在日常生活中随时陪伴你",
+      "intro": "每个请求可以同时调动多个代理。LIA自动识别相关领域，构建执行计划，并行协调代理——一切在几秒钟内完成，敏感操作需要您的批准。",
       "example1": {
         "query": "找到附近3家最好的、现在营业的咖啡馆，并给我步行路线",
         "description": "地理定位 + 地点 + 路线 — 多条件上下文搜索"
@@ -4245,6 +4464,26 @@
         "description": "天气 + 地点 + 分析 — 多域上下文推荐"
       }
     },
+    "audience": {
+      "title": "LIA适合谁？",
+      "subtitle": "适应每种角色和需求的助手",
+      "freelance": {
+        "title": "自由职业者",
+        "description": "集中管理多个客户的邮件、日历和任务，无需在应用之间切换。"
+      },
+      "family": {
+        "title": "家庭",
+        "description": "协调家庭日历，设置提醒，为日常生活规划路线。"
+      },
+      "developer": {
+        "title": "开发者",
+        "description": "使用自己的MCP服务器扩展LIA，创建自定义技能，部署专业子代理。"
+      },
+      "admin": {
+        "title": "管理员",
+        "description": "控制使用配额，按节点选择LLM提供商，管理团队权限。"
+      }
+    },
     "stats": {
       "agents": "AI代理",
       "tools": "集成工具",
@@ -4256,6 +4495,8 @@
     "security": {
       "title": "安全与隐私",
       "subtitle": "天生强大。隐私至上。",
+      "intro": "LIA从第一天起就采用隐私设计理念。与集中式云助手不同，您的凭据永远不会通过前端传输：后端前端架构完全隔离您的令牌。自动PII过滤防止个人身份数据到达LLM提供商。",
+      "privacy_link": "阅读我们的隐私政策",
       "data_control": {
         "title": "数据控制",
         "description": "您的数据保持私密。不与第三方共享，会话隔离，访问严格限于必要范围。"
@@ -4276,6 +4517,8 @@
     "tech": {
       "title": "技术底层",
       "subtitle": "为性能和可扩展性设计的架构",
+      "intro": "LIA的架构基于LangGraph编排管道，将每个请求分解为子任务，分配给专业代理并行执行计划。系统通过贝叶斯模型从重复模式中学习，随时间优化规划，降低延迟和API成本。",
+      "deep_dive_link": "完整技术深度解析",
       "langgraph": {
         "title": "LangGraph",
         "description": "基于状态图的智能体编排、波次并行执行和贝叶斯计划模式学习。"
@@ -4342,19 +4585,88 @@
       "title": "准备好试试LIA了吗？",
       "subtitle": "加入BETA，发现真正智能的AI助手能为你做什么。",
       "button": "创建我的账户",
-      "note_beta": "应用已全面运营，经过alpha测试。付费订阅即将推出。"
+      "note_beta": "应用已全面运营，经过alpha测试。付费订阅即将推出。",
+      "philosophy_link": "或先了解我们的理念"
     },
     "blog_preview": {
       "title": "深入了解 LIA：技术文章",
       "subtitle": "通过我们的技术文章，探索 LIA 背后的架构、集成和工程设计。",
-      "view_all": "查看所有文章"
+      "view_all": "查看所有文章",
+      "faq_link": "有疑问？查看常见问题"
     },
     "footer": {
       "copyright": "© {{year}} LIA. 保留所有权利。",
       "last_updated": "更新于 {{date}}",
       "docs": "文档",
       "privacy": "隐私政策",
-      "github": "GitHub"
+      "github": "GitHub",
+      "product": "产品",
+      "resources": "资源",
+      "legal": "法律",
+      "community": "社区",
+      "features": "功能",
+      "how_it_works": "工作原理",
+      "blog": "博客",
+      "faq": "常见问题",
+      "technical": "技术",
+      "philosophy": "理念",
+      "terms": "使用条款"
+    }
+  },
+  "public_footer": {
+    "home": "首页",
+    "blog": "博客",
+    "faq": "常见问题",
+    "technical": "技术",
+    "philosophy": "理念",
+    "privacy": "隐私",
+    "terms": "条款"
+  },
+  "privacy": {
+    "meta": {
+      "title": "隐私政策 — LIA",
+      "description": "LIA如何保护您的个人数据。"
+    },
+    "hero": {
+      "title": "隐私政策",
+      "subtitle": "LIA如何保护您的数据并尊重您的隐私。"
+    },
+    "breadcrumb": "隐私",
+    "toc": {
+      "introduction": "简介",
+      "data_collected": "收集的数据",
+      "legal_basis": "法律依据",
+      "hosting": "托管",
+      "security": "安全",
+      "llm_providers": "LLM提供商",
+      "retention": "数据保留",
+      "rights": "您的权利",
+      "cookies": "Cookie",
+      "contact": "联系方式"
+    }
+  },
+  "terms": {
+    "meta": {
+      "title": "使用条款 — LIA",
+      "description": "LIA服务使用条款。"
+    },
+    "hero": {
+      "title": "使用条款",
+      "subtitle": "管理LIA服务使用的规则。"
+    },
+    "breadcrumb": "条款",
+    "toc": {
+      "purpose": "目的",
+      "acceptance": "接受",
+      "registration": "注册",
+      "service": "服务描述",
+      "usage": "可接受使用",
+      "opensource": "开源",
+      "personal_data": "个人数据",
+      "availability": "可用性",
+      "liability": "责任",
+      "termination": "终止",
+      "applicable_law": "适用法律"
     }
   },
   "sub_agents": {

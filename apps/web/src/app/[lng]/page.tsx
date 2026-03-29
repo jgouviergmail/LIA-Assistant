@@ -12,6 +12,7 @@ import { ScreenshotsSection } from '@/components/landing/ScreenshotsSection';
 import { ArchitectureDiagram } from '@/components/landing/ArchitectureDiagram';
 import { PresentationSection } from '@/components/landing/PresentationSection';
 import { UseCasesSection } from '@/components/landing/UseCasesSection';
+import { AudienceSection } from '@/components/landing/AudienceSection';
 import { StatsSection } from '@/components/landing/StatsSection';
 import { SecuritySection } from '@/components/landing/SecuritySection';
 import { TechSection } from '@/components/landing/TechSection';
@@ -128,6 +129,7 @@ export default async function HomePage({ params }: HomePageProps) {
           <ArchitectureDiagram />
           <PresentationSection />
           <UseCasesSection lng={lng} />
+          <AudienceSection lng={lng} />
           <StatsSection />
           <SecuritySection lng={lng} />
           <TechSection lng={lng} />

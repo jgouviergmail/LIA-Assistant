@@ -78,7 +78,7 @@ class DomainConfig:
 DOMAIN_REGISTRY: dict[str, DomainConfig] = {
     "contact": DomainConfig(
         name="contact",
-        display_name="Google Contacts",
+        display_name="Contacts",
         description=(
             "Manage people in user's address book: search contacts by name, email or phone, "
             "create, update or delete. NOT for sending emails (use email)."
@@ -114,12 +114,12 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
             ),
         },
     ),
-    # Email domain: Email management with Gmail API
+    # Email domain: Email management (multi-provider)
     "email": DomainConfig(
         name="email",
-        display_name="Emails",
+        display_name="Email",
         description=(
-            "Read, search, send, reply and forward emails in user's Gmail inbox. "
+            "Read, search, send, reply and forward emails in user's inbox. "
             "Manage labels and folders. NOT for looking up contact info (use contact)."
         ),
         agent_names=["email_agent"],
@@ -136,12 +136,12 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
             "requires_hitl": True,  # Sending emails requires HITL approval
         },
     ),
-    # Event domain: Calendar events management (Google Calendar API)
+    # Event domain: Calendar events management (multi-provider)
     "event": DomainConfig(
         name="event",
-        display_name="Google Calendar",
+        display_name="Calendar",
         description=(
-            "Manage Google Calendar: search, create, update, cancel meetings and appointments. "
+            "Manage calendar: search, create, update, cancel meetings and appointments. "
             "Check agenda and schedule. NOT for to-do items (use task) or time-based alerts (use reminder)."
         ),
         agent_names=["event_agent"],
@@ -158,9 +158,9 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
     # File domain: Cloud file management (Google Drive)
     "file": DomainConfig(
         name="file",
-        display_name="Google Drive",
+        display_name="Drive / Files",
         description=(
-            "Search and browse files in Google Drive: documents, spreadsheets, "
+            "Search and browse files in cloud drive: documents, spreadsheets, "
             "PDFs, images by name, type or content."
         ),
         agent_names=["file_agent"],
@@ -176,9 +176,9 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
     # Task domain: Task management (Google Tasks)
     "task": DomainConfig(
         name="task",
-        display_name="Google Tasks",
+        display_name="Tasks",
         description=(
-            "Manage persistent to-do items in Google Tasks: search, create, update, complete or delete "
+            "Manage persistent to-do items: search, create, update, complete or delete "
             "tasks with due dates. Organize into task lists. "
             "NOT for calendar events (use event) or alerts (use reminder)."
         ),

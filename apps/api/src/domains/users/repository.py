@@ -393,7 +393,7 @@ class UserRepository(BaseRepository[User]):
         page_size: int,
         sort_by: str = "created_at",
         sort_order: str = "desc",
-    ) -> list[tuple[User, UserStatistics | None, int, datetime | None]]:
+    ) -> list[tuple[User, UserStatistics | None, int, datetime | None, int, int, int, int, bool]]:
         """
         Get paginated users with their statistics and additional counts.
 
@@ -405,8 +405,17 @@ class UserRepository(BaseRepository[User]):
             sort_order: Sort order ('asc' or 'desc')
 
         Returns:
-            List of tuples (User, UserStatistics or None, active_connectors_count, last_message_at)
+            List of tuples (User, UserStatistics or None, active_connectors_count,
+            last_message_at, skills_count, mcp_servers_count, scheduled_actions_count,
+            rag_spaces_count, is_usage_blocked)
         """
+        # Late imports to avoid circular dependencies
+        from src.domains.rag_spaces.models import RAGSpace
+        from src.domains.scheduled_actions.models import ScheduledAction
+        from src.domains.skills.models import Skill
+        from src.domains.usage_limits.models import UserUsageLimit
+        from src.domains.user_mcp.models import UserMCPServer
+
         offset = (page - 1) * page_size
 
         # Subquery for active connectors count
@@ -426,6 +435,46 @@ class UserRepository(BaseRepository[User]):
             .scalar_subquery()
         )
 
+        # Subquery for user-imported skills count (scope='user', owner_id matches)
+        skills_count_subq = (
+            select(func.count(Skill.id))
+            .where(Skill.owner_id == User.id)
+            .correlate(User)
+            .scalar_subquery()
+        )
+
+        # Subquery for user MCP servers count
+        mcp_servers_count_subq = (
+            select(func.count(UserMCPServer.id))
+            .where(UserMCPServer.user_id == User.id)
+            .correlate(User)
+            .scalar_subquery()
+        )
+
+        # Subquery for scheduled actions count
+        scheduled_actions_count_subq = (
+            select(func.count(ScheduledAction.id))
+            .where(ScheduledAction.user_id == User.id)
+            .correlate(User)
+            .scalar_subquery()
+        )
+
+        # Subquery for RAG spaces count
+        rag_spaces_count_subq = (
+            select(func.count(RAGSpace.id))
+            .where(RAGSpace.user_id == User.id)
+            .correlate(User)
+            .scalar_subquery()
+        )
+
+        # Subquery for is_usage_blocked
+        is_usage_blocked_subq = (
+            select(UserUsageLimit.is_usage_blocked)
+            .where(UserUsageLimit.user_id == User.id)
+            .correlate(User)
+            .scalar_subquery()
+        )
+
         # Build base query with LEFT JOIN to UserStatistics and subqueries
         stmt = (
             select(
@@ -433,6 +482,11 @@ class UserRepository(BaseRepository[User]):
                 UserStatistics,
                 active_connectors_subq.label("active_connectors_count"),
                 last_message_subq.label("last_message_at"),
+                skills_count_subq.label("skills_count"),
+                mcp_servers_count_subq.label("mcp_servers_count"),
+                scheduled_actions_count_subq.label("scheduled_actions_count"),
+                rag_spaces_count_subq.label("rag_spaces_count"),
+                is_usage_blocked_subq.label("is_usage_blocked"),
             )
             .outerjoin(UserStatistics, User.id == UserStatistics.user_id)
             .where(*filters)
@@ -450,7 +504,20 @@ class UserRepository(BaseRepository[User]):
 
         result = await self.db.execute(stmt)
         # Convert Row objects to tuples for proper typing
-        return [(row[0], row[1], row[2] or 0, row[3]) for row in result.all()]
+        return [
+            (
+                row[0],
+                row[1],
+                row[2] or 0,
+                row[3],
+                row[4] or 0,
+                row[5] or 0,
+                row[6] or 0,
+                row[7] or 0,
+                bool(row[8]),
+            )
+            for row in result.all()
+        ]
 
     # ========== AUDIT LOG METHODS ==========
 

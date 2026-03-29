@@ -144,7 +144,7 @@ class TestUserMessages:
 
         context = handler.handle_error("emails", error)
 
-        assert "Emails" in context.user_message
+        assert "Email" in context.user_message
 
     def test_message_authentication(self, handler):
         """Test authentication error message."""
@@ -277,7 +277,7 @@ class TestPartialResultsHeader:
         )
 
         assert "Contacts" in result
-        assert "Emails" in result
+        assert "Email" in result
         assert "Réussi" in result
         assert "Échoué" in result
 
@@ -288,7 +288,7 @@ class TestPartialResultsHeader:
             failed_domains=["emails", "calendar"],
         )
 
-        assert "Emails" in result
+        assert "Email" in result
         assert "Calendar" in result
 
 

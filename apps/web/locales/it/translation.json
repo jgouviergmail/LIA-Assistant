@@ -322,6 +322,8 @@
       "oauth_separator": "OPPURE",
       "google_register": "Registrati con Google",
       "terms": "Creando un account, accetti i nostri {{terms}} e la nostra {{privacy}}",
+      "terms_prefix": "Creando un account, accetti i nostri",
+      "terms_and": "e",
       "terms_link": "Termini di servizio",
       "privacy_link": "Informativa sulla privacy"
     }
@@ -908,6 +910,11 @@
           "connectors": "Connettori attivi",
           "memories": "Ricordi salvati",
           "interests": "Interessi",
+          "skills": "Skill utente",
+          "mcp_servers": "Server MCP",
+          "scheduled_actions": "Azioni pianificate",
+          "rag_spaces": "Spazi RAG",
+          "blocked": "Bloccato",
           "actions": "Azioni",
           "last_message": "Ultimo messaggio",
           "messages_short": "Msgs",
@@ -1854,28 +1861,223 @@
       "edit_description_success": "Descrizione di \"{{name}}\" aggiornata e tradotta.",
       "edit_description_error": "Impossibile aggiornare la descrizione.",
       "guide_button": "Guida",
-      "guide_modal_title": "Creare una Skill (Competenza)",
+      "guide_modal_title": "Guida alle Skill",
+      "guide_modal_subtitle": "Scopri come creare skill per personalizzare e ampliare le capacità di LIA.",
+      "guide_tab_fundamentals": "Fondamenti",
+      "guide_tab_create": "Creare una skill",
+      "guide_tab_advanced": "Avanzato",
+
       "guide_modal_what_title": "Cos'è una skill?",
-      "guide_modal_what_body": "Una skill è un file SKILL.md che fornisce all'assistente istruzioni esperte per un dominio specifico. L'assistente legge queste istruzioni e le applica automaticamente quando è rilevante — senza dover ripetere il contesto ogni volta.",
-      "guide_modal_format_title": "Formato del file SKILL.md",
-      "guide_modal_format_intro": "Un file SKILL.md inizia con un'intestazione YAML (tra ---) con i metadati, seguito da un corpo Markdown con le istruzioni dettagliate.",
-      "guide_modal_struct_title": "Struttura delle cartelle (opzionale)",
-      "guide_modal_struct_body": "Per skill complesse, importa un file .zip con SKILL.md e sottocartelle: references/ per documenti di riferimento, scripts/ per script Python eseguibili, assets/ per template e risorse.",
+      "guide_modal_what_body": "Una skill è un file SKILL.md che fornisce all'assistente istruzioni esperte per un dominio specifico. L'assistente legge queste istruzioni e le applica automaticamente quando è rilevante — senza dover ripetere il contesto ogni volta. Le skill possono includere documenti di riferimento, script Python e template.",
+
+      "guide_archetypes_title": "I 3 tipi di skill",
+      "guide_archetype_prompt_expert_name": "Prompt Expert",
+      "guide_archetype_prompt_expert_badge": "Istruzioni pure",
+      "guide_archetype_prompt_expert_desc": "Istruzioni esperte che l'assistente segue per un dominio (coaching, scrittura, metodologia…). Nessuno strumento specifico — l'assistente applica la sua competenza conversazionale.",
+      "guide_archetype_advisory_name": "Advisory",
+      "guide_archetype_advisory_badge": "Istruzioni + strumenti",
+      "guide_archetype_advisory_desc": "Una metodologia strutturata dove l'assistente usa gli strumenti disponibili in modo organico (calendario, email, contatti…). Decide quali strumenti chiamare in base al contesto.",
+      "guide_archetype_plan_template_name": "Plan Template",
+      "guide_archetype_plan_template_badge": "Automazione",
+      "guide_archetype_plan_template_desc": "Un workflow deterministico con chiamate a strumenti predefiniti, eseguiti in sequenza o in parallelo. Ideale per routine ricorrenti (briefing, report, audit…).",
+
+      "guide_activation_title": "Come funziona l'attivazione",
+      "guide_activation_body": "Le skill usano un modello di caricamento a 3 livelli per ottimizzare il consumo di token:",
+      "guide_tier_l1": "Catalogo — Nome e descrizione caricati all'inizio della sessione (~50 token/skill)",
+      "guide_tier_l2": "Istruzioni — Corpo completo del SKILL.md caricato quando la skill è attivata (< 5000 token)",
+      "guide_tier_l3": "Risorse — File individuali (references/, scripts/, assets/) caricati su richiesta",
+
       "guide_modal_tips_title": "Buone pratiche",
-      "guide_modal_tip_1": "Scrivi la descrizione in terza persona: \"Genera...\", \"Fornisce...\", \"Guida...\"",
+      "guide_modal_tip_1": "Scrivi la descrizione in inglese in terza persona: \"Generates...\", \"Provides...\", \"Guides...\"",
       "guide_modal_tip_2": "La descrizione deve indicare cosa fa la skill E quando usarla (il trigger).",
       "guide_modal_tip_3": "Mantieni le istruzioni concise e strutturate — preferisci elenchi numerati.",
-      "guide_modal_tip_4": "Nomina la tua skill in minuscolo senza spazi: usa la-mia-skill (kebab-case).",
-      "guide_modal_plan_title": "Piano automatico (opzionale)",
+      "guide_modal_tip_4": "Nomina la tua skill in kebab-case: la-mia-skill (minuscolo, trattini, senza spazi).",
+      "guide_modal_tip_5": "Elenca le risorse disponibili alla fine del SKILL.md con percorso relativo e descrizione.",
+      "guide_modal_tip_6": "Testa con query semplici prima di rendere la skill più complessa.",
+
+      "guide_modal_format_title": "Formato del file SKILL.md",
+      "guide_modal_format_intro": "Un file SKILL.md inizia con un'intestazione YAML (tra ---) con i metadati, seguito da un corpo Markdown con le istruzioni dettagliate.",
+      "guide_frontmatter_title": "Campi dell'intestazione YAML:",
+      "guide_field_name": "Identificatore univoco in kebab-case (2-64 caratteri)",
+      "guide_field_description": "Descrizione in inglese, 3ª persona, max 1024 caratteri",
+      "guide_field_category": "Raggruppamento UI (quotidien, recherche, communication, organisation, productivite, developpement)",
+      "guide_field_priority": "Ordine di visualizzazione (default: 50, più alto = mostrato per primo)",
+      "guide_field_plan_template": "Piano di esecuzione deterministico (vedi tab Avanzato)",
+      "guide_field_always_loaded": "Iniettare sempre le istruzioni (consuma token ad ogni conversazione)",
+
+      "guide_example_simple_title": "Esempio: Skill Prompt Expert",
+      "guide_example_simple_desc": "Il tipo più semplice — istruzioni pure che l'assistente segue quando l'argomento emerge. Nessun strumento o piano necessario.",
+      "guide_example_advisory_title": "Esempio: Skill Advisory",
+      "guide_example_advisory_desc": "L'assistente segue una metodologia e usa gli strumenti disponibili (calendario, email, contatti) in modo organico secondo le necessità.",
+
+      "guide_modal_struct_title": "Struttura delle cartelle",
+      "guide_modal_struct_body": "Per skill complesse, importa un file .zip con SKILL.md e sottocartelle opzionali:",
+      "guide_struct_skillmd": "File principale (obbligatorio)",
+      "guide_struct_references": "Documenti di riferimento caricati su richiesta",
+      "guide_struct_scripts": "Script Python eseguiti in un sandbox",
+      "guide_struct_assets": "Template, immagini e risorse statiche",
+      "guide_struct_translations": "Descrizioni multilingue (6 lingue)",
+
+      "guide_resources_title": "Usare le risorse",
+      "guide_resource_references_desc": "Documenti di testo (.md, .txt) che l'assistente può consultare su richiesta tramite read_skill_resource. Ideale per guide dettagliate, template o dati di riferimento troppo grandi per il SKILL.md.",
+      "guide_resource_references_usage": "Uso: menziona il file nella sezione «Risorse disponibili» del SKILL.md — l'assistente li leggerà automaticamente.",
+      "guide_resource_scripts_desc": "Script Python (.py) eseguiti in un sandbox isolato tramite run_skill_script. Ricevono dati in JSON su stdin e restituiscono risultati in JSON su stdout.",
+      "guide_resource_scripts_usage": "Uso: descrivi lo script e i suoi parametri nel SKILL.md. L'assistente lo eseguirà quando necessario.",
+      "guide_resource_assets_desc": "File statici (immagini, template HTML/CSV, dati JSON) accessibili in lettura. Utile per template di output, loghi o configurazioni.",
+      "guide_resource_assets_usage": "Uso: fai riferimento ad essi nelle istruzioni. L'assistente può leggerli e usarli per formattare le risposte.",
+
+      "guide_import_title": "Come importare",
+      "guide_import_body": "Importa un singolo file SKILL.md per una skill semplice, o un file .zip con la cartella completa (SKILL.md + references/ + scripts/ + assets/). Usa il pulsante «Importa» sopra. Limiti: 100 KB per SKILL.md, 50 KB per file risorsa, max 20 skill per utente.",
+
+      "guide_modal_plan_title": "Plan Template (automazione)",
       "guide_modal_plan_body": "Il plan_template definisce una sequenza di strumenti eseguiti automaticamente, senza passare per il planner LLM. Ideale per workflow ricorrenti e prevedibili. I passi senza depends_on vengono eseguiti in parallelo.",
       "guide_modal_plan_fields_title": "Campi di un passo (step):",
       "guide_modal_plan_field_step_id": "Identificatore univoco del passo (es: get_events)",
-      "guide_modal_plan_field_agent": "Nome dell'agente da usare (vedi tabella sotto)",
-      "guide_modal_plan_field_tool": "Nome dello strumento da chiamare",
-      "guide_modal_plan_field_params": "Parametri da passare allo strumento (es: {days: 3})",
-      "guide_modal_plan_field_depends": "[] = parallelo, [\"step_id\"] = sequenziale dopo quel passo",
-      "guide_modal_plan_agents": "Agenti disponibili e i loro strumenti principali:",
-      "guide_modal_plan_note": "Ogni agente ha strumenti aggiuntivi (create, update, delete…). Qui sono elencati solo gli strumenti di lettura.",
+      "guide_modal_plan_field_agent_name": "Nome dell'agente da usare (vedi catalogo sotto)",
+      "guide_modal_plan_field_tool_name": "Nome dello strumento da chiamare",
+      "guide_modal_plan_field_parameters": "Parametri da passare allo strumento (es: {days: 3})",
+      "guide_modal_plan_field_depends_on": "[] = parallelo, [\"step_id\"] = sequenziale dopo quel passo",
+      "guide_modal_plan_field_step_type": "Tipo: TOOL (default), CONDITIONAL, PARALLEL o RESPONSE",
+
+      "guide_autotrigger_title": "Attivazione automatica",
+      "guide_autotrigger_body": "Le skill con plan_template vengono attivate automaticamente quando la richiesta dell'utente copre TUTTI i domini del template. Es: una skill con event_agent + weather_agent si attiva quando l'utente chiede sia l'agenda che il meteo.",
+
+      "guide_tools_title": "Catalogo agenti e strumenti",
+      "guide_tools_intro": "Riferimento completo degli agenti e dei loro strumenti con parametri e tipi. Usa i nomi esatti in agent_name e tool_name del plan_template. I parametri contrassegnati * sono obbligatori.",
+      "guide_cat_productivity": "Produttività (Calendario, Email, Contatti, Drive, Attività)",
+      "guide_cat_web_search": "Ricerca Web",
+      "guide_cat_location_weather": "Posizione e Meteo",
+      "guide_cat_other": "Altri (Promemoria, Browser, IoT, Immagini)",
+      "guide_tools_note": "Gli strumenti contrassegnati « Connector » funzionano con Google, Microsoft o Apple a seconda del fornitore connesso. Gli agenti MCP (server esterni) sono dinamici e non possono essere usati nei plan_template statici.",
+
+      "tool_get_events": "Cercare/elencare eventi",
+      "tool_create_event": "Creare un evento",
+      "tool_update_event": "Modificare un evento",
+      "tool_delete_event": "Eliminare un evento",
+      "tool_list_calendars": "Elencare calendari",
+      "tool_get_emails": "Cercare/elencare email",
+      "tool_send_email": "Inviare un'email",
+      "tool_reply_email": "Rispondere a un'email",
+      "tool_forward_email": "Inoltrare un'email",
+      "tool_apply_labels": "Applicare etichette",
+      "tool_get_contacts": "Cercare/elencare contatti",
+      "tool_create_contact": "Creare un contatto",
+      "tool_get_files": "Cercare/elencare file",
+      "tool_get_tasks": "Cercare/elencare attività",
+      "tool_create_task": "Creare un'attività",
+      "tool_complete_task": "Contrassegnare attività come completata",
+      "tool_web_search": "Ricerca web unificata (Perplexity + Brave + Wikipedia)",
+      "tool_fetch_page": "Recuperare il contenuto di una pagina web",
+      "tool_search_wikipedia": "Cercare su Wikipedia",
+      "tool_get_article": "Leggere un articolo Wikipedia",
+      "tool_perplexity_search": "Ricerca IA con citazioni",
+      "tool_perplexity_ask": "Fare una domanda a Perplexity",
+      "tool_brave_search": "Ricerca web Brave",
+      "tool_brave_news": "Ricerca notizie Brave",
+      "tool_get_places": "Cercare luoghi",
+      "tool_get_route": "Calcolare un percorso",
+      "tool_current_weather": "Meteo attuale",
+      "tool_weather_forecast": "Previsioni meteo (giorni)",
+      "tool_hourly_forecast": "Previsioni orarie",
+      "tool_create_reminder": "Creare un promemoria",
+      "tool_list_reminders": "Elencare promemoria attivi",
+      "tool_cancel_reminder": "Annullare un promemoria",
+      "tool_browser_task": "Eseguire un'attività di navigazione web",
+      "tool_list_lights": "Elencare luci Hue",
+      "tool_control_light": "Controllare una luce",
+      "tool_activate_scene": "Attivare una scena Hue",
+      "tool_generate_image": "Generare un'immagine IA",
+      "tool_edit_image": "Modificare un'immagine esistente",
+
+      "param_search_query": "Query di ricerca",
+      "param_event_id": "ID dell'evento",
+      "param_time_min": "Inizio dell'intervallo temporale (ISO 8601)",
+      "param_time_max": "Fine dell'intervallo temporale (ISO 8601)",
+      "param_days_ahead": "Numero di giorni da recuperare",
+      "param_max_results": "Numero massimo di risultati",
+      "param_event_summary": "Titolo dell'evento",
+      "param_start_dt": "Data/ora di inizio (ISO 8601)",
+      "param_end_dt": "Data/ora di fine (ISO 8601)",
+      "param_timezone": "Fuso orario (es: Europe/Paris)",
+      "param_description": "Descrizione",
+      "param_location": "Luogo o indirizzo",
+      "param_attendees": "Indirizzi email dei partecipanti",
+      "param_show_hidden": "Includere calendari nascosti",
+      "param_gmail_query": "Query Gmail (es: in:inbox newer_than:1d)",
+      "param_message_id": "ID del messaggio",
+      "param_email_to": "Indirizzo email del destinatario",
+      "param_email_subject": "Oggetto dell'email",
+      "param_email_body": "Corpo del messaggio",
+      "param_content_instruction": "Istruzione IA per comporre il testo",
+      "param_cc": "Destinatari in copia",
+      "param_is_html": "Inviare in HTML",
+      "param_reply_all": "Rispondi a tutti",
+      "param_label_names": "Nomi delle etichette da applicare",
+      "param_resource_name": "Identificatore risorsa contatto",
+      "param_contact_name": "Nome completo",
+      "param_contact_email": "Indirizzo email",
+      "param_contact_phone": "Numero di telefono",
+      "param_organization": "Azienda/organizzazione",
+      "param_file_id": "ID del file",
+      "param_folder_id": "ID della cartella",
+      "param_include_content": "Includere il contenuto del file",
+      "param_search_mode": "Modalità: name_only o full_text",
+      "param_task_id": "ID dell'attività",
+      "param_task_list_id": "ID della lista attività",
+      "param_show_completed": "Includere attività completate",
+      "param_task_title": "Titolo dell'attività",
+      "param_task_notes": "Note/descrizione",
+      "param_task_due": "Data di scadenza (ISO 8601)",
+      "param_recency": "Filtro: day, week o month",
+      "param_url": "URL della pagina",
+      "param_extract_mode": "Modalità: article (contenuto principale) o full",
+      "param_max_length": "Lunghezza massima in caratteri",
+      "param_language": "Codice lingua (es: fr, en)",
+      "param_article_title": "Titolo dell'articolo",
+      "param_question": "Domanda da porre",
+      "param_context": "Contesto aggiuntivo",
+      "param_count": "Numero di risultati (1-10)",
+      "param_freshness": "Freschezza: pd (giorno), pw (settimana), pm (mese)",
+      "param_place_type": "Tipo di luogo (ristorante, ospedale…)",
+      "param_radius": "Raggio di ricerca in metri",
+      "param_open_now": "Solo luoghi attualmente aperti",
+      "param_min_rating": "Valutazione minima (1.0-5.0)",
+      "param_destination": "Indirizzo di destinazione",
+      "param_origin": "Indirizzo di partenza (default: posizione attuale)",
+      "param_travel_mode": "Modalità: DRIVE, WALK, BICYCLE, TRANSIT",
+      "param_departure": "Ora di partenza (ISO 8601)",
+      "param_waypoints": "Fermate intermedie",
+      "param_units": "Unità: metric o imperial",
+      "param_forecast_days": "Numero di giorni di previsione (1-5)",
+      "param_hours": "Numero di ore (1-48)",
+      "param_reminder_content": "Contenuto del promemoria",
+      "param_original_message": "Messaggio originale dell'utente",
+      "param_trigger_dt": "Data/ora di attivazione (ISO 8601)",
+      "param_relative_trigger": "Attivazione relativa (es: tra 30 minuti)",
+      "param_reminder_id": "ID o descrizione del promemoria",
+      "param_browser_task": "Descrizione dell'attività in linguaggio naturale",
+      "param_light_name": "Nome o ID della luce",
+      "param_light_on": "Accendere (true) o spegnere (false)",
+      "param_brightness": "Luminosità in percentuale (0-100)",
+      "param_color": "Colore (red, blue, warm_white… o CIE x,y)",
+      "param_scene_name": "Nome o ID della scena",
+      "param_image_prompt": "Descrizione dettagliata dell'immagine",
+      "param_source_image": "UUID dell'immagine sorgente da modificare",
+
+      "guide_scripts_title": "Script Python",
+      "guide_scripts_body": "Le skill possono includere script Python eseguiti in un sandbox isolato. Gli script ricevono dati via stdin (JSON) e restituiscono risultati via stdout (JSON). Utile per calcoli, trasformazioni dati o elaborazioni personalizzate.",
+      "guide_scripts_rules_title": "Regole degli script:",
+      "guide_scripts_rule_1": "Solo file .py nella cartella scripts/ sono consentiti",
+      "guide_scripts_rule_2": "Gli script vengono eseguiti in un sandbox con timeout limitato",
+      "guide_scripts_rule_3": "Comunicazione via stdin/stdout in formato JSON",
+      "guide_scripts_rule_4": "Richiede il feature flag SKILLS_SCRIPTS_ENABLED",
+
+      "guide_skill_tools_title": "Strumenti interni delle skill",
+      "guide_skill_tools_body": "L'assistente dispone di 3 strumenti speciali per interagire con le skill attivate. Questi strumenti vengono chiamati automaticamente — non è necessario referenziarli nelle istruzioni.",
+      "guide_skilltool_activate": "Carica le istruzioni complete (L2) di una skill",
+      "guide_skilltool_read": "Legge un file di riferimento o asset dalla skill",
+      "guide_skilltool_run": "Esegue uno script Python dalla cartella scripts/",
+
       "guide_modal_compat_title": "Standard aperto agentskills.io",
       "guide_modal_compat_body": "Le skill sono compatibili al 100% con l'ecosistema agentskills.io — lo stesso formato è utilizzato da Claude Code, Cursor, VS Code, GitHub Copilot e oltre 30 altri prodotti. Importa skill da marketplace come skillsmp.com.",
       "guide_modal_link": "Scopri di più sullo standard agentskills.io"
@@ -2397,6 +2599,20 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_13": {
+          "title": "v1.13 — Design System v4, Skill e Amministrazione",
+          "date": "Marzo 2026",
+          "count": "7",
+          "items": {
+            "i1": "<b>Design System v4</b> — Ridisegno visivo completo delle 14 schede HTML con componenti riutilizzabili, vignette colorate, chip, avatar e sezioni espandibili",
+            "i2": "<b>Guida Skill ridisegnata</b> — Nuova guida completa in 3 tab (Fondamenti, Creare, Avanzato) con catalogo esaustivo di agenti, strumenti e parametri",
+            "i3": "<b>Amministrazione migliorata</b> — 5 nuovi contatori nella gestione utenti (Skill, MCP, Azioni pianificate, Spazi RAG, Bloccato) e ordinamento per Email/Bloccato nei limiti",
+            "i4": "<b>Multi-fornitore</b> — Calendario, Email, Contatti, Drive e Attività ora presentati come compatibili con Google, Microsoft e Apple",
+            "i5": "<b>DevOps Claude CLI</b> — Gli amministratori possono diagnosticare i server tramite Claude Code in linguaggio naturale direttamente da LIA",
+            "i6": "<b>Correzione DST calendario</b> — Gli eventi creati durante i cambi d'ora hanno ora l'orario corretto",
+            "i7": "<b>Correzione contesto inter-dominio</b> — \"Mostrami l'ultima email\" dopo aver visto il calendario funziona ora correttamente"
+          }
+        },
         "v1_12": {
           "title": "v1.12 — Generazione immagini e navigazione web",
           "date": "Marzo 2026",
@@ -4043,7 +4259,8 @@
       "login": "Accedi",
       "blog": "Blog",
       "philosophy": "Filosofia",
-      "technical": "Tecnica"
+      "technical": "Tecnica",
+      "faq": "FAQ"
     },
     "hero": {
       "badge_beta": "BETA",
@@ -4065,7 +4282,8 @@
       "trust_voices": "lingue vocali",
       "trust_gdpr": "Conforme GDPR",
       "badge_opensource": "Open Source",
-      "cta_github": "GitHub"
+      "cta_github": "GitHub",
+      "intro_paragraph": "LIA è un assistente IA personale open source che orchestra 16 agenti specializzati per gestire email, calendario, contatti, file, attività, promemoria, ricerca web, meteo, percorsi e casa intelligente. Compatibile con Google Workspace, Apple iCloud e Microsoft 365, LIA funziona in linguaggio naturale con validazione umana di ogni azione sensibile."
     },
     "chat_mockup": {
       "user_message": "Manda un'email a Maria dicendole che farò tardi stasera, usa un tono umoristico",
@@ -4231,6 +4449,7 @@
     "use_cases": {
       "title": "Casi d'uso",
       "subtitle": "LIA ti accompagna ogni giorno in ogni situazione",
+      "intro": "Ogni richiesta può mobilitare più agenti contemporaneamente. LIA identifica automaticamente i domini rilevanti, costruisce un piano di esecuzione e coordina gli agenti in parallelo — il tutto in pochi secondi, con la tua approvazione quando l'azione è sensibile.",
       "example1": {
         "query": "Trova i 3 migliori caffè vicino alla mia posizione che sono aperti adesso e dammi le indicazioni per raggiungerli a piedi",
         "description": "Geolocalizzazione + Luoghi + Percorsi — ricerca contestuale multi-criterio"
@@ -4252,6 +4471,26 @@
         "description": "Meteo + Luoghi + Analisi — raccomandazione contestuale multi-dominio"
       }
     },
+    "audience": {
+      "title": "Per chi è LIA?",
+      "subtitle": "Un assistente che si adatta a ogni profilo e ogni esigenza",
+      "freelance": {
+        "title": "Freelance / Indipendente",
+        "description": "Centralizza email, agenda e attività di più clienti senza passare da un'app all'altra."
+      },
+      "family": {
+        "title": "Famiglia",
+        "description": "Coordina i calendari familiari, imposta promemoria e trova percorsi per la vita quotidiana."
+      },
+      "developer": {
+        "title": "Sviluppatore",
+        "description": "Estendi LIA con i tuoi server MCP, crea skill personalizzati e distribuisci sotto-agenti specializzati."
+      },
+      "admin": {
+        "title": "Amministratore",
+        "description": "Controlla le quote di utilizzo, scegli i fornitori LLM per nodo e gestisci i permessi del team."
+      }
+    },
     "stats": {
       "agents": "Agenti IA",
       "tools": "Strumenti integrati",
@@ -4263,6 +4502,8 @@
     "security": {
       "title": "Sicurezza e Privacy",
       "subtitle": "Potente per natura. Privato per design.",
+      "intro": "LIA è stata progettata fin dal primo giorno con un approccio privacy by design. A differenza degli assistenti cloud centralizzati, le tue credenziali non transitano mai dal frontend: l'architettura Backend-for-Frontend isola completamente i tuoi token. Il filtraggio PII automatico impedisce ai dati personali identificabili di raggiungere i fornitori LLM.",
+      "privacy_link": "Leggi la nostra informativa sulla privacy",
       "data_control": {
         "title": "Controllo dei dati",
         "description": "I tuoi dati restano privati. Nessuna condivisione con terze parti, sessioni isolate, accesso strettamente limitato al necessario."
@@ -4283,6 +4524,8 @@
     "tech": {
       "title": "Sotto il cofano",
       "subtitle": "Un'architettura pensata per prestazioni e scalabilità",
+      "intro": "L'architettura di LIA si basa su una pipeline di orchestrazione LangGraph che scompone ogni richiesta in sotto-attività, le assegna ad agenti specializzati ed esegue i piani in parallelo. Il sistema apprende dai pattern ricorrenti tramite un modello bayesiano che ottimizza la pianificazione nel tempo, riducendo la latenza e i costi API.",
+      "deep_dive_link": "Approfondimento tecnico completo",
       "langgraph": {
         "title": "LangGraph",
         "description": "Orchestrazione di agenti con grafi di stato, esecuzione parallela a ondate e apprendimento bayesiano dei pattern di pianificazione."
@@ -4349,19 +4592,88 @@
       "title": "Pronto a provare LIA?",
       "subtitle": "Unisciti alla BETA e scopri cosa può fare per te un assistente IA davvero intelligente.",
       "button": "Crea il mio account",
-      "note_beta": "Applicazione operativa, testata in alpha. Abbonamenti a pagamento in arrivo."
+      "note_beta": "Applicazione operativa, testata in alpha. Abbonamenti a pagamento in arrivo.",
+      "philosophy_link": "Oppure scopri prima la nostra filosofia"
     },
     "blog_preview": {
       "title": "Dentro LIA: Approfondimenti tecnici",
       "subtitle": "Esplora l'architettura, le integrazioni e l'ingegneria dietro LIA attraverso i nostri articoli tecnici.",
-      "view_all": "Vedi tutti gli articoli"
+      "view_all": "Vedi tutti gli articoli",
+      "faq_link": "Domande? Consulta le nostre FAQ"
     },
     "footer": {
       "copyright": "© {{year}} LIA. Tutti i diritti riservati.",
       "last_updated": "Aggiornato il {{date}}",
       "docs": "Documentazione",
       "privacy": "Privacy",
-      "github": "GitHub"
+      "github": "GitHub",
+      "product": "Prodotto",
+      "resources": "Risorse",
+      "legal": "Legale",
+      "community": "Comunità",
+      "features": "Funzionalità",
+      "how_it_works": "Come funziona",
+      "blog": "Blog",
+      "faq": "FAQ",
+      "technical": "Tecnico",
+      "philosophy": "Filosofia",
+      "terms": "Termini"
+    }
+  },
+  "public_footer": {
+    "home": "Home",
+    "blog": "Blog",
+    "faq": "FAQ",
+    "technical": "Tecnico",
+    "philosophy": "Filosofia",
+    "privacy": "Privacy",
+    "terms": "Termini"
+  },
+  "privacy": {
+    "meta": {
+      "title": "Informativa sulla privacy — LIA",
+      "description": "Come LIA protegge i tuoi dati personali."
+    },
+    "hero": {
+      "title": "Informativa sulla privacy",
+      "subtitle": "Come LIA protegge i tuoi dati e rispetta la tua privacy."
+    },
+    "breadcrumb": "Privacy",
+    "toc": {
+      "introduction": "Introduzione",
+      "data_collected": "Dati raccolti",
+      "legal_basis": "Base giuridica",
+      "hosting": "Hosting",
+      "security": "Sicurezza",
+      "llm_providers": "Fornitori LLM",
+      "retention": "Conservazione",
+      "rights": "I tuoi diritti",
+      "cookies": "Cookie",
+      "contact": "Contatto"
+    }
+  },
+  "terms": {
+    "meta": {
+      "title": "Condizioni d'uso — LIA",
+      "description": "Condizioni d'uso di LIA."
+    },
+    "hero": {
+      "title": "Condizioni d'uso",
+      "subtitle": "Le regole che disciplinano l'uso del servizio LIA."
+    },
+    "breadcrumb": "Termini",
+    "toc": {
+      "purpose": "Oggetto",
+      "acceptance": "Accettazione",
+      "registration": "Registrazione",
+      "service": "Descrizione del servizio",
+      "usage": "Uso accettabile",
+      "opensource": "Open Source",
+      "personal_data": "Dati personali",
+      "availability": "Disponibilità",
+      "liability": "Responsabilità",
+      "termination": "Risoluzione",
+      "applicable_law": "Legge applicabile"
     }
   },
   "sub_agents": {

@@ -11,6 +11,7 @@ import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { LanguageSelector } from '@/components/LanguageSelector';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
+import { PublicFooter } from '@/components/layout/PublicFooter';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://lia.jeyswork.com';
 
@@ -191,12 +192,7 @@ export default async function BlogArticlePage({ params }: ArticlePageProps) {
           />
         </main>
 
-        {/* Footer */}
-        <footer className="border-t border-border/40 py-6 mt-8">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-sm text-muted-foreground">
-            {t('landing.footer.copyright', { year: new Date().getFullYear() })}
-          </div>
-        </footer>
+        <PublicFooter lng={lng} />
       </div>
     </>
   );

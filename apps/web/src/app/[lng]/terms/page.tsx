@@ -8,7 +8,7 @@ import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { LanguageSelector } from '@/components/LanguageSelector';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
-import { WhyContent } from '@/components/guides/WhyContent';
+import { TermsContent } from '@/components/legal/TermsContent';
 import { PublicFooter } from '@/components/layout/PublicFooter';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://lia.jeyswork.com';
@@ -17,24 +17,24 @@ function buildLangUrl(path: string, lng: Language): string {
   return lng === fallbackLng ? `${BASE_URL}${path}` : `${BASE_URL}/${lng}${path}`;
 }
 
-interface WhyPageProps {
+interface TermsPageProps {
   params: Promise<{ lng: string }>;
 }
 
-export async function generateMetadata({ params }: WhyPageProps): Promise<Metadata> {
+export async function generateMetadata({ params }: TermsPageProps): Promise<Metadata> {
   const { lng: lngParam } = await params;
   const lng = validateLanguage(lngParam);
   const { t } = await initI18next(lng);
 
-  const title = t('why.meta.title');
-  const description = t('why.meta.description');
-  const canonicalUrl = buildLangUrl('/why', lng);
+  const title = t('terms.meta.title');
+  const description = t('terms.meta.description');
+  const canonicalUrl = buildLangUrl('/terms', lng);
 
   const langAlternates: Record<string, string> = {};
   for (const l of languages) {
-    langAlternates[l] = buildLangUrl('/why', l);
+    langAlternates[l] = buildLangUrl('/terms', l);
   }
-  langAlternates['x-default'] = buildLangUrl('/why', fallbackLng);
+  langAlternates['x-default'] = buildLangUrl('/terms', fallbackLng);
 
   return {
     title,
@@ -61,7 +61,7 @@ export async function generateMetadata({ params }: WhyPageProps): Promise<Metada
   };
 }
 
-export default async function WhyPage({ params }: WhyPageProps) {
+export default async function TermsPage({ params }: TermsPageProps) {
   const { lng: lngParam } = await params;
   const lng = validateLanguage(lngParam);
   const { t } = await initI18next(lng);
@@ -75,7 +75,7 @@ export default async function WhyPage({ params }: WhyPageProps) {
       <BreadcrumbJsonLd
         items={[
           { name: 'LIA', url: buildLangUrl('/', lng) },
-          { name: t('why.breadcrumb'), url: buildLangUrl('/why', lng) },
+          { name: t('terms.breadcrumb'), url: buildLangUrl('/terms', lng) },
         ]}
       />
 
@@ -116,15 +116,15 @@ export default async function WhyPage({ params }: WhyPageProps) {
           {/* Hero */}
           <div className="max-w-3xl mx-auto mb-12 text-center">
             <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4">
-              {t('why.hero.title')}
+              {t('terms.hero.title')}
             </h1>
             <p className="text-lg text-muted-foreground leading-relaxed">
-              {t('why.hero.subtitle')}
+              {t('terms.hero.subtitle')}
             </p>
           </div>
 
           {/* Content */}
-          <WhyContent lng={lng} />
+          <TermsContent lng={lng} />
         </main>
 
         <PublicFooter lng={lng} />

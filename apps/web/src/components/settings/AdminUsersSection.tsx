@@ -16,6 +16,11 @@ import {
   Bookmark,
   Users,
   Sparkles,
+  Blocks,
+  Server,
+  Clock,
+  Database,
+  ShieldOff,
 } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { ADMIN_USERS_PAGE_SIZE, SEARCH_DEBOUNCE_MS } from '@/lib/constants';
@@ -72,6 +77,11 @@ interface User {
   active_connectors_count: number;
   memories_count: number;
   interests_count: number;
+  skills_count: number;
+  mcp_servers_count: number;
+  scheduled_actions_count: number;
+  rag_spaces_count: number;
+  is_usage_blocked: boolean;
 }
 
 interface UserListResponse {
@@ -362,6 +372,13 @@ export default function AdminUsersSection({ lng, collapsible = true }: BaseSetti
                   <th
                     className="px-3 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider"
                     role="columnheader"
+                    title={t('settings.admin.users.table.blocked')}
+                  >
+                    <ShieldOff className="h-4 w-4 mx-auto" />
+                  </th>
+                  <th
+                    className="px-3 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                    role="columnheader"
                     title={t('settings.admin.users.table.voice')}
                   >
                     <Volume2 className="h-4 w-4 mx-auto" />
@@ -400,6 +417,34 @@ export default function AdminUsersSection({ lng, collapsible = true }: BaseSetti
                     title={t('settings.admin.users.table.interests')}
                   >
                     <Sparkles className="h-4 w-4 mx-auto" />
+                  </th>
+                  <th
+                    className="px-3 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                    role="columnheader"
+                    title={t('settings.admin.users.table.skills')}
+                  >
+                    <Blocks className="h-4 w-4 mx-auto" />
+                  </th>
+                  <th
+                    className="px-3 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                    role="columnheader"
+                    title={t('settings.admin.users.table.mcp_servers')}
+                  >
+                    <Server className="h-4 w-4 mx-auto" />
+                  </th>
+                  <th
+                    className="px-3 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                    role="columnheader"
+                    title={t('settings.admin.users.table.scheduled_actions')}
+                  >
+                    <Clock className="h-4 w-4 mx-auto" />
+                  </th>
+                  <th
+                    className="px-3 py-3 text-center text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                    role="columnheader"
+                    title={t('settings.admin.users.table.rag_spaces')}
+                  >
+                    <Database className="h-4 w-4 mx-auto" />
                   </th>
                   <th
                     className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
@@ -498,6 +543,14 @@ export default function AdminUsersSection({ lng, collapsible = true }: BaseSetti
                         <span className="ml-1 text-primary font-semibold text-xs">★</span>
                       )}
                     </td>
+                    {/* Usage blocked */}
+                    <td className="px-3 py-3 whitespace-nowrap text-center">
+                      {user.is_usage_blocked ? (
+                        <ShieldOff className="h-4 w-4 mx-auto text-destructive" />
+                      ) : (
+                        <span className="text-muted-foreground/40">—</span>
+                      )}
+                    </td>
                     {/* Voice enabled */}
                     <td className="px-3 py-3 whitespace-nowrap text-center">
                       {user.voice_enabled ? (
@@ -544,6 +597,38 @@ export default function AdminUsersSection({ lng, collapsible = true }: BaseSetti
                         className={`text-sm font-medium tabular-nums ${user.interests_count > 0 ? 'text-primary' : 'text-muted-foreground/40'}`}
                       >
                         {user.interests_count}
+                      </span>
+                    </td>
+                    {/* Skills count */}
+                    <td className="px-3 py-3 whitespace-nowrap text-center">
+                      <span
+                        className={`text-sm font-medium tabular-nums ${user.skills_count > 0 ? 'text-primary' : 'text-muted-foreground/40'}`}
+                      >
+                        {user.skills_count}
+                      </span>
+                    </td>
+                    {/* MCP servers count */}
+                    <td className="px-3 py-3 whitespace-nowrap text-center">
+                      <span
+                        className={`text-sm font-medium tabular-nums ${user.mcp_servers_count > 0 ? 'text-primary' : 'text-muted-foreground/40'}`}
+                      >
+                        {user.mcp_servers_count}
+                      </span>
+                    </td>
+                    {/* Scheduled actions count */}
+                    <td className="px-3 py-3 whitespace-nowrap text-center">
+                      <span
+                        className={`text-sm font-medium tabular-nums ${user.scheduled_actions_count > 0 ? 'text-primary' : 'text-muted-foreground/40'}`}
+                      >
+                        {user.scheduled_actions_count}
+                      </span>
+                    </td>
+                    {/* RAG spaces count */}
+                    <td className="px-3 py-3 whitespace-nowrap text-center">
+                      <span
+                        className={`text-sm font-medium tabular-nums ${user.rag_spaces_count > 0 ? 'text-primary' : 'text-muted-foreground/40'}`}
+                      >
+                        {user.rag_spaces_count}
                       </span>
                     </td>
                     {/* Actions */}

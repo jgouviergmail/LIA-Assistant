@@ -5,12 +5,14 @@ All tool names and parameters are verified against the source code.
 
 > **For plan_template steps**: use `agent_name` and `tool_name` exactly as listed below.
 > Parameters marked (required) must be provided. Others are optional with sensible defaults.
+>
+> Tools marked **Connector** work with Google, Microsoft, or Apple depending on the user's connected provider.
 
 ---
 
-## Google Calendar — `event_agent`
+## Calendar — `event_agent`
 
-Requires OAuth. Domain: `event`.
+Requires connector (Google / Microsoft / Apple). Domain: `event`.
 
 ### get_events_tool (unified)
 Search, list, or fetch calendar events.
@@ -48,13 +50,13 @@ Search, list, or fetch calendar events.
 
 ---
 
-## Gmail — `email_agent`
+## Email — `email_agent`
 
-Requires OAuth. Domain: `email`.
+Requires connector (Google / Microsoft / Apple). Domain: `email`.
 
 ### get_emails_tool (unified)
 Search, list, or fetch emails.
-- `query` (string) — Gmail search query (e.g., `"in:inbox newer_than:1d"`, `"from:user@example.com"`)
+- `query` (string) — Email search query (e.g., `"in:inbox newer_than:1d"`, `"from:user@example.com"`)
 - `message_id` (string) — Fetch a specific email by ID
 - `message_ids` (list[string]) — Batch fetch multiple emails
 - `max_results` (int) — Maximum number of results
@@ -85,9 +87,9 @@ Search, list, or fetch emails.
 
 ---
 
-## Gmail Labels — `email_agent`
+## Email Labels — `email_agent`
 
-Requires OAuth. Same agent as Gmail.
+Requires connector. Same agent as Email.
 
 ### list_labels_tool
 - `name_filter` (string) — Filter labels by name substring
@@ -117,9 +119,9 @@ Requires OAuth. Same agent as Gmail.
 
 ---
 
-## Google Contacts — `contact_agent`
+## Contacts — `contact_agent`
 
-Requires OAuth. Domain: `contact`.
+Requires connector (Google / Microsoft / Apple). Domain: `contact`.
 
 ### get_contacts_tool (unified)
 Search, list, or fetch contacts.
@@ -146,9 +148,9 @@ Search, list, or fetch contacts.
 
 ---
 
-## Google Drive — `file_agent`
+## Drive / Files — `file_agent`
 
-Requires OAuth. Domain: `file`.
+Requires connector (Google / Microsoft). Domain: `file`.
 
 ### get_files_tool (unified)
 Search, list, or fetch files.
@@ -164,9 +166,9 @@ Search, list, or fetch files.
 
 ---
 
-## Google Tasks — `task_agent`
+## Tasks — `task_agent`
 
-Requires OAuth. Domain: `task`.
+Requires connector (Google / Microsoft). Domain: `task`.
 
 ### get_tasks_tool (unified)
 Search, list, or fetch tasks.

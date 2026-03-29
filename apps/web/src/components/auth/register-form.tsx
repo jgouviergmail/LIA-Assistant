@@ -1,7 +1,10 @@
 'use client';
 
 import { FormEvent, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useLocalizedRouter } from '@/hooks/useLocalizedRouter';
+import { getLanguageFromPath, buildLocalizedPath } from '@/utils/i18n-path-utils';
 import { useAuth } from '@/hooks/useAuth';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -15,6 +18,8 @@ import { Check, X } from 'lucide-react';
 
 export function RegisterForm() {
   const router = useLocalizedRouter();
+  const pathname = usePathname();
+  const currentLang = getLanguageFromPath(pathname);
   const { register } = useAuth();
   const { t } = useTranslation();
   const [name, setName] = useState('');
@@ -177,6 +182,23 @@ export function RegisterForm() {
         <Button type="submit" className="w-full" isLoading={isLoading}>
           {t('auth.register_button')}
         </Button>
+
+        <p className="text-xs text-center text-muted-foreground mt-3">
+          {t('auth.register.terms_prefix')}{' '}
+          <Link
+            href={buildLocalizedPath('/terms', currentLang)}
+            className="underline hover:text-foreground"
+          >
+            {t('auth.register.terms_link')}
+          </Link>
+          {' '}{t('auth.register.terms_and')}{' '}
+          <Link
+            href={buildLocalizedPath('/privacy', currentLang)}
+            className="underline hover:text-foreground"
+          >
+            {t('auth.register.privacy_link')}
+          </Link>
+        </p>
       </form>
     </Card>
   );

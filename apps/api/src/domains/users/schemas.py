@@ -145,6 +145,11 @@ class UserProfileWithStats(UserProfile):
     active_connectors_count: int = Field(0, description="Number of active connectors")
     memories_count: int = Field(0, description="Number of memories stored")
     interests_count: int = Field(0, description="Number of interests")
+    skills_count: int = Field(0, description="Number of user-imported skills")
+    mcp_servers_count: int = Field(0, description="Number of user MCP servers")
+    scheduled_actions_count: int = Field(0, description="Number of scheduled actions")
+    rag_spaces_count: int = Field(0, description="Number of RAG knowledge spaces")
+    is_usage_blocked: bool = Field(False, description="Whether user is usage-blocked by admin")
 
     model_config = {"from_attributes": True}
 

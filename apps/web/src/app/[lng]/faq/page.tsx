@@ -4,6 +4,7 @@ import { initI18next, validateLanguage } from '@/i18n';
 import { languages, fallbackLng, LOCALE_MAP } from '@/i18n/settings';
 import type { Language } from '@/i18n/settings';
 import { FAQPageJsonLd, BreadcrumbJsonLd } from '@/components/seo/JsonLd';
+import { PublicFooter } from '@/components/layout/PublicFooter';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://lia.jeyswork.com';
 
@@ -178,12 +179,7 @@ export default async function PublicFAQPage({ params }: FAQPageProps) {
           </div>
         </main>
 
-        {/* Footer */}
-        <footer className="border-t border-border/40 py-6 mt-12">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 text-center text-sm text-muted-foreground">
-            {t('landing.footer.copyright', { year: new Date().getFullYear() })}
-          </div>
-        </footer>
+        <PublicFooter lng={lng} />
       </div>
     </>
   );

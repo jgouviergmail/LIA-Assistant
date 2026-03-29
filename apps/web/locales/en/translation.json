@@ -250,6 +250,8 @@
       "oauth_separator": "OR",
       "google_register": "Sign up with Google",
       "terms": "By creating an account, you agree to our {{terms}} and {{privacy}}",
+      "terms_prefix": "By creating an account, you agree to our",
+      "terms_and": "and",
       "terms_link": "Terms of Service",
       "privacy_link": "Privacy Policy"
     },
@@ -1059,6 +1061,11 @@
           "connectors": "Active connectors",
           "memories": "Stored memories",
           "interests": "Interests",
+          "skills": "User skills",
+          "mcp_servers": "MCP servers",
+          "scheduled_actions": "Scheduled actions",
+          "rag_spaces": "RAG spaces",
+          "blocked": "Blocked",
           "actions": "Actions",
           "last_message": "Last message",
           "messages_short": "Msgs",
@@ -1874,28 +1881,223 @@
       "edit_description_success": "Description of \"{{name}}\" updated and translated.",
       "edit_description_error": "Failed to update description.",
       "guide_button": "Guide",
-      "guide_modal_title": "Create a Skill (Capability)",
+      "guide_modal_title": "Skills Guide",
+      "guide_modal_subtitle": "Learn how to create skills to customize and extend LIA's capabilities.",
+      "guide_tab_fundamentals": "Fundamentals",
+      "guide_tab_create": "Create a skill",
+      "guide_tab_advanced": "Advanced",
+
       "guide_modal_what_title": "What is a skill?",
-      "guide_modal_what_body": "A skill is a SKILL.md file that gives the assistant expert instructions for a specific domain. The assistant reads these instructions and applies them automatically when relevant — without you having to repeat the context each time.",
-      "guide_modal_format_title": "SKILL.md File Format",
-      "guide_modal_format_intro": "A SKILL.md file starts with a YAML header (between ---) containing metadata, followed by a Markdown body with the detailed instructions.",
-      "guide_modal_struct_title": "Folder Structure (optional)",
-      "guide_modal_struct_body": "For complex skills, import a .zip file containing SKILL.md and sub-folders: references/ for reference documents, scripts/ for executable Python scripts, assets/ for templates and resources.",
+      "guide_modal_what_body": "A skill is a SKILL.md file that gives the assistant expert instructions for a specific domain. The assistant reads these instructions and applies them automatically when relevant — without you having to repeat the context each time. Skills can include reference documents, Python scripts, and templates.",
+
+      "guide_archetypes_title": "The 3 skill types",
+      "guide_archetype_prompt_expert_name": "Prompt Expert",
+      "guide_archetype_prompt_expert_badge": "Pure instructions",
+      "guide_archetype_prompt_expert_desc": "Expert instructions the assistant follows for a domain (coaching, writing, methodology…). No specific tools — the assistant applies its conversational expertise.",
+      "guide_archetype_advisory_name": "Advisory",
+      "guide_archetype_advisory_badge": "Instructions + tools",
+      "guide_archetype_advisory_desc": "A structured methodology where the assistant uses available tools organically (calendar, emails, contacts…). It decides which tools to call based on context.",
+      "guide_archetype_plan_template_name": "Plan Template",
+      "guide_archetype_plan_template_badge": "Automation",
+      "guide_archetype_plan_template_desc": "A deterministic workflow with predefined tool calls, executed in sequence or in parallel. Ideal for recurring routines (briefings, reports, audits…).",
+
+      "guide_activation_title": "How activation works",
+      "guide_activation_body": "Skills use a 3-tier loading model to optimize token consumption:",
+      "guide_tier_l1": "Catalogue — Name and description loaded at session start (~50 tokens/skill)",
+      "guide_tier_l2": "Instructions — Full SKILL.md body loaded when the skill is activated (< 5000 tokens)",
+      "guide_tier_l3": "Resources — Individual files (references/, scripts/, assets/) loaded on demand",
+
       "guide_modal_tips_title": "Best Practices",
-      "guide_modal_tip_1": "Write the description in the third person: \"Generates...\", \"Provides...\", \"Guides...\"",
+      "guide_modal_tip_1": "Write the description in English, third person: \"Generates...\", \"Provides...\", \"Guides...\"",
       "guide_modal_tip_2": "The description should state what the skill does AND when to use it (the trigger).",
       "guide_modal_tip_3": "Keep instructions concise and structured — prefer numbered lists.",
-      "guide_modal_tip_4": "Name your skill in lowercase without spaces: use my-skill (kebab-case).",
-      "guide_modal_plan_title": "Automatic Plan (optional)",
+      "guide_modal_tip_4": "Name your skill in kebab-case: my-skill (lowercase, hyphens, no spaces).",
+      "guide_modal_tip_5": "List available resources at the end of SKILL.md with their relative path and a description.",
+      "guide_modal_tip_6": "Test with simple queries before making the skill more complex.",
+
+      "guide_modal_format_title": "SKILL.md file format",
+      "guide_modal_format_intro": "A SKILL.md file starts with a YAML header (between ---) containing metadata, followed by a Markdown body with the detailed instructions.",
+      "guide_frontmatter_title": "YAML header fields:",
+      "guide_field_name": "Unique identifier in kebab-case (2-64 characters)",
+      "guide_field_description": "English description, 3rd person, max 1024 characters",
+      "guide_field_category": "UI grouping (quotidien, recherche, communication, organisation, productivite, developpement)",
+      "guide_field_priority": "Display order (default: 50, higher = shown first)",
+      "guide_field_plan_template": "Deterministic execution plan (see Advanced tab)",
+      "guide_field_always_loaded": "Always inject instructions (costs tokens every conversation)",
+
+      "guide_example_simple_title": "Example: Prompt Expert Skill",
+      "guide_example_simple_desc": "The simplest type — pure instructions the assistant follows when the topic comes up. No tools or plan needed.",
+      "guide_example_advisory_title": "Example: Advisory Skill",
+      "guide_example_advisory_desc": "The assistant follows a methodology and uses available tools (calendar, emails, contacts) organically as needed.",
+
+      "guide_modal_struct_title": "Folder structure",
+      "guide_modal_struct_body": "For complex skills, import a .zip file containing SKILL.md and optional sub-folders:",
+      "guide_struct_skillmd": "Main file (required)",
+      "guide_struct_references": "Reference documents loaded on demand",
+      "guide_struct_scripts": "Python scripts executed in a sandbox",
+      "guide_struct_assets": "Templates, images and static resources",
+      "guide_struct_translations": "Multilingual descriptions (6 languages)",
+
+      "guide_resources_title": "Using resources",
+      "guide_resource_references_desc": "Text documents (.md, .txt) the assistant can read on demand via read_skill_resource. Ideal for storing detailed guides, templates, or reference data too large for the SKILL.md.",
+      "guide_resource_references_usage": "Usage: mention the file in the \"Available Resources\" section of your SKILL.md — the assistant will read them automatically.",
+      "guide_resource_scripts_desc": "Python scripts (.py) executed in an isolated sandbox via run_skill_script. They receive data as JSON on stdin and return results as JSON on stdout.",
+      "guide_resource_scripts_usage": "Usage: describe the script and its parameters in SKILL.md. The assistant will execute it when needed.",
+      "guide_resource_assets_desc": "Static files (images, HTML/CSV templates, JSON data) accessible for reading. Useful for output templates, logos, or configurations.",
+      "guide_resource_assets_usage": "Usage: reference them in the instructions. The assistant can read and use them to format responses.",
+
+      "guide_import_title": "How to import",
+      "guide_import_body": "Import a single SKILL.md file for a simple skill, or a .zip file containing the complete folder (SKILL.md + references/ + scripts/ + assets/). Use the \"Import\" button above. Limits: 100 KB for SKILL.md, 50 KB per resource file, 20 skills max per user.",
+
+      "guide_modal_plan_title": "Plan Template (automation)",
       "guide_modal_plan_body": "The plan_template defines a sequence of tools executed automatically, bypassing the LLM planner. Ideal for recurring, predictable workflows. Steps without depends_on run in parallel.",
       "guide_modal_plan_fields_title": "Step fields:",
       "guide_modal_plan_field_step_id": "Unique step identifier (e.g. get_events)",
-      "guide_modal_plan_field_agent": "Agent name to use (see table below)",
-      "guide_modal_plan_field_tool": "Tool name to call",
-      "guide_modal_plan_field_params": "Parameters passed to the tool (e.g. {days: 3})",
-      "guide_modal_plan_field_depends": "[] = parallel, [\"step_id\"] = sequential after that step",
-      "guide_modal_plan_agents": "Available agents and their main tools:",
-      "guide_modal_plan_note": "Each agent has additional tools (create, update, delete…). Only read tools are listed here.",
+      "guide_modal_plan_field_agent_name": "Agent name to use (see catalogue below)",
+      "guide_modal_plan_field_tool_name": "Tool name to call",
+      "guide_modal_plan_field_parameters": "Parameters passed to the tool (e.g. {days: 3})",
+      "guide_modal_plan_field_depends_on": "[] = parallel, [\"step_id\"] = sequential after that step",
+      "guide_modal_plan_field_step_type": "Type: TOOL (default), CONDITIONAL, PARALLEL or RESPONSE",
+
+      "guide_autotrigger_title": "Auto-trigger",
+      "guide_autotrigger_body": "Skills with plan_template are auto-triggered when the user's query covers ALL domains in the template. E.g., a skill with event_agent + weather_agent triggers when the user asks for both their schedule and the weather.",
+
+      "guide_tools_title": "Agent & tool catalogue",
+      "guide_tools_intro": "Complete reference of agents and their tools with parameters and types. Use exact names in the plan_template's agent_name and tool_name. Parameters marked * are required.",
+      "guide_cat_productivity": "Productivity (Calendar, Email, Contacts, Drive, Tasks)",
+      "guide_cat_web_search": "Web Search",
+      "guide_cat_location_weather": "Location & Weather",
+      "guide_cat_other": "Other (Reminders, Browser, IoT, Images)",
+      "guide_tools_note": "Tools marked \"Connector\" work with Google, Microsoft, or Apple depending on the connected provider. MCP agents (external servers) are dynamic and cannot be used in static plan_templates.",
+
+      "tool_get_events": "Search/list events",
+      "tool_create_event": "Create an event",
+      "tool_update_event": "Update an event",
+      "tool_delete_event": "Delete an event",
+      "tool_list_calendars": "List calendars",
+      "tool_get_emails": "Search/list emails",
+      "tool_send_email": "Send an email",
+      "tool_reply_email": "Reply to an email",
+      "tool_forward_email": "Forward an email",
+      "tool_apply_labels": "Apply labels",
+      "tool_get_contacts": "Search/list contacts",
+      "tool_create_contact": "Create a contact",
+      "tool_get_files": "Search/list files",
+      "tool_get_tasks": "Search/list tasks",
+      "tool_create_task": "Create a task",
+      "tool_complete_task": "Mark task as completed",
+      "tool_web_search": "Unified web search (Perplexity + Brave + Wikipedia)",
+      "tool_fetch_page": "Fetch web page content",
+      "tool_search_wikipedia": "Search Wikipedia",
+      "tool_get_article": "Read a Wikipedia article",
+      "tool_perplexity_search": "AI search with citations",
+      "tool_perplexity_ask": "Ask Perplexity a question",
+      "tool_brave_search": "Brave web search",
+      "tool_brave_news": "Brave news search",
+      "tool_get_places": "Search for places",
+      "tool_get_route": "Calculate a route",
+      "tool_current_weather": "Current weather",
+      "tool_weather_forecast": "Weather forecast (days)",
+      "tool_hourly_forecast": "Hourly forecast",
+      "tool_create_reminder": "Create a reminder",
+      "tool_list_reminders": "List active reminders",
+      "tool_cancel_reminder": "Cancel a reminder",
+      "tool_browser_task": "Execute a web browsing task",
+      "tool_list_lights": "List Hue lights",
+      "tool_control_light": "Control a light",
+      "tool_activate_scene": "Activate a Hue scene",
+      "tool_generate_image": "Generate an AI image",
+      "tool_edit_image": "Edit an existing image",
+
+      "param_search_query": "Search query",
+      "param_event_id": "Event ID",
+      "param_time_min": "Start of time range (ISO 8601)",
+      "param_time_max": "End of time range (ISO 8601)",
+      "param_days_ahead": "Number of days to fetch",
+      "param_max_results": "Maximum number of results",
+      "param_event_summary": "Event title",
+      "param_start_dt": "Start date/time (ISO 8601)",
+      "param_end_dt": "End date/time (ISO 8601)",
+      "param_timezone": "Timezone (e.g. Europe/Paris)",
+      "param_description": "Description",
+      "param_location": "Location or address",
+      "param_attendees": "Attendee email addresses",
+      "param_show_hidden": "Include hidden calendars",
+      "param_gmail_query": "Gmail query (e.g. in:inbox newer_than:1d)",
+      "param_message_id": "Message ID",
+      "param_email_to": "Recipient email address",
+      "param_email_subject": "Email subject",
+      "param_email_body": "Message body",
+      "param_content_instruction": "AI instruction to compose the body",
+      "param_cc": "CC recipients",
+      "param_is_html": "Send as HTML",
+      "param_reply_all": "Reply to all",
+      "param_label_names": "Label names to apply",
+      "param_resource_name": "Contact resource identifier",
+      "param_contact_name": "Full name",
+      "param_contact_email": "Email address",
+      "param_contact_phone": "Phone number",
+      "param_organization": "Company/organization",
+      "param_file_id": "File ID",
+      "param_folder_id": "Folder ID",
+      "param_include_content": "Include file content",
+      "param_search_mode": "Mode: name_only or full_text",
+      "param_task_id": "Task ID",
+      "param_task_list_id": "Task list ID",
+      "param_show_completed": "Include completed tasks",
+      "param_task_title": "Task title",
+      "param_task_notes": "Notes/description",
+      "param_task_due": "Due date (ISO 8601)",
+      "param_recency": "Filter: day, week or month",
+      "param_url": "Page URL",
+      "param_extract_mode": "Mode: article (main content) or full",
+      "param_max_length": "Max length in characters",
+      "param_language": "Language code (e.g. fr, en)",
+      "param_article_title": "Article title",
+      "param_question": "Question to ask",
+      "param_context": "Additional context",
+      "param_count": "Number of results (1-10)",
+      "param_freshness": "Freshness: pd (day), pw (week), pm (month)",
+      "param_place_type": "Place type (restaurant, hospital…)",
+      "param_radius": "Search radius in meters",
+      "param_open_now": "Only currently open places",
+      "param_min_rating": "Minimum rating (1.0-5.0)",
+      "param_destination": "Destination address",
+      "param_origin": "Origin address (default: current location)",
+      "param_travel_mode": "Mode: DRIVE, WALK, BICYCLE, TRANSIT",
+      "param_departure": "Departure time (ISO 8601)",
+      "param_waypoints": "Intermediate stops",
+      "param_units": "Units: metric or imperial",
+      "param_forecast_days": "Number of forecast days (1-5)",
+      "param_hours": "Number of hours (1-48)",
+      "param_reminder_content": "Reminder content",
+      "param_original_message": "User's original message",
+      "param_trigger_dt": "Trigger date/time (ISO 8601)",
+      "param_relative_trigger": "Relative trigger (e.g. in 30 minutes)",
+      "param_reminder_id": "Reminder ID or description",
+      "param_browser_task": "Natural language task description",
+      "param_light_name": "Light name or ID",
+      "param_light_on": "Turn on (true) or off (false)",
+      "param_brightness": "Brightness percentage (0-100)",
+      "param_color": "Color (red, blue, warm_white… or CIE x,y)",
+      "param_scene_name": "Scene name or ID",
+      "param_image_prompt": "Detailed image description",
+      "param_source_image": "UUID of the source image to edit",
+
+      "guide_scripts_title": "Python Scripts",
+      "guide_scripts_body": "Skills can include Python scripts executed in an isolated sandbox. Scripts receive data via stdin (JSON) and return results via stdout (JSON). Useful for calculations, data transformations, or custom processing.",
+      "guide_scripts_rules_title": "Script rules:",
+      "guide_scripts_rule_1": "Only .py files in the scripts/ folder are allowed",
+      "guide_scripts_rule_2": "Scripts run in a sandbox with a limited timeout",
+      "guide_scripts_rule_3": "Communication via stdin/stdout in JSON format",
+      "guide_scripts_rule_4": "Requires the SKILLS_SCRIPTS_ENABLED feature flag",
+
+      "guide_skill_tools_title": "Internal skill tools",
+      "guide_skill_tools_body": "The assistant has 3 special tools to interact with activated skills. These tools are called automatically — you don't need to reference them in your instructions.",
+      "guide_skilltool_activate": "Loads the full instructions (L2) of a skill",
+      "guide_skilltool_read": "Reads a reference or asset file from the skill",
+      "guide_skilltool_run": "Executes a Python script from the scripts/ folder",
+
       "guide_modal_compat_title": "Open Standard agentskills.io",
       "guide_modal_compat_body": "Skills are 100% compatible with the agentskills.io ecosystem — the same format is used by Claude Code, Cursor, VS Code, GitHub Copilot and 30+ other products. Import skills from marketplaces like skillsmp.com.",
       "guide_modal_link": "Learn more about the agentskills.io standard"
@@ -2404,6 +2606,20 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_13": {
+          "title": "v1.13 — Design System v4, Skills & Administration",
+          "date": "March 2026",
+          "count": "7",
+          "items": {
+            "i1": "<b>Design System v4</b> — Complete visual redesign of all 14 HTML cards with reusable components, colored vignettes, chips, avatars and collapsible sections",
+            "i2": "<b>Skills Guide Redesigned</b> — New comprehensive 3-tab guide (Fundamentals, Create, Advanced) with full agent, tool and parameter catalogue",
+            "i3": "<b>Enhanced Administration</b> — 5 new counters in user management (Skills, MCP, Scheduled Actions, RAG Spaces, Blocked) and sortable Email/Blocked columns in limits",
+            "i4": "<b>Multi-provider</b> — Calendar, Email, Contacts, Drive and Tasks tools now presented as compatible with Google, Microsoft and Apple",
+            "i5": "<b>DevOps Claude CLI</b> — Administrators can diagnose servers via Claude Code in natural language directly from LIA",
+            "i6": "<b>Calendar DST Fix</b> — Events created during daylight saving transitions now have the correct time",
+            "i7": "<b>Cross-domain context fix</b> — \"Show me the last email\" after viewing calendar events now works correctly"
+          }
+        },
         "v1_12": {
           "title": "v1.12 — Image Generation & Web Browsing",
           "date": "March 2026",
@@ -4042,7 +4258,8 @@
       "login": "Sign in",
       "blog": "Blog",
       "philosophy": "Philosophy",
-      "technical": "Technical"
+      "technical": "Technical",
+      "faq": "FAQ"
     },
     "hero": {
       "badge_beta": "BETA",
@@ -4064,7 +4281,8 @@
       "trust_voices": "voice languages",
       "trust_gdpr": "GDPR compliant",
       "badge_opensource": "Open Source",
-      "cta_github": "GitHub"
+      "cta_github": "GitHub",
+      "intro_paragraph": "LIA is an open-source personal AI assistant that orchestrates 16 specialized agents to manage your emails, calendar, contacts, files, tasks, reminders, web search, weather, routes, and smart home. Compatible with Google Workspace, Apple iCloud, and Microsoft 365, LIA works in natural language with human validation of every sensitive action. Available in 6 interface languages, with voice mode and 7 LLM providers to choose from."
     },
     "chat_mockup": {
       "user_message": "Send an email to Marie telling her I'll be late tonight, use a humorous tone",
@@ -4230,25 +4448,46 @@
     "use_cases": {
       "title": "Use cases",
       "subtitle": "LIA assists you daily in every situation",
+      "intro": "Each request can mobilize multiple agents simultaneously. LIA automatically identifies the relevant domains, builds an execution plan, and coordinates agents in parallel — all in a few seconds, with your approval when the action is sensitive.",
       "example1": {
         "query": "Find the 3 best cafés near my location that are open right now and give me walking directions to get there",
-        "description": "Geolocation + Places + Routes — multi-criteria contextual search"
+        "description": "LIA activates 3 agents in parallel: geolocation for your current position, place search with an \"open now\" filter, and pedestrian route calculation. Results are displayed as interactive cards with distances and walking times."
       },
       "example2": {
         "query": "Send an email to my wife and son to explain I'll be 30 minutes late. Write it in a slightly humorous tone to soften the blow",
-        "description": "Contacts (memory) + Emails — personalized multi-recipient writing"
+        "description": "LIA retrieves contacts from memory, drafts an email in the requested tone, and sends it to both recipients after your approval. Personality and writing style adapt to your instructions."
       },
       "example3": {
         "query": "What time do I need to leave to arrive at Bastille tomorrow at 9pm by public transport?",
-        "description": "Routes + Schedules — reverse departure time calculation"
+        "description": "The route agent calculates travel time by public transit and deduces the optimal departure time. Results displayed as an interactive card with journey steps."
       },
       "example4": {
         "query": "Create a reminder the day before at 7pm for each of my appointments this week",
-        "description": "Calendar + Reminders — automatic FOR_EACH bulk iteration"
+        "description": "LIA checks your calendar, identifies all appointments for the week, and creates an evening reminder for each one via automatic FOR_EACH iteration — a single request is all it takes."
       },
       "example5": {
         "query": "Which day this week will be best for an outdoor walk and what are 3 places near Joinville-le-Pont that would be great for it, ideally near a nice café",
-        "description": "Weather + Places + Analysis — multi-domain contextual recommendation"
+        "description": "LIA cross-references 5-day weather forecasts, searches for walking spots near Strasbourg, and filters those near a café. Three agents work in parallel for a complete recommendation."
+      }
+    },
+    "audience": {
+      "title": "Who is LIA for?",
+      "subtitle": "An assistant that adapts to every profile and every need",
+      "freelance": {
+        "title": "Freelancer / Independent",
+        "description": "Centralize emails, calendar, and tasks from multiple clients without juggling between apps. LIA unifies Google, Apple, and Microsoft in a single conversation."
+      },
+      "family": {
+        "title": "Family",
+        "description": "Coordinate family calendars, set reminders, and find routes for daily life. Each member can choose their preferred language and personality."
+      },
+      "developer": {
+        "title": "Developer",
+        "description": "Extend LIA with your own MCP servers, create custom skills, and deploy specialized sub-agents. The source code is open and documented."
+      },
+      "admin": {
+        "title": "Administrator",
+        "description": "Control usage quotas, choose LLM providers per node, and manage team permissions from the admin panel."
       }
     },
     "stats": {
@@ -4262,6 +4501,8 @@
     "security": {
       "title": "Security & Privacy",
       "subtitle": "Powerful by nature. Private by design.",
+      "intro": "LIA was designed from day one with a privacy-by-design approach. Unlike centralized cloud assistants, your credentials never pass through the frontend: the Backend-for-Frontend architecture completely isolates your tokens. Automatic PII filtering prevents personally identifiable data from reaching LLM providers.",
+      "privacy_link": "Read our privacy policy",
       "data_control": {
         "title": "Data control",
         "description": "Your data stays private. No sharing with third parties, isolated sessions, access strictly limited to what's necessary."
@@ -4282,6 +4523,8 @@
     "tech": {
       "title": "Under the hood",
       "subtitle": "An architecture built for performance and scalability",
+      "intro": "LIA's architecture is built on a LangGraph orchestration pipeline that breaks down each request into subtasks, assigns them to specialized agents, and executes plans in parallel. The system learns from recurring patterns via a Bayesian model that optimizes planning over time, reducing latency and API costs.",
+      "deep_dive_link": "Full technical deep dive",
       "langgraph": {
         "title": "LangGraph",
         "description": "Agent orchestration with state graphs, wave-based parallel execution, and Bayesian plan pattern learning."
@@ -4348,19 +4591,88 @@
       "title": "Ready to try LIA?",
       "subtitle": "Join the BETA and discover what a truly intelligent AI assistant can do for you.",
       "button": "Create my account",
-      "note_beta": "Fully operational app, alpha-tested. Paid subscriptions coming soon."
+      "note_beta": "Fully operational app, alpha-tested. Paid subscriptions coming soon.",
+      "philosophy_link": "Or discover our philosophy first"
     },
     "blog_preview": {
       "title": "Inside LIA: Technical Insights",
       "subtitle": "Explore the architecture, integrations, and engineering behind LIA through our technical articles.",
-      "view_all": "View all articles"
+      "view_all": "View all articles",
+      "faq_link": "Questions? Check our FAQ"
     },
     "footer": {
       "copyright": "© {{year}} LIA. All rights reserved.",
       "last_updated": "Updated {{date}}",
       "docs": "Documentation",
       "privacy": "Privacy",
-      "github": "GitHub"
+      "github": "GitHub",
+      "product": "Product",
+      "resources": "Resources",
+      "legal": "Legal",
+      "community": "Community",
+      "features": "Features",
+      "how_it_works": "How it works",
+      "blog": "Blog",
+      "faq": "FAQ",
+      "technical": "Technical",
+      "philosophy": "Philosophy",
+      "terms": "Terms"
+    }
+  },
+  "public_footer": {
+    "home": "Home",
+    "blog": "Blog",
+    "faq": "FAQ",
+    "technical": "Technical",
+    "philosophy": "Philosophy",
+    "privacy": "Privacy",
+    "terms": "Terms"
+  },
+  "privacy": {
+    "meta": {
+      "title": "Privacy Policy — LIA",
+      "description": "How LIA protects your personal data. Encryption, BFF architecture, PII filtering, GDPR rights, and transparency about LLM providers."
+    },
+    "hero": {
+      "title": "Privacy Policy",
+      "subtitle": "How LIA protects your data and respects your privacy."
+    },
+    "breadcrumb": "Privacy",
+    "toc": {
+      "introduction": "Introduction",
+      "data_collected": "Data collected",
+      "legal_basis": "Legal basis",
+      "hosting": "Hosting",
+      "security": "Security",
+      "llm_providers": "LLM providers",
+      "retention": "Data retention",
+      "rights": "Your rights",
+      "cookies": "Cookies",
+      "contact": "Contact"
+    }
+  },
+  "terms": {
+    "meta": {
+      "title": "Terms of Service — LIA",
+      "description": "Terms of use for LIA: registration, acceptable use, open-source license, availability, liability, and applicable law."
+    },
+    "hero": {
+      "title": "Terms of Service",
+      "subtitle": "The rules governing the use of the LIA service."
+    },
+    "breadcrumb": "Terms",
+    "toc": {
+      "purpose": "Purpose",
+      "acceptance": "Acceptance",
+      "registration": "Registration",
+      "service": "Service description",
+      "usage": "Acceptable use",
+      "opensource": "Open Source",
+      "personal_data": "Personal data",
+      "availability": "Availability",
+      "liability": "Liability",
+      "termination": "Termination",
+      "applicable_law": "Applicable law"
     }
   },
   "sub_agents": {

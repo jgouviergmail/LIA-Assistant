@@ -629,7 +629,7 @@ class TestSearchUsers:
 
         # Return tuples of (user, stats) where stats is None
         service.repository.get_users_with_stats_paginated = AsyncMock(
-            return_value=[(u, None, 0, None) for u in mock_users]
+            return_value=[(u, None, 0, None, 0, 0, 0, 0, False) for u in mock_users]
         )
         service.repository.count_users = AsyncMock(return_value=total_count)
 
@@ -659,7 +659,7 @@ class TestSearchUsers:
         mock_calc_pages.return_value = 1
 
         service.repository.get_users_with_stats_paginated = AsyncMock(
-            return_value=[(u, None, 0, None) for u in mock_users]
+            return_value=[(u, None, 0, None, 0, 0, 0, 0, False) for u in mock_users]
         )
         service.repository.count_users = AsyncMock(return_value=total_count)
 
@@ -687,7 +687,7 @@ class TestSearchUsers:
         mock_calc_pages.return_value = 1
 
         service.repository.get_users_with_stats_paginated = AsyncMock(
-            return_value=[(u, None, 0, None) for u in mock_users]
+            return_value=[(u, None, 0, None, 0, 0, 0, 0, False) for u in mock_users]
         )
         service.repository.count_users = AsyncMock(return_value=total_count)
 
@@ -715,7 +715,7 @@ class TestSearchUsers:
         mock_calc_pages.return_value = 1
 
         service.repository.get_users_with_stats_paginated = AsyncMock(
-            return_value=[(u, None, 0, None) for u in mock_users]
+            return_value=[(u, None, 0, None, 0, 0, 0, 0, False) for u in mock_users]
         )
         service.repository.count_users = AsyncMock(return_value=total_count)
 
@@ -746,7 +746,7 @@ class TestSearchUsers:
         mock_calc_pages.return_value = 1
 
         service.repository.get_users_with_stats_paginated = AsyncMock(
-            return_value=[(u, None, 0, None) for u in mock_users]
+            return_value=[(u, None, 0, None, 0, 0, 0, 0, False) for u in mock_users]
         )
         service.repository.count_users = AsyncMock(return_value=total_count)
 

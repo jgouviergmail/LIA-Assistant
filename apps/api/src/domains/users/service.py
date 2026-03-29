@@ -626,7 +626,7 @@ class UserService:
         )
 
         # Fetch memory counts for all users in batch (from LangGraph store)
-        user_ids = [user.id for user, _, _, _ in users_with_stats]
+        user_ids = [row[0].id for row in users_with_stats]
         memory_counts = await self._get_memory_counts_batch(user_ids)
 
         # Fetch interests counts for all users in batch (from DB)
@@ -634,7 +634,17 @@ class UserService:
 
         # Build user profiles with stats
         users_profiles = []
-        for user, stats, active_connectors_count, last_message_at in users_with_stats:
+        for (
+            user,
+            stats,
+            active_connectors_count,
+            last_message_at,
+            skills_count,
+            mcp_servers_count,
+            scheduled_actions_count,
+            rag_spaces_count,
+            is_usage_blocked,
+        ) in users_with_stats:
             users_profiles.append(
                 self._build_user_profile_with_stats(
                     user,
@@ -643,6 +653,11 @@ class UserService:
                     last_message_at,
                     memories_count=memory_counts.get(user.id, 0),
                     interests_count=interests_counts.get(user.id, 0),
+                    skills_count=skills_count,
+                    mcp_servers_count=mcp_servers_count,
+                    scheduled_actions_count=scheduled_actions_count,
+                    rag_spaces_count=rag_spaces_count,
+                    is_usage_blocked=is_usage_blocked,
                 )
             )
 
@@ -736,6 +751,11 @@ class UserService:
         last_message_at: datetime | None = None,
         memories_count: int = 0,
         interests_count: int = 0,
+        skills_count: int = 0,
+        mcp_servers_count: int = 0,
+        scheduled_actions_count: int = 0,
+        rag_spaces_count: int = 0,
+        is_usage_blocked: bool = False,
     ) -> UserProfileWithStats:
         """
         Build UserProfileWithStats from User and UserStatistics models.
@@ -747,6 +767,11 @@ class UserService:
             last_message_at: Timestamp of last message sent
             memories_count: Number of memories stored for this user
             interests_count: Number of interests for this user
+            skills_count: Number of user-imported skills
+            mcp_servers_count: Number of user MCP servers
+            scheduled_actions_count: Number of scheduled actions
+            rag_spaces_count: Number of RAG knowledge spaces
+            is_usage_blocked: Whether user is usage-blocked by admin
 
         Returns:
             UserProfileWithStats with all fields populated
@@ -830,6 +855,11 @@ class UserService:
             active_connectors_count=active_connectors_count,
             memories_count=memories_count,
             interests_count=interests_count,
+            skills_count=skills_count,
+            mcp_servers_count=mcp_servers_count,
+            scheduled_actions_count=scheduled_actions_count,
+            rag_spaces_count=rag_spaces_count,
+            is_usage_blocked=is_usage_blocked,
         )
 
     async def update_user_activation(

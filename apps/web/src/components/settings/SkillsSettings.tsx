@@ -169,25 +169,26 @@ export function SkillsSettings({ lng }: SkillsSettingsProps) {
 
           {/* User skills section */}
           <div>
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-2 mb-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h4 className="text-sm font-medium text-muted-foreground">
                   {t('settings.skills.user_section_title')}
                 </h4>
                 {userSkills.length > 0 && (
                   <span className="text-xs text-muted-foreground">({userSkills.length})</span>
                 )}
-                <button
-                  type="button"
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => setShowGuide(true)}
-                  className="inline-flex items-center gap-1 text-xs text-muted-foreground/60 hover:text-primary transition-colors border border-border/50 rounded px-1.5 py-0.5 hover:border-primary/40"
+                  className="gap-1.5 text-primary border-primary/30 hover:bg-primary/5 hover:border-primary/50"
                   title={t('settings.skills.guide_toggle')}
                 >
-                  <BookOpen className="h-3 w-3" />
+                  <BookOpen className="h-3.5 w-3.5" />
                   {t('settings.skills.guide_button')}
-                </button>
-              </div>
-              <div>
+                </Button>
                 <input
                   ref={fileInputRef}
                   type="file"

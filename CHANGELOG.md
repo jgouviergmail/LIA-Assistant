@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.13.3] - 2026-03-29
 
+### Added
+
+- **Skills Guide Redesign** — Complete rewrite of the in-app skill creation guide with 3 tabbed sections: Fundamentals (3 archetypes, L1/L2/L3 activation model, best practices), Create (SKILL.md format, frontmatter fields, Prompt Expert & Advisory examples, folder structure, references/scripts/assets usage, import process), Advanced (plan templates with auto-trigger, complete agent & tool catalogue with parameters and types organized by category via accordion, Python scripts, internal skill tools). 210 translation keys across 6 languages. (`apps/web/src/components/settings/SkillGuideModal.tsx`)
+- **Skills Guide Button Enhancement** — Guide button promoted from subtle text link to prominent outlined Button with primary color, repositioned alongside Import for responsive smartphone layout (stacks vertically on mobile). (`apps/web/src/components/settings/SkillsSettings.tsx`)
+- **Admin Users — New Columns** — 5 new columns in user administration: Skills count (user-imported), MCP servers count, Scheduled actions count, RAG spaces count, and Usage blocked status. All counts fetched via efficient correlated subqueries in a single SQL statement. (`apps/api/src/domains/users/repository.py`, `apps/api/src/domains/users/schemas.py`, `apps/web/src/components/settings/AdminUsersSection.tsx`)
+- **Admin Limits — Sortable Columns** — Email and Blocked columns now support click-to-sort (asc/desc) with arrow indicators. Backend `GET /usage-limits/admin/users` endpoint extended with `sort_by` and `sort_order` query parameters. (`apps/api/src/domains/usage_limits/router.py`, `apps/api/src/domains/usage_limits/repository.py`, `apps/web/src/components/settings/AdminUsageLimitsSection.tsx`)
+
+### Changed
+
+- **Multi-Provider Naming** — Domain taxonomy display names and descriptions updated from Google-specific ("Google Calendar", "Gmail", "Google Contacts", "Google Drive", "Google Tasks") to provider-agnostic ("Calendar", "Email", "Contacts", "Drive / Files", "Tasks") reflecting the multi-provider connector abstraction (Google, Microsoft, Apple). Updated in: domain taxonomy, skill guide tool catalogue, skill-generator references. (`apps/api/src/domains/agents/registry/domain_taxonomy.py`, `data/skills/system/skill-generator/references/tool-catalogue.md`, `data/skills/system/skill-generator/references/format-specification.md`)
+
 ### Fixed
 
 - **PlaceCard Crash Fix** — `_get_next_open_time` method signature was accidentally removed during dead code cleanup, causing `AttributeError` and silent render failure for all place cards. Restored method definition. (`apps/api/src/domains/agents/display/components/place_card.py`)

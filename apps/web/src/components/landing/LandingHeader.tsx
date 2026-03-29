@@ -16,12 +16,17 @@ interface LandingHeaderProps {
   lng: string;
 }
 
-const NAV_SECTIONS = [
-  { id: 'how-it-works', key: 'landing.nav.how_it_works' },
+/** Anchor links to landing page sections */
+const SECTION_ANCHORS = [
   { id: 'features', key: 'landing.nav.features' },
   { id: 'security', key: 'landing.nav.security' },
   { id: 'technology', key: 'landing.nav.technology' },
+] as const;
+
+/** Links to separate pages */
+const PAGE_LINKS = [
   { id: 'blog', key: 'landing.nav.blog', href: '/blog' },
+  { id: 'faq', key: 'landing.nav.faq', href: '/faq' },
   { id: 'why', key: 'landing.nav.philosophy', href: '/why' },
   { id: 'how', key: 'landing.nav.technical', href: '/how' },
 ] as const;
@@ -52,9 +57,7 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
       { rootMargin: '-20% 0px -70% 0px' }
     );
 
-    const sections = NAV_SECTIONS.filter(s => !('href' in s))
-      .map(({ id }) => document.getElementById(id))
-      .filter(Boolean);
+    const sections = SECTION_ANCHORS.map(({ id }) => document.getElementById(id)).filter(Boolean);
     sections.forEach(el => observer.observe(el!));
 
     window.addEventListener('scroll', handleScroll, { passive: true });
@@ -83,7 +86,9 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
     <header
       className={cn(
         'fixed top-0 left-0 right-0 z-50 transition-all duration-300',
-        scrolled ? 'glass shadow-sm' : 'bg-transparent'
+        scrolled || mobileOpen
+          ? 'bg-background/95 backdrop-blur-xl shadow-sm border-b border-border/40'
+          : 'bg-transparent'
       )}
     >
       <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -100,50 +105,43 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
             <span>LIA</span>
           </Link>
 
-          {/* Desktop nav */}
-          <div className="hidden mobile:flex items-center gap-1">
-            {NAV_SECTIONS.map(({ id, key, ...rest }) => {
-              const href = 'href' in rest ? (rest.href as string) : undefined;
-              if (href) {
-                return (
-                  <Link
-                    key={id}
-                    href={buildLocalizedPath(href, lng as Language)}
-                    className="px-3 py-2 text-sm font-medium rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                  >
-                    {t(key)}
-                  </Link>
-                );
-              }
-              return (
-                <a
-                  key={id}
-                  href={`#${id}`}
-                  className={cn(
-                    'px-3 py-2 text-sm font-medium rounded-md transition-colors',
-                    activeSection === id
-                      ? 'text-primary bg-primary/10'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                  )}
-                >
-                  {t(key)}
-                </a>
-              );
-            })}
+          {/* Desktop nav — compact: anchors + page links */}
+          <div className="hidden mobile:flex items-center gap-0.5">
+            {SECTION_ANCHORS.map(({ id, key }) => (
+              <a
+                key={id}
+                href={`#${id}`}
+                className={cn(
+                  'px-2.5 py-2 text-sm font-medium rounded-md transition-colors',
+                  activeSection === id
+                    ? 'text-primary bg-primary/10'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                )}
+              >
+                {t(key)}
+              </a>
+            ))}
+            <span className="w-px h-4 bg-border mx-1" aria-hidden="true" />
+            {PAGE_LINKS.map(({ id, key, href }) => (
+              <Link
+                key={id}
+                href={buildLocalizedPath(href, lng as Language)}
+                className="px-2.5 py-2 text-sm font-medium rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              >
+                {t(key)}
+              </Link>
+            ))}
           </div>
 
           {/* Right actions */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <div className="hidden sm:block">
               <LanguageSelector currentLocale={lng as Language} />
             </div>
             <ThemeToggle />
-            <Link
-              href={loginHref}
-              className="hidden mobile:inline-flex text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-2"
-            >
-              {t('landing.nav.login')}
-            </Link>
+            <Button asChild variant="ghost" size="sm" className="hidden mobile:inline-flex">
+              <Link href={loginHref}>{t('landing.nav.login')}</Link>
+            </Button>
             <Button asChild size="sm" className="hidden mobile:inline-flex">
               <Link href={registerHref}>{t('landing.nav.get_started')}</Link>
             </Button>
@@ -164,39 +162,35 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
           </div>
         </div>
 
-        {/* Mobile menu */}
+        {/* Mobile menu — solid background */}
         {mobileOpen && (
-          <div className="mobile:hidden border-t border-border/50 py-4 space-y-1">
-            {NAV_SECTIONS.map(({ id, key, ...rest }) => {
-              const href = 'href' in rest ? (rest.href as string) : undefined;
-              if (href) {
-                return (
-                  <Link
-                    key={id}
-                    href={buildLocalizedPath(href, lng as Language)}
-                    onClick={handleNavClick}
-                    className="block px-4 py-2.5 text-sm font-medium rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                  >
-                    {t(key)}
-                  </Link>
-                );
-              }
-              return (
-                <a
-                  key={id}
-                  href={`#${id}`}
-                  onClick={handleNavClick}
-                  className={cn(
-                    'block px-4 py-2.5 text-sm font-medium rounded-md transition-colors',
-                    activeSection === id
-                      ? 'text-primary bg-primary/10'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                  )}
-                >
-                  {t(key)}
-                </a>
-              );
-            })}
+          <div className="mobile:hidden border-t border-border/50 py-4 space-y-1 bg-background">
+            {SECTION_ANCHORS.map(({ id, key }) => (
+              <a
+                key={id}
+                href={`#${id}`}
+                onClick={handleNavClick}
+                className={cn(
+                  'block px-4 py-2.5 text-sm font-medium rounded-md transition-colors',
+                  activeSection === id
+                    ? 'text-primary bg-primary/10'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                )}
+              >
+                {t(key)}
+              </a>
+            ))}
+            <div className="border-t border-border/30 my-2" />
+            {PAGE_LINKS.map(({ id, key, href }) => (
+              <Link
+                key={id}
+                href={buildLocalizedPath(href, lng as Language)}
+                onClick={handleNavClick}
+                className="block px-4 py-2.5 text-sm font-medium rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-muted/50"
+              >
+                {t(key)}
+              </Link>
+            ))}
             <div className="border-t border-border/50 mt-3 pt-3 flex items-center gap-2 px-4">
               <LanguageSelector currentLocale={lng as Language} />
               <Link

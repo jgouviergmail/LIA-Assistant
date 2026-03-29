@@ -598,7 +598,9 @@ class TestSearchUsersAdmin:
     async def test_search_users_basic(self, service, mock_repository, sample_user, admin_user):
         """Test basic admin user search."""
         # Arrange
-        mock_repository.get_users_with_stats_paginated.return_value = [(sample_user, None, 0, None)]
+        mock_repository.get_users_with_stats_paginated.return_value = [
+            (sample_user, None, 0, None, 0, 0, 0, 0, False)
+        ]
         mock_repository.count_users.return_value = 1
 
         params = UserSearchParams(page=1, page_size=10)
@@ -616,7 +618,9 @@ class TestSearchUsersAdmin:
     async def test_search_users_with_query(self, service, mock_repository, sample_user, admin_user):
         """Test searching users with query string."""
         # Arrange
-        mock_repository.get_users_with_stats_paginated.return_value = [(sample_user, None, 0, None)]
+        mock_repository.get_users_with_stats_paginated.return_value = [
+            (sample_user, None, 0, None, 0, 0, 0, 0, False)
+        ]
         mock_repository.count_users.return_value = 1
 
         params = UserSearchParams(q="test@example.com", page=1, page_size=10)
@@ -636,7 +640,9 @@ class TestSearchUsersAdmin:
     ):
         """Test searching users filtered by active status."""
         # Arrange
-        mock_repository.get_users_with_stats_paginated.return_value = [(sample_user, None, 0, None)]
+        mock_repository.get_users_with_stats_paginated.return_value = [
+            (sample_user, None, 0, None, 0, 0, 0, 0, False)
+        ]
         mock_repository.count_users.return_value = 1
 
         params = UserSearchParams(is_active=True, page=1, page_size=10)
@@ -655,7 +661,9 @@ class TestSearchUsersAdmin:
     ):
         """Test searching users filtered by verified status."""
         # Arrange
-        mock_repository.get_users_with_stats_paginated.return_value = [(sample_user, None, 0, None)]
+        mock_repository.get_users_with_stats_paginated.return_value = [
+            (sample_user, None, 0, None, 0, 0, 0, 0, False)
+        ]
         mock_repository.count_users.return_value = 1
 
         params = UserSearchParams(is_verified=True, page=1, page_size=10)
@@ -669,7 +677,9 @@ class TestSearchUsersAdmin:
     async def test_search_users_filter_superuser(self, service, mock_repository, admin_user):
         """Test searching users filtered by superuser status."""
         # Arrange
-        mock_repository.get_users_with_stats_paginated.return_value = [(admin_user, None, 0, None)]
+        mock_repository.get_users_with_stats_paginated.return_value = [
+            (admin_user, None, 0, None, 0, 0, 0, 0, False)
+        ]
         mock_repository.count_users.return_value = 1
 
         params = UserSearchParams(is_superuser=True, page=1, page_size=10)
@@ -686,7 +696,9 @@ class TestSearchUsersAdmin:
     ):
         """Test searching users with custom sort."""
         # Arrange
-        mock_repository.get_users_with_stats_paginated.return_value = [(sample_user, None, 0, None)]
+        mock_repository.get_users_with_stats_paginated.return_value = [
+            (sample_user, None, 0, None, 0, 0, 0, 0, False)
+        ]
         mock_repository.count_users.return_value = 1
 
         params = UserSearchParams(page=1, page_size=10, sort_by="email", sort_order="asc")
@@ -703,7 +715,7 @@ class TestSearchUsersAdmin:
         """Test searching users with pagination."""
         # Arrange
         mock_repository.get_users_with_stats_paginated.return_value = [
-            (sample_user, None, 0, None)
+            (sample_user, None, 0, None, 0, 0, 0, 0, False)
         ] * 10
         mock_repository.count_users.return_value = 50
 
@@ -723,7 +735,9 @@ class TestSearchUsersAdmin:
     ):
         """Test searching users with multiple filters."""
         # Arrange
-        mock_repository.get_users_with_stats_paginated.return_value = [(sample_user, None, 0, None)]
+        mock_repository.get_users_with_stats_paginated.return_value = [
+            (sample_user, None, 0, None, 0, 0, 0, 0, False)
+        ]
         mock_repository.count_users.return_value = 1
 
         params = UserSearchParams(
@@ -1344,7 +1358,9 @@ class TestEdgeCases:
     ):
         """Test searching users with empty query."""
         # Arrange
-        mock_repository.get_users_with_stats_paginated.return_value = [(sample_user, None, 0, None)]
+        mock_repository.get_users_with_stats_paginated.return_value = [
+            (sample_user, None, 0, None, 0, 0, 0, 0, False)
+        ]
         mock_repository.count_users.return_value = 1
 
         params = UserSearchParams(q="", page=1, page_size=10)
@@ -1362,7 +1378,9 @@ class TestEdgeCases:
     async def test_search_users_none_query(self, service, mock_repository, sample_user, admin_user):
         """Test searching users with None query."""
         # Arrange
-        mock_repository.get_users_with_stats_paginated.return_value = [(sample_user, None, 0, None)]
+        mock_repository.get_users_with_stats_paginated.return_value = [
+            (sample_user, None, 0, None, 0, 0, 0, 0, False)
+        ]
         mock_repository.count_users.return_value = 1
 
         params = UserSearchParams(q=None, page=1, page_size=10)

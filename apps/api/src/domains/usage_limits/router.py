@@ -100,6 +100,8 @@ async def list_users_usage_limits(
     page_size: int = Query(20, ge=1, le=100, description="Items per page."),
     search: str | None = Query(None, description="Search by email or name."),
     blocked_only: bool = Query(False, description="Show only manually blocked users."),
+    sort_by: str = Query("created_at", description="Sort by: email, is_usage_blocked, created_at."),
+    sort_order: str = Query("desc", description="Sort order: asc or desc."),
     current_user: User = Depends(get_current_superuser_session),
     db: AsyncSession = Depends(get_db),
 ) -> AdminUserUsageLimitListResponse:
@@ -110,6 +112,8 @@ async def list_users_usage_limits(
         page_size: Items per page.
         search: Optional search query.
         blocked_only: Filter to blocked users only.
+        sort_by: Column to sort by (email, is_usage_blocked, created_at).
+        sort_order: Sort order (asc or desc).
         current_user: Authenticated admin user.
         db: Database session.
 
@@ -122,6 +126,8 @@ async def list_users_usage_limits(
         page_size=page_size,
         search=search,
         blocked_only=blocked_only,
+        sort_by=sort_by,
+        sort_order=sort_order,
     )
 
 

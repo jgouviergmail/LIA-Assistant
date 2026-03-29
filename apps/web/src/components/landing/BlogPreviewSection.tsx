@@ -110,6 +110,13 @@ export async function BlogPreviewSection({ lng }: BlogPreviewSectionProps) {
               {t('landing.blog_preview.view_all')}
               <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
             </Link>
+            <span className="mx-3 text-muted-foreground/40">·</span>
+            <Link
+              href={buildLocalizedPath('/faq', lng as Language)}
+              className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {t('landing.blog_preview.faq_link')}
+            </Link>
           </div>
         </FadeInOnScroll>
       </div>
