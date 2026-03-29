@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.13.3] - 2026-03-29
+
+### Fixed
+
+- **PlaceCard Crash Fix** — `_get_next_open_time` method signature was accidentally removed during dead code cleanup, causing `AttributeError` and silent render failure for all place cards. Restored method definition. (`apps/api/src/domains/agents/display/components/place_card.py`)
+- **EmailCard Layout** — Sender name `font-weight: 400` (was 500). Date + status icons displayed above sender name. Labels + attachments + thread count merged on same chip line above subject. `chip-row` `margin-bottom` added for spacing below badges.
+- **EventCard Polish** — Removed separator line under chips. Year stripped from date chip. Extra vertical margin before location.
+- **RouteCard Map Full-Width** — Reverted to original `lia-route__map-link` / `lia-route__map-image` CSS classes instead of generic `lia-card-hero` (which didn't compensate border-left properly). Removed `max-height` constraint on hero images.
+- **RouteCard Badges Reorder** — Line 1: arrival + suggested departure. Line 2: traffic + duration + distance. Removed separator under badges. Departure chip shows time only (strips day name).
+- **PlaceCard Badges Reorder** — Type + price + distance + stars on same line. Open/closed + opening/closing time on separate line. Added `_get_closing_time()` method + `V3Messages.get_closes_at()` i18n (6 languages). 16px space before address.
+- **CSS Card-Top Spacing** — `margin-bottom` increased from `sm` (8px) to `md` (12px) for uniform spacing between title separator and badges across all cards.
+- **CSS Card Hero** — Added `overflow: hidden` via `:has(.lia-card-hero)` on parent card. Removed `max-height` on `lia-card-hero img` for natural aspect ratio.
+- **DST-Aware Heartbeat Test** — `test_today_event_shows_time_only` now uses dynamic UTC offset for the test date instead of hardcoded `+01:00`, fixing CET→CEST transition failures.
+
 ## [1.13.2] - 2026-03-28
 
 ### Added
@@ -992,7 +1006,8 @@ First public open-source release of LIA.
 - Circuit breaker, rate limiting, and distributed locks
 - SOPS/Age encryption for secrets management
 
-[Unreleased]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.13.2...HEAD
+[Unreleased]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.13.3...HEAD
+[1.13.3]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.13.2...v1.13.3
 [1.13.2]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.13.1...v1.13.2
 [1.13.1]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.13.0...v1.13.1
 [1.13.0]: https://github.com/jgouviergmail/LIA-Assistant/compare/v1.12.4...v1.13.0
