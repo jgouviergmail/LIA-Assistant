@@ -416,7 +416,7 @@
   align-items: center;
   padding-bottom: var(--lia-space-sm);
   border-bottom: 1px solid var(--lia-border);
-  margin-bottom: var(--lia-space-sm);
+  margin-bottom: var(--lia-space-md);
 }
 
 .lia-card-top__info {
@@ -572,6 +572,7 @@
   gap: var(--lia-space-xs);
   align-items: center;
   margin-top: var(--lia-space-sm);
+  margin-bottom: var(--lia-space-sm);
 }
 
 /* Chip row separator variants (applied via modifier classes) */
@@ -689,18 +690,22 @@
 }
 
 /* --- Hero Image: full-width image at top of card --- */
+/* Hero needs card to clip overflow from negative margins */
+.lia-card:has(.lia-card-hero) {
+  overflow: hidden;
+}
+
 .lia-card-hero {
   margin: calc(-1 * var(--lia-space-lg)) calc(-1 * var(--lia-space-lg)) 0;
-  border-radius: var(--lia-radius-lg) var(--lia-radius-lg) 0 0;
   overflow: hidden;
   position: relative;
 }
 
+/* Cards with hero image need overflow hidden to contain the negative margins */
+
 .lia-card-hero img {
   width: 100%;
   height: auto;
-  max-height: 200px;
-  object-fit: cover;
   display: block;
 }
 
@@ -1084,7 +1089,8 @@
   }
 
   .lia-card-hero img {
-    max-height: 140px;
+    width: 100%;
+    height: auto;
   }
 }
 

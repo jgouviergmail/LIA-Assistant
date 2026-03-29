@@ -27,7 +27,6 @@ from src.domains.agents.display.components.base import (
     BaseComponent,
     RenderContext,
     escape_html,
-    render_card_hero,
     render_card_top,
     render_chip,
     render_chip_row,
@@ -215,11 +214,21 @@ class RouteCard(BaseComponent):
         """Unified route card using Design System v4 components."""
         nested_class = self._nested_class(ctx)
 
-        # --- Hero: static map image ---
+        # --- Static map image (uses existing lia-route__map CSS for full-width) ---
         hero_html = ""
         if static_map_url:
             map_url = f"{static_map_url}&width={STATIC_MAP_DESKTOP_WIDTH}&height={STATIC_MAP_DESKTOP_HEIGHT}"
-            hero_html = render_card_hero(map_url, "Route map")
+            map_img = (
+                f'<img src="{escape_html(map_url)}" alt="Route map" '
+                f'class="lia-route__map-image" loading="lazy" />'
+            )
+            if maps_url:
+                hero_html = (
+                    f'<a href="{escape_html(maps_url)}" target="_blank" rel="noopener" '
+                    f'class="lia-route__map-link">{map_img}</a>'
+                )
+            else:
+                hero_html = f'<div class="lia-route__map">{map_img}</div>'
 
         # --- Card top: travel mode icon + "Origin → Destination" ---
         mode_icon = get_travel_mode_icon(travel_mode)
@@ -236,18 +245,24 @@ class RouteCard(BaseComponent):
         title_html = f'<span class="lia-card-top__title">{route_title}</span>'
         card_top_html = render_card_top(mode_icon, illus_color, title_html)
 
-        # --- Chip row 1: arrival + traffic ---
+        # --- Chip row 1: arrival + suggested departure ---
         chips_row1 = []
         if eta_formatted:
             eta_label = V3Messages.get_arrival_time(ctx.language)
             chips_row1.append(render_chip(f"{eta_label} {eta_formatted}", "indigo", Icons.SCHEDULE))
         if is_arrival_based and suggested_departure_formatted:
             departure_label = V3Messages.get_suggested_departure(ctx.language)
+            import re as _re
+
+            time_match = _re.search(r"\d{1,2}:\d{2}", suggested_departure_formatted)
+            departure_time = time_match.group(0) if time_match else suggested_departure_formatted
             chips_row1.append(
-                render_chip(
-                    f"{departure_label} {suggested_departure_formatted}", "amber", Icons.SCHEDULE
-                )
+                render_chip(f"{departure_label} {departure_time}", "amber", Icons.SCHEDULE)
             )
+        chip_row_1 = render_chip_row(" ".join(chips_row1)) if chips_row1 else ""
+
+        # --- Chip row 2: traffic + duration + distance + avoidances (with separator below) ---
+        chips_row2 = []
         if traffic_conditions:
             traffic_label = V3Messages.get_traffic_condition(ctx.language, traffic_conditions)
             traffic_variant = {
@@ -256,11 +271,7 @@ class RouteCard(BaseComponent):
                 "MODERATE": "amber",
                 "HEAVY": "red",
             }.get(traffic_conditions, "")
-            chips_row1.append(render_chip(traffic_label, traffic_variant, "traffic"))
-        chip_row_1 = render_chip_row(" ".join(chips_row1)) if chips_row1 else ""
-
-        # --- Chip row 2: duration + distance + avoidances (with separator below) ---
-        chips_row2 = []
+            chips_row2.append(render_chip(traffic_label, traffic_variant, "traffic"))
         if duration_formatted:
             chips_row2.append(render_chip(duration_formatted, "green", "timer"))
         if distance_km:
@@ -284,9 +295,7 @@ class RouteCard(BaseComponent):
                     V3Messages.get_route_avoidance(ctx.language, "ferries"), "", Icons.FERRY
                 )
             )
-        chip_row_2 = (
-            render_chip_row(" ".join(chips_row2), separator_pos="bottom") if chips_row2 else ""
-        )
+        chip_row_2 = render_chip_row(" ".join(chips_row2)) if chips_row2 else ""
 
         # --- Toll info ---
         extra_rows = []

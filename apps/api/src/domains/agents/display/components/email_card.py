@@ -163,27 +163,9 @@ class EmailCard(BaseComponent):
         important_class = "lia-email--important" if is_important else ""
         nested_class = self._nested_class(ctx)
 
-        # --- Card top: initials illus (square rounded) + sender info + date ---
+        # --- Card top: initials illus + [date+icons ABOVE sender name] ---
         initials = self._get_initials(sender_name)
-        # Build subtitle with sender email + date + status icons
-        subtitle_parts = []
-        if sender_email and sender_email.lower() != sender_name.lower():
-            subtitle_parts.append(escape_html(sender_email))
-        subtitle_parts.append(escape_html(date_formatted))
         status_icons_html = self._render_status_icons(is_unread, is_important)
-
-        # Sender name as mailto link
-        if sender_email:
-            title_html = (
-                f'<a class="lia-card-top__title" href="mailto:{escape_html(sender_email)}">'
-                f"{escape_html(sender_name)}</a>"
-            )
-        else:
-            title_html = f'<span class="lia-card-top__title">{escape_html(sender_name)}</span>'
-
-        subtitle_html = " · ".join(subtitle_parts)
-        if status_icons_html:
-            subtitle_html += f" {status_icons_html}"
 
         # Choose illus color based on email status
         if is_unread and is_important:
@@ -195,15 +177,43 @@ class EmailCard(BaseComponent):
         else:
             illus_color = "gray"
 
-        # Build card-top manually to insert initials text in illus
+        # Line 1: date + status icons (above sender)
+        date_line = escape_html(date_formatted)
+        if status_icons_html:
+            date_line += f" {status_icons_html}"
+
+        # Line 2: sender name
+        sender_style = "font-size:var(--lia-text-base);font-weight:400"
+        if sender_email:
+            sender_html = (
+                f'<a class="lia-card-top__title" style="{sender_style}" '
+                f'href="mailto:{escape_html(sender_email)}">'
+                f"{escape_html(sender_name)}</a>"
+            )
+        else:
+            sender_html = (
+                f'<span class="lia-card-top__title" style="{sender_style}">'
+                f"{escape_html(sender_name)}</span>"
+            )
+
+        # Line 3: sender email (if different from name)
+        email_line = ""
+        if sender_email and sender_email.lower() != sender_name.lower():
+            email_line = (
+                f'<div style="font-size:var(--lia-text-xs);color:var(--lia-text-muted)">'
+                f"{escape_html(sender_email)}</div>"
+            )
+
+        # Build card-top: date+icons above, then sender, then email
         card_top_html = compact_html(f"""
             <div class="lia-card-top">
                 <div class="lia-illus lia-illus--{illus_color}">
                     <span style="font-size:var(--lia-text-sm);font-weight:600;letter-spacing:-0.02em">{escape_html(initials)}</span>
                 </div>
                 <div class="lia-card-top__info">
-                    {title_html}
-                    <div class="lia-card-top__subtitle">{subtitle_html}</div>
+                    <div class="lia-card-top__subtitle" style="margin-bottom:var(--lia-space-2xs)">{date_line}</div>
+                    {sender_html}
+                    {email_line}
                 </div>
             </div>
         """)
@@ -216,17 +226,20 @@ class EmailCard(BaseComponent):
             f"{escape_html(subject)}</a>"
         )
 
-        # --- Chips row: thread + attachments ---
+        # --- Chips row: labels + attachments + thread (all on same line) ---
         chips = []
-        if thread_count > 1:
-            chips.append(render_chip(f"{thread_count}", "thread", Icons.FORUM))
+        # Labels first
+        user_labels = self._get_user_label_names(data.get("labelIds", []))
+        for label in user_labels:
+            chips.append(render_chip(label, "indigo"))
+        # Then attachments
         if has_attachments:
             att_count = len(attachments) or 1
             chips.append(render_chip(f"{att_count}", "attach", Icons.ATTACHMENT))
+        # Then thread count
+        if thread_count > 1:
+            chips.append(render_chip(f"{thread_count}", "thread", Icons.FORUM))
         chip_row_html = render_chip_row(" ".join(chips)) if chips else ""
-
-        # --- Labels ---
-        labels_html = self._render_user_labels(data.get("labelIds", []))
 
         # --- Snippet ---
         snippet_html = (
@@ -242,9 +255,8 @@ class EmailCard(BaseComponent):
         return compact_html(f"""
             <div class="lia-card lia-email {unread_class} {important_class} {nested_class}">
                 {card_top_html}
-                {subject_html}
                 {chip_row_html}
-                {labels_html}
+                {subject_html}
                 {snippet_html}
                 {body_html}
                 {collapsible_attachments}
@@ -451,6 +463,31 @@ class EmailCard(BaseComponent):
             f'<span class="lia-email__label">{escape_html(label)}</span>' for label in user_labels
         ]
         return f'<div class="lia-email__labels">{" ".join(labels_parts)}</div>'
+
+    def _get_user_label_names(self, label_ids: list[str]) -> list[str]:
+        """Extract user-defined Gmail label names (excluding system labels)."""
+        if not label_ids:
+            return []
+        system_labels = {
+            "INBOX",
+            "SENT",
+            "DRAFT",
+            "TRASH",
+            "SPAM",
+            "UNREAD",
+            "STARRED",
+            "IMPORTANT",
+            "CATEGORY_PERSONAL",
+            "CATEGORY_SOCIAL",
+            "CATEGORY_PROMOTIONS",
+            "CATEGORY_UPDATES",
+            "CATEGORY_FORUMS",
+        }
+        return [
+            label.replace("/", " › ")
+            for label in label_ids
+            if label not in system_labels and not label.startswith("CATEGORY_")
+        ][:3]
 
     def _render_collapsible_details(
         self,

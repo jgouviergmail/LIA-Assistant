@@ -219,50 +219,55 @@ class PlaceCard(BaseComponent):
         title_html = f'<a class="lia-card-top__title" href="{escape_html(url)}" target="_blank">{escape_html(name)}</a>'
         card_top_html = render_card_top(illus_icon, illus_color, title_html)
 
-        # --- Chip row 1: stars ---
-        chip_row_1 = ""
-        if rating:
-            chip_row_1 = render_chip_row(render_chip_stars(rating, reviews_count))
-
-        # --- Chip row 2: type + status ---
-        chips_type = []
+        # --- Chip row 1: type + distance ---
+        # --- Chip row 1: type + price + distance + stars (same line) ---
+        chips_row1 = []
         if type_tag:
-            # No icon — already shown in card-top illus
-            chips_type.append(render_chip(type_tag, "indigo"))
-        if is_open is True:
-            open_label = V3Messages.get_open(ctx.language)
-            chips_type.append(render_chip(open_label, "green", "check_circle"))
-        elif is_open is False:
-            closed_label = V3Messages.get_closed(ctx.language)
-            chips_type.append(render_chip(closed_label, "red", "cancel"))
-            next_open = self._get_next_open_time(data, ctx)
-            if next_open:
-                opens_at_label = V3Messages.get_opens_at(ctx.language)
-                chips_type.append(render_chip(f"{opens_at_label} {next_open}", "", Icons.SCHEDULE))
-        chip_row_2 = render_chip_row(" ".join(chips_type)) if chips_type else ""
-
-        # --- Chip row 3: price + distance (with separator below) ---
-        chips_meta = []
+            chips_row1.append(render_chip(type_tag, "indigo"))
         if price_level:
-            chips_meta.append(
+            chips_row1.append(
                 render_chip(self._format_price(price_level, ctx.language), "", Icons.PAYMENTS)
             )
         if distance:
-            chips_meta.append(render_chip(distance, "", Icons.DIRECTIONS))
-        chip_row_3 = (
-            render_chip_row(" ".join(chips_meta), separator_pos="bottom") if chips_meta else ""
-        )
+            chips_row1.append(render_chip(distance, "", Icons.DIRECTIONS))
+        if rating:
+            chips_row1.append(render_chip_stars(rating, reviews_count))
+        chip_row_1 = render_chip_row(" ".join(chips_row1)) if chips_row1 else ""
 
-        # --- Address ---
+        # --- Chip row 3: open/closed + opens at (no separator) ---
+        chips_status = []
+        if is_open is True:
+            open_label = V3Messages.get_open(ctx.language)
+            chips_status.append(render_chip(open_label, "green", "check_circle"))
+            # Show closing time if available
+            close_time = self._get_closing_time(data)
+            if close_time:
+                closes_at_label = V3Messages.get_closes_at(ctx.language)
+                chips_status.append(
+                    render_chip(f"{closes_at_label} {close_time}", "", Icons.SCHEDULE)
+                )
+        elif is_open is False:
+            closed_label = V3Messages.get_closed(ctx.language)
+            chips_status.append(render_chip(closed_label, "red", "cancel"))
+            next_open = self._get_next_open_time(data, ctx)
+            if next_open:
+                opens_at_label = V3Messages.get_opens_at(ctx.language)
+                chips_status.append(
+                    render_chip(f"{opens_at_label} {next_open}", "", Icons.SCHEDULE)
+                )
+        chip_row_3 = render_chip_row(" ".join(chips_status)) if chips_status else ""
+
+        # --- Address (extra top margin instead of separator line) ---
         address_html = ""
         if address:
             directions_url = build_directions_url(address)
             link = f'<a href="{escape_html(directions_url)}" target="_blank">{escape_html(address)}</a>'
-            address_html = render_d_row(
+            addr_row = render_d_row(
                 Icons.LOCATION,
                 link,
                 icon_style="font-variation-settings:'FILL' 1,'wght' 400,'GRAD' 0,'opsz' 20;color:#ef4444",
             )
+            address_html = f'<div style="margin-top:var(--lia-space-lg)">{addr_row}</div>'
 
         # --- Phone ---
         phone_html = ""
@@ -290,7 +295,6 @@ class PlaceCard(BaseComponent):
 {hero_html}
 {card_top_html}
 {chip_row_1}
-{chip_row_2}
 {chip_row_3}
 {address_html}
 {phone_html}
@@ -472,6 +476,8 @@ class PlaceCard(BaseComponent):
             )
 
         return ""
+
+    def _get_next_open_time(self, data: dict[str, Any], ctx: RenderContext) -> str:
         """Get next opening time if place is closed."""
         # Try to extract next opening from opening hours
         weekday_text = None
@@ -502,6 +508,35 @@ class PlaceCard(BaseComponent):
                                 return open_time  # type: ignore[no-any-return]
             except (ValueError, IndexError, TypeError):
                 logger.debug("place_card_opening_hours_parse_error")
+        return ""
+
+    def _get_closing_time(self, data: dict[str, Any]) -> str:
+        """Get closing time for today if place is open."""
+        weekday_text = None
+        opening_hours = data.get("currentOpeningHours", {}) or data.get("openingHours", {})
+        if opening_hours and isinstance(opening_hours, dict):
+            weekday_text = opening_hours.get("weekdayDescriptions", []) or opening_hours.get(
+                "weekday_text", []
+            )
+        if not weekday_text:
+            weekday_text = data.get("opening_hours", [])
+
+        if weekday_text and isinstance(weekday_text, list) and len(weekday_text) > 0:
+            from datetime import datetime
+
+            try:
+                today_idx = datetime.now().weekday()
+                if today_idx < len(weekday_text):
+                    today_hours = str(weekday_text[today_idx])
+                    if ":" in today_hours and "–" in today_hours:
+                        parts = today_hours.split(":", 1)
+                        if len(parts) > 1:
+                            time_part = parts[1].strip()
+                            if "–" in time_part:
+                                close_time = time_part.split("–")[1].strip()
+                                return close_time  # type: ignore[no-any-return]
+            except (ValueError, IndexError, TypeError):
+                logger.debug("place_card_closing_time_parse_error")
         return ""
 
     def _format_price(self, price_level: str, language: str = "fr") -> str:

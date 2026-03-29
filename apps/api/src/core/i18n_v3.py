@@ -3732,6 +3732,20 @@ class V3Messages:
         return _DISPLAY_OPENS_AT.get(lang, _DISPLAY_OPENS_AT["en"])
 
     @staticmethod
+    def get_closes_at(language: str) -> str:
+        """Get 'closes at' label."""
+        lang = V3Messages._normalize_language(language)
+        labels = {
+            "fr": "Ferme à",
+            "en": "Closes at",
+            "de": "Schließt um",
+            "es": "Cierra a las",
+            "it": "Chiude alle",
+            "zh-CN": "关门时间",
+        }
+        return labels.get(lang, labels["en"])
+
+    @staticmethod
     def get_reviews(language: str) -> str:
         """Get 'reviews' label."""
         lang = V3Messages._normalize_language(language)

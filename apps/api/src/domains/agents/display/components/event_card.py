@@ -254,10 +254,15 @@ class EventCard(BaseComponent):
                 chips.append(render_chip(f"{start_str} - {end_str}", "time", Icons.SCHEDULE))
             if duration:
                 chips.append(render_chip(duration, "", "timer"))
-        chip_row_html = render_chip_row(" ".join(chips), separator_pos="bottom")
+        chip_row_html = render_chip_row(" ".join(chips))
 
-        # --- Location ---
-        location_html = self._render_location_v4(location, ctx)
+        # --- Location (extra top margin after chip separator) ---
+        location_raw = self._render_location_v4(location, ctx)
+        location_html = (
+            f'<div style="margin-top:var(--lia-space-sm)">{location_raw}</div>'
+            if location_raw
+            else ""
+        )
 
         # --- Attendee avatars with "N participants" label ---
         if attendees:
@@ -492,7 +497,11 @@ class EventCard(BaseComponent):
         if not date_str:
             return ""
 
-        return format_full_date(date_str, language, timezone)
+        full = format_full_date(date_str, language, timezone)
+        # Strip year from event date (e.g., "samedi 29 mars 2026" -> "samedi 29 mars")
+        import re
+
+        return re.sub(r"\s*\d{4}\s*$", "", full)
 
     def _format_reminder_time(
         self, minutes: int, method: str = "popup", language: str = "fr"
