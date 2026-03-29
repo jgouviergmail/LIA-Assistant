@@ -463,9 +463,9 @@ Each user MCP server gets its own domain (e.g., `mcp_huggingface_hub`, `mcp_gith
 - **Dynamic fallback**: `get_domain_config()` and `get_result_key()` synthesize configs for `mcp_*` domains not in static `DOMAIN_REGISTRY`
 - **Web search**: No explicit suppression needed — when MCP domain detected, intent="action" routes to planner (not response_node), so Knowledge Enrichment (Brave Search) is naturally skipped
 
-#### Level 2 — Tool Selection (E5 Embeddings, SemanticToolSelector)
+#### Level 2 — Tool Selection (OpenAI Embeddings, SemanticToolSelector)
 
-At server registration (test_connection), E5 embeddings are pre-computed for each discovered tool's description and keywords, then stored in `tool_embeddings_cache` (JSONB). At request time, these embeddings are loaded into `UserMCPToolsContext.tool_embeddings` and passed as `extra_embeddings` to `select_tools()`, enabling real semantic scoring alongside native tools.
+At server registration (test_connection), OpenAI text-embedding-3-small embeddings are pre-computed for each discovered tool's description and keywords, then stored in `tool_embeddings_cache` (JSONB). At request time, these embeddings are loaded into `UserMCPToolsContext.tool_embeddings` and passed as `extra_embeddings` to `select_tools()`, enabling real semantic scoring alongside native tools.
 
 - **Computation**: `compute_tool_embeddings()` in `tool_selector.py` (batch embed, same pattern as `initialize()`)
 - **Storage**: JSONB column keyed by raw MCP tool name (e.g., `"hub_search"`)

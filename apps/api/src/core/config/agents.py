@@ -1517,9 +1517,8 @@ class AgentsSettings(BaseSettings):
     memory_embedding_model: str = Field(
         default=MEMORY_EMBEDDING_MODEL_DEFAULT,
         description=(
-            "Embedding model for semantic memory search. "
-            "For local: intfloat/multilingual-e5-small (384 dims, 100 languages). "
-            "For OpenAI: text-embedding-3-small (1536 dims)."
+            "OpenAI embedding model for semantic memory search, tool routing, "
+            "and interest deduplication. Default: text-embedding-3-small (1536 dims)."
         ),
     )
     memory_embedding_dimensions: int = Field(
@@ -1528,7 +1527,8 @@ class AgentsSettings(BaseSettings):
         le=3072,
         description=(
             "Embedding dimensions for pgvector index. "
-            "E5-small: 384, E5-base: 768, text-embedding-3-small: 1536."
+            "Must match the chosen embedding model output dimensions. "
+            "text-embedding-3-small: 1536, text-embedding-3-large: 3072."
         ),
     )
 

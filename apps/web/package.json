@@ -1,6 +1,6 @@
 {
   "name": "@lia-assistant/web",
-  "version": "1.13.3",
+  "version": "1.13.4",
   "description": "LIA Assistant - Frontend application",
   "license": "AGPL-3.0-or-later",
   "author": "LIA Contributors",
@@ -14,6 +14,7 @@
     "dev:network": "next dev --webpack --hostname 0.0.0.0",
     "build": "next build",
     "start": "next start",
+    "format": "prettier --write \"src/**/*.{ts,tsx,css,json}\"",
     "lint": "eslint src",
     "type-check": "tsc --noEmit",
     "test": "vitest run",

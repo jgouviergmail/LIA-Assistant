@@ -16,8 +16,7 @@ Le Semantic Tool Router remplace le routing basé sur mots-clés par une approch
 
 - **Max-Pooling Strategy** : Évite la dilution sémantique
 - **Double Threshold** : Confiance haute (0.70) + zone d'incertitude (0.60)
-- **Local Embeddings** : intfloat/multilingual-e5-small (100+ langues)
-- **Zero API Cost** : Inférence 100% locale
+- **OpenAI Embeddings** : text-embedding-3-small (1536 dims, 100+ langues)
 - **Startup Caching** : Embeddings des tools pré-calculés
 
 ---
@@ -30,8 +29,8 @@ Le Semantic Tool Router remplace le routing basé sur mots-clés par une approch
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
 │  ┌──────────────┐    ┌──────────────────┐    ┌──────────────┐  │
-│  │ User Query   │───▶│ LocalE5Embeddings │───▶│ Query Vector │  │
-│  │ "mes emails" │    │ (384 dims)        │    │ [0.12, ...]  │  │
+│  │ User Query   │───▶│ OpenAI Embeddings │───▶│ Query Vector │  │
+│  │ "mes emails" │    │ (1536 dims)       │    │ [0.12, ...]  │  │
 │  └──────────────┘    └──────────────────┘    └──────────────┘  │
 │                                                     │           │
 │                                                     ▼           │
@@ -136,7 +135,7 @@ result = await selector.select_tools(
 ### Variables .env - Semantic Pivot LLM
 
 Le **Semantic Pivot** traduit les queries vers l'anglais avant embedding matching.
-Ceci ameliore significativement le matching car les embeddings E5 sont optimises pour l'anglais.
+Ceci ameliore significativement le matching car le semantic pivot traduit les queries avant le calcul d'embeddings.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -170,9 +169,9 @@ await selector.initialize(
 ### Embedding Model
 
 ```python
-# Local E5 model configuration
-EMBEDDING_MODEL = "intfloat/multilingual-e5-small"
-EMBEDDING_DIMENSIONS = 384
+# OpenAI embedding model configuration
+EMBEDDING_MODEL = "text-embedding-3-small"
+EMBEDDING_DIMENSIONS = 1536
 ```
 
 ---
@@ -181,7 +180,7 @@ EMBEDDING_DIMENSIONS = 384
 
 Les tools définissent leurs `semantic_keywords` dans leurs manifestes pour améliorer le matching sémantique.
 
-**IMPORTANT** : Les keywords doivent être en **anglais uniquement**. Le modèle E5 multilingue (intfloat/multilingual-e5-small) gère automatiquement la correspondance sémantique cross-linguistique via le "semantic pivot". Une requête française comme "mes emails récents" correspondra correctement au keyword anglais "recent emails" grâce à l'espace sémantique partagé.
+**IMPORTANT** : Les keywords doivent être en **anglais uniquement**. Le semantic pivot traduit automatiquement les requêtes non-anglaises avant le calcul d'embeddings OpenAI. Une requête française comme "mes emails récents" correspondra correctement au keyword anglais "recent emails" grâce à cette traduction automatique.
 
 ### Example: Email Tool
 
@@ -220,7 +219,7 @@ search_emails_catalogue_manifest = ToolManifest(
 
 ### Best Practices for Keywords
 
-1. **English Only** : Tous les keywords en anglais (le modèle E5 gère le multilingual via semantic pivot)
+1. **English Only** : Tous les keywords en anglais (le semantic pivot gère le multilingual via traduction automatique)
 2. **Include action + noun** : "search emails", "find contacts", "get calendar events"
 3. **Add variations** : "email", "mail", "message" - couvrir les synonymes courants
 4. **Natural language phrases** : Inclure des phrases comme l'utilisateur pourrait les dire
@@ -444,7 +443,7 @@ Voir [SEMANTIC_INTENT_DETECTION.md](SEMANTIC_INTENT_DETECTION.md) pour:
 ## Related Documentation
 
 - [ADR-048: Semantic Tool Router](../architecture/ADR-048-Semantic-Tool-Router.md)
-- [ADR-049: Local E5 Embeddings](../architecture/ADR-049-Local-E5-Embeddings.md)
+- [ADR-049: Embeddings](../architecture/ADR-049-Local-E5-Embeddings.md)
 - [LOCAL_EMBEDDINGS.md](LOCAL_EMBEDDINGS.md)
 - [SEMANTIC_INTENT_DETECTION.md](SEMANTIC_INTENT_DETECTION.md)
 - [CATALOGUE_SYSTEM.md](CATALOGUE_SYSTEM.md)

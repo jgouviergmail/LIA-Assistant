@@ -46,7 +46,9 @@ Le routing traditionnel par mots-clés présentait plusieurs limitations :
 
 ## Decision Outcome
 
-**Chosen option**: "**Two-Level Semantic Selection (Domains + Tools) with Local E5 Embeddings**"
+**Chosen option**: "**Two-Level Semantic Selection (Domains + Tools) with OpenAI text-embedding-3-small**"
+
+> **Updated v1.14.0**: Migrated from local E5 embeddings to OpenAI text-embedding-3-small (1536 dims). All references to `LocalE5Embeddings` and `local_embeddings.py` now correspond to `memory_embeddings.py`.
 
 ### Two-Level Architecture Overview
 
@@ -105,7 +107,7 @@ AFTER (Two-Level Semantic Selection):
 ```mermaid
 graph TB
     subgraph "DOMAIN MATCHING"
-        Q[User Query] --> EMB[LocalE5Embeddings<br/>384 dims]
+        Q[User Query] --> EMB[OpenAI Embeddings<br/>1536 dims]
         EMB --> QV[Query Vector]
 
         CACHE[Domain Keyword Embeddings<br/>from domain_taxonomy.py] --> COMP[Cosine Similarity]
@@ -181,7 +183,7 @@ class SemanticDomainSelector:
     - Max-pooling: MAX(sim(query, keyword_i)) per domain
     - Double threshold: hard (0.75) + soft (0.65)
     - Startup caching: all domain keyword embeddings cached once
-    - Zero API cost: local E5 model
+    - OpenAI text-embedding-3-small embeddings
     """
 
     _instance: "SemanticDomainSelector | None" = None
@@ -201,10 +203,7 @@ class SemanticDomainSelector:
         3. Batch embed all keywords
         4. Store as max-pooling structure per domain
         """
-        self._embeddings = LocalE5Embeddings(
-            model_name="intfloat/multilingual-e5-small",
-            dimensions=384,
-        )
+        self._embeddings = get_memory_embeddings()  # OpenAI text-embedding-3-small
 
         # Collect keywords from routable domains only
         routable_domains = get_routable_domains()
@@ -339,7 +338,7 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
 ```mermaid
 graph TB
     subgraph "TOOL MATCHING"
-        Q[User Query] --> EMB[LocalE5Embeddings<br/>384 dims]
+        Q[User Query] --> EMB[OpenAI Embeddings<br/>1536 dims]
         EMB --> QV[Query Vector]
 
         CACHE[Tool Keyword Embeddings<br/>from catalogue_manifests] --> COMP[Cosine Similarity]
@@ -405,7 +404,7 @@ class SemanticToolSelector:
     - Max-pooling: MAX(sim(query, keyword_i)) per tool
     - Double threshold: hard (0.70) + soft (0.60)
     - Startup caching: all keyword embeddings cached once
-    - Zero API cost: local E5 model
+    - OpenAI text-embedding-3-small embeddings
     """
 
     _instance: "SemanticToolSelector | None" = None
@@ -420,15 +419,12 @@ class SemanticToolSelector:
         """
         Initialize with tool manifests (startup caching).
 
-        1. Create LocalE5Embeddings instance
+        1. Get OpenAI embeddings instance
         2. Collect all semantic_keywords from manifests
         3. Batch embed all keywords (efficient)
         4. Store as max-pooling structure per tool
         """
-        self._embeddings = LocalE5Embeddings(
-            model_name="intfloat/multilingual-e5-small",
-            dimensions=384,
-        )
+        self._embeddings = get_memory_embeddings()  # OpenAI text-embedding-3-small
 
         # Collect keywords for batch embedding
         for manifest in tool_manifests:
@@ -629,51 +625,32 @@ else:
 
 ---
 
-## Local E5 Embeddings
+## Embedding Model (Updated v1.14.0)
 
 ### Configuration
 
 ```python
-# apps/api/src/infrastructure/llm/local_embeddings.py
+# apps/api/src/infrastructure/llm/memory_embeddings.py
 
-EMBEDDING_MODEL = "intfloat/multilingual-e5-small"  # 100+ languages
-EMBEDDING_DIMENSIONS = 384  # E5-small output dimensions
+# OpenAI text-embedding-3-small (1536 dimensions)
+# Migrated from local E5 in v1.14.0 for operational simplicity
 
-class LocalE5Embeddings:
-    """
-    Local E5 embeddings using sentence-transformers.
+from src.infrastructure.llm.memory_embeddings import get_memory_embeddings
 
-    Zero API cost, 100+ languages, optimized for Q/A matching.
-    """
-
-    def __init__(
-        self,
-        model_name: str = EMBEDDING_MODEL,
-        dimensions: int = EMBEDDING_DIMENSIONS,
-    ):
-        from sentence_transformers import SentenceTransformer
-        self.model = SentenceTransformer(model_name)
-
-    async def aembed_query(self, text: str) -> list[float]:
-        """Embed a query (adds 'query: ' prefix for E5)."""
-        return self.model.encode(f"query: {text}").tolist()
-
-    async def aembed_documents(self, texts: list[str]) -> list[list[float]]:
-        """Embed documents (adds 'passage: ' prefix for E5)."""
-        prefixed = [f"passage: {t}" for t in texts]
-        return self.model.encode(prefixed).tolist()
+embeddings = get_memory_embeddings()  # Singleton
+vector = await embeddings.aembed_query("search query")
+vectors = await embeddings.aembed_documents(["doc1", "doc2"])
 ```
 
 ### Performance Characteristics
 
 | Metric | Value |
 |--------|-------|
-| Model Load Time | ~9s (one-time at startup, Pi 5) |
-| Query Embedding | ~50ms (CPU) |
-| Batch Embedding | ~200ms for 100 keywords |
-| Memory | ~470MB (model + tokenizer) |
+| Query Embedding | ~100-200ms (API call) |
+| Batch Embedding | ~300-500ms for 100 keywords |
+| Dimensions | 1536 |
 | Languages | 100+ (native multilingual) |
-| API Cost | $0 (local) |
+| API Cost | ~$0.02/1M tokens |
 
 ---
 
@@ -764,8 +741,8 @@ async def plan_execution(state: AgentState) -> dict:
 
 - ✅ **Zero i18n Maintenance** : Multilingual embeddings natively
 - ✅ **High Accuracy** : 0.90 avg score vs 0.61 (OpenAI baseline)
-- ✅ **Zero API Cost** : Local inference
-- ✅ **Zero Network Latency** : No external calls
+- ✅ **Low API Cost** : OpenAI text-embedding-3-small (~$0.02/1M tokens)
+- ✅ **Operational Simplicity** : No local model to load/maintain
 - ✅ **Max-Pooling** : Avoids keyword dilution
 - ✅ **Double Threshold** : Graceful degradation with uncertainty flags
 - ✅ **Two-Level Optimization** : 80-90% token reduction
@@ -773,9 +750,8 @@ async def plan_execution(state: AgentState) -> dict:
 
 ### Negative
 
-- ⚠️ Memory footprint (~470MB for model)
-- ⚠️ Startup time (~9s to load model on Pi 5)
-- ⚠️ CPU-bound (no GPU acceleration on Pi 5)
+- ⚠️ API dependency (requires OpenAI availability)
+- ⚠️ Network latency for embedding calls (~100-200ms)
 
 ---
 
@@ -784,12 +760,12 @@ async def plan_execution(state: AgentState) -> dict:
 **Acceptance Criteria**:
 - [x] ✅ SemanticDomainSelector implemented with max-pooling
 - [x] ✅ SemanticToolSelector implemented with max-pooling
-- [x] ✅ LocalE5Embeddings replacing OpenAI embeddings
+- [x] ✅ OpenAI text-embedding-3-small embeddings (migrated from local E5 in v1.14.0)
 - [x] ✅ Double threshold for domains (0.75/0.65)
 - [x] ✅ Double threshold for tools (0.70/0.60)
 - [x] ✅ Startup caching of all embeddings
 - [x] ✅ Multilingual support (100+ languages)
-- [x] ✅ Zero API cost
+- [x] ✅ Low API cost (~$0.02/1M tokens)
 - [x] ✅ 80-90% token reduction measured
 
 ---
@@ -797,8 +773,8 @@ async def plan_execution(state: AgentState) -> dict:
 ## Related Decisions
 
 - [ADR-019: Agent Manifest Catalogue System](ADR-019-Agent-Manifest-Catalogue-System.md) - Provides semantic_keywords
-- [ADR-049: Local E5 Embeddings](ADR-049-Local-E5-Embeddings.md) - Embedding model details
-- [ADR-037: Semantic Memory Store](ADR-037-Semantic-Memory-Store.md) - Uses same local embeddings
+- [ADR-049: Local E5 Embeddings](ADR-049-Local-E5-Embeddings.md) - Historical: superseded by OpenAI text-embedding-3-small (v1.14.0)
+- [ADR-037: Semantic Memory Store](ADR-037-Semantic-Memory-Store.md) - Uses same OpenAI embeddings
 - [ADR-039: Cost Optimization & Token Management](ADR-039-Cost-Optimization-Token-Management.md) - Token optimization strategies
 
 ---
@@ -808,7 +784,7 @@ async def plan_execution(state: AgentState) -> dict:
 ### Source Code
 - **SemanticDomainSelector**: `apps/api/src/domains/agents/services/semantic_domain_selector.py`
 - **SemanticToolSelector**: `apps/api/src/domains/agents/services/tool_selector.py`
-- **LocalE5Embeddings**: `apps/api/src/infrastructure/llm/local_embeddings.py`
+- **Memory Embeddings**: `apps/api/src/infrastructure/llm/memory_embeddings.py`
 - **Domain Taxonomy**: `apps/api/src/domains/agents/registry/domain_taxonomy.py`
 - **Tool Manifests**: `apps/api/src/domains/agents/{domain}/catalogue_manifests.py`
 

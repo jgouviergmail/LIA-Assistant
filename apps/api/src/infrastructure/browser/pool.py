@@ -62,6 +62,18 @@ async def close_browser_pool() -> None:
         _browser_pool = None
 
 
+async def cleanup_browser_sessions() -> None:
+    """Cleanup expired browser sessions if pool is initialized.
+
+    Safe to call even when pool is not yet initialized (no-op).
+    Registered as APScheduler job at startup — the leader election pattern
+    requires all workers to have the job registered, but the pool may only
+    be initialized on the worker that handles the first browser request.
+    """
+    if _browser_pool is not None and _browser_pool.is_healthy:
+        await _browser_pool.cleanup_expired()
+
+
 class BrowserPool:
     """Manages Playwright browser instances and sessions.
 

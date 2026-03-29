@@ -12,9 +12,9 @@ Key Features:
   - Hard threshold (0.70): Direct tool injection
   - Soft threshold (0.60): Uncertainty zone with warning
 - **Startup Caching**: Tool embeddings computed once at startup
-- **Local E5 Embeddings**: Uses intfloat/multilingual-e5-small (100+ languages)
-  - Zero API cost (runs locally on CPU)
-  - Better Q/A matching than OpenAI (0.90 vs 0.61 avg score)
+- **OpenAI Embeddings**: Uses text-embedding-3-small (1536 dims) via TrackedOpenAIEmbeddings
+  - Shared singleton with memory store and interest deduplication
+  - Token tracking via Prometheus metrics
 - **Zero Maintenance i18n**: No keyword lists to maintain per language
 
 Architecture:
@@ -31,7 +31,6 @@ Max-Pooling vs Average-Pooling:
 References:
     - INTELLIGENCE/PLAN_INITIAL.md: Architecture overview
     - INTELLIGENCE/NOTES_TECHNIQUES.md: Double threshold decision
-    - Model: https://huggingface.co/intfloat/multilingual-e5-small
 """
 
 import asyncio
@@ -42,7 +41,6 @@ from typing import Any
 import numpy as np
 
 from src.domains.agents.registry.catalogue import ToolManifest
-from src.infrastructure.llm.local_embeddings import LocalE5Embeddings
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -61,10 +59,6 @@ DEFAULT_MAX_TOOLS = 8
 # Pipeline: raw scores → stretch to [0,1] → softmax with temperature
 DEFAULT_SOFTMAX_TEMPERATURE = 0.1  # Strong discrimination with stretching
 DEFAULT_CALIBRATED_PRIMARY_MIN = 0.15  # Min probability for primary tool
-
-# Embedding configuration (Local E5 - zero API cost)
-EMBEDDING_MODEL = "intfloat/multilingual-e5-small"  # 100+ languages
-EMBEDDING_DIMENSIONS = 384  # E5-small output dimensions
 
 # Hybrid scoring configuration (CORRECTION 7)
 DEFAULT_HYBRID_ALPHA = 0.6  # Description weight (keywords = 1 - alpha)
@@ -158,7 +152,7 @@ class SemanticToolSelector:
 
     def __init__(self) -> None:
         """Initialize the selector (use get_tool_selector() instead)."""
-        self._embeddings: LocalE5Embeddings | None = None
+        self._embeddings: Any | None = None
         # Max-pooling: store list of embeddings per tool (one per keyword)
         self._tool_keyword_embeddings: dict[str, list[list[float]]] = {}
         # Track which keywords belong to which tool (for debugging)
@@ -272,11 +266,12 @@ class SemanticToolSelector:
         if calibrated_primary_min is not None:
             self._calibrated_primary_min = calibrated_primary_min
 
-        # Initialize embeddings model (local E5 - no API key needed)
-        self._embeddings = LocalE5Embeddings(
-            model_name=EMBEDDING_MODEL,
-            dimensions=EMBEDDING_DIMENSIONS,
-        )
+        # Initialize embeddings model (OpenAI via shared singleton)
+        from src.core.config import settings as app_settings
+        from src.infrastructure.llm.memory_embeddings import get_memory_embeddings
+
+        self._embeddings = get_memory_embeddings()
+        self._embedding_model_name = app_settings.memory_embedding_model
 
         # Collect ALL texts for batch embedding (descriptions + keywords)
         all_texts: list[str] = []
@@ -311,7 +306,7 @@ class SemanticToolSelector:
             description_count=description_count,
             keyword_count=keyword_count,
             total_embeddings=len(all_texts),
-            model=EMBEDDING_MODEL,
+            model=self._embedding_model_name,
             max_tools=self._max_tools,
             softmax_temperature=self._softmax_temperature,
             calibrated_primary_min=self._calibrated_primary_min,

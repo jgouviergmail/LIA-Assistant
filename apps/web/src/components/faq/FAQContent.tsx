@@ -505,9 +505,7 @@ export function FAQContent({ lng, onShowWelcome, showWelcomeButton = false }: FA
             <div className="px-6 pb-6 pt-2 border-t">
               <Accordion type="multiple" className="w-full">
                 {changelogVersionKeys.map(versionKey => {
-                  const itemCount = parseInt(
-                    t(`faq.changelog.versions.${versionKey}.count`)
-                  );
+                  const itemCount = parseInt(t(`faq.changelog.versions.${versionKey}.count`));
                   return (
                     <AccordionItem key={versionKey} value={`changelog-${versionKey}`}>
                       <AccordionTrigger className="text-left">
@@ -527,9 +525,7 @@ export function FAQContent({ lng, onShowWelcome, showWelcomeButton = false }: FA
                               <span className="text-primary mt-0.5">•</span>
                               <span
                                 dangerouslySetInnerHTML={{
-                                  __html: t(
-                                    `faq.changelog.versions.${versionKey}.items.i${i + 1}`
-                                  ),
+                                  __html: t(`faq.changelog.versions.${versionKey}.items.i${i + 1}`),
                                 }}
                               />
                             </li>

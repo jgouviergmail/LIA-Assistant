@@ -693,50 +693,50 @@ class BaseGoogleClient:
 
 ---
 
-### Local E5 Embeddings (ADR-049)
+### OpenAI Embeddings (ADR-049)
 
-**Problème résolu** : Remplacer OpenAI text-embedding-3-small ($0.02/1M tokens, 100-300ms latency) par embeddings 100% locaux.
+**Problème résolu** : Fournir des embeddings sémantiques de haute qualité pour la mémoire, le routing, et la recherche vectorielle.
 
-**Solution** : `intfloat/multilingual-e5-small` via sentence-transformers.
+**Solution** : OpenAI `text-embedding-3-small` (1536 dims) via l'API OpenAI.
 
 #### Architecture
 
 ```python
-# src/infrastructure/llm/local_embeddings.py
-class LocalE5Embeddings:
+# src/infrastructure/llm/memory_embeddings.py
+class MemoryEmbeddings:
     """
-    LangChain-compatible local embeddings.
+    LangChain-compatible OpenAI embeddings.
 
     Features:
-    - Zero API cost
+    - 1536 dimensions
     - 100+ langues supportées
-    - ~50ms latency (vs 100-300ms API)
-    - ARM64 native (Raspberry Pi 5)
+    - Haute qualité sémantique
     """
 
-    def __init__(self, model_name="intfloat/multilingual-e5-small"):
-        self.model = SentenceTransformer(model_name, device="cpu")
+    def __init__(self, model="text-embedding-3-small"):
+        self.client = OpenAI()
+        self.model = model
 
     def embed_query(self, text: str) -> list[float]:
-        return self.model.encode(text, normalize_embeddings=True).tolist()
+        response = self.client.embeddings.create(input=text, model=self.model)
+        return response.data[0].embedding
 ```
 
 #### Performance
 
-| Métrique | OpenAI API | Local E5 |
-|----------|------------|----------|
-| Cost | $0.02/1M tokens | **$0** |
-| Latency | 100-300ms | **~50ms** |
-| Q/A Accuracy | 0.61 | **0.90 (+48%)** |
-| Languages | 100+ | 100+ |
-| Offline | Non | **Oui** |
+| Métrique | Value |
+|----------|-------|
+| Model | OpenAI text-embedding-3-small |
+| Dimensions | 1536 |
+| Languages | 100+ |
+| Cost | $0.02/1M tokens |
 
 **Usages** :
 - Semantic Memory Store (mémoire long-terme)
 - Semantic Tool Router (sélection tools)
 - pgvector semantic search
 
-**Voir** : [LOCAL_EMBEDDINGS.md](./technical/LOCAL_EMBEDDINGS.md) | [ADR-049](./architecture/ADR-049-local-e5-embeddings.md)
+**Voir** : [ADR-049](./architecture/ADR-049-local-e5-embeddings.md) (superseded — now uses OpenAI text-embedding-3-small)
 
 ---
 
@@ -753,7 +753,7 @@ class LocalE5Embeddings:
 │                    SEMANTIC ROUTER PIPELINE                          │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                      │
-│  Query → E5 Embeddings (384D)                                       │
+│  Query → OpenAI Embeddings (1536D)                                   │
 │                  │                                                   │
 │                  ▼                                                   │
 │  ┌──────────────────────────────────────────────────────────────┐   │
@@ -816,9 +816,9 @@ DOMAINS = [
 
 **Bénéfices** :
 - ✅ **80-90% réduction tokens** : De 15K à 1.5-3K tokens/requête
-- ✅ **Zero i18n maintenance** : Embeddings multilingues natifs (E5)
+- ✅ **Zero i18n maintenance** : Embeddings multilingues natifs (OpenAI)
 - ✅ **+48% accuracy** : 0.90 vs 0.61 baseline
-- ✅ **Zero API cost** : Inférence locale (<50ms)
+- ✅ **Low API cost** : OpenAI text-embedding-3-small ($0.02/1M tokens)
 
 **Voir** : [SEMANTIC_ROUTER.md](./technical/SEMANTIC_ROUTER.md) | [ADR-048](./architecture/ADR-048-Semantic-Tool-Router.md)
 
@@ -3556,8 +3556,8 @@ oauth_health_check_duration_seconds{connector_type}
 Query → ┬─── BM25 Index (lexical) ────────────────┐
         │    Elasticsearch-like term matching      │
         │                                          │
-        └─── E5 Embeddings (semantic) ────────────┤
-             384D vector similarity                │
+        └─── OpenAI Embeddings (semantic) ─────────┤
+             1536D vector similarity               │
                                                    ▼
                                           Reciprocal Rank Fusion
                                           α=0.6 (semantic bias)
@@ -3693,7 +3693,7 @@ async with TrackingContext(user_id, run_id) as tracker:
 
 - Authentification flexible : None, API Key, Bearer, OAuth 2.1 (DCR + PKCE S256)
 - Credentials Fernet-encrypted, jamais exposées en API
-- Tool discovery avec cache embeddings E5 pour le routing sémantique
+- Tool discovery avec cache embeddings OpenAI pour le routing sémantique
 - `UserMCPToolAdapter` : wrapper BaseTool avec structured JSON parsing en N RegistryItems
 - `UserMCPClientPool` : connections éphémères (fresh HTTP par tool call)
 - SSRF prevention, rate limiting per-server, HITL configurable per-server
@@ -3817,7 +3817,7 @@ async with TrackingContext(user_id, run_id) as tracker:
 
 **Fonctionnalités** :
 
-- **Table dédiée `rag_chunks`** : colonne pgvector `Vector(1536)` avec index HNSW — séparée de `store_vectors` (dimensions incompatibles E5 384 vs OpenAI 1536)
+- **Table dédiée `rag_chunks`** : colonne pgvector `Vector(1536)` avec index HNSW — séparée de `store_vectors` pour isolation des espaces vectoriels
 - **Recherche hybride** : `final_score = alpha * semantic + (1 - alpha) * bm25`, BM25 via `BM25IndexManager` existant
 - **Tracking coûts** : intégré dans `TokenUsageLog`, `MessageTokenSummary`, `UserStatistics` via `EmbeddingTrackingContext`
 - **Ré-indexation admin** : `POST /rag-spaces/admin/reindex` avec Redis mutex, ALTER TABLE dynamique des dimensions, flag `rag_reindex_in_progress`
@@ -3865,7 +3865,7 @@ Carnets de bord introspectifs donnant à l'assistant une personnalité vivante e
 **Architecture** :
 - Domaine DDD complet `src/domains/journals/` (models, repository, service, router, schemas, extraction, consolidation, context_builder)
 - Double déclencheur : extraction post-conversation (fire-and-forget) + consolidation APScheduler (4h)
-- Injection sémantique E5-small dans prompts response ET planner (deux requêtes distinctes)
+- Injection sémantique OpenAI embeddings dans prompts response ET planner (deux requêtes distinctes)
 - Gestion autonome du cycle de vie via prompt engineering (pas de règles hardcodées)
 - Feature flag : `JOURNALS_ENABLED=false`
 

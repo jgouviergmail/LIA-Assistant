@@ -148,7 +148,7 @@ Notifications proactives autonomes : interets et heartbeat.
 
 Couche de donnees interne : registre de resultats, moteur de requetes, checkpoints LangGraph.
 
-**Metriques cles** : executions d'outils (compteur, duree, resultats), moteur de requetes (recherche hybride BM25 + E5), sauvegarde/chargement de checkpoints (latence, taille), recherche hybride dans le store.
+**Metriques cles** : executions d'outils (compteur, duree, resultats), moteur de requetes (recherche hybride BM25 + OpenAI embeddings), sauvegarde/chargement de checkpoints (latence, taille), recherche hybride dans le store.
 
 #### 15 - LangGraph Framework Deep (21 panels)
 

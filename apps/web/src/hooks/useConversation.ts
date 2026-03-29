@@ -119,12 +119,12 @@ export const useConversation = (): UseConversationReturn => {
         // Message metadata (HITL responses, run_id, etc.) - API uses alias "message_metadata"
         metadata: msg.message_metadata ?? undefined,
         // AI-generated images persisted in message_metadata for history display
-        generatedImages: (msg.message_metadata?.generated_images as
-          | { url: string; alt: string }[]
-          | undefined) ?? undefined,
-        browserScreenshot: (msg.message_metadata?.browser_screenshot as
-          | { url: string; alt: string }
-          | undefined) ?? undefined,
+        generatedImages:
+          (msg.message_metadata?.generated_images as { url: string; alt: string }[] | undefined) ??
+          undefined,
+        browserScreenshot:
+          (msg.message_metadata?.browser_screenshot as { url: string; alt: string } | undefined) ??
+          undefined,
       }));
 
       logger.info(

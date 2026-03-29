@@ -3,7 +3,7 @@
 **Status**: ✅ IMPLEMENTED (2025-12-21) | **Updated**: 2026-02-02 (Hybrid Search BM25 + Semantic)
 **Deciders**: Équipe architecture LIA
 **Technical Story**: Long-term psychological memory for personalized interactions
-**Related Documentation**: `docs/technical/LONG_TERM_MEMORY.md`, `docs/technical/LOCAL_EMBEDDINGS.md`
+**Related Documentation**: `docs/technical/LONG_TERM_MEMORY.md`
 
 ---
 
@@ -365,34 +365,34 @@ memory_max_results: int = 10
 memory_min_search_score: float = 0.6
 memory_extraction_llm_model: str = "gpt-4.1-mini"
 
-# Local E5 Embeddings (updated 2025-12-23)
-# Replaces OpenAI text-embedding-3-small for better Q/A matching (0.90 vs 0.61)
-memory_embedding_model: str = "intfloat/multilingual-e5-small"
-memory_embedding_dimensions: int = 384
+# OpenAI Embeddings (updated v1.14.0)
+# Migrated back from local E5 to OpenAI text-embedding-3-small for operational simplicity
+memory_embedding_model: str = "text-embedding-3-small"
+memory_embedding_dimensions: int = 1536
 
 memory_max_age_days: int = 180
 memory_purge_threshold: float = 0.3
 memory_cleanup_hour: int = 4  # 4 AM UTC
 ```
 
-### Embedding Model (Updated 2025-12-23)
+### Embedding Model (Updated v1.14.0)
 
 ```python
-# apps/api/src/infrastructure/llm/local_embeddings.py
+# apps/api/src/infrastructure/llm/memory_embeddings.py
 
-# Local E5 model for semantic search
-# Zero API cost, +48% accuracy vs OpenAI
+# OpenAI text-embedding-3-small for semantic search
+# Migrated from local E5 for operational simplicity (no 470MB model, no 9s startup)
 
-from src.infrastructure.llm.local_embeddings import get_local_embeddings
+from src.infrastructure.llm.memory_embeddings import get_memory_embeddings
 
-embeddings = get_local_embeddings()  # Singleton
+embeddings = get_memory_embeddings()  # Singleton
 vector = await embeddings.aembed_query("search query")
 ```
 
-| Model | Dimensions | Q/A Score | Cost |
-|-------|------------|-----------|------|
-| ~~text-embedding-3-small~~ (legacy) | 1536 | 0.61 | $0.02/1M |
-| **multilingual-e5-small** (current) | 384 | **0.90** | **$0** |
+| Model | Dimensions | Cost | Notes |
+|-------|------------|------|-------|
+| **text-embedding-3-small** (current) | 1536 | $0.02/1M | Operational simplicity, unified dims |
+| ~~multilingual-e5-small~~ (legacy, ADR-049) | 384 | $0 | Removed in v1.14.0 |
 
 ### Consequences
 
@@ -404,13 +404,12 @@ vector = await embeddings.aembed_query("search query")
 - ✅ **GDPR Compliant** : Export and deletion
 - ✅ **Intelligent Purge** : Retention scoring
 - ✅ **Pinned Protection** : Critical memories preserved
-- ✅ **Zero Embedding Cost** : Local E5 model (updated 2025-12-23)
-- ✅ **+48% Q/A Accuracy** : 0.90 vs 0.61 baseline (updated 2025-12-23)
+- ✅ **Unified Embedding Model** : OpenAI text-embedding-3-small (updated v1.14.0, migrated from local E5)
 
 **Negative**:
 - ⚠️ LLM extraction costs (gpt-4.1-mini still used)
 - ⚠️ pgvector dependency
-- ⚠️ ~470MB memory for E5 model
+- ⚠️ Embedding API cost (OpenAI text-embedding-3-small, ~$0.02/1M tokens)
 - ⚠️ BM25 cache memory (~200-400KB per user)
 
 ---
@@ -430,8 +429,8 @@ vector = await embeddings.aembed_query("search query")
 
 ## Related Decisions
 
-- [ADR-049: Local E5 Embeddings](ADR-049-Local-E5-Embeddings.md) - Embedding model details
-- [ADR-048: Semantic Tool Router](ADR-048-Semantic-Tool-Router.md) - Uses same local embeddings
+- [ADR-049: Local E5 Embeddings](ADR-049-Local-E5-Embeddings.md) - Historical: superseded by OpenAI text-embedding-3-small (v1.14.0)
+- [ADR-048: Semantic Tool Router](ADR-048-Semantic-Tool-Router.md) - Uses same OpenAI embeddings
 
 ---
 
@@ -439,7 +438,7 @@ vector = await embeddings.aembed_query("search query")
 
 ### Source Code
 - **Semantic Store**: `apps/api/src/infrastructure/store/semantic_store.py`
-- **Local Embeddings**: `apps/api/src/infrastructure/llm/local_embeddings.py`
+- **Memory Embeddings**: `apps/api/src/infrastructure/llm/memory_embeddings.py`
 - **Memory Injection**: `apps/api/src/domains/agents/middleware/memory_injection.py`
 - **Memory Extraction**: `apps/api/src/domains/agents/services/memory_extractor.py`
 - **Memory Router**: `apps/api/src/domains/memories/router.py`

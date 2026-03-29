@@ -104,7 +104,7 @@ async def search_semantic(
     namespace: StoreNamespace,
     query: str,
     limit: int = 10,
-    min_score: float = 0.6,
+    min_score: float | None = None,
 ) -> list[SearchItem]:
     """
     Perform semantic search across a namespace.
@@ -116,7 +116,7 @@ async def search_semantic(
         namespace: Target namespace for search
         query: Natural language query for semantic matching
         limit: Maximum number of results to return
-        min_score: Minimum similarity score threshold (0.0-1.0)
+        min_score: Minimum similarity score threshold (default: from settings.memory_min_search_score)
 
     Returns:
         List of Items sorted by relevance, filtered by min_score
@@ -128,6 +128,12 @@ async def search_semantic(
         ...     print(f"{item.value['content']} (score: {item.score:.2f})")
     """
     try:
+        # Resolve min_score from settings if not explicitly provided
+        if min_score is None:
+            from src.core.config import settings
+
+            min_score = settings.memory_min_search_score
+
         results = await store.asearch(
             namespace.to_tuple(),
             query=query,
@@ -303,8 +309,12 @@ async def search_hybrid(
     with hybrid_search_duration_seconds.time():
         try:
             # 1. Semantic search (fast, indexed via pgvector)
+            # Use a lower threshold for the semantic phase of hybrid search
+            # to let BM25 contribute; final filtering uses min_score from caller
+            from src.core.constants import MEMORY_RELATIONSHIP_MIN_SCORE
+
             semantic_results = await search_semantic(
-                store, namespace, query, limit=limit * 3, min_score=0.3
+                store, namespace, query, limit=limit * 3, min_score=MEMORY_RELATIONSHIP_MIN_SCORE
             )
 
             if not semantic_results:

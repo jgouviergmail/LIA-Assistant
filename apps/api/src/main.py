@@ -419,27 +419,30 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         # Internal agents (no external API - operate on Registry data)
         registry.register_agent("query_agent", build_query_agent)
 
-        # Browser agent (F7 - auto-detected, no feature flag needed)
-        # Activation is managed via admin connector panel, not .env.
-        # If Playwright/Chromium is installed → agent available. If not → graceful skip.
+        # Browser agent (F7 - lazy-initialized, Chromium only starts on first browser tool call)
+        # Pool.initialize() deferred to first acquire_session() to save ~1.5 GB RAM at boot.
+        # Cleanup job is registered on ALL workers (leader election requires it) but is
+        # a no-op until a worker actually initializes the pool on first browser request.
         try:
-            from src.infrastructure.browser.pool import get_browser_pool
+            import importlib.util
 
-            browser_pool = await get_browser_pool()
-            if browser_pool and browser_pool.is_healthy:
-                from src.domains.agents.graphs.browser_agent_builder import build_browser_agent
+            if importlib.util.find_spec("playwright") is not None:
+                from src.domains.agents.graphs.browser_agent_builder import (
+                    build_browser_agent,
+                )
+                from src.infrastructure.browser.pool import cleanup_browser_sessions
 
                 registry.register_agent("browser_agent", build_browser_agent)
                 scheduler.add_job(
-                    browser_pool.cleanup_expired,
+                    cleanup_browser_sessions,
                     "interval",
                     seconds=60,
                     id=SCHEDULER_JOB_BROWSER_CLEANUP,
                     replace_existing=True,
                 )
-                logger.info("browser_agent_initialized")
+                logger.info("browser_agent_registered_lazy")
             else:
-                logger.info("browser_agent_skipped_chromium_not_available")
+                logger.info("browser_agent_skipped_playwright_not_installed")
         except ImportError:
             logger.info("browser_agent_skipped_playwright_not_installed")
 

@@ -77,7 +77,7 @@ safe_fire_and_forget(                                    safe_fire_and_forget(
                                                                       ▼
                                                          InterestExtractionService
                                                          - LLM analysis (0-2 interests)
-                                                         - Dedup via E5 embeddings (0.80 threshold)
+                                                         - Dedup via OpenAI embeddings (0.80 threshold)
                                                          - Consolidate or create with embedding
                                                          - Token tracking via TrackingContext
 ```
@@ -110,7 +110,7 @@ safe_fire_and_forget(                                    safe_fire_and_forget(
        ▼
 5. For each extracted interest:
        │
-       ├── Generate embedding for topic (E5-small, 384 dims)
+       ├── Generate embedding for topic (OpenAI text-embedding-3-small, 1536 dims)
        │
        ├── Check similarity with existing (embedding-based)
        │   ├── cosine_similarity >= 0.80? → consolidate_on_mention()
@@ -306,10 +306,10 @@ Le contenu est genere via une **chaine de fallback** :
 
 **Deduplication** :
 - Hash SHA256 du contenu compare aux 30 derniers jours
-- Similarite semantique via embeddings E5-small (384 dims) - seuil 0.85
+- Similarite semantique via OpenAI embeddings (1536 dims) - seuil 0.85
 
 **Generation des embeddings (automatique)** :
-- Chaque contenu genere par une source recoit automatiquement un embedding E5-small
+- Chaque contenu genere par une source recoit automatiquement un embedding OpenAI
 - L'embedding est genere dans `InterestContentGenerator._try_source()` apres generation du contenu
 - Permet la comparaison semantique avec les notifications recentes stockees en base
 
@@ -393,7 +393,7 @@ Chaque notification est envoyee via **3 canaux simultanement** :
 
 ### 2.5.6 Exploitation des Embeddings
 
-Les embeddings E5-small (384 dimensions) sont utilises a **trois niveaux** :
+Les embeddings OpenAI text-embedding-3-small (1536 dimensions) sont utilises a **trois niveaux** :
 
 #### 1. Deduplication des interets (`_find_similar_interest`)
 
@@ -623,7 +623,7 @@ class MyProactiveTask:
 | `last_mentioned_at` | TIMESTAMP | Derniere mention par l'utilisateur |
 | `last_notified_at` | TIMESTAMP | Derniere notification envoyee |
 | `dormant_since` | TIMESTAMP | Debut de dormance (pour auto-suppression) |
-| `embedding` | ARRAY(Float()) | E5-small embedding (384 dims) pour deduplication future |
+| `embedding` | ARRAY(Float()) | OpenAI embedding (1536 dims) pour deduplication future |
 | `created_at` | TIMESTAMP | Date creation |
 | `updated_at` | TIMESTAMP | Date modification |
 
@@ -640,7 +640,7 @@ class MyProactiveTask:
 | `interest_id` | UUID FK | Reference user_interests.id (SET NULL) |
 | `run_id` | VARCHAR(100) | Unique, pour lier aux token_usage_logs |
 | `content_hash` | VARCHAR(64) | SHA256 du contenu pour dedup exact |
-| `content_embedding` | ARRAY(Float()) | Embedding du contenu (384 dims) pour dedup semantique |
+| `content_embedding` | ARRAY(Float()) | Embedding du contenu (1536 dims) pour dedup semantique |
 | `source` | VARCHAR(50) | wikipedia, perplexity, llm_reflection |
 | `user_feedback` | VARCHAR(20) | thumbs_up, thumbs_down, null |
 | `created_at` | TIMESTAMP | Date envoi |

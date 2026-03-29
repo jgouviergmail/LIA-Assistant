@@ -90,16 +90,11 @@ services:
       - LANGFUSE_DEBUG=false
       # Trust X-Forwarded-Proto from Cloudflare (Flexible SSL sends HTTP to origin)
       - FORWARDED_ALLOW_IPS=*
-      # HuggingFace cache directory for E5 embedding model
-      - HF_HOME=/app/.cache/huggingface
-      - TRANSFORMERS_CACHE=/app/.cache/huggingface
     # tmpfs mount for tiktoken and other libs that need writable temp directory
     # Increased to 500M to handle model operations
     tmpfs:
       - /tmp:mode=1777,size=500M
     volumes:
-      # Persistent HuggingFace model cache (survives container restarts)
-      - huggingface_cache:/app/.cache/huggingface
       # Firebase service account credentials (FCM push notifications)
       - ./apps/api/config:/app/config:ro
       # Persistent storage for file attachments (images, PDF)
@@ -463,7 +458,6 @@ volumes:
   loki_data:
   tempo_data:  # Trace storage (7-day retention, auto-compacted)
   promtail_positions:
-  huggingface_cache:  # Persistent storage for E5 embedding model (~500MB)
   attachments_data:  # Persistent storage for file attachments (images, PDF)
   skills_data:  # Persistent storage for user-imported skills
   portainer_data:

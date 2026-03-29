@@ -2436,8 +2436,8 @@
           "description": "Unified LLM query analysis (P95 < 800ms): intent detection (action/conversation), multi-domain routing with confidence, English normalization, temporal/contextual reference resolution. Smart risk detection: mutation_intent, cardinality_risk, for_each_detected. Automatic semantic expansion of related domains via the type registry."
         },
         "routing": {
-          "title": "🧭 Semantic Routing & Local Embeddings",
-          "description": "Intelligent router with multilingual E5 embeddings (100+ languages, ~5ms). Automatic semantic expansion of related domains (weather → location, calendar → contacts). Dynamically filtered capabilities catalog (96% token reduction). Adaptive HARD/SOFT/FALLBACK thresholds for optimal precision."
+          "title": "🧭 Semantic Routing & AI-Powered Embeddings",
+          "description": "Intelligent router with multilingual semantic embeddings (100+ languages). Automatic semantic expansion of related domains (weather → location, calendar → contacts). Dynamically filtered capabilities catalog (96% token reduction). Adaptive HARD/SOFT/FALLBACK thresholds for optimal precision."
         },
         "query": {
           "title": "🔍 Query Analysis",
@@ -2465,11 +2465,11 @@
         },
         "memory": {
           "title": "💾 Dual Short/Long-Term Memory",
-          "description": "Short-term: sliding message window with automatic context summarization. Long-term: extraction of facts about you (preferences, relationships, habits) stored with E5 embeddings. Hybrid BM25 + semantic search for optimal recall: both exact keywords AND meaning are used to retrieve your relevant memories."
+          "description": "Short-term: sliding message window with automatic context summarization. Long-term: extraction of facts about you (preferences, relationships, habits) stored with semantic embeddings. Hybrid BM25 + semantic search for optimal recall: both exact keywords AND meaning are used to retrieve your relevant memories."
         },
         "interests": {
           "title": "✨ Smart Interest Learning",
-          "description": "Automatic learning of your interests through LLM conversation analysis. Proactive personalized notifications on your favorite topics via Wikipedia, Perplexity, or AI reflection. Bayesian weighting with temporal decay. Semantic deduplication via E5 embeddings. Full control: feedback, blocking, configurable time window and frequency."
+          "description": "Automatic learning of your interests through LLM conversation analysis. Proactive personalized notifications on your favorite topics via Wikipedia, Perplexity, or AI reflection. Bayesian weighting with temporal decay. Semantic deduplication via AI-powered embeddings. Full control: feedback, blocking, configurable time window and frequency."
         },
         "summarization": {
           "title": "📝 Automatic Summarization",
@@ -3177,7 +3177,7 @@
           },
           "q6": {
             "question": "How is duplicate content avoided?",
-            "answer": "LIA uses several anti-duplicate mechanisms:<br><br><strong>🔄 Duplicate protection:</strong><br><br><strong>1. Interest deduplication:</strong><br>• Semantic similarity via E5 embeddings<br>• 90% threshold: two similar topics → consolidation<br>• \"<em>Python</em>\" and \"<em>Python Programming</em>\" = same interest<br><br><strong>2. Content deduplication:</strong><br>• SHA256 hash of content (exact comparison)<br>• Semantic similarity (85% threshold)<br>• Checked against the last 30 days<br><br><strong>3. Cooldowns:</strong><br>• <strong>Global</strong>: 2h minimum between 2 notifications<br>• <strong>Per topic</strong>: 24h before discussing the same theme again<br>• <strong>Daily quota</strong>: max N notifications/day<br><br><strong>📊 Result:</strong><br>You will never receive the same content twice, nor topics too similar in a row."
+            "answer": "LIA uses several anti-duplicate mechanisms:<br><br><strong>🔄 Duplicate protection:</strong><br><br><strong>1. Interest deduplication:</strong><br>• Semantic similarity via AI-powered embeddings<br>• 90% threshold: two similar topics → consolidation<br>• \"<em>Python</em>\" and \"<em>Python Programming</em>\" = same interest<br><br><strong>2. Content deduplication:</strong><br>• SHA256 hash of content (exact comparison)<br>• Semantic similarity (85% threshold)<br>• Checked against the last 30 days<br><br><strong>3. Cooldowns:</strong><br>• <strong>Global</strong>: 2h minimum between 2 notifications<br>• <strong>Per topic</strong>: 24h before discussing the same theme again<br>• <strong>Daily quota</strong>: max N notifications/day<br><br><strong>📊 Result:</strong><br>You will never receive the same content twice, nor topics too similar in a row."
           }
         }
       },

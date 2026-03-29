@@ -171,7 +171,7 @@ Taches proactives (selections, generations, envois), notifications heartbeat (vo
 
 ### 14 - Data Registry & Checkpoints (19 panels)
 
-Data registry (items par type, taille, operations CRUD), moteur de requetes (latence, filtres), checkpoints LangGraph (duree sauvegarde, taille payload, frequence), recherche hybride (BM25 + semantic E5, scores, latence).
+Data registry (items par type, taille, operations CRUD), moteur de requetes (latence, filtres), checkpoints LangGraph (duree sauvegarde, taille payload, frequence), recherche hybride (BM25 + semantic OpenAI embeddings, scores, latence).
 
 ### 15 - LangGraph Framework Deep Dive (21 panels)
 

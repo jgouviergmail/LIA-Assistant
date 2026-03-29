@@ -1087,7 +1087,8 @@ MEMORY_CATEGORY_RELATIONSHIP = "relationship"
 MEMORY_HYBRID_ALPHA_DEFAULT = 0.6
 
 # Minimum combined score for inclusion in hybrid search results
-MEMORY_HYBRID_MIN_SCORE_DEFAULT = 0.5
+# Calibrated for OpenAI text-embedding-3-small (E5 was 0.5)
+MEMORY_HYBRID_MIN_SCORE_DEFAULT = 0.4
 
 # Threshold for "both high" bonus in hybrid search
 # If both semantic and BM25 scores exceed this, apply 10% boost
@@ -1344,11 +1345,10 @@ INTEREST_EXTRACTION_QUERY_TRUNCATION_LENGTH = 500
 
 # Deduplication search limits
 INTEREST_DEDUP_SEARCH_LIMIT = 20  # Max embeddings to check for similarity
-# E5-small gives high baseline similarity (0.83-0.86) for unrelated French topics.
-# Threshold 0.90 separates truly similar (0.90+) from unrelated topics.
-# Tested: "langraph development" vs "french cuisine" = 0.85 (rejected at 0.90)
-INTEREST_DEDUP_SIMILARITY_THRESHOLD = 0.90  # Embedding similarity for merging
-INTEREST_CONTENT_SIMILARITY_THRESHOLD = 0.85  # Content deduplication threshold
+# OpenAI text-embedding-3-small produces more discriminative scores than E5.
+# E5 had inflated baseline (0.83-0.86 for unrelated topics), OpenAI scores are lower.
+INTEREST_DEDUP_SIMILARITY_THRESHOLD = 0.75  # Embedding similarity for merging
+INTEREST_CONTENT_SIMILARITY_THRESHOLD = 0.70  # Content deduplication threshold
 
 # Notification batch processing
 INTEREST_NOTIFICATION_BATCH_SIZE = 50  # Users per scheduler run
@@ -1757,7 +1757,7 @@ PLANNER_LLM_TEMPERATURE_DEFAULT = 0.0
 FOR_EACH_MUTATION_THRESHOLD_DEFAULT = 1
 MAX_CONTEXT_BATCH_SIZE_DEFAULT = 10
 MEMORY_MAX_RESULTS_DEFAULT = 50  # Aligned from .env.prod (was 10)
-MEMORY_MIN_SEARCH_SCORE_DEFAULT = 0.88  # Aligned from .env.prod (was 0.5)
+MEMORY_MIN_SEARCH_SCORE_DEFAULT = 0.45  # Calibrated for OpenAI text-embedding-3-small (E5 was 0.88)
 MEMORY_EXTRACTION_LLM_MODEL_DEFAULT = "gpt-4.1-mini"
 MEMORY_EXTRACTION_LLM_TEMPERATURE_DEFAULT = 0.3
 MEMORY_EXTRACTION_MAX_TOKENS_DEFAULT = 1000
@@ -1765,8 +1765,8 @@ MEMORY_EXTRACTION_MESSAGE_MAX_CHARS_DEFAULT = 3000
 MEMORY_EXTRACTION_TOP_P_DEFAULT = 1.0
 MEMORY_EXTRACTION_FREQUENCY_PENALTY_DEFAULT = 0.0
 MEMORY_EXTRACTION_PRESENCE_PENALTY_DEFAULT = 0.0
-MEMORY_EMBEDDING_MODEL_DEFAULT = "intfloat/multilingual-e5-small"
-MEMORY_EMBEDDING_DIMENSIONS_DEFAULT = 384
+MEMORY_EMBEDDING_MODEL_DEFAULT = "text-embedding-3-small"
+MEMORY_EMBEDDING_DIMENSIONS_DEFAULT = 1536
 MEMORY_MAX_AGE_DAYS_DEFAULT = 2  # Aligned from .env.prod (was 180)
 MEMORY_MIN_USAGE_COUNT_DEFAULT = 1  # Aligned from .env.prod (was 3)
 MEMORY_PURGE_THRESHOLD_DEFAULT = 0.5  # Aligned from .env.prod (was 0.3)
@@ -1822,8 +1822,10 @@ INTEREST_DECAY_RATE_PER_DAY_DEFAULT = 0.005  # Aligned from .env.prod (was 0.01)
 INTEREST_CONTENT_MAX_LENGTH_DEFAULT = 500
 INTEREST_CONTENT_LOOKBACK_DAYS_DEFAULT = 7  # Aligned from .env.prod (was 30)
 INTEREST_DEDUP_SEARCH_LIMIT_DEFAULT = 20
-INTEREST_DEDUP_SIMILARITY_THRESHOLD_DEFAULT = 0.9  # Aligned from .env.prod (was 0.8)
-INTEREST_CONTENT_SIMILARITY_THRESHOLD_DEFAULT = 0.92
+INTEREST_DEDUP_SIMILARITY_THRESHOLD_DEFAULT = 0.75  # Calibrated for OpenAI embeddings (E5 was 0.9)
+INTEREST_CONTENT_SIMILARITY_THRESHOLD_DEFAULT = (
+    0.70  # Calibrated for OpenAI embeddings (E5 was 0.92)
+)
 HEARTBEAT_DECISION_LLM_PROVIDER_DEFAULT = "openai"
 HEARTBEAT_MESSAGE_LLM_PROVIDER_DEFAULT = "anthropic"
 
@@ -2188,7 +2190,7 @@ INITIATIVE_MAX_ITERATIONS_DEFAULT = 1  # Conservative: one evaluation pass
 INITIATIVE_MAX_ACTIONS_PER_ITERATION_DEFAULT = 3
 INITIATIVE_LLM_TIMEOUT_SECONDS = 10  # Structured output needs parsing time
 INITIATIVE_MEMORY_LIMIT = 3  # Max memory facts injected
-INITIATIVE_MEMORY_MIN_SCORE = 0.6  # High threshold for relevance
+INITIATIVE_MEMORY_MIN_SCORE = 0.45  # Calibrated for OpenAI embeddings (E5 was 0.6)
 INITIATIVE_INTERESTS_LIMIT = 5  # Top N active interests
 
 # ============================================================================

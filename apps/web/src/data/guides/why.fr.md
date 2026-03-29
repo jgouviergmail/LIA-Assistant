@@ -4,7 +4,7 @@
 
 **Version** : 2.0
 **Date** : 2026-03-24
-**Application** : LIA v1.13.3
+**Application** : LIA v1.13.4
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -230,7 +230,7 @@ LIA ne prétend pas avoir résolu l'IA agentique en général. Mais elle a réso
 
 Quand vous envoyez un message, il traverse un pipeline en 5 phases :
 
-**Phase 1 — Comprendre** : Le routeur analyse votre message en quelques centaines de millisecondes et décide s'il s'agit d'une conversation simple ou d'une demande nécessitant des actions. L'analyseur de requête identifie les domaines concernés (email, calendrier, météo...) et un routeur sémantique affine la détection grâce à des embeddings locaux (+48 % de précision).
+**Phase 1 — Comprendre** : Le routeur analyse votre message en quelques centaines de millisecondes et décide s'il s'agit d'une conversation simple ou d'une demande nécessitant des actions. L'analyseur de requête identifie les domaines concernés (email, calendrier, météo...) et un routeur sémantique affine la détection grâce à des embeddings sémantiques (+48 % de précision).
 
 **Phase 2 — Planifier** : Pour les demandes complexes, un planificateur intelligent génère un plan d'exécution structuré — un arbre de dépendances avec des étapes, des conditions, des itérations. Si un plan similaire a déjà été validé par le passé, un apprentissage bayésien permet de le réutiliser directement (bypass du LLM, économies massives).
 
@@ -251,7 +251,7 @@ Là où la plupart des systèmes agentiques voient leurs coûts exploser, LIA a 
 - **Message Windowing** : chaque nœud ne voit que les N derniers messages nécessaires (5/10/20 selon le nœud)
 - **Context Compaction** : résumé LLM des anciens messages quand le contexte dépasse le seuil
 - **Prompt Caching** : exploitation du cache natif OpenAI/Anthropic (90 % de réduction)
-- **Embeddings locaux** : embeddings E5 exécutés localement (zéro coût API, ~50 ms)
+- **Embeddings sémantiques** : embeddings multilingues IA pour le routage sémantique et la déduplication
 
 ### 6.4. L'observabilité comme filet de sécurité
 
@@ -396,7 +396,7 @@ L'interface web responsive est complétée par une intégration Telegram native 
 
 ### 12.2. Le routage sémantique local
 
-Des embeddings multilingues E5 (100+ langues) exécutés localement en ~50 ms permettent un routage sémantique qui améliore la précision de détection d'intention de 48 % par rapport au routage purement LLM — à coût zéro.
+Des embeddings sémantiques multilingues (100+ langues) permettent un routage sémantique qui améliore la précision de détection d'intention de 48 % par rapport au routage purement LLM.
 
 ### 12.3. L'anti-hallucination en trois couches
 
@@ -486,4 +486,4 @@ Ce n'est pas un chatbot. Ce n'est pas une plateforme cloud. C'est un **compagnon
 
 ---
 
-*Document rédigé sur la base du code source de LIA v1.13.3, de 190+ documents techniques, de 63 ADRs, du changelog complet, et d'une analyse du paysage concurrentiel IA de mars 2026. Toutes les fonctionnalités décrites sont implémentées et vérifiables dans le code. Les données de marché proviennent de Gartner, IBM, et des publications officielles d'OpenAI, Google, Microsoft et Anthropic.
+*Document rédigé sur la base du code source de LIA v1.13.4, de 190+ documents techniques, de 63 ADRs, du changelog complet, et d'une analyse du paysage concurrentiel IA de mars 2026. Toutes les fonctionnalités décrites sont implémentées et vérifiables dans le code. Les données de marché proviennent de Gartner, IBM, et des publications officielles d'OpenAI, Google, Microsoft et Anthropic.

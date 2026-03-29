@@ -6,7 +6,7 @@
 
 **Versión**: 2.1
 **Fecha**: 2026-03-25
-**Aplicación**: LIA v1.13.3
+**Aplicación**: LIA v1.13.4
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -20,7 +20,7 @@
 5. [El pipeline de ejecución conversacional](#5-el-pipeline-de-ejecución-conversacional)
 6. [El sistema de planificación (ExecutionPlan DSL)](#6-el-sistema-de-planificación-executionplan-dsl)
 7. [Smart Services: optimización inteligente](#7-smart-services--optimización-inteligente)
-8. [Enrutamiento semántico y embeddings locales](#8-enrutamiento-semántico-y-embeddings-locales)
+8. [Enrutamiento semántico y embeddings semánticos](#8-enrutamiento-semántico-y-embeddings-semánticos)
 9. [Human-in-the-Loop: arquitectura de 6 capas](#9-human-in-the-loop--arquitectura-de-6-capas)
 10. [Gestión del state y message windowing](#10-gestión-del-state-y-message-windowing)
 11. [Sistema de memoria y perfil psicológico](#11-sistema-de-memoria-y-perfil-psicológico)
@@ -49,12 +49,12 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 
 | Restricción | Consecuencia arquitectural |
 |------------|--------------------------|
-| Auto-hospedaje ARM64 | Docker multi-arch, embeddings locales E5 (sin dependencia de API), Playwright chromium cross-platform |
+| Auto-hospedaje ARM64 | Docker multi-arch, embeddings semánticos (multilingües), Playwright chromium cross-platform |
 | Soberanía de datos | PostgreSQL local (sin SaaS DB), cifrado Fernet en reposo, sesiones Redis locales |
 | Multi-proveedor LLM | Factory pattern con 7 adaptadores, configuración por nodo, sin acoplamiento fuerte a un provider |
 | Transparencia total | 350+ métricas Prometheus, debug panel integrado, seguimiento token por token |
 | Fiabilidad en producción | 59 ADRs, 2 300+ tests, observabilidad nativa, HITL de 6 niveles |
-| Costes controlados | Smart Services (89 % de ahorro en tokens), embeddings locales, prompt caching, filtrado de catálogo |
+| Costes controlados | Smart Services (89 % de ahorro en tokens), embeddings semánticos, prompt caching, filtrado de catálogo |
 
 ### 1.2. Principios arquitecturales
 
@@ -96,7 +96,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Redis | 7.3.0 | Cache, sesiones, rate limiting | O(1) ops, sliding window atómico (Lua), SETNX leader election |
 | Pydantic | 2.12.5 | Validación + serialización | `ConfigDict`, `field_validator`, composición de settings via MRO |
 | structlog | latest | Logging estructurado | JSON output con filtrado PII automático, snake_case events |
-| sentence-transformers | 5.0+ | Embeddings locales | E5-small multilingüe (384d), coste API cero, ~50 ms en ARM64 |
+| openai | 1.0+ | Embeddings semánticos | Embeddings multilingües OpenAI, optimizados para enrutamiento semántico |
 | Playwright | latest | Browser automation | Chromium headless, CDP accessibility tree, cross-platform |
 | APScheduler | 3.x | Background jobs | Cron/interval triggers, compatible con leader election Redis |
 
@@ -406,18 +406,15 @@ Las consultas en cualquier idioma se traducen automáticamente al inglés antes 
 
 ---
 
-## 8. Enrutamiento semántico y embeddings locales
+## 8. Enrutamiento semántico y embeddings semánticos
 
-### 8.1. ¿Por qué embeddings locales? (ADR-049)
+### 8.1. ¿Por qué embeddings semánticos? (ADR-049)
 
-El enrutamiento puramente LLM tenía dos problemas: coste (cada petición = una llamada LLM) y precisión (el LLM se equivocaba en los dominios en ~20 % de los casos multi-dominio). Los embeddings locales resuelven ambos:
+El enrutamiento puramente LLM tenía dos problemas: coste (cada petición = una llamada LLM) y precisión (el LLM se equivocaba en los dominios en ~20 % de los casos multi-dominio). Los embeddings semánticos resuelven ambos:
 
 | Propiedad | Valor |
 |-----------|--------|
-| Modelo | multilingual-e5-small |
-| Dimensiones | 384 |
-| Latencia | ~50 ms (ARM64 Pi 5) |
-| Coste API | Cero |
+| Proveedor | OpenAI |
 | Idiomas | 100+ |
 | Ganancia de precisión | +48 % en Q/A matching vs enrutamiento LLM solo |
 
@@ -735,7 +732,7 @@ Los administradores pueden interactuar con Claude Code CLI directamente desde la
 | TTFT (Time To First Token) | 380 ms | < 500 ms |
 | Router Latency | 800 ms | < 2 s |
 | Planner Latency | 2.5 s | < 5 s |
-| E5 Embedding (local) | ~50 ms | < 100 ms |
+| Embedding semántico | ~100 ms | < 200 ms |
 | Checkpoint save | < 50 ms | P95 |
 | Redis session lookup | < 5 ms | P95 |
 
@@ -747,7 +744,7 @@ Los administradores pueden interactuar con Claude Code CLI directamente desde la
 | Smart Catalogue | 96 % reducción tokens | Panic mode necesario si filtrado demasiado agresivo |
 | Pattern Learning | 89 % ahorros LLM | Inicialización requerida (golden patterns) |
 | Prompt Caching | 90 % descuento | Depende del soporte del provider |
-| Local Embeddings | Coste API cero | ~470 MB memoria, 9s carga inicial |
+| Embeddings semánticos | Enrutamiento multilingüe de alta precisión | Depende de la disponibilidad del proveedor API |
 | Parallel Execution | Latencia = max(etapas) | Complejidad de gestión de dependencias |
 | Context Compaction | ~60 % por compactación | Pérdida de información (atenuada por preservación de IDs) |
 
@@ -843,7 +840,7 @@ Cada subsistema opcional está controlado por un flag `{FEATURE}_ENABLED`, verif
 | 005 | Filtrado ANTES de asyncio.gather | Plan + fallback ejecutados en paralelo = 2x coste | -50 % coste planes fallback |
 | 007 | Message Windowing por nodo | Conversaciones largas = 100k+ tokens | -50 % latencia, -77 % coste |
 | 048 | Semantic Tool Router | Enrutamiento LLM impreciso en multi-dominio | +48 % precisión |
-| 049 | Local E5 Embeddings | Coste embeddings API + latencia de red | Coste cero, 50 ms local |
+| 049 | Embeddings semánticos | Enrutamiento LLM solo impreciso | +48 % de precisión via embeddings semánticos |
 | 057 | Personal Journals | Sin continuidad de reflexión entre sesiones | Inyección planner + response |
 | 061 | Centralized Component Activation | 7+ sitios de filtrado duplicados | Fuente única, 3 capas |
 

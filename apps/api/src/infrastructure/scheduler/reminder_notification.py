@@ -310,9 +310,10 @@ async def get_relevant_memories(user_id: str, reminder_content: str) -> list[dic
             limit=5,
         )
 
-        # Filter by score
-        MEMORY_MIN_SCORE = 0.6
-        return [r.value for r in results if getattr(r, "score", 1.0) >= MEMORY_MIN_SCORE]
+        # Filter by score using centralized constant
+        from src.core.constants import INITIATIVE_MEMORY_MIN_SCORE
+
+        return [r.value for r in results if getattr(r, "score", 1.0) >= INITIATIVE_MEMORY_MIN_SCORE]
 
     except Exception as e:
         logger.warning(

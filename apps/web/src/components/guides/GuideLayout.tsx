@@ -10,7 +10,9 @@ export function GuideSection({ id, title, children }: GuideSectionProps) {
       <h2 className="text-xl sm:text-2xl font-bold tracking-tight mb-6 text-foreground border-b border-border/50 pb-3">
         {title}
       </h2>
-      <div className="space-y-4 text-[0.938rem] leading-relaxed text-muted-foreground">{children}</div>
+      <div className="space-y-4 text-[0.938rem] leading-relaxed text-muted-foreground">
+        {children}
+      </div>
     </section>
   );
 }
@@ -115,7 +117,9 @@ export function GuideToc({ items }: GuideTocProps) {
                 className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
               >
                 {Icon && <Icon className="w-3.5 h-3.5 shrink-0 text-primary/60" />}
-                <span>{i + 1}. {item.label}</span>
+                <span>
+                  {i + 1}. {item.label}
+                </span>
               </a>
             </li>
           );

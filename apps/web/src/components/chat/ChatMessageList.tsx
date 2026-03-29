@@ -125,9 +125,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
         ))}
 
         {/* Browser progressive screenshot — inline in chat flow */}
-        {browserScreenshot && (
-          <BrowserScreenshotOverlay screenshot={browserScreenshot} />
-        )}
+        {browserScreenshot && <BrowserScreenshotOverlay screenshot={browserScreenshot} />}
 
         {/* Typing indicator */}
         {isTyping && (

@@ -42,9 +42,7 @@ export async function AudienceSection({ lng }: AudienceSectionProps) {
                   <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center mx-auto">
                     <Icon className="w-7 h-7 text-primary" />
                   </div>
-                  <CardTitle className="text-lg">
-                    {t(`landing.audience.${key}.title`)}
-                  </CardTitle>
+                  <CardTitle className="text-lg">{t(`landing.audience.${key}.title`)}</CardTitle>
                   <CardDescription className="text-sm leading-relaxed">
                     {t(`landing.audience.${key}.description`)}
                   </CardDescription>

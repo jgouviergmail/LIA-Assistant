@@ -1,10 +1,31 @@
 import fs from 'fs';
 import path from 'path';
 import {
-  Compass, Blocks, FolderTree, Network, ArrowRightLeft, ClipboardList,
-  Sparkles, Target, UserCheck, Database, Brain, Cpu, Plug, Cable,
-  Mic, Bell, BookOpen, Globe, Shield, BarChart3, Gauge, GitBranch,
-  Layers, FileText, Rocket,
+  Compass,
+  Blocks,
+  FolderTree,
+  Network,
+  ArrowRightLeft,
+  ClipboardList,
+  Sparkles,
+  Target,
+  UserCheck,
+  Database,
+  Brain,
+  Cpu,
+  Plug,
+  Cable,
+  Mic,
+  Bell,
+  BookOpen,
+  Globe,
+  Shield,
+  BarChart3,
+  Gauge,
+  GitBranch,
+  Layers,
+  FileText,
+  Rocket,
 } from 'lucide-react';
 import { initI18next } from '@/i18n';
 import { GuideMarkdown } from './GuideMarkdown';

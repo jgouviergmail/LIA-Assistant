@@ -1,8 +1,16 @@
 import fs from 'fs';
 import path from 'path';
 import {
-  Info, Database, Scale, Server, ShieldCheck, Cpu,
-  Clock, UserCheck, Cookie, Mail,
+  Info,
+  Database,
+  Scale,
+  Server,
+  ShieldCheck,
+  Cpu,
+  Clock,
+  UserCheck,
+  Cookie,
+  Mail,
 } from 'lucide-react';
 import { initI18next } from '@/i18n';
 import { GuideMarkdown } from '../guides/GuideMarkdown';

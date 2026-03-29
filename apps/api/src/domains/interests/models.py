@@ -125,7 +125,7 @@ class UserInterest(BaseModel):
         nullable=True,
     )
 
-    # Embedding for deduplication (384 dims for E5-small)
+    # Embedding for semantic deduplication
     embedding: Mapped[list[float] | None] = mapped_column(
         ARRAY(Float()),  # Float array for embeddings
         nullable=True,

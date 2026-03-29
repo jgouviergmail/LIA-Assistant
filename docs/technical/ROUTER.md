@@ -802,7 +802,7 @@ if turn_info.turn_type == TurnType.REFERENCE_PURE:
 
 ### Objectif
 
-Remplacer la détection par mots-clés (`keyword_strategies.py` - DEPRECATED) par une classification sémantique via embeddings locaux (E5-small).
+Remplacer la détection par mots-clés (`keyword_strategies.py` - DEPRECATED) par une classification sémantique via OpenAI text-embedding-3-small.
 
 ### Intents Détectés
 
@@ -1566,7 +1566,7 @@ User Query
     |   -> next_node: planner|response|orchestrator
     |   -> domains: [emails, contacts]
     |
-    +-- Semantic Intent Detection (E5-small)
+    +-- Semantic Intent Detection (OpenAI embeddings)
         -> detected_intent: action|detail|search|list|full
         -> Stored in state[detected_intent]
 ```

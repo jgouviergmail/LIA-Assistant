@@ -2427,8 +2427,8 @@
           "description": "Análisis LLM unificado de consultas (P95 < 800ms): detección de intención (acción/conversación), enrutamiento multi-dominio con confianza, normalización en inglés, resolución de referencias temporales/contextuales. Detección inteligente de riesgos: mutation_intent, cardinality_risk, for_each_detected. Expansión semántica automática de dominios relacionados vía el registro de tipos."
         },
         "routing": {
-          "title": "🧭 Enrutamiento Semántico & Embeddings Locales",
-          "description": "Router inteligente con embeddings multilingües E5 (100+ idiomas, ~5ms). Expansión semántica automática de dominios relacionados (clima → localización, calendario → contactos). Catálogo de capacidades filtrado dinámicamente (96% reducción tokens). Umbrales adaptativos HARD/SOFT/FALLBACK para precisión óptima."
+          "title": "🧭 Enrutamiento Semántico & Embeddings Semánticos",
+          "description": "Router inteligente con embeddings semánticos multilingües (100+ idiomas). Expansión semántica automática de dominios relacionados (clima → localización, calendario → contactos). Catálogo de capacidades filtrado dinámicamente (96% reducción tokens). Umbrales adaptativos HARD/SOFT/FALLBACK para precisión óptima."
         },
         "query": {
           "title": "🔍 Análisis de Consultas",
@@ -2456,11 +2456,11 @@
         },
         "memory": {
           "title": "💾 Doble Memoria Corto/Largo Plazo",
-          "description": "Corto plazo: ventana deslizante de mensajes con resumen automático de contexto. Largo plazo: extracción de hechos sobre usted (preferencias, relaciones, hábitos) almacenados con embeddings E5. Búsqueda híbrida BM25 + semántica para un recuerdo óptimo: tanto las palabras clave exactas COMO el significado se utilizan para recuperar sus recuerdos relevantes."
+          "description": "Corto plazo: ventana deslizante de mensajes con resumen automático de contexto. Largo plazo: extracción de hechos sobre usted (preferencias, relaciones, hábitos) almacenados con embeddings semánticos. Búsqueda híbrida BM25 + semántica para un recuerdo óptimo: tanto las palabras clave exactas COMO el significado se utilizan para recuperar sus recuerdos relevantes."
         },
         "interests": {
           "title": "✨ Aprendizaje Inteligente de Intereses",
-          "description": "Aprendizaje automático de sus intereses mediante análisis LLM de conversaciones. Notificaciones proactivas personalizadas sobre sus temas favoritos vía Wikipedia, Perplexity o reflexión IA. Ponderación bayesiana con decaimiento temporal. Deduplicación semántica mediante embeddings E5. Control total: feedback, bloqueo, ventana horaria y frecuencia configurables."
+          "description": "Aprendizaje automático de sus intereses mediante análisis LLM de conversaciones. Notificaciones proactivas personalizadas sobre sus temas favoritos vía Wikipedia, Perplexity o reflexión IA. Ponderación bayesiana con decaimiento temporal. Deduplicación semántica mediante embeddings semánticos. Control total: feedback, bloqueo, ventana horaria y frecuencia configurables."
         },
         "summarization": {
           "title": "📝 Resumen Automático",
@@ -3168,7 +3168,7 @@
           },
           "q6": {
             "question": "¿Cómo se evita el contenido duplicado?",
-            "answer": "LIA utiliza varios mecanismos anti-duplicado:<br><br><strong>🔄 Protección contra duplicados:</strong><br><br><strong>1. Deduplicación de intereses:</strong><br>• Similitud semántica vía embeddings E5<br>• Umbral del 90%: dos temas similares → consolidación<br>• \"<em>Python</em>\" y \"<em>Programación Python</em>\" = mismo interés<br><br><strong>2. Deduplicación de contenido:</strong><br>• Hash SHA256 del contenido (comparación exacta)<br>• Similitud semántica (umbral 85%)<br>• Verificado contra los últimos 30 días<br><br><strong>3. Cooldowns:</strong><br>• <strong>Global</strong>: 2h mínimo entre 2 notificaciones<br>• <strong>Por tema</strong>: 24h antes de volver a hablar del mismo tema<br>• <strong>Cuota diaria</strong>: máx N notificaciones/día<br><br><strong>📊 Resultado:</strong><br>Nunca recibirá el mismo contenido dos veces, ni temas demasiado similares seguidos."
+            "answer": "LIA utiliza varios mecanismos anti-duplicado:<br><br><strong>🔄 Protección contra duplicados:</strong><br><br><strong>1. Deduplicación de intereses:</strong><br>• Similitud semántica vía embeddings semánticos<br>• Umbral del 90%: dos temas similares → consolidación<br>• \"<em>Python</em>\" y \"<em>Programación Python</em>\" = mismo interés<br><br><strong>2. Deduplicación de contenido:</strong><br>• Hash SHA256 del contenido (comparación exacta)<br>• Similitud semántica (umbral 85%)<br>• Verificado contra los últimos 30 días<br><br><strong>3. Cooldowns:</strong><br>• <strong>Global</strong>: 2h mínimo entre 2 notificaciones<br>• <strong>Por tema</strong>: 24h antes de volver a hablar del mismo tema<br>• <strong>Cuota diaria</strong>: máx N notificaciones/día<br><br><strong>📊 Resultado:</strong><br>Nunca recibirá el mismo contenido dos veces, ni temas demasiado similares seguidos."
           }
         }
       },

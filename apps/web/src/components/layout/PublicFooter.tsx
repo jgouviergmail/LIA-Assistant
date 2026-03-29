@@ -54,11 +54,7 @@ export async function PublicFooter({ lng }: PublicFooterProps) {
         {/* Navigation links */}
         <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground mb-4">
           {navLinks.map(({ href, label }) => (
-            <Link
-              key={href}
-              href={href}
-              className="hover:text-foreground transition-colors"
-            >
+            <Link key={href} href={href} className="hover:text-foreground transition-colors">
               {label}
             </Link>
           ))}
@@ -67,11 +63,7 @@ export async function PublicFooter({ lng }: PublicFooterProps) {
         {/* Legal links */}
         <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground mb-6">
           {legalLinks.map(({ href, label }) => (
-            <Link
-              key={href}
-              href={href}
-              className="hover:text-foreground transition-colors"
-            >
+            <Link key={href} href={href} className="hover:text-foreground transition-colors">
               {label}
             </Link>
           ))}
@@ -79,7 +71,9 @@ export async function PublicFooter({ lng }: PublicFooterProps) {
 
         {/* Copyright + GitHub */}
         <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
-          <span>{t('landing.footer.copyright', { year })} · v{APP_VERSION}</span>
+          <span>
+            {t('landing.footer.copyright', { year })} · v{APP_VERSION}
+          </span>
           <a
             href={GITHUB_REPO_URL}
             target="_blank"

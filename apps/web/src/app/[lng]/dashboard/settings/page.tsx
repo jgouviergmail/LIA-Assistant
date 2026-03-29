@@ -220,10 +220,7 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               className="space-y-4"
             >
               {/* Group: Personalization */}
-              <SettingsGroupLabel
-                label={t('settings.groups.personalization')}
-                icon={Palette}
-              />
+              <SettingsGroupLabel label={t('settings.groups.personalization')} icon={Palette} />
               <LanguageSettings lng={lng} />
               <TimezoneSelector lng={lng} />
               <ThemeSelector lng={lng} />
@@ -240,10 +237,7 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               </FeatureErrorBoundary>
 
               {/* Group: Voice & Media */}
-              <SettingsGroupLabel
-                label={t('settings.groups.voice_media')}
-                icon={Mic}
-              />
+              <SettingsGroupLabel label={t('settings.groups.voice_media')} icon={Mic} />
               <VoiceModeSettings lng={lng} />
               <FeatureErrorBoundary feature="image-generation">
                 <ImageGenerationSettings lng={lng} />
@@ -275,10 +269,7 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               className="space-y-4"
             >
               {/* Group: Identity & Memory */}
-              <SettingsGroupLabel
-                label={t('settings.groups.identity_memory')}
-                icon={Brain}
-              />
+              <SettingsGroupLabel label={t('settings.groups.identity_memory')} icon={Brain} />
               <PersonalitySettings lng={lng} />
               <FeatureErrorBoundary feature="memory-settings">
                 <MemorySettings lng={lng} />
@@ -286,10 +277,7 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               <InterestsSettings lng={lng} />
 
               {/* Group: Automation & Tracking */}
-              <SettingsGroupLabel
-                label={t('settings.groups.automation_tracking')}
-                icon={Zap}
-              />
+              <SettingsGroupLabel label={t('settings.groups.automation_tracking')} icon={Zap} />
               <FeatureErrorBoundary feature="heartbeat">
                 <HeartbeatSettings lng={lng} />
               </FeatureErrorBoundary>
@@ -301,10 +289,7 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               </FeatureErrorBoundary>
 
               {/* Group: Extensions & Data */}
-              <SettingsGroupLabel
-                label={t('settings.groups.extensions_data')}
-                icon={Blocks}
-              />
+              <SettingsGroupLabel label={t('settings.groups.extensions_data')} icon={Blocks} />
               <FeatureErrorBoundary feature="skills">
                 <SkillsSettings lng={lng} />
               </FeatureErrorBoundary>
@@ -326,10 +311,7 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               className="space-y-4"
             >
               {/* Group: Users & Access */}
-              <SettingsGroupLabel
-                label={t('settings.groups.users_access')}
-                icon={Users}
-              />
+              <SettingsGroupLabel label={t('settings.groups.users_access')} icon={Users} />
               <AdminUsersSection lng={lng} />
               <FeatureErrorBoundary feature="usage-limits">
                 <AdminUsageLimitsSection lng={lng} />
@@ -338,10 +320,7 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               <AdminBroadcastSection lng={lng} />
 
               {/* Group: AI & Connectors */}
-              <SettingsGroupLabel
-                label={t('settings.groups.ai_connectors')}
-                icon={Cpu}
-              />
+              <SettingsGroupLabel label={t('settings.groups.ai_connectors')} icon={Cpu} />
               <AdminConnectorsSection lng={lng} />
               <AdminLLMPricingSection lng={lng} />
               <AdminGoogleApiPricingSection lng={lng} />
@@ -351,10 +330,7 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               </FeatureErrorBoundary>
 
               {/* Group: Content & Extensions */}
-              <SettingsGroupLabel
-                label={t('settings.groups.content_extensions')}
-                icon={Sparkles}
-              />
+              <SettingsGroupLabel label={t('settings.groups.content_extensions')} icon={Sparkles} />
               <AdminPersonalitiesSection lng={lng} />
               <FeatureErrorBoundary feature="admin-skills">
                 <AdminSkillsSection lng={lng} />
@@ -364,10 +340,7 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               </FeatureErrorBoundary>
 
               {/* Group: System */}
-              <SettingsGroupLabel
-                label={t('settings.groups.system')}
-                icon={Wrench}
-              />
+              <SettingsGroupLabel label={t('settings.groups.system')} icon={Wrench} />
               <AdminVoiceSettingsSection lng={lng} />
               <AdminDebugSettingsSection lng={lng} />
             </Accordion>
@@ -396,10 +369,7 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               className="space-y-4"
             >
               {/* Group: Personalization */}
-              <SettingsGroupLabel
-                label={t('settings.groups.personalization')}
-                icon={Palette}
-              />
+              <SettingsGroupLabel label={t('settings.groups.personalization')} icon={Palette} />
               <LanguageSettings lng={lng} />
               <TimezoneSelector lng={lng} />
               <ThemeSelector lng={lng} />
@@ -416,10 +386,7 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               </FeatureErrorBoundary>
 
               {/* Group: Voice & Media */}
-              <SettingsGroupLabel
-                label={t('settings.groups.voice_media')}
-                icon={Mic}
-              />
+              <SettingsGroupLabel label={t('settings.groups.voice_media')} icon={Mic} />
               <VoiceModeSettings lng={lng} />
               <FeatureErrorBoundary feature="image-generation">
                 <ImageGenerationSettings lng={lng} />
@@ -452,10 +419,7 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               className="space-y-4"
             >
               {/* Group: Identity & Memory */}
-              <SettingsGroupLabel
-                label={t('settings.groups.identity_memory')}
-                icon={Brain}
-              />
+              <SettingsGroupLabel label={t('settings.groups.identity_memory')} icon={Brain} />
               <PersonalitySettings lng={lng} />
               <FeatureErrorBoundary feature="memory-settings">
                 <MemorySettings lng={lng} />
@@ -463,10 +427,7 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               <InterestsSettings lng={lng} />
 
               {/* Group: Automation & Tracking */}
-              <SettingsGroupLabel
-                label={t('settings.groups.automation_tracking')}
-                icon={Zap}
-              />
+              <SettingsGroupLabel label={t('settings.groups.automation_tracking')} icon={Zap} />
               <FeatureErrorBoundary feature="heartbeat">
                 <HeartbeatSettings lng={lng} />
               </FeatureErrorBoundary>
@@ -478,10 +439,7 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               </FeatureErrorBoundary>
 
               {/* Group: Extensions & Data */}
-              <SettingsGroupLabel
-                label={t('settings.groups.extensions_data')}
-                icon={Blocks}
-              />
+              <SettingsGroupLabel label={t('settings.groups.extensions_data')} icon={Blocks} />
               <FeatureErrorBoundary feature="skills">
                 <SkillsSettings lng={lng} />
               </FeatureErrorBoundary>

@@ -493,7 +493,7 @@ mcp>=1.0.0    # Model Context Protocol SDK (Anthropic)
 >
 > **Implémentation** :
 > - Champ `domain_description` sur `UserMCPServer` (optionnel, saisi par l'utilisateur)
-> - Calcul d'embeddings E5 sur la description pour matching sémantique via `compute_domain_embeddings()`
+> - Calcul d'embeddings OpenAI sur la description pour matching sémantique via `compute_domain_embeddings()`
 > - Slug de domaine per-server : `mcp_<slugified_server_name>` (ex: `mcp_huggingface_hub`)
 > - `QueryAnalyzerService` détecte les domaines MCP via embeddings + seuil de similarité
 > - `SmartCatalogueService` : injection des tools MCP user dans les stratégies normal + panic filtering
@@ -1493,7 +1493,7 @@ class Settings(
 | 2026-02-28 | F2 | SSRF constants copiées (pas importées) | Évite dépendance infrastructure → domain |
 | 2026-02-28 | F2 | Rate limiting in-memory avec asyncio.Lock | Protection TOCTOU sous charge concurrente |
 | 2026-02-28 | F2 | Feature 2.1 per-user MCP (v7.0+) | Autonomie utilisateurs pour configurer leurs propres serveurs MCP |
-| 2026-03-01 | F2.2 | Per-server domain via embeddings E5 | Routing sémantique précis au lieu du domaine générique "mcp" |
+| 2026-03-01 | F2.2 | Per-server domain via OpenAI embeddings | Routing sémantique précis au lieu du domaine générique "mcp" |
 | 2026-03-01 | F2.2 | Slug `mcp_<server_name>` comme domain | Cohérent avec `_extract_domain_from_agent_name()`, unique par serveur |
 | 2026-03-01 | F2.3 | Bridge `@property coroutine` sur BaseTool | Évite `ainvoke()` qui stringifie le UnifiedToolOutput |
 | 2026-03-01 | F2.3 | `meta.domain = "mcps"` (unique) | Un seul composant card pour tous les serveurs, nom serveur dans payload |

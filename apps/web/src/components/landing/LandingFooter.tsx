@@ -43,9 +43,7 @@ export async function LandingFooter({ lng }: LandingFooterProps) {
     },
     {
       title: t('landing.footer.community'),
-      links: [
-        { label: 'GitHub', href: GITHUB_REPO_URL, external: true },
-      ],
+      links: [{ label: 'GitHub', href: GITHUB_REPO_URL, external: true }],
     },
   ];
 

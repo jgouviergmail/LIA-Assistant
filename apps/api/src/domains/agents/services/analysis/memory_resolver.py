@@ -99,7 +99,7 @@ class MemoryResolver:
                 user_id=user_id,
                 query=query,
                 limit=settings.memory_max_results,
-                min_score=0.5,
+                min_score=settings.memory_min_search_score,
             )
 
             if memory_facts:

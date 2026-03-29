@@ -4,7 +4,7 @@
 
 **Versión**: 2.0
 **Fecha**: 2026-03-24
-**Aplicación**: LIA v1.13.3
+**Aplicación**: LIA v1.13.4
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -230,7 +230,7 @@ LIA no pretende haber resuelto la IA agéntica en general. Pero ha resuelto **su
 
 Cuando envía un mensaje, este atraviesa un pipeline en 5 fases:
 
-**Fase 1 — Comprender**: El enrutador analiza su mensaje en unos cientos de milisegundos y decide si se trata de una conversación simple o de una solicitud que requiere acciones. El analizador de consultas identifica los dominios implicados (correo, calendario, meteorología...) y un enrutador semántico afina la detección gracias a embeddings locales (+48 % de precisión).
+**Fase 1 — Comprender**: El enrutador analiza su mensaje en unos cientos de milisegundos y decide si se trata de una conversación simple o de una solicitud que requiere acciones. El analizador de consultas identifica los dominios implicados (correo, calendario, meteorología...) y un enrutador semántico afina la detección gracias a embeddings semánticos (+48 % de precisión).
 
 **Fase 2 — Planificar**: Para las solicitudes complejas, un planificador inteligente genera un plan de ejecución estructurado — un árbol de dependencias con etapas, condiciones e iteraciones. Si un plan similar ya fue validado en el pasado, un aprendizaje bayesiano permite reutilizarlo directamente (bypass del LLM, ahorros masivos).
 
@@ -251,7 +251,7 @@ Donde la mayoría de los sistemas agénticos ven cómo sus costes se disparan, L
 - **Message Windowing**: cada nodo solo ve los N últimos mensajes necesarios (5/10/20 según el nodo)
 - **Context Compaction**: resumen LLM de los mensajes antiguos cuando el contexto supera el umbral
 - **Prompt Caching**: aprovechamiento de la caché nativa OpenAI/Anthropic (90 % de reducción)
-- **Embeddings locales**: embeddings E5 ejecutados localmente (coste API cero, ~50 ms)
+- **Embeddings semánticos**: embeddings multilingues IA para enrutamiento semántico y deduplicación
 
 ### 6.4. La observabilidad como red de seguridad
 
@@ -396,7 +396,7 @@ Con cada plan validado y ejecutado con éxito, LIA registra el patrón. Una punt
 
 ### 12.2. El enrutamiento semántico local
 
-Embeddings multilingües E5 (100+ idiomas) ejecutados localmente en ~50 ms permiten un enrutamiento semántico que mejora la precisión de detección de intención en un 48 % respecto al enrutamiento puramente LLM — a coste cero.
+Embeddings semánticos multilingües (100+ idiomas) permiten un enrutamiento semántico que mejora la precisión de detección de intención en un 48 % respecto al enrutamiento puramente LLM.
 
 ### 12.3. La antialucinación en tres capas
 
@@ -486,4 +486,4 @@ No es un chatbot. No es una plataforma cloud. Es un **compañero digital soberan
 
 ---
 
-*Documento redactado sobre la base del código fuente de LIA v1.13.3, de 190+ documentos técnicos, de 63 ADRs, del changelog completo y de un análisis del panorama competitivo de IA de marzo de 2026. Todas las funcionalidades descritas están implementadas y son verificables en el código. Los datos de mercado provienen de Gartner, IBM y de las publicaciones oficiales de OpenAI, Google, Microsoft y Anthropic.*
+*Documento redactado sobre la base del código fuente de LIA v1.13.4, de 190+ documentos técnicos, de 63 ADRs, del changelog completo y de un análisis del panorama competitivo de IA de marzo de 2026. Todas las funcionalidades descritas están implementadas y son verificables en el código. Los datos de mercado provienen de Gartner, IBM y de las publicaciones oficiales de OpenAI, Google, Microsoft y Anthropic.*

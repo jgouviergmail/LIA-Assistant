@@ -14,9 +14,7 @@ interface BrowserScreenshotOverlayProps {
  * Persists until replaced by a new screenshot or cleared by STREAM_DONE.
  * No auto-dismiss — the overlay represents ongoing browser activity.
  */
-export function BrowserScreenshotOverlay({
-  screenshot,
-}: BrowserScreenshotOverlayProps) {
+export function BrowserScreenshotOverlay({ screenshot }: BrowserScreenshotOverlayProps) {
   const { t } = useTranslation();
 
   const displayUrl =

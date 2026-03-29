@@ -1111,7 +1111,6 @@ class ContextAggregator:
             repo = JournalEntryRepository(self._db)
 
             # Use the same embedding model as journal creation (OpenAI, 1536 dim)
-            # NOT get_local_embeddings() which is E5-small (384 dim) — dimension mismatch
             embeddings = get_journal_embeddings()
             search_query = query or "user preferences observations patterns priorities"
             query_embedding = embeddings.embed_query(search_query)

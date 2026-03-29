@@ -190,8 +190,8 @@ export function RegisterForm() {
             className="underline hover:text-foreground"
           >
             {t('auth.register.terms_link')}
-          </Link>
-          {' '}{t('auth.register.terms_and')}{' '}
+          </Link>{' '}
+          {t('auth.register.terms_and')}{' '}
           <Link
             href={buildLocalizedPath('/privacy', currentLang)}
             className="underline hover:text-foreground"

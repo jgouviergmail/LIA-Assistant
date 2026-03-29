@@ -613,9 +613,7 @@ export function MCPServersSettings({ lng }: MCPServersSettingsProps) {
             <Switch
               id="mcp-iterative-mode"
               checked={form.iterative_mode}
-              onCheckedChange={checked =>
-                setForm(f => ({ ...f, iterative_mode: checked }))
-              }
+              onCheckedChange={checked => setForm(f => ({ ...f, iterative_mode: checked }))}
             />
           </div>
 

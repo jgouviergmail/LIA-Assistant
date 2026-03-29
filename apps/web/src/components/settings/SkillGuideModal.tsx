@@ -208,9 +208,7 @@ const TOOL_CATALOGUE: AgentCategory[] = [
           {
             name: 'delete_event_tool',
             desc: 'tool_delete_event',
-            params: [
-              { name: 'event_id', type: 'string', required: true, desc: 'param_event_id' },
-            ],
+            params: [{ name: 'event_id', type: 'string', required: true, desc: 'param_event_id' }],
           },
           {
             name: 'list_calendars_tool',
@@ -353,9 +351,7 @@ const TOOL_CATALOGUE: AgentCategory[] = [
           {
             name: 'complete_task_tool',
             desc: 'tool_complete_task',
-            params: [
-              { name: 'task_id', type: 'string', required: true, desc: 'param_task_id' },
-            ],
+            params: [{ name: 'task_id', type: 'string', required: true, desc: 'param_task_id' }],
           },
         ],
       },
@@ -585,9 +581,7 @@ const TOOL_CATALOGUE: AgentCategory[] = [
           {
             name: 'browser_task_tool',
             desc: 'tool_browser_task',
-            params: [
-              { name: 'task', type: 'string', required: true, desc: 'param_browser_task' },
-            ],
+            params: [{ name: 'task', type: 'string', required: true, desc: 'param_browser_task' }],
           },
         ],
       },
@@ -1076,9 +1070,7 @@ export function SkillGuideModal({ lng, open, onOpenChange }: SkillGuideModalProp
                       <code className="shrink-0 font-mono text-primary/80 min-w-[160px]">
                         {tool}
                       </code>
-                      <span className="text-muted-foreground">
-                        {t(`settings.skills.${key}`)}
-                      </span>
+                      <span className="text-muted-foreground">{t(`settings.skills.${key}`)}</span>
                     </div>
                   ))}
                 </div>
@@ -1121,13 +1113,7 @@ function CodeBlock({ children }: { children: string }) {
   );
 }
 
-function AgentToolsBlock({
-  agent,
-  t,
-}: {
-  agent: AgentDef;
-  t: (key: string) => string;
-}) {
+function AgentToolsBlock({ agent, t }: { agent: AgentDef; t: (key: string) => string }) {
   return (
     <div className="rounded-lg border bg-card/50 p-3 space-y-2">
       <div className="flex items-center gap-2 flex-wrap">

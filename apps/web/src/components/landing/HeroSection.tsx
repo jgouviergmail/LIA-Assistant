@@ -19,12 +19,20 @@ export async function HeroSection({ lng }: HeroSectionProps) {
   const { t } = await initI18next(lng);
   const registerHref = buildLocalizedPath('/register', lng as Language);
   const localeMap: Record<string, string> = {
-    fr: 'fr-FR', en: 'en-US', de: 'de-DE', es: 'es-ES', it: 'it-IT', zh: 'zh-CN',
+    fr: 'fr-FR',
+    en: 'en-US',
+    de: 'de-DE',
+    es: 'es-ES',
+    it: 'it-IT',
+    zh: 'zh-CN',
   };
-  const formattedDate = new Date(LAST_UPDATED).toLocaleDateString(
-    localeMap[lng] || 'en-US',
-    { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' },
-  );
+  const formattedDate = new Date(LAST_UPDATED).toLocaleDateString(localeMap[lng] || 'en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 
   return (
     <section className="relative min-h-screen flex items-center overflow-hidden">

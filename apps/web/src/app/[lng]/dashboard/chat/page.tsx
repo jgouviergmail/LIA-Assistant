@@ -31,7 +31,6 @@ import { useUsageLimits } from '@/hooks/useUsageLimits';
 import { UsageBlockedBanner } from '@/components/usage/UsageBlockedBanner';
 import { ActiveSpacesIndicator } from '@/components/spaces/ActiveSpacesIndicator';
 
-
 export default function ChatPage() {
   const { user, isLoading } = useAuth();
   const { liaBackgroundImage, mounted: liaImageMounted } = useLiaGender();

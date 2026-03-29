@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.13.4] - 2026-03-29
+
+### Changed
+
+- **Memory Optimization — E5 → OpenAI Embeddings** — Replaced local E5 model (intfloat/multilingual-e5-small, 384 dims) with OpenAI text-embedding-3-small (1536 dims) for memory search, tool routing, and interest deduplication. Eliminates sentence-transformers + PyTorch CPU from each worker, saving ~1 GB RAM per worker. New `memory_embeddings.py` singleton follows journal/RAG embedding pattern. Alembic migration drops `store_vectors` (auto-recreated by LangGraph with new dimensions) and nulls interest embeddings. Reindex script (`scripts/reindex_embeddings.py`) for post-deploy re-embedding.
+- **Memory Optimization — Playwright Lazy Init** — Browser agent Chromium instances no longer launched at startup. Pool initialized on first browser tool call, saving ~1.5 GB RAM at boot (24 Chromium processes eliminated). Cleanup job uses safe no-op function compatible with scheduler leader election pattern.
+- **Memory Optimization — Uvicorn Worker Recycling** — Added `--limit-max-requests 10000 --limit-max-requests-jitter 1000` to prevent Python memory fragmentation accumulation across workers.
+- **API RAM Usage** — Reduced from 6.73 GB (84% of 8 GB limit) to 2.64 GB (33%) on Raspberry Pi 5 production server. Combined savings: ~4 GB.
+- **Embedding Similarity Thresholds** — All E5-calibrated thresholds recalibrated for OpenAI embeddings (more discriminative score distribution). Memory search: 0.88→0.45, hybrid: 0.5→0.4, interest dedup: 0.90→0.75, content dedup: 0.85→0.70. No more hardcoded magic numbers — all thresholds use settings or centralized constants.
+- **LLM Configuration Defaults** — `LLM_DEFAULTS` in code aligned with production-tuned settings (44 entries). Strategy: gpt-4.1-nano (domain agents), gpt-4.1-mini (routing), claude-sonnet-4-6 (extraction), qwen3.5-plus (planning), gpt-5.4 (advanced). New SQL seed `llm_config_seed.sql` for fresh installations.
+- **Docker Compose** — Removed `HF_HOME`, `TRANSFORMERS_CACHE` env vars and `huggingface_cache` volume from both dev and prod compose files.
+- **Dockerfile** — Removed PyTorch CPU override install (no longer needed without sentence-transformers).
+
+### Fixed
+
+- **WebSearchCard Synthesis Border** — Removed left border on AI synthesis block (`with_border=False`) per design intent.
+- **WebSearchCard Source Badge Icons** — Source indicator icons (Perplexity, Brave, Wikipedia) now inherit white color in active state instead of being overridden by `lia-icon` default color.
+- **networkx Dependency** — Added explicit `networkx==3.6.1` to requirements.txt (was a transitive dependency of sentence-transformers/torch, now needed directly by SemanticIntentDetector type registry).
+
+### Removed
+
+- **sentence-transformers** — Removed from requirements.txt (was pulling PyTorch + ~700 MB in Docker image).
+- **Local E5 Embeddings** — `LocalE5Embeddings` class, `get_local_embeddings()`, `preload_embedding_model()` removed from `local_embeddings.py`. File retained for `cosine_similarity()` utility only.
+- **HuggingFace Cache** — `huggingface_cache` Docker volume removed (E5 model no longer downloaded at runtime).
+
+### Documentation
+
+- **52 files updated** — All references to E5/local embeddings replaced across README, CLAUDE.md, 6 locale files, 12 landing guides, 20+ technical docs, 8 ADRs. ADR-049 marked as SUPERSEDED. `LOCAL_EMBEDDINGS.md` rewritten as migration notice.
+
 ## [1.13.3] - 2026-03-29
 
 ### Added

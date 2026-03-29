@@ -247,7 +247,7 @@ erDiagram
         smallint timeout_seconds "default 30"
         boolean hitl_required "NULL = inherit global"
         jsonb discovered_tools_cache
-        jsonb tool_embeddings_cache "E5 384-dim"
+        jsonb tool_embeddings_cache "OpenAI 1536-dim"
         datetime last_connected_at
         text last_error
     }
@@ -2147,7 +2147,7 @@ CREATE TABLE user_interests (
     last_notified_at TIMESTAMPTZ NULL,
     dormant_since TIMESTAMPTZ NULL,
 
-    -- Embedding for semantic dedup (E5-small, 384 dims)
+    -- Embedding for semantic dedup (OpenAI text-embedding-3-small, 1536 dims)
     embedding FLOAT[] NULL,
 
     -- Timestamps
@@ -2358,7 +2358,7 @@ CREATE TABLE user_mcp_servers (
 
     -- Tool discovery cache
     discovered_tools_cache JSONB NULL,        -- Cached list_tools() result
-    tool_embeddings_cache JSONB NULL,         -- Pre-computed E5 embeddings (384-dim)
+    tool_embeddings_cache JSONB NULL,         -- Pre-computed OpenAI embeddings (1536-dim)
 
     -- Connection tracking
     last_connected_at TIMESTAMPTZ NULL,
@@ -2428,7 +2428,7 @@ class UserMCPServer(BaseModel):
     timeout_seconds: Mapped[int]                   # SmallInteger, default 30
     hitl_required: Mapped[bool | None]             # Boolean, NULL = inherit global
     discovered_tools_cache: Mapped[dict | None]    # JSONB
-    tool_embeddings_cache: Mapped[dict | None]     # JSONB (E5 384-dim)
+    tool_embeddings_cache: Mapped[dict | None]     # JSONB (OpenAI 1536-dim)
     last_connected_at: Mapped[datetime | None]
     last_error: Mapped[str | None]
 
@@ -2442,7 +2442,7 @@ class UserMCPServer(BaseModel):
 **Design Notes:**
 - **Pas de relation ORM vers User** — `user_id` FK suffit; evite les import-order dependencies
 - **Partial index** `ix_user_mcp_servers_user_enabled` — hot path: seuls les serveurs enabled + active sont charges dans le pipeline chat
-- **JSONB `tool_embeddings_cache`** — embeddings E5-small pre-calcules au moment de l'enregistrement, evite le recalcul a chaque requete
+- **JSONB `tool_embeddings_cache`** — embeddings OpenAI pre-calcules au moment de l'enregistrement, evite le recalcul a chaque requete
 
 **Documentation:** [docs/technical/MCP_INTEGRATION.md](./MCP_INTEGRATION.md)
 

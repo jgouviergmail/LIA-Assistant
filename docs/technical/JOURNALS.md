@@ -64,7 +64,7 @@ apps/api/src/domains/journals/
 - `journals_001` — Creates `journal_entries` table + 11 initial user columns
 - `journals_002` — Adds `journal_max_entry_chars` + `journal_context_max_results` (idempotent)
 - `journal_search_hints_001` — Adds `search_hints` column (ARRAY(String(100)))
-- `journal_pgvector_001` — Migrates embeddings from E5-small ARRAY(Float) to OpenAI pgvector Vector(1536) with HNSW index; **destructive**: purges all existing entries (incompatible dimensions)
+- `journal_pgvector_001` — Migrates embeddings to OpenAI pgvector Vector(1536) with HNSW index; **destructive**: purges all existing entries
 - `journal_injection_tracking_001` — Adds `injection_count` (Integer) and `last_injected_at` (DateTime) columns
 
 ### Data Flow

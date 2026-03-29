@@ -157,7 +157,7 @@ class WebSearchCard(BaseComponent):
         synthesis_label = V3Messages.get_ai_synthesis(ctx.language)
         return render_section_header(
             synthesis_label, Icons.AI, "indigo", first=True
-        ) + render_desc_block(formatted)
+        ) + render_desc_block(formatted, with_border=False)
 
     def _render_results(self, results: list[dict[str, Any]], ctx: RenderContext) -> str:
         """Render Brave Search web results using v4 section header."""

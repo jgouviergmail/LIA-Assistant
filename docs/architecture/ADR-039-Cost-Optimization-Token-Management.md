@@ -392,12 +392,12 @@ DEFAULT_MAX_DOMAINS = 5
 
 class SemanticDomainSelector:
     """
-    Selects domains using local E5 embeddings with max-pooling.
+    Selects domains using OpenAI text-embedding-3-small with max-pooling.
 
     Key features:
     - Max-pooling: MAX(sim(query, keyword_i)) per domain
     - Double threshold: 0.75 (high) / 0.65 (medium)
-    - Zero API cost: local multilingual E5 model
+    - OpenAI text-embedding-3-small (1536 dims)
     - Startup caching: all domain keyword embeddings cached once
     """
 
@@ -448,12 +448,12 @@ DEFAULT_MAX_TOOLS = 8
 
 class SemanticToolSelector:
     """
-    Selects tools using local E5 embeddings with max-pooling.
+    Selects tools using OpenAI text-embedding-3-small with max-pooling.
 
     Key features:
     - Max-pooling: MAX(sim(query, keyword_i)) per tool
     - Double threshold: 0.70 (high) / 0.60 (medium)
-    - Zero API cost: local multilingual E5 model
+    - OpenAI text-embedding-3-small (1536 dims)
     - Filters to tools within selected domains only
     """
 
@@ -699,12 +699,12 @@ class CostThresholdStrategy(ApprovalStrategy):
 - ✅ **Progressive Degradation** : Graceful token reduction
 - ✅ **Cost-Based HITL** : User approval for expensive operations
 - ✅ **Database-Backed Pricing** : Historical tracking, currency conversion
-- ✅ **Zero API Cost Embeddings** : Local E5 model for semantic selection
+- ✅ **Low-Cost Embeddings** : OpenAI text-embedding-3-small for semantic selection (~$0.02/1M tokens)
 
 **Negative**:
 - ⚠️ Cache only for temperature=0 (deterministic)
 - ⚠️ Pricing requires daily currency sync
-- ⚠️ Local embedding model requires ~470MB RAM
+- ⚠️ Embedding API cost (~$0.02/1M tokens for OpenAI text-embedding-3-small)
 
 ---
 
@@ -729,7 +729,7 @@ class CostThresholdStrategy(ApprovalStrategy):
 
 - [ADR-048: Semantic Router (Domains & Tools)](ADR-048-Semantic-Tool-Router.md) - Complete semantic selection architecture
 - [ADR-019: Agent Manifest Catalogue System](ADR-019-Agent-Manifest-Catalogue-System.md) - Provides semantic_keywords
-- [ADR-049: Local E5 Embeddings](ADR-049-Local-E5-Embeddings.md) - Embedding model details
+- [ADR-049: Local E5 Embeddings](ADR-049-Local-E5-Embeddings.md) - Historical: superseded by OpenAI text-embedding-3-small (v1.14.0)
 
 ---
 

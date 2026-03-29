@@ -127,7 +127,7 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 
 | Technologie | Version | Role |
 |-------------|---------|------|
-| **sentence-transformers** | 5.3.0 | Local E5 embeddings |
+| **openai** | 1.x | OpenAI text-embedding-3-small (1536 dims) |
 
 ### Observabilite
 
@@ -235,10 +235,10 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 > **Important**: `langgraph-checkpoint-postgres` 3.0.2 requiert PostgreSQL 14+ avec support JSON.
 > Compatible avec pgvector 0.4.2+.
 
-### Embeddings Local
+### Embeddings
 
-> **sentence-transformers** 5.0+ utilise le modele `intfloat/multilingual-e5-small` pour les embeddings locaux.
-> Zero API cost pour le semantic routing.
+> OpenAI `text-embedding-3-small` (1536 dims) is used for all semantic embeddings (memory, tool routing, interests).
+> Replaced local E5 embeddings in v1.14.0.
 
 ---
 

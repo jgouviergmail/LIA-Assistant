@@ -72,14 +72,11 @@ langgraph-prebuilt==1.0.8  # Pinné explicitement (requis par langgraph 1.0.10)
 langgraph-checkpoint-postgres==3.0.5
 tiktoken==0.12.0
 
-# Local Embedding Model - E5 for semantic memory search
-# Replaces OpenAI text-embedding-3-small for better Q/A matching (0.90 vs 0.61 avg score)
-# PyTorch is pulled as dependency - pip installs CPU-only by default (no CUDA index)
-# ARM64 (Raspberry Pi): CPU-only wheels automatically (CUDA not supported on ARM)
-sentence-transformers==5.3.0  # HuggingFace E5 model (intfloat/multilingual-e5-small)
-
 # Hybrid Memory Search - BM25 keyword matching combined with semantic search
 rank-bm25==0.2.2  # Okapi BM25 algorithm for keyword-based retrieval
+
+# Graph library - used by SemanticIntentDetector type registry
+networkx==3.6.1  # Dependency graph for semantic type expansion
 
 # LLM Provider Integrations
 langchain-deepseek==1.0.1  # DeepSeek V3/R1 models

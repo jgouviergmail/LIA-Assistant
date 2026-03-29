@@ -10,12 +10,12 @@
 
 ## Overview
 
-Le **SemanticIntentDetector** est un service de classification d'intention basé sur des embeddings locaux (E5-small). Il remplace la detection par mots-clés (`keyword_strategies.py`) pour determiner la strategie de filtrage des tools.
+Le **SemanticIntentDetector** est un service de classification d'intention basé sur des embeddings OpenAI text-embedding-3-small (1536 dims). Il remplace la detection par mots-clés (`keyword_strategies.py`) pour determiner la strategie de filtrage des tools.
 
 ### Key Features
 
 - **Zero Maintenance** : Plus de listes de mots-cles a maintenir par langue
-- **Multilingual Native** : E5-small gere automatiquement FR/EN/DE/ES/...
+- **Multilingual Native** : OpenAI embeddings gerent automatiquement FR/EN/DE/ES/...
 - **Max-Pooling Strategy** : Meilleure precision semantique
 - **Category-Based Filtering** : Filtrage intelligent par categorie de tool
 - **Fallback Mechanism** : Retry avec strategie "full" si echec
@@ -36,8 +36,8 @@ Le **SemanticIntentDetector** est un service de classification d'intention basé
 |              |                                               |
 |              v                                               |
 |     +-----------------------+                                |
-|     | E5-small Embeddings   |                                |
-|     | (384 dims, local)     |                                |
+|     | OpenAI Embeddings     |                                |
+|     | (1536 dims)           |                                |
 |     +-----------------------+                                |
 |              |                                               |
 |              v                                               |
@@ -139,7 +139,7 @@ ToolManifest(
 
 ## Intent Anchors
 
-Les anchors sont des phrases en **anglais uniquement** qui servent de reference pour la classification. Le modele E5 multilingue gere automatiquement la correspondance cross-linguistique.
+Les anchors sont des phrases en **anglais uniquement** qui servent de reference pour la classification. Le semantic pivot traduit automatiquement les requêtes non-anglaises avant le calcul d'embeddings.
 
 ```python
 INTENT_ANCHORS = {
@@ -292,8 +292,8 @@ await initialize_intent_detector(threshold=0.75)  # More strict
 
 | Metric | Value |
 |--------|-------|
-| Model | intfloat/multilingual-e5-small |
-| Dimensions | 384 |
+| Model | OpenAI text-embedding-3-small |
+| Dimensions | 1536 |
 | Anchor Count | ~35 phrases |
 | Init Time | ~2s (embedding all anchors) |
 | Detection Time | ~50ms per query |
@@ -421,4 +421,4 @@ def reset_intent_detector() -> None
 - [SEMANTIC_ROUTER.md](SEMANTIC_ROUTER.md) - Tool selection semantique
 - [ROUTER.md](ROUTER.md) - Router node integration
 - [PLANNER.md](PLANNER.md) - Planner node et tool strategy
-- [LOCAL_EMBEDDINGS.md](LOCAL_EMBEDDINGS.md) - E5 model configuration
+- [LOCAL_EMBEDDINGS.md](LOCAL_EMBEDDINGS.md) - Embeddings configuration

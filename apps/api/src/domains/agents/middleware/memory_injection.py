@@ -471,7 +471,7 @@ async def get_memory_facts_for_query(
     user_id: str,
     query: str,
     limit: int = 5,
-    min_score: float = 0.5,
+    min_score: float | None = None,
 ) -> list[str] | None:
     """
     Get memory facts for pre-planner reference resolution.
@@ -485,7 +485,7 @@ async def get_memory_facts_for_query(
         user_id: Target user ID for memory retrieval
         query: Current user query for semantic matching
         limit: Maximum memories to retrieve (default: 5)
-        min_score: Minimum similarity threshold (default: 0.5)
+        min_score: Minimum similarity threshold (default: from settings.memory_min_search_score)
 
     Returns:
         List of memory content strings, or None if no memories found.
@@ -501,6 +501,12 @@ async def get_memory_facts_for_query(
         return None
 
     try:
+        # Resolve min_score from settings if not explicitly provided
+        if min_score is None:
+            from src.core.config import settings
+
+            min_score = settings.memory_min_search_score
+
         namespace = MemoryNamespace(user_id)
         # Fetch more results than needed, then sort by importance/usage
         fetch_limit = max(limit * 3, 30)  # Fetch 3x or at least 30 to ensure good coverage

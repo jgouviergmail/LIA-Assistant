@@ -43,11 +43,11 @@ class TestLLMDefaults:
     @pytest.mark.parametrize(
         "llm_type,expected_provider,expected_model",
         [
-            ("router", "openai", "gpt-5-mini"),
+            ("router", "openai", "gpt-4.1-mini"),
             ("response", "anthropic", "claude-sonnet-4-6"),
-            ("planner", "anthropic", "claude-sonnet-4-6"),
+            ("planner", "qwen", "qwen3.5-plus"),
             ("mcp_excalidraw", "anthropic", "claude-opus-4-6"),
-            ("subagent", "anthropic", "claude-sonnet-4-6"),
+            ("subagent", "openai", "gpt-5.4"),
         ],
     )
     def test_key_defaults(self, llm_type: str, expected_provider: str, expected_model: str) -> None:

@@ -5,7 +5,7 @@
 **Auteur**: Documentation Technique LIA
 **Statut**: ✅ Complète et Validée
 
-> **Nouveautés v1.5** : 15 agents actifs, ajout Philips Hue Smart Home Agent (v1.8.0), Semantic Tool Router (ADR-048) + Local E5 Embeddings (ADR-049).
+> **Nouveautés v1.5** : 15 agents actifs, ajout Philips Hue Smart Home Agent (v1.8.0), Semantic Tool Router (ADR-048) + OpenAI Embeddings (ADR-049).
 > Voir [AGENT_MANIFEST.md](./AGENT_MANIFEST.md) pour le catalogue complet des 56+ tools.
 
 ---
@@ -1261,7 +1261,7 @@ Le **SemanticToolSelector** remplace le routing par mots-clés par une approche 
 # apps/api/src/domains/agents/services/tool_selector.py
 class SemanticToolSelector:
     """
-    Semantic tool selection using local E5 embeddings.
+    Semantic tool selection using OpenAI text-embedding-3-small.
 
     Strategy: Max-Pooling
     - For each tool, compute MAX(cosine(query, keyword_i))
@@ -1289,9 +1289,9 @@ search_emails_catalogue_manifest = ToolManifest(
 ```
 
 **Bénéfices** :
-- ✅ Zero i18n maintenance (100+ langues via E5 multilingue)
+- ✅ Zero i18n maintenance (100+ langues via OpenAI embeddings multilingues)
 - ✅ +48% accuracy vs keywords (0.90 vs 0.61)
-- ✅ Zero API cost (inférence locale)
+- ✅ High-quality 1536-dim embeddings
 
 **Voir** : [SEMANTIC_ROUTER.md](SEMANTIC_ROUTER.md) | [ADR-048](../architecture/ADR-048-Semantic-Tool-Router.md)
 

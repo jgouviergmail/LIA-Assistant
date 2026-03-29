@@ -1,8 +1,17 @@
 import fs from 'fs';
 import path from 'path';
 import {
-  FileText, CheckCircle, UserPlus, Layers, Shield, GitBranch,
-  Database, Cloud, Scale, XCircle, Gavel,
+  FileText,
+  CheckCircle,
+  UserPlus,
+  Layers,
+  Shield,
+  GitBranch,
+  Database,
+  Cloud,
+  Scale,
+  XCircle,
+  Gavel,
 } from 'lucide-react';
 import { initI18next } from '@/i18n';
 import { GuideMarkdown } from '../guides/GuideMarkdown';

@@ -81,7 +81,9 @@ export default function AdminImagePricingSection({ lng, collapsible = true }: Ba
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
-  const [sortBy, setSortBy] = useState<'model' | 'quality' | 'size' | 'cost_per_image_usd'>('model');
+  const [sortBy, setSortBy] = useState<'model' | 'quality' | 'size' | 'cost_per_image_usd'>(
+    'model'
+  );
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const fetchEntries = useCallback(
@@ -121,7 +123,9 @@ export default function AdminImagePricingSection({ lng, collapsible = true }: Ba
   useEffect(() => {
     const controller = new AbortController();
     fetchEntries(controller.signal);
-    return () => { controller.abort(); };
+    return () => {
+      controller.abort();
+    };
   }, [fetchEntries]);
 
   const handleSearchChange = (value: string) => {
@@ -371,11 +375,7 @@ export default function AdminImagePricingSection({ lng, collapsible = true }: Ba
             setShowAddModal(false);
             setEditingEntry(null);
           }}
-          onSubmit={
-            editingEntry
-              ? (data) => handleEditEntry(editingEntry.id, data)
-              : handleAddEntry
-          }
+          onSubmit={editingEntry ? data => handleEditEntry(editingEntry.id, data) : handleAddEntry}
         />
       )}
     </>
@@ -420,7 +420,9 @@ function SortableHeader({
     >
       <div className="flex items-center space-x-1">
         <span>{label}</span>
-        {sortBy === column && <span aria-hidden="true">{sortOrder === 'asc' ? '\u2191' : '\u2193'}</span>}
+        {sortBy === column && (
+          <span aria-hidden="true">{sortOrder === 'asc' ? '\u2191' : '\u2193'}</span>
+        )}
       </div>
     </th>
   );

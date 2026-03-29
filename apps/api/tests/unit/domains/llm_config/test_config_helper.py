@@ -23,8 +23,8 @@ class TestGetLLMConfigForAgent:
 
         assert isinstance(config, LLMAgentConfig)
         assert config.provider == "openai"
-        assert config.model == "gpt-5-mini"
-        assert config.temperature == 0.0
+        assert config.model == "gpt-4.1-mini"
+        assert config.temperature == 0.2
         assert config.max_tokens == 1000
 
     def test_applies_cache_override(self) -> None:

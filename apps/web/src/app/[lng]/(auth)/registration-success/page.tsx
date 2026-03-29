@@ -22,13 +22,9 @@ export default function RegistrationSuccessPage() {
         </div>
       </div>
 
-      <h1 className="text-2xl font-bold text-foreground">
-        {t('auth.registration_success.title')}
-      </h1>
+      <h1 className="text-2xl font-bold text-foreground">{t('auth.registration_success.title')}</h1>
 
-      <p className="text-muted-foreground">
-        {t('auth.registration_success.message')}
-      </p>
+      <p className="text-muted-foreground">{t('auth.registration_success.message')}</p>
 
       {/* Spam warning */}
       <div className="bg-amber-50 dark:bg-amber-950/50 border-l-4 border-amber-500 p-4 rounded-r-lg text-left">
@@ -41,9 +37,7 @@ export default function RegistrationSuccessPage() {
         </div>
       </div>
 
-      <p className="text-sm text-muted-foreground">
-        {t('auth.registration_success.link_expires')}
-      </p>
+      <p className="text-sm text-muted-foreground">{t('auth.registration_success.link_expires')}</p>
 
       <Button asChild className="mt-4">
         <Link href="/login">{t('auth.registration_success.back_to_login')}</Link>

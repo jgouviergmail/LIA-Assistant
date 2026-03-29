@@ -136,7 +136,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [SMART_SERVICES.md](./technical/SMART_SERVICES.md) | QueryAnalyzer, SmartPlanner, SmartCatalogue | ✅ |
 | [SEMANTIC_ROUTER.md](./technical/SEMANTIC_ROUTER.md) | Semantic Tool Router, max-pooling | ✅ |
 | [SEMANTIC_INTENT_DETECTION.md](./technical/SEMANTIC_INTENT_DETECTION.md) | Semantic Intent Detection | ✅ |
-| [LOCAL_EMBEDDINGS.md](./technical/LOCAL_EMBEDDINGS.md) | Local E5 embeddings, zero-cost | ✅ |
+| [LOCAL_EMBEDDINGS.md](./technical/LOCAL_EMBEDDINGS.md) | OpenAI embeddings (migrated from E5) | ✅ |
 | [MULTI_DOMAIN_ARCHITECTURE.md](./technical/MULTI_DOMAIN_ARCHITECTURE.md) | Architecture multi-domaines | ✅ |
 | [LANGFUSE.md](./technical/LANGFUSE.md) | Langfuse integration | ✅ |
 
@@ -261,7 +261,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | ADR-052 | Union Validation Strategy AgentResult | 2026-01 |
 | ADR-051 | Reminder & Notification System | 2025-12 |
 | ADR-050 | Voice Domain TTS Architecture | 2025-12 |
-| ADR-049 | Local E5 Embeddings | 2025-12 |
+| ADR-049 | Embeddings (migrated to OpenAI text-embedding-3-small) | 2025-12 |
 | ADR-048 | Semantic Tool Router | 2025-12 |
 
 ### ADRs Fondamentaux
@@ -380,7 +380,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | PostgreSQL | 16 + pgvector | Database + vector search |
 | Redis | 7.3.0 | Cache, sessions, rate limiting |
 | Pydantic | 2.12.5 | Validation données |
-| sentence-transformers | 5.0+ | Local E5 embeddings |
+| openai | 1.x | OpenAI text-embedding-3-small (1536 dims) |
 | Langfuse | 3.14.5 | LLM tracing |
 | Edge TTS | 6.1+ | Synthèse vocale (gratuit) |
 

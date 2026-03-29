@@ -2427,8 +2427,8 @@
           "description": "Einheitliche LLM-Abfrageanalyse (P95 < 800ms): Intentionserkennung (Aktion/Konversation), Multi-Domain-Routing mit Konfidenz, Englisch-Normalisierung, Auflösung zeitlicher/kontextueller Referenzen. Intelligente Risikoerkennung: mutation_intent, cardinality_risk, for_each_detected. Automatische semantische Erweiterung verwandter Domänen über das Typ-Register."
         },
         "routing": {
-          "title": "🧭 Semantisches Routing & Lokale Embeddings",
-          "description": "Intelligenter Router mit mehrsprachigen E5-Embeddings (100+ Sprachen, ~5ms). Automatische semantische Erweiterung verwandter Domänen (Wetter → Standort, Kalender → Kontakte). Dynamisch gefilterter Fähigkeitskatalog (96% Token-Reduktion). Adaptive HARD/SOFT/FALLBACK-Schwellenwerte für optimale Präzision."
+          "title": "🧭 Semantisches Routing & KI-gestützte Embeddings",
+          "description": "Intelligenter Router mit mehrsprachigen semantischen Embeddings (100+ Sprachen). Automatische semantische Erweiterung verwandter Domänen (Wetter → Standort, Kalender → Kontakte). Dynamisch gefilterter Fähigkeitskatalog (96% Token-Reduktion). Adaptive HARD/SOFT/FALLBACK-Schwellenwerte für optimale Präzision."
         },
         "query": {
           "title": "🔍 Abfrageanalyse",
@@ -2456,11 +2456,11 @@
         },
         "memory": {
           "title": "💾 Duales Kurz-/Langzeitgedächtnis",
-          "description": "Kurzzeit: gleitendes Nachrichtenfenster mit automatischer Kontextzusammenfassung. Langzeit: Extraktion von Fakten über Sie (Präferenzen, Beziehungen, Gewohnheiten) mit E5-Embeddings gespeichert. Hybride BM25 + semantische Suche für optimalen Abruf: Sowohl exakte Schlüsselwörter ALS AUCH Bedeutung werden verwendet, um Ihre relevanten Erinnerungen abzurufen."
+          "description": "Kurzzeit: gleitendes Nachrichtenfenster mit automatischer Kontextzusammenfassung. Langzeit: Extraktion von Fakten über Sie (Präferenzen, Beziehungen, Gewohnheiten) mit semantischen Embeddings gespeichert. Hybride BM25 + semantische Suche für optimalen Abruf: Sowohl exakte Schlüsselwörter ALS AUCH Bedeutung werden verwendet, um Ihre relevanten Erinnerungen abzurufen."
         },
         "interests": {
           "title": "✨ Intelligentes Interessenlernen",
-          "description": "Automatisches Lernen Ihrer Interessen durch LLM-Gesprächsanalyse. Proaktive personalisierte Benachrichtigungen zu Ihren Lieblingsthemen via Wikipedia, Perplexity oder KI-Reflexion. Bayessche Gewichtung mit zeitlichem Verfall. Semantische Deduplizierung via E5-Embeddings. Volle Kontrolle: Feedback, Blockierung, konfigurierbare Zeitfenster und Häufigkeit."
+          "description": "Automatisches Lernen Ihrer Interessen durch LLM-Gesprächsanalyse. Proaktive personalisierte Benachrichtigungen zu Ihren Lieblingsthemen via Wikipedia, Perplexity oder KI-Reflexion. Bayessche Gewichtung mit zeitlichem Verfall. Semantische Deduplizierung via KI-gestützter Embeddings. Volle Kontrolle: Feedback, Blockierung, konfigurierbare Zeitfenster und Häufigkeit."
         },
         "summarization": {
           "title": "📝 Automatische Zusammenfassung",
@@ -3168,7 +3168,7 @@
           },
           "q6": {
             "question": "Wie werden doppelte Inhalte vermieden?",
-            "answer": "LIA verwendet mehrere Anti-Duplikat-Mechanismen:<br><br><strong>🔄 Duplikatschutz:</strong><br><br><strong>1. Interessendeduplizierung:</strong><br>• Semantische Ähnlichkeit via E5-Embeddings<br>• 90%-Schwelle: zwei ähnliche Themen → Konsolidierung<br>• \"<em>Python</em>\" und \"<em>Python-Programmierung</em>\" = gleiches Interesse<br><br><strong>2. Inhaltsdeduplizierung:</strong><br>• SHA256-Hash des Inhalts (exakter Vergleich)<br>• Semantische Ähnlichkeit (85%-Schwelle)<br>• Überprüft gegen die letzten 30 Tage<br><br><strong>3. Abklingzeiten:</strong><br>• <strong>Global</strong>: mindestens 2h zwischen 2 Benachrichtigungen<br>• <strong>Pro Thema</strong>: 24h bevor dasselbe Thema wieder besprochen wird<br>• <strong>Tagesquote</strong>: max N Benachrichtigungen/Tag<br><br><strong>📊 Ergebnis:</strong><br>Sie erhalten nie zweimal denselben Inhalt, noch zu ähnliche Themen hintereinander."
+            "answer": "LIA verwendet mehrere Anti-Duplikat-Mechanismen:<br><br><strong>🔄 Duplikatschutz:</strong><br><br><strong>1. Interessendeduplizierung:</strong><br>• Semantische Ähnlichkeit via KI-gestützter Embeddings<br>• 90%-Schwelle: zwei ähnliche Themen → Konsolidierung<br>• \"<em>Python</em>\" und \"<em>Python-Programmierung</em>\" = gleiches Interesse<br><br><strong>2. Inhaltsdeduplizierung:</strong><br>• SHA256-Hash des Inhalts (exakter Vergleich)<br>• Semantische Ähnlichkeit (85%-Schwelle)<br>• Überprüft gegen die letzten 30 Tage<br><br><strong>3. Abklingzeiten:</strong><br>• <strong>Global</strong>: mindestens 2h zwischen 2 Benachrichtigungen<br>• <strong>Pro Thema</strong>: 24h bevor dasselbe Thema wieder besprochen wird<br>• <strong>Tagesquote</strong>: max N Benachrichtigungen/Tag<br><br><strong>📊 Ergebnis:</strong><br>Sie erhalten nie zweimal denselben Inhalt, noch zu ähnliche Themen hintereinander."
           }
         }
       },

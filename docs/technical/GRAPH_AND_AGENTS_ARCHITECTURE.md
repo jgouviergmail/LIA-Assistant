@@ -1659,7 +1659,7 @@ class SecurePlanEditor(EnhancedPlanEditor):
 | OrchestrationService | 1,209 | Graph execution |
 | SmartPlannerService | ~1,100 | Single-call planning (Architecture v3) |
 | QueryAnalyzerService | ~400 | LLM query analysis (Architecture v3) |
-| SemanticIntentDetector | 448 | **New - E5 embeddings** |
+| SemanticIntentDetector | 448 | **New - OpenAI embeddings** |
 | ContextResolutionService | 905 | Turn-based context |
 | AdaptiveReplanner | 939 | **Phase E - Recovery** |
 | HITLOrchestrator | 1,401 | HITL coordination |

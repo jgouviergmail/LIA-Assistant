@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 """
-Test script to compare embedding models for memory retrieval.
+[ARCHIVED] Test script to compare embedding models for memory retrieval.
+
+NOTE: This script is archived since v1.14.0. The local E5 model has been
+replaced by OpenAI text-embedding-3-small for all embeddings (memory, tool
+routing, interests). Running this script requires installing
+sentence-transformers manually (no longer in requirements.txt).
 
 Compares:
 - text-embedding-3-small (current production model)
-- multilingual-e5-small (proposed replacement for asymmetric search)
-
-Tests the specific use case: question → memory matching
-where the memory stores a fact and the query is a question about it.
+- multilingual-e5-small (former local model, removed in v1.14.0)
 
 Usage:
     cd apps/api
+    pip install sentence-transformers  # Not in requirements.txt anymore
     python scripts/test_embedding_models.py
-
-Requirements:
-    pip install sentence-transformers openai numpy
 """
 
 import io

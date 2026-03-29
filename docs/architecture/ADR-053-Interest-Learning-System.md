@@ -58,7 +58,7 @@ safe_fire_and_forget(                    safe_fire_and_forget(
 - `category` : Enum (technology, science, culture, etc.)
 - `positive_signals` / `negative_signals` : Compteurs pour poids Bayesien
 - `status` : active, blocked, dormant
-- `embedding` : ARRAY(Float()) pour dedup semantique (E5-small, 384 dims)
+- `embedding` : ARRAY(Float()) pour dedup semantique (OpenAI text-embedding-3-small, 1536 dims)
 
 **Algorithme de Poids** :
 ```python

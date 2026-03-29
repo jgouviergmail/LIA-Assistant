@@ -36,7 +36,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.13.3</strong> — Skills Guide Redesign, Admin Dashboard Enhancements &amp; Multi-Provider Naming — March 2026
+  <strong>Version 1.13.4</strong> — Skills Guide Redesign, Admin Dashboard Enhancements &amp; Multi-Provider Naming — March 2026
 </p>
 
 ---
@@ -73,7 +73,7 @@
 | **Uncontrolled hallucinations** | Human-in-the-Loop (HITL) with 6 approval levels |
 | **Fragmented integrations** | Unified multi-domain orchestration (18 agents + MCP + sub-agents) |
 | **Limited observability** | 500+ Prometheus metrics, 18 Grafana dashboards, GeoIP analytics |
-| **Inconsistent performance** | Local E5 embeddings (~50ms), semantic routing +48% accuracy |
+| **Inconsistent performance** | OpenAI text-embedding-3-small embeddings, semantic routing with max-pooling |
 
 ### Primary Use Cases
 
@@ -346,7 +346,7 @@ ExecutionStep(
 
 - **Introspective notebooks**: The assistant maintains thematic journals (self-reflection, user observations, ideas & analyses, learnings) written in first person, colored by its active personality
 - **Dual trigger**: Post-conversation extraction (fire-and-forget) + periodic consolidation (APScheduler). The assistant decides freely what to write
-- **Semantic context injection**: Journal entries injected into both response AND planner prompts via E5-small embedding similarity search with configurable minimum score prefiltering (`JOURNAL_CONTEXT_MIN_SCORE`). Results include scores — the LLM decides relevance autonomously
+- **Semantic context injection**: Journal entries injected into both response AND planner prompts via OpenAI text-embedding-3-small similarity search with configurable minimum score prefiltering (`JOURNAL_CONTEXT_MIN_SCORE`). Results include scores — the LLM decides relevance autonomously
 - **Prompt-driven lifecycle**: The assistant manages its own journals — no hardcoded auto-archival. Size constraints guide cleanup via prompt engineering
 - **Heartbeat integration**: Journal entries enrich proactive notifications via dynamic second-pass query built from aggregated context (calendar, weather, emails). Toggleable source badge in heartbeat settings
 - **Full user control**: Enable/disable (data preserved), consolidation toggle, conversation history analysis (with cost warning), 4 configurable numeric settings, full CRUD in Settings
@@ -668,7 +668,7 @@ apps/api/src/
 | Redis | 7.3.0 | Cache, sessions, rate limiting |
 | Pydantic | 2.12.5 | Validation + serialization |
 | structlog | latest | Structured JSON logging |
-| sentence-transformers | 5.0+ | Local E5 embeddings |
+| openai | 1.0+ | Embeddings (text-embedding-3-small) + LLM |
 | Edge TTS | 6.1+ | Voice synthesis (free) |
 | mcp | 1.9+ | Model Context Protocol SDK (Streamable HTTP) |
 | Docker | 24+ | Containerization (multi-arch amd64/arm64) |
@@ -855,7 +855,7 @@ ESLint + TypeScript check         CodeQL (Python + JS)
 | TTFT (Time To First Token) | 380ms | < 500ms |
 | Router Latency | 800ms | < 2s |
 | Planner Latency | 2.5s | < 5s |
-| E5 Embedding (local) | ~50ms | < 100ms |
+| OpenAI Embedding | ~100-200ms | < 300ms |
 | Token Reduction (Windowing) | 93% | > 80% |
 | Context Compaction Savings | ~60% per compaction | — |
 
@@ -864,7 +864,7 @@ ESLint + TypeScript check         CodeQL (Python + JS)
 - **Message Windowing**: 5/10/20 turns depending on node
 - **Context Compaction**: LLM summarization of old messages (dynamic threshold from response model context window, configurable via `COMPACTION_*` settings)
 - **Prompt Caching**: OpenAI/Anthropic (90% discount)
-- **Local Embeddings**: Multilingual E5 (zero API cost)
+- **OpenAI Embeddings**: text-embedding-3-small (low cost, ~$0.02/1M tokens)
 - **Parallel Execution**: asyncio.gather for independent domains
 - **Redis O(1)**: Optimized operations (vs O(N) SCAN)
 - **Connection Pooling**: httpx persistent connections
@@ -986,7 +986,7 @@ This project builds on excellent open source technologies:
 - [Alembic](https://alembic.sqlalchemy.org/) - Database migrations
 - [PostgreSQL](https://www.postgresql.org/) + [pgvector](https://github.com/pgvector/pgvector) - Database & vector search
 - [Redis](https://redis.io/) - Cache, sessions, rate limiting
-- [sentence-transformers](https://www.sbert.net/) - Local E5 embeddings
+- [OpenAI Embeddings](https://platform.openai.com/docs/guides/embeddings) - text-embedding-3-small for semantic search
 - [Edge TTS](https://github.com/rany2/edge-tts) - Free neural voice synthesis
 - [structlog](https://www.structlog.org/) - Structured JSON logging
 - [Docker](https://www.docker.com/) - Containerization & multi-arch builds

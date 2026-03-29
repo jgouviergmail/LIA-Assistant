@@ -4,7 +4,7 @@
 
 **Version**: 2.0
 **Date**: 2026-03-24
-**Application**: LIA v1.13.3
+**Application**: LIA v1.13.4
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -230,7 +230,7 @@ LIA does not claim to have solved agentic AI in general. But it has solved **its
 
 When you send a message, it passes through a 5-phase pipeline:
 
-**Phase 1 — Understand**: The router analyzes your message in a few hundred milliseconds and decides whether it is a simple conversation or a request requiring actions. The query analyzer identifies the relevant domains (email, calendar, weather...) and a semantic router refines detection using local embeddings (+48% precision).
+**Phase 1 — Understand**: The router analyzes your message in a few hundred milliseconds and decides whether it is a simple conversation or a request requiring actions. The query analyzer identifies the relevant domains (email, calendar, weather...) and a semantic router refines detection using AI-powered embeddings (+48% precision).
 
 **Phase 2 — Plan**: For complex requests, an intelligent planner generates a structured execution plan — a dependency tree with steps, conditions, and iterations. If a similar plan has been validated before, Bayesian learning allows it to be reused directly (LLM bypass, massive savings).
 
@@ -251,7 +251,7 @@ Where most agentic systems see their costs explode, LIA has developed a set of o
 - **Message Windowing**: each node only sees the N most recent messages it needs (5/10/20 depending on the node)
 - **Context Compaction**: LLM summary of older messages when context exceeds the threshold
 - **Prompt Caching**: leveraging native OpenAI/Anthropic caching (90% reduction)
-- **Local embeddings**: E5 embeddings run locally (zero API cost, ~50 ms)
+- **Semantic embeddings**: multilingual AI-powered embeddings for semantic routing and deduplication
 
 ### 6.4. Observability as a safety net
 
@@ -396,7 +396,7 @@ With each plan that is validated and successfully executed, LIA records the patt
 
 ### 12.2. Local semantic routing
 
-Multilingual E5 embeddings (100+ languages) run locally in ~50 ms, enabling semantic routing that improves intent detection precision by 48% compared to purely LLM-based routing — at zero cost.
+Multilingual semantic embeddings (100+ languages) enable semantic routing that improves intent detection precision by 48% compared to purely LLM-based routing.
 
 ### 12.3. Three-layer anti-hallucination
 
@@ -486,4 +486,4 @@ It is not a chatbot. It is not a cloud platform. It is a **sovereign digital com
 
 ---
 
-*Document written based on the source code of LIA v1.13.3, 190+ technical documents, 63 ADRs, the complete changelog, and an analysis of the AI competitive landscape as of March 2026. All described features are implemented and verifiable in the code. Market data sourced from Gartner, IBM, and official publications from OpenAI, Google, Microsoft, and Anthropic.*
+*Document written based on the source code of LIA v1.13.4, 190+ technical documents, 63 ADRs, the complete changelog, and an analysis of the AI competitive landscape as of March 2026. All described features are implemented and verifiable in the code. Market data sourced from Gartner, IBM, and official publications from OpenAI, Google, Microsoft, and Anthropic.*

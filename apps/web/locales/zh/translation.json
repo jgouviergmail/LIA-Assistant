@@ -2422,8 +2422,8 @@
           "description": "统一的 LLM 查询分析（P95 < 800ms）：意图检测（操作/对话）、多领域路由带置信度、英语规范化、时间/上下文引用解析。智能风险检测：mutation_intent、cardinality_risk、for_each_detected。通过类型注册表自动语义扩展相关领域。"
         },
         "routing": {
-          "title": "🧭 语义路由与本地嵌入",
-          "description": "智能路由器配备多语言 E5 嵌入（100+ 语言，~5ms）。自动语义扩展相关领域（天气 → 位置，日历 → 联系人）。动态过滤能力目录（96% token 减少）。自适应 HARD/SOFT/FALLBACK 阈值实现最优精度。"
+          "title": "🧭 语义路由与语义嵌入",
+          "description": "智能路由器配备多语言语义嵌入（100+ 语言）。自动语义扩展相关领域（天气 → 位置，日历 → 联系人）。动态过滤能力目录（96% token 减少）。自适应 HARD/SOFT/FALLBACK 阈值实现最优精度。"
         },
         "query": {
           "title": "🔍 查询分析",
@@ -2451,11 +2451,11 @@
         },
         "memory": {
           "title": "💾 短期/长期双重记忆",
-          "description": "短期：滑动消息窗口，自动总结上下文。长期：提取关于您的信息（偏好、关系、习惯）使用E5嵌入向量存储。混合BM25+语义搜索实现最佳召回：同时使用精确关键词和语义来检索您的相关记忆。"
+          "description": "短期：滑动消息窗口，自动总结上下文。长期：提取关于您的信息（偏好、关系、习惯）使用语义嵌入向量存储。混合BM25+语义搜索实现最佳召回：同时使用精确关键词和语义来检索您的相关记忆。"
         },
         "interests": {
           "title": "✨ 智能兴趣学习",
-          "description": "通过 LLM 对话分析自动学习您的兴趣。通过 Wikipedia、Perplexity 或 AI 反思主动向您推送个性化的感兴趣内容。贝叶斯加权与时间衰减。通过 E5 嵌入向量进行语义去重。完全控制：反馈、屏蔽、可配置的时间窗口和频率。"
+          "description": "通过 LLM 对话分析自动学习您的兴趣。通过 Wikipedia、Perplexity 或 AI 反思主动向您推送个性化的感兴趣内容。贝叶斯加权与时间衰减。通过语义嵌入向量进行语义去重。完全控制：反馈、屏蔽、可配置的时间窗口和频率。"
         },
         "summarization": {
           "title": "📝 自动摘要",
@@ -3163,7 +3163,7 @@
           },
           "q6": {
             "question": "如何避免重复内容？",
-            "answer": "LIA使用多种防重复机制：<br><br><strong>🔄 重复保护：</strong><br><br><strong>1. 兴趣去重：</strong><br>• 通过E5嵌入向量的语义相似度<br>• 90%阈值：两个相似话题 → 合并<br>• \"<em>Python</em>\"和\"<em>Python编程</em>\" = 同一兴趣<br><br><strong>2. 内容去重：</strong><br>• 内容的SHA256哈希（精确比较）<br>• 语义相似度（85%阈值）<br>• 与过去30天进行检查<br><br><strong>3. 冷却时间：</strong><br>• <strong>全局</strong>：两次通知之间至少2小时<br>• <strong>每个话题</strong>：再次讨论同一主题前24小时<br>• <strong>每日配额</strong>：每天最多N次通知<br><br><strong>📊 结果：</strong><br>您永远不会两次收到相同的内容，也不会连续收到太相似的话题。"
+            "answer": "LIA使用多种防重复机制：<br><br><strong>🔄 重复保护：</strong><br><br><strong>1. 兴趣去重：</strong><br>• 通过语义嵌入向量的语义相似度<br>• 90%阈值：两个相似话题 → 合并<br>• \"<em>Python</em>\"和\"<em>Python编程</em>\" = 同一兴趣<br><br><strong>2. 内容去重：</strong><br>• 内容的SHA256哈希（精确比较）<br>• 语义相似度（85%阈值）<br>• 与过去30天进行检查<br><br><strong>3. 冷却时间：</strong><br>• <strong>全局</strong>：两次通知之间至少2小时<br>• <strong>每个话题</strong>：再次讨论同一主题前24小时<br>• <strong>每日配额</strong>：每天最多N次通知<br><br><strong>📊 结果：</strong><br>您永远不会两次收到相同的内容，也不会连续收到太相似的话题。"
           }
         }
       },

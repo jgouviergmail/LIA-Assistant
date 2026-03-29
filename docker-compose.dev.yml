@@ -104,9 +104,6 @@ services:
       - LANGFUSE_DEBUG=true
       # Trust X-Forwarded-Proto from reverse proxies
       - FORWARDED_ALLOW_IPS=*
-      # HuggingFace cache directory for E5 embedding model
-      - HF_HOME=/app/.cache/huggingface
-      - TRANSFORMERS_CACHE=/app/.cache/huggingface
     ports:
       - "${API_HOST_PORT:-8000}:8000"
       - "${DEBUG_HOST_PORT:-5678}:5678"  # Debug port
@@ -117,8 +114,6 @@ services:
       - ./.git:/app/.git:ro  # Mount .git for prompt versioning (read-only)
       - ./docs/knowledge:/app/docs/knowledge:ro  # System RAG knowledge files
       - ssl_certs:/certs:ro  # Shared SSL certificates (kept for future use)
-      # Persistent HuggingFace model cache (survives container restarts)
-      - huggingface_cache:/app/.cache/huggingface
       # Persistent storage for file attachments (images, PDF)
       - attachments_data:/app/data/attachments
       # Skills directories (full bind-mount for dev — both system and user skills editable)
@@ -671,7 +666,6 @@ volumes:
   langfuse_clickhouse_data:
   langfuse_clickhouse_logs:
   minio_data:
-  huggingface_cache:  # Persistent storage for E5 embedding model (~500MB)
   attachments_data:  # Persistent storage for file attachments (images, PDF)
 
 networks:

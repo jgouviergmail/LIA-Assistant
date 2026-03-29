@@ -641,7 +641,7 @@ SEARCH_CONTACTS_MANIFEST = ToolManifest(
 
 ### Semantic Keywords (ADR-048)
 
-Les `semantic_keywords` permettent la découverte sémantique des outils via E5 embeddings et max-pooling.
+Les `semantic_keywords` permettent la découverte sémantique des outils via OpenAI embeddings et max-pooling.
 
 #### Pourquoi semantic_keywords ?
 
@@ -654,8 +654,8 @@ Les `semantic_keywords` permettent la découverte sémantique des outils via E5 
 │                          │                                      │
 │                          ▼                                      │
 │              ┌───────────────────────┐                         │
-│              │  E5 Local Embedding   │                         │
-│              │  query → 384 dims     │                         │
+│              │  OpenAI Embedding     │                         │
+│              │  query → 1536 dims    │                         │
 │              └───────────┬───────────┘                         │
 │                          │                                      │
 │                          ▼                                      │
@@ -684,7 +684,7 @@ Les `semantic_keywords` permettent la découverte sémantique des outils via E5 
 
 | Règle | Description | Exemple |
 |-------|-------------|---------|
-| **Langue** | Anglais uniquement (E5 optimisé) | ✅ "create reminder" ❌ "créer rappel" |
+| **Langue** | Anglais uniquement (optimisé pour le semantic pivot) | ✅ "create reminder" ❌ "créer rappel" |
 | **Nombre** | 10-20 mots-clés par outil | Couverture complète des cas d'usage |
 | **Style** | Phrases naturelles courtes | ✅ "set alert for meeting" |
 | **Verbes** | Actions variées synonymes | "create", "add", "set", "make", "schedule" |
@@ -701,7 +701,7 @@ CREATE_REMINDER_MANIFEST = ToolManifest(
     domain="reminders",
     description="Crée un rappel avec notification push",
 
-    # Semantic keywords pour E5 max-pooling
+    # Semantic keywords pour max-pooling
     semantic_keywords=[
         # Verbes d'action principaux
         "create reminder",
@@ -764,7 +764,7 @@ CREATE_REMINDER_MANIFEST = ToolManifest(
 │  └── Coût: $0.12/requête (GPT-4)                               │
 │                                                                 │
 │  AVEC semantic_keywords (two-level routing ADR-048):           │
-│  ├── 1. Semantic match: 50ms (local E5)                        │
+│  ├── 1. Semantic match: OpenAI embeddings                      │
 │  ├── 2. Tokens envoyés: 4,000 tokens (top-3 tools)             │
 │  ├── Latence totale: 0.5-1 seconde                             │
 │  └── Coût: $0.012/requête (90% réduction)                      │

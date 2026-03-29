@@ -1,9 +1,14 @@
 # ADR-049: Local E5 Embeddings
 
-**Status**: ✅ IMPLEMENTED (2025-12-23)
+**Status**: ⛔ SUPERSEDED (2026-03-29)
 **Deciders**: Équipe architecture LIA
 **Technical Story**: Phase 6 - Zero-Cost Semantic Infrastructure
 **Related Documentation**: `docs/technical/LOCAL_EMBEDDINGS.md`
+
+> **Superseded**: This ADR is superseded by the migration to **OpenAI text-embedding-3-small** (v1.14.0).
+> The local E5 model was replaced due to operational complexity (470MB model, 9s startup, sentence-transformers dependency).
+> All embedding subsystems (memory, semantic routing, interests, journals) now use OpenAI text-embedding-3-small (1536 dims) via `memory_embeddings.py`.
+> The content below is preserved for historical reference.
 
 ---
 
@@ -301,8 +306,8 @@ sentence-transformers>=3.0.0
 
 ## Related Decisions
 
-- [ADR-048: Semantic Tool Router](ADR-048-Semantic-Tool-Router.md) - Uses local E5 for routing
-- [ADR-037: Semantic Memory Store](ADR-037-Semantic-Memory-Store.md) - Uses local E5 for search
+- [ADR-048: Semantic Tool Router](ADR-048-Semantic-Tool-Router.md) - Now uses OpenAI text-embedding-3-small
+- [ADR-037: Semantic Memory Store](ADR-037-Semantic-Memory-Store.md) - Now uses OpenAI text-embedding-3-small
 
 ---
 

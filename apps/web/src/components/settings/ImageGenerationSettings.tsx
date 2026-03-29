@@ -15,7 +15,13 @@
 import { useState } from 'react';
 import { ImageIcon } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { useTranslation } from '@/i18n/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -55,7 +61,7 @@ export function ImageGenerationSettings({ lng, collapsible = true }: BaseSetting
         </div>
         <Switch
           checked={(user as any)?.image_generation_enabled ?? false}
-          onCheckedChange={(checked) => updatePreference('image_generation_enabled', checked)}
+          onCheckedChange={checked => updatePreference('image_generation_enabled', checked)}
           disabled={updating}
         />
       </div>
@@ -65,7 +71,7 @@ export function ImageGenerationSettings({ lng, collapsible = true }: BaseSetting
         <p className="text-sm font-medium">{t('settings.image_generation.quality')}</p>
         <Select
           value={(user as any)?.image_generation_default_quality ?? 'medium'}
-          onValueChange={(value) => updatePreference('image_generation_default_quality', value)}
+          onValueChange={value => updatePreference('image_generation_default_quality', value)}
           disabled={updating}
         >
           <SelectTrigger className="w-full">
@@ -90,7 +96,7 @@ export function ImageGenerationSettings({ lng, collapsible = true }: BaseSetting
         <p className="text-sm font-medium">{t('settings.image_generation.size')}</p>
         <Select
           value={(user as any)?.image_generation_default_size ?? '1024x1024'}
-          onValueChange={(value) => updatePreference('image_generation_default_size', value)}
+          onValueChange={value => updatePreference('image_generation_default_size', value)}
           disabled={updating}
         >
           <SelectTrigger className="w-full">
@@ -115,7 +121,7 @@ export function ImageGenerationSettings({ lng, collapsible = true }: BaseSetting
         <p className="text-sm font-medium">{t('settings.image_generation.format')}</p>
         <Select
           value={(user as any)?.image_generation_output_format ?? 'png'}
-          onValueChange={(value) => updatePreference('image_generation_output_format', value)}
+          onValueChange={value => updatePreference('image_generation_output_format', value)}
           disabled={updating}
         >
           <SelectTrigger className="w-full">

@@ -4,7 +4,7 @@
 
 **Versione**: 2.0
 **Data**: 2026-03-24
-**Applicazione**: LIA v1.13.3
+**Applicazione**: LIA v1.13.4
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -230,7 +230,7 @@ LIA non pretende di aver risolto l'IA agentica in generale. Ma ha risolto il **s
 
 Quando inviate un messaggio, questo attraversa una pipeline in 5 fasi:
 
-**Fase 1 — Comprendere**: Il router analizza il vostro messaggio in poche centinaia di millisecondi e decide se si tratta di una semplice conversazione o di una richiesta che necessita azioni. L'analizzatore di richieste identifica i domini coinvolti (email, calendario, meteo...) e un router semantico affina il rilevamento grazie a embedding locali (+48 % di precisione).
+**Fase 1 — Comprendere**: Il router analizza il vostro messaggio in poche centinaia di millisecondi e decide se si tratta di una semplice conversazione o di una richiesta che necessita azioni. L'analizzatore di richieste identifica i domini coinvolti (email, calendario, meteo...) e un router semantico affina il rilevamento grazie a embeddings semantici (+48 % di precisione).
 
 **Fase 2 — Pianificare**: Per le richieste complesse, un pianificatore intelligente genera un piano di esecuzione strutturato — un albero di dipendenze con passaggi, condizioni e iterazioni. Se un piano simile è già stato validato in passato, un apprendimento bayesiano permette di riutilizzarlo direttamente (bypass del LLM, risparmi massicci).
 
@@ -251,7 +251,7 @@ Laddove la maggior parte dei sistemi agentici vede i propri costi esplodere, LIA
 - **Message Windowing**: ogni nodo vede solo gli ultimi N messaggi necessari (5/10/20 a seconda del nodo)
 - **Context Compaction**: riassunto LLM dei messaggi precedenti quando il contesto supera la soglia
 - **Prompt Caching**: sfruttamento della cache nativa OpenAI/Anthropic (90 % di riduzione)
-- **Embeddings locali**: embeddings E5 eseguiti localmente (zero costi API, ~50 ms)
+- **Embeddings semantici**: embeddings multilingue IA per il routing semantico e la deduplicazione
 
 ### 6.4. L'osservabilità come rete di sicurezza
 
@@ -396,7 +396,7 @@ A ogni piano validato ed eseguito con successo, LIA registra il pattern. Uno sco
 
 ### 12.2. Il routing semantico locale
 
-Embeddings multilingue E5 (100+ lingue) eseguiti localmente in ~50 ms permettono un routing semantico che migliora la precisione del rilevamento dell'intento del 48 % rispetto al routing puramente LLM — a costo zero.
+Embeddings semantici multilingue (100+ lingue) permettono un routing semantico che migliora la precisione del rilevamento dell'intento del 48 % rispetto al routing puramente LLM.
 
 ### 12.3. L'anti-allucinazione a tre livelli
 
@@ -486,4 +486,4 @@ Non è un chatbot. Non è una piattaforma cloud. È un **compagno digitale sovra
 
 ---
 
-*Documento redatto sulla base del codice sorgente di LIA v1.13.3, di 190+ documenti tecnici, di 63 ADR, del changelog completo e di un'analisi del panorama concorrenziale IA di marzo 2026. Tutte le funzionalità descritte sono implementate e verificabili nel codice. I dati di mercato provengono da Gartner, IBM e dalle pubblicazioni ufficiali di OpenAI, Google, Microsoft e Anthropic.
+*Documento redatto sulla base del codice sorgente di LIA v1.13.4, di 190+ documenti tecnici, di 63 ADR, del changelog completo e di un'analisi del panorama concorrenziale IA di marzo 2026. Tutte le funzionalità descritte sono implementate e verificabili nel codice. I dati di mercato provengono da Gartner, IBM e dalle pubblicazioni ufficiali di OpenAI, Google, Microsoft e Anthropic.

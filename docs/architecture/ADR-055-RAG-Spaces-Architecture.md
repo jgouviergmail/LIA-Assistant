@@ -44,8 +44,10 @@ The existing infrastructure includes:
 ### Option 1: AsyncPostgresStore (LangGraph built-in)
 
 **Pros**: Already used for memory system, minimal new code
-**Cons**: No custom `table_name` parameter — all instances share `store_vectors` table. Impossible to have E5 (384 dims, memory) and OpenAI (1536 dims, RAG) in the same index. No bulk delete SQL.
-**Verdict**: ❌ Rejected — fundamental dimension incompatibility.
+**Cons**: No custom `table_name` parameter — all instances share `store_vectors` table. No bulk delete SQL. Limited schema control.
+**Verdict**: ❌ Rejected — insufficient schema flexibility.
+
+> **Note (v1.14.0)**: The original dimension incompatibility between E5 (384 dims) and OpenAI (1536 dims) is no longer relevant since all subsystems now use OpenAI text-embedding-3-small (1536 dims). However, the dedicated table approach remains the better architectural choice for the other reasons listed.
 
 ### Option 2: Dedicated `rag_chunks` table with pgvector
 
@@ -81,7 +83,7 @@ User Query → Response Node → retrieve_rag_context()
 
 ### Key Design Decisions
 
-1. **Dedicated table `rag_chunks`** with `Vector(1536)` column — avoids dimension conflict with memory system's E5 embeddings (384 dims)
+1. **Dedicated table `rag_chunks`** with `Vector(1536)` column — same dimensions as memory system (all unified on OpenAI text-embedding-3-small since v1.14.0)
 
 2. **Embedding model**: OpenAI `text-embedding-3-small` (1536 dims) — best price/performance ratio ($0.02/1M tokens vs $0.13 for `large`). Configurable via `rag_spaces_embedding_model`
 

@@ -7,7 +7,7 @@ across all agent executions for tool context persistence AND semantic memory.
 Pattern:
     - Singleton AsyncPostgresStore (similar to checkpointer.py pattern)
     - PostgreSQL-backed for persistence across restarts
-    - Semantic search via local E5 model (default) or OpenAI embeddings
+    - Semantic search via OpenAI text-embedding-3-small (1536 dims)
     - Thread-safe, module-level singleton
     - Lazy initialization on first access
 
@@ -21,16 +21,15 @@ V2 (Long-Term Memory):
     - Multi-field indexing: content, text, trigger_topic
     - LangMem integration ready
 
-V3 (Local E5 Embeddings - 2024-12):
-    - Default: intfloat/multilingual-e5-small (local, free, 100 languages)
-    - Fallback: OpenAI text-embedding-3-small if configured
-    - Better Q/A matching: 0.90 avg score vs 0.61 with OpenAI
-    - ~107ms per embedding on Raspberry Pi 5 (CPU)
+V3 (OpenAI Embeddings - 2026-03):
+    - OpenAI text-embedding-3-small (1536 dims) via TrackedOpenAIEmbeddings
+    - Shared singleton with tool routing and interest deduplication
+    - Token tracking via Prometheus metrics
+    - Replaces local E5 model to save ~1 GB RAM per worker
 
 References:
     - LangGraph Store docs: https://langchain-ai.github.io/langgraph/reference/store/
     - LangGraph Semantic Search: https://blog.langchain.com/semantic-search-for-langgraph-memory/
-    - E5 Model: https://huggingface.co/intfloat/multilingual-e5-small
     - Similar pattern: src/domains/conversations/checkpointer.py
 """
 
@@ -51,26 +50,22 @@ def _get_embeddings_model():
     """
     Lazy-load embeddings model for semantic search.
 
-    Uses local E5 model (intfloat/multilingual-e5-small):
-    - Free, no API costs
-    - Better Q/A matching (0.90 avg score)
-    - ~107ms per embedding on Raspberry Pi 5
+    Uses OpenAI text-embedding-3-small via TrackedOpenAIEmbeddings singleton,
+    shared with tool routing and interest deduplication.
 
     Only initialized once on first access (singleton pattern).
     """
     global _embeddings_model
 
     if _embeddings_model is None:
-        # Use local HuggingFace E5 model (always enabled)
-        from src.infrastructure.llm.local_embeddings import get_local_embeddings
+        from src.infrastructure.llm.memory_embeddings import get_memory_embeddings
 
-        _embeddings_model = get_local_embeddings()
+        _embeddings_model = get_memory_embeddings()
         logger.info(
             "embeddings_model_initialized",
             model=settings.memory_embedding_model,
             dimensions=settings.memory_embedding_dimensions,
-            provider="local_e5",
-            tracking_enabled=False,
+            provider="openai",
         )
 
     return _embeddings_model
@@ -130,7 +125,7 @@ async def get_tool_context_store() -> AsyncPostgresStore:
         )
 
         # Build index configuration for semantic search
-        # NOTE: Memory/semantic search is always enabled (local E5 embeddings by default)
+        # NOTE: Memory/semantic search is always enabled (OpenAI embeddings)
         index_config = None
         semantic_search_enabled = False
 
@@ -147,7 +142,7 @@ async def get_tool_context_store() -> AsyncPostgresStore:
                 "semantic_search_config_ready",
                 dims=settings.memory_embedding_dimensions,
                 fields=index_config["fields"],
-                provider="local_e5",  # Always use local E5 embeddings
+                provider="openai",
             )
         except Exception as e:
             logger.warning(

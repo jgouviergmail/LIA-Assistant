@@ -1734,7 +1734,7 @@ async with OAuthLock(redis, user_id, connector_type):
 **Status**: ✅ IMPLEMENTED (2025-12-23)
 **Fichier**: `docs/architecture/ADR-048-Semantic-Tool-Router.md`
 
-**Décision**: Implémenter **SemanticToolSelector + Local E5 Embeddings + Max-Pooling Strategy** pour routing intelligent des tools.
+**Décision**: Implémenter **SemanticToolSelector + OpenAI text-embedding-3-small + Max-Pooling Strategy** pour routing intelligent des tools.
 
 **Problème résolu**:
 - ❌ Routing par mots-clés nécessitait maintenance i18n par langue
@@ -1757,8 +1757,7 @@ elif score >= 0.60:  # Medium confidence
 **Impact**:
 - ✅ Zero i18n maintenance (embeddings multilingues natifs)
 - ✅ +48% accuracy (0.90 vs 0.61 baseline OpenAI)
-- ✅ Zero API cost (inférence 100% locale)
-- ✅ Zero network latency
+- ✅ OpenAI text-embedding-3-small (1536 dims)
 - ✅ Max-pooling évite dilution keywords
 - ✅ Double threshold avec uncertainty flags
 
@@ -1766,36 +1765,18 @@ elif score >= 0.60:  # Medium confidence
 
 ### ADR-049: Local E5 Embeddings
 
-**Status**: ✅ IMPLEMENTED (2025-12-23)
+**Status**: ⛔ SUPERSEDED (2026-03-29) — Originally implemented 2025-12-23
 **Fichier**: `docs/architecture/ADR-049-local-e5-embeddings.md`
 
-**Décision**: Remplacer OpenAI text-embedding-3-small par **intfloat/multilingual-e5-small** via sentence-transformers pour embeddings zero-cost.
+**Décision**: ~~Remplacer OpenAI text-embedding-3-small par intfloat/multilingual-e5-small via sentence-transformers pour embeddings zero-cost.~~
 
-**Problème résolu**:
-- ❌ Coût API OpenAI (~$0.02/1M tokens)
-- ❌ Latence réseau (100-300ms par requête)
-- ❌ Dépendance externe (disponibilité OpenAI)
-- ❌ Performance Q/A moyenne (0.61 sur benchmarks mémoire)
+**Superseded**: Migrated back to **OpenAI text-embedding-3-small** (1536 dims) in v1.14.0 for operational simplicity. The local E5 model (470MB, 9s startup, sentence-transformers dependency) was replaced across all subsystems (memory, semantic routing, interests, journals). See `memory_embeddings.py`.
 
-**Solution**:
-```python
-class LocalE5Embeddings:
-    """LangChain-compatible embeddings using local E5 model."""
-
-    def __init__(self, model_name="intfloat/multilingual-e5-small"):
-        self.model = SentenceTransformer(model_name, device="cpu")
-
-    def embed_query(self, text: str) -> list[float]:
-        return self.model.encode(text, normalize_embeddings=True).tolist()
-```
-
-**Impact**:
-- ✅ +48% accuracy (0.90 vs 0.61 on Q/A matching)
-- ✅ Zero API cost
-- ✅ Zero network latency (~50ms local)
-- ✅ 100+ langues supportées nativement
-- ✅ ARM64 native (Raspberry Pi 5 compatible)
-- ✅ LangChain drop-in replacement
+**Historical impact** (no longer active):
+- ~~+48% accuracy (0.90 vs 0.61 on Q/A matching)~~
+- ~~Zero API cost~~
+- ~~Zero network latency (~50ms local)~~
+- ~~ARM64 native (Raspberry Pi 5 compatible)~~
 
 ---
 
@@ -1950,7 +1931,7 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 **Impact**:
 - ✅ Extraction automatique via LLM (gpt-4o-mini)
 - ✅ Poids Bayesian Beta(2,1) avec decay 1%/jour
-- ✅ Deduplication par string similarity (embedding E5 prévu phase 2)
+- ✅ Deduplication par string similarity (embedding OpenAI text-embedding-3-small prévu phase 2)
 - ✅ Notifications proactives FCM + SSE
 - ✅ Pattern "transactions autonomes" (pas de FOR UPDATE pour user batch)
 - ✅ User feedback (thumbs up/down, block)
@@ -1975,7 +1956,7 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 
 **Problème résolu**:
 - ❌ Pas de contexte documentaire personnel dans les conversations
-- ❌ `AsyncPostgresStore` incompatible (dimensions E5 384 vs OpenAI 1536)
+- ❌ `AsyncPostgresStore` incompatible (insufficient schema flexibility)
 - ❌ Pas de recherche hybride sur documents utilisateur
 
 **Solution**:
@@ -2022,7 +2003,7 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 **Solution**:
 - ✅ Domaine DDD complet `src/domains/journals/` (models, repository, service, router, schemas)
 - ✅ Double déclencheur : extraction post-conversation (fire-and-forget) + consolidation APScheduler (4h)
-- ✅ Injection sémantique E5-small dans prompts response ET planner (deux requêtes distinctes)
+- ✅ Injection sémantique OpenAI text-embedding-3-small dans prompts response ET planner (deux requêtes distinctes)
 - ✅ Gestion autonome du cycle de vie via prompt engineering (pas de règles hardcodées)
 - ✅ Feature flags : `JOURNALS_ENABLED` (système) + toggle utilisateur
 

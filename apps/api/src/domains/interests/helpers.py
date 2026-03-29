@@ -105,8 +105,7 @@ def normalize_language_code(language: str) -> str:
 
 
 def generate_interest_embedding(text: str) -> list[float] | None:
-    """
-    Generate E5-small embedding (384 dims) for interest topic or content.
+    """Generate embedding for interest topic or content.
 
     Used for semantic deduplication of interests and content notifications.
     Shared by:
@@ -115,10 +114,10 @@ def generate_interest_embedding(text: str) -> list[float] | None:
     - Content notification deduplication (content_generator.py)
 
     Args:
-        text: Topic or content text to embed
+        text: Topic or content text to embed.
 
     Returns:
-        384-dimensional embedding vector, or None if generation fails
+        Embedding vector, or None if generation fails.
 
     Example:
         >>> embedding = generate_interest_embedding("machine learning")
@@ -126,9 +125,9 @@ def generate_interest_embedding(text: str) -> list[float] | None:
         ...     print(f"Generated {len(embedding)}-dim embedding")
     """
     try:
-        from src.infrastructure.llm.local_embeddings import get_local_embeddings
+        from src.infrastructure.llm.memory_embeddings import get_memory_embeddings
 
-        embeddings = get_local_embeddings()
+        embeddings = get_memory_embeddings()
         return embeddings.embed_query(text)
     except Exception as e:
         logger.warning(

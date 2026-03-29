@@ -1,8 +1,21 @@
 import fs from 'fs';
 import path from 'path';
 import {
-  Globe, Lightbulb, Shield, Eye, Heart, Workflow, UserCheck,
-  Zap, Bell, Mic, Puzzle, Brain, Layers, Scale, Compass,
+  Globe,
+  Lightbulb,
+  Shield,
+  Eye,
+  Heart,
+  Workflow,
+  UserCheck,
+  Zap,
+  Bell,
+  Mic,
+  Puzzle,
+  Brain,
+  Layers,
+  Scale,
+  Compass,
 } from 'lucide-react';
 import { initI18next } from '@/i18n';
 import { GuideMarkdown } from './GuideMarkdown';
