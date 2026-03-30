@@ -6,6 +6,7 @@
 
 // Badges
 export * from './badges';
+export { ActionBadge, type ActionBadgeProps, type ActionType } from './ActionBadge';
 
 // Row components
 export { MetricRow, type MetricRowProps } from './MetricRow';

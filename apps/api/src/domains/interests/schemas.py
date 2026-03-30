@@ -182,20 +182,35 @@ class InterestCategoriesResponse(BaseModel):
 
 
 class ExtractedInterest(BaseModel):
-    """Interest extracted from conversation by LLM."""
+    """Interest extracted from conversation by LLM.
 
-    topic: str = Field(
+    Supports create, update, and delete actions.
+    Backward-compatible: if no 'action' field, defaults to 'create'.
+    """
+
+    action: Literal["create", "update", "delete"] = Field(
+        default="create",
+        description="Action type: create new, update existing, or delete existing.",
+    )
+    interest_id: str | None = Field(
+        default=None,
+        description="UUID of existing interest (required for update/delete).",
+    )
+    topic: str | None = Field(
+        default=None,
         min_length=2,
         max_length=200,
-        description="Interest topic description",
+        description="Interest topic description (required for create, optional for update).",
     )
-    category: InterestCategory = Field(
-        description="Interest category",
+    category: InterestCategory | None = Field(
+        default=None,
+        description="Interest category (required for create, optional for update).",
     )
-    confidence: float = Field(
+    confidence: float | None = Field(
+        default=None,
         ge=0.0,
         le=1.0,
-        description="Extraction confidence score",
+        description="Extraction confidence score (required for create).",
     )
 
 

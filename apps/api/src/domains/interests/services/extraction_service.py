@@ -113,9 +113,11 @@ class InterestAnalysisResult:
             "analysis_skipped_reason": self.analysis_skipped_reason,
             "extracted_interests": [
                 {
-                    "topic": i.topic,
-                    "category": i.category.value,
-                    "confidence": i.confidence,
+                    "action": i.action,
+                    "interest_id": i.interest_id,
+                    "topic": i.topic or "",
+                    "category": i.category.value if i.category else "other",
+                    "confidence": i.confidence if i.confidence is not None else 0.0,
                 }
                 for i in self.extracted_interests
             ],
@@ -561,15 +563,18 @@ def _parse_extraction_result(result_text: str) -> list[ExtractedInterest]:
         interests = []
         for item in data:
             try:
-                # Filter by minimum confidence
-                confidence = item.get("confidence", 0)
-                if confidence < INTEREST_EXTRACTION_MIN_CONFIDENCE:
-                    logger.debug(
-                        "interest_extraction_low_confidence",
-                        topic=item.get("topic", "")[:50],
-                        confidence=confidence,
-                    )
-                    continue
+                action = item.get("action", "create")
+
+                # Filter by minimum confidence (only for create actions)
+                if action == "create":
+                    confidence = item.get("confidence", 0)
+                    if confidence < INTEREST_EXTRACTION_MIN_CONFIDENCE:
+                        logger.debug(
+                            "interest_extraction_low_confidence",
+                            topic=item.get("topic", "")[:50],
+                            confidence=confidence,
+                        )
+                        continue
 
                 interest = ExtractedInterest(**item)
                 interests.append(interest)
@@ -602,9 +607,11 @@ def _parse_extraction_result(result_text: str) -> list[ExtractedInterest]:
                     interests = []
                     for item in data:
                         try:
-                            confidence = item.get("confidence", 0)
-                            if confidence < INTEREST_EXTRACTION_MIN_CONFIDENCE:
-                                continue
+                            action = item.get("action", "create")
+                            if action == "create":
+                                confidence = item.get("confidence", 0)
+                                if confidence < INTEREST_EXTRACTION_MIN_CONFIDENCE:
+                                    continue
                             interest = ExtractedInterest(**item)
                             interests.append(interest)
                         except Exception:
@@ -794,7 +801,8 @@ async def _analyze_interests_core(
         )
 
         existing_texts = [
-            f"- {interest.topic} ({interest.category})" for interest in existing_interests
+            f"- [id={interest.id}] {interest.topic} ({interest.category})"
+            for interest in existing_interests
         ]
 
         # Format conversation with context
@@ -994,21 +1002,80 @@ async def extract_interests_background(
             )
             return 0
 
-        # Process each extracted interest and persist to database
+        # Process each extracted interest action (create/update/delete)
         user_uuid = UUID(user_id)
         stored_count = 0
 
         async with get_db_context() as db:
             repo = InterestRepository(db)
 
-            # Retrieve existing interests for deduplication
+            # Retrieve existing interests for deduplication (create actions)
             existing_interests = await repo.get_active_for_user(
                 user_uuid, limit=settings.interest_dedup_search_limit
             )
+            known_interest_ids = {str(i.id) for i in existing_interests}
 
             for extracted in analysis.extracted_interests:
                 try:
-                    # Check for similar existing interest
+                    # ── DELETE action ──
+                    if extracted.action == "delete" and extracted.interest_id:
+                        if extracted.interest_id not in known_interest_ids:
+                            logger.warning(
+                                "interest_extraction_unknown_id",
+                                user_id=user_id,
+                                action="delete",
+                                interest_id=extracted.interest_id,
+                            )
+                            continue
+                        interest = await repo.get_by_id(UUID(extracted.interest_id))
+                        if interest and str(interest.user_id) == user_id:
+                            await repo.delete(interest)
+                            logger.info(
+                                "interest_deleted_by_extraction",
+                                user_id=user_id,
+                                interest_id=extracted.interest_id,
+                                topic=interest.topic[:50],
+                            )
+                            stored_count += 1
+                        continue
+
+                    # ── UPDATE action ──
+                    if extracted.action == "update" and extracted.interest_id:
+                        if extracted.interest_id not in known_interest_ids:
+                            logger.warning(
+                                "interest_extraction_unknown_id",
+                                user_id=user_id,
+                                action="update",
+                                interest_id=extracted.interest_id,
+                            )
+                            continue
+                        interest = await repo.get_by_id(UUID(extracted.interest_id))
+                        if interest and str(interest.user_id) == user_id:
+                            if extracted.topic:
+                                interest.topic = extracted.topic
+                                # Re-embed with updated topic
+                                from src.domains.interests.helpers import (
+                                    generate_interest_embedding,
+                                )
+
+                                interest.embedding = generate_interest_embedding(extracted.topic)
+                            if extracted.category:
+                                interest.category = extracted.category.value
+                            await repo.consolidate_on_mention(interest)
+                            logger.info(
+                                "interest_updated_by_extraction",
+                                user_id=user_id,
+                                interest_id=extracted.interest_id,
+                                topic=interest.topic[:50],
+                            )
+                            stored_count += 1
+                        continue
+
+                    # ── CREATE action (default, backward-compatible) ──
+                    if not extracted.topic or not extracted.category:
+                        continue
+
+                    # Check for similar existing interest (dedup)
                     is_similar, existing = await _find_similar_interest(
                         repo, user_uuid, extracted.topic, existing_interests
                     )
@@ -1173,12 +1240,15 @@ async def analyze_interests_for_debug(
             "temperature": analysis.llm_temperature,
         }
 
-        # Build extracted interests data
+        # Build extracted interests data (include action/interest_id for debug panel)
+        # Provide safe defaults for fields the frontend accesses (topic, confidence)
         extracted_interests_data = [
             {
-                "topic": interest.topic,
-                "category": interest.category.value,
-                "confidence": round(interest.confidence, 3),
+                "action": interest.action,
+                "interest_id": interest.interest_id,
+                "topic": interest.topic or "(deleted)",
+                "category": interest.category.value if interest.category else "other",
+                "confidence": round(interest.confidence, 3) if interest.confidence else 0.0,
             }
             for interest in analysis.extracted_interests
         ]
@@ -1215,6 +1285,35 @@ async def analyze_interests_for_debug(
             matching_decisions: list[dict[str, str | None]] = []
 
             for extracted in analysis.extracted_interests:
+                # Explicit LLM actions (delete/update) take precedence
+                if extracted.action == "delete" and extracted.interest_id:
+                    matching_decisions.append(
+                        {
+                            "extracted_topic": extracted.topic or "N/A",
+                            "action": "delete",
+                            "interest_id": extracted.interest_id,
+                            "matched_interest": None,
+                            "reason": "LLM recommends deletion",
+                        }
+                    )
+                    continue
+
+                if extracted.action == "update" and extracted.interest_id:
+                    matching_decisions.append(
+                        {
+                            "extracted_topic": extracted.topic,
+                            "action": "update",
+                            "interest_id": extracted.interest_id,
+                            "matched_interest": None,
+                            "reason": "LLM recommends update",
+                        }
+                    )
+                    continue
+
+                # For create actions: show dedup logic
+                if not extracted.topic:
+                    continue
+
                 is_similar, existing = await _find_similar_interest(
                     repo, user_uuid, extracted.topic, existing_interests
                 )

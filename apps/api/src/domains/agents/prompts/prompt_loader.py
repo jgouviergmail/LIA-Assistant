@@ -114,10 +114,16 @@ PromptName = Literal[
     "journal_introspection_prompt",
     "journal_consolidation_prompt",
     "journal_analyst_persona",
-    "journal_merge_prompt",
     # ADR-062: Initiative Phase + MCP ReAct
     "initiative_prompt",
     "mcp_react_agent_prompt",
+    # Long-term Memory (psychological profiling)
+    "memory_extraction_prompt",
+    "memory_extraction_personality_addon",
+    "memory_reference_resolution_prompt",
+    # Smart Planner (multi-domain, reference resolution)
+    "smart_planner_prompt",
+    "smart_planner_multi_domain_prompt",
     # Future prompts:
     # "emails_agent_prompt",
     # "calendar_agent_prompt",

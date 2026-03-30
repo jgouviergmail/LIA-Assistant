@@ -5,11 +5,12 @@ Constructs and injects a PSYCHOLOGICAL PROFILE ACTIF into the system prompt
 based on semantically relevant memories from the user's long-term memory store.
 
 Key features:
-- Semantic search for contextually relevant memories
+- Semantic search for contextually relevant memories (pgvector cosine distance)
 - Emotional state computation (comfort/danger/neutral)
 - Formatted profile with visual indicators and usage nuances
 - Priority ordering (sensitivities first, then relationships, etc.)
 - Smart usage tracking for purge algorithm (Phase 6)
+- Accepts pre-computed embedding from centralized UserMessageEmbeddingService
 
 Architecture:
     This middleware runs before the planner/response nodes to enrich
@@ -20,31 +21,25 @@ The output includes a DIRECTIVE PRIORITAIRE that prevents the assistant
 from becoming a "Drama Queen" - emotional context is subtext, not the focus.
 
 Example:
-    >>> profile = await build_psychological_profile(store, user_id, query)
+    >>> profile = await build_psychological_profile(
+    ...     user_id="user-123", query="réunion demain",
+    ...     query_embedding=precomputed_vector,
+    ... )
     >>> if profile:
     ...     system_prompt += profile
 
+Phase: v1.14.0 — Migrated from LangGraph store to PostgreSQL custom
 """
 
-from datetime import UTC, datetime
-from typing import Any
+from __future__ import annotations
 
-from langgraph.store.base import BaseStore, Item
+from uuid import UUID
 
 from src.core.config import settings
+from src.domains.memories.emotional_state import EmotionalState, compute_emotional_state
+from src.domains.memories.models import Memory
 from src.infrastructure.async_utils import safe_fire_and_forget
-from src.infrastructure.llm.embedding_context import (
-    clear_embedding_context,
-    set_embedding_context,
-)
 from src.infrastructure.observability.logging import get_logger
-from src.infrastructure.store.semantic_store import (
-    EmotionalState,
-    MemoryNamespace,
-    StoreNamespace,
-    compute_emotional_state,
-    search_hybrid,
-)
 
 logger = get_logger(__name__)
 
@@ -122,14 +117,13 @@ CATEGORY_PRIORITY = [
 
 
 def _get_emotional_label(emotional_weight: int) -> str:
-    """
-    Get semantic label for emotional weight (LLM-friendly, not emoji).
+    """Get semantic label for emotional weight (LLM-friendly, not emoji).
 
     Args:
-        emotional_weight: Value from -10 to +10
+        emotional_weight: Value from -10 to +10.
 
     Returns:
-        Text label representing the emotional intensity for LLM interpretation
+        Text label representing the emotional intensity for LLM interpretation.
     """
     if emotional_weight <= -7:
         return "[TRAUMA/DOULEUR]"
@@ -143,25 +137,24 @@ def _get_emotional_label(emotional_weight: int) -> str:
         return "[NEUTRE]"
 
 
-def _format_memory_item(memory_value: dict, score: float) -> str:
-    """
-    Format a single memory item for the profile briefing.
+def _format_memory_item(memory: Memory, score: float) -> str:
+    """Format a single memory for the profile briefing.
 
     For sensitivity-category or negative-weight memories, the usage_nuance is
     formatted as an imperative obligation rather than an informational hint,
     ensuring the LLM treats it as a binding instruction.
 
     Args:
-        memory_value: Memory dict with content, emotional_weight, usage_nuance, category
-        score: Semantic similarity score
+        memory: Memory ORM object.
+        score: Semantic similarity score.
 
     Returns:
-        Formatted line for the profile
+        Formatted line for the profile.
     """
-    content = memory_value.get("content", "")
-    emotional = memory_value.get("emotional_weight", 0)
-    nuance = memory_value.get("usage_nuance", "")
-    category = memory_value.get("category", "personal")
+    content = memory.content or ""
+    emotional = memory.emotional_weight
+    nuance = memory.usage_nuance or ""
+    category = memory.category or "personal"
 
     label = _get_emotional_label(emotional)
     line = f"- {label} {content}"
@@ -177,141 +170,150 @@ def _format_memory_item(memory_value: dict, score: float) -> str:
 
 
 async def build_psychological_profile(
-    store: BaseStore,
     user_id: str,
     query: str,
+    query_embedding: list[float] | None = None,
     limit: int | None = None,
     min_score: float | None = None,
     session_id: str | None = None,
     conversation_id: str | None = None,
     include_debug: bool = False,
 ) -> tuple[str | None, EmotionalState, list[dict] | None]:
-    """
-    Build the psychological profile for injection into system prompt.
+    """Build the psychological profile for injection into system prompt.
 
     Searches for semantically relevant memories and formats them into
     an actionable briefing with visual indicators and usage nuances.
 
-    Token Tracking:
-        Embedding tokens are tracked to database for user billing when
-        session_id is provided. This enables memory costs to appear
-        in user statistics.
+    Accepts a pre-computed embedding from the centralized
+    UserMessageEmbeddingService to avoid redundant API calls.
+    Falls back to recent memories if embedding is None.
 
     Args:
-        store: LangGraph BaseStore with semantic search
-        user_id: Target user ID for memory retrieval
-        query: Current user query for semantic matching
-        limit: Maximum number of memories to include
-        min_score: Minimum similarity score threshold
-        session_id: Optional session ID for token tracking
-        conversation_id: Optional conversation UUID for token cost linking
+        user_id: Target user ID for memory retrieval.
+        query: Current user query (used for logging, not embedding).
+        query_embedding: Pre-computed embedding vector (1536 dims), or None for fallback.
+        limit: Maximum number of memories to include.
+        min_score: Minimum similarity score threshold.
+        session_id: Optional session ID for embedding cost tracking.
+        conversation_id: Optional conversation UUID for cost linking.
+        include_debug: If True, return debug details for debug panel.
 
     Returns:
-        Tuple of (profile_text, emotional_state, debug_details):
-        - profile_text: Formatted profile for system prompt, or None if no memories
-        - emotional_state: Computed aggregate emotional state for UI indicator
-        - debug_details: List of memory dicts with score/category (only if include_debug=True)
-
-    Example:
-        >>> profile, state, debug = await build_psychological_profile(
-        ...     store, "user-123", "réunion demain",
-        ...     session_id="thread-456"
-        ... )
-        >>> if profile:
-        ...     system_prompt += profile
-        >>> # state can be used for UI emotional indicator
-
-    NOTE: Memory injection is always enabled.
+        Tuple of (profile_text, emotional_state, debug_details).
     """
+    from src.infrastructure.database.session import get_db_context
+
     # Use settings defaults if not provided
     if limit is None:
         limit = settings.memory_max_results
     if min_score is None:
         min_score = settings.memory_min_search_score
 
-    # Set embedding context for DB persistence of embedding tokens
-    # This enables embedding costs to be tracked in user statistics
-    if session_id:
-        set_embedding_context(
-            user_id=user_id,
-            session_id=session_id,
-            conversation_id=conversation_id,
-        )
-
     try:
-        namespace = MemoryNamespace(user_id)
-        results = await search_hybrid(store, namespace, query, limit=limit, min_score=min_score)
+        async with get_db_context() as db:
+            from src.domains.memories.repository import MemoryRepository
 
-        if not results:
-            return None, EmotionalState.NEUTRAL, None
+            repo = MemoryRepository(db)
 
-        # Phase 6: Track usage for highly relevant memories (background)
-        await track_memory_usage(store, user_id, results)
+            # Semantic search or fallback to recent memories
+            if query_embedding is not None:
+                # Set embedding context for any additional embedding calls
+                # (e.g., if the repo needs to embed for some reason)
+                if session_id:
+                    from src.infrastructure.llm.embedding_context import (
+                        clear_embedding_context,
+                        set_embedding_context,
+                    )
 
-        # Compute emotional state for UI indicator
-        emotional_state = compute_emotional_state(results)
+                    set_embedding_context(
+                        user_id=user_id,
+                        session_id=session_id,
+                        conversation_id=conversation_id,
+                    )
 
-        # Group memories by category
-        by_category: dict[str, list[str]] = {}
+                try:
+                    results: list[tuple[Memory, float]] = await repo.search_by_relevance(
+                        user_id=UUID(user_id),
+                        query_embedding=query_embedding,
+                        limit=limit,
+                        min_score=min_score,
+                    )
+                finally:
+                    if session_id:
+                        clear_embedding_context()
+            else:
+                # Fallback: no embedding → load recent memories for continuity
+                recent = await repo.get_recent_for_user(UUID(user_id), limit=min(limit, 10))
+                results = [(m, 0.0) for m in recent]
 
-        for item in results:
-            if not isinstance(item.value, dict):
-                continue
+            if not results:
+                return None, EmotionalState.NEUTRAL, None
 
-            category = item.value.get("category", "personal")
-            if category not in by_category:
-                by_category[category] = []
+            # Phase 6: Track usage for highly relevant memories (background)
+            await _track_memory_usage(user_id, results)
 
-            formatted_line = _format_memory_item(item.value, getattr(item, "score", 0.0))
-            by_category[category].append(formatted_line)
+            # Compute emotional state for UI indicator
+            emotional_state = compute_emotional_state(results)
 
-        # Build sections in priority order
-        sections = []
+            # Group memories by category
+            by_category: dict[str, list[str]] = {}
 
-        for category in CATEGORY_PRIORITY:
-            if category in by_category and by_category[category]:
-                header, _icon = SECTION_TEMPLATES.get(category, (f"### {category.upper()}", "info"))
-                items_text = "\n".join(by_category[category])
-                sections.append(f"{header}\n{items_text}")
+            for memory, score in results:
+                category = memory.category or "personal"
+                if category not in by_category:
+                    by_category[category] = []
 
-        if not sections:
-            return None, EmotionalState.NEUTRAL, None
+                formatted_line = _format_memory_item(memory, score)
+                by_category[category].append(formatted_line)
 
-        # Select behavioral directive based on emotional state
-        behavioral_directive = (
-            DANGER_DIRECTIVE if emotional_state == EmotionalState.DANGER else NORMAL_DIRECTIVE
-        )
+            # Build sections in priority order
+            sections = []
 
-        profile_text = PSYCHOLOGICAL_PROFILE_TEMPLATE.format(
-            profile_sections="\n\n".join(sections),
-            behavioral_directive=behavioral_directive,
-        )
+            for category in CATEGORY_PRIORITY:
+                if category in by_category and by_category[category]:
+                    header, _icon = SECTION_TEMPLATES.get(
+                        category, (f"### {category.upper()}", "info")
+                    )
+                    items_text = "\n".join(by_category[category])
+                    sections.append(f"{header}\n{items_text}")
 
-        # Build debug details if requested (for debug panel tuning)
-        debug_details: list[dict] | None = None
-        if include_debug:
-            debug_details = []
-            for item in results:
-                if not isinstance(item.value, dict):
-                    continue
-                debug_details.append(
-                    {
-                        "content": item.value.get("content", "")[:200],
-                        "category": item.value.get("category", "unknown"),
-                        "score": round(getattr(item, "score", 0.0) or 0.0, 4),
-                        "emotional_weight": item.value.get("emotional_weight", 0),
-                    }
-                )
+            if not sections:
+                return None, EmotionalState.NEUTRAL, None
 
-        logger.info(
-            "psychological_profile_built",
-            user_id=user_id,
-            memory_count=len(results),
-            categories=list(by_category.keys()),
-            emotional_state=emotional_state.value,
-        )
+            # Select behavioral directive based on emotional state
+            behavioral_directive = (
+                DANGER_DIRECTIVE if emotional_state == EmotionalState.DANGER else NORMAL_DIRECTIVE
+            )
 
-        return profile_text, emotional_state, debug_details
+            profile_text = PSYCHOLOGICAL_PROFILE_TEMPLATE.format(
+                profile_sections="\n\n".join(sections),
+                behavioral_directive=behavioral_directive,
+            )
+
+            # Build debug details if requested (for debug panel tuning)
+            debug_details: list[dict] | None = None
+            if include_debug:
+                debug_details = []
+                for memory, score in results:
+                    debug_details.append(
+                        {
+                            "content": (memory.content or "")[:200],
+                            "category": memory.category or "unknown",
+                            "score": round(score, 4),
+                            "emotional_weight": memory.emotional_weight,
+                        }
+                    )
+
+            logger.info(
+                "psychological_profile_built",
+                user_id=user_id,
+                memory_count=len(results),
+                categories=list(by_category.keys()),
+                emotional_state=emotional_state.value,
+                used_embedding=query_embedding is not None,
+            )
+
+            return profile_text, emotional_state, debug_details
 
     except Exception as e:
         logger.error(
@@ -321,34 +323,29 @@ async def build_psychological_profile(
         )
         return None, EmotionalState.NEUTRAL, None
 
-    finally:
-        # Always clear embedding context to prevent cross-request contamination
-        if session_id:
-            clear_embedding_context()
-
 
 async def get_memory_context_for_response(
-    store: BaseStore,
     user_id: str,
     query: str,
+    query_embedding: list[float] | None = None,
 ) -> dict:
-    """
-    Get memory context for inclusion in response generation.
+    """Get memory context for inclusion in response generation.
 
     Returns a dict that can be added to the state for use by response_node.
 
     Args:
-        store: LangGraph BaseStore
-        user_id: Target user ID
-        query: Current query for semantic matching
+        user_id: Target user ID.
+        query: Current query for semantic matching.
+        query_embedding: Pre-computed embedding vector.
 
     Returns:
-        Dict with:
-        - memory_context: Formatted profile text or None
-        - emotional_state: Emotional state value string
-        - memory_count: Number of memories used
+        Dict with memory_context, emotional_state, memory_count.
     """
-    profile, state, _debug = await build_psychological_profile(store, user_id, query)
+    profile, state, _debug = await build_psychological_profile(
+        user_id=user_id,
+        query=query,
+        query_embedding=query_embedding,
+    )
 
     return {
         "memory_context": profile,
@@ -362,101 +359,74 @@ async def get_memory_context_for_response(
 # =============================================================================
 
 
-async def _update_usage_stats(
-    store: BaseStore,
-    namespace: StoreNamespace,
-    memories: list[Item],
+async def _update_usage_stats_db(
+    memory_ids: list[UUID],
 ) -> int:
-    """
-    Increment usage_count and update last_accessed_at for highly relevant memories.
+    """Increment usage_count and update last_accessed_at for memories.
 
-    This runs in the background to avoid adding latency to the response.
-    Only memories with score >= MEMORY_RELEVANCE_THRESHOLD trigger this update.
+    Uses the repository's bulk UPDATE instead of the store's aput pattern.
 
     Args:
-        store: LangGraph BaseStore
-        namespace: Memory namespace (user_id, "memories")
-        memories: List of memory Items to update
+        memory_ids: UUIDs of memories to update.
 
     Returns:
-        Number of memories updated
+        Number of memories updated (always equals len(memory_ids) on success).
     """
-    updated_count = 0
-    now = datetime.now(UTC)
+    from src.infrastructure.database.session import get_db_context
 
-    for item in memories:
-        try:
-            # Get current values
-            current_usage = item.value.get("usage_count", 0)
+    try:
+        async with get_db_context() as db:
+            from src.domains.memories.repository import MemoryRepository
 
-            # Update the memory with incremented usage
-            updated_value = {
-                **item.value,
-                "usage_count": current_usage + 1,
-                "last_accessed_at": now.isoformat(),
-            }
+            repo = MemoryRepository(db)
+            await repo.increment_usage(memory_ids)
+            await db.commit()
 
-            await store.aput(
-                namespace.to_tuple(),
-                key=item.key,
-                value=updated_value,
-            )
-            updated_count += 1
-
-        except Exception as e:
-            logger.warning(
-                "memory_usage_update_failed",
-                memory_id=item.key,
-                error=str(e),
-            )
-
-    if updated_count > 0:
         logger.debug(
             "memory_usage_stats_updated",
-            count=updated_count,
-            namespace=namespace.to_tuple(),
+            count=len(memory_ids),
         )
+        return len(memory_ids)
 
-    return updated_count
+    except Exception as e:
+        logger.warning(
+            "memory_usage_update_failed",
+            count=len(memory_ids),
+            error=str(e),
+        )
+        return 0
 
 
-async def track_memory_usage(
-    store: BaseStore,
+async def _track_memory_usage(
     user_id: str,
-    memories: list[Item],
+    results: list[tuple[Memory, float]],
 ) -> None:
-    """
-    Track usage for highly relevant memories (score >= threshold).
+    """Track usage for highly relevant memories (score >= threshold).
 
     Filters memories by relevance threshold and updates usage stats in background.
-    This is the public entry point called from build_psychological_profile.
+    Called from build_psychological_profile.
 
     Args:
-        store: LangGraph BaseStore
-        user_id: Target user ID
-        memories: List of memory Items from semantic search
+        user_id: Target user ID.
+        results: List of (Memory, score) tuples from semantic search.
     """
-    # Filter for highly relevant memories only
     relevance_threshold = settings.memory_relevance_threshold
-    highly_relevant = [
-        m for m in memories if hasattr(m, "score") and m.score >= relevance_threshold
-    ]
+    highly_relevant_ids = [memory.id for memory, score in results if score >= relevance_threshold]
 
-    if not highly_relevant:
+    if not highly_relevant_ids:
         return
 
     # Fire and forget - don't block the response
-    namespace = MemoryNamespace(user_id)
     safe_fire_and_forget(
-        _update_usage_stats(store, namespace, highly_relevant),
+        _update_usage_stats_db(highly_relevant_ids),
         name=f"memory_usage_update_{user_id}",
     )
 
     logger.debug(
         "memory_usage_tracking_scheduled",
         user_id=user_id,
-        total_memories=len(memories),
-        highly_relevant=len(highly_relevant),
+        total_memories=len(results),
+        highly_relevant=len(highly_relevant_ids),
         threshold=relevance_threshold,
     )
 
@@ -467,83 +437,94 @@ async def track_memory_usage(
 
 
 async def get_memory_facts_for_query(
-    store: BaseStore,
     user_id: str,
     query: str,
     limit: int = 5,
     min_score: float | None = None,
 ) -> list[str] | None:
-    """
-    Get memory facts for pre-planner reference resolution.
+    """Get memory facts for pre-planner reference resolution.
 
-    This function extracts memory content as a list for use by
-    QueryAnalyzerService and MemoryReferenceResolutionService to resolve
-    personal references like "ma femme", "mon frère" before planning.
+    Extracts memory content as a list for use by QueryAnalyzerService
+    and MemoryReferenceResolutionService to resolve personal references
+    like "ma femme", "mon frère" before planning.
+
+    This function computes its OWN embedding (not centralized) because
+    the query is different from the user message (it's the clarification
+    response, initiative context, or resolver query).
+
+    Results are sorted by (usage_count, importance, score) descending
+    to prioritize frequently used and important memories.
 
     Args:
-        store: LangGraph BaseStore with semantic search
-        user_id: Target user ID for memory retrieval
-        query: Current user query for semantic matching
-        limit: Maximum memories to retrieve (default: 5)
-        min_score: Minimum similarity threshold (default: from settings.memory_min_search_score)
+        user_id: Target user ID.
+        query: Current query for semantic matching.
+        limit: Maximum memories to retrieve (default: 5).
+        min_score: Minimum similarity threshold.
 
     Returns:
-        List of memory content strings, or None if no memories found.
-        Example: ["Ma femme s'appelle jean dupond.", "J'ai un frère jean."]
-
-    Usage:
-        memory_facts = await get_memory_facts_for_query(store, user_id, query)
-        if memory_facts:
-            # Pass list directly to QueryAnalyzerService
-            # Or join for string-based consumers: "\\n".join(memory_facts)
+        List of memory content strings, or None if empty/error.
     """
-    if not store or not user_id:
+    from src.infrastructure.database.session import get_db_context
+
+    if not user_id:
         return None
 
     try:
-        # Resolve min_score from settings if not explicitly provided
         if min_score is None:
-            from src.core.config import settings
-
             min_score = settings.memory_min_search_score
 
-        namespace = MemoryNamespace(user_id)
-        # Fetch more results than needed, then sort by importance/usage
-        fetch_limit = max(limit * 3, 30)  # Fetch 3x or at least 30 to ensure good coverage
-        results = await search_hybrid(
-            store, namespace, query, limit=fetch_limit, min_score=min_score
-        )
+        # Compute embedding locally (query ≠ user message)
+        from src.infrastructure.llm.memory_embeddings import get_memory_embeddings
 
-        if not results:
-            logger.debug(
-                "memory_facts_no_results",
-                user_id=user_id,
-                query_preview=query[:50],
-            )
+        embeddings = get_memory_embeddings()
+        query_embedding = await embeddings.aembed_query(query[:500])
+
+        if not query_embedding:
             return None
 
-        # Sort by usage_count + importance (descending) to prioritize frequently used
-        # and important memories over transient ones
-        def sort_key(item: Any) -> tuple[float, float, float]:
-            """Sort by: usage_count (desc), importance (desc), score (desc)."""
-            if not isinstance(item.value, dict):
-                return (0.0, 0.0, 0.0)
-            usage = item.value.get("usage_count", 0) or 0
-            importance = item.value.get("importance", 0.5) or 0.5
-            score = getattr(item, "score", 0.0) or 0.0
-            return (usage, importance, score)
+        # Fetch more results than needed, then sort by importance/usage
+        fetch_limit = max(limit * 3, 30)
 
-        sorted_results = sorted(results, key=sort_key, reverse=True)
+        async with get_db_context() as db:
+            from src.domains.memories.repository import MemoryRepository
 
-        # Extract content from top memories
-        facts = []
-        for item in sorted_results[:limit]:
-            if not isinstance(item.value, dict):
-                continue
+            repo = MemoryRepository(db)
+            results = await repo.search_by_relevance(
+                user_id=UUID(user_id),
+                query_embedding=query_embedding,
+                limit=fetch_limit,
+                min_score=min_score,
+            )
 
-            content = item.value.get("content", "")
-            if content:
-                facts.append(content)
+            if not results:
+                logger.debug(
+                    "memory_facts_no_results",
+                    user_id=user_id,
+                    query_preview=query[:50],
+                )
+                return None
+
+            # Sort by usage_count + importance + score (descending)
+            # Preserves the exact same sorting as the original implementation
+            # NOTE: Must sort INSIDE the session to access ORM attributes
+            sorted_results = sorted(
+                results,
+                key=lambda x: (
+                    x[0].usage_count or 0,
+                    x[0].importance or 0.5,
+                    x[1] or 0.0,
+                ),
+                reverse=True,
+            )
+
+            # Extract content from top memories (still inside session)
+            facts: list[str] = []
+            for memory, _score in sorted_results[:limit]:
+                content = memory.content or ""
+                if content:
+                    facts.append(content)
+
+            fetched_count = len(results)
 
         if not facts:
             return None
@@ -554,11 +535,11 @@ async def get_memory_facts_for_query(
             query_preview=query[:50],
             facts_count=len(facts),
             total_length=sum(len(f) for f in facts),
-            fetched_count=len(results),
+            fetched_count=fetched_count,
             sorted_by="usage_count+importance",
         )
 
-        return facts  # Return list[str] - consumers format as needed
+        return facts
 
     except Exception as e:
         logger.warning(

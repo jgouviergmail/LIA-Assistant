@@ -65,6 +65,7 @@ async def build_journal_context(
     user_id: UUID | str,
     query: str,
     db: AsyncSession,
+    query_embedding: list[float] | None = None,
     include_debug: bool = False,
     run_id: str | None = None,
     session_id: str | None = None,
@@ -75,10 +76,15 @@ async def build_journal_context(
     Combines semantic search results with the N most recent entries
     to provide both topical relevance and temporal continuity.
 
+    Accepts a pre-computed embedding from the centralized
+    UserMessageEmbeddingService. Falls back to computing its own
+    embedding if not provided, or to recent-only if embedding fails.
+
     Args:
         user_id: User UUID (str or UUID)
         query: Search query (last user message for response, goal for planner)
         db: Database session
+        query_embedding: Pre-computed embedding vector (1536 dims), or None
         include_debug: If True, returns debug details for the debug panel
         run_id: Pipeline run ID for embedding cost attribution to message
         session_id: Session ID for embedding cost logging
@@ -122,30 +128,32 @@ async def build_journal_context(
 
         # Semantic search (best-effort — embedding failure degrades gracefully)
         scored_entries: list[tuple[JournalEntry, float]] = []
+        _effective_embedding = query_embedding  # Use pre-computed if available
         try:
-            from src.domains.journals.embedding import get_journal_embeddings
-            from src.infrastructure.llm.embedding_context import (
-                clear_embedding_context,
-                set_embedding_context,
-            )
+            # If no pre-computed embedding, compute locally (fallback)
+            if _effective_embedding is None:
+                from src.domains.journals.embedding import get_journal_embeddings
+                from src.infrastructure.llm.embedding_context import (
+                    clear_embedding_context,
+                    set_embedding_context,
+                )
 
-            # Set embedding tracking context for cost attribution
-            set_embedding_context(
-                user_id=str(user_id),
-                session_id=session_id or "journal_search",
-                run_id=run_id,
-            )
-            try:
-                embeddings_model = get_journal_embeddings()
-                query_embedding = await embeddings_model.aembed_query(query[:500])
-            finally:
-                clear_embedding_context()
+                set_embedding_context(
+                    user_id=str(user_id),
+                    session_id=session_id or "journal_search",
+                    run_id=run_id,
+                )
+                try:
+                    embeddings_model = get_journal_embeddings()
+                    _effective_embedding = await embeddings_model.aembed_query(query[:500])
+                finally:
+                    clear_embedding_context()
 
-            if query_embedding:
+            if _effective_embedding:
                 min_score = settings.journal_context_min_score
                 scored_entries = await repo.search_by_relevance(
                     user_id=user_id,
-                    query_embedding=query_embedding,
+                    query_embedding=_effective_embedding,
                     limit=max_results,
                     min_score=min_score,
                 )

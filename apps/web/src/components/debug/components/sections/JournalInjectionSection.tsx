@@ -25,15 +25,13 @@ import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/
 import { cn } from '@/lib/utils';
 import { MetricRow, SectionBadge } from '../shared';
 import { CONFIDENCE_BAR_COLORS, SCORE_BAR_MAX_WIDTH_PX } from '../../utils/constants';
-import type { JournalInjectionMetrics, JournalExtractionMetrics } from '@/types/chat';
+import type { JournalInjectionMetrics } from '@/types/chat';
 
 export interface JournalInjectionSectionProps {
   /** Journal injection metrics from response node (can be undefined) */
   data: JournalInjectionMetrics | undefined;
   /** Journal injection metrics from planner node (can be undefined) */
   plannerData: JournalInjectionMetrics | undefined;
-  /** Journal extraction metrics (can be undefined, arrives via debug_metrics_update) */
-  extraction: JournalExtractionMetrics | undefined;
 }
 
 /** Theme emoji mapping */
@@ -49,22 +47,6 @@ const SOURCE_LABEL: Record<string, string> = {
   conversation: '\u{1F4AC}',
   consolidation: '\u{1F504}',
   manual: '\u270F\uFE0F',
-};
-
-/** Action labels with colors */
-const ACTION_STYLE: Record<string, { label: string; className: string }> = {
-  create: { label: 'CREATE', className: 'bg-green-900/30 text-green-400 border-green-700/50' },
-  update: { label: 'UPDATE', className: 'bg-blue-900/30 text-blue-400 border-blue-700/50' },
-  delete: { label: 'DELETE', className: 'bg-red-900/30 text-red-400 border-red-700/50' },
-};
-
-/** Mood emoji mapping (aligned with backend JournalEntryMood enum) */
-const MOOD_EMOJI: Record<string, string> = {
-  reflective: '\u{1F4AD}',
-  curious: '\u{1F914}',
-  satisfied: '\u{1F60A}',
-  concerned: '\u{1F61F}',
-  inspired: '\u{1F4A1}',
 };
 
 /**
@@ -119,7 +101,7 @@ function InjectionSubSection({
           <div className="text-xs text-muted-foreground font-medium">
             Entries ({data.entries.length})
           </div>
-          <div className="space-y-1.5 max-h-56 overflow-y-auto">
+          <div className="space-y-1.5 space-y-1.5">
             {data.entries.map((entry, index) => {
               const isRecent = entry.score === null;
               const tier = isRecent ? ('medium' as const) : getScoreColor(entry.score!);
@@ -239,22 +221,19 @@ function InjectionSubSection({
 export const JournalInjectionSection = React.memo(function JournalInjectionSection({
   data,
   plannerData,
-  extraction,
 }: JournalInjectionSectionProps) {
-  if (!data && !plannerData && !extraction) {
+  if (!data && !plannerData) {
     return null;
   }
 
   const hasResponseEntries = data ? data.entries_injected > 0 : false;
   const hasPlannerEntries = plannerData ? plannerData.entries_injected > 0 : false;
-  const hasExtraction = extraction ? extraction.actions_applied > 0 : false;
   const hasAnyInjection = hasResponseEntries || hasPlannerEntries;
 
   // Build badge label
   const parts: string[] = [];
   if (hasResponseEntries) parts.push(`R:${data!.entries_injected}`);
   if (hasPlannerEntries) parts.push(`P:${plannerData!.entries_injected}`);
-  if (hasExtraction) parts.push(`${extraction!.actions_applied} written`);
   const badgeLabel = parts.length > 0 ? parts.join(' / ') : 'NO MATCH';
 
   return (
@@ -262,7 +241,7 @@ export const JournalInjectionSection = React.memo(function JournalInjectionSecti
       <AccordionTrigger className="py-2 text-sm">
         <div className="flex items-center gap-2">
           <span>Personal Journals</span>
-          <SectionBadge passed={hasAnyInjection || hasExtraction} label={badgeLabel} />
+          <SectionBadge passed={hasAnyInjection} label={badgeLabel} />
         </div>
       </AccordionTrigger>
       <AccordionContent>
@@ -290,89 +269,11 @@ export const JournalInjectionSection = React.memo(function JournalInjectionSecti
           )}
 
           {/* No injection results message */}
-          {!hasAnyInjection && !extraction && (
+          {!hasAnyInjection && (
             <div className="mt-1 text-xs text-muted-foreground bg-muted/20 p-2 rounded border border-border/50">
               No journal entries found. The assistant hasn&apos;t written any entries yet, or
               journals are disabled.
             </div>
-          )}
-
-          {/* ============================================================ */}
-          {/* EXTRACTION SUB-SECTION (background creation) */}
-          {/* ============================================================ */}
-          {extraction && (
-            <>
-              <div
-                className={cn(
-                  'text-xs font-medium text-muted-foreground uppercase tracking-wider',
-                  (data || plannerData) && 'border-t pt-3'
-                )}
-              >
-                Background Extraction
-              </div>
-
-              {/* Summary metrics */}
-              <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
-                <MetricRow label="Actions parsed" value={extraction.actions_parsed} />
-                <MetricRow
-                  label="Actions applied"
-                  value={extraction.actions_applied}
-                  highlight={hasExtraction}
-                />
-              </div>
-
-              {/* Per-action details */}
-              {extraction.entries.length > 0 && (
-                <div className="space-y-1.5">
-                  {extraction.entries.map((entry, index) => {
-                    const actionStyle = ACTION_STYLE[entry.action] ?? ACTION_STYLE.create;
-                    const themeEmoji = entry.theme ? (THEME_EMOJI[entry.theme] ?? '') : '';
-                    const moodEmoji = entry.mood ? (MOOD_EMOJI[entry.mood] ?? '') : '';
-
-                    return (
-                      <div
-                        key={index}
-                        className="text-xs p-2 rounded border bg-muted/30 border-border/50 cursor-help"
-                        title={`${entry.full_title ?? entry.title ?? ''}\n\n${entry.content ?? ''}`}
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <span
-                            className={cn(
-                              'text-[9px] px-1.5 py-0 rounded font-mono border',
-                              actionStyle.className
-                            )}
-                          >
-                            {actionStyle.label}
-                          </span>
-                          {themeEmoji && <span>{themeEmoji}</span>}
-                          <span className="font-medium text-primary truncate">
-                            {entry.full_title ?? entry.title ?? entry.entry_id?.slice(0, 8) ?? '—'}
-                          </span>
-                          {moodEmoji && <span className="text-muted-foreground">{moodEmoji}</span>}
-                        </div>
-                        {entry.theme && (
-                          <div className="flex items-center gap-2 mt-0.5 text-muted-foreground">
-                            <span>{entry.theme.replace('_', ' ')}</span>
-                            {entry.entry_id && (
-                              <span className="font-mono text-[10px]">
-                                {entry.entry_id.slice(0, 8)}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* No extraction actions */}
-              {extraction.actions_parsed === 0 && (
-                <div className="text-xs text-muted-foreground bg-muted/20 p-2 rounded border border-border/50">
-                  No journal actions from this conversation turn.
-                </div>
-              )}
-            </>
           )}
         </div>
       </AccordionContent>

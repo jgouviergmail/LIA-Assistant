@@ -18,6 +18,8 @@ export default function robots(): MetadataRoute.Robots {
     '/login',
     '/register',
     '/faq',
+    '/why',
+    '/how',
     '/blog',
     '/blog/*',
     '/privacy',

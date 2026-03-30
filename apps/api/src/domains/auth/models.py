@@ -37,6 +37,7 @@ from src.infrastructure.database.models import BaseModel
 if TYPE_CHECKING:
     from src.domains.interests.models import UserInterest
     from src.domains.journals.models import JournalEntry
+    from src.domains.memories.models import Memory
     from src.domains.notifications.models import UserFCMToken
     from src.domains.personalities.models import Personality
     from src.domains.reminders.models import Reminder
@@ -399,6 +400,9 @@ class User(BaseModel):
         back_populates="user", cascade="all, delete-orphan"
     )
     journal_entries: Mapped[list["JournalEntry"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+    memories: Mapped[list["Memory"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
     scheduled_actions: Mapped[list["ScheduledAction"]] = relationship(

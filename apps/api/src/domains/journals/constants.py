@@ -25,6 +25,11 @@ JOURNAL_EXTRACTION_CONTEXT_MESSAGES = 4
 # Max characters per message in extraction context (truncation)
 JOURNAL_EXTRACTION_MESSAGE_MAX_CHARS = 1000
 
+# Semantic pre-filter for extraction (replaces get_all_active)
+JOURNAL_EXTRACTION_SEMANTIC_LIMIT = 10  # Top N entries semantically close to user message
+JOURNAL_EXTRACTION_RECENT_LIMIT = 3  # K most recent entries (temporal continuity)
+JOURNAL_EXTRACTION_DEDUP_MIN_SCORE = 0.4  # Min similarity for pre-filter
+
 # =========================================================================
 # Embedding
 # =========================================================================

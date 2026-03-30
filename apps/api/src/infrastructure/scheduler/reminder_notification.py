@@ -300,20 +300,44 @@ async def get_relevant_memories(user_id: str, reminder_content: str) -> list[dic
         List of relevant memory dicts
     """
     try:
-        from src.domains.agents.context.store import get_tool_context_store
+        from uuid import UUID
 
-        store = await get_tool_context_store()
+        from src.infrastructure.database.session import get_db_context
+        from src.infrastructure.llm.memory_embeddings import get_memory_embeddings
 
-        results = await store.asearch(
-            (user_id, "memories"),
-            query=reminder_content[:500],
-            limit=5,
-        )
+        # Embed reminder content locally (not centralized — unique per reminder)
+        embeddings = get_memory_embeddings()
+        query_embedding = await embeddings.aembed_query(reminder_content[:500])
 
-        # Filter by score using centralized constant
+        if not query_embedding:
+            return []
+
         from src.core.constants import INITIATIVE_MEMORY_MIN_SCORE
 
-        return [r.value for r in results if getattr(r, "score", 1.0) >= INITIATIVE_MEMORY_MIN_SCORE]
+        async with get_db_context() as db:
+            from src.domains.memories.repository import MemoryRepository
+
+            repo = MemoryRepository(db)
+            results = await repo.search_by_relevance(
+                user_id=UUID(user_id),
+                query_embedding=query_embedding,
+                limit=5,
+                min_score=INITIATIVE_MEMORY_MIN_SCORE,
+            )
+
+        # Return as list[dict] for backward compatibility with callers
+        # Exclude embedding vector (1536 floats) to avoid unnecessary payload
+        return [
+            {
+                "content": memory.content or "",
+                "category": memory.category or "personal",
+                "emotional_weight": memory.emotional_weight or 0,
+                "trigger_topic": memory.trigger_topic or "",
+                "usage_nuance": memory.usage_nuance or "",
+                "importance": memory.importance or 0.7,
+            }
+            for memory, _score in results
+        ]
 
     except Exception as e:
         logger.warning(

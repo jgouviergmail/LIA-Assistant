@@ -1,10 +1,10 @@
-# Long-Term Memory - Architecture LangMem Native + Profil Psychologique
+# Long-Term Memory - Architecture PostgreSQL + pgvector
 
 > Système de mémoire long terme pour la construction de profils psychologiques utilisateurs
 >
-> **Version**: 1.2
-> **Date**: 2026-02-02
-> **Updated**: Ajout Hybrid Search BM25 + Sémantique
+> **Version**: 2.0
+> **Date**: 2026-03-30
+> **Updated**: v1.13.6 — Migration LangGraph Store → PostgreSQL custom, centralized embeddings, create/update/delete extraction
 
 ## Table des Matières
 
@@ -34,15 +34,18 @@ Le système de Long-Term Memory de LIA permet à l'assistant de **se souvenir de
 
 | Principe | Implémentation |
 |----------|----------------|
-| **Patterns LangGraph natifs** | LangMem tools + AsyncPostgresStore avec semantic search |
+| **PostgreSQL + pgvector** | Dedicated Memory table with HNSW cosine distance index |
 | **Profil psychologique** | Schéma enrichi avec poids émotionnel et nuances d'usage |
+| **Create/Update/Delete** | LLM can create, update, or delete memories (micro-consolidation) |
+| **Centralized embeddings** | Single embedding per turn, shared across injection + extraction |
 | **Personnalité-aware** | Extraction adaptée à la personnalité de l'assistant |
-| **Généricité** | Infrastructure réutilisable pour RAG documentaire futur |
 
 ### Caractéristiques
 
-- **Extraction automatique** : Psychoanalyse en background du dernier message utilisateur
-- **Injection contextuelle** : Mémoires pertinentes injectées via semantic search
+- **Extraction automatique** : Psychoanalyse en background avec create/update/delete (micro-consolidation)
+- **Injection contextuelle** : Mémoires pertinentes injectées via pgvector semantic search (pre-computed embedding)
+- **Triviality filter** : Messages triviaux ("ok", "merci") skip extraction (0 LLM calls)
+- **Pinned protection** : Memories épinglées par l'utilisateur protégées de toute modification automatique
 - **Indicateur émotionnel** : Feedback visuel de l'état émotionnel (comfort/danger/neutral)
 - **Édition manuelle** : Modification des champs émotionnels/importance via l'UI
 - **RGPD compliant** : Export et suppression des données utilisateur
@@ -54,10 +57,10 @@ Le système de Long-Term Memory de LIA permet à l'assistant de **se souvenir de
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                         SEMANTIC STORE UNIFIÉ                            │
+│                    MEMORY STORAGE (PostgreSQL + pgvector)                 │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                                                                          │
-│  AsyncPostgresStore + Semantic Index (pgvector)                         │
+│  Memory model (SQLAlchemy) + HNSW index (pgvector cosine distance)      │
 │  index = { dims: 1536, embed: text-embedding-3-small, fields: [...] }   │
 │                                                                          │
 │  NAMESPACES:                                                            │

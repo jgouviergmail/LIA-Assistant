@@ -85,17 +85,11 @@ class MemoryResolver:
             return None
 
         try:
-            from src.domains.agents.context.store import get_tool_context_store
             from src.domains.agents.middleware.memory_injection import (
                 get_memory_facts_for_query,
             )
 
-            store = await get_tool_context_store()
-            if not store:
-                return None
-
             memory_facts = await get_memory_facts_for_query(
-                store=store,
                 user_id=user_id,
                 query=query,
                 limit=settings.memory_max_results,

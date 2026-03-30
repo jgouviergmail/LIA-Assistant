@@ -23,12 +23,11 @@ from src.core.llm_agent_config import LLMAgentConfig
 from src.domains.agents.services.memory_extractor import (
     _cache_debug_result,
     _format_messages_for_extraction,
-    _generate_memory_key,
     _memory_extraction_debug_cache,
     _parse_extraction_result,
     get_memory_extraction_debug,
 )
-from src.domains.agents.tools.memory_tools import MemorySchema
+from src.domains.memories.schemas import ExtractedMemory
 
 
 class TestLLMAgentConfigForMemoryExtraction:
@@ -223,149 +222,81 @@ class TestParseExtractionResult:
         assert memories[0].content == "Valid memory"
 
 
-class TestGenerateMemoryKey:
-    """Tests for _generate_memory_key function."""
+class TestExtractedMemorySchema:
+    """Tests for ExtractedMemory validation (create/update/delete actions)."""
 
-    def test_generate_memory_key_format(self):
-        """Test that generated keys have correct format."""
-        key = _generate_memory_key()
-
-        assert key.startswith("mem_")
-        assert len(key) == 16  # "mem_" + 12 hex chars
-
-    def test_generate_memory_key_uniqueness(self):
-        """Test that generated keys are unique."""
-        keys = {_generate_memory_key() for _ in range(100)}
-
-        # All keys should be unique
-        assert len(keys) == 100
-
-
-class TestMemorySchema:
-    """Tests for MemorySchema validation."""
-
-    def test_memory_schema_minimal(self):
-        """Test MemorySchema with minimal required fields."""
-        memory = MemorySchema(
+    def test_extracted_memory_create_defaults(self):
+        """Test ExtractedMemory with create action (default)."""
+        memory = ExtractedMemory(
             content="Test memory content",
             category="personal",
         )
 
+        assert memory.action == "create"
+        assert memory.memory_id is None
         assert memory.content == "Test memory content"
         assert memory.category == "personal"
-        # Defaults
-        assert memory.emotional_weight == 0
-        assert memory.trigger_topic == ""
-        assert memory.usage_nuance == ""
-        assert memory.importance == 0.7
 
-    def test_memory_schema_full(self):
-        """Test MemorySchema with all fields populated."""
-        memory = MemorySchema(
-            content="User's father is named Jean",
-            category="relationship",
-            emotional_weight=-3,
-            trigger_topic="family",
-            usage_nuance="Sensitive topic, approach with care",
-            importance=0.9,
+    def test_extracted_memory_update(self):
+        """Test ExtractedMemory with update action."""
+        memory = ExtractedMemory(
+            action="update",
+            memory_id="abc-123",
+            content="Updated content",
         )
 
-        assert memory.content == "User's father is named Jean"
-        assert memory.category == "relationship"
-        assert memory.emotional_weight == -3
-        assert memory.trigger_topic == "family"
-        assert memory.usage_nuance == "Sensitive topic, approach with care"
-        assert memory.importance == 0.9
+        assert memory.action == "update"
+        assert memory.memory_id == "abc-123"
 
-    def test_memory_schema_emotional_weight_bounds(self):
+    def test_extracted_memory_delete(self):
+        """Test ExtractedMemory with delete action."""
+        memory = ExtractedMemory(
+            action="delete",
+            memory_id="abc-123",
+        )
+
+        assert memory.action == "delete"
+        assert memory.memory_id == "abc-123"
+        assert memory.content is None
+
+    def test_extracted_memory_backward_compat(self):
+        """Test backward compatibility: no action field defaults to create."""
+        memory = ExtractedMemory(
+            content="Test",
+            category="personal",
+            emotional_weight=5,
+            importance=0.8,
+        )
+
+        assert memory.action == "create"
+
+    def test_extracted_memory_emotional_weight_bounds(self):
         """Test that emotional_weight is bounded between -10 and 10."""
-        # Valid bounds
-        memory_min = MemorySchema(
-            content="Test",
-            category="personal",
-            emotional_weight=-10,
-        )
-        memory_max = MemorySchema(
-            content="Test",
-            category="personal",
-            emotional_weight=10,
-        )
+        memory = ExtractedMemory(content="Test", category="personal", emotional_weight=-10)
+        assert memory.emotional_weight == -10
 
-        assert memory_min.emotional_weight == -10
-        assert memory_max.emotional_weight == 10
-
-        # Out of bounds should fail
-        with pytest.raises(Exception):
-            MemorySchema(
-                content="Test",
-                category="personal",
-                emotional_weight=-11,
-            )
+        memory = ExtractedMemory(content="Test", category="personal", emotional_weight=10)
+        assert memory.emotional_weight == 10
 
         with pytest.raises(Exception):
-            MemorySchema(
-                content="Test",
-                category="personal",
-                emotional_weight=11,
-            )
+            ExtractedMemory(content="Test", category="personal", emotional_weight=-11)
 
-    def test_memory_schema_importance_bounds(self):
+        with pytest.raises(Exception):
+            ExtractedMemory(content="Test", category="personal", emotional_weight=11)
+
+    def test_extracted_memory_importance_bounds(self):
         """Test that importance is bounded between 0.0 and 1.0."""
-        # Valid bounds
-        memory_min = MemorySchema(
-            content="Test",
-            category="personal",
-            importance=0.0,
-        )
-        memory_max = MemorySchema(
-            content="Test",
-            category="personal",
-            importance=1.0,
-        )
+        memory = ExtractedMemory(content="Test", category="personal", importance=0.0)
+        assert memory.importance == 0.0
 
-        assert memory_min.importance == 0.0
-        assert memory_max.importance == 1.0
-
-        # Out of bounds should fail
-        with pytest.raises(Exception):
-            MemorySchema(
-                content="Test",
-                category="personal",
-                importance=-0.1,
-            )
+        memory = ExtractedMemory(content="Test", category="personal", importance=1.0)
+        assert memory.importance == 1.0
 
         with pytest.raises(Exception):
-            MemorySchema(
-                content="Test",
-                category="personal",
-                importance=1.1,
-            )
+            ExtractedMemory(content="Test", category="personal", importance=-0.1)
 
-    def test_memory_schema_valid_categories(self):
-        """Test all valid category values."""
-        valid_categories = [
-            "preference",
-            "personal",
-            "relationship",
-            "event",
-            "pattern",
-            "sensitivity",
-        ]
-
-        for category in valid_categories:
-            memory = MemorySchema(
-                content="Test",
-                category=category,
-            )
-            assert memory.category == category
-
-    def test_memory_schema_invalid_category_fails(self):
-        """Test that invalid category raises validation error."""
         with pytest.raises(Exception):
-            MemorySchema(
-                content="Test",
-                category="invalid_category",
-            )
+            ExtractedMemory(content="Test", category="personal", importance=1.1)
 
 
 @pytest.mark.unit

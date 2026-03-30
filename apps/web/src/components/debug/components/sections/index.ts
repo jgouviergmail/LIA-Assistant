@@ -47,6 +47,11 @@ export {
   JournalInjectionSection,
   type JournalInjectionSectionProps,
 } from './JournalInjectionSection';
+// Journal Extraction (Background journal writing)
+export {
+  JournalExtractionSection,
+  type JournalExtractionSectionProps,
+} from './JournalExtractionSection';
 // Skills activation
 export { SkillsSection, type SkillsSectionProps } from './SkillsSection';
 // LLM Pipeline (v3.3 - chronological reconciliation)

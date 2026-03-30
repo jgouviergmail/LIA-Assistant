@@ -4,17 +4,22 @@ Memories router with FastAPI endpoints for user memory management.
 Provides CRUD operations for long-term user memories with:
 - Emotional profiling support
 - Category-based organization
+- Automatic embedding generation on create/update
 - GDPR compliance (export, delete all)
+- Phase 6 pin/unpin for purge protection
+
+Phase: v1.14.0 — Migrated from LangGraph store to PostgreSQL custom
 """
 
-import uuid
 from datetime import UTC, datetime
 from typing import Annotated, Literal
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
 from fastapi.responses import StreamingResponse
-from langgraph.store.base import Item
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.dependencies import get_db
 from src.core.exceptions import (
     ResourceNotFoundError,
     raise_memory_not_found,
@@ -23,9 +28,10 @@ from src.core.exceptions import (
 from src.core.export_utils import create_csv_response
 from src.core.i18n_api_messages import APIMessages
 from src.core.session_dependencies import get_current_active_session
-from src.domains.agents.context.store import get_tool_context_store
 from src.domains.agents.tools.memory_tools import get_memory_categories
 from src.domains.auth.models import User
+from src.domains.memories.models import Memory
+from src.domains.memories.repository import MemoryRepository
 from src.domains.memories.schemas import (
     MemoryCategoriesResponse,
     MemoryCategoryInfo,
@@ -38,46 +44,37 @@ from src.domains.memories.schemas import (
     MemoryResponse,
     MemoryUpdate,
 )
+from src.domains.memories.service import MemoryService
 from src.infrastructure.observability.logging import get_logger
-from src.infrastructure.store.semantic_store import MemoryNamespace
 
 logger = get_logger(__name__)
 
 router = APIRouter(prefix="/memories", tags=["Memories"])
 
 
-def _value_to_response(key: str, value: dict) -> MemoryResponse:
-    """
-    Convert key and value dict to MemoryResponse.
+def _memory_to_response(memory: Memory) -> MemoryResponse:
+    """Convert a Memory ORM object to MemoryResponse.
 
     Args:
-        key: Memory identifier
-        value: Memory data dictionary
+        memory: Memory ORM instance.
 
     Returns:
-        MemoryResponse with memory data
+        MemoryResponse with all fields.
     """
     return MemoryResponse(
-        id=key,
-        content=value.get("content", ""),
-        category=value.get("category", "personal"),
-        emotional_weight=value.get("emotional_weight", 0),
-        trigger_topic=value.get("trigger_topic", ""),
-        usage_nuance=value.get("usage_nuance", ""),
-        importance=value.get("importance", 0.7),
-        created_at=value.get("created_at"),
-        updated_at=value.get("updated_at"),
-        # Phase 6: Purge tracking fields
-        pinned=value.get("pinned", False),
-        usage_count=value.get("usage_count", 0),
-        last_accessed_at=value.get("last_accessed_at"),
+        id=str(memory.id),
+        content=memory.content or "",
+        category=memory.category or "personal",
+        emotional_weight=memory.emotional_weight or 0,
+        trigger_topic=memory.trigger_topic or "",
+        usage_nuance=memory.usage_nuance or "",
+        importance=memory.importance or 0.7,
+        created_at=memory.created_at,
+        updated_at=memory.updated_at,
+        pinned=memory.pinned or False,
+        usage_count=memory.usage_count or 0,
+        last_accessed_at=memory.last_accessed_at,
     )
-
-
-def _item_to_response(item: Item) -> MemoryResponse:
-    """Convert store Item to MemoryResponse."""
-    value = item.value if isinstance(item.value, dict) else {}
-    return _value_to_response(item.key, value)
 
 
 @router.get(
@@ -96,7 +93,7 @@ async def list_categories() -> MemoryCategoriesResponse:
     "/export",
     response_model=None,
     summary="Export all memories (GDPR)",
-    description="Export all memories for the current user. Supports JSON and CSV formats. GDPR data portability.",
+    description="Export all memories for the current user. Supports JSON and CSV formats.",
 )
 async def export_memories(
     export_format: Literal["json", "csv"] = Query(
@@ -105,19 +102,13 @@ async def export_memories(
         description="Export format (json or csv)",
     ),
     user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
 ) -> MemoryExportResponse | StreamingResponse:
     """Export all memories for GDPR data portability."""
     try:
-        store = await get_tool_context_store()
-        namespace = MemoryNamespace(str(user.id))
-
-        results = await store.asearch(
-            namespace.to_tuple(),
-            query="",
-            limit=1000,
-        )
-
-        memories = [_item_to_response(item) for item in results if isinstance(item.value, dict)]
+        repo = MemoryRepository(db)
+        all_memories = await repo.get_all_for_user(user.id)
+        memories = [_memory_to_response(m) for m in all_memories]
 
         logger.info(
             "memories_exported",
@@ -126,7 +117,6 @@ async def export_memories(
             export_format=export_format,
         )
 
-        # Return CSV format
         if export_format == "csv":
             export_data = [
                 {
@@ -149,7 +139,6 @@ async def export_memories(
             ]
             return create_csv_response(data=export_data, filename_prefix="memories")
 
-        # Return JSON format
         return MemoryExportResponse(
             user_id=str(user.id),
             exported_at=datetime.now(UTC),
@@ -181,36 +170,26 @@ async def list_memories(
         Query(description="Filter by category"),
     ] = None,
     user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
 ) -> MemoryListResponse:
     """List all memories for the current user."""
     try:
-        store = await get_tool_context_store()
-        namespace = MemoryNamespace(str(user.id))
+        repo = MemoryRepository(db)
 
-        # Get all memories
-        results = await store.asearch(
-            namespace.to_tuple(),
-            query="",
-            limit=200,
-        )
+        if category:
+            filtered = await repo.get_by_category(user.id, category)
+            all_memories = await repo.get_all_for_user(user.id, limit=200)
+        else:
+            filtered = await repo.get_all_for_user(user.id, limit=200)
+            all_memories = filtered
 
-        items = []
+        # Count by category across all memories
         by_category: dict[str, int] = {}
+        for m in all_memories:
+            cat = m.category or "personal"
+            by_category[cat] = by_category.get(cat, 0) + 1
 
-        for item in results:
-            if not isinstance(item.value, dict):
-                continue
-
-            item_category = item.value.get("category", "personal")
-
-            # Count by category
-            by_category[item_category] = by_category.get(item_category, 0) + 1
-
-            # Apply category filter if provided
-            if category and item_category != category:
-                continue
-
-            items.append(_item_to_response(item))
+        items = [_memory_to_response(m) for m in filtered]
 
         logger.info(
             "memories_listed",
@@ -251,21 +230,22 @@ async def list_memories(
 async def get_memory(
     memory_id: str,
     user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
 ) -> MemoryResponse:
     """Get a specific memory by ID."""
     try:
-        store = await get_tool_context_store()
-        namespace = MemoryNamespace(str(user.id))
+        repo = MemoryRepository(db)
+        memory = await repo.get_by_id_for_user(UUID(memory_id), user.id)
 
-        item = await store.aget(namespace.to_tuple(), memory_id)
-
-        if not item:
+        if not memory:
             raise_memory_not_found(memory_id)
 
-        return _item_to_response(item)
+        return _memory_to_response(memory)
 
     except ResourceNotFoundError:
         raise
+    except (ValueError, AttributeError):
+        raise_memory_not_found(memory_id)
     except Exception as e:
         logger.error(
             "memory_get_failed",
@@ -290,40 +270,30 @@ async def get_memory(
 async def create_memory(
     data: MemoryCreate,
     user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
 ) -> MemoryResponse:
     """Create a new memory."""
     try:
-        store = await get_tool_context_store()
-        namespace = MemoryNamespace(str(user.id))
-
-        memory_id = f"mem_{uuid.uuid4().hex[:12]}"
-        now = datetime.now(UTC)
-
-        value = {
-            **data.model_dump(),
-            "created_at": now.isoformat(),
-            "updated_at": now.isoformat(),
-        }
-
-        await store.aput(
-            namespace.to_tuple(),
-            key=memory_id,
-            value=value,
+        service = MemoryService(db)
+        memory = await service.create_memory(
+            user_id=user.id,
+            content=data.content,
+            category=data.category,
+            emotional_weight=data.emotional_weight,
+            trigger_topic=data.trigger_topic,
+            usage_nuance=data.usage_nuance,
+            importance=data.importance,
         )
+        await db.commit()
 
         logger.info(
-            "memory_created",
+            "memory_created_api",
             user_id=str(user.id),
-            memory_id=memory_id,
+            memory_id=str(memory.id),
             category=data.category,
         )
 
-        return MemoryResponse(
-            id=memory_id,
-            **data.model_dump(),
-            created_at=now,
-            updated_at=now,
-        )
+        return _memory_to_response(memory)
 
     except Exception as e:
         logger.error(
@@ -347,43 +317,41 @@ async def update_memory(
     memory_id: str,
     data: MemoryUpdate,
     user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
 ) -> MemoryResponse:
     """Update an existing memory."""
     try:
-        store = await get_tool_context_store()
-        namespace = MemoryNamespace(str(user.id))
+        repo = MemoryRepository(db)
+        memory = await repo.get_by_id_for_user(UUID(memory_id), user.id)
 
-        # Get existing memory
-        item = await store.aget(namespace.to_tuple(), memory_id)
-        if not item:
+        if not memory:
             raise_memory_not_found(memory_id)
 
-        # Merge updates (no date change on manual edit)
-        existing_value = item.value if isinstance(item.value, dict) else {}
-        update_data = data.model_dump(exclude_unset=True)
-
-        updated_value = {
-            **existing_value,
-            **update_data,
-        }
-
-        await store.aput(
-            namespace.to_tuple(),
-            key=memory_id,
-            value=updated_value,
+        service = MemoryService(db)
+        updated = await service.update_memory(
+            memory=memory,
+            content=data.content,
+            category=data.category,
+            emotional_weight=data.emotional_weight,
+            trigger_topic=data.trigger_topic,
+            usage_nuance=data.usage_nuance,
+            importance=data.importance,
         )
+        await db.commit()
 
         logger.info(
-            "memory_updated",
+            "memory_updated_api",
             user_id=str(user.id),
             memory_id=memory_id,
-            updated_fields=list(update_data.keys()),
+            updated_fields=list(data.model_dump(exclude_unset=True).keys()),
         )
 
-        return _value_to_response(memory_id, updated_value)
+        return _memory_to_response(updated)
 
     except ResourceNotFoundError:
         raise
+    except (ValueError, AttributeError):
+        raise_memory_not_found(memory_id)
     except Exception as e:
         logger.error(
             "memory_update_failed",
@@ -408,29 +376,19 @@ async def toggle_pin_memory(
     memory_id: str,
     data: MemoryPinRequest,
     user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
 ) -> MemoryPinResponse:
     """Toggle the pinned state of a memory."""
     try:
-        store = await get_tool_context_store()
-        namespace = MemoryNamespace(str(user.id))
+        repo = MemoryRepository(db)
+        memory = await repo.get_by_id_for_user(UUID(memory_id), user.id)
 
-        # Get existing memory
-        item = await store.aget(namespace.to_tuple(), memory_id)
-        if not item:
+        if not memory:
             raise_memory_not_found(memory_id)
 
-        # Update pinned state only (no date change)
-        existing_value = item.value if isinstance(item.value, dict) else {}
-        updated_value = {
-            **existing_value,
-            "pinned": data.pinned,
-        }
-
-        await store.aput(
-            namespace.to_tuple(),
-            key=memory_id,
-            value=updated_value,
-        )
+        memory.pinned = data.pinned
+        await repo.update(memory)
+        await db.commit()
 
         logger.info(
             "memory_pin_toggled",
@@ -439,10 +397,12 @@ async def toggle_pin_memory(
             pinned=data.pinned,
         )
 
-        return MemoryPinResponse(id=memory_id, pinned=data.pinned)
+        return MemoryPinResponse(id=str(memory.id), pinned=data.pinned)
 
     except ResourceNotFoundError:
         raise
+    except (ValueError, AttributeError):
+        raise_memory_not_found(memory_id)
     except Exception as e:
         logger.error(
             "memory_pin_toggle_failed",
@@ -466,18 +426,18 @@ async def toggle_pin_memory(
 async def delete_memory(
     memory_id: str,
     user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
 ) -> None:
     """Delete a specific memory."""
     try:
-        store = await get_tool_context_store()
-        namespace = MemoryNamespace(str(user.id))
+        repo = MemoryRepository(db)
+        memory = await repo.get_by_id_for_user(UUID(memory_id), user.id)
 
-        # Check if exists
-        item = await store.aget(namespace.to_tuple(), memory_id)
-        if not item:
+        if not memory:
             raise_memory_not_found(memory_id)
 
-        await store.adelete(namespace.to_tuple(), memory_id)
+        await repo.delete(memory)
+        await db.commit()
 
         logger.info(
             "memory_deleted",
@@ -487,6 +447,8 @@ async def delete_memory(
 
     except ResourceNotFoundError:
         raise
+    except (ValueError, AttributeError):
+        raise_memory_not_found(memory_id)
     except Exception as e:
         logger.error(
             "memory_delete_failed",
@@ -513,37 +475,18 @@ async def delete_all_memories(
         Query(description="If True, pinned memories are preserved"),
     ] = False,
     user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
 ) -> MemoryDeleteAllResponse:
     """Delete all memories for the current user (GDPR erasure)."""
     try:
-        store = await get_tool_context_store()
-        namespace = MemoryNamespace(str(user.id))
+        repo = MemoryRepository(db)
+        deleted_count = await repo.delete_all_for_user(user.id, preserve_pinned=preserve_pinned)
+        await db.commit()
 
-        # Get all memories first to count
-        results = await store.asearch(
-            namespace.to_tuple(),
-            query="",
-            limit=1000,
-        )
-
-        deleted_count = 0
+        # Count preserved for logging
         preserved_count = 0
-        for item in results:
-            # Skip pinned memories if preserve_pinned is True
-            if preserve_pinned and isinstance(item.value, dict) and item.value.get("pinned", False):
-                preserved_count += 1
-                continue
-
-            try:
-                await store.adelete(namespace.to_tuple(), item.key)
-                deleted_count += 1
-            except Exception as e:
-                logger.warning(
-                    "memory_delete_item_failed",
-                    user_id=str(user.id),
-                    memory_id=item.key,
-                    error=str(e),
-                )
+        if preserve_pinned:
+            preserved_count = await repo.get_count_for_user(user.id)
 
         logger.info(
             "memories_deleted_all",

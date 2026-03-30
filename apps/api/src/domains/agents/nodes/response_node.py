@@ -61,7 +61,6 @@ from src.domains.agents.constants import (
     TURN_TYPE_CONVERSATIONAL,
     TURN_TYPE_REFERENCE,
 )
-from src.domains.agents.context.store import get_tool_context_store
 
 # V3 Display Architecture imports
 from src.domains.agents.display.config import config_for_viewport
@@ -1229,28 +1228,66 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                 )
                 data_for_filtering = "(erreur de génération des données)"
 
+        # =====================================================================
+        # CENTRALIZED USER MESSAGE EMBEDDING (shared across injection + extraction)
+        # =====================================================================
+        # Compute embedding ONCE, reuse for memory injection, journal injection,
+        # memory extraction dedup, and journal extraction pre-filter.
+        # Skip entirely on trivial messages (saves embedding API call + extraction LLM calls).
+        from src.infrastructure.llm.user_message_embedding import (
+            get_or_compute_embedding,
+            is_trivial_message,
+        )
+
+        _user_id_for_embed = config.get("configurable", {}).get("langgraph_user_id")
+        _thread_id_for_embed = config.get("configurable", {}).get("thread_id")
+        user_msg_is_trivial = is_trivial_message(last_user_message) if last_user_message else True
+        user_message_embedding: list[float] | None = None
+
+        if not user_msg_is_trivial and last_user_message and _user_id_for_embed:
+            from src.infrastructure.llm.embedding_context import (
+                clear_embedding_context as _clear_embed_ctx,  # noqa: I001
+            )
+            from src.infrastructure.llm.embedding_context import (
+                set_embedding_context as _set_embed_ctx,
+            )
+
+            _set_embed_ctx(
+                user_id=_user_id_for_embed,
+                session_id=_thread_id_for_embed or "unknown",
+                run_id=run_id,
+            )
+            try:
+                user_message_embedding = await get_or_compute_embedding(
+                    message=last_user_message,
+                    user_id=_user_id_for_embed,
+                    session_id=_thread_id_for_embed,
+                )
+            except Exception as _embed_err:
+                logger.warning(
+                    "user_message_embedding_failed",
+                    run_id=run_id,
+                    error=str(_embed_err),
+                )
+            finally:
+                _clear_embed_ctx()
+
         # Long-term memory injection: Build psychological profile from semantic memory
-        # Phase 4 LangMem: Inject user context and emotional nuances into response prompt
-        # NOTE: Memory features are always enabled; check only user preference
+        # Uses pre-computed embedding for search (or fallback to recent memories)
         psychological_profile: str | None = None
         memory_injection_debug: dict[str, Any] | None = None
         user_memory_enabled = config.get("configurable", {}).get("user_memory_enabled", True)
         if user_memory_enabled:
             user_id = config.get("configurable", {}).get("langgraph_user_id")
-            # LangGraph v1.0: Store is NOT accessible via config in nodes
-            # Must use the global singleton - same pattern as planner_node.py
-            store = await get_tool_context_store()
 
-            # Use last_user_message already extracted above for intelligent filtering
-            if user_id and store and last_user_message:
+            if user_id and last_user_message:
                 try:
-                    # Get thread_id for embedding token tracking
                     thread_id_for_memory = config.get("configurable", {}).get("thread_id")
                     profile_result, emotional_state, memory_debug_details = (
                         await build_psychological_profile(
-                            store=store,
                             user_id=user_id,
                             query=last_user_message,
+                            query_embedding=user_message_embedding,
                             limit=settings.memory_max_results,
                             min_score=settings.memory_min_search_score,
                             session_id=thread_id_for_memory,
@@ -1259,7 +1296,6 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                         )
                     )
                     psychological_profile = profile_result
-                    # Store debug details for debug panel (memory tuning)
                     memory_injection_debug = {
                         "memory_count": len(memory_debug_details) if memory_debug_details else 0,
                         "emotional_state": emotional_state.value,
@@ -1276,6 +1312,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                         user_id=user_id,
                         has_profile=profile_result is not None,
                         emotional_state=emotional_state.value if profile_result else None,
+                        used_embedding=user_message_embedding is not None,
                     )
                 except (ValueError, KeyError, RuntimeError, AttributeError, OSError) as e:
                     logger.warning(
@@ -1547,6 +1584,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                             user_id=user_id_for_journal,
                             query=last_user_message,
                             db=journal_db,
+                            query_embedding=user_message_embedding,
                             include_debug=True,
                             run_id=run_id,
                             session_id=thread_id_for_journal,
@@ -2391,45 +2429,37 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                     run_id=run_id,
                     user_memory_enabled=user_memory_enabled,
                 )
+            elif user_msg_is_trivial:
+                logger.info(
+                    "memory_extraction_skipped_trivial",
+                    run_id=run_id,
+                )
             else:
                 user_id = config.get("configurable", {}).get("langgraph_user_id")
                 thread_id = config.get("configurable", {}).get("thread_id", "unknown")
 
                 if user_id:
-                    # LangGraph v1.0: Store is NOT accessible via config in nodes
-                    # Must use the global singleton - same pattern as planner_node.py
-                    store = await get_tool_context_store()
-
-                    if store:
-                        # Count messages for logging
-                        msg_count = len(state.get(STATE_KEY_MESSAGES, []))
-                        safe_fire_and_forget(
-                            extract_memories_background(
-                                store=store,
-                                user_id=user_id,
-                                messages=state[STATE_KEY_MESSAGES],
-                                session_id=thread_id,
-                                personality_instruction=personality_instruction,
-                                conversation_id=thread_id,  # For token cost linking to conversation
-                                parent_run_id=run_id,  # UPSERT into originating message's token summary
-                            ),
-                            name=f"memory_extraction_{user_id}_{thread_id[:8]}",
-                            run_id=run_id,  # Register for awaiting before SSE done
-                        )
-                        logger.info(
-                            "memory_extraction_scheduled",
-                            run_id=run_id,
+                    msg_count = len(state.get(STATE_KEY_MESSAGES, []))
+                    safe_fire_and_forget(
+                        extract_memories_background(
                             user_id=user_id,
-                            thread_id=thread_id,
-                            message_count=msg_count,
-                        )
-                    else:
-                        logger.warning(
-                            "memory_extraction_skipped_no_store",
-                            run_id=run_id,
-                            user_id=user_id,
-                            store_available=store is not None,
-                        )
+                            messages=state[STATE_KEY_MESSAGES],
+                            session_id=thread_id,
+                            personality_instruction=personality_instruction,
+                            conversation_id=thread_id,
+                            parent_run_id=run_id,
+                            query_embedding=user_message_embedding,
+                        ),
+                        name=f"memory_extraction_{user_id}_{thread_id[:8]}",
+                        run_id=run_id,
+                    )
+                    logger.info(
+                        "memory_extraction_scheduled",
+                        run_id=run_id,
+                        user_id=user_id,
+                        thread_id=thread_id,
+                        message_count=msg_count,
+                    )
                 else:
                     logger.warning(
                         "memory_extraction_skipped_no_user",
@@ -2459,6 +2489,11 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                     "interest_extraction_skipped_automated_source",
                     run_id=run_id,
                     session_id=_session_id,
+                )
+            elif user_msg_is_trivial:
+                logger.info(
+                    "interest_extraction_skipped_trivial",
+                    run_id=run_id,
                 )
             elif not (user_id := config.get("configurable", {}).get("langgraph_user_id")):
                 logger.debug(
@@ -2519,6 +2554,11 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                     "journal_extraction_skipped_user_disabled",
                     run_id=run_id,
                 )
+            elif user_msg_is_trivial:
+                logger.info(
+                    "journal_extraction_skipped_trivial",
+                    run_id=run_id,
+                )
             elif not (user_id := config.get("configurable", {}).get("langgraph_user_id")):
                 logger.debug(
                     "journal_extraction_skipped_no_user",
@@ -2541,6 +2581,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                         user_language=user_language,
                         parent_run_id=run_id,
                         assistant_response=final_content,
+                        query_embedding=user_message_embedding,
                     ),
                     name=f"journal_extraction_{user_id}_{thread_id[:8]}",
                     run_id=run_id,

@@ -8,10 +8,11 @@ Uses a hybrid retention algorithm combining:
 
 Protected memories (never auto-deleted):
 - pinned = True
-- category = "sensitivity"
-- abs(emotional_weight) >= configured threshold
+- Age < max_age_days (not yet eligible)
 
 Runs daily at configured hour (default: 4 AM UTC).
+
+Phase: v1.14.0 — Migrated from LangGraph store to PostgreSQL custom
 """
 
 import time
@@ -22,20 +23,19 @@ import structlog
 
 from src.core.config import settings
 from src.core.constants import SCHEDULER_JOB_MEMORY_CLEANUP
-from src.domains.agents.context.store import get_tool_context_store
+from src.domains.memories.models import Memory
 from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.locks import SchedulerLock
 from src.infrastructure.observability.metrics import (
     background_job_duration_seconds,
     background_job_errors_total,
 )
-from src.infrastructure.store.semantic_store import MemoryNamespace
 
 logger = structlog.get_logger(__name__)
 
 
 def calculate_retention_score(
-    memory: dict,
+    memory: Memory,
     now: datetime,
     max_age_days: int,
     min_usage_count: int,
@@ -43,8 +43,7 @@ def calculate_retention_score(
     weight_importance: float,
     weight_recency: float,
 ) -> float:
-    """
-    Calculate retention score for a memory (0-1).
+    """Calculate retention score for a memory (0-1).
 
     Higher score = higher chance of being kept.
 
@@ -54,33 +53,26 @@ def calculate_retention_score(
     - weight_recency * recency boost (1.0 for new, decays linearly with age)
 
     Args:
-        memory: Memory dict with usage_count, importance, created_at
-        now: Current datetime
-        max_age_days: Maximum age in days before full decay
-        min_usage_count: Usage count for 100% usage boost
-        weight_usage: Weight for usage component (default 0.4)
-        weight_importance: Weight for importance component (default 0.3)
-        weight_recency: Weight for recency component (default 0.3)
+        memory: Memory ORM object.
+        now: Current datetime.
+        max_age_days: Maximum age in days before full decay.
+        min_usage_count: Usage count for 100% usage boost.
+        weight_usage: Weight for usage component (default 0.4).
+        weight_importance: Weight for importance component (default 0.3).
+        weight_recency: Weight for recency component (default 0.3).
 
     Returns:
-        Retention score between 0.0 and 1.0
+        Retention score between 0.0 and 1.0.
     """
     # Usage boost (0-1, capped at 1)
-    usage_count = int(memory.get("usage_count", 0))
+    usage_count = memory.usage_count or 0
     usage_boost = min(1.0, usage_count / max(1, min_usage_count))
 
     # Importance boost (already 0-1)
-    importance_boost = float(memory.get("importance", 0.7))
+    importance_boost = memory.importance or 0.7
 
     # Recency boost (decays linearly with age)
-    created_at = memory.get("created_at")
-    if created_at:
-        if isinstance(created_at, str):
-            try:
-                created_at = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
-            except (ValueError, TypeError):
-                created_at = None
-
+    created_at = memory.created_at
     if created_at:
         age_days = (now - created_at).days
         recency_boost = max(0.0, 1.0 - age_days / max(1, max_age_days))
@@ -96,7 +88,7 @@ def calculate_retention_score(
 
 
 def should_purge(
-    memory: dict,
+    memory: Memory,
     now: datetime,
     max_age_days: int,
     min_usage_count: int,
@@ -105,8 +97,7 @@ def should_purge(
     weight_importance: float,
     weight_recency: float,
 ) -> tuple[bool, float]:
-    """
-    Determine if a memory should be purged.
+    """Determine if a memory should be purged.
 
     Protection rules (never purged):
     1. pinned = True
@@ -115,35 +106,28 @@ def should_purge(
     If none of the above, purge if retention_score < purge_threshold.
 
     Args:
-        memory: Memory dict
-        now: Current datetime
-        max_age_days: Age threshold for eligibility
-        min_usage_count: Usage count for full boost
-        purge_threshold: Score below which to purge
-        weight_usage: Weight for usage component
-        weight_importance: Weight for importance component
-        weight_recency: Weight for recency component
+        memory: Memory ORM object.
+        now: Current datetime.
+        max_age_days: Age threshold for eligibility.
+        min_usage_count: Usage count for full boost.
+        purge_threshold: Score below which to purge.
+        weight_usage: Weight for usage component.
+        weight_importance: Weight for importance component.
+        weight_recency: Weight for recency component.
 
     Returns:
-        Tuple of (should_purge, retention_score)
+        Tuple of (should_purge, retention_score).
     """
     # Protection 1: Pinned
-    if memory.get("pinned", False):
+    if memory.pinned:
         return False, 1.0
 
     # Protection 2: Too recent (not yet eligible)
-    created_at = memory.get("created_at")
+    created_at = memory.created_at
     if created_at:
-        if isinstance(created_at, str):
-            try:
-                created_at = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
-            except (ValueError, TypeError):
-                created_at = None
-
-        if created_at:
-            age_days = (now - created_at).days
-            if age_days < max_age_days:
-                return False, 1.0  # Not yet eligible
+        age_days = (now - created_at).days
+        if age_days < max_age_days:
+            return False, 1.0  # Not yet eligible
 
     # Calculate retention score
     retention_score = calculate_retention_score(
@@ -160,8 +144,7 @@ def should_purge(
 
 
 async def cleanup_memories() -> dict[str, Any]:
-    """
-    Daily memory cleanup job.
+    """Daily memory cleanup job.
 
     Iterates through all user memories and purges those that:
     - Are older than MEMORY_MAX_AGE_DAYS
@@ -173,8 +156,10 @@ async def cleanup_memories() -> dict[str, Any]:
         - background_job_errors_total{job_name="memory_cleanup"}
 
     Returns:
-        Stats dict with total_checked, purged, by_category, users_processed
+        Stats dict with total_checked, purged, by_category, users_processed.
     """
+    from src.infrastructure.database.session import get_db_context
+
     # Acquire distributed lock to prevent duplicate execution across workers
     redis = await get_redis_cache()
     if redis:
@@ -194,7 +179,6 @@ async def cleanup_memories() -> dict[str, Any]:
     }
 
     try:
-        store = await get_tool_context_store()
         now = datetime.now(UTC)
 
         # Get config from settings
@@ -215,24 +199,13 @@ async def cleanup_memories() -> dict[str, Any]:
             weight_recency=weight_recency,
         )
 
-        # Get all unique user namespaces from the store
-        # We need to query the store's internal table to find all memory namespaces
-        # The store uses a table with namespace as a column
+        async with get_db_context() as db:
+            from src.domains.memories.repository import MemoryRepository
 
-        # Access the underlying connection to query namespaces
-        if hasattr(store, "_conn") and store._conn is not None:
-            conn = store._conn
-            # Query for all unique user_id values that have "memories" collection
-            query = """
-                SELECT DISTINCT namespace[1] as user_id
-                FROM store
-                WHERE namespace[2] = 'memories'
-                AND array_length(namespace, 1) >= 2
-            """
-            async with conn.cursor() as cursor:
-                await cursor.execute(query)
-                rows = await cursor.fetchall()
-                user_ids = [row["user_id"] for row in rows if row.get("user_id")]
+            repo = MemoryRepository(db)
+
+            # Get all user IDs that have memories
+            user_ids = await repo.get_user_ids_with_memories()
 
             logger.debug(
                 "memory_cleanup_users_found",
@@ -242,31 +215,26 @@ async def cleanup_memories() -> dict[str, Any]:
             # Process each user's memories
             for user_id in user_ids:
                 stats["users_processed"] += 1
-                namespace = MemoryNamespace(user_id)
 
-                # Get all memories for this user using empty query search
                 try:
-                    memories = await store.asearch(
-                        namespace.to_tuple(),
-                        query="",
-                        limit=1000,  # Large limit to get all
+                    # Get non-pinned memories for cleanup evaluation
+                    memories = await repo.get_for_cleanup(
+                        user_id=user_id,
+                        max_age_days=max_age_days,
                     )
                 except Exception as e:
                     logger.warning(
                         "memory_cleanup_user_search_failed",
-                        user_id=user_id,
+                        user_id=str(user_id),
                         error=str(e),
                     )
                     continue
 
-                for item in memories:
+                for memory in memories:
                     stats["total_checked"] += 1
 
-                    if not isinstance(item.value, dict):
-                        continue
-
                     should_delete, score = should_purge(
-                        item.value,
+                        memory,
                         now,
                         max_age_days,
                         min_usage_count,
@@ -277,38 +245,34 @@ async def cleanup_memories() -> dict[str, Any]:
                     )
 
                     if should_delete:
-                        # Delete the memory
                         try:
-                            await store.adelete(namespace.to_tuple(), item.key)
+                            await repo.delete(memory)
 
                             stats["purged"] += 1
-                            category = item.value.get("category", "unknown")
+                            category = memory.category or "unknown"
                             stats["by_category"][category] = (
                                 stats["by_category"].get(category, 0) + 1
                             )
 
                             logger.debug(
                                 "memory_purged",
-                                user_id=user_id,
-                                memory_id=item.key,
+                                user_id=str(user_id),
+                                memory_id=str(memory.id),
                                 category=category,
                                 retention_score=round(score, 3),
-                                content_preview=item.value.get("content", "")[:50],
+                                content_preview=(memory.content or "")[:50],
                             )
                         except Exception as e:
                             logger.warning(
                                 "memory_delete_failed",
-                                user_id=user_id,
-                                memory_id=item.key,
+                                user_id=str(user_id),
+                                memory_id=str(memory.id),
                                 error=str(e),
                             )
                     else:
                         stats["protected"] += 1
-        else:
-            logger.warning(
-                "memory_cleanup_store_no_connection",
-                message="Store connection not available, skipping cleanup",
-            )
+
+            await db.commit()
 
         # Track duration
         duration = time.perf_counter() - start_time

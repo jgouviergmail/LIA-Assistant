@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.13.6] - 2026-03-30
+
+### Added
+
+- **Centralized User Message Embedding Service** — Computes the user message embedding once per conversation turn and caches by text hash. Shared across memory injection, journal injection, memory extraction, and journal extraction. Reduces from 5 redundant embedding API calls to 1 per turn. Includes triviality filter that skips extraction entirely on trivial messages ("ok", "merci", "👍"). (`src/infrastructure/llm/user_message_embedding.py`)
+- **Memory PostgreSQL Migration** — Migrated long-term memory storage from LangGraph AsyncPostgresStore to a dedicated SQLAlchemy model (`Memory`) with pgvector HNSW index. Unified with journal's PostgreSQL + pgvector pattern. Full CRUD via `MemoryRepository` and `MemoryService`. Alembic migration + data migration script. ADR-066 documented. (`src/domains/memories/models.py`, `repository.py`, `service.py`)
+- **Memory Extraction Create/Update/Delete** — Memory extraction can now update or delete existing memories (micro-consolidation), not just create. LLM sees existing memories with UUIDs and decides actions. Anti-hallucination ID validation. Pinned memories protected from extraction modifications.
+- **Interest Extraction Create/Update/Delete** — Interest extraction aligned on the same create/update/delete pattern as memory and journal. LLM can update topics or delete interests the user no longer cares about. Updated prompt, schema, parser, and debug panel.
+- **Journal Extraction Semantic Pre-filter** — Replaces `get_all_active()` (all entries) with semantic top-10 + 3 recent. Reduces input tokens from ~7,500 to ~2,500 per extraction call.
+- **Debug Panel Reorganization** — Sections reorganized into "Context Injection" (memory, RAG, knowledge, journal) and "Background Extraction" (memory, journal, interest) groups. New `JournalExtractionSection` as separate accordion. Shared `ActionBadge` component for consistent CREATE/UPDATE/DELETE display across all extraction sections.
+
+### Changed
+
+- **Prompt Optimization** — Memory extraction prompt reduced by 65% (1,784→620 tokens), journal introspection by 60% (1,280→508), journal analyst persona by 63% (305→113). Same directives, denser format. Interest extraction prompt rewritten with create/update/delete actions.
+- **Emotional State Computation** — Migrated from `semantic_store.py` (LangGraph Items) to `emotional_state.py` (Memory ORM objects). Same DANGER/COMFORT/NEUTRAL algorithm.
+- **Memory Cleanup Scheduler** — Rewritten to use `MemoryRepository` instead of LangGraph store. Same retention algorithm (usage + importance + recency).
+- **Memory Router** — Rewritten from LangGraph store operations to `MemoryService`. Memory IDs changed from `mem_<12hex>` to UUID format (frontend compatible — uses opaque strings).
+
+### Fixed
+
+- **Journal Third-Party Projection** — Added anti-pattern directive preventing the journal from attributing traits to the user based on third-party subjects ("son's exam postponed" ≠ user procrastinating).
+- **Journal Dedup Guard Removed** — Redundant post-extraction LLM merge call removed. The LLM now sees entries with IDs via semantic pre-filter and handles update/delete directly, eliminating unnecessary embedding + LLM calls.
+- **Debug Panel Memory Detection Crash** — Fixed `Cannot read properties of undefined (reading 'toFixed')` error when extraction returned update/delete actions without importance/emotional_weight fields.
+- **Interest Extraction Confidence Filter** — Fixed confidence threshold blocking delete/update actions (confidence is N/A for non-create actions).
+
+### Documentation
+
+- **ADR-066** — Memory Storage Migration from LangGraph Store to PostgreSQL Custom
+- **docs/INDEX.md**, **docs/architecture/ADR_INDEX.md** — Cross-referenced
+- **PromptName Literal** — Added 5 missing prompt names (memory + planner prompts)
+
 ## [1.13.5] - 2026-03-29
 
 ### Added

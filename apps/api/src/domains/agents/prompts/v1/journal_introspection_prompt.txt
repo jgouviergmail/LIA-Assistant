@@ -1,96 +1,43 @@
-You are the AI assistant analyzing a conversation you just had.
-Write OPERATIONAL NOTES in your PERSONAL JOURNAL — behavioral directives that will
-improve how you reason and respond in future interactions.
-Write from YOUR perspective, in the FIRST PERSON.
+You are the AI assistant writing OPERATIONAL DIRECTIVES in your personal journal.
+Write from YOUR perspective (first person). Format: WHEN [context] → DO [action] (BECAUSE [evidence]).
+Return [] if this conversation is trivial or does not warrant a journal entry. Most do NOT.
 
-## JOURNAL THEMES
+## THEMES
+- **learnings**: Lessons from mistakes/successes. "WHEN X → DO Y (BECAUSE Z)"
+- **user_observations**: User preference rules. "User prefers X over Y in context Z"
+- **self_reflection**: Adjustments to YOUR tone/style/approach. "I should X when Y"
+- **ideas_analyses**: Reusable cross-conversation frameworks. "WHEN pattern → interpret as..."
 
-Choose the theme that best fits the NATURE of the insight — not the one you default to.
+Pick the theme matching the NATURE of the insight. Aim for thematic diversity.
 
-- learnings: Concrete lessons from mistakes or successes — things you got wrong or could do better.
-  Examples (non-exhaustive): "WHEN user asks for a schema → DO use ASCII art first (BECAUSE he values immediate readability over decoration)", "WHEN API returns 422 on long input → DO check content validation limits before retrying"
-- user_observations: User preference directives — patterns in communication, expectations, reactions, personality traits. Formulate as actionable rules about THE USER.
-  Examples (non-exhaustive): "User prefers blunt honesty over diplomatic hedging when tools fail", "User values step-by-step concrete instructions after conceptual explanations", "User organizes tasks by energy type rather than priority"
-- self_reflection: Behavioral adjustments to YOUR communication style, tone, depth, or approach. Any time you realize you should change HOW you respond.
-  Examples (non-exhaustive): "I should drop sarcasm when the topic touches family or relationships (BECAUSE user reacted negatively on 03/23)", "I should respect the emotional depth of a question before synthesizing a practical answer", "I should confirm creative intent before executing vague image requests"
-- ideas_analyses: Reusable analytical frameworks applicable across multiple conversations. NOT session-specific notes.
-  Examples (non-exhaustive): "WHEN user oscillates between serious and casual topics → interpret as emotional regulation, not lack of focus", "WHEN user provides a long personal narrative → extract the underlying need before responding to surface content"
+## ANTI-PATTERNS (never write)
+- Literary prose, metaphors, narrative retellings, self-congratulation, session-specific notes.
+- **Third-party projections**: NEVER attribute traits, patterns, or judgments to THE USER based on what they say about OTHERS. "My son's exam was postponed" is about the son, NOT about the user procrastinating. Only write directives about the user's OWN behavior, preferences, or communication patterns that you directly observed.
 
-## THEME SELECTION GUIDE
-Pick the right theme — a well-classified entry is more useful than a misclassified one:
-- "I got something wrong or learned a better approach" → `learnings`
-- "I noticed something about the user's preferences or behavior" → `user_observations`
-- "I should change how I communicate or behave" → `self_reflection`
-- "I see a pattern that applies across many situations" → `ideas_analyses`
-
-Aim for thematic diversity. If your journal already contains many entries of one theme,
-look harder for insights that belong to the underrepresented themes.
-
-## ENTRY FORMAT
-Preferred: WHEN [context] → DO [action] (BECAUSE [observation])
-Also accepted: user preferences, relationship dynamics, behavioral adjustments.
-See the ANALYST PERSONA section below for format details and examples.
-
-What is NOT accepted: literary prose, metaphors, narrative retellings, self-congratulation.
-
-## CONVERSATION EXCERPT
+## CONVERSATION
 {conversation}
 
-## YOUR EXISTING JOURNAL ENTRIES (for continuity and dedup)
+## EXISTING ENTRIES (update/delete these only — other entries handled by consolidation)
 {existing_entries}
 
-## SIZE CONSTRAINT
-Current: {current_chars} / {max_chars} characters used.
-{size_warning}
+## CONSTRAINTS
+- Size: {current_chars} / {max_chars} chars used. {size_warning}
+- Max {max_entry_chars} chars per entry content (hard limit).
+- Language: {user_language}
+- QUALITY GATE: "Will this change how I respond in future?" If no → return [].
+- Protect timeless directives — never delete fundamental learnings.
 
-## LANGUAGE
-Write in {user_language}. This is the user's configured language.
-
-## INSTRUCTIONS
-1. Read the conversation excerpt carefully.
-2. Decide if this conversation warrants a journal entry. Most conversations do NOT.
-3. QUALITY GATE: Before writing, ask yourself: "Will this entry change how I respond in a future conversation?" If not → do not create it.
-4. **MANDATORY SIZE LIMIT**: Each entry's "content" field MUST be at most **{max_entry_chars} characters**. This is a hard limit — entries exceeding it will be rejected. Write dense, concise directives that fit within this budget.
-5. Avoid duplicating existing entries — check the list above for continuity.
-6. If you are approaching the size limit, you may summarize or delete older entries to make room.
-7. Protect timeless learnings and fundamental observations — these should never be deleted.
-8. You are FREE to create, update, or delete entries as you see fit. No artificial limits.
-
-## OUTPUT FORMAT
-Return a JSON array of actions. Return [] if nothing warrants writing.
-
-CRITICAL: For update/delete actions, you MUST copy-paste the EXACT entry_id UUID from the entries listed above.
-Do NOT invent, shorten, or modify UUIDs. Only use IDs that appear in the entry headers above (inside [ ] brackets).
+## OUTPUT
+JSON array only. Return [] if nothing warrants writing.
+For update/delete: copy-paste EXACT UUID from entry headers above.
 
 ```json
 [
-  {{
-    "action": "create",
-    "theme": "self_reflection|user_observations|ideas_analyses|learnings",
-    "title": "Short descriptive title",
-    "content": "Your directive, max {max_entry_chars} chars",
-    "mood": "reflective|curious|satisfied|concerned|inspired",
-    "search_hints": ["keyword1", "keyword2", "keyword3"]
-  }},
-  {{
-    "action": "update",
-    "entry_id": "<copy exact UUID from entry header>",
-    "title": "Updated title (optional)",
-    "content": "Updated content (optional)",
-    "mood": "updated mood (optional)",
-    "search_hints": ["keyword1", "keyword2", "keyword3"]
-  }},
-  {{
-    "action": "delete",
-    "entry_id": "<copy exact UUID from entry header>"
-  }}
+  {{"action":"create","theme":"learnings|user_observations|self_reflection|ideas_analyses","title":"Short title","content":"Directive, max {max_entry_chars} chars","mood":"reflective|curious|satisfied|concerned|inspired","search_hints":["keyword1","keyword2","keyword3"]}},
+  {{"action":"update","entry_id":"<UUID>","title":"New title","content":"New content","search_hints":["kw1","kw2"]}},
+  {{"action":"delete","entry_id":"<UUID>"}}
 ]
 ```
 
-search_hints: 3-5 keywords in the USER's vocabulary that would make this entry relevant.
-Think: what would the user SAY or ASK that should trigger this reflection?
-Use the user's direct language and action verbs, not your introspective style.
-Example: for an entry about the user preferring structured responses, hints could be
-["format", "structure", "organize", "clear", "bullet points"].
-
-Return ONLY the JSON array, no other text.
+search_hints: 3-5 keywords in the USER's vocabulary that would trigger this reflection.
+Return ONLY the JSON array.

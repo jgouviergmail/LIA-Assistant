@@ -8,26 +8,25 @@ response generation to avoid blocking the main conversation flow.
 Key features:
 - Fire-and-forget pattern with safe_fire_and_forget
 - Psychoanalytical prompt for emotional detection
-- Deduplication against existing memories
+- Deduplication against existing memories (semantic pre-filter)
+- Create/update/delete actions (micro-consolidation, same as journal)
 - Personality-aware extraction nuances
+- Accepts pre-computed embedding from centralized UserMessageEmbeddingService
 
 Architecture:
-    response_node → safe_fire_and_forget(extract_memories_background(...))
-                                          ↓
+    response_node -> safe_fire_and_forget(extract_memories_background(...))
+                                          |
                          [Background Task - Non-blocking]
-                                          ↓
-                         LLM psychoanalysis → new memories → store.aput()
+                                          |
+                         semantic dedup search (pre-computed embedding)
+                                          |
+                         LLM psychoanalysis -> create/update/delete -> MemoryService
 
-Example:
-    >>> from src.infrastructure.async_utils import safe_fire_and_forget
-    >>> safe_fire_and_forget(
-    ...     extract_memories_background(store, user_id, messages, session_id),
-    ...     name="memory_extraction"
-    ... )
-
+Phase: v1.14.0 -- Migrated from LangGraph store to PostgreSQL custom + create/update/delete
 """
 
 import json
+import re
 import time
 import uuid
 from datetime import UTC, datetime
@@ -35,11 +34,9 @@ from typing import Any
 from uuid import UUID
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
-from langgraph.store.base import BaseStore
 
 from src.core.config import settings
 from src.core.constants import (
-    MEMORY_CATEGORY_RELATIONSHIP,
     MEMORY_DEDUP_MIN_SCORE,
     MEMORY_DEDUP_SEARCH_LIMIT,
     MEMORY_EXTRACTION_QUERY_TRUNCATION_LENGTH,
@@ -48,7 +45,7 @@ from src.core.constants import (
 )
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.domains.agents.prompts import load_prompt
-from src.domains.agents.tools.memory_tools import MemorySchema
+from src.domains.memories.schemas import ExtractedMemory
 from src.infrastructure.llm import get_llm
 from src.infrastructure.llm.embedding_context import (
     clear_embedding_context,
@@ -56,19 +53,12 @@ from src.infrastructure.llm.embedding_context import (
 )
 from src.infrastructure.llm.invoke_helpers import invoke_with_instrumentation
 from src.infrastructure.observability.logging import get_logger
-from src.infrastructure.store.semantic_store import MemoryNamespace, search_semantic
 
 logger = get_logger(__name__)
 
 # Per-run_id debug results cache for memory extraction.
-# Stores debug data from background extraction so the streaming service
-# can include it in debug_metrics after await_run_id_tasks completes.
-# Each entry is (timestamp, data) to allow TTL-based eviction.
 _memory_extraction_debug_cache: dict[str, tuple[float, dict[str, Any]]] = {}
-
-# Maximum number of entries before forced eviction of oldest
 _MEMORY_DEBUG_CACHE_MAX_SIZE = 100
-# Entries older than this (seconds) are evicted on access
 _MEMORY_DEBUG_CACHE_TTL_SECONDS = 120.0
 
 
@@ -86,77 +76,44 @@ async def _persist_memory_tokens(
     parent_run_id: str | None = None,
     duration_ms: float = 0.0,
 ) -> None:
-    """
-    Persist token usage from memory extraction LLM call to database.
+    """Persist token usage from memory extraction LLM call to database.
 
-    Uses TrackingContext to reuse existing persistence infrastructure:
-    - TokenUsageLog (detailed node breakdown)
-    - MessageTokenSummary (aggregated per run)
-    - UserStatistics (cumulative per user)
-
-    This enables memory costs to appear in:
-    - Dashboard cumulative statistics
-    - Conversation total costs (deferred update)
+    Uses TrackingContext for real cost calculation and dashboard integration.
 
     Args:
-        user_id: User ID for statistics
-        session_id: Session/thread ID
-        conversation_id: Conversation UUID (optional, for linking)
-        result: AIMessage with usage_metadata
-        model_name: LLM model used for extraction
-        parent_run_id: If provided, UPSERT tokens into the parent message's
-            MessageTokenSummary instead of creating an orphan record.
-            This ensures background extraction costs appear under the
-            originating assistant bubble on page refresh.
+        user_id: User ID for statistics.
+        session_id: Session/thread ID.
+        conversation_id: Conversation UUID (optional).
+        result: AIMessage with usage_metadata.
+        model_name: LLM model used.
+        parent_run_id: UPSERT into parent message's summary if provided.
+        duration_ms: LLM call duration in milliseconds.
     """
     from src.domains.chat.service import TrackingContext
 
     try:
-        # Extract token usage from AIMessage.usage_metadata
         usage_metadata = getattr(result, "usage_metadata", None)
         if not usage_metadata:
-            logger.debug(
-                "memory_tokens_no_usage_metadata",
-                user_id=user_id,
-                session_id=session_id,
-            )
             return
 
-        # Parse tokens (OpenAI format: input_tokens includes cached)
         raw_input_tokens = usage_metadata.get("input_tokens", 0)
         output_tokens = usage_metadata.get("output_tokens", 0)
-
-        # Extract cached tokens if available
         input_details = usage_metadata.get("input_token_details", {})
         cached_tokens = input_details.get("cache_read", 0) if input_details else 0
-
-        # CRITICAL: OpenAI's input_tokens INCLUDES cached tokens
-        # Subtract cached to get non-cached input tokens
         input_tokens = raw_input_tokens - cached_tokens
 
         if input_tokens == 0 and output_tokens == 0:
-            logger.debug(
-                "memory_tokens_zero_usage",
-                user_id=user_id,
-            )
             return
 
-        # Use parent_run_id to UPSERT into the originating message's summary,
-        # or generate a standalone run_id for backward compatibility
         run_id = parent_run_id or f"mem_extract_{uuid.uuid4().hex[:12]}"
 
-        # Parse conversation_id if provided
         conv_uuid: UUID | None = None
         if conversation_id:
             try:
                 conv_uuid = UUID(conversation_id)
             except ValueError:
-                logger.warning(
-                    "memory_tokens_invalid_conversation_id",
-                    conversation_id=conversation_id,
-                )
+                pass
 
-        # Create TrackingContext for persistence (auto_commit=False for manual control)
         async with TrackingContext(
             run_id=run_id,
             user_id=UUID(user_id),
@@ -164,7 +121,6 @@ async def _persist_memory_tokens(
             conversation_id=conv_uuid,
             auto_commit=False,
         ) as tracker:
-            # Record tokens with node_name="memory_extraction"
             await tracker.record_node_tokens(
                 node_name="memory_extraction",
                 model_name=model_name,
@@ -173,31 +129,28 @@ async def _persist_memory_tokens(
                 cached_tokens=cached_tokens,
                 duration_ms=duration_ms,
             )
-
-            # Manually commit to persist
             await tracker.commit()
 
         logger.info(
             "memory_tokens_persisted",
             user_id=user_id,
-            session_id=session_id,
-            conversation_id=conversation_id,
-            run_id=run_id,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
-            cached_tokens=cached_tokens,
             model_name=model_name,
         )
 
     except Exception as e:
-        # Graceful degradation - token persistence failure must not break memory extraction
         logger.error(
             "memory_tokens_persistence_failed",
             user_id=user_id,
-            session_id=session_id,
             error=str(e),
             exc_info=True,
         )
+
+
+# ============================================================================
+# Prompt & Formatting Helpers
+# ============================================================================
 
 
 def _get_psychoanalysis_prompt() -> str:
@@ -211,23 +164,19 @@ def _get_personality_addon_prompt() -> str:
 
 
 def _format_messages_for_extraction(messages: list[BaseMessage]) -> str:
-    """
-    Format messages for extraction prompt.
-
-    Converts LangChain messages to readable conversation format.
+    """Format messages for extraction prompt context.
 
     Args:
-        messages: List of conversation messages
+        messages: List of conversation messages.
 
     Returns:
-        Formatted conversation string
+        Formatted conversation string.
     """
     lines = []
     for msg in messages:
         if isinstance(msg, HumanMessage):
             prefix = "USER"
         elif isinstance(msg, AIMessage):
-            # Skip proactive notifications (interest/heartbeat) — not user-generated content
             if msg.additional_kwargs.get("proactive_notification"):
                 continue
             prefix = "ASSISTANT"
@@ -235,7 +184,6 @@ def _format_messages_for_extraction(messages: list[BaseMessage]) -> str:
             prefix = "SYSTEM"
 
         content = msg.content if isinstance(msg.content, str) else str(msg.content)
-        # Truncate very long messages (configurable limit)
         max_chars = settings.memory_extraction_message_max_chars
         if len(content) > max_chars:
             content = content[:max_chars] + "..."
@@ -245,27 +193,55 @@ def _format_messages_for_extraction(messages: list[BaseMessage]) -> str:
     return "\n".join(lines)
 
 
-def _parse_extraction_result(result_text: str) -> list[MemorySchema]:
-    """
-    Parse LLM extraction result into MemorySchema objects.
+def _format_existing_memories_with_ids(
+    memories: list[tuple[Any, float]],
+) -> str:
+    """Format existing memories for the extraction prompt with IDs.
 
-    Handles common JSON parsing issues (markdown fences, whitespace, comments).
+    Shows memories with their UUIDs so the LLM can reference them
+    for update/delete actions.
 
     Args:
-        result_text: Raw LLM output
+        memories: List of (Memory, score) tuples from search_by_relevance.
 
     Returns:
-        List of validated MemorySchema objects
+        Formatted string for prompt injection.
     """
-    import re
+    if not memories:
+        return "None"
 
-    # Clean common LLM artifacts
+    lines = []
+    for memory, _score in memories:
+        content = memory.content or ""
+        category = memory.category or "personal"
+        importance = memory.importance or 0.7
+        lines.append(f"- [id={memory.id} | {category} | importance={importance:.1f}] {content}")
+
+    return "\n".join(lines)
+
+
+# ============================================================================
+# LLM Output Parsing
+# ============================================================================
+
+
+def _parse_extraction_result(result_text: str) -> list[ExtractedMemory]:
+    """Parse LLM extraction result into ExtractedMemory objects.
+
+    Handles common JSON parsing issues and supports both old format
+    (no action field → create) and new format (with action field).
+
+    Args:
+        result_text: Raw LLM output.
+
+    Returns:
+        List of validated ExtractedMemory objects.
+    """
     cleaned = result_text.strip()
 
-    # Remove markdown code fences if present
+    # Remove markdown code fences
     if cleaned.startswith("```"):
         lines = cleaned.split("\n")
-        # Find start and end of code block
         start_idx = 0
         end_idx = len(lines)
         for i, line in enumerate(lines):
@@ -276,63 +252,44 @@ def _parse_extraction_result(result_text: str) -> list[MemorySchema]:
                 break
         cleaned = "\n".join(lines[start_idx:end_idx])
 
-    # Remove single-line comments (// comment)
+    # Remove single-line comments
     cleaned = re.sub(r"//.*$", "", cleaned, flags=re.MULTILINE)
-
-    # Remove trailing commas before ] or }
+    # Remove trailing commas
     cleaned = re.sub(r",\s*([\]}])", r"\1", cleaned)
 
-    # Try to find JSON array in the text if direct parsing fails
-    def extract_json_array(text: str) -> str | None:
-        """Extract first valid-looking JSON array from text."""
-        # Find opening bracket
+    def _extract_json_array(text: str) -> str | None:
         start = text.find("[")
         if start == -1:
             return None
-
-        # Track bracket depth to find matching closing bracket
         depth = 0
         in_string = False
         escape_next = False
-
         for i, char in enumerate(text[start:], start):
             if escape_next:
                 escape_next = False
                 continue
-
             if char == "\\":
                 escape_next = True
                 continue
-
             if char == '"' and not escape_next:
                 in_string = not in_string
                 continue
-
             if in_string:
                 continue
-
             if char == "[":
                 depth += 1
             elif char == "]":
                 depth -= 1
                 if depth == 0:
                     return text[start : i + 1]
-
         return None
 
-    # Try direct parsing first
-    try:
-        data = json.loads(cleaned)
-
-        if not isinstance(data, list):
-            logger.warning("extraction_result_not_list", type=type(data).__name__)
-            return []
-
-        memories = []
+    def _parse_items(data: list) -> list[ExtractedMemory]:
+        entries = []
         for item in data:
             try:
-                memory = MemorySchema(**item)
-                memories.append(memory)
+                entry = ExtractedMemory(**item)
+                entries.append(entry)
             except Exception as e:
                 logger.debug(
                     "memory_item_validation_failed",
@@ -340,89 +297,63 @@ def _parse_extraction_result(result_text: str) -> list[MemorySchema]:
                     error=str(e),
                 )
                 continue
+        return entries
 
-        return memories
+    # Try direct parsing
+    try:
+        data = json.loads(cleaned)
+        if not isinstance(data, list):
+            return []
+        return _parse_items(data)
 
     except json.JSONDecodeError as e:
-        # Log full output for debugging
         logger.warning(
             "extraction_json_parse_failed",
             error=str(e),
-            result_length=len(cleaned),
             result_preview=cleaned[:500] if cleaned else "empty",
         )
 
-        # Try to extract JSON array from potentially malformed response
-        extracted = extract_json_array(cleaned)
+        extracted = _extract_json_array(cleaned)
         if extracted:
             try:
-                # Apply same cleaning to extracted array
                 extracted = re.sub(r",\s*([\]}])", r"\1", extracted)
                 data = json.loads(extracted)
-
                 if isinstance(data, list):
-                    memories = []
-                    for item in data:
-                        try:
-                            memory = MemorySchema(**item)
-                            memories.append(memory)
-                        except Exception:
-                            continue
-
-                    if memories:
-                        logger.info(
-                            "extraction_json_recovered",
-                            recovered_count=len(memories),
-                        )
-                        return memories
+                    items = _parse_items(data)
+                    if items:
+                        logger.info("extraction_json_recovered", recovered_count=len(items))
+                        return items
             except json.JSONDecodeError:
                 pass
 
         return []
 
 
-def _generate_memory_key() -> str:
-    """Generate unique key for memory storage."""
-    return f"mem_{uuid.uuid4().hex[:12]}"
+# ============================================================================
+# Debug Cache
+# ============================================================================
 
 
 def _cache_debug_result(run_id: str, data: dict[str, Any]) -> None:
-    """
-    Store debug data in the cache with timestamp and size enforcement.
-
-    Args:
-        run_id: Pipeline run_id key.
-        data: Debug data dict to cache.
-    """
-    # Enforce max size: evict oldest entries if full
+    """Store debug data with timestamp and size enforcement."""
     while len(_memory_extraction_debug_cache) >= _MEMORY_DEBUG_CACHE_MAX_SIZE:
         oldest_key = min(
             _memory_extraction_debug_cache,
             key=lambda k: _memory_extraction_debug_cache[k][0],
         )
         _memory_extraction_debug_cache.pop(oldest_key, None)
-
     _memory_extraction_debug_cache[run_id] = (time.monotonic(), data)
 
 
 def get_memory_extraction_debug(run_id: str) -> dict[str, Any] | None:
-    """
-    Retrieve and consume debug data from background memory extraction.
-
-    Called by streaming_service after await_run_id_tasks to include
-    memory detection data in the debug_metrics SSE event.
-
-    Also performs lazy eviction of stale cache entries to prevent
-    memory leaks if streaming_service fails to consume some entries.
+    """Retrieve and consume debug data for streaming service.
 
     Args:
-        run_id: Pipeline run_id used when scheduling the extraction task.
+        run_id: Pipeline run_id.
 
     Returns:
-        Debug dict with extracted memories, dedup info, and LLM metadata,
-        or None if no data is available for this run_id.
+        Debug dict or None.
     """
-    # Lazy eviction of stale entries (TTL-based)
     now = time.monotonic()
     stale_keys = [
         k
@@ -435,64 +366,45 @@ def get_memory_extraction_debug(run_id: str) -> dict[str, Any] | None:
     entry = _memory_extraction_debug_cache.pop(run_id, None)
     if entry is None:
         return None
-    return entry[1]  # Return data, discard timestamp
+    return entry[1]
+
+
+# ============================================================================
+# Main Extraction Function
+# ============================================================================
 
 
 async def extract_memories_background(
-    store: BaseStore,
     user_id: str,
     messages: list[BaseMessage],
     session_id: str,
     personality_instruction: str | None = None,
     conversation_id: str | None = None,
     parent_run_id: str | None = None,
+    query_embedding: list[float] | None = None,
 ) -> int:
-    """
-    Background psychoanalytical extraction from conversation.
+    """Background psychoanalytical extraction from conversation.
 
-    OPTIMIZED: Only analyzes the LAST user message to avoid:
-    - Reprocessing already-analyzed messages (cost savings)
-    - Duplicate memory extraction
-    - Analyzing assistant messages (no user info there)
-
-    Includes minimal context (last 4 messages) for understanding.
-
-    Token Tracking:
-        LLM tokens are persisted to database for:
-        - UserStatistics (dashboard cumulative)
-        - MessageTokenSummary (conversation totals, deferred)
-        This enables memory costs to be included in user statistics.
+    OPTIMIZED: Only analyzes the LAST user message with minimal context.
+    Uses pre-computed embedding for semantic dedup search.
+    Supports create/update/delete actions (micro-consolidation).
 
     Args:
-        store: LangGraph BaseStore for memory persistence
-        user_id: Target user ID for memory storage
-        messages: Conversation messages to analyze
-        session_id: Current session ID for logging
-        personality_instruction: Optional personality context for nuance adaptation
-        conversation_id: Optional conversation UUID for linking token costs
-        parent_run_id: Pipeline run_id for UPSERT into the originating message's
-            token summary and for caching debug data retrievable via
-            ``get_memory_extraction_debug(run_id)``.
+        user_id: Target user ID.
+        messages: Conversation messages.
+        session_id: Current session ID.
+        personality_instruction: Optional personality context.
+        conversation_id: Optional conversation UUID.
+        parent_run_id: Pipeline run_id for token UPSERT and debug cache.
+        query_embedding: Pre-computed embedding from centralized service.
 
     Returns:
-        Number of new memories extracted and stored
-
-    Example:
-        >>> safe_fire_and_forget(
-        ...     extract_memories_background(
-        ...         store, "user-123", messages, "session-456",
-        ...         conversation_id="conv-uuid"
-        ...     ),
-        ...     name="memory_extraction"
-        ... )
+        Number of actions applied (create/update/delete).
     """
+    from src.infrastructure.database.session import get_db_context
+
     try:
-        # Check if memory extraction is enabled
         if not settings.memory_extraction_enabled:
-            logger.debug(
-                "memory_extraction_disabled",
-                user_id=user_id,
-            )
             if parent_run_id:
                 _cache_debug_result(
                     parent_run_id,
@@ -506,12 +418,7 @@ async def extract_memories_background(
                 )
             return 0
 
-        # Skip if no messages
         if not messages:
-            logger.debug(
-                "memory_extraction_skipped_no_messages",
-                user_id=user_id,
-            )
             if parent_run_id:
                 _cache_debug_result(
                     parent_run_id,
@@ -525,18 +432,16 @@ async def extract_memories_background(
                 )
             return 0
 
-        # Set embedding context for DB persistence of embedding tokens
-        # This enables embedding costs to be tracked in user statistics
+        # Set embedding context for cost tracking
         set_embedding_context(
             user_id=user_id,
             session_id=session_id,
             conversation_id=conversation_id,
         )
 
-        # Find the LAST HumanMessage (the new user message to analyze)
+        # Find the LAST HumanMessage
         last_human_message: HumanMessage | None = None
         last_human_index = -1
-
         for i in range(len(messages) - 1, -1, -1):
             msg = messages[i]
             if isinstance(msg, HumanMessage):
@@ -545,10 +450,6 @@ async def extract_memories_background(
                 break
 
         if not last_human_message:
-            logger.debug(
-                "memory_extraction_skipped_no_human_message",
-                user_id=user_id,
-            )
             if parent_run_id:
                 _cache_debug_result(
                     parent_run_id,
@@ -562,99 +463,75 @@ async def extract_memories_background(
                 )
             return 0
 
-        # Get minimal context: last 4 messages before the target message
-        # (enough to understand context without reprocessing everything)
+        # Get context messages (last 4 before target)
         context_start = max(0, last_human_index - 3)
         context_messages = messages[context_start : last_human_index + 1]
-
-        logger.debug(
-            "memory_extraction_targeting",
-            user_id=user_id,
-            target_message_index=last_human_index,
-            context_messages=len(context_messages),
-            total_messages=len(messages),
-        )
-
-        # Retrieve SIMILAR existing memories for deduplication (semantic search)
-        # OPTIMIZATION: Instead of loading all memories, we only search for
-        # memories similar to the current message. This:
-        # - Reduces token usage (only relevant memories sent to LLM)
-        # - Provides better deduplication (semantic match vs full scan)
-        # - Scales better as memory count grows
-        namespace = MemoryNamespace(user_id)
-        message_content = (
-            last_human_message.content
-            if isinstance(last_human_message.content, str)
-            else str(last_human_message.content)
-        )
-
-        # Truncate query for efficiency (embedding computation)
-        truncated_query = message_content[:MEMORY_EXTRACTION_QUERY_TRUNCATION_LENGTH]
-
-        # Semantic search using the user's message as query
-        # Only retrieve memories that are semantically similar (potential duplicates)
-        # Uses centralized search_semantic for DRY compliance
-        existing_results = await search_semantic(
-            store=store,
-            namespace=namespace,
-            query=truncated_query,
-            limit=MEMORY_DEDUP_SEARCH_LIMIT,
-            min_score=MEMORY_DEDUP_MIN_SCORE,
-        )
-
-        # Extract content from filtered results
-        existing_texts = [
-            r.value.get("content", "")
-            for r in existing_results
-            if isinstance(r.value, dict) and r.value.get("content")
-        ]
-
-        logger.debug(
-            "memory_dedup_semantic_search",
-            user_id=user_id,
-            query_length=len(message_content),
-            similar_memories_found=len(existing_texts),
-        )
-
-        # Format conversation with context
         conversation = _format_messages_for_extraction(context_messages)
 
-        # Retrieve known relationships for enrichment (names resolution)
-        # Uses semantic search to find relationships matching the user's message
-        # This allows the LLM to enrich "my son" with "My son John Smith"
-        # Uses centralized search_semantic for DRY compliance, with category filter on top
-        relationship_results = await search_semantic(
-            store=store,
-            namespace=namespace,
-            query=truncated_query,
-            limit=MEMORY_RELATIONSHIP_SEARCH_LIMIT,
-            min_score=MEMORY_RELATIONSHIP_MIN_SCORE,
-        )
+        # ================================================================
+        # Semantic search for dedup + relationships (using pre-computed embedding or local)
+        # ================================================================
+        existing_results: list[tuple[Any, float]] = []
+        known_relationships: list[str] = []
+        existing_memories_text: str = "None"
+        known_ids: set[str] = set()
+        existing_similar_debug: list[dict[str, Any]] = []
 
-        # Filter by category "relationship" and extract content
-        # search_semantic already filtered by min_score, we just add category filter
-        known_relationships = [
-            item.value.get("content", "")
-            for item in relationship_results
-            if isinstance(item.value, dict)
-            and item.value.get("category") == MEMORY_CATEGORY_RELATIONSHIP
-            and item.value.get("content")
-        ]
+        async with get_db_context() as db:
+            from src.domains.memories.repository import MemoryRepository
 
-        logger.debug(
-            "memory_extraction_relationships_found",
-            user_id=user_id,
-            relationship_count=len(known_relationships),
-            search_results=len(relationship_results),
-        )
+            repo = MemoryRepository(db)
 
-        # Build prompt from external file
+            # Compute embedding if not provided (fallback)
+            if query_embedding is None:
+                message_content = (
+                    last_human_message.content
+                    if isinstance(last_human_message.content, str)
+                    else str(last_human_message.content)
+                )
+                truncated_query = message_content[:MEMORY_EXTRACTION_QUERY_TRUNCATION_LENGTH]
+
+                from src.infrastructure.llm.memory_embeddings import get_memory_embeddings
+
+                embeddings = get_memory_embeddings()
+                query_embedding = await embeddings.aembed_query(truncated_query)
+
+            if query_embedding:
+                # Semantic dedup search
+                existing_results = await repo.search_by_relevance(
+                    user_id=UUID(user_id),
+                    query_embedding=query_embedding,
+                    limit=MEMORY_DEDUP_SEARCH_LIMIT,
+                    min_score=MEMORY_DEDUP_MIN_SCORE,
+                )
+
+                # Relationship enrichment search
+                relationship_results = await repo.get_relationships_for_user(
+                    user_id=UUID(user_id),
+                    query_embedding=query_embedding,
+                    limit=MEMORY_RELATIONSHIP_SEARCH_LIMIT,
+                    min_score=MEMORY_RELATIONSHIP_MIN_SCORE,
+                )
+                known_relationships = [m.content for m, _ in relationship_results if m.content]
+
+            # Extract all needed data INSIDE the session (ORM objects are attached)
+            existing_memories_text = _format_existing_memories_with_ids(existing_results)
+            known_ids = {str(m.id) for m, _ in existing_results}
+            # Pre-extract debug data before session closes
+            existing_similar_debug = [
+                {
+                    "content": m.content or "",
+                    "category": m.category or "unknown",
+                    "score": round(score, 3),
+                }
+                for m, score in existing_results
+            ]
+
+        # Build prompt
         current_datetime = datetime.now(tz=UTC).strftime("%d/%m/%Y %H:%M")
         prompt = _get_psychoanalysis_prompt().format(
             conversation=conversation,
-            existing_memories=(
-                "\n".join(f"- {t}" for t in existing_texts) if existing_texts else "None"
-            ),
+            existing_memories=existing_memories_text,
             current_datetime=current_datetime,
             known_relationships=(
                 "\n".join(f"- {r}" for r in known_relationships)
@@ -663,17 +540,13 @@ async def extract_memories_background(
             ),
         )
 
-        # Add personality context if available
         if personality_instruction:
             prompt += _get_personality_addon_prompt().format(
                 personality_instruction=personality_instruction
             )
 
-        # Get extraction LLM from unified config (LLM_DEFAULTS + admin overrides)
+        # Call LLM
         llm = get_llm("memory_extraction")
-
-        # Invoke LLM with instrumentation for token tracking
-        # Uses node_name="memory_extraction" for cost attribution in metrics
         _llm_start = time.time()
         result = await invoke_with_instrumentation(
             llm=llm,
@@ -685,11 +558,8 @@ async def extract_memories_background(
         _llm_duration_ms = (time.time() - _llm_start) * 1000
         result_content = result.content if isinstance(result.content, str) else str(result.content)
 
-        # Resolve LLM config once for both token persistence and debug metadata
+        # Persist token usage
         llm_config = get_llm_config_for_agent(settings, "memory_extraction")
-
-        # Persist token usage to database (deferred update for user statistics)
-        # This enables memory costs to appear in dashboard and conversation totals
         await _persist_memory_tokens(
             user_id=user_id,
             session_id=session_id,
@@ -700,7 +570,7 @@ async def extract_memories_background(
             duration_ms=_llm_duration_ms,
         )
 
-        # Build LLM metadata for debug panel
+        # Build debug metadata
         usage_metadata = getattr(result, "usage_metadata", None) or {}
         raw_input_tokens = usage_metadata.get("input_tokens", 0)
         output_tokens = usage_metadata.get("output_tokens", 0)
@@ -715,26 +585,10 @@ async def extract_memories_background(
             "total_tokens": raw_input_tokens + output_tokens,
         }
 
-        # Build existing similar memories debug data
-        existing_similar_debug = [
-            {
-                "content": r.value.get("content", ""),
-                "category": r.value.get("category", "unknown"),
-                "score": round(getattr(r, "score", 0.0), 3),
-            }
-            for r in existing_results
-            if isinstance(r.value, dict) and r.value.get("content")
-        ]
+        # Parse result into actions
+        actions = _parse_extraction_result(result_content)
 
-        # Parse extraction result
-        new_memories = _parse_extraction_result(result_content)
-
-        if not new_memories:
-            logger.debug(
-                "memory_extraction_no_new_memories",
-                user_id=user_id,
-                session_id=session_id,
-            )
+        if not actions:
             if parent_run_id:
                 _cache_debug_result(
                     parent_run_id,
@@ -748,103 +602,182 @@ async def extract_memories_background(
                 )
             return 0
 
-        # Persist new memories
-        stored_count = 0
-        namespace_tuple = namespace.to_tuple()
+        # ================================================================
+        # Filter hallucinated IDs (same pattern as journal)
+        # ================================================================
+        valid_actions = []
+        for action in actions:
+            if action.action in ("update", "delete") and action.memory_id:
+                if action.memory_id not in known_ids:
+                    logger.warning(
+                        "memory_extraction_unknown_memory_id",
+                        user_id=user_id,
+                        action=action.action,
+                        memory_id=action.memory_id,
+                    )
+                    continue
+            valid_actions.append(action)
 
-        logger.info(
-            "memory_persistence_starting",
-            user_id=user_id,
-            namespace=namespace_tuple,
-            memories_to_store=len(new_memories),
-        )
+        if len(valid_actions) < len(actions):
+            logger.info(
+                "memory_extraction_filtered_hallucinated_ids",
+                user_id=user_id,
+                original_count=len(actions),
+                valid_count=len(valid_actions),
+            )
+        actions = valid_actions
 
-        now = datetime.now(UTC).isoformat()
+        # ================================================================
+        # Apply actions via MemoryService
+        # ================================================================
+        applied_count = 0
         stored_memories_debug: list[dict[str, Any]] = []
 
-        for memory in new_memories:
-            try:
-                memory_key = _generate_memory_key()
-                memory_value = {
-                    **memory.model_dump(),
-                    "created_at": now,
-                }
+        # Set embedding context for create operations (auto-embedding)
+        set_embedding_context(
+            user_id=user_id,
+            session_id=session_id,
+            conversation_id=conversation_id,
+        )
 
-                logger.info(
-                    "memory_aput_attempt",
-                    user_id=user_id,
-                    namespace=namespace_tuple,
-                    key=memory_key,
-                    value_keys=list(memory_value.keys()),
-                )
+        try:
+            async with get_db_context() as db:
+                from src.domains.memories.service import MemoryService
 
-                await store.aput(
-                    namespace_tuple,
-                    key=memory_key,
-                    value=memory_value,
-                )
+                service = MemoryService(db)
 
-                # Verify storage immediately
-                verification = await store.aget(namespace_tuple, memory_key)
-                stored = verification is not None
-                if stored:
-                    stored_count += 1
-                    logger.info(
-                        "memory_stored_verified",
-                        user_id=user_id,
-                        key=memory_key,
-                        category=memory.category,
-                        verified=True,
-                    )
-                else:
-                    logger.warning(
-                        "memory_stored_but_not_found",
-                        user_id=user_id,
-                        key=memory_key,
-                        message="aput succeeded but aget returned None",
-                    )
+                for action in actions:
+                    try:
+                        if action.action == "create" and action.content and action.category:
+                            await service.create_memory(
+                                user_id=UUID(user_id),
+                                content=action.content,
+                                category=action.category,
+                                emotional_weight=action.emotional_weight or 0,
+                                trigger_topic=action.trigger_topic or "",
+                                usage_nuance=action.usage_nuance or "",
+                                importance=action.importance or 0.7,
+                            )
+                            applied_count += 1
+                            stored_memories_debug.append(
+                                {
+                                    "action": "create",
+                                    "content": action.content,
+                                    "category": action.category,
+                                    "emotional_weight": action.emotional_weight or 0,
+                                    "importance": round(action.importance or 0.7, 2),
+                                    "stored": True,
+                                }
+                            )
 
-                # Collect debug data for each extracted memory
-                stored_memories_debug.append(
-                    {
-                        "content": memory.content,
-                        "category": memory.category,
-                        "emotional_weight": memory.emotional_weight,
-                        "importance": round(memory.importance, 2),
-                        "trigger_topic": memory.trigger_topic,
-                        "stored": stored,
-                    }
-                )
+                        elif action.action == "update" and action.memory_id:
+                            from src.domains.memories.repository import MemoryRepository as _Repo
 
-            except Exception as e:
-                logger.warning(
-                    "memory_storage_failed",
-                    user_id=user_id,
-                    error=str(e),
-                    content_preview=memory.content[:50] if memory.content else "",
-                )
-                # Still record as failed in debug
-                stored_memories_debug.append(
-                    {
-                        "content": memory.content,
-                        "category": memory.category,
-                        "emotional_weight": memory.emotional_weight,
-                        "importance": round(memory.importance, 2),
-                        "trigger_topic": memory.trigger_topic,
-                        "stored": False,
-                    }
-                )
-                continue
+                            repo = _Repo(db)
+                            memory = await repo.get_by_id(UUID(action.memory_id))
+                            if memory and str(memory.user_id) == user_id:
+                                if memory.pinned:
+                                    logger.info(
+                                        "memory_extraction_pinned_skip",
+                                        user_id=user_id,
+                                        action="update",
+                                        memory_id=action.memory_id,
+                                    )
+                                    continue
+                                await service.update_memory(
+                                    memory=memory,
+                                    content=action.content,
+                                    emotional_weight=action.emotional_weight,
+                                    trigger_topic=action.trigger_topic,
+                                    usage_nuance=action.usage_nuance,
+                                    importance=action.importance,
+                                )
+                                applied_count += 1
+                                stored_memories_debug.append(
+                                    {
+                                        "action": "update",
+                                        "memory_id": action.memory_id,
+                                        "content": action.content or memory.content,
+                                        "category": memory.category,
+                                        "emotional_weight": (
+                                            action.emotional_weight
+                                            if action.emotional_weight is not None
+                                            else memory.emotional_weight
+                                        ),
+                                        "importance": round(
+                                            (
+                                                action.importance
+                                                if action.importance is not None
+                                                else memory.importance
+                                            ),
+                                            2,
+                                        ),
+                                        "trigger_topic": memory.trigger_topic,
+                                        "stored": True,
+                                    }
+                                )
+
+                        elif action.action == "delete" and action.memory_id:
+                            from src.domains.memories.repository import MemoryRepository as _Repo
+
+                            repo = _Repo(db)
+                            memory = await repo.get_by_id(UUID(action.memory_id))
+                            if memory and str(memory.user_id) == user_id:
+                                if memory.pinned:
+                                    logger.info(
+                                        "memory_extraction_pinned_skip",
+                                        user_id=user_id,
+                                        action="delete",
+                                        memory_id=action.memory_id,
+                                    )
+                                    continue
+                                await service.delete_memory(memory)
+                                applied_count += 1
+                                stored_memories_debug.append(
+                                    {
+                                        "action": "delete",
+                                        "memory_id": action.memory_id,
+                                        "content": memory.content,
+                                        "category": memory.category,
+                                        "emotional_weight": memory.emotional_weight,
+                                        "importance": round(memory.importance, 2),
+                                        "trigger_topic": memory.trigger_topic,
+                                        "stored": True,
+                                    }
+                                )
+
+                    except Exception as e:
+                        logger.warning(
+                            "memory_extraction_action_failed",
+                            user_id=user_id,
+                            action=action.action,
+                            error=str(e),
+                        )
+                        stored_memories_debug.append(
+                            {
+                                "action": action.action,
+                                "content": action.content or "",
+                                "category": "unknown",
+                                "emotional_weight": 0,
+                                "importance": 0.5,
+                                "trigger_topic": "",
+                                "stored": False,
+                            }
+                        )
+                        continue
+
+                await db.commit()
+        finally:
+            clear_embedding_context()
 
         logger.info(
             "memory_extraction_completed",
             user_id=user_id,
             session_id=session_id,
-            extracted_count=len(new_memories),
-            stored_count=stored_count,
+            actions_parsed=len(actions),
+            actions_applied=applied_count,
         )
 
-        # Cache debug data for streaming_service to pick up
         if parent_run_id:
             _cache_debug_result(
                 parent_run_id,
@@ -857,13 +790,12 @@ async def extract_memories_background(
                 },
             )
 
-        return stored_count
+        return applied_count
 
     except Exception as e:
         logger.error(
             "memory_extraction_failed",
             user_id=user_id,
-            session_id=session_id,
             error=str(e),
             exc_info=True,
         )
@@ -882,35 +814,26 @@ async def extract_memories_background(
         return 0
 
     finally:
-        # Always clear embedding context to prevent cross-request contamination
         clear_embedding_context()
 
 
 async def extract_memories_from_single_message(
-    store: BaseStore,
     user_id: str,
     message: str,
     personality_instruction: str | None = None,
 ) -> int:
-    """
-    Extract memories from a single user message.
-
-    Lighter-weight extraction for individual messages.
-    Used for real-time extraction during conversation.
+    """Extract memories from a single user message.
 
     Args:
-        store: LangGraph BaseStore
-        user_id: Target user ID
-        message: Single user message to analyze
-        personality_instruction: Optional personality context
+        user_id: Target user ID.
+        message: Single user message.
+        personality_instruction: Optional personality context.
 
     Returns:
-        Number of memories extracted
+        Number of memories extracted.
     """
-    # Convert to HumanMessage for consistent processing
     messages: list[BaseMessage] = [HumanMessage(content=message)]
     return await extract_memories_background(
-        store=store,
         user_id=user_id,
         messages=messages,
         session_id="single_message",

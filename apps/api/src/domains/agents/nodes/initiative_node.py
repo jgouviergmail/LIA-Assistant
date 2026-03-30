@@ -209,18 +209,16 @@ def _validate_read_only(
 
 
 async def _load_memory_facts(
-    store: Any,
     user_id: str,
     execution_summary: str,
 ) -> list[str] | None:
     """Load semantically relevant memory facts for initiative context."""
-    if not store or not user_id:
+    if not user_id:
         return None
     try:
         from src.domains.agents.middleware.memory_injection import get_memory_facts_for_query
 
         return await get_memory_facts_for_query(
-            store=store,
             user_id=user_id,
             query=execution_summary,
             limit=INITIATIVE_MEMORY_LIMIT,
@@ -463,17 +461,13 @@ async def initiative_node(
     user_language = state.get("user_language", "fr")
     user_timezone = state.get("user_timezone", "UTC")
 
-    from src.domains.agents.context.store import get_tool_context_store
-
-    store = await get_tool_context_store()
-
     agent_results = state.get(STATE_KEY_AGENT_RESULTS, {})
     current_registry = state.get("current_turn_registry") or state.get("registry") or {}
     execution_summary = _format_execution_summary(agent_results, registry=current_registry)
     original_query = _extract_original_query(state)
 
     memory_facts, interest_profile = await asyncio.gather(
-        _load_memory_facts(store, str(user_id), execution_summary),
+        _load_memory_facts(str(user_id), execution_summary),
         _load_user_interests(str(user_id)),
     )
 

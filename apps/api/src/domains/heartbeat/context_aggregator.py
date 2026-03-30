@@ -896,27 +896,37 @@ class ContextAggregator:
         Returns:
             List of memory content strings or None if unavailable.
         """
-        from src.domains.agents.context.store import get_tool_context_store
+        from src.infrastructure.database.session import get_db_context
 
         limit = settings.heartbeat_context_memory_limit
 
-        store = await get_tool_context_store()
-        results = await store.asearch(
-            (str(user_id), "memories"),
-            query="important upcoming events preferences routines",
-            limit=limit,
+        # Use centralized embedding cache (text-hash keyed → computed once, then cached)
+        from src.infrastructure.llm.user_message_embedding import get_or_compute_embedding
+
+        query_embedding = await get_or_compute_embedding(
+            message="important upcoming events preferences routines",
         )
+
+        if not query_embedding:
+            return None
+
+        async with get_db_context() as db:
+            from src.domains.memories.repository import MemoryRepository
+
+            repo = MemoryRepository(db)
+            results = await repo.search_by_relevance(
+                user_id=user_id,
+                query_embedding=query_embedding,
+                limit=limit,
+                min_score=0.3,
+            )
 
         if not results:
             return None
 
         memories = []
-        for item in results:
-            value = item.value if hasattr(item, "value") else item
-            if isinstance(value, dict):
-                content = value.get("content", str(value))
-            else:
-                content = str(value)
+        for memory, _score in results:
+            content = memory.content or ""
             if content:
                 memories.append(content[:200])  # Truncate to save tokens
 

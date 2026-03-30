@@ -2211,6 +2211,35 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 
 ---
 
+### ADR-066: Memory Storage Migration — LangGraph Store to PostgreSQL Custom
+
+**Status**: ✅ ACCEPTED (2026-03-30)
+**Fichier**: `docs/architecture/ADR-066-Memory-PostgreSQL-Migration.md`
+
+**Décision**: Migrer le stockage des memories du LangGraph AsyncPostgresStore vers un modèle SQLAlchemy dédié avec pgvector, aligné sur le pattern journal. Centraliser l'embedding du message utilisateur via un service partagé avec cache text-hash.
+
+**Problème résolu**:
+- ❌ 5 embeddings redondants du même message par tour de conversation
+- ❌ 3 appels LLM d'extraction sur messages triviaux ("ok", "merci")
+- ❌ ~7 500 tokens input par extraction journal (toutes les entries chargées)
+- ❌ Memory extraction create-only (pas d'update/delete)
+- ❌ Patterns divergents entre memory (LangGraph store) et journal (PostgreSQL)
+
+**Solution**:
+- ✅ UserMessageEmbeddingService : 1 embedding centralisé par tour, cache text-hash, filtre trivialité
+- ✅ Modèle Memory SQLAlchemy + pgvector (même pattern que JournalEntry)
+- ✅ Memory extraction avec create/update/delete (micro-consolidation)
+- ✅ Journal extraction avec pre-filtre sémantique (top 10 + 3 récentes)
+- ✅ 14 fichiers consommateurs migrés, LangGraph store conservé pour tool context
+
+**Impact**:
+- ✅ 5→1 embedding calls par tour
+- ✅ 3→0 LLM calls sur message trivial
+- ✅ ~67% réduction tokens extraction journal
+- ✅ Patterns unifiés memory/journal
+
+---
+
 ## ADRs Archivés
 
 ### ADR-005 (Version Originale): Workflow-Based HITL

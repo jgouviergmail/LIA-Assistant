@@ -38,6 +38,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: '/', changeFrequency: 'weekly' as const, priority: 1.0 },
     { path: '/blog', changeFrequency: 'weekly' as const, priority: 0.8 },
     { path: '/faq', changeFrequency: 'monthly' as const, priority: 0.7 },
+    { path: '/why', changeFrequency: 'monthly' as const, priority: 0.7 },
+    { path: '/how', changeFrequency: 'monthly' as const, priority: 0.7 },
     { path: '/privacy', changeFrequency: 'yearly' as const, priority: 0.5 },
     { path: '/terms', changeFrequency: 'yearly' as const, priority: 0.5 },
     { path: '/login', changeFrequency: 'monthly' as const, priority: 0.3 },

@@ -411,12 +411,25 @@ async def planner_node_v3(
 
                 planner_query = intelligence.original_query
                 thread_id_for_journal = configurable.get("thread_id")
+
+                # Use centralized embedding (cache by text hash → shared with response_node)
+                from src.infrastructure.llm.user_message_embedding import (
+                    get_or_compute_embedding,
+                )
+
+                planner_embedding = await get_or_compute_embedding(
+                    message=planner_query,
+                    user_id=user_id_for_journal,
+                    session_id=thread_id_for_journal,
+                )
+
                 async with get_db_context() as journal_db:
                     journal_context_result, planner_journal_debug_data = (
                         await build_journal_context(
                             user_id=user_id_for_journal,
                             query=planner_query,
                             db=journal_db,
+                            query_embedding=planner_embedding,
                             include_debug=True,
                             run_id=run_id,
                             session_id=thread_id_for_journal,
@@ -595,7 +608,6 @@ async def _resolve_clarification_reference(
     # Try memory + contacts resolution (LLM handles multilingual pattern detection)
     # Pattern: Same as QueryAnalyzerService._get_memory_facts() + _resolve_memory_references()
     try:
-        from src.domains.agents.context.store import get_tool_context_store
         from src.domains.agents.middleware.memory_injection import get_memory_facts_for_query
         from src.domains.agents.services.memory_reference_resolution_service import (
             get_memory_reference_resolution_service,
@@ -612,20 +624,8 @@ async def _resolve_clarification_reference(
             )
             return clarification_response
 
-        # Get store like QueryAnalyzerService does
-        store = await get_tool_context_store()
-        if not store:
-            logger.debug(
-                "clarification_resolution_missing_config",
-                run_id=run_id,
-                has_user_id=bool(user_id),
-                has_store=bool(store),
-            )
-            return clarification_response
-
-        # Get memory facts for this user
+        # Get memory facts for this user (embeds locally, no store needed)
         memory_facts = await get_memory_facts_for_query(
-            store=store,
             user_id=user_id,
             query=clarification_response,
         )

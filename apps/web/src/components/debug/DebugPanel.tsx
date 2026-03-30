@@ -54,8 +54,9 @@ import {
   MemoryDetectionSection,
   // RAG Injection (Knowledge Spaces)
   RAGInjectionSection,
-  // Journal Injection (Personal Journals)
+  // Journal Injection + Extraction (Personal Journals)
   JournalInjectionSection,
+  JournalExtractionSection,
   // Skills activation
   SkillsSection,
   // LLM Pipeline (v3.3 - chronological reconciliation)
@@ -155,16 +156,29 @@ function MetricsSections({ metrics }: { metrics: DebugMetrics }) {
       <ContextSection data={context_resolution} />
       <QuerySection data={query_info} />
       <IntelligentMechanismsSection data={intelligent_mechanisms} />
+      {/* ── CONTEXT INJECTION (fed to LLM before response) ── */}
+      <div className="pt-2 pb-1 px-1">
+        <div className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-semibold">
+          Context Injection
+        </div>
+      </div>
       <MemoryInjectionSection data={memory_injection} />
-      <MemoryDetectionSection data={memory_detection} />
-      <InterestProfileSection data={interest_profile} />
-      <KnowledgeEnrichmentSection data={knowledge_enrichment} />
       <RAGInjectionSection data={rag_injection} />
+      <KnowledgeEnrichmentSection data={knowledge_enrichment} />
       <JournalInjectionSection
         data={journal_injection}
         plannerData={journal_planner_injection}
-        extraction={journal_extraction}
       />
+
+      {/* ── BACKGROUND EXTRACTION (after response, fire-and-forget) ── */}
+      <div className="pt-3 pb-1 px-1">
+        <div className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-semibold">
+          Background Extraction
+        </div>
+      </div>
+      <MemoryDetectionSection data={memory_detection} />
+      <JournalExtractionSection data={journal_extraction} />
+      <InterestProfileSection data={interest_profile} />
       <TokenBudgetSection data={token_budget} />
       <PlannerSection data={planner_intelligence} />
       <ExecutionSection data={execution_timeline} />

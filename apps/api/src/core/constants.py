@@ -3324,6 +3324,18 @@ JOURNAL_EMBEDDING_MODEL_DEFAULT = "text-embedding-3-small"  # OpenAI embedding m
 JOURNAL_EMBEDDING_DIMENSIONS_DEFAULT = 1536  # text-embedding-3-small dimensions
 
 # ============================================================================
+# USER MESSAGE EMBEDDING (Centralized embedding service)
+# ============================================================================
+# Shared embedding cache for user messages — used by memory injection, journal
+# injection, memory extraction dedup, and journal extraction pre-filter.
+# Cache key = md5(text[:500]), allows cross-node sharing (planner → response).
+
+USER_MESSAGE_EMBEDDING_TTL_SECONDS: int = 300  # 5 min cache TTL
+USER_MESSAGE_EMBEDDING_MAX_CACHE_SIZE: int = 100  # Max cached embeddings
+USER_MESSAGE_EMBEDDING_TRUNCATION_LENGTH: int = 500  # Max chars to embed
+USER_MESSAGE_TRIVIAL_MAX_LENGTH: int = 15  # Max chars for triviality check
+
+# ============================================================================
 # PHILIPS HUE (Smart Home — Hue Bridge CLIP v2 API)
 # ============================================================================
 # Local bridge discovery and press-link pairing

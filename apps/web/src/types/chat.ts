@@ -750,21 +750,24 @@ export interface InterestItem {
 }
 
 /**
- * ExtractedInterest - Interest extracted from current conversation (LLM analysis)
+ * ExtractedInterest - Interest extracted/updated/deleted from conversation by LLM
  */
 export interface ExtractedInterest {
+  action?: 'create' | 'update' | 'delete'; // Default: 'create' for backward compat
+  interest_id?: string | null; // UUID for update/delete
   topic: string;
   category: string;
   confidence: number; // LLM confidence (0.0-1.0)
 }
 
 /**
- * MatchingDecision - Deduplication decision for an extracted interest
+ * MatchingDecision - Action decision for an extracted interest
  */
 export interface MatchingDecision {
   extracted_topic: string;
-  action: 'consolidate' | 'create_new';
-  matched_interest: string | null; // Existing interest if action is 'consolidate'
+  action: 'consolidate' | 'create_new' | 'update' | 'delete';
+  interest_id?: string | null;
+  matched_interest: string | null;
   matched_category?: string;
   reason: string;
 }
@@ -944,15 +947,17 @@ export interface JournalExtractionMetrics {
 }
 
 /**
- * ExtractedMemory - Memory extracted from conversation by background LLM analysis
+ * ExtractedMemory - Memory extracted/updated/deleted from conversation by background LLM
  */
 export interface ExtractedMemory {
+  action?: 'create' | 'update' | 'delete'; // Default: 'create' for backward compat
+  memory_id?: string | null; // UUID for update/delete
   content: string;
   category: string; // preference | personal | relationship | event | pattern | sensitivity
   emotional_weight: number; // -10 (trauma) to +10 (joy)
   importance: number; // 0.0-1.0
-  trigger_topic: string;
-  stored: boolean; // Whether the memory was successfully persisted
+  trigger_topic?: string;
+  stored: boolean; // Whether the action was successfully applied
 }
 
 /**

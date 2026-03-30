@@ -36,7 +36,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.13.5</strong> — Debug Panel Memory Detection &amp; Conversation Deletion Fix — March 2026
+  <strong>Version 1.13.6</strong> — Centralized Embeddings, Memory PostgreSQL Migration &amp; Extraction Optimization — March 2026
 </p>
 
 ---

@@ -670,37 +670,26 @@ class UserService:
         )
 
     async def _get_memory_counts_batch(self, user_ids: list[UUID]) -> dict[UUID, int]:
-        """
-        Get memory counts for multiple users from LangGraph store.
+        """Get memory counts for multiple users from PostgreSQL.
 
-        Queries the semantic store to count memories per user.
-        Uses a single store connection with multiple namespace queries.
+        Uses the MemoryRepository for efficient COUNT queries.
 
         Args:
-            user_ids: List of user UUIDs to count memories for
+            user_ids: List of user UUIDs to count memories for.
 
         Returns:
-            Dict mapping user_id to memory count
+            Dict mapping user_id to memory count.
         """
-        from src.domains.agents.context.store import get_tool_context_store
-        from src.infrastructure.store.semantic_store import MemoryNamespace
+        from src.domains.memories.repository import MemoryRepository
 
         counts: dict[UUID, int] = {}
 
         try:
-            store = await get_tool_context_store()
+            repo = MemoryRepository(self.db)
 
-            # Query each user's namespace (optimized: minimal data retrieval)
             for user_id in user_ids:
                 try:
-                    namespace = MemoryNamespace(str(user_id))
-                    # Search with empty query to count all memories
-                    results = await store.asearch(
-                        namespace.to_tuple(),
-                        query="",
-                        limit=1000,  # Max memories to count
-                    )
-                    counts[user_id] = len(results)
+                    counts[user_id] = await repo.get_count_for_user(user_id)
                 except Exception as e:
                     logger.warning(
                         "memory_count_failed_for_user",
@@ -711,10 +700,10 @@ class UserService:
 
         except Exception as e:
             logger.warning(
-                "memory_store_unavailable",
+                "memory_count_batch_failed",
                 error=str(e),
             )
-            # Return empty counts if store unavailable
+            # Return empty counts if repo unavailable
             for user_id in user_ids:
                 counts[user_id] = 0
 

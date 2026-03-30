@@ -189,3 +189,58 @@ class MemoryPinResponse(BaseModel):
 
     id: str = Field(description="Memory identifier")
     pinned: bool = Field(description="New pinned state")
+
+
+# =============================================================================
+# Extraction Schemas (LLM output parsing)
+# =============================================================================
+
+
+class ExtractedMemory(BaseModel):
+    """Schema for a single memory action extracted by the LLM.
+
+    Supports create, update, and delete actions. Backward-compatible:
+    if no 'action' field is present, defaults to 'create'.
+
+    Used by memory_extractor.py to parse LLM output into typed objects
+    before applying via MemoryService.
+    """
+
+    action: Literal["create", "update", "delete"] = Field(
+        default="create",
+        description="Action type: create new, update existing, or delete existing.",
+    )
+    memory_id: str | None = Field(
+        default=None,
+        description="UUID of existing memory (required for update/delete, null for create).",
+    )
+    content: str | None = Field(
+        default=None,
+        description="Memory content in first person (required for create, optional for update).",
+    )
+    category: MemoryCategoryType | None = Field(
+        default=None,
+        description="Memory category (required for create, optional for update).",
+    )
+    emotional_weight: int | None = Field(
+        default=None,
+        ge=-10,
+        le=10,
+        description="Emotional weight from -10 (trauma) to +10 (joy).",
+    )
+    trigger_topic: str | None = Field(
+        default=None,
+        max_length=100,
+        description="Trigger keyword for this memory.",
+    )
+    usage_nuance: str | None = Field(
+        default=None,
+        max_length=300,
+        description="How the assistant should use this information.",
+    )
+    importance: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="Importance score from 0.0 to 1.0.",
+    )
