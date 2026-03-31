@@ -2752,6 +2752,45 @@ All 10 OAuth callbacks (Gmail, Google Contacts/Calendar/Drive/Tasks, Microsoft O
 
 ---
 
-**Dernière révision** : 2026-03-25
-**Prochaine révision** : 2026-06-25 (tous les 3 mois)
+## Dependency Vulnerability Management
+
+### Strategy
+
+Transitive dependency vulnerabilities are managed through a layered approach:
+
+1. **Dependabot** — Weekly PRs for direct dependency updates (pip, npm, Docker, GitHub Actions).
+2. **pnpm overrides** — Force safe versions of transitive dependencies when direct parents haven't updated yet. Overrides are defined in the root `package.json` and pinned to exact versions. See `docs/technical/CI_CD.md` for the full override table and process.
+3. **pip-audit + pnpm audit** — Automated scans in the `security.yml` CI workflow.
+4. **CodeQL** — Static analysis for Python and JavaScript (security-and-quality queries).
+
+### CodeQL Alert Remediation
+
+CodeQL alerts are triaged in GitHub Security > Code scanning. Common patterns:
+
+| Rule | Fix Pattern |
+|------|------------|
+| `py/empty-except` | Replace `pass` with `logger.debug("event_name", error=str(e))` using structlog |
+| `py/incomplete-url-substring-sanitization` | Replace `"domain" in url` with `urlparse()` domain validation |
+
+### URL Validation
+
+All URL domain checks must use proper parsing, never substring matching:
+
+```python
+from urllib.parse import urlparse
+
+def _is_trusted_domain(url: str, domain: str) -> bool:
+    try:
+        parsed = urlparse(url)
+        return (parsed.netloc or "").lower() == domain
+    except (ValueError, AttributeError):
+        return False
+```
+
+This prevents bypass via crafted URLs like `evil.com/?meet.google.com`.
+
+---
+
+**Dernière révision** : 2026-03-31
+**Prochaine révision** : 2026-06-30 (tous les 3 mois)
 **Responsable** : Security Team

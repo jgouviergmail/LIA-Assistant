@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **28 CI Test Failures** — Updated unit tests for v1.13.7 account lifecycle changes: mock `_get_memory_counts_batch`/`_get_interests_counts_batch` in search tests, set `deleted_at` on mock users for GDPR soft-delete prerequisite, add `is_deleted=False` to session dependency mocks, update prompt assertion for rewritten journal introspection prompt, fix memory extractor `_parse_items` to reject create actions with missing content/category.
+- **4 CodeQL Alerts** — Fixed 3 empty-except blocks (calendar_tools, runtime_helpers, devops_ssh_service) with structured logging. Fixed incomplete URL substring sanitization in event_card.py — replaced `"meet.google.com" in location` with `_is_meet_url()` using `urlparse` for proper domain validation.
+- **3 Dependency Vulnerabilities** — Fixed brace-expansion CVE-2024-4068 (medium, zero-step sequence DoS) and CVE-2025-5889 (low, ReDoS) via pnpm override pinned to 2.0.2. Fixed cryptography DNS constraint enforcement (low) via PR #75 bump to 46.0.6.
+
 ## [1.13.7] - 2026-03-31
 
 ### Added

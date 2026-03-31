@@ -254,6 +254,34 @@ La branche `main` est protegee avec les regles suivantes :
 
 Les updates mineures/patch sont groupees en une seule PR pour reduire le bruit.
 
+### Dependency Vulnerability Remediation (pnpm Overrides)
+
+When a transitive dependency has a known CVE but the direct dependency hasn't released a fix, use **pnpm overrides** in the root `package.json` to force a safe version:
+
+```json
+{
+  "pnpm": {
+    "overrides": {
+      "brace-expansion": "2.0.2"
+    }
+  }
+}
+```
+
+**Rules:**
+- Always pin to an **exact version** (no `>=` or `^`) — we control versions strictly.
+- Run `pnpm install` to regenerate the lockfile, then verify with `pnpm ls <package> --recursive`.
+- Document the CVE in the commit message and CHANGELOG.
+- Dismiss the Dependabot alert with reason `fix_started` and a reference to the commit.
+- Remove the override once the direct dependency updates its own dependency.
+
+**Current overrides** (see `package.json`):
+| Package | Pinned Version | Reason |
+|---------|---------------|--------|
+| `flatted` | 3.4.2 | Prototype pollution fix |
+| `picomatch` | 4.0.4 | ReDoS fix |
+| `brace-expansion` | 2.0.2 | CVE-2024-4068 (DoS) + CVE-2025-5889 (ReDoS) |
+
 ---
 
 ## Supply Chain Security
