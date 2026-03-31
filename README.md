@@ -36,7 +36,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.13.7</strong> — Account Lifecycle, Usage Limit Enforcement &amp; Background Task Protection — March 2026
+  <strong>Version 1.13.8</strong> — CI fixes, CodeQL remediation &amp; dependency vulnerability patches — March 2026
 </p>
 
 ---
