@@ -359,7 +359,7 @@ class DevOpsService:
                         if parsed.get("type") == "result":
                             result_line = line
                     except json.JSONDecodeError:
-                        pass
+                        continue  # Non-JSON lines are expected (progress output)
 
             await asyncio.wait_for(_read_stream(), timeout=timeout)
             await process.wait()

@@ -595,6 +595,17 @@ class TestSearchUsersByEmail:
 class TestSearchUsersAdmin:
     """Test UserService.search_users() - Admin search"""
 
+    @pytest.fixture(autouse=True)
+    def _mock_batch_counts(self, service):
+        """Mock batch count methods that require real DB access."""
+        with patch.object(
+            service, "_get_memory_counts_batch", new_callable=AsyncMock, return_value={}
+        ):
+            with patch.object(
+                service, "_get_interests_counts_batch", new_callable=AsyncMock, return_value={}
+            ):
+                yield
+
     async def test_search_users_basic(self, service, mock_repository, sample_user, admin_user):
         """Test basic admin user search."""
         # Arrange
@@ -975,6 +986,7 @@ class TestDeleteUserGDPR:
     ):
         """Test GDPR deletion of user."""
         # Arrange
+        sample_user.deleted_at = datetime.now(UTC)  # Must be soft-deleted first
         mock_repository.get_by_id.return_value = sample_user
         mock_repository.count_user_connectors.return_value = 3
         mock_repository.create_audit_log.return_value = AdminAuditLog(
@@ -1033,6 +1045,7 @@ class TestDeleteUserGDPR:
     ):
         """Test GDPR deletion creates detailed audit log."""
         # Arrange
+        sample_user.deleted_at = datetime.now(UTC)  # Must be soft-deleted first
         mock_repository.get_by_id.return_value = sample_user
         mock_repository.count_user_connectors.return_value = 5
         mock_repository.create_audit_log.return_value = AdminAuditLog(
@@ -1063,6 +1076,7 @@ class TestDeleteUserGDPR:
     ):
         """Test GDPR deletion of user with no connectors."""
         # Arrange
+        sample_user.deleted_at = datetime.now(UTC)  # Must be soft-deleted first
         mock_repository.get_by_id.return_value = sample_user
         mock_repository.count_user_connectors.return_value = 0
         mock_repository.create_audit_log.return_value = AdminAuditLog(
@@ -1300,6 +1314,17 @@ class TestInvalidateAllUserSessions:
 @pytest.mark.unit
 class TestEdgeCases:
     """Test edge cases and error scenarios."""
+
+    @pytest.fixture(autouse=True)
+    def _mock_batch_counts(self, service):
+        """Mock batch count methods that require real DB access."""
+        with patch.object(
+            service, "_get_memory_counts_batch", new_callable=AsyncMock, return_value={}
+        ):
+            with patch.object(
+                service, "_get_interests_counts_batch", new_callable=AsyncMock, return_value={}
+            ):
+                yield
 
     async def test_update_user_refresh_after_update(
         self, service, mock_repository, mock_db, sample_user

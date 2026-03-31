@@ -289,6 +289,14 @@ def _parse_extraction_result(result_text: str) -> list[ExtractedMemory]:
         for item in data:
             try:
                 entry = ExtractedMemory(**item)
+                # Reject create actions missing required content/category
+                if entry.action == "create" and (not entry.content or not entry.category):
+                    logger.debug(
+                        "memory_item_missing_required_fields",
+                        item=item,
+                        action=entry.action,
+                    )
+                    continue
                 entries.append(entry)
             except Exception as e:
                 logger.debug(

@@ -273,8 +273,8 @@ def handle_connector_api_error(
                 operation=operation,
                 status="error",
             ).inc()
-        except Exception:
-            pass  # Ignore errors in error tracking
+        except Exception as e:
+            logger.debug("metrics_counter_increment_failed", error=str(e))
 
     # Handle HTTPException (from connectors - API errors)
     if isinstance(error, HTTPException):
@@ -1509,8 +1509,8 @@ def emit_side_channel_chunk(
         queue = configurable.get("__side_channel_queue")
         if queue is not None:
             queue.put_nowait(chunk)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("emit_chat_stream_chunk_failed", error=str(e))
 
 
 __all__ = [

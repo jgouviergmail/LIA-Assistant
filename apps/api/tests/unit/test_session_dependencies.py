@@ -58,6 +58,7 @@ def create_mock_user(
     user.is_active = is_active
     user.is_verified = is_verified
     user.is_superuser = is_superuser
+    user.is_deleted = False
     user.full_name = "Test User"
     user.picture_url = None
     return user

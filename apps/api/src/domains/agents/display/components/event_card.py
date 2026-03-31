@@ -15,6 +15,7 @@ from __future__ import annotations
 import re
 from datetime import datetime
 from typing import Any
+from urllib.parse import urlparse
 
 import structlog
 
@@ -43,6 +44,24 @@ from src.domains.agents.display.components.base import (
 from src.domains.agents.display.icons import Icons, icon
 
 logger = structlog.get_logger(__name__)
+
+
+def _is_meet_url(text: str) -> bool:
+    """Check if text is or contains a Google Meet URL by parsing the domain.
+
+    Args:
+        text: Location string that may contain a Meet URL.
+
+    Returns:
+        True if text contains a valid meet.google.com domain.
+    """
+    try:
+        # Handle bare URLs and URLs embedded in location text
+        parsed = urlparse(text)
+        domain = (parsed.netloc or parsed.path.split("/")[0]).lower()
+        return domain == "meet.google.com"
+    except (ValueError, AttributeError, IndexError):
+        return False
 
 
 class EventCard(BaseComponent):
@@ -191,7 +210,7 @@ class EventCard(BaseComponent):
 
         # Directions if location (and not a Meet link)
         # Uses centralized build_directions_url for consistent behavior
-        if location and "meet.google.com" not in location:
+        if location and not _is_meet_url(location):
             actions.append(
                 {
                     "icon": Icons.DIRECTIONS,
@@ -295,7 +314,7 @@ class EventCard(BaseComponent):
         """Render location using v4 d-row component."""
         if not location:
             return ""
-        if "meet.google.com" in location:
+        if _is_meet_url(location):
             link = f'<a href="{escape_html(location)}" target="_blank">Google Meet</a>'
             return render_d_row(Icons.VIDEO_CALL, link)
         link = f'<a href="{build_directions_url(location)}" target="_blank">{escape_html(location)}</a>'

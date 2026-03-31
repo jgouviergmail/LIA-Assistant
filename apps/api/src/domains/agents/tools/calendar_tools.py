@@ -318,8 +318,8 @@ class SearchEventsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
         _user_tz = "UTC"
         try:
             _user_tz, _, _ = await get_user_preferences(self.runtime)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("calendar_get_user_preferences_failed", error=str(e))
 
         if not time_min:
             now = datetime.utcnow()

@@ -610,6 +610,17 @@ class TestUpdateUser:
 class TestSearchUsers:
     """Test search_users method (admin search)."""
 
+    @pytest.fixture(autouse=True)
+    def _mock_batch_counts(self):
+        """Mock batch count methods that require real DB access."""
+        with patch.object(
+            UserService, "_get_memory_counts_batch", new_callable=AsyncMock, return_value={}
+        ):
+            with patch.object(
+                UserService, "_get_interests_counts_batch", new_callable=AsyncMock, return_value={}
+            ):
+                yield
+
     @pytest.mark.asyncio
     @patch("src.core.pagination_helpers.calculate_total_pages")
     async def test_search_users_by_email_query(self, mock_calc_pages):
@@ -1110,6 +1121,7 @@ class TestDeleteUserGDPR:
         user_id = uuid.uuid4()
         admin_user_id = uuid.uuid4()
         mock_user = create_mock_user(user_id=user_id, email="user@example.com", is_superuser=False)
+        mock_user.deleted_at = datetime.now(UTC)  # Must be soft-deleted first
 
         service.repository.get_by_id = AsyncMock(return_value=mock_user)
         service.repository.count_user_connectors = AsyncMock(return_value=3)
@@ -1185,6 +1197,7 @@ class TestDeleteUserGDPR:
         user_id = uuid.uuid4()
         admin_user_id = uuid.uuid4()
         mock_user = create_mock_user(user_id=user_id, is_superuser=False)
+        mock_user.deleted_at = datetime.now(UTC)  # Must be soft-deleted first
 
         service.repository.get_by_id = AsyncMock(return_value=mock_user)
         service.repository.count_user_connectors = AsyncMock(return_value=0)
@@ -1228,6 +1241,7 @@ class TestDeleteUserGDPR:
             is_verified=True,
             is_active=True,
         )
+        mock_user.deleted_at = datetime.now(UTC)  # Must be soft-deleted first
 
         service.repository.get_by_id = AsyncMock(return_value=mock_user)
         service.repository.count_user_connectors = AsyncMock(return_value=5)
@@ -1268,6 +1282,7 @@ class TestDeleteUserGDPR:
         user_id = uuid.uuid4()
         admin_user_id = uuid.uuid4()
         mock_user = create_mock_user(user_id=user_id)
+        mock_user.deleted_at = datetime.now(UTC)  # Must be soft-deleted first
 
         service.repository.get_by_id = AsyncMock(return_value=mock_user)
         service.repository.count_user_connectors = AsyncMock(return_value=7)
