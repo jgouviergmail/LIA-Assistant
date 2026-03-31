@@ -1,6 +1,12 @@
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
+/** Available page sizes for the selector. */
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
+
+/** Default page size when none specified. */
+const DEFAULT_PAGE_SIZE = 20;
+
 export type PaginationVariant = 'centered' | 'justified';
 
 export interface PaginationProps {
@@ -23,17 +29,39 @@ export interface PaginationProps {
    * Layout variant
    * - 'centered': Buttons centered with page info in middle
    * - 'justified': Page info left, buttons right
-   * @default 'centered'
+   * @default 'justified'
    */
   variant?: PaginationVariant;
 
   /**
-   * Labels for buttons (i18n support)
+   * Total number of items (displayed in page info)
+   */
+  totalItems?: number;
+
+  /**
+   * Current page size (enables page size selector when provided with onPageSizeChange)
+   */
+  pageSize?: number;
+
+  /**
+   * Callback when page size changes
+   */
+  onPageSizeChange?: (size: number) => void;
+
+  /**
+   * Whether the table is currently loading (dims the controls)
+   */
+  loading?: boolean;
+
+  /**
+   * Labels for buttons and text (i18n support)
    */
   labels?: {
     previous?: string;
     next?: string;
     pageInfo?: (current: number, total: number) => string;
+    itemsPerPage?: string;
+    totalItems?: (count: number) => string;
   };
 
   /**
@@ -43,28 +71,26 @@ export interface PaginationProps {
 }
 
 /**
- * Pagination component with accessibility support
+ * Pagination component with accessibility support and optional page size selector.
  *
  * Features:
  * - Two layout variants (centered/justified)
+ * - Page size selector (10/20/50/100)
+ * - Total items display
  * - Keyboard navigation (Tab, Enter)
  * - ARIA navigation landmark
  * - Disabled states for first/last pages
  * - Customizable labels for i18n
- *
- * @example
- * <Pagination
- *   currentPage={page}
- *   totalPages={10}
- *   onPageChange={setPage}
- *   variant="centered"
- * />
  */
 export function Pagination({
   currentPage,
   totalPages,
   onPageChange,
-  variant = 'centered',
+  variant = 'justified',
+  totalItems,
+  pageSize,
+  onPageSizeChange,
+  loading = false,
   labels = {},
   className,
 }: PaginationProps) {
@@ -72,6 +98,8 @@ export function Pagination({
     previous = 'Précédent',
     next = 'Suivant',
     pageInfo = (current, total) => `Page ${current} / ${total}`,
+    itemsPerPage = 'par page',
+    totalItems: totalItemsLabel = (count) => `(${count} résultats)`,
   } = labels;
 
   const handlePrevious = () => {
@@ -86,7 +114,7 @@ export function Pagination({
     }
   };
 
-  // Keyboard support: Arrow keys
+  // Keyboard support
   const handleKeyDown = (e: React.KeyboardEvent, action: 'prev' | 'next') => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
@@ -98,90 +126,101 @@ export function Pagination({
     }
   };
 
-  if (totalPages <= 1) {
+  if (totalPages <= 1 && !onPageSizeChange) {
     return null;
   }
 
-  if (variant === 'justified') {
-    return (
-      <nav
-        className={cn('flex items-center justify-between', className)}
-        aria-label="Pagination"
-        role="navigation"
+  // Page size selector element (reused across variants)
+  const pageSizeSelector = onPageSizeChange ? (
+    <div className="flex items-center gap-1.5">
+      <select
+        value={pageSize ?? DEFAULT_PAGE_SIZE}
+        onChange={e => {
+          onPageSizeChange(Number(e.target.value));
+          onPageChange(1);
+        }}
+        disabled={loading}
+        className="h-8 rounded-md border border-input bg-background px-2 py-1 text-xs ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+        aria-label={itemsPerPage}
       >
-        {/* Page info - Left */}
-        <div className="text-sm text-gray-600" aria-live="polite" aria-atomic="true">
-          {pageInfo(currentPage, totalPages)}
-        </div>
+        {PAGE_SIZE_OPTIONS.map(size => (
+          <option key={size} value={size}>
+            {size}
+          </option>
+        ))}
+      </select>
+      <span className="text-xs text-muted-foreground">{itemsPerPage}</span>
+    </div>
+  ) : null;
 
-        {/* Buttons - Right */}
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handlePrevious}
-            onKeyDown={e => handleKeyDown(e, 'prev')}
-            disabled={currentPage === 1}
-            aria-label={`${previous}, page ${currentPage - 1}`}
-            aria-disabled={currentPage === 1}
-          >
-            {previous}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleNext}
-            onKeyDown={e => handleKeyDown(e, 'next')}
-            disabled={currentPage === totalPages}
-            aria-label={`${next}, page ${currentPage + 1}`}
-            aria-disabled={currentPage === totalPages}
-          >
-            {next}
-          </Button>
-        </div>
-      </nav>
-    );
-  }
+  // Page info text
+  const pageInfoText = (
+    <span aria-live="polite" aria-atomic="true">
+      {pageInfo(currentPage, totalPages)}
+      {totalItems !== undefined && (
+        <span className="ml-1">{totalItemsLabel(totalItems)}</span>
+      )}
+    </span>
+  );
 
-  // Default: centered variant
-  return (
-    <nav
-      className={cn('flex justify-center gap-2', className)}
-      aria-label="Pagination"
-      role="navigation"
-    >
+  // Navigation buttons
+  const navButtons = (
+    <div className="flex gap-1">
       <Button
         variant="outline"
         size="sm"
         onClick={handlePrevious}
         onKeyDown={e => handleKeyDown(e, 'prev')}
-        disabled={currentPage === 1}
+        disabled={currentPage === 1 || loading}
         aria-label={`${previous}, page ${currentPage - 1}`}
         aria-disabled={currentPage === 1}
       >
         {previous}
       </Button>
-
-      <span
-        className="flex items-center px-4 py-2 text-sm text-gray-700"
-        aria-live="polite"
-        aria-atomic="true"
-        aria-current="page"
-      >
-        {pageInfo(currentPage, totalPages)}
-      </span>
-
       <Button
         variant="outline"
         size="sm"
         onClick={handleNext}
         onKeyDown={e => handleKeyDown(e, 'next')}
-        disabled={currentPage === totalPages}
+        disabled={currentPage === totalPages || totalPages === 0 || loading}
         aria-label={`${next}, page ${currentPage + 1}`}
         aria-disabled={currentPage === totalPages}
       >
         {next}
       </Button>
+    </div>
+  );
+
+  if (variant === 'centered') {
+    return (
+      <nav
+        className={cn('flex flex-col gap-2', className)}
+        aria-label="Pagination"
+        role="navigation"
+      >
+        <div className="flex justify-center items-center gap-2">
+          {navButtons}
+        </div>
+        <div className="flex items-center justify-between text-xs text-muted-foreground">
+          {pageSizeSelector ?? <span />}
+          {pageInfoText}
+        </div>
+      </nav>
+    );
+  }
+
+  // Default: justified variant
+  return (
+    <nav
+      className={cn('flex items-center justify-between text-xs text-muted-foreground', className)}
+      aria-label="Pagination"
+      role="navigation"
+    >
+      <div className="flex items-center gap-3">
+        {pageSizeSelector}
+        {pageInfoText}
+      </div>
+      {navButtons}
     </nav>
   );
 }

@@ -83,7 +83,7 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
 
   // Pagination and sorting state
   const [page, setPage] = useState(1);
-  const [pageSize] = useState(ADMIN_LLM_PRICING_PAGE_SIZE);
+  const [pageSize, setPageSize] = useState(ADMIN_LLM_PRICING_PAGE_SIZE);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [sortBy, setSortBy] = useState<
@@ -486,7 +486,17 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
         currentPage={page}
         totalPages={totalPages}
         onPageChange={setPage}
+        pageSize={pageSize}
+        onPageSizeChange={setPageSize}
+        totalItems={total}
+        loading={loading}
         variant="justified"
+        labels={{
+          previous: t('common.previous'),
+          next: t('common.next'),
+          itemsPerPage: t('common.pagination.items_per_page'),
+          totalItems: (count) => t('common.pagination.total_items', { count }),
+        }}
         className="mt-4 px-4"
       />
 

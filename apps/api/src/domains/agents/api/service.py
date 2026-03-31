@@ -1753,9 +1753,15 @@ class AgentService(
                     error_type=type(e).__name__,
                 )
 
+                # User-friendly error message (never expose raw API errors)
+                from src.domains.agents.api.error_messages import SSEErrorMessages
+
+                error_message = SSEErrorMessages.stream_error(
+                    e, language=user_language  # type: ignore[arg-type]
+                )
                 yield ChatStreamChunk(
                     type="error",
-                    content=f"Error in new service architecture: {str(e)}",
+                    content=error_message,
                     metadata={
                         FIELD_ERROR_TYPE: type(e).__name__,
                     },

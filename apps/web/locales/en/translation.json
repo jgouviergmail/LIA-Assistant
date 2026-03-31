@@ -15,6 +15,10 @@
     "next_short": "Next",
     "previous": "Previous",
     "previous_short": "Prev.",
+    "pagination": {
+      "items_per_page": "per page",
+      "total_items": "({{count}} results)"
+    },
     "confirm": "Confirm",
     "yes": "Yes",
     "no": "No",
@@ -1048,6 +1052,7 @@
         "description": "Manage user accounts, their roles and settings",
         "search_placeholder": "Search by email or name...",
         "search_aria": "Search users by email or name",
+        "page_info": "Page {{page}} of {{totalPages}} ({{total}} users)",
         "table": {
           "email": "Email",
           "name": "Name",

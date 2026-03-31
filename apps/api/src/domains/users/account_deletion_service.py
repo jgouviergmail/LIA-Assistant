@@ -412,7 +412,15 @@ class AccountDeletionService:
         Returns:
             1 if directory existed and was removed, 0 if no directory found.
         """
-        user_dir = Path(settings.attachments_storage_path) / str(user_id)
+        base_dir = Path(settings.attachments_storage_path).resolve()
+        user_dir = (base_dir / str(user_id)).resolve()
+        if not user_dir.is_relative_to(base_dir):
+            logger.warning(
+                "account_deletion_path_traversal_blocked",
+                user_id=str(user_id),
+                resolved_path=str(user_dir),
+            )
+            return 0
         if user_dir.exists():
             shutil.rmtree(user_dir, ignore_errors=True)
             logger.info(
@@ -434,7 +442,15 @@ class AccountDeletionService:
         Returns:
             1 if directory existed and was deleted, 0 otherwise.
         """
-        user_dir = Path(settings.rag_spaces_storage_path) / str(user_id)
+        base_dir = Path(settings.rag_spaces_storage_path).resolve()
+        user_dir = (base_dir / str(user_id)).resolve()
+        if not user_dir.is_relative_to(base_dir):
+            logger.warning(
+                "account_deletion_path_traversal_blocked",
+                user_id=str(user_id),
+                resolved_path=str(user_dir),
+            )
+            return 0
         if user_dir.exists():
             shutil.rmtree(user_dir, ignore_errors=True)
             logger.info(

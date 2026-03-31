@@ -45,18 +45,30 @@ class SSEErrorMessages:
         Returns:
             User-friendly error message with recovery guidance
         """
-        # Check for LLM provider transient errors first
+        # Check for LLM provider transient errors first (all providers)
         error_str = str(exception).lower()
         error_type = type(exception).__name__
 
-        if (
+        transient_patterns = (
             "overloaded" in error_str
-            or "529" in error_str
-            or error_type == "OverloadedError"
             or "rate_limit" in error_str
-            or "429" in error_str
-            or error_type == "RateLimitError"
-        ):
+            or "resource_exhausted" in error_str
+            or "service_unavailable" in error_str
+            or "server_error" in error_str
+            or "capacity" in error_str
+            or any(code in error_str for code in ("429", "500", "502", "503", "529"))
+        )
+        transient_types = error_type in (
+            "OverloadedError",
+            "RateLimitError",
+            "APITimeoutError",
+            "InternalServerError",
+            "APIConnectionError",
+            "ServiceUnavailableError",
+            "APIStatusError",
+        )
+
+        if transient_patterns or transient_types:
             return SSEErrorMessages._llm_provider_busy(language)
 
         messages = {
@@ -85,18 +97,34 @@ class SSEErrorMessages:
         Returns:
             User-friendly error message for stream errors
         """
-        # Detect LLM provider transient errors (overloaded, rate limit, 529, 529)
+        # Detect LLM provider transient errors across all providers
+        # Anthropic: OverloadedError/529, RateLimitError/429, APIStatusError
+        # OpenAI: RateLimitError/429, APITimeoutError, InternalServerError/500
+        # DeepSeek/Gemini: 503 ServiceUnavailable, ResourceExhausted
+        # All: APIConnectionError, APITimeoutError
         error_str = str(exception).lower()
         error_type_name = type(exception).__name__
 
-        is_overloaded = (
-            "overloaded" in error_str or "529" in error_str or error_type_name == "OverloadedError"
+        transient_patterns = (
+            "overloaded" in error_str
+            or "rate_limit" in error_str
+            or "resource_exhausted" in error_str
+            or "service_unavailable" in error_str
+            or "server_error" in error_str
+            or "capacity" in error_str
+            or any(code in error_str for code in ("429", "500", "502", "503", "529"))
         )
-        is_rate_limited = (
-            "rate_limit" in error_str or "429" in error_str or error_type_name == "RateLimitError"
+        transient_types = error_type_name in (
+            "OverloadedError",
+            "RateLimitError",
+            "APITimeoutError",
+            "InternalServerError",
+            "APIConnectionError",
+            "ServiceUnavailableError",
+            "APIStatusError",
         )
 
-        if is_overloaded or is_rate_limited:
+        if transient_patterns or transient_types:
             return SSEErrorMessages._llm_provider_busy(language)
 
         messages = {
@@ -123,31 +151,35 @@ class SSEErrorMessages:
         """
         messages = {
             "fr": (
-                "Le service d'intelligence artificielle est temporairement surchargé. "
-                "Votre demande a bien été traitée mais la formulation de la réponse a échoué. "
+                "Le fournisseur du modèle d'IA rencontre actuellement des difficultés techniques. "
+                "Ce problème est indépendant de notre service et devrait se résoudre rapidement. "
                 "Veuillez réessayer dans quelques instants."
             ),
             "en": (
-                "The AI service is temporarily overloaded. "
-                "Your request was processed but the response generation failed. "
+                "The AI model provider is currently experiencing technical difficulties. "
+                "This issue is independent of our service and should resolve shortly. "
                 "Please try again in a few moments."
             ),
             "es": (
-                "El servicio de inteligencia artificial está temporalmente sobrecargado. "
-                "Su solicitud fue procesada pero la generación de la respuesta falló. "
+                "El proveedor del modelo de IA está experimentando dificultades técnicas. "
+                "Este problema es independiente de nuestro servicio y debería resolverse pronto. "
                 "Por favor, inténtelo de nuevo en unos momentos."
             ),
             "de": (
-                "Der KI-Dienst ist vorübergehend überlastet. "
-                "Ihre Anfrage wurde verarbeitet, aber die Antwortgenerierung ist fehlgeschlagen. "
+                "Der KI-Modellanbieter hat derzeit technische Schwierigkeiten. "
+                "Dieses Problem ist unabhängig von unserem Dienst und sollte sich bald beheben. "
                 "Bitte versuchen Sie es in einigen Augenblicken erneut."
             ),
             "it": (
-                "Il servizio di intelligenza artificiale è temporaneamente sovraccarico. "
-                "La tua richiesta è stata elaborata ma la generazione della risposta è fallita. "
+                "Il fornitore del modello di IA sta riscontrando difficoltà tecniche. "
+                "Questo problema è indipendente dal nostro servizio e dovrebbe risolversi a breve. "
                 "Per favore, riprova tra qualche istante."
             ),
-            "zh-CN": ("AI服务暂时过载。" "您的请求已处理，但响应生成失败。" "请稍后重试。"),
+            "zh-CN": (
+                "AI模型提供商目前遇到技术问题。"
+                "此问题与我们的服务无关，应该很快会恢复。"
+                "请稍后重试。"
+            ),
         }
 
         return messages.get(language, messages["en"])

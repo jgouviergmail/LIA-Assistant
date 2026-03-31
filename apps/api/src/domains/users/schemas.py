@@ -181,7 +181,16 @@ class UserSearchParams(BaseModel):
     page: int = Field(1, ge=1, description="Page number")
     page_size: int = Field(10, ge=1, le=100, description="Items per page")
     sort_by: str = Field(
-        "created_at", description="Sort column (email, full_name, created_at, is_active)"
+        "created_at",
+        description=(
+            "Sort column. User fields: email, full_name, created_at, is_active, language, "
+            "voice_enabled, memory_enabled, tokens_display_enabled. "
+            "Statistics: total_messages, total_tokens, total_cost_eur, total_google_api_requests, "
+            "cycle_messages, cycle_tokens, cycle_cost_eur, cycle_google_api_requests. "
+            "Counts: active_connectors_count, memories_count, interests_count, skills_count, "
+            "mcp_servers_count, scheduled_actions_count, rag_spaces_count. "
+            "Other: last_message_at, is_usage_blocked."
+        ),
     )
     sort_order: str = Field("desc", description="Sort order (asc or desc)")
 

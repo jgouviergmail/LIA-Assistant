@@ -10,6 +10,7 @@ import { logger } from '@/lib/logger';
 import { formatEuro } from '@/lib/format';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Pagination } from '@/components/ui/pagination';
 import { UsageGauge } from '@/components/usage/UsageGauge';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { AdminUsageLimitsEditModal } from '@/components/settings/AdminUsageLimitsEditModal';
@@ -18,7 +19,7 @@ import type {
   AdminUserUsageLimitResponse,
 } from '@/types/usage-limits';
 
-const PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 20;
 
 interface AdminUsageLimitsSectionProps {
   lng: string;
@@ -39,6 +40,7 @@ export function AdminUsageLimitsSection({ lng: _lng }: AdminUsageLimitsSectionPr
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'email' | 'is_usage_blocked' | 'created_at'>('created_at');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -52,7 +54,7 @@ export function AdminUsageLimitsSection({ lng: _lng }: AdminUsageLimitsSectionPr
     try {
       const params: Record<string, string | number> = {
         page,
-        page_size: PAGE_SIZE,
+        page_size: pageSize,
         sort_by: sortBy,
         sort_order: sortOrder,
       };
@@ -78,7 +80,7 @@ export function AdminUsageLimitsSection({ lng: _lng }: AdminUsageLimitsSectionPr
     } finally {
       setLoading(false);
     }
-  }, [page, search, sortBy, sortOrder, t]);
+  }, [page, pageSize, search, sortBy, sortOrder, t]);
 
   useEffect(() => {
     fetchUsers();
@@ -360,29 +362,25 @@ export function AdminUsageLimitsSection({ lng: _lng }: AdminUsageLimitsSectionPr
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between mt-4 text-xs text-muted-foreground">
-          <span>{t('usage_limits.table.page_info', { page, totalPages, total })}</span>
-          <div className="flex gap-1">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page <= 1 || loading}
-              onClick={() => setPage(p => p - 1)}
-            >
-              {t('common.previous')}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={page >= totalPages || loading}
-              onClick={() => setPage(p => p + 1)}
-            >
-              {t('common.next')}
-            </Button>
-          </div>
-        </div>
-      )}
+      <Pagination
+        currentPage={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+        pageSize={pageSize}
+        onPageSizeChange={setPageSize}
+        totalItems={total}
+        loading={loading}
+        variant="justified"
+        labels={{
+          previous: t('common.previous'),
+          next: t('common.next'),
+          pageInfo: (current, pages) =>
+            t('usage_limits.table.page_info', { page: current, totalPages: pages, total }),
+          itemsPerPage: t('common.pagination.items_per_page'),
+          totalItems: (count) => t('common.pagination.total_items', { count }),
+        }}
+        className="mt-4"
+      />
 
       {/* Edit Modal */}
       {editUser && (

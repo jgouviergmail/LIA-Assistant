@@ -2771,6 +2771,7 @@ CodeQL alerts are triaged in GitHub Security > Code scanning. Common patterns:
 |------|------------|
 | `py/empty-except` | Replace `pass` with `logger.debug("event_name", error=str(e))` using structlog |
 | `py/incomplete-url-substring-sanitization` | Replace `"domain" in url` with `urlparse()` domain validation |
+| `py/path-injection` | Validate resolved path stays within base directory: `Path.resolve()` + `is_relative_to(base_dir)` |
 
 ### URL Validation
 
@@ -2791,6 +2792,6 @@ This prevents bypass via crafted URLs like `evil.com/?meet.google.com`.
 
 ---
 
-**Dernière révision** : 2026-03-31
+**Dernière révision** : 2026-04-01
 **Prochaine révision** : 2026-06-30 (tous les 3 mois)
 **Responsable** : Security Team

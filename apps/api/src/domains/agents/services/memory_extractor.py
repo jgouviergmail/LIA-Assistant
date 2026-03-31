@@ -112,7 +112,10 @@ async def _persist_memory_tokens(
             try:
                 conv_uuid = UUID(conversation_id)
             except ValueError:
-                pass
+                logger.debug(
+                    "memory_extractor_invalid_conversation_id",
+                    conversation_id=conversation_id,
+                )
 
         async with TrackingContext(
             run_id=run_id,
@@ -332,7 +335,7 @@ def _parse_extraction_result(result_text: str) -> list[ExtractedMemory]:
                         logger.info("extraction_json_recovered", recovered_count=len(items))
                         return items
             except json.JSONDecodeError:
-                pass
+                logger.debug("extraction_json_recovery_failed", raw=extracted[:200])
 
         return []
 

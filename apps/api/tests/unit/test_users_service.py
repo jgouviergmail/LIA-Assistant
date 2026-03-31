@@ -610,7 +610,7 @@ class TestSearchUsersAdmin:
         """Test basic admin user search."""
         # Arrange
         mock_repository.get_users_with_stats_paginated.return_value = [
-            (sample_user, None, 0, None, 0, 0, 0, 0, False)
+            (sample_user, None, 0, None, 0, 0, 0, 0, False, 0, 0)
         ]
         mock_repository.count_users.return_value = 1
 
@@ -630,7 +630,7 @@ class TestSearchUsersAdmin:
         """Test searching users with query string."""
         # Arrange
         mock_repository.get_users_with_stats_paginated.return_value = [
-            (sample_user, None, 0, None, 0, 0, 0, 0, False)
+            (sample_user, None, 0, None, 0, 0, 0, 0, False, 0, 0)
         ]
         mock_repository.count_users.return_value = 1
 
@@ -652,7 +652,7 @@ class TestSearchUsersAdmin:
         """Test searching users filtered by active status."""
         # Arrange
         mock_repository.get_users_with_stats_paginated.return_value = [
-            (sample_user, None, 0, None, 0, 0, 0, 0, False)
+            (sample_user, None, 0, None, 0, 0, 0, 0, False, 0, 0)
         ]
         mock_repository.count_users.return_value = 1
 
@@ -673,7 +673,7 @@ class TestSearchUsersAdmin:
         """Test searching users filtered by verified status."""
         # Arrange
         mock_repository.get_users_with_stats_paginated.return_value = [
-            (sample_user, None, 0, None, 0, 0, 0, 0, False)
+            (sample_user, None, 0, None, 0, 0, 0, 0, False, 0, 0)
         ]
         mock_repository.count_users.return_value = 1
 
@@ -689,7 +689,7 @@ class TestSearchUsersAdmin:
         """Test searching users filtered by superuser status."""
         # Arrange
         mock_repository.get_users_with_stats_paginated.return_value = [
-            (admin_user, None, 0, None, 0, 0, 0, 0, False)
+            (admin_user, None, 0, None, 0, 0, 0, 0, False, 0, 0)
         ]
         mock_repository.count_users.return_value = 1
 
@@ -708,7 +708,7 @@ class TestSearchUsersAdmin:
         """Test searching users with custom sort."""
         # Arrange
         mock_repository.get_users_with_stats_paginated.return_value = [
-            (sample_user, None, 0, None, 0, 0, 0, 0, False)
+            (sample_user, None, 0, None, 0, 0, 0, 0, False, 0, 0)
         ]
         mock_repository.count_users.return_value = 1
 
@@ -726,7 +726,7 @@ class TestSearchUsersAdmin:
         """Test searching users with pagination."""
         # Arrange
         mock_repository.get_users_with_stats_paginated.return_value = [
-            (sample_user, None, 0, None, 0, 0, 0, 0, False)
+            (sample_user, None, 0, None, 0, 0, 0, 0, False, 0, 0)
         ] * 10
         mock_repository.count_users.return_value = 50
 
@@ -747,7 +747,7 @@ class TestSearchUsersAdmin:
         """Test searching users with multiple filters."""
         # Arrange
         mock_repository.get_users_with_stats_paginated.return_value = [
-            (sample_user, None, 0, None, 0, 0, 0, 0, False)
+            (sample_user, None, 0, None, 0, 0, 0, 0, False, 0, 0)
         ]
         mock_repository.count_users.return_value = 1
 
@@ -1384,7 +1384,7 @@ class TestEdgeCases:
         """Test searching users with empty query."""
         # Arrange
         mock_repository.get_users_with_stats_paginated.return_value = [
-            (sample_user, None, 0, None, 0, 0, 0, 0, False)
+            (sample_user, None, 0, None, 0, 0, 0, 0, False, 0, 0)
         ]
         mock_repository.count_users.return_value = 1
 
@@ -1404,7 +1404,7 @@ class TestEdgeCases:
         """Test searching users with None query."""
         # Arrange
         mock_repository.get_users_with_stats_paginated.return_value = [
-            (sample_user, None, 0, None, 0, 0, 0, 0, False)
+            (sample_user, None, 0, None, 0, 0, 0, 0, False, 0, 0)
         ]
         mock_repository.count_users.return_value = 1
 

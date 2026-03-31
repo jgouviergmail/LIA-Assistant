@@ -15,6 +15,10 @@
     "next_short": "Vor",
     "previous": "Zurück",
     "previous_short": "Zur.",
+    "pagination": {
+      "items_per_page": "pro Seite",
+      "total_items": "({{count}} Ergebnisse)"
+    },
     "confirm": "Bestätigen",
     "yes": "Ja",
     "no": "Nein",
@@ -895,6 +899,7 @@
         "description": "Verwalten Sie Benutzerkonten, ihre Rollen und Einstellungen",
         "search_placeholder": "Nach E-Mail oder Name suchen...",
         "search_aria": "Benutzer nach E-Mail oder Name suchen",
+        "page_info": "Seite {{page}} von {{totalPages}} ({{total}} Benutzer)",
         "table": {
           "email": "E-Mail",
           "name": "Name",

@@ -36,7 +36,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.13.8</strong> — CI fixes, CodeQL remediation &amp; dependency vulnerability patches — March 2026
+  <strong>Version 1.13.9</strong> — Admin pagination &amp; sorting enhancements, image generation pricing, CodeQL fixes — April 2026
 </p>
 
 ---

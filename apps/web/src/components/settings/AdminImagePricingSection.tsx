@@ -23,8 +23,6 @@ import type { Language } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import type { BaseSettingsProps } from '@/types/settings';
 
-const PAGE_SIZE = 20;
-
 interface ImagePricing {
   id: string;
   model: string;
@@ -79,6 +77,7 @@ export default function AdminImagePricingSection({ lng, collapsible = true }: Ba
   const [isPending, startTransition] = useTransition();
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [sortBy, setSortBy] = useState<'model' | 'quality' | 'size' | 'cost_per_image_usd'>(
@@ -92,7 +91,7 @@ export default function AdminImagePricingSection({ lng, collapsible = true }: Ba
       try {
         const params = new URLSearchParams({
           page: page.toString(),
-          page_size: PAGE_SIZE.toString(),
+          page_size: pageSize.toString(),
           sort_by: sortBy,
           sort_order: sortOrder,
         });
@@ -117,7 +116,7 @@ export default function AdminImagePricingSection({ lng, collapsible = true }: Ba
         setLoading(false);
       }
     },
-    [page, sortBy, sortOrder, searchQuery, t]
+    [page, pageSize, sortBy, sortOrder, searchQuery, t]
   );
 
   useEffect(() => {
@@ -363,7 +362,17 @@ export default function AdminImagePricingSection({ lng, collapsible = true }: Ba
         currentPage={page}
         totalPages={totalPages}
         onPageChange={setPage}
+        pageSize={pageSize}
+        onPageSizeChange={setPageSize}
+        totalItems={total}
+        loading={loading}
         variant="justified"
+        labels={{
+          previous: t('common.previous'),
+          next: t('common.next'),
+          itemsPerPage: t('common.pagination.items_per_page'),
+          totalItems: (count) => t('common.pagination.total_items', { count }),
+        }}
         className="mt-4 px-4"
       />
 

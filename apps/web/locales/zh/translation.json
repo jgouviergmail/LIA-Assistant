@@ -15,6 +15,10 @@
     "next_short": "下一",
     "previous": "上一个",
     "previous_short": "上一",
+    "pagination": {
+      "items_per_page": "每页",
+      "total_items": "(共 {{count}} 条)"
+    },
     "confirm": "确认",
     "yes": "是",
     "no": "否",
@@ -903,6 +907,7 @@
         "description": "管理用户账户、角色和设置",
         "search_placeholder": "按电子邮件或名称搜索...",
         "search_aria": "按电子邮件或名称搜索用户",
+        "page_info": "第 {{page}} 页，共 {{totalPages}} 页（{{total}} 个用户）",
         "table": {
           "email": "电子邮件",
           "name": "名称",

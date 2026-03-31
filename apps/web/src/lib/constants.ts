@@ -21,7 +21,7 @@ export const DEFAULT_PAGE_SIZE = 10;
  * Admin views typically display more items per page for efficiency.
  * Maximum value allowed by backend is 100 (MAX_PAGE_SIZE in pagination_helpers.py).
  */
-export const ADMIN_DEFAULT_PAGE_SIZE = 100;
+export const ADMIN_DEFAULT_PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
 /**
  * Maximum page size allowed by the backend.
@@ -41,17 +41,17 @@ export const MIN_PAGE_SIZE = 1;
 /**
  * Page size for LLM pricing administration.
  */
-export const ADMIN_LLM_PRICING_PAGE_SIZE = ADMIN_DEFAULT_PAGE_SIZE;
+export const ADMIN_LLM_PRICING_PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
 /**
  * Page size for user administration.
  */
-export const ADMIN_USERS_PAGE_SIZE = ADMIN_DEFAULT_PAGE_SIZE;
+export const ADMIN_USERS_PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
 /**
  * Page size for Google API pricing administration.
  */
-export const ADMIN_GOOGLE_API_PRICING_PAGE_SIZE = 20;
+export const ADMIN_GOOGLE_API_PRICING_PAGE_SIZE = DEFAULT_PAGE_SIZE;
 
 // ============================================================================
 // DEBOUNCE DELAYS (milliseconds)

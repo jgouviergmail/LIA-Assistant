@@ -393,7 +393,21 @@ class UserRepository(BaseRepository[User]):
         page_size: int,
         sort_by: str = "created_at",
         sort_order: str = "desc",
-    ) -> list[tuple[User, UserStatistics | None, int, datetime | None, int, int, int, int, bool]]:
+    ) -> list[
+        tuple[
+            User,
+            UserStatistics | None,
+            int,
+            datetime | None,
+            int,
+            int,
+            int,
+            int,
+            bool,
+            int,
+            int,
+        ]
+    ]:
         """
         Get paginated users with their statistics and additional counts.
 
@@ -407,9 +421,11 @@ class UserRepository(BaseRepository[User]):
         Returns:
             List of tuples (User, UserStatistics or None, active_connectors_count,
             last_message_at, skills_count, mcp_servers_count, scheduled_actions_count,
-            rag_spaces_count, is_usage_blocked)
+            rag_spaces_count, is_usage_blocked, memories_count, interests_count)
         """
         # Late imports to avoid circular dependencies
+        from src.domains.interests.models import UserInterest
+        from src.domains.memories.models import Memory
         from src.domains.rag_spaces.models import RAGSpace
         from src.domains.scheduled_actions.models import ScheduledAction
         from src.domains.skills.models import Skill
@@ -475,6 +491,22 @@ class UserRepository(BaseRepository[User]):
             .scalar_subquery()
         )
 
+        # Subquery for memories count
+        memories_count_subq = (
+            select(func.count(Memory.id))
+            .where(Memory.user_id == User.id)
+            .correlate(User)
+            .scalar_subquery()
+        )
+
+        # Subquery for interests count
+        interests_count_subq = (
+            select(func.count(UserInterest.id))
+            .where(UserInterest.user_id == User.id)
+            .correlate(User)
+            .scalar_subquery()
+        )
+
         # Build base query with LEFT JOIN to UserStatistics and subqueries
         stmt = (
             select(
@@ -487,17 +519,80 @@ class UserRepository(BaseRepository[User]):
                 scheduled_actions_count_subq.label("scheduled_actions_count"),
                 rag_spaces_count_subq.label("rag_spaces_count"),
                 is_usage_blocked_subq.label("is_usage_blocked"),
+                memories_count_subq.label("memories_count"),
+                interests_count_subq.label("interests_count"),
             )
             .outerjoin(UserStatistics, User.id == UserStatistics.user_id)
             .where(*filters)
         )
 
+        # Build sort column mapping for non-User-model fields
+        # COALESCE wraps all nullable expressions so NULLs sort as 0, not inconsistently
+        from sqlalchemy import literal_column
+
+        stats_sort_map = {
+            # UserStatistics direct fields (COALESCE for NULL when no stats row)
+            "total_messages": func.coalesce(UserStatistics.total_messages, 0),
+            "total_google_api_requests": func.coalesce(UserStatistics.total_google_api_requests, 0),
+            "cycle_messages": func.coalesce(UserStatistics.cycle_messages, 0),
+            "cycle_google_api_requests": func.coalesce(UserStatistics.cycle_google_api_requests, 0),
+            # Computed: total_tokens = prompt + completion + cached
+            "total_tokens": (
+                func.coalesce(UserStatistics.total_prompt_tokens, 0)
+                + func.coalesce(UserStatistics.total_completion_tokens, 0)
+                + func.coalesce(UserStatistics.total_cached_tokens, 0)
+            ),
+            # Computed: total_cost = LLM + Google API + Image Generation
+            "total_cost_eur": (
+                func.coalesce(UserStatistics.total_cost_eur, 0)
+                + func.coalesce(UserStatistics.total_google_api_cost_eur, 0)
+                + func.coalesce(UserStatistics.total_image_generation_cost_eur, 0)
+            ),
+            # Computed: cycle_tokens = prompt + completion + cached
+            "cycle_tokens": (
+                func.coalesce(UserStatistics.cycle_prompt_tokens, 0)
+                + func.coalesce(UserStatistics.cycle_completion_tokens, 0)
+                + func.coalesce(UserStatistics.cycle_cached_tokens, 0)
+            ),
+            # Computed: cycle_cost = LLM + Google API + Image Generation
+            "cycle_cost_eur": (
+                func.coalesce(UserStatistics.cycle_cost_eur, 0)
+                + func.coalesce(UserStatistics.cycle_google_api_cost_eur, 0)
+                + func.coalesce(UserStatistics.cycle_image_generation_cost_eur, 0)
+            ),
+        }
+
+        # Subquery labels (already defined as labeled columns in the SELECT)
+        subquery_sort_fields = {
+            "active_connectors_count",
+            "last_message_at",
+            "skills_count",
+            "mcp_servers_count",
+            "scheduled_actions_count",
+            "rag_spaces_count",
+            "is_usage_blocked",
+            "memories_count",
+            "interests_count",
+        }
+
         # Apply dynamic sorting
-        sort_column = getattr(User, sort_by, User.created_at)
-        if sort_order.lower() == "desc":
-            stmt = stmt.order_by(sort_column.desc())
+        from typing import Any
+
+        from sqlalchemy import nulls_last
+
+        sort_expr: Any
+        if sort_by in stats_sort_map:
+            sort_expr = stats_sort_map[sort_by]
+        elif sort_by in subquery_sort_fields:
+            sort_expr = literal_column(sort_by)
         else:
-            stmt = stmt.order_by(sort_column.asc())
+            sort_expr = getattr(User, sort_by, User.created_at)
+
+        # NULLS LAST ensures users with no data always appear at the bottom
+        if sort_order.lower() == "desc":
+            stmt = stmt.order_by(nulls_last(sort_expr.desc()))
+        else:
+            stmt = stmt.order_by(nulls_last(sort_expr.asc()))
 
         # Apply pagination
         stmt = stmt.offset(offset).limit(page_size)
@@ -515,6 +610,8 @@ class UserRepository(BaseRepository[User]):
                 row[6] or 0,
                 row[7] or 0,
                 bool(row[8]),
+                row[9] or 0,
+                row[10] or 0,
             )
             for row in result.all()
         ]

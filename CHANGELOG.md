@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.13.9] - 2026-04-01
+
+### Added
+
+- **Admin Pagination — Page Size Selector** — All 5 admin tables (Users, Usage Limits, LLM Pricing, Google API Pricing, Image Generation Pricing) now feature a page size selector (10/20/50/100, default 20) with total items count display. Shared `<Pagination>` component enriched with `pageSize`, `onPageSizeChange`, `totalItems`, and `loading` props. (`pagination.tsx`, all Admin*Section components)
+- **Admin Users — Full Column Sorting** — All 23 data columns in the admin users table are now sortable, including statistics (messages, tokens, cost), resource counts (connectors, skills, MCP servers, scheduled actions, RAG spaces), preferences (language, voice, memory, tokens display), usage blocked status, and last message date. Backend `getattr()` sorting replaced with a 3-tier mapping: User model fields, COALESCE-wrapped UserStatistics expressions, and labeled subquery columns. (`repository.py`, `AdminUsersSection.tsx`)
+- **Admin Users — Memories & Interests Sortable** — Memory count and interest count moved from service-layer batch queries to SQL subqueries in the repository, enabling server-side sorting. Previously unsortable icon columns now clickable. (`repository.py`, `service.py`)
+- **Image Generation Pricing — gpt-image-1.5 & gpt-image-1-mini** — Added 18 pricing entries (9 per model: 3 qualities × 3 sizes) for OpenAI's new image models. Applied to both DEV and PROD databases. Seed file already contained the data. (`image_generation_pricing_seed.sql`)
+
+### Fixed
+
+- **Admin Users Sort Consistency** — Fixed inconsistent sort order on statistics columns where NULL values (users without UserStatistics row from LEFT JOIN) appeared mixed with zero values. All statistics sort expressions now wrapped with `func.coalesce(..., 0)` and `nulls_last()` applied to all ORDER BY directions. (`repository.py`)
+- **CodeQL — 4 Path Injection Alerts** — `_cleanup_attachment_files()` and `_cleanup_rag_files()` in account deletion service now validate resolved paths with `Path.resolve()` + `is_relative_to()` to block path traversal. (`account_deletion_service.py`)
+- **CodeQL — 2 Empty Except Alerts** — Added `logger.debug()` to `except ValueError` and `except json.JSONDecodeError` blocks in memory extractor instead of silent `pass`. (`memory_extractor.py`)
+
+### Changed
+
+- **Admin Pagination UX** — Admin users pagination changed from centered variant (no total) to justified layout with total count, matching usage limits pattern. Default page size reduced from 100 to 20 for all admin tables. (`AdminUsersSection.tsx`, `constants.ts`)
+
+### Documentation
+
+- Updated 16 guide files (why, how, privacy, terms — 6 languages) with v1.13.9 version reference.
+
 ## [1.13.8] - 2026-03-31
 
 ### Fixed

@@ -625,14 +625,8 @@ class UserService:
             page=params.page,
         )
 
-        # Fetch memory counts for all users in batch (from LangGraph store)
-        user_ids = [row[0].id for row in users_with_stats]
-        memory_counts = await self._get_memory_counts_batch(user_ids)
-
-        # Fetch interests counts for all users in batch (from DB)
-        interests_counts = await self._get_interests_counts_batch(user_ids)
-
         # Build user profiles with stats
+        # memories_count and interests_count are now included in the SQL query
         users_profiles = []
         for (
             user,
@@ -644,6 +638,8 @@ class UserService:
             scheduled_actions_count,
             rag_spaces_count,
             is_usage_blocked,
+            memories_count,
+            interests_count,
         ) in users_with_stats:
             users_profiles.append(
                 self._build_user_profile_with_stats(
@@ -651,8 +647,8 @@ class UserService:
                     stats,
                     active_connectors_count,
                     last_message_at,
-                    memories_count=memory_counts.get(user.id, 0),
-                    interests_count=interests_counts.get(user.id, 0),
+                    memories_count=memories_count,
+                    interests_count=interests_count,
                     skills_count=skills_count,
                     mcp_servers_count=mcp_servers_count,
                     scheduled_actions_count=scheduled_actions_count,
