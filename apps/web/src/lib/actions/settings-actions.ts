@@ -110,9 +110,47 @@ export async function toggleUserActive(
 }
 
 /**
- * Delete user permanently (GDPR)
+ * Soft-delete user account: purge all personal data, preserve billing history.
+ * Lifecycle: Active → Deactivated → **Deleted** → Erased (GDPR)
+ * Precondition: user must be deactivated (is_active=false) first.
  *
  * @param userId - The ID of the user to delete
+ * @param reason - Optional reason for deletion
+ */
+export async function deleteUserAccount(
+  userId: string,
+  reason?: string,
+): Promise<ActionResponse> {
+  try {
+    const apiServer = await createServerApiClient();
+    await apiServer.delete(`/users/admin/${userId}/delete-account`, reason ? {
+      body: JSON.stringify({ reason }),
+    } : undefined);
+
+    return {
+      success: true,
+      message: 'Compte supprimé (données purgées, historique facturation conservé)',
+    };
+  } catch (error) {
+    const err = error as { response?: { data?: { detail?: string } } };
+    logger.error('delete_user_account_failed', error as Error, {
+      component: 'ServerActions',
+      action: 'deleteUserAccount',
+      userId,
+    });
+    return {
+      success: false,
+      error: err.response?.data?.detail || 'Erreur lors de la suppression du compte',
+    };
+  }
+}
+
+/**
+ * GDPR hard-delete: permanently erase user row (email, name) from database.
+ * Lifecycle: Active → Deactivated → Deleted → **Erased** (GDPR)
+ * Precondition: user must be soft-deleted (via deleteUserAccount) first.
+ *
+ * @param userId - The ID of the user to erase
  */
 export async function deleteUserGDPR(userId: string): Promise<ActionResponse> {
   try {
@@ -121,7 +159,7 @@ export async function deleteUserGDPR(userId: string): Promise<ActionResponse> {
 
     return {
       success: true,
-      message: 'Utilisateur supprimé définitivement',
+      message: 'Utilisateur effacé définitivement (RGPD)',
     };
   } catch (error) {
     const err = error as { response?: { data?: { detail?: string } } };
@@ -132,7 +170,7 @@ export async function deleteUserGDPR(userId: string): Promise<ActionResponse> {
     });
     return {
       success: false,
-      error: err.response?.data?.detail || 'Erreur lors de la suppression',
+      error: err.response?.data?.detail || "Erreur lors de l'effacement RGPD",
     };
   }
 }

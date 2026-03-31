@@ -929,7 +929,8 @@
         "status": {
           "active": "Attivo",
           "inactive": "Inattivo",
-          "not_verified": "Non verificato"
+          "not_verified": "Non verificato",
+          "deleted": "Eliminato"
         },
         "roles": {
           "admin": "Admin",
@@ -938,14 +939,17 @@
         "actions": {
           "deactivate": "Disattiva",
           "activate": "Attiva",
-          "delete": "Elimina"
+          "delete": "Elimina",
+          "erase": "Cancella (GDPR)"
         },
         "deactivation_reason_prompt": "Motivo per disattivare questo utente:",
-        "delete_confirmation": "⚠️ ELIMINAZIONE PERMANENTE<br/><br/>Sei sicuro di voler eliminare permanentemente l'utente \"{{email}}\"?<br/><br/>Questo eliminerà IRREVERSIBILMENTE:<br/>• L'account utente<br/>• Tutte le loro conversazioni<br/>• Tutti i loro connettori OAuth<br/>• Tutti i loro dati personali<br/><br/>Questa azione NON può essere annullata.",
+        "delete_confirmation": "⚠️ ELIMINAZIONE ACCOUNT\n\nEliminare l'account di \"{{email}}\"?\n\nQuesto eliminerà IRREVERSIBILMENTE:\n• Conversazioni e messaggi\n• Memorie e diari\n• Connettori OAuth\n• Spazi RAG e file\n• Dati personali\n\nLo storico di fatturazione sarà conservato.",
+        "erase_confirmation": "⚠️ CANCELLAZIONE DEFINITIVA (GDPR)\n\nCancellare definitivamente \"{{email}}\"?\n\nQuesto rimuoverà l'ultima traccia dell'account (email, nome).\nLo storico di fatturazione diventerà anonimo.\n\nQuesta azione NON può essere annullata.",
         "errors": {
           "loading": "Errore nel caricamento degli utenti",
           "toggle_status": "Errore durante la {{action}} dell'utente",
-          "delete": "Errore durante l'eliminazione"
+          "delete": "Errore durante l'eliminazione dell'account",
+          "erase": "Errore durante la cancellazione (GDPR)"
         }
       },
       "pricing": {
@@ -2600,17 +2604,20 @@
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
         "v1_13": {
-          "title": "v1.13 — Design System v4, Skill e Amministrazione",
+          "title": "v1.13 — Design System v4, Skill, Amministrazione e Ciclo di vita degli account",
           "date": "Marzo 2026",
-          "count": "7",
+          "count": "10",
           "items": {
-            "i1": "<b>Design System v4</b> — Ridisegno visivo completo delle 14 schede HTML con componenti riutilizzabili, vignette colorate, chip, avatar e sezioni espandibili",
-            "i2": "<b>Guida Skill ridisegnata</b> — Nuova guida completa in 3 tab (Fondamenti, Creare, Avanzato) con catalogo esaustivo di agenti, strumenti e parametri",
-            "i3": "<b>Amministrazione migliorata</b> — 5 nuovi contatori nella gestione utenti (Skill, MCP, Azioni pianificate, Spazi RAG, Bloccato) e ordinamento per Email/Bloccato nei limiti",
-            "i4": "<b>Multi-fornitore</b> — Calendario, Email, Contatti, Drive e Attività ora presentati come compatibili con Google, Microsoft e Apple",
-            "i5": "<b>DevOps Claude CLI</b> — Gli amministratori possono diagnosticare i server tramite Claude Code in linguaggio naturale direttamente da LIA",
-            "i6": "<b>Correzione DST calendario</b> — Gli eventi creati durante i cambi d'ora hanno ora l'orario corretto",
-            "i7": "<b>Correzione contesto inter-dominio</b> — \"Mostrami l'ultima email\" dopo aver visto il calendario funziona ora correttamente"
+            "i1": "<b>Ciclo di vita degli account</b> — Gli amministratori possono disattivare, eliminare (purge dei dati con conservazione dello storico fatturazione) e cancellare definitivamente (GDPR) gli account utente in 3 passaggi sicuri",
+            "i2": "<b>Protezione attività in background</b> — Notifiche proattive, promemoria, azioni pianificate e consolidamento dei diari non consumano più token IA per gli account disattivati o eliminati",
+            "i3": "<b>Stato visivo degli account</b> — Il pannello admin distingue visivamente Attivo (verde), Disattivato (rosso) e Eliminato (grigio barrato) con pulsanti di azione appropriati",
+            "i4": "<b>Design System v4</b> — Ridisegno visivo completo delle 14 schede HTML con componenti riutilizzabili, vignette colorate, chip, avatar e sezioni espandibili",
+            "i5": "<b>Guida Skill ridisegnata</b> — Nuova guida completa in 3 tab (Fondamenti, Creare, Avanzato) con catalogo esaustivo di agenti, strumenti e parametri",
+            "i6": "<b>Amministrazione migliorata</b> — 5 nuovi contatori nella gestione utenti (Skill, MCP, Azioni pianificate, Spazi RAG, Bloccato) e ordinamento per Email/Bloccato nei limiti",
+            "i7": "<b>Multi-fornitore</b> — Calendario, Email, Contatti, Drive e Attività ora presentati come compatibili con Google, Microsoft e Apple",
+            "i8": "<b>DevOps Claude CLI</b> — Gli amministratori possono diagnosticare i server tramite Claude Code in linguaggio naturale direttamente da LIA",
+            "i9": "<b>Correzione DST calendario</b> — Gli eventi creati durante i cambi d'ora hanno ora l'orario corretto",
+            "i10": "<b>Correzione contesto inter-dominio</b> — \"Mostrami l'ultima email\" dopo aver visto il calendario funziona ora correttamente"
           }
         },
         "v1_12": {

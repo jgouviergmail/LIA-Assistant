@@ -916,9 +916,17 @@ class UserService:
         email_sent = False
         email_error = None
 
-        # If deactivating, invalidate all sessions
+        # If deactivating, invalidate all sessions and usage limit cache
         if not update_data.is_active:
             await self._invalidate_all_user_sessions(user_id)
+            # Invalidate usage limit cache so _compute_status() immediately
+            # reflects the is_active=False state (prevents stale cache allowing LLM calls)
+            try:
+                from src.domains.usage_limits.service import UsageLimitService
+
+                await UsageLimitService.invalidate_cache_static(user_id)
+            except Exception:
+                pass  # Best-effort, cache will expire naturally after TTL
 
             logger.warning(
                 "user_deactivated",
@@ -1017,6 +1025,16 @@ class UserService:
         # Prevent deletion of superusers (safety check)
         if user.is_superuser:
             raise_admin_required(user_id)
+
+        # Precondition: user must be soft-deleted (data purged) before GDPR hard-delete
+        if not user.is_deleted:
+            from src.core.exceptions import ResourceConflictError
+
+            raise ResourceConflictError(
+                resource_type="user",
+                detail="User must be soft-deleted (via /admin/{user_id}/delete-account) "
+                "before GDPR hard-delete. This ensures data purge is completed first.",
+            )
 
         # Extract request metadata
         ip_address = request.client.host if request and request.client else None

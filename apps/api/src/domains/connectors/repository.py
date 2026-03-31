@@ -276,29 +276,71 @@ class ConnectorRepository(BaseRepository[Connector]):
 
     async def get_active_oauth_connectors(self) -> list[Connector]:
         """
-        Get all active OAuth-based connectors (across all users).
+        Get active OAuth connectors for active, non-deleted users only.
 
         Used by proactive token refresh background job to find connectors
-        that may need token refresh before expiration.
+        that may need token refresh before expiration. Excludes connectors
+        for deactivated or deleted users to avoid unnecessary API calls.
 
         Returns:
             List of active Connector objects using OAuth authentication.
-            Does NOT eagerly load user relationship (not needed for token refresh).
         """
-        return await self.get_oauth_connectors_by_statuses([ConnectorStatus.ACTIVE])
+        from src.domains.auth.models import User
+
+        oauth_types = ConnectorType.get_oauth_types()
+
+        query = (
+            select(Connector)
+            .join(User, Connector.user_id == User.id)
+            .where(
+                Connector.status == ConnectorStatus.ACTIVE,
+                Connector.connector_type.in_(oauth_types),
+                User.is_active.is_(True),
+                User.deleted_at.is_(None),
+            )
+        )
+
+        result = await self.db.execute(query)
+        return list(result.scalars().all())
 
     async def get_oauth_connectors_for_health_check(self) -> list[Connector]:
         """
-        Get OAuth-based connectors for health check (across all users).
+        Get OAuth-based connectors for health check, excluding blocked/inactive users.
 
         Used by OAuth health check background job to find connectors
         that may need user notification (ERROR status).
 
-        Returns connectors with status ACTIVE or ERROR (not INACTIVE/REVOKED).
+        Returns connectors with status ACTIVE or ERROR (not INACTIVE/REVOKED),
+        only for users where:
+        - User.is_active = True (not deactivated)
+        - User.deleted_at IS NULL (not deleted)
+        - UserUsageLimit.is_usage_blocked = False OR no usage limit record exists
 
         Returns:
             List of Connector objects using OAuth authentication.
         """
-        return await self.get_oauth_connectors_by_statuses(
-            [ConnectorStatus.ACTIVE, ConnectorStatus.ERROR]
+        from sqlalchemy import or_
+
+        from src.domains.auth.models import User
+        from src.domains.usage_limits.models import UserUsageLimit
+
+        oauth_types = ConnectorType.get_oauth_types()
+
+        query = (
+            select(Connector)
+            .join(User, Connector.user_id == User.id)
+            .outerjoin(UserUsageLimit, User.id == UserUsageLimit.user_id)
+            .where(
+                Connector.status.in_([ConnectorStatus.ACTIVE, ConnectorStatus.ERROR]),
+                Connector.connector_type.in_(oauth_types),
+                User.is_active.is_(True),
+                User.deleted_at.is_(None),
+                or_(
+                    UserUsageLimit.is_usage_blocked.is_(False),
+                    UserUsageLimit.is_usage_blocked.is_(None),
+                ),
+            )
         )
+
+        result = await self.db.execute(query)
+        return list(result.scalars().all())

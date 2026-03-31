@@ -1080,7 +1080,8 @@
         "status": {
           "active": "Active",
           "inactive": "Inactive",
-          "not_verified": "Not verified"
+          "not_verified": "Not verified",
+          "deleted": "Deleted"
         },
         "roles": {
           "admin": "Admin",
@@ -1089,14 +1090,17 @@
         "actions": {
           "deactivate": "Deactivate",
           "activate": "Activate",
-          "delete": "Delete"
+          "delete": "Delete",
+          "erase": "Erase (GDPR)"
         },
         "deactivation_reason_prompt": "Reason for deactivating this user:",
-        "delete_confirmation": "⚠️ PERMANENT DELETION<br/><br/>Are you sure you want to permanently delete user \"{{email}}\"?<br/><br/>This will IRREVERSIBLY delete:<br/>• The user account<br/>• All their conversations<br/>• All their OAuth connectors<br/>• All their personal data<br/><br/>This action CANNOT be undone.",
+        "delete_confirmation": "⚠️ ACCOUNT DELETION\n\nDelete account for \"{{email}}\"?\n\nThis will IRREVERSIBLY purge:\n• Conversations and messages\n• Memories and journals\n• OAuth connectors\n• RAG spaces and files\n• Personal data\n\nBilling history will be preserved.",
+        "erase_confirmation": "⚠️ PERMANENT ERASURE (GDPR)\n\nPermanently erase \"{{email}}\"?\n\nThis will remove the last trace of the account (email, name).\nBilling history will become anonymous.\n\nThis action CANNOT be undone.",
         "errors": {
           "loading": "Error loading users",
           "toggle_status": "Error {{action}}ing user",
-          "delete": "Error deleting"
+          "delete": "Error deleting account",
+          "erase": "Error erasing user (GDPR)"
         }
       },
       "pricing": {
@@ -2607,17 +2611,20 @@
       "description": "LIA functional updates version by version",
       "versions": {
         "v1_13": {
-          "title": "v1.13 — Design System v4, Skills & Administration",
+          "title": "v1.13 — Design System v4, Skills, Administration & Account Lifecycle",
           "date": "March 2026",
-          "count": "7",
+          "count": "10",
           "items": {
-            "i1": "<b>Design System v4</b> — Complete visual redesign of all 14 HTML cards with reusable components, colored vignettes, chips, avatars and collapsible sections",
-            "i2": "<b>Skills Guide Redesigned</b> — New comprehensive 3-tab guide (Fundamentals, Create, Advanced) with full agent, tool and parameter catalogue",
-            "i3": "<b>Enhanced Administration</b> — 5 new counters in user management (Skills, MCP, Scheduled Actions, RAG Spaces, Blocked) and sortable Email/Blocked columns in limits",
-            "i4": "<b>Multi-provider</b> — Calendar, Email, Contacts, Drive and Tasks tools now presented as compatible with Google, Microsoft and Apple",
-            "i5": "<b>DevOps Claude CLI</b> — Administrators can diagnose servers via Claude Code in natural language directly from LIA",
-            "i6": "<b>Calendar DST Fix</b> — Events created during daylight saving transitions now have the correct time",
-            "i7": "<b>Cross-domain context fix</b> — \"Show me the last email\" after viewing calendar events now works correctly"
+            "i1": "<b>Account Lifecycle</b> — Administrators can deactivate, delete (data purge with billing history preservation) and permanently erase (GDPR) user accounts in 3 secure steps",
+            "i2": "<b>Background Task Protection</b> — Proactive notifications, reminders, scheduled actions and journal consolidation no longer consume AI tokens for deactivated or deleted accounts",
+            "i3": "<b>Visual Account Status</b> — Admin panel visually distinguishes Active (green), Deactivated (red) and Deleted (gray strikethrough) accounts with state-appropriate action buttons",
+            "i4": "<b>Design System v4</b> — Complete visual redesign of all 14 HTML cards with reusable components, colored vignettes, chips, avatars and collapsible sections",
+            "i5": "<b>Skills Guide Redesigned</b> — New comprehensive 3-tab guide (Fundamentals, Create, Advanced) with full agent, tool and parameter catalogue",
+            "i6": "<b>Enhanced Administration</b> — 5 new counters in user management (Skills, MCP, Scheduled Actions, RAG Spaces, Blocked) and sortable Email/Blocked columns in limits",
+            "i7": "<b>Multi-provider</b> — Calendar, Email, Contacts, Drive and Tasks tools now presented as compatible with Google, Microsoft and Apple",
+            "i8": "<b>DevOps Claude CLI</b> — Administrators can diagnose servers via Claude Code in natural language directly from LIA",
+            "i9": "<b>Calendar DST Fix</b> — Events created during daylight saving transitions now have the correct time",
+            "i10": "<b>Cross-domain context fix</b> — \"Show me the last email\" after viewing calendar events now works correctly"
           }
         },
         "v1_12": {

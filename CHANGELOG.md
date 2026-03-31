@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.13.7] - 2026-03-31
+
+### Added
+
+- **Account Lifecycle (4-State Model)** — New account lifecycle: Active → Deactivated → Deleted → Erased (GDPR). Soft-delete purges all personal data (22 tables, LangGraph store/checkpoints, Redis caches, physical files) while preserving billing history (token_usage_logs, user_statistics, google_api_usage_logs). User row kept with email/name for billing contact. ADR-067 documented. (`src/domains/users/account_deletion_service.py`, `src/domains/auth/models.py`)
+- **Account Deletion API** — New `DELETE /api/v1/users/admin/{user_id}/delete-account` endpoint for admin soft-delete with precondition enforcement (must be deactivated first). Returns purge counts per table. (`src/domains/users/router.py`)
+- **Admin Panel Delete/Erase Buttons** — Deactivated users show "Delete" button (soft-delete), deleted users show "Erase (GDPR)" button (hard-delete). Status badge distinguishes Active/Inactive/Deleted with distinct colors. (`AdminUsersSection.tsx`)
+- **Centralized Usage Limit Pre-Check** — New `is_user_blocked_for_llm()` static method combines usage limit check + Prometheus metrics + structured logging in one call. Applied to all LLM-consuming background jobs. (`src/domains/usage_limits/service.py`)
+- **Account Status in Usage Limit Enforcement** — `_compute_status()` now checks `is_active` and `deleted_at` as priority 0 (before manual blocks and usage limits). New `BLOCKED_ACCOUNT` status in `UsageLimitStatus` enum. Integrated into `check_user_allowed()` at all 3 code paths (cache hit, DB with limits, DB without limits).
+
+### Changed
+
+- **Background Task Protection (7 jobs)** — All LLM-consuming and connector-related background jobs now filter out inactive/deleted/blocked users: ProactiveTaskRunner (SQL filter), scheduled_action_executor (+is_active check + is_user_blocked_for_llm), reminder_notification (+is_active check), journal_consolidation (+deleted_at filter), token_refresh (JOIN User filter), OAuth health check (+deleted_at filter), session_dependencies (+is_deleted rejection).
+- **GDPR Hard-Delete Precondition** — `delete_user_gdpr()` now requires user to be soft-deleted first (`deleted_at IS NOT NULL`). Enforces sequential lifecycle.
+- **Usage Limit Cache Invalidation on Deactivation** — `update_user_activation()` now invalidates usage limit Redis cache immediately when deactivating a user, preventing stale cache from allowing LLM calls during the TTL window.
+- **LLM Config Auto-Clean reasoning_effort** — When admin changes an LLM type's model to a non-reasoning model (gpt-4.1-*), `reasoning_effort` is automatically cleared. Validator returns `None` instead of warning for non-reasoning OpenAI models. 29 stale `reasoning_effort` values cleaned from LLM_DEFAULTS constants.
+- **OAuth Health Check Filtering** — Now excludes deactivated users (`is_active=False`), deleted users (`deleted_at IS NOT NULL`), and usage-blocked users (`is_usage_blocked=True`) from health check queries.
+
+### Fixed
+
+- **philips_hue Enum Mismatch** — Fixed `LookupError: 'philips_hue' is not among the defined enum values` in `GET /api/v1/connectors/admin/global-config`. Migration had inserted lowercase value; corrected to uppercase `PHILIPS_HUE` in production DB.
+- **Journal Consolidation UsageLimitExceeded** — Added pre-check before expensive DB queries and prompt building. Previously, the limit was only checked inside `invoke_with_instrumentation()` after all preparatory work was done.
+- **Scheduled Action Executor Unprotected** — Was the only LLM-consuming background job with no user status check and no usage limit pre-check. Now has both.
+- **admin_broadcasts FK Constraint** — Added `ondelete="SET NULL"` to `sent_by` FK (was missing, would cause FK violation on GDPR hard-delete).
+- **google_api_usage_logs FK Preservation** — Changed FK from `CASCADE` to `SET NULL` to preserve billing history when user row is hard-deleted.
+- **ConversationMessage.user_id Bug** — Fixed incorrect `DELETE WHERE user_id` on `conversation_messages` table which has no `user_id` column (only `conversation_id`). Now uses subquery via conversation_id.
+
+### Documentation
+
+- **ADR-067** — Account Lifecycle (Active / Deactivated / Deleted / Erased)
+- **docs/INDEX.md**, **docs/architecture/ADR_INDEX.md** — Cross-referenced
+
 ## [1.13.6] - 2026-03-30
 
 ### Added

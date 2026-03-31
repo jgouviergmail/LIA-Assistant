@@ -114,6 +114,26 @@ async def execute_single_action(
             )
             return ""
 
+        # Guard: skip inactive users (deleted users also have is_active=False)
+        if not user.is_active:
+            logger.info(
+                "scheduled_action_skipped_user_inactive",
+                action_id=str(action_id),
+                user_id=str(user_id),
+                is_active=user.is_active,
+            )
+            return ""
+
+        # Guard: usage limit pre-check (LLM-consuming task)
+        from src.domains.usage_limits.service import UsageLimitService
+
+        if await UsageLimitService.is_user_blocked_for_llm(
+            user_id,
+            layer="scheduled_action_executor",
+            extra_log_fields={"action_id": str(action_id)},
+        ):
+            return ""
+
         user_language = user.language or settings.default_language
         user_timezone = user.timezone or DEFAULT_USER_DISPLAY_TIMEZONE
         session_id = f"{SCHEDULED_ACTIONS_SESSION_PREFIX}{action.id}"

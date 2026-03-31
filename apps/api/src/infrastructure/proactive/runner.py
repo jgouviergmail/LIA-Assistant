@@ -274,7 +274,11 @@ class ProactiveTaskRunner:
         # - Cooldowns (global + per-topic)
         query = (
             select(User)
-            .where(User.is_verified == True)  # noqa: E712 - SQLAlchemy requires ==
+            .where(
+                User.is_verified == True,  # noqa: E712 - SQLAlchemy requires ==
+                User.is_active == True,  # noqa: E712
+                User.deleted_at.is_(None),
+            )
             .limit(self.batch_size)
         )
 
@@ -305,26 +309,17 @@ class ProactiveTaskRunner:
         now = datetime.now(UTC)
         user_settings = self._extract_user_settings(user)
 
-        # 0. Usage limit check (Layer 3)
-        if getattr(settings, "usage_limits_enabled", False):
-            from src.domains.usage_limits.service import UsageLimitService
-            from src.infrastructure.observability.metrics_usage_limits import (
-                usage_limit_enforcement_total,
-            )
+        # 0. Usage limit check (Layer 3) — centralized via is_user_blocked_for_llm
+        from src.domains.usage_limits.service import UsageLimitService
 
-            _limit_check = await UsageLimitService.check_user_allowed(user.id)
-            if not _limit_check.allowed:
-                usage_limit_enforcement_total.labels(
-                    layer="proactive", limit_type=_limit_check.exceeded_limit or "unknown"
-                ).inc()
-                logger.info(
-                    "proactive_user_usage_blocked",
-                    task_type=self.task.task_type,
-                    user_id=str(user.id),
-                    limit=_limit_check.exceeded_limit,
-                )
-                stats.record_skip("usage_limit_exceeded")
-                return False
+        if await UsageLimitService.is_user_blocked_for_llm(
+            user.id,
+            layer="proactive",
+            context_log_event="proactive_user_usage_blocked",
+            extra_log_fields={"task_type": self.task.task_type},
+        ):
+            stats.record_skip("usage_limit_exceeded")
+            return False
 
         # 1. Common eligibility checks
         if self.eligibility_checker:

@@ -186,6 +186,21 @@ class User(BaseModel):
         comment="Timestamp of last successful login (OAuth or password).",
     )
 
+    # Account deletion (soft-delete with data purge)
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        default=None,
+        index=True,
+        comment="Timestamp of account deletion. NULL = active/inactive. Non-NULL = deleted (data purged, row kept for billing).",
+    )
+    deleted_reason: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+        default=None,
+        comment="Admin-provided reason for account deletion.",
+    )
+
     # Interest learning system preferences
     interests_enabled: Mapped[bool] = mapped_column(
         default=True,
@@ -419,6 +434,11 @@ class User(BaseModel):
     usage_limit: Mapped["UserUsageLimit | None"] = relationship(
         back_populates="user", lazy="noload", cascade="all, delete-orphan"
     )
+
+    @property
+    def is_deleted(self) -> bool:
+        """Whether the account has been soft-deleted (data purged, row kept for billing)."""
+        return self.deleted_at is not None
 
     def __repr__(self) -> str:
         return f"<User(id={self.id}, email={self.email})>"

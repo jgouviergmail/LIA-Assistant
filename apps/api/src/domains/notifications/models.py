@@ -104,11 +104,11 @@ class AdminBroadcast(BaseModel):
         comment="The broadcast message content",
     )
 
-    sent_by: Mapped[uuid.UUID] = mapped_column(
+    sent_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("users.id"),
-        nullable=False,
-        comment="Admin user who sent the broadcast",
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        comment="Admin user who sent the broadcast (NULL if admin account was hard-deleted)",
     )
 
     expires_at: Mapped[datetime | None] = mapped_column(

@@ -2232,6 +2232,28 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 - ✅ Journal extraction avec pre-filtre sémantique (top 10 + 3 récentes)
 - ✅ 14 fichiers consommateurs migrés, LangGraph store conservé pour tool context
 
+---
+
+### ADR-067: Account Lifecycle (Active / Deactivated / Deleted / Erased)
+
+**Status**: ✅ ACCEPTED (2026-03-31)
+**Fichier**: `docs/architecture/ADR-067-Account-Lifecycle.md`
+
+**Décision**: Implémenter un cycle de vie à 4 états (Actif → Désactivé → Supprimé → Effacé GDPR) avec `deleted_at` timestamp + `is_deleted` property. La suppression purge toutes les données personnelles (22 tables, LangGraph store/checkpoints, Redis, fichiers disque) tout en préservant le row user (email/nom) et l'historique de facturation (token_usage_logs, user_statistics, google_api_usage_logs).
+
+**Problème résolu**:
+- ❌ Pas de mécanisme de suppression préservant l'historique de facturation
+- ❌ Tâches de fond exécutées pour utilisateurs désactivés (tokens LLM gaspillés)
+- ❌ `check_user_allowed()` ne vérifiait pas `is_active` (bypass pour users sans limits)
+- ❌ FK `admin_broadcasts.sent_by` sans `ondelete` (bloque le GDPR hard-delete)
+
+**Solution**:
+- ✅ `AccountDeletionService` orchestre la purge complète (22 tables + external)
+- ✅ `_compute_status()` check `is_active`/`deleted_at` en priorité 0 (avant limits)
+- ✅ `check_user_allowed()` check account status AVANT `_has_limit_record()`
+- ✅ 7 tâches de fond protégées (defense in depth: SQL filters + centralized check)
+- ✅ Précondition : Désactivé avant Supprimé, Supprimé avant Effacé (GDPR)
+
 **Impact**:
 - ✅ 5→1 embedding calls par tour
 - ✅ 3→0 LLM calls sur message trivial

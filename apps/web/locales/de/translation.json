@@ -927,7 +927,8 @@
         "status": {
           "active": "Aktiv",
           "inactive": "Inaktiv",
-          "not_verified": "Nicht verifiziert"
+          "not_verified": "Nicht verifiziert",
+          "deleted": "Gelöscht"
         },
         "roles": {
           "admin": "Admin",
@@ -936,14 +937,17 @@
         "actions": {
           "deactivate": "Deaktivieren",
           "activate": "Aktivieren",
-          "delete": "Löschen"
+          "delete": "Löschen",
+          "erase": "Endgültig löschen (DSGVO)"
         },
         "deactivation_reason_prompt": "Grund für die Deaktivierung dieses Benutzers:",
-        "delete_confirmation": "⚠️ PERMANENTE LÖSCHUNG<br/><br/>Sind Sie sicher, dass Sie den Benutzer \"{{email}}\" dauerhaft löschen möchten?<br/><br/>Dies wird UNWIDERRUFLICH löschen:<br/>• Das Benutzerkonto<br/>• Alle ihre Gespräche<br/>• Alle ihre OAuth-Konnektoren<br/>• Alle ihre persönlichen Daten<br/><br/>Diese Aktion kann NICHT rückgängig gemacht werden.",
+        "delete_confirmation": "⚠️ KONTO LÖSCHEN\n\nKonto von \"{{email}}\" löschen?\n\nDies wird UNWIDERRUFLICH entfernen:\n• Gespräche und Nachrichten\n• Erinnerungen und Tagebücher\n• OAuth-Konnektoren\n• RAG-Räume und Dateien\n• Persönliche Daten\n\nAbrechnungshistorie wird beibehalten.",
+        "erase_confirmation": "⚠️ ENDGÜLTIGE LÖSCHUNG (DSGVO)\n\n\"{{email}}\" endgültig löschen?\n\nDies entfernt die letzte Spur des Kontos (E-Mail, Name).\nDie Abrechnungshistorie wird anonymisiert.\n\nDiese Aktion kann NICHT rückgängig gemacht werden.",
         "errors": {
           "loading": "Fehler beim Laden der Benutzer",
           "toggle_status": "Fehler beim {{action}} des Benutzers",
-          "delete": "Fehler beim Löschen"
+          "delete": "Fehler beim Löschen des Kontos",
+          "erase": "Fehler beim endgültigen Löschen (DSGVO)"
         }
       },
       "pricing": {
@@ -2598,17 +2602,20 @@
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
         "v1_13": {
-          "title": "v1.13 — Design System v4, Skills & Verwaltung",
+          "title": "v1.13 — Design System v4, Skills, Verwaltung & Konto-Lebenszyklus",
           "date": "März 2026",
-          "count": "7",
+          "count": "10",
           "items": {
-            "i1": "<b>Design System v4</b> — Vollständige visuelle Neugestaltung aller 14 HTML-Karten mit wiederverwendbaren Komponenten, farbigen Vignetten, Chips, Avataren und ausklappbaren Abschnitten",
-            "i2": "<b>Skills-Anleitung neu gestaltet</b> — Neue umfassende 3-Tab-Anleitung (Grundlagen, Erstellen, Erweitert) mit vollständigem Agenten-, Werkzeug- und Parameterkatalog",
-            "i3": "<b>Erweiterte Verwaltung</b> — 5 neue Zähler in der Benutzerverwaltung (Skills, MCP, Geplante Aktionen, RAG-Räume, Blockiert) und sortierbare Email/Blockiert-Spalten bei Limits",
-            "i4": "<b>Multi-Anbieter</b> — Kalender, E-Mail, Kontakte, Drive und Aufgaben werden jetzt als kompatibel mit Google, Microsoft und Apple dargestellt",
-            "i5": "<b>DevOps Claude CLI</b> — Administratoren können Server über Claude Code in natürlicher Sprache direkt von LIA aus diagnostizieren",
-            "i6": "<b>Kalender-DST-Fix</b> — Ereignisse, die während der Zeitumstellung erstellt werden, haben jetzt die korrekte Uhrzeit",
-            "i7": "<b>Domänenübergreifende Kontextkorrektur</b> — «Zeige mir die letzte E-Mail» nach Kalenderansicht funktioniert jetzt korrekt"
+            "i1": "<b>Konto-Lebenszyklus</b> — Administratoren können Benutzerkonten in 3 sicheren Schritten deaktivieren, löschen (Datenbereinigung mit Abrechnungshistorie) und endgültig löschen (DSGVO)",
+            "i2": "<b>Schutz der Hintergrundaufgaben</b> — Proaktive Benachrichtigungen, Erinnerungen, geplante Aktionen und Journal-Konsolidierung verbrauchen keine KI-Tokens mehr für deaktivierte oder gelöschte Konten",
+            "i3": "<b>Visueller Kontostatus</b> — Das Admin-Panel unterscheidet visuell zwischen Aktiv (grün), Deaktiviert (rot) und Gelöscht (grau durchgestrichen) mit zustandsgerechten Aktionsschaltflächen",
+            "i4": "<b>Design System v4</b> — Vollständige visuelle Neugestaltung aller 14 HTML-Karten mit wiederverwendbaren Komponenten, farbigen Vignetten, Chips, Avataren und ausklappbaren Abschnitten",
+            "i5": "<b>Skills-Anleitung neu gestaltet</b> — Neue umfassende 3-Tab-Anleitung (Grundlagen, Erstellen, Erweitert) mit vollständigem Agenten-, Werkzeug- und Parameterkatalog",
+            "i6": "<b>Erweiterte Verwaltung</b> — 5 neue Zähler in der Benutzerverwaltung (Skills, MCP, Geplante Aktionen, RAG-Räume, Blockiert) und sortierbare Email/Blockiert-Spalten bei Limits",
+            "i7": "<b>Multi-Anbieter</b> — Kalender, E-Mail, Kontakte, Drive und Aufgaben werden jetzt als kompatibel mit Google, Microsoft und Apple dargestellt",
+            "i8": "<b>DevOps Claude CLI</b> — Administratoren können Server über Claude Code in natürlicher Sprache direkt von LIA aus diagnostizieren",
+            "i9": "<b>Kalender-DST-Fix</b> — Ereignisse, die während der Zeitumstellung erstellt werden, haben jetzt die korrekte Uhrzeit",
+            "i10": "<b>Domänenübergreifende Kontextkorrektur</b> — «Zeige mir die letzte E-Mail» nach Kalenderansicht funktioniert jetzt korrekt"
           }
         },
         "v1_12": {

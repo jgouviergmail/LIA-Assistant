@@ -20,6 +20,8 @@ from src.core.session_dependencies import (
 from src.core.validators import get_common_timezones
 from src.domains.auth.models import User
 from src.domains.users.schemas import (
+    AccountDeletionRequest,
+    AccountDeletionResponse,
     HomeLocationResponse,
     HomeLocationUpdate,
     UserActivationResponse,
@@ -290,6 +292,58 @@ async def update_user_activation_admin(
     """
     service = UserService(db)
     return await service.update_user_activation(user_id, update_data, current_user.id, request)
+
+
+@router.delete(
+    "/admin/{user_id}/delete-account",
+    response_model=AccountDeletionResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Delete user account with data purge (Admin)",
+    description=(
+        "Soft-delete user account: purges all personal data (conversations, memories, "
+        "journals, connectors, RAG spaces, etc.) while preserving the user row and "
+        "billing history for dispute resolution. "
+        "**Precondition:** User must be deactivated first (is_active=False). "
+        "**This action is IRREVERSIBLE.** "
+        "**Requires superuser role.**"
+    ),
+)
+async def delete_user_account_admin(
+    user_id: UUID,
+    request: Request,
+    body: AccountDeletionRequest | None = None,
+    current_user: User = Depends(get_current_superuser_session),
+    db: AsyncSession = Depends(get_db),
+) -> AccountDeletionResponse:
+    """Delete user account with full data purge.
+
+    Lifecycle: Active → Deactivated → **Deleted** → Erased (GDPR).
+
+    Preconditions:
+    - User must be deactivated (is_active=False).
+    - User must not be a superuser.
+    - User must not already be deleted.
+
+    Preserved for billing: token_usage_logs, user_statistics,
+    google_api_usage_logs, message_token_summary, user row (email, full_name).
+    """
+    from src.domains.users.account_deletion_service import AccountDeletionService
+
+    service = AccountDeletionService(db)
+    reason = body.reason if body else None
+    deleted_user, counts = await service.delete_account(
+        user_id=user_id,
+        admin_user_id=current_user.id,
+        reason=reason,
+        request=request,
+    )
+
+    return AccountDeletionResponse(
+        user_id=user_id,
+        email=deleted_user.email,
+        deleted_at=deleted_user.deleted_at,
+        counts=counts,
+    )
 
 
 @router.delete(

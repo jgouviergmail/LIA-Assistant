@@ -26,7 +26,7 @@ import apiClient from '@/lib/api-client';
 import { ADMIN_USERS_PAGE_SIZE, SEARCH_DEBOUNCE_MS } from '@/lib/constants';
 import { logger } from '@/lib/logger';
 import { updateListItem, deleteListItem } from '@/utils/listUpdates';
-import { toggleUserActive, deleteUserGDPR } from '@/lib/actions/settings-actions';
+import { toggleUserActive, deleteUserAccount, deleteUserGDPR } from '@/lib/actions/settings-actions';
 import { useTranslation } from '@/i18n/client';
 import { LOCALE_MAP } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
@@ -82,6 +82,8 @@ interface User {
   scheduled_actions_count: number;
   rag_spaces_count: number;
   is_usage_blocked: boolean;
+  deleted_at: string | null;
+  is_deleted: boolean;
 }
 
 interface UserListResponse {
@@ -235,9 +237,38 @@ export default function AdminUsersSection({ lng, collapsible = true }: BaseSetti
     });
   };
 
-  // ✅ React 19 useOptimistic pattern: instant deletion with automatic rollback on error
+  // ✅ Soft-delete: purge personal data, preserve billing history
+  // Precondition: user must be deactivated (is_active=false)
   const handleDeleteUser = (userId: string, userEmail: string) => {
     const confirmed = confirm(t('settings.admin.users.delete_confirmation', { email: userEmail }));
+
+    if (!confirmed) return;
+
+    startTransition(async () => {
+      try {
+        const result = await deleteUserAccount(userId);
+
+        if (result.success) {
+          // Refresh list to show updated deleted_at status
+          setUsers(prevUsers =>
+            prevUsers.map(u =>
+              u.id === userId ? { ...u, is_deleted: true, deleted_at: new Date().toISOString() } : u,
+            ),
+          );
+          toast.success(result.message!);
+        } else {
+          toast.error(result.error!);
+        }
+      } catch {
+        toast.error(t('settings.admin.users.errors.delete'));
+      }
+    });
+  };
+
+  // ✅ GDPR hard-erase: permanently remove user row (email, name) from database
+  // Precondition: user must be soft-deleted (is_deleted=true)
+  const handleEraseUser = (userId: string, userEmail: string) => {
+    const confirmed = confirm(t('settings.admin.users.erase_confirmation', { email: userEmail }));
 
     if (!confirmed) return;
 
@@ -246,20 +277,16 @@ export default function AdminUsersSection({ lng, collapsible = true }: BaseSetti
       updateOptimisticUsers({ id: userId, deleted: true });
 
       try {
-        // 2. Server Action call
         const result = await deleteUserGDPR(userId);
 
         if (result.success) {
-          // 3. Update confirmed state (React reconciles automatically)
           setUsers(prevUsers => deleteListItem(prevUsers, userId));
           toast.success(result.message!);
         } else {
-          // 4. Rollback on error (React reverts optimistic update)
           toast.error(result.error!);
         }
       } catch {
-        // 5. Rollback on exception (React reverts optimistic update)
-        toast.error(t('settings.admin.users.errors.delete'));
+        toast.error(t('settings.admin.users.errors.erase'));
       }
     });
   };
@@ -530,14 +557,18 @@ export default function AdminUsersSection({ lng, collapsible = true }: BaseSetti
                     <td className="px-4 py-3 whitespace-nowrap text-sm">
                       <span
                         className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          user.is_active
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border border-green-200 dark:border-green-800'
-                            : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 border border-red-200 dark:border-red-800'
+                          user.is_deleted
+                            ? 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400 border border-gray-300 dark:border-gray-600 line-through'
+                            : user.is_active
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200 border border-green-200 dark:border-green-800'
+                              : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 border border-red-200 dark:border-red-800'
                         }`}
                       >
-                        {user.is_active
-                          ? t('settings.admin.users.status.active')
-                          : t('settings.admin.users.status.inactive')}
+                        {user.is_deleted
+                          ? t('settings.admin.users.status.deleted')
+                          : user.is_active
+                            ? t('settings.admin.users.status.active')
+                            : t('settings.admin.users.status.inactive')}
                       </span>
                       {user.is_superuser && (
                         <span className="ml-1 text-primary font-semibold text-xs">★</span>
@@ -634,6 +665,8 @@ export default function AdminUsersSection({ lng, collapsible = true }: BaseSetti
                     {/* Actions */}
                     <td className="px-4 py-3 whitespace-nowrap text-sm">
                       <div className="flex gap-2">
+                        {/* Activate/Deactivate: hidden for deleted users (data purged, irreversible) */}
+                        {!user.is_deleted && (
                         <Button
                           variant={user.is_active ? 'destructive' : 'success'}
                           size="sm"
@@ -646,7 +679,9 @@ export default function AdminUsersSection({ lng, collapsible = true }: BaseSetti
                             ? t('settings.admin.users.actions.deactivate')
                             : t('settings.admin.users.actions.activate')}
                         </Button>
-                        {!user.is_superuser && (
+                        )}
+                        {/* Delete: only for deactivated, non-deleted, non-superuser */}
+                        {!user.is_superuser && !user.is_active && !user.is_deleted && (
                           <Button
                             variant="destructive"
                             size="sm"
@@ -656,6 +691,19 @@ export default function AdminUsersSection({ lng, collapsible = true }: BaseSetti
                             aria-label={`${t('settings.admin.users.actions.delete')} ${user.email}`}
                           >
                             {t('settings.admin.users.actions.delete')}
+                          </Button>
+                        )}
+                        {/* Erase (GDPR): only for already soft-deleted users */}
+                        {!user.is_superuser && user.is_deleted && (
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleEraseUser(user.id, user.email)}
+                            disabled={isPending}
+                            className="min-w-[80px] justify-center"
+                            aria-label={`${t('settings.admin.users.actions.erase')} ${user.email}`}
+                          >
+                            {t('settings.admin.users.actions.erase')}
                           </Button>
                         )}
                       </div>

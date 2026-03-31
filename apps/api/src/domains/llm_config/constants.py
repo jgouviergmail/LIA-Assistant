@@ -401,7 +401,6 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=4000,
-        reasoning_effort="minimal",
     ),
     "context_resolver": LLMAgentConfig(
         provider="openai",
@@ -411,7 +410,6 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=1000,
-        reasoning_effort="minimal",
     ),
     "initiative": LLMAgentConfig(
         provider="openai",
@@ -421,7 +419,6 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=5000,
-        reasoning_effort="minimal",
     ),
     "planner": LLMAgentConfig(
         provider="qwen",
@@ -442,7 +439,6 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=5000,
-        reasoning_effort="minimal",
     ),
     "router": LLMAgentConfig(
         provider="openai",
@@ -452,7 +448,6 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=1000,
-        reasoning_effort="minimal",
     ),
     "semantic_pivot": LLMAgentConfig(
         provider="openai",
@@ -462,7 +457,6 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=5000,
-        reasoning_effort="minimal",
     ),
     "semantic_validator": LLMAgentConfig(
         provider="openai",
@@ -472,7 +466,6 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=1000,
-        reasoning_effort="minimal",
     ),
     # --- Domain Agents ---
     "brave_agent": LLMAgentConfig(
@@ -483,7 +476,6 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=2000,
-        reasoning_effort="minimal",
     ),
     "browser_agent": LLMAgentConfig(
         provider="openai",
@@ -503,7 +495,6 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=2000,
-        reasoning_effort="minimal",
     ),
     "contacts_agent": LLMAgentConfig(
         provider="openai",
@@ -513,7 +504,6 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=2000,
-        reasoning_effort="minimal",
     ),
     "drive_agent": LLMAgentConfig(
         provider="openai",
@@ -523,7 +513,6 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=2000,
-        reasoning_effort="minimal",
     ),
     "emails_agent": LLMAgentConfig(
         provider="openai",
@@ -533,7 +522,6 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=2000,
-        reasoning_effort="minimal",
     ),
     "hue_agent": LLMAgentConfig(
         provider="openai",
@@ -543,7 +531,6 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=1000,
-        reasoning_effort="minimal",
     ),
     "mcp_react_agent": LLMAgentConfig(
         provider="openai",
@@ -563,7 +550,6 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=3000,
-        reasoning_effort="minimal",
     ),
     "places_agent": LLMAgentConfig(
         provider="openai",
@@ -573,7 +559,6 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=2000,
-        reasoning_effort="minimal",
     ),
     "routes_agent": LLMAgentConfig(
         provider="openai",
@@ -583,7 +568,6 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=2000,
-        reasoning_effort="minimal",
     ),
     "subagent": LLMAgentConfig(
         provider="openai",
@@ -603,7 +587,6 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=2000,
-        reasoning_effort="minimal",
     ),
     "weather_agent": LLMAgentConfig(
         provider="openai",
@@ -613,7 +596,6 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=1000,
-        reasoning_effort="minimal",
     ),
     "web_fetch_agent": LLMAgentConfig(
         provider="openai",
@@ -623,7 +605,6 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=3000,
-        reasoning_effort="minimal",
     ),
     "web_search_agent": LLMAgentConfig(
         provider="openai",
@@ -633,7 +614,6 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=4000,
-        reasoning_effort="minimal",
     ),
     "wikipedia_agent": LLMAgentConfig(
         provider="openai",
@@ -643,7 +623,6 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=2000,
-        reasoning_effort="minimal",
     ),
     # --- Query & Response ---
     "query_agent": LLMAgentConfig(
@@ -654,7 +633,6 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=5000,
-        reasoning_effort="minimal",
     ),
     "response": LLMAgentConfig(
         provider="anthropic",
@@ -675,7 +653,6 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=300,
-        reasoning_effort="minimal",
     ),
     "hitl_plan_approval_question_generator": LLMAgentConfig(
         provider="anthropic",
@@ -716,7 +693,6 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=500,
-        reasoning_effort="minimal",
     ),
     # --- Background ---
     "broadcast_translator": LLMAgentConfig(
@@ -727,7 +703,6 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=500,
-        reasoning_effort="minimal",
     ),
     "heartbeat_decision": LLMAgentConfig(
         provider="qwen",
@@ -816,7 +791,6 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=300,
-        reasoning_effort="low",
     ),
     "mcp_excalidraw": LLMAgentConfig(
         provider="anthropic",
@@ -837,7 +811,6 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=1000,
-        reasoning_effort="low",
     ),
     "vision_analysis": LLMAgentConfig(
         provider="openai",
@@ -847,7 +820,6 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=4096,
-        reasoning_effort="low",
     ),
     "voice_comment": LLMAgentConfig(
         provider="openai",
@@ -857,7 +829,6 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=500,
-        reasoning_effort="low",
     ),
 }
 

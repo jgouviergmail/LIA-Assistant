@@ -57,6 +57,7 @@ def _build_user_stats_columns() -> list[Any]:
         User.email,
         User.full_name,
         User.is_active,
+        User.deleted_at,
         User.created_at,
         # Limits config
         UserUsageLimit.token_limit_per_cycle,

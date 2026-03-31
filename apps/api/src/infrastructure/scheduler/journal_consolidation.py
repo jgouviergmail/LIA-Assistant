@@ -91,6 +91,7 @@ async def process_journal_consolidation() -> dict[str, Any]:
                             User.journals_enabled.is_(True),
                             User.journal_consolidation_enabled.is_(True),
                             User.is_active.is_(True),
+                            User.deleted_at.is_(None),
                             # Cooldown: never consolidated OR last > cooldown
                             (
                                 User.journal_last_consolidated_at.is_(None)
@@ -111,6 +112,15 @@ async def process_journal_consolidation() -> dict[str, Any]:
             # Process each eligible user
             for user in eligible_users:
                 try:
+                    # 0. Usage limit pre-check (skip early before any DB/LLM work)
+                    from src.domains.usage_limits.service import UsageLimitService
+
+                    if await UsageLimitService.is_user_blocked_for_llm(
+                        user.id,
+                        layer="journal_consolidation",
+                    ):
+                        continue
+
                     # Load personality
                     personality_instruction = None
                     personality_code = None

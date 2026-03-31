@@ -407,6 +407,17 @@ async def process_pending_reminders() -> dict[str, Any]:
                 stats["processed"] += 1
 
                 try:
+                    # 1.5. Usage limit pre-check (skip early before any DB/LLM work)
+                    from src.domains.usage_limits.service import UsageLimitService
+
+                    if await UsageLimitService.is_user_blocked_for_llm(
+                        reminder.user_id,
+                        layer="reminder_notification",
+                        extra_log_fields={"reminder_id": str(reminder.id)},
+                    ):
+                        stats["skipped"] += 1
+                        continue
+
                     # 2. Load user context
                     user = await user_service.get_user_by_id(reminder.user_id)
                     if not user:
@@ -418,6 +429,17 @@ async def process_pending_reminders() -> dict[str, Any]:
                         stats["skipped"] += 1
                         # Delete orphan reminder
                         await reminder_repo.delete(reminder)
+                        continue
+
+                    # 2.5. Skip inactive users (deleted users also have is_active=False)
+                    if not user.is_active:
+                        logger.info(
+                            "reminder_skipped_user_inactive",
+                            reminder_id=str(reminder.id),
+                            user_id=str(reminder.user_id),
+                            is_active=user.is_active,
+                        )
+                        stats["skipped"] += 1
                         continue
 
                     # 3. Load personality (optional)

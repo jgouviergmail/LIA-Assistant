@@ -32,6 +32,7 @@ class UsageLimitStatus(str, Enum):
     CRITICAL = "critical"
     BLOCKED_LIMIT = "blocked_limit"
     BLOCKED_MANUAL = "blocked_manual"
+    BLOCKED_ACCOUNT = "blocked_account"
 
 
 # ============================================================================

@@ -150,6 +150,10 @@ class UserProfileWithStats(UserProfile):
     scheduled_actions_count: int = Field(0, description="Number of scheduled actions")
     rag_spaces_count: int = Field(0, description="Number of RAG knowledge spaces")
     is_usage_blocked: bool = Field(False, description="Whether user is usage-blocked by admin")
+    deleted_at: datetime | None = Field(
+        None, description="Account deletion timestamp (None = not deleted)"
+    )
+    is_deleted: bool = Field(False, description="Whether account is soft-deleted (data purged)")
 
     model_config = {"from_attributes": True}
 
@@ -210,6 +214,28 @@ class UserActivationResponse(BaseModel):
     email_notification_error: str | None = Field(
         None, description="Error message if email notification failed"
     )
+
+
+# ========== ACCOUNT DELETION (Admin) ==========
+
+
+class AccountDeletionRequest(BaseModel):
+    """Request body for account deletion (soft-delete with data purge)."""
+
+    reason: str | None = Field(
+        None,
+        max_length=500,
+        description="Admin-provided reason for account deletion.",
+    )
+
+
+class AccountDeletionResponse(BaseModel):
+    """Response for account deletion with purge counts per table."""
+
+    user_id: UUID = Field(..., description="Deleted user ID")
+    email: str = Field(..., description="User email (preserved for billing)")
+    deleted_at: datetime = Field(..., description="Deletion timestamp")
+    counts: dict[str, int] = Field(..., description="Number of deleted rows per table/resource")
 
 
 # ========== AUTOCOMPLETE (Admin) ==========

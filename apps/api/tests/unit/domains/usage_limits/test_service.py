@@ -79,6 +79,69 @@ class TestComputeStatusManualBlock:
 
 
 # ============================================================================
+# Tests: _compute_status — Account Status Block (inactive / deleted)
+# ============================================================================
+
+
+@pytest.mark.unit
+class TestComputeStatusAccountBlock:
+    """Tests for account status enforcement (is_active, deleted_at)."""
+
+    def test_inactive_user_returns_blocked_account(self) -> None:
+        """Deactivated user (is_active=False) must be blocked."""
+        result = UsageLimitService._compute_status(**_base_kwargs(is_active=False))
+        assert result.allowed is False
+        assert result.status == UsageLimitStatus.BLOCKED_ACCOUNT
+        assert result.exceeded_limit == "account_status"
+
+    def test_deleted_user_returns_blocked_account(self) -> None:
+        """Deleted user (deleted_at set) must be blocked."""
+        result = UsageLimitService._compute_status(
+            **_base_kwargs(deleted_at=datetime(2026, 3, 31, tzinfo=UTC))
+        )
+        assert result.allowed is False
+        assert result.status == UsageLimitStatus.BLOCKED_ACCOUNT
+        assert result.exceeded_limit == "account_status"
+
+    def test_inactive_and_deleted_returns_blocked_account(self) -> None:
+        """Both inactive and deleted must be blocked."""
+        result = UsageLimitService._compute_status(
+            **_base_kwargs(is_active=False, deleted_at=datetime(2026, 3, 31, tzinfo=UTC))
+        )
+        assert result.allowed is False
+        assert result.status == UsageLimitStatus.BLOCKED_ACCOUNT
+
+    def test_account_block_takes_priority_over_manual_block(self) -> None:
+        """Account status check (priority 0) must fire before manual block (priority 1)."""
+        result = UsageLimitService._compute_status(
+            **_base_kwargs(is_active=False, is_usage_blocked=True)
+        )
+        assert result.status == UsageLimitStatus.BLOCKED_ACCOUNT  # Not BLOCKED_MANUAL
+
+    def test_account_block_takes_priority_over_limit_exceeded(self) -> None:
+        """Account status check must fire before usage limits."""
+        result = UsageLimitService._compute_status(
+            **_base_kwargs(
+                is_active=False,
+                cost_limit_absolute=Decimal("1.00"),
+                total_cost=Decimal("2.00"),
+            )
+        )
+        assert result.status == UsageLimitStatus.BLOCKED_ACCOUNT  # Not BLOCKED_LIMIT
+
+    def test_active_user_with_defaults_is_allowed(self) -> None:
+        """Active user with default kwargs (is_active=True, deleted_at=None) is allowed."""
+        result = UsageLimitService._compute_status(**_base_kwargs())
+        assert result.allowed is True
+        assert result.status == UsageLimitStatus.OK
+
+    def test_active_user_explicit_is_allowed(self) -> None:
+        """Explicitly passing is_active=True, deleted_at=None allows the user."""
+        result = UsageLimitService._compute_status(**_base_kwargs(is_active=True, deleted_at=None))
+        assert result.allowed is True
+
+
+# ============================================================================
 # Tests: _compute_status — All Unlimited
 # ============================================================================
 

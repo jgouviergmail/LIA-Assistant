@@ -161,6 +161,10 @@ async def get_current_active_session(
     if not user.is_active:
         raise_user_inactive(user.id)
 
+    # Reject deleted accounts (data purged, row kept for billing only)
+    if user.is_deleted:
+        raise_user_inactive(user.id)
+
     return user
 
 

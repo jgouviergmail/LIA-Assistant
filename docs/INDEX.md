@@ -247,6 +247,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Titre | Date |
 |-----|-------|------|
+| ADR-067 | Account Lifecycle (Active / Deactivated / Deleted / Erased) | 2026-03 |
 | ADR-066 | Memory Storage Migration — LangGraph Store to PostgreSQL Custom | 2026-03 |
 | ADR-065 | Legacy Domain Agent LangGraph Nodes — Dead Code Analysis | 2026-03 |
 | ADR-063 | Cross-Worker Cache Invalidation via Redis Pub/Sub | 2026-03 |

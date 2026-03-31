@@ -149,6 +149,14 @@ class UsageLimitService:
                         blocked_reason=None,
                         exceeded_limit=None,
                     )
+                elif not row.is_active or row.deleted_at is not None:
+                    # Account inactive or deleted — block regardless of limits
+                    result = UsageLimitCheckResult(
+                        allowed=False,
+                        status=UsageLimitStatus.BLOCKED_ACCOUNT,
+                        blocked_reason="Account inactive or deleted",
+                        exceeded_limit="account_status",
+                    )
                 elif not UsageLimitService._has_limit_record(row):
                     # No limit record (LEFT JOIN all NULLs) — allow (unlimited)
                     result = UsageLimitCheckResult(
@@ -206,6 +214,57 @@ class UsageLimitService:
         return result
 
     @staticmethod
+    async def is_user_blocked_for_llm(
+        user_id: UUID,
+        *,
+        layer: str,
+        context_log_event: str | None = None,
+        extra_log_fields: dict[str, Any] | None = None,
+    ) -> bool:
+        """Centralized pre-check for scheduler/background jobs consuming LLM tokens.
+
+        Combines usage limit check, Prometheus metric increment, and structured
+        logging into a single call. All scheduler jobs that invoke LLM operations
+        MUST call this before doing any expensive preparatory work (DB queries,
+        prompt building, etc.).
+
+        Args:
+            user_id: User UUID to check.
+            layer: Prometheus label identifying the calling layer
+                (e.g., "journal_consolidation", "reminder_notification", "proactive").
+            context_log_event: Custom log event name. Defaults to
+                "{layer}_user_usage_blocked".
+            extra_log_fields: Additional structured fields for the log entry
+                (e.g., task_type, reminder_id).
+
+        Returns:
+            True if the user is blocked (caller should skip), False if allowed.
+        """
+        from src.infrastructure.observability.metrics_usage_limits import (
+            usage_limit_enforcement_total,
+        )
+
+        result = await UsageLimitService.check_user_allowed(user_id)
+        if result.allowed:
+            return False
+
+        usage_limit_enforcement_total.labels(
+            layer=layer, limit_type=result.exceeded_limit or "unknown"
+        ).inc()
+
+        log_event = context_log_event or f"{layer}_user_usage_blocked"
+        log_fields: dict[str, Any] = {
+            "user_id": str(user_id),
+            "limit": result.exceeded_limit,
+            "blocked_reason": result.blocked_reason,
+        }
+        if extra_log_fields:
+            log_fields.update(extra_log_fields)
+
+        logger.info(log_event, **log_fields)
+        return True
+
+    @staticmethod
     async def invalidate_cache_static(user_id: UUID) -> None:
         """Invalidate Redis cache for a user's usage limit check.
 
@@ -258,6 +317,8 @@ class UsageLimitService:
             UsageLimitCheckResult.
         """
         return UsageLimitService._compute_status(
+            is_active=row.is_active,
+            deleted_at=row.deleted_at,
             is_usage_blocked=row.is_usage_blocked or False,
             blocked_reason=row.blocked_reason,
             token_limit_per_cycle=row.token_limit_per_cycle,
@@ -306,6 +367,8 @@ class UsageLimitService:
     @staticmethod
     def _compute_status(
         *,
+        is_active: bool = True,
+        deleted_at: datetime | None = None,
         is_usage_blocked: bool,
         blocked_reason: str | None,
         token_limit_per_cycle: int | None,
@@ -326,6 +389,8 @@ class UsageLimitService:
         Pure function — no side effects, no DB/Redis access.
 
         Args:
+            is_active: User.is_active flag (False = deactivated).
+            deleted_at: User.deleted_at timestamp (non-None = deleted).
             is_usage_blocked: Admin manual block flag.
             blocked_reason: Reason for manual block.
             token_limit_per_cycle: Token limit per cycle (None = unlimited).
@@ -344,6 +409,16 @@ class UsageLimitService:
         Returns:
             UsageLimitCheckResult with allowed, status, reason, and exceeded limit.
         """
+        # 0. Account status check (highest priority — inactive or deleted accounts
+        # must be blocked from ALL LLM operations regardless of usage limits)
+        if not is_active or deleted_at is not None:
+            return UsageLimitCheckResult(
+                allowed=False,
+                status=UsageLimitStatus.BLOCKED_ACCOUNT,
+                blocked_reason="Account inactive or deleted",
+                exceeded_limit="account_status",
+            )
+
         # 1. Manual block check
         if is_usage_blocked:
             return UsageLimitCheckResult(

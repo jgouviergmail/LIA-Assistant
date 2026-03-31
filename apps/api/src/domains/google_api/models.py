@@ -108,10 +108,10 @@ class GoogleApiUsageLog(BaseModel):
     __tablename__ = "google_api_usage_logs"
 
     # Foreign keys
-    user_id: Mapped[uuid.UUID] = mapped_column(
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
         index=True,
     )
 

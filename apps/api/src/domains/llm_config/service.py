@@ -258,6 +258,34 @@ class LLMConfigService:
                 )
             )
 
+        # Auto-clean reasoning_effort if model changed to non-reasoning (OpenAI only).
+        # Only applies to existing overrides (updates). For new overrides, the validator
+        # in LLMAgentConfig.validate_reasoning_effort() handles cleanup at merge time.
+        target = (
+            existing
+            or (
+                await self.db.execute(
+                    select(LLMConfigOverride).where(LLMConfigOverride.llm_type == llm_type)
+                )
+            ).scalar_one_or_none()
+        )
+        if target and target.model and target.reasoning_effort:
+            defaults = LLM_DEFAULTS.get(llm_type)
+            provider = target.provider or (defaults.provider if defaults else "")
+            if provider == "openai":
+                import re
+
+                from src.core.constants import REASONING_MODELS_PATTERN
+
+                if not re.match(REASONING_MODELS_PATTERN, target.model, re.IGNORECASE):
+                    logger.info(
+                        "auto_clearing_reasoning_effort",
+                        llm_type=llm_type,
+                        model=target.model,
+                        old_reasoning_effort=target.reasoning_effort,
+                    )
+                    target.reasoning_effort = None
+
         self._log_audit(
             admin_user_id,
             "llm_config_updated",

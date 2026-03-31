@@ -163,14 +163,13 @@ class LLMAgentConfig(BaseModel):
             is_reasoning_model = bool(re.match(REASONING_MODELS_PATTERN, model, re.IGNORECASE))
 
             if not is_reasoning_model:
-                logger.warning(
-                    "reasoning_effort_non_reasoning_model",
+                logger.debug(
+                    "reasoning_effort_auto_cleared",
                     model=model,
                     reasoning_effort=v,
-                    msg=f"reasoning_effort parameter is designed for OpenAI reasoning models "
-                    f"(o-series, GPT-5 series), but model={model} does not appear to be a "
-                    f"reasoning model. This parameter may be ignored by the API.",
+                    msg=f"reasoning_effort cleared: model={model} is not a reasoning model.",
                 )
+                return None
 
         return v
 
