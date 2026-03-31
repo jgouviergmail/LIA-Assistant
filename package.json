@@ -33,7 +33,7 @@
     "overrides": {
       "flatted": "3.4.2",
       "picomatch": "4.0.4",
-      "brace-expansion": "2.0.1"
+      "brace-expansion": "2.0.2"
     }
   }
 }
