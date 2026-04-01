@@ -82,7 +82,7 @@ networkx==3.6.1  # Dependency graph for semantic type expansion
 langchain-deepseek==1.0.1  # DeepSeek V3/R1 models
 langchain-anthropic==1.4.0  # Claude models (auto-compaction, effort="max" sans beta, cache_control fix)
 langchain-google-genai==4.2.1  # Gemini models
-anthropic==0.86.0  # Anthropic SDK (Claude Opus 4.6, structured outputs natifs, cache control GA)
+anthropic==0.87.0  # Anthropic SDK (Claude Opus 4.6, structured outputs natifs, cache control GA)
 
 # MCP (Model Context Protocol) — evolution F2
 mcp>=1.20.0,<2.0.0  # MCP 1.20+ adds list_resources/read_resource (MCP Apps support). Requires starlette>=0.27
