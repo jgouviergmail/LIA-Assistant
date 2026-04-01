@@ -506,8 +506,9 @@ REDIS_URL=redis://localhost:6379/0
 SECRET_KEY=change-me-in-production-use-openssl-rand-base64-32
 FERNET_KEY=your-fernet-key-here
 
-# LLM Provider (at least one required)
-OPENAI_API_KEY=sk-...
+# LLM Provider API keys are configured via Admin UI after first login
+# (Settings > Administration > LLM Configuration)
+# At least one provider (typically OpenAI) is required.
 
 # Google OAuth (optional)
 GOOGLE_CLIENT_ID=...

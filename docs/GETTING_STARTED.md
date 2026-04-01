@@ -188,7 +188,7 @@ git --version       # >= 2.40
 
 | Service | Usage | Sign Up |
 |---------|-------|---------|
-| **OpenAI** | Primary LLM (gpt-4.1-mini, gpt-4.1-nano) | [platform.openai.com](https://platform.openai.com/api-keys) |
+| **OpenAI** | Primary LLM provider (configured via Admin UI) | [platform.openai.com](https://platform.openai.com/api-keys) |
 | **Google Cloud** | OAuth + Google APIs | [console.cloud.google.com](https://console.cloud.google.com/) |
 
 #### Optional (Depending on Connectors)
@@ -320,26 +320,17 @@ REDIS_PASSWORD=redis_password_secure
 REDIS_URL=redis://:redis_password_secure@redis:6379/0
 
 # ============================================================================
-# LLM PROVIDERS (At least OpenAI required)
+# LLM PROVIDERS
 # ============================================================================
+# NOTE: LLM provider API keys are NO LONGER configured here.
+# They are managed via the Admin UI: Settings > Administration > LLM Configuration.
+# Keys are encrypted (Fernet) in the database and hot-reloadable (no restart needed).
+# .env keys are only used as fallback if no database key exists for a provider.
+#
+# Supported providers: OpenAI, Anthropic, DeepSeek, Google Gemini, Qwen, Perplexity, Ollama
+# At least one provider (typically OpenAI) must be configured via Admin UI after first login.
 
-# OpenAI API Key (MANDATORY)
-# Get from: https://platform.openai.com/api-keys
-OPENAI_API_KEY=sk-proj-...
-
-# Anthropic (optional)
-ANTHROPIC_API_KEY=sk-ant-...
-
-# DeepSeek (optional)
-DEEPSEEK_API_KEY=sk-...
-
-# Google Gemini (optional)
-GOOGLE_GEMINI_API_KEY=...
-
-# Perplexity (optional - for web search)
-PERPLEXITY_API_KEY=pplx-...
-
-# OpenWeatherMap (optional - for weather)
+# OpenWeatherMap (optional - for weather tool, still configured via .env)
 OPENWEATHERMAP_API_KEY=...
 
 # ============================================================================
@@ -1057,7 +1048,7 @@ What's the distance between my office and the airport?
 # Default mode: standard (free Edge TTS) or hd (paid OpenAI)
 VOICE_TTS_DEFAULT_MODE=standard
 
-# For TTS HD (OpenAI), OPENAI_API_KEY must be configured
+# For TTS HD (OpenAI), OpenAI API key must be configured via Admin UI
 # Available voices: alloy, echo, fable, onyx, nova, shimmer
 VOICE_TTS_HD_VOICE=nova
 ```
@@ -1245,93 +1236,98 @@ All optional features are disabled by default. Enable them in `.env`:
 
 ### Recommended LLM Configuration (Optimal Quality / Cost)
 
-LIA uses **35+ specialized LLM slots**, each independently configurable per provider, model, and parameters. The configuration below represents the **optimal balance between response quality and LLM costs**, tested in production. It is the default shipped with LIA.
+LIA uses **44 specialized LLM slots**, each independently configurable per provider, model, and parameters. The configuration below represents the **optimal balance between response quality and LLM costs**, tested in production. It is the default shipped with LIA.
 
-> **Fully customizable**: Every slot can be changed at runtime via the admin UI (Settings > Administration > LLM Configuration). You can use any supported provider (OpenAI, Anthropic, DeepSeek, Google Gemini, Ollama, Perplexity, Qwen) and mix them freely.
+> **Fully customizable**: Every slot can be changed at runtime via the **Admin UI** (Settings > Administration > LLM Configuration). You can use any supported provider (OpenAI, Anthropic, DeepSeek, Google Gemini, Ollama, Perplexity, Qwen) and mix them freely. Changes are hot-reloaded (no restart needed).
 
 #### Pipeline (Orchestration & Routing)
 
 | Slot | Provider | Model | Temp | Reasoning | Max Tokens | Rationale |
 |------|----------|-------|------|-----------|------------|-----------|
-| **Semantic Pivot** | OpenAI | `gpt-5-mini` | 0.0 | minimal | 5 000 | Fast deterministic classification |
-| **Query Analyzer** | Anthropic | `claude-sonnet-4-6` | 0.2 | low | 5 000 | Nuanced intent analysis |
-| **Router** | OpenAI | `gpt-5-mini` | 0.0 | minimal | 1 000 | Cheap, structured routing decision |
-| **Planner** | Anthropic | `claude-sonnet-4-6` | 0.2 | low | 20 000 | Complex multi-step plan generation |
-| **Semantic Validator** | Anthropic | `claude-sonnet-4-6` | 0.0 | low | 1 000 | Strict plan validation |
-| **Context Resolver** | OpenAI | `gpt-5-mini` | 0.0 | minimal | 1 000 | Fast context disambiguation |
-| **Compaction** | OpenAI | `gpt-4.1-mini` | 0.0 | — | 4 000 | Context window compression |
+| **Semantic Pivot** | OpenAI | `gpt-4.1-mini` | 0.2 | — | 5 000 | Fast deterministic classification |
+| **Query Analyzer** | OpenAI | `gpt-4.1-mini` | 0.2 | — | 5 000 | Balanced intent analysis |
+| **Router** | OpenAI | `gpt-4.1-mini` | 0.2 | — | 1 000 | Cheap, structured routing decision |
+| **Planner** | Qwen | `qwen3.5-plus` | 0.2 | low | 10 000 | Cost-effective complex plan generation |
+| **Semantic Validator** | OpenAI | `gpt-4.1-mini` | 0.2 | — | 1 000 | Strict plan validation |
+| **Context Resolver** | OpenAI | `gpt-4.1-mini` | 0.2 | — | 1 000 | Fast context disambiguation |
+| **Compaction** | OpenAI | `gpt-4.1-mini` | 0.2 | — | 4 000 | Context window compression |
+| **Initiative** | OpenAI | `gpt-4.1-mini` | 0.2 | — | 5 000 | Proactive initiative detection |
 
 #### Domain Agents (Tool-Calling)
 
 | Slot | Provider | Model | Temp | Reasoning | Max Tokens | Rationale |
 |------|----------|-------|------|-----------|------------|-----------|
-| **Contacts** | OpenAI | `gpt-5-nano` | 0.0 | minimal | 2 000 | Cheapest, tool calls are structured |
-| **Emails** | OpenAI | `gpt-5-nano` | 0.0 | minimal | 2 000 | Same — deterministic API calls |
-| **Calendar** | OpenAI | `gpt-5-nano` | 0.0 | minimal | 2 000 | Same |
-| **Drive** | OpenAI | `gpt-5-nano` | 0.0 | minimal | 2 000 | Same |
-| **Tasks** | OpenAI | `gpt-5-nano` | 0.0 | minimal | 2 000 | Same |
-| **Weather** | OpenAI | `gpt-5-nano` | 0.0 | minimal | 1 000 | Same, shorter output |
-| **Wikipedia** | OpenAI | `gpt-5-nano` | 0.0 | minimal | 2 000 | Same |
-| **Perplexity** | OpenAI | `gpt-5-nano` | 0.0 | minimal | 3 000 | Same |
-| **Brave** | OpenAI | `gpt-5-nano` | 0.0 | minimal | 2 000 | Same |
-| **Web Search** | OpenAI | `gpt-5-nano` | 0.3 | minimal | 4 000 | Slight creativity for search synthesis |
-| **Web Fetch** | OpenAI | `gpt-5-nano` | 0.3 | minimal | 3 000 | Same |
-| **Browser** | OpenAI | `gpt-4.1-mini` | 0.2 | — | 8 000 | Needs stronger reasoning for navigation |
-| **Places** | OpenAI | `gpt-5-nano` | 0.0 | minimal | 2 000 | Structured API calls |
-| **Routes** | OpenAI | `gpt-5-nano` | 0.0 | minimal | 2 000 | Same |
-| **Sub-Agent** | Anthropic | `claude-sonnet-4-6` | 0.5 | low | 8 000 | Delegation tasks need quality |
+| **Contacts** | OpenAI | `gpt-4.1-nano` | 0.0 | — | 2 000 | Cheapest, tool calls are structured |
+| **Emails** | OpenAI | `gpt-4.1-nano` | 0.0 | — | 2 000 | Same — deterministic API calls |
+| **Calendar** | OpenAI | `gpt-4.1-nano` | 0.0 | — | 2 000 | Same |
+| **Drive** | OpenAI | `gpt-4.1-nano` | 0.0 | — | 2 000 | Same |
+| **Tasks** | OpenAI | `gpt-4.1-nano` | 0.0 | — | 2 000 | Same |
+| **Weather** | OpenAI | `gpt-4.1-nano` | 0.0 | — | 1 000 | Same, shorter output |
+| **Wikipedia** | OpenAI | `gpt-4.1-nano` | 0.0 | — | 2 000 | Same |
+| **Perplexity** | OpenAI | `gpt-4.1-nano` | 0.0 | — | 3 000 | Same |
+| **Brave** | OpenAI | `gpt-4.1-nano` | 0.0 | — | 2 000 | Same |
+| **Web Search** | OpenAI | `gpt-4.1-nano` | 0.3 | — | 4 000 | Slight creativity for search synthesis |
+| **Web Fetch** | OpenAI | `gpt-4.1-nano` | 0.3 | — | 3 000 | Same |
+| **Browser** | OpenAI | `gpt-5.4` | 0.2 | low | 8 000 | Needs strong reasoning for navigation |
+| **Places** | OpenAI | `gpt-4.1-nano` | 0.0 | — | 2 000 | Structured API calls |
+| **Routes** | OpenAI | `gpt-4.1-nano` | 0.0 | — | 2 000 | Same |
+| **Hue** | OpenAI | `gpt-4.1-nano` | 0.0 | — | 1 000 | Smart home commands are structured |
+| **Sub-Agent** | OpenAI | `gpt-5.4` | 0.5 | low | 8 000 | Delegation tasks need strong reasoning |
+| **MCP React Agent** | OpenAI | `gpt-5.4` | 0.2 | low | 16 000 | External tool orchestration needs quality |
 
 #### Query & Response
 
 | Slot | Provider | Model | Temp | Reasoning | Max Tokens | Rationale |
 |------|----------|-------|------|-----------|------------|-----------|
-| **Query Agent** | Anthropic | `claude-sonnet-4-6` | 0.0 | low | 5 000 | High-quality conversational answers |
-| **Response** | Anthropic | `claude-sonnet-4-6` | 0.5 | medium | 5 000 | Natural, personality-aware final output |
+| **Query Agent** | OpenAI | `gpt-4.1-mini` | 0.0 | — | 5 000 | Balanced conversational answers |
+| **Response** | Anthropic | `claude-sonnet-4-6` | 0.7 | low | 5 000 | Natural, personality-aware final output |
 
 #### HITL (Human-in-the-Loop)
 
 | Slot | Provider | Model | Temp | Reasoning | Max Tokens | Rationale |
 |------|----------|-------|------|-----------|------------|-----------|
-| **HITL Classifier** | OpenAI | `gpt-5-nano` | 0.0 | minimal | 300 | Fast binary classification |
-| **HITL Question Gen** | OpenAI | `gpt-4.1-mini` | 0.5 | — | 500 | Conversational question phrasing |
-| **HITL Plan Approval** | OpenAI | `gpt-5-nano` | 0.5 | minimal | 500 | Budget-friendly approval prompts |
+| **HITL Classifier** | OpenAI | `gpt-4.1-nano` | 0.0 | — | 300 | Fast binary classification |
+| **HITL Question Gen** | Anthropic | `claude-sonnet-4-6` | 0.5 | low | 500 | Conversational question phrasing |
+| **HITL Plan Approval** | Anthropic | `claude-sonnet-4-6` | 0.5 | low | 500 | Natural approval prompts |
 
 #### Memory & Background
 
 | Slot | Provider | Model | Temp | Reasoning | Max Tokens | Rationale |
 |------|----------|-------|------|-----------|------------|-----------|
-| **Memory Extraction** | OpenAI | `gpt-5-mini` | 0.0 | minimal | 1 000 | Precise fact extraction |
-| **Memory Reference** | OpenAI | `gpt-5-mini` | 0.0 | minimal | 500 | Coreference resolution |
-| **Interest Extraction** | OpenAI | `gpt-5-mini` | 0.3 | minimal | 500 | Background interest detection |
-| **Interest Content** | Anthropic | `claude-sonnet-4-6` | 0.7 | medium | 1 000 | Creative interest-related content |
-| **Heartbeat Decision** | OpenAI | `gpt-5-mini` | 0.3 | minimal | 2 000 | Budget-friendly send/skip decision |
-| **Heartbeat Message** | Anthropic | `claude-sonnet-4-6` | 0.7 | medium | 500 | Personality-aware proactive messages |
-| **Broadcast Translator** | OpenAI | `gpt-5-mini` | 0.3 | minimal | 500 | Fast multilingual translation |
-| **Journal Extraction** | OpenAI | `gpt-5-mini` | 0.7 | minimal | 1 000 | Introspective journal entry creation |
-| **Journal Consolidation** | OpenAI | `gpt-5-mini` | 0.7 | minimal | 2 000 | Daily journal synthesis |
+| **Memory Extraction** | Anthropic | `claude-sonnet-4-6` | 0.3 | low | 1 000 | Precise fact extraction |
+| **Memory Reference** | OpenAI | `gpt-4.1-mini` | 0.0 | — | 500 | Coreference resolution |
+| **Interest Extraction** | Anthropic | `claude-sonnet-4-6` | 0.3 | low | 500 | Background interest detection |
+| **Interest Content** | Anthropic | `claude-sonnet-4-6` | 0.7 | low | 1 000 | Creative interest-related content |
+| **Heartbeat Decision** | Qwen | `qwen3.5-plus` | 0.3 | none | 2 000 | Cost-effective send/skip decision |
+| **Heartbeat Message** | Anthropic | `claude-sonnet-4-6` | 0.7 | low | 500 | Personality-aware proactive messages |
+| **Broadcast Translator** | OpenAI | `gpt-4.1-mini` | 0.3 | — | 500 | Fast multilingual translation |
+| **Journal Extraction** | Anthropic | `claude-sonnet-4-6` | 0.3 | low | 5 000 | Introspective journal entry creation |
+| **Journal Consolidation** | Qwen | `qwen3.5-plus` | 0.5 | none | 10 000 | Daily journal synthesis |
 
 #### Specialized
 
 | Slot | Provider | Model | Temp | Reasoning | Max Tokens | Rationale |
 |------|----------|-------|------|-----------|------------|-----------|
-| **Voice Comment** | OpenAI | `gpt-5-mini` | 0.7 | minimal | 500 | Natural voice commentary |
-| **MCP Description** | OpenAI | `gpt-5-mini` | 0.3 | minimal | 300 | Auto-describe MCP server tools |
-| **MCP Excalidraw** | Anthropic | `claude-opus-4-6` | 0.3 | low | 20 000 | Complex diagram generation |
-| **Vision Analysis** | OpenAI | `gpt-5-mini` | 0.5 | minimal | 4 096 | Image understanding |
-| **Skill Translator** | OpenAI | `gpt-5-mini` | 0.3 | minimal | 1 000 | Skill description i18n |
+| **Voice Comment** | OpenAI | `gpt-4.1-mini` | 0.7 | — | 500 | Natural voice commentary |
+| **MCP Description** | OpenAI | `gpt-4.1-mini` | 0.3 | — | 300 | Auto-describe MCP server tools |
+| **MCP Excalidraw** | Anthropic | `claude-opus-4-6` | 0.2 | medium | 20 000 | Complex diagram generation |
+| **Vision Analysis** | OpenAI | `gpt-4.1-mini` | 0.5 | — | 4 096 | Image understanding |
+| **Skill Translator** | OpenAI | `gpt-4.1-mini` | 0.3 | — | 1 000 | Skill description i18n |
 | **Evaluator** | OpenAI | `gpt-4.1-mini` | 0.0 | — | 1 000 | LLM-as-Judge scoring |
+| **Image Generation** | OpenAI | `gpt-image-1` | 0.0 | — | 1 | AI image generation |
 
 #### Design Principles
 
 The configuration follows a **tiered strategy**:
 
-1. **`gpt-5-nano`** (cheapest) — Domain agents doing structured tool calls. These don't need strong reasoning, just reliable function calling.
-2. **`gpt-5-mini`** — Pipeline nodes, memory, background tasks. Good reasoning at minimal cost with `reasoning_effort=minimal`.
-3. **`gpt-4.1-mini`** — Slots needing stronger reasoning without extended thinking (browser, evaluator, compaction).
-4. **`claude-sonnet-4-6`** — Core intelligence: planner, response, query analysis. Best quality/cost ratio for complex reasoning.
-5. **`claude-opus-4-6`** — Reserved for demanding creative tasks (Excalidraw diagram generation).
+1. **`gpt-4.1-nano`** (cheapest) — Domain agents doing structured tool calls. These don't need strong reasoning, just reliable function calling.
+2. **`gpt-4.1-mini`** — Pipeline nodes, memory, background tasks. Good balanced reasoning at low cost.
+3. **`qwen3.5-plus`** — Cost-effective reasoning for planning and background tasks (planner, heartbeat decision, journal consolidation).
+4. **`gpt-5.4`** — Advanced agents needing strong autonomous reasoning (browser, sub-agent, MCP react).
+5. **`claude-sonnet-4-6`** — Core intelligence: response, HITL, memory extraction. Best quality/cost ratio for personality-aware and nuanced output.
+6. **`claude-opus-4-6`** — Reserved for demanding creative tasks (Excalidraw diagram generation).
 
-> **Cost optimization tip**: Domain agents (`gpt-5-nano`) represent 50%+ of all LLM calls but a tiny fraction of cost. The real cost drivers are **Response** and **Planner** — switching these to cheaper models has the biggest cost impact (but also the biggest quality impact).
+> **Cost optimization tip**: Domain agents (`gpt-4.1-nano`) represent 50%+ of all LLM calls but a tiny fraction of cost. The real cost drivers are **Response** and **Planner** — switching these to cheaper models has the biggest cost impact (but also the biggest quality impact).
 
 ### Running Tests
 
@@ -1481,15 +1477,19 @@ alembic upgrade head
 
 #### Error: `AuthenticationError: Incorrect API key`
 
+LLM API keys are managed via the **Admin UI** (Settings > Administration > LLM Configuration), not in `.env`.
+
+1. Log in as admin
+2. Go to **Settings** > **Administration** > **LLM Configuration**
+3. In the **Provider Keys** section, verify the key status for the failing provider
+4. Update or re-enter the API key (keys are encrypted at rest)
+5. Changes take effect immediately (no restart needed)
+
+If the Admin UI is not accessible (e.g., first startup), you can temporarily set the key in `.env` as fallback:
+
 ```bash
-# Check that the key is in .env
-grep OPENAI_API_KEY .env
-
-# Expected format: sk-proj-... (new) or sk-... (legacy)
-
-# Test the key manually
-curl https://api.openai.com/v1/models \
-  -H "Authorization: Bearer $OPENAI_API_KEY" | head
+# Temporary fallback only — prefer Admin UI
+OPENAI_API_KEY=sk-proj-...
 ```
 
 ### Problem: Docker Desktop Network Access on Windows
@@ -1665,11 +1665,10 @@ docker stats
 
 #### HD TTS not working
 
-```bash
-# Check the OpenAI key
-grep OPENAI_API_KEY .env
+1. Verify OpenAI API key is configured in **Admin UI** (Settings > Administration > LLM Configuration > Provider Keys)
+2. Check TTS mode in `.env`:
 
-# Check the TTS mode
+```bash
 grep VOICE_TTS_DEFAULT_MODE .env
 # Should be: VOICE_TTS_DEFAULT_MODE=hd
 ```
@@ -1756,7 +1755,7 @@ Before considering your installation complete, verify:
 ### Configuration
 
 - [ ] SECRET_KEY and FERNET_KEY generated (unique!)
-- [ ] At least 1 LLM provider configured (OpenAI minimum)
+- [ ] At least 1 LLM provider API key configured via Admin UI (OpenAI minimum)
 - [ ] Google Cloud: OAuth consent screen + APIs enabled + credentials created (if using Google connectors)
 - [ ] Microsoft Azure: App registration + API permissions + client secret (if using Microsoft connectors)
 - [ ] Firebase: Project created + FCM enabled + service account + VAPID key (if using push notifications)
@@ -1815,7 +1814,7 @@ Include:
 
 | Version | Date | Changes |
 |---------|------|---------|
-| **3.4** | 2026-04-01 | Added detailed platform setup guides (Google Cloud, Microsoft Azure, Firebase) with step-by-step procedures |
+| **3.4** | 2026-04-01 | Added detailed platform setup guides (Google Cloud, Microsoft Azure, Firebase); updated LLM config to Admin UI (removed .env API keys); refreshed 44 LLM slot defaults to current production values |
 | **3.2** | 2026-03-20 | Added v6.3 features (Sub-Agents, Browser Control, Personal Journals, System Knowledge Spaces) |
 | **3.0** | 2026-03-13 | Added v6.2 features (Telegram, MCP, Heartbeat, Skills, SOPS, Testing, Production Deployment sections) |
 | **2.0** | 2026-02-03 | Added v6.0 (Skills, FOR_EACH, Voice Mode, Interest Learning) |
