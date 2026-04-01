@@ -2,8 +2,8 @@
 
 > Complete guide to install, configure, and get started with LIA - Multi-Agent AI Assistant v6.4
 
-**Version**: 3.3
-**Last Updated**: 2026-03-21
+**Version**: 3.4
+**Last Updated**: 2026-04-01
 **Compatibility**: LIA v6.4.x (+ evolution Features: Web Fetch, MCP Per-User, Multi-Channel Telegram, Heartbeat Autonome, RAG Spaces, Sub-Agents, Browser Control, Personal Journals, Philips Hue Smart Home)
 
 ## Table of Contents
@@ -195,6 +195,8 @@ git --version       # >= 2.40
 
 | Service | Usage | Sign Up |
 |---------|-------|---------|
+| **Microsoft Azure** | Microsoft 365 connectors (Outlook, Calendar, Contacts, Tasks) | [portal.azure.com](https://portal.azure.com/) |
+| **Firebase** | Push notifications (FCM) | [console.firebase.google.com](https://console.firebase.google.com/) |
 | **Anthropic** | Claude (alternative LLM) | [console.anthropic.com](https://console.anthropic.com/) |
 | **DeepSeek** | Budget-friendly LLM | [platform.deepseek.com](https://platform.deepseek.com/) |
 | **Google Gemini** | Google LLM | [aistudio.google.com](https://aistudio.google.com/app/apikey) |
@@ -649,52 +651,316 @@ curl -X POST http://localhost:8000/api/v1/auth/register \
   }'
 ```
 
-### 3. Configure Google OAuth (For Google Connectors)
+### 3. Configure External Platform Accounts
 
-#### 2.1 Create a Google Cloud Project
+LIA integrates with Google, Microsoft, and Firebase. Each platform requires specific configuration. Follow the sections relevant to your setup.
 
-1. Go to [console.cloud.google.com](https://console.cloud.google.com/)
-2. Create a new project "LIA"
+---
 
-#### 2.2 Enable APIs
+#### 3.1 Google Cloud Platform Setup
 
-In "APIs & Services" > "Library", enable:
-- **People API** (Google Contacts)
-- **Gmail API**
-- **Google Calendar API**
-- **Google Drive API**
-- **Google Tasks API**
-- **Places API (New)**
-- **Routes API** (Google Routes - directions)
+> **Required for**: Google OAuth login, Gmail, Calendar, Contacts, Drive, Tasks, Places, Routes, Geocoding.
 
-#### 2.3 Create OAuth 2.0 Credentials
+##### 3.1.1 Create a Google Cloud Project
 
-1. "APIs & Services" > "Credentials"
-2. "Create Credentials" > "OAuth 2.0 Client ID"
-3. Application type: "Web application"
-4. Name: "LIA Development"
-5. Authorized redirect URIs: `http://localhost:8000/api/v1/auth/google/callback`
-6. Copy Client ID and Client Secret into `.env`
+1. Go to [Google Cloud Console](https://console.cloud.google.com/)
+2. Click the project selector (top bar) > **New Project**
+3. Project name: `LIA` (or your preferred name)
+4. Click **Create**, then select the project
 
-#### 2.4 Connect in the Application
+##### 3.1.2 Configure the OAuth Consent Screen
+
+1. Navigate to **APIs & Services** > **OAuth consent screen**
+2. Choose **External** user type (unless you have a Google Workspace org) > **Create**
+3. Fill in the required fields:
+   - **App name**: `LIA`
+   - **User support email**: your email
+   - **Developer contact email**: your email
+4. Click **Save and Continue**
+5. On the **Scopes** page, click **Add or Remove Scopes** and add:
+
+   | Scope | Purpose |
+   |-------|---------|
+   | `openid` | Authentication |
+   | `email` | User email |
+   | `profile` | User name & avatar |
+   | `https://www.googleapis.com/auth/gmail.readonly` | Read emails |
+   | `https://www.googleapis.com/auth/gmail.send` | Send emails |
+   | `https://www.googleapis.com/auth/gmail.modify` | Modify emails (labels, trash) |
+   | `https://www.googleapis.com/auth/contacts` | Manage contacts |
+   | `https://www.googleapis.com/auth/contacts.readonly` | Read contacts |
+   | `https://www.googleapis.com/auth/contacts.other.readonly` | Read "Other contacts" |
+   | `https://www.googleapis.com/auth/calendar` | Full calendar access |
+   | `https://www.googleapis.com/auth/calendar.readonly` | Read calendar |
+   | `https://www.googleapis.com/auth/calendar.events` | Manage events |
+   | `https://www.googleapis.com/auth/drive.readonly` | Read Drive files |
+   | `https://www.googleapis.com/auth/drive.file` | Manage files created by LIA |
+   | `https://www.googleapis.com/auth/drive` | Full Drive access |
+   | `https://www.googleapis.com/auth/drive.metadata.readonly` | Read file metadata |
+   | `https://www.googleapis.com/auth/tasks` | Manage tasks |
+   | `https://www.googleapis.com/auth/tasks.readonly` | Read tasks |
+
+6. Click **Save and Continue**
+7. On the **Test Users** page, add the Google accounts that will use LIA during development (required while the app is in "Testing" mode — max 100 users)
+8. Click **Save and Continue** > **Back to Dashboard**
+
+> **Note**: While in "Testing" mode, only test users can authorize. To allow any Google user, submit the app for **Verification** (requires privacy policy URL and domain ownership). For development, testing mode is sufficient.
+
+##### 3.1.3 Enable Google APIs
+
+Navigate to **APIs & Services** > **Library** and enable each of these APIs:
+
+| API | Usage in LIA | Search Term |
+|-----|--------------|-------------|
+| **People API** | Google Contacts | `People API` |
+| **Gmail API** | Email read/send | `Gmail API` |
+| **Google Calendar API** | Event management | `Google Calendar API` |
+| **Google Drive API** | File search & RAG sync | `Google Drive API` |
+| **Tasks API** | Task management | `Tasks API` |
+| **Places API (New)** | Location search | `Places API (New)` |
+| **Routes API** | Directions & itineraries | `Routes API` |
+| **Geocoding API** | Address resolution | `Geocoding API` |
+
+For each API: click it > click **Enable**.
+
+##### 3.1.4 Create OAuth 2.0 Credentials
+
+1. Navigate to **APIs & Services** > **Credentials**
+2. Click **Create Credentials** > **OAuth 2.0 Client ID**
+3. Application type: **Web application**
+4. Name: `LIA Development`
+5. **Authorized JavaScript origins**: `http://localhost:3000`
+6. **Authorized redirect URIs** — add all of these:
+
+   ```
+   http://localhost:8000/api/v1/auth/google/callback
+   http://localhost:8000/api/v1/connectors/gmail/callback
+   http://localhost:8000/api/v1/connectors/google-calendar/callback
+   http://localhost:8000/api/v1/connectors/google-contacts/callback
+   http://localhost:8000/api/v1/connectors/google-drive/callback
+   http://localhost:8000/api/v1/connectors/google-tasks/callback
+   ```
+
+7. Click **Create**
+8. Copy the **Client ID** and **Client Secret** into `.env`:
+
+   ```bash
+   GOOGLE_CLIENT_ID=123456789-abcdef.apps.googleusercontent.com
+   GOOGLE_CLIENT_SECRET=GOCSPX-...
+   GOOGLE_REDIRECT_URI=http://localhost:8000/api/v1/auth/google/callback
+   ```
+
+> **Production**: Replace `http://localhost:8000` with your production API URL (e.g., `https://lia-back.yourdomain.com`) in both the redirect URIs and `.env`.
+
+##### 3.1.5 Create an API Key (for Places, Routes, Geocoding)
+
+Places, Routes, and Geocoding APIs use an API key (not OAuth):
+
+1. In **APIs & Services** > **Credentials**, click **Create Credentials** > **API Key**
+2. Click **Edit API key** (pencil icon) to restrict it:
+   - **Name**: `LIA API Key`
+   - **Application restrictions**: None (or HTTP referrers for production)
+   - **API restrictions**: Select **Restrict key** and choose:
+     - Places API (New)
+     - Routes API
+     - Geocoding API
+3. Click **Save**
+4. Copy the key into `.env`:
+
+   ```bash
+   GOOGLE_API_KEY=AIzaSy...
+   ```
+
+##### 3.1.6 Frontend Google Client ID
+
+For the Google Sign-In button on the frontend, add to `apps/web/.env.local`:
+
+```bash
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=123456789-abcdef.apps.googleusercontent.com
+```
+
+This is the **same Client ID** as the backend.
+
+##### 3.1.7 Connect in the Application
 
 1. Log in to the frontend
-2. Go to "Settings" > "Connectors"
-3. Click "Connect" on the desired Google services
+2. Go to **Settings** > **Connectors**
+3. Click **Connect** on the desired Google services
 4. Authorize OAuth access
 5. You will be redirected with the connector activated
 
-#### Optional: Microsoft 365 Connectors
+---
 
-LIA supports Microsoft Outlook, Calendar, Contacts, and Tasks via Microsoft Graph API:
+#### 3.2 Microsoft Azure Portal Setup (Optional)
 
-1. Register an app in [Azure Portal](https://portal.azure.com/) > Azure Active Directory > App registrations
-2. Configure `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `MICROSOFT_TENANT_ID` in `.env`
-3. Connect in Settings > Connectors
+> **Required for**: Microsoft Outlook (email), Calendar, Contacts, and To Do (tasks) via Microsoft Graph API.
 
-> See [MICROSOFT_365_INTEGRATION.md](./technical/MICROSOFT_365_INTEGRATION.md) for details.
+##### 3.2.1 Register an Application
 
-#### Optional: Apple iCloud Connectors
+1. Go to [Azure Portal](https://portal.azure.com/)
+2. Navigate to **Microsoft Entra ID** (formerly Azure Active Directory) > **App registrations**
+3. Click **New registration**
+4. Fill in:
+   - **Name**: `LIA`
+   - **Supported account types**: **Accounts in any organizational directory and personal Microsoft accounts** (this corresponds to `tenant=common`)
+   - **Redirect URI**: Select **Web** and add:
+     ```
+     http://localhost:8000/api/v1/connectors/microsoft-outlook/callback
+     ```
+5. Click **Register**
+6. On the app overview page, copy the **Application (client) ID**
+
+##### 3.2.2 Add All Redirect URIs
+
+1. In the app registration, go to **Authentication**
+2. Under **Web** > **Redirect URIs**, click **Add URI** and add all 4 callback URLs:
+
+   ```
+   http://localhost:8000/api/v1/connectors/microsoft-outlook/callback
+   http://localhost:8000/api/v1/connectors/microsoft-calendar/callback
+   http://localhost:8000/api/v1/connectors/microsoft-contacts/callback
+   http://localhost:8000/api/v1/connectors/microsoft-tasks/callback
+   ```
+
+3. Under **Implicit grant and hybrid flows**, ensure nothing is checked (LIA uses authorization code flow with PKCE)
+4. Click **Save**
+
+> **Production**: Add your production URLs as well (e.g., `https://lia-back.yourdomain.com/api/v1/connectors/microsoft-outlook/callback`).
+
+##### 3.2.3 Configure API Permissions
+
+1. Go to **API permissions** > **Add a permission** > **Microsoft Graph** > **Delegated permissions**
+2. Add the following permissions:
+
+   | Permission | Purpose |
+   |-----------|---------|
+   | `User.Read` | Read user profile |
+   | `offline_access` | Refresh tokens (long-lived sessions) |
+   | `Mail.Read` | Read emails |
+   | `Mail.ReadWrite` | Modify emails |
+   | `Mail.Send` | Send emails |
+   | `Calendars.Read` | Read calendar events |
+   | `Calendars.ReadWrite` | Create/update/delete events |
+   | `Contacts.Read` | Read contacts |
+   | `Contacts.ReadWrite` | Create/update/delete contacts |
+   | `Tasks.Read` | Read To Do tasks |
+   | `Tasks.ReadWrite` | Create/update/delete tasks |
+
+3. Click **Add permissions**
+
+> **Note**: These are all **delegated** permissions (acting on behalf of the user). No admin consent is required for personal accounts.
+
+##### 3.2.4 Create a Client Secret
+
+1. Go to **Certificates & secrets** > **Client secrets** > **New client secret**
+2. Description: `LIA Development`
+3. Expiry: Choose your preferred duration (24 months recommended for dev)
+4. Click **Add**
+5. **Immediately copy the secret Value** (it will only be shown once!)
+
+##### 3.2.5 Configure Environment Variables
+
+Add to your `.env`:
+
+```bash
+MICROSOFT_CLIENT_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+MICROSOFT_CLIENT_SECRET=your-client-secret-value
+MICROSOFT_TENANT_ID=common
+```
+
+> **`MICROSOFT_TENANT_ID=common`** supports both personal Microsoft accounts (outlook.com, hotmail.com, live.com) and enterprise Azure AD accounts. Microsoft automatically detects the account type.
+
+##### 3.2.6 Connect in the Application
+
+1. Log in to the frontend
+2. Go to **Settings** > **Connectors**
+3. Click **Connect** on the desired Microsoft services (Outlook, Calendar, Contacts, Tasks)
+4. Sign in with your Microsoft account and authorize
+
+> **Mutual exclusivity**: Only one provider per category (email, calendar, contacts, tasks) can be active. Activating Microsoft deactivates Google/Apple for that category (and vice versa). Deactivated connectors are set to INACTIVE, not deleted.
+
+> See [MICROSOFT_365_INTEGRATION.md](./technical/MICROSOFT_365_INTEGRATION.md) for full technical details.
+
+---
+
+#### 3.3 Firebase Console Setup (Optional)
+
+> **Required for**: Push notifications (FCM) — OAuth health alerts, heartbeat proactive notifications, interest-based notifications.
+
+##### 3.3.1 Create a Firebase Project
+
+1. Go to [Firebase Console](https://console.firebase.google.com/)
+2. Click **Add project**
+3. Project name: `LIA` (you can link it to your existing Google Cloud project)
+4. Disable Google Analytics (not needed) or enable it if desired
+5. Click **Create project**
+
+##### 3.3.2 Register a Web App
+
+1. In the Firebase project dashboard, click the **Web** icon (`</>`) to add a web app
+2. App nickname: `LIA Web`
+3. Do **not** check "Also set up Firebase Hosting"
+4. Click **Register app**
+5. Firebase will display a config object. Copy these values into `apps/web/.env.local`:
+
+   ```bash
+   NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSy...
+   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=lia-xxxxx.firebaseapp.com
+   NEXT_PUBLIC_FIREBASE_PROJECT_ID=lia-xxxxx
+   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=lia-xxxxx.appspot.com
+   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=123456789012
+   NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789012:web:abcdef123456
+   ```
+
+6. Click **Continue to console**
+
+##### 3.3.3 Enable Cloud Messaging
+
+1. In the Firebase project, go to **Project Settings** (gear icon) > **Cloud Messaging** tab
+2. Verify that **Firebase Cloud Messaging API (V1)** is enabled. If it shows "Disabled", click the three-dot menu and enable it via the Google Cloud Console link
+
+##### 3.3.4 Generate a VAPID Key (Web Push)
+
+1. Still in **Project Settings** > **Cloud Messaging** tab
+2. Scroll down to **Web Push certificates**
+3. Click **Generate key pair**
+4. Copy the generated key into `apps/web/.env.local`:
+
+   ```bash
+   NEXT_PUBLIC_FIREBASE_VAPID_KEY=BLxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx...
+   ```
+
+##### 3.3.5 Create a Service Account Key (Backend)
+
+1. Go to **Project Settings** > **Service accounts** tab
+2. Select **Firebase Admin SDK** > **Node.js** (the language doesn't matter, the JSON key is universal)
+3. Click **Generate new private key** > **Generate key**
+4. Save the downloaded JSON file as `apps/api/config/firebase-service-account.json`
+5. Configure in `.env`:
+
+   ```bash
+   FIREBASE_CREDENTIALS_PATH=config/firebase-service-account.json
+   FIREBASE_PROJECT_ID=lia-xxxxx
+   FCM_ENABLED=true
+   ```
+
+> **Security**: The `config/` directory is gitignored. Never commit the service account JSON to the repository.
+
+##### 3.3.6 Verify the Configuration
+
+After starting LIA, push notifications should work when:
+- A user enables notifications in **Settings** > **Notifications** (browser permission prompt)
+- An OAuth connector encounters an error (health check notification)
+- A heartbeat proactive notification is triggered
+
+Check the backend logs for:
+```
+FCM notification sent successfully
+```
+
+---
+
+#### 3.4 Apple iCloud Connectors (Optional)
 
 LIA supports Apple Email (IMAP), Calendar (CalDAV), and Contacts (CardDAV):
 
@@ -1491,7 +1757,9 @@ Before considering your installation complete, verify:
 
 - [ ] SECRET_KEY and FERNET_KEY generated (unique!)
 - [ ] At least 1 LLM provider configured (OpenAI minimum)
-- [ ] Google OAuth configured (if using Google connectors)
+- [ ] Google Cloud: OAuth consent screen + APIs enabled + credentials created (if using Google connectors)
+- [ ] Microsoft Azure: App registration + API permissions + client secret (if using Microsoft connectors)
+- [ ] Firebase: Project created + FCM enabled + service account + VAPID key (if using push notifications)
 - [ ] POSTGRES_* and REDIS_* variables configured
 
 ### Features
@@ -1547,6 +1815,7 @@ Include:
 
 | Version | Date | Changes |
 |---------|------|---------|
+| **3.4** | 2026-04-01 | Added detailed platform setup guides (Google Cloud, Microsoft Azure, Firebase) with step-by-step procedures |
 | **3.2** | 2026-03-20 | Added v6.3 features (Sub-Agents, Browser Control, Personal Journals, System Knowledge Spaces) |
 | **3.0** | 2026-03-13 | Added v6.2 features (Telegram, MCP, Heartbeat, Skills, SOPS, Testing, Production Deployment sections) |
 | **2.0** | 2026-02-03 | Added v6.0 (Skills, FOR_EACH, Voice Mode, Interest Learning) |
