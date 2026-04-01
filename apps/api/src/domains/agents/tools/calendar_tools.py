@@ -35,7 +35,7 @@ Migration (2025-12-30):
 """
 
 import time
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Annotated, Any
 from uuid import UUID
 
@@ -46,7 +46,7 @@ from pydantic import BaseModel
 
 from src.core.config import get_settings, settings
 from src.core.i18n_api_messages import APIMessages
-from src.core.time_utils import normalize_to_rfc3339
+from src.core.time_utils import normalize_to_rfc3339, now_utc
 from src.domains.agents.constants import (
     AGENT_EVENT,
     CONTEXT_DOMAIN_CALENDARS,
@@ -322,8 +322,7 @@ class SearchEventsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
             logger.debug("calendar_get_user_preferences_failed", error=str(e))
 
         if not time_min:
-            now = datetime.utcnow()
-            time_min = now.isoformat() + "Z"
+            time_min = now_utc().isoformat()
             logger.debug(
                 "calendar_search_defaulting_time_min",
                 time_min=time_min,
@@ -334,8 +333,7 @@ class SearchEventsTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient]):
 
         # Default time_max to 30 days from now if searching future events
         if not time_max:
-            now = datetime.utcnow()
-            time_max = (now + timedelta(days=30)).isoformat() + "Z"
+            time_max = (now_utc() + timedelta(days=30)).isoformat()
         else:
             time_max = normalize_to_rfc3339(normalize_user_datetime(time_max, _user_tz) or time_max)
 
@@ -2183,7 +2181,7 @@ async def get_events_tool(
     """
     # Compute time_max from days_ahead (relative window, useful for plan_template)
     if days_ahead is not None:
-        time_max = (datetime.utcnow() + timedelta(days=days_ahead)).isoformat() + "Z"
+        time_max = (now_utc() + timedelta(days=days_ahead)).isoformat()
 
     # Route to appropriate implementation based on parameters
     if event_id or event_ids:

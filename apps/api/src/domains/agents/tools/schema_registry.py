@@ -34,10 +34,11 @@ Created: 2025-11-23
 """
 
 import threading
-from datetime import datetime
 from typing import Any
 
 import structlog
+
+from src.core.time_utils import now_utc
 
 logger = structlog.get_logger(__name__)
 
@@ -227,7 +228,7 @@ class ToolSchemaRegistry:
             self._schemas[tool_name] = {
                 "response_schema": schema,
                 "examples": examples,
-                "registered_at": datetime.utcnow().isoformat(),
+                "registered_at": now_utc().isoformat(),
             }
 
             # Count fields in schema

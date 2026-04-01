@@ -496,13 +496,7 @@
       "retry_button": "Retry",
       "retry_failed": "Unable to retrieve your position. Check that GPS is enabled.",
       "detection": {
-        "keywords": [
-          "nearby",
-          "vicinity",
-          "neighborhood",
-          "surroundings",
-          "area"
-        ],
+        "keywords": ["nearby", "vicinity", "neighborhood", "surroundings", "area"],
         "patterns": [
           "around (me|here|us)",
           "close (by|to me)",
@@ -2618,7 +2612,7 @@
         "v1_13": {
           "title": "v1.13 — Design System v4, Skills, Administration & Account Lifecycle",
           "date": "March 2026",
-          "count": "10",
+          "count": "11",
           "items": {
             "i1": "<b>Account Lifecycle</b> — Administrators can deactivate, delete (data purge with billing history preservation) and permanently erase (GDPR) user accounts in 3 secure steps",
             "i2": "<b>Background Task Protection</b> — Proactive notifications, reminders, scheduled actions and journal consolidation no longer consume AI tokens for deactivated or deleted accounts",
@@ -2629,7 +2623,8 @@
             "i7": "<b>Multi-provider</b> — Calendar, Email, Contacts, Drive and Tasks tools now presented as compatible with Google, Microsoft and Apple",
             "i8": "<b>DevOps Claude CLI</b> — Administrators can diagnose servers via Claude Code in natural language directly from LIA",
             "i9": "<b>Calendar DST Fix</b> — Events created during daylight saving transitions now have the correct time",
-            "i10": "<b>Cross-domain context fix</b> — \"Show me the last email\" after viewing calendar events now works correctly"
+            "i10": "<b>Cross-domain context fix</b> — \"Show me the last email\" after viewing calendar events now works correctly",
+            "i11": "<b>Route-to-calendar timezone fix</b> — Travel time calculations to calendar events now use the correct local time (a 2-hour offset could cause arriving 2 hours too early)"
           }
         },
         "v1_12": {

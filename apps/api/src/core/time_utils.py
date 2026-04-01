@@ -268,8 +268,19 @@ def normalize_user_datetime(dt_str: str | None, user_timezone: str) -> str | Non
     always re-localizes to the user's timezone using the correct offset for the
     target date.
 
+    **IMPORTANT**: The hour value is always treated as the user's LOCAL TIME
+    INTENT, regardless of the input offset. This means:
+    - ``"15:00:00+01:00"`` → user wants 15:00 local → ``"15:00:00+02:00"`` (if CEST)
+    - ``"15:00:00Z"`` → user wants 15:00 local → ``"15:00:00+02:00"`` (if CEST)
+
+    **DO NOT** pass API-returned UTC datetimes (e.g., from Google Calendar) to
+    this function — use ``convert_to_user_timezone()`` instead. Passing a real
+    UTC datetime like ``"13:00:00Z"`` (meaning 15:00 Paris) would incorrectly
+    produce ``"13:00:00+02:00"`` instead of ``"15:00:00+02:00"``.
+
     Args:
-        dt_str: ISO 8601 datetime string (may be naive or aware).
+        dt_str: ISO 8601 datetime string from LLM tool calls (may be naive
+            or aware with potentially wrong offset).
         user_timezone: User's IANA timezone (e.g., ``"Europe/Paris"``).
 
     Returns:
@@ -283,9 +294,6 @@ def normalize_user_datetime(dt_str: str | None, user_timezone: str) -> str | Non
         >>> # LLM sent +01:00 but 29 mars is CEST (+02:00) → corrected
         >>> normalize_user_datetime("2026-03-29T15:00:00+01:00", "Europe/Paris")
         '2026-03-29T15:00:00+02:00'
-
-        >>> normalize_user_datetime("2026-03-26T21:00:00Z", "Europe/Paris")
-        '2026-03-26T22:00:00+01:00'
     """
     if not dt_str:
         return None

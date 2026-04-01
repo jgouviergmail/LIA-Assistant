@@ -78,12 +78,19 @@ Calcule un itinéraire entre deux points.
 | `avoid_ferries` | bool | Éviter les ferries |
 | `departure_time` | datetime | Heure de départ pour traffic prediction |
 
-> **Timezone handling (v1.12.1):** Naive datetimes from LLM tool calls (without
-> timezone info) are now normalized to the user's local timezone via
+> **Timezone handling (v1.12.1, updated v1.13.10):** Naive datetimes from LLM tool calls (without
+> timezone info) are normalized to the user's local timezone via
 > `normalize_user_datetime()` from `time_utils.py` before being processed.
-> Previously, naive datetimes were treated as UTC, causing a 1-hour offset for
-> users in UTC+1 (and equivalent offsets in other timezones). The same
-> normalization applies to `arrival_time` when supported.
+> This function treats the hour value as **local time intent** — it must only
+> receive LLM-generated datetimes, never API-returned UTC datetimes (use
+> `convert_to_user_timezone()` for those).
+>
+> **Cross-domain binding caveat (v1.13.10):** When the route tool receives
+> `arrival_time` from a calendar event via the `event["date"]` top-level alias,
+> this alias must be set **after** `convert_event_dates_in_payload()` in the
+> calendar mixin. Setting it before conversion would pass the raw UTC value
+> (e.g., `13:00:00Z`) instead of the converted local time (`15:00:00+02:00`),
+> causing a timezone-offset error in departure time calculations.
 
 **Retour** : `UnifiedToolOutput` avec `RouteItem`
 

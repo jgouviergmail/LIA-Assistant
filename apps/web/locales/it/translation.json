@@ -475,14 +475,7 @@
       "retry_button": "Riprova",
       "retry_failed": "Impossibile recuperare la tua posizione. Verifica che il GPS sia attivato.",
       "detection": {
-        "keywords": [
-          "vicinanze",
-          "dintorni",
-          "zona",
-          "quartiere",
-          "prossimita",
-          "domicilio"
-        ],
+        "keywords": ["vicinanze", "dintorni", "zona", "quartiere", "prossimita", "domicilio"],
         "patterns": [
           "(nelle|in) vicinanz[ae]",
           "intorno a me",
@@ -2611,7 +2604,7 @@
         "v1_13": {
           "title": "v1.13 — Design System v4, Skill, Amministrazione e Ciclo di vita degli account",
           "date": "Marzo 2026",
-          "count": "10",
+          "count": "11",
           "items": {
             "i1": "<b>Ciclo di vita degli account</b> — Gli amministratori possono disattivare, eliminare (purge dei dati con conservazione dello storico fatturazione) e cancellare definitivamente (GDPR) gli account utente in 3 passaggi sicuri",
             "i2": "<b>Protezione attività in background</b> — Notifiche proattive, promemoria, azioni pianificate e consolidamento dei diari non consumano più token IA per gli account disattivati o eliminati",
@@ -2622,7 +2615,8 @@
             "i7": "<b>Multi-fornitore</b> — Calendario, Email, Contatti, Drive e Attività ora presentati come compatibili con Google, Microsoft e Apple",
             "i8": "<b>DevOps Claude CLI</b> — Gli amministratori possono diagnosticare i server tramite Claude Code in linguaggio naturale direttamente da LIA",
             "i9": "<b>Correzione DST calendario</b> — Gli eventi creati durante i cambi d'ora hanno ora l'orario corretto",
-            "i10": "<b>Correzione contesto inter-dominio</b> — \"Mostrami l'ultima email\" dopo aver visto il calendario funziona ora correttamente"
+            "i10": "<b>Correzione contesto inter-dominio</b> — \"Mostrami l'ultima email\" dopo aver visto il calendario funziona ora correttamente",
+            "i11": "<b>Correzione fuso orario percorso-calendario</b> — Il calcolo del tempo di viaggio verso eventi del calendario usa ora l'ora locale corretta (uno sfasamento di 2 ore poteva far arrivare 2 ore in anticipo)"
           }
         },
         "v1_12": {

@@ -607,11 +607,6 @@ class ToolOutputMixin:
             if "event_id" not in event:
                 event["event_id"] = event_id
 
-            # Add top-level date alias for cross-domain binding (weather.date, routes.arrival_time)
-            # LLM does name-based binding: $item.date is easier than $item.start.dateTime
-            if start.get("dateTime"):
-                event["date"] = start["dateTime"]
-
             # CRITICAL: Add calendar_id to each event for update/delete operations
             # Without this, update_event_tool won't know which calendar contains the event
             if calendar_id:
@@ -624,6 +619,13 @@ class ToolOutputMixin:
 
             # Convert dates to user's timezone
             convert_event_dates_in_payload(event, user_timezone, locale)
+
+            # Add top-level date alias for cross-domain binding (weather.date, routes.arrival_time)
+            # LLM does name-based binding: $item.date is easier than $item.start.dateTime
+            # MUST be set AFTER convert_event_dates_in_payload so it contains the
+            # user-timezone-aware ISO string, not the raw UTC value from Google API.
+            if start.get("dateTime"):
+                event["date"] = start["dateTime"]
 
             # Log after conversion for debugging
             start_after = event.get("start", {}).get("formatted", "")

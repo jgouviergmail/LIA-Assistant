@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.13.10] - 2026-04-01
+
+### Fixed
+
+- **Calendar-to-Routes Timezone Bug** — Fixed 2-hour offset in route arrival time calculations when routing to calendar events. The `event["date"]` cross-domain binding field was set **before** `convert_event_dates_in_payload()`, causing the raw UTC value from Google Calendar API (e.g., `13:00:00Z`) to be passed as `arrival_time` to the route tool instead of the converted local time (`15:00:00+02:00`). The field assignment is now correctly placed after timezone conversion. (`mixins.py`)
+- **`datetime.utcnow()` Eradication** — Replaced all 6 remaining `datetime.utcnow()` calls with timezone-aware `now_utc()` from centralized `time_utils.py`. Affected files: `calendar_tools.py` (3 occurrences — search time_min/time_max defaults and days_ahead), `google_tasks_client.py` (task completion timestamp), `plan_editor.py` (audit timestamp), `schema_registry.py` (registration timestamp). Eliminates class of bugs where naive datetimes could be misinterpreted as local time.
+- **`normalize_user_datetime()` Docstring Correction** — Removed incorrect example claiming UTC input `"21:00:00Z"` would be converted to `"22:00:00+01:00"` (actual behavior: hour is preserved as local intent, producing `"21:00:00+01:00"`). Added explicit warning that this function must NOT be called with API-returned UTC datetimes — use `convert_to_user_timezone()` instead. (`time_utils.py`)
+
+### Documentation
+
+- Updated 16 guide files (why, how, privacy, terms — 6 languages) with v1.13.10 version reference.
+- Updated `docs/technical/ROUTES.md` with v1.13.10 timezone fix details and cross-domain binding caveat.
+
 ## [1.13.9] - 2026-04-01
 
 ### Added

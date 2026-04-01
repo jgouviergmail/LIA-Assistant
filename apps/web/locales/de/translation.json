@@ -475,14 +475,7 @@
       "retry_button": "Erneut versuchen",
       "retry_failed": "Ihre Position konnte nicht abgerufen werden. Überprüfen Sie, ob GPS aktiviert ist.",
       "detection": {
-        "keywords": [
-          "nahe",
-          "umgebung",
-          "gegend",
-          "nachbarschaft",
-          "viertel",
-          "zuhause"
-        ],
+        "keywords": ["nahe", "umgebung", "gegend", "nachbarschaft", "viertel", "zuhause"],
         "patterns": [
           "in der n[aä]he",
           "um mich herum",
@@ -2609,7 +2602,7 @@
         "v1_13": {
           "title": "v1.13 — Design System v4, Skills, Verwaltung & Konto-Lebenszyklus",
           "date": "März 2026",
-          "count": "10",
+          "count": "11",
           "items": {
             "i1": "<b>Konto-Lebenszyklus</b> — Administratoren können Benutzerkonten in 3 sicheren Schritten deaktivieren, löschen (Datenbereinigung mit Abrechnungshistorie) und endgültig löschen (DSGVO)",
             "i2": "<b>Schutz der Hintergrundaufgaben</b> — Proaktive Benachrichtigungen, Erinnerungen, geplante Aktionen und Journal-Konsolidierung verbrauchen keine KI-Tokens mehr für deaktivierte oder gelöschte Konten",
@@ -2620,7 +2613,8 @@
             "i7": "<b>Multi-Anbieter</b> — Kalender, E-Mail, Kontakte, Drive und Aufgaben werden jetzt als kompatibel mit Google, Microsoft und Apple dargestellt",
             "i8": "<b>DevOps Claude CLI</b> — Administratoren können Server über Claude Code in natürlicher Sprache direkt von LIA aus diagnostizieren",
             "i9": "<b>Kalender-DST-Fix</b> — Ereignisse, die während der Zeitumstellung erstellt werden, haben jetzt die korrekte Uhrzeit",
-            "i10": "<b>Domänenübergreifende Kontextkorrektur</b> — «Zeige mir die letzte E-Mail» nach Kalenderansicht funktioniert jetzt korrekt"
+            "i10": "<b>Domänenübergreifende Kontextkorrektur</b> — «Zeige mir die letzte E-Mail» nach Kalenderansicht funktioniert jetzt korrekt",
+            "i11": "<b>Routen-Kalender-Zeitzonen-Fix</b> — Reisezeitberechnungen zu Kalendereinträgen verwenden jetzt die korrekte Ortszeit (ein 2-Stunden-Versatz konnte dazu führen, dass man 2 Stunden zu früh ankam)"
           }
         },
         "v1_12": {

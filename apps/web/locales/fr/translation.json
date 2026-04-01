@@ -2623,7 +2623,7 @@
         "v1_13": {
           "title": "v1.13 — Design System v4, Skills, Administration & Cycle de vie des comptes",
           "date": "Mars 2026",
-          "count": "10",
+          "count": "11",
           "items": {
             "i1": "<b>Cycle de vie des comptes</b> — Les administrateurs peuvent désactiver, supprimer (purge des données avec conservation de l'historique de facturation) et effacer définitivement (RGPD) les comptes utilisateurs en 3 étapes sécurisées",
             "i2": "<b>Protection des tâches de fond</b> — Les notifications proactives, rappels, actions planifiées et consolidation de journaux ne consomment plus de tokens IA pour les comptes désactivés ou supprimés",
@@ -2634,7 +2634,8 @@
             "i7": "<b>Multi-fournisseur</b> — Les outils Agenda, Email, Contacts, Drive et Tâches sont désormais présentés comme compatibles Google, Microsoft et Apple",
             "i8": "<b>DevOps Claude CLI</b> — Les administrateurs peuvent diagnostiquer les serveurs via Claude Code en langage naturel directement depuis LIA",
             "i9": "<b>Correction DST calendrier</b> — Les événements créés pendant les changements d'heure (été/hiver) sont désormais à la bonne heure",
-            "i10": "<b>Correction contexte inter-domaines</b> — « Montre-moi le dernier email » après avoir consulté l'agenda fonctionne désormais correctement"
+            "i10": "<b>Correction contexte inter-domaines</b> — « Montre-moi le dernier email » après avoir consulté l'agenda fonctionne désormais correctement",
+            "i11": "<b>Correction heure itinéraire-agenda</b> — Le calcul du temps de trajet vers un événement utilise désormais l'heure locale correcte (un décalage de 2 h pouvait faire arriver 2 h trop tôt)"
           }
         },
         "v1_12": {

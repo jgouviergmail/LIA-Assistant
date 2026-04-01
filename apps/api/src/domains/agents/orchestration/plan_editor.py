@@ -447,7 +447,7 @@ class EnhancedPlanEditor(PlanEditor):
             ... )
             >>> assert result.schema_validated
         """
-        from datetime import datetime
+        from src.core.time_utils import now_utc
 
         # Import metrics with graceful degradation
         try:
@@ -515,7 +515,7 @@ class EnhancedPlanEditor(PlanEditor):
         warnings.extend(ref_warnings)
 
         # Step 4: Build audit entries
-        timestamp = datetime.utcnow().isoformat()
+        timestamp = now_utc().isoformat()
         for mod in modifications:
             original_params = None
             new_params = None

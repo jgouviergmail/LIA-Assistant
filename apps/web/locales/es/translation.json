@@ -475,14 +475,7 @@
       "retry_button": "Reintentar",
       "retry_failed": "No se pudo obtener tu posición. Verifica que el GPS esté activado.",
       "detection": {
-        "keywords": [
-          "alrededores",
-          "cercanias",
-          "proximidad",
-          "vecindario",
-          "zona",
-          "domicilio"
-        ],
+        "keywords": ["alrededores", "cercanias", "proximidad", "vecindario", "zona", "domicilio"],
         "patterns": [
           "cerca de (aqu[ií]|m[ií])",
           "a mi alrededor",
@@ -2609,7 +2602,7 @@
         "v1_13": {
           "title": "v1.13 — Design System v4, Skills, Administración y Ciclo de vida de cuentas",
           "date": "Marzo 2026",
-          "count": "10",
+          "count": "11",
           "items": {
             "i1": "<b>Ciclo de vida de cuentas</b> — Los administradores pueden desactivar, eliminar (purga de datos con historial de facturación) y borrar definitivamente (RGPD) cuentas de usuario en 3 pasos seguros",
             "i2": "<b>Protección de tareas de fondo</b> — Notificaciones proactivas, recordatorios, acciones programadas y consolidación de diarios ya no consumen tokens IA para cuentas desactivadas o eliminadas",
@@ -2620,7 +2613,8 @@
             "i7": "<b>Multi-proveedor</b> — Agenda, Email, Contactos, Drive y Tareas ahora se presentan como compatibles con Google, Microsoft y Apple",
             "i8": "<b>DevOps Claude CLI</b> — Los administradores pueden diagnosticar servidores vía Claude Code en lenguaje natural directamente desde LIA",
             "i9": "<b>Corrección DST calendario</b> — Los eventos creados durante cambios de hora ahora tienen la hora correcta",
-            "i10": "<b>Corrección contexto inter-dominios</b> — \"Muéstrame el último email\" después de ver el calendario ahora funciona correctamente"
+            "i10": "<b>Corrección contexto inter-dominios</b> — \"Muéstrame el último email\" después de ver el calendario ahora funciona correctamente",
+            "i11": "<b>Corrección zona horaria ruta-agenda</b> — El cálculo del tiempo de viaje hacia eventos del calendario ahora usa la hora local correcta (un desfase de 2 h podía hacer llegar 2 horas antes)"
           }
         },
         "v1_12": {

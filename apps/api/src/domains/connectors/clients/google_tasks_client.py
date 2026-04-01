@@ -12,13 +12,13 @@ Scopes required:
 - https://www.googleapis.com/auth/tasks.readonly (read-only access)
 """
 
-from datetime import datetime
 from typing import Any
 from uuid import UUID
 
 import structlog
 
 from src.core.config import settings
+from src.core.time_utils import now_utc
 from src.domains.connectors.clients.base_google_client import (
     BaseGoogleClient,
     apply_max_items_limit,
@@ -360,7 +360,7 @@ class GoogleTasksClient(BaseGoogleClient):
         if status is not None:
             task_data["status"] = status
             if status == "completed":
-                task_data["completed"] = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.000Z")
+                task_data["completed"] = now_utc().strftime("%Y-%m-%dT%H:%M:%S.000Z")
         elif "status" in existing:
             task_data["status"] = existing["status"]
 

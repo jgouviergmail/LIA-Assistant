@@ -36,7 +36,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.13.9</strong> — Admin pagination &amp; sorting enhancements, image generation pricing, CodeQL fixes — April 2026
+  <strong>Version 1.13.10</strong> — Calendar-to-routes timezone fix, datetime.utcnow() eradication — April 2026
 </p>
 
 ---
