@@ -1,46 +1,42 @@
 """
-Journal embedding service.
+Journal embedding service using Google Gemini gemini-embedding-001.
 
-Provides a lazy-initialized TrackedOpenAIEmbeddings instance configured
-for journal entry indexing and semantic search. Token tracking is automatic
-via TrackedOpenAIEmbeddings + EmbeddingTrackingContext.
+Provides a lazy-initialized GeminiRetrievalEmbeddings instance with
+automatic task_type handling (RETRIEVAL_QUERY for search, RETRIEVAL_DOCUMENT
+for storage). Token tracking is automatic via Prometheus metrics.
 
-Follows the same singleton pattern as RAG Spaces embedding service
-(apps/api/src/domains/rag_spaces/embedding.py).
+Follows the same singleton pattern as:
+- apps/api/src/infrastructure/llm/memory_embeddings.py (get_memory_embeddings)
 
-Phase: v1.9.2 — Journal Relevance & Retrieval Overhaul
-Created: 2026-03-22
+Phase: v1.15.0 — Gemini embedding migration for multilingual retrieval
+Created: 2026-04-02
 """
 
 from __future__ import annotations
 
+import os
 import threading
 
-from pydantic import SecretStr
-
 from src.core.config import settings
-from src.infrastructure.llm.providers.adapter import _require_api_key
-from src.infrastructure.llm.tracked_embeddings import TrackedOpenAIEmbeddings
+from src.infrastructure.llm.gemini_embeddings import GeminiRetrievalEmbeddings
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
 
 # Singleton with thread-safe lazy initialization
-_journal_embeddings: TrackedOpenAIEmbeddings | None = None
+_journal_embeddings: GeminiRetrievalEmbeddings | None = None
 _lock = threading.Lock()
 
 
-def get_journal_embeddings() -> TrackedOpenAIEmbeddings:
-    """
-    Get or create the journal embeddings singleton.
+def get_journal_embeddings() -> GeminiRetrievalEmbeddings:
+    """Get or create the journal embeddings singleton.
 
-    Returns a TrackedOpenAIEmbeddings instance configured with the model
-    and dimensions from settings. Token tracking is automatic via
-    Prometheus metrics and optional DB persistence (when EmbeddingTrackingContext
-    is set by the caller).
+    Returns a GeminiRetrievalEmbeddings instance that automatically
+    applies task_type=RETRIEVAL_QUERY on embed_query and
+    task_type=RETRIEVAL_DOCUMENT on embed_documents.
 
     Returns:
-        TrackedOpenAIEmbeddings instance for journal operations
+        GeminiRetrievalEmbeddings instance for journal operations.
     """
     global _journal_embeddings
 
@@ -48,34 +44,34 @@ def get_journal_embeddings() -> TrackedOpenAIEmbeddings:
         return _journal_embeddings
 
     with _lock:
-        # Double-check after acquiring lock
         if _journal_embeddings is not None:
             return _journal_embeddings
 
         model = settings.journal_embedding_model
         dimensions = settings.journal_embedding_dimensions
 
-        _journal_embeddings = TrackedOpenAIEmbeddings(
+        google_api_key = os.environ.get("GOOGLE_GEMINI_API_KEY", "") or os.environ.get(
+            "GOOGLE_API_KEY", ""
+        )
+
+        _journal_embeddings = GeminiRetrievalEmbeddings(
             model=model,
-            dimensions=dimensions,
-            openai_api_key=SecretStr(_require_api_key("openai")),
+            google_api_key=google_api_key,
+            output_dimensionality=dimensions,
         )
 
         logger.info(
             "journal_embeddings_initialized",
             model=model,
             dimensions=dimensions,
+            provider="gemini",
         )
 
     return _journal_embeddings
 
 
 def reset_journal_embeddings() -> None:
-    """
-    Reset the journal embeddings singleton.
-
-    Forces re-initialization with current settings on next use.
-    """
+    """Reset the journal embeddings singleton."""
     global _journal_embeddings
 
     with _lock:

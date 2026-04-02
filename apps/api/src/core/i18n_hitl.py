@@ -1041,6 +1041,14 @@ _DRAFT_SUMMARIES: dict[str, dict[str, str]] = {
         "it": "↪️ **Inoltra a** : {to}\n**Oggetto** : {subject}",
         "zh-CN": "↪️ **转发给** : {to}\n**主题** : {subject}",
     },
+    "email_delete": {
+        "fr": 'Suppression email : "{subject}"',
+        "en": 'Delete email: "{subject}"',
+        "es": 'Eliminación email: "{subject}"',
+        "de": 'E-Mail löschen: "{subject}"',
+        "it": 'Elimina email: "{subject}"',
+        "zh-CN": '删除邮件："{subject}"',
+    },
     "event": {
         "fr": "**{summary}**\n🕐 {start}",
         "en": "**{summary}**\n🕐 {start}",

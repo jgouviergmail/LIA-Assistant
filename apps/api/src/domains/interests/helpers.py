@@ -125,10 +125,12 @@ def generate_interest_embedding(text: str) -> list[float] | None:
         ...     print(f"Generated {len(embedding)}-dim embedding")
     """
     try:
-        from src.infrastructure.llm.memory_embeddings import get_memory_embeddings
+        from src.domains.interests.embedding import get_interest_embeddings
 
-        embeddings = get_memory_embeddings()
-        return embeddings.embed_query(text)
+        embeddings = get_interest_embeddings()
+        # Use embed_documents for storage (task_type=RETRIEVAL_DOCUMENT with Gemini)
+        results = embeddings.embed_documents([text])
+        return results[0] if results else None
     except Exception as e:
         logger.warning(
             "interest_embedding_generation_failed",

@@ -1,55 +1,55 @@
 """
-Memory embedding service using OpenAI text-embedding-3-small.
+Memory embedding service using Google Gemini gemini-embedding-001.
 
-Provides a lazy-initialized TrackedOpenAIEmbeddings instance configured
-for LangGraph store semantic search, tool routing, and interest deduplication.
-Token tracking is automatic via TrackedOpenAIEmbeddings + Prometheus metrics.
+Provides a lazy-initialized GeminiRetrievalEmbeddings instance with
+automatic task_type handling (RETRIEVAL_QUERY for search, RETRIEVAL_DOCUMENT
+for storage). Token tracking is automatic via Prometheus metrics.
 
-Replaces the former local E5 model (intfloat/multilingual-e5-small, 384 dims)
-with OpenAI text-embedding-3-small (1536 dims) to eliminate ~1 GB RAM per worker
-(sentence-transformers + PyTorch CPU no longer loaded).
+Replaces OpenAI text-embedding-3-small which had poor discrimination
+for multilingual retrieval (language bias causing high cosine similarity
+between unrelated same-language texts).
+
+Gemini embedding-001 supports 100+ languages with proper retrieval
+task types, eliminating the language bias problem.
 
 Follows the same singleton pattern as:
 - apps/api/src/domains/journals/embedding.py (get_journal_embeddings)
 - apps/api/src/domains/rag_spaces/embedding.py (get_rag_embeddings)
 
-Phase: v1.14.0 — Memory optimization (E5 → OpenAI embeddings)
-Created: 2026-03-29
+Phase: v1.15.0 — Gemini embedding migration for multilingual retrieval
+Created: 2026-04-02
 """
 
 from __future__ import annotations
 
+import os
 import threading
 
-from pydantic import SecretStr
-
 from src.core.config import settings
-from src.infrastructure.llm.providers.adapter import _require_api_key
-from src.infrastructure.llm.tracked_embeddings import TrackedOpenAIEmbeddings
+from src.infrastructure.llm.gemini_embeddings import GeminiRetrievalEmbeddings
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
 
 # Singleton with thread-safe lazy initialization
-_memory_embeddings: TrackedOpenAIEmbeddings | None = None
+_memory_embeddings: GeminiRetrievalEmbeddings | None = None
 _lock = threading.Lock()
 
 
-def get_memory_embeddings() -> TrackedOpenAIEmbeddings:
+def get_memory_embeddings() -> GeminiRetrievalEmbeddings:
     """Get or create the memory embeddings singleton.
 
-    Returns a TrackedOpenAIEmbeddings instance configured with the model
-    and dimensions from settings. Token tracking is automatic via
-    Prometheus metrics and optional DB persistence (when EmbeddingTrackingContext
-    is set by the caller).
+    Returns a GeminiRetrievalEmbeddings instance that automatically
+    applies task_type=RETRIEVAL_QUERY on embed_query and
+    task_type=RETRIEVAL_DOCUMENT on embed_documents.
 
     Used by:
-        - LangGraph AsyncPostgresStore (semantic memory search)
+        - Memory services (storage + search)
         - SemanticToolSelector (tool routing)
         - Interest deduplication (topic similarity)
 
     Returns:
-        TrackedOpenAIEmbeddings instance for memory operations.
+        GeminiRetrievalEmbeddings instance for memory operations.
     """
     global _memory_embeddings
 
@@ -64,16 +64,21 @@ def get_memory_embeddings() -> TrackedOpenAIEmbeddings:
         model = settings.memory_embedding_model
         dimensions = settings.memory_embedding_dimensions
 
-        _memory_embeddings = TrackedOpenAIEmbeddings(
+        google_api_key = os.environ.get("GOOGLE_GEMINI_API_KEY", "") or os.environ.get(
+            "GOOGLE_API_KEY", ""
+        )
+
+        _memory_embeddings = GeminiRetrievalEmbeddings(
             model=model,
-            dimensions=dimensions,
-            openai_api_key=SecretStr(_require_api_key("openai")),
+            google_api_key=google_api_key,
+            output_dimensionality=dimensions,
         )
 
         logger.info(
             "memory_embeddings_initialized",
             model=model,
             dimensions=dimensions,
+            provider="gemini",
         )
 
     return _memory_embeddings

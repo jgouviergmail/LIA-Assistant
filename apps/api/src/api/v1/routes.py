@@ -171,7 +171,7 @@ async def get_client_config() -> dict:
             "attachments_enabled": getattr(settings, "attachments_enabled", False),
             "rag_spaces_enabled": getattr(settings, "rag_spaces_enabled", False),
             "rag_spaces_embedding_model": getattr(
-                settings, "rag_spaces_embedding_model", "text-embedding-3-small"
+                settings, "rag_spaces_embedding_model", "models/gemini-embedding-001"
             ),
             "journals_enabled": getattr(settings, "journals_enabled", False),
         },

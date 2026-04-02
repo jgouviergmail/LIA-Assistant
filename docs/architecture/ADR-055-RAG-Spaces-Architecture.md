@@ -7,6 +7,8 @@ automatic chunking/embedding, and hybrid search (semantic + BM25) for context in
 into the AI assistant's responses.
 **Related Documentation**: `docs/guides/GUIDE_RAG_SPACES.md`
 
+> **Update v1.14.1**: Embedding model migrated from OpenAI text-embedding-3-small to Google gemini-embedding-001 (1536 dims) with RETRIEVAL task types. See [ADR-069](ADR-069-Gemini-Embedding-Migration.md).
+
 ---
 
 ## Context and Problem Statement
@@ -47,7 +49,9 @@ The existing infrastructure includes:
 **Cons**: No custom `table_name` parameter — all instances share `store_vectors` table. No bulk delete SQL. Limited schema control.
 **Verdict**: ❌ Rejected — insufficient schema flexibility.
 
-> **Note (v1.14.0)**: The original dimension incompatibility between E5 (384 dims) and OpenAI (1536 dims) is no longer relevant since all subsystems now use OpenAI text-embedding-3-small (1536 dims). However, the dedicated table approach remains the better architectural choice for the other reasons listed.
+> **Note (v1.14.0)**: The original dimension incompatibility between E5 (384 dims) and OpenAI (1536 dims) is no longer relevant since all subsystems now use unified embeddings. However, the dedicated table approach remains the better architectural choice for the other reasons listed.
+>
+> **Note (v1.14.1)**: All subsystems now use Google gemini-embedding-001 (1536 dims). The dedicated table with ALTER capability proved valuable for this migration.
 
 ### Option 2: Dedicated `rag_chunks` table with pgvector
 
@@ -83,9 +87,9 @@ User Query → Response Node → retrieve_rag_context()
 
 ### Key Design Decisions
 
-1. **Dedicated table `rag_chunks`** with `Vector(1536)` column — same dimensions as memory system (all unified on OpenAI text-embedding-3-small since v1.14.0)
+1. **Dedicated table `rag_chunks`** with `Vector(1536)` column — same dimensions as memory system (all unified on Google gemini-embedding-001 since v1.14.1)
 
-2. **Embedding model**: OpenAI `text-embedding-3-small` (1536 dims) — best price/performance ratio ($0.02/1M tokens vs $0.13 for `large`). Configurable via `rag_spaces_embedding_model`
+2. **Embedding model**: Google `gemini-embedding-001` (1536 dims) — RETRIEVAL task types for optimized search (migrated from OpenAI in v1.14.1). Configurable via `rag_spaces_embedding_model`
 
 3. **Hybrid search**: `score = α × semantic + (1-α) × BM25` with configurable alpha (default 0.7). BM25 via existing `BM25IndexManager` with per-user cache key
 
@@ -152,6 +156,7 @@ src/domains/rag_spaces/
 - ADR-050: Voice Domain TTS Architecture (similar background task pattern)
 - ADR-053: Interest Learning System (similar DDD domain structure)
 - ADR-058: System RAG Spaces — extends the RAG Spaces infrastructure with built-in system knowledge spaces (`is_system=True`) for FAQ content, App Identity Prompt injection, and `is_app_help_query()` detection
+- [ADR-069: Gemini Embedding Migration](ADR-069-Gemini-Embedding-Migration.md) — Migration from OpenAI to Google gemini-embedding-001 (v1.14.1)
 
 ## References
 

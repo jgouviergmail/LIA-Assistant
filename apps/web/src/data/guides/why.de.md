@@ -4,7 +4,7 @@
 
 **Version**: 2.0
 **Datum**: 2026-03-24
-**Application**: LIA v1.14.0
+**Application**: LIA v1.14.1
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -494,4 +494,4 @@ Das ist kein Chatbot. Das ist keine Cloud-Plattform. Das ist ein **souveräner d
 
 ---
 
-*Dokument verfasst auf Grundlage des Quellcodes von LIA v1.14.0, 190+ technischer Dokumente, 63 ADRs, des vollständigen Changelogs sowie einer Analyse der KI-Wettbewerbslandschaft vom März 2026. Alle beschriebenen Funktionen sind implementiert und im Code überprüfbar. Die Marktdaten stammen von Gartner, IBM und den offiziellen Veröffentlichungen von OpenAI, Google, Microsoft und Anthropic.*
+*Dokument verfasst auf Grundlage des Quellcodes von LIA v1.14.1, 190+ technischer Dokumente, 63 ADRs, des vollständigen Changelogs sowie einer Analyse der KI-Wettbewerbslandschaft vom März 2026. Alle beschriebenen Funktionen sind implementiert und im Code überprüfbar. Die Marktdaten stammen von Gartner, IBM und den offiziellen Veröffentlichungen von OpenAI, Google, Microsoft und Anthropic.*

@@ -45,7 +45,7 @@ import structlog
 from langchain_core.runnables import RunnableConfig
 
 from src.core.field_names import FIELD_METADATA, FIELD_USER_ID
-from src.domains.agents.drafts.models import DraftType
+from src.domains.agents.drafts.models import DraftAction, DraftType
 from src.infrastructure.observability.metrics_agents import (
     registry_drafts_executed_total,
 )
@@ -217,6 +217,23 @@ class DraftExecutionResult:
         if self.action == "cancel":
             status = "cancelled"
             message = self._get_cancel_message()
+        elif self.action == DraftAction.CONFIRM_BATCH.value:
+            # Batch execution: aggregate results from multiple drafts
+            batch_results = self.result_data.get("batch_results", [])
+            success_count = self.result_data.get("success_count", 0)
+            total_count = self.result_data.get("total_count", 0)
+            status = "success" if self.success else "partial_error"
+            message = "\n".join(r.get("message", "") for r in batch_results if r.get("message"))
+            return {
+                "status": status,
+                "data": self.result_data,
+                "message": message,
+                "draft_id": self.draft_id,
+                "draft_type": self.draft_type,
+                "action": self.action,
+                "batch_size": total_count,
+                "success_count": success_count,
+            }
         elif self.success:
             status = "success"
             message = self._get_success_message()
@@ -305,6 +322,9 @@ async def execute_draft_if_confirmed(
 
     if action == "confirm":
         return await _execute_confirmed_draft(draft_action_result, config, run_id, user_language)
+
+    elif action == DraftAction.CONFIRM_BATCH.value:
+        return await _execute_confirmed_batch(draft_action_result, config, run_id, user_language)
 
     elif action == "edit":
         # Edit means user wants to modify - this triggers re-critique
@@ -509,6 +529,101 @@ async def _execute_confirmed_draft(
             error=str(e),
             user_language=user_language,
         )
+
+
+async def _execute_confirmed_batch(
+    draft_action_result: dict[str, Any],
+    config: RunnableConfig,
+    run_id: str,
+    user_language: str = "fr",
+) -> DraftExecutionResult:
+    """
+    Execute a batch of confirmed drafts from FOR_EACH approval.
+
+    When a FOR_EACH HITL confirms a batch operation, all drafts in the batch
+    are executed sequentially. Returns a composite result.
+
+    Args:
+        draft_action_result: Batch result with {"action": "confirm_batch", "batch": [...]}
+        config: RunnableConfig with __deps containing ToolDependencies
+        run_id: Run ID for logging
+        user_language: User's language for localized messages
+
+    Returns:
+        DraftExecutionResult with batch execution outcome
+    """
+    batch = draft_action_result.get("batch", [])
+    if not batch:
+        return DraftExecutionResult(
+            success=False,
+            draft_id="batch",
+            draft_type="batch",
+            action=DraftAction.CONFIRM_BATCH.value,
+            error="Empty batch",
+            user_language=user_language,
+        )
+
+    logger.info(
+        "draft_executor_batch_started",
+        run_id=run_id,
+        batch_size=len(batch),
+        draft_types=[d.get("draft_type") for d in batch],
+    )
+
+    results: list[dict[str, Any]] = []
+    success_count = 0
+    error_count = 0
+
+    for i, single_draft in enumerate(batch):
+        try:
+            single_result = await _execute_confirmed_draft(
+                single_draft, config, run_id, user_language
+            )
+            if single_result.success:
+                success_count += 1
+            else:
+                error_count += 1
+            results.append(single_result.to_agent_result())
+        except Exception as e:
+            error_count += 1
+            logger.error(
+                "draft_executor_batch_item_failed",
+                run_id=run_id,
+                batch_index=i,
+                draft_id=single_draft.get("draft_id"),
+                error=str(e),
+            )
+            results.append(
+                {
+                    "status": "error",
+                    "draft_id": single_draft.get("draft_id", "unknown"),
+                    "draft_type": single_draft.get("draft_type", "unknown"),
+                    "message": str(e),
+                }
+            )
+
+    logger.info(
+        "draft_executor_batch_completed",
+        run_id=run_id,
+        batch_size=len(batch),
+        success_count=success_count,
+        error_count=error_count,
+    )
+
+    # Return composite result
+    return DraftExecutionResult(
+        success=error_count == 0,
+        draft_id="batch",
+        draft_type=batch[0].get("draft_type", "batch"),
+        action=DraftAction.CONFIRM_BATCH.value,
+        result_data={
+            "batch_results": results,
+            "success_count": success_count,
+            "error_count": error_count,
+            "total_count": len(batch),
+        },
+        user_language=user_language,
+    )
 
 
 __all__ = [

@@ -12,7 +12,7 @@ Key Features:
   - Hard threshold (0.70): Direct tool injection
   - Soft threshold (0.60): Uncertainty zone with warning
 - **Startup Caching**: Tool embeddings computed once at startup
-- **OpenAI Embeddings**: Uses text-embedding-3-small (1536 dims) via TrackedOpenAIEmbeddings
+- **Gemini Embeddings**: Uses gemini-embedding-001 (1536 dims) via GeminiRetrievalEmbeddings
   - Shared singleton with memory store and interest deduplication
   - Token tracking via Prometheus metrics
 - **Zero Maintenance i18n**: No keyword lists to maintain per language

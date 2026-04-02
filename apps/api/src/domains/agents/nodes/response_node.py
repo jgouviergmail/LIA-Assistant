@@ -585,6 +585,48 @@ def _format_draft_execution_result(result: dict[str, Any] | None) -> str:
     html_link = data.get("html_link")
     details: list[str] = []
 
+    # Batch execution: format each item's result with its subject/title
+    action = result.get("action", "")
+    if action == DraftAction.CONFIRM_BATCH.value and status in ("success", "partial_error"):
+        batch_results = data.get("batch_results", [])
+        success_count = data.get("success_count", 0)
+        total_count = data.get("total_count", 0)
+        lines = []
+        for br in batch_results:
+            br_data = br.get("data", {}) if isinstance(br.get("data"), dict) else {}
+            draft_content = br_data.get("_draft_content", {})
+            # Extract the most relevant identifier
+            item_label = (
+                draft_content.get("subject")
+                or draft_content.get("title")
+                or draft_content.get("name")
+                or draft_content.get("label_name")
+                or ""
+            )
+            if not item_label:
+                # Try nested event/contact
+                event = draft_content.get("event", {})
+                contact = draft_content.get("contact", {})
+                item_label = event.get("summary", "")
+                if not item_label:
+                    names = contact.get("names", [])
+                    item_label = names[0].get("displayName", "") if names else ""
+            item_label = " ".join(str(item_label).split())
+            if len(item_label) > 60:
+                item_label = item_label[:57] + "..."
+
+            br_status = br.get("status", "")
+            if br_status == "success":
+                lines.append(
+                    f"✅ **{item_label}**" if item_label else f"✅ {br.get('message', '')}"
+                )
+            else:
+                lines.append(f"❌ {item_label or br.get('message', '')}")
+
+        items_block = "\n".join(lines)
+        status_emoji = "✅" if status == "success" else "⚠️"
+        return f"\n\n{domain_emoji} {status_emoji} {success_count}/{total_count}\n{items_block}"
+
     if status == "success":
         # Use draft_content for comprehensive attribute display
         draft = data.get("_draft_content", {}) if isinstance(data, dict) else {}
@@ -632,6 +674,12 @@ def _format_draft_execution_result(result: dict[str, Any] | None) -> str:
 
     elif status == "cancelled":
         return f"\n\n{domain_emoji} 🚫 {message}"
+
+    elif status == "partial_error":
+        # Batch execution: some items succeeded, some failed
+        success_count = data.get("success_count", 0)
+        total_count = data.get("total_count", 0)
+        return f"\n\n{domain_emoji} ⚠️ {message} ({success_count}/{total_count})"
 
     elif status == "error":
         return f"\n\n{domain_emoji} ❌ {message}"
@@ -2041,9 +2089,13 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         draft_action_result = state.get(STATE_KEY_DRAFT_ACTION_RESULT)
         if draft_action_result:
             draft_action = draft_action_result.get("action")
-            if draft_action in (DraftAction.CONFIRM.value, DraftAction.CANCEL.value):
+            if draft_action in (
+                DraftAction.CONFIRM.value,
+                DraftAction.CANCEL.value,
+                DraftAction.CONFIRM_BATCH.value,
+            ):
                 # Generate short confirmation/cancellation message (i18n)
-                if draft_action == DraftAction.CONFIRM.value:
+                if draft_action in (DraftAction.CONFIRM.value, DraftAction.CONFIRM_BATCH.value):
                     # Use the formatted draft execution result (already set in agent_results_summary)
                     short_response = agent_results_summary or APIMessages.draft_action_completed(
                         user_language

@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.14.1] - 2026-04-02
+
+### Changed
+
+- **Gemini Embedding Migration** — Migrated all embedding operations (memories, journals, interests, RAG) from OpenAI `text-embedding-3-small` to Google `gemini-embedding-001` with asymmetric `RETRIEVAL_QUERY`/`RETRIEVAL_DOCUMENT` task types. Fixes critical multilingual retrieval regression where unrelated same-language texts scored 0.25–0.35 (language bias), making it impossible to discriminate relevant memories from noise. Gemini with task types produces proper query→document alignment for all 6 supported languages (fr, en, de, es, it, zh). (ADR-069)
+- **Dual-Vector Search Strategy** — Added `keyword_embedding` column to `memories` and `journal_entries` tables. Content and keywords (trigger_topic / search_hints) are now embedded separately, with search using `LEAST(dist_content, dist_keyword)`. Restores the multi-field matching behavior from the old LangGraph AsyncPostgresStore that was lost during the PostgreSQL migration (v1.13.6).
+- **Dedicated Embedding Singletons** — Each domain now has its own independently configurable embedding singleton: `get_memory_embeddings()`, `get_journal_embeddings()`, `get_interest_embeddings()`, `get_rag_embeddings()`, with dedicated env vars (`MEMORY_EMBEDDING_MODEL`, `JOURNAL_EMBEDDING_MODEL`, `INTEREST_EMBEDDING_MODEL`, `RAG_SPACES_EMBEDDING_MODEL`).
+- **GeminiRetrievalEmbeddings Wrapper** — New `GeminiRetrievalEmbeddings` class wrapping `GoogleGenerativeAIEmbeddings` with automatic task_type injection, Prometheus metrics tracking, and DB cost persistence for user billing.
+
+### Fixed
+
+- **Memory Reference Resolution** — "ma femme" and "mon fils" now correctly resolve to actual contact names (e.g., "Hua Gouvier", "Mathéo Gouvier") when sending emails or performing actions. Previously, the combination of OpenAI embedding language bias and query dilution on long sentences caused memory search to fail silently.
+- **Memory Search Query Language** — Pre-planner memory search now uses the original user query (in their language) instead of the English-translated query, improving cosine similarity for same-language memory matching.
+- **HITL Email Delete Support** — Added `email_delete` draft summary i18n strings for all 6 languages in HITL confirmation flows.
+
+### Documentation
+
+- **ADR-069** — Gemini Embedding Migration architectural decision record. Documents rationale, scope, migration strategy, and alternatives considered.
+- Updated ADR_INDEX.md, docs/INDEX.md, `.env.example`, `.env.prod.example` with Gemini embedding configuration.
+- Updated all stale OpenAI/TrackedOpenAIEmbeddings references across ~20 files to Gemini/GeminiRetrievalEmbeddings.
+
 ## [1.14.0] - 2026-04-02
 
 ### Added

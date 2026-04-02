@@ -134,14 +134,14 @@ class MemoryRepository:
         limit: int = 10,
         min_score: float = 0.5,
     ) -> list[tuple[Memory, float]]:
-        """Search memories by semantic relevance via pgvector cosine distance.
+        """Search memories by multi-vector semantic relevance.
 
-        Uses pgvector's HNSW index for efficient cosine distance computation.
-        Converts cosine distance (lower = closer) to similarity score (1 - distance).
-        Same pattern as JournalEntryRepository.search_by_relevance.
+        Uses dual-vector strategy: computes cosine distance against both
+        the content embedding and the keyword embedding, taking the best
+        match (minimum distance). This restores the multi-field search
+        behavior from the old LangGraph store.
 
-        Accepts a PRE-COMPUTED embedding vector (from the centralized
-        UserMessageEmbeddingService), avoiding redundant OpenAI API calls.
+        Falls back to content-only distance when keyword_embedding is NULL.
 
         Args:
             user_id: User UUID.
@@ -156,16 +156,25 @@ class MemoryRepository:
         if not query_embedding:
             return []
 
-        cosine_distance = Memory.embedding.cosine_distance(query_embedding)
+        dist_content = Memory.embedding.cosine_distance(query_embedding)
+        dist_keyword = Memory.keyword_embedding.cosine_distance(query_embedding)
+
+        # Best match = minimum distance across both vectors.
+        # COALESCE handles NULL keyword_embedding (fallback to content distance).
+        best_distance = func.least(
+            dist_content,
+            func.coalesce(dist_keyword, dist_content),
+        )
+
         stmt = (
-            select(Memory, cosine_distance.label("distance"))
+            select(Memory, best_distance.label("distance"))
             .where(
                 and_(
                     Memory.user_id == user_id,
                     Memory.embedding.isnot(None),
                 )
             )
-            .order_by(cosine_distance)
+            .order_by(best_distance)
             .limit(limit)
         )
         result = await self.db.execute(stmt)
@@ -197,8 +206,9 @@ class MemoryRepository:
     ) -> list[tuple[Memory, float]]:
         """Search relationship memories for name enrichment.
 
-        Combines semantic search with category filter for 'relationship'.
-        Used by memory extraction to enrich "my son" with "My son John Smith".
+        Combines multi-vector semantic search with category filter for
+        'relationship'. Used by memory extraction to enrich "my son"
+        with "My son John Smith".
 
         Args:
             user_id: User UUID.
@@ -212,9 +222,15 @@ class MemoryRepository:
         if not query_embedding:
             return []
 
-        cosine_distance = Memory.embedding.cosine_distance(query_embedding)
+        dist_content = Memory.embedding.cosine_distance(query_embedding)
+        dist_keyword = Memory.keyword_embedding.cosine_distance(query_embedding)
+        best_distance = func.least(
+            dist_content,
+            func.coalesce(dist_keyword, dist_content),
+        )
+
         stmt = (
-            select(Memory, cosine_distance.label("distance"))
+            select(Memory, best_distance.label("distance"))
             .where(
                 and_(
                     Memory.user_id == user_id,
@@ -222,7 +238,7 @@ class MemoryRepository:
                     Memory.embedding.isnot(None),
                 )
             )
-            .order_by(cosine_distance)
+            .order_by(best_distance)
             .limit(limit)
         )
         result = await self.db.execute(stmt)

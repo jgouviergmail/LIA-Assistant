@@ -373,7 +373,7 @@ class RAGChunk(BaseModel):
     user_id) enable efficient multi-space queries without JOINs.
 
     The embedding column uses pgvector's Vector type with configurable
-    dimensions (default 1536 for text-embedding-3-small).
+    dimensions (default 1536 for gemini-embedding-001).
     """
 
     __tablename__ = "rag_chunks"

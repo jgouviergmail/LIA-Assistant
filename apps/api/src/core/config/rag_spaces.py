@@ -156,8 +156,8 @@ class RAGSpacesSettings(BaseSettings):
     rag_spaces_embedding_model: str = Field(
         default=RAG_SPACES_EMBEDDING_MODEL_DEFAULT,
         description=(
-            "OpenAI embedding model for RAG document indexing and search. "
-            "Options: text-embedding-3-small (1536d), text-embedding-3-large (3072d)."
+            "Gemini embedding model for RAG document indexing and search. "
+            "Default: gemini-embedding-001 (1536d)."
         ),
     )
 

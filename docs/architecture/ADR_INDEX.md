@@ -2289,6 +2289,33 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 
 ---
 
+### ADR-069: Gemini Embedding Migration (OpenAI → Google)
+
+**Status**: ✅ ACCEPTED (2026-04-02)
+**Fichier**: `docs/architecture/ADR-069-Gemini-Embedding-Migration.md`
+
+**Décision**: Migrer tous les embeddings de OpenAI `text-embedding-3-small` vers Google `gemini-embedding-001` avec task types asymétriques (RETRIEVAL_QUERY/RETRIEVAL_DOCUMENT) et dual-vector (content + keywords séparés).
+
+**Problème résolu**:
+- ❌ Biais de langue: textes français non liés scoraient 0.25-0.35 (plancher trop élevé)
+- ❌ Discrimination insuffisante: mémoires pertinentes (0.29) vs bruit (0.30) indiscernables
+- ❌ Résolution relationnelle cassée ("ma femme" ne résolvait plus "Hua Gouvier")
+- ❌ Perte de la stratégie multi-vecteurs lors de la migration LangGraph → PostgreSQL
+
+**Solution**:
+- ✅ Gemini embedding-001 avec task_type RETRIEVAL_QUERY/RETRIEVAL_DOCUMENT
+- ✅ Dual-vector: `embedding` (content) + `keyword_embedding` (trigger_topic/search_hints)
+- ✅ Wrapper GeminiRetrievalEmbeddings avec tracking Prometheus + DB billing
+- ✅ Singletons dédiés par domaine (memory, journal, interest, RAG)
+- ✅ Clé API Google dédiée (Generative Language API)
+
+**Impact**:
+- Coût embedding x7.5 ($0.15 vs $0.02 /1M tokens)
+- Reindex complet nécessaire (mémoires, journaux, intérêts, RAG)
+- Scores cibles à 0.64+ vs bruit à 0.60 (meilleure discrimination)
+
+---
+
 ## ADRs Archivés
 
 ### ADR-005 (Version Originale): Workflow-Based HITL

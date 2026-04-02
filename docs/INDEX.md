@@ -154,6 +154,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [USAGE_LIMITS.md](./technical/USAGE_LIMITS.md) | Per-user usage limits — tokens, messages, cost quotas with 5-layer enforcement | ✅ |
 | [PSYCHE_ENGINE.md](./technical/PSYCHE_ENGINE.md) | Psyche Engine — complete functional & technical documentation with scenarios | ✅ |
 | [ADR-068-Psyche-Engine.md](./architecture/ADR-068-Psyche-Engine.md) | Psyche Engine — architectural decision record | ✅ |
+| [ADR-069-Gemini-Embedding-Migration.md](./architecture/ADR-069-Gemini-Embedding-Migration.md) | Gemini embedding migration (OpenAI → Google) — ADR | ✅ |
 
 ### Human-in-the-Loop (HITL)
 
@@ -249,6 +250,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Titre | Date |
 |-----|-------|------|
+| ADR-069 | Gemini Embedding Migration (OpenAI → Google) | 2026-04 |
 | ADR-068 | Psyche Engine — Dynamic Psychological State | 2026-04 |
 | ADR-067 | Account Lifecycle (Active / Deactivated / Deleted / Erased) | 2026-03 |
 | ADR-066 | Memory Storage Migration — LangGraph Store to PostgreSQL Custom | 2026-03 |

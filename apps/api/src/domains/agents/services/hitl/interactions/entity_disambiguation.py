@@ -171,19 +171,22 @@ class EntityDisambiguationInteraction:
         start_time = time.time()
         token_count = 0
 
-        # Stream word by word for consistent interface
-        words = full_question.split()
-        for i, word in enumerate(words):
-            if i == 0:
-                ttft = time.time() - start_time
-                hitl_question_ttft_seconds.labels(type="entity_disambiguation").observe(ttft)
-                logger.debug(
-                    "disambiguation_question_first_token",
-                    ttft_seconds=ttft,
-                )
-
-            token_count += 1
-            yield word + " "
+        # Stream line-by-line then word-by-word (preserves markdown newlines)
+        for line in full_question.split("\n"):
+            if line:
+                for word in line.split():
+                    if token_count == 0:
+                        ttft = time.time() - start_time
+                        hitl_question_ttft_seconds.labels(type="entity_disambiguation").observe(
+                            ttft
+                        )
+                        logger.debug(
+                            "disambiguation_question_first_token",
+                            ttft_seconds=ttft,
+                        )
+                    token_count += 1
+                    yield word + " "
+            yield "\n"
 
         # Track completion metrics
         total_duration = time.time() - start_time

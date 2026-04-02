@@ -38,9 +38,10 @@ import time
 from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING, Any
 
-from src.core.constants import SCOPE_BULK_THRESHOLD
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE, SCOPE_BULK_THRESHOLD
 from src.core.field_names import FIELD_CONVERSATION_ID
 from src.core.i18n_hitl import HitlMessages, HitlMessageType
+from src.core.time_utils import format_value_if_datetime_string
 from src.infrastructure.observability.logging import get_logger
 
 from ..protocols import HitlInteractionType
@@ -165,16 +166,20 @@ class DestructiveConfirmInteraction:
             affected_items=affected_items,
             custom_warning=custom_warning,
             user_language=user_language,
+            user_timezone=user_timezone,
         )
 
-        # Stream word by word
-        words = warning.split()
-        for i, word in enumerate(words):
-            if i == 0:
-                ttft = time.time() - start_time
-                hitl_question_ttft_seconds.labels(type="destructive_confirm").observe(ttft)
-
-            yield word + " "
+        # Stream line-by-line then word-by-word (preserves markdown newlines)
+        token_index = 0
+        for line in warning.split("\n"):
+            if line:
+                for word in line.split():
+                    if token_index == 0:
+                        ttft = time.time() - start_time
+                        hitl_question_ttft_seconds.labels(type="destructive_confirm").observe(ttft)
+                    token_index += 1
+                    yield word + " "
+            yield "\n"
 
         logger.debug(
             "destructive_confirm_question_complete",
@@ -190,6 +195,7 @@ class DestructiveConfirmInteraction:
         affected_items: list[dict[str, Any]],
         custom_warning: str | None,
         user_language: str,
+        user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
     ) -> str:
         """
         Build structured warning message for destructive operation.
@@ -200,6 +206,7 @@ class DestructiveConfirmInteraction:
             affected_items: Item previews
             custom_warning: Custom warning text
             user_language: Language code
+            user_timezone: User's IANA timezone for date formatting
 
         Returns:
             Formatted warning message
@@ -218,7 +225,7 @@ class DestructiveConfirmInteraction:
         if affected_items:
             body += f"**{translations['affected_items']}:**\n"
             for item in affected_items[:5]:
-                item_desc = self._format_item_preview(item)
+                item_desc = self._format_item_preview(item, user_timezone, user_language)
                 body += f"- {item_desc}\n"
             if affected_count > 5:
                 body += f"- ... {translations['and_more'].format(count=affected_count - 5)}\n"
@@ -250,21 +257,60 @@ class DestructiveConfirmInteraction:
         """Get UI translations using centralized i18n_hitl."""
         return HitlMessages.get_destructive_confirm_translations(user_language)
 
-    def _format_item_preview(self, item: dict[str, Any]) -> str:
-        """Format a single item for preview display."""
-        # Try common fields
+    def _format_item_preview(
+        self,
+        item: dict[str, Any],
+        user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
+        user_language: str = "fr",
+    ) -> str:
+        """
+        Format a single item for preview display.
+
+        Extracts the most relevant field and formats any datetime values
+        using the user's timezone.
+
+        Args:
+            item: Item preview dict with domain-specific fields
+            user_timezone: User's IANA timezone for date formatting
+            user_language: User's locale for date formatting
+
+        Returns:
+            Formatted preview string
+        """
+        # Try common fields in priority order
+        preview = ""
         if "subject" in item:
-            return item["subject"]
-        if "name" in item:
-            return item["name"]
-        if "summary" in item:
-            return item["summary"]
-        if "title" in item:
-            return item["title"]
-        if "displayName" in item:
-            return item["displayName"]
-        # Fallback
-        return str(item.get("id", "item"))[:50]
+            preview = str(item["subject"])
+        elif "name" in item:
+            preview = str(item["name"])
+        elif "summary" in item:
+            preview = str(item["summary"])
+        elif "title" in item:
+            preview = str(item["title"])
+        elif "displayName" in item:
+            preview = str(item["displayName"])
+        else:
+            preview = str(item.get("id", "item"))[:50]
+
+        # Sanitize newlines to keep bullet on one line
+        preview = " ".join(preview.split())
+
+        # Format any datetime values in remaining fields for context
+        for key in ("date", "start_datetime", "due", "dateTime"):
+            value = item.get(key)
+            if value and isinstance(value, str):
+                formatted = format_value_if_datetime_string(
+                    value,
+                    user_timezone=user_timezone,
+                    locale=user_language,
+                    include_time=True,
+                    include_day_name=False,
+                )
+                if formatted != value:
+                    preview += f" ({formatted})"
+                    break  # Only add one date for conciseness
+
+        return preview
 
     def build_metadata_chunk(
         self,

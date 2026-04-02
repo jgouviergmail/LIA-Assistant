@@ -5,9 +5,10 @@
 **Technical Story**: Phase 6 - Zero-Cost Semantic Infrastructure
 **Related Documentation**: `docs/technical/LOCAL_EMBEDDINGS.md`
 
-> **Superseded**: This ADR is superseded by the migration to **OpenAI text-embedding-3-small** (v1.14.0).
+> **Superseded**: This ADR is superseded by the migration to **OpenAI text-embedding-3-small** (v1.14.0), itself superseded by the migration to **Google gemini-embedding-001** (v1.14.1).
 > The local E5 model was replaced due to operational complexity (470MB model, 9s startup, sentence-transformers dependency).
-> All embedding subsystems (memory, semantic routing, interests, journals) now use OpenAI text-embedding-3-small (1536 dims) via `memory_embeddings.py`.
+> All embedding subsystems (memory, semantic routing, interests, journals, RAG spaces) now use Google gemini-embedding-001 (1536 dims).
+> See [ADR-037](ADR-037-Semantic-Memory-Store.md) for the OpenAI migration and [ADR-069](ADR-069-Gemini-Embedding-Migration.md) for the Gemini migration.
 > The content below is preserved for historical reference.
 
 ---
@@ -306,8 +307,9 @@ sentence-transformers>=3.0.0
 
 ## Related Decisions
 
-- [ADR-048: Semantic Tool Router](ADR-048-Semantic-Tool-Router.md) - Now uses OpenAI text-embedding-3-small
-- [ADR-037: Semantic Memory Store](ADR-037-Semantic-Memory-Store.md) - Now uses OpenAI text-embedding-3-small
+- [ADR-048: Semantic Tool Router](ADR-048-Semantic-Tool-Router.md) - Now uses Google gemini-embedding-001 (v1.14.1)
+- [ADR-037: Semantic Memory Store](ADR-037-Semantic-Memory-Store.md) - Now uses Google gemini-embedding-001 (v1.14.1)
+- [ADR-069: Gemini Embedding Migration](ADR-069-Gemini-Embedding-Migration.md) - Migration from OpenAI to Google gemini-embedding-001 (v1.14.1)
 
 ---
 

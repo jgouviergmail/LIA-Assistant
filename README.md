@@ -36,7 +36,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.14.0</strong> — Calendar-to-routes timezone fix, datetime.utcnow() eradication — April 2026
+  <strong>Version 1.14.1</strong> — Gemini embedding migration, dual-vector search, memory resolution fix — April 2026
 </p>
 
 ---

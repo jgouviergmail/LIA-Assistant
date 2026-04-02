@@ -50,6 +50,7 @@ from src.domains.agents.constants import (
     PEOPLE_API_FIELD_VALUE,
     REGISTRY_TYPE_CONTACT,
 )
+from src.domains.agents.drafts.models import DraftAction
 from src.domains.agents.models import MessagesState
 from src.domains.agents.orchestration.parallel_executor import PendingDraftInfo
 from src.domains.agents.services.hitl.protocols import HitlInteractionType
@@ -68,6 +69,7 @@ logger = structlog.get_logger(__name__)
 
 # Draft Critique (existing)
 STATE_KEY_PENDING_DRAFT_CRITIQUE = "pending_draft_critique"
+STATE_KEY_PENDING_DRAFTS_QUEUE = "pending_drafts_queue"
 STATE_KEY_DRAFT_ACTION_RESULT = "draft_action_result"
 
 # Entity Disambiguation (new)
@@ -187,6 +189,8 @@ async def _build_contact_context(
 def _build_draft_critique_payload(
     pending_draft: PendingDraftInfo,
     user_language: str = "fr",
+    batch_total: int = 1,
+    batch_drafts: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """
     Build interrupt payload for draft critique HITL.
@@ -194,28 +198,36 @@ def _build_draft_critique_payload(
     The payload structure is compatible with StreamingService which will:
     1. Detect action_requests[type="draft_critique"]
     2. Create DraftCritiqueInteraction via registry
-    3. Stream the contextual review question (generated via LLM)
+    3. Stream the contextual review question (generated via LLM for single,
+       static for batch)
     4. Wait for user action (confirm/edit/cancel)
 
     Args:
-        pending_draft: Draft information from parallel_executor
+        pending_draft: Draft information from parallel_executor (first item)
         user_language: User's language for question generation
+        batch_total: Total number of items in batch (1 = single draft, >1 = batch)
+        batch_drafts: All draft contents for batch display (when batch_total > 1)
 
     Returns:
         Interrupt payload for HITL processing
     """
+    action_request: dict[str, Any] = {
+        "type": "draft_critique",
+        "draft_id": pending_draft.draft_id,
+        "draft_type": pending_draft.draft_type,
+        "draft_content": pending_draft.draft_content,
+        "registry_ids": pending_draft.registry_ids,
+        "tool_name": pending_draft.tool_name,
+        "step_id": pending_draft.step_id,
+    }
+
+    # Batch context: passes all draft contents for static batch confirmation
+    if batch_total > 1:
+        action_request["batch_total"] = batch_total
+        action_request["batch_drafts"] = batch_drafts or []
+
     return {
-        "action_requests": [
-            {
-                "type": "draft_critique",
-                "draft_id": pending_draft.draft_id,
-                "draft_type": pending_draft.draft_type,
-                "draft_content": pending_draft.draft_content,
-                "registry_ids": pending_draft.registry_ids,
-                "tool_name": pending_draft.tool_name,
-                "step_id": pending_draft.step_id,
-            }
-        ],
+        "action_requests": [action_request],
         "generate_question_streaming": True,
         "user_language": user_language,
         "hitl_type": HitlInteractionType.DRAFT_CRITIQUE.value,
@@ -556,8 +568,17 @@ async def _handle_draft_critique(
     while iteration < max_iterations:
         iteration += 1
 
-        # Build and send interrupt
-        interrupt_payload = _build_draft_critique_payload(pending_draft, user_language)
+        # Build and send interrupt (include batch context for UX)
+        drafts_queue = state.get(STATE_KEY_PENDING_DRAFTS_QUEUE, [])
+        batch_total = 1 + len(drafts_queue)
+        # For batch: collect all draft contents (current + queued) for display
+        batch_drafts = [pending_draft.model_dump()] + drafts_queue if batch_total > 1 else None
+        interrupt_payload = _build_draft_critique_payload(
+            pending_draft,
+            user_language,
+            batch_total=batch_total,
+            batch_drafts=batch_drafts,
+        )
         decision_data = interrupt(interrupt_payload)
 
         elapsed_time = time.time() - start_time
@@ -584,25 +605,63 @@ async def _handle_draft_critique(
 
         action = decision_data.get("action", "cancel")
 
-        # === CONFIRM: Execute the draft ===
+        # === CONFIRM: Execute the draft (+ queued batch if any) ===
         if action == "confirm":
-            result = {
-                STATE_KEY_PENDING_DRAFT_CRITIQUE: None,
-                STATE_KEY_DRAFT_ACTION_RESULT: {
+            # Build batch result: current draft + all queued drafts
+            # When a FOR_EACH HITL was already approved, the user confirmed
+            # the batch operation. The per-item draft critique shows the first
+            # item; on confirm, ALL queued items are auto-confirmed too.
+            drafts_queue = state.get(STATE_KEY_PENDING_DRAFTS_QUEUE, [])
+
+            batch_results = [
+                {
                     "action": "confirm",
                     "draft_id": pending_draft.draft_id,
                     "draft_type": pending_draft.draft_type,
                     "draft_content": pending_draft.draft_content,
                 },
+            ]
+
+            # Auto-confirm queued drafts from the same FOR_EACH batch
+            for queued_draft_data in drafts_queue:
+                batch_results.append(
+                    {
+                        "action": "confirm",
+                        "draft_id": queued_draft_data.get("draft_id", ""),
+                        "draft_type": queued_draft_data.get("draft_type", ""),
+                        "draft_content": queued_draft_data.get("draft_content", {}),
+                    }
+                )
+
+            if len(batch_results) > 1:
+                logger.info(
+                    "hitl_dispatch_batch_draft_confirmed",
+                    primary_draft_id=pending_draft.draft_id,
+                    batch_size=len(batch_results),
+                    draft_ids=[r["draft_id"] for r in batch_results],
+                )
+
+            result = {
+                STATE_KEY_PENDING_DRAFT_CRITIQUE: None,
+                STATE_KEY_PENDING_DRAFTS_QUEUE: [],
+                STATE_KEY_DRAFT_ACTION_RESULT: (
+                    batch_results[0]
+                    if len(batch_results) == 1
+                    else {
+                        "action": DraftAction.CONFIRM_BATCH.value,
+                        "batch": batch_results,
+                    }
+                ),
             }
             track_state_updates(state, result, "hitl_dispatch", pending_draft.draft_id)
             return result
 
-        # === CANCEL: Abort the draft ===
+        # === CANCEL: Abort the draft (+ cancel all queued) ===
         elif action == "cancel":
             reason = decision_data.get("reason", "User cancelled")
             result = {
                 STATE_KEY_PENDING_DRAFT_CRITIQUE: None,
+                STATE_KEY_PENDING_DRAFTS_QUEUE: [],
                 STATE_KEY_DRAFT_ACTION_RESULT: {
                     "action": "cancel",
                     "draft_id": pending_draft.draft_id,
@@ -683,9 +742,10 @@ async def _handle_draft_critique(
                     error=str(e),
                     iteration=iteration,
                 )
-                # On error, treat as cancel
+                # On error, treat as cancel (clear queue too)
                 result = {
                     STATE_KEY_PENDING_DRAFT_CRITIQUE: None,
+                    STATE_KEY_PENDING_DRAFTS_QUEUE: [],
                     STATE_KEY_DRAFT_ACTION_RESULT: {
                         "action": "cancel",
                         "draft_id": pending_draft.draft_id,
@@ -712,7 +772,7 @@ async def _handle_draft_critique(
             continue
 
         else:
-            # Unknown action - treat as cancel
+            # Unknown action - treat as cancel (clear queue too)
             logger.warning(
                 "hitl_dispatch_draft_unknown_action",
                 draft_id=pending_draft.draft_id,
@@ -721,6 +781,7 @@ async def _handle_draft_critique(
             )
             result = {
                 STATE_KEY_PENDING_DRAFT_CRITIQUE: None,
+                STATE_KEY_PENDING_DRAFTS_QUEUE: [],
                 STATE_KEY_DRAFT_ACTION_RESULT: {
                     "action": "cancel",
                     "draft_id": pending_draft.draft_id,
@@ -731,7 +792,7 @@ async def _handle_draft_critique(
             track_state_updates(state, result, "hitl_dispatch", pending_draft.draft_id)
             return result
 
-    # Max iterations reached - safety cancel
+    # Max iterations reached - safety cancel (clear queue too)
     logger.warning(
         "hitl_dispatch_draft_max_iterations",
         draft_id=pending_draft.draft_id,
@@ -739,6 +800,7 @@ async def _handle_draft_critique(
     )
     result = {
         STATE_KEY_PENDING_DRAFT_CRITIQUE: None,
+        STATE_KEY_PENDING_DRAFTS_QUEUE: [],
         STATE_KEY_DRAFT_ACTION_RESULT: {
             "action": "cancel",
             "draft_id": pending_draft.draft_id,
@@ -886,6 +948,7 @@ __all__ = [
     "hitl_dispatch_node",
     # State keys
     "STATE_KEY_PENDING_DRAFT_CRITIQUE",
+    "STATE_KEY_PENDING_DRAFTS_QUEUE",
     "STATE_KEY_DRAFT_ACTION_RESULT",
     "STATE_KEY_PENDING_ENTITY_DISAMBIGUATION",
     "STATE_KEY_ENTITY_DISAMBIGUATION_RESULT",

@@ -851,8 +851,14 @@ class QueryAnalyzerService:
             user_id = configurable.get("langgraph_user_id")
             if not user_id or not isinstance(user_id, str):
                 user_id = ""  # Fallback to empty string for memory resolver
+            # Use original_query (user's language) for memory embedding search.
+            # Memories are stored with embeddings in the user's language, so
+            # cross-language search (English query vs French memories) yields
+            # poor cosine similarity with Gemini gemini-embedding-001.
+            # The English query is still used for domain detection downstream.
+            memory_search_query = original_query if original_query else query
             memory_facts, memory_resolved = await self.memory_resolver.retrieve_and_resolve(
-                query=query,
+                query=memory_search_query,
                 user_id=user_id,
                 config=config,
             )

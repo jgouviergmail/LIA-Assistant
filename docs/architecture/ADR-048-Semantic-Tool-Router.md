@@ -9,6 +9,8 @@
 > Le semantic routing est maintenant integre dans `QueryAnalyzerService` et `SmartCatalogueService`.
 > Voir [SMART_SERVICES.md](../technical/SMART_SERVICES.md) pour la documentation actuelle.
 
+> **Update v1.14.1**: Embedding model migrated from OpenAI text-embedding-3-small to Google gemini-embedding-001. See [ADR-069](ADR-069-Gemini-Embedding-Migration.md).
+
 ---
 
 ## Context and Problem Statement
@@ -49,6 +51,8 @@ Le routing traditionnel par mots-clés présentait plusieurs limitations :
 **Chosen option**: "**Two-Level Semantic Selection (Domains + Tools) with OpenAI text-embedding-3-small**"
 
 > **Updated v1.14.0**: Migrated from local E5 embeddings to OpenAI text-embedding-3-small (1536 dims). All references to `LocalE5Embeddings` and `local_embeddings.py` now correspond to `memory_embeddings.py`.
+>
+> **Updated v1.14.1**: Migrated from OpenAI text-embedding-3-small to Google gemini-embedding-001 (1536 dims) with RETRIEVAL task types and dual-vector search. See [ADR-069](ADR-069-Gemini-Embedding-Migration.md).
 
 ### Two-Level Architecture Overview
 
@@ -774,7 +778,8 @@ async def plan_execution(state: AgentState) -> dict:
 
 - [ADR-019: Agent Manifest Catalogue System](ADR-019-Agent-Manifest-Catalogue-System.md) - Provides semantic_keywords
 - [ADR-049: Local E5 Embeddings](ADR-049-Local-E5-Embeddings.md) - Historical: superseded by OpenAI text-embedding-3-small (v1.14.0)
-- [ADR-037: Semantic Memory Store](ADR-037-Semantic-Memory-Store.md) - Uses same OpenAI embeddings
+- [ADR-037: Semantic Memory Store](ADR-037-Semantic-Memory-Store.md) - Uses same Gemini embeddings
+- [ADR-069: Gemini Embedding Migration](ADR-069-Gemini-Embedding-Migration.md) - Migration from OpenAI to Google gemini-embedding-001 (v1.14.1)
 - [ADR-039: Cost Optimization & Token Management](ADR-039-Cost-Optimization-Token-Management.md) - Token optimization strategies
 
 ---

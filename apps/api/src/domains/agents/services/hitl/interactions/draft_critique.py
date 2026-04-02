@@ -44,8 +44,10 @@ import time
 from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING, Any
 
+from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.field_names import FIELD_CONTENT, FIELD_CONVERSATION_ID
 from src.core.i18n_hitl import HitlMessages, HitlMessageType
+from src.core.time_utils import format_value_if_datetime_string
 from src.domains.agents.drafts.models import DraftAction
 from src.domains.agents.prompts import format_with_current_datetime
 from src.infrastructure.observability.logging import get_logger
@@ -111,7 +113,7 @@ class DraftCritiqueInteraction:
         self,
         context: dict[str, Any],
         user_language: str,
-        user_timezone: str = "Europe/Paris",
+        user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
         tracker: Any | None = None,
     ) -> AsyncGenerator[str, None]:
         """
@@ -152,6 +154,8 @@ class DraftCritiqueInteraction:
         draft_content = context.get("draft_content", {})
         draft_id = context.get("draft_id", "unknown")
         draft_summary = context.get("draft_summary")  # Pre-generated summary if available
+        batch_total = context.get("batch_total", 1)  # >1 if part of FOR_EACH batch
+        batch_drafts = context.get("batch_drafts", [])  # All draft contents for batch
 
         # Track metric
         registry_draft_critique_questions_total.labels(draft_type=draft_type).inc()
@@ -162,7 +166,38 @@ class DraftCritiqueInteraction:
             draft_id=draft_id,
             content_keys=list(draft_content.keys()),
             user_language=user_language,
+            batch_total=batch_total,
         )
+
+        # Batch path: generate static confirmation listing ALL items (no LLM needed)
+        if batch_total > 1 and batch_drafts:
+            start_time = time.time()
+            batch_message = self._generate_batch_critique(
+                draft_type=draft_type,
+                batch_drafts=batch_drafts,
+                batch_total=batch_total,
+                user_language=user_language,
+                user_timezone=user_timezone,
+            )
+            # Stream line-by-line then word-by-word (preserves markdown newlines)
+            # Pattern from for_each_confirmation.py
+            token_index = 0
+            for line in batch_message.split("\n"):
+                if line:
+                    for word in line.split():
+                        if token_index == 0:
+                            ttft = time.time() - start_time
+                            hitl_question_ttft_seconds.labels(type="draft_critique").observe(ttft)
+                        token_index += 1
+                        yield word + " "
+                yield "\n"
+            logger.info(
+                "draft_critique_batch_question_generated",
+                draft_id=draft_id,
+                batch_total=batch_total,
+                duration_ms=int((time.time() - start_time) * 1000),
+            )
+            return
 
         # If we have a pre-generated summary, use it directly
         if draft_summary:
@@ -211,6 +246,8 @@ class DraftCritiqueInteraction:
                 draft_type=draft_type,
                 draft_content=draft_content,
                 user_language=user_language,
+                user_timezone=user_timezone,
+                batch_total=batch_total,
                 tracker=tracker,
             ):
                 # Track TTFT on first token
@@ -249,21 +286,26 @@ class DraftCritiqueInteraction:
                 draft_id=draft_id,
                 error=str(e),
             )
-            # Yield fallback
+            # Yield fallback (preserve newlines for markdown)
             fallback = self._generate_fallback_critique(
                 draft_type=draft_type,
                 draft_content=draft_content,
                 user_language=user_language,
                 user_timezone=user_timezone,
             )
-            for word in fallback.split():
-                yield word + " "
+            for line in fallback.split("\n"):
+                if line:
+                    for word in line.split():
+                        yield word + " "
+                yield "\n"
 
     async def _generate_critique_via_llm(
         self,
         draft_type: str,
         draft_content: dict[str, Any],
         user_language: str,
+        user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
+        batch_total: int = 1,
         tracker: Any | None = None,
     ) -> AsyncGenerator[str, None]:
         """
@@ -273,13 +315,21 @@ class DraftCritiqueInteraction:
             draft_type: Type of draft
             draft_content: Draft content dict
             user_language: Language code
+            user_timezone: User's IANA timezone for date conversion
+            batch_total: Total items in batch (>1 means FOR_EACH batch)
             tracker: Optional callback tracker
 
         Yields:
             str: Tokens from LLM
         """
         # Build prompt for LLM
-        prompt = self._build_critique_prompt(draft_type, draft_content, user_language)
+        prompt = self._build_critique_prompt(
+            draft_type,
+            draft_content,
+            user_language,
+            user_timezone=user_timezone,
+            batch_total=batch_total,
+        )
 
         # Use question generator's LLM
         from src.infrastructure.llm.instrumentation import create_instrumented_config
@@ -318,6 +368,8 @@ class DraftCritiqueInteraction:
         draft_content: dict[str, Any],
         user_language: str,
         personality_instruction: str | None = None,
+        user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
+        batch_total: int = 1,
     ) -> list[dict[str, str]]:
         """
         Build prompt for draft critique question generation.
@@ -327,6 +379,8 @@ class DraftCritiqueInteraction:
             draft_content: Draft content dict
             user_language: Target language
             personality_instruction: Optional LLM personality instruction
+            user_timezone: User's IANA timezone for date conversion
+            batch_total: Total items in batch (>1 means FOR_EACH batch)
 
         Returns:
             List of message dicts for LLM invocation
@@ -339,7 +393,9 @@ class DraftCritiqueInteraction:
         # Load critique prompt
         try:
             system_prompt = format_with_current_datetime(
-                load_prompt("hitl_draft_critique_prompt", version="v1")
+                load_prompt("hitl_draft_critique_prompt", version="v1"),
+                user_timezone=user_timezone,
+                user_language=user_language,
             )
         except Exception:
             # Fallback to inline prompt if file not found
@@ -350,11 +406,22 @@ class DraftCritiqueInteraction:
             "{personnalite}", personality_instruction or default_personality
         )
 
+        # Pre-convert datetime values to user's local timezone for display
+        # This ensures the LLM receives human-readable local dates instead of raw UTC
+        display_content = self._preconvert_dates_for_display(
+            draft_content, user_timezone, user_language
+        )
+
         # Serialize content for LLM
-        content_json = json.dumps(draft_content, indent=2, ensure_ascii=False)
+        content_json = json.dumps(display_content, indent=2, ensure_ascii=False)
+
+        # Batch context: tell the LLM this action applies to N items total
+        batch_context = ""
+        if batch_total > 1:
+            batch_context = f"\nBatchTotal: {batch_total} (this action will apply to {batch_total} items total — mention this in the confirmation question)"
 
         user = f"""DraftType: {draft_type}
-Content: {content_json}
+Content: {content_json}{batch_context}
 
 Generate the review question:"""
 
@@ -398,7 +465,7 @@ Generate the review question:"""
         draft_type: str,
         draft_content: dict[str, Any],
         user_language: str,
-        user_timezone: str = "Europe/Paris",
+        user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
     ) -> str:
         """
         Generate fallback critique when LLM fails.
@@ -475,6 +542,19 @@ Generate the review question:"""
             if attendees:
                 extra_lines.append(f"👥 {attendees}")
 
+        elif draft_type == "email_delete":
+            subject = draft_content.get("subject", "?")
+            from_addr = draft_content.get("from", "")
+            summary = HitlMessages.get_draft_summary(draft_type, user_language, subject=subject)
+            if from_addr:
+                extra_lines.append(f"📧 {from_addr}")
+            date = draft_content.get("date")
+            if date:
+                date = format_datetime_for_display(
+                    date, user_timezone, user_language, include_time=True
+                )
+                extra_lines.append(f"📅 {date}")
+
         elif draft_type == "event_update":
             summary_text = draft_content.get("summary") or draft_content.get(
                 "current_event", {}
@@ -482,6 +562,12 @@ Generate the review question:"""
             summary = HitlMessages.get_draft_summary(
                 draft_type, user_language, summary=summary_text
             )
+            start = draft_content.get("start_datetime")
+            if start and isinstance(start, str) and "T" in start:
+                start = format_datetime_for_display(
+                    start, user_timezone, user_language, include_time=True
+                )
+                extra_lines.append(f"🕐 {start}")
 
         elif draft_type == "event_delete":
             event_data = draft_content.get("event", {})
@@ -489,6 +575,12 @@ Generate the review question:"""
             summary = HitlMessages.get_draft_summary(
                 draft_type, user_language, summary=summary_text
             )
+            start = event_data.get("start", {}).get("dateTime") or event_data.get("start_datetime")
+            if start:
+                start = format_datetime_for_display(
+                    start, user_timezone, user_language, include_time=True
+                )
+                extra_lines.append(f"🕐 {start}")
 
         elif draft_type == "contact":
             name = draft_content.get("name", "?")
@@ -560,6 +652,208 @@ Generate the review question:"""
             parts.append(extra)
         parts.append(f"\n---\n{actions}")
         return "\n".join(parts)
+
+    def _generate_batch_critique(
+        self,
+        draft_type: str,
+        batch_drafts: list[dict[str, Any]],
+        batch_total: int,
+        user_language: str,
+        user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
+    ) -> str:
+        """
+        Generate static batch confirmation message listing all items.
+
+        Used when FOR_EACH produces multiple drafts. Shows each item with
+        its key details in a bullet list, with a batch-level confirmation question.
+        No LLM needed — deterministic, fast, and predictable.
+
+        Args:
+            draft_type: Type of all drafts in batch (e.g., "email_delete")
+            batch_drafts: List of all draft dicts (model_dump of PendingDraftInfo)
+            batch_total: Total number of items
+            user_language: Language code for localization
+            user_timezone: User's IANA timezone for date formatting
+
+        Returns:
+            Formatted batch confirmation message
+        """
+
+        emoji = HitlMessages.get_draft_emoji(draft_type)
+        translations = HitlMessages.get_destructive_confirm_translations(user_language)
+
+        # Header
+        header = f"⚠️ **{translations['title']}**\n\n"
+
+        # Build item list
+        items_section = f"**{translations['affected_items']} :**\n"
+        for draft_data in batch_drafts:
+            content = draft_data.get("draft_content", {})
+            label, detail_line = self._extract_batch_item_preview(
+                draft_type, content, emoji, user_timezone, user_language
+            )
+            items_section += f"- {label}\n"
+            if detail_line:
+                items_section += f"  {detail_line}\n"
+
+        items_section += "\n"
+
+        # Warning + question
+        warning = f"⚠️ {translations['default_warning']}\n\n"
+        question = f"**{translations['confirm_question']}**"
+
+        return header + items_section + warning + question
+
+    @staticmethod
+    def _extract_batch_item_preview(
+        draft_type: str,
+        content: dict[str, Any],
+        emoji: str,
+        user_timezone: str,
+        user_language: str,
+    ) -> tuple[str, str]:
+        """
+        Extract label and detail line for a single batch item, per domain.
+
+        Args:
+            draft_type: Draft type (email_delete, event_delete, etc.)
+            content: Draft content dict from the tool
+            emoji: Domain emoji prefix
+            user_timezone: User's IANA timezone
+            user_language: User's locale
+
+        Returns:
+            Tuple of (main_label, detail_line). detail_line may be empty.
+        """
+        from src.core.time_utils import format_datetime_for_display
+
+        detail_parts: list[str] = []
+
+        if draft_type == "email_delete":
+            label = content.get("subject", "?")
+            from_addr = content.get("from_addr") or content.get("from", "")
+            if from_addr:
+                detail_parts.append(f"📧 {' '.join(str(from_addr).split())}")
+            date = content.get("date")
+            if date:
+                detail_parts.append(
+                    f"📅 {format_datetime_for_display(date, user_timezone, user_language)}"
+                )
+
+        elif draft_type == "event_delete":
+            event = content.get("event", {})
+            label = event.get("summary", content.get("event_id", "?"))
+            start = event.get("start", {}).get("dateTime")
+            if start:
+                detail_parts.append(
+                    f"🕐 {format_datetime_for_display(start, user_timezone, user_language)}"
+                )
+
+        elif draft_type == "contact_delete":
+            contact = content.get("contact", {})
+            names = contact.get("names", [])
+            label = names[0].get("displayName", "?") if names else "?"
+            emails = contact.get("emailAddresses", [])
+            if emails:
+                detail_parts.append(f"📧 {emails[0].get('value', '')}")
+
+        elif draft_type == "task_delete":
+            label = content.get("title", "?")
+            due = content.get("due")
+            if due:
+                detail_parts.append(
+                    f"📅 {format_datetime_for_display(due, user_timezone, user_language, include_time=False)}"
+                )
+
+        elif draft_type == "file_delete":
+            label = content.get("name", "?")
+            mime = content.get("mime_type")
+            if mime:
+                detail_parts.append(f"📄 {mime}")
+
+        elif draft_type == "label_delete":
+            label = content.get("label_name", "?")
+
+        else:
+            # Generic fallback
+            label = (
+                content.get("subject")
+                or content.get("summary")
+                or content.get("title")
+                or content.get("name")
+                or content.get("label_name")
+                or "?"
+            )
+
+        # Sanitize and truncate label
+        label = " ".join(str(label).split())
+        if len(label) > 60:
+            label = label[:57] + "..."
+
+        main_label = f"{emoji} {label}"
+        detail_line = " | ".join(detail_parts)
+        return main_label, detail_line
+
+    @staticmethod
+    def _preconvert_dates_for_display(
+        draft_content: dict[str, Any],
+        user_timezone: str,
+        user_language: str,
+    ) -> dict[str, Any]:
+        """
+        Pre-convert datetime values in draft_content for human display.
+
+        Recursively walks the draft_content dict and converts any datetime
+        string (ISO 8601 or RFC 2822) to the user's local timezone format.
+        This ensures the LLM receives human-readable local dates instead of
+        raw UTC strings.
+
+        Args:
+            draft_content: Draft content dict (not modified in-place)
+            user_timezone: User's IANA timezone (e.g., "Europe/Paris")
+            user_language: User's locale for formatting (e.g., "fr")
+
+        Returns:
+            New dict with datetime values converted to display format
+        """
+        # Fields known to contain datetime values across draft types
+        datetime_fields = {
+            "date",  # email Date header (RFC 2822)
+            "start_datetime",  # event start
+            "end_datetime",  # event end
+            "due",  # task due date
+            "start",  # event start (alternative key)
+            "end",  # event end (alternative key)
+            "created",  # creation date
+            "updated",  # update date
+            "completed",  # task completion date
+            "dateTime",  # Google Calendar API format
+        }
+
+        def _convert_value(key: str, value: Any) -> Any:
+            if isinstance(value, str) and key in datetime_fields:
+                converted = format_value_if_datetime_string(
+                    value,
+                    user_timezone=user_timezone,
+                    locale=user_language,
+                    include_time=True,
+                    include_day_name=True,
+                )
+                return converted
+            elif isinstance(value, dict):
+                return {k: _convert_value(k, v) for k, v in value.items()}
+            elif isinstance(value, list):
+                return [
+                    (
+                        {k: _convert_value(k, v) for k, v in item.items()}
+                        if isinstance(item, dict)
+                        else item
+                    )
+                    for item in value
+                ]
+            return value
+
+        return {k: _convert_value(k, v) for k, v in draft_content.items()}
 
     def build_metadata_chunk(
         self,

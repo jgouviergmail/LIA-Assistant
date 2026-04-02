@@ -1,7 +1,7 @@
 """
 Context Variables for Embedding Token Tracking.
 
-Provides a mechanism to propagate user context to TrackedOpenAIEmbeddings
+Provides a mechanism to propagate user context to GeminiRetrievalEmbeddings
 for database persistence of embedding token costs.
 
 Problem:
@@ -15,7 +15,7 @@ Solution:
     the context and persists tokens to the database.
 
 Architecture:
-    memory_extractor.py                 TrackedOpenAIEmbeddings
+    memory_extractor.py                 GeminiRetrievalEmbeddings
          │                                      │
          ├─► set_embedding_context()            │
          │                                      │
@@ -99,7 +99,7 @@ def set_embedding_context(
     Set embedding tracking context for the current async context.
 
     Call this BEFORE any store operations (asearch, aput) that
-    trigger embeddings. The TrackedOpenAIEmbeddings wrapper will
+    trigger embeddings. The GeminiRetrievalEmbeddings wrapper will
     read this context and persist tokens to the database.
 
     Args:
@@ -132,7 +132,7 @@ def get_embedding_context() -> EmbeddingTrackingContext | None:
     Get current embedding tracking context.
 
     Returns None if no context is set.
-    Used by TrackedOpenAIEmbeddings to check if DB persistence is needed.
+    Used by GeminiRetrievalEmbeddings to check if DB persistence is needed.
 
     Returns:
         Current EmbeddingTrackingContext or None
@@ -168,11 +168,11 @@ async def persist_embedding_tokens(
     2. Fallback: if no conversation tracker exists (background operations like RAG
        indexing), create a standalone TrackingContext for separate DB persistence.
 
-    Called by TrackedOpenAIEmbeddings after successful embedding.
-    Prometheus metrics are emitted independently by TrackedOpenAIEmbeddings.
+    Called by GeminiRetrievalEmbeddings after successful embedding.
+    Prometheus metrics are emitted independently by GeminiRetrievalEmbeddings.
 
     Args:
-        model_name: Embedding model used (e.g., "text-embedding-3-small")
+        model_name: Embedding model used (e.g., "gemini-embedding-001")
         token_count: Number of tokens consumed
         cost_usd: Cost in USD
         operation: Operation type (embed_query, embed_documents)

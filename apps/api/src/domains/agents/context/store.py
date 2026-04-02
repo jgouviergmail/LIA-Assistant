@@ -7,7 +7,7 @@ across all agent executions for tool context persistence AND semantic memory.
 Pattern:
     - Singleton AsyncPostgresStore (similar to checkpointer.py pattern)
     - PostgreSQL-backed for persistence across restarts
-    - Semantic search via OpenAI text-embedding-3-small (1536 dims)
+    - Semantic search via Gemini gemini-embedding-001 (1536 dims)
     - Thread-safe, module-level singleton
     - Lazy initialization on first access
 
@@ -21,8 +21,8 @@ V2 (Long-Term Memory):
     - Multi-field indexing: content, text, trigger_topic
     - LangMem integration ready
 
-V3 (OpenAI Embeddings - 2026-03):
-    - OpenAI text-embedding-3-small (1536 dims) via TrackedOpenAIEmbeddings
+V3 (Gemini Embeddings - 2026-03):
+    - Gemini gemini-embedding-001 (1536 dims) via GeminiRetrievalEmbeddings
     - Shared singleton with tool routing and interest deduplication
     - Token tracking via Prometheus metrics
     - Replaces local E5 model to save ~1 GB RAM per worker
@@ -50,7 +50,7 @@ def _get_embeddings_model():
     """
     Lazy-load embeddings model for semantic search.
 
-    Uses OpenAI text-embedding-3-small via TrackedOpenAIEmbeddings singleton,
+    Uses Gemini gemini-embedding-001 via GeminiRetrievalEmbeddings singleton,
     shared with tool routing and interest deduplication.
 
     Only initialized once on first access (singleton pattern).
@@ -65,7 +65,7 @@ def _get_embeddings_model():
             "embeddings_model_initialized",
             model=settings.memory_embedding_model,
             dimensions=settings.memory_embedding_dimensions,
-            provider="openai",
+            provider="gemini",
         )
 
     return _embeddings_model
@@ -83,7 +83,7 @@ async def get_tool_context_store() -> AsyncPostgresStore:
     LangGraph best practice (2025):
     - Single Store instance shared across graph executions
     - PostgreSQL-backed for persistence across API restarts
-    - Semantic search enabled via OpenAI embeddings
+    - Semantic search enabled via Gemini embeddings
     - Namespace isolation per user/collection/domain
     - Automatic table creation on first setup (idempotent)
 
@@ -125,7 +125,7 @@ async def get_tool_context_store() -> AsyncPostgresStore:
         )
 
         # Build index configuration for semantic search
-        # NOTE: Memory/semantic search is always enabled (OpenAI embeddings)
+        # NOTE: Memory/semantic search is always enabled (Gemini embeddings)
         index_config = None
         semantic_search_enabled = False
 
@@ -142,7 +142,7 @@ async def get_tool_context_store() -> AsyncPostgresStore:
                 "semantic_search_config_ready",
                 dims=settings.memory_embedding_dimensions,
                 fields=index_config["fields"],
-                provider="openai",
+                provider="gemini",
             )
         except Exception as e:
             logger.warning(
