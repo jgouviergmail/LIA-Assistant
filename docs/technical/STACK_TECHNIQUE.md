@@ -127,7 +127,7 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 
 | Technologie | Version | Role |
 |-------------|---------|------|
-| **openai** | 1.x | OpenAI text-embedding-3-small (1536 dims) |
+| **langchain-google-genai** | 4.2.1 | Google gemini-embedding-001 (3072 dims, RETRIEVAL task types) |
 
 ### Observabilite
 
@@ -237,8 +237,8 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 
 ### Embeddings
 
-> OpenAI `text-embedding-3-small` (1536 dims) is used for all semantic embeddings (memory, tool routing, interests).
-> Replaced local E5 embeddings in v1.14.0.
+> Google `gemini-embedding-001` (3072 dims) is used for all semantic embeddings (memory, tool routing, interests, journals, RAG spaces) with RETRIEVAL task types and dual-vector search.
+> Replaced OpenAI text-embedding-3-small in v1.14.1. See [ADR-069](../architecture/ADR-069-Gemini-Embedding-Migration.md).
 
 ---
 

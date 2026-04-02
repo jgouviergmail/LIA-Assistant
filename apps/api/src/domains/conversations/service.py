@@ -818,6 +818,22 @@ class ConversationService:
             )
             return None
 
+    async def patch_message_metadata(
+        self,
+        message_id: UUID,
+        extra: dict[str, Any],
+        db: AsyncSession,
+    ) -> None:
+        """Merge extra fields into an existing message's metadata.
+
+        Args:
+            message_id: Primary key of the ConversationMessage.
+            extra: Key-value pairs to merge (shallow) into existing metadata.
+            db: Database session (caller manages commit).
+        """
+        repo = ConversationRepository(db)
+        await repo.merge_message_metadata(message_id, extra)
+
     async def increment_conversation_stats(
         self, conversation_id: UUID, tokens: int, db: AsyncSession, message_increment: int = 1
     ) -> None:

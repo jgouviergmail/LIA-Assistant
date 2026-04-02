@@ -7,7 +7,7 @@ Defines Personality and PersonalityTranslation entities with their relationships
 import uuid
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -47,6 +47,35 @@ class Personality(BaseModel):
     )
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False, server_default="0")
     prompt_instruction: Mapped[str] = mapped_column(Text, nullable=False)
+
+    # Big Five personality traits (Psyche Engine)
+    # Nullable: not all personalities need traits (backward compatibility)
+    trait_openness: Mapped[float | None] = mapped_column(
+        Float, nullable=True, comment="Big Five Openness [0, 1]."
+    )
+    trait_conscientiousness: Mapped[float | None] = mapped_column(
+        Float, nullable=True, comment="Big Five Conscientiousness [0, 1]."
+    )
+    trait_extraversion: Mapped[float | None] = mapped_column(
+        Float, nullable=True, comment="Big Five Extraversion [0, 1]."
+    )
+    trait_agreeableness: Mapped[float | None] = mapped_column(
+        Float, nullable=True, comment="Big Five Agreeableness [0, 1]."
+    )
+    trait_neuroticism: Mapped[float | None] = mapped_column(
+        Float, nullable=True, comment="Big Five Neuroticism [0, 1]."
+    )
+
+    # PAD baseline overrides (for caricature personalities where linear mapping fails)
+    pad_pleasure_override: Mapped[float | None] = mapped_column(
+        Float, nullable=True, comment="PAD Pleasure override [-1, +1]. Null = auto-compute."
+    )
+    pad_arousal_override: Mapped[float | None] = mapped_column(
+        Float, nullable=True, comment="PAD Arousal override [-1, +1]. Null = auto-compute."
+    )
+    pad_dominance_override: Mapped[float | None] = mapped_column(
+        Float, nullable=True, comment="PAD Dominance override [-1, +1]. Null = auto-compute."
+    )
 
     # Relationships
     translations: Mapped[list["PersonalityTranslation"]] = relationship(

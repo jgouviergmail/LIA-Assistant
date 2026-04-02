@@ -34,6 +34,7 @@ async def generate_fallback_response(
     run_id: str,
     format_chunk_fn: Callable[..., Any],
     config: Any = None,
+    user_id: str | None = None,
 ) -> AsyncGenerator[tuple["ChatStreamChunk", str], None]:
     """
     Generate an elegant fallback response via LLM.
@@ -49,6 +50,7 @@ async def generate_fallback_response(
         run_id: For logging/tracing context
         format_chunk_fn: Function to format content into ChatStreamChunk (e.g., service.format_token_chunk)
         config: Optional RunnableConfig with TokenTrackingCallback for billing tracking
+        user_id: User UUID string for psyche context.
 
     Yields:
         tuple[ChatStreamChunk, str]: (formatted chunk, content fragment)
@@ -76,6 +78,16 @@ async def generate_fallback_response(
     prompt = load_prompt("fallback_response_prompt").format(
         user_query=user_query or "unavailable query"
     )
+
+    # Inject psyche context if user_id is available
+    if user_id:
+        try:
+            from src.domains.psyche.service import build_psyche_prompt_block
+
+            psyche_block = await build_psyche_prompt_block(user_id=user_id, user_timezone=None)
+            prompt += psyche_block
+        except Exception:
+            pass  # Psyche injection is best-effort
 
     try:
         # Use response LLM for consistency with main response generation
@@ -112,6 +124,7 @@ async def generate_fallback_response_sync(
     user_query: str,
     run_id: str,
     config: Any = None,
+    user_id: str | None = None,
 ) -> str:
     """
     Generate a fallback response synchronously (non-streaming).
@@ -122,6 +135,7 @@ async def generate_fallback_response_sync(
         user_query: The original user query
         run_id: For logging/tracing context
         config: Optional RunnableConfig with TokenTrackingCallback for billing tracking
+        user_id: User UUID string for psyche context.
 
     Returns:
         str: The complete fallback response
@@ -138,6 +152,16 @@ async def generate_fallback_response_sync(
     prompt = load_prompt("fallback_response_prompt").format(
         user_query=user_query or "unavailable query"
     )
+
+    # Inject psyche context if user_id is available
+    if user_id:
+        try:
+            from src.domains.psyche.service import build_psyche_prompt_block
+
+            psyche_block = await build_psyche_prompt_block(user_id=user_id, user_timezone=None)
+            prompt += psyche_block
+        except Exception:
+            pass  # Psyche injection is best-effort
 
     try:
         llm = get_llm("response")

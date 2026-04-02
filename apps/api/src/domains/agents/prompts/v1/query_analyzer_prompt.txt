@@ -126,9 +126,11 @@ Resolve each reference by searching for ALL REAL values in PERSONAL MEMORY or HI
 - Date/Time: {current_datetime}
 - Position: {user_location}
 - Recent history ({window_size} turns): {conversation_history}
+Use history to: (1) resolve implicit references ("the second one", "there", "him"), (2) detect pending action confirmations, (3) determine the conversation topic for contextual follow-ups.
 
 ## PERSONAL MEMORY
 {memory_facts}
+Check here FIRST for the requested information. If the answer is fully present in memory (not just the entity, but the actual info requested), route to "conversation". If only partial info exists (entity known, but requested data missing), route to "action".
 
 ## QUERY TO ANALYZE
 {user_query}

@@ -32,7 +32,7 @@ if TYPE_CHECKING:
     from src.domains.auth.models import User
 
 
-# Embedding dimensions: OpenAI text-embedding-3-small
+# Embedding dimensions: Gemini gemini-embedding-001
 MEMORY_EMBEDDING_DIMENSIONS = 1536
 
 
@@ -147,8 +147,16 @@ class Memory(BaseModel):
         server_default="false",
     )
 
-    # Semantic embedding (OpenAI text-embedding-3-small: 1536 dims)
+    # Semantic embeddings (Gemini gemini-embedding-001: 1536 dims)
+    # embedding: content text only (main semantic match)
+    # keyword_embedding: trigger_topic keywords only (keyword-level match)
+    # Search uses LEAST(dist_content, dist_keyword) for best match,
+    # restoring the multi-vector strategy from the old LangGraph store.
     embedding: Mapped[list[float] | None] = mapped_column(
+        Vector(MEMORY_EMBEDDING_DIMENSIONS),
+        nullable=True,
+    )
+    keyword_embedding: Mapped[list[float] | None] = mapped_column(
         Vector(MEMORY_EMBEDDING_DIMENSIONS),
         nullable=True,
     )

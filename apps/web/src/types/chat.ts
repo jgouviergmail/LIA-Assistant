@@ -120,6 +120,17 @@ export interface DoneMetadata {
   generated_images?: { url: string; alt: string }[];
   // Browser screenshot card
   browser_screenshot?: { url: string; alt: string };
+  // Psyche Engine: mood state summary from post-response processing
+  psyche_state?: {
+    mood_label: string;
+    mood_color: string;
+    mood_pleasure: number;
+    mood_arousal: number;
+    mood_dominance: number;
+    active_emotion: string | null;
+    emotion_intensity: number;
+    relationship_stage: string;
+  };
 }
 
 export interface RouterMetadata {

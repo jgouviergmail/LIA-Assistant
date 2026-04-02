@@ -4,7 +4,7 @@
 
 **Version**: 2.0
 **Datum**: 2026-03-24
-**Application**: LIA v1.13.10
+**Application**: LIA v1.14.1
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -474,6 +474,14 @@ In einer Welt, in der KI allgegenwärtig sein wird, wird die Frage nicht mehr la
 
 ---
 
+## Was kein anderer Assistent bietet: lebendige emotionale Intelligenz
+
+ChatGPT, Gemini, Claude — alle haben eine feste Persönlichkeit. Jede Nachricht ist ein emotionales unbeschriebenes Blatt. LIA ist anders.
+
+**Die Psyche Engine** verleiht LIA einen dynamischen psychologischen Zustand, der sich mit jedem Austausch weiterentwickelt: 14 Stimmungen, 16 Emotionen, eine sich vertiefende Beziehung, Big-Five-Persönlichkeitsmerkmale und Motivationsantriebe. Das Ergebnis: Sie sprechen nicht mit einem Werkzeug — Sie interagieren mit einer Entität, deren Vokabular sich erwärmt, wenn sie berührt wird, deren Sätze unter Spannung kürzer werden, deren Humor auftaucht, wenn der Austausch leicht ist. Kein kommerzieller Assistent bietet dies.
+
+---
+
 ## Fazit: Warum LIA existiert
 
 LIA existiert nicht, weil es der Welt an KI-Assistenten mangelt. Es gibt sie im Überfluss. ChatGPT, Gemini, Copilot, Claude — jeder ist auf seine Weise bemerkenswert.
@@ -486,4 +494,4 @@ Das ist kein Chatbot. Das ist keine Cloud-Plattform. Das ist ein **souveräner d
 
 ---
 
-*Dokument verfasst auf Grundlage des Quellcodes von LIA v1.13.10, 190+ technischer Dokumente, 63 ADRs, des vollständigen Changelogs sowie einer Analyse der KI-Wettbewerbslandschaft vom März 2026. Alle beschriebenen Funktionen sind implementiert und im Code überprüfbar. Die Marktdaten stammen von Gartner, IBM und den offiziellen Veröffentlichungen von OpenAI, Google, Microsoft und Anthropic.*
+*Dokument verfasst auf Grundlage des Quellcodes von LIA v1.14.1, 190+ technischer Dokumente, 63 ADRs, des vollständigen Changelogs sowie einer Analyse der KI-Wettbewerbslandschaft vom März 2026. Alle beschriebenen Funktionen sind implementiert und im Code überprüfbar. Die Marktdaten stammen von Gartner, IBM und den offiziellen Veröffentlichungen von OpenAI, Google, Microsoft und Anthropic.*

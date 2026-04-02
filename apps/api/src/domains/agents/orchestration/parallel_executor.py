@@ -176,13 +176,16 @@ class ParallelExecutionResult(BaseModel):
         registry: Data registry items accumulated from all registry-enabled tools
                   Keys are registry IDs (e.g., "contact_abc123")
                   Values are serialized RegistryItem dicts
-        pending_draft: Draft requiring confirmation (if any tool returned requires_confirmation=True)
+        pending_draft: First draft requiring confirmation (backwards compat, single-draft path)
                       None if no draft requires confirmation
+        pending_drafts: All drafts requiring confirmation (batch path for FOR_EACH)
+                       Empty list if no drafts require confirmation
     """
 
     completed_steps: dict[str, dict[str, Any]]
     registry: dict[str, Any]  # Serialized RegistryItem dicts
     pending_draft: PendingDraftInfo | None = None  # Data Registry LOT 4.3
+    pending_drafts: list[PendingDraftInfo] = []  # Batch support for FOR_EACH
 
 
 # Issue #41: Module-level Jinja2 evaluator instance (thread-safe, reusable)
@@ -1455,27 +1458,33 @@ async def execute_plan_parallel(
             current_turn_ids=list(current_turn_registry.keys()),
         )
 
-    # Data Registry LOT 4.3: Build pending_draft from first draft requiring confirmation
-    # If multiple drafts, we take the first one (future: batch handling)
+    # Data Registry LOT 4.3: Build pending drafts from accumulated draft info
     pending_draft: PendingDraftInfo | None = None
+    pending_drafts: list[PendingDraftInfo] = []
+
     if accumulated_drafts:
-        first_draft = accumulated_drafts[0]
-        pending_draft = PendingDraftInfo(
-            draft_id=first_draft.get("draft_id", ""),
-            draft_type=first_draft.get("draft_type", ""),
-            draft_content=first_draft.get("draft_content", {}),
-            draft_summary=first_draft.get("draft_summary", ""),
-            registry_ids=first_draft.get("registry_ids", []),
-            tool_name=first_draft.get("tool_name"),
-            step_id=first_draft.get("step_id"),
-        )
+        for draft_dict in accumulated_drafts:
+            draft_info = PendingDraftInfo(
+                draft_id=draft_dict.get("draft_id", ""),
+                draft_type=draft_dict.get("draft_type", ""),
+                draft_content=draft_dict.get("draft_content", {}),
+                draft_summary=draft_dict.get("draft_summary", ""),
+                registry_ids=draft_dict.get("registry_ids", []),
+                tool_name=draft_dict.get("tool_name"),
+                step_id=draft_dict.get("step_id"),
+            )
+            pending_drafts.append(draft_info)
+
+        # Backwards compat: pending_draft = first draft (single-draft path)
+        pending_draft = pending_drafts[0]
+
         logger.info(
             "registry_draft_execution_complete",
             run_id=run_id,
             plan_id=execution_plan.plan_id,
             draft_id=pending_draft.draft_id,
             draft_type=pending_draft.draft_type,
-            total_drafts_count=len(accumulated_drafts),
+            total_drafts_count=len(pending_drafts),
         )
 
     # Return only current turn's new items in registry
@@ -1485,6 +1494,7 @@ async def execute_plan_parallel(
         completed_steps=completed_steps,
         registry=current_turn_registry,
         pending_draft=pending_draft,
+        pending_drafts=pending_drafts,
     )
 
 

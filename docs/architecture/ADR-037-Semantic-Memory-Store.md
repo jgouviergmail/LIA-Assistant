@@ -5,6 +5,8 @@
 **Technical Story**: Long-term psychological memory for personalized interactions
 **Related Documentation**: `docs/technical/LONG_TERM_MEMORY.md`
 
+> **Update v1.14.1**: Embedding model migrated from OpenAI text-embedding-3-small to Google gemini-embedding-001 with RETRIEVAL task types and dual-vector search. See [ADR-069](ADR-069-Gemini-Embedding-Migration.md).
+
 ---
 
 ## Context and Problem Statement
@@ -391,7 +393,8 @@ vector = await embeddings.aembed_query("search query")
 
 | Model | Dimensions | Cost | Notes |
 |-------|------------|------|-------|
-| **text-embedding-3-small** (current) | 1536 | $0.02/1M | Operational simplicity, unified dims |
+| **gemini-embedding-001** (current, v1.14.1) | 3072 | $0 (free tier) | RETRIEVAL task types, dual-vector search |
+| ~~text-embedding-3-small~~ (legacy, v1.14.0) | 1536 | $0.02/1M | Replaced by Gemini in v1.14.1 |
 | ~~multilingual-e5-small~~ (legacy, ADR-049) | 384 | $0 | Removed in v1.14.0 |
 
 ### Consequences
@@ -404,12 +407,12 @@ vector = await embeddings.aembed_query("search query")
 - ✅ **GDPR Compliant** : Export and deletion
 - ✅ **Intelligent Purge** : Retention scoring
 - ✅ **Pinned Protection** : Critical memories preserved
-- ✅ **Unified Embedding Model** : OpenAI text-embedding-3-small (updated v1.14.0, migrated from local E5)
+- ✅ **Unified Embedding Model** : Google gemini-embedding-001 (updated v1.14.1, migrated from OpenAI text-embedding-3-small)
 
 **Negative**:
 - ⚠️ LLM extraction costs (gpt-4.1-mini still used)
 - ⚠️ pgvector dependency
-- ⚠️ Embedding API cost (OpenAI text-embedding-3-small, ~$0.02/1M tokens)
+- ⚠️ Embedding API cost (Google gemini-embedding-001, free tier with rate limits)
 - ⚠️ BM25 cache memory (~200-400KB per user)
 
 ---
@@ -430,7 +433,8 @@ vector = await embeddings.aembed_query("search query")
 ## Related Decisions
 
 - [ADR-049: Local E5 Embeddings](ADR-049-Local-E5-Embeddings.md) - Historical: superseded by OpenAI text-embedding-3-small (v1.14.0)
-- [ADR-048: Semantic Tool Router](ADR-048-Semantic-Tool-Router.md) - Uses same OpenAI embeddings
+- [ADR-048: Semantic Tool Router](ADR-048-Semantic-Tool-Router.md) - Uses same Gemini embeddings
+- [ADR-069: Gemini Embedding Migration](ADR-069-Gemini-Embedding-Migration.md) - Migration from OpenAI to Google gemini-embedding-001 (v1.14.1)
 
 ---
 

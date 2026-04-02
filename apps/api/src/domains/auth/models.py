@@ -40,6 +40,7 @@ if TYPE_CHECKING:
     from src.domains.memories.models import Memory
     from src.domains.notifications.models import UserFCMToken
     from src.domains.personalities.models import Personality
+    from src.domains.psyche.models import PsycheState
     from src.domains.reminders.models import Reminder
     from src.domains.scheduled_actions.models import ScheduledAction
     from src.domains.skills.models import UserSkillState
@@ -343,6 +344,32 @@ class User(BaseModel):
         comment="Source of last journal intervention: 'extraction' or 'consolidation'.",
     )
 
+    # Psyche Engine preferences
+    psyche_enabled: Mapped[bool] = mapped_column(
+        default=True,
+        nullable=False,
+        server_default="true",
+        comment="Enable Psyche Engine (dynamic mood, emotions, relationship tracking).",
+    )
+    psyche_display_avatar: Mapped[bool] = mapped_column(
+        default=True,
+        nullable=False,
+        server_default="true",
+        comment="Display emotional avatar (personality + mood smiley) in chat messages.",
+    )
+    psyche_sensitivity: Mapped[int] = mapped_column(
+        default=70,
+        nullable=False,
+        server_default="70",
+        comment="Emotional expressiveness (0-100). Higher = more reactive to stimuli.",
+    )
+    psyche_stability: Mapped[int] = mapped_column(
+        default=60,
+        nullable=False,
+        server_default="60",
+        comment="Mood stability (0-100). Higher = slower mood changes, more resistant to transient stimuli.",
+    )
+
     # Onboarding tutorial preference
     onboarding_completed: Mapped[bool] = mapped_column(
         default=False,
@@ -433,6 +460,11 @@ class User(BaseModel):
     # Usage limits (1:1, optional — no record means unlimited)
     usage_limit: Mapped["UserUsageLimit | None"] = relationship(
         back_populates="user", lazy="noload", cascade="all, delete-orphan"
+    )
+
+    # Psyche state (1:1, optional — created on first interaction when psyche_enabled)
+    psyche_state: Mapped["PsycheState | None"] = relationship(
+        back_populates="user", uselist=False, cascade="all, delete-orphan"
     )
 
     @property

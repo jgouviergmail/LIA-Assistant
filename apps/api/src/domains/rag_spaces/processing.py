@@ -2,7 +2,7 @@
 RAG document processing pipeline.
 
 Background task that extracts text from uploaded documents, splits into
-chunks, generates embeddings via TrackedOpenAIEmbeddings, and persists
+chunks, generates embeddings via GeminiRetrievalEmbeddings, and persists
 vector-indexed chunks to the rag_chunks table.
 
 Launched via safe_fire_and_forget after document upload.
@@ -44,7 +44,7 @@ from src.infrastructure.observability.metrics_rag_spaces import (
 logger = get_logger(__name__)
 
 # Maximum number of chunks to embed in a single API call.
-# OpenAI Embeddings API has ~4MB request body limit; 100 chunks of ~1000 chars
+# Gemini Embeddings API batch limit; 100 chunks of ~1000 chars
 # is well within that limit while still being efficient.
 EMBEDDING_BATCH_SIZE = 100
 

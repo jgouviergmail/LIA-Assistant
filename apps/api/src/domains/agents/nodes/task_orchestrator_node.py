@@ -1256,8 +1256,6 @@ async def _handle_execution_plan(
         # Data Registry LOT 5.2: Extract completed_steps and registry from result
         completed_steps = execution_result_obj.completed_steps
         data_registry = execution_result_obj.registry
-        # Data Registry LOT 4.3: Extract pending_draft for draft_critique_node
-        pending_draft = execution_result_obj.pending_draft
 
         logger.info(
             "parallel_executor_completed",
@@ -1563,56 +1561,77 @@ async def _handle_execution_plan(
         # - entity_disambiguation → pending_entity_disambiguation (for multiple matches)
         # - tool_confirmation → pending_tool_confirmation (for tools without drafts)
         # - Other types (email, event, contact) → pending_draft_critique (for draft preview)
-        if pending_draft:
-            draft_type = pending_draft.draft_type
-            draft_data = pending_draft.model_dump()
+        #
+        # Batch draft support: When FOR_EACH produces multiple drafts of the same type,
+        # we store them all in pending_draft_critique as a batch for grouped confirmation.
+        pending_drafts = execution_result_obj.pending_drafts
 
-            if draft_type == "entity_disambiguation":
-                # Entity disambiguation: multiple entities match, need user choice
-                # Check if there's already a pending disambiguation (multi-disambiguation protection)
-                if "pending_entity_disambiguation" in result or state.get(
-                    "pending_entity_disambiguation"
-                ):
-                    # Queue this disambiguation for later processing
-                    queue = state.get("pending_disambiguations_queue", [])
-                    queue.append(draft_data)
-                    result["pending_disambiguations_queue"] = queue
+        if pending_drafts:
+            # Separate drafts by routing type
+            draft_critiques = []
+            for draft in pending_drafts:
+                draft_type = draft.draft_type
+                draft_data = draft.model_dump()
+
+                if draft_type == "entity_disambiguation":
+                    if "pending_entity_disambiguation" in result or state.get(
+                        "pending_entity_disambiguation"
+                    ):
+                        queue = state.get("pending_disambiguations_queue", [])
+                        queue.append(draft_data)
+                        result["pending_disambiguations_queue"] = queue
+                        logger.info(
+                            "registry_disambiguation_queued",
+                            run_id=run_id,
+                            draft_id=draft.draft_id,
+                            queue_size=len(queue),
+                        )
+                    else:
+                        result["pending_entity_disambiguation"] = draft_data
+                        logger.info(
+                            "registry_pending_entity_disambiguation_added",
+                            run_id=run_id,
+                            plan_id=execution_plan.plan_id,
+                            draft_id=draft.draft_id,
+                            draft_type=draft_type,
+                        )
+
+                elif draft_type == "tool_confirmation":
+                    result["pending_tool_confirmation"] = draft_data
                     logger.info(
-                        "registry_disambiguation_queued",
-                        run_id=run_id,
-                        draft_id=pending_draft.draft_id,
-                        queue_size=len(queue),
-                    )
-                else:
-                    result["pending_entity_disambiguation"] = draft_data
-                    logger.info(
-                        "registry_pending_entity_disambiguation_added",
+                        "registry_pending_tool_confirmation_added",
                         run_id=run_id,
                         plan_id=execution_plan.plan_id,
-                        draft_id=pending_draft.draft_id,
-                        draft_type=draft_type,
+                        draft_id=draft.draft_id,
+                        tool_name=draft.tool_name,
                     )
 
-            elif draft_type == "tool_confirmation":
-                # Tool confirmation: tools without drafts need explicit approval
-                result["pending_tool_confirmation"] = draft_data
-                logger.info(
-                    "registry_pending_tool_confirmation_added",
-                    run_id=run_id,
-                    plan_id=execution_plan.plan_id,
-                    draft_id=pending_draft.draft_id,
-                    tool_name=pending_draft.tool_name,
-                )
+                else:
+                    # Draft critique (email, event, contact, task, file, label)
+                    draft_critiques.append(draft_data)
 
-            else:
-                # Default: draft critique for email/event/contact drafts
-                result["pending_draft_critique"] = draft_data
+            # Route draft critiques: single → direct, multiple → batch
+            if len(draft_critiques) == 1:
+                result["pending_draft_critique"] = draft_critiques[0]
                 logger.info(
                     "registry_pending_draft_added_to_state",
                     run_id=run_id,
                     plan_id=execution_plan.plan_id,
-                    draft_id=pending_draft.draft_id,
-                    draft_type=draft_type,
+                    draft_id=draft_critiques[0].get("draft_id"),
+                    draft_type=draft_critiques[0].get("draft_type"),
+                )
+            elif len(draft_critiques) > 1:
+                # Batch: store first as pending_draft_critique, rest in queue
+                # hitl_dispatch_node will handle batch confirmation
+                result["pending_draft_critique"] = draft_critiques[0]
+                result["pending_drafts_queue"] = draft_critiques[1:]
+                logger.info(
+                    "registry_pending_batch_drafts_added_to_state",
+                    run_id=run_id,
+                    plan_id=execution_plan.plan_id,
+                    batch_size=len(draft_critiques),
+                    draft_type=draft_critiques[0].get("draft_type"),
+                    draft_ids=[d.get("draft_id") for d in draft_critiques],
                 )
 
         track_state_updates(state, result, "task_orchestrator", run_id)

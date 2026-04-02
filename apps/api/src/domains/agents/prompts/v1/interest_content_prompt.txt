@@ -1,8 +1,11 @@
 INTEREST TOPIC: {interest_topic}
 CATEGORY: {interest_category}
 SOURCE: {source_name}
-RAW CONTENT: {raw_content}
+RAW CONTENT:
+{raw_content}
+This is raw source material — synthesize and rewrite it in your own words. Never paste chunks verbatim. Extract the most surprising or valuable facts.
 CITATIONS: {citations}
+Weave source references naturally into your text ("according to...", "per..."). Do not list them separately.
 LANGUAGE: {user_language}
 CURRENT DATE: {current_datetime}
 

@@ -82,7 +82,7 @@ class JournalEntry(BaseModel):
         session_id: Conversation session that triggered extraction (nullable)
         personality_code: Personality code active when entry was written (nullable)
         char_count: Content character count (for size tracking)
-        embedding: OpenAI text-embedding-3-small (1536 dims) for semantic relevance search
+        embedding: Gemini gemini-embedding-001 (1536 dims) for semantic relevance search
         search_hints: LLM-generated keywords bridging user vocabulary to entry content
         injection_count: Number of times this entry was injected into prompts
         last_injected_at: Last time this entry was injected into a prompt (UTC)
@@ -145,8 +145,15 @@ class JournalEntry(BaseModel):
         default=0,
     )
 
-    # Embedding for semantic relevance search (1536 dims for OpenAI text-embedding-3-small)
+    # Semantic embeddings (Gemini gemini-embedding-001: 1536 dims)
+    # embedding: title+content (main semantic match)
+    # keyword_embedding: search_hints keywords only (keyword-level match)
+    # Search uses LEAST(dist_content, dist_keyword) for best match.
     embedding: Mapped[list[float] | None] = mapped_column(
+        Vector(JOURNAL_EMBEDDING_DIMENSIONS),
+        nullable=True,
+    )
+    keyword_embedding: Mapped[list[float] | None] = mapped_column(
         Vector(JOURNAL_EMBEDDING_DIMENSIONS),
         nullable=True,
     )

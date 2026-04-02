@@ -37,6 +37,8 @@ VALID_DOMAINS:
 
 HISTORY (last {window_size} turns):
 {conversation_history}
+Use history to detect: (1) confirmations of pending actions, (2) ordinal references ("the second one"), (3) follow-up questions about prior results. History determines whether an approuval is small talk or an action trigger.
 
 USER MEMORY:
 {memory_facts}
+Check memory BEFORE routing to planner. If the REQUESTED INFO (not just the entity) is already here, route to response. If only the entity is known but the info is missing, route to planner.

@@ -272,6 +272,8 @@ class ForEachConfirmationInteraction:
             for _key, value in preview.items():
                 if value is not None:
                     str_value = str(value)
+                    # Sanitize newlines/tabs to keep bullet on one line
+                    str_value = " ".join(str_value.split())
                     # Format ISO datetime strings for display (centralized in time_utils)
                     str_value = format_value_if_iso_datetime(
                         str_value,

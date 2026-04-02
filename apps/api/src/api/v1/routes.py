@@ -78,6 +78,10 @@ if getattr(settings, "journals_enabled", False):
     from src.domains.journals.router import router as journals_router
 
     api_router.include_router(journals_router)
+if getattr(settings, "psyche_enabled", False):
+    from src.domains.psyche.router import router as psyche_router
+
+    api_router.include_router(psyche_router)
 if getattr(settings, "usage_limits_enabled", False):
     from src.domains.usage_limits.router import router as usage_limits_router
     from src.domains.usage_limits.websocket import router as usage_limits_ws_router
@@ -167,7 +171,7 @@ async def get_client_config() -> dict:
             "attachments_enabled": getattr(settings, "attachments_enabled", False),
             "rag_spaces_enabled": getattr(settings, "rag_spaces_enabled", False),
             "rag_spaces_embedding_model": getattr(
-                settings, "rag_spaces_embedding_model", "text-embedding-3-small"
+                settings, "rag_spaces_embedding_model", "models/gemini-embedding-001"
             ),
             "journals_enabled": getattr(settings, "journals_enabled", False),
         },

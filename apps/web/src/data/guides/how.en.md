@@ -6,7 +6,7 @@
 
 **Version**: 2.1
 **Date**: 2026-03-28
-**Application**: LIA v1.13.10
+**Application**: LIA v1.14.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -867,6 +867,45 @@ Every optional subsystem is controlled by a `{FEATURE}_ENABLED` flag, checked at
 | Data | PostgreSQL + pgvector | Sharding, read replicas |
 | Cache | Redis single instance | Redis Cluster |
 | Observability | Full embedded stack | Managed Grafana Cloud |
+
+---
+
+## 26. Psyche Engine: Dynamic Emotional Intelligence
+
+### 26.1. 5-Layer Architecture
+
+The Psyche Engine gives the assistant a dynamic psychological state that evolves with every interaction, inspired by the ALMA model (A Layered Model of Affect, Gebhard 2005) and Mehrabian's PAD space.
+
+| Layer | Timescale | Content |
+|-------|-----------|---------|
+| 1 — Personality | Permanent | Big Five (O/C/E/A/N) inherited from the chosen personality. Modulate emotional reactivity, empathy, recovery speed. |
+| 2 — Mood | Hours | Position in PAD space (Pleasure/Arousal/Dominance) → 14 distinct moods. Decays toward personality baseline. |
+| 3 — Emotions | Minutes | 16 discrete emotions (max 7 simultaneous) with intensity [0-100%]. Push mood via their PAD vector. Cross-suppression ±30%. |
+| 4 — Relationship | Weeks | 4 stages (Orientation → Exploratory → Affective → Stable). One-way progression. Depth, warmth, trust. |
+| 5 — Drives | Per session | Curiosity (exchange energy) and engagement (quality). Bayesian self-efficacy per domain. |
+
+### 26.2. Core Principle: "Show, Don't Tell"
+
+The assistant never says "I'm happy" — instead, its vocabulary warms up, sentences lengthen, suggestions become bolder. The user perceives a living personality without explicit emotional statements.
+
+### 26.3. Directive Injection
+
+Each message generates a `<PsycheDirectives>` block (~100-120 tokens) with mood, emotions, relationship, drives, confidence, and evolution data. A 540-word incarnation guide (`psyche_usage_directive.txt`) teaches the LLM how to translate each state into concrete behavior — mood by mood, intensities, transitions, social distance per relationship stage.
+
+### 26.4. Zero-Cost Self-Evaluation
+
+After each response, the LLM self-evaluates via a hidden `<psyche_eval/>` XML tag: user valence, triggered emotion, intensity, exchange quality. The tag is stripped before sending to the user. No additional LLM call.
+
+### 26.5. Global Injection
+
+Psyche context is injected into **all** user-facing generation points: main response (rich format), proactive notifications, reminders, emails, voice, sub-agents, initiative, fallback (compact format with mood-specific directives).
+
+### 26.6. Frontend
+
+- **Emotional avatar**: mood emoji with colored ring on each message, persisted per-message in metadata.
+- **4-chart dashboard**: Mood (PAD), Emotions (dynamic per-emotion), Relationship, Drives — recharts with 24h to 90d time selector.
+- **Interactive education guide**: 7 sections ordered Layer 1→5 with descriptive tables for 14 moods and 16 emotions.
+- **Settings**: expressiveness, stability, mood refresh, full reset with explicit descriptions of what is preserved/reset.
 
 ---
 

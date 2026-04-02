@@ -164,6 +164,7 @@ class HeartbeatProactiveTask:
             context=target.context,
             user_language=user_language,
             personality_instruction=personality,
+            user_id=user_id,
         )
 
         # Aggregate tokens: decision + message phases

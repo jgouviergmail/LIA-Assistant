@@ -4,7 +4,7 @@
 
 **Version**: 2.0
 **Date**: 2026-03-24
-**Application**: LIA v1.13.10
+**Application**: LIA v1.14.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -474,6 +474,24 @@ In a world where AI will be everywhere, the question will no longer be "which AI
 
 ---
 
+## What no other assistant does: living emotional intelligence
+
+ChatGPT, Gemini, Claude — they all have a fixed personality. Every message is an emotional blank slate. LIA is different.
+
+**The Psyche Engine** gives LIA a dynamic psychological state that evolves with every exchange. It's not a simulation — it's a 5-layer emotional architecture:
+
+- **14 moods** that fluctuate with conversation tone (serene, curious, melancholic, playful...)
+- **16 emotions** that fire and decay in response to your words
+- **A relationship** that deepens message after message — from professional politeness to genuine rapport
+- **Personality traits** (Big Five) inherited from the chosen persona, modulating emotional reactivity
+- **Drives** (curiosity, engagement) that influence how proactive the assistant is
+
+**The result?** You're not talking to a tool — you're interacting with an entity that remembers your relationship, whose vocabulary warms when it's touched, whose sentences shorten under tension, whose humor surfaces when the exchange is light. And it never says so — it shows it.
+
+No commercial assistant offers this. It's a fundamental differentiator.
+
+---
+
 ## Conclusion: why LIA exists
 
 LIA does not exist because the world lacks AI assistants. It is overflowing with them. ChatGPT, Gemini, Copilot, Claude — each is remarkable in its own way.
@@ -486,4 +504,4 @@ It is not a chatbot. It is not a cloud platform. It is a **sovereign digital com
 
 ---
 
-*Document written based on the source code of LIA v1.13.10, 190+ technical documents, 63 ADRs, the complete changelog, and an analysis of the AI competitive landscape as of March 2026. All described features are implemented and verifiable in the code. Market data sourced from Gartner, IBM, and official publications from OpenAI, Google, Microsoft, and Anthropic.*
+*Document written based on the source code of LIA v1.14.1, 190+ technical documents, 63 ADRs, the complete changelog, and an analysis of the AI competitive landscape as of March 2026. All described features are implemented and verifiable in the code. Market data sourced from Gartner, IBM, and official publications from OpenAI, Google, Microsoft, and Anthropic.*

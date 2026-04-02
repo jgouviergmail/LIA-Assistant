@@ -152,6 +152,7 @@ async def generate_reminder_message(
     personality: Any | None,
     memories: list[dict],
     language: str,
+    user_id: str | None = None,
 ) -> ReminderMessageResult:
     """
     Generate a personalized reminder message using LLM.
@@ -164,6 +165,7 @@ async def generate_reminder_message(
         personality: User's personality preference (if any)
         memories: Relevant memories for context
         language: User's language
+        user_id: User UUID string for psyche context injection
 
     Returns:
         ReminderMessageResult with message and token usage info
@@ -228,6 +230,18 @@ Generate a short, natural message in {language}.
         memory_section=memory_section,
         user_language=language,
     )
+
+    # Inject psyche context if user_id is available
+    if user_id:
+        try:
+            from src.domains.psyche.service import build_psyche_prompt_block
+
+            psyche_block = await build_psyche_prompt_block(
+                user_id=user_id, user_timezone=user_timezone
+            )
+            system_prompt += psyche_block
+        except Exception:
+            pass  # Psyche injection is best-effort
 
     try:
         # Use the response LLM with custom settings for short message generation
@@ -465,6 +479,7 @@ async def process_pending_reminders() -> dict[str, Any]:
                         personality=personality,
                         memories=memories,
                         language=user.language or settings.default_language,
+                        user_id=str(reminder.user_id),
                     )
                     # Always prefix with 🔔 emoji for reminders
                     message = f"🔔 {result.message}"

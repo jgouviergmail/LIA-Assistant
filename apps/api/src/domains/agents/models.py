@@ -257,6 +257,7 @@ class MessagesState(TypedDict):
     # parallel_executor populates pending_draft_critique for draft_critique_node to handle.
     # After user confirms/edits/cancels, draft_action_result contains the decision.
     pending_draft_critique: dict[str, Any] | None  # PendingDraftInfo from parallel_executor
+    pending_drafts_queue: list[dict[str, Any]]  # Queue for batch draft confirmation (FOR_EACH)
     draft_action_result: dict[str, Any] | None  # User decision: confirm/edit/cancel with details
 
     # ==========================================================================
@@ -486,6 +487,7 @@ def create_initial_state(
         current_turn_registry=None,  # Data Registry: Current turn registry items
         # Data Registry LOT 4.3: Draft/Critique HITL support
         pending_draft_critique=None,  # PendingDraftInfo from parallel_executor
+        pending_drafts_queue=[],  # Queue for batch draft confirmation (FOR_EACH)
         draft_action_result=None,  # User decision: confirm/edit/cancel with details
         # HITL Dispatch: Entity Disambiguation
         pending_entity_disambiguation=None,  # DisambiguationContext from entity resolution

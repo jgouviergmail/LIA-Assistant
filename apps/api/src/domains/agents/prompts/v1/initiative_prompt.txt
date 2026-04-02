@@ -50,16 +50,19 @@ For suggestions: if you spot something that would need a WRITE action
 {memory_facts}
 {user_interests}
 Timezone: {user_timezone} | Language: {user_language} | Date: {current_datetime}
+Use these facts to judge relevance: a meeting conflict matters if the user has a known busy schedule; a weather check matters if the user has an outdoor interest, etc...
 </UserContext>
 
 <OriginalQuery>{original_query}</OriginalQuery>
 
 <ExecutionResults>
 {execution_summary}
+This is what was already done. Cross-reference these results against the user's context to detect implications worth flagging. Do NOT repeat or re-check what was already returned here.
 </ExecutionResults>
 
 <AvailableReadOnlyTools>
 {available_tools}
+These are the ONLY tools you may call. Each is read-only. Pick the one that answers your cross-domain question most directly.
 </AvailableReadOnlyTools>
 
 Think step by step in "analysis". Act only when the impact is real.

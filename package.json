@@ -1,6 +1,6 @@
 {
   "name": "lia",
-  "version": "1.13.10",
+  "version": "1.14.1",
   "private": true,
   "license": "AGPL-3.0-or-later",
   "description": "LIA - AI-powered personal assistant monorepo",

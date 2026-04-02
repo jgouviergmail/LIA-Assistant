@@ -34,37 +34,17 @@ logger = get_logger(__name__)
 # =============================================================================
 
 
-def _build_memory_embedding_text(content: str, trigger_topic: str) -> str:
-    """Build text for embedding generation from memory fields.
+async def _generate_document_embedding(text: str) -> list[float] | None:
+    """Generate embedding for document storage (task_type=RETRIEVAL_DOCUMENT).
 
-    Combines content and trigger_topic into a single string optimized
-    for semantic search. The trigger_topic acts as a keyword anchor
-    similar to journal's search_hints.
-
-    Args:
-        content: Memory content text (first-person formulation).
-        trigger_topic: Trigger keyword for this memory.
-
-    Returns:
-        Combined text for embedding.
-    """
-    parts = [content]
-    if trigger_topic and trigger_topic.strip():
-        parts.append(trigger_topic)
-    return " | ".join(parts)
-
-
-async def _generate_embedding(text: str) -> list[float] | None:
-    """Generate OpenAI embedding for memory content.
-
-    Uses the shared TrackedOpenAIEmbeddings singleton (same model as
-    journal and interest embeddings: text-embedding-3-small, 1536 dims).
+    Uses GeminiRetrievalEmbeddings which automatically applies
+    task_type=RETRIEVAL_DOCUMENT via aembed_documents.
 
     Returns None on failure (graceful degradation — memory works
     without embedding but won't appear in semantic search).
 
     Args:
-        text: Text to embed (content + trigger_topic).
+        text: Text to embed for storage.
 
     Returns:
         1536-dim float vector, or None on error.
@@ -73,7 +53,8 @@ async def _generate_embedding(text: str) -> list[float] | None:
         from src.infrastructure.llm.memory_embeddings import get_memory_embeddings
 
         embeddings = get_memory_embeddings()
-        return await embeddings.aembed_query(text)
+        results = await embeddings.aembed_documents([text])
+        return results[0] if results else None
     except Exception as e:
         logger.warning(
             "memory_embedding_generation_failed",
@@ -82,6 +63,37 @@ async def _generate_embedding(text: str) -> list[float] | None:
             text_length=len(text),
         )
         return None
+
+
+async def _generate_dual_embeddings(
+    content: str,
+    trigger_topic: str,
+) -> tuple[list[float] | None, list[float] | None]:
+    """Generate separate embeddings for content and trigger_topic.
+
+    Restores the multi-vector strategy from the old LangGraph store
+    where content and trigger_topic were indexed as separate vectors.
+    This prevents signal dilution when searching for keyword-level
+    matches (e.g., "ma femme" matching trigger_topic "femme épouse famille").
+
+    Both calls go through GeminiRetrievalEmbeddings which tracks tokens
+    and costs automatically (Prometheus + DB persistence).
+
+    Args:
+        content: Memory content text (first-person formulation).
+        trigger_topic: Keyword trigger for this memory.
+
+    Returns:
+        Tuple of (content_embedding, keyword_embedding).
+        keyword_embedding is None if trigger_topic is empty.
+    """
+    content_embedding = await _generate_document_embedding(content)
+
+    keyword_embedding: list[float] | None = None
+    if trigger_topic and trigger_topic.strip():
+        keyword_embedding = await _generate_document_embedding(trigger_topic)
+
+    return content_embedding, keyword_embedding
 
 
 # =============================================================================
@@ -135,9 +147,8 @@ class MemoryService:
         """
         char_count = len(content)
 
-        # Generate embedding from content + trigger_topic
-        embed_text = _build_memory_embedding_text(content, trigger_topic)
-        embedding = await _generate_embedding(embed_text)
+        # Generate dual embeddings: content + trigger_topic separately
+        embedding, keyword_embedding = await _generate_dual_embeddings(content, trigger_topic)
 
         memory = Memory(
             user_id=user_id,
@@ -148,6 +159,7 @@ class MemoryService:
             usage_nuance=usage_nuance,
             importance=importance,
             embedding=embedding,
+            keyword_embedding=keyword_embedding,
             char_count=char_count,
         )
 
@@ -221,8 +233,9 @@ class MemoryService:
 
         # Re-embed if content or trigger_topic changed
         if content_changed:
-            embed_text = _build_memory_embedding_text(memory.content, memory.trigger_topic)
-            memory.embedding = await _generate_embedding(embed_text)
+            memory.embedding, memory.keyword_embedding = await _generate_dual_embeddings(
+                memory.content, memory.trigger_topic
+            )
 
         updated = await self.repo.update(memory)
 

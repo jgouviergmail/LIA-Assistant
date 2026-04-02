@@ -1,41 +1,38 @@
 """
-RAG Spaces embedding service.
+RAG Spaces embedding service using Google Gemini gemini-embedding-001.
 
-Provides a lazy-initialized TrackedOpenAIEmbeddings instance configured
-for RAG document indexing and search. Token tracking is automatic via
-TrackedOpenAIEmbeddings + EmbeddingTrackingContext.
+Provides a lazy-initialized GeminiRetrievalEmbeddings instance with
+automatic task_type handling (RETRIEVAL_QUERY for search, RETRIEVAL_DOCUMENT
+for indexing). Token tracking is automatic via Prometheus metrics.
 
-Phase: evolution — RAG Spaces (User Knowledge Documents)
-Created: 2026-03-14
+Phase: v1.15.0 — Gemini embedding migration for multilingual retrieval
+Created: 2026-04-02
 """
 
 from __future__ import annotations
 
+import os
 import threading
 
-from pydantic import SecretStr
-
 from src.core.config import settings
-from src.infrastructure.llm.providers.adapter import _require_api_key
-from src.infrastructure.llm.tracked_embeddings import TrackedOpenAIEmbeddings
+from src.infrastructure.llm.gemini_embeddings import GeminiRetrievalEmbeddings
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
 
-# Singleton with thread-safe lazy initialization
-_rag_embeddings: TrackedOpenAIEmbeddings | None = None
+_rag_embeddings: GeminiRetrievalEmbeddings | None = None
 _lock = threading.Lock()
 
 
-def get_rag_embeddings() -> TrackedOpenAIEmbeddings:
-    """
-    Get or create the RAG embeddings singleton.
+def get_rag_embeddings() -> GeminiRetrievalEmbeddings:
+    """Get or create the RAG embeddings singleton.
 
-    Returns a TrackedOpenAIEmbeddings instance configured with the model
-    and dimensions from settings. Token tracking is automatic.
+    Returns a GeminiRetrievalEmbeddings instance that automatically
+    applies task_type=RETRIEVAL_QUERY on embed_query and
+    task_type=RETRIEVAL_DOCUMENT on embed_documents.
 
     Returns:
-        TrackedOpenAIEmbeddings instance for RAG operations
+        GeminiRetrievalEmbeddings instance for RAG operations.
     """
     global _rag_embeddings
 
@@ -43,34 +40,36 @@ def get_rag_embeddings() -> TrackedOpenAIEmbeddings:
         return _rag_embeddings
 
     with _lock:
-        # Double-check after acquiring lock
         if _rag_embeddings is not None:
             return _rag_embeddings
 
         model = settings.rag_spaces_embedding_model
         dimensions = settings.rag_spaces_embedding_dimensions
 
-        _rag_embeddings = TrackedOpenAIEmbeddings(
+        google_api_key = os.environ.get("GOOGLE_GEMINI_API_KEY", "") or os.environ.get(
+            "GOOGLE_API_KEY", ""
+        )
+
+        _rag_embeddings = GeminiRetrievalEmbeddings(
             model=model,
-            dimensions=dimensions,
-            openai_api_key=SecretStr(_require_api_key("openai")),
+            google_api_key=google_api_key,
+            output_dimensionality=dimensions,
         )
 
         logger.info(
             "rag_embeddings_initialized",
             model=model,
             dimensions=dimensions,
+            provider="gemini",
         )
 
     return _rag_embeddings
 
 
 def reset_rag_embeddings() -> None:
-    """
-    Reset the RAG embeddings singleton.
+    """Reset the RAG embeddings singleton.
 
-    Called after admin changes the embedding model to force re-initialization
-    with the new model/dimensions on next use.
+    Called after admin changes the embedding model to force re-initialization.
     """
     global _rag_embeddings
 

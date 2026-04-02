@@ -1087,7 +1087,7 @@ MEMORY_CATEGORY_RELATIONSHIP = "relationship"
 MEMORY_HYBRID_ALPHA_DEFAULT = 0.6
 
 # Minimum combined score for inclusion in hybrid search results
-# Calibrated for OpenAI text-embedding-3-small (E5 was 0.5)
+# Calibrated for Gemini gemini-embedding-001 (may need re-tuning)
 MEMORY_HYBRID_MIN_SCORE_DEFAULT = 0.4
 
 # Threshold for "both high" bonus in hybrid search
@@ -1345,8 +1345,8 @@ INTEREST_EXTRACTION_QUERY_TRUNCATION_LENGTH = 500
 
 # Deduplication search limits
 INTEREST_DEDUP_SEARCH_LIMIT = 20  # Max embeddings to check for similarity
-# OpenAI text-embedding-3-small produces more discriminative scores than E5.
-# E5 had inflated baseline (0.83-0.86 for unrelated topics), OpenAI scores are lower.
+# Gemini gemini-embedding-001 with RETRIEVAL task types produces discriminative scores.
+# Thresholds calibrated for Gemini (may need re-tuning if model changes).
 INTEREST_DEDUP_SIMILARITY_THRESHOLD = 0.75  # Embedding similarity for merging
 INTEREST_CONTENT_SIMILARITY_THRESHOLD = 0.70  # Content deduplication threshold
 
@@ -1757,7 +1757,9 @@ PLANNER_LLM_TEMPERATURE_DEFAULT = 0.0
 FOR_EACH_MUTATION_THRESHOLD_DEFAULT = 1
 MAX_CONTEXT_BATCH_SIZE_DEFAULT = 10
 MEMORY_MAX_RESULTS_DEFAULT = 50  # Aligned from .env.prod (was 10)
-MEMORY_MIN_SEARCH_SCORE_DEFAULT = 0.45  # Calibrated for OpenAI text-embedding-3-small (E5 was 0.88)
+MEMORY_MIN_SEARCH_SCORE_DEFAULT = (
+    0.45  # Calibrated for Gemini gemini-embedding-001 (may need re-tuning)
+)
 MEMORY_EXTRACTION_LLM_MODEL_DEFAULT = "gpt-4.1-mini"
 MEMORY_EXTRACTION_LLM_TEMPERATURE_DEFAULT = 0.3
 MEMORY_EXTRACTION_MAX_TOKENS_DEFAULT = 1000
@@ -1765,8 +1767,10 @@ MEMORY_EXTRACTION_MESSAGE_MAX_CHARS_DEFAULT = 3000
 MEMORY_EXTRACTION_TOP_P_DEFAULT = 1.0
 MEMORY_EXTRACTION_FREQUENCY_PENALTY_DEFAULT = 0.0
 MEMORY_EXTRACTION_PRESENCE_PENALTY_DEFAULT = 0.0
-MEMORY_EMBEDDING_MODEL_DEFAULT = "text-embedding-3-small"
+MEMORY_EMBEDDING_MODEL_DEFAULT = "models/gemini-embedding-001"
 MEMORY_EMBEDDING_DIMENSIONS_DEFAULT = 1536
+INTEREST_EMBEDDING_MODEL_DEFAULT = "models/gemini-embedding-001"
+INTEREST_EMBEDDING_DIMENSIONS_DEFAULT = 1536
 MEMORY_MAX_AGE_DAYS_DEFAULT = 2  # Aligned from .env.prod (was 180)
 MEMORY_MIN_USAGE_COUNT_DEFAULT = 1  # Aligned from .env.prod (was 3)
 MEMORY_PURGE_THRESHOLD_DEFAULT = 0.5  # Aligned from .env.prod (was 0.3)
@@ -1822,9 +1826,11 @@ INTEREST_DECAY_RATE_PER_DAY_DEFAULT = 0.005  # Aligned from .env.prod (was 0.01)
 INTEREST_CONTENT_MAX_LENGTH_DEFAULT = 500
 INTEREST_CONTENT_LOOKBACK_DAYS_DEFAULT = 7  # Aligned from .env.prod (was 30)
 INTEREST_DEDUP_SEARCH_LIMIT_DEFAULT = 20
-INTEREST_DEDUP_SIMILARITY_THRESHOLD_DEFAULT = 0.75  # Calibrated for OpenAI embeddings (E5 was 0.9)
+INTEREST_DEDUP_SIMILARITY_THRESHOLD_DEFAULT = (
+    0.75  # Calibrated for Gemini embeddings (may need re-tuning)
+)
 INTEREST_CONTENT_SIMILARITY_THRESHOLD_DEFAULT = (
-    0.70  # Calibrated for OpenAI embeddings (E5 was 0.92)
+    0.70  # Calibrated for Gemini embeddings (may need re-tuning)
 )
 HEARTBEAT_DECISION_LLM_PROVIDER_DEFAULT = "openai"
 HEARTBEAT_MESSAGE_LLM_PROVIDER_DEFAULT = "anthropic"
@@ -2190,7 +2196,7 @@ INITIATIVE_MAX_ITERATIONS_DEFAULT = 1  # Conservative: one evaluation pass
 INITIATIVE_MAX_ACTIONS_PER_ITERATION_DEFAULT = 3
 INITIATIVE_LLM_TIMEOUT_SECONDS = 10  # Structured output needs parsing time
 INITIATIVE_MEMORY_LIMIT = 3  # Max memory facts injected
-INITIATIVE_MEMORY_MIN_SCORE = 0.45  # Calibrated for OpenAI embeddings (E5 was 0.6)
+INITIATIVE_MEMORY_MIN_SCORE = 0.45  # Calibrated for Gemini embeddings (may need re-tuning)
 INITIATIVE_INTERESTS_LIMIT = 5  # Top N active interests
 
 # ============================================================================
@@ -3068,7 +3074,7 @@ RAG_SPACES_ALLOWED_TYPES_DEFAULT = (
 )
 
 # Embedding
-RAG_SPACES_EMBEDDING_MODEL_DEFAULT = "text-embedding-3-small"
+RAG_SPACES_EMBEDDING_MODEL_DEFAULT = "models/gemini-embedding-001"
 RAG_SPACES_EMBEDDING_DIMENSIONS_DEFAULT = 1536
 
 # System RAG Spaces (built-in knowledge bases)
@@ -3320,8 +3326,8 @@ JOURNAL_CONTEXT_RECENT_ENTRIES_DEFAULT = 2  # recent entries injected regardless
 JOURNAL_DEDUP_SIMILARITY_THRESHOLD_DEFAULT = 0.72  # min similarity to merge instead of create
 
 # --- Embedding ---
-JOURNAL_EMBEDDING_MODEL_DEFAULT = "text-embedding-3-small"  # OpenAI embedding model
-JOURNAL_EMBEDDING_DIMENSIONS_DEFAULT = 1536  # text-embedding-3-small dimensions
+JOURNAL_EMBEDDING_MODEL_DEFAULT = "models/gemini-embedding-001"  # Gemini embedding model
+JOURNAL_EMBEDDING_DIMENSIONS_DEFAULT = 1536  # Gemini embedding dimensions
 
 # ============================================================================
 # USER MESSAGE EMBEDDING (Centralized embedding service)
@@ -3334,6 +3340,39 @@ USER_MESSAGE_EMBEDDING_TTL_SECONDS: int = 300  # 5 min cache TTL
 USER_MESSAGE_EMBEDDING_MAX_CACHE_SIZE: int = 100  # Max cached embeddings
 USER_MESSAGE_EMBEDDING_TRUNCATION_LENGTH: int = 500  # Max chars to embed
 USER_MESSAGE_TRIVIAL_MAX_LENGTH: int = 15  # Max chars for triviality check
+
+# ============================================================================
+# PSYCHE ENGINE (Dynamic Mood, Emotions, Relationship Tracking)
+# ============================================================================
+# Reference: docs/architecture/ADR-XXX-Psyche-Engine.md
+
+# System-level feature default
+PSYCHE_ENABLED_DEFAULT: bool = False
+
+# Mood dynamics
+PSYCHE_MOOD_DECAY_RATE_DEFAULT: float = 0.1  # Per hour, exponential
+PSYCHE_CIRCADIAN_AMPLITUDE_DEFAULT: float = 0.08  # Sinusoidal pleasure modulation
+
+# Emotion parameters
+PSYCHE_EMOTION_DECAY_RATE_DEFAULT: float = 0.3  # Per hour, exponential
+PSYCHE_EMOTION_MAX_ACTIVE_DEFAULT: int = 7  # Max simultaneous emotions (16 emotion palette)
+PSYCHE_APPRAISAL_SENSITIVITY_DEFAULT: float = 0.7  # Appraisal → emotion multiplier
+
+# Relationship parameters
+PSYCHE_RELATIONSHIP_WARMTH_DECAY_DEFAULT: float = 0.02  # Per hour of absence
+
+# Self-efficacy
+PSYCHE_SELF_EFFICACY_PRIOR_WEIGHT_DEFAULT: float = 5.0  # Bayesian prior weight
+
+# Caching
+PSYCHE_CACHE_TTL_SECONDS_DEFAULT: int = 300  # Redis TTL (seconds)
+REDIS_KEY_PSYCHE_STATE_PREFIX: str = "psyche:state:"
+
+# Scheduler
+SCHEDULER_JOB_PSYCHE_DREAM_CYCLE: str = "psyche_dream_cycle"
+
+# Trait evolution limits
+PSYCHE_TRAIT_EVOLUTION_MAX_DELTA_PER_WEEK: float = 0.02
 
 # ============================================================================
 # PHILIPS HUE (Smart Home — Hue Bridge CLIP v2 API)

@@ -373,6 +373,14 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         description_key="settings.admin.llmConfig.types.mcp_react_agent",
         required_capabilities=["tool_calling"],
     ),
+    # Psyche Engine (evolution)
+    "psyche_summary": LLMTypeMetadata(
+        llm_type="psyche_summary",
+        display_name="Psyche Summary",
+        category=CATEGORY_BACKGROUND,
+        description_key="settings.admin.llmConfig.types.psyche_summary",
+        required_capabilities=[],
+    ),
     # AI Image Generation (evolution)
     "image_generation": LLMTypeMetadata(
         llm_type="image_generation",
@@ -762,6 +770,16 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=5000,
+        reasoning_effort="low",
+    ),
+    "psyche_summary": LLMAgentConfig(
+        provider="anthropic",
+        model="claude-sonnet-4-6",
+        temperature=0.7,
+        top_p=1.0,
+        frequency_penalty=0.0,
+        presence_penalty=0.0,
+        max_tokens=200,
         reasoning_effort="low",
     ),
     # --- Specialized ---

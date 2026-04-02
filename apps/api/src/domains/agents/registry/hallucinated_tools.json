@@ -111,10 +111,17 @@
       "query_preview": "comment aller chez mon frère ?",
       "timestamp": "2026-03-29T13:23:14.994800+00:00",
       "was_new": false
+    },
+    {
+      "tool": "resolve_reference",
+      "domain": "email",
+      "query_preview": "supprime ces mails",
+      "timestamp": "2026-04-02T12:52:41.539624+00:00",
+      "was_new": false
     }
   ],
   "stats": {
-    "total_detections": 14,
-    "last_updated": "2026-03-29T13:23:14.994818+00:00"
+    "total_detections": 15,
+    "last_updated": "2026-04-02T12:52:41.539645+00:00"
   }
 }

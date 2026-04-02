@@ -5,6 +5,7 @@ import { BrowserScreenshotOverlay } from './BrowserScreenshotOverlay';
 import { TypingIndicator } from './TypingIndicator';
 import { MessageSquare } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { usePsyche } from '@/hooks/usePsyche';
 import { logger } from '@/lib/logger';
 
 export interface ChatMessageListProps {
@@ -19,6 +20,11 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   browserScreenshot,
 }) => {
   const { t } = useTranslation();
+
+  // Populate the Zustand store from server on mount (GET /psyche/state + /psyche/settings).
+  // ChatMessage reads the store directly for fallback avatar data.
+  usePsyche();
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const wasTypingRef = useRef(false);
@@ -130,9 +136,6 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
         {/* Typing indicator */}
         {isTyping && (
           <div className="flex gap-3 mb-4 flex-row-reverse">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center shadow-md bg-gradient-to-br from-primary to-primary/80 text-primary-foreground ring-2 ring-primary/30 font-bold text-sm">
-              LIA
-            </div>
             <div className="bg-card/60 backdrop-blur-md px-4 py-3 rounded-lg rounded-tr-none border border-border/20">
               <TypingIndicator />
             </div>

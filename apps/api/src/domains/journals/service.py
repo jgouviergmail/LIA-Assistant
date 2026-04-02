@@ -7,8 +7,8 @@ Provides:
 - Last cost retrieval for UI display
 - Ownership validation
 
-Embedding generation uses OpenAI text-embedding-3-small (1536d) via
-TrackedOpenAIEmbeddings, with automatic token tracking via Prometheus.
+Embedding generation uses Gemini gemini-embedding-001 (1536d) via
+GeminiRetrievalEmbeddings, with automatic token tracking via Prometheus.
 Background extraction/consolidation services also use this service
 for consistent char_count + embedding handling (DRY).
 """
@@ -31,24 +31,26 @@ from src.infrastructure.observability.logging import get_logger
 logger = get_logger(__name__)
 
 
-async def _generate_embedding(text: str) -> list[float] | None:
-    """
-    Generate OpenAI embedding for journal entry content.
+async def _generate_document_embedding(text: str) -> list[float] | None:
+    """Generate embedding for document storage (task_type=RETRIEVAL_DOCUMENT).
 
-    Uses the singleton TrackedOpenAIEmbeddings instance (lazy-loaded, thread-safe).
+    Uses GeminiRetrievalEmbeddings which automatically applies
+    task_type=RETRIEVAL_DOCUMENT via aembed_documents.
+
     Returns None on failure (graceful degradation — entry works without embedding).
 
     Args:
-        text: Text to embed (title + content + optional search hints)
+        text: Text to embed for storage.
 
     Returns:
-        1536-dim float vector, or None on error
+        1536-dim float vector, or None on error.
     """
     try:
         from src.domains.journals.embedding import get_journal_embeddings
 
         embeddings = get_journal_embeddings()
-        return await embeddings.aembed_query(text)
+        results = await embeddings.aembed_documents([text])
+        return results[0] if results else None
     except Exception as e:
         logger.warning(
             "journal_embedding_generation_failed",
@@ -59,29 +61,39 @@ async def _generate_embedding(text: str) -> list[float] | None:
         return None
 
 
-def _build_embedding_text(
+async def _generate_dual_embeddings(
     title: str,
     content: str,
     search_hints: list[str] | None = None,
-) -> str:
-    """
-    Build text for embedding generation from entry fields.
+) -> tuple[list[float] | None, list[float] | None]:
+    """Generate separate embeddings for content and search_hints.
 
-    Combines title, content, and optional search hints into a single
-    string optimized for semantic search. Search hints bridge the gap
-    between the assistant's introspective vocabulary and the user's
-    direct vocabulary.
+    Stores title+content in the main embedding and search_hints keywords
+    in a separate keyword_embedding. This prevents signal dilution when
+    searching for keyword-level matches.
+
+    Both calls go through GeminiRetrievalEmbeddings which tracks tokens
+    and costs automatically (Prometheus + DB persistence).
 
     Args:
-        title: Entry title
-        content: Entry content
-        search_hints: Optional LLM-generated keywords in user vocabulary
+        title: Entry title.
+        content: Entry content.
+        search_hints: Optional LLM-generated keywords in user vocabulary.
 
     Returns:
-        Combined text for embedding
+        Tuple of (content_embedding, keyword_embedding).
+        keyword_embedding is None if search_hints is empty.
     """
-    hints_text = f" Context: {' '.join(search_hints)}" if search_hints else ""
-    return f"{title}. {content}.{hints_text}"
+    content_text = f"{title}. {content}."
+    content_embedding = await _generate_document_embedding(content_text)
+
+    keyword_embedding: list[float] | None = None
+    if search_hints:
+        hints_text = " ".join(search_hints)
+        if hints_text.strip():
+            keyword_embedding = await _generate_document_embedding(hints_text)
+
+    return content_embedding, keyword_embedding
 
 
 class JournalService:
@@ -146,8 +158,8 @@ class JournalService:
 
         char_count = len(content)
 
-        # Generate embedding from title + content + search hints for semantic search
-        embedding = await _generate_embedding(_build_embedding_text(title, content, search_hints))
+        # Generate dual embeddings: title+content + search_hints separately
+        embedding, keyword_embedding = await _generate_dual_embeddings(title, content, search_hints)
 
         entry = JournalEntry(
             user_id=user_id,
@@ -161,6 +173,7 @@ class JournalService:
             personality_code=personality_code,
             char_count=char_count,
             embedding=embedding,
+            keyword_embedding=keyword_embedding,
             search_hints=search_hints,
         )
 
@@ -215,10 +228,10 @@ class JournalService:
             entry.search_hints = search_hints
             content_changed = True  # Hints affect embedding text
 
-        # Regenerate embedding if title, content, or search_hints changed
+        # Regenerate dual embeddings if title, content, or search_hints changed
         if content_changed:
-            entry.embedding = await _generate_embedding(
-                _build_embedding_text(entry.title, entry.content, entry.search_hints)
+            entry.embedding, entry.keyword_embedding = await _generate_dual_embeddings(
+                entry.title, entry.content, entry.search_hints
             )
 
         return await self.repo.update(entry)

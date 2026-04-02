@@ -91,6 +91,7 @@ class DraftAction(str, Enum):
     """
 
     CONFIRM = "confirm"  # Execute the draft as-is
+    CONFIRM_BATCH = "confirm_batch"  # Execute multiple drafts from FOR_EACH batch
     EDIT = "edit"  # Modify the draft (triggers re-presentation)
     CANCEL = "cancel"  # Discard the draft
 

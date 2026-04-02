@@ -188,29 +188,36 @@ class JournalEntryRepository:
         limit: int = 10,
         min_score: float = 0.0,
     ) -> list[tuple[JournalEntry, float]]:
-        """
-        Search active entries by semantic relevance via pgvector cosine distance.
+        """Search active entries by multi-vector semantic relevance.
 
-        Uses pgvector's HNSW index for efficient cosine distance computation.
-        Converts cosine distance (lower = closer) to similarity score (1 - distance).
-        Same pattern as RAG Spaces search_by_similarity.
+        Uses dual-vector strategy: computes cosine distance against both
+        the content embedding and the keyword embedding, taking the best
+        match (minimum distance). Falls back to content-only distance
+        when keyword_embedding is NULL.
 
         Args:
-            user_id: User UUID
-            query_embedding: Query embedding vector (1536 dims OpenAI)
-            limit: Max results to return
-            min_score: Minimum similarity score to include (0.0-1.0)
+            user_id: User UUID.
+            query_embedding: Query embedding vector (1536 dims Gemini).
+            limit: Max results to return.
+            min_score: Minimum similarity score to include (0.0-1.0).
 
         Returns:
             List of (entry, score) tuples sorted by score descending,
-            filtered by min_score
+            filtered by min_score.
         """
         if not query_embedding:
             return []
 
-        cosine_distance = JournalEntry.embedding.cosine_distance(query_embedding)
+        dist_content = JournalEntry.embedding.cosine_distance(query_embedding)
+        dist_keyword = JournalEntry.keyword_embedding.cosine_distance(query_embedding)
+
+        best_distance = func.least(
+            dist_content,
+            func.coalesce(dist_keyword, dist_content),
+        )
+
         stmt = (
-            select(JournalEntry, cosine_distance.label("distance"))
+            select(JournalEntry, best_distance.label("distance"))
             .where(
                 and_(
                     JournalEntry.user_id == user_id,
@@ -218,14 +225,13 @@ class JournalEntryRepository:
                     JournalEntry.embedding.isnot(None),
                 )
             )
-            .order_by(cosine_distance)
+            .order_by(best_distance)
             .limit(limit)
         )
         result = await self.db.execute(stmt)
 
-        # Convert distance to similarity and filter by min_score
         scored: list[tuple[JournalEntry, float]] = []
-        all_scores: list[dict[str, str | float]] = []
+        all_scores: list[dict[str, str | float | bool]] = []
         for row in result.all():
             similarity = max(0.0, 1.0 - float(row[1]))
             entry: JournalEntry = row[0]

@@ -119,6 +119,8 @@ from src.core.constants import (
     INTEREST_DEDUP_SIMILARITY_THRESHOLD_DEFAULT,
     INTEREST_DELETION_THRESHOLD_DAYS_DEFAULT,
     INTEREST_DORMANT_THRESHOLD_DAYS_DEFAULT,
+    INTEREST_EMBEDDING_DIMENSIONS_DEFAULT,
+    INTEREST_EMBEDDING_MODEL_DEFAULT,
     INTEREST_GLOBAL_COOLDOWN_HOURS_DEFAULT,
     INTEREST_NOTIFICATION_BATCH_SIZE_DEFAULT,
     INTEREST_NOTIFY_INTERVAL_MINUTES_DEFAULT,
@@ -1517,8 +1519,8 @@ class AgentsSettings(BaseSettings):
     memory_embedding_model: str = Field(
         default=MEMORY_EMBEDDING_MODEL_DEFAULT,
         description=(
-            "OpenAI embedding model for semantic memory search, tool routing, "
-            "and interest deduplication. Default: text-embedding-3-small (1536 dims)."
+            "Gemini embedding model for semantic memory search, tool routing, "
+            "and interest deduplication. Default: gemini-embedding-001 (1536 dims)."
         ),
     )
     memory_embedding_dimensions: int = Field(
@@ -1528,7 +1530,7 @@ class AgentsSettings(BaseSettings):
         description=(
             "Embedding dimensions for pgvector index. "
             "Must match the chosen embedding model output dimensions. "
-            "text-embedding-3-small: 1536, text-embedding-3-large: 3072."
+            "gemini-embedding-001: 1536."
         ),
     )
 
@@ -2409,6 +2411,19 @@ class AgentsSettings(BaseSettings):
         ge=5,
         le=100,
         description="Maximum embeddings to check for similarity during deduplication.",
+    )
+
+    # Embedding
+    interest_embedding_model: str = Field(
+        default=INTEREST_EMBEDDING_MODEL_DEFAULT,
+        description=(
+            "Gemini embedding model for interest topic indexing and deduplication. "
+            "Default: models/gemini-embedding-001."
+        ),
+    )
+    interest_embedding_dimensions: int = Field(
+        default=INTEREST_EMBEDDING_DIMENSIONS_DEFAULT,
+        description="Output dimensions for interest embedding model (768, 1536, or 3072).",
     )
 
     # Deduplication

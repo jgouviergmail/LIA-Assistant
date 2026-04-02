@@ -34,7 +34,7 @@ JOURNAL_EXTRACTION_DEDUP_MIN_SCORE = 0.4  # Min similarity for pre-filter
 # Embedding
 # =========================================================================
 
-# OpenAI text-embedding-3-small dimensions (pgvector Vector column)
+# Gemini gemini-embedding-001 dimensions (pgvector Vector column)
 JOURNAL_EMBEDDING_DIMENSIONS = 1536
 
 # =========================================================================

@@ -241,6 +241,7 @@ class InterestProactiveTask:
                     citations=content_result.citations,
                     user_language=user_language,
                     personality_instruction=personality_instruction,
+                    user_id=user_id,
                 )
             )
 
@@ -305,6 +306,7 @@ class InterestProactiveTask:
         citations: list[str],
         user_language: str,
         personality_instruction: str | None = None,
+        user_id: UUID | None = None,
     ) -> tuple[str, int, int]:
         """
         Format raw content for presentation using LLM.
@@ -319,6 +321,7 @@ class InterestProactiveTask:
             citations: Source citations
             user_language: User's language
             personality_instruction: Assistant personality for content styling
+            user_id: User UUID for psyche context injection
 
         Returns:
             Tuple of (formatted_content, tokens_in, tokens_out)
@@ -343,6 +346,18 @@ class InterestProactiveTask:
                 user_language=get_language_name(user_language),
                 current_datetime=current_datetime,
             )
+
+            # Inject psyche context if user_id is available
+            if user_id:
+                try:
+                    from src.domains.psyche.service import build_psyche_prompt_block
+
+                    psyche_block = await build_psyche_prompt_block(
+                        user_id=user_id, user_timezone=None
+                    )
+                    prompt += psyche_block
+                except Exception:
+                    pass  # Psyche injection is best-effort
 
             content_config = LLMAgentConfig(
                 provider=settings.interest_content_llm_provider,

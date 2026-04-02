@@ -42,7 +42,7 @@ from src.infrastructure.store.bm25_index import get_bm25_manager, tokenize_text
 
 logger = get_logger(__name__)
 
-# Tiktoken encoding for token counting (same as GPT-4 / text-embedding-3-*)
+# Tiktoken encoding for token counting (cl100k_base used for token budgeting)
 _TIKTOKEN_ENCODING = "cl100k_base"
 
 
@@ -327,7 +327,7 @@ async def retrieve_rag_context(
             rag_retrieval_requests_total.labels(has_results=str(has_results).lower()).inc()
         rag_retrieval_duration_seconds.observe(retrieval_duration)
         rag_retrieval_chunks_returned.observe(len(context.chunks))
-        # Note: search embedding token count tracked by TrackedOpenAIEmbeddings globally
+        # Note: search embedding token count tracked by GeminiRetrievalEmbeddings globally
 
         logger.info(
             "rag_retrieval_complete",

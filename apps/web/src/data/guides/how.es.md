@@ -6,7 +6,7 @@
 
 **Versión**: 2.1
 **Fecha**: 2026-03-25
-**Aplicación**: LIA v1.13.10
+**Aplicación**: LIA v1.14.1
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -867,6 +867,16 @@ Cada subsistema opcional está controlado por un flag `{FEATURE}_ENABLED`, verif
 | Datos | PostgreSQL + pgvector | Sharding, read replicas |
 | Caché | Redis single instance | Redis Cluster |
 | Observabilidad | Stack completo integrado | Managed Grafana Cloud |
+
+---
+
+## 26. Psyche Engine: Inteligencia emocional dinámica
+
+El Psyche Engine dota al asistente de un estado psicológico dinámico que evoluciona con cada interacción. 5 capas: rasgos Big Five (permanente) → espacio PAD con 14 ánimos (horas) → 16 emociones discretas con supresión cruzada (minutos) → relación de 4 etapas (semanas) → motivaciones de curiosidad/engagement y autoeficacia (por sesión).
+
+**Principio central**: El asistente nunca dice «estoy contento» — en cambio, su vocabulario se vuelve más cálido, las frases se alargan, las sugerencias se vuelven más audaces. Una guía de 540 palabras (`psyche_usage_directive.txt`) explica al LLM cómo traducir cada estado en comportamiento concreto. Autoevaluación gratuita vía tag XML oculto `<psyche_eval/>`. Inyección en todos los puntos de generación orientados al usuario.
+
+**Frontend**: Avatar emocional con anillo colorido por mensaje, dashboard de 4 gráficos (ánimo/emociones/relación/motivaciones), guía educativa interactiva con 7 secciones, expresividad y estabilidad personalizables.
 
 ---
 

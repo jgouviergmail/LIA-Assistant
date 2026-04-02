@@ -650,6 +650,120 @@ def format_value_if_iso_datetime(
     return value
 
 
+_RFC2822_MONTH_NAMES = frozenset(
+    {
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+    }
+)
+
+
+def is_rfc2822_datetime_string(value: str) -> bool:
+    """
+    Check if a string looks like an RFC 2822 datetime (email Date header).
+
+    Uses a pre-check for month name abbreviation to avoid false positives
+    from email.utils.parsedate_tz() which is very permissive.
+
+    Matches patterns like:
+    - "Thu, 02 Apr 2026 08:09:00 +0000" ✓
+    - "02 Apr 2026 08:09:00 +0000" ✓ (without day name)
+    - "Hello world" ✗
+    - "High error rate for completions" ✗
+
+    Args:
+        value: String to check
+
+    Returns:
+        True if string appears to be RFC 2822 datetime format
+    """
+    import email.utils
+
+    if not isinstance(value, str) or not value.strip():
+        return False
+
+    # Quick pre-check: RFC 2822 dates must contain a 3-letter month abbreviation
+    if not any(month in value for month in _RFC2822_MONTH_NAMES):
+        return False
+
+    try:
+        parsed = email.utils.parsedate_tz(value)
+        return parsed is not None
+    except Exception:
+        return False
+
+
+def format_value_if_datetime_string(
+    value: str,
+    user_timezone: str = "UTC",
+    locale: str = "fr",
+    include_time: bool = True,
+    include_day_name: bool = False,
+) -> str:
+    """
+    Format a string value if it's any recognized datetime format, otherwise return as-is.
+
+    Unlike format_value_if_iso_datetime which only handles ISO 8601,
+    this function also handles RFC 2822 (email Date headers) and other
+    formats supported by parse_datetime().
+
+    Args:
+        value: String value to potentially format
+        user_timezone: User's IANA timezone
+        locale: User's locale for formatting
+        include_time: Whether to include time in output
+        include_day_name: Whether to include day name in output
+
+    Returns:
+        Formatted datetime string if input is a recognized datetime, original value otherwise
+
+    Examples:
+        >>> format_value_if_datetime_string(
+        ...     "Thu, 02 Apr 2026 08:09:00 +0000", "Europe/Paris", "fr"
+        ... )
+        "02 avril 2026 à 10:09"
+
+        >>> format_value_if_datetime_string(
+        ...     "2026-02-06T08:30:00Z", "Europe/Paris", "fr"
+        ... )
+        "06 février 2026 à 09:30"
+
+        >>> format_value_if_datetime_string("Meeting notes", "Europe/Paris", "fr")
+        "Meeting notes"
+    """
+    # Fast path: check ISO first (most common in our codebase)
+    if is_iso_datetime_string(value):
+        return format_datetime_for_display(
+            value,
+            user_timezone=user_timezone,
+            locale=locale,
+            include_time=include_time,
+            include_day_name=include_day_name,
+        )
+
+    # Check RFC 2822 (email Date headers)
+    if is_rfc2822_datetime_string(value):
+        return format_datetime_for_display(
+            value,
+            user_timezone=user_timezone,
+            locale=locale,
+            include_time=include_time,
+            include_day_name=include_day_name,
+        )
+
+    return value
+
+
 def format_datetime_iso(
     dt_input: str | int | datetime | None,
     user_timezone: str = "UTC",

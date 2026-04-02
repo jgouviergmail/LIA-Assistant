@@ -585,6 +585,48 @@ def _format_draft_execution_result(result: dict[str, Any] | None) -> str:
     html_link = data.get("html_link")
     details: list[str] = []
 
+    # Batch execution: format each item's result with its subject/title
+    action = result.get("action", "")
+    if action == DraftAction.CONFIRM_BATCH.value and status in ("success", "partial_error"):
+        batch_results = data.get("batch_results", [])
+        success_count = data.get("success_count", 0)
+        total_count = data.get("total_count", 0)
+        lines = []
+        for br in batch_results:
+            br_data = br.get("data", {}) if isinstance(br.get("data"), dict) else {}
+            draft_content = br_data.get("_draft_content", {})
+            # Extract the most relevant identifier
+            item_label = (
+                draft_content.get("subject")
+                or draft_content.get("title")
+                or draft_content.get("name")
+                or draft_content.get("label_name")
+                or ""
+            )
+            if not item_label:
+                # Try nested event/contact
+                event = draft_content.get("event", {})
+                contact = draft_content.get("contact", {})
+                item_label = event.get("summary", "")
+                if not item_label:
+                    names = contact.get("names", [])
+                    item_label = names[0].get("displayName", "") if names else ""
+            item_label = " ".join(str(item_label).split())
+            if len(item_label) > 60:
+                item_label = item_label[:57] + "..."
+
+            br_status = br.get("status", "")
+            if br_status == "success":
+                lines.append(
+                    f"✅ **{item_label}**" if item_label else f"✅ {br.get('message', '')}"
+                )
+            else:
+                lines.append(f"❌ {item_label or br.get('message', '')}")
+
+        items_block = "\n".join(lines)
+        status_emoji = "✅" if status == "success" else "⚠️"
+        return f"\n\n{domain_emoji} {status_emoji} {success_count}/{total_count}\n{items_block}"
+
     if status == "success":
         # Use draft_content for comprehensive attribute display
         draft = data.get("_draft_content", {}) if isinstance(data, dict) else {}
@@ -632,6 +674,12 @@ def _format_draft_execution_result(result: dict[str, Any] | None) -> str:
 
     elif status == "cancelled":
         return f"\n\n{domain_emoji} 🚫 {message}"
+
+    elif status == "partial_error":
+        # Batch execution: some items succeeded, some failed
+        success_count = data.get("success_count", 0)
+        total_count = data.get("total_count", 0)
+        return f"\n\n{domain_emoji} ⚠️ {message} ({success_count}/{total_count})"
 
     elif status == "error":
         return f"\n\n{domain_emoji} ❌ {message}"
@@ -1599,6 +1647,36 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                     error_type=type(e).__name__,
                 )
 
+        # ===================================================================
+        # PSYCHE ENGINE: Pre-response expression profile (Iteration 1)
+        # ===================================================================
+        # Loads psyche state, applies temporal decay + circadian modulation,
+        # compiles ExpressionProfile, and returns compact XML for prompt injection.
+        # Non-blocking: ~2ms (DB read + math). Fails silently on error.
+        psyche_context = ""
+        user_psyche_enabled = config.get("configurable", {}).get("user_psyche_enabled", False)
+        if settings.psyche_enabled and user_psyche_enabled and not user_msg_is_trivial:
+            try:
+                from src.domains.psyche.service import PsycheService
+                from src.infrastructure.database.session import get_db_context
+
+                _user_id_for_psyche = config.get("configurable", {}).get("langgraph_user_id")
+                if _user_id_for_psyche:
+                    async with get_db_context() as _psyche_db:
+                        _psyche_svc = PsycheService(_psyche_db)
+                        psyche_context, _psyche_summary = await _psyche_svc.process_pre_response(
+                            user_id=UUID(_user_id_for_psyche),
+                            user_timezone=user_timezone,
+                        )
+                        await _psyche_db.commit()
+            except Exception as e:
+                logger.warning(
+                    "psyche_pre_response_failed",
+                    run_id=run_id,
+                    error=str(e),
+                    error_type=type(e).__name__,
+                )
+
         # Get timezone-aware prompt with personality, history, and memory injection
         # V3 Architecture: LLM generates conversational response only
         # Data formatting handled by HTML components, injected post-LLM via HtmlRenderer
@@ -1620,6 +1698,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             skills_context=skills_context,
             app_knowledge_context=app_knowledge_context,
             journal_context=journal_context,  # Personal journal context
+            psyche_context=psyche_context,  # Psyche Engine expression profile
         )
 
         # ADR-062: Inject initiative suggestion into prompt if available
@@ -1634,6 +1713,18 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                 f"{initiative_suggestion}\n"
                 "</InitiativeSuggestion>"
             )
+
+        # PSYCHE ENGINE: Inject self-report instruction (before FINAL REMINDER)
+        if settings.psyche_enabled and user_psyche_enabled and psyche_context:
+            _psyche_instruction = str(load_prompt("psyche_self_report_instruction"))
+            _final_reminder = "### FINAL REMINDER ###"
+            if _final_reminder in base_system_prompt:
+                base_system_prompt = base_system_prompt.replace(
+                    _final_reminder,
+                    _psyche_instruction + "\n\n" + _final_reminder,
+                )
+            else:
+                base_system_prompt += "\n\n" + _psyche_instruction
 
         logger.debug(
             "response_node_prompt_loaded",
@@ -1998,9 +2089,13 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         draft_action_result = state.get(STATE_KEY_DRAFT_ACTION_RESULT)
         if draft_action_result:
             draft_action = draft_action_result.get("action")
-            if draft_action in (DraftAction.CONFIRM.value, DraftAction.CANCEL.value):
+            if draft_action in (
+                DraftAction.CONFIRM.value,
+                DraftAction.CANCEL.value,
+                DraftAction.CONFIRM_BATCH.value,
+            ):
                 # Generate short confirmation/cancellation message (i18n)
-                if draft_action == DraftAction.CONFIRM.value:
+                if draft_action in (DraftAction.CONFIRM.value, DraftAction.CONFIRM_BATCH.value):
                     # Use the formatted draft execution result (already set in agent_results_summary)
                     short_response = agent_results_summary or APIMessages.draft_action_completed(
                         user_language
@@ -2097,6 +2192,37 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         # Post-processing: Inject place photo if LLM didn't include it
         # LLMs sometimes omit images despite fewshot instructions
         final_content = result.content
+
+        # =====================================================================
+        # PSYCHE ENGINE: Parse self-report tag and strip from output
+        # =====================================================================
+        # Must happen BEFORE relevant_ids parsing — both modify final_content.
+        # Tag is at END of response. Stripped so user never sees it.
+        # content_was_modified will trigger content_replacement SSE chunk.
+        psyche_appraisal = None
+        if settings.psyche_enabled and user_psyche_enabled:
+            try:
+                from src.domains.psyche.engine import PsycheEngine as _PsycheEngine
+
+                psyche_appraisal, final_content = _PsycheEngine.parse_psyche_eval(final_content)
+                if psyche_appraisal:
+                    logger.debug(
+                        "psyche_eval_parsed",
+                        run_id=run_id,
+                        valence=psyche_appraisal.valence,
+                        arousal=psyche_appraisal.arousal,
+                        dominance=psyche_appraisal.dominance,
+                        emotion=psyche_appraisal.emotion,
+                        intensity=psyche_appraisal.intensity,
+                        quality=psyche_appraisal.quality,
+                    )
+            except Exception as e:
+                logger.warning(
+                    "psyche_eval_parse_failed",
+                    run_id=run_id,
+                    error=str(e),
+                    error_type=type(e).__name__,
+                )
 
         # =====================================================================
         # INTELLIGENT FILTERING: Parse relevant_ids and filter registry
@@ -2597,6 +2723,52 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             # Graceful degradation - journal extraction failure must not break response_node
             logger.error(
                 "journal_extraction_scheduling_failed",
+                run_id=run_id,
+                error=str(e),
+                error_type=type(e).__name__,
+                exc_info=True,
+            )
+
+        # ===================================================================
+        # PSYCHE ENGINE: Post-response update (Background)
+        # ===================================================================
+        # Applies parsed appraisal to psyche state, updates relationship,
+        # self-efficacy, and stores summary for SSE done metadata.
+        # Non-blocking: runs as fire-and-forget via safe_fire_and_forget.
+        try:
+            if _is_automated_source:
+                logger.info(
+                    "psyche_update_skipped_automated_source",
+                    run_id=run_id,
+                    session_id=_session_id,
+                )
+            elif not user_psyche_enabled or not settings.psyche_enabled:
+                pass  # Silently skip — no log needed for disabled feature
+            elif user_msg_is_trivial:
+                logger.debug("psyche_update_skipped_trivial", run_id=run_id)
+            elif not (user_id := config.get("configurable", {}).get("langgraph_user_id")):
+                logger.debug("psyche_update_skipped_no_user", run_id=run_id)
+            else:
+                from src.domains.psyche.service import psyche_post_response_background
+
+                safe_fire_and_forget(
+                    psyche_post_response_background(
+                        user_id=user_id,
+                        appraisal=psyche_appraisal,
+                        run_id=run_id,
+                    ),
+                    name=f"psyche_update_{user_id}_{run_id[:8]}",
+                    run_id=run_id,
+                )
+                logger.info(
+                    "psyche_update_scheduled",
+                    run_id=run_id,
+                    user_id=user_id,
+                    has_appraisal=psyche_appraisal is not None,
+                )
+        except Exception as e:
+            logger.error(
+                "psyche_update_scheduling_failed",
                 run_id=run_id,
                 error=str(e),
                 error_type=type(e).__name__,
