@@ -26,6 +26,9 @@ import { formatFileSize } from '@/lib/utils/image-compress';
 import { API_ENDPOINTS } from '@/lib/api-config';
 import { ImageLightbox } from '@/components/ui/image-lightbox';
 import { downloadImage } from '@/lib/utils/download-image';
+import { AssistantAvatar, type AvatarTooltipLine } from '@/components/psyche/AssistantAvatar';
+import { usePsycheStore } from '@/stores/psycheStore';
+import type { PsycheStateSummary } from '@/types/psyche';
 
 export interface ChatMessageProps {
   message: Message;
@@ -368,6 +371,9 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(({ message, isUser }
   // Track if feedback has been submitted for proactive interest messages
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
 
+  // Psyche store — must be called before any early return (Rules of Hooks)
+  const storeState = usePsycheStore();
+
   // Check if this is a proactive notification (interest, heartbeat, or future types)
   const isProactiveInterest = !isUser && isInterestNotificationMetadata(message.metadata);
   const isProactiveMessage =
@@ -435,14 +441,59 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(({ message, isUser }
 
   // Regular user/assistant messages (including proactive interest notifications)
   // On mobile, assistant messages take full width (no flex container, direct block)
+  // Resolve psyche state: prefer per-message snapshot, fall back to live store.
+  // storeState is read above (before early returns) to satisfy Rules of Hooks.
+  const metadataPsyche = message.metadata?.psyche_state as PsycheStateSummary | undefined;
+  const psycheState: PsycheStateSummary | null = metadataPsyche ?? (
+    storeState.enabled && storeState.displayAvatar
+      ? {
+          mood_label: storeState.moodLabel,
+          mood_color: storeState.moodColor,
+          mood_pleasure: storeState.moodPleasure,
+          mood_arousal: storeState.moodArousal,
+          mood_dominance: storeState.moodDominance,
+          active_emotion: storeState.activeEmotion,
+          emotion_intensity: storeState.emotionIntensity,
+          relationship_stage: storeState.relationshipStage,
+        }
+      : null
+  );
+
+  // Build structured tooltip lines with PAD colors
+  const tooltipLines: AvatarTooltipLine[] | undefined = psycheState
+    ? [
+        {
+          label: t('psyche.relationshipStage', 'Relationship'),
+          value: t(`psyche.stages.${psycheState.relationship_stage}`, psycheState.relationship_stage),
+        },
+        {
+          label: t('psyche.tooltip.mood', 'Mood'),
+          value: t(`psyche.moods.${psycheState.mood_label}`, psycheState.mood_label),
+          pad: {
+            p: Math.round(psycheState.mood_pleasure * 100),
+            a: Math.round(psycheState.mood_arousal * 100),
+            d: Math.round(psycheState.mood_dominance * 100),
+          },
+        },
+        ...(psycheState.active_emotion
+          ? [{
+              label: t('psyche.tooltip.emotion', 'Emotion'),
+              value: `${t(`psyche.emotions.${psycheState.active_emotion}`, psycheState.active_emotion)} (${Math.round(psycheState.emotion_intensity * 100)}%)`,
+            }]
+          : []),
+      ]
+    : undefined;
+
   if (!isUser) {
     return (
       <div className="mb-4 animate-message-enter mobile:flex mobile:flex-row-reverse mobile:gap-3">
-        {/* Avatar - Hidden on mobile, visible on desktop - LIA trigram */}
+        {/* Avatar — AssistantAvatar with psyche state (per-message or fallback) */}
         <div className="hidden mobile:block flex-shrink-0">
-          <div className="w-10 h-10 rounded-full flex items-center justify-center shadow-md bg-gradient-to-br from-primary to-primary/80 text-primary-foreground ring-2 ring-primary/30 font-bold text-sm">
-            LIA
-          </div>
+          <AssistantAvatar
+            psycheState={psycheState}
+            tooltipLines={tooltipLines}
+            animate={!metadataPsyche && !!psycheState}
+          />
         </div>
 
         {/* Message bubble - Full width on mobile, flex-1 on tablet/desktop */}

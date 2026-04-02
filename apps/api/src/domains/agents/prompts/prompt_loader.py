@@ -124,6 +124,11 @@ PromptName = Literal[
     # Smart Planner (multi-domain, reference resolution)
     "smart_planner_prompt",
     "smart_planner_multi_domain_prompt",
+    # Psyche Engine (self-report, summary, narrative, usage directive)
+    "psyche_self_report_instruction",
+    "psyche_summary_prompt",
+    "psyche_narrative_prompt",
+    "psyche_usage_directive",
     # Future prompts:
     # "emails_agent_prompt",
     # "calendar_agent_prompt",

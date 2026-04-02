@@ -9,6 +9,8 @@ import { toast } from 'sonner';
 import { logger } from '@/lib/logger';
 import { generateFallbackHitlQuestion } from '@/lib/hitl-utils';
 import { generateUUID } from '@/lib/utils';
+import { usePsycheStore } from '@/stores/psycheStore';
+import type { PsycheStateSummary } from '@/types/psyche';
 import {
   ChatStreamChunk,
   DoneMetadata,
@@ -348,6 +350,11 @@ export function handleDone(chunk: ChatStreamChunk, context: SSEHandlerContext): 
       metadata: chunk.metadata,
     })
   );
+
+  // Psyche Engine: Push mood state into Zustand store from SSE done metadata
+  if (metadata?.psyche_state) {
+    usePsycheStore.getState().updateFromSSE(metadata.psyche_state as PsycheStateSummary);
+  }
 
   dispatch({
     type: 'STREAM_DONE',

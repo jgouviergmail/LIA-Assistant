@@ -31,6 +31,7 @@ import {
   Lightbulb,
   Gauge,
   Terminal,
+  Heart,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -89,6 +90,7 @@ const FUNCTIONAL_FEATURES: FeatureItem[] = [
   { key: 'rich_responses', icon: LayoutGrid },
   { key: 'multichannel', icon: MessageCircle },
   { key: 'personalities', icon: Smile },
+  { key: 'psyche', icon: Heart },
   { key: 'mcp', icon: Puzzle },
   { key: 'languages', icon: Globe },
   { key: 'mcp_apps', icon: AppWindow },

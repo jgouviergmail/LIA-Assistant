@@ -1187,6 +1187,7 @@ class OrchestrationService:
         user_message: str = "",  # Original user message for location phrase detection
         user_memory_enabled: bool = True,  # User preference for long-term memory
         user_journals_enabled: bool = False,  # User preference for personal journals
+        user_psyche_enabled: bool = False,  # User preference for psyche engine
         side_channel_queue: asyncio.Queue | None = None,  # SSE side-channel for tools
     ) -> AsyncGenerator[tuple[str, Any], None]:
         """
@@ -1264,6 +1265,7 @@ class OrchestrationService:
                 "store": memory_store,  # For long-term memory injection
                 "user_memory_enabled": user_memory_enabled,  # User preference for memory
                 "user_journals_enabled": user_journals_enabled,  # User preference for journals
+                "user_psyche_enabled": user_psyche_enabled,  # User preference for psyche engine
                 "__deps": tool_deps,
                 "__browser_context": browser_context,  # For location-aware tools (weather, places)
                 "__user_message": user_message,  # Original message for location phrase detection

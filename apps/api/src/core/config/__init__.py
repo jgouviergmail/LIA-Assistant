@@ -43,6 +43,7 @@ from .llm import (
 from .mcp import MCPSettings
 from .notifications import NotificationSettings
 from .observability import ObservabilitySettings
+from .psyche import PsycheSettings
 from .rag_spaces import RAGSpacesSettings
 from .security import SecuritySettings
 from .skills import SkillsSettings
@@ -91,6 +92,7 @@ class Settings(
     SkillsSettings,
     BrowserSettings,
     JournalsSettings,
+    PsycheSettings,
     UsageLimitsSettings,
     ImageGenerationSettings,
     DevOpsSettings,

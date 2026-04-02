@@ -7,6 +7,7 @@ CONTEXT:
 
 MEMORY CONTEXT:
 {memory_section}
+Use memory to personalize the reminder: reference known habits, preferences, or related details that make the reminder feel thoughtful rather than mechanical.
 
 INSTRUCTIONS:
 - You must remind the user about something.

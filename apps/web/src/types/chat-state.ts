@@ -151,6 +151,16 @@ export type ChatAction =
           skill_name?: string;
           generated_images?: { url: string; alt: string }[];
           browser_screenshot?: { url: string; alt: string };
+          psyche_state?: {
+            mood_label: string;
+            mood_color: string;
+            mood_pleasure: number;
+            mood_arousal: number;
+            mood_dominance: number;
+            active_emotion: string | null;
+            emotion_intensity: number;
+            relationship_stage: string;
+          };
         };
       };
     }

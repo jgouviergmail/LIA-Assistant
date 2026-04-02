@@ -37,6 +37,7 @@ def import_all_models() -> None:
     import src.domains.memories.models  # noqa: F401
     import src.domains.notifications.models  # noqa: F401
     import src.domains.personalities.models  # noqa: F401
+    import src.domains.psyche.models  # noqa: F401
     import src.domains.rag_spaces.models  # noqa: F401
     import src.domains.reminders.models  # noqa: F401
     import src.domains.scheduled_actions.models  # noqa: F401

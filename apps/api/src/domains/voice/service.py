@@ -98,6 +98,7 @@ class VoiceCommentService:
         tracker: "TrackingContext | None" = None,
         run_id: str | None = None,
         lia_gender: str | None = None,
+        user_id: str | None = None,
     ) -> None:
         """
         Initialize VoiceCommentService.
@@ -107,6 +108,7 @@ class VoiceCommentService:
             tracker: Optional TrackingContext for token tracking (same as other LLMs).
             run_id: Optional run ID for tracking correlation.
             lia_gender: LIA avatar gender ('male' or 'female') for voice selection.
+            user_id: User UUID string for psyche context injection.
         """
         self._tts_client = tts_client
         self._tts_config: TTSConfig | None = None
@@ -114,6 +116,7 @@ class VoiceCommentService:
         self._tracker = tracker
         self._run_id = run_id
         self._lia_gender = lia_gender or "female"  # Default to female voice
+        self._user_id = user_id
 
     async def _get_tts_client(self) -> TTSClient:
         """Get or create TTS client via factory based on current voice mode."""
@@ -364,6 +367,18 @@ class VoiceCommentService:
             current_datetime=request.current_datetime,
             user_query=request.user_query,
         )
+
+        # Inject psyche context if user_id is available
+        if self._user_id:
+            try:
+                from src.domains.psyche.service import build_psyche_prompt_block
+
+                psyche_block = await build_psyche_prompt_block(
+                    user_id=self._user_id, user_timezone=None
+                )
+                prompt += psyche_block
+            except Exception:
+                pass  # Psyche injection is best-effort
 
         # Get LLM for voice comment generation (uses centralized config from settings)
         llm = get_llm("voice_comment")

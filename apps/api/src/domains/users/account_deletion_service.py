@@ -47,6 +47,7 @@ from src.domains.interests.models import InterestNotification, UserInterest
 from src.domains.journals.models import JournalEntry
 from src.domains.memories.models import Memory
 from src.domains.notifications.models import UserBroadcastRead, UserFCMToken
+from src.domains.psyche.models import PsycheHistory, PsycheState
 from src.domains.rag_spaces.models import RAGSpace
 from src.domains.reminders.models import Reminder
 from src.domains.scheduled_actions.models import ScheduledAction
@@ -352,6 +353,7 @@ class AccountDeletionService:
             from src.core.constants import (
                 REDIS_KEY_CONVERSATION_ID_PREFIX,
                 REDIS_KEY_GMAIL_LABELS_PREFIX,
+                REDIS_KEY_PSYCHE_STATE_PREFIX,
                 REDIS_KEY_USAGE_LIMIT_PREFIX,
             )
             from src.domains.sub_agents.constants import SUBAGENT_DAILY_BUDGET_KEY_PREFIX
@@ -367,6 +369,7 @@ class AccountDeletionService:
                 f"{REDIS_KEY_GMAIL_LABELS_PREFIX}{uid}",
                 f"{REDIS_KEY_GMAIL_LABELS_PREFIX}{uid}:full",
                 f"{SUBAGENT_DAILY_BUDGET_KEY_PREFIX}{uid}",
+                f"{REDIS_KEY_PSYCHE_STATE_PREFIX}{uid}",
             ]
             for key in explicit_keys:
                 await redis.delete(key)
@@ -596,6 +599,8 @@ class AccountDeletionService:
             ("conversations", delete(Conversation).where(Conversation.user_id == user_id)),
             ("memories", delete(Memory).where(Memory.user_id == user_id)),
             ("journal_entries", delete(JournalEntry).where(JournalEntry.user_id == user_id)),
+            ("psyche_history", delete(PsycheHistory).where(PsycheHistory.user_id == user_id)),
+            ("psyche_states", delete(PsycheState).where(PsycheState.user_id == user_id)),
             ("user_interests", delete(UserInterest).where(UserInterest.user_id == user_id)),
             (
                 "heartbeat_notifications",

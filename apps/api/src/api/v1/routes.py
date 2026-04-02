@@ -78,6 +78,10 @@ if getattr(settings, "journals_enabled", False):
     from src.domains.journals.router import router as journals_router
 
     api_router.include_router(journals_router)
+if getattr(settings, "psyche_enabled", False):
+    from src.domains.psyche.router import router as psyche_router
+
+    api_router.include_router(psyche_router)
 if getattr(settings, "usage_limits_enabled", False):
     from src.domains.usage_limits.router import router as usage_limits_router
     from src.domains.usage_limits.websocket import router as usage_limits_ws_router

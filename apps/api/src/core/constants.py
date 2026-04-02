@@ -3336,6 +3336,39 @@ USER_MESSAGE_EMBEDDING_TRUNCATION_LENGTH: int = 500  # Max chars to embed
 USER_MESSAGE_TRIVIAL_MAX_LENGTH: int = 15  # Max chars for triviality check
 
 # ============================================================================
+# PSYCHE ENGINE (Dynamic Mood, Emotions, Relationship Tracking)
+# ============================================================================
+# Reference: docs/architecture/ADR-XXX-Psyche-Engine.md
+
+# System-level feature default
+PSYCHE_ENABLED_DEFAULT: bool = False
+
+# Mood dynamics
+PSYCHE_MOOD_DECAY_RATE_DEFAULT: float = 0.1  # Per hour, exponential
+PSYCHE_CIRCADIAN_AMPLITUDE_DEFAULT: float = 0.08  # Sinusoidal pleasure modulation
+
+# Emotion parameters
+PSYCHE_EMOTION_DECAY_RATE_DEFAULT: float = 0.3  # Per hour, exponential
+PSYCHE_EMOTION_MAX_ACTIVE_DEFAULT: int = 7  # Max simultaneous emotions (16 emotion palette)
+PSYCHE_APPRAISAL_SENSITIVITY_DEFAULT: float = 0.7  # Appraisal → emotion multiplier
+
+# Relationship parameters
+PSYCHE_RELATIONSHIP_WARMTH_DECAY_DEFAULT: float = 0.02  # Per hour of absence
+
+# Self-efficacy
+PSYCHE_SELF_EFFICACY_PRIOR_WEIGHT_DEFAULT: float = 5.0  # Bayesian prior weight
+
+# Caching
+PSYCHE_CACHE_TTL_SECONDS_DEFAULT: int = 300  # Redis TTL (seconds)
+REDIS_KEY_PSYCHE_STATE_PREFIX: str = "psyche:state:"
+
+# Scheduler
+SCHEDULER_JOB_PSYCHE_DREAM_CYCLE: str = "psyche_dream_cycle"
+
+# Trait evolution limits
+PSYCHE_TRAIT_EVOLUTION_MAX_DELTA_PER_WEEK: float = 0.02
+
+# ============================================================================
 # PHILIPS HUE (Smart Home — Hue Bridge CLIP v2 API)
 # ============================================================================
 # Local bridge discovery and press-link pairing

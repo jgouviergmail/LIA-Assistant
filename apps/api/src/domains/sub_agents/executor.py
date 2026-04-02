@@ -887,6 +887,21 @@ async def _synthesize_results(
         prompt = prompt_template.replace("{instruction}", instruction).replace(
             "{results}", formatted
         )
+
+        # Inject psyche context if user_id is available in config
+        try:
+            from src.domains.psyche.service import build_psyche_prompt_block
+
+            _synth_user_id = (config.get("configurable") or {}).get("user_id") if config else None
+            if _synth_user_id:
+                _synth_tz = (config.get("configurable") or {}).get("user_timezone")
+                psyche_block = await build_psyche_prompt_block(
+                    user_id=_synth_user_id, user_timezone=_synth_tz
+                )
+                prompt += psyche_block
+        except Exception:
+            pass  # Psyche injection is best-effort
+
         # Use HumanMessage (not SystemMessage) for Anthropic compatibility.
         # Anthropic API requires at least one user/human message.
         response = await llm.ainvoke(

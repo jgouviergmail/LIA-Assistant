@@ -52,6 +52,7 @@ import { MCPServersSettings } from '@/components/settings/MCPServersSettings';
 import { ChannelSettings } from '@/components/settings/ChannelSettings';
 import { HeartbeatSettings } from '@/components/settings/HeartbeatSettings';
 import { JournalsSettings } from '@/components/settings/JournalsSettings';
+import { PsycheSettings } from '@/components/settings/PsycheSettings';
 import { SkillsSettings } from '@/components/settings/SkillsSettings';
 import { AdminSkillsSection } from '@/components/settings/AdminSkillsSection';
 import { AdminUsageLimitsSection } from '@/components/settings/AdminUsageLimitsSection';
@@ -271,6 +272,9 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               {/* Group: Identity & Memory */}
               <SettingsGroupLabel label={t('settings.groups.identity_memory')} icon={Brain} />
               <PersonalitySettings lng={lng} />
+              <FeatureErrorBoundary feature="psyche">
+                <PsycheSettings lng={lng} />
+              </FeatureErrorBoundary>
               <FeatureErrorBoundary feature="memory-settings">
                 <MemorySettings lng={lng} />
               </FeatureErrorBoundary>
@@ -421,6 +425,9 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               {/* Group: Identity & Memory */}
               <SettingsGroupLabel label={t('settings.groups.identity_memory')} icon={Brain} />
               <PersonalitySettings lng={lng} />
+              <FeatureErrorBoundary feature="psyche">
+                <PsycheSettings lng={lng} />
+              </FeatureErrorBoundary>
               <FeatureErrorBoundary feature="memory-settings">
                 <MemorySettings lng={lng} />
               </FeatureErrorBoundary>

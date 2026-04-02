@@ -7,6 +7,7 @@ Provides data access layer with optimized queries.
 
 from collections.abc import Sequence
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select
@@ -637,6 +638,53 @@ class ConversationRepository(BaseRepository[Conversation]):
                 "create_message_failed",
                 conversation_id=str(conversation_id),
                 role=role,
+                error=str(e),
+            )
+            raise
+
+    async def merge_message_metadata(
+        self,
+        message_id: UUID,
+        extra: dict[str, Any],
+    ) -> None:
+        """Merge additional key-value pairs into an existing message's metadata.
+
+        Uses a shallow merge: existing keys not present in *extra* are preserved,
+        keys present in *extra* overwrite the old value.
+
+        Args:
+            message_id: Primary key of the ConversationMessage to update.
+            extra: Dict of fields to merge into ``message_metadata``.
+
+        Raises:
+            SQLAlchemyError: On database failure.
+        """
+        try:
+            stmt = select(ConversationMessage).where(ConversationMessage.id == message_id)
+            result = await self.db.execute(stmt)
+            message = result.scalar_one_or_none()
+
+            if message is None:
+                logger.warning(
+                    "merge_message_metadata_not_found",
+                    message_id=str(message_id),
+                )
+                return
+
+            current = message.message_metadata or {}
+            message.message_metadata = {**current, **extra}
+            await self.db.flush()
+
+            logger.debug(
+                "message_metadata_merged",
+                message_id=str(message_id),
+                extra_keys=list(extra.keys()),
+            )
+
+        except (SQLAlchemyError, IntegrityError, OperationalError) as e:
+            logger.error(
+                "merge_message_metadata_failed",
+                message_id=str(message_id),
                 error=str(e),
             )
             raise

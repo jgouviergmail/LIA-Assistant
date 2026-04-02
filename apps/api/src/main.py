@@ -42,6 +42,7 @@ from src.core.constants import (
     SCHEDULER_JOB_LEADER_LOCK_RENEWAL,
     SCHEDULER_JOB_MEMORY_CLEANUP,
     SCHEDULER_JOB_OAUTH_HEALTH,
+    SCHEDULER_JOB_PSYCHE_DREAM_CYCLE,
     SCHEDULER_JOB_REMINDER_NOTIFICATION,
     SCHEDULER_JOB_SCHEDULED_ACTION_EXECUTOR,
     SCHEDULER_JOB_SUBAGENT_STALE_RECOVERY,
@@ -898,6 +899,26 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 "journal_consolidation_job_scheduled",
                 interval_hours=settings.journal_consolidation_interval_hours,
             )
+
+        # Schedule psyche weekly narrative (Psyche Engine — self-reflection)
+        if getattr(settings, "psyche_enabled", False):
+            from src.infrastructure.scheduler.psyche_snapshot import (
+                process_psyche_weekly_narrative,
+            )
+
+            scheduler.add_job(
+                process_psyche_weekly_narrative,
+                trigger="cron",
+                day_of_week="sun",
+                hour=3,
+                minute=0,
+                id=SCHEDULER_JOB_PSYCHE_DREAM_CYCLE,
+                name="Psyche weekly narrative",
+                replace_existing=True,
+                max_instances=1,
+                misfire_grace_time=600,
+            )
+            logger.info("psyche_weekly_narrative_job_scheduled", cron="sun@03:00")
 
         # Schedule attachment cleanup (evolution F4 — File Attachments)
         # Runs every 6 hours as TTL safety net for orphan files

@@ -1854,6 +1854,7 @@ async def _generate_email_content(
     user_language: str = settings.default_language,
     existing_body: str | None = None,
     config: Any = None,
+    user_id: str | None = None,
 ) -> dict[str, str]:
     """
     Generate email subject and/or body from a creative instruction using LLM.
@@ -1867,6 +1868,7 @@ async def _generate_email_content(
         user_language: Target language for generated content
         existing_body: If provided, only generate subject (body already exists)
         config: Optional RunnableConfig with TokenTrackingCallback for billing tracking
+        user_id: User UUID string for psyche context injection
 
     Returns:
         Dict with 'subject' key (always) and 'body' key (only if generated)
@@ -1903,6 +1905,16 @@ async def _generate_email_content(
         )
         required_fields = ["subject", "body"]
         logger.debug("email_content_generation_mode", mode="full")
+
+    # Inject psyche context if user_id is available
+    if user_id:
+        try:
+            from src.domains.psyche.service import build_psyche_prompt_block
+
+            psyche_block = await build_psyche_prompt_block(user_id=user_id, user_timezone=None)
+            prompt += psyche_block
+        except Exception:
+            pass  # Psyche injection is best-effort
 
     llm = get_llm("email_agent")
 
@@ -2058,12 +2070,19 @@ async def send_email_tool(
         try:
             # Optimization: Pass existing body to use subject-only generation prompt
             # This is more efficient and produces better subjects based on actual body content
+            # Extract user_id from runtime config for psyche context
+            _email_user_id = (
+                str(runtime.config.get("configurable", {}).get("user_id", ""))
+                if runtime and runtime.config
+                else ""
+            ) or None
             generated = await _generate_email_content(
                 instruction=effective_content_instruction,
                 recipient=to,
                 user_language=user_language,
                 existing_body=body if body and not subject else None,
                 config=runtime.config if runtime else None,  # Pass config for token tracking
+                user_id=_email_user_id,
             )
             # Only use generated values for fields that are missing
             # This preserves planner-provided values (e.g., body) while generating missing ones (e.g., subject)

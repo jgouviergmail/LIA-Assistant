@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import structlog
 from langchain_core.callbacks import BaseCallbackHandler
@@ -153,6 +153,7 @@ async def generate_heartbeat_message(
     context: HeartbeatContext,
     user_language: str,
     personality_instruction: str | None = None,
+    user_id: str | UUID | None = None,
 ) -> tuple[str, int, int, int]:
     """Generate the final notification message (Phase 2).
 
@@ -164,6 +165,7 @@ async def generate_heartbeat_message(
         context: HeartbeatContext (for additional context if needed).
         user_language: User's language code (e.g., "fr", "en").
         personality_instruction: Personality prompt instruction.
+        user_id: User UUID for psyche context injection.
 
     Returns:
         Tuple of (message, tokens_in, tokens_out, tokens_cache).
@@ -181,6 +183,16 @@ async def generate_heartbeat_message(
         current_datetime=current_dt,
         message_draft=message_draft,
     )
+
+    # Inject psyche context if user_id is available
+    if user_id:
+        try:
+            from src.domains.psyche.service import build_psyche_prompt_block
+
+            psyche_block = await build_psyche_prompt_block(user_id=user_id, user_timezone=None)
+            system_prompt += psyche_block
+        except Exception:
+            pass  # Psyche injection is best-effort
 
     llm = get_llm("heartbeat_message")
 

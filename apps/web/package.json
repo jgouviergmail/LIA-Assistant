@@ -1,6 +1,6 @@
 {
   "name": "@lia-assistant/web",
-  "version": "1.13.10",
+  "version": "1.14.0",
   "description": "LIA Assistant - Frontend application",
   "license": "AGPL-3.0-or-later",
   "author": "LIA Contributors",
@@ -54,6 +54,7 @@
     "react-i18next": "^16.5.8",
     "react-markdown": "^10.1.0",
     "react-snowfall": "^2.4.0",
+    "recharts": "^3.8.1",
     "rehype-raw": "^7.0.0",
     "remark-gfm": "^4.0.1",
     "sonner": "^2.0.7",

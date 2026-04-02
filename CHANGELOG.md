@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.14.0] - 2026-04-02
+
+### Added
+
+- **Psyche Engine — Dynamic Psychological State** — Complete 5-layer emotional intelligence system for the assistant: Big Five personality traits (Layer 1, permanent) → PAD mood space with 14 distinct moods (Layer 2, hours) → 16 discrete emotions with cross-suppression and diminishing returns (Layer 3, minutes) → 4-stage relationship progression (Layer 4, weeks) → curiosity/engagement drives and self-efficacy (Layer 5, per-session). ALMA-inspired architecture, self-report via hidden `<psyche_eval/>` tag (zero extra LLM call). 87 unit tests.
+- **Emotional Avatar** — Mood-responsive emoji avatar on assistant messages in chat. Displays the current mood with colored ring. Tooltip shows mood, PAD values, active emotion, and relationship stage. Historical avatars persisted per-message via `message_metadata.psyche_state`.
+- **Psyche Settings UI** — 4-section settings panel (Comprendre la psyché, État de la psyché, Historique, Réglages) with icons. Interactive education guide (7 subsections: overview, traits, mood, emotions, relationship, drives, expressivity/stability) with descriptive tables for 14 moods and 16 emotions. PAD bars with axis labels and polarity indicators. Ring gauges for relationship metrics. Big Five horizontal colored bars.
+- **Psyche History Dashboard** — 4-tab recharts visualization: Mood (PAD lines), Emotions (dynamic per-emotion area chart), Relationship (depth/warmth/trust), Drives (curiosity/engagement/emotion intensity). Time range selector (24h/7d/30d/90d). Reset markers as red dashed vertical lines.
+- **Evolution Awareness** — LLM receives `EVOLUTION:` block in `<PsycheDirectives>` showing mood/emotion shifts since last message, giving the assistant continuity awareness.
+- **Personality Sync** — Changing personality automatically syncs Big Five traits and recomputes PAD baseline via `sync_traits_from_personality()`. Frontend refetches state after personality change.
+- **Psyche Token Tracking** — LLM-generated summary (`GET /psyche/summary`) now tracks token usage via `track_proactive_tokens()`, ensuring costs are attributed to user billing.
+- **Reset Snapshots** — Soft/full resets create `reset_soft`/`reset_full` history snapshots, displayed as visual markers on the history chart.
+- **Drives Education Section** — New "Motivations" section in Comprendre la psyché explaining curiosity, engagement, and self-efficacy. Translated in 6 languages.
+
+### Changed
+
+- **Psyche enabled by default** — `PSYCHE_ENABLED=true` in `.env.example`, `user.psyche_enabled` default changed to `true` with migration for existing users.
+- **Prompt Directives Overhaul** — All injected context blocks in `response_system_prompt_base.txt` now carry inline operational directives (how to use the data) instead of passive data dumps. Applied to: TemporalContext, History, Psychological_profile, JournalContext, PsycheContext, KnowledgeEnrichment, RAGDocuments, AppKnowledge, ResolvedReferences, AnticipatedNeeds. Same treatment applied to 7 other prompt files (planners, router, query analyzer, initiative, reminder, interest content, psyche summary/narrative).
+- **PsycheStateSummary Redesign** — PAD bars with colored axes (sky/amber/violet), polarity labels, and numeric values. SVG ring gauges for relationship metrics. Big Five as horizontal colored bars. Refresh button fetches both LLM summary and state data.
+- **Reset Descriptions Clarified** — Soft/full reset descriptions now use explicit "Resets: X, Y. Keeps: Z" format in all 6 languages. Buttons uniform width.
+- **Settings Page Reorder** — Psyché de LIA placed directly below Style de LIA. Education section ordered Layer 1→5.
+- **i18n Psyche Education** — ~80+ translation keys for psyche education guide completed in all 6 languages (en, fr, de, es, it, zh). Includes mood directives, emotion directives, drives, settings explanation.
+
+### Fixed
+
+- **`_push_with_headroom()` Saturation Fix** — Diminishing returns helper prevents PAD axis saturation at ±1.0 boundaries. 10 dedicated unit tests.
+- **`classify_mood()` DRY Refactoring** — Extracted nearest-centroid mood classification as `PsycheEngine.classify_mood()` static method. Eliminated code duplication between `compile_expression_profile` and `process_post_response`.
+
+### Documentation
+
+- **ADR-068** — Psyche Engine architectural decision record. Updated with 16 emotions, 87 tests.
+- **PSYCHE_ENGINE.md** — Complete technical & functional documentation (14 sections, scenarios, token cost breakdown). Updated with evolution awareness, avatar persistence, personality sync, token tracking, drives education, refreshed UI descriptions, 10 env vars.
+- Updated ADR_INDEX.md, docs/INDEX.md, 16 guide files, README.md with v1.14.0 references.
+
 ## [1.13.10] - 2026-04-01
 
 ### Fixed

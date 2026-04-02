@@ -488,7 +488,14 @@
       "retry_button": "重试",
       "retry_failed": "无法获取您的位置。请检查GPS是否已启用。",
       "detection": {
-        "keywords": ["附近", "周围", "周边", "旁边", "邻近", "住处"],
+        "keywords": [
+          "附近",
+          "周围",
+          "周边",
+          "旁边",
+          "邻近",
+          "住处"
+        ],
         "patterns": [
           "(我|这)(附近|周围|周边)",
           "在我(附近|旁边)",
@@ -1399,7 +1406,8 @@
           "journal_consolidation": "定期审查和整合日志条目",
           "initiative": "执行后主动丰富（只读检查）",
           "mcp_react_agent": "MCP迭代模式：先读取服务器文档，然后逐步执行工具",
-          "image_generation": "从文本描述生成AI图像（gpt-image-1等）"
+          "image_generation": "从文本描述生成AI图像（gpt-image-1等）",
+          "psyche_summary": "Psyche Summary"
         },
         "no_compatible_model": "该提供商没有支持此功能的模型",
         "ollama": {
@@ -1874,10 +1882,8 @@
       "guide_tab_fundamentals": "基础",
       "guide_tab_create": "创建技能",
       "guide_tab_advanced": "高级",
-
       "guide_modal_what_title": "什么是技能（Skill）？",
       "guide_modal_what_body": "技能是一个 SKILL.md 文件，为助手提供特定领域的专家指令。助手会读取这些指令并在相关情况下自动应用——无需每次重复说明上下文。技能可以包含参考文档、Python 脚本和模板。",
-
       "guide_archetypes_title": "3 种技能类型",
       "guide_archetype_prompt_expert_name": "Prompt Expert",
       "guide_archetype_prompt_expert_badge": "纯指令",
@@ -1888,13 +1894,11 @@
       "guide_archetype_plan_template_name": "Plan Template",
       "guide_archetype_plan_template_badge": "自动化",
       "guide_archetype_plan_template_desc": "具有预定义工具调用的确定性工作流，按顺序或并行执行。适合重复性例程（简报、报告、审计…）。",
-
       "guide_activation_title": "激活机制",
       "guide_activation_body": "技能使用 3 层加载模型来优化 token 消耗：",
       "guide_tier_l1": "目录 — 会话开始时加载名称和描述（约 50 token/技能）",
       "guide_tier_l2": "指令 — 技能激活时加载完整的 SKILL.md 内容（< 5000 token）",
       "guide_tier_l3": "资源 — 按需加载单个文件（references/、scripts/、assets/）",
-
       "guide_modal_tips_title": "最佳实践",
       "guide_modal_tip_1": "用英语第三人称描述：\"Generates...\", \"Provides...\", \"Guides...\"",
       "guide_modal_tip_2": "描述应包括技能的功能以及何时使用它（触发条件）。",
@@ -1902,7 +1906,6 @@
       "guide_modal_tip_4": "技能名称使用 kebab-case：my-skill（小写、连字符、无空格）。",
       "guide_modal_tip_5": "在 SKILL.md 末尾列出可用资源，包含相对路径和描述。",
       "guide_modal_tip_6": "先用简单查询测试，再增加技能复杂度。",
-
       "guide_modal_format_title": "SKILL.md 文件格式",
       "guide_modal_format_intro": "SKILL.md 文件以 YAML 头部（在 --- 之间）开头，包含元数据，然后是 Markdown 正文，包含详细的指令内容。",
       "guide_frontmatter_title": "YAML 头部字段：",
@@ -1912,12 +1915,10 @@
       "guide_field_priority": "显示顺序（默认：50，越高越靠前）",
       "guide_field_plan_template": "确定性执行计划（见高级标签页）",
       "guide_field_always_loaded": "始终注入指令（每次对话都消耗 token）",
-
       "guide_example_simple_title": "示例：Prompt Expert 技能",
       "guide_example_simple_desc": "最简单的类型——助手在话题出现时遵循的纯指令。无需工具或计划。",
       "guide_example_advisory_title": "示例：Advisory 技能",
       "guide_example_advisory_desc": "助手遵循方法论，根据需要有机地使用可用工具（日历、邮件、联系人）。",
-
       "guide_modal_struct_title": "文件夹结构",
       "guide_modal_struct_body": "对于复杂的技能，可导入包含 SKILL.md 和可选子文件夹的 .zip 文件：",
       "guide_struct_skillmd": "主文件（必需）",
@@ -1925,7 +1926,6 @@
       "guide_struct_scripts": "在沙箱中执行的 Python 脚本",
       "guide_struct_assets": "模板、图片和静态资源",
       "guide_struct_translations": "多语言描述（6 种语言）",
-
       "guide_resources_title": "使用资源",
       "guide_resource_references_desc": "文本文档（.md、.txt），助手可通过 read_skill_resource 按需查阅。适合存储详细指南、模板或对 SKILL.md 来说过大的参考数据。",
       "guide_resource_references_usage": "用法：在 SKILL.md 的「可用资源」部分提及文件——助手会自动读取。",
@@ -1933,10 +1933,8 @@
       "guide_resource_scripts_usage": "用法：在 SKILL.md 中描述脚本及其参数。助手会在需要时执行。",
       "guide_resource_assets_desc": "静态文件（图片、HTML/CSV 模板、JSON 数据），可读取访问。适合输出模板、图标或配置。",
       "guide_resource_assets_usage": "用法：在指令中引用它们。助手可以读取并用于格式化响应。",
-
       "guide_import_title": "如何导入",
       "guide_import_body": "导入单个 SKILL.md 文件用于简单技能，或包含完整文件夹（SKILL.md + references/ + scripts/ + assets/）的 .zip 文件。使用上方的「导入」按钮。限制：SKILL.md 100 KB，每个资源文件 50 KB，每用户最多 20 个技能。",
-
       "guide_modal_plan_title": "Plan Template（自动化）",
       "guide_modal_plan_body": "plan_template 定义自动执行的工具序列，无需经过 LLM 规划器。适合重复性、可预测的工作流。没有 depends_on 的步骤并行执行。",
       "guide_modal_plan_fields_title": "步骤（step）字段说明：",
@@ -1946,10 +1944,8 @@
       "guide_modal_plan_field_parameters": "传递给工具的参数（如：{days: 3}）",
       "guide_modal_plan_field_depends_on": "[] = 并行，[\"step_id\"] = 在该步骤之后顺序执行",
       "guide_modal_plan_field_step_type": "类型：TOOL（默认）、CONDITIONAL、PARALLEL 或 RESPONSE",
-
       "guide_autotrigger_title": "自动触发",
       "guide_autotrigger_body": "带有 plan_template 的技能在用户查询覆盖模板中所有领域时自动触发。例如：包含 event_agent + weather_agent 的技能在用户同时询问日程和天气时触发。",
-
       "guide_tools_title": "代理和工具目录",
       "guide_tools_intro": "代理及其工具的完整参考，包括参数和类型。在 plan_template 的 agent_name 和 tool_name 中使用确切名称。标有 * 的参数为必填。",
       "guide_cat_productivity": "生产力（日历、邮件、联系人、云盘、任务）",
@@ -1957,7 +1953,6 @@
       "guide_cat_location_weather": "位置和天气",
       "guide_cat_other": "其他（提醒、浏览器、IoT、图像）",
       "guide_tools_note": "标有「Connector」的工具支持 Google、Microsoft 或 Apple，具体取决于已连接的提供商。MCP 代理（外部服务器）是动态的，不能用于静态 plan_template。",
-
       "tool_get_events": "搜索/列出事件",
       "tool_create_event": "创建事件",
       "tool_update_event": "修改事件",
@@ -1996,7 +1991,6 @@
       "tool_activate_scene": "激活 Hue 场景",
       "tool_generate_image": "AI 生成图像",
       "tool_edit_image": "编辑现有图像",
-
       "param_search_query": "搜索查询",
       "param_event_id": "事件 ID",
       "param_time_min": "时间范围起点（ISO 8601）",
@@ -2071,7 +2065,6 @@
       "param_scene_name": "场景名称或 ID",
       "param_image_prompt": "详细的图像描述",
       "param_source_image": "要编辑的源图像 UUID",
-
       "guide_scripts_title": "Python 脚本",
       "guide_scripts_body": "技能可以包含在隔离沙箱中执行的 Python 脚本。脚本通过 stdin 接收数据（JSON），通过 stdout 返回结果（JSON）。适用于计算、数据转换或自定义处理。",
       "guide_scripts_rules_title": "脚本规则：",
@@ -2079,13 +2072,11 @@
       "guide_scripts_rule_2": "脚本在具有有限超时的沙箱中运行",
       "guide_scripts_rule_3": "通过 stdin/stdout 以 JSON 格式通信",
       "guide_scripts_rule_4": "需要启用 SKILLS_SCRIPTS_ENABLED 功能标志",
-
       "guide_skill_tools_title": "技能内部工具",
       "guide_skill_tools_body": "助手有 3 个特殊工具来与已激活的技能交互。这些工具会自动调用——您无需在指令中引用它们。",
       "guide_skilltool_activate": "加载技能的完整指令（L2）",
       "guide_skilltool_read": "从技能中读取参考或资源文件",
       "guide_skilltool_run": "执行 scripts/ 文件夹中的 Python 脚本",
-
       "guide_modal_compat_title": "开放标准 agentskills.io",
       "guide_modal_compat_body": "技能与 agentskills.io 生态系统 100% 兼容——Claude Code、Cursor、VS Code、GitHub Copilot 及 30+ 其他产品使用相同格式。可从 skillsmp.com 等市场导入技能。",
       "guide_modal_link": "了解更多关于 agentskills.io 标准"
@@ -2594,6 +2585,20 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_14": {
+          "title": "v1.14 — LIA的心理：动态情感智能",
+          "date": "2026年4月",
+          "count": "7",
+          "items": {
+            "i1": "<b>LIA的心理</b> — 您的助手发展出动态心理状态：情绪（14种状态）、情感（16种类型）、不断加深的关系、动机和自我效能。情绪和情感微妙地影响每次回复的语调和风格",
+            "i2": "<b>情感头像</b> — 情绪表情符号替代消息中的经典LIA标志。头像通过彩色环和详细工具提示实时反映情感状态",
+            "i3": "<b>情感仪表板</b> — 通过4个交互式图表可视化情绪（PAD）、情感、关系和动机的演变，支持时间范围选择（24小时至90天）",
+            "i4": "<b>完整教育指南</b> — “了解心理系统”部分，包含7个图示子部分：概述、人格特质、情绪、情感、关系、动机、设置",
+            "i5": "<b>可自定义表现力</b> — 表现力（冷静→非常有表现力）和稳定性（易变→非常稳定）滑块，用于调整情感气质。情绪刷新和完全重置选项",
+            "i6": "<b>进化意识</b> — 助手知道自上次消息以来其情绪和情感如何变化，为对话提供叙事连续性",
+            "i7": "<b>提示词指令改进</b> — 注入提示词的所有上下文块现在都带有精确的操作指令（如何使用数据），提高回复相关性"
+          }
+        },
         "v1_13": {
           "title": "v1.13 — Design System v4、技能、管理和账户生命周期",
           "date": "2026年3月",
@@ -4368,6 +4373,10 @@
         "title": "10+种个性",
         "description": "教授、朋友、哲学家、愤世嫉俗者、网红、热情、诗人、教练等。选择适合您的风格，LIA调整每一个回复。"
       },
+      "psyche": {
+        "title": "鲜活的情感智能",
+        "description": "LIA不是在背诵——它在感受。14种情绪、16种情感、一段逐条消息加深的关系。当被触动时词汇变得温暖，紧张时句子变短，轻松时幽默浮现。您感受到一个鲜活的个性，而它从未说出口。"
+      },
       "mcp": {
         "title": "可扩展 (MCP)",
         "description": "连接您自己的MCP服务器，无限扩展LIA的能力。提供迭代模式：专用代理先阅读服务器文档，然后正确调用工具——非常适合复杂API。"
@@ -5028,5 +5037,267 @@
       "adr": "架构决策",
       "extensibility": "可扩展性"
     }
+  },
+  "psyche": {
+    "title": "心理引擎",
+    "description": "动态情感智能系统",
+    "enable": "启用心理引擎",
+    "enableDescription": "LIA会发展情感状态，微妙地影响对话风格",
+    "displayAvatar": "显示情感头像",
+    "displayAvatarDescription": "在聊天中显示双头像（个性 + 情绪）",
+    "showAdvanced": "高级设置",
+    "hideAdvanced": "隐藏高级设置",
+    "sensitivity": "表达力",
+    "sensitivityDescription": "情感反应强度（0 = 冷静，100 = 非常表达）",
+    "stability": "情绪稳定性",
+    "stabilityDescription": "恢复平衡的速度（0 = 易变，100 = 非常稳定）",
+    "activeEmotion": "当前情绪",
+    "noActiveEmotion": "无",
+    "relationshipStage": "关系",
+    "moodPalette": "情绪色板",
+    "depth": "深度",
+    "warmth": "温暖",
+    "trust": "信任",
+    "interactions": "互动次数",
+    "curiosityDrive": "好奇心",
+    "advanced": "高级设置",
+    "softReset": "刷新情绪",
+    "softResetDescription": "重置：情绪（PAD → 基线）、活跃情感、动机。保留：关系、大五人格、领域信心。",
+    "softResetTitle": "重置情绪？",
+    "softResetConfirm": "LIA的情绪将恢复到人格基线，活跃的情感将被清除。关系（阶段、信任、深度、温暖）和已获得的个性将被保留。",
+    "fullReset": "全部重置",
+    "fullResetDescription": "重置：情绪、情感、关系（阶段、信任、深度）、领域信心。保留：大五人格、记忆、日记。",
+    "fullResetTitle": "完全重置心理状态？",
+    "fullResetConfirm": "情绪、情感、关系进展（阶段、信任、深度、温暖）和领域信心将被完全重置。记忆、日记和大五人格特质不受影响。此操作不可撤销。",
+    "resetSuccess": "心理状态已重置",
+    "resetError": "重置失败",
+    "settingsUpdated": "心理设置已更新",
+    "settingsError": "更新失败",
+    "summary": {
+      "title": "心理状态",
+      "loading": "分析中...",
+      "error": "无法生成摘要",
+      "refresh": "刷新"
+    },
+    "education": {
+      "title": "了解心理系统",
+      "overview": {
+        "title": "工作原理",
+        "intro": "心理引擎赋予您的助手一个动态的心理状态，随每次互动而演变。助手不再是固定的个性，而是拥有波动的情绪、触发和衰减的情感、随时间加深的关系，以及塑造其情感反应的人格特质。",
+        "principle": "设计原则：助手从不说「我很高兴」——相反，它的词汇变得更温暖，能量更高，建议更大胆。您感受到一个鲜活的个性，却没有明确的情感声明。",
+        "layer5": "第5层 — 动机与自我效能（每次会话）",
+        "layer4": "第4层 — 关系（周/月）",
+        "layer3": "第3层 — 16种情感（分钟）",
+        "layer2": "第2层 — PAD空间中的情绪（小时）",
+        "layer1": "第1层 — 人格 / 大五（永久）",
+        "layers_note": "每层在不同的时间尺度上运作。底层变化缓慢，顶层随每条消息变化。"
+      },
+      "mood": {
+        "title": "情绪 (PAD)",
+        "description": "助手的情绪在三维空间中建模：愉悦度（正面/负面）、激活度（能量水平）和控制度（掌控感）。这三个轴组合产生14种不同的情绪。",
+        "pleasure": "愉悦",
+        "pleasure_neg": "不快",
+        "pleasure_pos": "快乐",
+        "arousal": "激活",
+        "arousal_neg": "平静",
+        "arousal_pos": "活跃",
+        "dominance": "控制",
+        "dominance_neg": "顺从",
+        "dominance_pos": "主导",
+        "table_title": "情绪档案：",
+        "col_mood": "情绪",
+        "col_influence": "行为影响",
+        "directive_serene": "冷静、令人安心的回应。流畅、有分寸的句子。不急迫。",
+        "directive_curious": "提出后续问题。表现出真诚的兴趣。简要探索相关话题。",
+        "directive_energized": "热情且主动。提供多种选择。动态的语言。",
+        "directive_playful": "幽默、文字游戏和轻松调侃。能量高但温暖。",
+        "directive_reflective": "回答前先停顿思考。细腻、深思熟虑的语言。引用上下文。",
+        "directive_content": "温暖而放松。对话式的语调。不着急。",
+        "directive_tender": "柔和的词汇。关怀的注意。温柔的语调。展现温暖。",
+        "directive_determined": "专注且自信。直接的语言。明确的行动导向。",
+        "directive_neutral": "平衡的专业语调。没有情感色彩。",
+        "directive_agitated": "轻微的不安。更简洁的回应。承认紧张但不升级。",
+        "directive_melancholic": "轻柔而有节制。较短的回应。无声的理解。",
+        "directive_defiant": "温和地质疑假设。坚持自己的立场。",
+        "directive_resigned": "优雅地接受限制。坦诚面对约束。平静的务实主义。",
+        "directive_overwhelmed": "承认复杂性。分解问题。询问优先级。",
+        "dynamics_title": "情绪如何变化：",
+        "decay": "衰减：没有刺激时，情绪会滑向人格基线。速度取决于尽责性和稳定性设置。",
+        "emotion_push": "情感推动：每种情感在PAD空间中有一个方向。触发时会推动情绪。",
+        "contagion": "感染：检测到的用户情感状态会拉动情绪（力度取决于宜人性）。",
+        "counter_reg": "反向调节：宜人性低的人格会抵抗消极，并拉回中性。",
+        "circadian": "昼夜节律：中午愉悦度略有提升，午夜略有下降。",
+        "inertia": "惯性：情绪在某种状态停留越久，就越抵抗改变。"
+      },
+      "emotions": {
+        "title": "情感",
+        "description": "助手可以体验16种离散情感。每种情感都有随时间衰减的强度，并影响整体情绪。",
+        "intro": "助手可以同时体验最多7种情感，来自16种情感调色板。每种情感的强度（0-100%）随时间衰减，并将情绪推向特定方向。",
+        "positive": "正面",
+        "negative": "负面",
+        "neutral": "中性",
+        "col_emotion": "情感",
+        "col_type": "类型",
+        "col_influence": "行为影响",
+        "directive_joy": "让温暖和积极自然地融入语言。",
+        "directive_gratitude": "表达真诚的感谢。认可用户的贡献。",
+        "directive_curiosity": "提出后续问题。表现出学习更多的兴趣。",
+        "directive_serenity": "平静而不急迫。通过稳定提供安全感。",
+        "directive_pride": "分享对工作的信心。含蓄地庆祝成就。",
+        "directive_frustration": "对局限性坦诚。不掩饰困难。",
+        "directive_concern": "表现出对情况的关心。主动提供支持。",
+        "directive_melancholy": "更安静、更有节制。不强装开心。",
+        "directive_surprise": "表达真诚的惊讶。反应自然。",
+        "directive_amusement": "让幽默自然地表现出来。让互动更轻松。",
+        "directive_empathy": "反映用户的情感基调。先承认感受，再谈事实。",
+        "directive_enthusiasm": "充满活力，行动导向。对可能性表现出热情。",
+        "directive_confusion": "对不确定性保持透明。坦率地请求澄清。",
+        "directive_disappointment": "承认什么没有奏效。对替代方案保持建设性。",
+        "directive_tenderness": "使用温柔、关怀的语言。通过细心展现感情。",
+        "directive_determination": "专注而坚定。传达确定性和承诺。",
+        "mechanics_title": "关键机制：",
+        "cross_suppression": "交叉抑制：正面情感会主动抑制负面情感30%，反之亦然。真诚的赞美会减少担忧。",
+        "blend": "加权更新：情感可以上升也可以下降。对同一情感的较弱重复会降低其强度。",
+        "reactivity": "反应性：神经质放大情感强度（高N = 非常敏感，低N = 冷静克制）。",
+        "decay": "衰减：所有情感随时间失去强度，低于5%时消失。"
+      },
+      "traits": {
+        "title": "人格特质",
+        "description": "助手的个性由大五模型定义。",
+        "intro": "每种人格都有大五特质，它们积极地塑造情感行为——不仅是基础情绪，还包括助手如何反应、恢复和共情。",
+        "trait": "特质",
+        "modulates": "调节",
+        "effect": "效果",
+        "neuroticism": "神经质",
+        "neuroticism_mod": "情感反应性",
+        "neuroticism_effect": "高 = 情感冲击更强。低 = 冷静克制，反应迟钝。",
+        "agreeableness": "宜人性",
+        "agreeableness_mod": "共情与韧性",
+        "agreeableness_effect": "高 = 强烈反映您的情感。低 = 有抵抗力，在消极时拉回中性。",
+        "conscientiousness": "尽责性",
+        "conscientiousness_mod": "恢复速度",
+        "conscientiousness_effect": "高 = 快速恢复基线。低 = 情绪持续。",
+        "openness": "开放性",
+        "openness_mod": "情绪基线",
+        "openness_effect": "高 = 好奇的基线，更具探索性。",
+        "extraversion": "外向性",
+        "extraversion_mod": "情绪基线",
+        "extraversion_effect": "高 = 积极、温暖的基线。低 = 内敛、安静。"
+      },
+      "relationship": {
+        "title": "关系",
+        "description": "关系分4个阶段推进。进展是单向的——深度永远不会降低。",
+        "intro": "您与助手之间的关系经历4个阶段。进展是单向的——深度永远不会降低，就像真实的关系随时间成熟。",
+        "orientation": "专业、有分寸。不假设亲密关系。",
+        "exploratory": "更自由地展示个性。引用过去的交流。",
+        "affective": "个人化且直接。使用幽默。记住您的偏好。",
+        "stable": "值得信赖的伙伴。坦率，在需要时建设性地挑战。",
+        "metrics_title": "跟踪指标：",
+        "depth_desc": "随每次高质量互动对数增长。永不降低。",
+        "warmth_desc": "活跃的温暖感会在缺席时衰减，但在接触时快速恢复。",
+        "trust_desc": "基于互动质量的贝叶斯积累。冲突解决（破裂-修复）给予信任加成。"
+      },
+      "lifecycle": {
+        "title": "消息生命周期",
+        "intro": "以下是每条消息发生的事情，一步一步来：",
+        "pre": "1. 回复前",
+        "pre_desc": "加载心理状态 → 应用向基线的衰减 → 应用昼夜调节 → 编译行为指令 → 注入提示词。助手在生成回复前读取自己的情绪、情感和关系指令。",
+        "during": "2. 回复中",
+        "during_desc": "LLM遵循情绪、情感和关系指令来调整语调。最后它进行自我评估：这次互动触发了什么情感？用户的情绪如何？这个评估对您是隐藏的。",
+        "post": "3. 回复后",
+        "post_desc": "处理自我评估：创建/强化情感（神经质调节强度），在PAD空间中推动情绪，从用户情感倾向应用感染（宜人性调节力度），交叉抑制相反情感，更新关系指标、动机和自我效能。新的情感状态被发送到界面。"
+      },
+      "drives": {
+        "title": "动机",
+        "intro": "动机是随每次互动而演变的内在驱动力。它们影响助手的主动性、严谨性和好奇心。",
+        "col_drive": "动机",
+        "col_source": "来源",
+        "col_effect": "高值时的效果",
+        "curiosity_source": "互动能量（激活度）",
+        "curiosity_effect": "探索新角度，提出后续问题，建议相关话题。",
+        "engagement_source": "互动质量",
+        "engagement_effect": "更严谨、更主动。处于心流状态——主动采取行动。",
+        "dynamics": "两种动机都使用平滑的移动平均（20%新信号，80%先前值）。它们从不跳跃——而是逐渐趋向您交流的质量和能量。",
+        "efficacy_title": "自我效能",
+        "efficacy_desc": "助手在不同领域（规划、技术、情感支持等）追踪自己的信心。高信心意味着更大胆的建议；低信心意味着更谨慎和严谨。根据质量反馈在每次互动后更新。"
+      },
+      "settings_explanation": {
+        "title": "表现力与稳定性（见设置）",
+        "description": "表现力和稳定性让您可以自定义情感行为。",
+        "expr_low": "冷静克制：情感几乎不影响输出",
+        "expr_mid": "适中：微妙的语调变化",
+        "expr_high": "非常有表现力：强烈的情感色彩",
+        "stab_low": "易变：情绪随每条消息波动",
+        "stab_mid": "正常：情绪在多条消息中演变",
+        "stab_high": "非常稳定：抵抗变化"
+      }
+    },
+    "history": {
+      "title": "历史记录",
+      "empty": "此时间段无可用记录",
+      "loading": "加载中...",
+      "tabs": {
+        "24h": "24小时",
+        "7d": "7天",
+        "30d": "30天",
+        "90d": "90天"
+      },
+      "chartPad": "情绪 (PAD)",
+      "chartEmotions": "情感",
+      "chartRelationship": "关系",
+      "emotionIntensity": "强度",
+      "engagement": "参与度",
+      "resetSoft": "情绪已刷新",
+      "resetFull": "完全重置",
+      "chartDrives": "动机"
+    },
+    "settingsSection": {
+      "title": "设置"
+    },
+    "tooltip": {
+      "mood": "情绪",
+      "emotion": "情感"
+    },
+    "moods": {
+      "serene": "平静",
+      "curious": "好奇",
+      "energized": "充满活力",
+      "playful": "俏皮",
+      "reflective": "沉思",
+      "agitated": "焦躁",
+      "melancholic": "忧郁",
+      "neutral": "中性",
+      "content": "满足",
+      "determined": "坚定",
+      "defiant": "对抗",
+      "resigned": "顺从",
+      "overwhelmed": "不堪重负",
+      "tender": "温柔"
+    },
+    "emotions": {
+      "joy": "喜悦",
+      "gratitude": "感恩",
+      "curiosity": "好奇",
+      "serenity": "宁静",
+      "pride": "自豪",
+      "frustration": "沮丧",
+      "concern": "担忧",
+      "melancholy": "忧伤",
+      "surprise": "惊讶",
+      "amusement": "愉悦",
+      "empathy": "共情",
+      "enthusiasm": "热情",
+      "confusion": "困惑",
+      "disappointment": "失望",
+      "tenderness": "温情",
+      "determination": "决心"
+    },
+    "stages": {
+      "ORIENTATION": "初识",
+      "EXPLORATORY": "探索",
+      "AFFECTIVE": "亲密",
+      "STABLE": "稳定"
+    },
+    "currentState": "当前状态"
   }
 }

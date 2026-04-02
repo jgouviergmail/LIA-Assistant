@@ -299,6 +299,11 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
                   browserScreenshot: metadata.browser_screenshot as
                     | { url: string; alt: string }
                     | undefined,
+                  // Store psyche state snapshot for avatar display
+                  metadata: {
+                    ...m.metadata,
+                    psyche_state: metadata.psyche_state,
+                  },
                 }
               : m
           );
@@ -338,6 +343,11 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
                       browserScreenshot: metadata.browser_screenshot as
                         | { url: string; alt: string }
                         | undefined,
+                      // Store psyche state snapshot for avatar display
+                      metadata: {
+                        ...m.metadata,
+                        psyche_state: metadata.psyche_state,
+                      },
                     }
                   : m
               );

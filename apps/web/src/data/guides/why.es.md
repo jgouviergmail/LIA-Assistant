@@ -4,7 +4,7 @@
 
 **Versión**: 2.0
 **Fecha**: 2026-03-24
-**Aplicación**: LIA v1.13.10
+**Aplicación**: LIA v1.14.0
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -474,6 +474,14 @@ En un mundo donde la IA estará en todas partes, la pregunta ya no será "¿qué
 
 ---
 
+## Lo que ningún otro asistente hace: inteligencia emocional viviente
+
+ChatGPT, Gemini, Claude — todos tienen una personalidad fija. Cada mensaje es una página en blanco emocional. LIA es diferente.
+
+**El Psyche Engine** dota a LIA de un estado psicológico dinámico que evoluciona con cada intercambio: 14 ánimos, 16 emociones, una relación que se profundiza, rasgos Big Five y motivaciones. El resultado: no hablas con una herramienta — interactúas con una entidad cuyo vocabulario se calienta cuando se conmueve, cuyas frases se acortan bajo tensión, cuyo humor surge cuando el intercambio es ligero. Ningún asistente comercial ofrece esto.
+
+---
+
 ## Conclusión: por qué existe LIA
 
 LIA no existe porque al mundo le falten asistentes IA. Los hay de sobra. ChatGPT, Gemini, Copilot, Claude — cada uno es notable a su manera.
@@ -486,4 +494,4 @@ No es un chatbot. No es una plataforma cloud. Es un **compañero digital soberan
 
 ---
 
-*Documento redactado sobre la base del código fuente de LIA v1.13.10, de 190+ documentos técnicos, de 63 ADRs, del changelog completo y de un análisis del panorama competitivo de IA de marzo de 2026. Todas las funcionalidades descritas están implementadas y son verificables en el código. Los datos de mercado provienen de Gartner, IBM y de las publicaciones oficiales de OpenAI, Google, Microsoft y Anthropic.*
+*Documento redactado sobre la base del código fuente de LIA v1.14.0, de 190+ documentos técnicos, de 63 ADRs, del changelog completo y de un análisis del panorama competitivo de IA de marzo de 2026. Todas las funcionalidades descritas están implementadas y son verificables en el código. Los datos de mercado provienen de Gartner, IBM y de las publicaciones oficiales de OpenAI, Google, Microsoft y Anthropic.*

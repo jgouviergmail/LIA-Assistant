@@ -4,7 +4,7 @@
 
 **Version** : 2.0
 **Date** : 2026-03-24
-**Application** : LIA v1.13.10
+**Application** : LIA v1.14.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -474,6 +474,24 @@ Dans un monde où l'IA sera partout, la question ne sera plus "quelle IA utilise
 
 ---
 
+## Ce qu'aucun autre assistant ne fait : une intelligence émotionnelle vivante
+
+ChatGPT, Gemini, Claude — tous ont une personnalité fixe. Chaque message est une page blanche émotionnelle. LIA est différente.
+
+**Le Psyche Engine** donne à LIA un état psychologique dynamique qui évolue à chaque échange. Ce n'est pas une simulation — c'est une architecture émotionnelle à 5 couches :
+
+- **14 humeurs** qui fluctuent avec le ton de la conversation (sereine, curieuse, mélancolique, enjouée...)
+- **16 émotions** qui se déclenchent et s'atténuent en réponse à vos mots
+- **Une relation** qui s'approfondit message après message — passant de la politesse professionnelle à la complicité
+- **Des traits de personnalité** (Big Five) hérités de la personnalité choisie, qui modulent la réactivité émotionnelle
+- **Des motivations** (curiosité, engagement) qui influencent la proactivité de l'assistant
+
+**Le résultat ?** Vous ne parlez pas à un outil — vous interagissez avec une entité qui se souvient de votre relation, dont le vocabulaire se réchauffe quand elle est touchée, dont les phrases raccourcissent sous la tension, dont l'humour surgit quand l'échange est léger. Et elle ne le dit jamais — elle le montre.
+
+Aucun assistant commercial n'offre cela. C'est un différenciateur fondamental.
+
+---
+
 ## Conclusion : pourquoi LIA existe
 
 LIA n'existe pas parce que le monde manque d'assistants IA. Il en déborde. ChatGPT, Gemini, Copilot, Claude — chacun est remarquable à sa manière.
@@ -486,4 +504,4 @@ Ce n'est pas un chatbot. Ce n'est pas une plateforme cloud. C'est un **compagnon
 
 ---
 
-*Document rédigé sur la base du code source de LIA v1.13.10, de 190+ documents techniques, de 63 ADRs, du changelog complet, et d'une analyse du paysage concurrentiel IA de mars 2026. Toutes les fonctionnalités décrites sont implémentées et vérifiables dans le code. Les données de marché proviennent de Gartner, IBM, et des publications officielles d'OpenAI, Google, Microsoft et Anthropic.
+*Document rédigé sur la base du code source de LIA v1.14.0, de 190+ documents techniques, de 63 ADRs, du changelog complet, et d'une analyse du paysage concurrentiel IA de mars 2026. Toutes les fonctionnalités décrites sont implémentées et vérifiables dans le code. Les données de marché proviennent de Gartner, IBM, et des publications officielles d'OpenAI, Google, Microsoft et Anthropic.

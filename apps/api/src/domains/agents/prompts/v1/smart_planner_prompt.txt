@@ -127,18 +127,23 @@ USER REQUEST ANALYSIS:
 
 SEMANTIC DEPENDENCIES (cross-domain type requirements):
 {semantic_dependencies}
+Use these to verify your plan is complete: if tool B needs semantic_type X, ensure a prior step provides it.
 
 CONTEXT FROM PREVIOUS RESULTS:
 {context}
+These are pre-resolved values from earlier pipeline stages. Use them DIRECTLY as tool parameters instead of adding redundant lookup steps.
 
 RESOLVED REFERENCES:
 {references}
+Entity IDs and details already matched to the user's query. Use these exact IDs in tool parameters — do NOT re-search for them.
 
 PREVIOUS VALIDATION FEEDBACK (if replanning):
 {validation_feedback}
+The semantic validator rejected a prior plan. Fix the SPECIFIC issues identified — do not regenerate from scratch unless the feedback says to.
 
 LEARNED AND VALIDATED PLAN PATTERNS:
 {learned_patterns}
+Previously successful plans for similar queries. Reuse the pattern structure when the current query matches — adapt parameters, keep the proven step sequence.
 
 PERSONAL JOURNAL — BEHAVIORAL DIRECTIVES:
 {journal_context}

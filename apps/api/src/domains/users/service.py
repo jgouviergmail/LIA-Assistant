@@ -218,6 +218,21 @@ class UserService:
         user = await self.repository.update(user, update_data)
         await self.db.commit()
 
+        # Sync psyche Big Five traits when personality changes
+        if "personality_id" in update_data and update_data["personality_id"] is not None:
+            try:
+                from src.domains.psyche.service import PsycheService
+
+                psyche_service = PsycheService(self.db)
+                await psyche_service.sync_traits_from_personality(user_id)
+                await self.db.commit()
+            except Exception as e:
+                logger.warning(
+                    "psyche_trait_sync_failed",
+                    user_id=str(user_id),
+                    error=str(e),
+                )
+
         # Recalculate scheduled actions if timezone changed
         if timezone_changed and user.timezone:
             try:

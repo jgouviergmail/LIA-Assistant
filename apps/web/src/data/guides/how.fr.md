@@ -6,7 +6,7 @@
 
 **Version** : 2.1
 **Date** : 2026-03-28
-**Application** : LIA v1.13.10
+**Application** : LIA v1.14.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -867,6 +867,52 @@ Chaque sous-système optionnel est contrôlé par un flag `{FEATURE}_ENABLED`, v
 | Données | PostgreSQL + pgvector | Sharding, read replicas |
 | Cache | Redis single instance | Redis Cluster |
 | Observabilité | Stack complète embarquée | Managed Grafana Cloud |
+
+---
+
+## 26. Psyche Engine : intelligence émotionnelle dynamique
+
+### 26.1. Architecture à 5 couches
+
+Le Psyche Engine donne à l'assistant un état psychologique dynamique qui évolue à chaque interaction, inspiré du modèle ALMA (A Layered Model of Affect, Gebhard 2005) et de l'espace PAD de Mehrabian.
+
+| Couche | Échelle de temps | Contenu |
+|--------|-----------------|---------|
+| 1 — Personnalité | Permanent | Big Five (O/C/E/A/N) hérités de la personnalité choisie. Modulent la réactivité émotionnelle, l'empathie, la vitesse de récupération. |
+| 2 — Humeur | Heures | Position dans l'espace PAD (Plaisir/Activation/Dominance) → 14 humeurs distinctes. Décroît vers la baseline de personnalité. |
+| 3 — Émotions | Minutes | 16 émotions discrètes (max 7 simultanées) avec intensité [0-100%]. Poussent l'humeur via leur vecteur PAD. Suppression croisée ±30%. |
+| 4 — Relation | Semaines | 4 stades (Orientation → Exploratoire → Affective → Stable). Progression unidirectionnelle. Profondeur, chaleur, confiance. |
+| 5 — Motivations | Par session | Curiosité (énergie de l'échange) et engagement (qualité). Auto-efficacité bayésienne par domaine. |
+
+### 26.2. Principe fondamental : « Show, Don't Tell »
+
+L'assistant ne dit jamais « je suis content » — à la place, son vocabulaire se réchauffe, ses phrases s'allongent, ses suggestions deviennent plus audacieuses. L'utilisateur perçoit une personnalité vivante sans déclarations émotionnelles explicites.
+
+### 26.3. Injection de directives
+
+Chaque message génère un bloc `<PsycheDirectives>` (~100-120 tokens) avec :
+- **MOOD** : label + intensité + directive comportementale concrète (ex: « Respond with calm assurance. Use measured, flowing sentences. »)
+- **EMOTIONS** : top 3 émotions avec directives (ex: « empathy (72%): Mirror the user's emotional tone. »)
+- **RELATIONSHIP** : stade + directive relationnelle
+- **DRIVES** : curiosité/engagement avec seuils d'activation
+- **EVOLUTION** : shift de mood/émotion depuis le dernier message
+
+Un guide d'incarnation de 540 mots (`psyche_usage_directive.txt`) explique au LLM comment traduire chaque état en comportement concret — humeur par humeur, intensités, transitions, distances sociales par stade relationnel.
+
+### 26.4. Auto-évaluation à coût zéro
+
+Après chaque réponse, le LLM s'auto-évalue via un tag XML caché `<psyche_eval/>` : valence utilisateur, émotion déclenchée, intensité, qualité de l'échange. Ce tag est strippé avant l'envoi à l'utilisateur. Aucun appel LLM supplémentaire — l'évaluation fait partie de la génération de réponse.
+
+### 26.5. Injection globale
+
+Le contexte psyché est injecté dans **tous** les points de génération utilisateur : réponse principale (format riche), notifications proactives, rappels, emails, voix, sous-agents, initiative, fallback (format compact avec directives spécifiques à l'humeur courante).
+
+### 26.6. Frontend
+
+- **Avatar émotionnel** : emoji d'humeur avec anneau coloré sur chaque message, persisté par message dans la metadata.
+- **Dashboard 4 graphiques** : Humeur (PAD), Émotions (dynamique par émotion), Relation, Motivations — recharts avec sélecteur de période 24h à 90j.
+- **Guide éducatif interactif** : 7 sections ordonnées couche 1→5 avec tableaux descriptifs des 14 humeurs et 16 émotions.
+- **Réglages** : expressivité, stabilité, rafraîchissement d'humeur, réinitialisation complète avec descriptions explicites de ce qui est conservé/réinitialisé.
 
 ---
 

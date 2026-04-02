@@ -744,6 +744,7 @@ class StreamingService:
                     run_id=run_id,
                     format_chunk_fn=self.format_token_chunk,
                     config=fallback_config,
+                    user_id=str(self.user_id) if self.user_id else None,
                 ):
                     response_content += content_fragment
                     token_count += 1
@@ -1104,6 +1105,17 @@ class StreamingService:
                     return sse_chunks  # Skip - replacement will be sent after loop
 
                 content = message.content
+
+                # Psyche Engine: Strip psyche_eval tag fragments from streaming tokens
+                # Prevents brief flash of the tag during SSE streaming.
+                # The content_replacement chunk handles full cleanup after response_node.
+                if "<psyche_eval" in content or "psyche_eval" in content:
+                    from src.domains.psyche.constants import PSYCHE_EVAL_STREAMING_PATTERN
+
+                    content = PSYCHE_EVAL_STREAMING_PATTERN.sub("", content).strip()
+                    if not content:
+                        return sse_chunks  # Skip empty chunk after tag removal
+
                 token_chunk = self.format_token_chunk(content)
                 sse_chunks.append((token_chunk, content))
 

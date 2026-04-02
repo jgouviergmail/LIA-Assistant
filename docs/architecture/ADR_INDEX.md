@@ -2262,6 +2262,33 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 
 ---
 
+### ADR-068: Psyche Engine — Dynamic Psychological State
+
+**Status**: ✅ ACCEPTED (2026-04-01)
+**Fichier**: `docs/architecture/ADR-068-Psyche-Engine.md`
+
+**Décision**: Implémenter un moteur psychologique multi-couches (ALMA-inspired) pour l'assistant IA: Big Five traits → PAD mood space (14 humeurs) → 16 émotions discrètes → relation 4 stades → drives + auto-efficacité. Self-report via `<psyche_eval/>` tag (0 appel LLM supplémentaire). Engine pur stateless (87 tests unitaires). Feature flag indépendant (`PSYCHE_ENABLED` + `user.psyche_enabled`).
+
+**Problème résolu**:
+- ❌ Personnalité statique (simple prompt texte)
+- ❌ Conscience émotionnelle limitée (3 états: COMFORT/DANGER/NEUTRAL)
+- ❌ Pas d'évolution relationnelle ni de mémoire émotionnelle
+
+**Solution**:
+- ✅ Architecture 5 couches (Personality → Mood → Emotions → Relationship → Drives)
+- ✅ Espace PAD continu avec decay exponentiel vers baseline personnalité
+- ✅ Mood-congruent memory recall (boost mémoire congruente à l'humeur)
+- ✅ Inertie émotionnelle, rupture-repair, learning rate adaptatif
+- ✅ Palette daltonien-safe (MoodRing), settings complet avec palette légende
+- ✅ i18n 6 langues, GDPR cascade, 14 personnalités seedées
+
+**Impact**:
+- +65 tokens input + ~25 tokens output par message
+- +2ms latence bloquante (DB read + math)
+- ~$0.58/mois/utilisateur actif
+
+---
+
 ## ADRs Archivés
 
 ### ADR-005 (Version Originale): Workflow-Based HITL

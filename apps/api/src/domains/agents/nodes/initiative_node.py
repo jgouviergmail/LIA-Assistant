@@ -490,6 +490,18 @@ async def initiative_node(
         max_actions=settings.initiative_max_actions,
     )
 
+    # Inject psyche context if user_id is available
+    if user_id:
+        try:
+            from src.domains.psyche.service import build_psyche_prompt_block
+
+            psyche_block = await build_psyche_prompt_block(
+                user_id=user_id, user_timezone=user_timezone
+            )
+            prompt += psyche_block
+        except Exception:
+            pass  # Psyche injection is best-effort
+
     enriched_config = enrich_config_with_node_metadata(config, NODE_INITIATIVE)
 
     try:

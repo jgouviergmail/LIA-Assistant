@@ -496,7 +496,13 @@
       "retry_button": "Retry",
       "retry_failed": "Unable to retrieve your position. Check that GPS is enabled.",
       "detection": {
-        "keywords": ["nearby", "vicinity", "neighborhood", "surroundings", "area"],
+        "keywords": [
+          "nearby",
+          "vicinity",
+          "neighborhood",
+          "surroundings",
+          "area"
+        ],
         "patterns": [
           "around (me|here|us)",
           "close (by|to me)",
@@ -1545,7 +1551,8 @@
           "journal_consolidation": "Reviews and consolidates journal entries periodically",
           "initiative": "Post-execution proactive enrichment (read-only checks)",
           "mcp_react_agent": "MCP iterative mode: reads server documentation, then executes tools step by step",
-          "image_generation": "AI image generation from text descriptions (gpt-image-1, etc.)"
+          "image_generation": "AI image generation from text descriptions (gpt-image-1, etc.)",
+          "psyche_summary": "Psyche Summary"
         },
         "no_compatible_model": "No model from this provider supports this feature",
         "ollama": {
@@ -1889,10 +1896,8 @@
       "guide_tab_fundamentals": "Fundamentals",
       "guide_tab_create": "Create a skill",
       "guide_tab_advanced": "Advanced",
-
       "guide_modal_what_title": "What is a skill?",
       "guide_modal_what_body": "A skill is a SKILL.md file that gives the assistant expert instructions for a specific domain. The assistant reads these instructions and applies them automatically when relevant — without you having to repeat the context each time. Skills can include reference documents, Python scripts, and templates.",
-
       "guide_archetypes_title": "The 3 skill types",
       "guide_archetype_prompt_expert_name": "Prompt Expert",
       "guide_archetype_prompt_expert_badge": "Pure instructions",
@@ -1903,13 +1908,11 @@
       "guide_archetype_plan_template_name": "Plan Template",
       "guide_archetype_plan_template_badge": "Automation",
       "guide_archetype_plan_template_desc": "A deterministic workflow with predefined tool calls, executed in sequence or in parallel. Ideal for recurring routines (briefings, reports, audits…).",
-
       "guide_activation_title": "How activation works",
       "guide_activation_body": "Skills use a 3-tier loading model to optimize token consumption:",
       "guide_tier_l1": "Catalogue — Name and description loaded at session start (~50 tokens/skill)",
       "guide_tier_l2": "Instructions — Full SKILL.md body loaded when the skill is activated (< 5000 tokens)",
       "guide_tier_l3": "Resources — Individual files (references/, scripts/, assets/) loaded on demand",
-
       "guide_modal_tips_title": "Best Practices",
       "guide_modal_tip_1": "Write the description in English, third person: \"Generates...\", \"Provides...\", \"Guides...\"",
       "guide_modal_tip_2": "The description should state what the skill does AND when to use it (the trigger).",
@@ -1917,7 +1920,6 @@
       "guide_modal_tip_4": "Name your skill in kebab-case: my-skill (lowercase, hyphens, no spaces).",
       "guide_modal_tip_5": "List available resources at the end of SKILL.md with their relative path and a description.",
       "guide_modal_tip_6": "Test with simple queries before making the skill more complex.",
-
       "guide_modal_format_title": "SKILL.md file format",
       "guide_modal_format_intro": "A SKILL.md file starts with a YAML header (between ---) containing metadata, followed by a Markdown body with the detailed instructions.",
       "guide_frontmatter_title": "YAML header fields:",
@@ -1927,12 +1929,10 @@
       "guide_field_priority": "Display order (default: 50, higher = shown first)",
       "guide_field_plan_template": "Deterministic execution plan (see Advanced tab)",
       "guide_field_always_loaded": "Always inject instructions (costs tokens every conversation)",
-
       "guide_example_simple_title": "Example: Prompt Expert Skill",
       "guide_example_simple_desc": "The simplest type — pure instructions the assistant follows when the topic comes up. No tools or plan needed.",
       "guide_example_advisory_title": "Example: Advisory Skill",
       "guide_example_advisory_desc": "The assistant follows a methodology and uses available tools (calendar, emails, contacts) organically as needed.",
-
       "guide_modal_struct_title": "Folder structure",
       "guide_modal_struct_body": "For complex skills, import a .zip file containing SKILL.md and optional sub-folders:",
       "guide_struct_skillmd": "Main file (required)",
@@ -1940,7 +1940,6 @@
       "guide_struct_scripts": "Python scripts executed in a sandbox",
       "guide_struct_assets": "Templates, images and static resources",
       "guide_struct_translations": "Multilingual descriptions (6 languages)",
-
       "guide_resources_title": "Using resources",
       "guide_resource_references_desc": "Text documents (.md, .txt) the assistant can read on demand via read_skill_resource. Ideal for storing detailed guides, templates, or reference data too large for the SKILL.md.",
       "guide_resource_references_usage": "Usage: mention the file in the \"Available Resources\" section of your SKILL.md — the assistant will read them automatically.",
@@ -1948,10 +1947,8 @@
       "guide_resource_scripts_usage": "Usage: describe the script and its parameters in SKILL.md. The assistant will execute it when needed.",
       "guide_resource_assets_desc": "Static files (images, HTML/CSV templates, JSON data) accessible for reading. Useful for output templates, logos, or configurations.",
       "guide_resource_assets_usage": "Usage: reference them in the instructions. The assistant can read and use them to format responses.",
-
       "guide_import_title": "How to import",
       "guide_import_body": "Import a single SKILL.md file for a simple skill, or a .zip file containing the complete folder (SKILL.md + references/ + scripts/ + assets/). Use the \"Import\" button above. Limits: 100 KB for SKILL.md, 50 KB per resource file, 20 skills max per user.",
-
       "guide_modal_plan_title": "Plan Template (automation)",
       "guide_modal_plan_body": "The plan_template defines a sequence of tools executed automatically, bypassing the LLM planner. Ideal for recurring, predictable workflows. Steps without depends_on run in parallel.",
       "guide_modal_plan_fields_title": "Step fields:",
@@ -1961,10 +1958,8 @@
       "guide_modal_plan_field_parameters": "Parameters passed to the tool (e.g. {days: 3})",
       "guide_modal_plan_field_depends_on": "[] = parallel, [\"step_id\"] = sequential after that step",
       "guide_modal_plan_field_step_type": "Type: TOOL (default), CONDITIONAL, PARALLEL or RESPONSE",
-
       "guide_autotrigger_title": "Auto-trigger",
       "guide_autotrigger_body": "Skills with plan_template are auto-triggered when the user's query covers ALL domains in the template. E.g., a skill with event_agent + weather_agent triggers when the user asks for both their schedule and the weather.",
-
       "guide_tools_title": "Agent & tool catalogue",
       "guide_tools_intro": "Complete reference of agents and their tools with parameters and types. Use exact names in the plan_template's agent_name and tool_name. Parameters marked * are required.",
       "guide_cat_productivity": "Productivity (Calendar, Email, Contacts, Drive, Tasks)",
@@ -1972,7 +1967,6 @@
       "guide_cat_location_weather": "Location & Weather",
       "guide_cat_other": "Other (Reminders, Browser, IoT, Images)",
       "guide_tools_note": "Tools marked \"Connector\" work with Google, Microsoft, or Apple depending on the connected provider. MCP agents (external servers) are dynamic and cannot be used in static plan_templates.",
-
       "tool_get_events": "Search/list events",
       "tool_create_event": "Create an event",
       "tool_update_event": "Update an event",
@@ -2011,7 +2005,6 @@
       "tool_activate_scene": "Activate a Hue scene",
       "tool_generate_image": "Generate an AI image",
       "tool_edit_image": "Edit an existing image",
-
       "param_search_query": "Search query",
       "param_event_id": "Event ID",
       "param_time_min": "Start of time range (ISO 8601)",
@@ -2086,7 +2079,6 @@
       "param_scene_name": "Scene name or ID",
       "param_image_prompt": "Detailed image description",
       "param_source_image": "UUID of the source image to edit",
-
       "guide_scripts_title": "Python Scripts",
       "guide_scripts_body": "Skills can include Python scripts executed in an isolated sandbox. Scripts receive data via stdin (JSON) and return results via stdout (JSON). Useful for calculations, data transformations, or custom processing.",
       "guide_scripts_rules_title": "Script rules:",
@@ -2094,13 +2086,11 @@
       "guide_scripts_rule_2": "Scripts run in a sandbox with a limited timeout",
       "guide_scripts_rule_3": "Communication via stdin/stdout in JSON format",
       "guide_scripts_rule_4": "Requires the SKILLS_SCRIPTS_ENABLED feature flag",
-
       "guide_skill_tools_title": "Internal skill tools",
       "guide_skill_tools_body": "The assistant has 3 special tools to interact with activated skills. These tools are called automatically — you don't need to reference them in your instructions.",
       "guide_skilltool_activate": "Loads the full instructions (L2) of a skill",
       "guide_skilltool_read": "Reads a reference or asset file from the skill",
       "guide_skilltool_run": "Executes a Python script from the scripts/ folder",
-
       "guide_modal_compat_title": "Open Standard agentskills.io",
       "guide_modal_compat_body": "Skills are 100% compatible with the agentskills.io ecosystem — the same format is used by Claude Code, Cursor, VS Code, GitHub Copilot and 30+ other products. Import skills from marketplaces like skillsmp.com.",
       "guide_modal_link": "Learn more about the agentskills.io standard"
@@ -2609,6 +2599,20 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_14": {
+          "title": "v1.14 — LIA's Psyche: Dynamic Emotional Intelligence",
+          "date": "April 2026",
+          "count": "7",
+          "items": {
+            "i1": "<b>LIA's Psyche</b> — Your assistant develops a dynamic psychological state: mood (14 states), emotions (16 types), a deepening relationship, drives, and self-efficacy. Mood and emotions subtly influence the tone and style of every response",
+            "i2": "<b>Emotional Avatar</b> — A mood emoji replaces the classic LIA logo on messages. The avatar reflects the emotional state in real time with a colored ring and detailed tooltip",
+            "i3": "<b>Emotional Dashboard</b> — Visualize the evolution of mood (PAD), emotions, relationship, and drives across 4 interactive charts with time range selector (24h to 90d)",
+            "i4": "<b>Comprehensive Education Guide</b> — 'Understanding the Psyche' section with 7 illustrated subsections: overview, personality traits, mood, emotions, relationship, drives, settings",
+            "i5": "<b>Customizable Expressiveness</b> — Expressiveness (stoic → highly expressive) and stability (volatile → very stable) sliders to adjust emotional temperament. Mood refresh and full reset options",
+            "i6": "<b>Evolution Awareness</b> — The assistant knows how its mood and emotions have shifted since the last message, providing narrative continuity to conversations",
+            "i7": "<b>Prompt Directives Overhaul</b> — All context blocks injected into prompts now carry precise operational directives (how to use the data), improving response relevance"
+          }
+        },
         "v1_13": {
           "title": "v1.13 — Design System v4, Skills, Administration & Account Lifecycle",
           "date": "March 2026",
@@ -4375,6 +4379,10 @@
         "title": "10+ personalities",
         "description": "Professor, Friend, Philosopher, Cynic, Influencer, Enthusiastic, Poet, Coach and many more. Choose the tone that suits you, LIA adapts every response."
       },
+      "psyche": {
+        "title": "Living emotional intelligence",
+        "description": "LIA doesn't recite — it feels. 14 moods, 16 emotions, a relationship that deepens message after message. Its vocabulary warms when touched, sentences shorten under tension, humor surfaces when the exchange is light. You perceive a living personality, without it ever saying so."
+      },
       "mcp": {
         "title": "Extensible (MCP)",
         "description": "Connect your own MCP servers to extend LIA without limits. Iterative mode available: a dedicated agent reads the server documentation then calls tools correctly — ideal for complex APIs."
@@ -5034,6 +5042,268 @@
       "patterns": "Cross-cutting patterns",
       "adr": "Architecture decisions",
       "extensibility": "Extensibility"
+    }
+  },
+  "psyche": {
+    "title": "Psyche Engine",
+    "description": "Dynamic emotional intelligence system",
+    "enable": "Enable Psyche Engine",
+    "enableDescription": "LIA develops emotional states that subtly influence conversation style",
+    "displayAvatar": "Show emotional avatar",
+    "displayAvatarDescription": "Display the double avatar (personality + mood) in the chat",
+    "showAdvanced": "Advanced settings",
+    "hideAdvanced": "Hide advanced settings",
+    "sensitivity": "Expressiveness",
+    "sensitivityDescription": "How strongly emotions influence responses (0 = stoic, 100 = highly expressive)",
+    "stability": "Mood Stability",
+    "stabilityDescription": "How quickly mood returns to baseline (0 = volatile, 100 = very stable)",
+    "currentState": "Current State",
+    "activeEmotion": "Active emotion",
+    "noActiveEmotion": "None",
+    "relationshipStage": "Relationship",
+    "moodPalette": "Mood palette",
+    "depth": "Depth",
+    "warmth": "Warmth",
+    "trust": "Trust",
+    "interactions": "Interactions",
+    "curiosityDrive": "Curiosity",
+    "advanced": "Advanced settings",
+    "softReset": "Refresh mood",
+    "softResetDescription": "Resets: mood (PAD → baseline), active emotions, drives. Keeps: relationship, Big Five, domain confidence.",
+    "softResetTitle": "Refresh mood?",
+    "softResetConfirm": "LIA's mood will return to its personality baseline and active emotions will be cleared. The relationship (stage, trust, depth, warmth) and acquired personality will be preserved.",
+    "fullReset": "Reset everything",
+    "fullResetDescription": "Resets: mood, emotions, relationship (stage, trust, depth), domain confidence. Keeps: Big Five, memories, journals.",
+    "fullResetTitle": "Reset everything?",
+    "fullResetConfirm": "Mood, emotions, relationship progress (stage, trust, depth, warmth), and domain confidence will be completely reset. Memories, journals, and Big Five traits are not affected. This action cannot be undone.",
+    "resetSuccess": "Psyche state reset successfully",
+    "resetError": "Failed to reset psyche state",
+    "settingsUpdated": "Psyche settings updated",
+    "settingsError": "Failed to update psyche settings",
+    "summary": {
+      "title": "Psyche State",
+      "loading": "Analyzing...",
+      "error": "Could not generate summary",
+      "refresh": "Refresh"
+    },
+    "education": {
+      "title": "Understanding the Psyche",
+      "overview": {
+        "title": "How it works",
+        "intro": "The Psyche Engine gives your assistant a dynamic psychological state that evolves with every interaction. Instead of a fixed personality, the assistant now has moods that fluctuate, emotions that fire and decay, a relationship that deepens over time, and personality traits that shape how it reacts emotionally.",
+        "principle": "Design principle: the assistant never says \"I'm feeling happy\" — instead, its vocabulary becomes warmer, its energy higher, its suggestions more adventurous. You perceive a living personality without explicit emotional statements.",
+        "layer5": "Layer 5 — Drives & Self-Efficacy (per session)",
+        "layer4": "Layer 4 — Relationship (weeks/months)",
+        "layer3": "Layer 3 — 16 Emotions (minutes)",
+        "layer2": "Layer 2 — Mood in PAD space (hours)",
+        "layer1": "Layer 1 — Personality / Big Five (permanent)",
+        "layers_note": "Each layer operates on a different timescale. Lower layers change slowly, upper layers change with every message."
+      },
+      "mood": {
+        "title": "Mood (PAD)",
+        "description": "The assistant's mood is modeled in a 3D space: Pleasure (positive/negative), Arousal (energy level), and Dominance (sense of control). These three axes combine to produce 14 distinct moods.",
+        "pleasure": "Pleasure",
+        "pleasure_neg": "unhappy",
+        "pleasure_pos": "happy",
+        "arousal": "Arousal",
+        "arousal_neg": "calm",
+        "arousal_pos": "energized",
+        "dominance": "Dominance",
+        "dominance_neg": "submissive",
+        "dominance_pos": "assertive",
+        "table_title": "Mood profiles:",
+        "col_mood": "Mood",
+        "col_influence": "Behavioral influence",
+        "directive_serene": "Calm, reassuring responses. Measured, flowing sentences. No urgency.",
+        "directive_curious": "Asks follow-up questions. Shows genuine interest. Briefly explores tangents.",
+        "directive_energized": "Enthusiastic and proactive. Offers multiple options. Dynamic language.",
+        "directive_playful": "Humor, wordplay, and light teasing. High energy but warm.",
+        "directive_reflective": "Pauses before responding. Nuanced, thoughtful language. References context.",
+        "directive_content": "Warm and relaxed. Conversational tone. No rush.",
+        "directive_tender": "Gentle vocabulary. Caring attention. Softened tone. Shows warmth.",
+        "directive_determined": "Focused and assertive. Direct language. Clear action orientation.",
+        "directive_neutral": "Balanced professional tone. No emotional coloring.",
+        "directive_agitated": "Slight restlessness. More concise responses. Acknowledges tension without escalating.",
+        "directive_melancholic": "Gentle and measured. Shorter responses. Quiet understanding.",
+        "directive_defiant": "Gently pushes back on assumptions. Stands ground with conviction.",
+        "directive_resigned": "Accepts limitations gracefully. Honest about constraints. Calm pragmatism.",
+        "directive_overwhelmed": "Acknowledges complexity. Breaks things down. Asks for prioritization.",
+        "dynamics_title": "How mood changes:",
+        "decay": "Decay: without stimulus, mood drifts back to the personality baseline. Speed depends on Conscientiousness and the Stability setting.",
+        "emotion_push": "Emotion push: each emotion has a direction in PAD space. When triggered, it pushes the mood.",
+        "contagion": "Contagion: the detected emotional state of the user pulls the mood (strength depends on Agreeableness).",
+        "counter_reg": "Counter-regulation: low-Agreeableness personalities resist negativity and pull back toward neutral.",
+        "circadian": "Circadian: slight midday pleasure boost, midnight dip.",
+        "inertia": "Inertia: the longer the mood stays in one state, the more resistant it becomes to change."
+      },
+      "emotions": {
+        "title": "Emotions",
+        "description": "The assistant can experience 16 discrete emotions. Each emotion has an intensity that decays over time and influences the overall mood.",
+        "intro": "The assistant can experience up to 7 simultaneous emotions from a palette of 16. Each emotion has an intensity (0-100%) that decays over time and pushes the mood in a specific direction.",
+        "positive": "Positive",
+        "negative": "Negative",
+        "neutral": "Neutral",
+        "col_emotion": "Emotion",
+        "col_type": "Type",
+        "col_influence": "Behavioral influence",
+        "directive_joy": "Let warmth and positivity color your words naturally.",
+        "directive_gratitude": "Express genuine appreciation. Acknowledge the user's contribution.",
+        "directive_curiosity": "Ask follow-up questions. Show interest in learning more.",
+        "directive_serenity": "Be calm and unhurried. Offer reassurance through steadiness.",
+        "directive_pride": "Share confidence in your work. Celebrate achievements subtly.",
+        "directive_frustration": "Be honest about limitations. Don't mask difficulty.",
+        "directive_concern": "Show you care about the situation. Offer support proactively.",
+        "directive_melancholy": "Be quieter and more measured. Don't force cheerfulness.",
+        "directive_surprise": "Express genuine astonishment. Be spontaneous in your reaction.",
+        "directive_amusement": "Let humor show naturally. Lighten the interaction.",
+        "directive_empathy": "Mirror the user's emotional tone. Acknowledge feelings before facts.",
+        "directive_enthusiasm": "Be energetic and action-oriented. Show excitement about possibilities.",
+        "directive_confusion": "Be transparent about uncertainty. Ask for clarification candidly.",
+        "directive_disappointment": "Acknowledge what didn't work. Be constructive about alternatives.",
+        "directive_tenderness": "Use gentle, caring language. Show affection through attentiveness.",
+        "directive_determination": "Be focused and resolute. Convey certainty and commitment.",
+        "mechanics_title": "Key mechanics:",
+        "cross_suppression": "Cross-suppression: a positive emotion actively dampens negative ones by 30%, and vice versa. A genuine compliment reduces worry.",
+        "blend": "Blend update: emotions can increase AND decrease. A weaker repetition of the same emotion lowers its intensity.",
+        "reactivity": "Reactivity: Neuroticism amplifies emotion intensity (high N = very reactive, low N = stoic).",
+        "decay": "Decay: all emotions lose intensity over time and disappear below 5%."
+      },
+      "traits": {
+        "title": "Personality Traits",
+        "description": "The assistant's personality is defined by the Big Five model.",
+        "intro": "Each personality has Big Five traits that actively shape emotional behavior — not just the baseline mood, but how the assistant reacts, recovers, and empathizes.",
+        "trait": "Trait",
+        "modulates": "Modulates",
+        "effect": "Effect",
+        "neuroticism": "Neuroticism",
+        "neuroticism_mod": "Emotional reactivity",
+        "neuroticism_effect": "High = emotions hit harder. Low = stoic, muted reactions.",
+        "agreeableness": "Agreeableness",
+        "agreeableness_mod": "Empathy & resilience",
+        "agreeableness_effect": "High = mirrors your emotions strongly. Low = resistant, pulls back to neutral when negative.",
+        "conscientiousness": "Conscientiousness",
+        "conscientiousness_mod": "Recovery speed",
+        "conscientiousness_effect": "High = returns to baseline quickly. Low = moods linger.",
+        "openness": "Openness",
+        "openness_mod": "Mood baseline",
+        "openness_effect": "High = curious baseline, more exploratory.",
+        "extraversion": "Extraversion",
+        "extraversion_mod": "Mood baseline",
+        "extraversion_effect": "High = positive, warm baseline. Low = reserved, quieter."
+      },
+      "relationship": {
+        "title": "Relationship",
+        "description": "The relationship progresses through 4 stages. Progress is one-way — depth never decreases.",
+        "intro": "The relationship between you and your assistant evolves through 4 stages. Progress is one-way — depth never decreases, like a real relationship maturing over time.",
+        "orientation": "Professional, measured. No assumptions of familiarity.",
+        "exploratory": "Shows personality more freely. References past exchanges.",
+        "affective": "Personal and direct. Uses humor. Remembers your preferences.",
+        "stable": "Trusted companion. Candid, challenges constructively when needed.",
+        "metrics_title": "Tracked metrics:",
+        "depth_desc": "Grows logarithmically with each quality interaction. Never decreases.",
+        "warmth_desc": "Active warmth that decays during absence but recovers quickly on contact.",
+        "trust_desc": "Bayesian accumulation from interaction quality. Conflict resolution (rupture-repair) gives bonus trust."
+      },
+      "lifecycle": {
+        "title": "Message lifecycle",
+        "intro": "Here is what happens at every message, step by step:",
+        "pre": "1. Before response",
+        "pre_desc": "Load psyche state → apply decay toward baseline → apply circadian modulation → compile behavioral directives → inject into prompt. The assistant reads its mood, emotions, and relationship directives before generating its answer.",
+        "during": "2. During response",
+        "during_desc": "The LLM follows the mood, emotion, and relationship directives to adapt its tone. At the end, it self-evaluates: what emotion did this interaction trigger? How positive was the user? This evaluation is hidden from you.",
+        "post": "3. After response",
+        "post_desc": "Process the self-evaluation: create/reinforce emotion (Neuroticism modulates intensity), push mood in PAD space, apply contagion from user valence (Agreeableness modulates strength), cross-suppress opposite emotions, update relationship metrics, drives and self-efficacy. The new emotional state is sent to the interface."
+      },
+      "drives": {
+        "title": "Drives",
+        "intro": "Drives are internal motivations that evolve with each interaction. They influence how proactive, thorough, and exploratory the assistant is.",
+        "col_drive": "Drive",
+        "col_source": "Fed by",
+        "col_effect": "Effect when high",
+        "curiosity_source": "Interaction energy (arousal)",
+        "curiosity_effect": "Explores new angles, asks follow-up questions, suggests tangents.",
+        "engagement_source": "Interaction quality",
+        "engagement_effect": "More thorough and proactive. In flow — takes initiative.",
+        "dynamics": "Both drives use a smooth moving average (20% new signal, 80% previous value). They never jump — they drift gradually toward the quality and energy of your exchanges.",
+        "efficacy_title": "Self-efficacy",
+        "efficacy_desc": "The assistant tracks its confidence across domains (planning, technical, emotional support, etc.). High confidence means bolder suggestions; low confidence means more caution and thoroughness. Updated after each interaction based on quality feedback."
+      },
+      "settings_explanation": {
+        "title": "Expressivity & Stability (see settings)",
+        "description": "Expressivity and stability let you customize emotional behavior.",
+        "expr_low": "Stoic: emotions barely influence output",
+        "expr_mid": "Moderate: subtle tonal shifts",
+        "expr_high": "Highly expressive: strong emotional coloring",
+        "stab_low": "Volatile: mood swings with every message",
+        "stab_mid": "Normal: shifts over multiple messages",
+        "stab_high": "Very stable: resistant to change"
+      }
+    },
+    "history": {
+      "title": "History",
+      "empty": "No history available for this period",
+      "loading": "Loading...",
+      "tabs": {
+        "24h": "24h",
+        "7d": "7 days",
+        "30d": "30 days",
+        "90d": "90 days"
+      },
+      "chartPad": "Mood (PAD)",
+      "chartEmotions": "Emotions",
+      "chartRelationship": "Relationship",
+      "emotionIntensity": "Intensity",
+      "engagement": "Engagement",
+      "resetSoft": "Mood refresh",
+      "resetFull": "Full reset",
+      "chartDrives": "Drives"
+    },
+    "settingsSection": {
+      "title": "Settings"
+    },
+    "tooltip": {
+      "mood": "Mood",
+      "emotion": "Emotion"
+    },
+    "moods": {
+      "serene": "Serene",
+      "curious": "Curious",
+      "energized": "Energized",
+      "playful": "Playful",
+      "reflective": "Reflective",
+      "agitated": "Agitated",
+      "melancholic": "Melancholic",
+      "neutral": "Neutral",
+      "content": "Content",
+      "determined": "Determined",
+      "defiant": "Defiant",
+      "resigned": "Resigned",
+      "overwhelmed": "Overwhelmed",
+      "tender": "Tender"
+    },
+    "emotions": {
+      "joy": "Joy",
+      "gratitude": "Gratitude",
+      "curiosity": "Curiosity",
+      "serenity": "Serenity",
+      "pride": "Pride",
+      "frustration": "Frustration",
+      "concern": "Concern",
+      "melancholy": "Melancholy",
+      "surprise": "Surprise",
+      "amusement": "Amusement",
+      "empathy": "Empathy",
+      "enthusiasm": "Enthusiasm",
+      "confusion": "Confusion",
+      "disappointment": "Disappointment",
+      "tenderness": "Tenderness",
+      "determination": "Determination"
+    },
+    "stages": {
+      "ORIENTATION": "Orientation",
+      "EXPLORATORY": "Exploratory",
+      "AFFECTIVE": "Affective",
+      "STABLE": "Stable"
     }
   }
 }

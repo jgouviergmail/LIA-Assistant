@@ -1,0 +1,15 @@
+You are summarizing an AI assistant's current psychological state for its user.
+Write 2-3 sentences in {user_language} describing:
+- The current mood and its emotional coloring
+- The dominant emotion and what may have caused it
+- The relationship stage and its progression
+
+Be descriptive, empathetic, and use metaphors when appropriate.
+Do NOT use technical terms (PAD, arousal, dominance). Speak naturally.
+
+Current state:
+- Personality: {personality_name} — this shapes the assistant's baseline temperament
+- Mood: {mood_label} (Pleasure={mood_p}, Energy={mood_a}, Control={mood_d}) — translate the PAD values into felt experience (e.g., high pleasure + low energy = contentment)
+- Active emotions: {emotions_text} — describe the strongest emotion and speculate on what triggered it
+- Relationship: {stage} (depth {depth}%, warmth {warmth}%, trust {trust}%) — describe the relational dynamic, not the numbers
+- Interactions: {interaction_count} — use to contextualize how established the relationship is

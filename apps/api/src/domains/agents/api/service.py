@@ -385,6 +385,7 @@ class AgentService(
         browser_context: BrowserContext | None = None,
         user_memory_enabled: bool = True,
         user_journals_enabled: bool = False,
+        user_psyche_enabled: bool = False,
         auto_approve_plan: bool = False,
         attachment_ids: list[uuid.UUID] | None = None,
     ) -> AsyncGenerator[ChatStreamChunk, None]:
@@ -402,6 +403,7 @@ class AgentService(
             browser_context: Browser context (geolocation, etc.) sent automatically by frontend.
             user_memory_enabled: User's preference for long-term memory (default: True).
             user_journals_enabled: User's preference for personal journals (default: False).
+            user_psyche_enabled: User's preference for psyche engine (default: False).
             auto_approve_plan: If True, bypass HITL plan approval gate (for scheduled actions).
 
         Yields:
@@ -449,6 +451,7 @@ class AgentService(
             browser_context,
             user_memory_enabled,
             user_journals_enabled,
+            user_psyche_enabled,
             auto_approve_plan,
             attachment_ids,
         ):
@@ -465,6 +468,7 @@ class AgentService(
         browser_context: BrowserContext | None = None,
         user_memory_enabled: bool = True,
         user_journals_enabled: bool = False,
+        user_psyche_enabled: bool = False,
         auto_approve_plan: bool = False,
         attachment_ids: list[uuid.UUID] | None = None,
     ) -> AsyncGenerator[ChatStreamChunk, None]:
@@ -797,6 +801,7 @@ class AgentService(
                                 user_message=user_message,  # For location phrase detection
                                 user_memory_enabled=user_memory_enabled,  # User memory preference
                                 user_journals_enabled=user_journals_enabled,  # User journals preference
+                                user_psyche_enabled=user_psyche_enabled,  # User psyche preference
                                 side_channel_queue=side_channel_queue,  # SSE side-channel
                             ),
                             conversation_id=conversation_id,
@@ -876,6 +881,7 @@ class AgentService(
                                         tracker=tracker,
                                         run_id=run_id,
                                         lia_gender=voice_lia_gender,
+                                        user_id=str(user_id),
                                     )
 
                                     # Create queue for PROGRESSIVE chunk emission
@@ -1055,6 +1061,7 @@ class AgentService(
 
                     # Track number of messages archived for accurate stats
                     messages_archived = 0
+                    archived_assistant_msg_id: uuid.UUID | None = None
 
                     async with get_db_context() as archive_db:
                         # Determine archiving mode based on HITL state
@@ -1238,13 +1245,14 @@ class AgentService(
                                             error_type=type(bsc_err).__name__,
                                         )
 
-                            await conv_service.archive_message(
+                            archived_msg = await conv_service.archive_message(
                                 conversation_id,
                                 "assistant",
                                 response_content,
                                 assistant_metadata,
                                 archive_db,
                             )
+                            archived_assistant_msg_id = archived_msg.id
                             messages_archived += 1
 
                     logger.info(
@@ -1269,6 +1277,41 @@ class AgentService(
                 from src.infrastructure.async_utils import await_run_id_tasks
 
                 await await_run_id_tasks(run_id, timeout=15.0)
+
+                # === Persist psyche_state into archived assistant message metadata ===
+                # The psyche background task (fire-and-forget) has completed by now.
+                # We peek the summary and patch it into the message so that on page
+                # reload, each message carries its own historical psyche snapshot
+                # instead of falling back to the current (latest) store state.
+                if (
+                    archived_assistant_msg_id
+                    and getattr(settings, "psyche_enabled", False)
+                    and user_psyche_enabled
+                ):
+                    try:
+                        from src.domains.psyche.service import peek_psyche_summary
+
+                        _ps = peek_psyche_summary(run_id)
+                        if _ps:
+                            async with get_db_context() as psyche_patch_db:
+                                await conv_service.patch_message_metadata(
+                                    archived_assistant_msg_id,
+                                    {"psyche_state": _ps},
+                                    psyche_patch_db,
+                                )
+                                await psyche_patch_db.commit()
+                            logger.debug(
+                                "psyche_state_persisted_to_message",
+                                run_id=run_id,
+                                message_id=str(archived_assistant_msg_id),
+                            )
+                    except Exception as ps_err:
+                        logger.warning(
+                            "psyche_state_persist_failed",
+                            run_id=run_id,
+                            error=str(ps_err),
+                            error_type=type(ps_err).__name__,
+                        )
 
                 # === PHASE 3.3 DAY 3: Retrieve aggregated tokens AFTER tracker exit ===
                 # Pattern from LEGACY (lines 1520-1543): Create temp tracker to query DB
@@ -1542,6 +1585,7 @@ class AgentService(
                                     tracker=tracker,
                                     run_id=run_id,
                                     lia_gender=voice_lia_gender,
+                                    user_id=str(user_id),
                                 )
 
                                 # Direct TTS: skip voice LLM, synthesize response directly
@@ -1595,6 +1639,7 @@ class AgentService(
                                     tracker=tracker,
                                     run_id=run_id,
                                     lia_gender=voice_lia_gender,
+                                    user_id=str(user_id),
                                 )
                                 current_dt = dt_voice.now().isoformat()
 
@@ -1711,6 +1756,21 @@ class AgentService(
                             "url": browser_screenshot_card_url,
                             "alt": "Browser screenshot",
                         }
+
+                    # Psyche Engine: include psyche state summary in done metadata
+                    if getattr(settings, "psyche_enabled", False) and user_psyche_enabled:
+                        try:
+                            from src.domains.psyche.service import pop_psyche_summary
+
+                            psyche_summary = pop_psyche_summary(run_id)
+                            if psyche_summary:
+                                done_metadata["psyche_state"] = psyche_summary
+                        except Exception as psyche_err:
+                            logger.debug(
+                                "psyche_done_metadata_failed",
+                                run_id=run_id,
+                                error=str(psyche_err),
+                            )
 
                     yield ChatStreamChunk(
                         type="done",

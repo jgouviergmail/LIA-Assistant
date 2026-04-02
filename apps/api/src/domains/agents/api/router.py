@@ -506,6 +506,7 @@ async def stream_chat(
                         browser_context=request.context,  # Pass browser context (geolocation, etc.)
                         user_memory_enabled=getattr(current_user, "memory_enabled", True),
                         user_journals_enabled=getattr(current_user, "journals_enabled", False),
+                        user_psyche_enabled=getattr(current_user, "psyche_enabled", False),
                         attachment_ids=request.attachment_ids,
                     ):
                         # E2E metrics: Extract metadata from chunks (PHASE 1.2)
@@ -556,6 +557,7 @@ async def stream_chat(
                     browser_context=request.context,  # Pass browser context (geolocation, etc.)
                     user_memory_enabled=getattr(current_user, "memory_enabled", True),
                     user_journals_enabled=getattr(current_user, "journals_enabled", False),
+                    user_psyche_enabled=getattr(current_user, "psyche_enabled", False),
                     attachment_ids=request.attachment_ids,
                 ):
                     # E2E metrics: Extract metadata from chunks (PHASE 1.2)

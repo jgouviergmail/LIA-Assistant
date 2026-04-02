@@ -7,7 +7,10 @@ import { Label } from '@/components/ui/label';
 import { useTranslation } from '@/i18n/client';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { usePersonality } from '@/hooks/usePersonality';
+import { usePsycheStore } from '@/stores/psycheStore';
+import apiClient from '@/lib/api-client';
 import { toast } from 'sonner';
+import type { PsycheState } from '@/types/psyche';
 import type { BaseSettingsProps } from '@/types/settings';
 
 export function PersonalitySettings({ lng, collapsible = true }: BaseSettingsProps) {
@@ -19,6 +22,13 @@ export function PersonalitySettings({ lng, collapsible = true }: BaseSettingsPro
     try {
       await updatePersonality(personalityId);
       toast.success(t('personality.update_success'));
+      // Fetch fresh psyche state (Big Five traits change with personality)
+      try {
+        const freshState = await apiClient.get<PsycheState>('/psyche/state');
+        usePsycheStore.getState().updateFromFullState(freshState);
+      } catch {
+        // Best-effort — psyche state will refresh on next page load
+      }
     } catch {
       toast.error(t('personality.update_error'));
     }

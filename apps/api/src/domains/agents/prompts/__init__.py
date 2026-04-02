@@ -353,6 +353,7 @@ def get_response_prompt(
     rag_context: str = "",
     app_knowledge_context: str = "",
     journal_context: str = "",
+    psyche_context: str = "",
 ) -> str:
     """Get the formatted system prompt for the response node.
 
@@ -452,6 +453,7 @@ def get_response_prompt(
     safe_skills_context = escape_braces(skills_context) if skills_context else ""
     safe_rag_context = escape_braces(rag_context) if rag_context else ""
     safe_journal_context = escape_braces(journal_context) if journal_context else ""
+    safe_psyche_context = escape_braces(psyche_context) if psyche_context else ""
 
     # App knowledge context: load identity prompt + optional system RAG results
     # Injected when is_app_help_query=True (any truthy value triggers identity prompt)
@@ -481,6 +483,7 @@ def get_response_prompt(
         skills_context=safe_skills_context,
         app_knowledge_context=safe_app_knowledge,
         journal_context=safe_journal_context,
+        psyche_context=safe_psyche_context,
     )
 
     return formatted_system_prompt
