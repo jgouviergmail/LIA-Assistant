@@ -30,7 +30,10 @@ export default function robots(): MetadataRoute.Robots {
     '/dashboard/*',
     '/api/*',
     '/account-inactive',
-    '/_next/static/*',
+    '/_next/*',
+    // Block default-language prefix — /fr/* redirects to /* (no prefix for FR)
+    '/fr',
+    '/fr/*',
   ];
 
   return {
