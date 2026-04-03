@@ -283,6 +283,10 @@ class UserBase(BaseModel, TimezoneValidatorMixin, ThemeValidatorMixin, FontFamil
         default=False, description="Debug panel enabled (requires admin user access setting)"
     )
     sub_agents_enabled: bool = Field(default=True, description="Sub-agent delegation enabled")
+    response_display_mode: str = Field(
+        default="cards",
+        description="Response display mode: cards (HTML data cards), html (rich formatting), markdown (plain text)",
+    )
     onboarding_completed: bool = Field(
         default=False, description="Onboarding tutorial has been completed/dismissed"
     )
@@ -346,6 +350,12 @@ class UserBase(BaseModel, TimezoneValidatorMixin, ThemeValidatorMixin, FontFamil
     def set_sub_agents_enabled_default(cls, v: bool | None) -> bool:
         """Ensure sub_agents_enabled defaults to True if None (opt-out)."""
         return v if v is not None else True
+
+    @field_validator("response_display_mode", mode="before")
+    @classmethod
+    def set_response_display_mode_default(cls, v: str | None) -> str:
+        """Ensure response_display_mode defaults to 'cards' if None."""
+        return v if v is not None else "cards"
 
     @field_validator("onboarding_completed", mode="before")
     @classmethod

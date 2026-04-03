@@ -98,6 +98,24 @@ When enabled, each LIA message shows:
 **📱 Note:**
 This feature is not available on mobile due to display space constraints.
 
+## How do I change the response display mode?
+LIA offers **3 display modes** for assistant responses:
+
+**🎨 Available modes:**
+• **HTML Cards** (default) — Structured visual cards for data (contacts, events, emails, weather, etc.) displayed alongside the conversational response
+• **Rich HTML** — Beautifully formatted responses with headings, lists, callouts, tables, and polished typography. No data cards — the text itself is styled
+• **Markdown** — Plain text with standard Markdown formatting. Simplest output
+
+**⚙️ To change:**
+1. Go to **Settings** (⚙️ icon in the menu)
+2. Find the **Display Mode** section under Personalization
+3. Click the mode you want — the change applies immediately to your next conversation
+
+**💡 Tips:**
+• HTML Cards mode is best when you frequently query contacts, calendars, or emails
+• Rich HTML mode is ideal if you prefer polished text without visual cards
+• Markdown mode is useful for copy-pasting responses into other tools
+
 ## Which languages are supported for voice transcription?
 LIA's voice mode supports **99+ languages** thanks to Whisper:
 

@@ -20,6 +20,7 @@ export interface User {
   tokens_display_enabled: boolean;
   debug_panel_enabled: boolean;
   sub_agents_enabled: boolean;
+  response_display_mode: string;
   onboarding_completed: boolean;
   theme?: string;
   color_theme?: string;

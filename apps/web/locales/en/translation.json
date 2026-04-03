@@ -754,6 +754,28 @@
         "enabledSuccess": "Debug panel enabled",
         "disabledSuccess": "Debug panel disabled",
         "info": "The debug panel displays real-time metrics: intent detection, domain selection, routing decisions, and API calls."
+      },
+      "display_mode": {
+        "title": "Display Mode",
+        "description": "Choose the response rendering format",
+        "info": "HTML Cards mode displays structured visual cards. Rich HTML mode produces beautifully formatted responses. Markdown mode shows plain text.",
+        "modes": {
+          "cards": {
+            "label": "HTML Cards",
+            "description": "Structured visual cards for data (contacts, events, emails, weather, etc.)",
+            "selected": "HTML Cards mode enabled"
+          },
+          "html": {
+            "label": "Rich HTML",
+            "description": "Responses with rich formatting: headings, lists, callouts, tables, and polished typography",
+            "selected": "Rich HTML mode enabled"
+          },
+          "markdown": {
+            "label": "Markdown",
+            "description": "Plain text with standard Markdown formatting",
+            "selected": "Markdown mode enabled"
+          }
+        }
       }
     },
     "profile": {
@@ -2602,17 +2624,18 @@
         "v1_14": {
           "title": "v1.14 — LIA's Psyche: Dynamic Emotional Intelligence",
           "date": "April 2026",
-          "count": "9",
+          "count": "10",
           "items": {
-            "i1": "<b>LIA's Psyche</b> — Your assistant develops a dynamic psychological state: mood (14 states), emotions (16 types), a deepening relationship, drives, and self-efficacy. Mood and emotions subtly influence the tone and style of every response",
-            "i2": "<b>Emotional Avatar</b> — A mood emoji replaces the classic LIA logo on messages. The avatar reflects the emotional state in real time with a colored ring and detailed tooltip",
-            "i3": "<b>Emotional Dashboard</b> — Visualize the evolution of mood (PAD), emotions, relationship, and drives across 4 interactive charts with time range selector (24h to 90d)",
-            "i4": "<b>Comprehensive Education Guide</b> — 'Understanding the Psyche' section with 7 illustrated subsections: overview, personality traits, mood, emotions, relationship, drives, settings",
-            "i5": "<b>Customizable Expressiveness</b> — Expressiveness (stoic → highly expressive) and stability (volatile → very stable) sliders to adjust emotional temperament. Mood refresh and full reset options",
-            "i6": "<b>Evolution Awareness</b> — The assistant knows how its mood and emotions have shifted since the last message, providing narrative continuity to conversations",
-            "i7": "<b>Prompt Directives Overhaul</b> — All context blocks injected into prompts now carry precise operational directives (how to use the data), improving response relevance",
-            "i8": "<b>Smart Skill Activation</b> — Skills without a plan template are now automatically detected and activated. Skills with Python scripts run via a dedicated ReAct agent in an isolated loop; others inject passively with no extra LLM call",
-            "i9": "<b>Script Execution Fix</b> — Skill script execution now works in all environments (Docker, Linux, Windows) with process isolation and robust error handling"
+            "i1": "<b>Response Display Mode</b> — Choose between 3 display modes: <em>HTML Cards</em> (structured visual cards — default), <em>Rich HTML</em> (beautifully formatted responses) or <em>Markdown</em> (plain text). Configurable in Settings > Personalization",
+            "i2": "<b>LIA's Psyche</b> — Your assistant develops a dynamic psychological state: mood (14 states), emotions (16 types), a deepening relationship, drives, and self-efficacy. Mood and emotions subtly influence the tone and style of every response",
+            "i3": "<b>Emotional Avatar</b> — A mood emoji replaces the classic LIA logo on messages. The avatar reflects the emotional state in real time with a colored ring and detailed tooltip",
+            "i4": "<b>Emotional Dashboard</b> — Visualize the evolution of mood (PAD), emotions, relationship, and drives across 4 interactive charts with time range selector (24h to 90d)",
+            "i5": "<b>Comprehensive Education Guide</b> — 'Understanding the Psyche' section with 7 illustrated subsections: overview, personality traits, mood, emotions, relationship, drives, settings",
+            "i6": "<b>Customizable Expressiveness</b> — Expressiveness (stoic → highly expressive) and stability (volatile → very stable) sliders to adjust emotional temperament. Mood refresh and full reset options",
+            "i7": "<b>Evolution Awareness</b> — The assistant knows how its mood and emotions have shifted since the last message, providing narrative continuity to conversations",
+            "i8": "<b>Prompt Directives Overhaul</b> — All context blocks injected into prompts now carry precise operational directives (how to use the data), improving response relevance",
+            "i9": "<b>Smart Skill Activation</b> — Skills without a plan template are now automatically detected and activated. Skills with Python scripts run via a dedicated ReAct agent in an isolated loop; others inject passively with no extra LLM call",
+            "i10": "<b>Script Execution Fix</b> — Skill script execution now works in all environments (Docker, Linux, Windows) with process isolation and robust error handling"
           }
         },
         "v1_13": {

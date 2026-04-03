@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.14.3] - 2026-04-03
+
+### Added
+
+- **Response Display Mode Preference** — New tri-mode selector in Settings > Personalization: **HTML Cards** (structured visual cards for contacts, events, emails, weather — default), **Rich HTML** (LLM generates beautifully formatted HTML responses with headings, callouts, tables, styled typography), or **Markdown** (plain text). Single `response_display_mode` field replaces previous approach. Full pipeline wiring: User model → API endpoint (`PATCH /auth/me/display-mode-preference`) → LangGraph configurable → response_node conditional logic.
+- **HTML Response Directive Prompt** — New versioned prompt `html_response_directive.txt` injected before FINAL REMINDER when display mode is "html". Instructs LLM to output rich HTML with scoped `<style>` block using CSS variables (`--lia-*`) for automatic dark/light theme compatibility. Includes callout components (info, success, warning, error), styled tables, blockquotes, and semantic markup.
+- **Display Mode Constants** — `RESPONSE_DISPLAY_MODE_CARDS/HTML/MARKDOWN/DEFAULT/CHOICES` centralized in `src/core/constants.py`.
+
+### Changed
+
+- **Simplified Display Preferences** — Consolidated two boolean fields (`cards_display_enabled` + `html_response_enabled`) into a single `response_display_mode` enum string ("cards"/"html"/"markdown"). Single PATCH endpoint, single configurable key, single schema pair. Migration preserves existing user preferences via data migration.
+
+### Documentation
+
+- Updated FAQ changelog (6 languages) with display mode preference feature.
+- Updated `docs/knowledge/03_settings.md` with display mode section.
+
 ## [1.14.2] - 2026-04-03
 
 ### Added

@@ -156,6 +156,15 @@ class User(BaseModel):
         comment="User preference for sub-agent delegation. True = assistant can delegate tasks to specialized sub-agents.",
     )
 
+    # Response display mode: "cards" (HTML data cards), "html" (rich HTML), "markdown" (plain)
+    response_display_mode: Mapped[str] = mapped_column(
+        String(20),
+        default="cards",
+        nullable=False,
+        server_default="cards",
+        comment="Response display mode: cards (HTML data cards), html (rich formatting), markdown (plain text).",
+    )
+
     # Theme preferences (persisted per user)
     theme: Mapped[str] = mapped_column(
         String(20),

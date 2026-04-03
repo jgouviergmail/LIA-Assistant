@@ -454,6 +454,38 @@ class APIMessages:
         return messages.get(language, messages["en"])
 
     @staticmethod
+    def display_mode_preference_updated(mode: str, language: SupportedLanguage = "fr") -> str:
+        """Success - response display mode preference updated."""
+        mode_labels = {
+            "cards": {
+                "fr": "Mode d'affichage : Cartes HTML",
+                "en": "Display mode: HTML Cards",
+                "es": "Modo de visualización: Tarjetas HTML",
+                "de": "Anzeigemodus: HTML-Karten",
+                "it": "Modalità di visualizzazione: Schede HTML",
+                "zh-CN": "显示模式：HTML卡片",
+            },
+            "html": {
+                "fr": "Mode d'affichage : HTML enrichi",
+                "en": "Display mode: Rich HTML",
+                "es": "Modo de visualización: HTML enriquecido",
+                "de": "Anzeigemodus: Rich-HTML",
+                "it": "Modalità di visualizzazione: HTML arricchito",
+                "zh-CN": "显示模式：富HTML",
+            },
+            "markdown": {
+                "fr": "Mode d'affichage : Markdown",
+                "en": "Display mode: Markdown",
+                "es": "Modo de visualización: Markdown",
+                "de": "Anzeigemodus: Markdown",
+                "it": "Modalità di visualizzazione: Markdown",
+                "zh-CN": "显示模式：Markdown",
+            },
+        }
+        messages = mode_labels.get(mode, mode_labels["cards"])
+        return messages.get(language, messages["en"])
+
+    @staticmethod
     def onboarding_preference_updated(language: SupportedLanguage = "fr") -> str:
         """Success - onboarding preference updated."""
         messages = {

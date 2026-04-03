@@ -84,6 +84,7 @@ class AuthService:
             FIELD_IS_ACTIVE: False,  # Requires email verification
             "is_verified": False,
             "memory_enabled": True,  # Long-term memory enabled by default
+            "response_display_mode": "cards",  # Default display mode: HTML data cards
         }
 
         user = await self.repository.create(user_data)
@@ -557,6 +558,7 @@ class AuthService:
             "is_verified": True,  # Google verifies emails
             "language": detected_language,  # Auto-detect from Google locale
             "memory_enabled": True,  # Long-term memory enabled by default
+            "response_display_mode": "cards",  # Default display mode: HTML data cards
             "last_login": datetime.now(UTC),  # Track first login
         }
         user = await self.repository.create(user_data)

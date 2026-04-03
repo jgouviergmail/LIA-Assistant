@@ -31,6 +31,8 @@ from src.domains.auth.schemas import (
     AuthResponseBFF,
     DebugPanelPreferenceRequest,
     DebugPanelPreferenceResponse,
+    DisplayModePreferenceRequest,
+    DisplayModePreferenceResponse,
     MemoryPreferenceRequest,
     MemoryPreferenceResponse,
     MessageResponse,
@@ -719,6 +721,60 @@ async def update_sub_agents_preference(
     return SubAgentsPreferenceResponse(
         sub_agents_enabled=user.sub_agents_enabled,
         message=APIMessages.sub_agents_preference_updated(enabled=data.sub_agents_enabled),
+    )
+
+
+@router.patch(
+    "/me/display-mode-preference",
+    response_model=DisplayModePreferenceResponse,
+    summary="Update response display mode",
+    description="Set the response display mode: 'cards' (structured HTML cards), "
+    "'html' (rich HTML formatting), or 'markdown' (plain text).",
+)
+async def update_display_mode_preference(
+    data: DisplayModePreferenceRequest,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> DisplayModePreferenceResponse:
+    """Update user's response display mode.
+
+    Controls how assistant responses are rendered:
+    - cards: Structured HTML data cards (contacts, events, emails, etc.)
+    - html: Rich HTML formatting with styled prose
+    - markdown: Plain markdown text
+
+    Args:
+        data: Display mode preference request with mode value.
+        user: Current authenticated user.
+        db: Database session.
+
+    Returns:
+        DisplayModePreferenceResponse with updated mode and confirmation.
+    """
+    from src.core.constants import RESPONSE_DISPLAY_MODE_CHOICES
+
+    if data.response_display_mode not in RESPONSE_DISPLAY_MODE_CHOICES:
+        from src.core.exceptions import raise_invalid_input
+
+        raise_invalid_input(
+            f"Invalid display mode: {data.response_display_mode}. "
+            f"Must be one of: {', '.join(RESPONSE_DISPLAY_MODE_CHOICES)}"
+        )
+
+    user.response_display_mode = data.response_display_mode
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+
+    logger.info(
+        "user_display_mode_preference_updated",
+        user_id=str(user.id),
+        response_display_mode=data.response_display_mode,
+    )
+
+    return DisplayModePreferenceResponse(
+        response_display_mode=user.response_display_mode,
+        message=APIMessages.display_mode_preference_updated(mode=data.response_display_mode),
     )
 
 

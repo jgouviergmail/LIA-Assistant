@@ -386,6 +386,7 @@ class AgentService(
         user_memory_enabled: bool = True,
         user_journals_enabled: bool = False,
         user_psyche_enabled: bool = False,
+        user_display_mode: str = "cards",
         auto_approve_plan: bool = False,
         attachment_ids: list[uuid.UUID] | None = None,
     ) -> AsyncGenerator[ChatStreamChunk, None]:
@@ -404,7 +405,9 @@ class AgentService(
             user_memory_enabled: User's preference for long-term memory (default: True).
             user_journals_enabled: User's preference for personal journals (default: False).
             user_psyche_enabled: User's preference for psyche engine (default: False).
+            user_display_mode: Response display mode — 'cards', 'html', or 'markdown'.
             auto_approve_plan: If True, bypass HITL plan approval gate (for scheduled actions).
+            attachment_ids: Optional list of attachment UUIDs for the current message.
 
         Yields:
             ChatStreamChunk: SSE chunks (router_decision, token, done, error).
@@ -452,6 +455,7 @@ class AgentService(
             user_memory_enabled,
             user_journals_enabled,
             user_psyche_enabled,
+            user_display_mode,
             auto_approve_plan,
             attachment_ids,
         ):
@@ -469,6 +473,7 @@ class AgentService(
         user_memory_enabled: bool = True,
         user_journals_enabled: bool = False,
         user_psyche_enabled: bool = False,
+        user_display_mode: str = "cards",
         auto_approve_plan: bool = False,
         attachment_ids: list[uuid.UUID] | None = None,
     ) -> AsyncGenerator[ChatStreamChunk, None]:
@@ -482,6 +487,11 @@ class AgentService(
         - HITLOrchestrator: HITL flow management and classification
 
         Args:
+            user_message: User's message content.
+            user_id: User UUID.
+            session_id: Session identifier.
+            user_timezone: User's IANA timezone for temporal context.
+            user_language: User's language code for localized responses.
             original_run_id: Optional run_id from HITL resumption for token aggregation.
                             When provided, reuses existing run_id to aggregate tokens
                             across HITL interrupt and resumption (critical for billing).
@@ -489,7 +499,10 @@ class AgentService(
                             Propagated to RunnableConfig.configurable for tools to access.
             user_memory_enabled: User's preference for long-term memory (extraction + injection).
             user_journals_enabled: User's preference for personal journals (extraction + injection).
+            user_psyche_enabled: User's preference for psyche engine (default: False).
+            user_display_mode: Response display mode — 'cards', 'html', or 'markdown'.
             auto_approve_plan: If True, inject plan_approved=True into state to bypass HITL gate.
+            attachment_ids: Optional list of attachment UUIDs for the current message.
         """
         # CRITICAL: Reuse original_run_id for HITL token aggregation
         run_id = original_run_id or generate_run_id()
@@ -802,6 +815,7 @@ class AgentService(
                                 user_memory_enabled=user_memory_enabled,  # User memory preference
                                 user_journals_enabled=user_journals_enabled,  # User journals preference
                                 user_psyche_enabled=user_psyche_enabled,  # User psyche preference
+                                user_display_mode=user_display_mode,  # User display mode (cards/html/markdown)
                                 side_channel_queue=side_channel_queue,  # SSE side-channel
                             ),
                             conversation_id=conversation_id,

@@ -36,7 +36,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.14.2</strong> — Skill activation via QueryAnalyzer + ReactSubAgentRunner, Docker executor fixes — April 2026
+  <strong>Version 1.14.3</strong> — Response display mode (HTML Cards / Rich HTML / Markdown) user preference — April 2026
 </p>
 
 ---

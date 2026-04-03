@@ -230,3 +230,22 @@ class SubAgentsPreferenceResponse(BaseModel):
         default="Sub-agents preference updated",
         description="Confirmation message",
     )
+
+
+class DisplayModePreferenceRequest(BaseModel):
+    """Schema for updating user response display mode."""
+
+    response_display_mode: str = Field(
+        ...,
+        description="Response display mode: 'cards' (HTML data cards), 'html' (rich formatting), 'markdown' (plain text)",
+    )
+
+
+class DisplayModePreferenceResponse(BaseModel):
+    """Schema for display mode preference update response."""
+
+    response_display_mode: str = Field(..., description="Current response display mode")
+    message: str = Field(
+        default="Display mode preference updated",
+        description="Confirmation message",
+    )

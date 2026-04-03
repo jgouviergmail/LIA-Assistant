@@ -1622,6 +1622,28 @@
         "enabledSuccess": "Debug-Panel aktiviert",
         "disabledSuccess": "Debug-Panel deaktiviert",
         "info": "Das Debug-Panel zeigt Echtzeit-Metriken an: Absichtserkennung, Domänenauswahl, Routing-Entscheidungen und API-Aufrufe."
+      },
+      "display_mode": {
+        "title": "Anzeigemodus",
+        "description": "Wählen Sie das Darstellungsformat der Antworten",
+        "info": "Der HTML-Karten-Modus zeigt strukturierte visuelle Karten an. Der Rich-HTML-Modus erzeugt schön formatierte Antworten. Der Markdown-Modus zeigt reinen Text.",
+        "modes": {
+          "cards": {
+            "label": "HTML-Karten",
+            "description": "Strukturierte visuelle Karten für Daten (Kontakte, Termine, E-Mails, Wetter, etc.)",
+            "selected": "HTML-Karten-Modus aktiviert"
+          },
+          "html": {
+            "label": "Rich-HTML",
+            "description": "Antworten mit reichhaltiger Formatierung: Überschriften, Listen, Callouts, Tabellen und gepflegte Typografie",
+            "selected": "Rich-HTML-Modus aktiviert"
+          },
+          "markdown": {
+            "label": "Markdown",
+            "description": "Reiner Text mit standardmäßiger Markdown-Formatierung",
+            "selected": "Markdown-Modus aktiviert"
+          }
+        }
       }
     },
     "language": {
@@ -2593,17 +2615,18 @@
         "v1_14": {
           "title": "v1.14 — LIAs Psyche: Dynamische emotionale Intelligenz",
           "date": "April 2026",
-          "count": "9",
+          "count": "10",
           "items": {
-            "i1": "<b>LIAs Psyche</b> — Ihr Assistent entwickelt einen dynamischen psychologischen Zustand: Stimmung (14 Zustände), Emotionen (16 Typen), eine sich vertiefende Beziehung, Antriebe und Selbstwirksamkeit. Stimmung und Emotionen beeinflussen subtil Ton und Stil jeder Antwort",
-            "i2": "<b>Emotionaler Avatar</b> — Ein Stimmungs-Emoji ersetzt das klassische LIA-Logo bei Nachrichten. Der Avatar spiegelt den emotionalen Zustand in Echtzeit mit einem farbigen Ring und detailliertem Tooltip wider",
-            "i3": "<b>Emotionales Dashboard</b> — Visualisieren Sie die Entwicklung von Stimmung (PAD), Emotionen, Beziehung und Antrieben in 4 interaktiven Diagrammen mit Zeitraumauswahl (24h bis 90 Tage)",
-            "i4": "<b>Umfassender Bildungsleitfaden</b> — Abschnitt \"Die Psyche verstehen\" mit 7 illustrierten Unterabschnitten: Überblick, Persönlichkeitsmerkmale, Stimmung, Emotionen, Beziehung, Antriebe, Einstellungen",
-            "i5": "<b>Anpassbare Expressivität</b> — Regler für Expressivität (stoisch → sehr expressiv) und Stabilität (volatil → sehr stabil) zur Anpassung des emotionalen Temperaments. Stimmungsauffrischung und vollständiger Reset",
-            "i6": "<b>Evolutionsbewusstsein</b> — Der Assistent weiß, wie sich seine Stimmung und Emotionen seit der letzten Nachricht verändert haben, und bietet narrative Kontinuität",
-            "i7": "<b>Prompt-Direktiven-Überarbeitung</b> — Alle in Prompts injizierten Kontextblöcke tragen jetzt präzise operative Direktiven (wie die Daten zu verwenden sind) und verbessern die Antwortrelevanz",
-            "i8": "<b>Intelligente Skill-Aktivierung</b> — Skills ohne Plan-Template werden jetzt automatisch erkannt und aktiviert. Skills mit Python-Skripten werden über einen dedizierten ReAct-Agenten in einer isolierten Schleife ausgeführt; andere werden passiv ohne zusätzlichen LLM-Aufruf injiziert",
-            "i9": "<b>Skript-Ausführungsfix</b> — Die Ausführung von Skill-Skripten funktioniert jetzt in allen Umgebungen (Docker, Linux, Windows) mit Prozessisolation und robuster Fehlerbehandlung"
+            "i1": "<b>Anzeigemodus</b> — Wählen Sie zwischen 3 Modi: <em>HTML-Karten</em> (strukturierte visuelle Karten — Standard), <em>Rich-HTML</em> (schön formatierte Antworten) oder <em>Markdown</em> (reiner Text). Konfigurierbar unter Einstellungen > Personalisierung",
+            "i2": "<b>LIAs Psyche</b> — Ihr Assistent entwickelt einen dynamischen psychologischen Zustand: Stimmung (14 Zustände), Emotionen (16 Typen), eine sich vertiefende Beziehung, Antriebe und Selbstwirksamkeit. Stimmung und Emotionen beeinflussen subtil Ton und Stil jeder Antwort",
+            "i3": "<b>Emotionaler Avatar</b> — Ein Stimmungs-Emoji ersetzt das klassische LIA-Logo bei Nachrichten. Der Avatar spiegelt den emotionalen Zustand in Echtzeit mit einem farbigen Ring und detailliertem Tooltip wider",
+            "i4": "<b>Emotionales Dashboard</b> — Visualisieren Sie die Entwicklung von Stimmung (PAD), Emotionen, Beziehung und Antrieben in 4 interaktiven Diagrammen mit Zeitraumauswahl (24h bis 90 Tage)",
+            "i5": "<b>Umfassender Bildungsleitfaden</b> — Abschnitt \"Die Psyche verstehen\" mit 7 illustrierten Unterabschnitten: Überblick, Persönlichkeitsmerkmale, Stimmung, Emotionen, Beziehung, Antriebe, Einstellungen",
+            "i6": "<b>Anpassbare Expressivität</b> — Regler für Expressivität (stoisch → sehr expressiv) und Stabilität (volatil → sehr stabil) zur Anpassung des emotionalen Temperaments. Stimmungsauffrischung und vollständiger Reset",
+            "i7": "<b>Evolutionsbewusstsein</b> — Der Assistent weiß, wie sich seine Stimmung und Emotionen seit der letzten Nachricht verändert haben, und bietet narrative Kontinuität",
+            "i8": "<b>Prompt-Direktiven-Überarbeitung</b> — Alle in Prompts injizierten Kontextblöcke tragen jetzt präzise operative Direktiven (wie die Daten zu verwenden sind) und verbessern die Antwortrelevanz",
+            "i9": "<b>Intelligente Skill-Aktivierung</b> — Skills ohne Plan-Template werden jetzt automatisch erkannt und aktiviert. Skills mit Python-Skripten werden über einen dedizierten ReAct-Agenten in einer isolierten Schleife ausgeführt; andere werden passiv ohne zusätzlichen LLM-Aufruf injiziert",
+            "i10": "<b>Skript-Ausführungsfix</b> — Die Ausführung von Skill-Skripten funktioniert jetzt in allen Umgebungen (Docker, Linux, Windows) mit Prozessisolation und robuster Fehlerbehandlung"
           }
         },
         "v1_13": {

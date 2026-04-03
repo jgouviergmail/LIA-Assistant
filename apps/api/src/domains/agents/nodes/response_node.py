@@ -1903,6 +1903,34 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                 "</InitiativeSuggestion>"
             )
 
+        # DISPLAY MODE: Read user preference from configurable
+        from src.core.constants import (
+            RESPONSE_DISPLAY_MODE_CARDS,
+            RESPONSE_DISPLAY_MODE_HTML,
+        )
+
+        user_display_mode = config.get("configurable", {}).get(
+            "user_display_mode", RESPONSE_DISPLAY_MODE_CARDS
+        )
+
+        # HTML mode: Inject rich HTML formatting directive into prompt
+        # Placed BEFORE FINAL REMINDER for maximum authority (same pattern as psyche)
+        if user_display_mode == RESPONSE_DISPLAY_MODE_HTML:
+            _html_directive = str(load_prompt("html_response_directive"))
+            _final_reminder = "### FINAL REMINDER ###"
+            if _final_reminder in base_system_prompt:
+                base_system_prompt = base_system_prompt.replace(
+                    _final_reminder,
+                    _html_directive + "\n\n" + _final_reminder,
+                )
+            else:
+                base_system_prompt += "\n\n" + _html_directive
+            logger.info(
+                "html_response_directive_injected",
+                run_id=run_id,
+                display_mode=user_display_mode,
+            )
+
         # PSYCHE ENGINE: Inject self-report instruction (before FINAL REMINDER)
         if settings.psyche_enabled and user_psyche_enabled and psyche_context:
             _psyche_instruction = str(load_prompt("psyche_self_report_instruction"))
@@ -2517,61 +2545,65 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         # =====================================================================
         # V3 HTML RENDERING: Inject structured HTML after LLM response
         # =====================================================================
-        # NOTE: V3 HTML rendering is always enabled
-        # - LLM received text summary (not formatted Markdown)
-        # - LLM generated conversational response
-        # - Now we inject the structured HTML for data display
-        #
-        # Two sources of data:
-        # 1. current_turn_registry: Standard tool results (ACTION turns, REFERENCE with enriched data)
-        # 2. resolved_context_for_html: REFERENCE turns using resolved_context directly
+        # V3 HTML rendering: Inject structured HTML cards for data display
+        # Only in "cards" display mode (user_display_mode already read above)
         html_content = ""
         source = ""
 
-        try:
-            if current_turn_registry:
-                # Primary: Use registry data from tool results
-                html_content = generate_html_for_registry(
-                    data_registry=current_turn_registry,
-                    user_viewport=user_viewport,
-                    user_language=user_language,
-                    user_timezone=user_timezone,
-                )
-                source = "registry"
-            elif resolved_context_for_html:
-                # Fallback: Use resolved_context for REFERENCE turns
-                html_content = generate_html_for_resolved_context(
-                    resolved_context=resolved_context_for_html,
-                    user_viewport=user_viewport,
-                    user_language=user_language,
-                    user_timezone=user_timezone,
-                )
-                source = "resolved_context"
-
-            if html_content:
-                # Inject HTML cards at the end of the LLM response
-                # Order: LLM response (text + suggestions) → HTML cards
-                final_content = final_content + "\n\n" + html_content
-                logger.info(
-                    "html_injected_post_llm",
-                    html_length=len(html_content),
-                    source=source,
-                    registry_items=(len(current_turn_registry) if current_turn_registry else 0),
-                    resolved_items=(
-                        len(resolved_context_for_html.get("items", []))
-                        if resolved_context_for_html
-                        else 0
-                    ),
-                )
-        except (ValueError, KeyError, TypeError, AttributeError, RuntimeError) as e:
-            # Fallback: Log error but don't break the response
-            logger.warning(
-                "html_injection_failed",
-                error=str(e),
-                error_type=type(e).__name__,
-                source=source or "unknown",
+        if user_display_mode != RESPONSE_DISPLAY_MODE_CARDS:
+            logger.info(
+                "html_cards_skipped_user_disabled",
+                run_id=run_id,
             )
-            # Response continues with LLM output only (no HTML)
+
+        elif not current_turn_registry and not resolved_context_for_html:
+            pass  # No data to render
+
+        else:
+            try:
+                if current_turn_registry:
+                    # Primary: Use registry data from tool results
+                    html_content = generate_html_for_registry(
+                        data_registry=current_turn_registry,
+                        user_viewport=user_viewport,
+                        user_language=user_language,
+                        user_timezone=user_timezone,
+                    )
+                    source = "registry"
+                elif resolved_context_for_html:
+                    # Fallback: Use resolved_context for REFERENCE turns
+                    html_content = generate_html_for_resolved_context(
+                        resolved_context=resolved_context_for_html,
+                        user_viewport=user_viewport,
+                        user_language=user_language,
+                        user_timezone=user_timezone,
+                    )
+                    source = "resolved_context"
+
+                if html_content:
+                    # Inject HTML cards at the end of the LLM response
+                    # Order: LLM response (text + suggestions) → HTML cards
+                    final_content = final_content + "\n\n" + html_content
+                    logger.info(
+                        "html_injected_post_llm",
+                        html_length=len(html_content),
+                        source=source,
+                        registry_items=(len(current_turn_registry) if current_turn_registry else 0),
+                        resolved_items=(
+                            len(resolved_context_for_html.get("items", []))
+                            if resolved_context_for_html
+                            else 0
+                        ),
+                    )
+            except (ValueError, KeyError, TypeError, AttributeError, RuntimeError) as e:
+                # Fallback: Log error but don't break the response
+                logger.warning(
+                    "html_injection_failed",
+                    error=str(e),
+                    error_type=type(e).__name__,
+                    source=source or "unknown",
+                )
+                # Response continues with LLM output only (no HTML)
 
         # Update result content if modified
         content_was_modified = final_content != result.content
