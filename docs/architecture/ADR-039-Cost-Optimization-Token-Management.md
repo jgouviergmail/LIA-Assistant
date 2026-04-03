@@ -596,8 +596,9 @@ WINDOW_SIZES = {
 class ModelProfile:
     max_input_tokens: int
     max_output_tokens: int
-    cost_per_1m_input: float      # USD
-    cost_per_1m_output: float     # USD
+    cost_per_1m_input: float              # USD
+    cost_per_1m_cached_input: float | None = None  # USD (prompt caching)
+    cost_per_1m_output: float             # USD
     is_reasoning_model: bool = False
     supports_streaming: bool = True
     supports_tools: bool = True

@@ -2478,12 +2478,44 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         try:
             relevant_ids, final_content = parse_relevant_ids_from_response(final_content)
 
+            # ADR-062: Collect initiative registry IDs to protect from filtering.
+            # Initiative items were proactively selected by the initiative LLM
+            # and should not be eliminated by the response LLM's filtering.
+            initiative_protected_ids: set[str] = set()
+            for ir in state.get("initiative_results") or []:
+                if isinstance(ir, dict):
+                    initiative_protected_ids.update(ir.get("registry_ids") or [])
+
+            # Extract initiative items before any filtering
+            initiative_items = {
+                k: v
+                for k, v in (current_turn_registry or {}).items()
+                if k in initiative_protected_ids
+            }
+
             if relevant_ids:
                 # Filter the registry to only include relevant items
                 original_registry_count = len(current_turn_registry) if current_turn_registry else 0
+
                 current_turn_registry = filter_registry_by_relevant_ids(
                     current_turn_registry, relevant_ids
                 )
+
+                # Re-inject initiative items that were filtered out
+                if initiative_items:
+                    restored_count = 0
+                    for k, v in initiative_items.items():
+                        if k not in current_turn_registry:
+                            current_turn_registry[k] = v
+                            restored_count += 1
+                    if restored_count:
+                        logger.info(
+                            "initiative_items_restored_after_filtering",
+                            run_id=run_id,
+                            restored_count=restored_count,
+                            restored_ids=list(initiative_items.keys()),
+                        )
+
                 logger.info(
                     "intelligent_filtering_completed",
                     run_id=run_id,
@@ -2516,10 +2548,12 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                             user_query_preview=last_user_message[:50] if last_user_message else "",
                         )
                     else:
-                        current_turn_registry = {}
+                        # Preserve initiative items even when LLM returns empty
+                        current_turn_registry = initiative_items
                         logger.info(
                             "intelligent_filtering_no_matches",
                             run_id=run_id,
+                            initiative_preserved=len(initiative_items),
                             user_query_preview=last_user_message[:50] if last_user_message else "",
                         )
         except (ValueError, KeyError, TypeError, AttributeError, RuntimeError) as e:

@@ -34,12 +34,16 @@ References:
 """
 
 import asyncio
+import hashlib
+import json
 import re
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 import numpy as np
 
+from src.core.constants import TOOL_EMBEDDINGS_CACHE_FILENAME
 from src.domains.agents.registry.catalogue import ToolManifest
 from src.infrastructure.observability.logging import get_logger
 
@@ -63,6 +67,9 @@ DEFAULT_CALIBRATED_PRIMARY_MIN = 0.15  # Min probability for primary tool
 # Hybrid scoring configuration (CORRECTION 7)
 DEFAULT_HYBRID_ALPHA = 0.6  # Description weight (keywords = 1 - alpha)
 DEFAULT_HYBRID_MODE = "first_line"  # "first_line", "full", "truncate"
+
+# Disk cache for tool embeddings (avoids re-computing on every restart)
+TOOL_EMBEDDINGS_CACHE_DIR = Path(__file__).resolve().parents[4] / "data"
 
 
 # =============================================================================
@@ -211,6 +218,94 @@ class SemanticToolSelector:
 
         return clean_line
 
+    @staticmethod
+    def _compute_content_hash(
+        all_texts: list[str],
+        text_metadata: list[tuple[str, str]],
+        model_name: str,
+    ) -> str:
+        """Compute a deterministic SHA-256 hash of the embedding inputs.
+
+        Used to detect whether tool descriptions/keywords have changed since
+        the last startup, avoiding unnecessary Gemini API calls.
+
+        Args:
+            all_texts: All texts to embed (descriptions + keywords).
+            text_metadata: Parallel list of (tool_name, text_type) tuples.
+            model_name: Embedding model identifier (hash changes if model changes).
+
+        Returns:
+            Hex-encoded SHA-256 digest.
+        """
+        hasher = hashlib.sha256()
+        hasher.update(model_name.encode())
+        for text, (tool_name, text_type) in zip(all_texts, text_metadata, strict=True):
+            hasher.update(f"{tool_name}|{text_type}|{text}".encode())
+        return hasher.hexdigest()
+
+    @staticmethod
+    def _load_embedding_cache(
+        cache_path: Path,
+        expected_hash: str,
+        expected_count: int,
+    ) -> list[list[float]] | None:
+        """Load cached embeddings from disk if the content hash matches.
+
+        Args:
+            cache_path: Path to the JSON cache file.
+            expected_hash: Hash of current tool texts — must match the cached hash.
+            expected_count: Expected number of embedding vectors (must match to
+                prevent index-out-of-bounds from a truncated or corrupt file).
+
+        Returns:
+            List of embedding vectors if valid, None if cache is missing/stale/corrupt.
+        """
+        if not cache_path.exists():
+            return None
+        try:
+            data: dict[str, Any] = json.loads(cache_path.read_text(encoding="utf-8"))
+            if data.get("content_hash") != expected_hash:
+                return None
+            embeddings: list[list[float]] = data.get("embeddings", [])
+            if len(embeddings) != expected_count:
+                logger.warning(
+                    "tool_embedding_cache_count_mismatch",
+                    cached=len(embeddings),
+                    expected=expected_count,
+                )
+                return None
+            return embeddings
+        except Exception:
+            return None
+
+    @staticmethod
+    def _save_embedding_cache(
+        cache_path: Path,
+        content_hash: str,
+        all_embeddings: list[list[float]],
+    ) -> None:
+        """Persist embeddings to disk alongside their content hash.
+
+        Args:
+            cache_path: Path to write the JSON cache file.
+            content_hash: Hash of the texts that produced these embeddings.
+            all_embeddings: Embedding vectors in the same order as text_metadata.
+        """
+        data = {
+            "content_hash": content_hash,
+            "embeddings": all_embeddings,
+        }
+        try:
+            cache_path.parent.mkdir(parents=True, exist_ok=True)
+            cache_path.write_text(json.dumps(data), encoding="utf-8")
+        except Exception as e:
+            logger.warning(
+                "tool_embedding_cache_save_failed",
+                error=str(e),
+                error_type=type(e).__name__,
+                cache_path=str(cache_path),
+            )
+
     async def initialize(
         self,
         tool_manifests: list[ToolManifest],
@@ -329,9 +424,35 @@ class SemanticToolSelector:
                 keywords_preview=kws[:5],
             )
 
-        # Compute embeddings in batch (more efficient than per-keyword)
+        # Compute or load embeddings (differential cache)
+        cache_path = TOOL_EMBEDDINGS_CACHE_DIR / TOOL_EMBEDDINGS_CACHE_FILENAME
+
+        content_hash = self._compute_content_hash(
+            all_texts, text_metadata, self._embedding_model_name
+        )
+
         try:
-            all_embeddings = await self._embeddings.aembed_documents(all_texts)
+            # Try loading from disk cache first
+            cached_embeddings = self._load_embedding_cache(
+                cache_path, content_hash, expected_count=len(all_texts)
+            )
+
+            if cached_embeddings is not None:
+                all_embeddings = cached_embeddings
+                logger.info(
+                    "semantic_tool_selector_cache_hit",
+                    cache_path=str(cache_path),
+                    total_embeddings=len(all_embeddings),
+                )
+            else:
+                # Cache miss or stale — call Gemini API
+                logger.info(
+                    "semantic_tool_selector_cache_miss",
+                    cache_path=str(cache_path),
+                    total_texts=len(all_texts),
+                )
+                all_embeddings = await self._embeddings.aembed_documents(all_texts)
+                self._save_embedding_cache(cache_path, content_hash, all_embeddings)
 
             # Distribute embeddings by type
             for i, (tool_name, text_type) in enumerate(text_metadata):
@@ -350,6 +471,7 @@ class SemanticToolSelector:
                 total_embeddings=len(all_embeddings),
                 tools_with_descriptions=len(self._tool_description_embeddings),
                 tools_with_keywords=len(self._tool_keyword_embeddings),
+                from_cache=cached_embeddings is not None,
             )
 
         except Exception as e:

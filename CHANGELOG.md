@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.14.4] - 2026-04-03
+
+### Added
+
+- **Tool Embeddings Disk Cache** — Semantic tool selector now persists computed embeddings to a JSON cache file (`tool_embeddings_cache.json`). On startup, if tool descriptions/keywords and embedding model haven't changed (SHA-256 content hash), embeddings are loaded from disk instead of calling the Gemini API. Eliminates ~2–5 s startup latency and avoids unnecessary API cost on every restart. Cache auto-invalidates when tools or model change.
+- **Qwen 3.6-plus Model Support** — New `qwen3.6-plus` model added to context windows, model profiles, and LLM pricing seed. Agentic-focused upgrade of qwen3.5-plus with vision support and 1M context window.
+- **Cached Input Pricing** — `cost_per_1m_cached_input` field added to `ModelProfile` dataclass and populated for all major providers (OpenAI, Anthropic, Google, DeepSeek, Qwen). Enables more accurate cost tracking for providers that offer prompt caching discounts.
+
+### Changed
+
+- **Provider-Agnostic Structured Output** — Migrated 4 services from `llm.with_structured_output()` to the centralized `get_structured_output()` helper: `initiative_node`, `hitl_classifier`, `query_analyzer_service`, and `evaluation_pipeline`. Uses `get_llm_config_for_agent()` to resolve provider dynamically, ensuring reliable JSON extraction across OpenAI, Anthropic, Google, and Qwen providers.
+- **Initiative Items Protected from Response Filtering (ADR-062)** — Initiative node now propagates `registry_ids` in its results. Response node collects these IDs and re-injects initiative items after intelligent filtering, preventing proactive suggestions from being silently dropped when the response LLM filters registry entries.
+- **LLM Pricing Seed — Fixed Timestamps** — All `pricing_date` values in `llm_pricing_seed.sql` changed from `NOW()` to fixed `'2026-01-01T00:00:00Z'` for reproducible seeding across environments.
+- **Model Pricing Updates** — Corrected pricing for Qwen 3.5-plus (input: $0.40→$0.115), Qwen 3.5-flash (input: $0.10→$0.029), Qwen-max (input: $1.20→$0.359), and Perplexity sonar models (aligned to current API pricing).
+
+### Documentation
+
+- Updated FAQ changelog (6 languages) with tool cache and initiative protection features.
+- Updated technical documentation for structured output migration and model profiles.
+
 ## [1.14.3] - 2026-04-03
 
 ### Added

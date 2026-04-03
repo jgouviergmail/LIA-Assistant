@@ -2615,7 +2615,7 @@
         "v1_14": {
           "title": "v1.14 — Psique de LIA: Inteligencia emocional dinámica",
           "date": "Abril 2026",
-          "count": "10",
+          "count": "12",
           "items": {
             "i1": "<b>Modo de visualización</b> — Elija entre 3 modos: <em>Tarjetas HTML</em> (fichas visuales estructuradas — por defecto), <em>HTML enriquecido</em> (respuestas con formato cuidado) o <em>Markdown</em> (texto plano). Configurable en Ajustes > Personalización",
             "i2": "<b>Psique de LIA</b> — Su asistente desarrolla un estado psicológico dinámico: ánimo (14 estados), emociones (16 tipos), una relación que se profundiza, motivaciones y autoeficacia. El ánimo y las emociones influyen sutilmente en el tono y estilo de cada respuesta",
@@ -2626,7 +2626,9 @@
             "i7": "<b>Consciencia de evolución</b> — El asistente sabe cómo han cambiado su ánimo y emociones desde el último mensaje, proporcionando continuidad narrativa",
             "i8": "<b>Mejora de directivas de prompts</b> — Todos los bloques de contexto inyectados en los prompts ahora incluyen directivas operativas precisas (cómo usar los datos), mejorando la relevancia de las respuestas",
             "i9": "<b>Activación inteligente de skills</b> — Las skills sin plantilla de plan ahora se detectan y activan automáticamente. Las skills con scripts Python se ejecutan mediante un agente ReAct dedicado en un bucle aislado; las demás se inyectan pasivamente sin llamada LLM adicional",
-            "i10": "<b>Corrección de ejecución de scripts</b> — La ejecución de scripts de skills ahora funciona en todos los entornos (Docker, Linux, Windows) con aislamiento de procesos y manejo robusto de errores"
+            "i10": "<b>Corrección de ejecución de scripts</b> — La ejecución de scripts de skills ahora funciona en todos los entornos (Docker, Linux, Windows) con aislamiento de procesos y manejo robusto de errores",
+            "i11": "<b>Inicio más rápido</b> — Los embeddings de selección de herramientas ahora se almacenan en caché en disco. El reinicio del servidor es más rápido y ya no consume llamadas API innecesarias",
+            "i12": "<b>Sugerencias proactivas preservadas</b> — Las sugerencias generadas por la iniciativa proactiva (clima, recordatorios, etc.) ya no se pierden durante el filtrado inteligente de respuestas"
           }
         },
         "v1_13": {

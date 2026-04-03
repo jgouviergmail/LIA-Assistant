@@ -43,13 +43,14 @@ from src.core.constants import (
     STATE_KEY_INITIATIVE_SKIPPED_REASON,
     STATE_KEY_INITIATIVE_SUGGESTION,
 )
+from src.core.llm_config_helper import get_llm_config_for_agent
 from src.core.time_utils import get_prompt_datetime_formatted
 from src.domains.agents.constants import STATE_KEY_AGENT_RESULTS, STATE_KEY_CURRENT_TURN_ID
 from src.domains.agents.models import MessagesState
 from src.domains.agents.orchestration.plan_schemas import ParameterItem, parameters_to_dict
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.infrastructure.llm.factory import get_llm
-from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metadata
+from src.infrastructure.llm.structured_output import get_structured_output
 from src.infrastructure.observability.decorators import track_metrics
 from src.infrastructure.observability.metrics_agents import (
     agent_node_duration_seconds,
@@ -477,7 +478,9 @@ async def initiative_node(
     interests_text = _format_interests(interest_profile)
 
     llm = get_llm(NODE_INITIATIVE)
-    structured_llm = llm.with_structured_output(InitiativeDecision)
+    agent_config = get_llm_config_for_agent(settings, NODE_INITIATIVE)
+    provider = agent_config.provider
+
     prompt = load_prompt("initiative_prompt", version="v1").format(
         execution_summary=execution_summary,
         available_tools=tools_description,
@@ -502,13 +505,15 @@ async def initiative_node(
         except Exception:
             pass  # Psyche injection is best-effort
 
-    enriched_config = enrich_config_with_node_metadata(config, NODE_INITIATIVE)
-
     try:
         decision = await asyncio.wait_for(
-            structured_llm.ainvoke(
-                [HumanMessage(content=prompt)],
-                config=enriched_config,
+            get_structured_output(
+                llm=llm,
+                messages=[HumanMessage(content=prompt)],
+                schema=InitiativeDecision,
+                provider=provider,
+                node_name=NODE_INITIATIVE,
+                config=config,
             ),
             timeout=INITIATIVE_LLM_TIMEOUT_SECONDS,
         )
@@ -631,6 +636,7 @@ async def initiative_node(
             "actions_executed": len(validated_actions),
             "actions": [a.model_dump() for a in validated_actions],
             "suggestion": decision.suggestion,
+            "registry_ids": list(par_result.registry.keys()),
         }
     )
     state_update[STATE_KEY_INITIATIVE_RESULTS] = initiative_results

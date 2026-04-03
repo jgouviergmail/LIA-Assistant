@@ -670,10 +670,12 @@ async def lifespan(app: FastAPI):
     domain_selector = await initialize_domain_selector()
     logger.info("semantic_domain_selector_initialized")
 
-    # 2. Initialize Tool Selector
+    # 2. Initialize Tool Selector (with disk cache for embeddings)
     registry = get_global_registry()
     tool_manifests = registry.list_tool_manifests()
     tool_selector = await initialize_tool_selector(tool_manifests)
+    # Embeddings are loaded from disk cache if content hash matches,
+    # otherwise computed via Gemini API and persisted for next startup.
     logger.info("semantic_tool_selector_initialized")
 
     yield

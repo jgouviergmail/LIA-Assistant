@@ -22,7 +22,9 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from pydantic import BaseModel
 
 from src.core.config import settings
+from src.core.llm_config_helper import get_llm_config_for_agent
 from src.infrastructure.llm.factory import get_llm
+from src.infrastructure.llm.structured_output import get_structured_output
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_langfuse import langfuse_evaluation_score
 
@@ -157,14 +159,17 @@ Provide your evaluation in JSON format with 'score' (float 0-1) and 'reasoning' 
     ) -> EvaluationResult:
         """Evaluate response relevance."""
         try:
-            from src.infrastructure.llm.invoke_helpers import (
-                enrich_config_with_node_metadata,
-            )
+            from langchain_core.messages import HumanMessage
 
             prompt = self.RELEVANCE_PROMPT.format(query=query, response=response)
-            structured_llm = self.llm.with_structured_output(RelevanceScore)
-            invoke_config = enrich_config_with_node_metadata(None, "evaluation_relevance")
-            result: RelevanceScore = await structured_llm.ainvoke(prompt, config=invoke_config)
+            agent_config = get_llm_config_for_agent(settings, "evaluator")
+            result: RelevanceScore = await get_structured_output(
+                llm=self.llm,
+                messages=[HumanMessage(content=prompt)],
+                schema=RelevanceScore,
+                provider=agent_config.provider,
+                node_name="evaluation_relevance",
+            )
 
             self._record_metric(result.score)
 
@@ -270,18 +275,21 @@ Provide your evaluation in JSON format with:
                 context_section = f"Tool Results (source data):\n{context['tool_results']}"
 
         try:
+            from langchain_core.messages import HumanMessage
+
             prompt = self.HALLUCINATION_PROMPT.format(
                 query=query,
                 response=response,
                 context_section=context_section or "No additional context provided.",
             )
-            from src.infrastructure.llm.invoke_helpers import (
-                enrich_config_with_node_metadata,
+            agent_config = get_llm_config_for_agent(settings, "evaluator")
+            result: HallucinationScore = await get_structured_output(
+                llm=self.llm,
+                messages=[HumanMessage(content=prompt)],
+                schema=HallucinationScore,
+                provider=agent_config.provider,
+                node_name="evaluation_hallucination",
             )
-
-            structured_llm = self.llm.with_structured_output(HallucinationScore)
-            invoke_config = enrich_config_with_node_metadata(None, "evaluation_hallucination")
-            result: HallucinationScore = await structured_llm.ainvoke(prompt, config=invoke_config)
 
             self._record_metric(result.score)
 

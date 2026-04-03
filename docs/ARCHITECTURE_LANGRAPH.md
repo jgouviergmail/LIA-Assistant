@@ -349,6 +349,7 @@ LIA utilise **LangGraph v1.1.2** avec exécution parallèle native **asyncio** p
 ├─────────────────────────────────────────────────────────────────┤
 │ OUTPUT                                                          │
 │   • initiative_results: Résultats des actions complémentaires   │
+│     (includes registry_ids for response filtering protection)   │
 │   • initiative_suggestion: Suggestion write-action (optional)   │
 │   • agent_results: Merged with initiative data                  │
 │   • registry: Merged with initiative registry items             │
@@ -359,6 +360,8 @@ LIA utilise **LangGraph v1.1.2** avec exécution parallèle native **asyncio** p
 ```
 
 **Per-turn state reset** (v1.11.1 fix): Initiative state fields (`initiative_iteration`, `initiative_results`, `initiative_skipped_reason`, `initiative_suggestion`) are reset to their defaults by `router_node_v3` at the start of each turn. Without this reset, the `initiative_iteration` counter persisted across turns via PostgreSQL checkpoints, causing the initiative node to be skipped on all turns after the first (`max_iterations` reached).
+
+**Initiative registry protection** (v1.14.4): Initiative results now include `registry_ids` — the list of registry item IDs produced by initiative actions. In `response_node`, these IDs are collected and re-injected after intelligent filtering, ensuring proactive suggestions (e.g., weather cards, upcoming event reminders) are never silently dropped by the response LLM's relevance filtering.
 
 ### 2.8 hitl_dispatch_node
 

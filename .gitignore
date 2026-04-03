@@ -197,6 +197,9 @@ apps/api/models/
 # RAG Spaces uploaded documents (user data, never commit)
 apps/api/data/rag_uploads/
 
+# Tool embeddings disk cache (regenerated at startup if stale)
+apps/api/data/tool_embeddings_cache.json
+
 # ============================================
 # BUILD & TEMPORARY
 # ============================================

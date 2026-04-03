@@ -248,6 +248,7 @@ MODEL_CONTEXT_WINDOWS: dict[str, int] = {
     "llama-3.1-sonar-large-128k-online": 128_000,
     "llama-3.1-sonar-huge-128k-online": 128_000,
     # Qwen series (more specific prefixes before shorter ones)
+    "qwen3.6-plus": 1_000_000,
     "qwen3.5-plus": 1_000_000,
     "qwen3.5-flash": 1_000_000,
     "qwen3-max": 262_144,

@@ -590,10 +590,11 @@ async def analyze_query(
         ["contact"]
     """
     from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
+    from src.core.llm_config_helper import get_llm_config_for_agent
     from src.core.time_utils import get_current_datetime_context
     from src.domains.agents.prompts.prompt_loader import load_prompt
     from src.infrastructure.llm import get_llm
-    from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metadata
+    from src.infrastructure.llm.structured_output import get_structured_output
 
     try:
         # Load prompt template
@@ -669,14 +670,20 @@ async def analyze_query(
             user_query=query,
         )
 
-        # Enrich config for token tracking
-        config = enrich_config_with_node_metadata(base_config or {}, "query_analyzer")
-
-        # Call LLM with structured output
+        # Call LLM with structured output (provider-agnostic via helper)
         llm = get_llm("query_analyzer")
-        llm_with_structure = llm.with_structured_output(QueryAnalysisOutput)
+        agent_config = get_llm_config_for_agent(settings, "query_analyzer")
 
-        result: QueryAnalysisOutput = await llm_with_structure.ainvoke(prompt, config=config)  # type: ignore
+        from langchain_core.messages import HumanMessage
+
+        result: QueryAnalysisOutput = await get_structured_output(
+            llm=llm,
+            messages=[HumanMessage(content=prompt)],
+            schema=QueryAnalysisOutput,
+            provider=agent_config.provider,
+            node_name="query_analyzer",
+            config=base_config,
+        )
 
         logger.info(
             "query_analysis_complete",

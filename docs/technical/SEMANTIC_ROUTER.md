@@ -73,6 +73,8 @@ from src.domains.agents.services.tool_selector import (
 )
 
 # At startup: initialize with tool manifests
+# Embeddings are cached on disk (tool_embeddings_cache.json) and
+# reloaded if content hash matches, avoiding API calls on restart.
 selector = await initialize_tool_selector(registry.list_tool_manifests())
 
 # Select tools for query

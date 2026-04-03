@@ -51,6 +51,7 @@ class ModelProfile:
         supports_streaming: Can stream responses
         supports_vision: Can process images
         cost_per_1m_input: Cost per 1M input tokens (USD)
+        cost_per_1m_cached_input: Cost per 1M cached input tokens (USD)
         cost_per_1m_output: Cost per 1M output tokens (USD)
         is_reasoning_model: Special reasoning model (o-series, GPT-5, deepseek-reasoner)
         metadata: Additional provider-specific metadata
@@ -64,6 +65,7 @@ class ModelProfile:
     supports_streaming: bool = True
     supports_vision: bool = False
     cost_per_1m_input: float = 0.0
+    cost_per_1m_cached_input: float | None = None
     cost_per_1m_output: float = 0.0
     is_reasoning_model: bool = False
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -100,6 +102,7 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_streaming=True,
             supports_vision=True,
             cost_per_1m_input=0.4,
+            cost_per_1m_cached_input=0.1,
             cost_per_1m_output=1.6,
         ),
         "gpt-4.1-nano": ModelProfile(
@@ -111,6 +114,7 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_streaming=True,
             supports_vision=True,
             cost_per_1m_input=0.1,
+            cost_per_1m_cached_input=0.025,
             cost_per_1m_output=0.4,
         ),
         "gpt-4.1": ModelProfile(
@@ -122,6 +126,7 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_streaming=True,
             supports_vision=True,
             cost_per_1m_input=2.0,
+            cost_per_1m_cached_input=0.5,
             cost_per_1m_output=8.0,
         ),
         # GPT-5.x series (Reasoning Models - 2025-2026) — specific variants before base
@@ -134,6 +139,7 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_streaming=True,
             supports_vision=True,
             cost_per_1m_input=0.25,
+            cost_per_1m_cached_input=0.025,
             cost_per_1m_output=2.0,
             is_reasoning_model=True,
             metadata={"reasoning_effort_support": True},
@@ -147,6 +153,7 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_streaming=True,
             supports_vision=True,
             cost_per_1m_input=0.05,
+            cost_per_1m_cached_input=0.005,
             cost_per_1m_output=0.4,
             is_reasoning_model=True,
             metadata={"reasoning_effort_support": True},
@@ -160,6 +167,7 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_streaming=True,
             supports_vision=True,
             cost_per_1m_input=0.75,
+            cost_per_1m_cached_input=0.075,
             cost_per_1m_output=4.5,
             is_reasoning_model=True,
             metadata={"reasoning_effort_support": True},
@@ -173,6 +181,7 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_streaming=True,
             supports_vision=True,
             cost_per_1m_input=2.5,
+            cost_per_1m_cached_input=0.25,
             cost_per_1m_output=15.0,
             is_reasoning_model=True,
             metadata={"reasoning_effort_support": True},
@@ -186,6 +195,7 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_streaming=True,
             supports_vision=True,
             cost_per_1m_input=1.75,
+            cost_per_1m_cached_input=0.175,
             cost_per_1m_output=14.0,
             is_reasoning_model=True,
             metadata={"reasoning_effort_support": True},
@@ -199,6 +209,7 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_streaming=True,
             supports_vision=True,
             cost_per_1m_input=1.25,
+            cost_per_1m_cached_input=0.125,
             cost_per_1m_output=10.0,
             is_reasoning_model=True,
             metadata={"reasoning_effort_support": True},
@@ -212,6 +223,7 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_streaming=True,
             supports_vision=True,
             cost_per_1m_input=1.25,
+            cost_per_1m_cached_input=0.125,
             cost_per_1m_output=10.0,
             is_reasoning_model=True,
             metadata={"reasoning_effort_support": True},
@@ -226,6 +238,7 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_streaming=True,
             supports_vision=True,
             cost_per_1m_input=0.15,
+            cost_per_1m_cached_input=0.075,
             cost_per_1m_output=0.6,
         ),
         "gpt-4o": ModelProfile(
@@ -237,6 +250,7 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_streaming=True,
             supports_vision=True,
             cost_per_1m_input=2.5,
+            cost_per_1m_cached_input=1.25,
             cost_per_1m_output=10.0,
         ),
         # o-Series (Reasoning Models) — specific variants before base
@@ -249,6 +263,7 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_streaming=True,
             supports_vision=True,
             cost_per_1m_input=1.1,
+            cost_per_1m_cached_input=0.275,
             cost_per_1m_output=4.4,
             is_reasoning_model=True,
             metadata={"reasoning_effort_support": True},
@@ -262,6 +277,7 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_streaming=True,
             supports_vision=True,
             cost_per_1m_input=1.1,
+            cost_per_1m_cached_input=0.55,
             cost_per_1m_output=4.4,
             is_reasoning_model=True,
             metadata={"reasoning_effort_support": True},
@@ -275,6 +291,7 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_streaming=True,
             supports_vision=True,
             cost_per_1m_input=2.0,
+            cost_per_1m_cached_input=0.5,
             cost_per_1m_output=8.0,
             is_reasoning_model=True,
             metadata={"reasoning_effort_support": True},
@@ -288,6 +305,7 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_streaming=True,
             supports_vision=True,
             cost_per_1m_input=1.1,
+            cost_per_1m_cached_input=0.55,
             cost_per_1m_output=4.4,
             is_reasoning_model=True,
             metadata={"reasoning_effort_support": True},
@@ -301,6 +319,7 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_streaming=True,
             supports_vision=True,
             cost_per_1m_input=15.0,
+            cost_per_1m_cached_input=7.5,
             cost_per_1m_output=60.0,
             is_reasoning_model=True,
             metadata={"reasoning_effort_support": True},
@@ -367,6 +386,7 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_streaming=True,
             supports_vision=True,
             cost_per_1m_input=5.0,
+            cost_per_1m_cached_input=0.5,
             cost_per_1m_output=25.0,
         ),
         "claude-opus-4-5": ModelProfile(
@@ -378,6 +398,7 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_streaming=True,
             supports_vision=True,
             cost_per_1m_input=5.0,
+            cost_per_1m_cached_input=0.5,
             cost_per_1m_output=25.0,
         ),
         "claude-opus-4": ModelProfile(
@@ -389,6 +410,7 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_streaming=True,
             supports_vision=True,
             cost_per_1m_input=15.0,
+            cost_per_1m_cached_input=1.5,
             cost_per_1m_output=75.0,
         ),
         # Claude Sonnet 4.x series
@@ -401,6 +423,7 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_streaming=True,
             supports_vision=True,
             cost_per_1m_input=3.0,
+            cost_per_1m_cached_input=0.3,
             cost_per_1m_output=15.0,
         ),
         "claude-sonnet-4-5": ModelProfile(
@@ -412,6 +435,7 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_streaming=True,
             supports_vision=True,
             cost_per_1m_input=3.0,
+            cost_per_1m_cached_input=0.3,
             cost_per_1m_output=15.0,
         ),
         "claude-sonnet-4": ModelProfile(
@@ -423,6 +447,7 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_streaming=True,
             supports_vision=True,
             cost_per_1m_input=3.0,
+            cost_per_1m_cached_input=0.3,
             cost_per_1m_output=15.0,
         ),
         # Claude Haiku 4.x series
@@ -435,6 +460,7 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_streaming=True,
             supports_vision=True,
             cost_per_1m_input=1.0,
+            cost_per_1m_cached_input=0.1,
             cost_per_1m_output=5.0,
         ),
         # Claude 3.5 series (legacy)
@@ -447,6 +473,7 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_streaming=True,
             supports_vision=True,
             cost_per_1m_input=3.0,
+            cost_per_1m_cached_input=0.3,
             cost_per_1m_output=15.0,
         ),
         "claude-3-5-haiku-20241022": ModelProfile(
@@ -458,6 +485,7 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_streaming=True,
             supports_vision=True,
             cost_per_1m_input=0.80,
+            cost_per_1m_cached_input=0.08,
             cost_per_1m_output=4.0,
         ),
         # Default Anthropic
@@ -484,6 +512,7 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_streaming=True,
             supports_vision=False,
             cost_per_1m_input=0.28,
+            cost_per_1m_cached_input=0.028,
             cost_per_1m_output=0.42,
         ),
         "deepseek-reasoner": ModelProfile(
@@ -495,6 +524,7 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_streaming=True,
             supports_vision=False,
             cost_per_1m_input=0.28,
+            cost_per_1m_cached_input=0.028,
             cost_per_1m_output=0.42,
             is_reasoning_model=True,
         ),
@@ -526,6 +556,7 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_streaming=True,
             supports_vision=True,
             cost_per_1m_input=2.0,
+            cost_per_1m_cached_input=0.2,
             cost_per_1m_output=12.0,
         ),
         "gemini-3-pro-preview": ModelProfile(
@@ -537,6 +568,7 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_streaming=True,
             supports_vision=True,
             cost_per_1m_input=2.0,
+            cost_per_1m_cached_input=0.2,
             cost_per_1m_output=12.0,
         ),
         "gemini-3-flash-preview": ModelProfile(
@@ -548,6 +580,7 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_streaming=True,
             supports_vision=True,
             cost_per_1m_input=0.50,
+            cost_per_1m_cached_input=0.05,
             cost_per_1m_output=3.0,
         ),
         # Gemini 2.5 series — specific variants before base
@@ -560,6 +593,7 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_streaming=True,
             supports_vision=True,
             cost_per_1m_input=1.25,
+            cost_per_1m_cached_input=0.125,
             cost_per_1m_output=10.0,
         ),
         "gemini-2.5-flash-lite": ModelProfile(
@@ -571,6 +605,7 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_streaming=True,
             supports_vision=True,
             cost_per_1m_input=0.10,
+            cost_per_1m_cached_input=0.01,
             cost_per_1m_output=0.40,
         ),
         "gemini-2.5-flash": ModelProfile(
@@ -582,6 +617,7 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_streaming=True,
             supports_vision=True,
             cost_per_1m_input=0.30,
+            cost_per_1m_cached_input=0.03,
             cost_per_1m_output=2.50,
         ),
         # Gemini 2.0 series — specific variants before base
@@ -605,6 +641,7 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_streaming=True,
             supports_vision=True,
             cost_per_1m_input=0.10,
+            cost_per_1m_cached_input=0.025,
             cost_per_1m_output=0.40,
         ),
         # Default Gemini
@@ -703,8 +740,23 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_streaming=True,
             supports_vision=False,
             is_reasoning_model=True,
-            cost_per_1m_input=1.20,
-            cost_per_1m_output=6.00,
+            cost_per_1m_input=0.359,
+            cost_per_1m_cached_input=0.240,
+            cost_per_1m_output=1.434,
+        ),
+        # qwen3.6-plus: tools + vision + thinking (agentic-focused upgrade of 3.5-plus)
+        "qwen3.6-plus": ModelProfile(
+            max_input_tokens=1000000,
+            max_output_tokens=65536,
+            supports_structured_output=True,
+            supports_tool_calling=True,
+            supports_strict_mode=False,
+            supports_streaming=True,
+            supports_vision=True,
+            is_reasoning_model=True,
+            cost_per_1m_input=0.276,
+            cost_per_1m_cached_input=0.180,
+            cost_per_1m_output=1.651,
         ),
         # qwen3.5-plus: tools + vision + thinking
         "qwen3.5-plus": ModelProfile(
@@ -716,8 +768,9 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_streaming=True,
             supports_vision=True,
             is_reasoning_model=True,
-            cost_per_1m_input=0.40,
-            cost_per_1m_output=2.40,
+            cost_per_1m_input=0.115,
+            cost_per_1m_cached_input=0.075,
+            cost_per_1m_output=0.688,
         ),
         # qwen3.5-flash: tools + vision + thinking (cost-effective)
         "qwen3.5-flash": ModelProfile(
@@ -729,8 +782,9 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_streaming=True,
             supports_vision=True,
             is_reasoning_model=True,
-            cost_per_1m_input=0.10,
-            cost_per_1m_output=0.40,
+            cost_per_1m_input=0.029,
+            cost_per_1m_cached_input=0.020,
+            cost_per_1m_output=0.287,
         ),
     },
     # =========================================================================
@@ -746,8 +800,8 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_strict_mode=False,
             supports_streaming=True,
             supports_vision=False,
-            cost_per_1m_input=0.20,  # Perplexity pricing varies
-            cost_per_1m_output=0.60,
+            cost_per_1m_input=1.0,
+            cost_per_1m_output=1.0,
             metadata={"search_augmented": True},
         ),
         "llama-3.1-sonar-small-128k-online": ModelProfile(
@@ -758,8 +812,8 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_strict_mode=False,
             supports_streaming=True,
             supports_vision=False,
-            cost_per_1m_input=0.20,
-            cost_per_1m_output=0.20,
+            cost_per_1m_input=1.0,
+            cost_per_1m_output=1.0,
             metadata={"search_augmented": True},
         ),
         "llama-3.1-sonar-large-128k-online": ModelProfile(
@@ -770,8 +824,8 @@ FALLBACK_PROFILES: dict[str, dict[str, ModelProfile]] = {
             supports_strict_mode=False,
             supports_streaming=True,
             supports_vision=False,
-            cost_per_1m_input=1.0,
-            cost_per_1m_output=1.0,
+            cost_per_1m_input=3.0,
+            cost_per_1m_output=15.0,
             metadata={"search_augmented": True},
         ),
     },

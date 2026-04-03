@@ -80,6 +80,9 @@ Frequency is **controlled at multiple levels**:
 **💡 In practice:**
 You'll receive between 0 and 3 notifications per day, only when relevant. Some days, LIA may decide not to send anything.
 
+**🛡️ Response filtering protection:**
+Proactive suggestions (weather alerts, upcoming event reminders, etc.) are protected from being filtered out. When LIA adds proactive data to a response, those items are preserved even if the response filtering considers them unrelated to the original question.
+
 ## How do I give feedback on a notification?
 Your feedback helps LIA improve:
 

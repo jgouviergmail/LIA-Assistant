@@ -2646,7 +2646,7 @@
         "v1_14": {
           "title": "v1.14 — Psyché de LIA : Intelligence émotionnelle dynamique",
           "date": "Avril 2026",
-          "count": "10",
+          "count": "12",
           "items": {
             "i1": "<b>Mode d'affichage des réponses</b> — Choisissez entre 3 modes d'affichage : <em>Cartes HTML</em> (fiches visuelles structurées — par défaut), <em>HTML enrichi</em> (réponses avec mise en forme riche et soignée) ou <em>Markdown</em> (texte brut). Configurable dans Réglages > Personnalisation",
             "i2": "<b>Psyché de LIA</b> — Votre assistant développe un état psychologique dynamique : humeur (14 états), émotions (16 types), relation qui s'approfondit, motivations et auto-efficacité. L'humeur et les émotions influencent subtilement le ton et le style de chaque réponse",
@@ -2657,7 +2657,9 @@
             "i7": "<b>Conscience d'évolution</b> — L'assistant sait comment son humeur et ses émotions ont évolué depuis le dernier message, donnant une continuité narrative à la conversation",
             "i8": "<b>Amélioration des prompts</b> — Tous les blocs de données injectés dans les prompts portent désormais des directives opérationnelles précises (comment utiliser l'information), améliorant la pertinence des réponses",
             "i9": "<b>Activation intelligente des skills</b> — Les skills sans modèle de plan sont désormais détectées et activées automatiquement. Les skills avec scripts Python s'exécutent via un agent ReAct dédié en boucle isolée, les autres s'injectent passivement sans appel LLM supplémentaire",
-            "i10": "<b>Correction exécution des scripts</b> — L'exécution des scripts de skills fonctionne désormais dans tous les environnements (Docker, Linux, Windows) avec isolation de processus et gestion robuste des erreurs"
+            "i10": "<b>Correction exécution des scripts</b> — L'exécution des scripts de skills fonctionne désormais dans tous les environnements (Docker, Linux, Windows) avec isolation de processus et gestion robuste des erreurs",
+            "i11": "<b>Démarrage accéléré</b> — Les embeddings de sélection d'outils sont désormais mis en cache sur disque. Le redémarrage du serveur est plus rapide et ne consomme plus d'appels API inutiles",
+            "i12": "<b>Suggestions proactives préservées</b> — Les suggestions générées par l'initiative proactive (météo, rappels, etc.) ne sont plus perdues lors du filtrage intelligent des réponses"
           }
         },
         "v1_13": {

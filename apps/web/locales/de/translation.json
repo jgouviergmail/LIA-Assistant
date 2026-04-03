@@ -2615,7 +2615,7 @@
         "v1_14": {
           "title": "v1.14 — LIAs Psyche: Dynamische emotionale Intelligenz",
           "date": "April 2026",
-          "count": "10",
+          "count": "12",
           "items": {
             "i1": "<b>Anzeigemodus</b> — Wählen Sie zwischen 3 Modi: <em>HTML-Karten</em> (strukturierte visuelle Karten — Standard), <em>Rich-HTML</em> (schön formatierte Antworten) oder <em>Markdown</em> (reiner Text). Konfigurierbar unter Einstellungen > Personalisierung",
             "i2": "<b>LIAs Psyche</b> — Ihr Assistent entwickelt einen dynamischen psychologischen Zustand: Stimmung (14 Zustände), Emotionen (16 Typen), eine sich vertiefende Beziehung, Antriebe und Selbstwirksamkeit. Stimmung und Emotionen beeinflussen subtil Ton und Stil jeder Antwort",
@@ -2626,7 +2626,9 @@
             "i7": "<b>Evolutionsbewusstsein</b> — Der Assistent weiß, wie sich seine Stimmung und Emotionen seit der letzten Nachricht verändert haben, und bietet narrative Kontinuität",
             "i8": "<b>Prompt-Direktiven-Überarbeitung</b> — Alle in Prompts injizierten Kontextblöcke tragen jetzt präzise operative Direktiven (wie die Daten zu verwenden sind) und verbessern die Antwortrelevanz",
             "i9": "<b>Intelligente Skill-Aktivierung</b> — Skills ohne Plan-Template werden jetzt automatisch erkannt und aktiviert. Skills mit Python-Skripten werden über einen dedizierten ReAct-Agenten in einer isolierten Schleife ausgeführt; andere werden passiv ohne zusätzlichen LLM-Aufruf injiziert",
-            "i10": "<b>Skript-Ausführungsfix</b> — Die Ausführung von Skill-Skripten funktioniert jetzt in allen Umgebungen (Docker, Linux, Windows) mit Prozessisolation und robuster Fehlerbehandlung"
+            "i10": "<b>Skript-Ausführungsfix</b> — Die Ausführung von Skill-Skripten funktioniert jetzt in allen Umgebungen (Docker, Linux, Windows) mit Prozessisolation und robuster Fehlerbehandlung",
+            "i11": "<b>Schnellerer Start</b> — Tool-Auswahl-Embeddings werden jetzt auf der Festplatte zwischengespeichert. Der Serverneustart ist schneller und verbraucht keine unnötigen API-Aufrufe mehr",
+            "i12": "<b>Proaktive Vorschläge erhalten</b> — Von der proaktiven Initiative generierte Vorschläge (Wetter, Erinnerungen usw.) gehen beim intelligenten Filtern der Antworten nicht mehr verloren"
           }
         },
         "v1_13": {

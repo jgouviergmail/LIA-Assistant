@@ -36,7 +36,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.14.3</strong> — Response display mode (HTML Cards / Rich HTML / Markdown) user preference — April 2026
+  <strong>Version 1.14.4</strong> — Tool embeddings cache, provider-agnostic structured output, initiative protection — April 2026
 </p>
 
 ---
@@ -73,7 +73,7 @@
 | **Uncontrolled hallucinations** | Human-in-the-Loop (HITL) with 6 approval levels |
 | **Fragmented integrations** | Unified multi-domain orchestration (18 agents + MCP + sub-agents) |
 | **Limited observability** | 500+ Prometheus metrics, 18 Grafana dashboards, GeoIP analytics |
-| **Inconsistent performance** | OpenAI text-embedding-3-small embeddings, semantic routing with max-pooling |
+| **Inconsistent performance** | Gemini embedding-001 with asymmetric task types, semantic routing with hybrid scoring |
 
 ### Primary Use Cases
 
@@ -358,7 +358,7 @@ ExecutionStep(
 
 - **Introspective notebooks**: The assistant maintains thematic journals (self-reflection, user observations, ideas & analyses, learnings) written in first person, colored by its active personality
 - **Dual trigger**: Post-conversation extraction (fire-and-forget) + periodic consolidation (APScheduler). The assistant decides freely what to write
-- **Semantic context injection**: Journal entries injected into both response AND planner prompts via OpenAI text-embedding-3-small similarity search with configurable minimum score prefiltering (`JOURNAL_CONTEXT_MIN_SCORE`). Results include scores — the LLM decides relevance autonomously
+- **Semantic context injection**: Journal entries injected into both response AND planner prompts via Gemini embedding-001 similarity search with configurable minimum score prefiltering (`JOURNAL_CONTEXT_MIN_SCORE`). Results include scores — the LLM decides relevance autonomously
 - **Prompt-driven lifecycle**: The assistant manages its own journals — no hardcoded auto-archival. Size constraints guide cleanup via prompt engineering
 - **Heartbeat integration**: Journal entries enrich proactive notifications via dynamic second-pass query built from aggregated context (calendar, weather, emails). Toggleable source badge in heartbeat settings
 - **Full user control**: Enable/disable (data preserved), consolidation toggle, conversation history analysis (with cost warning), 4 configurable numeric settings, full CRUD in Settings
@@ -681,7 +681,7 @@ apps/api/src/
 | Redis | 7.3.0 | Cache, sessions, rate limiting |
 | Pydantic | 2.12.5 | Validation + serialization |
 | structlog | latest | Structured JSON logging |
-| openai | 1.0+ | Embeddings (text-embedding-3-small) + LLM |
+| openai | 1.0+ | LLM provider |
 | Edge TTS | 6.1+ | Voice synthesis (free) |
 | mcp | 1.9+ | Model Context Protocol SDK (Streamable HTTP) |
 | Docker | 24+ | Containerization (multi-arch amd64/arm64) |
@@ -877,7 +877,7 @@ ESLint + TypeScript check         CodeQL (Python + JS)
 - **Message Windowing**: 5/10/20 turns depending on node
 - **Context Compaction**: LLM summarization of old messages (dynamic threshold from response model context window, configurable via `COMPACTION_*` settings)
 - **Prompt Caching**: OpenAI/Anthropic (90% discount)
-- **OpenAI Embeddings**: text-embedding-3-small (low cost, ~$0.02/1M tokens)
+- **Gemini Embeddings**: gemini-embedding-001 with asymmetric task types (multilingual)
 - **Parallel Execution**: asyncio.gather for independent domains
 - **Redis O(1)**: Optimized operations (vs O(N) SCAN)
 - **Connection Pooling**: httpx persistent connections
@@ -999,7 +999,7 @@ This project builds on excellent open source technologies:
 - [Alembic](https://alembic.sqlalchemy.org/) - Database migrations
 - [PostgreSQL](https://www.postgresql.org/) + [pgvector](https://github.com/pgvector/pgvector) - Database & vector search
 - [Redis](https://redis.io/) - Cache, sessions, rate limiting
-- [OpenAI Embeddings](https://platform.openai.com/docs/guides/embeddings) - text-embedding-3-small for semantic search
+- [Google Gemini Embeddings](https://ai.google.dev/gemini-api/docs/embeddings) - gemini-embedding-001 for multilingual semantic search
 - [Edge TTS](https://github.com/rany2/edge-tts) - Free neural voice synthesis
 - [structlog](https://www.structlog.org/) - Structured JSON logging
 - [Docker](https://www.docker.com/) - Containerization & multi-arch builds

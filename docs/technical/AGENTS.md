@@ -1261,11 +1261,13 @@ Le **SemanticToolSelector** remplace le routing par mots-clés par une approche 
 # apps/api/src/domains/agents/services/tool_selector.py
 class SemanticToolSelector:
     """
-    Semantic tool selection using OpenAI text-embedding-3-small.
+    Semantic tool selection using Gemini embedding-001.
 
-    Strategy: Max-Pooling
+    Strategy: Hybrid (description + keyword embeddings, alpha-weighted)
     - For each tool, compute MAX(cosine(query, keyword_i))
     - Avoids semantic dilution from averaging
+    - Disk cache: embeddings persisted to tool_embeddings_cache.json
+      (SHA-256 content hash invalidation on tool/model change)
 
     Thresholds:
     - >= 0.70: High confidence

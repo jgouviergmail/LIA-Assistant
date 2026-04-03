@@ -25,7 +25,9 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import SystemMessage
 from pydantic import BaseModel, Field
 
+from src.core.config import settings
 from src.core.field_names import FIELD_QUERY
+from src.core.llm_config_helper import get_llm_config_for_agent
 from src.domains.agents.constants import (
     ACTION_TYPE_CREATE,
     ACTION_TYPE_DELETE,
@@ -45,6 +47,7 @@ from src.domains.agents.prompts import (
 )
 from src.domains.agents.services.hitl.validator import HitlValidator
 from src.infrastructure.llm.factory import get_llm
+from src.infrastructure.llm.structured_output import get_structured_output
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -140,19 +143,16 @@ class HitlResponseClassifier:
             config_override=config_override if config_override else None,
         )
 
-        # Pre-build structured output LLM (provider-agnostic JSON extraction)
-        # with_structured_output uses tool_calls or JSON mode depending on provider
-        self._structured_llm = self.llm.with_structured_output(ClassificationResult)
+        # Resolve provider for structured output helper
+        agent_config = get_llm_config_for_agent(settings, "hitl_classifier")
+        self._provider = agent_config.provider
 
         # Log initialization with effective config
-        from src.domains.llm_config.constants import LLM_DEFAULTS
-
-        defaults = LLM_DEFAULTS.get("hitl_classifier")
         logger.info(
             "hitl_classifier_initialized",
-            provider=defaults.provider if defaults else "unknown",
-            model=model or (defaults.model if defaults else "unknown"),
-            temperature=temperature or (defaults.temperature if defaults else 0.2),
+            provider=self._provider,
+            model=model or agent_config.model,
+            temperature=temperature or agent_config.temperature,
             has_override=bool(config_override),
         )
 
@@ -196,7 +196,6 @@ class HitlResponseClassifier:
         try:
             # Phase 6 - LLM Observability: Use instrumented config for Langfuse tracing
             from src.infrastructure.llm.instrumentation import create_instrumented_config
-            from src.infrastructure.llm.invoke_helpers import enrich_config_with_node_metadata
 
             # Create instrumented config with Langfuse callbacks
             # Merge with TokenTrackingCallback if provided
@@ -215,13 +214,16 @@ class HitlResponseClassifier:
                 existing_callbacks = config.get("callbacks", [])
                 config["callbacks"] = existing_callbacks + [tracker]
 
-            # **Phase 2.1 - Token Tracking Alignment Fix**
-            # Enrich config to ensure node_name propagates to callbacks
-            config = enrich_config_with_node_metadata(config, "hitl_classifier")
-
-            # Call LLM with structured output (provider-agnostic)
+            # Call LLM with structured output (provider-agnostic via helper)
             try:
-                classification = await self._structured_llm.ainvoke(prompt, config=config)
+                classification = await get_structured_output(
+                    llm=self.llm,
+                    messages=prompt,
+                    schema=ClassificationResult,
+                    provider=self._provider,
+                    node_name="hitl_classifier",
+                    config=config,
+                )
             except Exception as structured_err:
                 # Fallback: raw invoke + manual JSON parsing for providers
                 # that don't support structured output reliably
