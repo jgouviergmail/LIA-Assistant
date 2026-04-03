@@ -39,17 +39,34 @@ Startup → SkillLoader.scan() → SkillsCache (in-memory)
                                      │
               ┌──────────────────────┼──────────────────────┐
               ▼                      ▼                      ▼
-    SkillBypassStrategy       Planner Prompt           Response Node
-    (deterministic             (L1 catalogue XML)       (L2 structured
-     plan_template)                   │                  wrapping)
-                                      ▼
-                            LLM decides activation
-                                      │
-                        ┌─────────────┼─────────────┐
-                        ▼                           ▼
-              Planner: skill_name          Response LLM:
-              in JSON output               activate_skill tool
-              (pre-activation)             (fallback)
+    SkillBypassStrategy     QueryAnalyzer Prompt     Always-loaded
+    (deterministic          ({available_skills})     (L2 passive,
+     plan_template)                │                  additive)
+                                   ▼
+                         detected_skill_name
+                         in QueryIntelligence
+                                   │
+                         ┌─────────┴────────┐
+                         ▼                  ▼
+                    Planner route     Response route
+                    (plan.metadata     (query_intelligence
+                     → skill_name)     → detected_skill_name)
+                         │                  │
+                         └────────┬─────────┘
+                                  ▼
+                     Response Node (unified activation)
+                                  │
+                    ┌─────────────┼─────────────┐
+                    ▼             ▼              ▼
+              Has scripts?   Resources only?   Neither?
+                    │             │              │
+                    ▼             ▼              ▼
+                 Runner       Python load     L2 passive
+                 (ReAct)      + L2 passive      only
+                    │
+              activate_skill_tool
+              read_skill_resource
+              run_skill_script
 ```
 
 ## Progressive Disclosure (3 Tiers)
@@ -119,23 +136,35 @@ plan_template:
 
 ## Activation Model
 
-### 1. Planner Pre-activation (Primary)
+### 1. QueryAnalyzer Detection (Unified)
 
-The LLM planner sees the L1 catalogue → includes `"skill_name": "<name>"` in JSON output → `response_node` loads L2 instructions with structured wrapping.
+The `QueryAnalyzer` sees the skills catalogue (`{available_skills}`) in its prompt and sets `skill_name` in the analysis output. This works for both planner and response routes — the `response_node` reads `detected_skill_name` from state.
 
-### 2. Dedicated Tool (Fallback)
+### 2. Planner Pre-activation (Complementary)
 
-`activate_skill_tool(name)` available to the response LLM for on-demand activation when the planner didn't anticipate the need.
+The LLM planner also sees the L1 catalogue and can include `"skill_name": "<name>"` in its JSON output. The `response_node` treats this identically to the QueryAnalyzer-detected skill.
 
-### 3. Resource Loading (L3)
+### 3. Unified Activation in Response Node
 
-`read_skill_resource(skill_name, path)` reads bundled files (references/, templates, etc.) listed in `<skill_resources>` after L2 activation. This enables progressive disclosure: the LLM only loads resources when needed.
+Both routes converge in the `response_node` which activates the skill based on its nature:
 
-### 4. Deterministic Bypass (Optimization)
+- **Scripts present** → `ReactSubAgentRunner` (same pattern as MCP/browser agents) with 3 skill tools (`activate_skill_tool`, `read_skill_resource`, `run_skill_script`). Runs in isolation (no streaming impact). If plan_executor collected data, it is injected in the task. Uses `llm_type="mcp_react_agent"` and `skill_react_agent_prompt`.
+- **Resources only (no scripts)** → L2 instructions + all reference files loaded in Python and injected in the prompt. No extra LLM call.
+- **Neither** → L2 passive injection only.
+
+A synthetic `tool_calls` entry is added to the result `AIMessage` so the streaming service Route 3 detects the activation and shows the frontend badge.
+
+### 4. Resource Loading (L3)
+
+`read_skill_resource(skill_name, path)` reads bundled files (references/, templates, etc.) listed in `<skill_resources>` after L2 activation. Two modes:
+- **Skills with scripts**: resources loaded on-demand by the `ReactSubAgentRunner` via the `read_skill_resource` tool.
+- **Skills without scripts**: resources loaded directly in Python by the `response_node` and injected in the prompt alongside L2 instructions. No extra LLM call.
+
+### 5. Deterministic Bypass (Optimization)
 
 Skills with `plan_template.deterministic: true` bypass the LLM planner entirely via `SkillBypassStrategy`.
 
-### 5. Early Detection Guard (v1.8.1)
+### 6. Early Detection Guard (v1.8.1)
 
 The planner has an "early insufficient content detection" feature that short-circuits LLM planning when required parameters are missing (e.g., "send an email" without subject/body). However, multi-domain deterministic skills can trigger false positives: the QueryAnalyzer may classify a skill trigger as a single-domain mutation (e.g., "create event") when it's actually a multi-domain skill invocation (e.g., daily briefing = event+task+weather+email).
 

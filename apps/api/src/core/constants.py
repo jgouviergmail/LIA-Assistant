@@ -3164,6 +3164,12 @@ SKILLS_EARLY_DETECTION_MAX_MISSING_DOMAINS = 1
 
 # Resource reading (L3 tier — on-demand file access)
 SKILLS_RESOURCE_MAX_SIZE_KB = 50
+
+# Skill ReAct agent — Mechanism #2 (Dedicated Tool Fallback)
+# Max iterations for the ReactSubAgentRunner in conversation-fallback mode.
+# Covers: activate_skill (1) + read_skill_resource (up to 3) + run_skill_script (1)
+# + final response.
+SKILLS_REACT_RECURSION_LIMIT = 25
 SKILLS_RESOURCE_SKIP_DIRS = frozenset({".git", "__pycache__", ".venv", "node_modules"})
 SKILLS_RESOURCE_SKIP_FILES = frozenset({"SKILL.md", "translations.json"})
 

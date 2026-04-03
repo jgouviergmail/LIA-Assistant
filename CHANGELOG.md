@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.14.2] - 2026-04-03
+
+### Added
+
+- **Skill Mechanism #2 — QueryAnalyzer + ReactSubAgentRunner** — Skills without `plan_template` can now be activated reliably. The `QueryAnalyzer` detects skills via the L1 catalogue (`{available_skills}`) in its prompt and sets `skill_name` in its structured output. The `response_node` reads `detected_skill_name` from state and activates based on nature: scripts → isolated `ReactSubAgentRunner` (LLM `mcp_react_agent` + `skill_react_agent_prompt`); resources only → Python load + L2 passive injection (0 extra LLM call); neither → L2 passive injection only. Works identically for both planner and response routes.
+- **Skill ReAct Agent Prompt** — New `skill_react_agent_prompt.txt` for the ReAct sub-agent that executes skill scripts in an isolated loop with tool calls (`activate_skill`, `run_skill_script`, `read_skill_resource`).
+
+### Fixed
+
+- **Skill Script Executor — Docker Compatibility** — `unshare -rn` network isolation now has a runtime availability check (`_unshare_available()`) with graceful fallback, fixing crashes in Docker/non-Linux environments.
+- **Skill Script Executor — debugpy Process Isolation** — Script execution uses `env -i` for clean environment to prevent debugpy from hooking into child processes.
+- **Skill Script Executor — Absolute Paths** — Resolved relative path failures when using `env -i` by converting all paths to `.resolve()` absolute form.
+- **ReactSubAgentRunner — Anthropic Content Normalization** — Anthropic models returning list content blocks (instead of plain strings) are now normalized to string before processing.
+- **QueryAnalyzer — plan_template None Guard** — `plan_template` field can be `None` (not just absent) — now uses `(x or {}).get()` pattern to avoid `AttributeError`.
+- **QueryAnalyzer — ConfigDict Extra Ignore** — Added `ConfigDict(extra="ignore")` to protect structured output parsing from unexpected fields.
+- **Skill Tools — Combined stdout+stderr** — Script failure error messages now include both stdout and stderr output instead of losing stdout on `SCRIPT_ERROR`.
+
+### Documentation
+
+- **SKILLS_INTEGRATION.md** — Full rewrite of the activation section with 5 detailed mechanisms, updated architecture diagram, and ReactSubAgentRunner documentation.
+- **ARCHITECTURE.md** — Updated Skills System section with unified activation strategies (QueryAnalyzer detection, planner pre-activation, deterministic bypass).
+- Updated docs/knowledge/12_skills.md with new activation mechanisms.
+
 ## [1.14.1] - 2026-04-02
 
 ### Changed

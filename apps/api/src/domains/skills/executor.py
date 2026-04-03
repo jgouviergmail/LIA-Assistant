@@ -17,6 +17,7 @@ import asyncio
 import json
 import os
 import platform
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -46,6 +47,26 @@ class SkillScriptExecutor:
     """Execute skill scripts in sandboxed subprocess."""
 
     _ALLOWED_ENV_KEYS = frozenset({"PATH", "HOME", "LANG", "LC_ALL", "TZ"})
+    _unshare_checked: bool = False
+    _unshare_works: bool = False
+
+    @classmethod
+    def _unshare_available(cls) -> bool:
+        """Check once if unshare -rn is available (requires CAP_SYS_ADMIN)."""
+        if not cls._unshare_checked:
+            try:
+                result = subprocess.run(
+                    ["unshare", "-rn", "--", "true"],
+                    capture_output=True,
+                    timeout=2,
+                )
+                cls._unshare_works = result.returncode == 0
+            except Exception:
+                cls._unshare_works = False
+            if not cls._unshare_works:
+                logger.info("unshare_not_available", msg="Falling back to direct execution")
+            cls._unshare_checked = True
+        return cls._unshare_works
 
     @classmethod
     async def execute(
@@ -75,8 +96,8 @@ class SkillScriptExecutor:
         if not skill:
             return ScriptResult(success=False, output="", error=f"Skill '{skill_name}' not found")
 
-        skill_dir = Path(skill["source_path"]).parent
-        script_path = skill_dir / "scripts" / script_name
+        skill_dir = Path(skill["source_path"]).parent.resolve()
+        script_path = (skill_dir / "scripts" / script_name).resolve()
 
         if not script_path.exists():
             return ScriptResult(success=False, output="", error=f"Script '{script_name}' not found")
@@ -118,10 +139,26 @@ class SkillScriptExecutor:
         safe_env["SKILL_NAME"] = skill_name
         safe_env["SKILL_DIR"] = str(skill_dir)
 
-        # Network isolation on Linux; sys.executable for cross-platform portability
-        python_cmd = sys.executable or "python3"
-        if platform.system() == "Linux":
-            cmd = ["unshare", "-rn", "--", python_cmd, str(script_path)]
+        # Use bare Python interpreter — avoid debugpy/pydevd wrappers that crash
+        # in sandboxed subprocesses. debugpy hooks subprocess.run at the parent
+        # process level, so we must use env(1) to launch a fully clean process.
+        python_cmd = shutil.which("python3") or shutil.which("python") or sys.executable
+        if platform.system() == "Linux" and cls._unshare_available():
+            cmd = (
+                ["unshare", "-rn", "--", "env", "-i"]
+                + [f"{k}={v}" for k, v in safe_env.items()]
+                + [python_cmd, str(script_path)]
+            )
+            # env -i replaces the full environment, so don't pass env= to subprocess
+            safe_env = None  # type: ignore[assignment]
+        elif platform.system() == "Linux":
+            # No unshare but still need to escape debugpy via env -i
+            cmd = (
+                ["env", "-i"]
+                + [f"{k}={v}" for k, v in safe_env.items()]
+                + [python_cmd, str(script_path)]
+            )
+            safe_env = None  # type: ignore[assignment]
         else:
             cmd = [python_cmd, str(script_path)]
 
@@ -149,6 +186,8 @@ class SkillScriptExecutor:
                     skill_name=skill_name,
                     script=script_name,
                     exit_code=result.returncode,
+                    stderr=result.stderr[:500] if result.stderr else "",
+                    stdout=result.stdout[:500] if result.stdout else "",
                     user_id=user_id,
                 )
                 return ScriptResult(

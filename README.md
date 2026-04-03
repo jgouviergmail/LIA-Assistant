@@ -36,7 +36,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.14.1</strong> — Gemini embedding migration, dual-vector search, memory resolution fix — April 2026
+  <strong>Version 1.14.2</strong> — Skill activation via QueryAnalyzer + ReactSubAgentRunner, Docker executor fixes — April 2026
 </p>
 
 ---

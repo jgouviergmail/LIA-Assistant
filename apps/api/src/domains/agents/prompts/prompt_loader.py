@@ -106,6 +106,7 @@ PromptName = Literal[
     "mcp_description_prompt",
     # Skills system
     "skill_description_translation_prompt",
+    "skill_react_agent_prompt",
     # Context compaction (F4)
     "compaction_prompt",
     # App self-knowledge (System RAG Spaces)

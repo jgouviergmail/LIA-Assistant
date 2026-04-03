@@ -144,6 +144,11 @@ class QueryIntelligence:
     # True if user asks about the app itself, its features, or usage
     is_app_help_query: bool = False
 
+    # === SKILL ACTIVATION ===
+    # Skill name detected by QueryAnalyzer from AVAILABLE SKILLS catalogue.
+    # When set, the response_node activates this skill (runner or L2 passive).
+    detected_skill_name: str | None = None
+
     # === INTELLIGENT METHODS ===
 
     def requires_planner(self) -> bool:
@@ -453,6 +458,8 @@ class QueryIntelligence:
             "is_news_query": self.is_news_query,
             # App self-knowledge
             "is_app_help_query": self.is_app_help_query,
+            # Skill activation
+            "detected_skill_name": self.detected_skill_name,
         }
 
 

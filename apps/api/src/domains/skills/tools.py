@@ -110,10 +110,20 @@ async def run_skill_script(
                 "execution_time_ms": result.execution_time_ms,
             },
         )
+    # Return both stdout and stderr so the LLM can read validation results
+    # even when the script exits non-zero (e.g., validation errors in stdout,
+    # Python traceback in stderr).
+    combined = result.output or ""
+    if result.error:
+        combined = f"{combined}\n[stderr] {result.error}" if combined else result.error
     return UnifiedToolOutput.failure(
-        message=result.error or "Script execution failed",
-        error_code="INTERNAL_ERROR",
-        metadata={"skill_name": skill_name, "script": script},
+        message=combined or "Script execution failed",
+        error_code="SCRIPT_ERROR",
+        metadata={
+            "skill_name": skill_name,
+            "script": script,
+            "exit_code": result.exit_code,
+        },
     )
 
 

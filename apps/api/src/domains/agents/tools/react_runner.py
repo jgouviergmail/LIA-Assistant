@@ -226,7 +226,16 @@ class ReactSubAgentRunner:
         final_message = ""
         if messages:
             last_msg = messages[-1]
-            final_message = last_msg.content if hasattr(last_msg, "content") else str(last_msg)
+            raw_content = last_msg.content if hasattr(last_msg, "content") else str(last_msg)
+            # Normalize content: Anthropic returns list of content blocks
+            # (e.g., [{"type": "text", "text": "..."}]), other providers return str.
+            if isinstance(raw_content, list):
+                final_message = "\n".join(
+                    block.get("text", "") if isinstance(block, dict) else str(block)
+                    for block in raw_content
+                )
+            else:
+                final_message = str(raw_content) if raw_content else ""
 
         # Collect registry items via extensible hook
         accumulated_registry = self._registry_collector(tools)

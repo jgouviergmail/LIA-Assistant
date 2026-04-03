@@ -28,7 +28,13 @@ The **Guide** button in My Skills opens a comprehensive 3-tab reference:
 If you import a skill with the same name as an admin skill, yours overrides it (override semantics).
 
 ## How does LIA decide which skill to use?
-Skill activation is **model-driven** — the LLM reads the L1 catalogue (names + descriptions) and decides which skill matches your request. For skills with a deterministic plan_template, an optimization mechanism (*SkillBypassStrategy*) can trigger the skill directly without consulting the LLM planner.
+Skill activation uses a **hybrid model** with 3 strategies:
+
+1. **QueryAnalyzer detection** (unified) — The `QueryAnalyzer` reads the L1 catalogue (skill names + descriptions) and sets `skill_name` in its output. The response node then activates the skill based on its nature: skills with **scripts** run via a dedicated **ReAct sub-agent** in an isolated loop; skills with **resources only** load them via Python with passive L2 injection (0 extra LLM call); skills with **neither** use L2 passive injection only.
+
+2. **Planner pre-activation** (complementary) — The LLM planner can also include `skill_name` in its JSON output via the L1 catalogue. The response node treats this the same way (scripts → runner, resources → Python, etc.).
+
+3. **Deterministic bypass** (optimization) — Skills with `plan_template.deterministic: true` bypass the LLM planner entirely via `SkillBypassStrategy` and trigger directly.
 
 **Planner skill guard:** The planner normally detects missing parameters early and asks for clarification (e.g., "send an email" without a subject). However, multi-domain deterministic skills (e.g., a daily briefing that combines events + tasks + weather + emails) could trigger false-positive clarification requests. The skill guard detects when a deterministic skill has high domain overlap with your query and lets the full planner pipeline decide instead, ensuring your skill runs smoothly without unnecessary interruptions.
 

@@ -2595,7 +2595,7 @@
         "v1_14": {
           "title": "v1.14 — Psiche di LIA: Intelligenza emotiva dinamica",
           "date": "Aprile 2026",
-          "count": "7",
+          "count": "9",
           "items": {
             "i1": "<b>Psiche di LIA</b> — Il vostro assistente sviluppa uno stato psicologico dinamico: umore (14 stati), emozioni (16 tipi), una relazione che si approfondisce, motivazioni e autoefficacia. L'umore e le emozioni influenzano sottilmente il tono e lo stile di ogni risposta",
             "i2": "<b>Avatar emozionale</b> — Un emoji d'umore sostituisce il logo classico di LIA nei messaggi. L'avatar riflette lo stato emotivo in tempo reale con un anello colorato e un tooltip dettagliato",
@@ -2603,7 +2603,9 @@
             "i4": "<b>Guida educativa completa</b> — Sezione \"Comprendere la psiche\" con 7 sottosezioni illustrate: panoramica, tratti di personalità, umore, emozioni, relazione, motivazioni, impostazioni",
             "i5": "<b>Espressività personalizzabile</b> — Cursori di espressività (stoico → molto espressivo) e stabilità (volatile → molto stabile) per regolare il temperamento emotivo. Opzioni di aggiornamento e reset completo",
             "i6": "<b>Coscienza dell'evoluzione</b> — L'assistente sa come il suo umore e le sue emozioni sono cambiati dall'ultimo messaggio, fornendo continuità narrativa alla conversazione",
-            "i7": "<b>Miglioramento delle direttive dei prompt</b> — Tutti i blocchi di contesto iniettati nei prompt ora includono direttive operative precise (come usare i dati), migliorando la pertinenza delle risposte"
+            "i7": "<b>Miglioramento delle direttive dei prompt</b> — Tutti i blocchi di contesto iniettati nei prompt ora includono direttive operative precise (come usare i dati), migliorando la pertinenza delle risposte",
+            "i8": "<b>Attivazione intelligente delle skill</b> — Le skill senza modello di piano vengono ora rilevate e attivate automaticamente. Le skill con script Python vengono eseguite tramite un agente ReAct dedicato in un ciclo isolato; le altre vengono iniettate passivamente senza chiamata LLM aggiuntiva",
+            "i9": "<b>Correzione esecuzione script</b> — L'esecuzione degli script delle skill ora funziona in tutti gli ambienti (Docker, Linux, Windows) con isolamento dei processi e gestione robusta degli errori"
           }
         },
         "v1_13": {

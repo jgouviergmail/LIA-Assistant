@@ -107,7 +107,8 @@ Key insight: When domain A provides a collection and domain B provides item-spec
   "constraint_hints": {{"has_distance": false, "has_quality": false, "has_iteration": false, "has_time": false, "has_count": false}},
   "encyclopedia_keywords": [],
   "is_news_query": false,
-  "is_app_help_query": false
+  "is_app_help_query": false,
+  "skill_name": null
 }}
 
 **CRITICAL RULE for resolved_references:**
@@ -121,6 +122,11 @@ Resolve each reference by searching for ALL REAL values in PERSONAL MEMORY or HI
 
 ## AVAILABLE DOMAINS
 {available_domains}
+
+## AVAILABLE SKILLS
+{available_skills}
+If a skill's description matches the user's request, set "skill_name" to that skill's name.
+Skills take priority over general domain routing when matched. If no skill matches, leave null.
 
 ## USER CONTEXT
 - Date/Time: {current_datetime}

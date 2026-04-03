@@ -2593,7 +2593,7 @@
         "v1_14": {
           "title": "v1.14 — Psique de LIA: Inteligencia emocional dinámica",
           "date": "Abril 2026",
-          "count": "7",
+          "count": "9",
           "items": {
             "i1": "<b>Psique de LIA</b> — Su asistente desarrolla un estado psicológico dinámico: ánimo (14 estados), emociones (16 tipos), una relación que se profundiza, motivaciones y autoeficacia. El ánimo y las emociones influyen sutilmente en el tono y estilo de cada respuesta",
             "i2": "<b>Avatar emocional</b> — Un emoji de ánimo reemplaza el logotipo clásico de LIA en los mensajes. El avatar refleja el estado emocional en tiempo real con un anillo de color y tooltip detallado",
@@ -2601,7 +2601,9 @@
             "i4": "<b>Guía educativa completa</b> — Sección \"Comprender la psique\" con 7 subsecciones ilustradas: panorámica, rasgos de personalidad, ánimo, emociones, relación, motivaciones, ajustes",
             "i5": "<b>Expresividad personalizable</b> — Controles de expresividad (estoico → muy expresivo) y estabilidad (volátil → muy estable) para ajustar el temperamento emocional. Opciones de refresco y reinicio completo",
             "i6": "<b>Consciencia de evolución</b> — El asistente sabe cómo han cambiado su ánimo y emociones desde el último mensaje, proporcionando continuidad narrativa",
-            "i7": "<b>Mejora de directivas de prompts</b> — Todos los bloques de contexto inyectados en los prompts ahora incluyen directivas operativas precisas (cómo usar los datos), mejorando la relevancia de las respuestas"
+            "i7": "<b>Mejora de directivas de prompts</b> — Todos los bloques de contexto inyectados en los prompts ahora incluyen directivas operativas precisas (cómo usar los datos), mejorando la relevancia de las respuestas",
+            "i8": "<b>Activación inteligente de skills</b> — Las skills sin plantilla de plan ahora se detectan y activan automáticamente. Las skills con scripts Python se ejecutan mediante un agente ReAct dedicado en un bucle aislado; las demás se inyectan pasivamente sin llamada LLM adicional",
+            "i9": "<b>Corrección de ejecución de scripts</b> — La ejecución de scripts de skills ahora funciona en todos los entornos (Docker, Linux, Windows) con aislamiento de procesos y manejo robusto de errores"
           }
         },
         "v1_13": {

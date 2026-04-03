@@ -1563,8 +1563,20 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                 anticipated_needs=anticipated_needs[:4] if anticipated_needs else [],
             )
 
-        # Skills L2 injection — structured wrapping per agentskills.io standard
+        # =================================================================
+        # SKILL ACTIVATION — Hybrid: passive L2 injection + ReAct agent
+        # =================================================================
+        # Strategy based on skill nature (not activation route):
+        #  - Skills WITH scripts → ReactSubAgentRunner (LLM orchestrates)
+        #  - Skills WITH resources only (no scripts) → L2 + resources loaded
+        #    in Python (no extra LLM call)
+        #  - Skills WITHOUT scripts/resources → passive L2 injection only
+        #  - Always-loaded skills → always passive L2 (additive context)
+        #
+        # Both planner and response routes use the same logic.
         skills_context = ""
+        skill_react_response: str | None = None
+        _activated_skill_name: str | None = None
         if getattr(settings, "skills_enabled", False):
             from src.core.context import active_skills_ctx
             from src.domains.skills.activation import activate_skill
@@ -1575,17 +1587,72 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             skill_user_id = config.get("configurable", {}).get("langgraph_user_id")
             active = active_skills_ctx.get()
 
-            # 1. Planner-activated skill (from plan.metadata) → L2 structured wrapping
+            # --- Helpers: skill classification for activation strategy ---
+            def _get_skill_data(skill_name: str) -> dict | None:
+                """Get skill data from cache."""
+                return SkillsCache.get_by_name_for_user(
+                    skill_name, skill_user_id
+                ) or SkillsCache.get_by_name(skill_name)
+
+            def _skill_needs_runner(skill_name: str) -> bool:
+                """Return True if the skill has scripts (needs LLM to orchestrate)."""
+                skill_data = _get_skill_data(skill_name)
+                if not skill_data:
+                    return False
+                return bool(skill_data.get("scripts"))
+
+            def _skill_has_resources_only(skill_name: str) -> bool:
+                """Return True if the skill has resources but no scripts."""
+                skill_data = _get_skill_data(skill_name)
+                if not skill_data:
+                    return False
+                return bool(skill_data.get("references")) and not skill_data.get("scripts")
+
+            def _load_all_resources(skill_name: str) -> str:
+                """Load all reference files for a skill and return concatenated content."""
+                skill_data = _get_skill_data(skill_name)
+                if not skill_data:
+                    return ""
+                from pathlib import Path
+
+                skill_dir = Path(skill_data["source_path"]).parent.resolve()
+                parts: list[str] = []
+                for ref in skill_data.get("references", []):
+                    ref_path = (skill_dir / ref).resolve()
+                    # Path traversal protection
+                    try:
+                        ref_path.relative_to(skill_dir)
+                    except ValueError:
+                        logger.warning(
+                            "skill_resource_path_traversal",
+                            skill_name=skill_name,
+                            path=ref,
+                        )
+                        continue
+                    if ref_path.exists() and ref_path.is_file():
+                        try:
+                            content = ref_path.read_text(encoding="utf-8")
+                            parts.append(f'<resource path="{ref}">\n{content}\n</resource>')
+                        except Exception as read_err:
+                            logger.warning(
+                                "skill_resource_read_error",
+                                skill_name=skill_name,
+                                path=ref,
+                                error=str(read_err),
+                            )
+                return "\n\n".join(parts)
+
+            # --- Identify target skill name (planner or always-loaded) ---
+            _target_skill_name: str | None = None
+
+            # 1. Planner-activated skill (from plan.metadata)
             execution_plan = state.get(STATE_KEY_EXECUTION_PLAN)
             if execution_plan and execution_plan.metadata:
                 plan_skill_name = execution_plan.metadata.get("skill_name")
                 if plan_skill_name and (active is None or plan_skill_name in active):
-                    skill_content = activate_skill(plan_skill_name, user_id=skill_user_id)
-                    if skill_content:
-                        skill_sections.append(skill_content)
-                        activated_names.add(plan_skill_name)
+                    _target_skill_name = plan_skill_name
 
-            # 2. Always-loaded skills (additive, deduplicated per standard)
+            # 2. Always-loaded skills — passive L2 injection (additive, always)
             for s in SkillsCache.get_always_loaded(skill_user_id):
                 if s["name"] not in activated_names and (active is None or s["name"] in active):
                     skill_content = activate_skill(s["name"], user_id=skill_user_id)
@@ -1593,20 +1660,142 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                         skill_sections.append(skill_content)
                         activated_names.add(s["name"])
 
-            # 3. Conversation-fallback: L1 catalogue only (per agentskills.io standard)
-            #    For queries not routed through planner (intent=conversation), inject
-            #    the L1 catalogue. The LLM calls activate_skill_tool if a skill matches.
-            #    This is the standard model-driven approach — no L2 mass-loading.
-            if not skill_sections:
-                from src.domains.skills.injection import build_skills_catalog
+            # 3. Query analyzer detected skill (covers both planner and response routes)
+            if not _target_skill_name:
+                qi = state.get("query_intelligence")
+                if isinstance(qi, dict):
+                    _detected = qi.get("detected_skill_name")
+                else:
+                    _detected = getattr(qi, "detected_skill_name", None)
+                if _detected and (active is None or _detected in active):
+                    _target_skill_name = _detected
 
-                catalog = build_skills_catalog(skill_user_id or "", active_skills=active)
-                if catalog:
-                    skills_context = (
-                        catalog + "\n\nIf a skill above matches the current request, "
-                        "call activate_skill_tool with the skill name to load its full "
-                        "instructions, then respond using those instructions."
+            # 4. Activate the target skill (unified for planner + response routes)
+            #    - Scripts present → runner (LLM orchestrates resources + scripts)
+            #    - Resources only (no scripts) → load in Python, inject with L2
+            #    - Neither → passive L2 injection only
+            if _target_skill_name and _target_skill_name not in activated_names:
+                if _skill_needs_runner(_target_skill_name):
+                    # Has scripts → ReactSubAgentRunner
+                    _activated_skill_name = _target_skill_name
+                else:
+                    # L2 passive injection
+                    skill_content = activate_skill(_target_skill_name, user_id=skill_user_id)
+                    if skill_content:
+                        # If resources exist (no scripts), load them in Python
+                        if _skill_has_resources_only(_target_skill_name):
+                            resources_content = _load_all_resources(_target_skill_name)
+                            if resources_content:
+                                skill_content += "\n\n" + resources_content
+                                logger.info(
+                                    "skill_resources_loaded_inline",
+                                    run_id=run_id,
+                                    skill_name=_target_skill_name,
+                                )
+                        skill_sections.append(skill_content)
+                        activated_names.add(_target_skill_name)
+                        _activated_skill_name = _target_skill_name
+
+            # --- Run ReAct agent only when target skill needs it ---
+            _needs_runner = _activated_skill_name and _skill_needs_runner(_activated_skill_name)
+            if _needs_runner:
+                from src.core.constants import SKILLS_REACT_RECURSION_LIMIT
+                from src.domains.agents.tools.react_runner import ReactSubAgentRunner
+                from src.domains.skills.tools import skills_tools
+
+                try:
+                    runner = ReactSubAgentRunner(
+                        llm_type="mcp_react_agent",
+                        prompt_name="skill_react_agent_prompt",
                     )
+
+                    configurable = config.get("configurable", {})
+                    _user_lang = configurable.get("user_language", "fr")
+
+                    # Build task: direct activation with optional collected data
+                    # (from plan_executor / SkillBypassStrategy if they ran)
+                    _agent_data = ""
+                    _raw_agent_results = state.get(STATE_KEY_AGENT_RESULTS, {})
+                    if _raw_agent_results:
+                        _data_summary = format_agent_results_for_prompt(
+                            _raw_agent_results,
+                            current_turn_id=state.get("current_turn_id"),
+                            user_timezone=config.get("configurable", {}).get(
+                                "user_timezone", "UTC"
+                            ),
+                        )
+                        if _data_summary:
+                            _agent_data = (
+                                f"\n\n<collected_data>\n{_data_summary}\n"
+                                f"</collected_data>\n"
+                                f"Use this data to generate your response."
+                            )
+                    _task = (
+                        f"Activate skill '{_activated_skill_name}' and follow "
+                        f"its instructions to respond to: {last_user_message}"
+                        f"{_agent_data}"
+                    )
+                    _catalog_for_prompt = (
+                        f"<available_skills><skill><name>"
+                        f"{_activated_skill_name}"
+                        f"</name></skill></available_skills>"
+                    )
+
+                    # Lightweight ToolRuntime-like object for config propagation
+                    from types import SimpleNamespace
+
+                    from src.domains.agents.registry.agent_registry import (
+                        get_global_registry,
+                    )
+
+                    _skill_parent = SimpleNamespace(
+                        config={
+                            "configurable": {
+                                "user_id": configurable.get("langgraph_user_id", ""),
+                                "thread_id": configurable.get("thread_id", ""),
+                                "user_timezone": configurable.get("user_timezone", "UTC"),
+                                "user_language": _user_lang,
+                            },
+                            "callbacks": config.get("callbacks"),
+                            "metadata": config.get("metadata", {}),
+                        },
+                        store=get_global_registry().get_store(),
+                    )
+
+                    react_result = await runner.run(
+                        task=_task,
+                        tools=skills_tools,
+                        prompt_vars={
+                            "skills_catalog": _catalog_for_prompt,
+                            "user_language": _user_lang,
+                        },
+                        parent_runtime=_skill_parent,
+                        thread_prefix="skill_react",
+                        recursion_limit=SKILLS_REACT_RECURSION_LIMIT,
+                        display_name="Skill Activation",
+                    )
+
+                    if react_result.iteration_count > 0 and react_result.final_message:
+                        skill_react_response = react_result.final_message
+                        logger.info(
+                            "skill_react_agent_activated",
+                            run_id=run_id,
+                            skill_name=_activated_skill_name,
+                            iterations=react_result.iteration_count,
+                            response_length=len(skill_react_response),
+                            duration_ms=react_result.duration_ms,
+                        )
+                except Exception as exc:
+                    logger.warning(
+                        "skill_react_agent_error",
+                        run_id=run_id,
+                        error=str(exc),
+                        error_type=type(exc).__name__,
+                    )
+                    # Graceful degradation: fall back to passive L2 injection
+                    skill_content = activate_skill(_activated_skill_name, user_id=skill_user_id)
+                    if skill_content:
+                        skill_sections.append(skill_content)
 
             if skill_sections:
                 skills_context = "\n\n".join(skill_sections)
@@ -2119,44 +2308,73 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                 track_state_updates(state, draft_state_update, "response", run_id)
                 return draft_state_update
 
-        # LangGraph 1.1 Best Practice: Add timeout to prevent indefinite hangs
-        _vision_start = time.perf_counter() if has_vision_content else 0.0
-        try:
-            result = await asyncio.wait_for(
-                chain.ainvoke(
-                    {
-                        STATE_KEY_MESSAGES: conversational_messages,
-                    },
-                    config=enriched_config,
-                ),
-                timeout=settings.response_llm_timeout_seconds,
-            )
-        except TimeoutError:
-            logger.error(
-                "response_llm_timeout",
+        # =====================================================================
+        # FAST PATH: Skill ReAct agent already generated the response
+        # =====================================================================
+        # Mechanism #2 (SKILLS_INTEGRATION.md): ReactSubAgentRunner ran in
+        # isolation and produced a complete response. Skip the main LLM chain.
+        # Post-processing (psyche tags, HTML injection, etc.) still applies.
+        if skill_react_response:
+            logger.info(
+                "response_node_skill_react_fast_path",
                 run_id=run_id,
-                timeout_seconds=settings.response_llm_timeout_seconds,
+                skill_name=_activated_skill_name,
+                response_length=len(skill_react_response),
             )
-            # Return graceful timeout error
-            error_message = AIMessage(
-                content=get_error_fallback_message("TimeoutError", language=user_language)
+            # Include a synthetic tool_call so the streaming service Route 3
+            # detects the skill activation and shows the frontend badge.
+            _skill_tool_calls = []
+            if _activated_skill_name:
+                _skill_tool_calls = [
+                    {
+                        "name": "activate_skill_tool",
+                        "args": {"name": _activated_skill_name},
+                        "id": f"skill_react_{run_id}",
+                    }
+                ]
+            result = AIMessage(
+                content=skill_react_response,
+                tool_calls=_skill_tool_calls,
             )
-            error_state = {STATE_KEY_MESSAGES: [error_message]}
-            track_state_updates(state, error_state, "response", run_id)
-            return error_state
+        else:
+            # LangGraph 1.1 Best Practice: Add timeout to prevent indefinite hangs
+            _vision_start = time.perf_counter() if has_vision_content else 0.0
+            try:
+                result = await asyncio.wait_for(
+                    chain.ainvoke(
+                        {
+                            STATE_KEY_MESSAGES: conversational_messages,
+                        },
+                        config=enriched_config,
+                    ),
+                    timeout=settings.response_llm_timeout_seconds,
+                )
+            except TimeoutError:
+                logger.error(
+                    "response_llm_timeout",
+                    run_id=run_id,
+                    timeout_seconds=settings.response_llm_timeout_seconds,
+                )
+                # Return graceful timeout error
+                error_message = AIMessage(
+                    content=get_error_fallback_message("TimeoutError", language=user_language)
+                )
+                error_state = {STATE_KEY_MESSAGES: [error_message]}
+                track_state_updates(state, error_state, "response", run_id)
+                return error_state
 
-        # === VISION METRICS (evolution F4) ===
-        if has_vision_content:
-            from src.infrastructure.observability.metrics_attachments import (
-                vision_llm_duration_seconds,
-                vision_llm_requests_total,
-            )
+            # === VISION METRICS (evolution F4) ===
+            if has_vision_content:
+                from src.infrastructure.observability.metrics_attachments import (
+                    vision_llm_duration_seconds,
+                    vision_llm_requests_total,
+                )
 
-            vision_model = getattr(llm, "model_name", "unknown")
-            vision_llm_requests_total.labels(model=vision_model).inc()
-            vision_llm_duration_seconds.labels(model=vision_model).observe(
-                time.perf_counter() - _vision_start
-            )
+                vision_model = getattr(llm, "model_name", "unknown")
+                vision_llm_requests_total.labels(model=vision_model).inc()
+                vision_llm_duration_seconds.labels(model=vision_model).observe(
+                    time.perf_counter() - _vision_start
+                )
 
         # Phase 3.2 - Business Metrics: Track token efficiency ratio
         # Extract agent_type from detected result domains for metrics labeling

@@ -39,7 +39,7 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from langchain_core.messages import BaseMessage
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from pydantic import Field as PydanticField
 
 from src.core.config import settings
@@ -320,6 +320,8 @@ class ConstraintHints(BaseModel):
 class QueryAnalysisOutput(BaseModel):
     """Structured output from query analysis LLM."""
 
+    model_config = ConfigDict(extra="ignore")
+
     intent: str = PydanticField(description="Intent: action or conversation")
     primary_domain: str | None = PydanticField(
         default=None, description="Primary domain for the query"
@@ -381,6 +383,10 @@ class QueryAnalysisOutput(BaseModel):
         "or usage. Examples: 'What can you do?', 'How do I connect my calendar?', "
         "'Comment utiliser les rappels ?', 'Help me with settings'. "
         "NOT for general knowledge questions, only about THIS application.",
+    )
+    skill_name: str | None = PydanticField(
+        default=None,
+        description="Name of the matching skill from AVAILABLE SKILLS, or null if none.",
     )
 
 
@@ -446,6 +452,7 @@ class QueryAnalysisResult:
     is_news_query: bool = False
     # App self-knowledge
     is_app_help_query: bool = False
+    skill_name: str | None = None
     raw_output: dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -627,11 +634,34 @@ async def analyze_query(
         user_timezone = configurable.get("user_timezone", DEFAULT_USER_DISPLAY_TIMEZONE)
         user_language = configurable.get("user_language", settings.default_language)
 
+        # Build available skills for skill detection.
+        # skill_name is declared in QueryAnalysisOutput with default=None.
+        skills_str = "(no skills available)"
+        if getattr(settings, "skills_enabled", False):
+            from src.core.context import active_skills_ctx
+            from src.domains.skills.cache import SkillsCache
+
+            _qa_user_id = configurable.get("langgraph_user_id", "")
+            _qa_active = active_skills_ctx.get()
+            _qa_skills = SkillsCache.get_for_user(_qa_user_id)
+            _qa_visible = [
+                s
+                for s in _qa_skills
+                if not s.get("disable_model_invocation")
+                and (_qa_active is None or s["name"] in _qa_active)
+                and not (s.get("plan_template") or {}).get("deterministic")
+            ]
+            if _qa_visible:
+                skills_str = "\n".join(
+                    f"- **{s['name']}**: {s['description']}" for s in _qa_visible
+                )
+
         # Format prompt - double braces in template become single braces in output
         # Use user's timezone for datetime context so LLM calculates dates correctly
         prompt = prompt_template.format(
             current_datetime=get_current_datetime_context(user_timezone, user_language),
             available_domains=domains_str,
+            available_skills=skills_str,
             memory_facts=memory_str,
             conversation_history=history_str,
             user_location=location_str,
@@ -703,6 +733,7 @@ async def analyze_query(
             encyclopedia_keywords=result.encyclopedia_keywords,
             is_news_query=result.is_news_query,
             is_app_help_query=result.is_app_help_query,
+            skill_name=result.skill_name,
             raw_output=result.model_dump(),
         )
 
@@ -710,6 +741,7 @@ async def analyze_query(
         logger.error(
             "query_analysis_failed",
             error=str(e),
+            error_type=type(e).__name__,
             query_preview=query[:50],
         )
         # Fallback: return action with no domains (will go to chat)
@@ -1192,6 +1224,8 @@ class QueryAnalyzerService:
                 is_news_query=analysis_result.is_news_query,
                 # App self-knowledge
                 is_app_help_query=analysis_result.is_app_help_query,
+                # Skill activation
+                detected_skill_name=analysis_result.skill_name,
             )
 
         except Exception as e:

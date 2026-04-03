@@ -3320,8 +3320,8 @@ data/skills/
 
 **Activation** : Modèle hybride avec 3 stratégies :
 
-1. **Planner pre-activation** (primaire) : Le LLM planner voit le catalogue L1 → inclut `"skill_name"` dans sa sortie JSON → `response_node` charge les instructions L2
-2. **Tool dédié** (fallback) : `activate_skill_tool(name)` disponible pour le LLM response pour activation à la demande
+1. **Détection par QueryAnalyzer** (unifié) : Le `QueryAnalyzer` voit le catalogue skills (`{available_skills}`) dans son prompt et pose `skill_name` dans son output. Le `response_node` lit `detected_skill_name` depuis le state et active selon la nature : scripts → `ReactSubAgentRunner` isolé (LLM `mcp_react_agent`) ; resources seules → chargement Python + L2 passif ; ni l'un ni l'autre → L2 passif seul. Fonctionne de manière identique pour les routes planner et response
+2. **Planner pre-activation** (complémentaire) : Le LLM planner peut aussi inclure `"skill_name"` dans sa sortie JSON via le catalogue L1. Le `response_node` traite ce skill_name de la même manière (scripts → runner, resources → Python, etc.)
 3. **Bypass déterministe** (optimisation) : Skills avec `plan_template.deterministic: true` contournent le planner LLM via `SkillBypassStrategy`
 
 **Per-user toggle** : Table `user_skill_states` (user_id, skill_id, is_active) pour chaque utilisateur. Table `skills` pour le registre (name, is_system, admin_enabled, description, descriptions). Configurable dans Settings > Features.
@@ -3334,7 +3334,7 @@ data/skills/
 | `domains/skills/cache.py` | `SkillsCache` singleton en mémoire (cross-worker invalidation via ADR-063) |
 | `domains/skills/injection.py` | Constructeur du catalogue L1 (XML) |
 | `domains/skills/activation.py` | Wrapping structuré L2 |
-| `domains/skills/executor.py` | Exécution scripts en subprocess sandboxé |
+| `domains/skills/executor.py` | Exécution scripts en subprocess sandboxé (`env -i` pour isolation debugpy, `unshare -rn` fallback) |
 | `domains/skills/tools.py` | Outils LangChain (`activate_skill`, `run_skill_script`, `read_skill_resource`) |
 | `domains/skills/catalogue_manifests.py` | Manifestes pour le catalogue sémantique |
 | `domains/skills/router.py` | Endpoints API (list, import, delete, toggle, reload) |
