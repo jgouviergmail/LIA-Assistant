@@ -602,7 +602,7 @@ def _normalize_language(language: str | None) -> Language:
 
     # Check if supported
     if base_lang in DRAFT_SUCCESS_MESSAGES:
-        return base_lang  # type: ignore[return-value]
+        return base_lang
 
     return DEFAULT_LANGUAGE
 

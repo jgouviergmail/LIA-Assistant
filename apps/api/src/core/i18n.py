@@ -155,11 +155,11 @@ def get_language_from_header(accept_language: str | None) -> Language:
 
         # Try exact match first (for zh-CN)
         if lang in SUPPORTED_LANGUAGES:
-            return lang  # type: ignore[return-value]
+            return lang
 
         # Try with only first 2 chars (for en-US -> en)
         lang_short = lang[:2].lower()
         if lang_short in SUPPORTED_LANGUAGES:
-            return lang_short  # type: ignore[return-value]
+            return lang_short
 
     return DEFAULT_LANGUAGE
