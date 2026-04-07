@@ -2489,6 +2489,27 @@ async def _execute_tool(
 
         # Check if tool has async coroutine (StructuredTool from @tool decorator)
         if hasattr(tool, "coroutine") and tool.coroutine is not None:
+            # Strip hallucinated parameters the LLM invented (e.g., "order", "order_by").
+            # Without this, tool.coroutine(**args) raises TypeError and the entire
+            # plan fails silently. Defense in depth — the planner should not hallucinate
+            # params, but when it does, we strip them instead of crashing.
+            import inspect
+
+            sig = inspect.signature(tool.coroutine)
+            valid_params = set(sig.parameters.keys())
+            has_var_keyword = any(
+                p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()
+            )
+            if not has_var_keyword:
+                unknown_args = set(args.keys()) - valid_params
+                if unknown_args:
+                    logger.warning(
+                        "tool_hallucinated_params_stripped",
+                        tool_name=tool_name,
+                        stripped_params=sorted(unknown_args),
+                    )
+                    args = {k: v for k, v in args.items() if k in valid_params}
+
             # Direct coroutine call - preserves StandardToolOutput!
             result = await tool.coroutine(**args)
 

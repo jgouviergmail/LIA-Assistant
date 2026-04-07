@@ -36,7 +36,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.14.4</strong> — Tool embeddings cache, provider-agnostic structured output, initiative protection — April 2026
+  <strong>Version 1.14.5</strong> — HITL streamlining, hallucinated parameter defense, initiative skip after HITL — April 2026
 </p>
 
 ---

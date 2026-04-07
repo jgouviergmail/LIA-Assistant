@@ -124,11 +124,7 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         ),
         agent_names=["email_agent"],
         result_key="emails",  # $steps.step_N.emails
-        related_domains=[
-            "contact",
-            "event",
-            "task",
-        ],  # Emails mention people, meetings, action items
+        related_domains=["contact"],  # Emails mention people, meetings, action items
         metadata={
             "provider": "google",
             "requires_oauth": True,
@@ -146,7 +142,7 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         ),
         agent_names=["event_agent"],
         result_key="events",  # $steps.step_N.events
-        related_domains=["contact", "task"],  # Events involve people and may generate tasks
+        related_domains=["contact"],  # Events involve people and may generate tasks
         metadata={
             "provider": "google",
             "requires_oauth": True,
@@ -165,7 +161,7 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         ),
         agent_names=["file_agent"],
         result_key="files",  # $steps.step_N.files
-        related_domains=["email", "contact"],  # Files shared via email, owned by contacts
+        related_domains=["contact"],  # Files shared via email, owned by contacts
         metadata={
             "provider": "google",
             "requires_oauth": True,
@@ -245,7 +241,7 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         ),
         agent_names=["reminder_agent"],
         result_key="reminders",  # $steps.step_N.reminders
-        related_domains=["event", "task", "contact"],  # Reminders tied to events, tasks, and people
+        related_domains=["contact"],  # Reminders tied to events, tasks, and people
         metadata={
             "provider": "internal",
             "requires_oauth": False,
@@ -297,6 +293,7 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         result_key="routes",  # $steps.step_N.routes
         related_domains=[
             "place",
+            "weather",
             "event",
             "contact",
         ],  # Routes often involves places, events, or contact addresses
@@ -336,7 +333,7 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         ),
         agent_names=["perplexity_agent"],
         result_key="perplexitys",  # $steps.step_N.perplexitys (domain + "s" pattern)
-        related_domains=["wikipedia"],  # Web search complements Wikipedia
+        related_domains=[],  # Web search complements Wikipedia
         metadata={
             "provider": "perplexity",
             "requires_oauth": False,
@@ -355,7 +352,7 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         ),
         agent_names=["brave_agent"],
         result_key="braves",  # $steps.step_N.braves (domain + "s" pattern)
-        related_domains=["perplexity", "wikipedia"],  # Web search related domains
+        related_domains=[],  # Web search related domains
         metadata={
             "provider": "brave",
             "requires_oauth": False,
@@ -374,7 +371,7 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         ),
         agent_names=["web_search_agent"],
         result_key="web_searchs",  # $steps.step_N.web_searchs (domain + "s" pattern)
-        related_domains=["perplexity", "brave", "wikipedia"],
+        related_domains=[],
         is_routable=True,
         metadata={
             "provider": "internal",
@@ -399,7 +396,7 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         ),
         agent_names=["web_fetch_agent"],
         result_key="web_fetchs",  # $steps.step_N.web_fetchs (domain + "s" pattern)
-        related_domains=["web_search", "brave"],
+        related_domains=[],
         is_routable=True,
         metadata={
             "provider": "internal",
@@ -465,7 +462,7 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         ),
         agent_names=["browser_agent"],
         result_key="browsers",  # $steps.step_N.browsers (domain + "s" pattern)
-        related_domains=["web_fetch", "web_search"],
+        related_domains=[],
         is_routable=True,
         metadata={
             "provider": "internal",
@@ -515,6 +512,7 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
         name="devops",
         display_name="DevOps (Claude CLI)",
         description=(
+            "Writing and executing scripts and programs with Claude CLI. "
             "Server infrastructure and DevOps administration via SSH and CLI. "
             "Use for: Docker container logs, docker-compose status, server health checks, "
             "service restart, disk/memory/CPU monitoring, deployment diagnostics, "

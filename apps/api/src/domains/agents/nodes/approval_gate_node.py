@@ -29,21 +29,12 @@ from typing import Any
 
 import structlog
 from langchain_core.runnables import RunnableConfig
-from langgraph.types import interrupt
 
 from src.core.constants import TOOL_NAME_DELEGATE_SUB_AGENT
 from src.domains.agents.constants import (
-    STATE_KEY_APPROVAL_EVALUATION,
-    STATE_KEY_EXCLUDE_SUB_AGENT_TOOLS,
     STATE_KEY_EXECUTION_PLAN,
-    STATE_KEY_NEEDS_REPLAN,
     STATE_KEY_PLAN_APPROVED,
     STATE_KEY_PLAN_REJECTION_REASON,
-    STATE_KEY_PLANNER_ITERATION,
-    STATE_KEY_REPLAN_INSTRUCTIONS,
-    STATE_KEY_SEMANTIC_VALIDATION,
-    STATE_KEY_SESSION_ID,
-    STATE_KEY_USER_ID,
     STATE_KEY_VALIDATION_RESULT,
 )
 from src.domains.agents.models import MessagesState
@@ -70,10 +61,8 @@ from src.infrastructure.observability.decorators import track_metrics
 from src.infrastructure.observability.metrics_agents import (
     agent_node_duration_seconds,
     agent_node_executions_total,
-    hitl_plan_approval_latency,
     hitl_plan_approval_question_duration,
     hitl_plan_approval_question_fallback,
-    hitl_plan_approval_requests,
     hitl_plan_decisions,
     hitl_plan_modifications,
 )
@@ -571,8 +560,6 @@ async def approval_gate_node(state: MessagesState, config: RunnableConfig) -> di
     Returns:
         Dict avec plan_approved flag et éventuellement modified plan
     """
-    start_time = time.time()
-
     # NOTE: Tool approval is always enabled (no kill switch)
 
     # =========================================================================
@@ -598,8 +585,6 @@ async def approval_gate_node(state: MessagesState, config: RunnableConfig) -> di
     # Extract data from state
     execution_plan = state.get(STATE_KEY_EXECUTION_PLAN)
     validation_result = state.get(STATE_KEY_VALIDATION_RESULT)
-    approval_evaluation = state.get(STATE_KEY_APPROVAL_EVALUATION)
-    semantic_validation = state.get(STATE_KEY_SEMANTIC_VALIDATION)
 
     if not execution_plan:
         logger.error("approval_gate_no_execution_plan")
@@ -620,230 +605,21 @@ async def approval_gate_node(state: MessagesState, config: RunnableConfig) -> di
         return result_no_validation
 
     # Check if approval required
+    # Plan-level HITL is now redundant: every mutation tool has its own
+    # downstream HITL (draft_critique for individual actions, for_each_confirmation
+    # for bulk operations). Auto-approve to avoid double/triple confirmation.
     if not validation_result.requires_hitl:
         logger.info(
             "approval_gate_passthrough",
             plan_id=execution_plan.plan_id,
             msg="Plan does not require approval, passing through",
         )
-        result_passthrough: dict[str, Any] = {STATE_KEY_PLAN_APPROVED: True}
-        track_state_updates(state, result_passthrough, "approval_gate", execution_plan.plan_id)
-        return result_passthrough
-
-    # Build plan summary
-    plan_summary = _build_plan_summary(execution_plan, validation_result)
-
-    # Extract user preferences from state
-    user_language = state.get("user_language", "fr")
-    user_timezone = state.get("user_timezone", "Europe/Paris")
-    personality_instruction = state.get("personality_instruction")
-
-    # Build approval request with LLM-generated question
-    # Pass config to enable token tracking for plan approval question generation
-    approval_request = await _build_approval_request(
-        plan_summary, validation_result, approval_evaluation, user_language, user_timezone, config
-    )
-
-    # Track metrics
-    strategies = approval_request.strategies_triggered
-    for strategy in strategies:
-        hitl_plan_approval_requests.labels(strategy=strategy).inc()
-
-    logger.info(
-        "approval_gate_requesting_approval",
-        plan_id=execution_plan.plan_id,
-        total_steps=plan_summary.total_steps,
-        total_cost_usd=plan_summary.total_cost_usd,
-        hitl_steps=plan_summary.hitl_steps_count,
-        strategies_triggered=strategies,
-    )
-
-    # Interrupt and wait for user decision
-    # LangGraph will save checkpoint and wait for resume
-    # Format compatible with existing HITL infrastructure (action_requests pattern)
-    # Use mode='json' to serialize datetime objects to ISO strings
-    #
-    # Phase 1 HITL Streaming (OPTIMPLAN):
-    # - generate_question_streaming: True tells StreamingService to generate question via LLM streaming
-    # - user_language: Passed for streaming question generation
-    # - user_timezone: Passed for datetime context in prompts
-    # - user_message: None when skip_question_generation=True (will be streamed in StreamingService)
-    #
-    # Semantic Validation Fallback Warning:
-    # If semantic validation used fallback (timeout or error), include warning for user
-    semantic_fallback_warning = None
-    if semantic_validation and getattr(semantic_validation, "used_fallback", False):
-        fallback_reason = getattr(semantic_validation, "fallback_reason", "unknown")
-        semantic_fallback_warning = (
-            f"⚠️ La validation du plan n'a pas pu être effectuée ({fallback_reason}). "
-            "Veuillez vérifier attentivement le plan avant de l'approuver."
-        )
-        logger.warning(
-            "approval_gate_semantic_validation_fallback",
-            plan_id=execution_plan.plan_id,
-            fallback_reason=fallback_reason,
-            confidence=getattr(semantic_validation, "confidence", None),
-        )
-
-    interrupt_payload = {
-        "action_requests": [
-            {
-                "type": "plan_approval",
-                "plan_summary": approval_request.plan_summary.model_dump(mode="json"),
-                "approval_reasons": approval_request.approval_reasons,
-                "strategies_triggered": approval_request.strategies_triggered,
-                "user_message": approval_request.user_message,
-                # Personality instruction for HITL question generation
-                "personality_instruction": personality_instruction,
-                # Semantic validation fallback warning for UI display
-                "semantic_fallback_warning": semantic_fallback_warning,
-            }
-        ],
-        # Include full approval_request for backward compatibility
-        "approval_request": approval_request.model_dump(mode="json"),
-        # Phase 1 HITL Streaming: Flags for StreamingService
-        "generate_question_streaming": approval_request.user_message is None,
-        "user_language": user_language,
-        "user_timezone": user_timezone,
-        "personality_instruction": personality_instruction,
-        # Semantic validation fallback warning (top-level for easy access)
-        "semantic_fallback_warning": semantic_fallback_warning,
-    }
-    decision_data = interrupt(interrupt_payload)
-
-    # After resume: process decision
-    elapsed_time = time.time() - start_time
-    hitl_plan_approval_latency.observe(elapsed_time)
-
-    logger.info(
-        "approval_gate_decision_received",
-        plan_id=execution_plan.plan_id,
-        decision=decision_data.get("decision") if decision_data else None,
-        latency_seconds=elapsed_time,
-        # Debug: Full decision data for EDIT troubleshooting
-        has_modifications="modifications" in decision_data if decision_data else False,
-        modifications_count=len(decision_data.get("modifications", [])) if decision_data else 0,
-        modifications_preview=decision_data.get("modifications", [])[:2] if decision_data else None,
-    )
-
-    # If no decision data, treat as rejection (safety)
-    if not decision_data:
-        logger.warning(
-            "approval_gate_no_decision_data",
-            plan_id=execution_plan.plan_id,
-        )
-        result_no_decision: dict[str, Any] = {
-            STATE_KEY_PLAN_APPROVED: False,
-            STATE_KEY_PLAN_REJECTION_REASON: "No decision received from user",
-        }
-        track_state_updates(state, result_no_decision, "approval_gate", execution_plan.plan_id)
-        return result_no_decision
-
-    # Process decision
-    # Need validation context for re-validation if EDIT
-    # Issue #61 Fix: Use correct state key "oauth_scopes" (not "available_scopes")
-    context = ValidationContext(
-        user_id=state.get(STATE_KEY_USER_ID, "unknown"),
-        session_id=state.get(STATE_KEY_SESSION_ID),
-        available_scopes=state.get("oauth_scopes", []),  # FIXED: was "available_scopes"
-        user_roles=state.get("user_roles", []),
-        allow_hitl=True,  # Already in HITL flow
-    )
-
-    approved, modified_plan, rejection_reason, replan_instructions = _process_approval_decision(
-        decision_data, execution_plan, context
-    )
-
-    # Build return state
-    # NOTE: result is dict[str, Any] to allow mixed types (bool, str | None, ExecutionPlan)
-    result: dict[str, Any] = {STATE_KEY_PLAN_APPROVED: approved}
-
-    # Issue #63: Handle REPLAN case - set needs_replan=True to route to planner
-    if replan_instructions is not None:
-        # REPLAN requested - route to planner for new plan generation
-        result[STATE_KEY_NEEDS_REPLAN] = True
-        result[STATE_KEY_REPLAN_INSTRUCTIONS] = replan_instructions
-        # Clear rejection reason (this is not a rejection, it's a replan request)
-        result[STATE_KEY_PLAN_REJECTION_REASON] = None
-        # Clear execution plan to force fresh generation
-        result[STATE_KEY_EXECUTION_PLAN] = None
-
-        # Update HumanMessage with reformulated intent for planner context
-        # The planner will see the user's new intent instead of original query
-        if replan_instructions:
-            from langchain_core.messages import HumanMessage
-
-            result["messages"] = [HumanMessage(content=replan_instructions)]
-
-        logger.info(
-            "approval_gate_replan_requested",
-            plan_id=execution_plan.plan_id,
-            has_instructions=bool(replan_instructions),
-            instructions_preview=replan_instructions[:50] if replan_instructions else None,
-        )
-
-    elif approved:
-        # CRITICAL: Clear rejection reason from previous turn to prevent contamination
-        # LangGraph state keys persist across turns unless explicitly cleared
-        result[STATE_KEY_PLAN_REJECTION_REASON] = None
-        # Clear needs_replan from any previous replan attempt
-        result[STATE_KEY_NEEDS_REPLAN] = False
-
-        # If plan was modified, update execution_plan in state
-        if modified_plan:
-            result[STATE_KEY_EXECUTION_PLAN] = modified_plan
-            logger.info(
-                "approval_gate_plan_modified",
-                original_plan_id=execution_plan.plan_id,
-                modified_plan_id=modified_plan.plan_id,
-            )
     else:
-        # F6: Check if rejected plan contains sub-agent delegation → auto-replan without
-        has_sub_agent_steps = any(
-            s.tool_name == TOOL_NAME_DELEGATE_SUB_AGENT for s in execution_plan.steps if s.tool_name
+        logger.info(
+            "approval_gate_auto_approved",
+            plan_id=execution_plan.plan_id,
+            msg="Plan-level HITL skipped — downstream HITL (for_each/draft_critique) will handle confirmation",
         )
-
-        if has_sub_agent_steps:
-            # Convert REJECT into REPLAN without sub-agents.
-            # Increment planner_iteration so the existing max_replans guard
-            # in route_from_semantic_validator prevents infinite loops if the
-            # LLM keeps hallucinating the excluded tool.
-            from langchain_core.messages import HumanMessage
-
-            planner_iteration = state.get(STATE_KEY_PLANNER_ITERATION, 0)
-
-            logger.info(
-                "approval_gate_sub_agent_rejection_to_replan",
-                plan_id=execution_plan.plan_id,
-                original_rejection_reason=rejection_reason,
-                planner_iteration=planner_iteration,
-            )
-            hitl_plan_decisions.labels(decision="REPLAN_SUB_AGENT_FALLBACK").inc()
-
-            replan_msg = (
-                "User rejected the sub-agent delegation plan. "
-                f"Replan WITHOUT using {TOOL_NAME_DELEGATE_SUB_AGENT}. "
-                "Use direct tools (web_search_tool, etc.) instead to accomplish the same goal."
-            )
-            result[STATE_KEY_NEEDS_REPLAN] = True
-            result[STATE_KEY_REPLAN_INSTRUCTIONS] = replan_msg
-            result[STATE_KEY_PLAN_REJECTION_REASON] = None
-            result[STATE_KEY_EXECUTION_PLAN] = None
-            result[STATE_KEY_EXCLUDE_SUB_AGENT_TOOLS] = True
-            result[STATE_KEY_PLANNER_ITERATION] = planner_iteration + 1
-            result["messages"] = [HumanMessage(content=replan_msg)]
-        else:
-            # Normal rejection — route to response
-            result[STATE_KEY_PLAN_REJECTION_REASON] = rejection_reason
-            result[STATE_KEY_NEEDS_REPLAN] = False
-
-            logger.info(
-                "approval_gate_plan_rejected",
-                plan_id=execution_plan.plan_id,
-                reason=rejection_reason,
-            )
-
-    # PHASE 2.5 - LangGraph Observability: Track state updates
-    track_state_updates(state, result, "approval_gate", execution_plan.plan_id)
-
-    return result
+    result_passthrough: dict[str, Any] = {STATE_KEY_PLAN_APPROVED: True}
+    track_state_updates(state, result_passthrough, "approval_gate", execution_plan.plan_id)
+    return result_passthrough

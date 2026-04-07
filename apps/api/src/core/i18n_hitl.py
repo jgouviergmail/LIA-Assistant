@@ -499,6 +499,116 @@ _DESTRUCTIVE_CONFIRM_UI: dict[str, dict[str, str]] = {
     },
 }
 
+# Action-specific titles for destructive confirmation.
+# Replaces the generic "Confirmation requise" with a clear title describing
+# the type of action, so users understand what they are approving.
+# Keys are draft_type values containing "_delete" (e.g., "email_delete").
+# Fallback: generic title from _DESTRUCTIVE_CONFIRM_UI.
+_DESTRUCTIVE_CONFIRM_ACTION_TITLES: dict[str, dict[str, str]] = {
+    "fr": {
+        "email_delete": "Confirmation de suppression",
+        "event_delete": "Confirmation de suppression",
+        "contact_delete": "Confirmation de suppression",
+        "task_delete": "Confirmation de suppression",
+        "file_delete": "Confirmation de suppression",
+        "label_delete": "Confirmation de suppression",
+        "email": "Confirmation d'envoi",
+        "email_reply": "Confirmation de réponse",
+        "email_forward": "Confirmation de transfert",
+        "event": "Confirmation de création",
+        "event_update": "Confirmation de modification",
+        "contact": "Confirmation de création",
+        "contact_update": "Confirmation de modification",
+        "task": "Confirmation de création",
+        "task_update": "Confirmation de modification",
+    },
+    "en": {
+        "email_delete": "Confirm deletion",
+        "event_delete": "Confirm deletion",
+        "contact_delete": "Confirm deletion",
+        "task_delete": "Confirm deletion",
+        "file_delete": "Confirm deletion",
+        "label_delete": "Confirm deletion",
+        "email": "Confirm sending",
+        "email_reply": "Confirm reply",
+        "email_forward": "Confirm forwarding",
+        "event": "Confirm creation",
+        "event_update": "Confirm modification",
+        "contact": "Confirm creation",
+        "contact_update": "Confirm modification",
+        "task": "Confirm creation",
+        "task_update": "Confirm modification",
+    },
+    "es": {
+        "email_delete": "Confirmar eliminación",
+        "event_delete": "Confirmar eliminación",
+        "contact_delete": "Confirmar eliminación",
+        "task_delete": "Confirmar eliminación",
+        "file_delete": "Confirmar eliminación",
+        "label_delete": "Confirmar eliminación",
+        "email": "Confirmar envío",
+        "email_reply": "Confirmar respuesta",
+        "email_forward": "Confirmar reenvío",
+        "event": "Confirmar creación",
+        "event_update": "Confirmar modificación",
+        "contact": "Confirmar creación",
+        "contact_update": "Confirmar modificación",
+        "task": "Confirmar creación",
+        "task_update": "Confirmar modificación",
+    },
+    "de": {
+        "email_delete": "Löschung bestätigen",
+        "event_delete": "Löschung bestätigen",
+        "contact_delete": "Löschung bestätigen",
+        "task_delete": "Löschung bestätigen",
+        "file_delete": "Löschung bestätigen",
+        "label_delete": "Löschung bestätigen",
+        "email": "Versand bestätigen",
+        "email_reply": "Antwort bestätigen",
+        "email_forward": "Weiterleitung bestätigen",
+        "event": "Erstellung bestätigen",
+        "event_update": "Änderung bestätigen",
+        "contact": "Erstellung bestätigen",
+        "contact_update": "Änderung bestätigen",
+        "task": "Erstellung bestätigen",
+        "task_update": "Änderung bestätigen",
+    },
+    "it": {
+        "email_delete": "Conferma eliminazione",
+        "event_delete": "Conferma eliminazione",
+        "contact_delete": "Conferma eliminazione",
+        "task_delete": "Conferma eliminazione",
+        "file_delete": "Conferma eliminazione",
+        "label_delete": "Conferma eliminazione",
+        "email": "Conferma invio",
+        "email_reply": "Conferma risposta",
+        "email_forward": "Conferma inoltro",
+        "event": "Conferma creazione",
+        "event_update": "Conferma modifica",
+        "contact": "Conferma creazione",
+        "contact_update": "Conferma modifica",
+        "task": "Conferma creazione",
+        "task_update": "Conferma modifica",
+    },
+    "zh-CN": {
+        "email_delete": "确认删除",
+        "event_delete": "确认删除",
+        "contact_delete": "确认删除",
+        "task_delete": "确认删除",
+        "file_delete": "确认删除",
+        "label_delete": "确认删除",
+        "email": "确认发送",
+        "email_reply": "确认回复",
+        "email_forward": "确认转发",
+        "event": "确认创建",
+        "event_update": "确认修改",
+        "contact": "确认创建",
+        "contact_update": "确认修改",
+        "task": "确认创建",
+        "task_update": "确认修改",
+    },
+}
+
 # Operation descriptions for destructive confirm
 _DESTRUCTIVE_OPERATION_DESCRIPTIONS: dict[str, dict[str, str]] = {
     "fr": {
@@ -1909,6 +2019,30 @@ class HitlMessages:
         """
         lang = HitlMessages._normalize_language(language)
         return _DESTRUCTIVE_CONFIRM_UI.get(lang, _DESTRUCTIVE_CONFIRM_UI["en"])
+
+    @staticmethod
+    def get_destructive_confirm_title(draft_type: str, language: str) -> str:
+        """
+        Get action-specific title for destructive confirmation dialog.
+
+        Returns a clear title like "Confirmation de suppression" instead of the
+        generic "Confirmation requise", so users understand the type of action.
+
+        Args:
+            draft_type: Draft type (e.g., "email_delete", "event", "contact_update")
+            language: Language code (fr, en, es, de, it, zh-CN)
+
+        Returns:
+            Action-specific title, or generic fallback from _DESTRUCTIVE_CONFIRM_UI.
+        """
+        lang = HitlMessages._normalize_language(language)
+        titles = _DESTRUCTIVE_CONFIRM_ACTION_TITLES.get(
+            lang, _DESTRUCTIVE_CONFIRM_ACTION_TITLES["en"]
+        )
+        if draft_type in titles:
+            return titles[draft_type]
+        # Fallback to generic title
+        return HitlMessages.get_destructive_confirm_translations(language)["title"]
 
     @staticmethod
     def get_destructive_operation_description(

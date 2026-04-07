@@ -986,12 +986,20 @@ async def _handle_execution_plan(
             filtered_indices: list[int] | None = None
 
             # Helper to build cancellation result (DRY)
+            # Sets draft_action_result with action="cancel" so response_node
+            # handles it identically to a HITL draft cancel ("OK, annulé.").
             def _build_cancel_result(reason: str) -> dict[str, Any]:
                 return {
                     STATE_KEY_EXECUTION_PLAN: execution_plan,
                     STATE_KEY_AGENT_RESULTS: {},
                     STATE_KEY_FOR_EACH_CANCELLED: True,
                     STATE_KEY_FOR_EACH_CANCELLATION_REASON: reason,
+                    "draft_action_result": {
+                        "action": "cancel",
+                        "draft_id": "",
+                        "draft_type": "for_each_bulk",
+                        "reason": reason,
+                    },
                 }
 
             # Skip HITL entirely when pre-execution yielded 0 items

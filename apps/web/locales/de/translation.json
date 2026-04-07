@@ -2615,7 +2615,7 @@
         "v1_14": {
           "title": "v1.14 — LIAs Psyche: Dynamische emotionale Intelligenz",
           "date": "April 2026",
-          "count": "12",
+          "count": "14",
           "items": {
             "i1": "<b>Anzeigemodus</b> — Wählen Sie zwischen 3 Modi: <em>HTML-Karten</em> (strukturierte visuelle Karten — Standard), <em>Rich-HTML</em> (schön formatierte Antworten) oder <em>Markdown</em> (reiner Text). Konfigurierbar unter Einstellungen > Personalisierung",
             "i2": "<b>LIAs Psyche</b> — Ihr Assistent entwickelt einen dynamischen psychologischen Zustand: Stimmung (14 Zustände), Emotionen (16 Typen), eine sich vertiefende Beziehung, Antriebe und Selbstwirksamkeit. Stimmung und Emotionen beeinflussen subtil Ton und Stil jeder Antwort",
@@ -2628,7 +2628,9 @@
             "i9": "<b>Intelligente Skill-Aktivierung</b> — Skills ohne Plan-Template werden jetzt automatisch erkannt und aktiviert. Skills mit Python-Skripten werden über einen dedizierten ReAct-Agenten in einer isolierten Schleife ausgeführt; andere werden passiv ohne zusätzlichen LLM-Aufruf injiziert",
             "i10": "<b>Skript-Ausführungsfix</b> — Die Ausführung von Skill-Skripten funktioniert jetzt in allen Umgebungen (Docker, Linux, Windows) mit Prozessisolation und robuster Fehlerbehandlung",
             "i11": "<b>Schnellerer Start</b> — Tool-Auswahl-Embeddings werden jetzt auf der Festplatte zwischengespeichert. Der Serverneustart ist schneller und verbraucht keine unnötigen API-Aufrufe mehr",
-            "i12": "<b>Proaktive Vorschläge erhalten</b> — Von der proaktiven Initiative generierte Vorschläge (Wetter, Erinnerungen usw.) gehen beim intelligenten Filtern der Antworten nicht mehr verloren"
+            "i12": "<b>Proaktive Vorschläge erhalten</b> — Von der proaktiven Initiative generierte Vorschläge (Wetter, Erinnerungen usw.) gehen beim intelligenten Filtern der Antworten nicht mehr verloren",
+            "i13": "<b>Vereinfachte Bestätigungen</b> — Lösch- und Änderungsvorgänge erfordern jetzt nur noch eine Bestätigung statt zwei oder drei. Bestätigungstitel sind jetzt explizit (\u201eLöschung bestätigen\u201c, \u201eVersand bestätigen\u201c usw.)",
+            "i14": "<b>Anti-Halluzinations-Schutz</b> — Das System erkennt und korrigiert automatisch von der KI erfundene Parameter bei der Planung und verhindert so stille Fehler bei Löschungen und anderen Operationen"
           }
         },
         "v1_13": {

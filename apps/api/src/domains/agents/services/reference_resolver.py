@@ -155,7 +155,10 @@ class ResolvedContext:
         ready_to_use_values: dict[str, str] = {}
 
         # === HEADER ===
-        lines.append("RESOLVED CONTEXT (already resolved, DO NOT call any resolution tool):")
+        lines.append(
+            "RESOLVED CONTEXT (items already fetched — use their IDs directly in parameters, "
+            "DO NOT create any resolve/context/reference step):"
+        )
         lines.append(f"Source domain: {self.source_domain or 'unknown'}")
         lines.append(f"Items count: {len(self.items)}")
 

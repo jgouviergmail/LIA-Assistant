@@ -29,9 +29,9 @@ PLANNING INSTRUCTIONS:
    - NEVER use [*] or [] syntax - use for_each + $item for iteration
 
 4. RULES:
-   - Use ONLY tools from AVAILABLE TOOLS - NEVER invent tool names (suffix: _tool)
-   - NEVER generate "resolve_reference_tool" or similar - these DON'T EXIST
-   - If CONTEXT has READY-TO-USE VALUES, use them directly
+   - Use ONLY tools from AVAILABLE TOOLS below - NEVER invent tool names
+   - FORBIDDEN TOOLS (do NOT exist): resolve_reference, get_context_list, get_context, resolve_context, lookup_reference — these will ALWAYS fail
+   - When user says "these/the/this" referencing previous results: the IDs are already in CONTEXT, pass them directly to the action tool
    - Generate MINIMUM steps needed
 
 5. SEARCH LANGUAGE (CRITICAL):

@@ -681,9 +681,10 @@ Generate the review question:"""
 
         emoji = HitlMessages.get_draft_emoji(draft_type)
         translations = HitlMessages.get_destructive_confirm_translations(user_language)
+        specific_title = HitlMessages.get_destructive_confirm_title(draft_type, user_language)
 
-        # Header
-        header = f"⚠️ **{translations['title']}**\n\n"
+        # Header with action-specific title (e.g., "Confirmation de suppression")
+        header = f"⚠️ **{specific_title}**\n\n"
 
         # Build item list
         items_section = f"**{translations['affected_items']} :**\n"

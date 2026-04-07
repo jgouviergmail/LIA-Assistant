@@ -106,3 +106,19 @@ Phase 2 (Initiative):
 ## Post-Implementation Fix (v1.11.1)
 
 **Bug**: `initiative_iteration` was not reset between conversation turns. Since LangGraph state is checkpointed to PostgreSQL, after the first turn the counter persisted at `max_iterations`, causing the initiative node to be skipped on all subsequent turns. **Fix**: Added per-turn reset of `initiative_iteration`, `initiative_results`, `initiative_skipped_reason`, and `initiative_suggestion` in `router_node_v3`'s state clearing block (same pattern as `planner_iteration`).
+
+## Amendment: Initiative Skip After HITL Resolution (v1.14.5)
+
+When a HITL (Human-in-the-Loop) interaction has just been resolved, the initiative node now short-circuits immediately instead of making a full LLM evaluation call.
+
+**Problem**: After a user approves or refuses a HITL interaction (e.g., confirming a destructive action, accepting a draft, or disambiguating an entity), the flow re-enters the initiative node. The LLM call to evaluate post-execution enrichment opportunities is wasted in this context — the user has already made an explicit decision and expects the response, not additional proactive actions. This added ~8 seconds of unnecessary latency per HITL resolution.
+
+**Solution**: At step 1b of the initiative node (after the feature flag check, before the iteration budget check), a new guard checks for the presence of any HITL resolution state key:
+
+- `draft_action_result` — user accepted/refused a draft
+- `entity_disambiguation_result` — user selected a disambiguated entity
+- `tool_confirmation_result` — user confirmed/refused a destructive tool call
+
+If any of these keys is present in state, the node returns immediately with `initiative_skipped_reason: "hitl_just_resolved"`, bypassing the LLM evaluation entirely.
+
+**Why this is reliable**: These state keys are set by `hitl_dispatch_node` when routing the user's HITL response back into the graph, and cleared by `response_node` after the final response is synthesized. Their presence in state at the initiative node therefore reliably indicates that the current graph traversal originates from a HITL resolution, not from a fresh user message or a task orchestrator completion.

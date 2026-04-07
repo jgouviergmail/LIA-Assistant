@@ -2617,7 +2617,7 @@
         "v1_14": {
           "title": "v1.14 — Psiche di LIA: Intelligenza emotiva dinamica",
           "date": "Aprile 2026",
-          "count": "12",
+          "count": "14",
           "items": {
             "i1": "<b>Modalità di visualizzazione</b> — Scegliete tra 3 modalità: <em>Schede HTML</em> (schede visive strutturate — predefinito), <em>HTML arricchito</em> (risposte con formattazione curata) o <em>Markdown</em> (testo semplice). Configurabile in Impostazioni > Personalizzazione",
             "i2": "<b>Psiche di LIA</b> — Il vostro assistente sviluppa uno stato psicologico dinamico: umore (14 stati), emozioni (16 tipi), una relazione che si approfondisce, motivazioni e autoefficacia. L'umore e le emozioni influenzano sottilmente il tono e lo stile di ogni risposta",
@@ -2630,7 +2630,9 @@
             "i9": "<b>Attivazione intelligente delle skill</b> — Le skill senza modello di piano vengono ora rilevate e attivate automaticamente. Le skill con script Python vengono eseguite tramite un agente ReAct dedicato in un ciclo isolato; le altre vengono iniettate passivamente senza chiamata LLM aggiuntiva",
             "i10": "<b>Correzione esecuzione script</b> — L'esecuzione degli script delle skill ora funziona in tutti gli ambienti (Docker, Linux, Windows) con isolamento dei processi e gestione robusta degli errori",
             "i11": "<b>Avvio più rapido</b> — Gli embedding di selezione degli strumenti sono ora memorizzati nella cache su disco. Il riavvio del server è più veloce e non consuma più chiamate API inutili",
-            "i12": "<b>Suggerimenti proattivi preservati</b> — I suggerimenti generati dall'iniziativa proattiva (meteo, promemoria, ecc.) non vengono più persi durante il filtraggio intelligente delle risposte"
+            "i12": "<b>Suggerimenti proattivi preservati</b> — I suggerimenti generati dall'iniziativa proattiva (meteo, promemoria, ecc.) non vengono più persi durante il filtraggio intelligente delle risposte",
+            "i13": "<b>Conferme semplificate</b> — Le operazioni di eliminazione e modifica richiedono ora una sola conferma invece di due o tre. I titoli di conferma sono ora espliciti («Conferma eliminazione», «Conferma invio», ecc.)",
+            "i14": "<b>Difesa anti-allucinazione</b> — Il sistema rileva e corregge automaticamente i parametri inventati dall'IA durante la pianificazione, prevenendo errori silenziosi nelle eliminazioni e altre operazioni"
           }
         },
         "v1_13": {

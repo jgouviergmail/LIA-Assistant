@@ -118,10 +118,66 @@
       "query_preview": "supprime ces mails",
       "timestamp": "2026-04-02T12:52:41.539624+00:00",
       "was_new": false
+    },
+    {
+      "tool": "resolve_reference",
+      "domain": "email",
+      "query_preview": "supprime ces emails",
+      "timestamp": "2026-04-03T21:21:03.958250+00:00",
+      "was_new": false
+    },
+    {
+      "tool": "resolve_reference",
+      "domain": "email",
+      "query_preview": "supprime ces emails",
+      "timestamp": "2026-04-03T21:45:24.872645+00:00",
+      "was_new": false
+    },
+    {
+      "tool": "resolve_reference",
+      "domain": "email",
+      "query_preview": "supprime ces emails",
+      "timestamp": "2026-04-03T22:11:00.038419+00:00",
+      "was_new": false
+    },
+    {
+      "tool": "resolve_reference",
+      "domain": "email",
+      "query_preview": "supprime ces emails",
+      "timestamp": "2026-04-03T22:21:20.466637+00:00",
+      "was_new": false
+    },
+    {
+      "tool": "resolve_reference",
+      "domain": "email",
+      "query_preview": "supprime ces emails",
+      "timestamp": "2026-04-03T22:21:34.022388+00:00",
+      "was_new": false
+    },
+    {
+      "tool": "resolve_reference",
+      "domain": "email",
+      "query_preview": "supprime ces emails",
+      "timestamp": "2026-04-03T22:25:35.220246+00:00",
+      "was_new": false
+    },
+    {
+      "tool": "resolve_reference",
+      "domain": "email",
+      "query_preview": "supprime ces emails",
+      "timestamp": "2026-04-03T23:09:35.325081+00:00",
+      "was_new": false
+    },
+    {
+      "tool": "resolve_reference",
+      "domain": "email",
+      "query_preview": "supprime ces mail",
+      "timestamp": "2026-04-03T23:20:24.927345+00:00",
+      "was_new": false
     }
   ],
   "stats": {
-    "total_detections": 15,
-    "last_updated": "2026-04-02T12:52:41.539645+00:00"
+    "total_detections": 23,
+    "last_updated": "2026-04-03T23:20:24.927365+00:00"
   }
 }

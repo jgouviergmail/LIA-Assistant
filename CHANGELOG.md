@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.14.5] - 2026-04-07
+
+### Changed
+
+- **HITL Streamlining — Approval Gate Passthrough** — Plan-level HITL approval (`plan_approval`) is now auto-approved. Every mutation already has its own downstream HITL (FOR_EACH confirmation for bulk operations, draft critique for individual actions), making plan-level approval redundant. Eliminates the triple-confirmation UX for deletions (plan_approval + for_each_confirmation + draft_critique → single for_each_confirmation).
+- **HITL Streamlining — FOR_EACH Cancel = Draft Cancel** — Refusing a FOR_EACH HITL confirmation now produces the same "OK, annulé" fast-path response as refusing a draft critique, instead of falling through to initiative + response nodes with a broken error message.
+- **Initiative Skip After HITL Resolution** — Initiative node now short-circuits immediately when a HITL interaction (draft critique, entity disambiguation, tool confirmation) was just resolved. Avoids a wasted LLM call (~8s) evaluating post-execution enrichment on an already-confirmed/refused action.
+- **Action-Specific HITL Titles** — Destructive confirmation dialogs now display action-specific titles ("Confirmation de suppression", "Confirmation d'envoi", etc.) instead of the generic "Confirmation requise", across all 6 languages. Applied to both batch draft critique and individual destructive confirm interactions.
+- **Planner Prompt — Forbidden Tools List** — Smart planner prompt now explicitly lists forbidden hallucinated tools (`resolve_reference`, `get_context_list`, `get_context`, `resolve_context`, `lookup_reference`) with clear instruction to use resolved context IDs directly. Reduces replanning caused by hallucinated tool rejections.
+- **FOR_EACH Directive — Mandatory Fetch Step** — FOR_EACH directive prompt now explicitly states the retrieval step must always be included, even when items appear in resolved context, because the runtime FOR_EACH engine only works with `$steps` references.
+
+### Fixed
+
+- **Hallucinated Parameter Defense** — Parallel executor now strips unknown parameters (e.g., `order`, `order_by`) from tool calls before execution, using `inspect.signature()` to validate against the tool's actual function signature. Prevents `TypeError` crashes that silently failed entire execution plans when the planner LLM hallucinated non-existent parameters.
+- **Resolved Context Header Clarification** — Resolved context header in planner prompts updated from vague "DO NOT call any resolution tool" to explicit "use their IDs directly in parameters, DO NOT create any resolve/context/reference step", reducing planner hallucination of `resolve_reference` tool.
+
+### Documentation
+
+- Updated HITL technical documentation with approval gate passthrough, FOR_EACH cancel behavior, and action-specific titles.
+- Updated ADR-062 with initiative skip after HITL resolution.
+- Updated LangGraph architecture documentation.
+- Updated FAQ changelog (6 languages) with HITL streamlining features.
+
 ## [1.14.4] - 2026-04-03
 
 ### Added

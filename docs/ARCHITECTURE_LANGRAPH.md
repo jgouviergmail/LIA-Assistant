@@ -1,7 +1,7 @@
 # Architecture LangGraph - LIA
 
-**Version**: 5.9 (INTELLIPLANNER + INTELLIA v10.1 + SEMANTIC + REMINDERS + Architecture v3.5 + Sub-Agents + Browser Control + Journals + Philips Hue + Initiative Phase + MCP Iterative + Cross-Worker Cache Invalidation)
-**Date**: 2026-03-25
+**Version**: 6.0 (INTELLIPLANNER + INTELLIA v10.1 + SEMANTIC + REMINDERS + Architecture v3.5 + Sub-Agents + Browser Control + Journals + Philips Hue + Initiative Phase + MCP Iterative + Cross-Worker Cache Invalidation + v1.14.5 Fixes)
+**Date**: 2026-04-07
 **Status**: Production
 
 ---
@@ -290,6 +290,8 @@ LIA utilise **LangGraph v1.1.2** avec exécution parallèle native **asyncio** p
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+**Approval gate passthrough** (v1.14.5): This node now auto-approves all plans unconditionally. Plan-level HITL was made redundant because downstream HITL interactions (for_each_confirmation, draft_critique, destructive_confirm) already handle user confirmation for each individual mutation. The approval gate remains in the graph as a structural pass-through to preserve routing logic.
+
 ### 2.6 task_orchestrator_node
 
 **Fichier**: `nodes/task_orchestrator_node.py`
@@ -362,6 +364,8 @@ LIA utilise **LangGraph v1.1.2** avec exécution parallèle native **asyncio** p
 **Per-turn state reset** (v1.11.1 fix): Initiative state fields (`initiative_iteration`, `initiative_results`, `initiative_skipped_reason`, `initiative_suggestion`) are reset to their defaults by `router_node_v3` at the start of each turn. Without this reset, the `initiative_iteration` counter persisted across turns via PostgreSQL checkpoints, causing the initiative node to be skipped on all turns after the first (`max_iterations` reached).
 
 **Initiative registry protection** (v1.14.4): Initiative results now include `registry_ids` — the list of registry item IDs produced by initiative actions. In `response_node`, these IDs are collected and re-injected after intelligent filtering, ensuring proactive suggestions (e.g., weather cards, upcoming event reminders) are never silently dropped by the response LLM's relevance filtering.
+
+**Initiative skip after HITL** (v1.14.5): The initiative node now short-circuits (skips execution entirely) when `draft_action_result`, `entity_disambiguation_result`, or `tool_confirmation_result` is present in state. These fields indicate a HITL interaction was just resolved, meaning the current graph re-entry is a continuation rather than a fresh turn — running initiative analysis would be redundant and potentially disruptive.
 
 ### 2.8 hitl_dispatch_node
 
@@ -717,10 +721,11 @@ class MessagesState(TypedDict):
 │   │   │                                                     │   │  │
 │   │   │  1. Resolve parameters ($steps.X.field → values)    │   │  │
 │   │   │  2. Route to agent (contacts/emails/calendar)       │   │  │
-│   │   │  3. Execute tool via agent                          │   │  │
-│   │   │  4. Capture result + registry items                 │   │  │
-│   │   │  5. Check requires_confirmation                     │   │  │
-│   │   │  6. Return StepResult (frozen Pydantic)             │   │  │
+│   │   │  3. Strip hallucinated params (inspect.signature)   │   │  │
+│   │   │  4. Execute tool via agent                          │   │  │
+│   │   │  5. Capture result + registry items                 │   │  │
+│   │   │  6. Check requires_confirmation                     │   │  │
+│   │   │  7. Return StepResult (frozen Pydantic)             │   │  │
 │   │   └─────────────────────────────────────────────────────┘   │  │
 │   │                     │                                        │  │
 │   │                     ▼                                        │  │
@@ -737,6 +742,8 @@ class MessagesState(TypedDict):
 │   └─────────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────────┘
 ```
+
+**Hallucinated parameter stripping** (v1.14.5): The `_execute_tool()` method now uses `inspect.signature()` to introspect the tool's `coroutine` callable and strip any parameters not present in the function signature before calling `tool.coroutine(**args)`. This prevents `TypeError` crashes caused by the planner LLM hallucinating extra parameters that do not exist on the target tool function.
 
 ### Résolution des Références
 

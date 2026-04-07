@@ -214,8 +214,21 @@ class DestructiveConfirmInteraction:
         # Get localized strings
         translations = self._get_translations(user_language)
 
-        # Header with warning emoji
-        header = f"⚠️ **{translations['title']}**\n\n"
+        # Map operation_type (e.g., "delete_emails") to draft_type (e.g., "email_delete")
+        # for action-specific title lookup
+        _OP_TO_DRAFT_TYPE = {
+            "delete_emails": "email_delete",
+            "delete_events": "event_delete",
+            "delete_contacts": "contact_delete",
+            "delete_tasks": "task_delete",
+            "delete_files": "file_delete",
+            "delete_labels": "label_delete",
+        }
+        draft_type_key = _OP_TO_DRAFT_TYPE.get(operation_type, "")
+        specific_title = HitlMessages.get_destructive_confirm_title(draft_type_key, user_language)
+
+        # Header with action-specific title
+        header = f"⚠️ **{specific_title}**\n\n"
 
         # Operation description
         op_desc = self._get_operation_description(operation_type, affected_count, user_language)
