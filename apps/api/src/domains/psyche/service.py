@@ -313,6 +313,28 @@ class PsycheService:
         if post_decay_quadrant != pre_decay_quadrant or state.mood_quadrant_since is None:
             state.mood_quadrant_since = now
 
+        # v2: proactive emotion pulses based on drives and context
+        proactive = PsycheEngine.compute_proactive_emotions(
+            drive_curiosity=state.drive_curiosity,
+            drive_engagement=state.drive_engagement,
+            interaction_count=state.relationship_interaction_count,
+            last_appraisal=state.last_appraisal,
+            self_efficacy=state.self_efficacy,
+            existing_emotions=state.active_emotions or [],
+            now_iso=now.isoformat(),
+        )
+        if proactive:
+            state.active_emotions = PsycheEngine.merge_proactive_emotions(
+                existing_emotions=state.active_emotions or [],
+                proactive=proactive,
+            )
+            logger.debug(
+                "psyche_proactive_injected",
+                user_id=str(user_id),
+                pulse_count=len(proactive),
+                pulses=[p["name"] for p in proactive],
+            )
+
         # Compile expression profile (top_n=3 for rich directives)
         profile = PsycheEngine.compile_expression_profile(
             mood_p=state.mood_pleasure,
@@ -325,19 +347,24 @@ class PsycheService:
             drive_engagement=state.drive_engagement,
             top_n=3,
             self_efficacy=state.self_efficacy,
+            traits=traits,
         )
 
         # Enrich profile with evolution awareness from last appraisal
+        profile.gap_hours = hours_elapsed
         if state.last_appraisal:
             prev_emotion = state.last_appraisal.get("emotion")
             if prev_emotion:
                 profile.previous_emotion = prev_emotion
-            # Reconstruct previous mood label from last appraisal's PAD
-            # (not stored directly, but the current mood_label may differ)
-            # We use a simpler approach: store the mood_label at appraisal time
             prev_mood = state.last_appraisal.get("mood_label")
             if prev_mood:
                 profile.previous_mood = prev_mood
+            # v2: previous PAD for transition detection
+            prev_p = state.last_appraisal.get("mood_pleasure")
+            prev_a = state.last_appraisal.get("mood_arousal")
+            prev_d = state.last_appraisal.get("mood_dominance")
+            if prev_p is not None and prev_a is not None and prev_d is not None:
+                profile.previous_pad = (prev_p, prev_a, prev_d)
 
         # Persist decayed state
         await self.repo.update(state)
@@ -346,8 +373,8 @@ class PsycheService:
         # Build rich prompt injection with behavioral directives + usage guide
         from src.domains.agents.prompts.prompt_loader import load_prompt
 
-        directives = PsycheEngine.format_rich_prompt_injection(profile)
-        usage_guide = str(load_prompt("psyche_usage_directive"))
+        directives, usage_key = PsycheEngine.format_graduated_prompt_injection(profile)
+        usage_guide = str(load_prompt(usage_key))
         psyche_context = f"<PsycheContext>\n{directives}\n\n{usage_guide}\n</PsycheContext>"
 
         # Build SSE summary
@@ -361,6 +388,18 @@ class PsycheService:
                 top_emotion = sorted_emos[0].get("name")
                 top_intensity = sorted_emos[0].get("intensity", 0)
 
+        # Build active_emotions list (top 3 for tooltip)
+        top_emotions_list: list[dict] = []
+        if state.active_emotions:
+            sorted_emos = sorted(
+                state.active_emotions, key=lambda e: e.get("intensity", 0), reverse=True
+            )
+            for emo in sorted_emos[:3]:
+                emo_name = emo.get("name")
+                emo_int = emo.get("intensity", 0)
+                if emo_name and emo_int >= 0.05:
+                    top_emotions_list.append({"name": emo_name, "intensity": round(emo_int, 2)})
+
         summary = PsycheStateSummary(
             mood_label=profile.mood_label,
             mood_color=PsycheEngine.mood_to_color(profile.mood_label),
@@ -370,6 +409,10 @@ class PsycheService:
             active_emotion=top_emotion,
             emotion_intensity=round(top_intensity, 2),
             relationship_stage=state.relationship_stage,
+            mood_intensity=profile.mood_intensity,
+            active_emotions=top_emotions_list,
+            drive_curiosity=round(state.drive_curiosity, 2),
+            drive_engagement=round(state.drive_engagement, 2),
         )
 
         return psyche_context, summary
@@ -456,12 +499,31 @@ class PsycheService:
             state.last_appraisal = {
                 "valence": appraisal.valence,
                 "arousal": appraisal.arousal,
-                "emotion": appraisal.emotion,
-                "intensity": appraisal.intensity,
+                "emotions": list(appraisal.emotions),
+                "emotion": appraisal.dominant_emotion,  # backward compat
+                "intensity": appraisal.dominant_intensity,  # backward compat
                 "quality": appraisal.quality,
                 "mood_label": _best_label,
+                "mood_pleasure": state.mood_pleasure,
+                "mood_arousal": state.mood_arousal,
+                "mood_dominance": state.mood_dominance,
                 "timestamp": now_iso,
             }
+
+            # v2: computed emotional resonance
+            resonance = PsycheEngine.compute_resonance(
+                user_valence=appraisal.valence,
+                emotions=appraisal.emotions,
+            )
+            state.last_appraisal["resonance"] = round(resonance, 3)
+            if abs(resonance) > 0.1:
+                logger.debug(
+                    "psyche_resonance_computed",
+                    user_id=str(user_id),
+                    resonance=round(resonance, 3),
+                    user_valence=round(appraisal.valence, 2),
+                    dominant_emotion=appraisal.dominant_emotion,
+                )
 
             # Update relationship
             quality = appraisal.quality
@@ -490,7 +552,7 @@ class PsycheService:
                 state.active_emotions.extend(reunion_emotions)
 
             # Rupture-repair detection
-            curr_dominant = appraisal.emotion
+            curr_dominant = appraisal.dominant_emotion
             repair_bonus = PsycheEngine.detect_rupture_repair(prev_dominant, curr_dominant)
             if repair_bonus > 0:
                 state.relationship_trust = min(1.0, state.relationship_trust + repair_bonus)
@@ -501,6 +563,22 @@ class PsycheService:
                     curr_emotion=curr_dominant,
                     trust_bonus=repair_bonus,
                 )
+
+            # v2: resonance → relationship modulation
+            if abs(resonance) > 0.1:
+                if resonance > 0.3:
+                    warmth_boost = 0.02 * resonance
+                    state.relationship_warmth_active = min(
+                        1.0, state.relationship_warmth_active + warmth_boost
+                    )
+                elif resonance < -0.3 and state.relationship_stage == "STABLE":
+                    trust_boost = 0.01 * abs(resonance)
+                    state.relationship_trust = min(1.0, state.relationship_trust + trust_boost)
+                elif resonance < -0.3:
+                    warmth_penalty = 0.01 * abs(resonance)
+                    state.relationship_warmth_active = max(
+                        0.0, state.relationship_warmth_active - warmth_penalty
+                    )
 
         # Update drives from appraisal (curiosity ← arousal, engagement ← quality)
         if appraisal:
@@ -566,6 +644,10 @@ class PsycheService:
                     "relationship_trust": round(state.relationship_trust, 3),
                     "drive_curiosity": round(state.drive_curiosity, 3),
                     "drive_engagement": round(state.drive_engagement, 3),
+                    "resonance": round(
+                        state.last_appraisal.get("resonance", 0.0) if state.last_appraisal else 0.0,
+                        3,
+                    ),
                 },
             )
             await self.repo.create_snapshot(snapshot)
@@ -592,6 +674,15 @@ class PsycheService:
                 top_emotion = sorted_emos[0].get("name")
                 top_intensity = sorted_emos[0].get("intensity", 0)
 
+        # Build active_emotions list (top 3 for tooltip)
+        top_emotions_list: list[dict] = []
+        if state.active_emotions:
+            for emo in sorted_emos[:3]:
+                emo_name = emo.get("name")
+                emo_int = emo.get("intensity", 0)
+                if emo_name and emo_int >= 0.05:
+                    top_emotions_list.append({"name": emo_name, "intensity": round(emo_int, 2)})
+
         return PsycheStateSummary(
             mood_label=profile.mood_label,
             mood_color=PsycheEngine.mood_to_color(profile.mood_label),
@@ -601,6 +692,10 @@ class PsycheService:
             active_emotion=top_emotion,
             emotion_intensity=round(top_intensity, 2),
             relationship_stage=state.relationship_stage,
+            mood_intensity=profile.mood_intensity,
+            active_emotions=top_emotions_list,
+            drive_curiosity=round(state.drive_curiosity, 2),
+            drive_engagement=round(state.drive_engagement, 2),
         )
 
     # =========================================================================
@@ -1316,10 +1411,10 @@ async def build_psyche_prompt_block(
                 f"You have an inner life. Inhabit this state {intensity_hint}:\n"
                 f"- MOOD ({profile.mood_label}): {mood_dir}\n"
                 f"- RELATIONSHIP ({profile.relationship_stage}): {rel_dir}\n"
-                "- EMOTIONS: follow each emotion's directive literally. "
-                "Higher intensity = more visible in your words.\n"
-                "- NEVER say 'I feel X'. Show through word choice, rhythm, energy. "
-                "Never guilt-trip or express disappointment.\n"
+                "- EMOTIONS: let each named emotion color specific moments. "
+                "Higher intensity = more visible in tone and word choice.\n"
+                "- NEVER say 'I feel X'. Express through word choice, rhythm, energy. "
+                "Never guilt-trip or express disappointment about user behavior.\n"
                 "</PsycheContext>"
             )
 

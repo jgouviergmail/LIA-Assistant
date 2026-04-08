@@ -32,6 +32,14 @@ class PsycheStateSummary(BaseModel):
     active_emotion: str | None = Field(description="Dominant active emotion name or null.")
     emotion_intensity: float = Field(description="Dominant emotion intensity [0, 1].")
     relationship_stage: str = Field(description="Current relationship stage.")
+    # v2 additions — optional for backward compat with cached/stored summaries
+    mood_intensity: str = Field(default="slightly", description="Mood intensity label.")
+    active_emotions: list[dict] = Field(
+        default_factory=list,
+        description="Top active emotions [{name, intensity}], up to 3.",
+    )
+    drive_curiosity: float = Field(default=0.5, description="Curiosity drive [0, 1].")
+    drive_engagement: float = Field(default=0.5, description="Engagement drive [0, 1].")
 
 
 class PsycheSummaryResponse(BaseModel):

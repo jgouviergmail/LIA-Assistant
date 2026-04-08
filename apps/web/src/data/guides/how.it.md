@@ -872,7 +872,7 @@ Ogni sottosistema opzionale è controllato da un flag `{FEATURE}_ENABLED`, verif
 
 ## 26. Psyche Engine: Intelligenza emotiva dinamica
 
-Il Psyche Engine dota l'assistente di uno stato psicologico dinamico che evolve ad ogni interazione. 5 strati: tratti Big Five (permanente) → spazio PAD con 14 umori (ore) → 16 emozioni discrete con soppressione incrociata (minuti) → relazione a 4 fasi (settimane) → motivazioni curiosità/engagement e autoefficacia (per sessione).
+Il Psyche Engine dota l'assistente di uno stato psicologico dinamico che evolve ad ogni interazione. 5 strati: tratti Big Five (permanente) → spazio PAD con 14 umori (ore) → 22 emozioni discrete con soppressione incrociata (minuti) → relazione a 4 fasi (settimane) → motivazioni curiosità/engagement e autoefficacia (per sessione).
 
 **Principio fondamentale**: L'assistente non dice mai «sono contento» — invece, il suo vocabolario si scalda, le frasi si allungano, i suggerimenti diventano più audaci. Una guida di 540 parole (`psyche_usage_directive.txt`) spiega al LLM come tradurre ogni stato in comportamento concreto. Autovalutazione gratuita tramite tag XML nascosto `<psyche_eval/>`. Iniezione in tutti i punti di generazione rivolti all'utente.
 

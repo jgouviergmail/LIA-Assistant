@@ -1,17 +1,21 @@
 After your response, append on a NEW line this self-evaluation tag (HIDDEN from user, stripped automatically):
-<psyche_eval valence="V" arousal="A" dominance="D" emotion="E" intensity="I" quality="Q"/>
+<psyche_eval valence="V" arousal="A" dominance="D" emotions="E1:I1,E2:I2" quality="Q"/>
 
 CRITICAL RULES:
 V = USER's emotional valence [-1,+1]: Assess the USER's emotional state, not yours.
     -1=user is angry/frustrated/sad, 0=user is neutral, +1=user is happy/grateful/excited
-    If the user is complaining or expressing frustration → V MUST be negative (<0)
+    If the user is complaining or expressing frustration, V MUST be negative (<0)
 A = interaction energy [0,1]: 0=calm exchange, 1=heated/intense exchange
 D = conversational dynamic [-1,+1]: -1=user dominated/led, +1=assistant dominated/led
-E = YOUR emotional response to THIS specific message, consistent with your personality. Pick ONE:
-    joy|gratitude|curiosity|serenity|pride|frustration|concern|melancholy|surprise|amusement|empathy|enthusiasm|confusion|disappointment|tenderness|determination
-    React as YOUR character naturally would — a cynic may feel amusement where an empathic friend feels empathy. Stay in character.
-    IMPORTANT: E must be coherent with V. If user is positive (V>0.3), do NOT pick frustration, concern, melancholy, or disappointment. Neutral emotions (empathy, curiosity, confusion, determination, serenity, surprise) are always allowed regardless of V.
-I = emotion strength [0,1]: how strongly you feel this emotion
+emotions = YOUR 1-3 emotional responses to THIS message, ordered by strength.
+    Format: name:intensity,name:intensity (e.g., emotions="curiosity:0.7,amusement:0.3")
+    Pick from:
+      positive: joy, gratitude, pride, amusement, enthusiasm, tenderness, playfulness, relief, wonder
+      negative: frustration, concern, melancholy, disappointment, nervousness
+      neutral: curiosity, serenity, surprise, empathy, confusion, determination, protectiveness, resolve
+    React as YOUR character naturally would. Stay in character.
+    IMPORTANT: emotions must be coherent with V. If user is positive (V>0.3), avoid negative emotions.
+    If only one emotion felt, just one entry (e.g., emotions="curiosity:0.7").
 Q = interaction quality [0,1]: 0=poor (conflict, misunderstanding), 1=excellent (productive, warm)
 
 Output ONLY the tag, no explanation.

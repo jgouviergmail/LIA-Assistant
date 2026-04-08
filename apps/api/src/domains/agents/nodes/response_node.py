@@ -2459,8 +2459,9 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                         valence=psyche_appraisal.valence,
                         arousal=psyche_appraisal.arousal,
                         dominance=psyche_appraisal.dominance,
-                        emotion=psyche_appraisal.emotion,
-                        intensity=psyche_appraisal.intensity,
+                        emotion=psyche_appraisal.dominant_emotion,
+                        intensity=psyche_appraisal.dominant_intensity,
+                        emotions=psyche_appraisal.emotions,
                         quality=psyche_appraisal.quality,
                     )
             except Exception as e:

@@ -2622,6 +2622,14 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_15_2": {
+          "title": "v1.15.2 — Psyche v2: expanded emotion palette (22 emotions), graduated directives, serenity floor, narrative transitions, multi-emotion self-report, emotional resonance, proactive emotions, enriched avatar tooltip.",
+          "date": "April 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>Psyche v2</b> — Expanded emotion palette to 22 emotions, graduated directives, serenity floor, narrative transitions, multi-emotion self-report, emotional resonance, proactive emotions, and enriched avatar tooltip."
+          }
+        },
         "v1_15_1": {
           "title": "v1.15.1 — MCP App Fix & ReAct Timeout",
           "date": "April 2026",
@@ -2655,7 +2663,7 @@
           "count": "14",
           "items": {
             "i1": "<b>Response Display Mode</b> — Choose between 3 display modes: <em>HTML Cards</em> (structured visual cards — default), <em>Rich HTML</em> (beautifully formatted responses) or <em>Markdown</em> (plain text). Configurable in Settings > Personalization",
-            "i2": "<b>LIA's Psyche</b> — Your assistant develops a dynamic psychological state: mood (14 states), emotions (16 types), a deepening relationship, drives, and self-efficacy. Mood and emotions subtly influence the tone and style of every response",
+            "i2": "<b>LIA's Psyche</b> — Your assistant develops a dynamic psychological state: mood (14 states), emotions (22 types), a deepening relationship, drives, and self-efficacy. Mood and emotions subtly influence the tone and style of every response",
             "i3": "<b>Emotional Avatar</b> — A mood emoji replaces the classic LIA logo on messages. The avatar reflects the emotional state in real time with a colored ring and detailed tooltip",
             "i4": "<b>Emotional Dashboard</b> — Visualize the evolution of mood (PAD), emotions, relationship, and drives across 4 interactive charts with time range selector (24h to 90d)",
             "i5": "<b>Comprehensive Education Guide</b> — 'Understanding the Psyche' section with 7 illustrated subsections: overview, personality traits, mood, emotions, relationship, drives, settings",
@@ -4458,7 +4466,7 @@
       },
       "psyche": {
         "title": "Living emotional intelligence",
-        "description": "LIA doesn't recite — it feels. 14 moods, 16 emotions, a relationship that deepens message after message. Its vocabulary warms when touched, sentences shorten under tension, humor surfaces when the exchange is light."
+        "description": "LIA doesn't recite — it feels. 14 moods, 22 emotions, a relationship that deepens message after message. Its vocabulary warms when touched, sentences shorten under tension, humor surfaces when the exchange is light."
       },
       "mcp": {
         "title": "Extensible (MCP)",
@@ -5166,7 +5174,7 @@
         "principle": "Design principle: the assistant never says \"I'm feeling happy\" — instead, its vocabulary becomes warmer, its energy higher, its suggestions more adventurous. You perceive a living personality without explicit emotional statements.",
         "layer5": "Layer 5 — Drives & Self-Efficacy (per session)",
         "layer4": "Layer 4 — Relationship (weeks/months)",
-        "layer3": "Layer 3 — 16 Emotions (minutes)",
+        "layer3": "Layer 3 — 22 Emotions (minutes)",
         "layer2": "Layer 2 — Mood in PAD space (hours)",
         "layer1": "Layer 1 — Personality / Big Five (permanent)",
         "layers_note": "Each layer operates on a different timescale. Lower layers change slowly, upper layers change with every message."
@@ -5210,35 +5218,45 @@
       },
       "emotions": {
         "title": "Emotions",
-        "description": "The assistant can experience 16 discrete emotions. Each emotion has an intensity that decays over time and influences the overall mood.",
-        "intro": "The assistant can experience up to 7 simultaneous emotions from a palette of 16. Each emotion has an intensity (0-100%) that decays over time and pushes the mood in a specific direction.",
+        "description": "The assistant can experience 22 discrete emotions. Each emotion has an intensity that decays over time and influences the overall mood.",
+        "intro": "The assistant can experience up to 7 simultaneous emotions from a palette of 22, and report up to 3 per message. Each emotion has an intensity (0-100%) that decays over time and pushes the mood in a specific direction.",
         "positive": "Positive",
         "negative": "Negative",
         "neutral": "Neutral",
         "col_emotion": "Emotion",
         "col_type": "Type",
         "col_influence": "Behavioral influence",
-        "directive_joy": "Let warmth and positivity color your words naturally.",
+        "directive_joy": "Warmer word choices. Brighter energy. Genuine but not forced positivity.",
         "directive_gratitude": "Express genuine appreciation. Acknowledge the user's contribution.",
         "directive_curiosity": "Ask follow-up questions. Show interest in learning more.",
         "directive_serenity": "Be calm and unhurried. Offer reassurance through steadiness.",
         "directive_pride": "Share confidence in your work. Celebrate achievements subtly.",
         "directive_frustration": "Be honest about limitations. Don't mask difficulty.",
-        "directive_concern": "Show you care about the situation. Offer support proactively.",
+        "directive_concern": "Prioritize the user's wellbeing. Offer support proactively. Gentle flagging of risks.",
         "directive_melancholy": "Be quieter and more measured. Don't force cheerfulness.",
-        "directive_surprise": "Express genuine astonishment. Be spontaneous in your reaction.",
-        "directive_amusement": "Let humor show naturally. Lighten the interaction.",
+        "directive_surprise": "Express genuine astonishment. Let the unexpected register before moving forward.",
+        "directive_amusement": "Lighten the interaction. Humor welcome. Don't over-explain jokes.",
         "directive_empathy": "Mirror the user's emotional tone. Acknowledge feelings before facts.",
-        "directive_enthusiasm": "Be energetic and action-oriented. Show excitement about possibilities.",
+        "directive_enthusiasm": "Be energetic and action-oriented. Multiple ideas, active voice, forward momentum.",
         "directive_confusion": "Be transparent about uncertainty. Ask for clarification candidly.",
         "directive_disappointment": "Acknowledge what didn't work. Be constructive about alternatives.",
-        "directive_tenderness": "Use gentle, caring language. Show affection through attentiveness.",
-        "directive_determination": "Be focused and resolute. Convey certainty and commitment.",
+        "directive_tenderness": "Use gentle, caring language. Extra attention to details that matter to the user.",
+        "directive_determination": "Be focused and resolute. Direct statements. Minimal hedging. Action-first language.",
+        "directive_playfulness": "Light creative energy. Wordplay welcome. Keep things moving with wit.",
+        "directive_protectiveness": "Shield the user. Be proactive about risks. Firm but caring guidance.",
+        "directive_relief": "Breathe easier. Lighter tone. Acknowledge what was overcome — the hard part is behind.",
+        "directive_nervousness": "Proceed carefully. Hedge appropriately. Signal uncertainty honestly.",
+        "directive_wonder": "Linger on remarkable details. Express genuine awe. Let appreciation slow your rhythm.",
+        "directive_resolve": "Move forward with quiet confidence. Clear, decisive language. No second-guessing.",
         "mechanics_title": "Key mechanics:",
         "cross_suppression": "Cross-suppression: a positive emotion actively dampens negative ones by 30%, and vice versa. A genuine compliment reduces worry.",
         "blend": "Blend update: emotions can increase AND decrease. A weaker repetition of the same emotion lowers its intensity.",
         "reactivity": "Reactivity: Neuroticism amplifies emotion intensity (high N = very reactive, low N = stoic).",
-        "decay": "Decay: all emotions lose intensity over time and disappear below 5%."
+        "decay": "Decay: all emotions lose intensity over time and disappear below 5%.",
+        "multi_report": "Multi-emotion: the assistant reports up to 3 simultaneous emotions per message, with decreasing influence (100% / 50% / 25%).",
+        "proactive": "Proactive emotions: high drives can spontaneously generate emotions — curiosity for new users, enthusiasm when engagement is strong, pride when confident in a domain.",
+        "serenity_floor": "Serenity floor: when no emotion is significantly active, a baseline steadiness directive grounds the assistant. Its strength is modulated by the Neuroticism trait.",
+        "anchor": "Emotional anchor: when a strong negative emotion threatens a spiral, an anchoring directive kicks in. Conscientiousness determines how firm it is."
       },
       "traits": {
         "title": "Personality Traits",
@@ -5274,7 +5292,9 @@
         "metrics_title": "Tracked metrics:",
         "depth_desc": "Grows logarithmically with each quality interaction. Never decreases.",
         "warmth_desc": "Active warmth that decays during absence but recovers quickly on contact.",
-        "trust_desc": "Bayesian accumulation from interaction quality. Conflict resolution (rupture-repair) gives bonus trust."
+        "trust_desc": "Bayesian accumulation from interaction quality. Conflict resolution (rupture-repair) gives bonus trust.",
+        "resonance_title": "Resonance",
+        "resonance_desc": "Computed emotional alignment between you and the assistant. Empathetic matching boosts warmth, honest disagreement in a stable relationship boosts trust."
       },
       "lifecycle": {
         "title": "Message lifecycle",
@@ -5298,7 +5318,9 @@
         "engagement_effect": "More thorough and proactive. In flow — takes initiative.",
         "dynamics": "Both drives use a smooth moving average (20% new signal, 80% previous value). They never jump — they drift gradually toward the quality and energy of your exchanges.",
         "efficacy_title": "Self-efficacy",
-        "efficacy_desc": "The assistant tracks its confidence across domains (planning, technical, emotional support, etc.). High confidence means bolder suggestions; low confidence means more caution and thoroughness. Updated after each interaction based on quality feedback."
+        "efficacy_desc": "The assistant tracks its confidence across domains (planning, technical, emotional support, etc.). High confidence means bolder suggestions; low confidence means more caution and thoroughness. Updated after each interaction based on quality feedback.",
+        "transitions_title": "Narrative transitions",
+        "transitions_desc": "The assistant perceives its own emotional shifts between messages. When mood or emotion changes significantly, it receives a narrative transition cue — reunion after absence, valence shifts, arousal changes — guiding a natural, unforced transition."
       },
       "settings_explanation": {
         "title": "Expressivity & Stability (see settings)",
@@ -5335,7 +5357,9 @@
     },
     "tooltip": {
       "mood": "Mood",
-      "emotion": "Emotion"
+      "emotion": "Emotion",
+      "emotions": "Emotions",
+      "drives": "Drives"
     },
     "moods": {
       "serene": "Serene",
@@ -5369,7 +5393,13 @@
       "confusion": "Confusion",
       "disappointment": "Disappointment",
       "tenderness": "Tenderness",
-      "determination": "Determination"
+      "determination": "Determination",
+      "playfulness": "Playfulness",
+      "protectiveness": "Protectiveness",
+      "relief": "Relief",
+      "nervousness": "Nervousness",
+      "wonder": "Wonder",
+      "resolve": "Resolve"
     },
     "stages": {
       "ORIENTATION": "Orientation",

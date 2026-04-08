@@ -36,7 +36,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.15.1</strong> — MCP ReAct timeout fix, registry protection for interactive widgets, LLM config tuning — April 2026
+  <strong>Version 1.15.2</strong> — Psyche Engine v2: 22 emotions, graduated directives, serenity floor, narrative transitions, multi-emotion, resonance — April 2026
 </p>
 
 ---
@@ -164,12 +164,12 @@ LIA is available as a hosted service at **https://lia.jeyswork.com/** — no ins
 
 ### Psyche Engine — Dynamic Emotional Intelligence
 
-- **5-Layer Psychological State**: Big Five personality traits (permanent) → PAD mood space with 14 moods (hours) → 16 discrete emotions with cross-suppression (minutes) → 4-stage relationship progression (weeks) → curiosity/engagement drives (per-session)
+- **5-Layer Psychological State**: Big Five personality traits (permanent) → PAD mood space with 14 moods (hours) → 22 discrete emotions with cross-suppression (minutes) → 4-stage relationship progression (weeks) → curiosity/engagement drives (per-session)
 - **Show, Don't Tell**: Mood and emotions subtly influence word choice, sentence rhythm, energy level, and relational tone — the assistant never declares "I'm feeling happy"
 - **Emotional Avatar**: Mood-responsive emoji with colored ring on each message. Historical avatars persisted per-message for reload consistency
 - **Evolution Awareness**: The assistant knows how its mood shifted since the last message, providing narrative continuity
 - **4-Chart Dashboard**: Interactive recharts visualization of mood (PAD), emotions, relationship, and drives over time (24h to 90 days)
-- **Education Guide**: 7-section interactive documentation explaining every layer, with descriptive tables for 14 moods and 16 emotions
+- **Education Guide**: 7-section interactive documentation explaining every layer, with descriptive tables for 14 moods and 22 emotions
 - **Customizable Temperament**: Expressiveness (stoic → highly expressive) and stability (volatile → very stable) sliders. Soft reset (mood only) and full reset (everything) with explicit scope descriptions
 - **Global Injection**: Behavioral directives injected into all user-facing text generation (response, notifications, reminders, emails, voice, sub-agents)
 - **Self-Report**: Zero-cost emotion tracking via hidden `<psyche_eval/>` tag — no additional LLM call

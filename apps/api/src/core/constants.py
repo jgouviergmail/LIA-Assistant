@@ -3363,7 +3363,7 @@ PSYCHE_CIRCADIAN_AMPLITUDE_DEFAULT: float = 0.08  # Sinusoidal pleasure modulati
 
 # Emotion parameters
 PSYCHE_EMOTION_DECAY_RATE_DEFAULT: float = 0.3  # Per hour, exponential
-PSYCHE_EMOTION_MAX_ACTIVE_DEFAULT: int = 7  # Max simultaneous emotions (16 emotion palette)
+PSYCHE_EMOTION_MAX_ACTIVE_DEFAULT: int = 7  # Max simultaneous emotions (22 emotion palette)
 PSYCHE_APPRAISAL_SENSITIVITY_DEFAULT: float = 0.7  # Appraisal → emotion multiplier
 
 # Relationship parameters

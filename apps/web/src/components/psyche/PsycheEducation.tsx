@@ -80,7 +80,7 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
                 {t('psyche.education.overview.layer4', 'Layer 4 — Relationship (weeks/months)')}
               </div>
               <div className="border border-border/50 rounded px-2 py-1 text-center">
-                {t('psyche.education.overview.layer3', 'Layer 3 — 16 Emotions (minutes)')}
+                {t('psyche.education.overview.layer3', 'Layer 3 — 22 Emotions (minutes)')}
               </div>
               <div className="border border-border/50 rounded px-2 py-1 text-center">
                 {t('psyche.education.overview.layer2', 'Layer 2 — Mood in PAD space (hours)')}
@@ -369,7 +369,7 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
       </AccordionItem>
 
       {/* ================================================================
-          EMOTIONS — 16 types
+          EMOTIONS — 22 types
           ================================================================ */}
       <AccordionItem value="emotions" className="border-b-0">
         <AccordionTrigger className="py-2 text-sm hover:no-underline">
@@ -383,7 +383,7 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
             <p>
               {t(
                 'psyche.education.emotions.intro',
-                'The assistant can experience up to 7 simultaneous emotions from a palette of 16. Each emotion has an intensity (0-100%) that decays over time and pushes the mood in a specific direction.'
+                'The assistant can experience up to 7 simultaneous emotions from a palette of 22, and report up to 3 per message. Each emotion has an intensity (0-100%) that decays over time and pushes the mood in a specific direction.'
               )}
             </p>
 
@@ -413,16 +413,22 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
                       ['amusement', 'positive', '+P +A +D'],
                       ['enthusiasm', 'positive', '++P ++A +D'],
                       ['tenderness', 'positive', '+P −A −D'],
+                      ['playfulness', 'positive', '+P +A +D'],
+                      ['relief', 'positive', '+P −A +D'],
+                      ['wonder', 'positive', '+P +A −D'],
                       ['curiosity', 'neutral', '+P +A +D'],
                       ['serenity', 'neutral', '+P −A +D'],
                       ['surprise', 'neutral', '+P ++A −D'],
                       ['empathy', 'neutral', '+P +A −D'],
                       ['confusion', 'neutral', '−P +A −D'],
                       ['determination', 'neutral', '+P +A ++D'],
+                      ['protectiveness', 'neutral', '+P +A +D'],
+                      ['resolve', 'neutral', '+P +A ++D'],
                       ['frustration', 'negative', '−P +A −D'],
                       ['concern', 'negative', '−P +A +D'],
                       ['melancholy', 'negative', '−P −A −D'],
                       ['disappointment', 'negative', '−P −A −D'],
+                      ['nervousness', 'negative', '−P +A −D'],
                     ] as const
                   ).map(([emotion, type, pad]) => (
                     <tr key={emotion}>
@@ -477,6 +483,30 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
                 {t(
                   'psyche.education.emotions.decay',
                   'Decay: all emotions lose intensity over time and disappear below 5%.'
+                )}
+              </li>
+              <li>
+                {t(
+                  'psyche.education.emotions.multi_report',
+                  'Multi-emotion: the assistant reports up to 3 simultaneous emotions per message, with decreasing influence (100% / 50% / 25%).'
+                )}
+              </li>
+              <li>
+                {t(
+                  'psyche.education.emotions.proactive',
+                  'Proactive emotions: high drives can spontaneously generate emotions — curiosity for new users, enthusiasm when engagement is strong, pride when confident in a domain.'
+                )}
+              </li>
+              <li>
+                {t(
+                  'psyche.education.emotions.serenity_floor',
+                  'Serenity floor: when no emotion is significantly active, a baseline steadiness directive grounds the assistant. Its strength is modulated by the Neuroticism trait.'
+                )}
+              </li>
+              <li>
+                {t(
+                  'psyche.education.emotions.anchor',
+                  'Emotional anchor: when a strong negative emotion threatens a spiral, an anchoring directive kicks in. Conscientiousness determines how firm it is.'
                 )}
               </li>
             </ul>
@@ -573,6 +603,15 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
                   'Bayesian accumulation from interaction quality. Conflict resolution (rupture-repair) gives bonus trust.'
                 )}
               </li>
+              <li>
+                <strong>
+                  {t('psyche.education.relationship.resonance_title', 'Resonance')}:
+                </strong>{' '}
+                {t(
+                  'psyche.education.relationship.resonance_desc',
+                  'Computed emotional alignment between you and the assistant. Empathetic matching boosts warmth, honest disagreement in a stable relationship boosts trust.'
+                )}
+              </li>
             </ul>
           </div>
         </AccordionContent>
@@ -662,6 +701,16 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
               {t(
                 'psyche.education.drives.efficacy_desc',
                 'The assistant tracks its confidence across domains (planning, technical, emotional support, etc.). High confidence means bolder suggestions; low confidence means more caution and thoroughness. Updated after each interaction based on quality feedback.'
+              )}
+            </p>
+
+            <p className="font-medium text-foreground text-xs">
+              {t('psyche.education.drives.transitions_title', 'Narrative transitions')}
+            </p>
+            <p className="text-[11px]">
+              {t(
+                'psyche.education.drives.transitions_desc',
+                'The assistant perceives its own emotional shifts between messages. When mood or emotion changes significantly, it receives a narrative transition cue — reunion after absence, valence shifts, arousal changes — guiding a natural, unforced transition rather than a jarring switch.'
               )}
             </p>
           </div>

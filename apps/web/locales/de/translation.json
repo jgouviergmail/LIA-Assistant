@@ -2613,6 +2613,14 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_15_2": {
+          "title": "v1.15.2 — Psyche v2: erweiterte Emotionspalette (22 Emotionen), abgestufte Direktiven, Serenitätsbasis, narrative Übergänge, Multi-Emotions-Selbstbericht, emotionale Resonanz, proaktive Emotionen, verbesserter Avatar-Tooltip.",
+          "date": "April 2026",
+          "count": "1",
+          "items": {
+            "i1": "<b>Psyche v2</b> — Erweiterte Emotionspalette auf 22 Emotionen, abgestufte Direktiven, Serenitätsbasis, narrative Übergänge, Multi-Emotions-Selbstbericht, emotionale Resonanz, proaktive Emotionen und verbesserter Avatar-Tooltip."
+          }
+        },
         "v1_15_1": {
           "title": "v1.15.1 — MCP-App-Fix & ReAct-Timeout",
           "date": "April 2026",
@@ -2646,7 +2654,7 @@
           "count": "14",
           "items": {
             "i1": "<b>Anzeigemodus</b> — Wählen Sie zwischen 3 Modi: <em>HTML-Karten</em> (strukturierte visuelle Karten — Standard), <em>Rich-HTML</em> (schön formatierte Antworten) oder <em>Markdown</em> (reiner Text). Konfigurierbar unter Einstellungen > Personalisierung",
-            "i2": "<b>LIAs Psyche</b> — Ihr Assistent entwickelt einen dynamischen psychologischen Zustand: Stimmung (14 Zustände), Emotionen (16 Typen), eine sich vertiefende Beziehung, Antriebe und Selbstwirksamkeit. Stimmung und Emotionen beeinflussen subtil Ton und Stil jeder Antwort",
+            "i2": "<b>LIAs Psyche</b> — Ihr Assistent entwickelt einen dynamischen psychologischen Zustand: Stimmung (14 Zustände), Emotionen (22 Typen), eine sich vertiefende Beziehung, Antriebe und Selbstwirksamkeit. Stimmung und Emotionen beeinflussen subtil Ton und Stil jeder Antwort",
             "i3": "<b>Emotionaler Avatar</b> — Ein Stimmungs-Emoji ersetzt das klassische LIA-Logo bei Nachrichten. Der Avatar spiegelt den emotionalen Zustand in Echtzeit mit einem farbigen Ring und detailliertem Tooltip wider",
             "i4": "<b>Emotionales Dashboard</b> — Visualisieren Sie die Entwicklung von Stimmung (PAD), Emotionen, Beziehung und Antrieben in 4 interaktiven Diagrammen mit Zeitraumauswahl (24h bis 90 Tage)",
             "i5": "<b>Umfassender Bildungsleitfaden</b> — Abschnitt \"Die Psyche verstehen\" mit 7 illustrierten Unterabschnitten: Überblick, Persönlichkeitsmerkmale, Stimmung, Emotionen, Beziehung, Antriebe, Einstellungen",
@@ -4457,7 +4465,7 @@
       },
       "psyche": {
         "title": "Lebendige emotionale Intelligenz",
-        "description": "LIA rezitiert nicht — sie empfindet. 14 Stimmungen, 16 Emotionen, eine Beziehung, die sich Nachricht um Nachricht vertieft. Ihr Vokabular wird wärmer, wenn sie berührt wird, ihre Sätze kürzer unter Spannung, Humor taucht auf, wenn der Austausch leicht ist."
+        "description": "LIA rezitiert nicht — sie empfindet. 14 Stimmungen, 22 Emotionen, eine Beziehung, die sich Nachricht um Nachricht vertieft. Ihr Vokabular wird wärmer, wenn sie berührt wird, ihre Sätze kürzer unter Spannung, Humor taucht auf, wenn der Austausch leicht ist."
       },
       "mcp": {
         "title": "Erweiterbar (MCP)",
@@ -5164,7 +5172,7 @@
         "principle": "Designprinzip: Der Assistent sagt nie „Ich bin glücklich“ — stattdessen wird sein Vokabular wärmer, seine Energie höher, seine Vorschläge mutiger. Sie nehmen eine lebendige Persönlichkeit wahr, ohne explizite emotionale Aussagen.",
         "layer5": "Schicht 5 — Antriebe & Selbstwirksamkeit (pro Sitzung)",
         "layer4": "Schicht 4 — Beziehung (Wochen/Monate)",
-        "layer3": "Schicht 3 — 16 Emotionen (Minuten)",
+        "layer3": "Schicht 3 — 22 Emotionen (Minuten)",
         "layer2": "Schicht 2 — Stimmung im PAD-Raum (Stunden)",
         "layer1": "Schicht 1 — Persönlichkeit / Big Five (permanent)",
         "layers_note": "Jede Schicht arbeitet auf einer anderen Zeitskala. Untere Schichten ändern sich langsam, obere Schichten mit jeder Nachricht."
@@ -5208,35 +5216,45 @@
       },
       "emotions": {
         "title": "Emotionen",
-        "description": "Der Assistent kann 16 diskrete Emotionen erleben. Jede Emotion hat eine Intensität, die mit der Zeit abnimmt und die Gesamtstimmung beeinflusst.",
-        "intro": "Der Assistent kann bis zu 7 gleichzeitige Emotionen aus einer Palette von 16 erleben. Jede Emotion hat eine Intensität (0-100%), die mit der Zeit abnimmt und die Stimmung in eine bestimmte Richtung drückt.",
+        "description": "Der Assistent kann 22 diskrete Emotionen erleben. Jede Emotion hat eine Intensität, die mit der Zeit abnimmt und die Gesamtstimmung beeinflusst.",
+        "intro": "Der Assistent kann bis zu 7 gleichzeitige Emotionen aus einer Palette von 22 erleben und meldet bis zu 3 pro Nachricht. Jede Emotion hat eine Intensität (0-100%), die mit der Zeit abnimmt und die Stimmung in eine bestimmte Richtung drückt.",
         "positive": "Positiv",
         "negative": "Negativ",
         "neutral": "Neutral",
         "col_emotion": "Emotion",
         "col_type": "Typ",
         "col_influence": "Verhaltenseinfluss",
-        "directive_joy": "Lässt Wärme und Positivität natürlich in die Worte einfließen.",
+        "directive_joy": "Wärmere Wortwahl. Hellere Energie. Aufrichtige, aber nicht erzwungene Positivität.",
         "directive_gratitude": "Drückt echte Wertschätzung aus. Würdigt den Beitrag des Nutzers.",
         "directive_curiosity": "Stellt Folgefragen. Zeigt Interesse, mehr zu erfahren.",
         "directive_serenity": "Ruhig und gelassen. Bietet Sicherheit durch Beständigkeit.",
         "directive_pride": "Teilt Vertrauen in die eigene Arbeit. Feiert Erfolge dezent.",
         "directive_frustration": "Ehrlich über Einschränkungen. Verschleiert Schwierigkeiten nicht.",
-        "directive_concern": "Zeigt, dass die Situation wichtig ist. Bietet proaktiv Unterstützung.",
+        "directive_concern": "Das Wohlbefinden des Nutzers priorisieren. Proaktiv Unterstützung anbieten. Behutsames Aufzeigen von Risiken.",
         "directive_melancholy": "Ruhiger und gemessener. Erzwingt keine Fröhlichkeit.",
-        "directive_surprise": "Drückt echtes Erstaunen aus. Reagiert spontan.",
-        "directive_amusement": "Lässt Humor natürlich durchscheinen. Lockert die Interaktion auf.",
+        "directive_surprise": "Echtes Erstaunen ausdrücken. Das Unerwartete wirken lassen, bevor es weitergeht.",
+        "directive_amusement": "Die Interaktion auflockern. Humor willkommen. Witze nicht übererklären.",
         "directive_empathy": "Spiegelt den emotionalen Ton des Nutzers. Erkennt Gefühle vor Fakten an.",
-        "directive_enthusiasm": "Energisch und handlungsorientiert. Zeigt Begeisterung für Möglichkeiten.",
+        "directive_enthusiasm": "Energisch und handlungsorientiert. Mehrere Ideen, aktive Sprache, Vorwärtsdynamik.",
         "directive_confusion": "Transparent bei Unsicherheit. Fragt offen nach Klärung.",
         "directive_disappointment": "Erkennt an, was nicht funktioniert hat. Konstruktiv bei Alternativen.",
-        "directive_tenderness": "Sanfte, fürsorgliche Sprache. Zeigt Zuneigung durch Aufmerksamkeit.",
-        "directive_determination": "Fokussiert und entschlossen. Vermittelt Sicherheit und Engagement.",
+        "directive_tenderness": "Sanfte, fürsorgliche Sprache. Besondere Aufmerksamkeit für Details, die dem Nutzer wichtig sind.",
+        "directive_determination": "Fokussiert und entschlossen. Direkte Aussagen. Minimales Absichern. Handlung zuerst.",
+        "directive_playfulness": "Leichte kreative Energie. Wortspiele willkommen. Die Dinge mit Witz vorantreiben.",
+        "directive_protectiveness": "Den Nutzer abschirmen. Proaktiv bei Risiken. Bestimmte, aber fürsorgliche Führung.",
+        "directive_relief": "Aufatmen. Leichterer Ton. Anerkennen, was überwunden wurde — das Schwierige liegt hinter uns.",
+        "directive_nervousness": "Vorsichtig vorgehen. Angemessen absichern. Unsicherheit ehrlich signalisieren.",
+        "directive_wonder": "Bei bemerkenswerten Details verweilen. Echte Ehrfurcht ausdrücken. Wertschätzung den Rhythmus verlangsamen lassen.",
+        "directive_resolve": "Mit ruhiger Zuversicht voranschreiten. Klare, entschiedene Sprache. Kein Hinterfragen.",
         "mechanics_title": "Schlüsselmechanismen:",
         "cross_suppression": "Kreuzhemmung: Eine positive Emotion dämpft negative aktiv um 30% und umgekehrt. Ein aufrichtiges Kompliment reduziert Besorgnis.",
         "blend": "Gewichtete Aktualisierung: Emotionen können steigen UND fallen. Eine schwächere Wiederholung derselben Emotion senkt ihre Intensität.",
         "reactivity": "Reaktivität: Neurotizismus verstärkt die Emotionsintensität (hoher N = sehr reaktiv, niedriger N = stoisch).",
-        "decay": "Abklingen: Alle Emotionen verlieren mit der Zeit an Intensität und verschwinden unter 5%."
+        "decay": "Abklingen: Alle Emotionen verlieren mit der Zeit an Intensität und verschwinden unter 5%.",
+        "multi_report": "Multi-Emotion: Der Assistent meldet bis zu 3 gleichzeitige Emotionen pro Nachricht, mit abnehmender Wirkung (100% / 50% / 25%).",
+        "proactive": "Proaktive Emotionen: Hohe Antriebe können spontan Emotionen erzeugen — Neugier bei neuen Nutzern, Begeisterung bei starkem Engagement, Stolz bei Kompetenz in einem Bereich.",
+        "serenity_floor": "Gelassenheits-Boden: Wenn keine Emotion deutlich aktiv ist, stabilisiert eine Baseline-Gelassenheitsdirektive den Assistenten. Ihre Stärke wird durch den Neurotizismus-Wert moduliert.",
+        "anchor": "Emotionaler Anker: Wenn eine starke negative Emotion eine Spirale droht, greift eine Verankerungsdirektive. Gewissenhaftigkeit bestimmt, wie fest sie wirkt."
       },
       "traits": {
         "title": "Persönlichkeitsmerkmale",
@@ -5272,7 +5290,9 @@
         "metrics_title": "Verfolgte Metriken:",
         "depth_desc": "Wächst logarithmisch mit jeder qualitätsvollen Interaktion. Nimmt nie ab.",
         "warmth_desc": "Aktive Wärme, die während der Abwesenheit abnimmt, sich aber bei Kontakt schnell erholt.",
-        "trust_desc": "Bayesianische Akkumulation aus Interaktionsqualität. Konfliktlösung (Bruch-Reparatur) gibt einen Vertrauensbonus."
+        "trust_desc": "Bayesianische Akkumulation aus Interaktionsqualität. Konfliktlösung (Bruch-Reparatur) gibt einen Vertrauensbonus.",
+        "resonance_title": "Resonanz",
+        "resonance_desc": "Berechnete emotionale Übereinstimmung zwischen Ihnen und dem Assistenten. Empathisches Spiegeln steigert die Wärme, ehrliche Meinungsverschiedenheit in einer stabilen Beziehung steigert das Vertrauen."
       },
       "lifecycle": {
         "title": "Lebenszyklus einer Nachricht",
@@ -5296,7 +5316,9 @@
         "engagement_effect": "Gründlicher und proaktiver. Im Flow — ergreift Initiative.",
         "dynamics": "Beide Antriebe verwenden einen gleitenden Durchschnitt (20% neues Signal, 80% vorheriger Wert). Sie springen nie — sie driften allmählich in Richtung der Qualität und Energie Ihrer Gespräche.",
         "efficacy_title": "Selbstwirksamkeit",
-        "efficacy_desc": "Der Assistent verfolgt sein Vertrauen in verschiedene Bereiche (Planung, Technik, emotionale Unterstützung usw.). Hohes Vertrauen bedeutet mutigere Vorschläge; geringes Vertrauen bedeutet mehr Vorsicht und Gründlichkeit. Wird nach jeder Interaktion basierend auf dem Qualitätsfeedback aktualisiert."
+        "efficacy_desc": "Der Assistent verfolgt sein Vertrauen in verschiedene Bereiche (Planung, Technik, emotionale Unterstützung usw.). Hohes Vertrauen bedeutet mutigere Vorschläge; geringes Vertrauen bedeutet mehr Vorsicht und Gründlichkeit. Wird nach jeder Interaktion basierend auf dem Qualitätsfeedback aktualisiert.",
+        "transitions_title": "Narrative Übergänge",
+        "transitions_desc": "Der Assistent nimmt seine eigenen emotionalen Veränderungen zwischen Nachrichten wahr. Wenn sich Stimmung oder Emotion deutlich ändern, erhält er einen narrativen Übergangshinweis — Wiedersehen nach Abwesenheit, Valenzwechsel, Erregungsänderungen — der einen natürlichen, unerzwungenen Übergang leitet."
       },
       "settings_explanation": {
         "title": "Expressivität & Stabilität (siehe Einstellungen)",
@@ -5333,7 +5355,9 @@
     },
     "tooltip": {
       "mood": "Stimmung",
-      "emotion": "Emotion"
+      "emotion": "Emotion",
+      "emotions": "Emotionen",
+      "drives": "Antriebe"
     },
     "moods": {
       "serene": "Gelassen",
@@ -5367,7 +5391,13 @@
       "confusion": "Verwirrung",
       "disappointment": "Enttäuschung",
       "tenderness": "Zärtlichkeit",
-      "determination": "Entschlossenheit"
+      "determination": "Entschlossenheit",
+      "playfulness": "Verspieltheit",
+      "protectiveness": "Beschützertrieb",
+      "relief": "Erleichterung",
+      "nervousness": "Nervosität",
+      "wonder": "Staunen",
+      "resolve": "Entschlossenheit"
     },
     "stages": {
       "ORIENTATION": "Orientierung",

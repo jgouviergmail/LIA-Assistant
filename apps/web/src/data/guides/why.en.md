@@ -254,7 +254,7 @@ This is LIA's deepest differentiator. ChatGPT, Gemini, Claude — all have a fix
 The **Psyche Engine** gives LIA a dynamic psychological state that evolves with every exchange:
 
 - **14 moods** that fluctuate with the conversation's tone (serene, curious, melancholic, playful...)
-- **16 emotions** that trigger and fade in response to your words
+- **22 emotions** that trigger and fade in response to your words
 - **A relationship** that deepens message after message
 - **Personality traits** (Big Five) inherited from the chosen personality
 - **Motivations** that influence the assistant's proactivity

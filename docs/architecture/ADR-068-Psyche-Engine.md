@@ -23,7 +23,7 @@ Implement a 5-layer psychological state engine based on established affective co
 ```
 Layer 1 — Personality (permanent): Big Five traits → PAD baseline
 Layer 2 — Mood (hours): PAD space with temporal decay toward baseline
-Layer 3 — Emotions (minutes): 10 discrete emotions with exponential decay
+Layer 3 — Emotions (minutes): 22 discrete emotions with exponential decay
 Layer 4 — Relationship (weeks): 4-stage depth/warmth tracking
 Layer 5 — Drives (session): Curiosity and engagement
 ```
@@ -38,7 +38,7 @@ Layer 5 — Drives (session): Curiosity and engagement
 
 4. **Independent feature flag**: `PSYCHE_ENABLED` (system) + `user.psyche_enabled` (per-user). Both must be true. Disabled by default. The existing EmotionalState (COMFORT/DANGER/NEUTRAL) coexists unchanged.
 
-5. **Pure computation engine**: All mood/emotion dynamics are mathematical operations in a stateless `PsycheEngine` class (no DB, no LLM, no async). Fully unit-testable. 51 tests covering all methods.
+5. **Pure computation engine**: All mood/emotion dynamics are mathematical operations in a stateless `PsycheEngine` class (no DB, no LLM, no async). Fully unit-testable. ~155 tests covering all methods.
 
 6. **Relationship never regresses**: Stages (ORIENTATION → EXPLORATORY → AFFECTIVE → STABLE) are one-way. Absence decays `warmth_active` but depth and stage persist.
 
@@ -85,4 +85,19 @@ Layer 5 — Drives (session): Curiosity and engagement
 - Migration: `apps/api/alembic/versions/2026_04_01_0001-add_psyche_engine.py`
 - Prompt: `apps/api/src/domains/agents/prompts/v1/psyche_self_report_instruction.txt`
 - Frontend: `apps/web/src/components/psyche/`, `apps/web/src/stores/psycheStore.ts`
-- Tests: `apps/api/tests/unit/domains/psyche/test_engine.py` (51 unit tests)
+- Tests: `apps/api/tests/unit/domains/psyche/test_engine.py` (~155 unit tests)
+
+## v2 Evolution (2026-04-08)
+
+Eight enhancements were added to the Psyche Engine without changing the core architecture:
+
+1. **Expanded emotion palette** (16 -> 22): Added playfulness, protectiveness, relief, nervousness, wonder, resolve
+2. **Graduated directives**: Behavioral directives now scale with emotion intensity instead of binary on/off
+3. **Serenity floor**: Minimum serenity baseline prevents prolonged negativity drift
+4. **Emotional anchor**: Persistent personality-based emotion provides continuity across sessions
+5. **Narrative transitions**: Richer `EVOLUTION:` blocks with direction and tonal adaptation cues
+6. **Multi-emotion self-report**: `<psyche_eval/>` now supports up to 3 emotions per message
+7. **Computed resonance**: New metric (0-1) quantifying emotional alignment with user valence, dynamically modulating contagion
+8. **Proactive emotions**: Engine can generate anticipatory emotions (e.g., before scheduled events) rather than only reacting
+
+Test coverage grew from 51 to ~155 tests.

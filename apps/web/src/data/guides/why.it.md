@@ -254,7 +254,7 @@ Ogni ricordo porta un peso emotivo (da -10 a +10), un punteggio di importanza, u
 Il **Psyche Engine** dà a LIA uno stato psicologico dinamico che evolve a ogni scambio:
 
 - **14 stati d'umore** che fluttuano con il tono della conversazione (serena, curiosa, malinconica, allegra...)
-- **16 emozioni** che si attivano e si attenuano in risposta alle tue parole
+- **22 emozioni** che si attivano e si attenuano in risposta alle tue parole
 - **Una relazione** che si approfondisce messaggio dopo messaggio
 - **Tratti di personalità** (Big Five) ereditati dalla personalità scelta
 - **Motivazioni** che influenzano la proattività dell'assistente

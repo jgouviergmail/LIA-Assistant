@@ -131,6 +131,7 @@ PromptName = Literal[
     "psyche_summary_prompt",
     "psyche_narrative_prompt",
     "psyche_usage_directive",
+    "psyche_usage_directive_light",
     # HTML response formatting (when cards are disabled)
     "html_response_directive",
     # Future prompts:

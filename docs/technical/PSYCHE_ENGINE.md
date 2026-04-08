@@ -7,7 +7,7 @@
 3. [How It Works: Message Lifecycle](#how-it-works-message-lifecycle)
 4. [Personality Profiles (14 Personalities)](#personality-profiles-14-personalities)
 5. [The PAD Mood Space (14 Moods)](#the-pad-mood-space-14-moods)
-6. [Emotions: The 16 Discrete Types](#emotions-the-16-discrete-types)
+6. [Emotions: The 22 Discrete Types](#emotions-the-22-discrete-types)
 7. [Big Five Trait Modulation](#big-five-trait-modulation)
 8. [Relationship: The 4 Stages](#relationship-the-4-stages)
 9. [Prompt Injection: Rich Directives](#prompt-injection-rich-directives)
@@ -24,7 +24,7 @@
 The Psyche Engine gives LIA's assistant a **dynamic psychological state** that evolves with every interaction. Instead of a static personality prompt, the assistant now has:
 
 - A **mood** (14 distinct labels in PAD space) that fluctuates based on conversation tone
-- **Emotions** (16 discrete types) that fire and decay in response to events
+- **Emotions** (22 discrete types) that fire and decay in response to events
 - **Big Five personality traits** that actively modulate emotional reactivity, contagion, and recovery
 - A **relationship** that deepens over time with each user (4 stages)
 - **Self-efficacy** that tracks confidence per domain
@@ -50,7 +50,7 @@ The Psyche Engine influences **HOW** the assistant speaks, never **WHAT** it say
 │    Stage, Depth, Warmth, Trust                          │
 ├─────────────────────────────────────────────────────────┤
 │            LAYER 3 — EMOTIONS (minutes)                 │
-│   16 discrete types, exponential decay                  │
+│   22 discrete types, exponential decay                  │
 ├─────────────────────────────────────────────────────────┤
 │             LAYER 2 — MOOD (hours)                      │
 │    PAD space (Pleasure-Arousal-Dominance)               │
@@ -92,7 +92,7 @@ Additionally, the Big Five compute the **PAD baseline** — the mood the assista
 
 ### Layer 3 — Emotions (minutes)
 
-**What:** Up to 7 simultaneous discrete emotions from 16 types, each with intensity [0, 1] and a timestamp. They decay exponentially and are removed below 5% intensity.
+**What:** Up to 7 simultaneous discrete emotions from 22 types, each with intensity [0, 1] and a timestamp. They decay exponentially and are removed below 5% intensity.
 
 **Impact:** The top 3 emotions are included in the rich expression profile with behavioral directives. They push the mood in their PAD direction. Cross-valence suppression: positive emotions dampen negatives by 30% and vice versa.
 
@@ -236,7 +236,7 @@ The system maps PAD positions to 14 mood labels using nearest-centroid classific
 
 ---
 
-## Emotions: The 16 Discrete Types
+## Emotions: The 22 Discrete Types
 
 | Emotion | Type | PAD (P, A, D) | Behavioral Directive |
 |---------|------|---------------|---------------------|
@@ -256,6 +256,12 @@ The system maps PAD positions to 14 mood labels using nearest-centroid classific
 | Disappointment | ❌ | -0.25,-0.10,-0.10 | Constructive alternatives |
 | Tenderness | ✅ | +0.35,-0.15,-0.20 | Gentle, caring language |
 | Determination | = | +0.10,+0.30,+0.40 | Focused and resolute |
+| Playfulness | ✅ | +0.35,+0.25,+0.05 | Lighthearted wordplay and creative tangents |
+| Protectiveness | = | +0.15,+0.20,+0.30 | Shield the user, anticipate risks |
+| Relief | ✅ | +0.30,-0.15,+0.10 | Exhale tension, celebrate resolution |
+| Nervousness | ❌ | -0.15,+0.35,-0.25 | Cautious hedging, seek confirmation |
+| Wonder | ✅ | +0.35,+0.40,-0.10 | Awe and open-ended exploration |
+| Resolve | = | +0.20,+0.25,+0.35 | Steady commitment, no wavering |
 
 **✅ Positive** | **❌ Negative** | **= Neutral**
 
@@ -477,13 +483,35 @@ Located in Settings > Psyché de LIA (directly below Style de LIA), with 4 colla
 
 ---
 
+## v2 Enhancements
+
+Psyche Engine v2 introduces 8 enhancements that deepen emotional realism:
+
+1. **Expanded Emotion Palette (16 → 22)**: Six new emotions — playfulness, protectiveness, relief, nervousness, wonder, resolve — with PAD vectors validated for minimum distance ≥ 0.122 from existing emotions.
+
+2. **Graduated Directives**: Prompt injection now scales with PAD magnitude across 4 levels: compact tag (< 0.15), medium with mood directive (0.15–0.35), full rich format (0.35–0.60), and reinforced format (≥ 0.60). A lighter `psyche_usage_directive_light.txt` is used for levels 1–2.
+
+3. **Serenity Floor**: When no emotion is significantly active (< 0.15 intensity), a BASE steadiness directive is injected. Strength modulated by Neuroticism: low N → "deep steadiness", high N → "try to be steady". Prevents emotional void between conversations.
+
+4. **Emotional Anchor**: When a strong negative emotion (> 0.70 intensity) threatens a spiral, an ANCHOR directive is injected. Wording modulated by Conscientiousness (low C → "let yourself feel it", high C → "discipline your tone"). Skipped for extreme Neuroticism (N ≈ 1.0).
+
+5. **Narrative Transitions**: Replaces the mechanical EVOLUTION block with 6 narrative templates: reunion, pos→neg, neg→pos, high→low arousal, low→high arousal, emotion-specific. Priority-ordered detection from `ExpressionProfile.previous_pad`.
+
+6. **Multi-Emotion Self-Report**: The `<psyche_eval/>` tag now uses `emotions="name:intensity,name:intensity"` format (1–3 emotions, backward compatible with single-emotion format). Processing uses decreasing weights (1.0, 0.5, 0.25) and accumulated cross-valence suppression.
+
+7. **Computed Resonance**: Alignment metric [-1, +1] between user valence and assistant emotion. Positive resonance (empathetic match) boosts relationship warmth. Negative resonance in STABLE stage boosts trust (honest disagreement). Special handling for concern/empathy/protectiveness responses.
+
+8. **Proactive Emotions**: Pre-response emotion pulses based on drives and context. High curiosity + new user → curiosity pulse. High engagement → enthusiasm pulse (with anti-inflation guard at 0.50). Quality + engagement → joy pulse. High self-efficacy → pride pulse (once only).
+
+---
+
 ## Technical Reference
 
 ### Files
 
 | File | Purpose |
 |------|---------|
-| `src/domains/psyche/constants.py` | 14 mood centroids, 16 emotion PAD vectors, behavioral directives |
+| `src/domains/psyche/constants.py` | 14 mood centroids, 22 emotion PAD vectors, behavioral directives |
 | `src/domains/psyche/engine.py` | Pure computation engine (14 static methods, trait modulation) |
 | `src/domains/psyche/models.py` | SQLAlchemy models (PsycheState, PsycheHistory) |
 | `src/domains/psyche/schemas.py` | Pydantic request/response schemas |
@@ -491,12 +519,12 @@ Located in Settings > Psyché de LIA (directly below Style de LIA), with 4 colla
 | `src/domains/psyche/service.py` | Orchestration + `build_psyche_prompt_block()` helper |
 | `src/domains/psyche/router.py` | FastAPI endpoints (7 endpoints incl. /summary) |
 | `src/core/config/psyche.py` | Configuration settings |
-| `src/domains/agents/prompts/v1/psyche_self_report_instruction.txt` | LLM self-report prompt (16 emotions) |
+| `src/domains/agents/prompts/v1/psyche_self_report_instruction.txt` | LLM self-report prompt (22 emotions) |
 | `src/domains/agents/prompts/v1/psyche_summary_prompt.txt` | LLM summary generation prompt |
 | `src/domains/agents/prompts/v1/psyche_narrative_prompt.txt` | LLM narrative identity prompt |
 | `src/infrastructure/scheduler/psyche_snapshot.py` | Daily snapshots + weekly narrative job |
-| `tests/unit/domains/psyche/test_engine.py` | 77 unit tests (incl. 10 for _push_with_headroom) |
-| `tests/unit/domains/psyche/test_service_summary.py` | 10 service tests |
+| `tests/unit/domains/psyche/test_engine.py` | ~145 unit tests (incl. graduated directives, serenity floor, resonance) |
+| `tests/unit/domains/psyche/test_service_summary.py` | ~10 service tests |
 
 ### API Endpoints
 

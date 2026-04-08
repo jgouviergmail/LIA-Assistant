@@ -47,6 +47,11 @@ export interface PsycheStateSummary {
   active_emotion: string | null;
   emotion_intensity: number; // [0, 1]
   relationship_stage: RelationshipStage;
+  // v2 additions (optional for backward compat with cached summaries)
+  mood_intensity?: string; // "slightly" | "moderately" | "noticeably" | "strongly"
+  active_emotions?: Array<{ name: string; intensity: number }>; // top 3
+  drive_curiosity?: number; // [0, 1]
+  drive_engagement?: number; // [0, 1]
 }
 
 // =============================================================================

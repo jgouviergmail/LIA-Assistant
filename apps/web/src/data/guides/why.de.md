@@ -254,7 +254,7 @@ Das ist der tiefgreifendste Unterschied von LIA. ChatGPT, Gemini, Claude — all
 Die **Psyche Engine** verleiht LIA einen dynamischen psychologischen Zustand, der sich mit jedem Austausch weiterentwickelt:
 
 - **14 Stimmungen**, die mit dem Gesprächston schwanken (heiter, neugierig, melancholisch, ausgelassen ...)
-- **16 Emotionen**, die auf Ihre Worte reagieren und sich abschwächen
+- **22 Emotionen**, die auf Ihre Worte reagieren und sich abschwächen
 - **Eine Beziehung**, die sich Nachricht für Nachricht vertieft
 - **Persönlichkeitsmerkmale** (Big Five), die von der gewählten Persönlichkeit geerbt werden
 - **Motivationen**, die die Proaktivität des Assistenten beeinflussen

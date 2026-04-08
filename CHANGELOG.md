@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.15.2] - 2026-04-09
+
+### Psyche Engine v2 — Enriched Emotional Intelligence
+
+#### New Features
+- **Expanded emotion palette (16 → 22)**: Six new emotions — playfulness, protectiveness, relief, nervousness, wonder, resolve — with PAD-validated vectors (min distance ≥ 0.122).
+- **Graduated directives**: Prompt injection now scales across 4 intensity levels (compact → medium → rich → reinforced) based on PAD magnitude, with a lighter usage directive for low-intensity states.
+- **Serenity floor**: Baseline steadiness directive when no emotion is significantly active, modulated by Neuroticism trait.
+- **Emotional anchor**: Grounding directive when strong negative emotions threaten a spiral, modulated by Conscientiousness trait.
+- **Narrative transitions**: Six transition templates (reunion, valence shifts, arousal shifts, emotion-specific) replace the mechanical EVOLUTION block.
+- **Multi-emotion self-report**: LLM reports 1-3 simultaneous emotions per message (backward compatible with v1 single-emotion format).
+- **Computed resonance**: Emotional alignment metric [-1, +1] between user valence and assistant emotion, feeding relationship warmth and trust.
+- **Proactive emotions**: Pre-response emotion pulses from drives and context (curiosity for new users, enthusiasm for high engagement, pride for domain confidence) with anti-inflation guards.
+- **Enriched avatar tooltip**: Multi-emotion display with intensity bars, mood intensity label, and drive indicators on hover.
+
+#### Improvements
+- Consolidated 12 existing behavioral directives (3 mood + 7 emotion + 2 relationship) from descriptive to imperative style.
+- Fixed Pattern B compact block wording ("follow each emotion's directive" → "let each named emotion color specific moments").
+- Fixed 2 color duplicates in PsycheHistory (surprise/pride shared amber, determination/frustration shared red).
+- Enriched PsycheStateSummary with mood_intensity, active_emotions list, and drive values for richer SSE metadata.
+- Added structured logging for proactive emotion injection and resonance computation.
+- Updated PsycheEducation with 22-emotion table and 5 new educational sections (multi-emotion, proactive, serenity floor, anchor, resonance, transitions).
+- Updated all 6 locale files (fr, en, de, es, it, zh) with ~25 new keys and ~10 updated keys each.
+- Updated documentation: PSYCHE_ENGINE.md, ADR-068, 22_psyche.md with v2 enhancements.
+
+#### Tests
+- 158 unit tests (87 existing + 71 new) covering all v2 features.
+- New guard test preventing descriptive directive patterns ("Show", "Let", "You are").
+
 ## [1.15.1] - 2026-04-08
 
 ### Fixed

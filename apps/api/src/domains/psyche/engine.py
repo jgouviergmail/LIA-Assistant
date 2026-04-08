@@ -29,10 +29,13 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 from src.domains.psyche.constants import (
+    ANCHOR_DIRECTIVES_BY_CONSCIENTIOUSNESS,
+    ANCHOR_NEGATIVE_INTENSITY_THRESHOLD,
     EMOTION_BEHAVIORAL_DIRECTIVES,
     EMOTION_MIN_INTENSITY,
     EMOTION_PAD_VECTORS,
     EMOTION_REUNION_JOY_BASE,
+    EMOTION_SIGNIFICANT_THRESHOLD,
     GAP_LONG_HOURS,
     GAP_NOTABLE_HOURS,
     GAP_SIGNIFICANT_HOURS,
@@ -40,7 +43,9 @@ from src.domains.psyche.constants import (
     MOOD_INTENSITY_LABELS,
     MOOD_LABEL_CENTROIDS,
     NEGATIVE_EMOTIONS,
+    NEGATIVE_MOOD_LABELS,
     POSITIVE_EMOTIONS,
+    POSITIVE_MOOD_LABELS,
     PSYCHE_EVAL_ATTR_PATTERN,
     PSYCHE_EVAL_TAG_PATTERN,
     RELATIONSHIP_DEPTH_THRESHOLDS,
@@ -50,6 +55,8 @@ from src.domains.psyche.constants import (
     SELF_EFFICACY_DEFAULT_SCORE,
     SELF_EFFICACY_DEFAULT_WEIGHT,
     SELF_EFFICACY_DOMAINS,
+    SERENITY_FLOOR_DIRECTIVES,
+    TRANSITION_NARRATIVE_TEMPLATES,
     WARMTH_LABELS,
 )
 
@@ -110,14 +117,34 @@ class PsycheAppraisal:
     """Parsed from <psyche_eval .../> tag in LLM response.
 
     Represents the LLM's self-evaluation of the interaction.
+    Supports both single-emotion (v1) and multi-emotion (v2) formats.
     """
 
     valence: float = 0.0  # [-1, +1] conversation positivity
     arousal: float = 0.5  # [0, 1] interaction energy
     dominance: float = 0.0  # [-1, +1] who led the exchange
-    emotion: str | None = None  # Primary emotion name
-    intensity: float = 0.5  # [0, 1] emotion strength
+    emotions: list[tuple[str, float]] = field(default_factory=list)  # [(name, intensity)]
     quality: float = 0.5  # [0, 1] overall interaction quality
+    # Legacy fields — backward compat for v1 construction and external readers.
+    # If `emotion` is set at construction and `emotions` is empty, __post_init__
+    # migrates the legacy fields into `emotions`. Do NOT modify after construction.
+    emotion: str | None = field(default=None, repr=False)
+    intensity: float = field(default=0.5, repr=False)
+
+    def __post_init__(self) -> None:
+        """Migrate legacy single-emotion fields to emotions list."""
+        if not self.emotions and self.emotion:
+            self.emotions = [(self.emotion, self.intensity)]
+
+    @property
+    def dominant_emotion(self) -> str | None:
+        """First (strongest) emotion name, or None."""
+        return self.emotions[0][0] if self.emotions else None
+
+    @property
+    def dominant_intensity(self) -> float:
+        """First (strongest) emotion intensity, or 0.0."""
+        return self.emotions[0][1] if self.emotions else 0.0
 
 
 @dataclass
@@ -139,6 +166,13 @@ class ExpressionProfile:
     # Evolution awareness (filled from last_appraisal)
     previous_mood: str | None = None
     previous_emotion: str | None = None
+    # v2 additions — graduated directives, stability, transitions
+    pad_magnitude: float = 0.0
+    current_pad: tuple[float, float, float] | None = None
+    previous_pad: tuple[float, float, float] | None = None
+    gap_hours: float = 0.0
+    neuroticism: float = 0.5
+    conscientiousness: float = 0.5
 
 
 # =============================================================================
@@ -385,44 +419,40 @@ class PsycheEngine:
         # Deep copy to avoid mutating caller's JSONB-backed dicts
         new_emotions = [dict(e) for e in emotions]
 
-        # Create/reinforce emotion if appraisal specifies one
-        if appraisal.emotion and appraisal.emotion in EMOTION_PAD_VECTORS:
-            # Neuroticism modulates emotional reactivity
-            # N=0.5 → 1.0 (backwards-compatible), N=0.9 → 1.4, N=0.1 → 0.6
-            reactivity = 0.5 + t.neuroticism
-            effective_intensity = _clamp(appraisal.intensity * sensitivity * reactivity, 0.0, 1.0)
+        # Neuroticism modulates emotional reactivity
+        # N=0.5 → 1.0 (backwards-compatible), N=0.9 → 1.4, N=0.1 → 0.6
+        reactivity = 0.5 + t.neuroticism
 
-            # Check if emotion already exists — blend instead of duplicate.
-            # Weighted average: 40% new appraisal, 60% existing intensity.
-            # This allows emotions to DECREASE when new appraisals are weaker,
-            # fixing the "sticky high-intensity" bug where max() locked emotions.
+        # v2: process up to 3 emotions with decreasing weight
+        multi_weights = [1.0, 0.5, 0.25]
+        for idx, (emo_name, raw_intensity) in enumerate(appraisal.emotions[:3]):
+            if emo_name not in EMOTION_PAD_VECTORS:
+                continue
+            weight = multi_weights[idx] if idx < len(multi_weights) else 0.25
+            effective_intensity = _clamp(raw_intensity * sensitivity * reactivity, 0.0, 1.0)
+
+            # Blend or create emotion (60% old + 40% new)
             found = False
             for emo in new_emotions:
-                if emo["name"] == appraisal.emotion:
+                if emo["name"] == emo_name:
                     emo["intensity"] = _clamp(
                         0.6 * emo["intensity"] + 0.4 * effective_intensity, 0.0, 1.0
                     )
                     emo["triggered_at"] = now_iso
                     found = True
                     break
-
             if not found:
                 new_emotions.append(
                     {
-                        "name": appraisal.emotion,
+                        "name": emo_name,
                         "intensity": effective_intensity,
                         "triggered_at": now_iso,
                     }
                 )
 
-            # Push mood via emotion PAD vector with diminishing returns.
-            # Spring-at-boundary model: as mood approaches ±1.0 on ANY axis,
-            # headroom shrinks and push is attenuated proportionally.
-            # This prevents P/A/D saturation from repeated same-direction pushes.
-            # Example: mood_a=0.8, delta=+0.3 → headroom=0.2 → push=0.06
-            # Example: mood_p=-0.9, delta=-0.2 → headroom=0.1 → push=-0.02
-            pad_vec = EMOTION_PAD_VECTORS[appraisal.emotion]
-            push_coeff = 0.6 * effective_intensity / max(inertia, 0.5)
+            # Push mood via emotion PAD vector (weighted, with headroom)
+            pad_vec = EMOTION_PAD_VECTORS[emo_name]
+            push_coeff = 0.6 * effective_intensity * weight / max(inertia, 0.5)
             mood_p = _push_with_headroom(mood_p, pad_vec[0] * push_coeff)
             mood_a = _push_with_headroom(mood_a, pad_vec[1] * push_coeff)
             mood_d = _push_with_headroom(mood_d, pad_vec[2] * push_coeff)
@@ -430,8 +460,6 @@ class PsycheEngine:
         # Emotional contagion from user valence
         # Agreeableness modulates contagion strength:
         # A=0.5 → base=0.20 (backwards-compatible), A=0.1 → 0.08, A=0.9 → 0.32
-        # Higher A = more empathetic mirroring of user's emotional state.
-        # Lower A = more resistant, tends to stay stable.
         contagion_base = 0.05 + t.agreeableness * 0.30
         gap = appraisal.valence - mood_p
         contagion_strength = contagion_base * sensitivity * (1.0 + abs(gap))
@@ -439,33 +467,30 @@ class PsycheEngine:
         mood_p = _clamp(mood_p + contagion_delta, -1.0, 1.0)
 
         # Counter-regulation for low-agreeableness personalities
-        # Low A → resists being dragged down, pulls negative mood toward NEUTRAL (0.0).
-        # Uses spring-to-zero: proportional to distance from zero, caps at 0.0.
-        # A=0.5 → counter=0.0 (no effect), A=0.1 → counter=0.10
         counter_strength = max(0.0, (0.5 - t.agreeableness) * 0.25)
         if counter_strength > 0 and mood_p < 0:
             pull = counter_strength * sensitivity * abs(mood_p)
-            mood_p = min(mood_p + pull, 0.0)  # Never overshoot into positive
+            mood_p = min(mood_p + pull, 0.0)
 
-        # Cross-valence suppression: positive emotions dampen negative ones
-        # and vice versa. A genuine compliment actively reduces worry.
-        # Suppression = 30% of the new emotion's effective intensity.
-        if appraisal.emotion and appraisal.emotion in EMOTION_PAD_VECTORS:
-            is_positive = appraisal.emotion in POSITIVE_EMOTIONS
-            is_negative = appraisal.emotion in NEGATIVE_EMOTIONS
-            if is_positive:
-                opposites = NEGATIVE_EMOTIONS
-            elif is_negative:
-                opposites = POSITIVE_EMOTIONS
-            else:
-                opposites = frozenset()
-            suppression = 0.30 * effective_intensity
+        # v2: cross-valence suppression accumulated across all reported emotions
+        total_pos_suppression = 0.0
+        total_neg_suppression = 0.0
+        for idx, (emo_name, raw_intensity) in enumerate(appraisal.emotions[:3]):
+            if emo_name not in EMOTION_PAD_VECTORS:
+                continue
+            weight = multi_weights[idx] if idx < len(multi_weights) else 0.25
+            eff = _clamp(raw_intensity * sensitivity * reactivity, 0.0, 1.0)
+            if emo_name in POSITIVE_EMOTIONS:
+                total_pos_suppression += 0.30 * eff * weight
+            elif emo_name in NEGATIVE_EMOTIONS:
+                total_neg_suppression += 0.30 * eff * weight
 
+        if total_pos_suppression > 0 or total_neg_suppression > 0:
             for emo in new_emotions:
-                if emo["name"] in opposites:
-                    emo["intensity"] = _clamp(emo["intensity"] - suppression, 0.0, 1.0)
-
-            # Remove emotions that dropped below threshold
+                if emo["name"] in NEGATIVE_EMOTIONS and total_pos_suppression > 0:
+                    emo["intensity"] = _clamp(emo["intensity"] - total_pos_suppression, 0.0, 1.0)
+                elif emo["name"] in POSITIVE_EMOTIONS and total_neg_suppression > 0:
+                    emo["intensity"] = _clamp(emo["intensity"] - total_neg_suppression, 0.0, 1.0)
             new_emotions = [
                 e for e in new_emotions if e.get("intensity", 0) >= EMOTION_MIN_INTENSITY
             ]
@@ -768,6 +793,7 @@ class PsycheEngine:
         drive_engagement: float,
         top_n: int = 2,
         self_efficacy: dict | None = None,
+        traits: PersonalityTraits | None = None,
     ) -> ExpressionProfile:
         """Compile all psyche layers into an expression profile.
 
@@ -782,6 +808,8 @@ class PsycheEngine:
             drive_curiosity: Curiosity drive [0, 1].
             drive_engagement: Engagement drive [0, 1].
             top_n: Number of top emotions to include (default 2, rich format uses 3).
+            self_efficacy: Domain-level confidence scores.
+            traits: Big Five personality traits (for stability/anchor modulation).
 
         Returns:
             Compiled ExpressionProfile ready for prompt injection.
@@ -823,7 +851,7 @@ class PsycheEngine:
                 elif score < 0.35:
                     weaknesses.append(domain)
 
-        return ExpressionProfile(
+        profile = ExpressionProfile(
             mood_label=best_label,
             mood_intensity=intensity_label,
             active_emotions=top_emotions,
@@ -834,6 +862,13 @@ class PsycheEngine:
             confidence_strengths=strengths,
             confidence_weaknesses=weaknesses,
         )
+        # v2: populate fields for graduated directives, stability, transitions
+        profile.pad_magnitude = magnitude
+        profile.current_pad = (mood_p, mood_a, mood_d)
+        if traits:
+            profile.neuroticism = traits.neuroticism
+            profile.conscientiousness = traits.conscientiousness
+        return profile
 
     # =========================================================================
     # Prompt Injection
@@ -940,6 +975,319 @@ class PsycheEngine:
         )
 
     # =========================================================================
+    # v2: Transition Detection
+    # =========================================================================
+
+    @staticmethod
+    def detect_transition_type(profile: ExpressionProfile) -> str | None:
+        """Detect the type of emotional transition from last interaction.
+
+        Checks profile.previous_pad, profile.current_pad, profile.gap_hours,
+        profile.previous_mood, and profile.previous_emotion to determine if a
+        significant emotional transition occurred.
+
+        Returns:
+            Transition type key for TRANSITION_NARRATIVE_TEMPLATES, or None.
+            Priority: reunion > valence shift > arousal shift > emotion change.
+        """
+        # 1. Reunion: long gap since last interaction
+        if profile.gap_hours >= GAP_NOTABLE_HOURS:
+            return "reunion"
+
+        # Need previous PAD for valence/arousal transitions
+        if profile.previous_pad is not None and profile.current_pad is not None:
+            prev_p, prev_a, _prev_d = profile.previous_pad
+            _curr_p, curr_a, _curr_d = profile.current_pad
+
+            # 2. Valence shift: positive mood → negative mood (or vice versa)
+            if prev_p >= 0.10 and profile.mood_label in NEGATIVE_MOOD_LABELS:
+                return "pos_to_neg"
+            if prev_p <= -0.05 and profile.mood_label in POSITIVE_MOOD_LABELS:
+                return "neg_to_pos"
+
+            # 3. Arousal shift: significant arousal delta (≥ 0.30)
+            if prev_a >= 0.20 and curr_a <= -0.10:
+                return "high_to_low_arousal"
+            if prev_a <= -0.10 and curr_a >= 0.20:
+                return "low_to_high_arousal"
+
+        # 4. Emotion-specific: dominant emotion changed
+        if profile.previous_emotion:
+            current_top = profile.active_emotions[0][0] if profile.active_emotions else None
+            if current_top and current_top != profile.previous_emotion:
+                return "emotion_specific"
+
+        return None
+
+    # =========================================================================
+    # v2: Graduated Prompt Injection
+    # =========================================================================
+
+    @staticmethod
+    def format_graduated_prompt_injection(
+        profile: ExpressionProfile,
+    ) -> tuple[str, str]:
+        """Format directives with verbosity proportional to emotional intensity.
+
+        Produces four levels of output based on PAD magnitude:
+        - Level 1 (slightly, <0.15): Compact XML tag + one-liner
+        - Level 2 (moderately, 0.15-0.35): Mood directive + emotion names + relation
+        - Level 3 (noticeably, 0.35-0.60): Full rich format with all sections
+        - Level 4 (strongly, ≥0.60): Rich format + emphasis reinforcement
+
+        Args:
+            profile: Compiled expression profile.
+
+        Returns:
+            Tuple of (directives_block, usage_directive_prompt_name).
+        """
+        stability = _build_stability_blocks(profile)
+        magnitude = profile.pad_magnitude
+
+        # Level 1: compact (< 0.15)
+        if magnitude < 0.15:
+            compact = PsycheEngine.format_prompt_injection(profile)
+            block = compact
+            if stability:
+                block += "\n" + stability
+            block += "\nLet this mood subtly color your tone."
+            return (block, "psyche_usage_directive_light")
+
+        # Level 2: medium (0.15 - 0.35)
+        if magnitude < 0.35:
+            mood_dir = MOOD_BEHAVIORAL_DIRECTIVES.get(
+                profile.mood_label, "Balanced professional tone."
+            )
+            emotion_names = (
+                ", ".join(name for name, _intensity in profile.active_emotions) or "none"
+            )
+            stage_dir = RELATIONSHIP_STAGE_DIRECTIVES.get(
+                profile.relationship_stage, "Be polite and professional."
+            )
+            parts = ["<PsycheDirectives>"]
+            if stability:
+                parts.append(stability.rstrip())
+            parts.append(f"MOOD: {profile.mood_label} ({profile.mood_intensity})" f" — {mood_dir}")
+            parts.append(f"EMOTIONS: {emotion_names}")
+            parts.append(f"RELATIONSHIP: {profile.relationship_stage} — {stage_dir}")
+            parts.append("</PsycheDirectives>")
+            return ("\n".join(parts), "psyche_usage_directive_light")
+
+        # Level 3 & 4: rich format
+        # Reuse existing rich formatter as base, then augment
+        mood_directive = MOOD_BEHAVIORAL_DIRECTIVES.get(
+            profile.mood_label, "Balanced professional tone."
+        )
+        emotion_lines: list[str] = []
+        for name, intensity in profile.active_emotions:
+            directive = EMOTION_BEHAVIORAL_DIRECTIVES.get(name, "")
+            pct = round(intensity * 100)
+            if directive:
+                emotion_lines.append(f"- {name} ({pct}%): {directive}")
+            else:
+                emotion_lines.append(f"- {name} ({pct}%)")
+        emotions_block = "\n".join(emotion_lines) if emotion_lines else "- none"
+
+        stage_directive = RELATIONSHIP_STAGE_DIRECTIVES.get(
+            profile.relationship_stage, "Be polite and professional."
+        )
+
+        # Narrative transition (replaces mechanical EVOLUTION)
+        transition_type = PsycheEngine.detect_transition_type(profile)
+        evolution_block = ""
+        if transition_type:
+            template = TRANSITION_NARRATIVE_TEMPLATES.get(transition_type, "")
+            if transition_type == "emotion_specific":
+                curr_top = profile.active_emotions[0][0] if profile.active_emotions else "calm"
+                template = template.format(
+                    prev_emotion=profile.previous_emotion or "the previous state",
+                    curr_emotion=curr_top,
+                )
+            evolution_block = "\n" + template + "\n"
+
+        # Level 4 emphasis
+        emphasis = ""
+        if magnitude >= 0.60:
+            emphasis = (
+                f"\nEMPHASIS: Your {profile.mood_label} mood is INTENSE."
+                " Let it permeate every sentence.\n"
+            )
+
+        block = (
+            f"<PsycheDirectives>\n"
+            f"{stability}"
+            f"MOOD: {profile.mood_label} ({profile.mood_intensity})\n"
+            f"{mood_directive}\n\n"
+            f"EMOTIONS:\n"
+            f"{emotions_block}\n\n"
+            f"RELATIONSHIP: {profile.relationship_stage}\n"
+            f"{stage_directive}\n\n"
+            f"DRIVES:\n"
+            f"- curiosity={profile.drive_curiosity}"
+            f"{' — explore new angles, ask questions' if profile.drive_curiosity > 0.6 else ''}\n"
+            f"- engagement={profile.drive_engagement}"
+            f"{' — in flow, be thorough and proactive' if profile.drive_engagement > 0.6 else ''}\n"
+            f"{_format_confidence_block(profile)}"
+            f"{evolution_block}"
+            f"{emphasis}"
+            f"</PsycheDirectives>"
+        )
+        return (block, "psyche_usage_directive")
+
+    # =========================================================================
+    # v2: Computed Emotional Resonance
+    # =========================================================================
+
+    # Emotions where responding to a negative user is appropriate (not dissonant)
+    _APPROPRIATE_NEGATIVE_RESPONSES: frozenset[str] = frozenset(
+        {
+            "concern",
+            "empathy",
+            "protectiveness",
+            "determination",
+            "resolve",
+        }
+    )
+
+    @staticmethod
+    def compute_resonance(
+        user_valence: float,
+        emotions: list[tuple[str, float]],
+    ) -> float:
+        """Compute emotional resonance between user state and assistant response.
+
+        Resonance measures alignment: positive when appropriate (empathy with sadness,
+        shared joy), negative when misaligned (cheerful with grieving user).
+
+        Args:
+            user_valence: User's emotional valence from appraisal [-1, +1].
+            emotions: Assistant's reported emotions [(name, intensity), ...].
+
+        Returns:
+            Resonance value in [-1.0, +1.0].
+        """
+        if not emotions:
+            return 0.0
+
+        dominant_name, dominant_intensity = emotions[0]
+        if dominant_name not in EMOTION_PAD_VECTORS:
+            return 0.0
+
+        emotion_pleasure = EMOTION_PAD_VECTORS[dominant_name][0]
+
+        # Neutral zone: no significant resonance signal
+        if abs(user_valence) < 0.15 or abs(emotion_pleasure) < 0.10:
+            return 0.0
+
+        # Special case: empathic/protective responses to negative user are appropriate
+        if user_valence < -0.15 and dominant_name in PsycheEngine._APPROPRIATE_NEGATIVE_RESPONSES:
+            return _clamp(min(abs(user_valence), dominant_intensity) * 0.7, 0.0, 1.0)
+
+        # Same sign = resonance, opposite = dissonance
+        user_sign = 1.0 if user_valence > 0 else -1.0
+        emo_sign = 1.0 if emotion_pleasure > 0 else -1.0
+        correlation = user_sign * emo_sign
+
+        return _clamp(correlation * min(abs(user_valence), dominant_intensity), -1.0, 1.0)
+
+    # =========================================================================
+    # v2: Proactive Emotions
+    # =========================================================================
+
+    @staticmethod
+    def compute_proactive_emotions(
+        drive_curiosity: float,
+        drive_engagement: float,
+        interaction_count: int,
+        last_appraisal: dict | None,
+        self_efficacy: dict | None,
+        existing_emotions: list[dict],
+        now_iso: str,
+    ) -> list[dict]:
+        """Compute anticipatory emotion pulses from contextual state.
+
+        Injected in pre-response to prime the assistant's emotional state
+        based on drives, relationship history, and confidence.
+
+        Args:
+            drive_curiosity: Current curiosity drive [0, 1].
+            drive_engagement: Current engagement drive [0, 1].
+            interaction_count: Total non-trivial interactions with user.
+            last_appraisal: Previous appraisal dict (for quality check).
+            self_efficacy: Domain-level confidence scores.
+            existing_emotions: Current active emotions (for anti-inflation guard).
+            now_iso: Current ISO timestamp.
+
+        Returns:
+            List of proactive emotion dicts [{name, intensity, triggered_at}].
+        """
+        pulses: list[dict] = []
+
+        # Helper: get existing intensity for an emotion name
+        def _existing(name: str) -> float:
+            for e in existing_emotions:
+                if e.get("name") == name:
+                    return float(e.get("intensity", 0.0))
+            return 0.0
+
+        # Curiosity pulse for new relationships
+        if drive_curiosity > 0.7 and interaction_count < 5:
+            pulses.append({"name": "curiosity", "intensity": 0.25, "triggered_at": now_iso})
+
+        # Enthusiasm pulse for high engagement (with anti-inflation guard)
+        if drive_engagement > 0.8 and _existing("enthusiasm") < 0.50:
+            pulses.append({"name": "enthusiasm", "intensity": 0.20, "triggered_at": now_iso})
+
+        # Joy pulse for sustained quality (with anti-inflation guard)
+        if (
+            last_appraisal
+            and last_appraisal.get("quality", 0) > 0.7
+            and drive_engagement > 0.7
+            and _existing("joy") < 0.50
+        ):
+            pulses.append({"name": "joy", "intensity": 0.15, "triggered_at": now_iso})
+
+        # Pride pulse for established high self-efficacy
+        if self_efficacy:
+            for _domain, entry in self_efficacy.items():
+                if isinstance(entry, dict):
+                    score = entry.get("score", 0.5)
+                    weight = entry.get("weight", 2.0)
+                    if score > 0.75 and weight > 4.0:
+                        pulses.append({"name": "pride", "intensity": 0.15, "triggered_at": now_iso})
+                        break  # Only one pride pulse
+
+        return pulses
+
+    @staticmethod
+    def merge_proactive_emotions(
+        existing_emotions: list[dict],
+        proactive: list[dict],
+    ) -> list[dict]:
+        """Merge proactive pulses into existing emotions (additive, capped at 1.0).
+
+        Args:
+            existing_emotions: Current active emotions from state.
+            proactive: Proactive pulses to merge.
+
+        Returns:
+            Merged emotion list (deep copy, originals not mutated).
+        """
+        result = [dict(e) for e in existing_emotions]
+        existing_names = {e["name"]: i for i, e in enumerate(result)}
+
+        for pulse in proactive:
+            name = pulse["name"]
+            if name in existing_names:
+                idx = existing_names[name]
+                result[idx]["intensity"] = min(1.0, result[idx]["intensity"] + pulse["intensity"])
+                result[idx]["triggered_at"] = pulse["triggered_at"]
+            else:
+                result.append(dict(pulse))
+
+        return result
+
+    # =========================================================================
     # Self-Report Tag Parsing
     # =========================================================================
 
@@ -974,14 +1322,32 @@ class PsycheEngine:
             cleaned = PSYCHE_EVAL_TAG_PATTERN.sub("", content).strip()
             return None, cleaned
 
+        # Parse emotions: v2 multi-emotion format takes priority
+        emotions_list: list[tuple[str, float]] = []
+        if "emotions" in attrs:
+            for part in attrs["emotions"].split(","):
+                chunks = part.strip().split(":")
+                if len(chunks) == 2:
+                    name = _validate_emotion(chunks[0].strip())
+                    intens = _clamp(_safe_float(chunks[1].strip(), 0.5), 0.0, 1.0)
+                    if name:
+                        emotions_list.append((name, intens))
+            emotions_list = emotions_list[:3]
+
+        # Fallback: v1 single-emotion format
+        legacy_emotion = _validate_emotion(attrs.get("emotion"))
+        legacy_intensity = _clamp(_safe_float(attrs.get("intensity", "0.5")), 0.0, 1.0)
+
         # Build appraisal with clamped values
         appraisal = PsycheAppraisal(
             valence=_clamp(_safe_float(attrs.get("valence", "0")), -1.0, 1.0),
             arousal=_clamp(_safe_float(attrs.get("arousal", "0.5")), 0.0, 1.0),
             dominance=_clamp(_safe_float(attrs.get("dominance", "0")), -1.0, 1.0),
-            emotion=_validate_emotion(attrs.get("emotion")),
-            intensity=_clamp(_safe_float(attrs.get("intensity", "0.5")), 0.0, 1.0),
+            emotions=emotions_list,
             quality=_clamp(_safe_float(attrs.get("quality", "0.5")), 0.0, 1.0),
+            # Legacy fields: only set if no multi-emotion parsed (triggers __post_init__)
+            emotion=legacy_emotion if not emotions_list else None,
+            intensity=legacy_intensity if not emotions_list else 0.5,
         )
 
         # Strip tag from content
@@ -1042,6 +1408,56 @@ def _format_confidence_block(profile: ExpressionProfile) -> str:
             " — be more careful and thorough"
         )
     return "\n".join(lines) + "\n"
+
+
+def _build_stability_blocks(profile: ExpressionProfile) -> str:
+    """Build serenity floor and/or emotional anchor blocks.
+
+    Serenity floor: when no emotion is significantly active, inject a baseline
+    steadiness directive modulated by neuroticism.
+    Anchor: when a strong negative emotion threatens a spiral, inject a grounding
+    directive modulated by conscientiousness.
+
+    These are mutually exclusive by construction: floor fires when no emotion
+    is strong (< 0.15), anchor fires when a negative is very strong (> 0.70).
+
+    Returns:
+        Directive block string (may be empty).
+    """
+    # Check for significant emotions
+    significant = [
+        (name, intensity)
+        for name, intensity in profile.active_emotions
+        if intensity >= EMOTION_SIGNIFICANT_THRESHOLD
+    ]
+
+    # B1: Serenity floor — no significant emotion active
+    if not significant:
+        floor_strength = (1 - profile.neuroticism) * 0.7 + 0.3  # [0.3, 1.0]
+        for threshold, directive in SERENITY_FLOOR_DIRECTIVES:
+            if floor_strength < threshold:
+                return directive + "\n"
+        return ""
+
+    # B2+B3: Anchor — strong negative emotion
+    anchor_base = (1 - profile.neuroticism) * 0.7 + 0.3
+    if anchor_base <= 0.30:
+        # Extreme neuroticism (N≈1.0): personality IS the spiral, no anchor
+        return ""
+
+    for name, intensity in profile.active_emotions:
+        if name in NEGATIVE_EMOTIONS and intensity > ANCHOR_NEGATIVE_INTENSITY_THRESHOLD:
+            # Select anchor wording by conscientiousness
+            anchor = ""
+            for c_threshold, template in ANCHOR_DIRECTIVES_BY_CONSCIENTIOUSNESS:
+                if profile.conscientiousness < c_threshold:
+                    anchor = template.format(emotion=name)
+                    break
+            if anchor_base < 0.40:
+                anchor += " ...though it may take a moment."
+            return anchor + "\n"
+
+    return ""
 
 
 def _push_with_headroom(current: float, delta: float) -> float:

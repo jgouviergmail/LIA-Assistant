@@ -47,18 +47,24 @@ const EMOTION_COLORS: Record<string, string> = {
   amusement: '#f472b6', // pink
   enthusiasm: '#fb923c', // orange
   tenderness: '#ec4899', // pink-hot
+  playfulness: '#c084fc', // violet-light
+  relief: '#86efac', // green-mint
+  wonder: '#fcd34d', // gold
   // Negative
   frustration: '#ef4444', // red
   concern: '#f97316', // orange-dark
   melancholy: '#818cf8', // indigo
   disappointment: '#a855f7', // purple
+  nervousness: '#fca5a1', // salmon-pink
   // Neutral
   curiosity: '#a78bfa', // violet
   serenity: '#38bdf8', // sky
-  surprise: '#fbbf24', // amber-light
+  surprise: '#e879f9', // fuchsia (was amber — deduplicated from pride)
   empathy: '#2dd4bf', // teal
   confusion: '#94a3b8', // slate
-  determination: '#ef4444', // red-warm
+  determination: '#0ea5e9', // sky-blue (was red — deduplicated from frustration)
+  protectiveness: '#14b8a6', // teal-dark
+  resolve: '#64748b', // slate-medium
 };
 
 const RANGE_HOURS: Record<TimeRange, number> = {

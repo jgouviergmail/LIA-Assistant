@@ -254,7 +254,7 @@ Es el diferenciador más profundo de LIA. ChatGPT, Gemini, Claude — todos tien
 El **Psyche Engine** le da a LIA un estado psicológico dinámico que evoluciona en cada intercambio:
 
 - **14 estados de ánimo** que fluctúan con el tono de la conversación (sereno, curioso, melancólico, animado...)
-- **16 emociones** que se activan y se atenúan en respuesta a tus palabras
+- **22 emociones** que se activan y se atenúan en respuesta a tus palabras
 - **Una relación** que se profundiza mensaje a mensaje
 - **Rasgos de personalidad** (Big Five) heredados de la personalidad elegida
 - **Motivaciones** que influyen en la proactividad del asistente

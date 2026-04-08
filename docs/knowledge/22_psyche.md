@@ -10,7 +10,7 @@ The Psyche Engine gives LIA a dynamic psychological state that evolves with ever
 
 1. **Personality (permanent)** — Big Five traits (Openness, Conscientiousness, Extraversion, Agreeableness, Neuroticism) inherited from the chosen personality. They modulate emotional reactivity, empathy, and recovery speed.
 2. **Mood (hours)** — A position in 3D PAD space (Pleasure, Arousal, Dominance) mapped to one of 14 distinct moods. Decays toward the personality baseline over time.
-3. **Emotions (minutes)** — Up to 7 simultaneous emotions from 16 types. Each has an intensity that decays and pushes the mood in a specific direction.
+3. **Emotions (minutes)** — Up to 7 simultaneous emotions from 22 types (joy, gratitude, curiosity, serenity, pride, frustration, concern, melancholy, surprise, amusement, empathy, enthusiasm, confusion, disappointment, tenderness, determination, playfulness, protectiveness, relief, nervousness, wonder, resolve). Each has an intensity that decays and pushes the mood in a specific direction.
 4. **Relationship (weeks/months)** — 4 stages (Orientation → Exploratory → Affective → Stable) with tracked depth, warmth, and trust. Progress is one-way.
 5. **Drives (per session)** — Curiosity and engagement that evolve with each exchange. High curiosity makes LIA explore new angles; high engagement makes it more thorough.
 

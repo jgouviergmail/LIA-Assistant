@@ -971,9 +971,9 @@ class TestNewMoods:
 
 
 class TestNewEmotions:
-    """Tests for the 16 emotion palette (Iteration 3)."""
+    """Tests for the 22 emotion palette (Iteration 3 + v2 expansion)."""
 
-    def test_all_16_emotions_have_pad_vectors(self) -> None:
+    def test_all_emotions_have_pad_vectors(self) -> None:
         """All EMOTION_TYPES should have a corresponding PAD vector."""
         from src.domains.psyche.constants import EMOTION_PAD_VECTORS, EMOTION_TYPES
 
@@ -1228,3 +1228,768 @@ class TestPushWithHeadroom:
         # headroom = 0.01, attenuated = 0.1 * 0.01 = 0.001
         assert result == pytest.approx(0.991, abs=1e-6)
         assert result > 0.99
+
+
+# =============================================================================
+# v2 Tests — Psyche Engine v2 additions
+# =============================================================================
+
+
+class TestExpandedPalette:
+    """Tests for the 22-emotion palette (6 new emotions)."""
+
+    def test_all_22_emotions_have_pad_vectors(self) -> None:
+        from src.domains.psyche.constants import EMOTION_PAD_VECTORS, EMOTION_TYPES
+
+        assert len(EMOTION_TYPES) == 22
+        for emo in EMOTION_TYPES:
+            assert emo in EMOTION_PAD_VECTORS, f"{emo} missing from EMOTION_PAD_VECTORS"
+
+    def test_all_22_emotions_have_directives(self) -> None:
+        from src.domains.psyche.constants import (
+            EMOTION_BEHAVIORAL_DIRECTIVES,
+            EMOTION_TYPES,
+        )
+
+        for emo in EMOTION_TYPES:
+            assert emo in EMOTION_BEHAVIORAL_DIRECTIVES, f"{emo} missing directive"
+
+    def test_no_directive_uses_banned_patterns(self) -> None:
+        """Guard test: directives must be imperative, not descriptive."""
+        from src.domains.psyche.constants import (
+            EMOTION_BEHAVIORAL_DIRECTIVES,
+            MOOD_BEHAVIORAL_DIRECTIVES,
+        )
+
+        banned_starts = ("Show ", "Let ", "You are ", "You have ")
+        for name, directive in MOOD_BEHAVIORAL_DIRECTIVES.items():
+            for banned in banned_starts:
+                assert not directive.startswith(
+                    banned
+                ), f"Mood directive '{name}' starts with banned '{banned}': {directive}"
+        for name, directive in EMOTION_BEHAVIORAL_DIRECTIVES.items():
+            for banned in banned_starts:
+                assert not directive.startswith(
+                    banned
+                ), f"Emotion directive '{name}' starts with banned '{banned}': {directive}"
+
+    def test_positive_negative_sets_no_overlap(self) -> None:
+        from src.domains.psyche.constants import NEGATIVE_EMOTIONS, POSITIVE_EMOTIONS
+
+        assert len(POSITIVE_EMOTIONS & NEGATIVE_EMOTIONS) == 0
+
+    def test_new_emotions_in_correct_sets(self) -> None:
+        from src.domains.psyche.constants import NEGATIVE_EMOTIONS, POSITIVE_EMOTIONS
+
+        assert "playfulness" in POSITIVE_EMOTIONS
+        assert "relief" in POSITIVE_EMOTIONS
+        assert "wonder" in POSITIVE_EMOTIONS
+        assert "nervousness" in NEGATIVE_EMOTIONS
+        # protectiveness and resolve are neutral (in neither set)
+        assert "protectiveness" not in POSITIVE_EMOTIONS
+        assert "protectiveness" not in NEGATIVE_EMOTIONS
+        assert "resolve" not in POSITIVE_EMOTIONS
+        assert "resolve" not in NEGATIVE_EMOTIONS
+
+    def test_validate_emotion_accepts_new_names(self) -> None:
+        from src.domains.psyche.engine import _validate_emotion
+
+        for name in ["playfulness", "protectiveness", "relief", "nervousness", "wonder", "resolve"]:
+            assert _validate_emotion(name) == name
+
+
+class TestExpressionProfileV2:
+    """Tests for enriched ExpressionProfile fields."""
+
+    def test_compile_profile_with_traits_sets_neuroticism(self) -> None:
+        traits = PersonalityTraits(neuroticism=0.8, conscientiousness=0.3)
+        profile = PsycheEngine.compile_expression_profile(
+            0.0,
+            0.0,
+            0.0,
+            [],
+            "ORIENTATION",
+            0.5,
+            0.5,
+            0.5,
+            traits=traits,
+        )
+        assert profile.neuroticism == 0.8
+        assert profile.conscientiousness == 0.3
+
+    def test_compile_profile_without_traits_defaults(self) -> None:
+        profile = PsycheEngine.compile_expression_profile(
+            0.0,
+            0.0,
+            0.0,
+            [],
+            "ORIENTATION",
+            0.5,
+            0.5,
+            0.5,
+        )
+        assert profile.neuroticism == 0.5
+        assert profile.conscientiousness == 0.5
+
+    def test_pad_magnitude_computed(self) -> None:
+        profile = PsycheEngine.compile_expression_profile(
+            0.3,
+            0.4,
+            0.0,
+            [],
+            "ORIENTATION",
+            0.5,
+            0.5,
+            0.5,
+        )
+        assert profile.pad_magnitude == pytest.approx(0.5, abs=0.01)
+
+    def test_current_pad_set(self) -> None:
+        profile = PsycheEngine.compile_expression_profile(
+            0.3,
+            -0.2,
+            0.1,
+            [],
+            "ORIENTATION",
+            0.5,
+            0.5,
+            0.5,
+        )
+        assert profile.current_pad == (0.3, -0.2, 0.1)
+
+
+class TestStabilityBlocks:
+    """Tests for serenity floor and emotional anchor."""
+
+    def test_serenity_floor_empty_emotions(self) -> None:
+        from src.domains.psyche.engine import _build_stability_blocks
+
+        profile = ExpressionProfile(active_emotions=[], neuroticism=0.5)
+        result = _build_stability_blocks(profile)
+        assert "BASE:" in result
+
+    def test_serenity_floor_all_below_threshold(self) -> None:
+        from src.domains.psyche.engine import _build_stability_blocks
+
+        profile = ExpressionProfile(active_emotions=[("joy", 0.10)], neuroticism=0.5)
+        result = _build_stability_blocks(profile)
+        assert "BASE:" in result
+
+    def test_serenity_floor_low_neuroticism(self) -> None:
+        from src.domains.psyche.engine import _build_stability_blocks
+
+        profile = ExpressionProfile(active_emotions=[], neuroticism=0.15)
+        result = _build_stability_blocks(profile)
+        assert "deep steadiness" in result
+
+    def test_serenity_floor_high_neuroticism(self) -> None:
+        from src.domains.psyche.engine import _build_stability_blocks
+
+        profile = ExpressionProfile(active_emotions=[], neuroticism=0.85)
+        result = _build_stability_blocks(profile)
+        assert "Try to be steady" in result
+
+    def test_serenity_floor_mid_neuroticism(self) -> None:
+        from src.domains.psyche.engine import _build_stability_blocks
+
+        profile = ExpressionProfile(active_emotions=[], neuroticism=0.50)
+        result = _build_stability_blocks(profile)
+        assert "calm equilibrium" in result
+
+    def test_no_floor_with_significant_emotion(self) -> None:
+        from src.domains.psyche.engine import _build_stability_blocks
+
+        profile = ExpressionProfile(active_emotions=[("joy", 0.5)], neuroticism=0.5)
+        result = _build_stability_blocks(profile)
+        assert "BASE:" not in result
+
+    def test_anchor_triggered_on_strong_negative(self) -> None:
+        from src.domains.psyche.engine import _build_stability_blocks
+
+        profile = ExpressionProfile(
+            active_emotions=[("frustration", 0.80)],
+            neuroticism=0.5,
+            conscientiousness=0.5,
+        )
+        result = _build_stability_blocks(profile)
+        assert "ANCHOR:" in result
+        assert "frustration" in result
+
+    def test_anchor_high_conscientiousness(self) -> None:
+        from src.domains.psyche.engine import _build_stability_blocks
+
+        profile = ExpressionProfile(
+            active_emotions=[("frustration", 0.80)],
+            neuroticism=0.5,
+            conscientiousness=0.80,
+        )
+        result = _build_stability_blocks(profile)
+        assert "Discipline your tone" in result
+
+    def test_anchor_low_conscientiousness(self) -> None:
+        from src.domains.psyche.engine import _build_stability_blocks
+
+        profile = ExpressionProfile(
+            active_emotions=[("frustration", 0.80)],
+            neuroticism=0.5,
+            conscientiousness=0.20,
+        )
+        result = _build_stability_blocks(profile)
+        assert "let yourself feel it" in result
+
+    def test_anchor_skipped_extreme_neuroticism(self) -> None:
+        from src.domains.psyche.engine import _build_stability_blocks
+
+        profile = ExpressionProfile(
+            active_emotions=[("frustration", 0.80)],
+            neuroticism=1.0,  # anchor_base = 0.3 → skip
+            conscientiousness=0.5,
+        )
+        result = _build_stability_blocks(profile)
+        assert "ANCHOR:" not in result
+
+    def test_anchor_with_delay_suffix(self) -> None:
+        from src.domains.psyche.engine import _build_stability_blocks
+
+        profile = ExpressionProfile(
+            active_emotions=[("frustration", 0.80)],
+            neuroticism=0.88,  # anchor_base = (1 - 0.88) * 0.7 + 0.3 = 0.384 → < 0.40 → suffix
+            conscientiousness=0.5,
+        )
+        result = _build_stability_blocks(profile)
+        assert "though it may take a moment" in result
+
+    def test_floor_and_anchor_never_coexist(self) -> None:
+        """Floor requires no significant emotions; anchor requires strong negative.
+        These are mutually exclusive by construction."""
+        from src.domains.psyche.engine import _build_stability_blocks
+
+        # Floor scenario
+        profile_floor = ExpressionProfile(active_emotions=[], neuroticism=0.5)
+        result_floor = _build_stability_blocks(profile_floor)
+        assert "BASE:" in result_floor
+        assert "ANCHOR:" not in result_floor
+
+        # Anchor scenario
+        profile_anchor = ExpressionProfile(
+            active_emotions=[("frustration", 0.80)],
+            neuroticism=0.5,
+            conscientiousness=0.5,
+        )
+        result_anchor = _build_stability_blocks(profile_anchor)
+        assert "ANCHOR:" in result_anchor
+        assert "BASE:" not in result_anchor
+
+
+class TestTransitionDetection:
+    """Tests for detect_transition_type()."""
+
+    def test_transition_reunion(self) -> None:
+        profile = ExpressionProfile(gap_hours=30.0)
+        assert PsycheEngine.detect_transition_type(profile) == "reunion"
+
+    def test_transition_reunion_priority(self) -> None:
+        """Reunion overrides valence shift when both conditions match."""
+        profile = ExpressionProfile(
+            gap_hours=30.0,
+            mood_label="melancholic",
+            previous_pad=(0.3, 0.0, 0.0),
+            current_pad=(-0.2, -0.3, -0.2),
+        )
+        assert PsycheEngine.detect_transition_type(profile) == "reunion"
+
+    def test_transition_pos_to_neg(self) -> None:
+        profile = ExpressionProfile(
+            mood_label="melancholic",
+            previous_pad=(0.3, 0.0, 0.0),
+            current_pad=(-0.2, -0.3, -0.2),
+        )
+        assert PsycheEngine.detect_transition_type(profile) == "pos_to_neg"
+
+    def test_transition_neg_to_pos(self) -> None:
+        profile = ExpressionProfile(
+            mood_label="serene",
+            previous_pad=(-0.2, 0.0, 0.0),
+            current_pad=(0.3, -0.2, 0.1),
+        )
+        assert PsycheEngine.detect_transition_type(profile) == "neg_to_pos"
+
+    def test_transition_high_to_low_arousal(self) -> None:
+        profile = ExpressionProfile(
+            mood_label="neutral",
+            previous_pad=(0.0, 0.4, 0.0),
+            current_pad=(0.0, -0.2, 0.0),
+        )
+        assert PsycheEngine.detect_transition_type(profile) == "high_to_low_arousal"
+
+    def test_transition_emotion_specific(self) -> None:
+        profile = ExpressionProfile(
+            mood_label="neutral",
+            previous_emotion="curiosity",
+            active_emotions=[("determination", 0.6)],
+        )
+        assert PsycheEngine.detect_transition_type(profile) == "emotion_specific"
+
+    def test_transition_none_first_interaction(self) -> None:
+        profile = ExpressionProfile()
+        assert PsycheEngine.detect_transition_type(profile) is None
+
+    def test_transition_none_no_significant_change(self) -> None:
+        profile = ExpressionProfile(
+            mood_label="neutral",
+            previous_pad=(0.05, 0.0, 0.0),
+            current_pad=(0.0, 0.0, 0.0),
+        )
+        assert PsycheEngine.detect_transition_type(profile) is None
+
+
+class TestGraduatedInjection:
+    """Tests for format_graduated_prompt_injection()."""
+
+    def test_level1_compact(self) -> None:
+        profile = ExpressionProfile(pad_magnitude=0.05, mood_label="neutral")
+        block, key = PsycheEngine.format_graduated_prompt_injection(profile)
+        assert "<Psyche " in block
+        assert "subtly color" in block
+        assert key == "psyche_usage_directive_light"
+
+    def test_level2_medium(self) -> None:
+        profile = ExpressionProfile(
+            pad_magnitude=0.25,
+            mood_label="curious",
+            mood_intensity="moderately",
+            active_emotions=[("curiosity", 0.3)],
+            relationship_stage="EXPLORATORY",
+        )
+        block, key = PsycheEngine.format_graduated_prompt_injection(profile)
+        assert "<PsycheDirectives>" in block
+        assert "curious (moderately)" in block
+        assert "EMOTIONS: curiosity" in block
+        assert key == "psyche_usage_directive_light"
+
+    def test_level3_rich(self) -> None:
+        profile = ExpressionProfile(
+            pad_magnitude=0.50,
+            mood_label="energized",
+            mood_intensity="noticeably",
+            active_emotions=[("enthusiasm", 0.7), ("curiosity", 0.4)],
+            relationship_stage="AFFECTIVE",
+            drive_curiosity=0.8,
+            drive_engagement=0.6,
+        )
+        block, key = PsycheEngine.format_graduated_prompt_injection(profile)
+        assert "MOOD: energized (noticeably)" in block
+        assert "enthusiasm (70%)" in block
+        assert "DRIVES:" in block
+        assert key == "psyche_usage_directive"
+
+    def test_level4_emphasis(self) -> None:
+        profile = ExpressionProfile(
+            pad_magnitude=0.80,
+            mood_label="agitated",
+            mood_intensity="strongly",
+            active_emotions=[("frustration", 0.9)],
+            relationship_stage="STABLE",
+        )
+        block, key = PsycheEngine.format_graduated_prompt_injection(profile)
+        assert "EMPHASIS:" in block
+        assert "INTENSE" in block
+        assert key == "psyche_usage_directive"
+
+    def test_stability_blocks_included(self) -> None:
+        profile = ExpressionProfile(
+            pad_magnitude=0.50,
+            mood_label="neutral",
+            active_emotions=[],
+            neuroticism=0.5,
+        )
+        block, _ = PsycheEngine.format_graduated_prompt_injection(profile)
+        assert "BASE:" in block
+
+    def test_evolution_at_level3_not_level1(self) -> None:
+        profile_l1 = ExpressionProfile(
+            pad_magnitude=0.05,
+            gap_hours=30.0,
+        )
+        block_l1, _ = PsycheEngine.format_graduated_prompt_injection(profile_l1)
+        assert "EVOLUTION:" not in block_l1
+
+        profile_l3 = ExpressionProfile(
+            pad_magnitude=0.50,
+            mood_label="tender",
+            mood_intensity="noticeably",
+            gap_hours=30.0,
+        )
+        block_l3, _ = PsycheEngine.format_graduated_prompt_injection(profile_l3)
+        assert "EVOLUTION:" in block_l3
+
+
+class TestMultiEmotionParsing:
+    """Tests for multi-emotion self-report parsing."""
+
+    def test_new_multi_format(self) -> None:
+        content = 'Hello <psyche_eval valence="0.5" arousal="0.3" dominance="0.1" emotions="curiosity:0.7,amusement:0.3" quality="0.8"/>'
+        appraisal, cleaned = PsycheEngine.parse_psyche_eval(content)
+        assert appraisal is not None
+        assert len(appraisal.emotions) == 2
+        assert appraisal.emotions[0] == ("curiosity", 0.7)
+        assert appraisal.emotions[1] == ("amusement", 0.3)
+        assert appraisal.dominant_emotion == "curiosity"
+        assert appraisal.dominant_intensity == 0.7
+
+    def test_old_format_backward_compat(self) -> None:
+        content = '<psyche_eval valence="0.5" arousal="0.3" dominance="0.1" emotion="curiosity" intensity="0.7" quality="0.8"/>'
+        appraisal, _ = PsycheEngine.parse_psyche_eval(content)
+        assert appraisal is not None
+        assert len(appraisal.emotions) == 1
+        assert appraisal.emotions[0] == ("curiosity", 0.7)
+
+    def test_more_than_three_truncated(self) -> None:
+        content = '<psyche_eval emotions="joy:0.7,curiosity:0.5,amusement:0.3,pride:0.2,serenity:0.1" quality="0.5"/>'
+        appraisal, _ = PsycheEngine.parse_psyche_eval(content)
+        assert appraisal is not None
+        assert len(appraisal.emotions) == 3
+
+    def test_invalid_emotion_filtered(self) -> None:
+        content = '<psyche_eval emotions="curiosity:0.7,FAKE:0.3" quality="0.5"/>'
+        appraisal, _ = PsycheEngine.parse_psyche_eval(content)
+        assert appraisal is not None
+        assert len(appraisal.emotions) == 1
+        assert appraisal.emotions[0][0] == "curiosity"
+
+    def test_empty_emotions(self) -> None:
+        content = '<psyche_eval valence="0.5" quality="0.5"/>'
+        appraisal, _ = PsycheEngine.parse_psyche_eval(content)
+        assert appraisal is not None
+        assert len(appraisal.emotions) == 0
+        assert appraisal.dominant_emotion is None
+
+    def test_malformed_emotions_string(self) -> None:
+        content = '<psyche_eval emotions="curiosity:0.7,,:bad" quality="0.5"/>'
+        appraisal, _ = PsycheEngine.parse_psyche_eval(content)
+        assert appraisal is not None
+        assert len(appraisal.emotions) == 1
+
+    def test_legacy_construction_migrates(self) -> None:
+        appraisal = PsycheAppraisal(emotion="joy", intensity=0.7)
+        assert appraisal.emotions == [("joy", 0.7)]
+        assert appraisal.dominant_emotion == "joy"
+
+    def test_new_construction_direct(self) -> None:
+        appraisal = PsycheAppraisal(emotions=[("joy", 0.7), ("curiosity", 0.3)])
+        assert appraisal.dominant_emotion == "joy"
+        assert len(appraisal.emotions) == 2
+
+
+class TestMultiEmotionApply:
+    """Tests for multi-emotion apply_appraisal()."""
+
+    def test_multi_weighted_mood_push(self) -> None:
+        """Second emotion pushes mood at 0.5x weight."""
+        appraisal = PsycheAppraisal(
+            emotions=[("joy", 0.8), ("curiosity", 0.8)],
+            valence=0.5,
+            quality=0.8,
+        )
+        # Compare: single joy push vs joy+curiosity push
+        p1, a1, d1, _ = PsycheEngine.apply_appraisal(
+            0.0,
+            0.0,
+            0.0,
+            [],
+            PsycheAppraisal(emotions=[("joy", 0.8)], valence=0.5, quality=0.8),
+            sensitivity=1.0,
+            inertia=1.0,
+            max_active=7,
+            now_iso="2026-04-08T10:00:00",
+        )
+        p2, a2, d2, _ = PsycheEngine.apply_appraisal(
+            0.0,
+            0.0,
+            0.0,
+            [],
+            appraisal,
+            sensitivity=1.0,
+            inertia=1.0,
+            max_active=7,
+            now_iso="2026-04-08T10:00:00",
+        )
+        # Multi should push more than single (curiosity adds to the push)
+        # Joy PAD: (+0.40, +0.20, +0.10), Curiosity PAD: (+0.30, +0.40, +0.10)
+        assert a2 > a1  # Curiosity has higher arousal
+
+    def test_multi_cross_suppression_accumulated(self) -> None:
+        """Two positive emotions should accumulate suppression on negatives."""
+        existing = [{"name": "frustration", "intensity": 0.8, "triggered_at": "t"}]
+        appraisal = PsycheAppraisal(
+            emotions=[("joy", 0.6), ("gratitude", 0.4)],
+            valence=0.5,
+            quality=0.8,
+        )
+        _, _, _, updated = PsycheEngine.apply_appraisal(
+            0.0,
+            0.0,
+            0.0,
+            existing,
+            appraisal,
+            sensitivity=1.0,
+            inertia=1.0,
+            max_active=7,
+            now_iso="2026-04-08T10:00:00",
+        )
+        # Frustration should be reduced by accumulated suppression
+        frust = next((e for e in updated if e["name"] == "frustration"), None)
+        if frust:
+            assert frust["intensity"] < 0.8
+
+
+class TestResonance:
+    """Tests for compute_resonance()."""
+
+    def test_positive_match(self) -> None:
+        res = PsycheEngine.compute_resonance(0.5, [("joy", 0.7)])
+        assert res > 0.3
+
+    def test_empathy_appropriate(self) -> None:
+        res = PsycheEngine.compute_resonance(-0.5, [("concern", 0.6)])
+        assert res > 0.0  # Concern is appropriate for negative user
+
+    def test_protectiveness_appropriate(self) -> None:
+        res = PsycheEngine.compute_resonance(-0.6, [("protectiveness", 0.8)])
+        assert res > 0.0
+
+    def test_inappropriate_cheer(self) -> None:
+        res = PsycheEngine.compute_resonance(-0.5, [("joy", 0.7)])
+        assert res < 0.0  # Joy when user is sad = dissonant
+
+    def test_neutral_user(self) -> None:
+        res = PsycheEngine.compute_resonance(0.0, [("joy", 0.7)])
+        assert res == 0.0
+
+    def test_no_emotions(self) -> None:
+        res = PsycheEngine.compute_resonance(0.5, [])
+        assert res == 0.0
+
+    def test_clamped(self) -> None:
+        res = PsycheEngine.compute_resonance(1.0, [("joy", 1.0)])
+        assert -1.0 <= res <= 1.0
+
+
+class TestProactiveEmotions:
+    """Tests for compute_proactive_emotions() and merge_proactive_emotions()."""
+
+    def test_curiosity_pulse_new_user(self) -> None:
+        pulses = PsycheEngine.compute_proactive_emotions(
+            drive_curiosity=0.8,
+            drive_engagement=0.5,
+            interaction_count=3,
+            last_appraisal=None,
+            self_efficacy=None,
+            existing_emotions=[],
+            now_iso="t",
+        )
+        names = [p["name"] for p in pulses]
+        assert "curiosity" in names
+
+    def test_no_curiosity_established_user(self) -> None:
+        pulses = PsycheEngine.compute_proactive_emotions(
+            drive_curiosity=0.8,
+            drive_engagement=0.5,
+            interaction_count=20,
+            last_appraisal=None,
+            self_efficacy=None,
+            existing_emotions=[],
+            now_iso="t",
+        )
+        names = [p["name"] for p in pulses]
+        assert "curiosity" not in names
+
+    def test_enthusiasm_pulse_high_engagement(self) -> None:
+        pulses = PsycheEngine.compute_proactive_emotions(
+            drive_curiosity=0.5,
+            drive_engagement=0.85,
+            interaction_count=10,
+            last_appraisal=None,
+            self_efficacy=None,
+            existing_emotions=[],
+            now_iso="t",
+        )
+        names = [p["name"] for p in pulses]
+        assert "enthusiasm" in names
+
+    def test_no_enthusiasm_if_already_high(self) -> None:
+        existing = [{"name": "enthusiasm", "intensity": 0.6, "triggered_at": "t"}]
+        pulses = PsycheEngine.compute_proactive_emotions(
+            drive_curiosity=0.5,
+            drive_engagement=0.85,
+            interaction_count=10,
+            last_appraisal=None,
+            self_efficacy=None,
+            existing_emotions=existing,
+            now_iso="t",
+        )
+        names = [p["name"] for p in pulses]
+        assert "enthusiasm" not in names
+
+    def test_joy_pulse_quality_and_engagement(self) -> None:
+        pulses = PsycheEngine.compute_proactive_emotions(
+            drive_curiosity=0.5,
+            drive_engagement=0.75,
+            interaction_count=10,
+            last_appraisal={"quality": 0.8},
+            self_efficacy=None,
+            existing_emotions=[],
+            now_iso="t",
+        )
+        names = [p["name"] for p in pulses]
+        assert "joy" in names
+
+    def test_pride_pulse_high_efficacy(self) -> None:
+        efficacy = {"technical": {"score": 0.8, "weight": 5.0}}
+        pulses = PsycheEngine.compute_proactive_emotions(
+            drive_curiosity=0.5,
+            drive_engagement=0.5,
+            interaction_count=10,
+            last_appraisal=None,
+            self_efficacy=efficacy,
+            existing_emotions=[],
+            now_iso="t",
+        )
+        names = [p["name"] for p in pulses]
+        assert "pride" in names
+
+    def test_no_pulse_low_drives(self) -> None:
+        pulses = PsycheEngine.compute_proactive_emotions(
+            drive_curiosity=0.5,
+            drive_engagement=0.5,
+            interaction_count=10,
+            last_appraisal=None,
+            self_efficacy=None,
+            existing_emotions=[],
+            now_iso="t",
+        )
+        assert len(pulses) == 0
+
+    def test_merge_additive(self) -> None:
+        existing = [{"name": "curiosity", "intensity": 0.5, "triggered_at": "old"}]
+        proactive = [{"name": "curiosity", "intensity": 0.25, "triggered_at": "new"}]
+        result = PsycheEngine.merge_proactive_emotions(existing, proactive)
+        assert result[0]["intensity"] == 0.75
+        assert result[0]["triggered_at"] == "new"
+
+    def test_merge_capped(self) -> None:
+        existing = [{"name": "curiosity", "intensity": 0.9, "triggered_at": "old"}]
+        proactive = [{"name": "curiosity", "intensity": 0.25, "triggered_at": "new"}]
+        result = PsycheEngine.merge_proactive_emotions(existing, proactive)
+        assert result[0]["intensity"] == 1.0
+
+    def test_merge_new_emotion(self) -> None:
+        existing = [{"name": "joy", "intensity": 0.5, "triggered_at": "old"}]
+        proactive = [{"name": "enthusiasm", "intensity": 0.2, "triggered_at": "new"}]
+        result = PsycheEngine.merge_proactive_emotions(existing, proactive)
+        assert len(result) == 2
+        assert result[1]["name"] == "enthusiasm"
+
+    def test_merge_preserves_existing(self) -> None:
+        """Non-targeted emotions remain unchanged during merge."""
+        existing = [
+            {"name": "joy", "intensity": 0.5, "triggered_at": "old"},
+            {"name": "concern", "intensity": 0.3, "triggered_at": "old"},
+        ]
+        proactive = [{"name": "enthusiasm", "intensity": 0.2, "triggered_at": "new"}]
+        result = PsycheEngine.merge_proactive_emotions(existing, proactive)
+        joy = next(e for e in result if e["name"] == "joy")
+        concern = next(e for e in result if e["name"] == "concern")
+        assert joy["intensity"] == 0.5  # Unchanged
+        assert concern["intensity"] == 0.3  # Unchanged
+
+    def test_pride_pulse_only_once(self) -> None:
+        """Only one pride pulse even with multiple high-efficacy domains."""
+        efficacy = {
+            "technical": {"score": 0.8, "weight": 5.0},
+            "planning": {"score": 0.9, "weight": 6.0},
+            "emotional_support": {"score": 0.85, "weight": 5.5},
+        }
+        pulses = PsycheEngine.compute_proactive_emotions(
+            drive_curiosity=0.5,
+            drive_engagement=0.5,
+            interaction_count=10,
+            last_appraisal=None,
+            self_efficacy=efficacy,
+            existing_emotions=[],
+            now_iso="t",
+        )
+        pride_count = sum(1 for p in pulses if p["name"] == "pride")
+        assert pride_count == 1
+
+    def test_no_joy_without_appraisal(self) -> None:
+        """No joy pulse when last_appraisal is None."""
+        pulses = PsycheEngine.compute_proactive_emotions(
+            drive_curiosity=0.5,
+            drive_engagement=0.85,
+            interaction_count=10,
+            last_appraisal=None,
+            self_efficacy=None,
+            existing_emotions=[],
+            now_iso="t",
+        )
+        names = [p["name"] for p in pulses]
+        assert "joy" not in names
+
+
+class TestAdditionalV2:
+    """Additional v2 edge case tests."""
+
+    def test_anchor_mid_conscientiousness(self) -> None:
+        """Mid-range C (0.50) → 'stay centered' anchor wording."""
+        from src.domains.psyche.engine import _build_stability_blocks
+
+        profile = ExpressionProfile(
+            active_emotions=[("frustration", 0.80)],
+            neuroticism=0.5,
+            conscientiousness=0.50,
+        )
+        result = _build_stability_blocks(profile)
+        assert "stay centered" in result
+
+    def test_pad_magnitude_zero_at_origin(self) -> None:
+        """PAD (0,0,0) → magnitude exactly 0.0."""
+        profile = PsycheEngine.compile_expression_profile(
+            0.0,
+            0.0,
+            0.0,
+            [],
+            "ORIENTATION",
+            0.5,
+            0.5,
+            0.5,
+        )
+        assert profile.pad_magnitude == 0.0
+
+    def test_transition_none_same_mood_quadrant(self) -> None:
+        """No transition when mood stays in same positive quadrant."""
+        profile = ExpressionProfile(
+            mood_label="serene",
+            previous_pad=(0.2, -0.1, 0.1),
+            current_pad=(0.3, -0.2, 0.1),
+        )
+        assert PsycheEngine.detect_transition_type(profile) is None
+
+    def test_emotion_specific_template_formatted(self) -> None:
+        """Verify emotion names are substituted in the template."""
+        profile = ExpressionProfile(
+            pad_magnitude=0.50,
+            mood_label="determined",
+            mood_intensity="noticeably",
+            previous_emotion="curiosity",
+            active_emotions=[("determination", 0.6)],
+        )
+        block, _ = PsycheEngine.format_graduated_prompt_injection(profile)
+        assert "curiosity" in block
+        assert "determination" in block
+        assert "EVOLUTION:" in block
+
+    def test_resonance_neutral_emotion(self) -> None:
+        """Curiosity (PAD P=+0.30) with neutral user → 0."""
+        res = PsycheEngine.compute_resonance(0.05, [("curiosity", 0.7)])
+        assert res == 0.0  # User valence < 0.15 → neutral zone

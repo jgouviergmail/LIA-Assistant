@@ -880,7 +880,7 @@ The Psyche Engine gives the assistant a dynamic psychological state that evolves
 |-------|-----------|---------|
 | 1 — Personality | Permanent | Big Five (O/C/E/A/N) inherited from the chosen personality. Modulate emotional reactivity, empathy, recovery speed. |
 | 2 — Mood | Hours | Position in PAD space (Pleasure/Arousal/Dominance) → 14 distinct moods. Decays toward personality baseline. |
-| 3 — Emotions | Minutes | 16 discrete emotions (max 7 simultaneous) with intensity [0-100%]. Push mood via their PAD vector. Cross-suppression ±30%. |
+| 3 — Emotions | Minutes | 22 discrete emotions (max 7 simultaneous) with intensity [0-100%]. Push mood via their PAD vector. Cross-suppression ±30%. |
 | 4 — Relationship | Weeks | 4 stages (Orientation → Exploratory → Affective → Stable). One-way progression. Depth, warmth, trust. |
 | 5 — Drives | Per session | Curiosity (exchange energy) and engagement (quality). Bayesian self-efficacy per domain. |
 
@@ -904,7 +904,7 @@ Psyche context is injected into **all** user-facing generation points: main resp
 
 - **Emotional avatar**: mood emoji with colored ring on each message, persisted per-message in metadata.
 - **4-chart dashboard**: Mood (PAD), Emotions (dynamic per-emotion), Relationship, Drives — recharts with 24h to 90d time selector.
-- **Interactive education guide**: 7 sections ordered Layer 1→5 with descriptive tables for 14 moods and 16 emotions.
+- **Interactive education guide**: 7 sections ordered Layer 1→5 with descriptive tables for 14 moods and 22 emotions.
 - **Settings**: expressiveness, stability, mood refresh, full reset with explicit descriptions of what is preserved/reset.
 
 ---

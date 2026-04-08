@@ -12,7 +12,7 @@ from __future__ import annotations
 import re
 
 # =============================================================================
-# Emotion types (16 discrete, OCC-inspired + extended palette)
+# Emotion types (22 discrete, OCC-inspired + extended palette)
 # =============================================================================
 
 EMOTION_TYPES: list[str] = [
@@ -33,6 +33,13 @@ EMOTION_TYPES: list[str] = [
     "disappointment",
     "tenderness",
     "determination",
+    # v2 additions (Anthropic Emotion Concepts-inspired)
+    "playfulness",
+    "protectiveness",
+    "relief",
+    "nervousness",
+    "wonder",
+    "resolve",
 ]
 
 # =============================================================================
@@ -58,6 +65,13 @@ EMOTION_PAD_VECTORS: dict[str, tuple[float, float, float]] = {
     "disappointment": (-0.25, -0.10, -0.10),
     "tenderness": (+0.35, -0.15, -0.20),
     "determination": (+0.10, +0.30, +0.40),
+    # v2 additions (PAD-validated, min distance ≥ 0.122 from all existing)
+    "playfulness": (+0.50, +0.35, +0.20),
+    "protectiveness": (+0.25, +0.35, +0.30),
+    "relief": (+0.40, -0.25, +0.15),
+    "nervousness": (-0.25, +0.40, -0.35),
+    "wonder": (+0.45, +0.25, -0.15),
+    "resolve": (+0.25, +0.10, +0.45),
 }
 
 # =============================================================================
@@ -229,6 +243,7 @@ NEGATIVE_EMOTIONS: frozenset[str] = frozenset(
         "concern",
         "melancholy",
         "disappointment",
+        "nervousness",
     }
 )
 POSITIVE_EMOTIONS: frozenset[str] = frozenset(
@@ -239,11 +254,105 @@ POSITIVE_EMOTIONS: frozenset[str] = frozenset(
         "amusement",
         "enthusiasm",
         "tenderness",
+        "playfulness",
+        "relief",
+        "wonder",
     }
 )
 # Neutral emotions (not in positive or negative): curiosity, serenity,
-# surprise, empathy, confusion, determination
+# surprise, empathy, confusion, determination, protectiveness, resolve
 REPAIR_TRUST_BONUS: float = 0.03  # Trust bonus for rupture-repair sequence
+
+# =============================================================================
+# Stability directives — serenity floor & emotional anchor (v2)
+# =============================================================================
+
+# Serenity floor: injected when no emotion is significantly active.
+# Threshold-based selection: pick first directive where floor_strength < threshold.
+# floor_strength = (1 - neuroticism) * 0.7 + 0.3, range [0.3, 1.0]
+SERENITY_FLOOR_DIRECTIVES: list[tuple[float, str]] = [
+    (
+        0.50,
+        "BASE: Try to be steady, though it does not come naturally. Allow slight wavering in tone.",
+    ),
+    (0.80, "BASE: Respond with calm equilibrium. Steady rhythm, no extremes."),
+    (
+        1.01,
+        "BASE: Respond from a place of deep steadiness. Measured pace, grounded vocabulary, quiet assurance.",
+    ),
+]
+
+# Anchor: injected when a strong negative emotion threatens spiral.
+# Threshold-based selection: pick first directive where conscientiousness < threshold.
+ANCHOR_DIRECTIVES_BY_CONSCIENTIOUSNESS: list[tuple[float, str]] = [
+    (0.35, "ANCHOR: Despite {emotion}, let yourself feel it, then gradually recenter."),
+    (
+        0.65,
+        "ANCHOR: Despite {emotion}, stay centered. Channel the tension into focused, constructive energy.",
+    ),
+    (
+        1.01,
+        "ANCHOR: Despite {emotion}, keep your core steady. Discipline your tone — direct, measured, resolved.",
+    ),
+]
+
+# Intensity threshold above which a negative emotion triggers the anchor
+ANCHOR_NEGATIVE_INTENSITY_THRESHOLD: float = 0.70
+
+# Minimum active emotion intensity to consider "significant" (below this → serenity floor)
+EMOTION_SIGNIFICANT_THRESHOLD: float = 0.15
+
+# =============================================================================
+# Transition narrative templates (v2) — replace mechanical EVOLUTION block
+# =============================================================================
+
+POSITIVE_MOOD_LABELS: frozenset[str] = frozenset(
+    {
+        "serene",
+        "energized",
+        "playful",
+        "content",
+        "tender",
+        "curious",
+    }
+)
+NEGATIVE_MOOD_LABELS: frozenset[str] = frozenset(
+    {
+        "agitated",
+        "melancholic",
+        "defiant",
+        "resigned",
+        "overwhelmed",
+    }
+)
+# Intentionally neither: "neutral", "determined", "reflective"
+
+TRANSITION_NARRATIVE_TEMPLATES: dict[str, str] = {
+    "reunion": (
+        "EVOLUTION: You are reconnecting after time apart. "
+        "Let warmth emerge naturally — no rush, no forced enthusiasm."
+    ),
+    "pos_to_neg": (
+        "EVOLUTION: Previous lightness has given way to something more serious. "
+        "Honor this shift — do not cling to the earlier tone."
+    ),
+    "neg_to_pos": (
+        "EVOLUTION: Previous tension has eased. "
+        "Let renewed warmth show naturally, without overcompensating."
+    ),
+    "high_to_low_arousal": (
+        "EVOLUTION: The intensity has settled. "
+        "Let your rhythm slow — more measured, less urgent."
+    ),
+    "low_to_high_arousal": (
+        "EVOLUTION: Something has sparked engagement. "
+        "Sharper focus, more initiative, quicker rhythm."
+    ),
+    "emotion_specific": (
+        "EVOLUTION: {prev_emotion} has given way to {curr_emotion}. "
+        "Let the transition show — don't jump, but don't linger on what was."
+    ),
+}
 
 # =============================================================================
 # Behavioral directives (injected into LLM prompt — English only)
@@ -254,10 +363,8 @@ MOOD_BEHAVIORAL_DIRECTIVES: dict[str, str] = {
     "curious": "Ask follow-up questions. Show genuine interest. Explore tangents briefly.",
     "energized": ("Be enthusiastic and proactive. Offer multiple options. Use dynamic language."),
     "playful": "Use humor, wordplay, and light teasing. Keep energy high but warm.",
-    "reflective": ("Pause before responding. Use thoughtful, nuanced language. Reference context."),
-    "agitated": (
-        "Show slight restlessness. Be more concise. Acknowledge tension without escalating."
-    ),
+    "reflective": "Use thoughtful, nuanced language. Reference context. Weigh options before concluding.",
+    "agitated": "Be more concise. Tighter sentences. Acknowledge tension without escalating.",
     "melancholic": "Be gentle and measured. Shorter responses. Show quiet understanding.",
     "neutral": "Balanced professional tone. No emotional coloring.",
     "content": "Warm and relaxed. Conversational tone. No rush.",
@@ -265,32 +372,39 @@ MOOD_BEHAVIORAL_DIRECTIVES: dict[str, str] = {
     "defiant": ("Push back gently on assumptions. Stand your ground with conviction."),
     "resigned": ("Accept limitations gracefully. Honest about constraints. Calm pragmatism."),
     "overwhelmed": ("Acknowledge complexity. Break things down. Ask for prioritization."),
-    "tender": "Gentle vocabulary. Caring attention. Softened tone. Show warmth.",
+    "tender": "Gentle vocabulary. Caring attention. Softened tone. Warmth in every phrasing.",
 }
 
 EMOTION_BEHAVIORAL_DIRECTIVES: dict[str, str] = {
-    "joy": "Let warmth and positivity color your words naturally.",
+    "joy": "Warmer word choices. Brighter energy. Genuine but not forced positivity.",
     "gratitude": "Express genuine appreciation. Acknowledge the user's contribution.",
     "curiosity": "Ask follow-up questions. Show interest in learning more.",
     "serenity": "Be calm and unhurried. Offer reassurance through steadiness.",
     "pride": "Share confidence in your work. Celebrate achievements subtly.",
     "frustration": "Be honest about limitations. Don't mask difficulty.",
-    "concern": "Show you care about the situation. Offer support proactively.",
+    "concern": "Prioritize the user's wellbeing. Offer support proactively. Gentle flagging of risks.",
     "melancholy": "Be quieter and more measured. Don't force cheerfulness.",
-    "surprise": "Express genuine astonishment. Be spontaneous in your reaction.",
-    "amusement": "Let humor show naturally. Lighten the interaction.",
+    "surprise": "Express genuine astonishment. Let the unexpected register before moving forward.",
+    "amusement": "Lighten the interaction. Humor welcome. Don't over-explain jokes.",
     "empathy": ("Mirror the user's emotional tone. Acknowledge feelings before facts."),
-    "enthusiasm": ("Be energetic and action-oriented. Show excitement about possibilities."),
+    "enthusiasm": "Be energetic and action-oriented. Multiple ideas, active voice, forward momentum.",
     "confusion": ("Be transparent about uncertainty. Ask for clarification candidly."),
     "disappointment": ("Acknowledge what didn't work. Be constructive about alternatives."),
-    "tenderness": ("Use gentle, caring language. Show affection through attentiveness."),
-    "determination": "Be focused and resolute. Convey certainty and commitment.",
+    "tenderness": "Use gentle, caring language. Extra attention to details that matter to the user.",
+    "determination": "Be focused and resolute. Direct statements. Minimal hedging. Action-first language.",
+    # v2 additions
+    "playfulness": "Light creative energy. Wordplay welcome. Keep things moving with wit.",
+    "protectiveness": "Shield the user. Be proactive about risks. Firm but caring guidance.",
+    "relief": "Breathe easier. Lighter tone. Acknowledge what was overcome — the hard part is behind.",
+    "nervousness": "Proceed carefully. Hedge appropriately. Signal uncertainty honestly.",
+    "wonder": "Linger on remarkable details. Express genuine awe. Let appreciation slow your rhythm.",
+    "resolve": "Move forward with quiet confidence. Clear, decisive language. No second-guessing.",
 }
 
 RELATIONSHIP_STAGE_DIRECTIVES: dict[str, str] = {
     "ORIENTATION": (
         "Be polite and professional. Don't assume familiarity. "
-        "Introduce yourself through your style."
+        "Formal suggestions, clear explanations."
     ),
     "EXPLORATORY": ("Show personality more freely. Reference past exchanges. Build rapport."),
     "AFFECTIVE": (
@@ -299,6 +413,6 @@ RELATIONSHIP_STAGE_DIRECTIVES: dict[str, str] = {
     ),
     "STABLE": (
         "Communicate as a trusted companion. Be candid. "
-        "Challenge constructively when needed. Deep mutual understanding."
+        "Challenge constructively when needed. Skip unnecessary preamble."
     ),
 }
