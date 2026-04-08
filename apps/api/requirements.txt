@@ -26,7 +26,7 @@ tzdata==2025.3  # IANA timezone database for Windows/Python 3.9+
 python-jose[cryptography]==3.5.0  # CVE-2024-33663 fix (algorithm confusion)
 passlib[bcrypt]==1.7.4
 python-multipart==0.0.22  # CVE-2024-53981, CVE-2026-24486 fixes (DoS)
-cryptography==46.0.6  # CVE-2024-12797, CVE-2026-26007 fixes
+cryptography==46.0.7  # CVE-2024-12797, CVE-2026-26007 fixes
 
 # Observability
 structlog==25.5.0
