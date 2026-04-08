@@ -4,19 +4,11 @@ Reminder Tools for LangGraph.
 Provides tools for creating, listing, and canceling user reminders.
 These are internal tools (no OAuth required) that use the ReminderService.
 
-Design Decision:
-    Uses @tool + decorators instead of @connector_tool because:
-    - Reminders are internal operations (no external OAuth API)
-    - @connector_tool is designed for Google/external API connectors
-    - Simpler pattern: @tool + @track_tool_metrics + @rate_limit
-
-Architecture (2025-12-29):
-    Migrated from json.dumps() legacy format to UnifiedToolOutput.
-    UnifiedToolOutput provides:
-    - Explicit success/error status
-    - message field for LLM response generation
-    - structured_data for optional metadata
-    - Compatibility with parallel_executor via summary_for_llm property
+Architecture:
+    Uses @write_tool / @read_tool decorator presets (same as connector tools)
+    with @with_user_preferences for centralized user timezone/language injection.
+    Although reminders are internal (no external API client), the decorator
+    pattern and output format align with the standard ConnectorTool conventions.
 
 Feature (2026-01-26): Relative trigger support
     Added `relative_trigger` parameter for FOR_EACH scenarios where reminder
@@ -33,46 +25,40 @@ Usage:
 
 import re
 from datetime import datetime, timedelta
-from typing import Annotated
+from typing import Annotated, Any
+from uuid import UUID
 from zoneinfo import ZoneInfo
 
 import structlog
 from langchain.tools import ToolRuntime
-from langchain_core.tools import InjectedToolArg, tool
+from langchain_core.tools import InjectedToolArg
 
-from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.i18n_api_messages import APIMessages
 from src.core.time_utils import format_datetime_for_display
+from src.domains.agents.constants import (
+    AGENT_REMINDER,
+    CONTEXT_DOMAIN_REMINDERS,
+)
 from src.domains.agents.data_registry.models import (
     RegistryItem,
     RegistryItemMeta,
     RegistryItemType,
 )
+from src.domains.agents.tools.decorators import read_tool, with_user_preferences, write_tool
 from src.domains.agents.tools.mixins import ToolOutputMixin
 from src.domains.agents.tools.output import UnifiedToolOutput
 from src.domains.agents.tools.runtime_helpers import (
     parse_user_id,
     validate_runtime_config,
 )
-from src.domains.agents.utils.rate_limiting import rate_limit
 from src.domains.reminders.schemas import ReminderCreate
-from src.infrastructure.observability.decorators import track_tool_metrics
-from src.infrastructure.observability.metrics_agents import (
-    agent_tool_duration_seconds,
-    agent_tool_invocations,
-)
 
 logger = structlog.get_logger(__name__)
 
 # =============================================================================
 # Constants
 # =============================================================================
-
-AGENT_NAME = "reminder_agent"
-TOOL_CATEGORY_READ = 20  # 20 calls/min for read operations
-TOOL_CATEGORY_WRITE = 5  # 5 calls/min for write operations
-WINDOW_SECONDS = 60
 
 # Regex pattern for relative_trigger offset parsing
 # Matches: -1d, +2h, -30m, +1d, etc.
@@ -95,8 +81,7 @@ class RelativeTriggerError(Exception):
 
 
 def _parse_relative_trigger(relative_trigger: str, user_timezone: str) -> str:
-    """
-    Parse relative_trigger expression and calculate absolute datetime.
+    """Parse relative_trigger expression and calculate absolute datetime.
 
     Format: "ISO_DATETIME|OFFSET|@TIME" or "ISO_DATETIME|OFFSET"
     Also supports date-only format for all-day events: "YYYY-MM-DD|OFFSET|@TIME"
@@ -107,16 +92,6 @@ def _parse_relative_trigger(relative_trigger: str, user_timezone: str) -> str:
         - OFFSET: Time offset like "-1d" (1 day before), "+2h" (2 hours after), "-30m"
         - @TIME (optional): Override time to specific hour (e.g., "@19:00")
                             REQUIRED for date-only inputs to set a meaningful time
-
-    Examples:
-        >>> _parse_relative_trigger("2026-01-27T10:30:00|-1d|@19:00", "Europe/Paris")
-        "2026-01-26T19:00:00"  # Day before at 19:00
-
-        >>> _parse_relative_trigger("2026-01-27T10:30:00|-2h", "Europe/Paris")
-        "2026-01-27T08:30:00"  # 2 hours before (keeps original time)
-
-        >>> _parse_relative_trigger("2026-01-27|-1d|@19:00", "Europe/Paris")
-        "2026-01-26T19:00:00"  # All-day event: day before at 19:00
 
     Args:
         relative_trigger: Expression string in format "ISO|OFFSET|@TIME" or "ISO|OFFSET"
@@ -147,19 +122,15 @@ def _parse_relative_trigger(relative_trigger: str, user_timezone: str) -> str:
         if date_only_pattern:
             # All-day event: parse as date, set time to midnight in user's timezone
             base_dt = datetime.strptime(base_datetime_str, "%Y-%m-%d")
-            # Attach timezone to naive datetime (ZoneInfo pattern)
             base_dt = base_dt.replace(tzinfo=tz)
         else:
             # Parse ISO datetime (handles both with and without timezone)
-            # Replace Z with +00:00 for fromisoformat compatibility
             normalized = base_datetime_str.replace("Z", "+00:00")
             base_dt = datetime.fromisoformat(normalized)
 
             if base_dt.tzinfo is None:
-                # No timezone - assume user's local time (attach timezone)
                 base_dt = base_dt.replace(tzinfo=tz)
             else:
-                # Has timezone - convert to user's local timezone
                 base_dt = base_dt.astimezone(tz)
     except (ValueError, TypeError) as e:
         raise RelativeTriggerError("invalid_datetime", base_datetime_str) from e
@@ -186,7 +157,6 @@ def _parse_relative_trigger(relative_trigger: str, user_timezone: str) -> str:
 
     # Apply time override if specified
     if time_override:
-        # Accept both "@19:00" and "19:00" formats (LLM may omit the @ prefix)
         time_str = time_override[1:] if time_override.startswith("@") else time_override
         try:
             time_parts = time_str.split(":")
@@ -200,45 +170,8 @@ def _parse_relative_trigger(relative_trigger: str, user_timezone: str) -> str:
         except (ValueError, IndexError) as e:
             raise RelativeTriggerError("invalid_time", time_override) from e
 
-    # Return as ISO string (local time, no timezone suffix for consistency with trigger_datetime)
+    # Return as ISO string (local time, no timezone suffix for consistency)
     return result_dt.strftime("%Y-%m-%dT%H:%M:%S")
-
-
-async def _get_user_info(runtime: ToolRuntime) -> tuple[str, str] | None:
-    """
-    Get user timezone and language from database.
-
-    Args:
-        runtime: ToolRuntime with user_id in config
-
-    Returns:
-        Tuple of (timezone, language) or None if not found
-    """
-    try:
-        user_id_raw = runtime.config.get("configurable", {}).get("user_id")
-        if not user_id_raw:
-            return None
-
-        user_id = parse_user_id(user_id_raw)
-
-        from src.domains.users.service import UserService
-        from src.infrastructure.database.session import get_db_context
-
-        async with get_db_context() as db:
-            user_service = UserService(db)
-            user = await user_service.get_user_by_id(user_id)
-            if user:
-                return (
-                    user.timezone or DEFAULT_USER_DISPLAY_TIMEZONE,
-                    user.language or settings.default_language,
-                )
-    except Exception as e:
-        logger.warning(
-            "reminder_tools_get_user_info_error",
-            error=str(e),
-        )
-
-    return (DEFAULT_USER_DISPLAY_TIMEZONE, settings.default_language)
 
 
 # =============================================================================
@@ -246,16 +179,8 @@ async def _get_user_info(runtime: ToolRuntime) -> tuple[str, str] | None:
 # =============================================================================
 
 
-@tool
-@track_tool_metrics(
-    tool_name="create_reminder",
-    agent_name=AGENT_NAME,
-    duration_metric=agent_tool_duration_seconds,
-    counter_metric=agent_tool_invocations,
-    log_execution=True,
-    log_errors=True,
-)
-@rate_limit(max_calls=TOOL_CATEGORY_WRITE, window_seconds=WINDOW_SECONDS, scope="user")
+@write_tool(name="create_reminder", agent_name=AGENT_REMINDER)
+@with_user_preferences
 async def create_reminder_tool(
     content: Annotated[str, "Ce dont l'utilisateur veut être rappelé (résumé concis)"],
     original_message: Annotated[str, "Message original complet de l'utilisateur"],
@@ -272,9 +197,10 @@ async def create_reminder_tool(
         "Offset: -1d (1 jour avant), -2h (2h avant), -30m (30min avant). "
         "Utiliser CE paramètre quand le rappel est relatif à un événement.",
     ] = None,
+    user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
+    locale: str = "fr",
 ) -> UnifiedToolOutput:
-    """
-    Create a reminder for the user.
+    """Create a reminder for the user.
 
     The reminder will be sent as a push notification (FCM)
     and recorded in the conversation history.
@@ -289,14 +215,14 @@ async def create_reminder_tool(
        - Pour les rappels relatifs à un événement (dans un for_each)
        - Format: "ISO_DATETIME|OFFSET|@TIME"
        - Ex: "la veille à 19h de chaque rdv" → relative_trigger="$item.start.dateTime|-1d|@19:00"
-       - Offsets supportés: -Nd (jours), -Nh (heures), -Nm (minutes)
-       - @TIME optionnel: force l'heure (ex: @19:00, @09:30)
 
     Args:
         content: Ce dont l'utilisateur veut être rappelé (résumé)
         original_message: La demande originale de l'utilisateur (complète)
         trigger_datetime: Quand envoyer le rappel (format ISO, heure locale) - mode absolu
         relative_trigger: Expression relative "ISO|OFFSET|@TIME" - mode FOR_EACH
+        user_timezone: User timezone (injected by @with_user_preferences)
+        locale: User language (injected by @with_user_preferences)
 
     Returns:
         UnifiedToolOutput with confirmation message
@@ -307,26 +233,21 @@ async def create_reminder_tool(
     # Validate runtime config
     config = validate_runtime_config(runtime, "create_reminder_tool")
     if isinstance(config, UnifiedToolOutput):
-        return config  # Return error directly
+        return config
 
     try:
         user_id = parse_user_id(config.user_id)
 
-        # Get user info
-        user_info = await _get_user_info(runtime)
-        user_timezone = user_info[0] if user_info else DEFAULT_USER_DISPLAY_TIMEZONE
-        user_language = user_info[1] if user_info else settings.default_language
-
-        # Validate: exactly one of trigger_datetime or relative_trigger must be provided
+        # Validate: exactly one of trigger_datetime or relative_trigger
         if trigger_datetime and relative_trigger:
             return UnifiedToolOutput.failure(
-                message=APIMessages.reminder_trigger_params_conflict(user_language),
+                message=APIMessages.reminder_trigger_params_conflict(locale),
                 error_code="invalid_parameters",
             )
 
         if not trigger_datetime and not relative_trigger:
             return UnifiedToolOutput.failure(
-                message=APIMessages.reminder_trigger_params_missing(user_language),
+                message=APIMessages.reminder_trigger_params_missing(locale),
                 error_code="missing_parameters",
             )
 
@@ -347,24 +268,20 @@ async def create_reminder_tool(
                     error_type=e.error_type,
                     error_value=e.value,
                 )
-                # Map error type to i18n message
-                if e.error_type == "invalid_format":
-                    message = APIMessages.relative_trigger_invalid_format(e.value, user_language)
-                elif e.error_type == "invalid_datetime":
-                    message = APIMessages.relative_trigger_invalid_datetime(e.value, user_language)
-                elif e.error_type == "invalid_offset":
-                    message = APIMessages.relative_trigger_invalid_offset(e.value, user_language)
-                elif e.error_type == "invalid_time":
-                    message = APIMessages.relative_trigger_invalid_time(e.value, user_language)
-                else:
-                    message = str(e)
+                error_messages = {
+                    "invalid_format": APIMessages.relative_trigger_invalid_format,
+                    "invalid_datetime": APIMessages.relative_trigger_invalid_datetime,
+                    "invalid_offset": APIMessages.relative_trigger_invalid_offset,
+                    "invalid_time": APIMessages.relative_trigger_invalid_time,
+                }
+                msg_fn = error_messages.get(e.error_type)
+                message = msg_fn(e.value, locale) if msg_fn else str(e)
 
                 return UnifiedToolOutput.failure(
                     message=message,
                     error_code="invalid_relative_trigger",
                 )
         else:
-            # Normalize: strip wrong LLM offset and re-localize to user timezone
             from src.core.time_utils import normalize_user_datetime
 
             final_trigger_datetime = (
@@ -386,11 +303,10 @@ async def create_reminder_tool(
 
             await db.commit()
 
-            # Format confirmation in user's timezone
             formatted_time = format_datetime_for_display(
                 reminder.trigger_at,
                 user_timezone=user_timezone,
-                locale=user_language,
+                locale=locale,
             )
 
             logger.info(
@@ -423,24 +339,22 @@ async def create_reminder_tool(
         )
 
 
-@tool
-@track_tool_metrics(
-    tool_name="list_reminders",
-    agent_name=AGENT_NAME,
-    duration_metric=agent_tool_duration_seconds,
-    counter_metric=agent_tool_invocations,
-    log_execution=True,
-    log_errors=True,
-)
-@rate_limit(max_calls=TOOL_CATEGORY_READ, window_seconds=WINDOW_SECONDS, scope="user")
+@read_tool(name="list_reminders", agent_name=AGENT_REMINDER)
+@with_user_preferences
 async def list_reminders_tool(
     runtime: Annotated[ToolRuntime, InjectedToolArg],
+    user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
+    locale: str = "fr",
 ) -> UnifiedToolOutput:
-    """
-    List pending reminders for the user.
+    """List pending reminders for the user.
 
     Returns all reminders with "pending" status,
     sorted by trigger date in ascending order.
+
+    Args:
+        runtime: LangChain tool runtime.
+        user_timezone: User timezone (injected by @with_user_preferences).
+        locale: User language (injected by @with_user_preferences).
 
     Returns:
         UnifiedToolOutput with reminders list and formatted message
@@ -451,15 +365,10 @@ async def list_reminders_tool(
     # Validate runtime config
     config = validate_runtime_config(runtime, "list_reminders_tool")
     if isinstance(config, UnifiedToolOutput):
-        return config  # Return error directly
+        return config
 
     try:
         user_id = parse_user_id(config.user_id)
-
-        # Get user info
-        user_info = await _get_user_info(runtime)
-        user_timezone = user_info[0] if user_info else DEFAULT_USER_DISPLAY_TIMEZONE
-        user_language = user_info[1] if user_info else settings.default_language
 
         async with get_db_context() as db:
             service = ReminderService(db)
@@ -467,7 +376,7 @@ async def list_reminders_tool(
 
             if not reminders:
                 return UnifiedToolOutput.action_success(
-                    message=APIMessages.no_pending_reminders(user_language),
+                    message=APIMessages.no_pending_reminders(locale),
                     structured_data={"reminders": [], "total": 0},
                 )
 
@@ -481,14 +390,17 @@ async def list_reminders_tool(
                 local_trigger = reminder.trigger_at.astimezone(tz)
                 local_created = reminder.created_at.astimezone(tz)
 
-                if user_language == "fr":
-                    formatted_trigger = local_trigger.strftime("%d/%m à %H:%M")
-                    formatted_created = local_created.strftime("%d/%m %H:%M")
-                else:
-                    formatted_trigger = local_trigger.strftime("%m/%d at %I:%M %p")
-                    formatted_created = local_created.strftime("%m/%d %I:%M %p")
+                formatted_trigger = format_datetime_for_display(
+                    local_trigger,
+                    user_timezone=user_timezone,
+                    locale=locale,
+                )
+                formatted_created = format_datetime_for_display(
+                    local_created,
+                    user_timezone=user_timezone,
+                    locale=locale,
+                )
 
-                # Build RegistryItem for frontend card rendering
                 item_id = f"reminder_{str(reminder.id)[:8]}"
                 registry_updates[item_id] = RegistryItem(
                     id=item_id,
@@ -502,16 +414,18 @@ async def list_reminders_tool(
                         "created_at_formatted": formatted_created,
                     },
                     meta=RegistryItemMeta(
-                        source="reminders",
-                        domain="reminders",
+                        source=CONTEXT_DOMAIN_REMINDERS,
+                        domain=CONTEXT_DOMAIN_REMINDERS,
                         tool_name="list_reminders_tool",
                     ),
                 )
                 item_ids.append(item_id)
                 item_names.append(reminder.content[:50] if reminder.content else item_id)
 
-            # Build minimal summary for LLM context
-            summary = f"[reminders] {len(reminders)} rappel(s): {ToolOutputMixin._build_item_preview(item_names, max_preview=5)}"
+            summary = (
+                f"[{CONTEXT_DOMAIN_REMINDERS}] {len(reminders)} rappel(s): "
+                f"{ToolOutputMixin._build_item_preview(item_names, max_preview=5)}"
+            )
 
             logger.info(
                 "list_reminders_tool_success",
@@ -541,48 +455,40 @@ async def list_reminders_tool(
         )
 
 
-@tool
-@track_tool_metrics(
-    tool_name="cancel_reminder",
-    agent_name=AGENT_NAME,
-    duration_metric=agent_tool_duration_seconds,
-    counter_metric=agent_tool_invocations,
-    log_execution=True,
-    log_errors=True,
-)
-@rate_limit(max_calls=TOOL_CATEGORY_WRITE, window_seconds=WINDOW_SECONDS, scope="user")
+@write_tool(name="cancel_reminder", agent_name=AGENT_REMINDER)
+@with_user_preferences
 async def cancel_reminder_tool(
     reminder_identifier: Annotated[
         str,
         "ID du rappel (UUID) ou référence naturelle ('next', 'le prochain', 'prochain')",
     ],
     runtime: Annotated[ToolRuntime, InjectedToolArg],
+    user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
+    locale: str = "fr",
 ) -> UnifiedToolOutput:
-    """
-    Annule un rappel en attente.
+    """Cancel a pending reminder (creates draft for user confirmation).
 
-    Peut identifier le rappel par:
-    - UUID direct (ex: "550e8400-e29b-41d4-a716-446655440000")
-    - Référence "next", "le prochain", "prochain" pour le prochain rappel
+    Identifies the reminder, fetches its details, and creates a deletion
+    draft that requires user confirmation via HITL before actual cancellation.
 
     Args:
-        reminder_identifier: ID du rappel ou description pour le résoudre
+        reminder_identifier: Reminder UUID or natural reference ('next', etc.)
+        runtime: LangChain tool runtime.
+        user_timezone: User timezone (injected by @with_user_preferences).
+        locale: User language (injected by @with_user_preferences).
 
     Returns:
-        UnifiedToolOutput with cancellation confirmation
+        UnifiedToolOutput with DRAFT RegistryItem (requires_confirmation=True)
     """
     from src.core.exceptions import ResourceConflictError, ResourceNotFoundError
+    from src.domains.agents.drafts import create_reminder_delete_draft
     from src.domains.reminders.service import ReminderService
     from src.infrastructure.database.session import get_db_context
 
     # Validate runtime config
     config = validate_runtime_config(runtime, "cancel_reminder_tool")
     if isinstance(config, UnifiedToolOutput):
-        return config  # Return error directly
-
-    # Get user info for language (before try block to ensure availability in except)
-    user_info = await _get_user_info(runtime)
-    user_language = user_info[1] if user_info else settings.default_language
+        return config
 
     try:
         user_id = parse_user_id(config.user_id)
@@ -590,32 +496,31 @@ async def cancel_reminder_tool(
         async with get_db_context() as db:
             service = ReminderService(db)
 
-            reminder = await service.resolve_and_cancel(
+            # Resolve the reminder (find by ID or natural reference) WITHOUT cancelling
+            reminder = await service.resolve_reminder(
                 user_id=user_id,
                 identifier=reminder_identifier,
             )
 
-            await db.commit()
-
-            success_msg = APIMessages.reminder_cancelled(reminder.content, language=user_language)
-
             logger.info(
-                "cancel_reminder_tool_success",
+                "cancel_reminder_draft_prepared",
                 reminder_id=str(reminder.id),
                 user_id=str(user_id),
+                content=reminder.content[:50] if reminder.content else "",
             )
 
-            return UnifiedToolOutput.action_success(
-                message=success_msg,
-                structured_data={
-                    "reminder_id": str(reminder.id),
-                    "content": reminder.content,
-                },
+            # Create draft for user confirmation (actual cancellation after HITL)
+            return create_reminder_delete_draft(
+                reminder_id=str(reminder.id),
+                content=reminder.content or "",
+                trigger_at=reminder.trigger_at.isoformat() if reminder.trigger_at else "",
+                source_tool="cancel_reminder_tool",
+                user_language=locale,
             )
 
     except ResourceNotFoundError:
         return UnifiedToolOutput.failure(
-            message=APIMessages.reminder_not_found(reminder_identifier, user_language),
+            message=APIMessages.reminder_not_found(reminder_identifier, locale),
             error_code="not_found",
         )
 
@@ -639,6 +544,55 @@ async def cancel_reminder_tool(
 
 
 # =============================================================================
+# Draft Executor (HITL callback)
+# =============================================================================
+
+
+async def execute_reminder_delete_draft(
+    draft_content: dict[str, Any],
+    user_id: UUID,
+    deps: Any,
+) -> dict[str, Any]:
+    """Execute a reminder delete draft: actually cancel the reminder.
+
+    Called by DraftCritiqueInteraction.process_draft_action() when user confirms.
+
+    Args:
+        draft_content: Draft content with reminder_id, content, trigger_at.
+        user_id: User UUID.
+        deps: ToolDependencies (unused for internal reminders).
+
+    Returns:
+        Result dict with success status and message.
+    """
+    from src.domains.reminders.service import ReminderService
+    from src.infrastructure.database.session import get_db_context
+
+    reminder_id_str = draft_content["reminder_id"]
+    content = draft_content.get("content", "")
+
+    async with get_db_context() as db:
+        service = ReminderService(db)
+        await service.cancel_reminder(
+            user_id=user_id,
+            reminder_id=UUID(reminder_id_str),
+        )
+        await db.commit()
+
+    logger.info(
+        "reminder_delete_draft_executed",
+        user_id=str(user_id),
+        reminder_id=reminder_id_str,
+    )
+
+    return {
+        "success": True,
+        "reminder_id": reminder_id_str,
+        "message": APIMessages.reminder_cancelled(content),
+    }
+
+
+# =============================================================================
 # Tool Catalog Export
 # =============================================================================
 
@@ -652,5 +606,6 @@ __all__ = [
     "REMINDER_TOOLS",
     "cancel_reminder_tool",
     "create_reminder_tool",
+    "execute_reminder_delete_draft",
     "list_reminders_tool",
 ]

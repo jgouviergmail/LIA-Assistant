@@ -377,7 +377,7 @@ export function AdminUsageLimitsSection({ lng: _lng }: AdminUsageLimitsSectionPr
           pageInfo: (current, pages) =>
             t('usage_limits.table.page_info', { page: current, totalPages: pages, total }),
           itemsPerPage: t('common.pagination.items_per_page'),
-          totalItems: (count) => t('common.pagination.total_items', { count }),
+          totalItems: count => t('common.pagination.total_items', { count }),
         }}
         className="mt-4"
       />

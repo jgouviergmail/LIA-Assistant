@@ -87,6 +87,7 @@ browser_task_catalogue_manifest = ToolManifest(
         visible=True,
         category="tool",
     ),
+    initiative_eligible=False,  # Browser automation tool, not enrichment data
 )
 
 # ============================================================================
@@ -144,6 +145,7 @@ browser_navigate_catalogue_manifest = ToolManifest(
         visible=True,
         category="tool",
     ),
+    initiative_eligible=False,  # Browser automation tool, not enrichment data
 )
 
 # ============================================================================
@@ -192,6 +194,7 @@ browser_snapshot_catalogue_manifest = ToolManifest(
         visible=True,
         category="tool",
     ),
+    initiative_eligible=False,  # Browser automation tool, not enrichment data
 )
 
 # ============================================================================
@@ -244,6 +247,7 @@ browser_click_catalogue_manifest = ToolManifest(
         visible=True,
         category="tool",
     ),
+    initiative_eligible=False,  # Browser automation tool, not enrichment data
 )
 
 # ============================================================================
@@ -303,6 +307,7 @@ browser_fill_catalogue_manifest = ToolManifest(
         visible=True,
         category="tool",
     ),
+    initiative_eligible=False,  # Browser automation tool, not enrichment data
 )
 
 # ============================================================================
@@ -355,4 +360,5 @@ browser_press_key_catalogue_manifest = ToolManifest(
         visible=True,
         category="tool",
     ),
+    initiative_eligible=False,  # Browser automation tool, not enrichment data
 )

@@ -512,4 +512,22 @@ class CircuitBreakerError(Exception):
 
 ---
 
+## Amendments
+
+### Amendment 2026-04-08: Centralized Error Classification & Security Hardening
+
+**Changes:**
+
+1. **`SSEErrorMessages._classify_error()`** — New centralized classifier that categorizes exceptions into user-facing categories: `transient` (overload, rate limit, server errors), `content_filter` (provider safety/moderation blocks), `timeout` (request/connection timeout), `unknown` (everything else).
+
+2. **New error categories** — `content_filter` with localized messages across 6 languages ("The AI model provider could not generate a response..."). `timeout` with recovery guidance ("The request took too long...").
+
+3. **Security hardening** — All SSE error messages no longer expose `type(exception).__name__` or `str(exception)` to end users. Error type metadata in stream chunks replaced with generic `"stream_error"`. Applies to: `generic_error()`, `stream_error()`, `hitl_resumption_error()`, `graph_execution_error()`, `resumption_error()`.
+
+4. **DRY refactoring** — Duplicated transient error detection logic (previously inlined in 5 methods) consolidated into single `_classify_error()` method.
+
+**Files changed:** `api/error_messages.py`, `api/router.py`, `api/service.py`, `nodes/response_node.py`, `services/hitl/resumption_strategies.py`.
+
+---
+
 **Fin de ADR-023** - Error Handling Strategy Decision Record.

@@ -83,7 +83,11 @@ export const JournalExtractionSection = React.memo(function JournalExtractionSec
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-x-4 gap-y-0.5">
             <MetricRow label="Actions parsed" value={data.actions_parsed} />
-            <MetricRow label="Actions applied" value={data.actions_applied} highlight={hasActions} />
+            <MetricRow
+              label="Actions applied"
+              value={data.actions_applied}
+              highlight={hasActions}
+            />
           </div>
 
           {entries.length > 0 ? (
@@ -101,10 +105,14 @@ export const JournalExtractionSection = React.memo(function JournalExtractionSec
                     <div className="flex items-center gap-1.5">
                       <ActionBadge action={entry.action} />
                       {themeEmoji && <span>{themeEmoji}</span>}
-                      <span className={cn(
-                        'font-medium truncate',
-                        entry.action === 'delete' ? 'text-red-400/60 line-through' : 'text-primary',
-                      )}>
+                      <span
+                        className={cn(
+                          'font-medium truncate',
+                          entry.action === 'delete'
+                            ? 'text-red-400/60 line-through'
+                            : 'text-primary'
+                        )}
+                      >
                         {entry.full_title ?? entry.title ?? entry.entry_id?.slice(0, 8) ?? '—'}
                       </span>
                       {moodEmoji && <span className="text-muted-foreground">{moodEmoji}</span>}
@@ -113,7 +121,9 @@ export const JournalExtractionSection = React.memo(function JournalExtractionSec
                       <div className="flex items-center gap-2 mt-0.5 text-muted-foreground">
                         <span>{entry.theme.replace('_', ' ')}</span>
                         {entry.entry_id && (
-                          <span className="font-mono text-[10px]">{entry.entry_id.slice(0, 8)}</span>
+                          <span className="font-mono text-[10px]">
+                            {entry.entry_id.slice(0, 8)}
+                          </span>
                         )}
                       </div>
                     )}
@@ -126,7 +136,6 @@ export const JournalExtractionSection = React.memo(function JournalExtractionSec
               No journal actions for this message.
             </div>
           )}
-
         </div>
       </AccordionContent>
     </AccordionItem>

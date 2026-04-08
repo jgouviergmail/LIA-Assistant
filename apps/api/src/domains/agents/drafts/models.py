@@ -62,6 +62,7 @@ class DraftType(str, Enum):
     TASK_DELETE = "task_delete"  # Task delete draft (delete_task)
     FILE_DELETE = "file_delete"  # Drive file delete draft (delete_file)
     LABEL_DELETE = "label_delete"  # Gmail label delete draft (delete_label)
+    REMINDER_DELETE = "reminder_delete"  # Reminder delete draft (cancel_reminder)
 
 
 class DraftStatus(str, Enum):
@@ -387,6 +388,17 @@ class ContactUpdateDraftInput(BaseDraftInput):
             "notes": self.notes,
             "address": self.address,
         }
+
+
+class ReminderDeleteDraftInput(BaseDraftInput):
+    """Input for deleting a reminder draft.
+
+    Deferred for user confirmation before actual cancellation.
+    """
+
+    reminder_id: str = Field(..., description="Reminder UUID to cancel")
+    content: str = Field(default="", description="Reminder content for confirmation display")
+    trigger_at: str = Field(default="", description="Trigger datetime for confirmation display")
 
 
 class ContactDeleteDraftInput(BaseDraftInput):
@@ -879,6 +891,17 @@ class Draft(BaseModel):
             if date:
                 lines.append(f"<br/>**{lbl['date']}**: {date}")
 
+        # Reminder delete
+        elif self.type == DraftType.REMINDER_DELETE:
+            content = self.content.get("content", "")
+            trigger_at = self.content.get("trigger_at", "")
+            trigger_formatted = format_dt(trigger_at) if trigger_at else ""
+
+            if content:
+                lines.append(f"<br/>**{lbl['event']}**: {content}")
+            if trigger_formatted:
+                lines.append(f"<br/>**{lbl['date']}**: {trigger_formatted}")
+
         # Event creation
         elif self.type == DraftType.EVENT:
             summary = self.content.get("summary", "")
@@ -898,28 +921,48 @@ class Draft(BaseModel):
             if description:
                 lines.append(f"<br/>**{lbl['body']}**<br/>{description}")
 
-        # Event update
+        # Event update — show full resulting state with modified fields marked
         elif self.type == DraftType.EVENT_UPDATE:
             current = self.content.get("current_event", {})
             summary = self.content.get("summary") or current.get("summary", "?")
-            changes = []
-
-            if self.content.get("summary"):
-                changes.append(f"<br/>{lbl['event']}: {self.content['summary']}")
-            if self.content.get("start_datetime"):
-                changes.append(f"<br/>{lbl['start']}: {format_dt(self.content['start_datetime'])}")
-            if self.content.get("end_datetime"):
-                changes.append(f"<br/>{lbl['end']}: {format_dt(self.content['end_datetime'])}")
-            if self.content.get("location"):
-                changes.append(f"<br/>{lbl['location']}: {self.content['location']}")
-            if self.content.get("attendees"):
-                changes.append(f"<br/>{lbl['attendees']}: {', '.join(self.content['attendees'])}")
-
             lines.append(f"<br/>**{lbl['event']}**: {summary}")
-            if changes:
-                lines.append(f"<br/>**{lbl['changes']}**:")
-                for change in changes:
-                    lines.append(f"<br/>  - {change}")
+
+            # Start: modified or preserved from current
+            new_start = self.content.get("start_datetime")
+            cur_start = current.get("start", {}).get(
+                "dateTime", current.get("start", {}).get("date", "")
+            )
+            start_val = (
+                format_dt(new_start) if new_start else format_dt(cur_start) if cur_start else ""
+            )
+            if start_val:
+                mark = " ✏️" if new_start else ""
+                lines.append(f"<br/>**{lbl['start']}**: {start_val}{mark}")
+
+            # End: modified or preserved from current
+            new_end = self.content.get("end_datetime")
+            cur_end = current.get("end", {}).get("dateTime", current.get("end", {}).get("date", ""))
+            end_val = format_dt(new_end) if new_end else format_dt(cur_end) if cur_end else ""
+            if end_val:
+                mark = " ✏️" if new_end else ""
+                lines.append(f"<br/>**{lbl['end']}**: {end_val}{mark}")
+
+            # Location: modified or preserved
+            new_loc = self.content.get("location")
+            cur_loc = current.get("location", "")
+            loc_val = new_loc or cur_loc
+            if loc_val:
+                mark = " ✏️" if new_loc else ""
+                lines.append(f"<br/>**{lbl['location']}**: {loc_val}{mark}")
+
+            # Attendees: modified or preserved
+            new_att = self.content.get("attendees")
+            if new_att:
+                lines.append(f"<br/>**{lbl['attendees']}**: {', '.join(new_att)} ✏️")
+            elif current.get("attendees"):
+                cur_att = [a.get("email", a.get("displayName", "")) for a in current["attendees"]]
+                if cur_att:
+                    lines.append(f"<br/>**{lbl['attendees']}**: {', '.join(cur_att)}")
 
         # Event delete
         elif self.type == DraftType.EVENT_DELETE:
@@ -949,27 +992,42 @@ class Draft(BaseModel):
             if organization:
                 lines.append(f"<br/>**{lbl['organization']}**: {organization}")
 
-        # Contact update
+        # Contact update — show full resulting state with modified fields marked
         elif self.type == DraftType.CONTACT_UPDATE:
             current = self.content.get("current_contact", {})
             names = current.get("names", [])
-            name = names[0].get("displayName", "?") if names else "?"
-            changes = []
+            cur_name = names[0].get("displayName", "?") if names else "?"
+            new_name = self.content.get("name")
+            name_val = new_name or cur_name
+            mark = " ✏️" if new_name else ""
+            lines.append(f"<br/>**{lbl['contact']}**: {name_val}{mark}")
 
-            if self.content.get("name"):
-                changes.append(f"<br/>{lbl['contact']}: {self.content['name']}")
-            if self.content.get("email"):
-                changes.append(f"<br/>{lbl['email']}: {self.content['email']}")
-            if self.content.get("phone"):
-                changes.append(f"<br/>{lbl['phone']}: {self.content['phone']}")
-            if self.content.get("organization"):
-                changes.append(f"<br/>{lbl['organization']}: {self.content['organization']}")
+            # Email: modified or preserved
+            new_email = self.content.get("email")
+            cur_emails = current.get("emailAddresses", [])
+            cur_email = cur_emails[0].get("value", "") if cur_emails else ""
+            email_val = new_email or cur_email
+            if email_val:
+                mark = " ✏️" if new_email else ""
+                lines.append(f"<br/>**{lbl['email']}**: {email_val}{mark}")
 
-            lines.append(f"<br/>**{lbl['contact']}**: {name}")
-            if changes:
-                lines.append(f"<br/>**{lbl['changes']}**:")
-                for change in changes:
-                    lines.append(f"  - {change}")
+            # Phone: modified or preserved
+            new_phone = self.content.get("phone")
+            cur_phones = current.get("phoneNumbers", [])
+            cur_phone = cur_phones[0].get("value", "") if cur_phones else ""
+            phone_val = new_phone or cur_phone
+            if phone_val:
+                mark = " ✏️" if new_phone else ""
+                lines.append(f"<br/>**{lbl['phone']}**: {phone_val}{mark}")
+
+            # Organization: modified or preserved
+            new_org = self.content.get("organization")
+            cur_orgs = current.get("organizations", [])
+            cur_org = cur_orgs[0].get("name", "") if cur_orgs else ""
+            org_val = new_org or cur_org
+            if org_val:
+                mark = " ✏️" if new_org else ""
+                lines.append(f"<br/>**{lbl['organization']}**: {org_val}{mark}")
 
         # Contact delete
         elif self.type == DraftType.CONTACT_DELETE:
@@ -996,24 +1054,30 @@ class Draft(BaseModel):
             if notes:
                 lines.append(f"<br/>**{lbl['body']}**:<br/>{notes}")
 
-        # Task update
+        # Task update — show full resulting state with modified fields marked
         elif self.type == DraftType.TASK_UPDATE:
             current = self.content.get("current_task", {})
-            title = self.content.get("title") or current.get("title", "?")
-            changes = []
+            new_title = self.content.get("title")
+            cur_title = current.get("title", "?")
+            title_val = new_title or cur_title
+            mark = " ✏️" if new_title else ""
+            lines.append(f"<br/>**{lbl['task']}**: {title_val}{mark}")
 
-            if self.content.get("title"):
-                changes.append(f"<br/>{lbl['task']}: {self.content['title']}")
-            if self.content.get("due"):
-                changes.append(f"<br/>{lbl['due']}: {format_dt(self.content['due'])}")
-            if self.content.get("notes"):
-                changes.append(f"<br/>{lbl['body']}: {self.content['notes']}")
+            # Due: modified or preserved
+            new_due = self.content.get("due")
+            cur_due = current.get("due", "")
+            due_val = format_dt(new_due) if new_due else format_dt(cur_due) if cur_due else ""
+            if due_val:
+                mark = " ✏️" if new_due else ""
+                lines.append(f"<br/>**{lbl['due']}**: {due_val}{mark}")
 
-            lines.append(f"<br/>**{lbl['task']}**: {title}")
-            if changes:
-                lines.append(f"<br/>**{lbl['changes']}**:")
-                for change in changes:
-                    lines.append(f"  - {change}")
+            # Notes: modified or preserved
+            new_notes = self.content.get("notes")
+            cur_notes = current.get("notes", "")
+            notes_val = new_notes or cur_notes
+            if notes_val:
+                mark = " ✏️" if new_notes else ""
+                lines.append(f"<br/>**{lbl['body']}**: {notes_val}{mark}")
 
         # Task delete
         elif self.type == DraftType.TASK_DELETE:

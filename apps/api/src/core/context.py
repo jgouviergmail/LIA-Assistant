@@ -102,6 +102,10 @@ class UserMCPToolsContext:
     # Original MCP input_schema per tool (adapter_name → JSON Schema dict)
     # Used by MCPDirectCallStrategy for native function calling with full schema fidelity
     tool_input_schemas: dict[str, dict] = field(default_factory=dict)
+    # ADR-062: Server names (lowercase) with iterative_mode=true.
+    # Used by smart_planner_service to skip reference_content injection
+    # (the ReAct agent calls read_me itself).
+    iterative_servers: set[str] = field(default_factory=set)
 
     def resolve_tool_name(self, name: str) -> str | None:
         """Resolve a tool name with fuzzy matching for LLM-hallucinated suffixes.

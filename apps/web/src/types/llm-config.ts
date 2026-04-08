@@ -46,12 +46,16 @@ export interface LLMAgentConfig {
 
 // --- LLM Type Config ---
 
+/** Visual power tier for admin color-coding. */
+export type PowerTier = 'critical' | 'high' | 'medium' | 'low';
+
 export interface LLMTypeInfo {
   llm_type: string;
   display_name: string;
   category: string;
   description_key: string;
   required_capabilities: string[];
+  power_tier: PowerTier | null;
 }
 
 export interface LLMTypeConfig {

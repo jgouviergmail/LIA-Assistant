@@ -86,6 +86,10 @@ def get_query_intelligence_from_state(
     Use this when you need the full object with its methods (e.g., to_debug_metrics).
     For simple attribute access, prefer get_qi_attr() which is more efficient.
 
+    When reconstructing from dict, also restores ``resolved_context`` from its
+    separate state key (``STATE_KEY_RESOLVED_CONTEXT``) since it cannot be
+    serialized within the QueryIntelligence dict itself.
+
     Args:
         state: LangGraph state dict
 
@@ -105,7 +109,36 @@ def get_query_intelligence_from_state(
     # Priority 2: Reconstruct from dict
     qi_dict = state.get(STATE_KEY_QUERY_INTELLIGENCE)
     if qi_dict is not None and isinstance(qi_dict, dict):
-        return reconstruct_query_intelligence(qi_dict)
+        intelligence = reconstruct_query_intelligence(qi_dict)
+
+        # FIX: Restore resolved_context from its separate state key.
+        # resolved_context is a complex object (ResolvedContext) that cannot be
+        # serialized within the QueryIntelligence dict. The router_node stores it
+        # separately under STATE_KEY_RESOLVED_CONTEXT as a dict.
+        # Without this, intelligence.resolved_context is always None after
+        # reconstruction, causing the planner to miss pre-resolved entity IDs
+        # (event_id, message_id, etc.) for REFERENCE_ACTION turns.
+        # QueryIntelligence is frozen, so we use dataclasses.replace().
+        if intelligence.resolved_context is None:
+            from dataclasses import replace
+
+            from src.domains.agents.constants import STATE_KEY_RESOLVED_CONTEXT
+            from src.domains.agents.services.reference_resolver import ResolvedContext
+
+            rc_dict = state.get(STATE_KEY_RESOLVED_CONTEXT)
+            if rc_dict and isinstance(rc_dict, dict) and rc_dict.get("items"):
+                intelligence = replace(
+                    intelligence,
+                    resolved_context=ResolvedContext(
+                        items=rc_dict["items"],
+                        confidence=rc_dict.get("confidence", 1.0),
+                        method=rc_dict.get("method", "explicit"),
+                        source_turn_id=rc_dict.get("source_turn_id"),
+                        source_domain=rc_dict.get("source_domain"),
+                    ),
+                )
+
+        return intelligence
 
     return None
 

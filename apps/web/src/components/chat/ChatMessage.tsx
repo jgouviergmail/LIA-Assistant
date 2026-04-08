@@ -444,8 +444,9 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(({ message, isUser }
   // Resolve psyche state: prefer per-message snapshot, fall back to live store.
   // storeState is read above (before early returns) to satisfy Rules of Hooks.
   const metadataPsyche = message.metadata?.psyche_state as PsycheStateSummary | undefined;
-  const psycheState: PsycheStateSummary | null = metadataPsyche ?? (
-    storeState.enabled && storeState.displayAvatar
+  const psycheState: PsycheStateSummary | null =
+    metadataPsyche ??
+    (storeState.enabled && storeState.displayAvatar
       ? {
           mood_label: storeState.moodLabel,
           mood_color: storeState.moodColor,
@@ -456,15 +457,17 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(({ message, isUser }
           emotion_intensity: storeState.emotionIntensity,
           relationship_stage: storeState.relationshipStage,
         }
-      : null
-  );
+      : null);
 
   // Build structured tooltip lines with PAD colors
   const tooltipLines: AvatarTooltipLine[] | undefined = psycheState
     ? [
         {
           label: t('psyche.relationshipStage', 'Relationship'),
-          value: t(`psyche.stages.${psycheState.relationship_stage}`, psycheState.relationship_stage),
+          value: t(
+            `psyche.stages.${psycheState.relationship_stage}`,
+            psycheState.relationship_stage
+          ),
         },
         {
           label: t('psyche.tooltip.mood', 'Mood'),
@@ -476,10 +479,12 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(({ message, isUser }
           },
         },
         ...(psycheState.active_emotion
-          ? [{
-              label: t('psyche.tooltip.emotion', 'Emotion'),
-              value: `${t(`psyche.emotions.${psycheState.active_emotion}`, psycheState.active_emotion)} (${Math.round(psycheState.emotion_intensity * 100)}%)`,
-            }]
+          ? [
+              {
+                label: t('psyche.tooltip.emotion', 'Emotion'),
+                value: `${t(`psyche.emotions.${psycheState.active_emotion}`, psycheState.active_emotion)} (${Math.round(psycheState.emotion_intensity * 100)}%)`,
+              },
+            ]
           : []),
       ]
     : undefined;

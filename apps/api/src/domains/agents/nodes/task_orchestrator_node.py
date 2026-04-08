@@ -665,26 +665,34 @@ def _detect_domain_from_items(
     pre_exec_registry: dict[str, Any],
     field_path: str,
 ) -> str:
-    """
-    Detect domain from registry items or field path.
+    """Detect canonical domain name from registry items or field path.
 
-    Uses registry item types or infers from centralized mapping (DRY).
+    Returns the singular domain name (e.g., "email", "event", "reminder")
+    for use with FOR_EACH_PREVIEW_FIELDS. Registry meta.domain stores the
+    result_key (plural, e.g., "emails", "reminders"), so we normalize it
+    via get_domain_from_result_key().
 
     Args:
         pre_exec_registry: Registry with RegistryItem objects
         field_path: Field path like "emails", "events", "contacts"
 
     Returns:
-        Domain string (e.g., "email", "event", "contact")
+        Canonical domain string (e.g., "email", "event", "contact")
     """
     from src.domains.agents.utils.type_domain_mapping import get_domain_from_result_key
 
-    # Try to get domain from registry items
+    # Try to get domain from registry items (meta.domain is result_key, normalize)
     for item in pre_exec_registry.values():
         if hasattr(item, "meta") and hasattr(item.meta, "domain"):
-            return item.meta.domain
+            meta_domain = item.meta.domain
+            # Normalize: meta.domain is result_key (plural) → canonical domain (singular)
+            canonical = get_domain_from_result_key(meta_domain)
+            if canonical:
+                return canonical
+            # If mapping doesn't know it, use as-is (unknown domain)
+            return meta_domain
 
-    # Fallback: use centralized mapping (DRY)
+    # Fallback: use centralized mapping from field path (DRY)
     domain = get_domain_from_result_key(field_path)
     return domain or "unknown"
 

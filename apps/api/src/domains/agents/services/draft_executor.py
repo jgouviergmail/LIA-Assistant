@@ -116,6 +116,9 @@ def _ensure_executors_registered() -> None:
         # Label executors
         from src.domains.agents.tools.labels_tools import execute_label_delete_draft
 
+        # Reminder executors
+        from src.domains.agents.tools.reminder_tools import execute_reminder_delete_draft
+
         # Task executors
         from src.domains.agents.tools.tasks_tools import (
             execute_task_delete_draft,
@@ -150,6 +153,9 @@ def _ensure_executors_registered() -> None:
 
         # Labels
         register_executor(DraftType.LABEL_DELETE.value, execute_label_delete_draft)
+
+        # Reminders
+        register_executor(DraftType.REMINDER_DELETE.value, execute_reminder_delete_draft)
 
         logger.info(
             "draft_executors_initialized",

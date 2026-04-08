@@ -172,6 +172,7 @@ unified_web_search_catalogue_manifest = ToolManifest(
         visible=True,
         category="tool",
     ),
+    initiative_eligible=False,  # Web search tool, no personal data for cross-domain enrichment
 )
 
 __all__ = [

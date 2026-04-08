@@ -272,6 +272,122 @@ async def proxy_routes_static_map(
         )
 
 
+# Location Static Map proxy (single marker, no polyline)
+# Same pattern as route static map — public endpoint, API key server-side.
+@router.get(
+    "/google-location/static-map",
+    summary="Proxy Google location static map",
+    description="Generate a static map image with a single marker at the given coordinates.",
+    responses={
+        200: {"content": {"image/png": {}}, "description": "Static map image"},
+        400: {"description": "Invalid parameters"},
+    },
+)
+async def proxy_location_static_map(
+    lat: str,
+    lng: str,
+    width: int = 600,
+    height: int = 300,
+    zoom: int = 14,
+) -> StreamingResponse:
+    """Proxy Google Static Maps API with a single marker for current position.
+
+    Args:
+        lat: Latitude coordinate.
+        lng: Longitude coordinate.
+        width: Map width in pixels (50-2048, default 600).
+        height: Map height in pixels (50-2048, default 300).
+        zoom: Zoom level (1-20, default 14).
+
+    Returns:
+        StreamingResponse with the map image.
+    """
+    import re
+
+    import httpx
+
+    from src.core.config import settings
+
+    try:
+        api_key = settings.google_api_key
+        if not api_key:
+            logger.warning("google_api_key_not_configured_for_location_map")
+            raise_configuration_missing("google_location", "api_key")
+
+        # Validate coordinate format
+        _coord_pattern = re.compile(r"^-?\d{1,3}(\.\d+)?$")
+        if not _coord_pattern.match(lat) or not _coord_pattern.match(lng):
+            raise_invalid_input("lat and lng must be numeric", field="coordinates")
+
+        # Validate dimensions
+        width = max(STATIC_MAP_MIN_DIMENSION, min(STATIC_MAP_MAX_DIMENSION, width))
+        height = max(STATIC_MAP_MIN_DIMENSION, min(STATIC_MAP_MAX_DIMENSION, height))
+        zoom = max(1, min(20, zoom))
+
+        static_map_url = (
+            f"https://maps.googleapis.com/maps/api/staticmap?"
+            f"center={lat},{lng}"
+            f"&zoom={zoom}"
+            f"&size={width}x{height}"
+            f"&markers=color:red|{lat},{lng}"
+            f"&key={api_key}"
+        )
+
+        logger.debug(
+            "location_static_map_proxy_request",
+            lat=lat,
+            lng=lng,
+            width=width,
+            height=height,
+            zoom=zoom,
+        )
+
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                static_map_url,
+                follow_redirects=True,
+                timeout=HTTP_TIMEOUT_CONNECTOR_STANDARD,
+            )
+
+            if response.status_code != 200:
+                logger.warning(
+                    "location_static_map_proxy_error",
+                    status_code=response.status_code,
+                )
+                raise_external_service_fetch_error(
+                    "google_location", "static_map", response.status_code
+                )
+
+            content_type = response.headers.get("content-type", "image/png")
+
+            return StreamingResponse(
+                iter([response.content]),
+                media_type=content_type,
+                headers={
+                    "Cache-Control": "public, max-age=86400",
+                },
+            )
+    except httpx.RequestError as e:
+        logger.error(
+            "location_static_map_proxy_request_error",
+            error=str(e),
+            error_type=type(e).__name__,
+        )
+        raise_external_service_connection_error("google_location")
+    except InternalServerError:
+        raise
+    except Exception as e:
+        logger.exception(
+            "location_static_map_proxy_unexpected_error",
+            error=str(e),
+            error_type=type(e).__name__,
+        )
+        raise_internal_error(
+            detail=f"Location static map proxy error: {type(e).__name__}",
+            error_type=type(e).__name__,
+        )
+
+
 # ========== GMAIL ATTACHMENT PROXY ==========
 # Authenticated proxy to download Gmail attachments via the Gmail API.
 # Opens in a new browser tab (Content-Disposition: inline).

@@ -12,7 +12,7 @@
 
 Le système d'administration LLM permet de gérer dynamiquement :
 1. **Clés API des providers** (OpenAI, Anthropic, Gemini, DeepSeek, Perplexity, Ollama)
-2. **Configuration de chaque type LLM** (34 types : provider, model, temperature, etc.)
+2. **Configuration de chaque type LLM** (35 types : provider, model, temperature, etc.)
 
 Les changements sont effectifs **immédiatement** via un cache in-memory, sans redémarrage.
 
@@ -66,7 +66,7 @@ BaseChatModel
 
 > **Note**: La résolution API key utilise le DB en priorité, avec fallback `.env`. La migration `llm_config_002` a importé les clés `.env` existantes en DB. `_require_api_key()` dans `adapter.py` lève `ValueError` si aucune des deux sources n'a de clé.
 
-> **Scope de ce système**: Ce système Admin UI gère les **34 types LLM agent** (router, planner, contacts_agent, etc.). Les configurations LLM d'infrastructure (Excalidraw, MCP description generation) restent dans `.env` via `MCPSettings`. Les clés API provider (OPENAI_API_KEY, etc.) sont dans `.env` comme fallback.
+> **Scope de ce système**: Ce système Admin UI gère les **35 types LLM agent** (router, planner, contacts_agent, etc.). Les configurations LLM d'infrastructure (Excalidraw, MCP description generation) restent dans `.env` via `MCPSettings`. Les clés API provider (OPENAI_API_KEY, etc.) sont dans `.env` comme fallback.
 
 ### Contraintes Provider (filtrage automatique dans `adapter.py`)
 
@@ -101,7 +101,7 @@ BaseChatModel
 
 | Fichier | Rôle |
 |---------|------|
-| `domains/llm_config/constants.py` | `LLM_TYPES_REGISTRY` (metadata 34 types) + `LLM_DEFAULTS` (configs par défaut) |
+| `domains/llm_config/constants.py` | `LLM_TYPES_REGISTRY` (metadata 35 types) + `LLM_DEFAULTS` (configs par défaut) |
 | `domains/llm_config/models.py` | Tables `provider_api_keys` + `llm_config_overrides` |
 | `domains/llm_config/schemas.py` | Schemas Pydantic (request/response) |
 | `domains/llm_config/cache.py` | `LLMConfigOverrideCache` — cache in-memory (sync read, async populate) |
@@ -187,7 +187,7 @@ Cross-worker cache invalidation is handled via Redis Pub/Sub (ADR-063). When `in
 
 ---
 
-## 34 Types LLM
+## 35 Types LLM
 
 ### Catégories
 
@@ -197,11 +197,12 @@ Cross-worker cache invalidation is handled via Redis Pub/Sub (ADR-063). When `in
 | **Agents Domaine** | `contacts_agent`, `emails_agent`, `calendar_agent`, `drive_agent`, `tasks_agent`, `weather_agent`, `wikipedia_agent`, `perplexity_agent`, `brave_agent`, `web_search_agent`, `web_fetch_agent`, `places_agent`, `routes_agent` |
 | **Query & Response** | `query_agent`, `response` |
 | **HITL** | `hitl_classifier`, `hitl_question_generator`, `hitl_plan_approval_question_generator` |
-| **Memory** | `memory_extraction`, `memory_reference_resolution` |
+| **Memory** | `memory_extraction`, `memory_reference_extraction`, `memory_reference_resolution` |
 | **Background** | `interest_extraction`, `interest_content`, `heartbeat_decision`, `heartbeat_message`, `broadcast_translator` |
 | **Initiative** | `initiative` — Post-execution cross-domain enrichment |
-| **MCP ReAct** | `mcp_react_agent` — Iterative sub-agent for MCP servers with `iterative_mode` |
-| **Specialized** | `voice_comment`, `mcp_description`, `mcp_excalidraw`, `evaluator` |
+| **MCP ReAct** | `mcp_react_agent` — Iterative sub-agent for regular MCP servers with `iterative_mode` |
+| **MCP App (ReAct)** | `mcp_app_react_agent` — Iterative sub-agent for MCP App servers (with interactive widgets like Excalidraw). Auto-selected when `app_resource_uri` present. Defaults to Opus. |
+| **Specialized** | `voice_comment`, `mcp_description`, `evaluator` |
 
 ---
 

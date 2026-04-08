@@ -90,6 +90,7 @@ search_wikipedia_catalogue_manifest = ToolManifest(
     version="1.0.0",
     maintainer="Team Agents",
     display=DisplayMetadata(emoji="🔍", i18n_key="search_wikipedia", visible=True, category="tool"),
+    initiative_eligible=False,  # Encyclopedic tool, no personal data for cross-domain enrichment
 )
 
 # ============================================================================
@@ -137,6 +138,7 @@ get_wikipedia_summary_catalogue_manifest = ToolManifest(
     display=DisplayMetadata(
         emoji="📖", i18n_key="get_wikipedia_summary", visible=True, category="tool"
     ),
+    initiative_eligible=False,  # Encyclopedic tool, no personal data for cross-domain enrichment
 )
 
 # ============================================================================
@@ -197,6 +199,7 @@ get_wikipedia_article_catalogue_manifest = ToolManifest(
     display=DisplayMetadata(
         emoji="📚", i18n_key="get_wikipedia_article", visible=True, category="tool"
     ),
+    initiative_eligible=False,  # Encyclopedic tool, no personal data for cross-domain enrichment
 )
 
 # ============================================================================
@@ -239,6 +242,7 @@ get_wikipedia_related_catalogue_manifest = ToolManifest(
     display=DisplayMetadata(
         emoji="🔗", i18n_key="get_wikipedia_related", visible=True, category="tool"
     ),
+    initiative_eligible=False,  # Encyclopedic tool, no personal data for cross-domain enrichment
 )
 
 __all__ = [

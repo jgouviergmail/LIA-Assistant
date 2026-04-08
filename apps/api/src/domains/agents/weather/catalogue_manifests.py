@@ -217,6 +217,7 @@ get_hourly_forecast_catalogue_manifest = ToolManifest(
     display=DisplayMetadata(
         emoji="⏰", i18n_key="get_hourly_forecast", visible=True, category="tool"
     ),
+    initiative_eligible=False,  # Too granular for proactive enrichment; forecast is sufficient
 )
 
 __all__ = [

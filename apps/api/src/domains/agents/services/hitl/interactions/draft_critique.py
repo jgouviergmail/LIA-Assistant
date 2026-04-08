@@ -775,6 +775,14 @@ Generate the review question:"""
         elif draft_type == "label_delete":
             label = content.get("label_name", "?")
 
+        elif draft_type == "reminder_delete":
+            label = content.get("content", "?")
+            trigger_at = content.get("trigger_at")
+            if trigger_at:
+                detail_parts.append(
+                    f"🔔 {format_datetime_for_display(trigger_at, user_timezone, user_language)}"
+                )
+
         else:
             # Generic fallback
             label = (
@@ -782,6 +790,7 @@ Generate the review question:"""
                 or content.get("summary")
                 or content.get("title")
                 or content.get("name")
+                or content.get("content")
                 or content.get("label_name")
                 or "?"
             )

@@ -60,7 +60,7 @@ export function ImageGenerationSettings({ lng, collapsible = true }: BaseSetting
           </p>
         </div>
         <Switch
-          checked={(user as any)?.image_generation_enabled ?? false}
+          checked={user?.image_generation_enabled ?? false}
           onCheckedChange={checked => updatePreference('image_generation_enabled', checked)}
           disabled={updating}
         />
@@ -70,7 +70,7 @@ export function ImageGenerationSettings({ lng, collapsible = true }: BaseSetting
       <div className="p-3 rounded-lg border bg-card space-y-2">
         <p className="text-sm font-medium">{t('settings.image_generation.quality')}</p>
         <Select
-          value={(user as any)?.image_generation_default_quality ?? 'medium'}
+          value={user?.image_generation_default_quality ?? 'medium'}
           onValueChange={value => updatePreference('image_generation_default_quality', value)}
           disabled={updating}
         >
@@ -95,7 +95,7 @@ export function ImageGenerationSettings({ lng, collapsible = true }: BaseSetting
       <div className="p-3 rounded-lg border bg-card space-y-2">
         <p className="text-sm font-medium">{t('settings.image_generation.size')}</p>
         <Select
-          value={(user as any)?.image_generation_default_size ?? '1024x1024'}
+          value={user?.image_generation_default_size ?? '1024x1024'}
           onValueChange={value => updatePreference('image_generation_default_size', value)}
           disabled={updating}
         >
@@ -120,7 +120,7 @@ export function ImageGenerationSettings({ lng, collapsible = true }: BaseSetting
       <div className="p-3 rounded-lg border bg-card space-y-2">
         <p className="text-sm font-medium">{t('settings.image_generation.format')}</p>
         <Select
-          value={(user as any)?.image_generation_output_format ?? 'png'}
+          value={user?.image_generation_output_format ?? 'png'}
           onValueChange={value => updatePreference('image_generation_output_format', value)}
           disabled={updating}
         >

@@ -1,99 +1,28 @@
-<!--
-PROMPT: FOR_EACH Directive for Smart Planner
-USAGE: Injected into smart_planner_prompt when for_each iteration pattern is detected
-CONTEXT: prompts/__init__.py - _build_for_each_directive()
-VARIABLES:
-  - {collection}: The collection key to iterate over (e.g., "events", "contacts")
-  - {cardinality_hint}: Expected number of items (e.g., "~3", "ALL", "unknown number of")
-  - {for_each_max_value}: Maximum items to process (from config)
--->
-FOR_EACH REQUIREMENT (MANDATORY - from query analysis):
+FOR_EACH REQUIREMENT (MANDATORY — from query analysis):
 
-CRITICAL: The user wants the action applied to EACH {collection} INDIVIDUALLY.
-    - Collection to iterate: {collection}
-    - Expected cardinality: {cardinality_hint}
+The user wants the action applied to EACH {collection} INDIVIDUALLY.
+Expected cardinality: {cardinality_hint}
 
-SCHEMA CONSTRAINT (HARD LIMIT - DO NOT EXCEED):
-    - for_each_max MUST be set to: {for_each_max_value}
-    - This is a SCHEMA VALIDATION LIMIT - values above this will FAIL validation
-    - The system will request user confirmation before executing bulk operations
-    - If user has more items than for_each_max, the system handles pagination automatically
+MANDATORY 2-STEP STRUCTURE (DO NOT collapse into 1 step):
+Step 1 = RETRIEVE: get_{collection}_tool → produces $steps.step_1.{collection}
+Step 2 = ACTION: mutation tool with for_each="$steps.step_1.{collection}", for_each_max={for_each_max_value}
 
-You MUST use the for_each pattern in your plan:
-1. First step: Retrieve the {collection} collection (ALWAYS include this step, even if items appear in RESOLVED CONTEXT — the runtime needs a $steps reference to iterate)
-2. Second step: Apply action with for_each="$steps.step_1.{collection}"
-3. In step 2 parameters: Use $item to reference each item (NOT $steps.step_1.{collection}[0])
-NEVER skip the retrieval step or reference items from context directly. The for_each engine ONLY works with $steps references.
+CRITICAL: A step CANNOT reference its own output. for_each ALWAYS points to a PREVIOUS step.
+WRONG: {{"id":"step_1","tool_name":"delete_email_tool","for_each":"$steps.step_1.emails"}} ← self-reference!
+RIGHT: {{"id":"step_1","tool_name":"get_emails_tool"}}, {{"id":"step_2","tool_name":"delete_email_tool","for_each":"$steps.step_1.emails","parameters":{{"message_id":"$item.id"}}}}
 
-CRITICAL - PARAMETER SYNTAX (READ CAREFULLY):
-  - for_each field: "$steps.step_1.{collection}" (references the array to iterate)
-  - parameters: MUST use literal "$item" keyword (NOT a placeholder!)
+SCHEMA CONSTRAINT: for_each_max MUST be {for_each_max_value} (hard validation limit, system handles pagination).
 
-  "$item" IS A RESERVED KEYWORD - use it EXACTLY as written:
-  - CORRECT: "$item.summary" - the literal string "$item" followed by field path
-  - CORRECT: "$item.start.dateTime" - nested field access
-  - CORRECT: "$item" - the entire current object
+$item SYNTAX (CRITICAL — use EXACTLY as written):
+- CORRECT: "$item.email", "$item.summary", "$item.start.dateTime"
+- WRONG: "$steps.step_1.{collection}[0].field" → only first item!
+- WRONG: "$steps.step_1.{collection}[*].field" → wildcard invalid!
+- WRONG: any [INDEX], [i], [N] in for_each step parameters
 
-  WRONG PATTERNS (DO NOT USE):
-  - "$steps.step_1.{collection}[0].field" - hardcoded index, always uses first item
-  - "$steps.step_1.{collection}[INDEX].field" - INDEX is not a valid index
-  - "$steps.step_1.{collection}[i].field" - i is not a valid index
-  - "$steps.step_1.{collection}[N].field" - N is not a valid index
-  - "$steps.step_1.{collection}[*].field" - wildcard [*] is not valid in for_each params
-  - Any reference to $steps.step_X.{collection}[...] in for_each step parameters
+PARAMETER BINDING: For each parameter, ask "should this differ per item?"
+YES → "$item.field" | NO → static value.
 
-CROSS-DOMAIN NOTE: The action tool (step 2) CAN be from a DIFFERENT domain than the collection.
-Example: "restaurants + route for each" → step 1: get_places_tool, step 2: get_route_tool with for_each
+CROSS-DOMAIN: The action tool (step 2) CAN be from a DIFFERENT domain than the collection.
 
-Example structure (SAME domain - e.g., "send email to each contact"):
-{{
-  "steps": [
-    {{"id": "step_1", "tool_name": "get_{collection}_tool", "parameters": {{}}}},
-    {{
-      "id": "step_2",
-      "tool_name": "action_tool_for_this_domain",
-      "for_each": "$steps.step_1.{collection}",
-      "for_each_max": {for_each_max_value},
-      "parameters": {{
-        "some_field": "$item.field_name"
-      }}
-    }}
-  ]
-}}
-
-Example structure (CROSS-DOMAIN - e.g., "places + route for each"):
-{{
-  "steps": [
-    {{"id": "step_1", "tool_name": "get_places_tool", "parameters": {{"query": "restaurants", "location": "Paris"}}}},
-    {{
-      "id": "step_2",
-      "tool_name": "get_route_tool",
-      "for_each": "$steps.step_1.places",
-      "for_each_max": {for_each_max_value},
-      "parameters": {{
-        "destination": "$item.address"
-      }}
-    }}
-  ]
-}}
-
-RELATIVE DATETIME EXPRESSIONS:
-When user requests time-based actions RELATIVE to each item (e.g., "before each", "after each", "the day before"),
-the datetime MUST be computed from $item, NOT from current date.
-
-  If tool supports `relative_trigger` parameter:
-    Format: "$item.DATETIME_FIELD|OFFSET|@TIME"
-    - OFFSET: [+-]N[dhm] where d=days, h=hours, m=minutes
-    - @TIME (optional): override time component
-
-  CRITICAL: "the day before" means relative to EACH item's datetime, NOT yesterday!
-
-PARAMETER BINDING RULE - Apply to ALL parameters that should vary per iteration:
-  - Identifiers: $item.id, $item.email, $item.address (to target each item)
-  - Content/titles: $item.summary, $item.name, $item.displayName (to make each action identifiable)
-  - Datetimes: $item.start.dateTime, $item.date (for relative timing)
-
-  Ask yourself: "Should this parameter be DIFFERENT for each item?"
-  If YES → use $item.field | If NO → use static value
-
-FAILURE TO USE $item IN PARAMETERS WILL CAUSE ALL ITERATIONS TO USE THE SAME DATA!
+RELATIVE DATETIME: When user wants timing relative to each item ("before each", "day before"):
+Use `relative_trigger` if supported: "$item.DATETIME_FIELD|OFFSET|@TIME" (OFFSET: [+-]Nd/h/m).

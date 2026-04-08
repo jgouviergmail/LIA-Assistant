@@ -89,7 +89,7 @@ export function usePsyche() {
       }
       return result;
     },
-    [updateSettingsMutate, refetchSettings],
+    [updateSettingsMutate, refetchSettings]
   );
 
   const resetPsyche = useCallback(
@@ -103,7 +103,7 @@ export function usePsyche() {
       }
       return result;
     },
-    [resetMutate, refetchState],
+    [resetMutate, refetchState]
   );
 
   return {

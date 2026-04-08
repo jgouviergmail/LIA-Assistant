@@ -62,32 +62,32 @@ export function PersonalitySelector() {
 
   return (
     <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm" className="gap-2 h-11" disabled={updating}>
-            <span className="text-base">{displayEmoji}</span>
-            <span className="hidden sm:inline">{displayTitle}</span>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-64">
-          {personalities.map(personality => (
-            <DropdownMenuItem
-              key={personality.id}
-              onClick={() => handlePersonalityChange(personality.id)}
-              className={currentPersonality?.id === personality.id ? 'bg-accent' : ''}
-            >
-              <span className="mr-2 text-base">{personality.emoji}</span>
-              <div className="flex-1">
-                <div className="font-medium">{personality.title}</div>
-                <div className="text-xs text-muted-foreground line-clamp-1">
-                  {personality.description}
-                </div>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="sm" className="gap-2 h-11" disabled={updating}>
+          <span className="text-base">{displayEmoji}</span>
+          <span className="hidden sm:inline">{displayTitle}</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-64">
+        {personalities.map(personality => (
+          <DropdownMenuItem
+            key={personality.id}
+            onClick={() => handlePersonalityChange(personality.id)}
+            className={currentPersonality?.id === personality.id ? 'bg-accent' : ''}
+          >
+            <span className="mr-2 text-base">{personality.emoji}</span>
+            <div className="flex-1">
+              <div className="font-medium">{personality.title}</div>
+              <div className="text-xs text-muted-foreground line-clamp-1">
+                {personality.description}
               </div>
-              {currentPersonality?.id === personality.id && (
-                <span className="ml-2 text-xs text-muted-foreground">✓</span>
-              )}
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuContent>
-      </DropdownMenu>
+            </div>
+            {currentPersonality?.id === personality.id && (
+              <span className="ml-2 text-xs text-muted-foreground">✓</span>
+            )}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

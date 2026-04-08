@@ -167,6 +167,14 @@ function ProviderKeyRow({
 
 // --- LLM Type Config Card ---
 
+/** Background style per power tier — pastel tints for at-a-glance identification. */
+const POWER_TIER_STYLES: Record<string, string> = {
+  critical: 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900/40',
+  high: 'bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-900/40',
+  medium: 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900/40',
+  low: 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-900/40',
+};
+
 function LLMTypeCard({
   config,
   onEdit,
@@ -181,9 +189,10 @@ function LLMTypeCard({
     config.effective.model,
     config.effective.reasoning_effort
   );
+  const tierClass = config.info.power_tier ? (POWER_TIER_STYLES[config.info.power_tier] ?? '') : '';
   return (
     <div
-      className="rounded-lg border p-3 cursor-pointer hover:bg-accent/50 transition-colors"
+      className={`rounded-lg border p-3 cursor-pointer hover:brightness-95 dark:hover:brightness-110 transition-all ${tierClass}`}
       onClick={() => onEdit(config)}
     >
       <div className="flex items-center justify-between mb-0.5">

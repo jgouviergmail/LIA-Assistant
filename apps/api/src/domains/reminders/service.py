@@ -163,30 +163,33 @@ class ReminderService:
 
         return reminder
 
-    async def resolve_and_cancel(
+    async def resolve_reminder(
         self,
         user_id: UUID,
         identifier: str,
     ) -> Reminder:
-        """
-        Resolve a reminder identifier and cancel it.
+        """Resolve a reminder identifier to a Reminder object without cancelling.
 
         Supports:
         - UUID string
         - "le prochain" / "the next one" → earliest pending reminder
         - Numeric index (1, 2, 3...) from list
+        - Content substring match
 
         Args:
             user_id: User ID
             identifier: UUID, reference string, or numeric index
 
+        Raises:
+            ResourceNotFoundError: If no matching reminder found.
+
         Returns:
-            Cancelled reminder
+            Resolved Reminder instance (not cancelled).
         """
         # Try UUID first
         try:
             reminder_id = UUID(identifier)
-            return await self.cancel_reminder(reminder_id, user_id)
+            return await self.get_by_id(reminder_id, user_id)
         except ValueError:
             pass
 
@@ -200,25 +203,42 @@ class ReminderService:
         identifier_lower = identifier.lower().strip()
 
         if identifier_lower in ("le prochain", "the next", "next", "1", "premier", "first"):
-            return await self.cancel_reminder(pending_reminders[0].id, user_id)
+            return pending_reminders[0]
 
         if identifier_lower in ("le dernier", "the last", "last"):
-            return await self.cancel_reminder(pending_reminders[-1].id, user_id)
+            return pending_reminders[-1]
 
         # Try numeric index
         try:
             idx = int(identifier) - 1  # 1-indexed
             if 0 <= idx < len(pending_reminders):
-                return await self.cancel_reminder(pending_reminders[idx].id, user_id)
+                return pending_reminders[idx]
         except ValueError:
             pass
 
         # Try content match
         for reminder in pending_reminders:
             if identifier_lower in reminder.content.lower():
-                return await self.cancel_reminder(reminder.id, user_id)
+                return reminder
 
         raise ResourceNotFoundError(
             "reminder",
             f"no reminder found matching '{identifier}'",
         )
+
+    async def resolve_and_cancel(
+        self,
+        user_id: UUID,
+        identifier: str,
+    ) -> Reminder:
+        """Resolve a reminder identifier and cancel it.
+
+        Args:
+            user_id: User ID
+            identifier: UUID, reference string, or numeric index
+
+        Returns:
+            Cancelled reminder
+        """
+        reminder = await self.resolve_reminder(user_id, identifier)
+        return await self.cancel_reminder(reminder.id, user_id)

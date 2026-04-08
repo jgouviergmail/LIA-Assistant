@@ -121,6 +121,7 @@ PromptName = Literal[
     # Long-term Memory (psychological profiling)
     "memory_extraction_prompt",
     "memory_extraction_personality_addon",
+    "memory_reference_extraction_prompt",
     "memory_reference_resolution_prompt",
     # Smart Planner (multi-domain, reference resolution)
     "smart_planner_prompt",

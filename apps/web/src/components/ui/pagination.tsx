@@ -99,7 +99,7 @@ export function Pagination({
     next = 'Suivant',
     pageInfo = (current, total) => `Page ${current} / ${total}`,
     itemsPerPage = 'par page',
-    totalItems: totalItemsLabel = (count) => `(${count} résultats)`,
+    totalItems: totalItemsLabel = count => `(${count} résultats)`,
   } = labels;
 
   const handlePrevious = () => {
@@ -157,9 +157,7 @@ export function Pagination({
   const pageInfoText = (
     <span aria-live="polite" aria-atomic="true">
       {pageInfo(currentPage, totalPages)}
-      {totalItems !== undefined && (
-        <span className="ml-1">{totalItemsLabel(totalItems)}</span>
-      )}
+      {totalItems !== undefined && <span className="ml-1">{totalItemsLabel(totalItems)}</span>}
     </span>
   );
 
@@ -198,9 +196,7 @@ export function Pagination({
         aria-label="Pagination"
         role="navigation"
       >
-        <div className="flex justify-center items-center gap-2">
-          {navButtons}
-        </div>
+        <div className="flex justify-center items-center gap-2">{navButtons}</div>
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           {pageSizeSelector ?? <span />}
           {pageInfoText}

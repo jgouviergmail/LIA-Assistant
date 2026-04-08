@@ -20,7 +20,11 @@ from typing import TYPE_CHECKING, Any
 import structlog
 
 from src.core.config import settings
-from src.core.constants import MCP_REFERENCE_TOOL_NAME
+from src.core.constants import (
+    MCP_DISPLAY_EMOJI,
+    MCP_ITERATIVE_TASK_SUFFIX,
+    MCP_REFERENCE_TOOL_NAME,
+)
 from src.domains.agents.constants import AGENT_MCP, CONTEXT_DOMAIN_MCP
 from src.infrastructure.mcp.schemas import MCPDiscoveredTool, MCPServerConfig
 from src.infrastructure.mcp.security import resolve_hitl_requirement
@@ -29,7 +33,7 @@ from src.infrastructure.mcp.utils import is_app_only
 
 if TYPE_CHECKING:
     from src.domains.agents.registry.agent_registry import AgentRegistry
-    from src.domains.agents.registry.catalogue import ToolManifest
+    from src.domains.agents.registry.catalogue import ParameterSchema, ToolManifest
     from src.infrastructure.mcp.schemas import MCPServerConfig
 
 logger = structlog.get_logger(__name__)
@@ -166,7 +170,7 @@ def register_mcp_tools(
             # Per-server task tool name (unique to avoid manifest collision
             # when multiple servers have iterative_mode=true).
             # parallel_executor looks up this name in ToolRegistry.
-            task_tool_name = f"mcp_{server_name}_task"
+            task_tool_name = f"mcp_{server_name}{MCP_ITERATIVE_TASK_SUFFIX}"
 
             # Register the generic mcp_server_task_tool under this per-server
             # name so parallel_executor can find it.
@@ -287,7 +291,6 @@ def _register_tool_in_central_registry(adapter: MCPToolAdapter) -> None:
     register_external_tool(adapter)
 
 
-_MCP_DISPLAY_EMOJI = "\U0001f50c"  # 🔌
 _MCP_DESCRIPTION_MAX_KEYWORDS = 10
 
 
@@ -351,7 +354,7 @@ def build_mcp_tool_manifest(
         context_key=CONTEXT_DOMAIN_MCP,
         semantic_keywords=semantic_keywords,
         display=DisplayMetadata(
-            emoji=_MCP_DISPLAY_EMOJI,
+            emoji=MCP_DISPLAY_EMOJI,
             i18n_key="mcp_tool",
             category="tool",
         ),
@@ -359,26 +362,29 @@ def build_mcp_tool_manifest(
     )
 
 
-def _build_mcp_react_manifest(
-    react_tool_name: str,
+def build_mcp_react_task_manifest(
+    tool_name: str,
     agent_name: str,
     server_name: str,
     description: str,
-) -> Any:
-    """Build a ToolManifest for the mcp_server_task_tool (iterative mode).
+    parameters: list[ParameterSchema],
+    semantic_keywords: list[str],
+    hitl_required: bool = False,
+) -> ToolManifest:
+    """Build a ToolManifest for an MCP iterative (ReAct) task tool.
 
+    Shared factory for both admin and user MCP iterative mode manifests.
     When iterative_mode=true, the planner sees this single tool instead of
     individual MCP server tools. The tool delegates to a ReAct sub-agent.
 
-    The manifest name MUST match the @tool function name registered in
-    ToolRegistry by ``_import_tool_modules()`` so parallel_executor can
-    find the tool at execution time.
-
     Args:
-        react_tool_name: Tool name matching the @tool function (e.g., "mcp_server_task_tool").
+        tool_name: Registered tool name (e.g., "mcp_excalidraw_task").
         agent_name: Agent name for domain routing.
-        server_name: MCP server name (injected as default parameter value).
+        server_name: Human-readable server name (for description text).
         description: Server description for LLM context.
+        parameters: List of ParameterSchema for the tool signature.
+        semantic_keywords: Keywords for semantic tool scoring.
+        hitl_required: Whether HITL approval is required.
 
     Returns:
         ToolManifest instance for the task delegation tool.
@@ -387,20 +393,76 @@ def _build_mcp_react_manifest(
         CostProfile,
         DisplayMetadata,
         OutputFieldSchema,
-        ParameterConstraint,
-        ParameterSchema,
         PermissionProfile,
         ToolManifest,
     )
 
     return ToolManifest(
-        name=react_tool_name,
+        name=tool_name,
         agent=agent_name,
         description=(
             f"Execute a multi-step task on the '{server_name}' MCP server using "
             f"an iterative agent. The agent reads documentation first, then "
             f"executes tools in sequence. Server description: {description}"
         ),
+        parameters=parameters,
+        outputs=[
+            OutputFieldSchema(
+                path="result",
+                type="string",
+                description="Task result from the MCP server",
+            )
+        ],
+        cost=CostProfile(
+            est_tokens_in=5000,
+            est_tokens_out=5000,
+            est_latency_ms=15000,
+        ),
+        permissions=PermissionProfile(
+            hitl_required=hitl_required,
+            data_classification="INTERNAL",
+        ),
+        context_key=CONTEXT_DOMAIN_MCP,
+        semantic_keywords=semantic_keywords,
+        display=DisplayMetadata(
+            emoji=MCP_DISPLAY_EMOJI,
+            i18n_key="mcp_tool",
+            category="tool",
+        ),
+        tool_category=None,
+    )
+
+
+def _build_mcp_react_manifest(
+    react_tool_name: str,
+    agent_name: str,
+    server_name: str,
+    description: str,
+) -> ToolManifest:
+    """Build a ToolManifest for an admin MCP iterative task tool.
+
+    Thin wrapper over build_mcp_react_task_manifest() with admin-specific
+    parameter schema (server_name + task).
+
+    Args:
+        react_tool_name: Registered tool name (e.g., "mcp_excalidraw_task").
+        agent_name: Agent name for domain routing.
+        server_name: MCP server name (injected as default parameter value).
+        description: Server description for LLM context.
+
+    Returns:
+        ToolManifest instance for the task delegation tool.
+    """
+    from src.domains.agents.registry.catalogue import (
+        ParameterConstraint,
+        ParameterSchema,
+    )
+
+    return build_mcp_react_task_manifest(
+        tool_name=react_tool_name,
+        agent_name=agent_name,
+        server_name=server_name,
+        description=description,
         parameters=[
             ParameterSchema(
                 name="server_name",
@@ -416,30 +478,8 @@ def _build_mcp_react_manifest(
                 description="Natural language description of the task to accomplish",
             ),
         ],
-        outputs=[
-            OutputFieldSchema(
-                path="result",
-                type="string",
-                description="Task result from the MCP server",
-            )
-        ],
-        cost=CostProfile(
-            est_tokens_in=5000,
-            est_tokens_out=5000,
-            est_latency_ms=15000,
-        ),
-        permissions=PermissionProfile(
-            hitl_required=False,
-            data_classification="INTERNAL",
-        ),
-        context_key=CONTEXT_DOMAIN_MCP,
         semantic_keywords=[server_name, "task", "iterative", "react"],
-        display=DisplayMetadata(
-            emoji=_MCP_DISPLAY_EMOJI,
-            i18n_key="mcp_tool",
-            category="tool",
-        ),
-        tool_category=None,
+        hitl_required=False,
     )
 
 

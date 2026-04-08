@@ -39,7 +39,7 @@ export function PsycheStateSummary({ lng, refreshKey = 0 }: PsycheStateSummaryPr
     }
     apiClient
       .get<PsycheState>('/psyche/state')
-      .then((fresh) => usePsycheStore.getState().updateFromFullState(fresh))
+      .then(fresh => usePsycheStore.getState().updateFromFullState(fresh))
       .catch(() => {});
   }, [refreshKey]);
 
@@ -64,13 +64,17 @@ export function PsycheStateSummary({ lng, refreshKey = 0 }: PsycheStateSummaryPr
           </div>
           {state && (
             <div className="flex gap-3 mt-0.5">
-              {([
-                ['P', state.mood_pleasure, 'text-sky-400'],
-                ['A', state.mood_arousal, 'text-amber-400'],
-                ['D', state.mood_dominance, 'text-violet-400'],
-              ] as const).map(([axis, val, color]) => (
+              {(
+                [
+                  ['P', state.mood_pleasure, 'text-sky-400'],
+                  ['A', state.mood_arousal, 'text-amber-400'],
+                  ['D', state.mood_dominance, 'text-violet-400'],
+                ] as const
+              ).map(([axis, val, color]) => (
                 <span key={axis} className={cn('text-[10px] font-mono', color)}>
-                  {axis}{val >= 0 ? '+' : ''}{val.toFixed(2)}
+                  {axis}
+                  {val >= 0 ? '+' : ''}
+                  {val.toFixed(2)}
                 </span>
               ))}
             </div>
@@ -114,7 +118,7 @@ export function PsycheStateSummary({ lng, refreshKey = 0 }: PsycheStateSummaryPr
           <div className="space-y-1.5">
             {state.active_emotions
               .sort((a, b) => b.intensity - a.intensity)
-              .map((emo) => {
+              .map(emo => {
                 const pct = Math.round(emo.intensity * 100);
                 return (
                   <div key={emo.name} className="flex items-center gap-2 text-xs">
@@ -155,7 +159,7 @@ export function PsycheStateSummary({ lng, refreshKey = 0 }: PsycheStateSummaryPr
             className={cn(
               'text-[10px] rounded-full px-2 py-0.5 font-semibold',
               moodConfig.bgClass,
-              moodConfig.textClass,
+              moodConfig.textClass
             )}
           >
             {t(`psyche.stages.${relationshipStage}`, relationshipStage)}
@@ -201,13 +205,38 @@ export function PsycheStateSummary({ lng, refreshKey = 0 }: PsycheStateSummaryPr
             {t('psyche.education.traits.title', 'Personality Traits')}
           </span>
           <div className="space-y-1">
-            {([
-              { key: 'O', value: state.trait_openness, label: t('psyche.education.traits.openness', 'Openness'), color: 'bg-violet-400' },
-              { key: 'C', value: state.trait_conscientiousness, label: t('psyche.education.traits.conscientiousness', 'Conscientiousness'), color: 'bg-emerald-400' },
-              { key: 'E', value: state.trait_extraversion, label: t('psyche.education.traits.extraversion', 'Extraversion'), color: 'bg-amber-400' },
-              { key: 'A', value: state.trait_agreeableness, label: t('psyche.education.traits.agreeableness', 'Agreeableness'), color: 'bg-sky-400' },
-              { key: 'N', value: state.trait_neuroticism, label: t('psyche.education.traits.neuroticism', 'Neuroticism'), color: 'bg-rose-400' },
-            ]).map(({ key, value, label, color }) => {
+            {[
+              {
+                key: 'O',
+                value: state.trait_openness,
+                label: t('psyche.education.traits.openness', 'Openness'),
+                color: 'bg-violet-400',
+              },
+              {
+                key: 'C',
+                value: state.trait_conscientiousness,
+                label: t('psyche.education.traits.conscientiousness', 'Conscientiousness'),
+                color: 'bg-emerald-400',
+              },
+              {
+                key: 'E',
+                value: state.trait_extraversion,
+                label: t('psyche.education.traits.extraversion', 'Extraversion'),
+                color: 'bg-amber-400',
+              },
+              {
+                key: 'A',
+                value: state.trait_agreeableness,
+                label: t('psyche.education.traits.agreeableness', 'Agreeableness'),
+                color: 'bg-sky-400',
+              },
+              {
+                key: 'N',
+                value: state.trait_neuroticism,
+                label: t('psyche.education.traits.neuroticism', 'Neuroticism'),
+                color: 'bg-rose-400',
+              },
+            ].map(({ key, value, label, color }) => {
               const pct = Math.round(value * 100);
               return (
                 <div key={key} className="flex items-center gap-2">
@@ -253,17 +282,23 @@ function PadBar({
       <div className="flex items-center justify-between text-[10px]">
         <span className="font-medium text-muted-foreground">{label}</span>
         <span className="font-mono text-muted-foreground/70">
-          {value >= 0 ? '+' : ''}{value.toFixed(2)}
+          {value >= 0 ? '+' : ''}
+          {value.toFixed(2)}
         </span>
       </div>
       <div className="flex items-center gap-1.5">
-        <span className="w-14 text-[9px] text-right text-muted-foreground/50 truncate">{negLabel}</span>
+        <span className="w-14 text-[9px] text-right text-muted-foreground/50 truncate">
+          {negLabel}
+        </span>
         <div className="flex-1 h-2 rounded-full bg-muted relative overflow-hidden">
           {/* Center marker */}
           <div className="absolute left-1/2 top-0 bottom-0 w-px bg-muted-foreground/20" />
           {/* Value fill */}
           <div
-            className={cn('absolute top-0 bottom-0 rounded-full transition-all duration-500', color)}
+            className={cn(
+              'absolute top-0 bottom-0 rounded-full transition-all duration-500',
+              color
+            )}
             style={{
               left: isPositive ? '50%' : `${50 - pct}%`,
               width: `${pct}%`,
@@ -278,15 +313,7 @@ function PadBar({
 }
 
 /* ── Mini circular-style gauge for relationship metrics ── */
-function MiniGauge({
-  label,
-  value,
-  color,
-}: {
-  label: string;
-  value: number;
-  color: string;
-}) {
+function MiniGauge({ label, value, color }: { label: string; value: number; color: string }) {
   const pct = Math.round(value * 100);
   // SVG ring gauge
   const radius = 18;
@@ -297,14 +324,11 @@ function MiniGauge({
     <div className="flex flex-col items-center gap-0.5">
       <div className="relative w-11 h-11">
         <svg className="w-full h-full -rotate-90" viewBox="0 0 44 44">
+          <circle cx="22" cy="22" r={radius} fill="none" className="stroke-muted" strokeWidth="3" />
           <circle
-            cx="22" cy="22" r={radius}
-            fill="none"
-            className="stroke-muted"
-            strokeWidth="3"
-          />
-          <circle
-            cx="22" cy="22" r={radius}
+            cx="22"
+            cy="22"
+            r={radius}
             fill="none"
             className={cn('transition-all duration-700', color.replace('bg-', 'stroke-'))}
             strokeWidth="3"

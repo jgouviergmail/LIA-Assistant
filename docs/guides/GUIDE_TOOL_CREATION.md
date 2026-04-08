@@ -579,6 +579,10 @@ class ToolManifest(BaseModel):
     permissions: PermissionProfile
     cost: CostProfile
     examples: list[dict] = Field(default_factory=list)
+    initiative_eligible: bool | None = None  # Eligible for proactive cross-domain enrichment
+                                             # None = auto-determined from category
+                                             #   (search/readonly = eligible, system = not eligible)
+                                             # False = exclude (browser, web search, structural listing, context tools)
 ```
 
 ### Exemple Complet
@@ -635,7 +639,8 @@ SEARCH_CONTACTS_MANIFEST = ToolManifest(
                 "count": 1
             }
         }
-    ]
+    ],
+    initiative_eligible=False,  # Search tool but too generic for proactive enrichment
 )
 ```
 

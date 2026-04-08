@@ -113,6 +113,7 @@ class TestSetupUserMCPTools:
         server.hitl_required = None
         server.domain_description = None
         server.tool_embeddings_cache = None
+        server.iterative_mode = False
 
         mock_repo = AsyncMock()
         mock_repo.get_enabled_active_for_user = AsyncMock(return_value=[server])
@@ -162,6 +163,7 @@ class TestSetupUserMCPTools:
         server.hitl_required = None
         server.domain_description = "Search ML models on HuggingFace Hub"
         server.tool_embeddings_cache = None
+        server.iterative_mode = False
 
         mock_repo = AsyncMock()
         mock_repo.get_enabled_active_for_user = AsyncMock(return_value=[server])
@@ -207,6 +209,7 @@ class TestSetupUserMCPTools:
         server.timeout_seconds = 30
         server.hitl_required = None
         server.domain_description = None
+        server.iterative_mode = False
         # Embeddings stored by raw MCP tool name
         server.tool_embeddings_cache = {
             "hub_search": {"description": [0.1, 0.2], "keywords": [[0.3, 0.4]]},
@@ -244,6 +247,136 @@ class TestSetupUserMCPTools:
                 assert ctx.tool_embeddings[adapter_name]["description"] == [0.1, 0.2]
             finally:
                 cleanup_user_mcp_tools(token)
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    @patch("src.infrastructure.mcp.user_context.settings")
+    @patch("src.domains.user_mcp.repository.UserMCPServerRepository")
+    @patch("src.infrastructure.mcp.user_context.get_user_mcp_pool")
+    @patch("src.infrastructure.mcp.user_context.build_auth_for_server")
+    async def test_iterative_mode_registers_task_tool(
+        self, mock_build_auth, mock_get_pool, mock_repo_cls, mock_settings
+    ) -> None:
+        """Should register a single task tool for iterative_mode servers."""
+        mock_settings.mcp_user_enabled = True
+        mock_settings.mcp_hitl_required = True
+        mock_settings.mcp_react_enabled = True
+
+        server = MagicMock()
+        server.id = uuid4()
+        server.name = "Excalidraw"
+        server.url = "https://mcp.excalidraw.com"
+        server.timeout_seconds = 60
+        server.hitl_required = None
+        server.domain_description = "Interactive diagram creation"
+        server.tool_embeddings_cache = None
+        server.iterative_mode = True
+
+        mock_repo = AsyncMock()
+        mock_repo.get_enabled_active_for_user = AsyncMock(return_value=[server])
+        mock_repo_cls.return_value = mock_repo
+
+        entry = MagicMock()
+        entry.tools = [
+            {"name": "create_view", "description": "Create diagram", "input_schema": {}},
+            {"name": "read_me", "description": "Read docs", "input_schema": {}},
+        ]
+        entry.reference_content = "Format reference docs"
+
+        mock_pool = AsyncMock()
+        mock_pool.get_or_connect = AsyncMock(return_value=entry)
+        mock_get_pool.return_value = mock_pool
+        mock_build_auth.return_value = MagicMock()
+
+        user_id = uuid4()
+        db = AsyncMock()
+
+        token = await setup_user_mcp_tools(user_id, db)
+        try:
+            assert token is not None
+            ctx = user_mcp_tools_ctx.get()
+            assert ctx is not None
+
+            server_prefix = str(server.id)[:8]
+            task_tool_name = f"mcp_user_{server_prefix}_task"
+
+            # Task tool should be in instances
+            assert task_tool_name in ctx.tool_instances
+
+            # Individual tools should also be in instances (for ReAct agent)
+            individual_tools = [
+                k
+                for k in ctx.tool_instances
+                if k.startswith(f"mcp_user_{server_prefix}_") and k != task_tool_name
+            ]
+            assert len(individual_tools) == 2  # create_view + read_me
+
+            # Only one manifest (the task tool), not individual tools
+            assert len(ctx.tool_manifests) == 1
+            assert ctx.tool_manifests[0].name == task_tool_name
+
+            # Server should be in iterative_servers set
+            assert "excalidraw" in ctx.iterative_servers
+
+            # reference_content still cached (for display, not planner injection)
+            assert "Excalidraw" in ctx.server_reference_content
+        finally:
+            cleanup_user_mcp_tools(token)
+
+    @pytest.mark.unit
+    @pytest.mark.asyncio
+    @patch("src.infrastructure.mcp.user_context.settings")
+    @patch("src.domains.user_mcp.repository.UserMCPServerRepository")
+    @patch("src.infrastructure.mcp.user_context.get_user_mcp_pool")
+    @patch("src.infrastructure.mcp.user_context.build_auth_for_server")
+    @patch("src.infrastructure.mcp.user_context._build_user_tool_manifest")
+    async def test_iterative_mode_disabled_when_react_disabled(
+        self, mock_manifest, mock_build_auth, mock_get_pool, mock_repo_cls, mock_settings
+    ) -> None:
+        """Should fall back to standard mode when mcp_react_enabled=False."""
+        mock_settings.mcp_user_enabled = True
+        mock_settings.mcp_hitl_required = True
+        mock_settings.mcp_react_enabled = False
+
+        server = MagicMock()
+        server.id = uuid4()
+        server.name = "TestServer"
+        server.url = "https://example.com"
+        server.timeout_seconds = 30
+        server.hitl_required = None
+        server.domain_description = None
+        server.tool_embeddings_cache = None
+        server.iterative_mode = True  # Enabled but mcp_react_enabled=False
+
+        mock_repo = AsyncMock()
+        mock_repo.get_enabled_active_for_user = AsyncMock(return_value=[server])
+        mock_repo_cls.return_value = mock_repo
+
+        entry = MagicMock()
+        entry.tools = [
+            {"name": "test_tool", "description": "Test", "input_schema": {}},
+        ]
+        entry.reference_content = None
+
+        mock_pool = AsyncMock()
+        mock_pool.get_or_connect = AsyncMock(return_value=entry)
+        mock_get_pool.return_value = mock_pool
+        mock_build_auth.return_value = MagicMock()
+        mock_manifest.return_value = MagicMock()
+
+        user_id = uuid4()
+        token = await setup_user_mcp_tools(user_id, AsyncMock())
+        try:
+            ctx = user_mcp_tools_ctx.get()
+            assert ctx is not None
+
+            # Standard mode: individual tool registered, no task tool
+            assert len(ctx.tool_instances) == 1
+            server_prefix = str(server.id)[:8]
+            assert f"mcp_user_{server_prefix}_task" not in ctx.tool_instances
+            assert len(ctx.iterative_servers) == 0
+        finally:
+            cleanup_user_mcp_tools(token)
 
 
 class TestResolveToolName:

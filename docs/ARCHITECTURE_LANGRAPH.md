@@ -342,10 +342,13 @@ LIA utilise **LangGraph v1.1.2** avec exécution parallèle native **asyncio** p
 │   • Memory facts + User interests (injected)                    │
 ├─────────────────────────────────────────────────────────────────┤
 │ TRAITEMENT                                                      │
-│   1. Pre-filter: domaines adjacents read-only disponibles?      │
-│   2. Format execution summary + adjacent tools                  │
+│   1. Pre-filter: domaines adjacents initiative-eligible?         │
+│      (cross-domain only: already-executed domains excluded)      │
+│   2. Format execution summary + initiative-eligible tools        │
+│      (filtered via `initiative_eligible` field on ToolManifest   │
+│       and `is_initiative_eligible()` helper)                     │
 │   3. LLM structured output → InitiativeDecision                 │
-│   4. Si should_act: execute_plan_parallel (read-only tools)     │
+│   4. Si should_act: execute_plan_parallel (initiative-eligible)  │
 │   5. Merge initiative results into agent_results + registry     │
 │   6. Suggestion field for response_node context                 │
 ├─────────────────────────────────────────────────────────────────┤
@@ -366,6 +369,8 @@ LIA utilise **LangGraph v1.1.2** avec exécution parallèle native **asyncio** p
 **Initiative registry protection** (v1.14.4): Initiative results now include `registry_ids` — the list of registry item IDs produced by initiative actions. In `response_node`, these IDs are collected and re-injected after intelligent filtering, ensuring proactive suggestions (e.g., weather cards, upcoming event reminders) are never silently dropped by the response LLM's relevance filtering.
 
 **Initiative skip after HITL** (v1.14.5): The initiative node now short-circuits (skips execution entirely) when `draft_action_result`, `entity_disambiguation_result`, or `tool_confirmation_result` is present in state. These fields indicate a HITL interaction was just resolved, meaning the current graph re-entry is a continuation rather than a fresh turn — running initiative analysis would be redundant and potentially disruptive.
+
+**Cross-domain filtering**: The initiative node only considers tools from domains that were **not** already executed during the current turn. This prevents redundant calls and ensures initiative enrichment is strictly cross-domain. Tool eligibility is determined by the `initiative_eligible` field on `ToolManifest` and the `is_initiative_eligible()` function, replacing the former "read-only tools" heuristic with an explicit opt-in mechanism.
 
 ### 2.8 hitl_dispatch_node
 

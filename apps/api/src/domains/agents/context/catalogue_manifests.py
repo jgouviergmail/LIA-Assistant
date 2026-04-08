@@ -92,6 +92,7 @@ resolve_reference_catalogue_manifest = ToolManifest(
     display=DisplayMetadata(
         emoji="🔗", i18n_key="resolve_reference", visible=True, category="context"
     ),
+    initiative_eligible=False,  # System context tool, not enrichment data
 )
 
 # ============================================================================
@@ -120,6 +121,7 @@ set_current_item_catalogue_manifest = ToolManifest(
     display=DisplayMetadata(
         emoji="📌", i18n_key="set_current_item", visible=True, category="context"
     ),
+    initiative_eligible=False,  # System context tool, not enrichment data
 )
 
 # ============================================================================
@@ -143,6 +145,7 @@ get_context_state_catalogue_manifest = ToolManifest(
     display=DisplayMetadata(
         emoji="📊", i18n_key="get_context_state", visible=False, category="context"
     ),
+    initiative_eligible=False,  # System context tool, not enrichment data
 )
 
 # ============================================================================
@@ -166,6 +169,7 @@ list_active_domains_catalogue_manifest = ToolManifest(
     display=DisplayMetadata(
         emoji="📁", i18n_key="list_active_domains", visible=False, category="context"
     ),
+    initiative_eligible=False,  # System context tool, not enrichment data
 )
 
 # ============================================================================
@@ -199,4 +203,5 @@ get_context_list_catalogue_manifest = ToolManifest(
     display=DisplayMetadata(
         emoji="📝", i18n_key="get_context_list", visible=True, category="context"
     ),
+    initiative_eligible=False,  # System context tool, not enrichment data
 )

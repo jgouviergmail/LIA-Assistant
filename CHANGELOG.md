@@ -5,7 +5,60 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.15.0] - 2026-04-08
+
+### Added
+
+- **User MCP ReAct Iterative Mode** — User-configured MCP servers with `iterative_mode=true` now delegate to a ReAct sub-agent (same as admin MCP). The planner sees a single `mcp_user_{id}_task` tool per server; the ReAct agent reads documentation first, then executes tools iteratively with error recovery. Shared factory `build_mcp_react_task_manifest()` eliminates manifest duplication between admin and user MCP paths.
+- **MCP App Dedicated LLM** — New LLM type `mcp_app_react_agent` (category: Domain Agents) auto-selected for MCP servers with interactive widgets (`app_resource_uri`). Defaults to Opus for complex multi-step workflows (e.g., Excalidraw). Regular MCP servers continue using `mcp_react_agent`. Detection is automatic via `_has_mcp_app_tools()` — no configuration needed.
+- **3-Phase Memory Reference Resolution** — `MemoryResolver` now uses a 3-phase architecture: Phase 1 (LLM nano extracts personal references like "ma femme", "mon frère" from the query), Phase 2 (per-reference targeted memory search in parallel with higher similarity threshold), Phase 3 (LLM resolves references using targeted facts). Phase 1 and broad memory retrieval run concurrently. Produces higher similarity scores than embedding the full query, reducing noise. New LLM type: `memory_reference_extraction`. New prompt: `memory_reference_extraction_prompt.txt`.
+- **Initiative Eligibility Field** — New `initiative_eligible: bool | None` field on `ToolManifest` for fine-grained control over which tools are available during the initiative phase. New `is_initiative_eligible()` function replaces the coarser `is_read_only_tool()` heuristic. ~30 catalogue manifests annotated with `initiative_eligible=False` (web search, browser, context, structural listing tools).
+- **Error Classification System** — New centralized `SSEErrorMessages._classify_error()` classifier with categories: `transient` (overload, rate limit), `content_filter` (provider safety blocks), `timeout`, and `unknown`. New localized user messages for `content_filter` and `timeout` errors across all 6 languages.
+- **Query Analyzer LLM Timeout** — New `query_analyzer_llm_timeout_seconds` setting (default: 10s) with `asyncio.wait_for()` guard on the query analyzer LLM call.
+
+### Changed
+
+- **Unified Planner Prompt** — `smart_planner_prompt.txt` now serves both single-domain and multi-domain queries via `is_multi_domain` / `primary_domain` parameters. `get_smart_planner_multi_domain_prompt()` is a backward-compatible wrapper. Eliminates the duplicated `smart_planner_multi_domain_prompt.txt` template.
+- **Token Optimization — Prompts** — Compressed `query_analyzer_prompt.txt` (~50%), `response_system_prompt_base.txt` (~45%), `initiative_prompt.txt` (~30%), `for_each_directive_prompt.txt` (~70%), `smart_planner_prompt.txt` (~35%). Empty optional sections (skills, RAG, journal, knowledge) no longer inject empty XML tags.
+- **Token Optimization — Catalogue & Initiative** — Catalogue JSON now uses compact separators (no indent). Initiative tool format uses one-line-per-tool with inline params (~70% reduction).
+- **Initiative Cross-Domain Only** — Initiative node now excludes already-executed domains from adjacent tool search, ensuring only cross-domain enrichment checks are performed.
+- **Reminder Cancellation Requires Confirmation** — `cancel_reminder` tool now has `hitl_required=True`, requiring user confirmation before cancelling reminders.
+- **Error Message Security Hardening** — All SSE error messages no longer leak exception type names or technical details to end users. Error type metadata in stream chunks replaced with generic `"stream_error"`.
+- **Resolved Context ID Aliases** — `ResolvedContext.to_prompt_context()` now injects tool-parameter aliases for ID fields (e.g., `id` → `event_id`, `resourceName` → `resource_name`), reducing planner hallucination of `$steps` references for pre-resolved entities.
+- **Weather Date Formatting** — Removed `date_formatted` from weather API payloads; card components now use `format_full_date()` with user's language for locale-aware display.
+- **Catalogue Descriptions Streamlined** — Tool descriptions for calendar, email, contacts, and tasks use compact `USAGE` format replacing verbose `MODES` sections. ID parameters reference `$steps or CONTEXT` instead of generic descriptions.
+- **Contact Search Fallback** — `GetContactDetailsTool` now retries failed batch fetches as name searches, handling cases where the planner puts names in `resource_names` instead of real IDs.
+- **MCP Excalidraw LLM Dead Code Cleanup** — Removed unused `mcp_excalidraw_llm_*` settings (~80 lines in `config/mcp.py`, 8 constants) left over from pre-ADR-062 iterative builder. Renamed LLM type `mcp_excalidraw` → `mcp_app_react_agent` in admin panel. Removed `MCP_EXCALIDRAW_STEP_TIMEOUT_SECONDS` env var.
+
+### Fixed
+
+- **Resolved Context Restoration** — `get_query_intelligence_from_state()` now restores `resolved_context` from its separate state key when reconstructing `QueryIntelligence` from dict. Previously, `resolved_context` was always `None` after reconstruction, causing the planner to miss pre-resolved entity IDs for REFERENCE_ACTION turns.
+- **Initiative Turn Filtering** — `_format_execution_summary()` now filters `agent_results` by `current_turn_id`, preventing stale data from previous turns leaking into the initiative prompt.
+- **Plural Demonstrative Patterns** — `ReferenceResolver.DEMONSTRATIVE_PATTERNS` now includes `\bthese\s+\w+` and `\bthose\s+\w+` for plural demonstrative detection (e.g., "delete these emails").
+- **Localized Date Parsing** — Weather tools now parse localized date strings (e.g., "jeudi 09 avril 2026") via `_parse_localized_date()` with support for FR, EN, DE, ES, IT month names. Handles cases where the planner outputs dates in the user's language instead of ISO format.
+- **Context Resolution Demonstratives** — Context resolver now receives the semantic pivot query (which preserves demonstratives like "these/this/that") instead of the QA's `english_query` (which resolves them away), fixing demonstrative detection for REFERENCE_ACTION turns.
+- **HITL Nested Error Localization** — Nested HITL Redis save errors now use `SSEErrorMessages.generic_error()` with user language instead of hardcoded French message.
+- **Chat Reducer Error Prefix** — Frontend chat reducer no longer prepends "Erreur:" to error messages (backend messages are already localized).
+- **For Each Heuristics** — `_get_plural_collection_hints()` and `_get_collection_key_for_domain()` now derive from `DOMAIN_REGISTRY` instead of hardcoded lists, preventing drift when new domains are added.
+- **User MCP `iterative_mode` Not Returned** — `_server_to_response()` in user MCP router was missing `iterative_mode=server.iterative_mode`, always returning `False` to the frontend regardless of the DB value. Toggle appeared non-functional.
+- **MCP Admin Servers Not Loading (DEV)** — `.env` line `MCP_SERVERS_CONFIG_PATH=  # comment` had inline comment parsed as file path value, causing `mcp_config_file_not_found` → `mcp_no_servers_configured` at startup. "MCP Applicatifs" section was invisible in Preferences.
+- **MCP ReAct Error Recovery** — `_MCPReActWrapper._arun()` now catches all exceptions (including `ExceptionGroup` from anyio/MCP SDK) and returns error messages as strings to the ReAct agent instead of crashing the sub-agent loop. The ReAct agent can now reason about MCP tool errors and retry with corrected parameters. Affects all MCP iterative servers (admin + user).
+
+### Documentation
+
+- Updated MEMORY_RESOLUTION.md with 3-phase architecture.
+- Updated PROMPTS.md with new prompt file and unified planner.
+- Updated AGENT_MANIFEST.md and tool creation guides with `initiative_eligible` field.
+- Updated ADR-062 with initiative eligibility and cross-domain-only amendments.
+- Updated ADR-023 with `_classify_error()` and new error categories.
+- Updated LLM_CONFIG_ADMIN.md with `memory_reference_extraction` LLM type.
+- Updated SMART_SERVICES.md with unified planner prompt.
+- Updated FAQ changelog (6 languages) with `memory_reference_extraction` i18n key.
+- Updated MCP_INTEGRATION.md with user MCP iterative mode support.
+- Updated ADR-062 with user MCP ReAct sub-agent extension.
+- Updated GUIDE_MCP_INTEGRATION.md with user MCP iterative mode section.
+- Updated LLM_CONFIG constants: renamed `mcp_excalidraw` → `mcp_app_react_agent`, moved to Domain Agents category.
+- Updated knowledge base `11_mcp_servers.md` with iterative mode explanation.
 
 ## [1.14.5] - 2026-04-07
 

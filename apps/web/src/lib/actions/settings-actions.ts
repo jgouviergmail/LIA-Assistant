@@ -117,15 +117,17 @@ export async function toggleUserActive(
  * @param userId - The ID of the user to delete
  * @param reason - Optional reason for deletion
  */
-export async function deleteUserAccount(
-  userId: string,
-  reason?: string,
-): Promise<ActionResponse> {
+export async function deleteUserAccount(userId: string, reason?: string): Promise<ActionResponse> {
   try {
     const apiServer = await createServerApiClient();
-    await apiServer.delete(`/users/admin/${userId}/delete-account`, reason ? {
-      body: JSON.stringify({ reason }),
-    } : undefined);
+    await apiServer.delete(
+      `/users/admin/${userId}/delete-account`,
+      reason
+        ? {
+            body: JSON.stringify({ reason }),
+          }
+        : undefined
+    );
 
     return {
       success: true,

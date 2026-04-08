@@ -23,7 +23,7 @@ class TestGetLLMConfigForAgent:
 
         assert isinstance(config, LLMAgentConfig)
         assert config.provider == "openai"
-        assert config.model == "gpt-4.1-mini"
+        assert config.model == "gpt-5-mini"
         assert config.temperature == 0.2
         assert config.max_tokens == 1000
 
@@ -82,7 +82,7 @@ class TestGetLLMConfigForAgent:
         special_types = [
             "heartbeat_decision",
             "heartbeat_message",
-            "mcp_excalidraw",
+            "mcp_app_react_agent",
             "mcp_description",
             "memory_extraction",
             "interest_extraction",
@@ -100,6 +100,6 @@ class TestGetLLMConfigForAgent:
         config = get_llm_config_for_agent(settings, "response")
 
         assert config.temperature == 0.9
-        assert config.model == "claude-sonnet-4-6"  # Default preserved
-        assert config.max_tokens == 5000  # Default preserved
-        assert config.provider == "anthropic"  # Default preserved
+        assert config.model == "qwen3.5-plus"  # Default preserved
+        assert config.max_tokens == 8000  # Default preserved
+        assert config.provider == "qwen"  # Default preserved

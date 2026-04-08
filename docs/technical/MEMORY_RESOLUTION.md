@@ -1,10 +1,10 @@
 # Memory Reference Resolution Service
 
-> Documentation technique du service `MemoryReferenceResolutionService` pour la résolution d'entités relationnelles pré-planner.
+> Documentation technique de la résolution d'entités relationnelles pré-planner (3-phase architecture).
 
-**Date**: 2026-01-12
-**Version**: 1.1.0 (Architecture v3 - integration QueryAnalyzerService)
-**Source**: `apps/api/src/domains/agents/services/memory_reference_resolution_service.py`
+**Date**: 2026-04-08
+**Version**: 2.0.0 (3-phase architecture — LLM extraction + targeted search + resolution)
+**Source**: `apps/api/src/domains/agents/services/analysis/memory_resolver.py`
 
 ---
 
@@ -46,137 +46,142 @@ Le **Memory Reference Resolution Service** résout les références implicites b
 
 ## Architecture
 
+### 3-Phase Architecture (v2.0 — 2026-04-08)
+
+The resolution pipeline runs inside `MemoryResolver.retrieve_and_resolve()` during
+`QueryAnalyzerService.analyze_full()` (Step 1). It replaces the previous regex-based
+pattern detection with an LLM-based extraction for language-agnostic reference detection.
+
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        ROUTER NODE                               │
-│  1. Semantic search → memory_facts                              │
-│  2. Calls MemoryReferenceResolutionService.resolve_pre_planner()│
-└──────────────────────────────┬──────────────────────────────────┘
-                               │
-                               ▼
-┌─────────────────────────────────────────────────────────────────┐
-│              MEMORY REFERENCE RESOLUTION SERVICE                 │
-│                                                                  │
-│  ┌──────────────────┐    ┌──────────────────┐                   │
-│  │ Pattern Detection │────▶│ LLM Micro-Call   │                   │
-│  │ (56 regex)       │    │ (gpt-4.1-mini)   │                   │
-│  └──────────────────┘    └────────┬─────────┘                   │
-│                                   │                              │
-│                                   ▼                              │
-│                          ┌───────────────┐                       │
-│                          │ResolvedRefs   │                       │
-│                          │- enriched_query│                       │
-│                          │- mappings      │                       │
-│                          └───────────────┘                       │
-└──────────────────────────────┬──────────────────────────────────┘
-                               │
-                               ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                        PLANNER NODE                              │
-│  Uses enriched_query with resolved entity names                  │
-└─────────────────────────────────────────────────────────────────┘
-                               │
-                               ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                       RESPONSE NODE                              │
-│  Uses mappings for natural phrasing:                             │
-│  "J'ai trouvé l'adresse de ton frère (jean dupond)"       │
-└─────────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────────────┐
+│                    QUERY ANALYZER SERVICE (Step 1)                         │
+│                                                                           │
+│  ┌─────────────────────┐     ┌──────────────────────────────┐            │
+│  │ BROAD RETRIEVAL      │     │ PHASE 1: REFERENCE EXTRACTION │            │
+│  │ Full query embedding │     │ LLM nano (2s timeout)         │            │
+│  │ → memory_facts       │     │ → ["ma femme", "mon fils"]    │            │
+│  └──────────┬──────────┘     └──────────────┬───────────────┘            │
+│             │         (parallel)             │                             │
+│             ▼                                ▼                             │
+│  ┌─────────────────────┐     ┌──────────────────────────────┐            │
+│  │ For planner context  │     │ PHASE 2: TARGETED SEARCH      │            │
+│  │ (general awareness)  │     │ Per-reference embedding        │            │
+│  └─────────────────────┘     │ (parallel, higher threshold)  │            │
+│                               │ → targeted_facts per ref      │            │
+│                               └──────────────┬───────────────┘            │
+│                                              │                             │
+│                                              ▼                             │
+│                               ┌──────────────────────────────┐            │
+│                               │ PHASE 3: LLM RESOLUTION       │            │
+│                               │ MemoryReferenceResolutionSvc  │            │
+│                               │ → ResolvedReferences          │            │
+│                               │   - enriched_query            │            │
+│                               │   - mappings                  │            │
+│                               └──────────────┬───────────────┘            │
+│                                              │                             │
+└──────────────────────────────────────────────┼─────────────────────────────┘
+                                               │
+                                               ▼
+                              ┌──────────────────────────────┐
+                              │         PLANNER NODE          │
+                              │ Uses enriched_query + mappings│
+                              └──────────────────────────────┘
 ```
+
+### Why 3 Phases?
+
+Embedding the full query (e.g., "envoie un email à ma femme et mon frère") produces
+poor cosine similarity with specific memory entries like "Mon épouse s'appelle Corinne"
+because the semantic signal is diluted by the action context. By extracting references
+first and embedding each one separately ("ma femme", "mon frère"), the targeted search
+yields higher similarity scores, allowing a higher threshold and less noise.
+
+### Concurrency Model
+
+- Phase 1 (extraction) and broad retrieval run **in parallel** via `asyncio.gather`
+- Phase 2 per-reference searches run **in parallel** via `asyncio.gather`
+- Phase 3 (resolution) is sequential (single LLM call with all targeted facts)
 
 ---
 
 ## Flow de Résolution
 
-### Séquence Détaillée
+### Séquence Détaillée (3-Phase)
 
 ```
 1. USER QUERY
    "recherche l'adresse de mon frère"
    │
-   ▼
-2. ROUTER NODE
-   ├─ Semantic search on memories → memory_facts
-   │  "J'ai un frère né en 1981, jean dupond"
-   │
-   ├─ Calls resolve_pre_planner(query, memory_facts)
-   │
-   ▼
-3. PATTERN DETECTION
-   ├─ Regex: \b(?:mon|ma)\s+frère\b
-   ├─ Match: "mon frère"
-   │
-   ▼
-4. LLM MICRO-CALL (timeout: 2000ms)
-   ├─ Prompt: "Faits: {memory_facts}\nQuestion: Qui est {mon frère}?"
-   ├─ Response: "jean dupond"
-   │
-   ▼
-5. RESOLVED REFERENCES
-   {
-     original_query: "recherche l'adresse de mon frère",
-     enriched_query: "recherche l'adresse de jean dupond",
-     mappings: {"mon frère": "jean dupond"}
-   }
-   │
-   ▼
-6. PLANNER (uses enriched_query)
+   ├──────────────────────────────┐
+   ▼                              ▼
+2a. BROAD RETRIEVAL          2b. PHASE 1: LLM EXTRACTION (2s timeout)
+    Full query embedding          Prompt: memory_reference_extraction_prompt
+    → memory_facts: [             → references: ["mon frère"]
+      "J'ai un frère jean dupond"
+    ]
+   │                              │
+   │                              ▼
+   │                         3. PHASE 2: TARGETED SEARCH (parallel)
+   │                            Embed "mon frère" separately
+   │                            → targeted_facts: [
+   │                                "J'ai un frère jean dupond"
+   │                              ]  (higher similarity score)
+   │                              │
+   │                              ▼
+   │                         4. PHASE 3: LLM RESOLUTION
+   │                            MemoryReferenceResolutionService
+   │                            facts: targeted_facts
+   │                            → ResolvedReferences:
+   │                              enriched_query: "recherche l'adresse de jean dupond"
+   │                              mappings: {"mon frère": "jean dupond"}
+   │                              │
+   ▼                              ▼
+5. PLANNER receives:
+   - memory_facts (from 2a, for general context)
+   - enriched_query (from Phase 3, for entity names)
    Plan: search_contacts_tool(query="jean dupond")
    │
    ▼
-7. RESPONSE (uses mappings)
+6. RESPONSE uses mappings:
    "Voici l'adresse de ton frère (jean dupond): ..."
 ```
 
+### Fallback Paths
+
+- If Phase 1 (extraction) times out or fails → no references → fallback to broad facts for resolution
+- If Phase 2 (targeted search) returns empty → fallback to broad facts for resolution
+- If Phase 3 (resolution) fails → return None, planner uses original query
+
 ---
 
-## Patterns Relationnels
+## Reference Detection
 
-Le service détecte **56 patterns relationnels** via regex, organisés par catégorie.
+### LLM-Based Extraction (v2.0)
 
-### Famille - Core (16 patterns)
+Reference detection is now handled by a lightweight LLM call (Phase 1) instead of
+regex patterns. This makes the system **language-agnostic** — it works for all 6
+supported languages without maintaining per-language regex patterns.
 
-| Pattern | Type | Exemple |
-|---------|------|---------|
-| `\b(?:mon\|ma)\s+frère\b` | brother | "mon frère" |
-| `\b(?:mon\|ma)\s+sœur\b` | sister | "ma sœur" |
-| `\b(?:mon\|ma)\s+(?:femme\|épouse)\b` | wife | "ma femme", "mon épouse" |
-| `\b(?:mon\|ma)\s+(?:mari\|époux)\b` | husband | "mon mari" |
-| `\b(?:mon\|ma)\s+fils\b` | son | "mon fils" |
-| `\b(?:mon\|ma)\s+fille\b` | daughter | "ma fille" |
-| `\b(?:mon\|ma)\s+(?:père\|papa)\b` | father | "mon père", "mon papa" |
-| `\b(?:mon\|ma)\s+(?:mère\|maman)\b` | mother | "ma mère", "ma maman" |
+**Prompt**: `memory_reference_extraction_prompt.txt`
+**LLM type**: `memory_reference_extraction` (nano model, 2s timeout)
 
-### Famille - Extended (12 patterns)
+The LLM extracts any expression that designates a person, place, or entity through
+a relationship or possession rather than by name:
 
-| Pattern | Type | Exemple |
-|---------|------|---------|
-| `\b(?:mon\|ma)\s+(?:grand-père\|papy\|papi)\b` | grandfather | "mon grand-père" |
-| `\b(?:mon\|ma)\s+(?:grand-mère\|mamie\|mamy)\b` | grandmother | "ma grand-mère" |
-| `\b(?:mon\|ma)\s+(?:oncle\|tonton)\b` | uncle | "mon oncle" |
-| `\b(?:mon\|ma)\s+(?:tante\|tata)\b` | aunt | "ma tante" |
-| `\b(?:mon\|ma)\s+(?:cousin\|cousine)\b` | cousin | "mon cousin" |
-| `\b(?:mon\|ma)\s+neveu\b` | nephew | "mon neveu" |
-| `\b(?:mon\|ma)\s+nièce\b` | niece | "ma nièce" |
+| Query | Extracted References |
+|-------|---------------------|
+| "envoie un email à mon voisin et mon père" | `["mon voisin", "mon père"]` |
+| "appelle mon frère" | `["mon frère"]` |
+| "quelle est l'adresse de Jean Dupont ?" | `[]` (named entity, no resolution needed) |
+| "météo demain à Paris" | `[]` |
+| "dis à la petite que je l'aime" | `["la petite"]` |
 
-### Social (20 patterns)
+### Migration Note (v1 → v2)
 
-| Pattern | Type | Exemple |
-|---------|------|---------|
-| `\b(?:mon\|ma)\s+(?:ami\|amie\|pote\|copain\|copine)\b` | friend | "mon ami", "ma copine" |
-| `\b(?:mon\|ma)\s+(?:meilleur(?:e)?\s+ami(?:e)?)\b` | best_friend | "ma meilleure amie" |
-| `\b(?:mon\|ma)\s+collègue\b` | colleague | "mon collègue" |
-| `\b(?:mon\|ma)\s+(?:patron\|boss\|chef)\b` | boss | "mon patron" |
-| `\b(?:mon\|ma)\s+(?:médecin\|docteur)\b` | doctor | "mon médecin" |
-| `\b(?:mon\|ma)\s+dentiste\b` | dentist | "mon dentiste" |
-| `\b(?:mon\|ma)\s+avocat\b` | lawyer | "mon avocat" |
-| `\b(?:mon\|ma)\s+comptable\b` | accountant | "ma comptable" |
-
-### Generic (8 patterns)
-
-| Pattern | Type | Exemple |
-|---------|------|---------|
-| `\b(?:mon\|ma)\s+(?:ami\|amie)\s+(\w+)\b` | friend_named | "mon ami Jean" |
+The previous regex-based approach (56 French patterns in `MemoryReferenceResolutionService`)
+still exists for Phase 3 (resolution) but pattern **detection** is now fully LLM-driven.
+This eliminates the need to maintain language-specific regex patterns and handles edge
+cases (nicknames, regional expressions, non-standard possessives) that regex could not.
 
 ---
 
@@ -343,41 +348,40 @@ Le service est conçu pour **ne jamais bloquer** la conversation.
 
 ### Comportements Fail-Safe
 
-| Condition | Comportement |
-|-----------|--------------|
-| `memory_facts` is None/empty | Return original query |
-| No patterns match | Return original query |
-| LLM call fails | Return original query |
-| LLM timeout (>2s) | Return original query |
-| Invalid LLM response | Return original query |
+| Phase | Condition | Comportement |
+|-------|-----------|--------------|
+| Phase 1 (extraction) | LLM timeout (>2s) | Return `[]` → fallback to broad facts |
+| Phase 1 (extraction) | LLM error | Return `[]` → fallback to broad facts |
+| Phase 2 (targeted search) | All searches fail | Return None → fallback to broad facts |
+| Phase 2 (targeted search) | No facts found | Return None → fallback to broad facts |
+| Phase 3 (resolution) | LLM call fails | Return None → planner uses original query |
+| All phases | No references + no broad facts | Return (None, None) → no resolution |
 
-### Code
+### Code (MemoryResolver.retrieve_and_resolve)
 
 ```python
-async def resolve_pre_planner(self, query, memory_facts, ...):
-    # Fail-safe 1: No memory facts
-    if not memory_facts:
-        return ResolvedReferences(original_query=query, enriched_query=query)
+async def retrieve_and_resolve(self, query, user_id, config):
+    # Parallel: broad retrieval + Phase 1 extraction
+    memory_facts, references = await asyncio.gather(
+        self._retrieve_memory_facts(query, user_id, config),
+        self._extract_references(query, config),
+    )
 
-    # Fail-safe 2: No patterns match
-    detected = self._detect_relational_references(query)
-    if not detected:
-        return ResolvedReferences(original_query=query, enriched_query=query)
+    if references:
+        # Phase 2: targeted search per reference (parallel)
+        targeted_facts = await self._search_memories_targeted(references, user_id, config)
 
-    # Fail-safe 3: LLM call with timeout
-    for reference in detected:
-        try:
-            resolved = await asyncio.wait_for(
-                self._resolve_reference_via_llm(reference, memory_facts),
-                timeout=timeout_seconds,
-            )
-        except asyncio.TimeoutError:
-            logger.warning("memory_resolution_timeout")
-            continue  # Don't fail completely
-        except Exception:
-            continue  # Don't fail completely
+        if targeted_facts:
+            # Phase 3: resolve using targeted facts
+            resolved = await self._resolve_memory_references(query, targeted_facts, config)
+        elif memory_facts:
+            # Fallback: broad facts if targeted search found nothing
+            resolved = await self._resolve_memory_references(query, memory_facts, config)
+    elif memory_facts:
+        # No references extracted → try resolution with broad facts anyway
+        resolved = await self._resolve_memory_references(query, memory_facts, config)
 
-    return ResolvedReferences(...)
+    return memory_facts, resolved
 ```
 
 ---
@@ -493,11 +497,14 @@ result = await llm.ainvoke(prompt, config=config)
 
 | Fichier | Description |
 |---------|-------------|
-| `services/memory_reference_resolution_service.py` | Service principal |
-| `prompts/v1/memory_reference_resolution_prompt.txt` | Template prompt LLM |
-| `nodes/router_node_v3.py` | Intégration router |
+| `services/analysis/memory_resolver.py` | Orchestrator (3-phase pipeline) |
+| `services/memory_reference_resolution_service.py` | Phase 3: LLM resolution service |
+| `prompts/v1/memory_reference_extraction_prompt.txt` | Phase 1: extraction prompt |
+| `prompts/v1/memory_reference_resolution_prompt.txt` | Phase 3: resolution prompt |
+| `services/query_analyzer_service.py` | Integration (Step 1 of analyze_full) |
 | `models.py` | STATE_KEY definition |
 | `core/config/agents.py` | Configuration settings |
+| `domains/llm_config/constants.py` | LLM type: memory_reference_extraction |
 
 ---
 

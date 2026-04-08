@@ -82,7 +82,7 @@ export function PsycheSettings({ lng }: PsycheSettingsProps) {
         toast.error(t('psyche.settingsError', 'Failed to update settings'));
       }
     },
-    [updateSettings, t],
+    [updateSettings, t]
   );
 
   const handleSliderCommit = useCallback(
@@ -94,7 +94,7 @@ export function PsycheSettings({ lng }: PsycheSettingsProps) {
         toast.error(t('psyche.settingsError', 'Failed to update settings'));
       }
     },
-    [updateSettings, t],
+    [updateSettings, t]
   );
 
   const handleReset = useCallback(
@@ -106,7 +106,7 @@ export function PsycheSettings({ lng }: PsycheSettingsProps) {
         toast.error(t('psyche.resetError', 'Failed to reset psyche state'));
       }
     },
-    [resetPsyche, t],
+    [resetPsyche, t]
   );
 
   return (
@@ -122,12 +122,15 @@ export function PsycheSettings({ lng }: PsycheSettingsProps) {
           <div className="space-y-0.5">
             <Label>{t('psyche.enable', 'Enable Psyche Engine')}</Label>
             <p className="text-xs text-muted-foreground">
-              {t('psyche.enableDescription', 'LIA develops emotional states that influence conversation style')}
+              {t(
+                'psyche.enableDescription',
+                'LIA develops emotional states that influence conversation style'
+              )}
             </p>
           </div>
           <Switch
             checked={settings?.psyche_enabled ?? false}
-            onCheckedChange={(v) => handleToggle('psyche_enabled', v)}
+            onCheckedChange={v => handleToggle('psyche_enabled', v)}
             disabled={isUpdatingSettings}
           />
         </div>
@@ -165,7 +168,7 @@ export function PsycheSettings({ lng }: PsycheSettingsProps) {
                 <div className="space-y-4 pb-2">
                   <div className="flex justify-end">
                     <button
-                      onClick={() => setRefreshKey((k) => k + 1)}
+                      onClick={() => setRefreshKey(k => k + 1)}
                       className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
                       title={t('psyche.summary.refresh', 'Refresh')}
                     >
@@ -173,7 +176,11 @@ export function PsycheSettings({ lng }: PsycheSettingsProps) {
                       {t('psyche.summary.refresh', 'Refresh')}
                     </button>
                   </div>
-                  <PsycheLLMSummary lng={lng} isOpen={openSections.includes('summary')} refreshKey={refreshKey} />
+                  <PsycheLLMSummary
+                    lng={lng}
+                    isOpen={openSections.includes('summary')}
+                    refreshKey={refreshKey}
+                  />
                   <PsycheStateSummary lng={lng} refreshKey={refreshKey} />
                 </div>
               </AccordionContent>
@@ -209,13 +216,13 @@ export function PsycheSettings({ lng }: PsycheSettingsProps) {
                       <p className="text-xs text-muted-foreground">
                         {t(
                           'psyche.displayAvatarDescription',
-                          'Display the double avatar (personality + mood) in the chat',
+                          'Display the double avatar (personality + mood) in the chat'
                         )}
                       </p>
                     </div>
                     <Switch
                       checked={settings?.psyche_display_avatar ?? true}
-                      onCheckedChange={(v) => handleToggle('psyche_display_avatar', v)}
+                      onCheckedChange={v => handleToggle('psyche_display_avatar', v)}
                       disabled={isUpdatingSettings}
                     />
                   </div>
@@ -223,9 +230,7 @@ export function PsycheSettings({ lng }: PsycheSettingsProps) {
                   {/* Sensitivity slider */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label className="text-sm">
-                        {t('psyche.sensitivity', 'Expressiveness')}
-                      </Label>
+                      <Label className="text-sm">{t('psyche.sensitivity', 'Expressiveness')}</Label>
                       <span className="text-xs text-muted-foreground">{localSensitivity}%</span>
                     </div>
                     <Slider
@@ -241,7 +246,7 @@ export function PsycheSettings({ lng }: PsycheSettingsProps) {
                     <p className="text-xs text-muted-foreground">
                       {t(
                         'psyche.sensitivityDescription',
-                        'How strongly emotions influence responses (0 = stoic, 100 = highly expressive)',
+                        'How strongly emotions influence responses (0 = stoic, 100 = highly expressive)'
                       )}
                     </p>
                   </div>
@@ -249,9 +254,7 @@ export function PsycheSettings({ lng }: PsycheSettingsProps) {
                   {/* Stability slider */}
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <Label className="text-sm">
-                        {t('psyche.stability', 'Mood Stability')}
-                      </Label>
+                      <Label className="text-sm">{t('psyche.stability', 'Mood Stability')}</Label>
                       <span className="text-xs text-muted-foreground">{localStability}%</span>
                     </div>
                     <Slider
@@ -267,7 +270,7 @@ export function PsycheSettings({ lng }: PsycheSettingsProps) {
                     <p className="text-xs text-muted-foreground">
                       {t(
                         'psyche.stabilityDescription',
-                        'How quickly mood returns to baseline (0 = volatile, 100 = very stable)',
+                        'How quickly mood returns to baseline (0 = volatile, 100 = very stable)'
                       )}
                     </p>
                   </div>
@@ -278,7 +281,12 @@ export function PsycheSettings({ lng }: PsycheSettingsProps) {
                     <div className="flex items-start gap-3">
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="outline" size="sm" disabled={isResetting} className="shrink-0 w-44 justify-center">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={isResetting}
+                            className="shrink-0 w-44 justify-center"
+                          >
                             {t('psyche.softReset', 'Refresh mood')}
                           </Button>
                         </AlertDialogTrigger>
@@ -290,7 +298,7 @@ export function PsycheSettings({ lng }: PsycheSettingsProps) {
                             <AlertDialogDescription>
                               {t(
                                 'psyche.softResetConfirm',
-                                "LIA's mood will return to neutral and active emotions will be cleared. The relationship and acquired personality will be preserved.",
+                                "LIA's mood will return to neutral and active emotions will be cleared. The relationship and acquired personality will be preserved."
                               )}
                             </AlertDialogDescription>
                           </AlertDialogHeader>
@@ -305,7 +313,7 @@ export function PsycheSettings({ lng }: PsycheSettingsProps) {
                       <p className="text-xs text-muted-foreground pt-1">
                         {t(
                           'psyche.softResetDescription',
-                          "Like a good night's sleep — mood resets but relationship and personality are preserved.",
+                          "Like a good night's sleep — mood resets but relationship and personality are preserved."
                         )}
                       </p>
                     </div>
@@ -314,7 +322,12 @@ export function PsycheSettings({ lng }: PsycheSettingsProps) {
                     <div className="flex items-start gap-3">
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
-                          <Button variant="destructive" size="sm" disabled={isResetting} className="shrink-0 w-44 justify-center">
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            disabled={isResetting}
+                            className="shrink-0 w-44 justify-center"
+                          >
                             {t('psyche.fullReset', 'Reset everything')}
                           </Button>
                         </AlertDialogTrigger>
@@ -326,7 +339,7 @@ export function PsycheSettings({ lng }: PsycheSettingsProps) {
                             <AlertDialogDescription>
                               {t(
                                 'psyche.fullResetConfirm',
-                                'Emotional state, relationship progress, and domain confidence will be completely reset. Memories and journals are not affected. This action cannot be undone.',
+                                'Emotional state, relationship progress, and domain confidence will be completely reset. Memories and journals are not affected. This action cannot be undone.'
                               )}
                             </AlertDialogDescription>
                           </AlertDialogHeader>
@@ -344,7 +357,7 @@ export function PsycheSettings({ lng }: PsycheSettingsProps) {
                       <p className="text-xs text-muted-foreground pt-1">
                         {t(
                           'psyche.fullResetDescription',
-                          'Relational amnesia — LIA starts over emotionally and relationally, like a first meeting.',
+                          'Relational amnesia — LIA starts over emotionally and relationally, like a first meeting.'
                         )}
                       </p>
                     </div>

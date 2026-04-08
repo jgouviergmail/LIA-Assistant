@@ -34,7 +34,6 @@ from src.core.constants import (
 from src.core.context import exclude_sub_agents_from_prompt, panic_mode_attempted
 from src.domains.agents.analysis.query_intelligence import QueryIntelligence
 from src.domains.agents.prompts import (
-    get_smart_planner_multi_domain_prompt,
     get_smart_planner_prompt,
 )
 from src.domains.agents.semantic.expansion_service import (
@@ -888,7 +887,12 @@ class SmartPlannerService:
 
         mcp_ctx = user_mcp_tools_ctx.get()
         if mcp_ctx and mcp_ctx.server_reference_content:
+            # ADR-062: Skip reference_content for user MCP iterative_mode servers
+            # (the ReAct agent calls read_me itself — always gets fresh content)
+            user_iterative = mcp_ctx.iterative_servers
             for name, content in mcp_ctx.server_reference_content.items():
+                if name.lower() in user_iterative:
+                    continue
                 if name.lower() in mcp_server_keys and name.lower() not in all_references:
                     all_references[name.lower()] = content
 
@@ -1131,8 +1135,10 @@ class SmartPlannerService:
         clarification_field: str | None = None,
         existing_plan: "ExecutionPlan | None" = None,
         journal_context: str = "",
+        *,
+        is_multi_domain: bool = False,
     ) -> str:
-        """Build LLM prompt with filtered catalogue."""
+        """Build LLM prompt with filtered catalogue (unified single + multi-domain)."""
         # Fallback: read from instance if not passed directly (strategy pattern)
         if not journal_context:
             journal_context = getattr(self, "_current_journal_context", "")
@@ -1149,11 +1155,11 @@ class SmartPlannerService:
         user_timezone = configurable.get("user_timezone", DEFAULT_TIMEZONE)
         user_language = configurable.get("user_language", _settings.default_language)
 
-        # Conditional semantic deps injection for single-domain queries
-        # - Mutations may need cross-domain deps (e.g., send_email needs contact resolution)
-        # - Read-only single-domain queries never need cross-domain semantic deps
-        # - Saves ~150-300 tokens for simple queries like "contacts Dupont"
-        if intelligence.is_mutation_intent:
+        # Semantic deps injection:
+        # - Multi-domain: always (cross-domain chains need type info)
+        # - Single-domain mutations: yes (e.g., send_email needs contact resolution)
+        # - Single-domain read-only: skip (saves ~150-300 tokens)
+        if is_multi_domain or intelligence.is_mutation_intent:
             semantic_deps = generate_semantic_dependencies_for_prompt(intelligence.domains)
         else:
             semantic_deps = ""
@@ -1220,13 +1226,14 @@ class SmartPlannerService:
             semantic_dependencies=semantic_deps,
             learned_patterns=learned_patterns,
             mcp_reference=mcp_reference,
-            # FOR_EACH detection from QueryIntelligence
             for_each_detected=intelligence.for_each_detected,
             for_each_collection_key=intelligence.for_each_collection_key,
             cardinality_magnitude=intelligence.cardinality_magnitude,
             skills_catalog=skills_catalog,
             sub_agents_section=sub_agents_section,
-            journal_context=journal_context,  # Personal journal context
+            journal_context=journal_context,
+            primary_domain=intelligence.primary_domain,
+            is_multi_domain=is_multi_domain,
         )
 
     async def _build_multi_domain_prompt(
@@ -1240,96 +1247,17 @@ class SmartPlannerService:
         existing_plan: "ExecutionPlan | None" = None,
         journal_context: str = "",
     ) -> str:
-        """Build prompt for generative multi-domain planning."""
-        # Fallback: read from instance if not passed directly (strategy pattern)
-        if not journal_context:
-            journal_context = getattr(self, "_current_journal_context", "")
-        from src.core.config import get_settings
-        from src.core.constants import DEFAULT_TIMEZONE
-        from src.domains.agents.services.plan_pattern_learner import (
-            get_learned_patterns_prompt,
-        )
-
-        _settings = get_settings()
-
-        # Extract user preferences from config
-        configurable = config.get("configurable", {})
-        user_timezone = configurable.get("user_timezone", DEFAULT_TIMEZONE)
-        user_language = configurable.get("user_language", _settings.default_language)
-
-        # Generate dynamic semantic dependencies for cross-domain planning
-        semantic_deps = generate_semantic_dependencies_for_prompt(intelligence.domains)
-
-        # Get learned patterns for this context (async, with timeout fallback)
-        learned_patterns = await get_learned_patterns_prompt(
-            domains=intelligence.domains,
-            is_mutation=intelligence.is_mutation_intent,
-        )
-
-        # FIX 2026-03-23: Always use original_query (user's language) for content extraction.
-        # english_enriched_query contains translated content (e.g., "merci" → "Thank you")
-        # which causes the planner to extract English body/subject instead of the original.
-        # Resolved references (e.g., "ma femme" → "Marie Dupond") are passed separately in context.
-        resolved_query = intelligence.original_query
-
-        # Build context with optional clarification response (DRY helper)
-        context = self._build_context_with_clarification(
-            intelligence, clarification_response, clarification_field, existing_plan
-        )
-
-        # Inject IoT device names for strict name resolution
-        iot_context = await self._build_iot_device_context(intelligence.domains, config)
-        if iot_context:
-            context = f"{context}\n\n{iot_context}" if context else iot_context
-
-        # Append enriched English query with resolved references.
-        # All ordinal/pronoun references are ALREADY resolved here — the planner must use
-        # these values directly and NEVER call resolve_reference or any lookup tool.
-        # User-provided content (body, subject, title, description, notes) must be extracted
-        # from the Original query (user's language), not from this English version.
-        if intelligence.english_enriched_query:
-            context += (
-                f"\n\nResolved request (all references already resolved, use directly): "
-                f"{intelligence.english_enriched_query}\n"
-                f"CONTENT RULE: Extract user-provided content from Original query above (user's language)."
-            )
-
-        # MCP reference content (read_me) — only when MCP domains are selected
-        mcp_reference = self._build_mcp_reference(intelligence.domains)
-
-        # Skills L1 catalogue (agentskills.io standard)
-        skills_catalog = self._build_skills_catalog(config)
-
-        # F6: Sub-agents delegation section (empty if disabled)
-        sub_agents_section = self._build_sub_agents_section()
-
-        return get_smart_planner_multi_domain_prompt(
-            domains=", ".join(intelligence.domains) if intelligence.domains else "",
-            primary_domain=intelligence.primary_domain,
-            intent=intelligence.immediate_intent,
-            user_goal=intelligence.user_goal.value,
-            anticipated_needs=(
-                ", ".join(intelligence.anticipated_needs) if intelligence.anticipated_needs else ""
-            ),
-            catalogue=catalogue.to_prompt_string(),
-            original_query=resolved_query,
-            context=context,
-            references=(
-                str(intelligence.resolved_references) if intelligence.resolved_references else ""
-            ),
-            user_timezone=user_timezone,
-            user_language=user_language,
+        """Build prompt for multi-domain planning (delegates to unified _build_prompt)."""
+        return await self._build_prompt(
+            intelligence=intelligence,
+            catalogue=catalogue,
+            config=config,
             validation_feedback=validation_feedback,
-            semantic_dependencies=semantic_deps,
-            learned_patterns=learned_patterns,
-            mcp_reference=mcp_reference,
-            # FOR_EACH detection from QueryIntelligence
-            for_each_detected=intelligence.for_each_detected,
-            for_each_collection_key=intelligence.for_each_collection_key,
-            cardinality_magnitude=intelligence.cardinality_magnitude,
-            skills_catalog=skills_catalog,
-            sub_agents_section=sub_agents_section,
-            journal_context=journal_context,  # Personal journal context
+            clarification_response=clarification_response,
+            clarification_field=clarification_field,
+            existing_plan=existing_plan,
+            journal_context=journal_context,
+            is_multi_domain=True,
         )
 
     def _build_plan(

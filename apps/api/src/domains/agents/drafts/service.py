@@ -72,6 +72,7 @@ from src.domains.agents.drafts.models import (
     EventUpdateDraftInput,
     FileDeleteDraftInput,
     LabelDeleteDraftInput,
+    ReminderDeleteDraftInput,
     TaskDeleteDraftInput,
     TaskDraftInput,
     TaskUpdateDraftInput,
@@ -236,6 +237,33 @@ class DraftService:
         """
         return self.create_draft(
             draft_type=DraftType.EMAIL_DELETE,
+            content=draft_input.model_dump(),
+            related_registry_ids=draft_input.related_registry_ids,
+            source_tool=source_tool,
+            source_step_id=source_step_id,
+            user_language=draft_input.user_language,
+        )
+
+    def create_reminder_delete_draft(
+        self,
+        draft_input: "ReminderDeleteDraftInput",
+        source_tool: str = "cancel_reminder_tool",
+        source_step_id: str | None = None,
+    ) -> UnifiedToolOutput:
+        """Create a reminder deletion draft.
+
+        The reminder will NOT be cancelled until user confirms via HITL.
+
+        Args:
+            draft_input: Reminder delete draft input data
+            source_tool: Tool creating this draft
+            source_step_id: Execution step ID
+
+        Returns:
+            UnifiedToolOutput with DRAFT RegistryItem
+        """
+        return self.create_draft(
+            draft_type=DraftType.REMINDER_DELETE,
             content=draft_input.model_dump(),
             related_registry_ids=draft_input.related_registry_ids,
             source_tool=source_tool,
@@ -984,6 +1012,40 @@ def create_email_draft(
         user_language=user_language,
     )
     return service.create_email_draft(draft_input, source_tool=source_tool)
+
+
+def create_reminder_delete_draft(
+    reminder_id: str,
+    content: str = "",
+    trigger_at: str = "",
+    related_registry_ids: list[str] | None = None,
+    source_tool: str = "cancel_reminder_tool",
+    user_language: str = "fr",
+) -> UnifiedToolOutput:
+    """Convenience function to create a reminder delete draft.
+
+    Args:
+        reminder_id: Reminder UUID to cancel
+        content: Reminder content for confirmation display
+        trigger_at: Trigger datetime for confirmation display
+        related_registry_ids: Related registry items
+        source_tool: Source tool name
+        user_language: Language for HITL
+
+    Returns:
+        UnifiedToolOutput with draft
+    """
+    from src.domains.agents.drafts.models import ReminderDeleteDraftInput
+
+    service = DraftService()
+    draft_input = ReminderDeleteDraftInput(
+        reminder_id=reminder_id,
+        content=content,
+        trigger_at=trigger_at,
+        related_registry_ids=related_registry_ids or [],
+        user_language=user_language,
+    )
+    return service.create_reminder_delete_draft(draft_input, source_tool=source_tool)
 
 
 def create_email_delete_draft(

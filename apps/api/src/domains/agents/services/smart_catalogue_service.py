@@ -49,10 +49,10 @@ class FilteredCatalogue:
     is_panic_mode: bool = False
 
     def to_prompt_string(self) -> str:
-        """Format for LLM prompt injection."""
+        """Format for LLM prompt injection (compact JSON to minimize tokens)."""
         import json
 
-        return json.dumps(self.tools, indent=2, ensure_ascii=False)
+        return json.dumps(self.tools, separators=(",", ":"), ensure_ascii=False)
 
     def get_tool_names(self) -> list[str]:
         """Get list of tool names in catalogue."""

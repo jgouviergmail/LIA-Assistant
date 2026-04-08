@@ -95,4 +95,5 @@ claude_server_task_catalogue_manifest = ToolManifest(
         visible=True,
         category="tool",
     ),
+    initiative_eligible=False,  # Infrastructure tool, not enrichment data
 )

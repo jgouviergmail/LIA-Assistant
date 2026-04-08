@@ -4,7 +4,7 @@
 **Date**: 2025-12-27
 **Auteur**: Documentation Technique LIA
 **Statut**: ✅ Complète et Validée
-**Updated**: LOT 9/10 agents, Voice domain, Philips Hue Smart Home, 11 agents total, context_save_mode field
+**Updated**: 2026-04-08
 
 ---
 
@@ -57,6 +57,7 @@ classDiagram
         +outputs: list[OutputFieldSchema]
         +cost: CostProfile
         +permissions: PermissionProfile
+        +initiative_eligible: bool|None
         +version: str
     }
 
@@ -370,6 +371,7 @@ class ToolManifest:
         version: Version semver du tool
         updated_at: Date dernière modification
         maintainer: Équipe responsable
+        initiative_eligible: Whether the tool can be used during the initiative phase (None = auto-determined)
     """
 
     # Identity
@@ -403,6 +405,11 @@ class ToolManifest:
     version: str = "1.0.0"
     updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     maintainer: str = "Team AI"
+
+    # Initiative eligibility: whether this tool can be used during the initiative phase.
+    # Default: None → auto-determined from category (search/readonly = True, system = False).
+    # Set explicitly to False on tools not useful for proactive enrichment.
+    initiative_eligible: bool | None = None
 
     # Display (optional - for UI rendering)
     display: DisplayMetadata | None = None

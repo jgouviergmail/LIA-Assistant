@@ -1220,9 +1220,13 @@ class ConversationalHitlResumption:
                                 run_id=run_id,
                                 error=str(redis_error),
                             )
+                            from src.domains.agents.api.error_messages import SSEErrorMessages
+
                             yield ChatStreamChunk(
                                 type="error",
-                                content="Impossible de sauvegarder l'interruption imbriquée. Veuillez réessayer.",
+                                content=SSEErrorMessages.generic_error(
+                                    redis_error, language=state_user_language
+                                ),
                             )
                             return
 

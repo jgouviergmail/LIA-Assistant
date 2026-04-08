@@ -51,6 +51,17 @@ interface HeroFeatureItem extends FeatureItem {
   iconBg: string;
 }
 
+interface FeatureGroup {
+  key: string;
+  icon: React.ComponentType<{ className?: string }>;
+  headerIconBg: string;
+  headerIconColor: string;
+  cardIconBg: string;
+  cardIconColor: string;
+  cardHoverBorder: string;
+  features: FeatureItem[];
+}
+
 // Hero cards — main functional highlights with unique accent colors
 const HERO_FEATURES: HeroFeatureItem[] = [
   {
@@ -79,31 +90,86 @@ const HERO_FEATURES: HeroFeatureItem[] = [
   },
 ];
 
-// All functional capabilities
-const FUNCTIONAL_FEATURES: FeatureItem[] = [
-  { key: 'natural_language', icon: MessageSquareText },
-  { key: 'multi_agent', icon: Bot },
-  { key: 'proactive', icon: BellRing },
-  { key: 'interests', icon: Star },
-  { key: 'reminders_scheduling', icon: CalendarClock },
-  { key: 'memory', icon: Brain },
-  { key: 'rich_responses', icon: LayoutGrid },
-  { key: 'multichannel', icon: MessageCircle },
-  { key: 'personalities', icon: Smile },
-  { key: 'psyche', icon: Heart },
-  { key: 'mcp', icon: Puzzle },
-  { key: 'languages', icon: Globe },
-  { key: 'mcp_apps', icon: AppWindow },
-  { key: 'excalidraw', icon: PenTool },
-  { key: 'image_generation', icon: ImagePlus },
-  { key: 'attachments', icon: Paperclip },
-  { key: 'skills', icon: Blocks },
-  { key: 'rag_spaces', icon: Library },
-  { key: 'sub_agents', icon: Bot },
-  { key: 'browser_control', icon: Monitor },
-  { key: 'self_knowledge', icon: HelpCircle },
-  { key: 'journals', icon: BookOpen },
-  { key: 'devops_cli', icon: Terminal },
+// Grouped functional capabilities with static Tailwind classes
+const FEATURE_GROUPS: FeatureGroup[] = [
+  {
+    key: 'group_conversation',
+    icon: MessageSquareText,
+    headerIconBg: 'bg-gradient-to-br from-blue-500/15 to-cyan-500/15',
+    headerIconColor: 'text-blue-600 dark:text-blue-400',
+    cardIconBg: 'bg-gradient-to-br from-blue-500/10 to-cyan-500/10',
+    cardIconColor: 'text-blue-600 dark:text-blue-400',
+    cardHoverBorder: 'hover:border-blue-500/30',
+    features: [
+      { key: 'natural_language', icon: MessageSquareText },
+      { key: 'multi_agent', icon: Bot },
+      { key: 'rich_responses', icon: LayoutGrid },
+      { key: 'multichannel', icon: MessageCircle },
+      { key: 'languages', icon: Globe },
+    ],
+  },
+  {
+    key: 'group_personality',
+    icon: Heart,
+    headerIconBg: 'bg-gradient-to-br from-violet-500/15 to-pink-500/15',
+    headerIconColor: 'text-violet-600 dark:text-violet-400',
+    cardIconBg: 'bg-gradient-to-br from-violet-500/10 to-pink-500/10',
+    cardIconColor: 'text-violet-600 dark:text-violet-400',
+    cardHoverBorder: 'hover:border-violet-500/30',
+    features: [
+      { key: 'memory', icon: Brain },
+      { key: 'personalities', icon: Smile },
+      { key: 'psyche', icon: Heart },
+      { key: 'self_knowledge', icon: HelpCircle },
+      { key: 'journals', icon: BookOpen },
+    ],
+  },
+  {
+    key: 'group_automation',
+    icon: CalendarClock,
+    headerIconBg: 'bg-gradient-to-br from-emerald-500/15 to-teal-500/15',
+    headerIconColor: 'text-emerald-600 dark:text-emerald-400',
+    cardIconBg: 'bg-gradient-to-br from-emerald-500/10 to-teal-500/10',
+    cardIconColor: 'text-emerald-600 dark:text-emerald-400',
+    cardHoverBorder: 'hover:border-emerald-500/30',
+    features: [
+      { key: 'proactive', icon: BellRing },
+      { key: 'interests', icon: Star },
+      { key: 'reminders_scheduling', icon: CalendarClock },
+      { key: 'skills', icon: Blocks },
+    ],
+  },
+  {
+    key: 'group_creation',
+    icon: ImagePlus,
+    headerIconBg: 'bg-gradient-to-br from-orange-500/15 to-amber-500/15',
+    headerIconColor: 'text-orange-600 dark:text-orange-400',
+    cardIconBg: 'bg-gradient-to-br from-orange-500/10 to-amber-500/10',
+    cardIconColor: 'text-orange-600 dark:text-orange-400',
+    cardHoverBorder: 'hover:border-orange-500/30',
+    features: [
+      { key: 'excalidraw', icon: PenTool },
+      { key: 'image_generation', icon: ImagePlus },
+      { key: 'attachments', icon: Paperclip },
+      { key: 'mcp_apps', icon: AppWindow },
+    ],
+  },
+  {
+    key: 'group_power',
+    icon: Puzzle,
+    headerIconBg: 'bg-gradient-to-br from-indigo-500/15 to-slate-500/15',
+    headerIconColor: 'text-indigo-600 dark:text-indigo-400',
+    cardIconBg: 'bg-gradient-to-br from-indigo-500/10 to-slate-500/10',
+    cardIconColor: 'text-indigo-600 dark:text-indigo-400',
+    cardHoverBorder: 'hover:border-indigo-500/30',
+    features: [
+      { key: 'mcp', icon: Puzzle },
+      { key: 'rag_spaces', icon: Library },
+      { key: 'sub_agents', icon: Bot },
+      { key: 'browser_control', icon: Monitor },
+      { key: 'devops_cli', icon: Terminal },
+    ],
+  },
 ];
 
 // Responsible & simple
@@ -137,7 +203,7 @@ export async function FeaturesSection({ lng }: FeaturesSectionProps) {
         </FadeInOnScroll>
 
         {/* Hero features — connectors & tools with accent colors */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 mobile:grid-cols-4 gap-6 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 mobile:grid-cols-4 gap-6 mb-14">
           {HERO_FEATURES.map(({ key, icon: Icon, accent, iconBg }, i) => (
             <FadeInOnScroll key={key} delay={i * 100}>
               <Card className="hover-lift hover-glow h-full border-border/60 overflow-hidden">
@@ -158,29 +224,83 @@ export async function FeaturesSection({ lng }: FeaturesSectionProps) {
           ))}
         </div>
 
-        {/* All functional features */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 mobile:grid-cols-3 gap-4">
-          {FUNCTIONAL_FEATURES.map(({ key, icon: Icon }, i) => (
-            <div key={key} className="h-full">
-              <FadeInOnScroll delay={i * 60} className="h-full">
-                <Card className="hover-lift hover-glow h-full border-border/60">
-                  <CardHeader className="space-y-3 p-5">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <Icon className="w-5 h-5 text-primary" />
-                      </div>
-                      <CardTitle className="text-base">
-                        {t(`landing.features.${key}.title`)}
-                      </CardTitle>
+        {/* Grouped functional features */}
+        <div className="space-y-10">
+          {FEATURE_GROUPS.map((group, gi) => {
+            const {
+              key: groupKey,
+              icon: GroupIcon,
+              headerIconBg,
+              headerIconColor,
+              cardIconBg,
+              cardIconColor,
+              cardHoverBorder,
+              features,
+            } = group;
+
+            return (
+              <FadeInOnScroll key={groupKey} delay={gi * 80}>
+                <div>
+                  {/* Group header */}
+                  <div className="flex items-center gap-3 mb-4">
+                    <div
+                      className={cn(
+                        'w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0',
+                        headerIconBg
+                      )}
+                    >
+                      <GroupIcon className={cn('w-5 h-5', headerIconColor)} />
                     </div>
-                    <CardDescription className="text-xs leading-relaxed">
-                      {t(`landing.features.${key}.description`)}
-                    </CardDescription>
-                  </CardHeader>
-                </Card>
+                    <div>
+                      <h3 className="text-lg font-semibold tracking-tight">
+                        {t(`landing.features.${groupKey}.title`)}
+                      </h3>
+                      <p className="text-xs text-muted-foreground">
+                        {t(`landing.features.${groupKey}.description`)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Group feature cards */}
+                  <div
+                    className={cn(
+                      'grid grid-cols-1 sm:grid-cols-2 gap-3',
+                      features.length === 5 ? 'mobile:grid-cols-5' : 'mobile:grid-cols-4'
+                    )}
+                  >
+                    {features.map(({ key, icon: Icon }) => (
+                      <Card
+                        key={key}
+                        className={cn(
+                          'hover-lift hover-glow h-full border-border/60',
+                          cardHoverBorder
+                        )}
+                      >
+                        <CardHeader className="space-y-3 p-5">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={cn(
+                                'w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0',
+                                cardIconBg
+                              )}
+                            >
+                              <Icon className={cn('w-5 h-5', cardIconColor)} />
+                            </div>
+                            <CardTitle className="text-base">
+                              {t(`landing.features.${key}.title`)}
+                            </CardTitle>
+                          </div>
+                          <CardDescription className="text-xs leading-relaxed">
+                            {t(`landing.features.${key}.description`)}
+                          </CardDescription>
+                        </CardHeader>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
               </FadeInOnScroll>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Responsible & simple — prominent sub-section */}

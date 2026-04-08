@@ -28,11 +28,10 @@ from src.domains.agents.registry.catalogue import (
 _get_emails_desc = (
     "**Tool: get_emails_tool** - Get emails with full details.\n"
     "\n"
-    "**MODES**:\n"
-    "- Query mode: get_emails_tool(query='from:john') → search + return full details\n"
-    "- ID mode: get_emails_tool(message_id='abc123') → fetch specific email\n"
-    "- Batch mode: get_emails_tool(message_ids=['abc', 'def']) → fetch multiple emails\n"
-    "- List mode: get_emails_tool() → return latest emails with full details\n"
+    "**USAGE**:\n"
+    "- Search: use `query` parameter\n"
+    "- Fetch by ID (from $steps or CONTEXT only): use `message_id` or `message_ids`\n"
+    "- List all: omit query\n"
     "\n"
     "**SEARCHABLE FIELDS** (query parameter - Gmail advanced search):\n"
     "- from:, to:, subject:, body keywords, has:attachment, is:unread, after:/before:\n"
@@ -43,7 +42,7 @@ _get_emails_desc = (
     "- 'received emails' → query='-in:sent -in:draft'\n"
     "- 'emails from X' → query='from:X'\n"
     "- 'emails about Y' → query='Y' (keywords, no quotes)\n"
-    "- 'show this email' → message_id='ID from context'\n"
+    "- 'show this email' → message_id=ID from $steps or CONTEXT\n"
     "\n"
     "**FOLDER/LABEL MAPPINGS** (MUST use label: syntax when user specifies a folder):\n"
     "- 'inbox' / 'in my inbox' → query='label:INBOX'\n"
@@ -478,6 +477,7 @@ list_labels_catalogue_manifest = ToolManifest(
     version="1.1.0",
     maintainer="Team Agents",
     display=DisplayMetadata(emoji="🏷️", i18n_key="list_labels", visible=True, category="tool"),
+    initiative_eligible=False,  # Structural tool, not useful for proactive enrichment
 )
 
 

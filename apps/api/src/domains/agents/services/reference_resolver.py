@@ -27,6 +27,17 @@ from src.core.config import Settings, get_settings
 
 logger = structlog.get_logger(__name__)
 
+# Mapping from API payload field names to tool parameter names by domain.
+# The LLM sees "id" in the payload but tools expect "event_id", "message_id", etc.
+# Without this alias, the LLM invents $steps references instead of using the value.
+_DOMAIN_ID_ALIASES: dict[str, dict[str, str]] = {
+    "event": {"id": "event_id"},
+    "email": {"id": "message_id"},
+    "contact": {"resourceName": "resource_name"},
+    "task": {"id": "task_id"},
+    "file": {"id": "file_id"},
+}
+
 
 # =============================================================================
 # DATA STRUCTURES
@@ -153,6 +164,7 @@ class ResolvedContext:
 
         lines = []
         ready_to_use_values: dict[str, str] = {}
+        id_aliases = _DOMAIN_ID_ALIASES.get(self.source_domain or "", {})
 
         # === HEADER ===
         lines.append(
@@ -165,6 +177,17 @@ class ResolvedContext:
         for i, item in enumerate(self.items, 1):
             lines.append(f"\n  Item {i}:")
             if isinstance(item, dict):
+                # Inject tool-parameter aliases for ID fields so the LLM can map directly.
+                # Example: event payload has "id" but update_event_tool expects "event_id".
+                for payload_field, param_name in id_aliases.items():
+                    if payload_field in item and item[payload_field] is not None:
+                        value = self._format_value(item[payload_field])
+                        if value and param_name not in item:
+                            lines.append(
+                                f"    - {param_name}: {value}"
+                                "  ← use this directly as tool parameter"
+                            )
+
                 # Collect fields: priority first, then rest
                 shown_fields = set()
                 field_lines = []
@@ -328,9 +351,12 @@ class ReferenceResolver:
     # is the SEARCH SUBJECT, not a reference to an existing item.
     # Including them caused over-aggressive query cleaning, breaking domain detection.
     DEMONSTRATIVE_PATTERNS: list[tuple[str, int]] = [
-        # Demonstrative determiners: "this event", "that contact"
+        # Demonstrative determiners (singular): "this event", "that contact"
         (r"\bthis\s+\w+", 0),
         (r"\bthat\s+\w+", 0),
+        # Demonstrative determiners (plural): "these emails", "those contacts"
+        (r"\bthese\s+\w+", 0),
+        (r"\bthose\s+\w+", 0),
         # Demonstrative pronouns: "this one", "that one"
         (r"\bthis\s+one\b", 0),
         (r"\bthat\s+one\b", 0),

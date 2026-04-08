@@ -336,7 +336,7 @@ cancel_reminder_catalogue_manifest = ToolManifest(
     permissions=PermissionProfile(
         required_scopes=[],  # Internal tool, no OAuth
         data_classification="CONFIDENTIAL",
-        hitl_required=False,
+        hitl_required=True,
     ),
     # Discriminant phrases - Reminder cancellation
     semantic_keywords=[

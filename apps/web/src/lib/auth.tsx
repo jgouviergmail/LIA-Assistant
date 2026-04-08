@@ -25,6 +25,10 @@ export interface User {
   theme?: string;
   color_theme?: string;
   font_family?: string;
+  image_generation_enabled?: boolean;
+  image_generation_default_quality?: string;
+  image_generation_default_size?: string;
+  image_generation_output_format?: string;
 }
 
 interface AuthContextType {

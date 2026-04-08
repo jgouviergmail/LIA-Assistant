@@ -13,6 +13,9 @@ The ``_MCPReActWrapper`` converts ``UnifiedToolOutput`` to string for the ReAct 
 while accumulating registry items (e.g., MCP App HTML widgets) for propagation
 back to the parent graph.
 
+Supports both admin MCP (``mcp_server_task_tool``) and per-user MCP
+(``mcp_user_server_task_tool``) servers.
+
 Phase: ADR-062 — Agent Initiative Phase + MCP Iterative Support
 Created: 2026-03-24
 """
@@ -32,6 +35,7 @@ from src.domains.agents.tools.react_runner import ReactSubAgentRunner
 from src.domains.agents.tools.tool_registry import get_all_tools
 from src.domains.agents.utils.rate_limiting import rate_limit
 from src.infrastructure.mcp.tool_adapter import MCPToolAdapter
+from src.infrastructure.mcp.user_tool_adapter import UserMCPToolAdapter
 from src.infrastructure.observability.decorators import track_tool_metrics
 from src.infrastructure.observability.metrics_agents import (
     agent_tool_duration_seconds,
@@ -49,10 +53,11 @@ _AGENT_NAME = "mcp_react"
 
 
 class _MCPReActWrapper(BaseTool):
-    """Wrapper that converts MCPToolAdapter output to string for ReAct LLM.
+    """Wrapper that converts MCP tool adapter output to string for ReAct LLM.
 
     The ReAct agent needs string results to reason about tool outputs.
-    MCPToolAdapter returns UnifiedToolOutput (rich object with registry items).
+    MCPToolAdapter/UserMCPToolAdapter return UnifiedToolOutput (rich object
+    with registry items).
 
     This wrapper:
     - Returns ``result.message`` (string) to the ReAct LLM
@@ -62,14 +67,14 @@ class _MCPReActWrapper(BaseTool):
     - Uses the short MCP tool name (``create_view``, not ``mcp_excalidraw_create_view``)
     """
 
-    _inner: MCPToolAdapter = PrivateAttr()
+    _inner: MCPToolAdapter | UserMCPToolAdapter = PrivateAttr()
     _accumulated_registry: dict[str, Any] = PrivateAttr(default_factory=dict)
 
-    def __init__(self, inner: MCPToolAdapter) -> None:
-        """Initialize wrapper from an MCPToolAdapter.
+    def __init__(self, inner: MCPToolAdapter | UserMCPToolAdapter) -> None:
+        """Initialize wrapper from an MCPToolAdapter or UserMCPToolAdapter.
 
         Args:
-            inner: The original MCPToolAdapter to wrap.
+            inner: The original MCP tool adapter to wrap.
         """
         super().__init__(
             name=inner.mcp_tool_name,
@@ -84,13 +89,36 @@ class _MCPReActWrapper(BaseTool):
         Captures registry items (MCP App widgets, etc.) in _accumulated_registry
         for later collection by ReactSubAgentRunner.
 
+        Errors are caught and returned as string messages so the ReAct agent
+        can reason about them and retry with corrected parameters.
+
         Args:
             **kwargs: Tool arguments.
 
         Returns:
             String representation of the tool result for ReAct LLM context.
         """
-        result = await self._inner._arun(**kwargs)
+        try:
+            result = await self._inner._arun(**kwargs)
+        except BaseException as exc:
+            # Return error as string so the ReAct agent can reason and retry
+            # instead of crashing the entire sub-agent loop.
+            error_msg = str(exc)
+            # ExceptionGroup nests the real error — extract it
+            if hasattr(exc, "exceptions"):
+                for sub in exc.exceptions:
+                    if hasattr(sub, "exceptions"):
+                        for inner in sub.exceptions:
+                            error_msg = str(inner)
+                    else:
+                        error_msg = str(sub)
+            logger.warning(
+                "mcp_react_wrapper_tool_error",
+                tool_name=self.name,
+                error=error_msg,
+                error_type=type(exc).__name__,
+            )
+            return f"ERROR: {error_msg}"
 
         # Capture registry items (MCP App HTML, etc.)
         if hasattr(result, "registry_updates") and result.registry_updates:
@@ -132,8 +160,108 @@ def _get_mcp_server_tools_for_react(server_name: str) -> list[_MCPReActWrapper]:
     return react_tools
 
 
+def _get_user_mcp_server_tools_for_react(server_id_prefix: str) -> list[_MCPReActWrapper]:
+    """Get user MCP tools from ContextVar, wrapped for ReAct consumption.
+
+    Filters the per-request UserMCPToolsContext for tools matching the
+    ``mcp_user_{server_id_prefix}_*`` naming convention and wraps them.
+
+    Args:
+        server_id_prefix: First 8 chars of the server UUID.
+
+    Returns:
+        List of _MCPReActWrapper instances with short tool names.
+    """
+    from src.core.context import user_mcp_tools_ctx
+
+    user_ctx = user_mcp_tools_ctx.get()
+    if not user_ctx:
+        return []
+
+    prefix = f"mcp_user_{server_id_prefix}_"
+    react_tools: list[_MCPReActWrapper] = []
+    for name, tool_instance in user_ctx.tool_instances.items():
+        if name.startswith(prefix) and isinstance(tool_instance, UserMCPToolAdapter):
+            react_tools.append(_MCPReActWrapper(tool_instance))
+    return react_tools
+
+
 # =============================================================================
-# MCP Server Task Tool — Primary entry point
+# Shared ReAct execution logic
+# =============================================================================
+
+
+def _has_mcp_app_tools(server_tools: list[_MCPReActWrapper]) -> bool:
+    """Check if any tool in the list has an MCP App resource URI.
+
+    MCP App servers expose interactive HTML widgets (e.g., Excalidraw diagrams).
+    They benefit from a more capable LLM for the ReAct loop.
+
+    Args:
+        server_tools: Wrapped MCP tools to check.
+
+    Returns:
+        True if at least one tool has an app_resource_uri.
+    """
+    return any(getattr(tool._inner, "app_resource_uri", None) for tool in server_tools)
+
+
+async def _run_mcp_react_task(
+    server_tools: list[_MCPReActWrapper],
+    server_name: str,
+    task: str,
+    thread_prefix: str,
+    runtime: ToolRuntime | None,
+    extra_structured_data: dict[str, Any] | None = None,
+) -> UnifiedToolOutput:
+    """Run a ReAct agent on a set of MCP tools.
+
+    Shared core logic for both admin and user MCP iterative task tools.
+    Automatically selects a more capable LLM for MCP App servers (those with
+    interactive HTML widgets like Excalidraw).
+
+    Args:
+        server_tools: Wrapped MCP tools for the ReAct agent.
+        server_name: Human-readable server name (for prompt and display).
+        task: Natural language task description.
+        thread_prefix: Unique prefix for the ReAct thread.
+        runtime: Parent ToolRuntime for callback propagation.
+        extra_structured_data: Additional fields for structured_data output.
+
+    Returns:
+        UnifiedToolOutput with ReAct result and accumulated registry items.
+    """
+    # MCP App servers (with interactive widgets) use a dedicated, more capable LLM
+    llm_type = "mcp_app_react_agent" if _has_mcp_app_tools(server_tools) else "mcp_react_agent"
+    runner = ReactSubAgentRunner(llm_type, "mcp_react_agent_prompt")
+    react_result = await runner.run(
+        task=task,
+        tools=server_tools,
+        prompt_vars={"server_name": server_name},
+        parent_runtime=runtime,
+        thread_prefix=thread_prefix,
+        recursion_limit=settings.mcp_react_max_iterations,
+        display_name=f"MCP Iterative: {server_name}",
+    )
+
+    structured_data: dict[str, Any] = {
+        "server_name": server_name,
+        "task": task,
+        "iterations": react_result.iteration_count,
+        "duration_ms": react_result.duration_ms,
+    }
+    if extra_structured_data:
+        structured_data.update(extra_structured_data)
+
+    return UnifiedToolOutput.data_success(
+        message=react_result.final_message,
+        registry_updates=react_result.accumulated_registry,
+        structured_data=structured_data,
+    )
+
+
+# =============================================================================
+# Admin MCP Server Task Tool
 # =============================================================================
 
 
@@ -169,38 +297,70 @@ async def mcp_server_task_tool(
     """
     server_tools = _get_mcp_server_tools_for_react(server_name)
     if not server_tools:
-        logger.warning(
-            "mcp_react_no_tools",
-            server_name=server_name,
-        )
+        logger.warning("mcp_react_no_tools", server_name=server_name)
         return UnifiedToolOutput.failure(
             message=f"No tools found for MCP server '{server_name}'",
             error_code="CONFIGURATION_ERROR",
         )
 
-    runner = ReactSubAgentRunner("mcp_react_agent", "mcp_react_agent_prompt")
-    react_result = await runner.run(
+    return await _run_mcp_react_task(
+        server_tools=server_tools,
+        server_name=server_name,
         task=task,
-        tools=server_tools,
-        prompt_vars={"server_name": server_name},
-        parent_runtime=runtime,
         thread_prefix=f"mcp_react_{server_name}",
-        recursion_limit=settings.mcp_react_max_iterations,
-        display_name=f"MCP Iterative: {server_name}",
+        runtime=runtime,
     )
 
-    # Token tracking: callbacks are propagated to the ReAct internal graph
-    # via nested_config. TokenTrackingCallback tracks tokens automatically.
-    # Tokens appear in debug panel under the ReAct internal node name.
 
-    # Propagate MCP App registry items (Excalidraw widgets, etc.)
-    return UnifiedToolOutput.data_success(
-        message=react_result.final_message,
-        registry_updates=react_result.accumulated_registry,
-        structured_data={
-            "server_name": server_name,
-            "task": task,
-            "iterations": react_result.iteration_count,
-            "duration_ms": react_result.duration_ms,
-        },
+# =============================================================================
+# User MCP Server Task Tool
+# =============================================================================
+
+
+@tool
+@track_tool_metrics(
+    tool_name="mcp_user_server_task",
+    agent_name=_AGENT_NAME,
+    duration_metric=agent_tool_duration_seconds,
+    counter_metric=agent_tool_invocations,
+)
+@rate_limit(
+    max_calls=lambda: 5,
+    window_seconds=lambda: 60,
+    scope="user",
+)
+async def mcp_user_server_task_tool(
+    server_id_prefix: Annotated[str, "First 8 characters of the user MCP server UUID"],
+    server_name: Annotated[str, "Human-readable server name for display"],
+    task: Annotated[str, "Natural language description of the task to accomplish"],
+    runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
+) -> UnifiedToolOutput:
+    """Execute a multi-step task on a user MCP server using a ReAct agent.
+
+    Launches a ReAct agent with access to all tools from the specified user MCP
+    server. The agent follows the native MCP workflow: read documentation first,
+    then execute tools based on the documentation.
+
+    This is the per-user equivalent of mcp_server_task_tool for user-configured
+    MCP servers with iterative_mode=true.
+    """
+    server_tools = _get_user_mcp_server_tools_for_react(server_id_prefix)
+    if not server_tools:
+        logger.warning(
+            "mcp_user_react_no_tools",
+            server_id_prefix=server_id_prefix,
+            server_name=server_name,
+        )
+        return UnifiedToolOutput.failure(
+            message=f"No tools found for user MCP server '{server_name}'",
+            error_code="CONFIGURATION_ERROR",
+        )
+
+    return await _run_mcp_react_task(
+        server_tools=server_tools,
+        server_name=server_name,
+        task=task,
+        thread_prefix=f"mcp_user_react_{server_id_prefix}",
+        runtime=runtime,
+        extra_structured_data={"server_id_prefix": server_id_prefix},
     )

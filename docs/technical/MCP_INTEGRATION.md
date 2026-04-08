@@ -24,8 +24,13 @@ Runtime (standard): QueryAnalyzerService detects per-server domain → SmartCata
          → Planner selects MCP tool → parallel_executor → tool_registry.get_tool()
          → MCPToolAdapter._arun() → session.call_tool()
 
-Runtime (iterative_mode): QueryAnalyzerService detects domain → Planner selects mcp_{server}_task
+Runtime (iterative_mode, admin): QueryAnalyzerService detects domain → Planner selects mcp_{server}_task
          → parallel_executor → mcp_server_task_tool → ReactSubAgentRunner
+         → ReAct agent loop: read_me → understand API → call tools → return result
+
+Runtime (iterative_mode, user): setup_user_mcp_tools() detects iterative_mode + mcp_react_enabled
+         → individual tools in ContextVar (for ReAct) + single mcp_user_{id}_task manifest for planner
+         → parallel_executor → mcp_user_server_task_tool → ReactSubAgentRunner
          → ReAct agent loop: read_me → understand API → call tools → return result
 
 Shutdown: MCPClientManager.shutdown() → closes sessions + exit_stacks
@@ -1098,6 +1103,63 @@ MCP servers following the `read_me` convention expose a tool that returns format
 
 ---
 
+## Iterative Mode / ReAct Sub-Agent (Feature 2.7)
+
+When `iterative_mode=true` on an MCP server (admin or user), the planner sees a single task delegation tool instead of individual server tools. This tool launches a **ReAct sub-agent** that interacts iteratively with the server.
+
+### Admin MCP Iterative Mode
+
+- **Registration**: At startup, `register_mcp_tools()` in `registration.py` detects `iterative_mode=true` + `MCP_REACT_ENABLED=true`.
+- **Tool registry**: Individual tools go to central `tool_registry` (for ReAct agent). A single `mcp_{server_name}_task` tool is registered via `_register_iterative_task_tool()`.
+- **Catalogue**: Only the task tool manifest is visible to the planner.
+- **Execution**: `mcp_server_task_tool()` → `_run_mcp_react_task()` → `ReactSubAgentRunner`.
+
+### User MCP Iterative Mode
+
+- **Registration**: Per-request in `setup_user_mcp_tools()` (`user_context.py`). Detects `server.iterative_mode=True` + `settings.mcp_react_enabled`.
+- **ContextVar**: Individual tools stored in `ctx.tool_instances` (for ReAct agent). A single `mcp_user_{id_prefix}_task` tool + manifest exposed to the planner.
+- **Execution**: `mcp_user_server_task_tool()` → `_run_mcp_react_task()` → `ReactSubAgentRunner`.
+- **Reference content**: Skipped in planner prompt for iterative servers (tracked via `ctx.iterative_servers`). The ReAct agent calls `read_me` itself.
+
+### Shared Infrastructure
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| `build_mcp_react_task_manifest()` | `registration.py` | Shared ToolManifest factory for admin + user task tools |
+| `_run_mcp_react_task()` | `mcp_react_tools.py` | Shared ReAct execution (runner + structured output) |
+| `_MCPReActWrapper` | `mcp_react_tools.py` | Wraps MCPToolAdapter/UserMCPToolAdapter for ReAct string output. Catches all exceptions (including `ExceptionGroup`) and returns error strings for ReAct retry. |
+| `_has_mcp_app_tools()` | `mcp_react_tools.py` | Detects MCP App servers (tools with `app_resource_uri`) for LLM type selection |
+| `MCP_ITERATIVE_TASK_SUFFIX` | `constants.py` | `"_task"` suffix for per-server task tool names |
+| `MCP_DISPLAY_EMOJI` | `constants.py` | `🔌` emoji shared by all MCP tool manifests |
+
+### LLM Type Selection
+
+The ReAct agent automatically selects the appropriate LLM based on server type:
+
+| Server type | LLM type | Default model | Rationale |
+|-------------|----------|---------------|-----------|
+| MCP App (has `app_resource_uri`) | `mcp_app_react_agent` | Opus | Complex multi-step workflows with interactive widgets |
+| Regular MCP | `mcp_react_agent` | Qwen | Simpler tool chains, cost-efficient |
+
+Detection is automatic via `_has_mcp_app_tools()` — if any tool in the server has an `app_resource_uri`, the MCP App LLM is used. Configurable in the admin LLM Config panel.
+
+### Error Recovery
+
+`_MCPReActWrapper` catches all exceptions from MCP tool calls and returns them as `"ERROR: ..."` strings. This allows the ReAct agent to:
+1. Read the error message (e.g., "Expected string, received null for projectId")
+2. Reason about the cause
+3. Retry with corrected parameters
+
+Without this, `ExceptionGroup` from the MCP SDK's anyio task groups would crash the entire ReAct loop.
+
+### Requirements
+
+- `MCP_REACT_ENABLED=true` (global feature flag)
+- `iterative_mode=true` on the server (admin config or user toggle)
+- Prompt file: `prompts/v1/mcp_react_agent_prompt.txt`
+
+---
+
 ## Constants Reference
 
 ### `core/constants.py` — MCP Constants
@@ -1119,6 +1181,8 @@ MCP servers following the `read_me` convention expose a tool that returns format
 | `MCP_USER_MAX_SERVERS_PER_USER_DEFAULT` | `5` | Default per-user server limit |
 | `MCP_USER_POOL_TTL_SECONDS_DEFAULT` | `900` | Idle connection TTL (15 min) |
 | `MCP_USER_POOL_MAX_TOTAL_DEFAULT` | `50` | Global pool limit across all users |
+| `MCP_DISPLAY_EMOJI` | `🔌` | Shared display emoji for MCP tool card metadata |
+| `MCP_ITERATIVE_TASK_SUFFIX` | `"_task"` | Suffix for per-server iterative ReAct task tools |
 | `MCP_USER_POOL_EVICTION_INTERVAL_DEFAULT` | `60` | Eviction sweep interval (seconds) |
 | `MCP_USER_OAUTH_STATE_TTL_SECONDS` | `300` | OAuth state TTL in Redis (5 min) |
 | `MCP_USER_OAUTH_STATE_REDIS_PREFIX` | `"mcp_oauth_state:"` | Redis key prefix for OAuth state |

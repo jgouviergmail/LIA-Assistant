@@ -1,507 +1,356 @@
-# LIA — The Sovereign Personal AI Assistant
+# LIA — The AI Assistant That Belongs to You
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version**: 2.0
-**Date**: 2026-03-24
-**Application**: LIA v1.14.2
+**Version**: 3.0
+**Date**: 2026-04-08
+**Application**: LIA v1.14.5
 **License**: AGPL-3.0 (Open Source)
 
 ---
 
 ## Table of Contents
 
-1. [The world has changed](#1-the-world-has-changed)
-2. [The LIA thesis](#2-the-lia-thesis)
-3. [Sovereignty: taking back control](#3-sovereignty-taking-back-control)
-4. [Radical transparency: seeing what the AI does and what it costs](#4-radical-transparency-seeing-what-the-ai-does-and-what-it-costs)
-5. [Relational depth: beyond memory](#5-relational-depth-beyond-memory)
-6. [Orchestration that works in production](#6-orchestration-that-works-in-production)
-7. [Human control as a philosophy](#7-human-control-as-a-philosophy)
-8. [Acting in your digital life](#8-acting-in-your-digital-life)
-9. [Contextual proactivity](#9-contextual-proactivity)
-10. [Voice as a natural interface](#10-voice-as-a-natural-interface)
-11. [Openness as a strategy](#11-openness-as-a-strategy)
-12. [Self-optimizing intelligence](#12-self-optimizing-intelligence)
-13. [The fabric: how everything weaves together](#13-the-fabric-how-everything-weaves-together)
-14. [What LIA does not claim to be](#14-what-lia-does-not-claim-to-be)
-15. [Vision: where LIA is headed](#15-vision-where-lia-is-headed)
+1. [The context](#1-the-context)
+2. [Simple administration](#2-simple-administration)
+3. [What LIA can do](#3-what-lia-can-do)
+4. [A server for your loved ones](#4-a-server-for-your-loved-ones)
+5. [Sovereign and frugal](#5-sovereign-and-frugal)
+6. [Radical transparency](#6-radical-transparency)
+7. [Emotional depth](#7-emotional-depth)
+8. [Production reliability](#8-production-reliability)
+9. [Radical openness](#9-radical-openness)
+10. [Vision](#10-vision)
 
 ---
 
-## 1. The world has changed
+## 1. The context
 
-### 1.1. The agentic era is here
+The era of agentic AI assistants has arrived. ChatGPT, Gemini, Copilot, Claude — each offers an agent capable of acting in your digital life: sending emails, managing your calendar, browsing the web, controlling your devices.
 
-It's March 2026. The artificial intelligence landscape bears no resemblance to what it looked like two years ago. Large language models are no longer mere text generators — they have become **agents capable of taking action**.
+These assistants are remarkable. But they share a common model: your data lives on their servers, the intelligence is a black box, and when you leave, everything stays behind.
 
-**ChatGPT** now features an Agent mode that combines autonomous web browsing (inherited from Operator), deep research, and connections to third-party applications (Outlook, Slack, Google apps). It can analyze competitors and build presentations, plan grocery shopping and place orders, or brief users on their meetings from their calendar. Its tasks run on a dedicated virtual machine, and paying users access a full-fledged ecosystem of integrated applications.
-
-**Google Gemini Agent** has deeply embedded itself within the Google ecosystem: Gmail, Calendar, Drive, Tasks, Maps, YouTube. Chrome Auto Browse lets Gemini navigate the web autonomously — filling out forms, making purchases, executing multi-step workflows. Native integration with Android through AppFunctions extends these capabilities to the operating system level.
-
-**Microsoft Copilot** has evolved into an enterprise agentic platform with over 1,400 connectors, MCP protocol support, multi-agent coordination, and Work IQ — a contextual intelligence layer that knows your role, your team, and your organization. Copilot Studio enables building autonomous agents without code.
-
-**Claude** by Anthropic offers Computer Use for interacting with graphical interfaces, and a rich MCP ecosystem for connecting tools, databases, and file systems. Claude Code operates as a full-fledged development agent.
-
-The AI agent market reached $7.84 billion in 2025 with 46% annual growth. Gartner predicts that 40% of enterprise applications will integrate domain-specific AI agents by the end of 2026.
-
-### 1.2. But the world has a problem
-
-Behind this excitement lies a more nuanced reality.
-
-**Only 10 to 15% of agentic AI projects make it to production.** The agent coordination failure rate is 35%. Gartner warns that over 40% of agentic AI projects will be cancelled by late 2027, due to uncontrolled costs and risks. LLM costs spiral out of control in unchecked agentic loops, non-deterministic behavior makes debugging a nightmare, and audit trails are often missing entirely.
-
-And above all: **these powerful assistants are all proprietary cloud services.** Your emails, your calendar, your contacts, your documents — everything flows through Google, Microsoft, or OpenAI servers. The trade-off for convenience is surrendering your most intimate data to companies whose business model relies on exploiting that data. The subscription price is not the real price: **your personal data is the product.**
-
-And when you change your mind, when you want to leave? Your memory, your preferences, your history — everything stays trapped on the platform. The lock-in is total.
-
-### 1.3. A fundamental question
-
-It is in this context that LIA asks a simple but radical question:
-
-> **Is it possible to harness the power of AI agents without giving up your digital sovereignty?**
-
-The answer is yes. And that is LIA's entire reason for being.
+LIA takes a different path. Not a head-on competitor to the giants — a **personal AI assistant that you host, that you understand, and that you control**. LIA orchestrates the best AI models on the market, acts in your digital life, and does so with fundamental qualities that set it apart.
 
 ---
 
-## 2. The LIA thesis
+## 2. Simple administration
 
-### 2.1. What LIA is not
+### 2.1. A guided deployment, then zero friction
 
-LIA is not a head-on competitor to ChatGPT, Gemini, or Copilot. Claiming to rival the research budgets of Google, Microsoft, or OpenAI would be disingenuous.
+Self-hosting has a bad reputation. LIA doesn't pretend to eliminate every technical step: the initial setup — configuring API keys, setting up OAuth connectors, choosing your infrastructure — takes some time and basic skills. But every step is **documented in detail** in a step-by-step deployment guide.
 
-Nor is LIA a wrapper — an interface that hides a single LLM behind a pretty facade.
+Once this installation phase is complete, **day-to-day management is handled entirely through an intuitive web interface**. No more terminal, no more configuration files.
 
-### 2.2. What LIA is
+### 2.2. What each user can configure
 
-LIA is a **sovereign personal AI assistant**: a complete, open-source, self-hostable system that intelligently orchestrates the best AI models on the market to act in your digital life — under your full control, on your own infrastructure.
+Every user has their own settings space, organized in two tabs:
 
-This is a thesis built on five pillars:
+**Personal preferences:**
 
-1. **Sovereignty**: your data stays with you, on your server, even a simple Raspberry Pi
-2. **Transparency**: every decision, every cost, every LLM call is visible and auditable
-3. **Relational depth**: a psychological and emotional understanding that goes beyond simple factual memory
-4. **Production reliability**: a system that has solved the problems that 90% of agentic projects never overcome
-5. **Radical openness**: zero lock-in, 7 interchangeable AI providers, open standards
+- **Personal connectors**: plug in your Google, Microsoft or Apple accounts in a few clicks via OAuth — email, calendar, contacts, tasks, Google Drive. Or connect Apple via IMAP/CalDAV/CardDAV. API keys for external services (weather, search)
+- **Personality**: choose from available personalities (professor, friend, philosopher, coach, poet...) — each influences LIA's tone, style and emotional behavior
+- **Voice**: configure voice mode — wake word detection, sensitivity, silence threshold, automatic response playback
+- **Notifications**: manage push notifications and registered devices
+- **Channels**: link Telegram for chatting and receiving notifications on mobile
+- **Image generation**: enable and configure AI image creation
+- **Personal MCP servers**: connect your own MCP servers to extend LIA's capabilities
+- **Appearance**: language, timezone, theme (5 palettes, dark/light mode), font (9 choices), response display format (HTML cards, HTML, Markdown)
+- **Debug**: access the debug panel to inspect each exchange (if enabled by administrator)
 
-These five pillars are not marketing features. They are **deep architectural choices** that permeate every line of code, every design decision, every technical trade-off documented across 59 Architecture Decision Records.
+**Advanced features:**
 
-### 2.3. The deeper meaning
+- **Psyche Engine**: adjust personality traits (Big Five) that modulate your assistant's emotional responsiveness
+- **Memory**: view, edit, pin or delete LIA's memories — enable or disable automatic fact extraction
+- **Personal journals**: configure introspection extraction after each conversation and periodic consolidation review
+- **Interests**: define your favorite topics, configure notification frequency, time slots and sources (Wikipedia, Perplexity, AI reflection)
+- **Proactive notifications**: set frequency, time window and context sources (calendar, weather, tasks, emails, interests, memories, journals)
+- **Scheduled actions**: create recurring automations executed by the assistant
+- **Skills**: enable/disable expert competencies, create your own personal Skills
+- **Knowledge Spaces**: upload your documents (PDF, Word, Excel, PowerPoint, EPUB, HTML and 15+ formats) or sync a Google Drive folder — automatic indexing with hybrid search
+- **Consumption export**: download your LLM and API consumption data in CSV
 
-The conviction behind LIA is that the future of personal AI will not come through submission to a cloud giant, but through **ownership**: users must be able to own their assistant, understand how it works, control its costs, and evolve it to fit their needs.
+### 2.3. What the administrator controls
 
-The most powerful AI in the world is useless if you cannot trust it. And trust is not proclaimed — it is built through transparency, control, and repeated experience.
+The administrator accesses a third tab dedicated to instance management:
+
+**Users and access:**
+
+- **User management**: create, activate/deactivate accounts, view connected services and enabled features per user
+- **Usage limits**: set per-user quotas (LLM tokens, API calls, image generations) with real-time monitoring and automatic blocking
+- **Broadcast messages**: send important messages to all users or a selection, with optional expiration date
+- **Global consumption export**: export all-users consumption in CSV
+
+**AI and connectors:**
+
+- **LLM configuration**: configure provider API keys (OpenAI, Anthropic, Google, DeepSeek, Qwen, Perplexity, Ollama), assign a model per role in the pipeline, manage reasoning levels — keys stored encrypted
+- **Connector activation/deactivation**: enable or disable integrations globally (Google OAuth, Apple, Microsoft 365, Hue, weather, Wikipedia, Perplexity, Brave Search). Deactivation revokes active connections and notifies users
+- **Pricing**: manage pricing per LLM model (cost per million tokens), per Google Maps API (Places, Routes, Geocoding), and per image generation — with price history
+
+**Content and extensions:**
+
+- **Personalities**: create, edit, translate and delete personalities available to all users — set the default personality
+- **System Skills**: manage instance-wide expert competencies — import/export, enable/disable, translate
+- **System Knowledge Spaces**: manage the FAQ knowledge base, monitor indexing status and model migrations
+- **Global voice**: configure the default TTS mode (standard or HD) for all users
+- **System debug**: logging and diagnostic configuration
+
+### 2.4. An assistant, not a technical project
+
+LIA's goal is not to turn you into a system administrator. It's to give you the power of a full AI assistant **with the simplicity of a consumer application**. The interface is installable as a native app on desktop, tablet and smartphone (PWA), and everything is designed to be accessible without technical skills in daily use.
 
 ---
 
-## 3. Sovereignty: taking back control
+## 3. What LIA can do
 
-### 3.1. Self-hosting as a founding act
+LIA acts concretely in your digital life through 16 specialized agents covering all everyday needs: managing your personal data (emails, calendar, contacts, tasks, files), accessing external information (web search, weather, places, routing), creating content (images, diagrams), controlling your smart home, autonomous web browsing, and proactively anticipating your needs.
 
-LIA runs in production on a **Raspberry Pi 5** — an 80-euro single-board computer. This is a deliberate choice, not a constraint. If a full AI assistant with 15 specialized agents, an observability stack, and a psychological memory system can run on a tiny ARM server, then digital sovereignty is no longer an enterprise privilege — it is a right accessible to everyone.
+### 3.1. Natural conversation
 
-Multi-architecture Docker images (amd64/arm64) enable deployment on any infrastructure: a Synology NAS, a $5/month VPS, an enterprise server, or a Kubernetes cluster.
+Talk to LIA as you would to a human assistant — no commands to memorize, no syntax to follow. LIA understands and responds in 99+ languages, with an interface available in 6 languages (French, English, German, Spanish, Italian, Chinese). Responses are rendered as interactive HTML visual cards, direct HTML, or Markdown based on your preferences.
 
-### 3.2. Your data, your database
+### 3.2. Personal connected services
 
-When you use ChatGPT, your conversations are stored on OpenAI's servers. When you enable Gemini's memory, your memories live at Google. When Copilot indexes your files, they pass through Microsoft Azure.
+- **Email**: read, search, compose, send, reply, forward — via Gmail, Outlook or Apple Mail
+- **Calendar**: view, create, modify, delete events — via Google Calendar, Outlook Calendar or Apple Calendar
+- **Contacts**: search, create, modify contacts — via Google Contacts, Outlook Contacts or Apple Contacts
+- **Tasks**: manage your task lists — via Google Tasks or Microsoft To Do
+- **Files**: access Google Drive to search and read your documents
+- **Smart Home**: control your Philips Hue lighting — on/off, brightness, colors, scenes, room management
 
-With LIA, everything lives in **your** PostgreSQL:
+### 3.3. Web intelligence and environment
 
-- Your conversations and their history
-- Your long-term memory and psychological profile
-- Your knowledge spaces (RAG)
-- Your personal journals
-- Your preferences and configurations
+- **Web search**: multi-source search (Brave Search, Perplexity, Wikipedia) for comprehensive, sourced answers
+- **Weather**: current conditions and 5-day forecasts, with change detection (rain start/end, temperature drops, wind alerts)
+- **Places and businesses**: nearby location search with details, hours, reviews
+- **Routing**: multi-modal route calculation (car, walking, cycling, transit) with automatic geolocation
 
-You can export, back up, migrate, or delete all of your data at any time. GDPR is not a constraint for LIA — it is a natural consequence of the architecture.
+### 3.4. Voice
 
-### 3.3. Freedom of AI choice
+LIA offers a complete voice mode:
+
+- **Push-to-Talk**: hold the microphone button to speak, optimized for mobile
+- **"OK Guy" wake word**: hands-free detection running **entirely in your browser** via Sherpa-onnx WASM — no audio is transmitted until the wake word is detected
+- **Voice synthesis**: standard mode (Edge TTS, free) or HD (OpenAI TTS / Gemini TTS)
+- **Telegram voice messages**: send audio messages, LIA transcribes and responds
+
+### 3.5. Creation and media
+
+- **Image generation**: create images from text descriptions, edit existing photos
+- **Excalidraw diagrams**: generate diagrams and schemas directly in conversation
+- **Attachments**: attach photos and PDFs — LIA analyzes visual content and extracts text from documents
+- **MCP Apps**: interactive widgets directly in chat (forms, visualizations, mini-applications)
+
+### 3.6. Proactivity and initiative
+
+LIA doesn't just respond — it anticipates:
+
+- **Proactive notifications**: LIA cross-references your context sources (calendar, weather, tasks, emails, interests) and notifies you when something is genuinely useful — with a built-in anti-spam system (daily quota, time window, cooldown)
+- **Conversational initiative**: during an exchange, LIA proactively checks related information — if weather forecasts rain on Saturday, it checks your calendar to flag potential outdoor activities
+- **Interests**: LIA progressively detects topics you're passionate about and can send you relevant content
+- **Sub-agents**: for complex tasks, LIA delegates to ephemeral specialized agents working in parallel
+
+### 3.7. Autonomous web browsing
+
+A browsing agent (Playwright/Chromium headless) can navigate websites, click, fill forms, extract data from dynamic pages — from a simple natural language instruction. A simplified extraction mode converts any URL into usable text.
+
+### 3.8. Server administration (DevOps)
+
+By installing Claude CLI (Claude Code) directly on the server, administrators can diagnose their infrastructure in natural language from LIA's chat: check Docker logs, verify container health, monitor disk space, analyze errors. This feature is restricted to administrator accounts.
+
+---
+
+## 4. A server for your loved ones
+
+### 4.1. LIA is a shared web server
+
+Unlike personal cloud assistants (one account = one user), LIA is designed as a **centralized server** that you deploy once and share with your family, friends, or team.
+
+Each user gets their own account with:
+
+- Their profile, preferences, language
+- **Their own assistant personality** with its own mood, emotions and unique relationship — thanks to the Psyche Engine, each user interacts with an assistant that develops a distinct emotional bond
+- Their memory, recollections, personal journals — fully isolated
+- Their own connectors (Google, Microsoft, Apple)
+- Their private knowledge spaces
+
+### 4.2. Per-user usage management
+
+The administrator maintains control over consumption:
+
+- **Usage limits** configurable per user: message count, tokens, maximum cost — per day, week, month, or as a global cumulative cap
+- **Visual quotas**: each user sees their consumption in real time with clear gauges
+- **Connector activation/deactivation**: the administrator enables or disables integrations (Google, Microsoft, Hue...) at the instance level
+
+### 4.3. Your family AI
+
+Imagine: a Raspberry Pi in your living room, and the whole family enjoying an intelligent AI assistant — each with their own personalized experience, memories, conversation style, and an assistant that develops its own emotional relationship with them. All under your control, without a cloud subscription, without data leaving for a third party.
+
+---
+
+## 5. Sovereign and frugal
+
+### 5.1. Your data stays with you
+
+When you use ChatGPT, your conversations live on OpenAI's servers. With Gemini, at Google's. With Copilot, at Microsoft's.
+
+With LIA, **everything stays in your PostgreSQL**: conversations, memory, psychological profile, documents, preferences. You can export, back up, migrate or delete all your data at any time. GDPR is not a constraint — it's a natural consequence of the architecture. Sensitive data is encrypted, sessions are isolated, and automatic personally identifiable information (PII) filtering is built in.
+
+### 5.2. Even a Raspberry Pi is enough
+
+LIA runs in production on a **Raspberry Pi 5** — a single-board computer costing around $80. 16 specialized agents, a full observability stack, a psychological memory system, all on a tiny ARM server. Multi-architecture Docker images (amd64/arm64) enable deployment on any hardware: Synology NAS, VPS for a few dollars a month, enterprise server, or Kubernetes cluster.
+
+Digital sovereignty is no longer an enterprise privilege — it's a right accessible to everyone.
+
+### 5.3. Optimized for frugality
+
+LIA doesn't just run on modest hardware — it **actively optimizes** its AI resource consumption:
+
+- **Catalog filtering**: only the tools relevant to your query are presented to the LLM, drastically reducing token consumption
+- **Pattern learning**: validated plans are memorized and reused without calling the LLM again
+- **Message Windowing**: each component sees only the strictly necessary context
+- **Prompt caching**: leveraging native provider caching to limit recurring costs
+
+These combined optimizations enable a significant reduction in token consumption compared to a naive agentic approach.
+
+---
+
+## 6. Radical transparency
+
+### 6.1. No black box
+
+When a cloud assistant executes a task, you see the result. But how many AI calls? Which models? How many tokens? What cost? Why that decision? You have no idea.
+
+LIA takes the opposite approach — **everything is visible, everything is auditable**.
+
+### 6.2. The built-in debug panel
+
+Right in the chat interface, a debug panel exposes in real time each conversation with details on intent analysis (message classification and confidence score), execution pipeline (generated plan, tool calls with inputs/outputs), LLM pipeline (every AI call with model, duration, tokens and cost), injected context (memories, RAG documents, journals) and the complete request lifecycle.
+
+### 6.3. Cost tracking to the penny
+
+Each message shows its cost in tokens and currency. Users can export their consumption. Administrators get real-time dashboards with per-user gauges and configurable quotas.
+
+You're not paying a subscription that hides the real costs. You see exactly what each interaction costs, and you can optimize: economical model for routing, more powerful for the response.
+
+### 6.4. Trust through evidence
+
+Transparency is not a technical gimmick. It changes your relationship with your assistant: you **understand** its decisions, you **control** your costs, you **detect** problems. You trust because you can verify — not because you're asked to believe.
+
+---
+
+## 7. Emotional depth
+
+### 7.1. Beyond factual memory
+
+Major assistants remember your preferences and personal facts. That's useful, but flat. LIA goes further with a structured **psychological and emotional understanding**.
+
+Each memory carries an emotional weight (-10 to +10), an importance score, a usage nuance, and a psychological category. This isn't a simple database — it's a profile that understands what moves you, what motivates you, what hurts you.
+
+### 7.2. The Psyche Engine: a living personality
+
+This is LIA's deepest differentiator. ChatGPT, Gemini, Claude — all have a fixed personality. Every message is an emotional blank slate. LIA is different.
+
+The **Psyche Engine** gives LIA a dynamic psychological state that evolves with every exchange:
+
+- **14 moods** that fluctuate with the conversation's tone (serene, curious, melancholic, playful...)
+- **16 emotions** that trigger and fade in response to your words
+- **A relationship** that deepens message after message
+- **Personality traits** (Big Five) inherited from the chosen personality
+- **Motivations** that influence the assistant's proactivity
+
+You're not talking to a tool — you're interacting with an entity whose vocabulary warms up when touched, whose sentences shorten under tension, whose humor emerges when the exchange is light. And it never says so — it **shows** it.
+
+### 7.3. Personal journals
+
+LIA keeps its own reflections in **personal journals**: self-reflection, observations about the user, ideas, learnings. These notes, written in the first person and colored by the active personality, organically influence future responses.
+
+This is a form of artificial introspection — the assistant reflecting on its interactions and developing its own perspectives. The user retains full control: reading, editing, deleting.
+
+### 7.4. Emotional safety
+
+When a memory with a strong negative emotional charge is activated, LIA automatically switches to protective mode: never joke, never minimize, never trivialize. The assistant adapts its behavior to the emotional reality of the person — not a one-size-fits-all treatment.
+
+### 7.5. Self-knowledge
+
+LIA has a built-in knowledge base about its own capabilities, allowing it to answer questions about what it can do, how it works, and what its limitations are.
+
+---
+
+## 8. Production reliability
+
+### 8.1. The real challenge of agentic AI
+
+The vast majority of agentic AI projects never reach production. Uncontrolled costs, non-deterministic behavior, missing audit trails, failing agent coordination. LIA has solved these problems — and runs in production 24/7 on a Raspberry Pi.
+
+### 8.2. A professional observability stack
+
+LIA ships with production-grade observability:
+
+| Tool | Role |
+| --- | --- |
+| **Prometheus** | System and business metrics |
+| **Grafana** | Real-time monitoring dashboards |
+| **Tempo** | End-to-end distributed tracing |
+| **Loki** | Structured log aggregation |
+| **Langfuse** | Specialized LLM call tracing |
+
+Every request is traced end-to-end, every LLM call is measured, every error is contextualized. This isn't monitoring bolted on as an afterthought — it's a **foundational architectural decision** documented across the project's Architecture Decision Records.
+
+### 8.3. An anti-hallucination pipeline
+
+The response system features a three-layer anti-hallucination mechanism: data formatting with explicit boundaries, directives enforcing exclusive use of verified data, and explicit edge case handling. The LLM is constrained to synthesize only what comes from actual tool results.
+
+### 8.4. Human-in-the-Loop with 6 levels
+
+LIA doesn't refuse sensitive actions — it **submits** them to you with the appropriate level of detail: plan approval, clarification, draft critique, destructive confirmation, batch operation confirmation, modification review. Each approval feeds the learning system — the system accelerates over time.
+
+---
+
+## 9. Radical openness
+
+### 9.1. Zero lock-in
 
 ChatGPT ties you to OpenAI. Gemini to Google. Copilot to Microsoft.
 
-LIA connects you to **7 providers simultaneously**: OpenAI, Anthropic, Google, DeepSeek, Perplexity, Qwen, and Ollama. And you can mix and match: use OpenAI for planning, Anthropic for responses, DeepSeek for background tasks — configuring each pipeline node independently from an admin interface.
+LIA connects you to **7 AI providers simultaneously**: OpenAI, Anthropic, Google, DeepSeek, Perplexity, Qwen, and Ollama (local models). You can mix: OpenAI for planning, Anthropic for response, DeepSeek for background tasks — all configurable from the admin interface, in one click.
 
-This freedom is not just about cost or performance. It is **insurance against dependency**: if a provider changes its pricing, degrades its service, or shuts down its API, you switch with a single click.
+If a provider changes its pricing or degrades its service, you switch instantly. No dependency, no trap.
 
----
+### 9.2. Open standards
 
-## 4. Radical transparency: seeing what the AI does and what it costs
+| Standard | Usage in LIA |
+| --- | --- |
+| **MCP** (Model Context Protocol) | Per-user external tool connections |
+| **agentskills.io** | Injectable skills with progressive disclosure |
+| **OAuth 2.1 + PKCE** | Authentication for all connectors |
+| **OpenTelemetry** | Standardized observability |
+| **AGPL-3.0** | Complete, auditable, modifiable source code |
 
-### 4.1. The black box problem
+### 9.3. Extensibility
 
-When ChatGPT Agent executes a task, you see the result. But how many LLM calls were needed? Which models were used? How many tokens? What cost? Why this decision rather than another? You have no idea. The system is a black box.
+Each user can connect their own MCP servers, extending LIA's capabilities far beyond built-in tools. Skills (agentskills.io standard) allow injecting expert instructions in natural language — with a built-in Skill generator to create them easily.
 
-This opacity is not neutral. A $20 or $200 monthly subscription creates the illusion of free usage: you never see the real cost of your interactions. It encourages indiscriminate use and strips users of any lever for optimization.
+LIA's architecture is designed to facilitate adding new connectors, channels, agents and AI providers. The code is structured with clear abstractions and dedicated development guides (agent creation guide, tool creation guide) that make extension accessible to any developer.
 
-### 4.2. Transparency as a core value
+### 9.4. Multi-channel
 
-LIA takes the opposite stance: **everything is visible, everything is auditable**.
-
-**The debug panel** — accessible within the chat interface — exposes in real time for each conversation:
-
-| Category                 | What you see                                                                                                   |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------- |
-| **Intent analysis**      | How the router classified your message, with the confidence score                                              |
-| **Execution pipeline**   | The generated plan, parallel execution waves, tool calls with their inputs/outputs                             |
-| **LLM pipeline**         | Every LLM and embedding call in chronological order: model, duration, tokens (input/cache/output), cost        |
-| **Context and memory**   | Which memories were injected, which RAG documents, which interest profile                                      |
-| **Intelligence**         | Cache hits, learned patterns, semantic expansions                                                               |
-| **Personal journals**    | Notes injected with their relevance score, background extractions                                              |
-| **Lifecycle**            | Exact timing of each phase of the request                                                                      |
-
-**Cost tracking** is granular down to the cent: each message displays its cost in tokens and euros. Users can export their usage as CSV. Administrators have access to real-time dashboards with per-user gauges, configurable quotas (tokens, messages, cost) by period and globally.
-
-### 4.3. Why this changes everything
-
-Transparency is not a gadget for techies. It fundamentally changes the relationship between users and their assistant:
-
-- You **understand** why LIA chose one approach over another
-- You **control** your costs and can optimize (cheaper model for routing, more powerful one for responses)
-- You **detect** problems (a looping plan, a malfunctioning cache, memory pollution)
-- You **trust** because you can verify, not because you are asked to believe
+The responsive web interface is complemented by a native Telegram integration (conversation, transcribed voice messages, inline approval buttons, proactive notifications) and Firebase push notifications. Your memory, journals, and preferences follow you from one channel to another.
 
 ---
 
-## 5. Relational depth: beyond memory
+## 10. Vision
 
-### 5.1. What others do
+### 10.1. Intelligence that grows with you
 
-The major assistants all have memory systems that are progressing rapidly. ChatGPT retains important facts, automatically organizes memories by priority, and GPT-5 now understands tone and emotional intent. Gemini Personal Intelligence (free since March 2026) accesses Gmail, Photos, Docs, and YouTube to build rich context. Copilot uses Work IQ to understand your role, your team, and your professional habits.
+The combination of psychological memory + introspective journals + Bayesian learning + Psyche Engine creates a form of emergent intelligence: over the months, LIA develops an increasingly nuanced understanding of who you are. This isn't artificial general intelligence — it's **practical, relational, and emotional intelligence**, in service of a specific person.
 
-These systems are powerful and constantly improving. But their approach to memory remains essentially **factual and contextual**: they retain your preferences, personal facts, and interaction patterns. GPT-5's emotional understanding, for example, is implicit — it emerges from the model — but it is not structured, weighted, or programmatically exploitable.
+### 10.2. What LIA does not claim to be
 
-### 5.2. What LIA does
+LIA is not a competitor to cloud giants and does not claim to rival their research budgets. As a pure conversational chatbot, the models used through their native interfaces will likely be more fluid. But LIA isn't a chatbot — it's an **intelligent orchestration system** that uses these models as components, under your full control.
 
-LIA builds something fundamentally different: a **psychological profile** of the user.
+### 10.3. Why LIA exists
 
-Each memory is not a simple key-value pair. It carries:
-
-- An **emotional weight** (-10 to +10): is this topic a source of joy, anxiety, or pain?
-- An **importance score**: how structurally significant is this information to the person?
-- A **usage nuance**: how should this information be used in a caring and appropriate way?
-- A **psychological category**: preference, personal fact, relationship, sensitivity, behavioral pattern
-
-This is not pop psychology. It is an automatic extraction system that analyzes each conversation through the lens of the assistant's active personality, identifies psychologically significant information, and stores it with its emotional context.
-
-**Concrete example**: if you mention in passing that your mother is ill, LIA does not simply store "mother ill." It records a sensitivity with a strong negative emotional weight, a usage nuance that prescribes never addressing the topic lightly, and a "relationship/family" category that structures the information within your profile.
-
-### 5.3. Emotional safety
-
-LIA integrates an **emotional danger directive**. When a memory associated with a strong negative emotional charge (weight <= -5) is activated, the system switches to protective mode with four absolute prohibitions:
-
-1. Never joke about the topic
-2. Never minimize
-3. Never compare with other situations
-4. Never trivialize
-
-To our knowledge, this type of adaptive emotional protection mechanism is not common in mainstream AI assistants, which typically treat all topics with the same neutrality. LIA adapts its behavior to the emotional reality of the person it supports.
-
-### 5.4. Personal journals: when the assistant reflects
-
-LIA incorporates an original mechanism: its **Personal Journals**.
-
-The assistant maintains its own reflections, organized into four themes: self-reflection, observations about the user, ideas and analyses, learnings. These notes are written in the first person, colored by the active personality, and concretely influence future responses.
-
-This is not just another memory layer. It is a form of **artificial introspection** — the assistant reflecting on its interactions, noting its own learnings, developing its own perspectives. When it has written "the user prefers concise explanations on technical topics," this observation organically influences future responses, without any hard-coded rule.
-
-Journals are triggered by two mechanisms: post-conversation extraction (after each exchange) and periodic consolidation (every 4 hours, reviewing and reorganizing notes). A **semantic dedup guard** ensures the journal remains dense rather than repetitive: when a new insight is too similar to an existing note, the system enriches the existing entry instead of creating a duplicate. Users retain full control: reading, editing, deleting, enabling/disabling.
-
-### 5.5. The interest system
-
-In parallel, LIA develops an **interest learning system**: through Bayesian analysis of queries, it progressively detects the topics that matter to you and can, over time, proactively send relevant information — an article, a news item, an analysis — on those topics.
-
-### 5.6. Hybrid search
-
-This entire memory system is powered by **hybrid search** combining semantic similarity (pgvector) and keyword matching (BM25). This dual approach delivers greater precision than either method alone: semantic search understands meaning, BM25 captures proper nouns and exact terms.
-
----
-
-## 6. Orchestration that works in production
-
-### 6.1. The real challenge of agentic AI
-
-The agentic promise is enticing: an assistant that plans, executes, and synthesizes. The reality is harsh: 35% coordination failure rate, costs spiraling out of control through unchecked loops, debugging made nearly impossible by non-determinism.
-
-LIA does not claim to have solved agentic AI in general. But it has solved **its** specific problem: reliably, economically, and observably orchestrating 15 specialized agents in production, on modest hardware.
-
-### 6.2. How it works
-
-When you send a message, it passes through a 5-phase pipeline:
-
-**Phase 1 — Understand**: The router analyzes your message in a few hundred milliseconds and decides whether it is a simple conversation or a request requiring actions. The query analyzer identifies the relevant domains (email, calendar, weather...) and a semantic router refines detection using AI-powered embeddings (+48% precision).
-
-**Phase 2 — Plan**: For complex requests, an intelligent planner generates a structured execution plan — a dependency tree with steps, conditions, and iterations. If a similar plan has been validated before, Bayesian learning allows it to be reused directly (LLM bypass, massive savings).
-
-**Phase 3 — Validate**: The plan undergoes semantic validation and then, if needed, your approval via the Human-in-the-Loop system (see section 7).
-
-**Phase 4 — Execute**: Plan steps are executed in parallel when possible, sequentially when there are dependencies. Each specialized agent handles its domain (contacts, emails, calendar...) and the results feed into subsequent steps.
-
-**Phase 5 — Respond**: A three-layer anti-hallucination synthesis system produces a response faithful to actual data, without fabrication or extrapolation.
-
-In the background, three fire-and-forget processes run without impacting latency: memory extraction, journal extraction, interest detection.
-
-### 6.3. Cost control
-
-Where most agentic systems see their costs explode, LIA has developed a set of optimization mechanisms that reduce token consumption by 89%:
-
-- **Catalogue filtering**: only tools relevant to your query are presented to the LLM (96% reduction)
-- **Pattern learning**: validated plans are memorized and reused (LLM bypass if confidence > 90%)
-- **Message Windowing**: each node only sees the N most recent messages it needs (5/10/20 depending on the node)
-- **Context Compaction**: LLM summary of older messages when context exceeds the threshold
-- **Prompt Caching**: leveraging native OpenAI/Anthropic caching (90% reduction)
-- **Semantic embeddings**: multilingual AI-powered embeddings for semantic routing and deduplication
-
-### 6.4. Observability as a safety net
-
-LIA features production-grade native observability: 350+ Prometheus metrics, 18 Grafana dashboards, distributed tracing (Tempo), structured logging (Loki), and specialized LLM tracing (Langfuse). 59 Architecture Decision Records document every design choice.
-
-In an ecosystem where 89% of production AI agent deployments implement some form of observability, LIA goes further with an embedded debug panel that makes these metrics accessible directly in the user interface, not in a separate monitoring tool.
-
----
-
-## 7. Human control as a philosophy
-
-### 7.1. What others do
-
-Gemini Agent "asks for confirmation before critical actions, such as sending an email or making a purchase." ChatGPT Operator "refuses to perform certain tasks for security reasons, such as sending emails and deleting events." This is a binary approach: either the action is allowed, or it is blocked.
-
-### 7.2. LIA's Human-in-the-Loop: 6 levels of nuance
-
-LIA does not refuse sensitive actions — it **submits** them to you with the appropriate level of detail:
-
-| Level                        | Trigger                                    | What you see                                   |
-| ---------------------------- | ------------------------------------------ | ---------------------------------------------- |
-| **Plan approval**            | Destructive or sensitive actions            | The full plan with each step detailed           |
-| **Clarification**            | Ambiguity detected                          | A precise question to resolve the ambiguity     |
-| **Draft critique**           | Email, event, contact to create/modify      | The complete draft, editable before sending     |
-| **Destructive confirmation** | Deletion of 3+ items                        | Explicit irreversibility warning                |
-| **FOR_EACH confirmation**    | Bulk operations                             | Number of operations and nature of each action  |
-| **Modification review**      | AI-suggested modifications                  | Before/after comparison with highlighting       |
-
-### 7.3. The nuance that changes everything
-
-The draft critique illustrates this philosophy. When you ask LIA to send an email, it does not send it directly (as an autonomous agent would) nor does it refuse (as ChatGPT Operator would). It shows you the complete draft with domain-adapted markdown templates (email, event, contact, task), field emojis, a before/after comparison for modifications, and an irreversibility warning for deletions. You can modify, approve, or reject.
-
-This is the difference between an agent that acts on your behalf and an assistant that **proposes** and lets you decide. Trust does not come from the absence of risk — it comes from **visibility** into what is about to happen.
-
-### 7.4. Implicit feedback
-
-Every approval or rejection feeds into the pattern learning system. If you consistently approve a type of plan, LIA learns and proposes with greater confidence. HITL is not just a guardrail — it is a mechanism for **continuous calibration** of the system's intelligence.
-
----
-
-## 8. Acting in your digital life
-
-### 8.1. Three ecosystems, one interface
-
-LIA connects to the three major productivity ecosystems:
-
-**Google Workspace** (OAuth 2.1 + PKCE): Gmail, Google Calendar, Google Contacts (14+ schemas), Google Drive, Google Tasks — with full CRUD coverage.
-
-**Microsoft 365** (OAuth 2.0 + PKCE): Outlook, Calendar, Contacts, To Do — personal and professional accounts (Azure AD multi-tenant).
-
-**Apple iCloud** (IMAP/SMTP, CalDAV, CardDAV): Apple Mail, Apple Calendar, Apple Contacts — for those who live in the Apple ecosystem.
-
-A mutual exclusivity principle ensures consistency: only one active provider per category (email, calendar, contacts, tasks). You can use Google for calendar and Microsoft for email.
-
-### 8.2. Smart home
-
-LIA controls your Philips Hue lighting through natural language commands: turn on/off, adjust brightness and colors, manage rooms and scenes. Local connection (same network) or cloud (OAuth2 Philips Hue).
-
-### 8.3. Web browsing and extraction
-
-An autonomous browsing agent (Playwright/Chromium headless) can navigate websites, click, fill out forms, and extract data from complex JavaScript pages — from a simple natural language instruction. A simpler extraction mode converts any URL into usable Markdown text.
-
-### 8.4. Attachments
-
-Images (analyzed by a vision model) and PDFs (text extraction) are supported as attachments, with client-side compression and strict per-user isolation.
-
-### 8.5. Knowledge spaces (RAG Spaces)
-
-Create personal knowledge bases by uploading your documents (15+ formats: PDF, DOCX, PPTX, XLSX, CSV, EPUB...). Automatic Google Drive folder synchronization with incremental change detection. Hybrid semantic + keyword search. And a system knowledge base (119+ Q&A) lets LIA answer questions about its own features.
-
----
-
-## 9. Contextual proactivity
-
-### 9.1. Beyond notifications
-
-LIA's proactivity is not a manually configured alert system. It is a **contextualized LLM judgment** that aggregates 7 context sources in parallel — calendar, weather (with change detection: rain start/end, temperature drops, wind alerts), tasks, emails, interests, memories, journals — and lets a language model decide whether there is something genuinely useful to communicate.
-
-The two-phase system separates the **decision** (economical model, low temperature, structured output: "notify" or "do not notify") from the **generation** (expressive model, assistant personality, user language).
-
-### 9.2. Anti-spam by design
-
-Configurable daily quota (1-8/day), customizable time window, cooldown between notifications, anti-redundancy through injection of recent history into the decision prompt, skip if the user is in an active conversation. Proactivity is opt-in, every parameter is adjustable, and disabling preserves data.
-
-### 9.3. Conversational initiative
-
-During a conversation, LIA does not merely answer the question asked. After each execution, an **initiative agent** analyzes the results and proactively checks related information — if the weather forecast calls for rain on Saturday, the initiative checks the calendar to flag any outdoor activities. If an email mentions an appointment, it checks availability. Entirely prompt-driven (no hard-coded logic), limited to read-only actions, enriched by the user's memory and interests.
-
-### 9.4. Scheduled actions
-
-Beyond notifications, LIA executes recurring scheduled actions with timezone management, automatic retry, and deactivation after consecutive failures. Results are delivered via push (FCM), SSE, and Telegram.
-
----
-
-## 10. Voice as a natural interface
-
-### 10.1. Voice input
-
-**Push-to-Talk**: hold the microphone button to speak. Mobile-optimized with anti-long-press, touch gesture handling, and cancel-by-swipe.
-
-**"OK Guy" wake word**: hands-free detection running **entirely in your browser** via Sherpa-onnx WASM — no audio is transmitted to a server until the wake word is detected. Transcription uses Whisper (99+ languages, offline) with respect for your preferred language.
-
-**Latency optimizations**: microphone stream reuse, WebSocket pre-connection, parallel setup — the delay between wake word detection and recording start is ~50-100 ms.
-
-### 10.2. Voice output
-
-Two modes: Standard (Edge TTS, free, high quality) and HD (OpenAI TTS or Gemini TTS, premium). Automatic HD-to-Standard fallback on failure.
-
----
-
-## 11. Openness as a strategy
-
-### 11.1. Open standards, no lock-in
-
-| Standard                         | Usage in LIA                                                                                |
-| -------------------------------- | ------------------------------------------------------------------------------------------- |
-| **MCP** (Model Context Protocol) | Per-user external tool connections, with OAuth 2.1, SSRF prevention, rate limiting          |
-| **agentskills.io**               | Injectable Skills with progressive disclosure (L1/L2/L3), built-in generator                |
-| **OAuth 2.1 + PKCE**             | Delegated authentication for all connectors                                                 |
-| **OpenTelemetry**                | Standardized observability                                                                  |
-| **AGPL-3.0**                     | Complete source code, auditable, modifiable                                                 |
-
-### 11.2. MCP: extensibility without limits
-
-Each user can connect their own MCP servers, extending LIA's capabilities far beyond the built-in tools. Domain descriptions are automatically generated by LLM for intelligent routing. MCP Apps display interactive widgets (such as Excalidraw for diagrams) directly in the chat. The **iterative mode (ReAct)** allows servers with complex APIs to be handled by a dedicated agent that first reads the documentation then calls tools with the correct parameters — instead of pre-computing everything in the static plan.
-
-### 11.3. Skills: tailored expertise
-
-Skills (agentskills.io standard) allow injecting expert instructions. A "morning briefing" Skill can coordinate calendar, weather, emails, and tasks in a single deterministic command. The built-in generator guides you through creating Skills in natural language.
-
-### 11.4. Multi-channel
-
-The responsive web interface is complemented by a native Telegram integration (text conversation, transcribed voice messages, inline HITL buttons, proactive notifications) and Firebase push notifications.
-
----
-
-## 12. Self-optimizing intelligence
-
-### 12.1. Bayesian plan learning
-
-With each plan that is validated and successfully executed, LIA records the pattern. A Bayesian scoring system calculates confidence in each pattern. Above 90% confidence, the plan is reused directly without an LLM call — massive savings in tokens and latency. The system is bootstrapped with 50+ predefined "golden patterns" and continuously enriches itself.
-
-### 12.2. Local semantic routing
-
-Multilingual semantic embeddings (100+ languages) enable semantic routing that improves intent detection precision by 48% compared to purely LLM-based routing.
-
-### 12.3. Three-layer anti-hallucination
-
-The response node features a three-layer anti-hallucination system: data formatting with explicit boundaries, system directives mandating exclusive use of verified data, and explicit handling of edge cases (rejection, error, no results). The LLM is constrained to synthesize only what comes from actual tool results.
-
----
-
-## 13. The fabric: how everything weaves together
-
-LIA's power does not lie in the sum of its features. It lies in their **entanglement** — the way each subsystem reinforces the others to create something that exceeds the sum of its parts.
-
-### 13.1. Memory + Proactivity + Journals
-
-LIA does not merely know that you have a meeting tomorrow. Through its memory, it knows your anxiety about the topic. Through its journals, it noted that short presentations work better with that particular person. Through its interest system, it spotted a relevant article. The proactive notification weaves all these dimensions into a personalized, coherent, and useful message — not a generic alert.
-
-### 13.2. HITL + Pattern Learning + Costs
-
-Every HITL interaction feeds learning. Your approval of a plan inscribes it in Bayesian memory. Next time, it will be reused without an LLM call: better experience (faster), lower cost (fewer tokens), increased trust (already-validated plan). HITL does not slow the system down — it **accelerates** it over time.
-
-### 13.3. RAG + Response
-
-Your knowledge spaces directly enrich LIA's responses. If you have uploaded your company's procedures and ask about the approval process, LIA searches your documents and integrates the relevant information into its response. Embedding costs are tracked per document and per query, visible in both the chat and the dashboard.
-
-### 13.4. Semantic routing + Catalogue filtering + Transparency
-
-Local semantic routing detects relevant domains. Catalogue filtering reduces the tools presented to the LLM by 96%. The debug panel shows you exactly this selection. The result: more precise, cheaper plans that you can understand and audit.
-
-### 13.5. Voice + Telegram + Web + Sovereignty
-
-The same intelligence is accessible through three complementary channels: the web for complex operations, Telegram for mobility, voice for hands-free use. Your memory, your journals, your preferences follow you from one channel to another — and everything stays on your server.
-
----
-
-## 14. What LIA does not claim to be
-
-### 14.1. LIA is not the "best chatbot"
-
-As a conversational text generator, GPT-5.4 or Claude Opus 4.6 used through their native interface will probably be more fluid than LIA — because LIA is not a chatbot. It is an orchestration system that uses these models as components.
-
-### 14.2. LIA does not have GAFAM resources
-
-The team integrating Gemini with Google Workspace has thousands of engineers and direct access to internal APIs. LIA uses the same public APIs as any developer. Functional coverage will never be identical.
-
-### 14.3. LIA is not "plug and play"
-
-Self-hosting has a price: initial configuration, server maintenance, update management. LIA has a simplified setup system (`task setup` then `task dev`), but it is not as simple as signing up on chatgpt.com.
-
-### 14.4. Why this honesty matters
-
-Because trust is built on truth, not marketing. LIA excels where it chose to excel: sovereignty, transparency, relational depth, production reliability, and openness. For everything else, it relies on the best LLMs on the market — which it orchestrates rather than tries to replace.
-
----
-
-## 15. Vision: where LIA is headed
-
-### 15.1. Emergent intelligence
-
-The combination of psychological memory + introspective journals + Bayesian learning + interests + proactivity creates the conditions for a form of **emergent intelligence**: over the months, LIA develops an increasingly nuanced understanding of who you are, what you need, and how to present it to you. This is not artificial general intelligence. It is **practical, relational intelligence**, in service of a specific person.
-
-### 15.2. Extensible architecture
-
-Every component is designed for extension without rewriting:
-
-- **New connectors** (Slack, Notion, Trello) via protocol abstraction
-- **New channels** (Discord, WhatsApp) via the BaseChannel architecture
-- **New agents** without modifying the core system
-- **New AI providers** via the LLM factory
-- **New MCP tools** through simple user connection
-
-### 15.3. Convergence
-
-LIA's long-term vision is that of a **personal digital nervous system**: a single point that orchestrates your entire digital life, with the memory of an assistant that has known you for years, the proactivity of an attentive collaborator, the transparency of a tool you understand, and the sovereignty of a system you own.
-
-In a world where AI will be everywhere, the question will no longer be "which AI to use?" but "**who controls my AI?**" LIA's answer: you do.
-
----
-
-## What no other assistant does: living emotional intelligence
-
-ChatGPT, Gemini, Claude — they all have a fixed personality. Every message is an emotional blank slate. LIA is different.
-
-**The Psyche Engine** gives LIA a dynamic psychological state that evolves with every exchange. It's not a simulation — it's a 5-layer emotional architecture:
-
-- **14 moods** that fluctuate with conversation tone (serene, curious, melancholic, playful...)
-- **16 emotions** that fire and decay in response to your words
-- **A relationship** that deepens message after message — from professional politeness to genuine rapport
-- **Personality traits** (Big Five) inherited from the chosen persona, modulating emotional reactivity
-- **Drives** (curiosity, engagement) that influence how proactive the assistant is
-
-**The result?** You're not talking to a tool — you're interacting with an entity that remembers your relationship, whose vocabulary warms when it's touched, whose sentences shorten under tension, whose humor surfaces when the exchange is light. And it never says so — it shows it.
-
-No commercial assistant offers this. It's a fundamental differentiator.
-
----
-
-## Conclusion: why LIA exists
-
-LIA does not exist because the world lacks AI assistants. It is overflowing with them. ChatGPT, Gemini, Copilot, Claude — each is remarkable in its own way.
-
-LIA exists because the world lacks an AI assistant that is truly **yours**. Genuinely yours. On your server, with your data, under your control, with full transparency into what it does and what it costs, a psychological understanding that goes beyond facts, and the freedom to choose which AI model powers it.
-
-It is not a chatbot. It is not a cloud platform. It is a **sovereign digital companion** — and that is precisely what was missing.
+LIA exists because the world lacks an AI assistant that is truly **yours**. Simple to administer day-to-day. Shareable with your loved ones, each with their own emotional relationship. Hosted on your server. Transparent about every decision and every cost. Capable of an emotional depth that commercial assistants don't offer. Reliable in production. And open — open on providers, standards, and code.
 
 **Your Life. Your AI. Your Rules.**
-
----
-
-*Document written based on the source code of LIA v1.14.2, 190+ technical documents, 63 ADRs, the complete changelog, and an analysis of the AI competitive landscape as of March 2026. All described features are implemented and verifiable in the code. Market data sourced from Gartner, IBM, and official publications from OpenAI, Google, Microsoft, and Anthropic.*

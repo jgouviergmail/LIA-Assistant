@@ -36,7 +36,8 @@ class SSEErrorMessages:
         """
         Generic error message for unexpected exceptions.
 
-        Detects LLM provider transient errors and provides appropriate messaging.
+        Classifies errors into user-friendly categories and never exposes
+        raw error types or technical details to end users.
 
         Args:
             exception: The exception that occurred
@@ -45,39 +46,22 @@ class SSEErrorMessages:
         Returns:
             User-friendly error message with recovery guidance
         """
-        # Check for LLM provider transient errors first (all providers)
-        error_str = str(exception).lower()
-        error_type = type(exception).__name__
+        category = SSEErrorMessages._classify_error(exception)
 
-        transient_patterns = (
-            "overloaded" in error_str
-            or "rate_limit" in error_str
-            or "resource_exhausted" in error_str
-            or "service_unavailable" in error_str
-            or "server_error" in error_str
-            or "capacity" in error_str
-            or any(code in error_str for code in ("429", "500", "502", "503", "529"))
-        )
-        transient_types = error_type in (
-            "OverloadedError",
-            "RateLimitError",
-            "APITimeoutError",
-            "InternalServerError",
-            "APIConnectionError",
-            "ServiceUnavailableError",
-            "APIStatusError",
-        )
-
-        if transient_patterns or transient_types:
+        if category == "transient":
             return SSEErrorMessages._llm_provider_busy(language)
+        if category == "content_filter":
+            return SSEErrorMessages._content_filter_error(language)
+        if category == "timeout":
+            return SSEErrorMessages._timeout_error(language)
 
         messages = {
-            "fr": f"Une erreur s'est produite : {error_type}. Veuillez réessayer ou contacter le support si le problème persiste.",
-            "en": f"An error occurred: {error_type}. Please try again or contact support if the problem persists.",
-            "es": f"Se produjo un error: {error_type}. Por favor, inténtelo de nuevo o contacte con soporte si el problema persiste.",
-            "de": f"Ein Fehler ist aufgetreten: {error_type}. Bitte versuchen Sie es erneut oder wenden Sie sich an den Support, wenn das Problem weiterhin besteht.",
-            "it": f"Si è verificato un errore: {error_type}. Si prega di riprovare o contattare il supporto se il problema persiste.",
-            "zh-CN": f"发生错误：{error_type}。请重试，如果问题仍然存在，请联系支持人员。",
+            "fr": "Une erreur inattendue s'est produite. Veuillez réessayer ou contacter le support si le problème persiste.",
+            "en": "An unexpected error occurred. Please try again or contact support if the problem persists.",
+            "es": "Se produjo un error inesperado. Por favor, inténtelo de nuevo o contacte con soporte si el problema persiste.",
+            "de": "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut oder wenden Sie sich an den Support.",
+            "it": "Si è verificato un errore imprevisto. Si prega di riprovare o contattare il supporto se il problema persiste.",
+            "zh-CN": "发生意外错误。请重试，如果问题仍然存在，请联系支持人员。",
         }
 
         return messages.get(language, messages["en"])
@@ -87,8 +71,8 @@ class SSEErrorMessages:
         """
         Error message for SSE stream failures (router-level).
 
-        Detects LLM provider errors (overloaded, rate limit, timeout) and returns
-        a user-friendly message with retry guidance instead of raw error types.
+        Classifies errors into user-friendly categories. Never exposes raw
+        error types or technical details to end users.
 
         Args:
             exception: The exception that occurred
@@ -97,43 +81,22 @@ class SSEErrorMessages:
         Returns:
             User-friendly error message for stream errors
         """
-        # Detect LLM provider transient errors across all providers
-        # Anthropic: OverloadedError/529, RateLimitError/429, APIStatusError
-        # OpenAI: RateLimitError/429, APITimeoutError, InternalServerError/500
-        # DeepSeek/Gemini: 503 ServiceUnavailable, ResourceExhausted
-        # All: APIConnectionError, APITimeoutError
-        error_str = str(exception).lower()
-        error_type_name = type(exception).__name__
+        category = SSEErrorMessages._classify_error(exception)
 
-        transient_patterns = (
-            "overloaded" in error_str
-            or "rate_limit" in error_str
-            or "resource_exhausted" in error_str
-            or "service_unavailable" in error_str
-            or "server_error" in error_str
-            or "capacity" in error_str
-            or any(code in error_str for code in ("429", "500", "502", "503", "529"))
-        )
-        transient_types = error_type_name in (
-            "OverloadedError",
-            "RateLimitError",
-            "APITimeoutError",
-            "InternalServerError",
-            "APIConnectionError",
-            "ServiceUnavailableError",
-            "APIStatusError",
-        )
-
-        if transient_patterns or transient_types:
+        if category == "transient":
             return SSEErrorMessages._llm_provider_busy(language)
+        if category == "content_filter":
+            return SSEErrorMessages._content_filter_error(language)
+        if category == "timeout":
+            return SSEErrorMessages._timeout_error(language)
 
         messages = {
-            "fr": f"Erreur de streaming : {error_type_name}. Veuillez rafraîchir la page pour recommencer.",
-            "en": f"Stream error: {error_type_name}. Please refresh the page to try again.",
-            "es": f"Error de transmisión: {error_type_name}. Por favor, actualice la página para volver a intentarlo.",
-            "de": f"Streaming-Fehler: {error_type_name}. Bitte aktualisieren Sie die Seite, um es erneut zu versuchen.",
-            "it": f"Errore di streaming: {error_type_name}. Si prega di aggiornare la pagina per riprovare.",
-            "zh-CN": f"流错误：{error_type_name}。请刷新页面重试。",
+            "fr": "Un problème est survenu lors de la génération de la réponse. Veuillez réessayer.",
+            "en": "A problem occurred while generating the response. Please try again.",
+            "es": "Ocurrió un problema al generar la respuesta. Por favor, inténtelo de nuevo.",
+            "de": "Bei der Erstellung der Antwort ist ein Problem aufgetreten. Bitte versuchen Sie es erneut.",
+            "it": "Si è verificato un problema durante la generazione della risposta. Si prega di riprovare.",
+            "zh-CN": "生成回复时出现问题。请重试。",
         }
 
         return messages.get(language, messages["en"])
@@ -182,6 +145,140 @@ class SSEErrorMessages:
             ),
         }
 
+        return messages.get(language, messages["en"])
+
+    @staticmethod
+    def _classify_error(exception: Exception) -> str:
+        """Classify an exception into a user-facing error category.
+
+        Categories:
+        - "transient": Provider overload, rate limit, temporary unavailability
+        - "content_filter": Provider content moderation/safety filter triggered
+        - "timeout": Request or connection timeout
+        - "unknown": Everything else
+
+        Returns:
+            Error category string.
+        """
+        error_str = str(exception).lower()
+        error_type = type(exception).__name__
+
+        # Transient: overload, rate limit, capacity, server errors
+        transient_keywords = (
+            "overloaded",
+            "rate_limit",
+            "resource_exhausted",
+            "service_unavailable",
+            "server_error",
+            "capacity",
+        )
+        transient_codes = ("429", "500", "502", "503", "529")
+        transient_types = {
+            "OverloadedError",
+            "RateLimitError",
+            "InternalServerError",
+            "APIConnectionError",
+            "ServiceUnavailableError",
+            "APIStatusError",
+        }
+
+        if (
+            any(kw in error_str for kw in transient_keywords)
+            or any(code in error_str for code in transient_codes)
+            or error_type in transient_types
+        ):
+            return "transient"
+
+        # Content filter: provider safety/moderation blocks
+        content_filter_keywords = (
+            "datainspectionfailed",
+            "content_policy_violation",
+            "inappropriate content",
+            "content_filter",
+            "safety_block",
+            "responsible_ai",
+            "harm_category",
+            "blocked by",
+            "content management",
+            "output data may contain",
+        )
+        if any(kw in error_str for kw in content_filter_keywords):
+            return "content_filter"
+
+        # Timeout
+        if error_type == "APITimeoutError" or "timeout" in error_str:
+            return "timeout"
+
+        return "unknown"
+
+    @staticmethod
+    def _content_filter_error(language: SupportedLanguage = "fr") -> str:
+        """User-friendly message when a provider content filter blocks the response.
+
+        Args:
+            language: User's language for localized message.
+
+        Returns:
+            Localized user-friendly message.
+        """
+        messages = {
+            "fr": (
+                "Le fournisseur du modèle d'IA n'a pas pu générer de réponse pour cette demande. "
+                "Essayez de reformuler votre question."
+            ),
+            "en": (
+                "The AI model provider could not generate a response for this request. "
+                "Try rephrasing your question."
+            ),
+            "es": (
+                "El proveedor del modelo de IA no pudo generar una respuesta para esta solicitud. "
+                "Intente reformular su pregunta."
+            ),
+            "de": (
+                "Der KI-Modellanbieter konnte keine Antwort auf diese Anfrage generieren. "
+                "Versuchen Sie, Ihre Frage umzuformulieren."
+            ),
+            "it": (
+                "Il fornitore del modello di IA non è riuscito a generare una risposta per questa richiesta. "
+                "Prova a riformulare la tua domanda."
+            ),
+            "zh-CN": ("AI模型提供商无法为此请求生成回复。" "请尝试重新措辞您的问题。"),
+        }
+        return messages.get(language, messages["en"])
+
+    @staticmethod
+    def _timeout_error(language: SupportedLanguage = "fr") -> str:
+        """User-friendly message for request timeouts.
+
+        Args:
+            language: User's language for localized message.
+
+        Returns:
+            Localized user-friendly message.
+        """
+        messages = {
+            "fr": (
+                "La demande a pris trop de temps. "
+                "Veuillez réessayer — si le problème persiste, essayez une question plus simple."
+            ),
+            "en": (
+                "The request took too long. "
+                "Please try again — if the problem persists, try a simpler question."
+            ),
+            "es": (
+                "La solicitud tardó demasiado. "
+                "Por favor, inténtelo de nuevo — si el problema persiste, pruebe con una pregunta más sencilla."
+            ),
+            "de": (
+                "Die Anfrage hat zu lange gedauert. "
+                "Bitte versuchen Sie es erneut — wenn das Problem weiterhin besteht, versuchen Sie eine einfachere Frage."
+            ),
+            "it": (
+                "La richiesta ha richiesto troppo tempo. "
+                "Si prega di riprovare — se il problema persiste, provare con una domanda più semplice."
+            ),
+            "zh-CN": ("请求耗时过长。" "请重试——如果问题仍然存在，请尝试更简单的问题。"),
+        }
         return messages.get(language, messages["en"])
 
     @staticmethod
@@ -248,6 +345,8 @@ class SSEErrorMessages:
         """
         Error message for HITL resumption failures.
 
+        Uses _classify_error to provide category-specific messages.
+
         Args:
             exception: The exception that occurred
             language: Target language (fr/en/es/de/it/zh-CN)
@@ -255,15 +354,20 @@ class SSEErrorMessages:
         Returns:
             User-friendly error message for HITL resumption
         """
-        error_type = type(exception).__name__
+        category = SSEErrorMessages._classify_error(exception)
+
+        if category == "transient":
+            return SSEErrorMessages._llm_provider_busy(language)
+        if category == "content_filter":
+            return SSEErrorMessages._content_filter_error(language)
 
         messages = {
-            "fr": f"Erreur lors de la reprise : {error_type}. Veuillez reformuler votre demande ou recommencer.",
-            "en": f"Error during resumption: {error_type}. Please rephrase your request or start over.",
-            "es": f"Error durante la reanudación: {error_type}. Por favor, reformule su solicitud o comience de nuevo.",
-            "de": f"Fehler bei der Wiederaufnahme: {error_type}. Bitte formulieren Sie Ihre Anfrage um oder beginnen Sie von vorne.",
-            "it": f"Errore durante la ripresa: {error_type}. Si prega di riformulare la richiesta o ricominciare.",
-            "zh-CN": f"恢复时出错：{error_type}。请重新表述您的请求或重新开始。",
+            "fr": "Un problème est survenu lors de la reprise. Veuillez reformuler votre demande ou recommencer.",
+            "en": "A problem occurred during resumption. Please rephrase your request or start over.",
+            "es": "Ocurrió un problema durante la reanudación. Por favor, reformule su solicitud o comience de nuevo.",
+            "de": "Bei der Wiederaufnahme ist ein Problem aufgetreten. Bitte formulieren Sie Ihre Anfrage um oder beginnen Sie von vorne.",
+            "it": "Si è verificato un problema durante la ripresa. Si prega di riformulare la richiesta o ricominciare.",
+            "zh-CN": "恢复时出现问题。请重新表述您的请求或重新开始。",
         }
 
         return messages.get(language, messages["en"])
@@ -273,6 +377,8 @@ class SSEErrorMessages:
         """
         Error message for graph execution failures (main agent flow).
 
+        Uses _classify_error to provide category-specific messages.
+
         Args:
             exception: The exception that occurred
             language: Target language (fr/en/es/de/it/zh-CN)
@@ -280,15 +386,22 @@ class SSEErrorMessages:
         Returns:
             User-friendly error message for graph errors
         """
-        error_type = type(exception).__name__
+        category = SSEErrorMessages._classify_error(exception)
+
+        if category == "transient":
+            return SSEErrorMessages._llm_provider_busy(language)
+        if category == "content_filter":
+            return SSEErrorMessages._content_filter_error(language)
+        if category == "timeout":
+            return SSEErrorMessages._timeout_error(language)
 
         messages = {
-            "fr": f"Une erreur s'est produite lors du traitement : {error_type}. Veuillez réessayer avec une demande différente.",
-            "en": f"An error occurred during processing: {error_type}. Please try again with a different request.",
-            "es": f"Se produjo un error durante el procesamiento: {error_type}. Por favor, inténtelo de nuevo con una solicitud diferente.",
-            "de": f"Bei der Verarbeitung ist ein Fehler aufgetreten: {error_type}. Bitte versuchen Sie es mit einer anderen Anfrage erneut.",
-            "it": f"Si è verificato un errore durante l'elaborazione: {error_type}. Si prega di riprovare con una richiesta diversa.",
-            "zh-CN": f"处理过程中发生错误：{error_type}。请使用不同的请求重试。",
+            "fr": "Un problème est survenu lors du traitement. Veuillez réessayer avec une demande différente.",
+            "en": "A problem occurred during processing. Please try again with a different request.",
+            "es": "Ocurrió un problema durante el procesamiento. Por favor, inténtelo de nuevo con una solicitud diferente.",
+            "de": "Bei der Verarbeitung ist ein Problem aufgetreten. Bitte versuchen Sie es mit einer anderen Anfrage erneut.",
+            "it": "Si è verificato un problema durante l'elaborazione. Si prega di riprovare con una richiesta diversa.",
+            "zh-CN": "处理过程中出现问题。请使用不同的请求重试。",
         }
 
         return messages.get(language, messages["en"])
@@ -456,15 +569,20 @@ class SSEErrorMessages:
         Returns:
             Formatted error message for resumption errors
         """
-        error_info = f"{type(error).__name__}: {error}"
+        category = SSEErrorMessages._classify_error(error)
+
+        if category == "transient":
+            return SSEErrorMessages._llm_provider_busy(language)
+        if category == "content_filter":
+            return SSEErrorMessages._content_filter_error(language)
 
         messages = {
-            "fr": f"Erreur lors de la reprise: {error_info}",
-            "en": f"Error during resumption: {error_info}",
-            "es": f"Error durante la reanudación: {error_info}",
-            "de": f"Fehler bei der Wiederaufnahme: {error_info}",
-            "it": f"Errore durante la ripresa: {error_info}",
-            "zh-CN": f"恢复时出错：{error_info}",
+            "fr": "Un problème est survenu lors de la reprise. Veuillez reformuler votre demande.",
+            "en": "A problem occurred during resumption. Please rephrase your request.",
+            "es": "Ocurrió un problema durante la reanudación. Por favor, reformule su solicitud.",
+            "de": "Bei der Wiederaufnahme ist ein Problem aufgetreten. Bitte formulieren Sie Ihre Anfrage um.",
+            "it": "Si è verificato un problema durante la ripresa. Si prega di riformulare la richiesta.",
+            "zh-CN": "恢复时出现问题。请重新表述您的请求。",
         }
 
         return messages.get(language, messages["en"])

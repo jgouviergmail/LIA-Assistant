@@ -421,8 +421,10 @@ class WeatherCard(BaseComponent):
         # Limit days (configurable via WEATHER_FORECAST_MAX_DAYS env var)
         max_days = settings.weather_forecast_max_days
         for day in forecasts[:max_days]:
-            date = day.get("date_formatted") or day.get("date", "")
-            day_name = date.split(",")[0] if "," in str(date) else str(date)[:3]
+            date_iso = day.get("date", "")
+            # Format date in user's language; extract day name for compact display
+            full_date = format_full_date(date_iso, ctx.language, ctx.timezone) if date_iso else ""
+            day_name = full_date.split(" ")[0] if full_date else str(date_iso)[:3]
 
             # Handle temp as dict or direct values
             temp = day.get("temp", {})

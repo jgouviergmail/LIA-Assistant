@@ -41,42 +41,26 @@ class TestParseDateOffsetTemporalReferences:
         assert _parse_date_offset("   ") == 0
 
     def test_today_references(self):
-        """Test various today references."""
+        """Test today references (English — post-semantic-pivot)."""
         from src.domains.agents.tools.weather_tools import _parse_date_offset
 
-        today_refs = [
-            "today",
-            "aujourd'hui",
-            "aujourdhui",
-            "ce jour",
-            "maintenant",
-            "now",
-            "TODAY",  # Case insensitive
-        ]
+        today_refs = ["today", "now", "TODAY"]
         for ref in today_refs:
             assert _parse_date_offset(ref) == 0, f"Failed for '{ref}'"
 
     def test_tomorrow_references(self):
-        """Test various tomorrow references."""
+        """Test tomorrow references (English — post-semantic-pivot)."""
         from src.domains.agents.tools.weather_tools import _parse_date_offset
 
-        tomorrow_refs = ["tomorrow", "demain", "DEMAIN", "Tomorrow"]
+        tomorrow_refs = ["tomorrow", "Tomorrow", "TOMORROW"]
         for ref in tomorrow_refs:
             assert _parse_date_offset(ref) == 1, f"Failed for '{ref}'"
 
     def test_day_after_tomorrow_references(self):
-        """Test various day-after-tomorrow references."""
+        """Test day-after-tomorrow references (English — post-semantic-pivot)."""
         from src.domains.agents.tools.weather_tools import _parse_date_offset
 
-        refs = [
-            "after tomorrow",
-            "day after tomorrow",
-            "après-demain",
-            "après demain",
-            "apres-demain",
-            "apres demain",
-            "surlendemain",
-        ]
+        refs = ["after tomorrow", "day after tomorrow"]
         for ref in refs:
             assert _parse_date_offset(ref) == 2, f"Failed for '{ref}'"
 
@@ -93,20 +77,11 @@ class TestParseDateOffsetRelativePatterns:
         assert _parse_date_offset("in 3 days") == 3
         assert _parse_date_offset("in 5 days") == 5
 
-    def test_dans_x_jours_french(self):
-        """Test 'dans X jours' pattern."""
-        from src.domains.agents.tools.weather_tools import _parse_date_offset
-
-        assert _parse_date_offset("dans 1 jour") == 1
-        assert _parse_date_offset("dans 2 jours") == 2
-        assert _parse_date_offset("dans 3 jours") == 3
-        assert _parse_date_offset("dans 5 jours") == 5
-
     def test_week_references_return_zero(self):
         """Test week references return 0 (show full week)."""
         from src.domains.agents.tools.weather_tools import _parse_date_offset
 
-        week_refs = ["this week", "cette semaine", "week", "semaine"]
+        week_refs = ["this week", "week"]
         for ref in week_refs:
             assert _parse_date_offset(ref) == 0, f"Failed for '{ref}'"
 
@@ -205,7 +180,7 @@ class TestParseDateOffsetEdgeCases:
         """Test that whitespace is properly trimmed."""
         from src.domains.agents.tools.weather_tools import _parse_date_offset
 
-        assert _parse_date_offset("  demain  ", TEST_TIMEZONE) == 1
+        assert _parse_date_offset("  tomorrow  ", TEST_TIMEZONE) == 1
         assert _parse_date_offset("\ttomorrow\n", TEST_TIMEZONE) == 1
 
     def test_unknown_reference_returns_zero(self):

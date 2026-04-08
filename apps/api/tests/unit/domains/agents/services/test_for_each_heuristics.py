@@ -287,8 +287,8 @@ class TestCollectionKeyInference:
         enhanced = _apply_for_each_heuristics(result, query.lower(), result.domains)
         assert enhanced.has_cardinality_risk is True
 
-    def test_constraint_hints_updated(self) -> None:
-        """Enhanced result should add has_iteration to constraint_hints."""
+    def test_for_each_detected_implies_iteration(self) -> None:
+        """When heuristics activate for_each, the result should have for_each_detected=True."""
         query = "send to all my contacts"
         result = MockAnalysisResult(
             english_query=query,
@@ -296,4 +296,5 @@ class TestCollectionKeyInference:
             primary_domain="contact",
         )
         enhanced = _apply_for_each_heuristics(result, query.lower(), result.domains)
-        assert enhanced.constraint_hints.get("has_iteration") is True
+        assert enhanced.for_each_detected is True
+        assert enhanced.has_cardinality_risk is True

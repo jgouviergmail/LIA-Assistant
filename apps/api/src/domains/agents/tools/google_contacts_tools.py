@@ -194,7 +194,7 @@ def normalize_field_names(tool_name: str, fields: list[str] | None) -> list[str]
 # Reference: https://developers.google.com/people/api/rest/v1/people/searchContacts
 
 
-# Address indicator patterns (French, English, German, Spanish, Italian)
+# Address indicator patterns (6 supported languages: fr, en, de, es, it, zh)
 ADDRESS_KEYWORDS = {
     # French
     "rue",
@@ -210,6 +210,14 @@ ADDRESS_KEYWORDS = {
     "cours",
     "square",
     "résidence",
+    "lotissement",
+    "hameau",
+    "route",
+    "faubourg",
+    "parvis",
+    "esplanade",
+    "ruelle",
+    "sente",
     # English
     "street",
     "road",
@@ -219,26 +227,90 @@ ADDRESS_KEYWORDS = {
     "way",
     "circle",
     "terrace",
+    "highway",
+    "parkway",
+    "crescent",
+    "close",
+    "grove",
+    "mews",
+    "row",
+    "alley",
+    "trail",
+    "path",
     # German
     "straße",
     "strasse",
     "weg",
     "platz",
     "gasse",
+    "allee",
+    "ring",
+    "damm",
+    "ufer",
+    "steig",
+    "stieg",
+    "pfad",
+    "brücke",
+    "markt",
+    "hof",
     # Spanish
     "calle",
     "avenida",
     "paseo",
     "plaza",
+    "camino",
+    "carretera",
+    "ronda",
+    "travesía",
+    "glorieta",
+    "callejón",
+    "sendero",
+    "urbanización",
     # Italian
     "via",
     "piazza",
     "corso",
     "viale",
-    # Common patterns
+    "vicolo",
+    "largo",
+    "piazzale",
+    "lungarno",
+    "salita",
+    "traversa",
+    "contrada",
+    "borgata",
+    "strada",
+    # Chinese
+    "路",
+    "街",
+    "道",
+    "巷",
+    "弄",
+    "号",
+    "區",
+    "区",
+    "市",
+    "省",
+    "村",
+    "镇",
+    "县",
+    "胡同",
+    "里",
+    "大道",
+    "广场",
+    "小区",
+    "公寓",
+    # Common / international
     "cedex",
     "bp",
-    "cs",  # boîte postale, code service
+    "cs",
+    "apt",
+    "apartment",
+    "suite",
+    "floor",
+    "building",
+    "block",
+    "tower",
 }
 
 
@@ -1391,20 +1463,65 @@ class GetContactDetailsTool(ToolOutputMixin, ConnectorTool[GooglePeopleClient]):
         # Track successful API call
         contacts_api_calls.labels(operation="details", status="success").inc()
 
-        # Process results (separate successes and errors)
+        # Process results: successes go directly, failures retry as search by name
         contacts_list = []
         errors = []
+        fallback_tasks = []
+
         for i, result in enumerate(results):
             if isinstance(result, Exception):
-                errors.append(
-                    {
-                        FIELD_RESOURCE_NAME: normalized_resource_names[i],
-                        "error": str(result),
-                        FIELD_ERROR_TYPE: type(result).__name__,
-                    }
-                )
+                # Retry failed fetch as a query search (handles planner putting
+                # names in resource_names instead of real IDs)
+                rn = normalized_resource_names[i]
+                name_query = rn.split("/", 1)[-1] if "/" in rn else rn
+                fallback_tasks.append((i, name_query))
             else:
                 contacts_list.append(result)
+
+        if fallback_tasks:
+            logger.info(
+                "batch_fetch_retrying_as_search",
+                failed_count=len(fallback_tasks),
+                queries=[q for _, q in fallback_tasks],
+            )
+            fallback_results = await asyncio.gather(
+                *[
+                    client.search_contacts(
+                        query=name_query,
+                        max_results=1,
+                    )
+                    for _, name_query in fallback_tasks
+                ],
+                return_exceptions=True,
+            )
+            for (orig_idx, name_query), fb_result in zip(
+                fallback_tasks, fallback_results, strict=True
+            ):
+                # search_contacts returns {"results": [{"person": {...}}, ...]}
+                if isinstance(fb_result, Exception):
+                    errors.append(
+                        {
+                            FIELD_RESOURCE_NAME: normalized_resource_names[orig_idx],
+                            "error": f"Not found: {name_query}",
+                            FIELD_ERROR_TYPE: "NotFound",
+                        }
+                    )
+                else:
+                    results_list = (
+                        fb_result.get("results", []) if isinstance(fb_result, dict) else []
+                    )
+                    if results_list:
+                        # Extract person data from search result wrapper
+                        person = results_list[0].get("person", results_list[0])
+                        contacts_list.append(person)
+                    else:
+                        errors.append(
+                            {
+                                FIELD_RESOURCE_NAME: normalized_resource_names[orig_idx],
+                                "error": f"Not found: {name_query}",
+                                FIELD_ERROR_TYPE: "NotFound",
+                            }
+                        )
 
         # Track results count
         contacts_results_count.labels(operation="details").observe(len(contacts_list))

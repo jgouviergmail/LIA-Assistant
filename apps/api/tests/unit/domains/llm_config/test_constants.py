@@ -37,17 +37,17 @@ class TestLLMDefaults:
             ), f"LLM_DEFAULTS['{llm_type}'] is {type(config)}, expected LLMAgentConfig"
 
     def test_default_count(self) -> None:
-        """Should have 47 LLM types (including image_generation, psyche_summary)."""
-        assert len(LLM_DEFAULTS) == 47
+        """Should have 48 LLM types (including memory_reference_extraction)."""
+        assert len(LLM_DEFAULTS) == 48
 
     @pytest.mark.parametrize(
         "llm_type,expected_provider,expected_model",
         [
-            ("router", "openai", "gpt-4.1-mini"),
-            ("response", "anthropic", "claude-sonnet-4-6"),
+            ("router", "openai", "gpt-5-mini"),
+            ("response", "qwen", "qwen3.5-plus"),
             ("planner", "qwen", "qwen3.5-plus"),
-            ("mcp_excalidraw", "anthropic", "claude-opus-4-6"),
-            ("subagent", "openai", "gpt-5.4"),
+            ("mcp_app_react_agent", "anthropic", "claude-opus-4-6"),
+            ("subagent", "qwen", "qwen3.5-plus"),
         ],
     )
     def test_key_defaults(self, llm_type: str, expected_provider: str, expected_model: str) -> None:
@@ -60,9 +60,9 @@ class TestLLMDefaults:
         """Planner should have a 30s timeout."""
         assert LLM_DEFAULTS["planner"].timeout_seconds == 30
 
-    def test_mcp_excalidraw_has_timeout(self) -> None:
-        """MCP Excalidraw should have a 60s timeout."""
-        assert LLM_DEFAULTS["mcp_excalidraw"].timeout_seconds == 60
+    def test_mcp_app_react_agent_has_timeout(self) -> None:
+        """MCP App ReAct agent should have a 60s timeout."""
+        assert LLM_DEFAULTS["mcp_app_react_agent"].timeout_seconds == 60
 
 
 class TestLLMTypesRegistry:

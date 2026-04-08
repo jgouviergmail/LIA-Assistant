@@ -672,7 +672,7 @@ async def stream_chat(
             error_chunk = {
                 "type": "error",
                 FIELD_CONTENT: error_message,
-                FIELD_METADATA: {FIELD_ERROR_TYPE: type(e).__name__},
+                FIELD_METADATA: {FIELD_ERROR_TYPE: "stream_error"},
             }
             yield f"data: {json.dumps(error_chunk)}\n\n"
 

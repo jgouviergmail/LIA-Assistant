@@ -29,22 +29,20 @@ from src.domains.agents.registry.catalogue import (
 _get_contacts_desc = (
     "**Tool: get_contacts_tool** - Get contacts with full details.\n"
     "\n"
-    "**MODES**:\n"
-    "- Query mode: get_contacts_tool(query='John') → search + return full details\n"
-    "- ID mode: get_contacts_tool(resource_name='people/c123') → fetch specific contact\n"
-    "- Batch mode: get_contacts_tool(resource_names=['people/c1', 'people/c2']) → fetch multiple\n"
-    "- List mode: get_contacts_tool() → return recent contacts with full details\n"
+    "**USAGE**:\n"
+    "- Search by name/phone/email: use `query` parameter\n"
+    "- Fetch by ID (from $steps or CONTEXT only): use `resource_name` or `resource_names`\n"
+    "- List all contacts: omit all parameters\n"
     "\n"
     "**SEARCHABLE FIELDS** (query parameter):\n"
     "- names, family names, emails, phone numbers, organizations ONLY\n"
     "- Other fields (addresses, cities, regions): Response LLM filters results\n"
-    "- Example: 'Dupont in Lyon' → query='Dupont'\n"
     "\n"
     "**COMMON USE CASES**:\n"
-    "- 'find John' → query='John'\n"
-    "- 'who is 06...' → query='06...'\n"
+    "- 'find Jean Dupont' → query='Jean Dupont'\n"
+    "- 'who is 06 12 34 56 78' → query='06 12 34 56 78'\n"
     "- 'show my contacts' → query='' (empty, returns all)\n"
-    "- 'details of this contact' → resource_name='ID from context'\n"
+    "- 'details of this contact' → resource_name=ID from $steps or CONTEXT\n"
     "\n"
     "**RETURNS**: Full contact info (names, emails, phones, addresses, organizations, etc.)."
 )
@@ -93,14 +91,13 @@ get_contacts_catalogue_manifest = ToolManifest(
             name=FIELD_RESOURCE_NAME,
             type="string",
             required=False,
-            description="Single contact ID (people/c...) for direct fetch.",
-            constraints=[ParameterConstraint(kind="pattern", value=r"^people/")],
+            description="Contact ID from $steps or CONTEXT for direct fetch.",
         ),
         ParameterSchema(
             name="resource_names",
             type="array",
             required=False,
-            description="Multiple contact IDs (people/c...) for batch fetch. NOT for names - use query parameter to search by name.",
+            description="Multiple contact IDs from $steps or CONTEXT for batch fetch.",
         ),
         # Common options
         ParameterSchema(
@@ -120,9 +117,7 @@ get_contacts_catalogue_manifest = ToolManifest(
         OutputFieldSchema(
             path="contacts", type="array", description="List of contacts with full details"
         ),
-        OutputFieldSchema(
-            path="contacts[].resource_name", type="string", description="Contact ID (people/...)"
-        ),
+        OutputFieldSchema(path="contacts[].resource_name", type="string", description="Contact ID"),
         OutputFieldSchema(
             path="contacts[].name",
             type="string",
@@ -265,8 +260,7 @@ update_contact_catalogue_manifest = ToolManifest(
             name="resource_name",
             type="string",
             required=True,
-            description="ID (people/c...)",
-            constraints=[ParameterConstraint(kind="pattern", value=r"^people/")],
+            description="Contact ID from $steps or CONTEXT",
         ),
         ParameterSchema(name="name", type="string", required=False, description="New Name"),
         ParameterSchema(name="email", type="string", required=False, description="New Email"),
@@ -321,8 +315,7 @@ delete_contact_catalogue_manifest = ToolManifest(
             name="resource_name",
             type="string",
             required=True,
-            description="ID to delete",
-            constraints=[ParameterConstraint(kind="pattern", value=r"^people/")],
+            description="Contact ID to delete (from $steps or CONTEXT)",
         ),
     ],
     outputs=[

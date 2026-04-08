@@ -33,6 +33,7 @@ Usage:
 
 from __future__ import annotations
 
+import functools
 import re
 from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, Any
@@ -164,31 +165,39 @@ _FOR_EACH_PATTERNS_EXPLICIT: frozenset[str] = frozenset(
     ]
 )
 
-# Plural collection nouns indicating potential iteration (ENGLISH ONLY)
-_PLURAL_COLLECTION_HINTS: frozenset[str] = frozenset(
-    [
-        "contacts",
-        "emails",
-        "events",
-        "tasks",
-        "files",
-        "places",
-        "messages",
-        "meetings",
-        "appointments",
-        "documents",
-    ]
-)
 
-# Domain to collection key mapping
-_DOMAIN_TO_COLLECTION: dict[str, str] = {
-    "contact": "contacts",
-    "email": "emails",
-    "event": "events",
-    "task": "tasks",
-    "file": "files",
-    "place": "places",
-}
+@functools.lru_cache(maxsize=1)
+def _get_plural_collection_hints() -> frozenset[str]:
+    """Derive plural collection nouns from DOMAIN_REGISTRY result_keys.
+
+    Uses the canonical source (domain_taxonomy.DOMAIN_REGISTRY) to avoid
+    maintaining a hardcoded list that drifts when new domains are added.
+
+    Cached because DOMAIN_REGISTRY is static and this is called per query.
+
+    Returns:
+        Frozenset of result_key values (e.g., "contacts", "emails", "events").
+    """
+    from src.domains.agents.registry.domain_taxonomy import DOMAIN_REGISTRY
+
+    return frozenset(config.result_key for config in DOMAIN_REGISTRY.values() if config.is_routable)
+
+
+def _get_collection_key_for_domain(domain: str) -> str | None:
+    """Get the collection key (result_key) for a domain from DOMAIN_REGISTRY.
+
+    Uses the canonical source instead of a hardcoded mapping.
+
+    Args:
+        domain: Domain name (e.g., "contact", "email").
+
+    Returns:
+        The result_key (e.g., "contacts", "emails") or None if not found.
+    """
+    from src.domains.agents.registry.domain_taxonomy import get_domain_config
+
+    config = get_domain_config(domain)
+    return config.result_key if config else None
 
 
 def _apply_for_each_heuristics(
@@ -223,7 +232,7 @@ def _apply_for_each_heuristics(
     has_explicit = any(p in query_lower for p in _FOR_EACH_PATTERNS_EXPLICIT)
 
     # Heuristic 2: Plural collection noun + mutation intent
-    has_plural = any(p in query_lower for p in _PLURAL_COLLECTION_HINTS)
+    has_plural = any(p in query_lower for p in _get_plural_collection_hints())
     has_mutation = result.is_mutation_intent
 
     # Heuristic 3: Quantifier + mutation ("delete the first 3 tasks")
@@ -244,12 +253,13 @@ def _apply_for_each_heuristics(
     if not should_enhance:
         return result
 
-    # Infer collection key from domains
+    # Infer collection key from domains (uses DOMAIN_REGISTRY as canonical source)
     collection_key = result.for_each_collection_key
     if not collection_key:
         for domain in domains:
-            if domain in _DOMAIN_TO_COLLECTION:
-                collection_key = _DOMAIN_TO_COLLECTION[domain]
+            key = _get_collection_key_for_domain(domain)
+            if key:
+                collection_key = key
                 break
 
     logger.info(
@@ -262,16 +272,11 @@ def _apply_for_each_heuristics(
         collection_key=collection_key,
     )
 
-    # Update constraint_hints
-    enhanced_hints = dict(result.constraint_hints)
-    enhanced_hints["has_iteration"] = True
-
     return replace(
         result,
         for_each_detected=True,
         for_each_collection_key=collection_key,
         has_cardinality_risk=True,
-        constraint_hints=enhanced_hints,
     )
 
 
@@ -295,26 +300,11 @@ class ConstraintHints(BaseModel):
     Using dict[str, bool] generates additionalProperties which is incompatible.
     """
 
-    has_distance: bool = PydanticField(
-        default=False,
-        description="True if distance criteria present: 'à moins de 10km', 'proche de', 'nearby'",
-    )
-    has_quality: bool = PydanticField(
-        default=False,
-        description="True if quality criteria present: 'bien noté', 'meilleur', '4 étoiles', 'top rated'",
-    )
-    has_iteration: bool = PydanticField(
-        default=False,
-        description="True if for_each pattern detected: 'pour chaque', 'à chacun', 'for each'",
-    )
-    has_time: bool = PydanticField(
-        default=False,
-        description="True if time constraint present: 'demain', 'cette semaine', 'tomorrow', 'next week'",
-    )
-    has_count: bool = PydanticField(
-        default=False,
-        description="True if count limit present: 'les 3 premiers', 'maximum 5', 'top 3', 'first 5'",
-    )
+    has_distance: bool = PydanticField(default=False, description="Distance/proximity criterion")
+    has_quality: bool = PydanticField(default=False, description="Quality/rating criterion")
+    has_iteration: bool = PydanticField(default=False, description="Per-item iteration pattern")
+    has_time: bool = PydanticField(default=False, description="Temporal constraint")
+    has_count: bool = PydanticField(default=False, description="Numeric count limit")
 
 
 class QueryAnalysisOutput(BaseModel):
@@ -322,71 +312,65 @@ class QueryAnalysisOutput(BaseModel):
 
     model_config = ConfigDict(extra="ignore")
 
-    intent: str = PydanticField(description="Intent: action or conversation")
+    intent: str = PydanticField(description="action or conversation")
     primary_domain: str | None = PydanticField(
         default=None, description="Primary domain for the query"
     )
     secondary_domains: list[str] = PydanticField(
-        default_factory=list, description="Secondary domains needed"
+        default_factory=list, description="Additional domains needed"
     )
-    confidence: float = PydanticField(default=0.8, ge=0.0, le=1.0, description="Confidence score")
-    english_query: str = PydanticField(description="Query translated to English")
+    confidence: float = PydanticField(default=0.8, ge=0.0, le=1.0, description="Confidence 0-1")
+    english_query: str = PydanticField(
+        description="Complete self-contained query in English with ALL actions preserved"
+    )
     resolved_references: list[ResolvedReference] = PydanticField(
-        default_factory=list, description="Resolved references from context"
+        default_factory=list, description="Resolved references from context/memory"
     )
-    reasoning: str = PydanticField(description="Brief reasoning (max 20 words)")
-    # Validation hints for semantic validator (v3.1 - LLM-based detection)
+    reasoning: str = PydanticField(description="Reasoning in max 10 words")
     is_mutation_intent: bool = PydanticField(
         default=False,
-        description="True if user wants to create/update/delete/send something (mutation action)",
+        description="True if user wants to create, update, delete, or send",
     )
     has_cardinality_risk: bool = PydanticField(
         default=False,
-        description="True if query involves 'all/every/each/entire' - risky bulk operations",
+        description="True if intent targets a set (all/every/each/entire)",
     )
-
-    # FOR_EACH pattern detection (plan_planner.md Section 14.2)
     for_each_detected: bool = PydanticField(
         default=False,
-        description="True if user wants action for EACH result (iteration pattern). "
-        "E.g., 'pour chaque hôtel, trouve les restaurants', 'envoie un email à tous mes contacts'",
+        description=(
+            "True ONLY when user wants the SAME action REPEATED on EACH item of a collection "
+            "(e.g., 'delete all my emails', 'cancel every meeting'). "
+            "False when user names specific recipients/targets "
+            "(e.g., 'send an email to Alice and Bob' = ONE email with 2 recipients, NOT for_each)."
+        ),
     )
     for_each_collection_key: str | None = PydanticField(
         default=None,
-        description="Collection key to iterate over: 'contacts', 'events', 'places', 'emails', etc.",
+        description="Collection to iterate: contacts, events, places, emails, tasks, or files",
     )
     cardinality_magnitude: int | None = PydanticField(
         default=None,
-        description="Explicit cardinality: 2-3 → 3, 'tous' → 999, 'quelques' → 5. None if unknown.",
+        description="Explicit count: 'tous/all' → 999, number → N, unknown → null",
     )
     constraint_hints: ConstraintHints = PydanticField(
         default_factory=ConstraintHints,
-        description="Detected constraints for filtering results",
+        description="Detected query constraints for result filtering",
     )
-
-    # Knowledge Enrichment (Brave Search)
     encyclopedia_keywords: list[str] = PydanticField(
         default_factory=list,
-        description="1-3 Wikipedia-style keywords for Brave Search enrichment. "
-        "Extract specific entity names, concepts, technical terms from user's ORIGINAL query language. "
-        "E.g., 'Relativité générale' (FR), 'Machine learning' (EN).",
+        description="1-3 encyclopedic keywords in user's original language for web enrichment",
     )
     is_news_query: bool = PydanticField(
         default=False,
-        description="True if query explicitly asks for news, current events, or recent updates. "
-        "Keywords: 'actualités', 'dernières nouvelles', 'aujourd'hui', 'cette semaine', "
-        "'what's new', 'latest', 'recent', 'breaking news'.",
+        description="True only if user explicitly asks for news or recent events",
     )
     is_app_help_query: bool = PydanticField(
         default=False,
-        description="True if user asks about the AI assistant itself, its features, capabilities, "
-        "or usage. Examples: 'What can you do?', 'How do I connect my calendar?', "
-        "'Comment utiliser les rappels ?', 'Help me with settings'. "
-        "NOT for general knowledge questions, only about THIS application.",
+        description="True if user asks about THIS AI assistant's features or usage",
     )
     skill_name: str | None = PydanticField(
         default=None,
-        description="Name of the matching skill from AVAILABLE SKILLS, or null if none.",
+        description="Matching skill name from AVAILABLE SKILLS, or null",
     )
 
 
@@ -518,26 +502,16 @@ def _build_available_domains() -> list[dict[str, str]]:
         collect_all_mcp_domains,
         get_routable_domains,
     )
-    from src.domains.agents.semantic.expansion_service import get_expansion_service
     from src.infrastructure.mcp.registration import get_admin_mcp_domains
 
-    expansion_service = get_expansion_service()
+    # NOTE: Semantic types (provides: ...) are omitted — they are only useful for the
+    # planner's tool selection, not for the query analyzer's routing decision.
     available_domains: list[dict[str, str]] = []
 
     for domain_name in get_routable_domains():
         config = DOMAIN_REGISTRY.get(domain_name)
         if config:
-            semantic_types = expansion_service.get_types_for_domain(domain_name)
-            description = config.description
-            if semantic_types:
-                user_facing_types = [
-                    t
-                    for t in semantic_types
-                    if not t.endswith("_id") and t not in ("Identifier", "Intangible")
-                ]
-                if user_facing_types:
-                    description += f" (provides: {', '.join(sorted(user_facing_types)[:6])})"
-            available_domains.append({"name": domain_name, "description": description})
+            available_domains.append({"name": domain_name, "description": config.description})
 
     # F2.2+F2.5: Unified MCP per-server domain injection (admin + user).
     mcp_domains = collect_all_mcp_domains(
@@ -667,22 +641,27 @@ async def analyze_query(
             conversation_history=history_str,
             user_location=location_str,
             window_size=window_size,
-            user_query=query,
+            user_query=query.replace("{", "{{").replace("}", "}}"),
         )
 
         # Call LLM with structured output (provider-agnostic via helper)
         llm = get_llm("query_analyzer")
         agent_config = get_llm_config_for_agent(settings, "query_analyzer")
 
+        import asyncio
+
         from langchain_core.messages import HumanMessage
 
-        result: QueryAnalysisOutput = await get_structured_output(
-            llm=llm,
-            messages=[HumanMessage(content=prompt)],
-            schema=QueryAnalysisOutput,
-            provider=agent_config.provider,
-            node_name="query_analyzer",
-            config=base_config,
+        result: QueryAnalysisOutput = await asyncio.wait_for(
+            get_structured_output(
+                llm=llm,
+                messages=[HumanMessage(content=prompt)],
+                schema=QueryAnalysisOutput,
+                provider=agent_config.provider,
+                node_name="query_analyzer",
+                config=base_config,
+            ),
+            timeout=settings.query_analyzer_llm_timeout_seconds,
         )
 
         logger.info(
@@ -735,7 +714,7 @@ async def analyze_query(
             for_each_detected=result.for_each_detected,
             for_each_collection_key=result.for_each_collection_key,
             cardinality_magnitude=result.cardinality_magnitude,
-            constraint_hints=result.constraint_hints.model_dump(),  # Convert Pydantic to dict
+            constraint_hints=result.constraint_hints.model_dump(),
             # Knowledge Enrichment (Brave Search)
             encyclopedia_keywords=result.encyclopedia_keywords,
             is_news_query=result.is_news_query,
@@ -1105,12 +1084,16 @@ class QueryAnalyzerService:
                     }
 
             # === STEP 5: Context Resolution ===
+            # FIX: Use semantic pivot query (faithful translation with demonstratives intact)
+            # for reference detection, NOT the QA english_query (which resolves references
+            # like "these emails" → "the two most recently received emails", destroying
+            # the demonstrative needed for context resolution detection).
             context_result, _ = await self.context_resolver.resolve_context(
                 query=query,
                 state=state,  # type: ignore
                 config=config,
                 run_id=run_id,
-                english_query=english_query,
+                english_query=query,  # Semantic pivot query preserves "these/this/that"
             )
             turn_type = self._determine_turn_type(context_result, immediate_intent)
 

@@ -78,6 +78,7 @@ local_query_engine_catalogue_manifest = ToolManifest(
     display=DisplayMetadata(
         emoji="🧠", i18n_key="local_query_engine", visible=True, category="tool"
     ),
+    initiative_eligible=False,  # Infrastructure tool, analyzes in-memory data not user sources
 )
 
 __all__ = ["local_query_engine_catalogue_manifest"]

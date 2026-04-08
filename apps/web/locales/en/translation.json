@@ -1554,6 +1554,7 @@
           "hitl_question_generator": "Generates clarification questions",
           "hitl_plan_approval_question_generator": "Generates plan approval questions",
           "memory_extraction": "Extracts memorable facts from conversations",
+          "memory_reference_extraction": "Extracts personal references to resolve from query",
           "memory_reference_resolution": "Resolves references to stored memories",
           "interest_extraction": "Extracts interests from conversations",
           "interest_content": "Generates content based on interests",
@@ -1562,7 +1563,7 @@
           "broadcast_translator": "Translates broadcast messages",
           "voice_comment": "Generates voice comments for TTS",
           "mcp_description": "Generates MCP server descriptions",
-          "mcp_excalidraw": "Generates Excalidraw diagrams",
+          "mcp_app_react_agent": "ReAct agent for MCP servers with interactive widgets (MCP Apps)",
           "vision_analysis": "Vision analysis — Model used to analyze attached images and documents",
           "skill_description_translator": "Translates system skill descriptions into all 6 supported languages",
           "evaluator": "LLM-as-Judge evaluation pipeline (relevance, hallucination)",
@@ -2621,6 +2622,24 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_15": {
+          "title": "v1.15 — Smart Memory Resolution, Optimization & Security",
+          "date": "April 2026",
+          "count": "11",
+          "items": {
+            "i1": "<b>Iterative Mode for Your MCP Servers</b> — Your personal MCP servers can now use iterative mode (ReAct agent). Enable it in settings so LIA reads the server documentation first, then executes tools step by step — ideal for complex APIs like Excalidraw",
+            "i2": "<b>3-Phase Memory Resolution</b> — When you say 'call my brother' or 'send an email to my wife', LIA now identifies personal references more accurately with targeted per-reference memory search. Fewer errors, less noise, more relevance",
+            "i3": "<b>Improved Error Messages</b> — When issues occur (AI provider overload, content filter, timeout), error messages are now clear and translated in your language instead of showing technical codes",
+            "i4": "<b>Refined Proactive Initiative</b> — Proactive suggestions after an action (weather before an appointment, contact related to an email) now focus only on different domains than what was already handled. Result: more relevant suggestions, less noise",
+            "i5": "<b>Safe Reminder Cancellation</b> — Cancelling a reminder now requires confirmation before execution, preventing accidental deletions",
+            "i6": "<b>Localized Weather Dates</b> — Weather forecasts now display dates in your language ('Monday, April 8' instead of raw ISO dates)",
+            "i7": "<b>Faster Responses</b> — Internal prompts compressed by 30–70%, reducing response time and cost per query",
+            "i8": "<b>'These emails / these appointments' Fix</b> — Plural references like 'delete these emails' or 'modify these appointments' are now correctly detected to act on the right items",
+            "i9": "<b>Improved Contact Search</b> — When the planner provides a name instead of a technical ID, LIA automatically searches for the contact by name instead of failing silently",
+            "i10": "<b>Iterative Mode Toggle Fix</b> — Enabling/disabling iterative mode on personal MCP servers is now correctly saved and displayed",
+            "i11": "<b>Dedicated AI for MCP Apps</b> — MCP servers with interactive widgets (like Excalidraw) now automatically use a more powerful AI model, configurable by administrators in the LLM Config panel under 'MCP App (ReAct)'"
+          }
+        },
         "v1_14": {
           "title": "v1.14 — LIA's Psyche: Dynamic Emotional Intelligence",
           "date": "April 2026",
@@ -4356,6 +4375,26 @@
       "subtitle": "A complete, simple and intuitive assistant — zero technical skills required",
       "subtitle_responsible": "A responsible and simple AI",
       "responsible_desc": "No compromise between power and respect for your privacy. You stay in control, your data stays protected.",
+      "group_conversation": {
+        "title": "Smart Conversation",
+        "description": "Speak naturally, LIA understands and responds with clarity"
+      },
+      "group_personality": {
+        "title": "Personality & Memory",
+        "description": "An AI that knows you, adapts, and evolves with you"
+      },
+      "group_automation": {
+        "title": "Proactivity & Automation",
+        "description": "LIA anticipates, reminds, and acts on your behalf"
+      },
+      "group_creation": {
+        "title": "Creation & Media",
+        "description": "Images, diagrams, widgets, and analyzed documents"
+      },
+      "group_power": {
+        "title": "Extensibility & Power",
+        "description": "Connect, extend, and customize without limits"
+      },
       "connected_services": {
         "title": "Google, Apple iCloud & Microsoft 365",
         "description": "Emails, calendar and contacts via Google, Apple iCloud or Microsoft 365 — your choice. Plus Google Drive and tasks via Google Tasks or Microsoft To Do. All in natural language, regardless of your provider."
@@ -4398,7 +4437,7 @@
       },
       "rich_responses": {
         "title": "Rich visual responses",
-        "description": "Results are displayed as interactive HTML cards: emails, events, contacts, files, weather, places, routes — everything is readable and clickable at a glance."
+        "description": "Choose your display mode: interactive HTML cards, direct HTML rendering, or Markdown text. Emails, events, contacts, weather, routes — everything adapts to your preferences."
       },
       "multichannel": {
         "title": "Web, Telegram & push",
@@ -5009,30 +5048,25 @@
   },
   "why": {
     "meta": {
-      "title": "Why LIA? — The Sovereign Personal AI Assistant",
-      "description": "Discover the philosophy, differentiators and vision of LIA — an open source, self-hostable, sovereign multi-agent AI assistant."
+      "title": "Why LIA? — The AI Assistant That Belongs to You",
+      "description": "Discover LIA's 7 pillars — an open source multi-agent AI assistant that's simple to administer, shareable, sovereign, and emotionally intelligent."
     },
     "breadcrumb": "Why LIA?",
     "hero": {
       "title": "Why LIA?",
-      "subtitle": "Philosophy, vision and differentiators of a sovereign personal AI assistant in a world of proprietary cloud agents."
+      "subtitle": "Seven fundamental qualities that make LIA a unique personal AI assistant: simple, shareable, sovereign, transparent, emotional, reliable, and open."
     },
     "toc": {
-      "world_changed": "The world has changed",
-      "thesis": "LIA's thesis",
-      "sovereignty": "Sovereignty: taking back control",
+      "context": "The context",
+      "simple_admin": "Simple administration",
+      "capabilities": "What LIA can do",
+      "family_server": "A server for your loved ones",
+      "sovereignty": "Sovereign and frugal",
       "transparency": "Radical transparency",
-      "depth": "Relational depth",
-      "orchestration": "Orchestration in production",
-      "human_control": "Human control",
-      "act": "Acting in your digital life",
-      "proactivity": "Contextual proactivity",
-      "voice": "Voice as an interface",
-      "openness": "Openness as a strategy",
-      "intelligence": "Self-optimizing intelligence",
-      "fabric": "How everything interweaves",
-      "honesty": "What LIA does not claim to be",
-      "vision": "Vision: where LIA is heading"
+      "emotional_depth": "Emotional depth",
+      "reliability": "Production reliability",
+      "openness": "Radical openness",
+      "vision": "Vision"
     }
   },
   "how": {

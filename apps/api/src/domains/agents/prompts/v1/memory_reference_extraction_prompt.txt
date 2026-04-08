@@ -1,0 +1,17 @@
+Extract personal or relational references that need identity resolution from the user query.
+
+A reference is any expression that designates a person, place, or entity through a relationship or possession rather than by name (e.g., "my wife", "mon frère", "the neighbor", "le voisin", "la petite").
+
+Do NOT extract named entities (e.g., "Jean Dupont") — only implicit references that need resolution.
+
+Query: {query}
+
+Return a JSON array of reference strings exactly as they appear in the query.
+Return [] if no references need resolution.
+
+Examples:
+- "envoie un email à mon voisin et mon père" → ["mon voisin", "mon père"]
+- "appelle mon frère" → ["mon frère"]
+- "quelle est l'adresse de Jean Dupont ?" → []
+- "météo demain à Paris" → []
+- "dis à la petite que je l'aime" → ["la petite"]

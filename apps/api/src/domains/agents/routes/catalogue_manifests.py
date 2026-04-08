@@ -384,6 +384,7 @@ get_route_matrix_catalogue_manifest = ToolManifest(
     version="1.0.0",
     maintainer="Team Agents",
     display=DisplayMetadata(emoji="📊", i18n_key="get_route_matrix", visible=True, category="tool"),
+    initiative_eligible=False,  # Complex multi-point tool, not suitable for quick proactive check
 )
 
 

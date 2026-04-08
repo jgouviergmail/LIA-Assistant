@@ -59,6 +59,7 @@ AGENT_MCP = "mcp_agent"  # Virtual agent grouping all MCP tools (evolution F2)
 AGENT_BROWSER = "browser_agent"  # Interactive web browsing (evolution F7)
 AGENT_HUE = "hue_agent"  # Philips Hue smart lighting (Smart Home)
 AGENT_IMAGE = "image_generation_agent"  # AI image generation (evolution)
+AGENT_REMINDER = "reminder_agent"  # Internal reminders (no OAuth)
 
 # Per-server MCP domain prefix (evolution F2.2)
 # Each user MCP server gets its own domain: mcp_<slugified_server_name>
@@ -199,6 +200,7 @@ CONTEXT_DOMAIN_MCP = "mcps"  # domain + "s" pattern (evolution F2)
 CONTEXT_DOMAIN_MCP_APPS = "mcp_apps"  # MCP Apps interactive widgets (evolution F2.5)
 CONTEXT_DOMAIN_BROWSERS = "browsers"  # Interactive web browsing (evolution F7)
 CONTEXT_DOMAIN_HUE = "hues"  # Philips Hue smart lights (Smart Home)
+CONTEXT_DOMAIN_REMINDERS = "reminders"  # Personal push notification reminders
 
 # Web Search sources (used by unified_web_search_tool)
 WEB_SEARCH_SOURCE_PERPLEXITY = "perplexity"

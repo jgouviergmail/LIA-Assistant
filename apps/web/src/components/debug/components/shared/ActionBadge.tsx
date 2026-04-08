@@ -10,7 +10,10 @@ import { cn } from '@/lib/utils';
 
 export type ActionType = 'create' | 'update' | 'delete' | 'consolidate' | 'create_new';
 
-const ACTION_STYLES: Record<ActionType, { bg: string; text: string; border: string; label: string }> = {
+const ACTION_STYLES: Record<
+  ActionType,
+  { bg: string; text: string; border: string; label: string }
+> = {
   create: {
     bg: 'bg-emerald-500/20',
     text: 'text-emerald-400',

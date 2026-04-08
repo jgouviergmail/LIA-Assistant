@@ -142,10 +142,16 @@ class SingleDomainStrategy:
             HumanMessage(content=f"Query: {intelligence.original_query}"),
         ]
 
+        # Extract CONTEXT section from prompt for debugging
+        _ctx_start = prompt.find("CONTEXT FROM PREVIOUS RESULTS:")
+        _ctx_end = prompt.find("RESOLVED REFERENCES:")
+        _ctx_preview = prompt[_ctx_start:_ctx_end][:500] if _ctx_start > 0 else "(no context)"
+
         logger.debug(
             "planner_prompt_debug",
             prompt_length=len(prompt),
             has_mcp_reference="MCP TOOL FORMAT REFERENCE" in prompt,
+            context_preview=_ctx_preview,
         )
 
         try:

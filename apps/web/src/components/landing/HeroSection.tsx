@@ -89,11 +89,6 @@ export async function HeroSection({ lng }: HeroSectionProps) {
           {t('landing.hero.subtitle_line3')}
         </p>
 
-        {/* Intro paragraph — SEO-rich factual description */}
-        <p className="text-base text-muted-foreground max-w-3xl mx-auto leading-relaxed mb-8">
-          {t('landing.hero.intro_paragraph')}
-        </p>
-
         {/* CTAs */}
         <div className="flex flex-col sm:flex-row gap-3 justify-center mb-8">
           <Button asChild variant="outline" size="lg" className="text-base px-8">

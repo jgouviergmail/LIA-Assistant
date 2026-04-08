@@ -24,6 +24,7 @@ from src.domains.agents.display.components.contact_card import ContactCard
 from src.domains.agents.display.components.email_card import EmailCard
 from src.domains.agents.display.components.event_card import EventCard
 from src.domains.agents.display.components.file_item import FileItem
+from src.domains.agents.display.components.location_card import LocationCard
 from src.domains.agents.display.components.mcp_app_sentinel import McpAppSentinel
 from src.domains.agents.display.components.mcp_result_card import McpResultCard
 from src.domains.agents.display.components.place_card import PlaceCard
@@ -90,7 +91,7 @@ class HtmlRenderer:
             "events": EventCard(),
             "tasks": TaskItem(),
             "places": PlaceCard(),
-            "locations": PlaceCard(),  # CONTEXT_DOMAIN_LOCATION (GPS position)
+            "locations": LocationCard(),  # CONTEXT_DOMAIN_LOCATION (GPS position)
             "weather": WeatherCard(),
             "weathers": WeatherCard(),  # CONTEXT_DOMAIN_WEATHER alias
             "drive": FileItem(),

@@ -1741,6 +1741,7 @@
           "hitl_question_generator": "Génère les questions de clarification",
           "hitl_plan_approval_question_generator": "Génère les questions d'approbation de plan",
           "memory_extraction": "Extrait les faits mémorisables des conversations",
+          "memory_reference_extraction": "Extrait les références personnelles à résoudre",
           "memory_reference_resolution": "Résout les références aux souvenirs stockés",
           "interest_extraction": "Extrait les centres d'intérêt des conversations",
           "interest_content": "Génère du contenu basé sur les intérêts",
@@ -1749,7 +1750,7 @@
           "broadcast_translator": "Traduit les messages de diffusion",
           "voice_comment": "Génère les commentaires vocaux pour le TTS",
           "mcp_description": "Génère les descriptions des serveurs MCP",
-          "mcp_excalidraw": "Génère les diagrammes Excalidraw",
+          "mcp_app_react_agent": "Agent ReAct pour les serveurs MCP avec widgets interactifs (MCP Apps)",
           "vision_analysis": "Analyse visuelle — Modèle utilisé pour analyser les images et documents joints",
           "skill_description_translator": "Traduit les descriptions des skills système dans les 6 langues supportées",
           "evaluator": "Pipeline d'évaluation LLM-as-Judge (pertinence, hallucination)",
@@ -2643,6 +2644,24 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_15": {
+          "title": "v1.15 — Résolution mémoire intelligente, optimisation & sécurité",
+          "date": "Avril 2026",
+          "count": "11",
+          "items": {
+            "i1": "<b>Mode itératif pour vos serveurs MCP</b> — Vos serveurs MCP personnels peuvent désormais utiliser le mode itératif (agent ReAct). Activez-le dans les réglages pour que LIA lise d'abord la documentation du serveur, puis exécute les outils étape par étape — idéal pour les API complexes comme Excalidraw",
+            "i2": "<b>Résolution mémoire en 3 phases</b> — Quand vous dites « appelle mon frère » ou « envoie un email à ma femme », LIA identifie désormais les références personnelles de manière plus précise grâce à une recherche ciblée par référence. Moins d'erreurs, moins de bruit, plus de pertinence",
+            "i3": "<b>Messages d'erreur améliorés</b> — En cas de problème (surcharge du fournisseur IA, filtre de contenu, timeout), les messages d'erreur sont désormais clairs et traduits dans votre langue au lieu d'afficher des codes techniques",
+            "i4": "<b>Initiative proactive affinée</b> — Les suggestions proactives après une action (météo avant un RDV, contact lié à un email) se concentrent uniquement sur les domaines différents de celui déjà traité. Résultat : suggestions plus pertinentes, moins de bruit",
+            "i5": "<b>Annulation de rappel sécurisée</b> — L'annulation d'un rappel demande désormais une confirmation avant exécution, évitant les suppressions accidentelles",
+            "i6": "<b>Dates météo localisées</b> — Les prévisions météo affichent désormais les dates dans votre langue (« Lundi, 8 avril » au lieu de « Monday, April 8 »)",
+            "i7": "<b>Réponses plus rapides</b> — Les prompts internes ont été compressés de 30 à 70 %, réduisant le temps de réponse et le coût de chaque requête",
+            "i8": "<b>Correction « ces emails / ces rendez-vous »</b> — Les références plurielles comme « supprime ces emails » ou « modifie ces rendez-vous » sont désormais correctement détectées pour agir sur les bons éléments",
+            "i9": "<b>Recherche de contacts améliorée</b> — Quand le planificateur fournit un nom au lieu d'un identifiant technique, LIA recherche automatiquement le contact par nom au lieu d'échouer silencieusement",
+            "i10": "<b>Correction du toggle mode itératif</b> — L'activation/désactivation du mode itératif sur les serveurs MCP personnels est désormais correctement sauvegardée et affichée",
+            "i11": "<b>IA dédiée pour MCP App</b> — Les serveurs MCP avec widgets interactifs (comme Excalidraw) utilisent désormais automatiquement un modèle IA plus puissant, configurable par l'administrateur dans le panneau LLM Config sous « MCP App (ReAct) »"
+          }
+        },
         "v1_14": {
           "title": "v1.14 — Psyché de LIA : Intelligence émotionnelle dynamique",
           "date": "Avril 2026",
@@ -4378,6 +4397,26 @@
       "subtitle": "Un assistant complet, simple et intuitif — zéro compétence technique requise",
       "subtitle_responsible": "Une IA responsable et simple",
       "responsible_desc": "Pas de compromis entre puissance et respect de ta vie privée. Tu gardes le contrôle, tes données restent protégées.",
+      "group_conversation": {
+        "title": "Conversation intelligente",
+        "description": "Parle naturellement, LIA comprend et répond avec clarté"
+      },
+      "group_personality": {
+        "title": "Personnalité & Mémoire",
+        "description": "Une IA qui te connaît, s'adapte et évolue avec toi"
+      },
+      "group_automation": {
+        "title": "Proactivité & Automatisation",
+        "description": "LIA anticipe, rappelle et agit à ta place"
+      },
+      "group_creation": {
+        "title": "Création & Médias",
+        "description": "Images, schémas, widgets et documents analysés"
+      },
+      "group_power": {
+        "title": "Extensibilité & Puissance",
+        "description": "Connecte, étends et personnalise sans limite"
+      },
       "connected_services": {
         "title": "Google, Apple iCloud & Microsoft 365",
         "description": "Emails, agenda, contacts et tâches via Google, Apple iCloud ou Microsoft 365 — au choix. Plus Google Drive. Le tout en langage naturel, quel que soit votre fournisseur."
@@ -4420,7 +4459,7 @@
       },
       "rich_responses": {
         "title": "Réponses visuelles enrichies",
-        "description": "Les résultats s'affichent sous forme de cartes HTML interactives : emails, événements, contacts, fichiers, météo, lieux, itinéraires — tout est lisible et cliquable en un coup d'œil."
+        "description": "Choisis ton mode d'affichage : cartes HTML interactives, rendu HTML direct ou texte Markdown. Emails, événements, contacts, météo, itinéraires — tout s'adapte à tes préférences."
       },
       "multichannel": {
         "title": "Web, Telegram & push",
@@ -5031,30 +5070,25 @@
   },
   "why": {
     "meta": {
-      "title": "Pourquoi LIA ? — L'Assistant IA Personnel Souverain",
-      "description": "Découvrez la philosophie, les facteurs différenciants et la vision de LIA — un assistant IA multi-agent open source, auto-hébergeable et souverain."
+      "title": "Pourquoi LIA ? — L'Assistant IA qui vous appartient",
+      "description": "Découvrez les 7 piliers de LIA — un assistant IA multi-agent open source, simple à administrer, partageable, souverain et émotionnellement intelligent."
     },
     "breadcrumb": "Pourquoi LIA ?",
     "hero": {
       "title": "Pourquoi LIA ?",
-      "subtitle": "Philosophie, vision et facteurs différenciants d'un assistant IA personnel souverain dans un monde d'agents cloud propriétaires."
+      "subtitle": "Sept qualités fondamentales qui font de LIA un assistant IA personnel unique : simple, partageable, souverain, transparent, émotionnel, fiable et ouvert."
     },
     "toc": {
-      "world_changed": "Le monde a changé",
-      "thesis": "La thèse de LIA",
-      "sovereignty": "Souveraineté : reprendre le contrôle",
+      "context": "Le contexte",
+      "simple_admin": "Administration simple",
+      "capabilities": "Ce que LIA sait faire",
+      "family_server": "Un serveur pour vos proches",
+      "sovereignty": "Souverain et frugal",
       "transparency": "Transparence radicale",
-      "depth": "La profondeur relationnelle",
-      "orchestration": "L'orchestration en production",
-      "human_control": "Le contrôle humain",
-      "act": "Agir dans votre vie numérique",
-      "proactivity": "La proactivité contextuelle",
-      "voice": "La voix comme interface",
-      "openness": "L'ouverture comme stratégie",
-      "intelligence": "L'intelligence auto-optimisée",
-      "fabric": "Comment tout s'entrelace",
-      "honesty": "Ce que LIA ne prétend pas être",
-      "vision": "Vision : vers où va LIA"
+      "emotional_depth": "Profondeur émotionnelle",
+      "reliability": "Fiabilité de production",
+      "openness": "Ouverture radicale",
+      "vision": "Vision"
     }
   },
   "how": {

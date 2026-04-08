@@ -61,7 +61,6 @@ export function PsycheLLMSummary({ lng, isOpen, refreshKey = 0 }: PsycheLLMSumma
       {!loading && data?.summary && (
         <p className="text-sm text-foreground/90 leading-relaxed">{data.summary}</p>
       )}
-
     </div>
   );
 }

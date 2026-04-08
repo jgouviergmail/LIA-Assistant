@@ -106,7 +106,7 @@ LLMType = Literal[
     # Previously special types (now unified via LLM_DEFAULTS)
     "heartbeat_decision",  # Heartbeat: decide whether to send proactive notification
     "heartbeat_message",  # Heartbeat: generate proactive message
-    "mcp_excalidraw",  # MCP: Excalidraw diagram generation
+    "mcp_app_react_agent",  # MCP App: ReAct agent for MCP servers with interactive widgets
     "mcp_description",  # MCP: LLM-based domain description auto-generation
     "memory_extraction",  # Memory: extract facts from conversations
     "interest_extraction",  # Interests: extract user interests
@@ -123,6 +123,8 @@ LLMType = Literal[
     "mcp_react_agent",  # MCP ReAct: iterative multi-step MCP interaction
     # ADR-068: Psyche Engine
     "psyche_summary",  # Psyche: LLM-generated natural language state summary
+    # 3-Phase Memory Reference Resolution
+    "memory_reference_extraction",  # Memory: extract personal references from query for targeted search
 ]
 
 

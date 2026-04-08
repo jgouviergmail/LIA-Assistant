@@ -1701,8 +1701,8 @@ class AgentService(
                         )
                         yield ChatStreamChunk(
                             type="voice_error",
-                            content=str(voice_error),
-                            metadata={"error_type": type(voice_error).__name__},
+                            content="voice_synthesis_error",
+                            metadata={"error_type": "voice_error"},
                         )
 
                 # =============================================================
@@ -1837,7 +1837,7 @@ class AgentService(
                     type="error",
                     content=error_message,
                     metadata={
-                        FIELD_ERROR_TYPE: type(e).__name__,
+                        FIELD_ERROR_TYPE: "stream_error",
                     },
                 )
                 raise

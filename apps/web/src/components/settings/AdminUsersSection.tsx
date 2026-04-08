@@ -26,7 +26,11 @@ import apiClient from '@/lib/api-client';
 import { ADMIN_USERS_PAGE_SIZE, SEARCH_DEBOUNCE_MS } from '@/lib/constants';
 import { logger } from '@/lib/logger';
 import { updateListItem, deleteListItem } from '@/utils/listUpdates';
-import { toggleUserActive, deleteUserAccount, deleteUserGDPR } from '@/lib/actions/settings-actions';
+import {
+  toggleUserActive,
+  deleteUserAccount,
+  deleteUserGDPR,
+} from '@/lib/actions/settings-actions';
 import { useTranslation } from '@/i18n/client';
 import { LOCALE_MAP } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
@@ -126,13 +130,31 @@ export default function AdminUsersSection({ lng, collapsible = true }: BaseSetti
   const [totalPages, setTotalPages] = useState(1);
   // All sortable columns — must match backend sort_by options
   type SortableColumn =
-    | 'email' | 'full_name' | 'created_at' | 'is_active'
-    | 'language' | 'voice_enabled' | 'memory_enabled' | 'tokens_display_enabled'
-    | 'is_usage_blocked' | 'active_connectors_count' | 'memories_count' | 'interests_count'
-    | 'skills_count' | 'mcp_servers_count' | 'scheduled_actions_count' | 'rag_spaces_count'
-    | 'last_message_at' | 'total_messages' | 'total_tokens' | 'total_google_api_requests'
-    | 'total_cost_eur' | 'cycle_messages' | 'cycle_tokens'
-    | 'cycle_google_api_requests' | 'cycle_cost_eur';
+    | 'email'
+    | 'full_name'
+    | 'created_at'
+    | 'is_active'
+    | 'language'
+    | 'voice_enabled'
+    | 'memory_enabled'
+    | 'tokens_display_enabled'
+    | 'is_usage_blocked'
+    | 'active_connectors_count'
+    | 'memories_count'
+    | 'interests_count'
+    | 'skills_count'
+    | 'mcp_servers_count'
+    | 'scheduled_actions_count'
+    | 'rag_spaces_count'
+    | 'last_message_at'
+    | 'total_messages'
+    | 'total_tokens'
+    | 'total_google_api_requests'
+    | 'total_cost_eur'
+    | 'cycle_messages'
+    | 'cycle_tokens'
+    | 'cycle_google_api_requests'
+    | 'cycle_cost_eur';
   const [sortBy, setSortBy] = useState<SortableColumn>('created_at');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
@@ -263,8 +285,8 @@ export default function AdminUsersSection({ lng, collapsible = true }: BaseSetti
           // Refresh list to show updated deleted_at status
           setUsers(prevUsers =>
             prevUsers.map(u =>
-              u.id === userId ? { ...u, is_deleted: true, deleted_at: new Date().toISOString() } : u,
-            ),
+              u.id === userId ? { ...u, is_deleted: true, deleted_at: new Date().toISOString() } : u
+            )
           );
           toast.success(result.message!);
         } else {
@@ -363,169 +385,350 @@ export default function AdminUsersSection({ lng, collapsible = true }: BaseSetti
               <thead className="bg-muted/50">
                 <tr>
                   {/* Email */}
-                  <th className={sortableTextCls} onClick={() => handleSort('email')} aria-sort={ariaSort('email')} role="columnheader">
+                  <th
+                    className={sortableTextCls}
+                    onClick={() => handleSort('email')}
+                    aria-sort={ariaSort('email')}
+                    role="columnheader"
+                  >
                     <div className="flex items-center space-x-1">
                       <span>{t('settings.admin.users.table.email')}</span>
                       {sortArrow('email') && <span aria-hidden="true">{sortArrow('email')}</span>}
                     </div>
                   </th>
                   {/* Name */}
-                  <th className={sortableTextCls} onClick={() => handleSort('full_name')} aria-sort={ariaSort('full_name')} role="columnheader">
+                  <th
+                    className={sortableTextCls}
+                    onClick={() => handleSort('full_name')}
+                    aria-sort={ariaSort('full_name')}
+                    role="columnheader"
+                  >
                     <div className="flex items-center space-x-1">
                       <span>{t('settings.admin.users.table.name')}</span>
-                      {sortArrow('full_name') && <span aria-hidden="true">{sortArrow('full_name')}</span>}
+                      {sortArrow('full_name') && (
+                        <span aria-hidden="true">{sortArrow('full_name')}</span>
+                      )}
                     </div>
                   </th>
                   {/* Language */}
-                  <th className={sortableIconCls} onClick={() => handleSort('language')} aria-sort={ariaSort('language')} role="columnheader" title={t('settings.admin.users.table.language')}>
+                  <th
+                    className={sortableIconCls}
+                    onClick={() => handleSort('language')}
+                    aria-sort={ariaSort('language')}
+                    role="columnheader"
+                    title={t('settings.admin.users.table.language')}
+                  >
                     <span className="inline-flex items-center gap-0.5">
                       {t('settings.admin.users.table.lang_short')}
-                      {sortArrow('language') && <span aria-hidden="true">{sortArrow('language')}</span>}
+                      {sortArrow('language') && (
+                        <span aria-hidden="true">{sortArrow('language')}</span>
+                      )}
                     </span>
                   </th>
                   {/* Status */}
-                  <th className={sortableTextCls} onClick={() => handleSort('is_active')} aria-sort={ariaSort('is_active')} role="columnheader">
+                  <th
+                    className={sortableTextCls}
+                    onClick={() => handleSort('is_active')}
+                    aria-sort={ariaSort('is_active')}
+                    role="columnheader"
+                  >
                     <div className="flex items-center space-x-1">
                       <span>{t('settings.admin.users.table.status')}</span>
-                      {sortArrow('is_active') && <span aria-hidden="true">{sortArrow('is_active')}</span>}
+                      {sortArrow('is_active') && (
+                        <span aria-hidden="true">{sortArrow('is_active')}</span>
+                      )}
                     </div>
                   </th>
                   {/* Usage blocked */}
-                  <th className={sortableIconCls} onClick={() => handleSort('is_usage_blocked')} aria-sort={ariaSort('is_usage_blocked')} role="columnheader" title={t('settings.admin.users.table.blocked')}>
+                  <th
+                    className={sortableIconCls}
+                    onClick={() => handleSort('is_usage_blocked')}
+                    aria-sort={ariaSort('is_usage_blocked')}
+                    role="columnheader"
+                    title={t('settings.admin.users.table.blocked')}
+                  >
                     <span className="inline-flex items-center gap-0.5 justify-center">
                       <ShieldOff className="h-4 w-4" />
-                      {sortArrow('is_usage_blocked') && <span aria-hidden="true">{sortArrow('is_usage_blocked')}</span>}
+                      {sortArrow('is_usage_blocked') && (
+                        <span aria-hidden="true">{sortArrow('is_usage_blocked')}</span>
+                      )}
                     </span>
                   </th>
                   {/* Voice */}
-                  <th className={sortableIconCls} onClick={() => handleSort('voice_enabled')} aria-sort={ariaSort('voice_enabled')} role="columnheader" title={t('settings.admin.users.table.voice')}>
+                  <th
+                    className={sortableIconCls}
+                    onClick={() => handleSort('voice_enabled')}
+                    aria-sort={ariaSort('voice_enabled')}
+                    role="columnheader"
+                    title={t('settings.admin.users.table.voice')}
+                  >
                     <span className="inline-flex items-center gap-0.5 justify-center">
                       <Volume2 className="h-4 w-4" />
-                      {sortArrow('voice_enabled') && <span aria-hidden="true">{sortArrow('voice_enabled')}</span>}
+                      {sortArrow('voice_enabled') && (
+                        <span aria-hidden="true">{sortArrow('voice_enabled')}</span>
+                      )}
                     </span>
                   </th>
                   {/* Memory */}
-                  <th className={sortableIconCls} onClick={() => handleSort('memory_enabled')} aria-sort={ariaSort('memory_enabled')} role="columnheader" title={t('settings.admin.users.table.memory')}>
+                  <th
+                    className={sortableIconCls}
+                    onClick={() => handleSort('memory_enabled')}
+                    aria-sort={ariaSort('memory_enabled')}
+                    role="columnheader"
+                    title={t('settings.admin.users.table.memory')}
+                  >
                     <span className="inline-flex items-center gap-0.5 justify-center">
                       <Brain className="h-4 w-4" />
-                      {sortArrow('memory_enabled') && <span aria-hidden="true">{sortArrow('memory_enabled')}</span>}
+                      {sortArrow('memory_enabled') && (
+                        <span aria-hidden="true">{sortArrow('memory_enabled')}</span>
+                      )}
                     </span>
                   </th>
                   {/* Tokens display */}
-                  <th className={sortableIconCls} onClick={() => handleSort('tokens_display_enabled')} aria-sort={ariaSort('tokens_display_enabled')} role="columnheader" title={t('settings.admin.users.table.tokens_display')}>
+                  <th
+                    className={sortableIconCls}
+                    onClick={() => handleSort('tokens_display_enabled')}
+                    aria-sort={ariaSort('tokens_display_enabled')}
+                    role="columnheader"
+                    title={t('settings.admin.users.table.tokens_display')}
+                  >
                     <span className="inline-flex items-center gap-0.5 justify-center">
                       <Eye className="h-4 w-4" />
-                      {sortArrow('tokens_display_enabled') && <span aria-hidden="true">{sortArrow('tokens_display_enabled')}</span>}
+                      {sortArrow('tokens_display_enabled') && (
+                        <span aria-hidden="true">{sortArrow('tokens_display_enabled')}</span>
+                      )}
                     </span>
                   </th>
                   {/* Connectors count */}
-                  <th className={sortableIconCls} onClick={() => handleSort('active_connectors_count')} aria-sort={ariaSort('active_connectors_count')} role="columnheader" title={t('settings.admin.users.table.connectors')}>
+                  <th
+                    className={sortableIconCls}
+                    onClick={() => handleSort('active_connectors_count')}
+                    aria-sort={ariaSort('active_connectors_count')}
+                    role="columnheader"
+                    title={t('settings.admin.users.table.connectors')}
+                  >
                     <span className="inline-flex items-center gap-0.5 justify-center">
                       <Plug className="h-4 w-4" />
-                      {sortArrow('active_connectors_count') && <span aria-hidden="true">{sortArrow('active_connectors_count')}</span>}
+                      {sortArrow('active_connectors_count') && (
+                        <span aria-hidden="true">{sortArrow('active_connectors_count')}</span>
+                      )}
                     </span>
                   </th>
                   {/* Memories count */}
-                  <th className={sortableIconCls} onClick={() => handleSort('memories_count')} aria-sort={ariaSort('memories_count')} role="columnheader" title={t('settings.admin.users.table.memories')}>
+                  <th
+                    className={sortableIconCls}
+                    onClick={() => handleSort('memories_count')}
+                    aria-sort={ariaSort('memories_count')}
+                    role="columnheader"
+                    title={t('settings.admin.users.table.memories')}
+                  >
                     <span className="inline-flex items-center gap-0.5 justify-center">
                       <Bookmark className="h-4 w-4" />
-                      {sortArrow('memories_count') && <span aria-hidden="true">{sortArrow('memories_count')}</span>}
+                      {sortArrow('memories_count') && (
+                        <span aria-hidden="true">{sortArrow('memories_count')}</span>
+                      )}
                     </span>
                   </th>
                   {/* Interests count */}
-                  <th className={sortableIconCls} onClick={() => handleSort('interests_count')} aria-sort={ariaSort('interests_count')} role="columnheader" title={t('settings.admin.users.table.interests')}>
+                  <th
+                    className={sortableIconCls}
+                    onClick={() => handleSort('interests_count')}
+                    aria-sort={ariaSort('interests_count')}
+                    role="columnheader"
+                    title={t('settings.admin.users.table.interests')}
+                  >
                     <span className="inline-flex items-center gap-0.5 justify-center">
                       <Sparkles className="h-4 w-4" />
-                      {sortArrow('interests_count') && <span aria-hidden="true">{sortArrow('interests_count')}</span>}
+                      {sortArrow('interests_count') && (
+                        <span aria-hidden="true">{sortArrow('interests_count')}</span>
+                      )}
                     </span>
                   </th>
                   {/* Skills count */}
-                  <th className={sortableIconCls} onClick={() => handleSort('skills_count')} aria-sort={ariaSort('skills_count')} role="columnheader" title={t('settings.admin.users.table.skills')}>
+                  <th
+                    className={sortableIconCls}
+                    onClick={() => handleSort('skills_count')}
+                    aria-sort={ariaSort('skills_count')}
+                    role="columnheader"
+                    title={t('settings.admin.users.table.skills')}
+                  >
                     <span className="inline-flex items-center gap-0.5 justify-center">
                       <Blocks className="h-4 w-4" />
-                      {sortArrow('skills_count') && <span aria-hidden="true">{sortArrow('skills_count')}</span>}
+                      {sortArrow('skills_count') && (
+                        <span aria-hidden="true">{sortArrow('skills_count')}</span>
+                      )}
                     </span>
                   </th>
                   {/* MCP servers count */}
-                  <th className={sortableIconCls} onClick={() => handleSort('mcp_servers_count')} aria-sort={ariaSort('mcp_servers_count')} role="columnheader" title={t('settings.admin.users.table.mcp_servers')}>
+                  <th
+                    className={sortableIconCls}
+                    onClick={() => handleSort('mcp_servers_count')}
+                    aria-sort={ariaSort('mcp_servers_count')}
+                    role="columnheader"
+                    title={t('settings.admin.users.table.mcp_servers')}
+                  >
                     <span className="inline-flex items-center gap-0.5 justify-center">
                       <Server className="h-4 w-4" />
-                      {sortArrow('mcp_servers_count') && <span aria-hidden="true">{sortArrow('mcp_servers_count')}</span>}
+                      {sortArrow('mcp_servers_count') && (
+                        <span aria-hidden="true">{sortArrow('mcp_servers_count')}</span>
+                      )}
                     </span>
                   </th>
                   {/* Scheduled actions count */}
-                  <th className={sortableIconCls} onClick={() => handleSort('scheduled_actions_count')} aria-sort={ariaSort('scheduled_actions_count')} role="columnheader" title={t('settings.admin.users.table.scheduled_actions')}>
+                  <th
+                    className={sortableIconCls}
+                    onClick={() => handleSort('scheduled_actions_count')}
+                    aria-sort={ariaSort('scheduled_actions_count')}
+                    role="columnheader"
+                    title={t('settings.admin.users.table.scheduled_actions')}
+                  >
                     <span className="inline-flex items-center gap-0.5 justify-center">
                       <Clock className="h-4 w-4" />
-                      {sortArrow('scheduled_actions_count') && <span aria-hidden="true">{sortArrow('scheduled_actions_count')}</span>}
+                      {sortArrow('scheduled_actions_count') && (
+                        <span aria-hidden="true">{sortArrow('scheduled_actions_count')}</span>
+                      )}
                     </span>
                   </th>
                   {/* RAG spaces count */}
-                  <th className={sortableIconCls} onClick={() => handleSort('rag_spaces_count')} aria-sort={ariaSort('rag_spaces_count')} role="columnheader" title={t('settings.admin.users.table.rag_spaces')}>
+                  <th
+                    className={sortableIconCls}
+                    onClick={() => handleSort('rag_spaces_count')}
+                    aria-sort={ariaSort('rag_spaces_count')}
+                    role="columnheader"
+                    title={t('settings.admin.users.table.rag_spaces')}
+                  >
                     <span className="inline-flex items-center gap-0.5 justify-center">
                       <Database className="h-4 w-4" />
-                      {sortArrow('rag_spaces_count') && <span aria-hidden="true">{sortArrow('rag_spaces_count')}</span>}
+                      {sortArrow('rag_spaces_count') && (
+                        <span aria-hidden="true">{sortArrow('rag_spaces_count')}</span>
+                      )}
                     </span>
                   </th>
                   {/* Actions — not sortable */}
-                  <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider" role="columnheader">
+                  <th
+                    className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                    role="columnheader"
+                  >
                     {t('settings.admin.users.table.actions')}
                   </th>
                   {/* Last message */}
-                  <th className={sortableTextCls} onClick={() => handleSort('last_message_at')} aria-sort={ariaSort('last_message_at')} role="columnheader">
+                  <th
+                    className={sortableTextCls}
+                    onClick={() => handleSort('last_message_at')}
+                    aria-sort={ariaSort('last_message_at')}
+                    role="columnheader"
+                  >
                     <div className="flex items-center space-x-1">
                       <span>{t('settings.admin.users.table.last_message')}</span>
-                      {sortArrow('last_message_at') && <span aria-hidden="true">{sortArrow('last_message_at')}</span>}
+                      {sortArrow('last_message_at') && (
+                        <span aria-hidden="true">{sortArrow('last_message_at')}</span>
+                      )}
                     </div>
                   </th>
                   {/* Lifetime stats */}
-                  <th className={sortableRightCls} onClick={() => handleSort('total_messages')} aria-sort={ariaSort('total_messages')} role="columnheader">
+                  <th
+                    className={sortableRightCls}
+                    onClick={() => handleSort('total_messages')}
+                    aria-sort={ariaSort('total_messages')}
+                    role="columnheader"
+                  >
                     <span className="inline-flex items-center gap-0.5 justify-end">
                       {t('settings.admin.users.table.messages_short')}
-                      {sortArrow('total_messages') && <span aria-hidden="true">{sortArrow('total_messages')}</span>}
+                      {sortArrow('total_messages') && (
+                        <span aria-hidden="true">{sortArrow('total_messages')}</span>
+                      )}
                     </span>
                   </th>
-                  <th className={sortableRightCls} onClick={() => handleSort('total_tokens')} aria-sort={ariaSort('total_tokens')} role="columnheader">
+                  <th
+                    className={sortableRightCls}
+                    onClick={() => handleSort('total_tokens')}
+                    aria-sort={ariaSort('total_tokens')}
+                    role="columnheader"
+                  >
                     <span className="inline-flex items-center gap-0.5 justify-end">
                       {t('settings.admin.users.table.tokens')}
-                      {sortArrow('total_tokens') && <span aria-hidden="true">{sortArrow('total_tokens')}</span>}
+                      {sortArrow('total_tokens') && (
+                        <span aria-hidden="true">{sortArrow('total_tokens')}</span>
+                      )}
                     </span>
                   </th>
-                  <th className={sortableRightCls} onClick={() => handleSort('total_google_api_requests')} aria-sort={ariaSort('total_google_api_requests')} role="columnheader">
+                  <th
+                    className={sortableRightCls}
+                    onClick={() => handleSort('total_google_api_requests')}
+                    aria-sort={ariaSort('total_google_api_requests')}
+                    role="columnheader"
+                  >
                     <span className="inline-flex items-center gap-0.5 justify-end">
                       {t('settings.admin.users.table.google_api')}
-                      {sortArrow('total_google_api_requests') && <span aria-hidden="true">{sortArrow('total_google_api_requests')}</span>}
+                      {sortArrow('total_google_api_requests') && (
+                        <span aria-hidden="true">{sortArrow('total_google_api_requests')}</span>
+                      )}
                     </span>
                   </th>
-                  <th className={sortableRightCls} onClick={() => handleSort('total_cost_eur')} aria-sort={ariaSort('total_cost_eur')} role="columnheader">
+                  <th
+                    className={sortableRightCls}
+                    onClick={() => handleSort('total_cost_eur')}
+                    aria-sort={ariaSort('total_cost_eur')}
+                    role="columnheader"
+                  >
                     <span className="inline-flex items-center gap-0.5 justify-end">
                       {t('settings.admin.users.table.cost')}
-                      {sortArrow('total_cost_eur') && <span aria-hidden="true">{sortArrow('total_cost_eur')}</span>}
+                      {sortArrow('total_cost_eur') && (
+                        <span aria-hidden="true">{sortArrow('total_cost_eur')}</span>
+                      )}
                     </span>
                   </th>
                   {/* Cycle stats */}
-                  <th className={sortableRightCls} onClick={() => handleSort('cycle_messages')} aria-sort={ariaSort('cycle_messages')} role="columnheader">
+                  <th
+                    className={sortableRightCls}
+                    onClick={() => handleSort('cycle_messages')}
+                    aria-sort={ariaSort('cycle_messages')}
+                    role="columnheader"
+                  >
                     <span className="inline-flex items-center gap-0.5 justify-end">
                       {t('settings.admin.users.table.msgs_period')}
-                      {sortArrow('cycle_messages') && <span aria-hidden="true">{sortArrow('cycle_messages')}</span>}
+                      {sortArrow('cycle_messages') && (
+                        <span aria-hidden="true">{sortArrow('cycle_messages')}</span>
+                      )}
                     </span>
                   </th>
-                  <th className={sortableRightCls} onClick={() => handleSort('cycle_tokens')} aria-sort={ariaSort('cycle_tokens')} role="columnheader">
+                  <th
+                    className={sortableRightCls}
+                    onClick={() => handleSort('cycle_tokens')}
+                    aria-sort={ariaSort('cycle_tokens')}
+                    role="columnheader"
+                  >
                     <span className="inline-flex items-center gap-0.5 justify-end">
                       {t('settings.admin.users.table.tokens_period')}
-                      {sortArrow('cycle_tokens') && <span aria-hidden="true">{sortArrow('cycle_tokens')}</span>}
+                      {sortArrow('cycle_tokens') && (
+                        <span aria-hidden="true">{sortArrow('cycle_tokens')}</span>
+                      )}
                     </span>
                   </th>
-                  <th className={sortableRightCls} onClick={() => handleSort('cycle_google_api_requests')} aria-sort={ariaSort('cycle_google_api_requests')} role="columnheader">
+                  <th
+                    className={sortableRightCls}
+                    onClick={() => handleSort('cycle_google_api_requests')}
+                    aria-sort={ariaSort('cycle_google_api_requests')}
+                    role="columnheader"
+                  >
                     <span className="inline-flex items-center gap-0.5 justify-end">
                       {t('settings.admin.users.table.google_api_period')}
-                      {sortArrow('cycle_google_api_requests') && <span aria-hidden="true">{sortArrow('cycle_google_api_requests')}</span>}
+                      {sortArrow('cycle_google_api_requests') && (
+                        <span aria-hidden="true">{sortArrow('cycle_google_api_requests')}</span>
+                      )}
                     </span>
                   </th>
-                  <th className={sortableRightCls} onClick={() => handleSort('cycle_cost_eur')} aria-sort={ariaSort('cycle_cost_eur')} role="columnheader">
+                  <th
+                    className={sortableRightCls}
+                    onClick={() => handleSort('cycle_cost_eur')}
+                    aria-sort={ariaSort('cycle_cost_eur')}
+                    role="columnheader"
+                  >
                     <span className="inline-flex items-center gap-0.5 justify-end">
                       {t('settings.admin.users.table.cost_period')}
-                      {sortArrow('cycle_cost_eur') && <span aria-hidden="true">{sortArrow('cycle_cost_eur')}</span>}
+                      {sortArrow('cycle_cost_eur') && (
+                        <span aria-hidden="true">{sortArrow('cycle_cost_eur')}</span>
+                      )}
                     </span>
                   </th>
                 </tr>
@@ -662,18 +865,18 @@ export default function AdminUsersSection({ lng, collapsible = true }: BaseSetti
                       <div className="flex gap-2">
                         {/* Activate/Deactivate: hidden for deleted users (data purged, irreversible) */}
                         {!user.is_deleted && (
-                        <Button
-                          variant={user.is_active ? 'destructive' : 'success'}
-                          size="sm"
-                          onClick={() => handleToggleActive(user.id, user.is_active)}
-                          disabled={isPending}
-                          className="min-w-[80px] justify-center"
-                          aria-label={`${user.is_active ? t('settings.admin.users.actions.deactivate') : t('settings.admin.users.actions.activate')} ${user.email}`}
-                        >
-                          {user.is_active
-                            ? t('settings.admin.users.actions.deactivate')
-                            : t('settings.admin.users.actions.activate')}
-                        </Button>
+                          <Button
+                            variant={user.is_active ? 'destructive' : 'success'}
+                            size="sm"
+                            onClick={() => handleToggleActive(user.id, user.is_active)}
+                            disabled={isPending}
+                            className="min-w-[80px] justify-center"
+                            aria-label={`${user.is_active ? t('settings.admin.users.actions.deactivate') : t('settings.admin.users.actions.activate')} ${user.email}`}
+                          >
+                            {user.is_active
+                              ? t('settings.admin.users.actions.deactivate')
+                              : t('settings.admin.users.actions.activate')}
+                          </Button>
                         )}
                         {/* Delete: only for deactivated, non-deleted, non-superuser */}
                         {!user.is_superuser && !user.is_active && !user.is_deleted && (
@@ -782,7 +985,7 @@ export default function AdminUsersSection({ lng, collapsible = true }: BaseSetti
               pageInfo: (current, pages) =>
                 t('settings.admin.users.page_info', { page: current, totalPages: pages, total }),
               itemsPerPage: t('common.pagination.items_per_page'),
-              totalItems: (count) => t('common.pagination.total_items', { count }),
+              totalItems: count => t('common.pagination.total_items', { count }),
             }}
             className="mt-4"
           />

@@ -1,7 +1,7 @@
 # Smart Services - Architecture v3
 
-> **Version**: 1.2 (Architecture v3 - Text Compaction + Semantic Expansion)
-> **Date**: 2026-01-22
+> **Version**: 1.3 (Architecture v3 - Text Compaction + Semantic Expansion)
+> **Date**: 2026-04-08
 > **Fichiers**:
 > - [query_analyzer_service.py](../../apps/api/src/domains/agents/services/query_analyzer_service.py)
 > - [smart_planner_service.py](../../apps/api/src/domains/agents/services/smart_planner_service.py)
@@ -78,7 +78,10 @@ intelligence = await analyzer.analyze_full(
 1. Memory Facts Retrieval (if enabled)
          │
          v
-2. Memory Reference Resolution (MemoryReferenceResolutionService)
+2. Memory Reference Resolution (MemoryResolver — 3-phase architecture)
+         │ Phase 1: LLM extraction of memory references from query
+         │ Phase 2: Targeted search against user memory store
+         │ Phase 3: LLM resolution to produce concrete values
          │ "ma femme" → "marie dupond"
          v
 3. LLM Analysis (single call)
@@ -283,8 +286,9 @@ STEP 1: Filter Catalogue
          │ SmartCatalogueService.filter_for_intelligence()
          v
 STEP 2: Generate Plan
+         │ Unified: _build_prompt(is_multi_domain=bool)
          │ Single domain: _plan_single_domain()
-         │ Multi domain: _plan_multi_domain() (generative)
+         │ Multi domain: _plan_multi_domain() → delegates to _build_prompt(is_multi_domain=True)
          v
 STEP 3: PANIC MODE (if failure)
          │ Retry with expanded catalogue (all tools)
@@ -315,6 +319,30 @@ Normal Flow:
 ```
 
 **Important**: PANIC MODE is ONE-TIME ONLY per request (prevents infinite loops).
+
+### Unified Prompt Architecture
+
+The planner uses a single template `smart_planner_prompt.txt` with a conditional `{multi_domain_section}` block:
+
+```python
+# Unified prompt builder
+def _build_prompt(self, ..., is_multi_domain: bool = False) -> str:
+    """Single method for both single-domain and multi-domain prompt construction."""
+    # Populates {multi_domain_section} only when is_multi_domain=True
+    ...
+
+# Backward-compatible wrapper
+def _build_multi_domain_prompt(self, ...) -> str:
+    """Delegates to _build_prompt(is_multi_domain=True)."""
+    return self._build_prompt(..., is_multi_domain=True)
+```
+
+Public prompt functions:
+
+| Function | Description |
+|----------|-------------|
+| `get_smart_planner_prompt(is_multi_domain, primary_domain)` | Unified prompt function with `is_multi_domain` and `primary_domain` params |
+| `get_smart_planner_multi_domain_prompt()` | Backward-compatible wrapper, calls `get_smart_planner_prompt(is_multi_domain=True)` |
 
 ### Reference Bypass
 
@@ -801,10 +829,10 @@ key = f"plan:patterns:{pattern_hash}"
 
 ### Integration avec SmartPlannerService
 
-Le `PlanPatternLearner` est appele dans `_build_prompt()` et `_build_multi_domain_prompt()` :
+Le `PlanPatternLearner` est appele dans `_build_prompt()` (unified method for both single and multi-domain) :
 
 ```python
-# Dans SmartPlannerService._build_prompt()
+# Dans SmartPlannerService._build_prompt(is_multi_domain=...)
 learned_patterns = await get_learned_patterns_prompt(
     domains=intelligence.domains,
     is_mutation=intelligence.is_mutation_intent,

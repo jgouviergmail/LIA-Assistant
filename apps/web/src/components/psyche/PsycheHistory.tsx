@@ -41,23 +41,23 @@ type TimeRange = '24h' | '7d' | '30d' | '90d';
 /** Stable color per emotion — positive=green tones, negative=red tones, neutral=blue/gray. */
 const EMOTION_COLORS: Record<string, string> = {
   // Positive
-  joy: '#34d399',        // emerald
-  gratitude: '#22d3ee',  // cyan
-  pride: '#fbbf24',      // amber
-  amusement: '#f472b6',  // pink
+  joy: '#34d399', // emerald
+  gratitude: '#22d3ee', // cyan
+  pride: '#fbbf24', // amber
+  amusement: '#f472b6', // pink
   enthusiasm: '#fb923c', // orange
   tenderness: '#ec4899', // pink-hot
   // Negative
   frustration: '#ef4444', // red
-  concern: '#f97316',     // orange-dark
-  melancholy: '#818cf8',  // indigo
+  concern: '#f97316', // orange-dark
+  melancholy: '#818cf8', // indigo
   disappointment: '#a855f7', // purple
   // Neutral
-  curiosity: '#a78bfa',  // violet
-  serenity: '#38bdf8',   // sky
-  surprise: '#fbbf24',   // amber-light
-  empathy: '#2dd4bf',    // teal
-  confusion: '#94a3b8',  // slate
+  curiosity: '#a78bfa', // violet
+  serenity: '#38bdf8', // sky
+  surprise: '#fbbf24', // amber-light
+  empathy: '#2dd4bf', // teal
+  confusion: '#94a3b8', // slate
   determination: '#ef4444', // red-warm
 };
 
@@ -87,15 +87,15 @@ export function PsycheHistory({ lng, isOpen }: PsycheHistoryProps) {
     {
       componentName: 'PsycheHistory',
       enabled: isOpen,
-    },
+    }
   );
 
   // Extract reset markers (vertical reference lines on charts)
   const resetMarkers = useMemo(() => {
     if (!data || data.length === 0) return [];
     return data
-      .filter((e) => e.snapshot_type.startsWith('reset_'))
-      .map((e) => ({
+      .filter(e => e.snapshot_type.startsWith('reset_'))
+      .map(e => ({
         time: new Date(e.created_at).getTime(),
         label:
           e.snapshot_type === 'reset_full'
@@ -108,55 +108,47 @@ export function PsycheHistory({ lng, isOpen }: PsycheHistoryProps) {
   const chartData = useMemo(() => {
     if (!data || data.length === 0) return [];
     return [...data]
-      .filter((e) => !e.snapshot_type.startsWith('reset_'))
+      .filter(e => !e.snapshot_type.startsWith('reset_'))
       .reverse()
-      .map((entry) => {
-      const date = new Date(entry.created_at);
-      return {
-        time: date.getTime(),
-        timeLabel: date.toLocaleString(lng, {
-          month: 'short',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-        }),
-        // PAD as percentages
-        P: Math.round(entry.mood_pleasure * 100),
-        A: Math.round(entry.mood_arousal * 100),
-        D: Math.round(entry.mood_dominance * 100),
-        // Per-emotion intensities (from active_emotions map in trait_snapshot)
-        ...Object.fromEntries(
-          Object.entries(
-            (entry.trait_snapshot?.active_emotions as Record<string, number> | undefined) ?? {},
-          ).map(([emo, intensity]) => [`emo_${emo}`, Math.round((intensity as number) * 100)]),
-        ),
-        // Fallback: if no active_emotions map, use dominant_emotion + intensity
-        ...(!(entry.trait_snapshot?.active_emotions) && entry.dominant_emotion
-          ? { [`emo_${entry.dominant_emotion}`]: Math.round((entry.trait_snapshot?.emotion_intensity ?? 0) * 100) }
-          : {}),
-        // Dominant emotion intensity (for drives chart)
-        emotionIntensity: Math.round(
-          (entry.trait_snapshot?.emotion_intensity ?? 0) * 100,
-        ),
-        // Relationship + Drives
-        depth: Math.round(
-          (entry.trait_snapshot?.relationship_depth ?? 0) * 100,
-        ),
-        warmth: Math.round(
-          (entry.trait_snapshot?.relationship_warmth ?? 0) * 100,
-        ),
-        trust: Math.round(
-          (entry.trait_snapshot?.relationship_trust ?? 0) * 100,
-        ),
-        curiosity: Math.round(
-          (entry.trait_snapshot?.drive_curiosity ?? 0) * 100,
-        ),
-        engagement: Math.round(
-          (entry.trait_snapshot?.drive_engagement ?? 0) * 100,
-        ),
-      };
-    });
-  }, [data, lng, t]);
+      .map(entry => {
+        const date = new Date(entry.created_at);
+        return {
+          time: date.getTime(),
+          timeLabel: date.toLocaleString(lng, {
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+          // PAD as percentages
+          P: Math.round(entry.mood_pleasure * 100),
+          A: Math.round(entry.mood_arousal * 100),
+          D: Math.round(entry.mood_dominance * 100),
+          // Per-emotion intensities (from active_emotions map in trait_snapshot)
+          ...Object.fromEntries(
+            Object.entries(
+              (entry.trait_snapshot?.active_emotions as Record<string, number> | undefined) ?? {}
+            ).map(([emo, intensity]) => [`emo_${emo}`, Math.round((intensity as number) * 100)])
+          ),
+          // Fallback: if no active_emotions map, use dominant_emotion + intensity
+          ...(!entry.trait_snapshot?.active_emotions && entry.dominant_emotion
+            ? {
+                [`emo_${entry.dominant_emotion}`]: Math.round(
+                  (entry.trait_snapshot?.emotion_intensity ?? 0) * 100
+                ),
+              }
+            : {}),
+          // Dominant emotion intensity (for drives chart)
+          emotionIntensity: Math.round((entry.trait_snapshot?.emotion_intensity ?? 0) * 100),
+          // Relationship + Drives
+          depth: Math.round((entry.trait_snapshot?.relationship_depth ?? 0) * 100),
+          warmth: Math.round((entry.trait_snapshot?.relationship_warmth ?? 0) * 100),
+          trust: Math.round((entry.trait_snapshot?.relationship_trust ?? 0) * 100),
+          curiosity: Math.round((entry.trait_snapshot?.drive_curiosity ?? 0) * 100),
+          engagement: Math.round((entry.trait_snapshot?.drive_engagement ?? 0) * 100),
+        };
+      });
+  }, [data, lng]);
 
   // Discover all emotions that appear in the dataset (for dynamic chart lines)
   const emotionKeys = useMemo(() => {
@@ -176,7 +168,7 @@ export function PsycheHistory({ lng, isOpen }: PsycheHistoryProps) {
     <div className="space-y-3">
       {/* Time range selector */}
       <div className="flex gap-1 rounded-lg bg-muted p-0.5">
-        {ranges.map((range) => (
+        {ranges.map(range => (
           <button
             key={range}
             onClick={() => setActiveRange(range)}
@@ -184,7 +176,7 @@ export function PsycheHistory({ lng, isOpen }: PsycheHistoryProps) {
               'flex-1 text-xs py-1 rounded-md transition-colors',
               activeRange === range
                 ? 'bg-background text-foreground shadow-sm font-medium'
-                : 'text-muted-foreground hover:text-foreground',
+                : 'text-muted-foreground hover:text-foreground'
             )}
           >
             {t(`psyche.history.tabs.${range}`, range)}
@@ -194,7 +186,7 @@ export function PsycheHistory({ lng, isOpen }: PsycheHistoryProps) {
 
       {/* Chart tab selector */}
       <div className="flex gap-1 rounded-lg bg-muted/50 p-0.5">
-        {tabs.map((tab) => (
+        {tabs.map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -202,7 +194,7 @@ export function PsycheHistory({ lng, isOpen }: PsycheHistoryProps) {
               'flex-1 text-xs py-1 rounded-md transition-colors',
               activeTab === tab
                 ? 'bg-background text-foreground shadow-sm font-medium'
-                : 'text-muted-foreground hover:text-foreground',
+                : 'text-muted-foreground hover:text-foreground'
             )}
           >
             {tab === 'pad'
@@ -258,13 +250,14 @@ export function PsycheHistory({ lng, isOpen }: PsycheHistoryProps) {
                     background: 'hsl(var(--popover))',
                     color: 'hsl(var(--popover-foreground))',
                   }}
-                  formatter={(value: any, name: any) => {
+                  formatter={(value, name) => {
                     const padLabels: Record<string, string> = {
                       P: t('psyche.education.mood.pleasure', 'Pleasure'),
                       A: t('psyche.education.mood.arousal', 'Arousal'),
                       D: t('psyche.education.mood.dominance', 'Dominance'),
                     };
-                    return [`${value}%`, padLabels[name] || name];
+                    const key = String(name ?? '');
+                    return [`${value}%`, padLabels[key] || key];
                   }}
                 />
                 <Legend
@@ -278,31 +271,13 @@ export function PsycheHistory({ lng, isOpen }: PsycheHistoryProps) {
                     return padLabels[value] || value;
                   }}
                 />
-                <Line
-                  type="monotone"
-                  dataKey="P"
-                  stroke="#38bdf8"
-                  strokeWidth={2}
-                  dot={false}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="A"
-                  stroke="#fbbf24"
-                  strokeWidth={2}
-                  dot={false}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="D"
-                  stroke="#a78bfa"
-                  strokeWidth={2}
-                  dot={false}
-                />
+                <Line type="monotone" dataKey="P" stroke="#38bdf8" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="A" stroke="#fbbf24" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="D" stroke="#a78bfa" strokeWidth={2} dot={false} />
                 {resetMarkers.map((m, i) => (
                   <ReferenceLine
                     key={`reset-pad-${i}`}
-                    x={chartData.find((d) => d.time >= m.time)?.timeLabel}
+                    x={chartData.find(d => d.time >= m.time)?.timeLabel}
                     stroke="#ef4444"
                     strokeDasharray="4 2"
                     strokeWidth={1.5}
@@ -334,8 +309,8 @@ export function PsycheHistory({ lng, isOpen }: PsycheHistoryProps) {
                     background: 'hsl(var(--popover))',
                     color: 'hsl(var(--popover-foreground))',
                   }}
-                  formatter={(value: any, name: any) => {
-                    const emoName = name.replace('emo_', '');
+                  formatter={(value, name) => {
+                    const emoName = String(name ?? '').replace('emo_', '');
                     return [`${value}%`, String(t(`psyche.emotions.${emoName}`, emoName))];
                   }}
                 />
@@ -346,7 +321,7 @@ export function PsycheHistory({ lng, isOpen }: PsycheHistoryProps) {
                     return t(`psyche.emotions.${emoName}`, emoName);
                   }}
                 />
-                {emotionKeys.map((key) => {
+                {emotionKeys.map(key => {
                   const color = EMOTION_COLORS[key.replace('emo_', '')] ?? '#9ca3af';
                   return (
                     <Area
@@ -365,7 +340,7 @@ export function PsycheHistory({ lng, isOpen }: PsycheHistoryProps) {
                 {resetMarkers.map((m, i) => (
                   <ReferenceLine
                     key={`reset-emo-${i}`}
-                    x={chartData.find((d) => d.time >= m.time)?.timeLabel}
+                    x={chartData.find(d => d.time >= m.time)?.timeLabel}
                     stroke="#ef4444"
                     strokeDasharray="4 2"
                     strokeWidth={1.5}
@@ -376,55 +351,161 @@ export function PsycheHistory({ lng, isOpen }: PsycheHistoryProps) {
             ) : activeTab === 'relationship' ? (
               <LineChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
-                <XAxis dataKey="timeLabel" tick={{ fontSize: 9 }} interval="preserveStartEnd" tickLine={false} />
-                <YAxis domain={[0, 100]} tick={{ fontSize: 9 }} tickLine={false} width={35} tickFormatter={(v: number) => `${v}%`} />
+                <XAxis
+                  dataKey="timeLabel"
+                  tick={{ fontSize: 9 }}
+                  interval="preserveStartEnd"
+                  tickLine={false}
+                />
+                <YAxis
+                  domain={[0, 100]}
+                  tick={{ fontSize: 9 }}
+                  tickLine={false}
+                  width={35}
+                  tickFormatter={(v: number) => `${v}%`}
+                />
                 <Tooltip
-                  contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid hsl(var(--border))', background: 'hsl(var(--popover))', color: 'hsl(var(--popover-foreground))' }}
-                  formatter={(value: any, name: any) => {
-                    const labels: Record<string, string> = { depth: t('psyche.depth', 'Depth'), warmth: t('psyche.warmth', 'Warmth'), trust: t('psyche.trust', 'Trust') };
-                    return [`${value}%`, labels[name] || name];
+                  contentStyle={{
+                    fontSize: 11,
+                    borderRadius: 8,
+                    border: '1px solid hsl(var(--border))',
+                    background: 'hsl(var(--popover))',
+                    color: 'hsl(var(--popover-foreground))',
+                  }}
+                  formatter={(value, name) => {
+                    const labels: Record<string, string> = {
+                      depth: t('psyche.depth', 'Depth'),
+                      warmth: t('psyche.warmth', 'Warmth'),
+                      trust: t('psyche.trust', 'Trust'),
+                    };
+                    const key = String(name ?? '');
+                    return [`${value}%`, labels[key] || key];
                   }}
                 />
-                <Legend wrapperStyle={{ fontSize: 10 }} formatter={(value: string) => {
-                  const labels: Record<string, string> = { depth: t('psyche.depth', 'Depth'), warmth: t('psyche.warmth', 'Warmth'), trust: t('psyche.trust', 'Trust') };
-                  return labels[value] || value;
-                }} />
-                <Line type="monotone" dataKey="depth" stroke="#34d399" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="warmth" stroke="#f97316" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="trust" stroke="#38bdf8" strokeWidth={2} dot={false} />
+                <Legend
+                  wrapperStyle={{ fontSize: 10 }}
+                  formatter={(value: string) => {
+                    const labels: Record<string, string> = {
+                      depth: t('psyche.depth', 'Depth'),
+                      warmth: t('psyche.warmth', 'Warmth'),
+                      trust: t('psyche.trust', 'Trust'),
+                    };
+                    return labels[value] || value;
+                  }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="depth"
+                  stroke="#34d399"
+                  strokeWidth={2}
+                  dot={false}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="warmth"
+                  stroke="#f97316"
+                  strokeWidth={2}
+                  dot={false}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="trust"
+                  stroke="#38bdf8"
+                  strokeWidth={2}
+                  dot={false}
+                />
                 {resetMarkers.map((m, i) => (
-                  <ReferenceLine key={`reset-rel-${i}`} x={chartData.find((d) => d.time >= m.time)?.timeLabel} stroke="#ef4444" strokeDasharray="4 2" strokeWidth={1.5} label={{ value: m.label, position: 'top', fontSize: 8, fill: '#ef4444' }} />
+                  <ReferenceLine
+                    key={`reset-rel-${i}`}
+                    x={chartData.find(d => d.time >= m.time)?.timeLabel}
+                    stroke="#ef4444"
+                    strokeDasharray="4 2"
+                    strokeWidth={1.5}
+                    label={{ value: m.label, position: 'top', fontSize: 8, fill: '#ef4444' }}
+                  />
                 ))}
               </LineChart>
             ) : (
               <AreaChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
-                <XAxis dataKey="timeLabel" tick={{ fontSize: 9 }} interval="preserveStartEnd" tickLine={false} />
-                <YAxis domain={[0, 100]} tick={{ fontSize: 9 }} tickLine={false} width={35} tickFormatter={(v: number) => `${v}%`} />
+                <XAxis
+                  dataKey="timeLabel"
+                  tick={{ fontSize: 9 }}
+                  interval="preserveStartEnd"
+                  tickLine={false}
+                />
+                <YAxis
+                  domain={[0, 100]}
+                  tick={{ fontSize: 9 }}
+                  tickLine={false}
+                  width={35}
+                  tickFormatter={(v: number) => `${v}%`}
+                />
                 <Tooltip
-                  contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid hsl(var(--border))', background: 'hsl(var(--popover))', color: 'hsl(var(--popover-foreground))' }}
-                  formatter={(value: any, name: any) => {
+                  contentStyle={{
+                    fontSize: 11,
+                    borderRadius: 8,
+                    border: '1px solid hsl(var(--border))',
+                    background: 'hsl(var(--popover))',
+                    color: 'hsl(var(--popover-foreground))',
+                  }}
+                  formatter={(value, name) => {
                     const labels: Record<string, string> = {
                       curiosity: t('psyche.curiosityDrive', 'Curiosity'),
                       engagement: t('psyche.history.engagement', 'Engagement'),
                       emotionIntensity: t('psyche.history.emotionIntensity', 'Emotion intensity'),
                     };
-                    return [`${value}%`, labels[name] || name];
+                    const key = String(name ?? '');
+                    return [`${value}%`, labels[key] || key];
                   }}
                 />
-                <Legend wrapperStyle={{ fontSize: 10 }} formatter={(value: string) => {
-                  const labels: Record<string, string> = {
-                    curiosity: t('psyche.curiosityDrive', 'Curiosity'),
-                    engagement: t('psyche.history.engagement', 'Engagement'),
-                    emotionIntensity: t('psyche.history.emotionIntensity', 'Emotion intensity'),
-                  };
-                  return labels[value] || value;
-                }} />
-                <Area type="monotone" dataKey="emotionIntensity" stroke="#f472b6" fill="#f472b6" fillOpacity={0.15} strokeWidth={2} dot={false} />
-                <Area type="monotone" dataKey="curiosity" stroke="#a78bfa" fill="#a78bfa" fillOpacity={0.1} strokeWidth={1.5} dot={false} />
-                <Area type="monotone" dataKey="engagement" stroke="#2dd4bf" fill="#2dd4bf" fillOpacity={0.1} strokeWidth={1.5} dot={false} />
+                <Legend
+                  wrapperStyle={{ fontSize: 10 }}
+                  formatter={(value: string) => {
+                    const labels: Record<string, string> = {
+                      curiosity: t('psyche.curiosityDrive', 'Curiosity'),
+                      engagement: t('psyche.history.engagement', 'Engagement'),
+                      emotionIntensity: t('psyche.history.emotionIntensity', 'Emotion intensity'),
+                    };
+                    return labels[value] || value;
+                  }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="emotionIntensity"
+                  stroke="#f472b6"
+                  fill="#f472b6"
+                  fillOpacity={0.15}
+                  strokeWidth={2}
+                  dot={false}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="curiosity"
+                  stroke="#a78bfa"
+                  fill="#a78bfa"
+                  fillOpacity={0.1}
+                  strokeWidth={1.5}
+                  dot={false}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="engagement"
+                  stroke="#2dd4bf"
+                  fill="#2dd4bf"
+                  fillOpacity={0.1}
+                  strokeWidth={1.5}
+                  dot={false}
+                />
                 {resetMarkers.map((m, i) => (
-                  <ReferenceLine key={`reset-drv-${i}`} x={chartData.find((d) => d.time >= m.time)?.timeLabel} stroke="#ef4444" strokeDasharray="4 2" strokeWidth={1.5} label={{ value: m.label, position: 'top', fontSize: 8, fill: '#ef4444' }} />
+                  <ReferenceLine
+                    key={`reset-drv-${i}`}
+                    x={chartData.find(d => d.time >= m.time)?.timeLabel}
+                    stroke="#ef4444"
+                    strokeDasharray="4 2"
+                    strokeWidth={1.5}
+                    label={{ value: m.label, position: 'top', fontSize: 8, fill: '#ef4444' }}
+                  />
                 ))}
               </AreaChart>
             )}

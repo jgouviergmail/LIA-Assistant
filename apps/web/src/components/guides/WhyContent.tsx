@@ -2,19 +2,14 @@ import fs from 'fs';
 import path from 'path';
 import {
   Globe,
-  Lightbulb,
+  MousePointerClick,
+  Zap,
+  Users,
   Shield,
   Eye,
   Heart,
-  Workflow,
-  UserCheck,
-  Zap,
-  Bell,
-  Mic,
+  Activity,
   Puzzle,
-  Brain,
-  Layers,
-  Scale,
   Compass,
 } from 'lucide-react';
 import { initI18next } from '@/i18n';
@@ -26,20 +21,15 @@ interface WhyContentProps {
 }
 
 const TOC_SECTIONS = [
-  { id: 'world_changed', icon: Globe },
-  { id: 'thesis', icon: Lightbulb },
+  { id: 'context', icon: Globe },
+  { id: 'simple_admin', icon: MousePointerClick },
+  { id: 'capabilities', icon: Zap },
+  { id: 'family_server', icon: Users },
   { id: 'sovereignty', icon: Shield },
   { id: 'transparency', icon: Eye },
-  { id: 'depth', icon: Heart },
-  { id: 'orchestration', icon: Workflow },
-  { id: 'human_control', icon: UserCheck },
-  { id: 'act', icon: Zap },
-  { id: 'proactivity', icon: Bell },
-  { id: 'voice', icon: Mic },
+  { id: 'emotional_depth', icon: Heart },
+  { id: 'reliability', icon: Activity },
   { id: 'openness', icon: Puzzle },
-  { id: 'intelligence', icon: Brain },
-  { id: 'fabric', icon: Layers },
-  { id: 'honesty', icon: Scale },
   { id: 'vision', icon: Compass },
 ] as const;
 

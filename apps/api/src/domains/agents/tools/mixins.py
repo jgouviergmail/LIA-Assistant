@@ -8,8 +8,8 @@ INTELLIA v10: Simplified architecture.
 
 TIMEZONE HANDLING:
 - All build_*_output() methods accept user_timezone and locale parameters
-- Date fields in payloads are converted to user's timezone before storage
-- Formatted date strings added for frontend display (e.g., "date_formatted")
+- Date fields in payloads use ISO format (YYYY-MM-DD or ISO 8601 datetime)
+- Display formatting (user language) is handled by card components via format_full_date()
 
 Usage:
     class SearchContactsTool(ToolOutputMixin, ConnectorTool):

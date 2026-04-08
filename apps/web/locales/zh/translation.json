@@ -1387,6 +1387,7 @@
           "hitl_question_generator": "生成澄清问题",
           "hitl_plan_approval_question_generator": "生成计划批准问题",
           "memory_extraction": "从对话中提取可记忆的事实",
+          "memory_reference_extraction": "从查询中提取需要解析的个人引用",
           "memory_reference_resolution": "解析对存储记忆的引用",
           "interest_extraction": "从对话中提取兴趣",
           "interest_content": "根据兴趣生成内容",
@@ -1395,7 +1396,7 @@
           "broadcast_translator": "翻译广播消息",
           "voice_comment": "为 TTS 生成语音评论",
           "mcp_description": "生成 MCP 服务器描述",
-          "mcp_excalidraw": "生成 Excalidraw 图表",
+          "mcp_app_react_agent": "用于带交互式组件的MCP服务器的ReAct代理（MCP Apps）",
           "vision_analysis": "视觉分析 — 用于分析附加图片和文档的模型",
           "skill_description_translator": "将技能描述翻译为所有6种支持的语言",
           "evaluator": "LLM-as-Judge 评估管道（相关性、幻觉检测）",
@@ -2607,6 +2608,24 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_15": {
+          "title": "v1.15 — 智能记忆解析、优化与安全",
+          "date": "2026年4月",
+          "count": "11",
+          "items": {
+            "i1": "<b>您的MCP服务器迭代模式</b> — 您的个人MCP服务器现在可以使用迭代模式（ReAct代理）。在设置中启用后，LIA会先阅读服务器文档，然后逐步执行工具——非常适合Excalidraw等复杂API",
+            "i2": "<b>三阶段记忆解析</b> — 当您说'给我哥哥打电话'或'给我妻子发邮件'时，LIA现在通过针对性的逐引用搜索更准确地识别个人引用",
+            "i3": "<b>改进的错误消息</b> — 出现问题时，错误消息现在以您的语言清晰显示，而不是显示技术代码",
+            "i4": "<b>优化的主动建议</b> — 操作后的主动建议现在只关注与已处理领域不同的领域",
+            "i5": "<b>安全取消提醒</b> — 取消提醒现在需要确认后才执行",
+            "i6": "<b>本地化天气日期</b> — 天气预报现在以您的语言显示日期",
+            "i7": "<b>更快的响应</b> — 内部提示压缩30-70%，减少响应时间和成本",
+            "i8": "<b>修复'这些邮件/这些约会'</b> — 复数引用现在可以正确检测",
+            "i9": "<b>改进的联系人搜索</b> — 当规划器提供名称而非技术ID时，LIA自动按名称搜索联系人",
+            "i10": "<b>修复迭代模式切换</b> — 个人MCP服务器上的迭代模式启用/禁用现在可以正确保存和显示",
+            "i11": "<b>MCP Apps专用AI</b> — 带交互式组件的MCP服务器（如Excalidraw）现在自动使用更强大的AI模型，管理员可在LLM配置面板的「MCP App (ReAct)」中进行配置"
+          }
+        },
         "v1_14": {
           "title": "v1.14 — LIA的心理：动态情感智能",
           "date": "2026年4月",
@@ -4350,6 +4369,26 @@
       "subtitle": "一个完整、简单、直觉化的助手——无需任何技术知识",
       "subtitle_responsible": "一个负责任且简单的AI",
       "responsible_desc": "强大功能与隐私保护之间绝不妥协。您始终掌握控制权，您的数据始终受到保护。",
+      "group_conversation": {
+        "title": "智能对话",
+        "description": "自然交流，LIA理解并清晰回应"
+      },
+      "group_personality": {
+        "title": "个性与记忆",
+        "description": "了解你、适应你、与你共同成长的AI"
+      },
+      "group_automation": {
+        "title": "主动性与自动化",
+        "description": "LIA预判、提醒并代你行动"
+      },
+      "group_creation": {
+        "title": "创作与媒体",
+        "description": "图像、图表、小部件和文档分析"
+      },
+      "group_power": {
+        "title": "扩展性与强大功能",
+        "description": "无限连接、扩展和自定义"
+      },
       "connected_services": {
         "title": "Google、Apple iCloud 与 Microsoft 365",
         "description": "通过 Google、Apple iCloud 或 Microsoft 365 管理邮件、日历和联系人——由您选择。还有 Google Drive、Google Tasks 和 Microsoft To Do。全部通过自然语言操作，无论您使用哪个服务商。"
@@ -4392,7 +4431,7 @@
       },
       "rich_responses": {
         "title": "丰富可视化回复",
-        "description": "结果以交互式HTML卡片呈现：邮件、事件、联系人、文件、天气、地点、路线——一目了然，可点击操作。"
+        "description": "选择您的显示模式：交互式HTML卡片、直接HTML渲染或Markdown文本。邮件、事件、联系人、天气、路线——一切按您的偏好呈现。"
       },
       "multichannel": {
         "title": "网页、Telegram与推送",
@@ -5003,30 +5042,25 @@
   },
   "why": {
     "meta": {
-      "title": "为什么选择 LIA？— 主权个人AI助手",
-      "description": "了解 LIA 的理念、差异化因素和愿景 — 一个开源、可自托管的主权多代理AI助手。"
+      "title": "为什么选择 LIA？— 属于你的AI助手",
+      "description": "了解 LIA 的7大支柱 — 一个开源多代理AI助手，管理简单、可共享、自主、情感智能。"
     },
     "breadcrumb": "为什么选择 LIA？",
     "hero": {
       "title": "为什么选择 LIA？",
-      "subtitle": "在专有云代理世界中，一个主权个人AI助手的理念、愿景和差异化因素。"
+      "subtitle": "七个基本特质使 LIA 成为独特的个人AI助手：简单、可共享、自主、透明、有情感、可靠、开放。"
     },
     "toc": {
-      "world_changed": "世界已经改变",
-      "thesis": "LIA 的理念",
-      "sovereignty": "主权：重新掌控",
+      "context": "背景",
+      "simple_admin": "简单管理",
+      "capabilities": "LIA能做什么",
+      "family_server": "为亲友打造的服务器",
+      "sovereignty": "自主且节约",
       "transparency": "彻底透明",
-      "depth": "关系深度",
-      "orchestration": "生产中的编排",
-      "human_control": "人类控制",
-      "act": "在数字生活中行动",
-      "proactivity": "上下文主动性",
-      "voice": "语音作为界面",
-      "openness": "开放作为策略",
-      "intelligence": "自优化智能",
-      "fabric": "一切如何交织",
-      "honesty": "LIA 不自称什么",
-      "vision": "愿景：LIA 的未来"
+      "emotional_depth": "情感深度",
+      "reliability": "生产可靠性",
+      "openness": "彻底开放",
+      "vision": "愿景"
     }
   },
   "how": {

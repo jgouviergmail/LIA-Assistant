@@ -390,7 +390,6 @@ class OpenWeatherMapClient:
             if date_key not in daily_data:
                 daily_data[date_key] = {
                     "date": date_key,
-                    "date_formatted": dt_user.strftime("%A, %B %d"),
                     "temps": [],
                     "conditions": [],
                     "humidity": [],
@@ -413,7 +412,6 @@ class OpenWeatherMapClient:
             daily_list.append(
                 {
                     "date": data["date"],
-                    "date_formatted": data["date_formatted"],
                     "temp_min": round(min(temps), 1),
                     "temp_max": round(max(temps), 1),
                     "temp_avg": round(sum(temps) / len(temps), 1),

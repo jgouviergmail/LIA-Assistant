@@ -2,9 +2,9 @@
 
 > **Documentation complète du système de prompts LLM - Architecture centralisée v1**
 >
-> Version: 2.1
-> Date: 2026-01-12
-> Updated: Architecture v3 Smart Services prompts (query_analyzer, smart_planner)
+> Version: 2.2
+> Date: 2026-04-08
+> Updated: 3-phase memory resolution, unified planner prompt, token optimizations
 
 ---
 
@@ -28,7 +28,7 @@
 > **Note importante** : Les versions v2-v8 ont été consolidées dans v1 en décembre 2025.
 > Le versioning historique des prompts est maintenant intégré dans le contenu des fichiers.
 
-### Fichiers Prompts (45 total)
+### Fichiers Prompts (46 total)
 
 ```
 apps/api/src/domains/agents/prompts/
@@ -64,8 +64,8 @@ apps/api/src/domains/agents/prompts/
     │
     │   # SMART SERVICES (3) - Architecture v3
     ├── query_analyzer_prompt.txt               # QueryAnalyzerService LLM analysis
-    ├── smart_planner_prompt.txt                # SmartPlannerService single domain
-    ├── smart_planner_multi_domain_prompt.txt   # SmartPlannerService multi-domain
+    ├── smart_planner_prompt.txt                # SmartPlannerService (unified single + multi-domain)
+    ├── smart_planner_multi_domain_prompt.txt   # [DEPRECATED] Backward-compat, delegates to smart_planner_prompt
     ├── app_identity_prompt.txt                 # App self-knowledge identity prompt (~200 tokens), loaded conditionally when is_app_help_query=True. Includes admin-boundary directive (v1.9.2): instructs LLM to never mention admin-only features to regular users.
     │
     │   # SEMANTIC & MEMORY (4)
@@ -74,6 +74,7 @@ apps/api/src/domains/agents/prompts/
     ├── memory_extraction_prompt.txt            # Long-term memory extraction
     ├── memory_extraction_personality_addon.txt # Personality traits extraction
     ├── memory_reference_resolution_prompt.txt  # Reference resolution (qui est "mon père"?)
+    ├── memory_reference_extraction_prompt.txt  # Phase 1: extract personal references for resolution
     │
     │   # VOICE (1)
     ├── voice_comment_prompt.txt                # Voice comment generation
@@ -119,6 +120,7 @@ apps/api/src/domains/agents/prompts/
 | **Memory Extractor** | memory_extraction_prompt.txt | Long-term memory |
 | **QueryAnalyzer** | query_analyzer_prompt.txt | Smart routing analysis |
 | **SmartPlanner** | smart_planner_prompt.txt | Smart planning |
+| **MemoryResolver** | memory_reference_extraction_prompt.txt | Phase 1: reference extraction |
 
 ---
 
@@ -808,6 +810,6 @@ class Settings(BaseSettings):
 
 ---
 
-**PROMPTS.md** - Version 2.1 - Janvier 2026
+**PROMPTS.md** - Version 2.2 - Avril 2026
 
-*Architecture prompts centralisee avec 45 fichiers, fewshot dynamique, voice, memory et Smart Services*
+*Architecture prompts centralisee avec 46 fichiers, fewshot dynamique, voice, memory et Smart Services*

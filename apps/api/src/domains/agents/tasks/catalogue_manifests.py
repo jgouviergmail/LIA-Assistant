@@ -30,11 +30,10 @@ from src.domains.agents.registry.catalogue import (
 _get_tasks_desc = (
     "**Tool: get_tasks_tool** - Get tasks with full details.\n"
     "\n"
-    "**MODES**:\n"
-    "- List mode: get_tasks_tool() → list pending tasks with full details\n"
-    "- ID mode: get_tasks_tool(task_id='abc123') → fetch specific task\n"
-    "- Batch mode: get_tasks_tool(task_ids=['abc', 'def']) → fetch multiple tasks\n"
-    "- Filter mode: get_tasks_tool(only_completed=True) → filter by status\n"
+    "**USAGE**:\n"
+    "- List all: omit parameters (returns pending tasks)\n"
+    "- Fetch by ID (from $steps or CONTEXT only): use `task_id` or `task_ids`\n"
+    "- Filter by status: use `only_completed` or `show_completed`\n"
     "\n"
     "**SEARCHABLE FIELDS**: NONE - Google Tasks API has no text search.\n"
     "- All filtering (by title, notes, due date): Response LLM filters results\n"
@@ -43,7 +42,7 @@ _get_tasks_desc = (
     "**COMMON USE CASES**:\n"
     "- 'my tasks' → list mode (no params)\n"
     "- 'show my todo list' → list mode\n"
-    "- 'details of this task' → task_id='ID from context'\n"
+    "- 'details of this task' → task_id=ID from $steps or CONTEXT\n"
     "- 'completed tasks' → only_completed=True\n"
     "- 'tasks about project X' → list mode, Response LLM filters by title/notes\n"
     "\n"
@@ -417,6 +416,7 @@ list_task_lists_catalogue_manifest = ToolManifest(
     version="1.0.0",
     maintainer="Team Agents",
     display=DisplayMetadata(emoji="📚", i18n_key="list_task_lists", visible=True, category="tool"),
+    initiative_eligible=False,  # Structural listing tool, not user data enrichment
 )
 
 __all__ = [

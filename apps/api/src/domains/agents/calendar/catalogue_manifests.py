@@ -43,11 +43,10 @@ _CALENDAR_ID_PARAM = ParameterSchema(
 _get_events_desc = (
     "**Tool: get_events_tool** - Get calendar events with full details.\n"
     "\n"
-    "**MODES**:\n"
-    "- Query mode: get_events_tool(query='meeting', time_min='...') → search + return full details\n"
-    "- ID mode: get_events_tool(event_id='abc123') → fetch specific event\n"
-    "- Batch mode: get_events_tool(event_ids=['abc', 'def']) → fetch multiple events\n"
-    "- List mode: get_events_tool(time_min='...', time_max='...') → return events in range\n"
+    "**USAGE**:\n"
+    "- Search: use `query` parameter (optionally with `time_min`/`time_max`)\n"
+    "- Fetch by ID (from $steps or CONTEXT only): use `event_id` or `event_ids`\n"
+    "- List by range: use `time_min`/`time_max` without query\n"
     "\n"
     "**SEARCHABLE FIELDS** (query parameter):\n"
     "- title (summary), description ONLY\n"
@@ -66,7 +65,7 @@ _get_events_desc = (
     "- 'my upcoming events' → NO query, default time range applies\n"
     "- 'meeting with John' → query='John' (specific search)\n"
     "- 'doctor appointment' → query='doctor' (specific search in user's language)\n"
-    "- 'show this event details' → event_id='ID from context'\n"
+    "- 'show this event details' → event_id=ID from $steps or CONTEXT\n"
     "\n"
     "**Time Format**: ISO 8601 (e.g., '2025-01-15T00:00:00+01:00').\n"
     "**Default**: Next 7 days if unspecified.\n"
@@ -535,6 +534,7 @@ list_calendars_catalogue_manifest = ToolManifest(
     version="1.1.0",
     maintainer="Team Agents",
     display=DisplayMetadata(emoji="📚", i18n_key="list_calendars", visible=True, category="tool"),
+    initiative_eligible=False,  # Structural tool, not useful for proactive enrichment
 )
 
 __all__ = [

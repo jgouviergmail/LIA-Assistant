@@ -82,6 +82,7 @@ def _server_to_response(
         domain_description=server.domain_description,
         timeout_seconds=server.timeout_seconds,
         hitl_required=server.hitl_required,
+        iterative_mode=server.iterative_mode,
         header_name=metadata["header_name"],
         has_credentials=metadata["has_credentials"],
         has_oauth_credentials=metadata["has_oauth_credentials"],

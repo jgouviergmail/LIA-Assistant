@@ -1401,6 +1401,11 @@ class LLMSettings(BaseSettings):
             "Recommended: 'medium' for thorough analysis."
         ),
     )
+    query_analyzer_llm_timeout_seconds: float = Field(
+        default=30.0,
+        gt=0,
+        description="Timeout in seconds for query analyzer LLM call. Default: 30s.",
+    )
 
     # ========================================================================
     # LLM CONFIGURATION - INTEREST EXTRACTION (Proactive Learning)

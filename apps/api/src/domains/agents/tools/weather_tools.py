@@ -19,7 +19,7 @@ Architecture:
 """
 
 import re
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Annotated, Any
 from uuid import UUID
 from zoneinfo import ZoneInfo
@@ -78,6 +78,100 @@ def _get_today_in_timezone(user_timezone: str) -> datetime:
     return datetime.now(tz)
 
 
+# Month name mappings for localized date parsing (FR, EN, DE, ES, IT)
+_MONTH_NAMES: dict[str, int] = {
+    # French
+    "janvier": 1,
+    "février": 2,
+    "fevrier": 2,
+    "mars": 3,
+    "avril": 4,
+    "mai": 5,
+    "juin": 6,
+    "juillet": 7,
+    "août": 8,
+    "aout": 8,
+    "septembre": 9,
+    "octobre": 10,
+    "novembre": 11,
+    "décembre": 12,
+    "decembre": 12,
+    # English
+    "january": 1,
+    "february": 2,
+    "march": 3,
+    "april": 4,
+    "may": 5,
+    "june": 6,
+    "july": 7,
+    "august": 8,
+    "september": 9,
+    "october": 10,
+    "november": 11,
+    "december": 12,
+    # German
+    "januar": 1,
+    "februar": 2,
+    "märz": 3,
+    "marz": 3,
+    "juni": 6,
+    "juli": 7,
+    "oktober": 10,
+    "dezember": 12,
+    # Spanish
+    "enero": 1,
+    "febrero": 2,
+    "marzo": 3,
+    "mayo": 5,
+    "junio": 6,
+    "julio": 7,
+    "agosto": 8,
+    "septiembre": 9,
+    "octubre": 10,
+    "noviembre": 11,
+    "diciembre": 12,
+    # Italian
+    "gennaio": 1,
+    "febbraio": 2,
+    "aprile": 4,
+    "maggio": 5,
+    "giugno": 6,
+    "luglio": 7,
+    "settembre": 9,
+    "ottobre": 10,
+    "dicembre": 12,
+}
+
+# Pattern: optional day-of-week, then DD month YYYY (e.g., "jeudi 09 avril 2026", "9 avril 2026")
+_LOCALIZED_DATE_PATTERN = re.compile(r"(?:\w+\s+)?(\d{1,2})\s+(\w+)\s+(\d{4})", re.IGNORECASE)
+
+
+def _parse_localized_date(ref: str) -> date | None:
+    """Parse localized date strings like 'jeudi 09 avril 2026' or '9 April 2026'.
+
+    Supports French, English, German, Spanish, and Italian month names.
+
+    Args:
+        ref: Date string to parse.
+
+    Returns:
+        Parsed date or None if not recognized.
+    """
+    match = _LOCALIZED_DATE_PATTERN.match(ref.strip())
+    if not match:
+        return None
+
+    day_str, month_str, year_str = match.groups()
+    month = _MONTH_NAMES.get(month_str.lower())
+    if month is None:
+        return None
+
+    try:
+        return date(int(year_str), month, int(day_str))
+    except ValueError:
+        return None
+
+
 def _calculate_target_date(
     date_ref: str | None,
     user_timezone: str,
@@ -85,19 +179,23 @@ def _calculate_target_date(
     """
     Calculate target date from temporal reference in user's timezone.
 
-    This function determines what date the user is asking about based on their
-    local timezone. For example, "demain" (tomorrow) is calculated relative to
-    the user's local midnight, not UTC.
+    Calculate target date from temporal reference in user's timezone.
+
+    Queries are translated to English by the semantic pivot before reaching the
+    planner, so temporal references are expected in English. Localized date
+    strings (e.g., "jeudi 09 avril 2026") from planner output are handled as
+    a fallback via _parse_localized_date().
 
     Args:
-        date_ref: Temporal reference (e.g., "demain", "2026-01-27", "2026-01-27T11:30:00+01:00")
+        date_ref: Temporal reference (e.g., "tomorrow", "2026-01-27", "2026-01-27T11:30:00+01:00",
+                  or localized like "jeudi 09 avril 2026")
         user_timezone: User's IANA timezone (e.g., "Europe/Paris")
 
     Returns:
         Tuple of:
         - target_date: Date string in YYYY-MM-DD format
         - offset: Number of days from today (for API request sizing)
-        - is_specific_date: True if user asked for a specific date (not a range like "cette semaine")
+        - is_specific_date: True if user asked for a specific date (not a range like "this week")
     """
     from src.core.time_utils import parse_datetime
 
@@ -126,44 +224,37 @@ def _calculate_target_date(
         # ISO date/datetime is always a specific date request
         return target_date.isoformat(), offset, True
 
-    # Today references
-    if ref_lower in ("today", "aujourd'hui", "aujourdhui", "ce jour", "maintenant", "now"):
+    # Today references (English — queries are translated by semantic pivot)
+    if ref_lower in ("today", "now"):
         return today_date.isoformat(), 0, True
 
     # Tomorrow references
-    if ref_lower in ("tomorrow", "demain"):
+    if ref_lower == "tomorrow":
         target = today_date + timedelta(days=1)
         return target.isoformat(), 1, True
 
     # Day after tomorrow references
-    if ref_lower in (
-        "after tomorrow",
-        "day after tomorrow",
-        "après-demain",
-        "après demain",
-        "apres-demain",
-        "apres demain",
-        "surlendemain",
-    ):
+    if ref_lower in ("after tomorrow", "day after tomorrow"):
         target = today_date + timedelta(days=2)
         return target.isoformat(), 2, True
 
-    # "in X days" / "dans X jours" pattern (supports both EN and FR)
-    en_match = re.search(r"in\s+(\d+)\s+days?", ref_lower)
-    if en_match:
-        days = int(en_match.group(1))
-        target = today_date + timedelta(days=days)
-        return target.isoformat(), days, True
-
-    fr_match = re.search(r"dans\s+(\d+)\s+jours?", ref_lower)
-    if fr_match:
-        days = int(fr_match.group(1))
+    # "in X days" pattern
+    days_match = re.search(r"in\s+(\d+)\s+days?", ref_lower)
+    if days_match:
+        days = int(days_match.group(1))
         target = today_date + timedelta(days=days)
         return target.isoformat(), days, True
 
     # Week references - return today, NOT specific (show full week)
-    if any(w in ref_lower for w in ("week", "semaine", "this week", "cette semaine")):
+    if any(w in ref_lower for w in ("week", "this week")):
         return today_date.isoformat(), 0, False
+
+    # Localized date strings: "jeudi 09 avril 2026", "9 avril 2026", "April 9, 2026", etc.
+    # The planner may output dates in the user's language instead of ISO format.
+    parsed_localized = _parse_localized_date(ref)
+    if parsed_localized is not None:
+        offset = max(0, (parsed_localized - today_date).days)
+        return parsed_localized.isoformat(), offset, True
 
     # Default: today, not specific
     return today_date.isoformat(), 0, False
@@ -660,7 +751,6 @@ class GetWeatherForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
 
         for idx, day in enumerate(daily_forecasts):
             date_str = day.get("date", f"day_{idx}")
-            date_formatted = day.get("date_formatted", date_str)
             # _format_forecast_response wraps temps in a dict: {"min": "5°C", "max": "12°C", "avg": "8°C"}
             temp_info = day.get("temp", {})
 
@@ -675,7 +765,6 @@ class GetWeatherForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
                 payload={
                     "location": location_info,
                     "date": date_str,
-                    "date_formatted": date_formatted,
                     # Extract from temp dict (already formatted with units like "5°C")
                     "temp_min": temp_info.get("min", "N/A"),
                     "temp_max": temp_info.get("max", "N/A"),
@@ -693,9 +782,9 @@ class GetWeatherForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
             )
             registry_updates[item_id] = registry_item
 
-            # Build day summary
+            # Build day summary (ISO date for LLM, display formatting is done by cards)
             forecast_summaries.append(
-                f"{date_formatted}: {day.get('description', 'N/A')}, "
+                f"{date_str}: {day.get('description', 'N/A')}, "
                 f"{temp_info.get('min', 'N/A')}/{temp_info.get('max', 'N/A')}"
             )
 
@@ -1033,7 +1122,6 @@ def _format_forecast_response(
         daily_forecasts.append(
             {
                 "date": day.get("date"),
-                "date_formatted": day.get("date_formatted"),
                 "temp": {
                     "min": f"{day.get('temp_min', 'N/A')}{temp_unit}",
                     "max": f"{day.get('temp_max', 'N/A')}{temp_unit}",

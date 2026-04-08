@@ -21,7 +21,7 @@ from langgraph.errors import GraphInterrupt
 from structlog import get_logger
 
 from src.core.constants import MAX_HITL_ACTIONS_PER_REQUEST
-from src.core.field_names import FIELD_ERROR_TYPE, FIELD_RUN_ID, FIELD_USER_ID
+from src.core.field_names import FIELD_RUN_ID, FIELD_USER_ID
 from src.domains.agents.api.schemas import ChatStreamChunk
 from src.domains.agents.constants import (
     HITL_DECISION_AMBIGUOUS,
@@ -30,8 +30,8 @@ from src.domains.agents.constants import (
 )
 from src.domains.agents.domain_schemas import ToolApprovalDecision
 from src.domains.agents.prompts import (
-    HITL_CLARIFICATION_GENERIC_MESSAGE,
-    HITL_CLASSIFICATION_FALLBACK_MESSAGE,
+    get_hitl_clarification_generic_message,
+    get_hitl_classification_fallback_message,
 )
 from src.domains.agents.services.hitl.policies import ApprovalDecisionBuilder
 from src.domains.agents.services.hitl.validator import HitlValidator
@@ -625,6 +625,7 @@ class HITLOrchestrator:
         conversation_id: uuid.UUID,
         run_id: str,
         user_id: uuid.UUID | None = None,
+        user_language: str = "fr",
     ) -> AsyncGenerator[ChatStreamChunk, None]:
         """
         Handle classification failure with fallback message.
@@ -655,14 +656,10 @@ class HITLOrchestrator:
             error_type=type(error).__name__,
         )
 
-        # Emit fallback message
+        # Emit fallback message (localized)
         yield ChatStreamChunk(
             type="error",
-            content={
-                "error": HITL_CLASSIFICATION_FALLBACK_MESSAGE,
-                FIELD_ERROR_TYPE: "classification_error",
-                "recoverable": True,
-            },
+            content=get_hitl_classification_fallback_message(user_language),
         )
 
     async def handle_ambiguous_response(
@@ -672,6 +669,7 @@ class HITLOrchestrator:
         user_response: str,
         conversation_id: uuid.UUID,
         run_id: str,
+        user_language: str = "fr",
     ) -> AsyncGenerator[ChatStreamChunk, None]:
         """
         Handle ambiguous HITL response with clarification question.
@@ -685,6 +683,7 @@ class HITLOrchestrator:
             user_response: User's original ambiguous response
             conversation_id: Conversation UUID
             run_id: Run ID for logging
+            user_language: User's language code for localized fallback message.
 
         Yields:
             ChatStreamChunk with clarification question (streamed token by token)
@@ -723,7 +722,7 @@ class HITLOrchestrator:
                     run_id=run_id,
                     error=str(e),
                 )
-                clarification_question = HITL_CLARIFICATION_GENERIC_MESSAGE
+                clarification_question = get_hitl_clarification_generic_message(user_language)
 
         # Stream clarification question token by token
         for token in clarification_question.split():

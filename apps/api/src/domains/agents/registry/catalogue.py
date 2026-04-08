@@ -513,6 +513,13 @@ class ToolManifest:
     # If None, category is inferred from tool name using infer_tool_category()
     tool_category: ToolCategory | None = None
 
+    # Initiative eligibility: whether this tool can be used during the initiative phase.
+    # The initiative phase performs proactive cross-domain enrichment after plan execution.
+    # Default: None → auto-determined from category (search/readonly = True, system = False).
+    # Set explicitly to False on tools that are read-only but not useful for proactive
+    # enrichment (e.g., list_calendars, get_hourly_forecast, get_route_matrix).
+    initiative_eligible: bool | None = None
+
     def __post_init__(self) -> None:
         """Validate the manifest."""
         if not self.name:
@@ -734,6 +741,30 @@ def is_system_tool(tool_name: str) -> bool:
 
 # Categories that are safe for initiative phase (read-only actions)
 READ_ONLY_CATEGORIES: frozenset[ToolCategory] = frozenset({"search", "readonly", "system"})
+
+
+def is_initiative_eligible(manifest: ToolManifest) -> bool:
+    """Check if a tool is eligible for the initiative phase.
+
+    Initiative performs proactive cross-domain enrichment. Eligible tools are
+    read-only AND useful for proactive enrichment (not structural/utility tools).
+
+    Resolution order:
+    1. Explicit ``manifest.initiative_eligible`` (if set) — highest priority
+    2. Category-based default: search/readonly → True, system → False
+
+    Args:
+        manifest: Tool manifest to check.
+
+    Returns:
+        True if the tool can be used during initiative phase.
+    """
+    # Explicit override takes priority
+    if manifest.initiative_eligible is not None:
+        return manifest.initiative_eligible
+    # Auto-determine from category: system tools are never initiative-eligible
+    category = get_tool_category(manifest)
+    return category in ("search", "readonly")
 
 
 def is_read_only_tool(manifest: ToolManifest) -> bool:

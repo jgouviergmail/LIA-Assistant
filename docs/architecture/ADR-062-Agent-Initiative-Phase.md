@@ -122,3 +122,40 @@ When a HITL (Human-in-the-Loop) interaction has just been resolved, the initiati
 If any of these keys is present in state, the node returns immediately with `initiative_skipped_reason: "hitl_just_resolved"`, bypassing the LLM evaluation entirely.
 
 **Why this is reliable**: These state keys are set by `hitl_dispatch_node` when routing the user's HITL response back into the graph, and cleared by `response_node` after the final response is synthesized. Their presence in state at the initiative node therefore reliably indicates that the current graph traversal originates from a HITL resolution, not from a fresh user message or a task orchestrator completion.
+
+### Amendment 2026-04-08: Initiative Eligibility & Cross-Domain Only
+
+**Changes:**
+
+1. **`initiative_eligible` field on ToolManifest** — New `bool | None` field replacing the `is_read_only_tool()` heuristic. Allows per-tool opt-out from initiative phase. Auto-determined from tool category when `None` (search/readonly = eligible, system = not eligible). ~30 manifests annotated with `initiative_eligible=False` (web search, browser, context, structural listing tools).
+
+2. **`is_initiative_eligible()` function** — New function in `catalogue.py` that checks `manifest.initiative_eligible` first (explicit override), then falls back to category-based default. Replaces `is_read_only_tool()` for initiative tool selection.
+
+3. **Cross-domain only filtering** — Initiative node now excludes already-executed domains from adjacent tool search (`target_domains -= executed_set`). The initiative's purpose is to check OTHER domains for implications — re-checking executed domains wastes tokens and produces low-value actions since data is already in `execution_summary`.
+
+4. **Turn ID filtering** — `_format_execution_summary()` now filters `agent_results` by `current_turn_id` to prevent stale data from previous turns leaking into the initiative prompt.
+
+5. **Compact tool format** — Initiative tool formatting uses one-line-per-tool with inline params (~70% token reduction vs full parameter format). Non-obvious parameters keep descriptions; obvious ones listed by name only.
+
+**Files changed:** `initiative_node.py`, `catalogue.py`, all `catalogue_manifests.py` files.
+
+### Amendment 2026-04-08: User MCP ReAct Iterative Mode
+
+**Problem**: `iterative_mode` was only implemented for admin MCP servers (registered at startup via `registration.py`). User MCP servers had the `iterative_mode` field in the database and the UI toggle, but the flag was never read at execution time — tools were always registered individually.
+
+**Solution**: Extended the iterative mode support to user MCP servers via `setup_user_mcp_tools()` in `user_context.py`:
+
+1. **Detection**: `react_enabled and server.iterative_mode` checked per server during per-request setup.
+2. **Registration**: Individual tools stored in `ctx.tool_instances` (for ReAct agent), single `mcp_user_{id_prefix}_task` task tool + manifest exposed to planner.
+3. **Execution**: New `mcp_user_server_task_tool()` delegates to shared `_run_mcp_react_task()`.
+4. **Reference content**: Skipped in planner prompt for user MCP iterative servers (tracked via `ctx.iterative_servers`).
+
+**Refactoring**: Extracted shared `build_mcp_react_task_manifest()` factory and `_run_mcp_react_task()` helper to eliminate duplication between admin and user paths. Centralized `MCP_DISPLAY_EMOJI` and `MCP_ITERATIVE_TASK_SUFFIX` constants.
+
+**Bug fix**: `_server_to_response()` in user MCP router was missing `iterative_mode` in the response, always returning `False`.
+
+**Error recovery**: `_MCPReActWrapper._arun()` now catches all exceptions (including `ExceptionGroup` from anyio/MCP SDK) and returns error strings to the ReAct agent. Previously, MCP tool errors crashed the entire ReAct loop. The agent can now reason about errors and retry with corrected parameters.
+
+**MCP App dedicated LLM**: New LLM type `mcp_app_react_agent` (renamed from dead code `mcp_excalidraw`) auto-selected for MCP servers with interactive widgets (`app_resource_uri`). Detection via `_has_mcp_app_tools()`. Defaults to Opus for complex workflows; regular MCP servers use `mcp_react_agent`. Removed ~80 lines of dead `mcp_excalidraw_llm_*` settings and 8 unused constants.
+
+**Files changed:** `mcp_react_tools.py`, `user_context.py`, `context.py`, `registration.py`, `smart_planner_service.py`, `constants.py`, `router.py`, `config/mcp.py`, `llm_config/constants.py`, `llm/factory.py`.

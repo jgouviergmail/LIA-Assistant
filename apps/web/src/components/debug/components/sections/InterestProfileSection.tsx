@@ -15,11 +15,7 @@ import { cn } from '@/lib/utils';
 import { ActionBadge, SectionBadge } from '../shared';
 import { DEBUG_TEXT_SIZES, INFO_SECTION_CLASSES } from '../../utils/constants';
 import { formatPercent } from '../../utils/formatters';
-import type {
-  InterestProfileMetrics,
-  ExtractedInterest,
-  MatchingDecision,
-} from '@/types/chat';
+import type { InterestProfileMetrics, ExtractedInterest, MatchingDecision } from '@/types/chat';
 
 export interface InterestProfileSectionProps {
   data: InterestProfileMetrics | undefined;
@@ -122,9 +118,13 @@ export const InterestProfileSection = React.memo(function InterestProfileSection
         <AccordionContent>
           <div className={INFO_SECTION_CLASSES}>
             {data?.enabled === false ? (
-              <><strong>Disabled:</strong> Interest extraction is globally disabled.</>
+              <>
+                <strong>Disabled:</strong> Interest extraction is globally disabled.
+              </>
             ) : (
-              <><strong>Not available:</strong> No extraction data.</>
+              <>
+                <strong>Not available:</strong> No extraction data.
+              </>
             )}
           </div>
         </AccordionContent>
@@ -184,7 +184,7 @@ export const InterestProfileSection = React.memo(function InterestProfileSection
             {interests.length}
           </span>
           {/* Action type summary badges */}
-          {(creates + consolidates) > 0 && (
+          {creates + consolidates > 0 && (
             <span className="text-[9px] px-1 py-0.5 rounded bg-emerald-500/15 text-emerald-400">
               +{creates + consolidates}
             </span>
@@ -215,7 +215,9 @@ export const InterestProfileSection = React.memo(function InterestProfileSection
                     interest={interest}
                     decision={
                       decisionsByTopic.get(interest.topic) ??
-                      (interest.interest_id ? decisionsByInterestId.get(interest.interest_id) : undefined)
+                      (interest.interest_id
+                        ? decisionsByInterestId.get(interest.interest_id)
+                        : undefined)
                     }
                   />
                 ))}
@@ -229,11 +231,19 @@ export const InterestProfileSection = React.memo(function InterestProfileSection
 
           {data.llm_metadata && (
             <div className="border-t pt-2 flex flex-wrap items-center gap-3 text-[10px] text-muted-foreground">
-              <span><strong>Model:</strong> {data.llm_metadata.model}</span>
-              <span><strong>IN:</strong> {data.llm_metadata.input_tokens}</span>
-              <span><strong>OUT:</strong> {data.llm_metadata.output_tokens}</span>
+              <span>
+                <strong>Model:</strong> {data.llm_metadata.model}
+              </span>
+              <span>
+                <strong>IN:</strong> {data.llm_metadata.input_tokens}
+              </span>
+              <span>
+                <strong>OUT:</strong> {data.llm_metadata.output_tokens}
+              </span>
               {data.llm_metadata.cached_tokens > 0 && (
-                <span><strong>CACHE:</strong> {data.llm_metadata.cached_tokens}</span>
+                <span>
+                  <strong>CACHE:</strong> {data.llm_metadata.cached_tokens}
+                </span>
               )}
             </div>
           )}

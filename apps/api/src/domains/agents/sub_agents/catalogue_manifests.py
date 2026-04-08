@@ -143,6 +143,7 @@ delegate_to_sub_agent_catalogue_manifest = ToolManifest(
         visible=True,
         category="tool",
     ),
+    initiative_eligible=False,  # Infrastructure orchestration tool, not enrichment data
 )
 
 __all__ = [

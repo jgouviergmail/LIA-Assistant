@@ -22,7 +22,6 @@ from src.core.config import settings
 from src.core.constants import DEFAULT_USER_DISPLAY_TIMEZONE
 from src.core.field_names import (
     FIELD_CONVERSATION_ID,
-    FIELD_ERROR_TYPE,
     FIELD_METADATA,
     FIELD_RUN_ID,
 )
@@ -1211,25 +1210,28 @@ class StreamingService:
         )
 
     def format_error_chunk(
-        self, error: Exception, context: dict[str, Any] | None = None
+        self,
+        error: Exception,
+        context: dict[str, Any] | None = None,
+        language: str = "fr",
     ) -> ChatStreamChunk:
-        """
-        Format error chunk.
+        """Format error chunk with user-friendly message.
+
+        Never exposes raw exception types or messages to the end user.
 
         Args:
             error: Exception that occurred
             context: Optional error context
+            language: User's language for localized message
 
         Returns:
-            ChatStreamChunk with type="error"
+            ChatStreamChunk with type="error" and sanitized message
         """
+        from src.domains.agents.api.error_messages import SSEErrorMessages
+
         return ChatStreamChunk(
             type="error",
-            content={
-                "error": str(error),
-                FIELD_ERROR_TYPE: type(error).__name__,
-                "context": context or {},
-            },
+            content=SSEErrorMessages.stream_error(error, language=language),
         )
 
     def format_registry_update_chunk(self, registry_items: dict[str, Any]) -> ChatStreamChunk:

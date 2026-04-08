@@ -409,9 +409,6 @@ def get_response_prompt(
         "response_system_prompt_base", version=settings.response_prompt_version
     )
 
-    # V3 Architecture: No fewshots - HTML components handle data formatting
-    fewshot_examples = ""
-
     default_personality = load_prompt("default_personality_prompt")
 
     # Escape curly braces in user-provided content to prevent format() interpretation
@@ -449,11 +446,33 @@ def get_response_prompt(
         user_language_name=user_language_name,
     )
 
-    # Skills context: escape braces for ChatPromptTemplate safety
-    safe_skills_context = escape_braces(skills_context) if skills_context else ""
-    safe_rag_context = escape_braces(rag_context) if rag_context else ""
-    safe_journal_context = escape_braces(journal_context) if journal_context else ""
+    # Build optional sections: wrap with XML tags ONLY when content is non-empty.
+    # This avoids injecting empty <Section></Section> tags that waste tokens.
+    def _wrap_section(tag: str, content: str, description: str = "") -> str:
+        """Wrap content in XML section tag if non-empty, else return empty string."""
+        if not content:
+            return ""
+        escaped = escape_braces(content)
+        desc = f"\n{description}" if description else ""
+        return f"<{tag}>{desc}\n{escaped}\n</{tag}>"
+
+    safe_skills_context = _wrap_section("SkillContext", skills_context)
+    safe_rag_context = _wrap_section(
+        "RAGDocuments",
+        rag_context,
+        "Personal documents the user uploaded. Reference key passages but always synthesize.",
+    )
+    safe_journal_context = _wrap_section(
+        "JournalContext",
+        journal_context,
+        "Your behavioral directives from past interactions. Apply silently — do NOT quote entries.",
+    )
     safe_psyche_context = escape_braces(psyche_context) if psyche_context else ""
+    safe_knowledge_context = _wrap_section(
+        "KnowledgeEnrichment",
+        knowledge_context,
+        "Fresh factual data from web search. Synthesize — do not dump raw results.",
+    )
 
     # App knowledge context: load identity prompt + optional system RAG results
     # Injected when is_app_help_query=True (any truthy value triggers identity prompt)
@@ -461,12 +480,11 @@ def get_response_prompt(
     if app_knowledge_context:
         app_identity = load_prompt("app_identity_prompt")
         safe_app_knowledge = escape_braces(app_identity)
-        # Append system RAG chunks if they contain actual FAQ content
         if app_knowledge_context not in ("APP_HELP_QUERY",):
             safe_app_knowledge += "\n\n" + escape_braces(app_knowledge_context)
+        safe_app_knowledge = f"<AppKnowledge>\n{safe_app_knowledge}\n</AppKnowledge>"
 
     formatted_system_prompt = response_system_prompt_template.format(
-        fewshot_examples=fewshot_examples,
         user_language=user_language_name,
         current_datetime=get_current_datetime_context(user_timezone, user_language),
         personnalite=personality_instruction or default_personality,
@@ -628,39 +646,46 @@ def get_smart_planner_prompt(
     sub_agents_section: str = "",
     # Personal journal context
     journal_context: str = "",
+    # Multi-domain support (unified prompt)
+    primary_domain: str = "",
+    is_multi_domain: bool = False,
 ) -> str:
-    """
-    Get formatted smart planner prompt for single-domain or simple queries.
+    """Get formatted smart planner prompt (unified single + multi-domain).
 
     Architecture v3 - Uses filtered catalogue for token efficiency.
+    Unified prompt replaces separate single/multi-domain templates.
 
     Args:
-        user_goal: The user's original query/goal
-        intent: Detected intent from query intelligence
-        domains: Comma-separated list of detected domains
-        anticipated_needs: Anticipated user needs from intelligence
-        catalogue: Filtered tool catalogue JSON
-        original_query: Original user query in user's language (for search terms)
-        context: Optional context from previous interactions
-        references: Optional resolved references from context
-        user_timezone: User's IANA timezone for temporal context
-        user_language: User's language code (fr, en, etc.)
-        semantic_dependencies: Dynamic semantic type dependencies for cross-domain planning
-        for_each_detected: True if user wants action for EACH item (iteration pattern)
-        for_each_collection_key: Collection key to iterate over (contacts, events, etc.)
-        cardinality_magnitude: Expected number of items (None=unknown, 999=all, N=specific)
-        skills_catalog: XML skills catalogue (agentskills.io L1 progressive disclosure)
+        user_goal: User's high-level goal enum value.
+        intent: Detected intent from query intelligence.
+        domains: Comma-separated list of detected domains.
+        anticipated_needs: Anticipated user needs from intelligence.
+        catalogue: Filtered tool catalogue JSON (compact).
+        original_query: Original user query in user's language.
+        context: Pre-resolved values from previous pipeline stages.
+        references: Resolved memory references (entity IDs).
+        user_timezone: User's IANA timezone for temporal context.
+        user_language: User's language code (fr, en, etc.).
+        semantic_dependencies: Dynamic cross-domain type dependencies.
+        for_each_detected: True if user wants action for EACH item.
+        for_each_collection_key: Collection key to iterate over.
+        cardinality_magnitude: Expected item count (None/999/N).
+        skills_catalog: XML skills catalogue.
+        sub_agents_section: Sub-agent delegation instructions.
+        journal_context: Personal journal behavioral directives.
+        primary_domain: Primary domain (used in multi-domain context).
+        is_multi_domain: True to inject cross-domain planning section.
 
     Returns:
-        Formatted prompt string ready for LLM
+        Formatted prompt string ready for LLM.
     """
     from src.core.config import get_settings
 
-    settings = get_settings()
+    _settings = get_settings()
 
     template = load_prompt(
         "smart_planner_prompt",
-        version=settings.planner_prompt_version,
+        version=_settings.planner_prompt_version,
     )
 
     # Build FOR_EACH directive if detected
@@ -672,6 +697,22 @@ def get_smart_planner_prompt(
     from src.domains.agents.utils.type_domain_mapping import ALL_RESULT_KEYS
 
     result_keys_list = ", ".join(sorted(ALL_RESULT_KEYS))
+
+    # Build multi-domain section (empty for single-domain)
+    multi_domain_section = ""
+    if is_multi_domain:
+        multi_domain_section = (
+            f"\nPrimary domain: {primary_domain}\n"
+            "For multi-domain queries: gather ALL data from each domain, "
+            "let Response LLM cross-reference and analyze.\n\n"
+            "CROSS-DOMAIN WITH RESOLVED CONTEXT:\n"
+            "When CONTEXT contains resolved items from domain A and user wants domain B info:\n"
+            "- Use READY-TO-USE VALUES directly from CONTEXT\n"
+            "- Do NOT invent any 'resolve' tool\n"
+            "- Example: 'info about the restaurant of the second meeting'\n"
+            "  → CONTEXT: LOCATION: 'Restaurant La Table'\n"
+            "  → Plan: ONE step: get_places_tool(query='Restaurant La Table')"
+        )
 
     return template.format(
         user_goal=user_goal,
@@ -693,9 +734,12 @@ def get_smart_planner_prompt(
         result_keys_list=result_keys_list,
         sub_agents_section=sub_agents_section,
         journal_context=escape_braces(journal_context) if journal_context else "",
+        multi_domain_section=multi_domain_section,
+        primary_domain=primary_domain or domains.split(",")[0].strip() if domains else "",
     )
 
 
+# Backward compatibility alias
 def get_smart_planner_multi_domain_prompt(
     domains: str,
     primary_domain: str,
@@ -712,84 +756,37 @@ def get_smart_planner_multi_domain_prompt(
     semantic_dependencies: str = "",
     learned_patterns: str = "",
     mcp_reference: str = "",
-    # FOR_EACH detection from QueryIntelligence
     for_each_detected: bool = False,
     for_each_collection_key: str | None = None,
     cardinality_magnitude: int | None = None,
-    # Skills catalogue (agentskills.io standard)
     skills_catalog: str = "",
-    # Sub-agents delegation section (F6)
     sub_agents_section: str = "",
-    # Personal journal context
     journal_context: str = "",
 ) -> str:
-    """
-    Get formatted smart planner prompt for multi-domain queries.
-
-    Used when the query involves multiple domains that need to work together
-    (e.g., "envoie un email à Jean" requires contacts + emails).
-
-    Args:
-        domains: Comma-separated list of all detected domains
-        primary_domain: The primary domain for the query
-        intent: Detected intent from query intelligence
-        user_goal: User's high-level goal (plan_organize, communicate, etc.)
-        anticipated_needs: Anticipated follow-up needs
-        catalogue: Filtered tool catalogue JSON (includes tools from all domains)
-        original_query: Original user query in user's language (for search terms)
-        context: Resolved context from previous results (e.g., resolved RDV)
-        references: Resolved memory references (e.g., "my wife" → "jean")
-        user_timezone: User's IANA timezone for temporal context
-        user_language: User's language code (fr, en, etc.)
-        semantic_dependencies: Dynamic semantic type dependencies for cross-domain planning
-        for_each_detected: True if user wants action for EACH item (iteration pattern)
-        for_each_collection_key: Collection key to iterate over (contacts, events, etc.)
-        cardinality_magnitude: Expected number of items (None=unknown, 999=all, N=specific)
-        skills_catalog: XML skills catalogue (agentskills.io L1 progressive disclosure)
-
-    Returns:
-        Formatted prompt string ready for LLM
-    """
-    from src.core.config import get_settings
-
-    settings = get_settings()
-
-    template = load_prompt(
-        "smart_planner_multi_domain_prompt",
-        version=settings.planner_prompt_version,
-    )
-
-    # Build FOR_EACH directive if detected
-    for_each_directive = _build_for_each_directive(
-        for_each_detected, for_each_collection_key, cardinality_magnitude
-    )
-
-    # Build result_keys_list from centralized source of truth
-    from src.domains.agents.utils.type_domain_mapping import ALL_RESULT_KEYS
-
-    result_keys_list = ", ".join(sorted(ALL_RESULT_KEYS))
-
-    return template.format(
-        domains=domains,
-        primary_domain=primary_domain,
-        intent=intent,
+    """Backward-compatible wrapper — delegates to unified get_smart_planner_prompt."""
+    return get_smart_planner_prompt(
         user_goal=user_goal,
+        intent=intent,
+        domains=domains,
         anticipated_needs=anticipated_needs,
         catalogue=catalogue,
         original_query=original_query,
         context=context,
         references=references,
-        current_datetime=get_current_datetime_context(user_timezone, user_language),
+        user_timezone=user_timezone,
         user_language=user_language,
-        validation_feedback=validation_feedback or "",
-        semantic_dependencies=semantic_dependencies or _get_semantic_deps_fallback(),
+        validation_feedback=validation_feedback,
+        semantic_dependencies=semantic_dependencies,
         learned_patterns=learned_patterns,
         mcp_reference=mcp_reference,
-        for_each_directive=for_each_directive,
+        for_each_detected=for_each_detected,
+        for_each_collection_key=for_each_collection_key,
+        cardinality_magnitude=cardinality_magnitude,
         skills_catalog=skills_catalog,
-        result_keys_list=result_keys_list,
         sub_agents_section=sub_agents_section,
-        journal_context=escape_braces(journal_context) if journal_context else "",
+        journal_context=journal_context,
+        primary_domain=primary_domain,
+        is_multi_domain=True,
     )
 
 

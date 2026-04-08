@@ -1790,76 +1790,83 @@ Exemples :
 - "envoie un email à mon frère" → "envoie un email à jean dupond"
 - "appelle ma femme" → "appelle Sophie Martin"
 
-### Architecture
+### Architecture — 3-Phase Pipeline
+
+Memory resolution uses `MemoryResolver` (`services/analysis/memory_resolver.py`) with a 3-phase pipeline orchestrated inside `QueryAnalyzerService.analyze_full()` (Step 1):
 
 ```mermaid
-graph LR
-    A[User Query] --> B[Router Node]
-    B --> C[Memory Reference<br/>Resolution Service]
-    C --> D{Reference<br/>trouvée?}
-    D -->|Yes| E[Enriched Query<br/>+ mapping]
-    D -->|No| F[Query originale]
-    E --> G[Planner Node]
+graph TD
+    A[User Query] --> P["Parallel Launch"]
+
+    P --> B1["Phase 1 — LLM Nano<br/>Extract personal references<br/>(ma femme, mon frère, ...)"]
+    P --> B2["Broad Retrieval<br/>Full query → semantic search<br/>→ memory facts for planner"]
+
+    B1 --> C{References<br/>found?}
+    C -->|No| G[Planner Node<br/>uses broad facts only]
+    C -->|Yes| D["Phase 2 — Targeted Search<br/>Per-reference embedding<br/>(parallel, higher similarity threshold)"]
+
+    D --> E["Phase 3 — LLM Resolution<br/>MemoryReferenceResolutionService<br/>resolves references using targeted facts"]
+
+    E --> F[Enriched Query<br/>+ resolved_references]
+    B2 --> G
     F --> G
-    G --> H[Plan avec<br/>noms résolus]
 ```
+
+**Key design points:**
+- **Phase 1** (reference extraction) and **broad memory retrieval** run in parallel via `asyncio.gather`, adding no extra latency for the common case.
+- **Phase 2** performs per-reference targeted searches in parallel. Embedding each reference separately (e.g., "ma femme") instead of the full query produces higher cosine similarity scores, allowing a stricter search threshold and less noise.
+- **Phase 3** uses `MemoryReferenceResolutionService` to resolve extracted references against the targeted facts retrieved in Phase 2.
 
 ### Service
 
 ```python
-# apps/api/src/domains/agents/services/memory_reference_resolution_service.py
+# apps/api/src/domains/agents/services/analysis/memory_resolver.py
 
-class MemoryReferenceResolutionService:
+class MemoryResolver:
     """
-    Resolve memory-based references in user queries.
+    Resolves memory facts and references for query analysis.
 
-    Examples:
-    - "mon frère" → "jean dupond" (si mémoire contient cette relation)
-    - "ma patronne" → "Marie Dupont"
+    Two tracks run in parallel:
+    1. Broad retrieval: full query → semantic search → memory facts for planner
+    2. Targeted resolution (3-phase):
+       Phase 1: LLM nano extracts references ("ma femme", "mon fils")
+       Phase 2: Per-reference embedding → targeted memory search (parallel)
+       Phase 3: LLM resolves references using targeted facts
     """
 
-    async def resolve_references(
+    async def retrieve_and_resolve(
         self,
         query: str,
         user_id: str,
-        store: AsyncPostgresStore,
-    ) -> ReferenceResolutionResult:
+        config: RunnableConfig,
+    ) -> tuple[list[str] | None, ResolvedReferences | None]:
         """
-        Résout les références relationnelles.
+        Retrieve memory facts and resolve references.
 
         Returns:
-            - resolved_query: Query avec références remplacées
-            - mappings: dict[str, str] (ref → nom résolu)
-            - confidence: float (confiance moyenne des résolutions)
+            - memory_facts: Broad memory facts for planner context (or None)
+            - resolved_references: ResolvedReferences with mappings (or None)
         """
 ```
 
-### Flow dans Planner
+### Flow in QueryAnalyzerService
 
 ```python
-# Dans planner_node_v3.py
+# In QueryAnalyzerService.analyze_full() — Step 1
 
-# 1. Résoudre références mémoire AVANT plan generation
-from src.domains.agents.services.memory_reference_resolution_service import (
-    MemoryReferenceResolutionService
-)
+from src.domains.agents.services.analysis.memory_resolver import MemoryResolver
 
-memory_resolver = MemoryReferenceResolutionService()
-resolution_result = await memory_resolver.resolve_references(
+memory_resolver = MemoryResolver()
+
+# Broad retrieval + Phase 1 (reference extraction) run in parallel
+memory_facts, resolved_refs = await memory_resolver.retrieve_and_resolve(
     query=user_message,
     user_id=user_id,
-    store=store,
+    config=config,
 )
 
-# 2. Utiliser query enrichie pour plan generation
-enriched_query = resolution_result.resolved_query
-
-# 3. Injecter mapping dans le prompt context
-if resolution_result.mappings:
-    context_section += f"""
-Memory Reference Mappings:
-{chr(10).join(f'  - "{k}" → "{v}"' for k, v in resolution_result.mappings.items())}
-"""
+# memory_facts → injected into planner context
+# resolved_refs → enriched query + mappings available for plan generation
 ```
 
 ### Exemple Complet
@@ -1869,18 +1876,21 @@ Memory Reference Mappings:
 User: "envoie un email à mon frère pour lui souhaiter bon anniversaire"
 ```
 
-**Memory Search**:
-```
-Query: "frère" → Memory: "jean est le frère de l'utilisateur"
+**Phase 1** — LLM nano extracts references:
+```python
+_ReferenceList(references=["mon frère"])
 ```
 
-**Resolution**:
+**Phase 2** — Targeted search per reference:
+```
+Embed "mon frère" → Memory hit: "jean est le frère de l'utilisateur" (similarity: 0.94)
+```
+
+**Phase 3** — LLM resolution:
 ```python
-ReferenceResolutionResult(
-    original_query="envoie un email à mon frère pour lui souhaiter bon anniversaire",
+ResolvedReferences(
     resolved_query="envoie un email à jean pour lui souhaiter bon anniversaire",
     mappings={"mon frère": "jean"},
-    confidence=0.92,
 )
 ```
 
@@ -1891,7 +1901,7 @@ ReferenceResolutionResult(
         {
             "step_id": "search_contact",
             "tool_name": "search_contacts",
-            "parameters": {"query": "jean"}  // Nom résolu, pas "mon frère"
+            "parameters": {"query": "jean"}
         },
         {
             "step_id": "send_email",

@@ -91,6 +91,7 @@ perplexity_search_catalogue_manifest = ToolManifest(
     display=DisplayMetadata(
         emoji="🌐", i18n_key="perplexity_search", visible=True, category="tool"
     ),
+    initiative_eligible=False,  # Web search tool, no personal data for cross-domain enrichment
 )
 
 # ============================================================================
@@ -163,6 +164,7 @@ perplexity_ask_catalogue_manifest = ToolManifest(
     version="1.0.0",
     maintainer="Team Agents",
     display=DisplayMetadata(emoji="❓", i18n_key="perplexity_ask", visible=True, category="tool"),
+    initiative_eligible=False,  # Web search tool, no personal data for cross-domain enrichment
 )
 
 __all__ = [

@@ -63,7 +63,7 @@ const INITIAL_STATE = {
   enabled: false,
 };
 
-export const usePsycheStore = create<PsycheStoreState>((set) => ({
+export const usePsycheStore = create<PsycheStoreState>(set => ({
   ...INITIAL_STATE,
 
   updateFromSSE: (summary: PsycheStateSummary) =>

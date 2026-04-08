@@ -49,6 +49,10 @@ class LLMTypeInfo(BaseModel):
     category: str
     description_key: str
     required_capabilities: list[str]
+    power_tier: str | None = Field(
+        None,
+        description="Visual power tier indicator: critical, high, medium, low, or null",
+    )
 
 
 class LLMTypeConfig(BaseModel):

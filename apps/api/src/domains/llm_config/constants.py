@@ -17,6 +17,16 @@ from src.core.llm_agent_config import LLMAgentConfig
 # --- LLM Type Metadata ---
 
 
+# Power tier constants — visual indicator of the computational weight of an LLM slot.
+# Assigned per LLM type (not per model) so admins can see at a glance which slots
+# require expensive models vs. lightweight ones.
+POWER_TIER_CRITICAL = "critical"  # Red pastel — needs the most powerful model available
+POWER_TIER_HIGH = "high"  # Orange pastel — needs a strong reasoning model
+POWER_TIER_MEDIUM = "medium"  # Blue pastel — moderate capability sufficient
+POWER_TIER_LOW = "low"  # Green pastel — lightweight model sufficient
+# None → no visual indicator (special-purpose slots like image_generation)
+
+
 @dataclass(frozen=True)
 class LLMTypeMetadata:
     """Metadata for a single LLM type."""
@@ -26,6 +36,7 @@ class LLMTypeMetadata:
     category: str
     description_key: str
     required_capabilities: list[str]
+    power_tier: str | None = None
 
 
 # Categories for grouping in the admin UI
@@ -57,6 +68,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_PIPELINE,
         description_key="settings.admin.llmConfig.types.semantic_pivot",
         required_capabilities=[],
+        power_tier=POWER_TIER_MEDIUM,
     ),
     "query_analyzer": LLMTypeMetadata(
         llm_type="query_analyzer",
@@ -64,6 +76,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_PIPELINE,
         description_key="settings.admin.llmConfig.types.query_analyzer",
         required_capabilities=[],
+        power_tier=POWER_TIER_HIGH,
     ),
     "router": LLMTypeMetadata(
         llm_type="router",
@@ -71,6 +84,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_PIPELINE,
         description_key="settings.admin.llmConfig.types.router",
         required_capabilities=["structured_output"],
+        power_tier=POWER_TIER_MEDIUM,
     ),
     "planner": LLMTypeMetadata(
         llm_type="planner",
@@ -78,6 +92,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_PIPELINE,
         description_key="settings.admin.llmConfig.types.planner",
         required_capabilities=["structured_output"],
+        power_tier=POWER_TIER_HIGH,
     ),
     "semantic_validator": LLMTypeMetadata(
         llm_type="semantic_validator",
@@ -85,6 +100,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_PIPELINE,
         description_key="settings.admin.llmConfig.types.semantic_validator",
         required_capabilities=[],
+        power_tier=POWER_TIER_MEDIUM,
     ),
     "context_resolver": LLMTypeMetadata(
         llm_type="context_resolver",
@@ -92,6 +108,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_PIPELINE,
         description_key="settings.admin.llmConfig.types.context_resolver",
         required_capabilities=[],
+        power_tier=POWER_TIER_MEDIUM,
     ),
     # --- Domain Agents ---
     "contacts_agent": LLMTypeMetadata(
@@ -100,6 +117,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_DOMAIN_AGENTS,
         description_key="settings.admin.llmConfig.types.contacts_agent",
         required_capabilities=["tools"],
+        power_tier=POWER_TIER_LOW,
     ),
     "emails_agent": LLMTypeMetadata(
         llm_type="emails_agent",
@@ -107,6 +125,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_DOMAIN_AGENTS,
         description_key="settings.admin.llmConfig.types.emails_agent",
         required_capabilities=["tools"],
+        power_tier=POWER_TIER_LOW,
     ),
     "calendar_agent": LLMTypeMetadata(
         llm_type="calendar_agent",
@@ -114,6 +133,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_DOMAIN_AGENTS,
         description_key="settings.admin.llmConfig.types.calendar_agent",
         required_capabilities=["tools"],
+        power_tier=POWER_TIER_LOW,
     ),
     "drive_agent": LLMTypeMetadata(
         llm_type="drive_agent",
@@ -121,6 +141,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_DOMAIN_AGENTS,
         description_key="settings.admin.llmConfig.types.drive_agent",
         required_capabilities=["tools"],
+        power_tier=POWER_TIER_LOW,
     ),
     "tasks_agent": LLMTypeMetadata(
         llm_type="tasks_agent",
@@ -128,6 +149,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_DOMAIN_AGENTS,
         description_key="settings.admin.llmConfig.types.tasks_agent",
         required_capabilities=["tools"],
+        power_tier=POWER_TIER_LOW,
     ),
     "weather_agent": LLMTypeMetadata(
         llm_type="weather_agent",
@@ -135,6 +157,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_DOMAIN_AGENTS,
         description_key="settings.admin.llmConfig.types.weather_agent",
         required_capabilities=["tools"],
+        power_tier=POWER_TIER_LOW,
     ),
     "wikipedia_agent": LLMTypeMetadata(
         llm_type="wikipedia_agent",
@@ -142,6 +165,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_DOMAIN_AGENTS,
         description_key="settings.admin.llmConfig.types.wikipedia_agent",
         required_capabilities=["tools"],
+        power_tier=POWER_TIER_LOW,
     ),
     "perplexity_agent": LLMTypeMetadata(
         llm_type="perplexity_agent",
@@ -149,6 +173,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_DOMAIN_AGENTS,
         description_key="settings.admin.llmConfig.types.perplexity_agent",
         required_capabilities=["tools"],
+        power_tier=POWER_TIER_LOW,
     ),
     "brave_agent": LLMTypeMetadata(
         llm_type="brave_agent",
@@ -156,6 +181,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_DOMAIN_AGENTS,
         description_key="settings.admin.llmConfig.types.brave_agent",
         required_capabilities=["tools"],
+        power_tier=POWER_TIER_LOW,
     ),
     "web_search_agent": LLMTypeMetadata(
         llm_type="web_search_agent",
@@ -163,6 +189,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_DOMAIN_AGENTS,
         description_key="settings.admin.llmConfig.types.web_search_agent",
         required_capabilities=["tools"],
+        power_tier=POWER_TIER_LOW,
     ),
     "web_fetch_agent": LLMTypeMetadata(
         llm_type="web_fetch_agent",
@@ -170,13 +197,15 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_DOMAIN_AGENTS,
         description_key="settings.admin.llmConfig.types.web_fetch_agent",
         required_capabilities=["tools"],
+        power_tier=POWER_TIER_LOW,
     ),
     "browser_agent": LLMTypeMetadata(
         llm_type="browser_agent",
-        display_name="Browser Agent",
+        display_name="Browser Agent (ReAct)",
         category=CATEGORY_DOMAIN_AGENTS,
         description_key="settings.admin.llmConfig.types.browser_agent",
         required_capabilities=["tools"],
+        power_tier=POWER_TIER_HIGH,
     ),
     "hue_agent": LLMTypeMetadata(
         llm_type="hue_agent",
@@ -184,6 +213,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_DOMAIN_AGENTS,
         description_key="settings.admin.llmConfig.types.hue_agent",
         required_capabilities=["tools"],
+        power_tier=POWER_TIER_LOW,
     ),
     "places_agent": LLMTypeMetadata(
         llm_type="places_agent",
@@ -191,6 +221,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_DOMAIN_AGENTS,
         description_key="settings.admin.llmConfig.types.places_agent",
         required_capabilities=["tools"],
+        power_tier=POWER_TIER_LOW,
     ),
     "routes_agent": LLMTypeMetadata(
         llm_type="routes_agent",
@@ -198,6 +229,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_DOMAIN_AGENTS,
         description_key="settings.admin.llmConfig.types.routes_agent",
         required_capabilities=["tools"],
+        power_tier=POWER_TIER_LOW,
     ),
     # --- Query & Response ---
     "query_agent": LLMTypeMetadata(
@@ -206,6 +238,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_QUERY_RESPONSE,
         description_key="settings.admin.llmConfig.types.query_agent",
         required_capabilities=["tools"],
+        power_tier=POWER_TIER_HIGH,
     ),
     "response": LLMTypeMetadata(
         llm_type="response",
@@ -213,6 +246,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_QUERY_RESPONSE,
         description_key="settings.admin.llmConfig.types.response",
         required_capabilities=[],
+        power_tier=POWER_TIER_HIGH,
     ),
     # --- HITL ---
     "hitl_classifier": LLMTypeMetadata(
@@ -221,6 +255,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_HITL,
         description_key="settings.admin.llmConfig.types.hitl_classifier",
         required_capabilities=["structured_output"],
+        power_tier=POWER_TIER_LOW,
     ),
     "hitl_question_generator": LLMTypeMetadata(
         llm_type="hitl_question_generator",
@@ -228,6 +263,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_HITL,
         description_key="settings.admin.llmConfig.types.hitl_question_generator",
         required_capabilities=[],
+        power_tier=POWER_TIER_HIGH,
     ),
     "hitl_plan_approval_question_generator": LLMTypeMetadata(
         llm_type="hitl_plan_approval_question_generator",
@@ -235,6 +271,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_HITL,
         description_key="settings.admin.llmConfig.types.hitl_plan_approval_question_generator",
         required_capabilities=[],
+        power_tier=POWER_TIER_HIGH,
     ),
     # --- Memory ---
     "memory_extraction": LLMTypeMetadata(
@@ -243,6 +280,15 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_MEMORY,
         description_key="settings.admin.llmConfig.types.memory_extraction",
         required_capabilities=[],
+        power_tier=POWER_TIER_HIGH,
+    ),
+    "memory_reference_extraction": LLMTypeMetadata(
+        llm_type="memory_reference_extraction",
+        display_name="Memory Reference Extraction",
+        category=CATEGORY_MEMORY,
+        description_key="settings.admin.llmConfig.types.memory_reference_extraction",
+        required_capabilities=[],
+        power_tier=POWER_TIER_LOW,
     ),
     "memory_reference_resolution": LLMTypeMetadata(
         llm_type="memory_reference_resolution",
@@ -250,6 +296,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_MEMORY,
         description_key="settings.admin.llmConfig.types.memory_reference_resolution",
         required_capabilities=[],
+        power_tier=POWER_TIER_HIGH,
     ),
     # --- Background ---
     "interest_extraction": LLMTypeMetadata(
@@ -258,6 +305,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_BACKGROUND,
         description_key="settings.admin.llmConfig.types.interest_extraction",
         required_capabilities=[],
+        power_tier=POWER_TIER_HIGH,
     ),
     "interest_content": LLMTypeMetadata(
         llm_type="interest_content",
@@ -265,6 +313,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_BACKGROUND,
         description_key="settings.admin.llmConfig.types.interest_content",
         required_capabilities=[],
+        power_tier=POWER_TIER_HIGH,
     ),
     "heartbeat_decision": LLMTypeMetadata(
         llm_type="heartbeat_decision",
@@ -272,6 +321,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_BACKGROUND,
         description_key="settings.admin.llmConfig.types.heartbeat_decision",
         required_capabilities=["structured_output"],
+        power_tier=POWER_TIER_HIGH,
     ),
     "heartbeat_message": LLMTypeMetadata(
         llm_type="heartbeat_message",
@@ -279,6 +329,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_BACKGROUND,
         description_key="settings.admin.llmConfig.types.heartbeat_message",
         required_capabilities=[],
+        power_tier=POWER_TIER_HIGH,
     ),
     "broadcast_translator": LLMTypeMetadata(
         llm_type="broadcast_translator",
@@ -286,6 +337,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_BACKGROUND,
         description_key="settings.admin.llmConfig.types.broadcast_translator",
         required_capabilities=[],
+        power_tier=POWER_TIER_MEDIUM,
     ),
     # --- Specialized ---
     "voice_comment": LLMTypeMetadata(
@@ -294,6 +346,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_SPECIALIZED,
         description_key="settings.admin.llmConfig.types.voice_comment",
         required_capabilities=[],
+        power_tier=POWER_TIER_MEDIUM,
     ),
     "mcp_description": LLMTypeMetadata(
         llm_type="mcp_description",
@@ -301,13 +354,15 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_SPECIALIZED,
         description_key="settings.admin.llmConfig.types.mcp_description",
         required_capabilities=[],
+        power_tier=POWER_TIER_MEDIUM,
     ),
-    "mcp_excalidraw": LLMTypeMetadata(
-        llm_type="mcp_excalidraw",
-        display_name="MCP Excalidraw",
-        category=CATEGORY_SPECIALIZED,
-        description_key="settings.admin.llmConfig.types.mcp_excalidraw",
-        required_capabilities=[],
+    "mcp_app_react_agent": LLMTypeMetadata(
+        llm_type="mcp_app_react_agent",
+        display_name="MCP App (ReAct)",
+        category=CATEGORY_DOMAIN_AGENTS,
+        description_key="settings.admin.llmConfig.types.mcp_app_react_agent",
+        required_capabilities=["tool_calling"],
+        power_tier=POWER_TIER_CRITICAL,
     ),
     "vision_analysis": LLMTypeMetadata(
         llm_type="vision_analysis",
@@ -315,6 +370,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_SPECIALIZED,
         description_key="settings.admin.llmConfig.types.vision_analysis",
         required_capabilities=["vision"],
+        power_tier=POWER_TIER_MEDIUM,
     ),
     "skill_description_translator": LLMTypeMetadata(
         llm_type="skill_description_translator",
@@ -322,6 +378,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_SPECIALIZED,
         description_key="settings.admin.llmConfig.types.skill_description_translator",
         required_capabilities=[],
+        power_tier=POWER_TIER_MEDIUM,
     ),
     "evaluator": LLMTypeMetadata(
         llm_type="evaluator",
@@ -329,6 +386,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_SPECIALIZED,
         description_key="settings.admin.llmConfig.types.evaluator",
         required_capabilities=["structured_output"],
+        power_tier=POWER_TIER_MEDIUM,
     ),
     "compaction": LLMTypeMetadata(
         llm_type="compaction",
@@ -336,6 +394,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_PIPELINE,
         description_key="settings.admin.llmConfig.types.compaction",
         required_capabilities=[],
+        power_tier=POWER_TIER_HIGH,
     ),
     "subagent": LLMTypeMetadata(
         llm_type="subagent",
@@ -343,6 +402,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_DOMAIN_AGENTS,
         description_key="settings.admin.llmConfig.types.subagent",
         required_capabilities=["tools"],
+        power_tier=POWER_TIER_HIGH,
     ),
     "journal_extraction": LLMTypeMetadata(
         llm_type="journal_extraction",
@@ -350,6 +410,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_BACKGROUND,
         description_key="settings.admin.llmConfig.types.journal_extraction",
         required_capabilities=[],
+        power_tier=POWER_TIER_HIGH,
     ),
     "journal_consolidation": LLMTypeMetadata(
         llm_type="journal_consolidation",
@@ -357,6 +418,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_BACKGROUND,
         description_key="settings.admin.llmConfig.types.journal_consolidation",
         required_capabilities=[],
+        power_tier=POWER_TIER_HIGH,
     ),
     # ADR-062: Initiative Phase + MCP ReAct
     "initiative": LLMTypeMetadata(
@@ -365,6 +427,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_PIPELINE,
         description_key="settings.admin.llmConfig.types.initiative",
         required_capabilities=["structured_output"],
+        power_tier=POWER_TIER_HIGH,
     ),
     "mcp_react_agent": LLMTypeMetadata(
         llm_type="mcp_react_agent",
@@ -372,6 +435,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_DOMAIN_AGENTS,
         description_key="settings.admin.llmConfig.types.mcp_react_agent",
         required_capabilities=["tool_calling"],
+        power_tier=POWER_TIER_CRITICAL,
     ),
     # Psyche Engine (evolution)
     "psyche_summary": LLMTypeMetadata(
@@ -380,6 +444,7 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         category=CATEGORY_BACKGROUND,
         description_key="settings.admin.llmConfig.types.psyche_summary",
         required_capabilities=[],
+        power_tier=POWER_TIER_MEDIUM,
     ),
     # AI Image Generation (evolution)
     "image_generation": LLMTypeMetadata(
@@ -392,88 +457,103 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
 }
 
 
-# --- Proven Defaults (extracted from production .env) ---
+# --- Proven Defaults (extracted from production configuration) ---
 # These values are the optimized baseline for the application.
 # The "Reset" button in the admin UI restores these values.
-# Updated: 2026-03-29 — Merged from production DB overrides into code defaults.
-# Strategy: nano (domain agents), mini (routing), sonnet (extraction), qwen (planning), gpt-5.4 (advanced)
+# Updated: 2026-04-08 — Merged from DEV admin UI overrides into code defaults.
+# Strategy:
+#   - Pipeline fast (routing, validation, resolution): openai/gpt-5-mini (reasoning_effort=minimal)
+#   - Pipeline heavy (planning, analysis, initiative): qwen/qwen3.5-plus (reasoning_effort=none)
+#   - Domain agents (simple): openai/gpt-4.1-nano (no reasoning)
+#   - Domain agents (advanced): qwen/qwen3.5-plus (reasoning_effort=none)
+#   - Query & Response: qwen/qwen3.5-plus (reasoning_effort=none)
+#   - HITL & Memory: qwen/qwen3.5-plus (reasoning_effort=none)
+#   - Background: qwen/qwen3.5-plus (reasoning_effort=none)
+#   - Specialized: openai/gpt-5-mini (reasoning_effort=minimal) or provider-specific
 
 
 LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
     # --- Pipeline ---
     "compaction": LLMAgentConfig(
-        provider="openai",
-        model="gpt-4.1-mini",
-        temperature=0.2,
-        top_p=1.0,
-        frequency_penalty=0.0,
-        presence_penalty=0.0,
-        max_tokens=4000,
-    ),
-    "context_resolver": LLMAgentConfig(
-        provider="openai",
-        model="gpt-4.1-mini",
-        temperature=0.2,
-        top_p=1.0,
-        frequency_penalty=0.0,
-        presence_penalty=0.0,
-        max_tokens=1000,
-    ),
-    "initiative": LLMAgentConfig(
-        provider="openai",
-        model="gpt-4.1-mini",
-        temperature=0.2,
-        top_p=1.0,
-        frequency_penalty=0.0,
-        presence_penalty=0.0,
-        max_tokens=5000,
-    ),
-    "planner": LLMAgentConfig(
         provider="qwen",
         model="qwen3.5-plus",
         temperature=0.2,
         top_p=1.0,
         frequency_penalty=0.0,
         presence_penalty=0.0,
-        max_tokens=10000,
-        timeout_seconds=30.0,
-        reasoning_effort="low",
+        max_tokens=4000,
+        reasoning_effort="none",
     ),
-    "query_analyzer": LLMAgentConfig(
+    "context_resolver": LLMAgentConfig(
         provider="openai",
-        model="gpt-4.1-mini",
+        model="gpt-5-mini",
         temperature=0.2,
         top_p=1.0,
         frequency_penalty=0.0,
         presence_penalty=0.0,
+        max_tokens=1000,
+        reasoning_effort="minimal",
+    ),
+    "initiative": LLMAgentConfig(
+        provider="qwen",
+        model="qwen3.5-plus",
+        temperature=0.0,
+        top_p=1.0,
+        frequency_penalty=0.0,
+        presence_penalty=0.0,
         max_tokens=5000,
+        reasoning_effort="none",
+    ),
+    "planner": LLMAgentConfig(
+        provider="qwen",
+        model="qwen3.5-plus",
+        temperature=0.0,
+        top_p=1.0,
+        frequency_penalty=0.0,
+        presence_penalty=0.0,
+        max_tokens=10000,
+        timeout_seconds=30.0,
+        reasoning_effort="none",
+    ),
+    "query_analyzer": LLMAgentConfig(
+        provider="qwen",
+        model="qwen3.5-plus",
+        temperature=0.0,
+        top_p=1.0,
+        frequency_penalty=0.0,
+        presence_penalty=0.0,
+        max_tokens=5000,
+        reasoning_effort="none",
     ),
     "router": LLMAgentConfig(
         provider="openai",
-        model="gpt-4.1-mini",
+        model="gpt-5-mini",
         temperature=0.2,
         top_p=1.0,
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=1000,
+        reasoning_effort="minimal",
     ),
     "semantic_pivot": LLMAgentConfig(
         provider="openai",
-        model="gpt-4.1-mini",
-        temperature=0.2,
+        model="gpt-5-mini",
+        temperature=0.0,
         top_p=1.0,
         frequency_penalty=0.0,
         presence_penalty=0.0,
-        max_tokens=5000,
+        max_tokens=1000,
+        reasoning_effort="minimal",
     ),
     "semantic_validator": LLMAgentConfig(
         provider="openai",
-        model="gpt-4.1-mini",
+        model="gpt-5-mini",
         temperature=0.2,
         top_p=1.0,
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=1000,
+        reasoning_effort="minimal",
     ),
     # --- Domain Agents ---
     "brave_agent": LLMAgentConfig(
@@ -486,14 +566,14 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         max_tokens=2000,
     ),
     "browser_agent": LLMAgentConfig(
-        provider="openai",
-        model="gpt-5.4",
+        provider="qwen",
+        model="qwen3.5-plus",
         temperature=0.2,
         top_p=0.9,
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=8000,
-        reasoning_effort="low",
+        reasoning_effort="none",
     ),
     "calendar_agent": LLMAgentConfig(
         provider="openai",
@@ -541,9 +621,9 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         max_tokens=1000,
     ),
     "mcp_react_agent": LLMAgentConfig(
-        provider="openai",
-        model="gpt-5.4",
-        temperature=0.2,
+        provider="anthropic",
+        model="claude-opus-4-6",
+        temperature=0.0,
         top_p=1.0,
         frequency_penalty=0.0,
         presence_penalty=0.0,
@@ -578,14 +658,14 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         max_tokens=2000,
     ),
     "subagent": LLMAgentConfig(
-        provider="openai",
-        model="gpt-5.4",
+        provider="qwen",
+        model="qwen3.5-plus",
         temperature=0.5,
         top_p=1.0,
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=8000,
-        reasoning_effort="low",
+        reasoning_effort="none",
     ),
     "tasks_agent": LLMAgentConfig(
         provider="openai",
@@ -634,23 +714,24 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
     ),
     # --- Query & Response ---
     "query_agent": LLMAgentConfig(
-        provider="openai",
-        model="gpt-4.1-mini",
-        temperature=0.0,
+        provider="qwen",
+        model="qwen3.5-plus",
+        temperature=0.2,
         top_p=1.0,
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=5000,
+        reasoning_effort="none",
     ),
     "response": LLMAgentConfig(
-        provider="anthropic",
-        model="claude-sonnet-4-6",
-        temperature=0.7,
+        provider="qwen",
+        model="qwen3.5-plus",
+        temperature=1.0,
         top_p=1.0,
         frequency_penalty=0.1,
         presence_penalty=0.0,
-        max_tokens=5000,
-        reasoning_effort="low",
+        max_tokens=8000,
+        reasoning_effort="none",
     ),
     # --- HITL ---
     "hitl_classifier": LLMAgentConfig(
@@ -663,59 +744,70 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         max_tokens=300,
     ),
     "hitl_plan_approval_question_generator": LLMAgentConfig(
-        provider="anthropic",
-        model="claude-sonnet-4-6",
-        temperature=0.5,
+        provider="qwen",
+        model="qwen3.5-plus",
+        temperature=1.0,
         top_p=1.0,
         frequency_penalty=0.7,
         presence_penalty=0.3,
         max_tokens=500,
-        reasoning_effort="low",
+        reasoning_effort="none",
     ),
     "hitl_question_generator": LLMAgentConfig(
-        provider="anthropic",
-        model="claude-sonnet-4-6",
-        temperature=0.5,
+        provider="qwen",
+        model="qwen3.5-plus",
+        temperature=1.0,
         top_p=1.0,
         frequency_penalty=0.7,
         presence_penalty=0.3,
         max_tokens=500,
-        reasoning_effort="low",
+        reasoning_effort="none",
     ),
     # --- Memory ---
     "memory_extraction": LLMAgentConfig(
-        provider="anthropic",
-        model="claude-sonnet-4-6",
-        temperature=0.3,
+        provider="qwen",
+        model="qwen3.5-plus",
+        temperature=0.5,
         top_p=1.0,
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=1000,
-        reasoning_effort="low",
+        reasoning_effort="none",
+    ),
+    "memory_reference_extraction": LLMAgentConfig(
+        provider="openai",
+        model="gpt-4.1-nano",
+        temperature=0.0,
+        top_p=1.0,
+        frequency_penalty=0.0,
+        presence_penalty=0.0,
+        max_tokens=200,
     ),
     "memory_reference_resolution": LLMAgentConfig(
-        provider="openai",
-        model="gpt-4.1-mini",
+        provider="qwen",
+        model="qwen3.5-plus",
         temperature=0.0,
         top_p=1.0,
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=500,
+        reasoning_effort="none",
     ),
     # --- Background ---
     "broadcast_translator": LLMAgentConfig(
         provider="openai",
-        model="gpt-4.1-mini",
+        model="gpt-5-mini",
         temperature=0.3,
         top_p=1.0,
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=500,
+        reasoning_effort="minimal",
     ),
     "heartbeat_decision": LLMAgentConfig(
         provider="qwen",
         model="qwen3.5-plus",
-        temperature=0.3,
+        temperature=0.5,
         top_p=1.0,
         frequency_penalty=0.0,
         presence_penalty=0.0,
@@ -723,34 +815,34 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         reasoning_effort="none",
     ),
     "heartbeat_message": LLMAgentConfig(
-        provider="anthropic",
-        model="claude-sonnet-4-6",
-        temperature=0.7,
+        provider="qwen",
+        model="qwen3.5-plus",
+        temperature=1.0,
         top_p=1.0,
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=500,
-        reasoning_effort="low",
+        reasoning_effort="none",
     ),
     "interest_content": LLMAgentConfig(
-        provider="anthropic",
-        model="claude-sonnet-4-6",
-        temperature=0.7,
+        provider="qwen",
+        model="qwen3.5-plus",
+        temperature=1.0,
         top_p=1.0,
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=1000,
-        reasoning_effort="low",
+        reasoning_effort="none",
     ),
     "interest_extraction": LLMAgentConfig(
-        provider="anthropic",
-        model="claude-sonnet-4-6",
-        temperature=0.3,
+        provider="qwen",
+        model="qwen3.5-plus",
+        temperature=0.5,
         top_p=1.0,
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=500,
-        reasoning_effort="low",
+        reasoning_effort="none",
     ),
     "journal_consolidation": LLMAgentConfig(
         provider="qwen",
@@ -763,24 +855,24 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         reasoning_effort="none",
     ),
     "journal_extraction": LLMAgentConfig(
-        provider="anthropic",
-        model="claude-sonnet-4-6",
-        temperature=0.3,
+        provider="qwen",
+        model="qwen3.5-plus",
+        temperature=0.5,
         top_p=1.0,
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=5000,
-        reasoning_effort="low",
+        reasoning_effort="none",
     ),
     "psyche_summary": LLMAgentConfig(
-        provider="anthropic",
-        model="claude-sonnet-4-6",
+        provider="openai",
+        model="gpt-5-mini",
         temperature=0.7,
         top_p=1.0,
         frequency_penalty=0.0,
         presence_penalty=0.0,
-        max_tokens=200,
-        reasoning_effort="low",
+        max_tokens=500,
+        reasoning_effort="minimal",
     ),
     # --- Specialized ---
     "evaluator": LLMAgentConfig(
@@ -803,14 +895,15 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
     ),
     "mcp_description": LLMAgentConfig(
         provider="openai",
-        model="gpt-4.1-mini",
+        model="gpt-5-mini",
         temperature=0.3,
         top_p=1.0,
         frequency_penalty=0.0,
         presence_penalty=0.0,
-        max_tokens=300,
+        max_tokens=500,
+        reasoning_effort="minimal",
     ),
-    "mcp_excalidraw": LLMAgentConfig(
+    "mcp_app_react_agent": LLMAgentConfig(
         provider="anthropic",
         model="claude-opus-4-6",
         temperature=0.2,
@@ -823,26 +916,28 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
     ),
     "skill_description_translator": LLMAgentConfig(
         provider="openai",
-        model="gpt-4.1-mini",
-        temperature=0.3,
+        model="gpt-5-mini",
+        temperature=0.2,
         top_p=1.0,
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=1000,
+        reasoning_effort="minimal",
     ),
     "vision_analysis": LLMAgentConfig(
         provider="openai",
-        model="gpt-4.1-mini",
-        temperature=0.5,
+        model="gpt-5-mini",
+        temperature=1.0,
         top_p=1.0,
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=4096,
+        reasoning_effort="minimal",
     ),
     "voice_comment": LLMAgentConfig(
         provider="openai",
         model="gpt-4.1-mini",
-        temperature=0.7,
+        temperature=1.0,
         top_p=1.0,
         frequency_penalty=0.0,
         presence_penalty=0.0,

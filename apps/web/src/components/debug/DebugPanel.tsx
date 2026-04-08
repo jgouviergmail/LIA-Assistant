@@ -165,10 +165,7 @@ function MetricsSections({ metrics }: { metrics: DebugMetrics }) {
       <MemoryInjectionSection data={memory_injection} />
       <RAGInjectionSection data={rag_injection} />
       <KnowledgeEnrichmentSection data={knowledge_enrichment} />
-      <JournalInjectionSection
-        data={journal_injection}
-        plannerData={journal_planner_injection}
-      />
+      <JournalInjectionSection data={journal_injection} plannerData={journal_planner_injection} />
 
       {/* ── BACKGROUND EXTRACTION (after response, fire-and-forget) ── */}
       <div className="pt-3 pb-1 px-1">

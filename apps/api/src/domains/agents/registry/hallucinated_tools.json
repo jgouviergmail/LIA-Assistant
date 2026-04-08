@@ -174,10 +174,31 @@
       "query_preview": "supprime ces mail",
       "timestamp": "2026-04-03T23:20:24.927345+00:00",
       "was_new": false
+    },
+    {
+      "tool": "resolve_reference_tool",
+      "domain": "email",
+      "query_preview": "supprime ces emails",
+      "timestamp": "2026-04-07T15:01:45.962688+00:00",
+      "was_new": false
+    },
+    {
+      "tool": "resolve_reference_tool",
+      "domain": "email",
+      "query_preview": "supprime ces emails",
+      "timestamp": "2026-04-07T15:02:28.128600+00:00",
+      "was_new": false
+    },
+    {
+      "tool": "resolve_reference",
+      "domain": "event",
+      "query_preview": "modifie le premier rdv, mets la localisation à Joinville Le Pont",
+      "timestamp": "2026-04-07T21:56:21.872954+00:00",
+      "was_new": false
     }
   ],
   "stats": {
-    "total_detections": 23,
-    "last_updated": "2026-04-03T23:20:24.927365+00:00"
+    "total_detections": 26,
+    "last_updated": "2026-04-07T21:56:21.872972+00:00"
   }
 }

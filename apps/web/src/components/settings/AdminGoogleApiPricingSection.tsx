@@ -488,7 +488,7 @@ export default function AdminGoogleApiPricingSection({
           previous: t('common.previous'),
           next: t('common.next'),
           itemsPerPage: t('common.pagination.items_per_page'),
-          totalItems: (count) => t('common.pagination.total_items', { count }),
+          totalItems: count => t('common.pagination.total_items', { count }),
         }}
         className="mt-4 px-4"
       />

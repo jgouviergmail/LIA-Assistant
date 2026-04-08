@@ -12,11 +12,7 @@ import { cn } from '@/lib/utils';
 import { ActionBadge, SectionBadge } from '../shared';
 import { INFO_SECTION_CLASSES, DEBUG_TEXT_SIZES } from '../../utils/constants';
 import { getEmotionalLabel } from '../../utils/formatters';
-import type {
-  MemoryDetectionMetrics,
-  ExtractedMemory,
-  ExistingSimilarMemory,
-} from '@/types/chat';
+import type { MemoryDetectionMetrics, ExtractedMemory, ExistingSimilarMemory } from '@/types/chat';
 
 export interface MemoryDetectionSectionProps {
   data: MemoryDetectionMetrics | undefined;
@@ -64,7 +60,8 @@ const MemoryActionRow = React.memo(function MemoryActionRow({
           className={cn('text-[9px] px-1 py-0.5 rounded border flex-shrink-0', emotional.className)}
           title={`Emotional weight: ${memory.emotional_weight}`}
         >
-          {emotional.label} ({(memory.emotional_weight ?? 0) > 0 ? '+' : ''}{memory.emotional_weight ?? 0})
+          {emotional.label} ({(memory.emotional_weight ?? 0) > 0 ? '+' : ''}
+          {memory.emotional_weight ?? 0})
         </span>
 
         {/* Importance */}
@@ -101,7 +98,9 @@ const SimilarMemoryRow = React.memo(function SimilarMemoryRow({
 
   return (
     <div className="flex items-center gap-2 text-xs py-1 px-2">
-      <span className={`${DEBUG_TEXT_SIZES.tiny} text-muted-foreground w-4 text-right flex-shrink-0`}>
+      <span
+        className={`${DEBUG_TEXT_SIZES.tiny} text-muted-foreground w-4 text-right flex-shrink-0`}
+      >
         #{index + 1}
       </span>
       <div className="flex items-center gap-1.5 flex-shrink-0 w-[80px]">
@@ -111,14 +110,18 @@ const SimilarMemoryRow = React.memo(function SimilarMemoryRow({
             style={{ width: `${barWidth}%` }}
           />
         </div>
-        <span className={`font-mono ${DEBUG_TEXT_SIZES.mono} w-10 text-right text-muted-foreground`}>
+        <span
+          className={`font-mono ${DEBUG_TEXT_SIZES.mono} w-10 text-right text-muted-foreground`}
+        >
           {memory.score.toFixed(3)}
         </span>
       </div>
-      <span className={cn(
-        'text-[10px] px-1.5 py-0.5 rounded border flex-shrink-0',
-        'bg-blue-500/10 text-blue-400/80 border-blue-500/20'
-      )}>
+      <span
+        className={cn(
+          'text-[10px] px-1.5 py-0.5 rounded border flex-shrink-0',
+          'bg-blue-500/10 text-blue-400/80 border-blue-500/20'
+        )}
+      >
         {memory.category}
       </span>
       <span className="text-[11px] text-muted-foreground/70 truncate" title={memory.content}>
@@ -146,9 +149,13 @@ export const MemoryDetectionSection = React.memo(function MemoryDetectionSection
         <AccordionContent>
           <div className={INFO_SECTION_CLASSES}>
             {data?.enabled === false ? (
-              <><strong>Disabled:</strong> Memory extraction is globally disabled.</>
+              <>
+                <strong>Disabled:</strong> Memory extraction is globally disabled.
+              </>
             ) : (
-              <><strong>Not available:</strong> No extraction data.</>
+              <>
+                <strong>Not available:</strong> No extraction data.
+              </>
             )}
           </div>
         </AccordionContent>
@@ -256,11 +263,19 @@ export const MemoryDetectionSection = React.memo(function MemoryDetectionSection
 
           {data.llm_metadata && (
             <div className="border-t pt-2 flex flex-wrap items-center gap-3 text-[10px] text-muted-foreground">
-              <span><strong>Model:</strong> {data.llm_metadata.model}</span>
-              <span><strong>IN:</strong> {data.llm_metadata.input_tokens}</span>
-              <span><strong>OUT:</strong> {data.llm_metadata.output_tokens}</span>
+              <span>
+                <strong>Model:</strong> {data.llm_metadata.model}
+              </span>
+              <span>
+                <strong>IN:</strong> {data.llm_metadata.input_tokens}
+              </span>
+              <span>
+                <strong>OUT:</strong> {data.llm_metadata.output_tokens}
+              </span>
               {data.llm_metadata.cached_tokens > 0 && (
-                <span><strong>CACHE:</strong> {data.llm_metadata.cached_tokens}</span>
+                <span>
+                  <strong>CACHE:</strong> {data.llm_metadata.cached_tokens}
+                </span>
               )}
             </div>
           )}

@@ -1318,6 +1318,7 @@ class LocationItem(BaseModel):
     postal_code: str | None = None  # ZIP/postal code
     latitude: float  # Latitude coordinate
     longitude: float  # Longitude coordinate
+    static_map_url: str | None = None  # Proxy URL for static map image
 
 
 # Register Location context type for Data Registry support
@@ -1480,13 +1481,24 @@ class GetCurrentLocationTool(ToolOutputMixin, ConnectorTool[GooglePlacesClient])
         summary = "\n".join(parts) if parts else "Position actuelle obtenue"
 
         # Prepare registry update for frontend rendering
+        lat = data.get("location", {}).get("lat", 0)
+        lon = data.get("location", {}).get("lon", 0)
+
+        # Build static map URL via proxy (API key hidden server-side)
+        location_static_map_url: str | None = None
+        if lat and lon:
+            location_static_map_url = (
+                f"/api/v1/connectors/google-location/static-map" f"?lat={lat}&lng={lon}"
+            )
+
         location_item = LocationItem(
             formatted_address=data.get("formatted_address", ""),
             locality=data.get("locality"),
             country=data.get("country"),
             postal_code=data.get("postal_code"),
-            latitude=data.get("location", {}).get("lat", 0),
-            longitude=data.get("location", {}).get("lon", 0),
+            latitude=lat,
+            longitude=lon,
+            static_map_url=location_static_map_url,
         )
 
         # Generate unique registry ID for this location

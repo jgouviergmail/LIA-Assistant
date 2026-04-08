@@ -60,6 +60,53 @@ from src.infrastructure.observability.tracing import trace_node
 
 logger = structlog.get_logger(__name__)
 
+# Fields to exclude from payload extraction (internal/technical, not useful for LLM)
+_EXCLUDE_FIELDS: frozenset[str] = frozenset(
+    {
+        "id",
+        "etag",
+        "kind",
+        "selfLink",
+        "iCalUID",
+        "htmlLink",
+        "creator",
+        "organizer",
+        "metadata",
+        "raw",
+        "_raw",
+        "meta",
+        "_meta",
+        "index",
+        "_index",
+        "resourceName",
+        "status",
+        "colorId",
+        "reminders",
+        "sequence",
+        "updated",
+        "created",
+        "photos",
+        "coverPhotos",
+        "memberships",
+        "sources",
+        "objectType",
+        "polyline",
+        "encoded_polyline",
+        "steps",
+    }
+)
+
+# Parameters with non-obvious values that need inline descriptions in initiative prompts
+_NEEDS_DESCRIPTION: frozenset[str] = frozenset(
+    {
+        "travel_mode",
+        "units",
+        "date",
+        "user_message",
+        "fields",
+    }
+)
+
 
 # =============================================================================
 # Pydantic Schemas (Structured Output)
@@ -76,14 +123,12 @@ class InitiativeAction(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    tool_name: str = Field(description="Exact tool name from the available tools list")
+    tool_name: str = Field(description="Exact tool name from available tools")
     parameters: list[ParameterItem] = Field(
         default_factory=list,
-        description="Tool parameters as a list of name/value pairs",
+        description="Tool parameters as name/value pairs",
     )
-    rationale: str = Field(
-        description="Why this action adds concrete value to the response (one sentence)"
-    )
+    rationale: str = Field(description="Why this adds concrete value (one sentence)")
 
 
 class InitiativeDecision(BaseModel):
@@ -91,24 +136,16 @@ class InitiativeDecision(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    analysis: str = Field(
-        description="Brief analysis of actionable signals found in results (2-3 sentences)"
-    )
-    should_act: bool = Field(
-        description="True only if at least one HIGH VALUE read-only action was identified"
-    )
-    reasoning: str = Field(description="Why acting or not acting (one sentence)")
+    analysis: str = Field(description="Actionable signals found (one sentence)")
+    should_act: bool = Field(description="True only if high-value cross-domain action found")
+    reasoning: str = Field(description="Why acting or not (one sentence)")
     actions: list[InitiativeAction] = Field(
         default_factory=list,
-        description="Read-only actions to execute (empty if should_act=false)",
+        description="Read-only actions (empty if should_act=false)",
     )
     suggestion: str | None = Field(
         default=None,
-        description=(
-            "Proactive suggestion when a WRITE action would be valuable but "
-            "cannot be executed (read-only phase). Phrased as a question for the user. "
-            "Example: 'Would you like me to create a calendar event for Thursday 2pm?'"
-        ),
+        description="Question for user when a write action would help but is not allowed here",
     )
 
 
@@ -164,22 +201,26 @@ def _get_adjacent_read_only_manifests(
         Read-only tool manifests from adjacent domains.
     """
     from src.core.context import get_request_tool_manifests
-    from src.domains.agents.registry.catalogue import is_read_only_tool
+    from src.domains.agents.registry.catalogue import is_initiative_eligible
     from src.domains.agents.registry.domain_taxonomy import DOMAIN_REGISTRY
 
-    # Collect executed domains + their related domains (forward)
-    # + domains that declare executed domains as related (reverse)
+    # Collect CROSS-DOMAIN targets: domains ADJACENT to executed ones but NOT
+    # the executed domains themselves. The initiative's purpose is to check OTHER
+    # domains for implications — re-checking executed domains wastes tokens and
+    # produces low-value actions (data already in execution_summary).
+    executed_set = set(executed_domains)
     target_domains: set[str] = set()
+    # Forward: related domains of executed ones
     for domain_name in executed_domains:
-        target_domains.add(domain_name)
         config = DOMAIN_REGISTRY.get(domain_name)
         if config:
             target_domains.update(config.related_domains)
-    # Reverse: if weather declares event as related, and event was executed,
-    # weather becomes adjacent (bidirectional adjacency for initiative)
+    # Reverse: domains that declare executed ones as related
     for domain_name, config in DOMAIN_REGISTRY.items():
         if any(ed in config.related_domains for ed in executed_domains):
             target_domains.add(domain_name)
+    # Exclude already-executed domains (cross-domain only)
+    target_domains -= executed_set
 
     manifests = get_request_tool_manifests()
 
@@ -188,7 +229,9 @@ def _get_adjacent_read_only_manifests(
             return m.agent.removesuffix("_agent")
         return "unknown"
 
-    return [m for m in manifests if is_read_only_tool(m) and _extract_domain(m) in target_domains]
+    return [
+        m for m in manifests if is_initiative_eligible(m) and _extract_domain(m) in target_domains
+    ]
 
 
 def _validate_read_only(
@@ -263,6 +306,7 @@ def _format_interests(profile: dict[str, Any]) -> str:
 def _format_execution_summary(
     agent_results: dict[str, Any],
     registry: dict[str, Any] | None = None,
+    current_turn_id: int | None = None,
 ) -> str:
     """Format execution results for initiative LLM evaluation.
 
@@ -274,6 +318,7 @@ def _format_execution_summary(
     Args:
         agent_results: Dict of composite_key → AgentResult-like dicts.
         registry: Current turn registry items (RegistryItem dicts).
+        current_turn_id: Current turn ID to filter agent_results by turn.
 
     Returns:
         Human-readable summary with enough detail for cross-domain reasoning.
@@ -289,49 +334,41 @@ def _format_execution_summary(
             meta = item.get("meta", {})
             domain = meta.get("domain", "unknown")
 
-            # Build a concise summary from payload fields
-            # Different domains have different payload structures
+            # Generic extraction: iterate all payload fields, exclude technical ones
             summary_parts: list[str] = []
-            for key in (
-                "summary",
-                "title",
-                "name",
-                "description",
-                "location",
-                "snippet",
-                "query",
-                "answer",
-                "content",
-            ):
-                val = payload.get(key)
-                if val and isinstance(val, str):
-                    summary_parts.append(f"{key}: {val[:150]}")
-            # Weather-specific fields
-            for key in (
-                "temperature",
-                "temp_min",
-                "temp_max",
-                "weather_description",
-                "humidity",
-                "wind_speed",
-                "rain",
-                "date",
-            ):
-                val = payload.get(key)
-                if val is not None:
+            for key, val in payload.items():
+                if key in _EXCLUDE_FIELDS or key.startswith("_"):
+                    continue
+                if val is None:
+                    continue
+                if isinstance(val, str):
+                    if len(val) > 150:
+                        val = val[:150] + "…"
                     summary_parts.append(f"{key}: {val}")
-            # Event-specific fields
-            for key in ("start_datetime", "end_datetime", "attendees"):
-                val = payload.get(key)
-                if val is not None:
-                    summary_parts.append(f"{key}: {str(val)[:100]}")
+                elif isinstance(val, (int, float, bool)):
+                    summary_parts.append(f"{key}: {val}")
+                elif isinstance(val, list) and val:
+                    # Compact list preview (e.g., attendees, names)
+                    preview = str(val[0])[:80]
+                    if len(val) > 1:
+                        preview += f" (+{len(val) - 1} more)"
+                    summary_parts.append(f"{key}: {preview}")
+                # Skip dicts and other complex types to keep summary concise
 
             if summary_parts:
                 sections.append(f"[{domain}] {'; '.join(summary_parts[:8])}")
 
     # 2. Fallback: extract from agent_results step_results if registry is empty
+    # FIX 2026-04-08: Filter by current_turn_id to prevent stale data from
+    # previous turns leaking into the initiative prompt. agent_results keys
+    # are prefixed with turn_id (e.g., "2:plan_executor").
     if not sections and agent_results:
-        for _composite_key, result_data in agent_results.items():
+        filtered_results = agent_results
+        if current_turn_id is not None:
+            turn_prefix = f"{current_turn_id}:"
+            filtered_results = {k: v for k, v in agent_results.items() if k.startswith(turn_prefix)}
+
+        for _composite_key, result_data in filtered_results.items():
             if not isinstance(result_data, dict):
                 continue
             status = result_data.get("status", "unknown")
@@ -363,16 +400,28 @@ def _format_execution_summary(
 
 
 def _format_tools_for_prompt(manifests: list[Any]) -> str:
-    """Format read-only tool manifests for initiative prompt."""
-    sections = []
+    """Format initiative-eligible tool manifests in compact format.
+
+    Uses one line per tool with description and key parameters inline.
+    Non-obvious parameters (enums, special behaviors) keep their descriptions;
+    obvious ones (query, max_results, location) are listed by name only.
+    This reduces token consumption by ~70% vs the full parameter format.
+    """
+    lines = []
     for m in manifests:
-        params = []
+        # Build compact param list
+        param_parts = []
         for p in m.parameters:
-            req = "required" if p.required else "optional"
-            params.append(f"  - {p.name} ({p.type}, {req}): {p.description}")
-        params_str = "\n".join(params) if params else "  (no parameters)"
-        sections.append(f"Tool: {m.name}\nDescription: {m.description}\nParameters:\n{params_str}")
-    return "\n\n".join(sections)
+            if p.name in _NEEDS_DESCRIPTION and p.description:
+                # Keep description for non-obvious params
+                param_parts.append(f"{p.name}: {p.description}")
+            elif p.required:
+                param_parts.append(f"{p.name} (required)")
+            else:
+                param_parts.append(p.name)
+        params_str = f" | Params: {', '.join(param_parts)}" if param_parts else ""
+        lines.append(f"- {m.name}: {m.description}{params_str}")
+    return "\n".join(lines)
 
 
 def _build_initiative_plan(
@@ -478,8 +527,11 @@ async def initiative_node(
     user_timezone = state.get("user_timezone", "UTC")
 
     agent_results = state.get(STATE_KEY_AGENT_RESULTS, {})
+    current_turn_id = state.get(STATE_KEY_CURRENT_TURN_ID)
     current_registry = state.get("current_turn_registry") or state.get("registry") or {}
-    execution_summary = _format_execution_summary(agent_results, registry=current_registry)
+    execution_summary = _format_execution_summary(
+        agent_results, registry=current_registry, current_turn_id=current_turn_id
+    )
     original_query = _extract_original_query(state)
 
     memory_facts, interest_profile = await asyncio.gather(

@@ -36,10 +36,7 @@ export {
 // Memory Injection (debug tuning)
 export { MemoryInjectionSection, type MemoryInjectionSectionProps } from './MemoryInjectionSection';
 // Memory Detection (long-term memory extraction)
-export {
-  MemoryDetectionSection,
-  type MemoryDetectionSectionProps,
-} from './MemoryDetectionSection';
+export { MemoryDetectionSection, type MemoryDetectionSectionProps } from './MemoryDetectionSection';
 // RAG Injection (Knowledge Spaces)
 export { RAGInjectionSection, type RAGInjectionSectionProps } from './RAGInjectionSection';
 // Journal Injection (Personal Journals)

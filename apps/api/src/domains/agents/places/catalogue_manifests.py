@@ -402,6 +402,7 @@ get_current_location_catalogue_manifest = ToolManifest(
     display=DisplayMetadata(
         emoji="📍", i18n_key="get_current_location", visible=True, category="tool"
     ),
+    initiative_eligible=False,  # Returns user coordinates only, no enrichment value
 )
 
 

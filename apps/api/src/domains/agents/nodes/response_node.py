@@ -497,9 +497,10 @@ async def _execute_draft_if_confirmed(
             exc_info=True,
         )
         # Return error result for response synthesis (graceful degradation)
+        # Never expose raw exception details — they could leak to the user via LLM synthesis
         return {
             "status": "error",
-            "message": _("Error during execution: {error}").format(error=str(e)),
+            "message": _("The action could not be completed. Please try again."),
             "draft_id": draft_action_result.get("draft_id"),
             "draft_type": draft_action_result.get("draft_type"),
             "action": DraftAction.CONFIRM.value,

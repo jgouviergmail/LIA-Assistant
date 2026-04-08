@@ -8,61 +8,7 @@ NOTE: All datetime operations should use src.core.time_utils per the
 datetime doctrine. This module re-exports now_in_timezone for convenience.
 """
 
-from datetime import datetime, timedelta
-
 from langchain_core.runnables import RunnableConfig
-
-from src.core.time_utils import now_in_timezone
-
-
-def get_datetime_in_timezone(user_timezone: str = "Europe/Paris") -> datetime:
-    """
-    Get current datetime in the user's timezone.
-
-    Delegates to time_utils.now_in_timezone() per datetime doctrine.
-    Falls back to DEFAULT_USER_DISPLAY_TIMEZONE if timezone is invalid.
-
-    Args:
-        user_timezone: User's IANA timezone (e.g., "Europe/Paris")
-
-    Returns:
-        datetime: Current datetime in the user's timezone (always aware)
-    """
-    return now_in_timezone(user_timezone)
-
-
-def get_temporal_context(user_timezone: str = "Europe/Paris") -> dict[str, str]:
-    """
-    Generate temporal context for resolution and prompts.
-
-    Provides formatted date strings for today, tomorrow, next week, etc.
-    Used by context_loader_node for temporal resolution.
-
-    Args:
-        user_timezone: User's IANA timezone (e.g., "Europe/Paris")
-
-    Returns:
-        Dict with temporal reference values:
-        - current_datetime: "2024-12-22 15:30"
-        - today_date: "22 December 2024"
-        - tomorrow_date: "23 December 2024"
-        - next_week_start: "29 December 2024"
-        - next_week_end: "04 January 2025"
-        - date_plus_3: "25 December 2024"
-    """
-    now = get_datetime_in_timezone(user_timezone)
-    tomorrow = now + timedelta(days=1)
-    next_week_start = now + timedelta(days=(7 - now.weekday()))
-    next_week_end = next_week_start + timedelta(days=6)
-
-    return {
-        "current_datetime": now.strftime("%Y-%m-%d %H:%M"),
-        "today_date": now.strftime("%d %B %Y"),
-        "tomorrow_date": tomorrow.strftime("%d %B %Y"),
-        "next_week_start": next_week_start.strftime("%d %B %Y"),
-        "next_week_end": next_week_end.strftime("%d %B %Y"),
-        "date_plus_3": (now + timedelta(days=3)).strftime("%d %B %Y"),
-    }
 
 
 def extract_session_id_from_config(config: RunnableConfig, required: bool = True) -> str:

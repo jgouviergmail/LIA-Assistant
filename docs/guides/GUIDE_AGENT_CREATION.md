@@ -347,6 +347,12 @@ class ToolManifest:
     # === CATÉGORIE (POUR FILTRAGE PAR INTENT) ===
     tool_category: ToolCategory | None = None  # "search", "list", "create", etc.
 
+    # === INITIATIVE (OPTIONNEL) ===
+    initiative_eligible: bool | None = None        # Eligible pour enrichissement proactif cross-domain
+                                                   # None = auto-déterminé depuis category
+                                                   #   (search/readonly = eligible, system = not eligible)
+                                                   # False = exclure (browser, web search, listing structurel, context tools)
+
     # === CHAMPS OPTIONNELS AVANCÉS ===
     field_mappings: dict[str, str] | None = None   # Mapping de noms de champs
     examples_in_prompt: bool = True                # Inclure exemples dans prompt LLM
@@ -444,6 +450,7 @@ list_reminders_catalogue_manifest = ToolManifest(
         category="tool",
     ),
     tool_category="list",  # Important pour filtrage par intent
+    initiative_eligible=False,  # Listing tool, not useful for proactive enrichment
     version="1.0.0",
     updated_at=datetime.now(UTC),
 )

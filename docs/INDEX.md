@@ -2,8 +2,8 @@
 
 > Carte complète de toute la documentation du projet LIA - Assistant IA multi-agent avec LangGraph
 
-**Version**: 6.9
-**Dernière mise à jour**: 2026-03-29
+**Version**: 7.0
+**Dernière mise à jour**: 2026-04-08
 **Statut**: Complète (190+ documents)
 
 ---
@@ -127,7 +127,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 |----------|-------------|--------|
 | [LLM_PROVIDERS.md](./technical/LLM_PROVIDERS.md) | Providers LLM, modèles, configuration (Admin UI + .env fallback), compatibilité | ✅ |
 | [LLM_PROVIDER_CONSTRAINTS.md](./technical/LLM_PROVIDER_CONSTRAINTS.md) | Contraintes de paramétrage LLM par provider et par modèle (matrice complète) | ✅ |
-| [PROMPTS.md](./technical/PROMPTS.md) | Système prompts, versioning | ✅ |
+| [PROMPTS.md](./technical/PROMPTS.md) | Système prompts, versioning, unified planner, memory extraction prompt | ✅ |
 | [PLANNER.md](./technical/PLANNER.md) | Planner node, ExecutionPlan DSL, FOR_EACH | ✅ |
 | [PLAN_PATTERN_LEARNER.md](./technical/PLAN_PATTERN_LEARNER.md) | Apprentissage patterns, Bayesian | ✅ |
 | [PATTERN_LEARNER_TRAINING.md](./technical/PATTERN_LEARNER_TRAINING.md) | Training automatisé, Golden Patterns | ✅ |
@@ -145,7 +145,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Document | Description | Statut |
 |----------|-------------|--------|
 | [LONG_TERM_MEMORY.md](./technical/LONG_TERM_MEMORY.md) | Mémoire long-terme, profil psychologique | ✅ |
-| [MEMORY_RESOLUTION.md](./technical/MEMORY_RESOLUTION.md) | Résolution références, relations | ✅ |
+| [MEMORY_RESOLUTION.md](./technical/MEMORY_RESOLUTION.md) | Résolution références, relations — architecture 3 phases (LLM extraction + recherche ciblée + résolution) | ✅ |
 | [INTERESTS.md](./technical/INTERESTS.md) | Système apprentissage centres d'intérêt | ✅ |
 | [SCHEDULED_ACTIONS.md](./technical/SCHEDULED_ACTIONS.md) | Actions planifiées récurrentes | ✅ |
 | [SUB_AGENTS.md](./technical/SUB_AGENTS.md) | Persistent specialized sub-agents (F6) | ✅ |

@@ -121,6 +121,7 @@ list_hue_lights_catalogue_manifest = ToolManifest(
     version="1.0.0",
     maintainer="Team Agents",
     display=DisplayMetadata(emoji="💡", i18n_key="list_hue_lights", visible=True, category="tool"),
+    initiative_eligible=False,  # Structural listing tool, not user data enrichment
 )
 
 # ============================================================================
@@ -192,6 +193,7 @@ list_hue_rooms_catalogue_manifest = ToolManifest(
     version="1.0.0",
     maintainer="Team Agents",
     display=DisplayMetadata(emoji="🏠", i18n_key="list_hue_rooms", visible=True, category="tool"),
+    initiative_eligible=False,  # Structural listing tool, not user data enrichment
 )
 
 # ============================================================================
@@ -261,6 +263,7 @@ list_hue_scenes_catalogue_manifest = ToolManifest(
     version="1.0.0",
     maintainer="Team Agents",
     display=DisplayMetadata(emoji="🎬", i18n_key="list_hue_scenes", visible=True, category="tool"),
+    initiative_eligible=False,  # Structural listing tool, not user data enrichment
 )
 
 # ============================================================================

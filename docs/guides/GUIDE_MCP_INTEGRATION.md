@@ -13,6 +13,7 @@ Date: 2026-03-08
 - [Prerequis et Configuration](#prerequis-et-configuration)
 - [Admin MCP](#admin-mcp)
 - [Per-User MCP](#per-user-mcp)
+- [Iterative Mode / ReAct (F2.7)](#iterative-mode--react-f27)
 - [Convention read_me](#convention-read_me)
 - [MCP Apps (F2.6)](#mcp-apps-f26)
 - [Excalidraw Iterative Builder](#excalidraw-iterative-builder)
@@ -364,6 +365,59 @@ Le pool utilise :
 ```
 
 **Securite du callback** : Pas de session auth requise (l'utilisateur est en mid-redirect). L'identite vient du parametre `state` signe stocke dans Redis (usage unique, supprime apres consommation).
+
+---
+
+## Iterative Mode / ReAct (F2.7)
+
+When `iterative_mode=true` on an MCP server, the planner delegates to a **ReAct sub-agent** instead of calling individual tools directly.
+
+### How It Works
+
+```
+Standard mode:  Planner → individual tools → parallel_executor → MCPToolAdapter
+Iterative mode: Planner → mcp_{server}_task → ReactSubAgentRunner → ReAct agent loop
+                                              └→ read_me → understand API → call tools → result
+```
+
+### Admin vs User MCP
+
+| Aspect | Admin MCP | User MCP |
+|--------|-----------|----------|
+| **When** | At startup (`registration.py`) | Per-request (`user_context.py`) |
+| **Tool name** | `mcp_{server_name}_task` | `mcp_user_{id_prefix}_task` |
+| **Tool storage** | Global `tool_registry` | Per-request `ContextVar` |
+| **Entry point** | `mcp_server_task_tool()` | `mcp_user_server_task_tool()` |
+| **Shared logic** | `_run_mcp_react_task()` | `_run_mcp_react_task()` |
+| **Manifest factory** | `build_mcp_react_task_manifest()` | `build_mcp_react_task_manifest()` |
+
+### Key Files
+
+- `src/domains/agents/tools/mcp_react_tools.py` — Task tools + `_MCPReActWrapper` + shared `_run_mcp_react_task()`
+- `src/infrastructure/mcp/registration.py` — Admin registration + shared `build_mcp_react_task_manifest()`
+- `src/infrastructure/mcp/user_context.py` — User registration: `_register_user_iterative_server()`
+- `src/domains/agents/prompts/v1/mcp_react_agent_prompt.txt` — ReAct agent prompt (shared)
+
+### LLM Type Auto-Selection
+
+MCP App servers (with interactive widgets like Excalidraw) automatically use a dedicated, more capable LLM:
+
+| Server type | LLM type | Default | Configurable in |
+|-------------|----------|---------|-----------------|
+| MCP App (`app_resource_uri` present) | `mcp_app_react_agent` | Opus | Admin LLM Config panel |
+| Regular MCP | `mcp_react_agent` | Qwen | Admin LLM Config panel |
+
+Detection is automatic via `_has_mcp_app_tools()` — no user action needed.
+
+### Error Recovery
+
+`_MCPReActWrapper` catches all MCP tool exceptions and returns them as strings to the ReAct agent. This enables retry with corrected parameters instead of crashing.
+
+### Requirements
+
+- `MCP_REACT_ENABLED=true` (global feature flag, default `false`)
+- `iterative_mode=true` on the server config (admin) or user toggle (user)
+- Reference content (`read_me`) is skipped in the planner prompt for iterative servers — the ReAct agent fetches it itself
 
 ---
 

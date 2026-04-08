@@ -392,12 +392,12 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
           ...state.streaming,
           sseStatus: 'error',
         },
-        // Add error message to chat
+        // Add error message to chat (already localized by backend)
         messages: [
           ...state.messages,
           {
             id: generateUUID(),
-            content: `Erreur: ${action.payload.error}`,
+            content: action.payload.error,
             role: 'assistant',
             timestamp: new Date(),
           },

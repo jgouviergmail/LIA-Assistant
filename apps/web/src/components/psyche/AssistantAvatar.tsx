@@ -36,11 +36,7 @@ function padColor(val: number): string {
   return 'text-muted-foreground';
 }
 
-export function AssistantAvatar({
-  psycheState,
-  tooltipLines,
-  animate,
-}: AssistantAvatarProps) {
+export function AssistantAvatar({ psycheState, tooltipLines, animate }: AssistantAvatarProps) {
   // Fallback: psyche disabled or no data — show classic "LIA" avatar
   if (!psycheState) {
     return (
@@ -60,7 +56,7 @@ export function AssistantAvatar({
           'motion-safe:transition-all motion-safe:duration-500',
           moodConfig.ringClass,
           moodConfig.bgClass,
-          animate && 'animate-pulse',
+          animate && 'animate-pulse'
         )}
       >
         <span className="text-xl leading-none">{moodConfig.icon}</span>
