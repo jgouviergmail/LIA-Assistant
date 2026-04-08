@@ -2487,12 +2487,24 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                 if isinstance(ir, dict):
                     initiative_protected_ids.update(ir.get("registry_ids") or [])
 
-            # Extract initiative items before any filtering
-            initiative_items = {
-                k: v
-                for k, v in (current_turn_registry or {}).items()
-                if k in initiative_protected_ids
-            }
+            # Extract items that must NEVER be filtered out:
+            # - Initiative items (proactively selected by initiative LLM)
+            # - MCP App items (interactive widgets — not search results)
+            # - Draft items (HITL confirmation flow)
+            # Items may be dicts (model_dump) or RegistryItem Pydantic objects.
+            _UNFILTERABLE_TYPES = {"MCP_APP", "DRAFT"}
+            protected_items: dict[str, Any] = {}
+            for k, v in (current_turn_registry or {}).items():
+                if k in initiative_protected_ids:
+                    protected_items[k] = v
+                elif isinstance(v, dict) and v.get("type") in _UNFILTERABLE_TYPES:
+                    protected_items[k] = v
+                elif (
+                    hasattr(v, "type")
+                    and hasattr(v.type, "value")
+                    and v.type.value in _UNFILTERABLE_TYPES
+                ):
+                    protected_items[k] = v
 
             if relevant_ids:
                 # Filter the registry to only include relevant items
@@ -2502,19 +2514,19 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                     current_turn_registry, relevant_ids
                 )
 
-                # Re-inject initiative items that were filtered out
-                if initiative_items:
+                # Re-inject protected items that were filtered out
+                if protected_items:
                     restored_count = 0
-                    for k, v in initiative_items.items():
+                    for k, v in protected_items.items():
                         if k not in current_turn_registry:
                             current_turn_registry[k] = v
                             restored_count += 1
                     if restored_count:
                         logger.info(
-                            "initiative_items_restored_after_filtering",
+                            "protected_items_restored_after_filtering",
                             run_id=run_id,
                             restored_count=restored_count,
-                            restored_ids=list(initiative_items.keys()),
+                            restored_ids=list(protected_items.keys()),
                         )
 
                 logger.info(
@@ -2549,12 +2561,12 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                             user_query_preview=last_user_message[:50] if last_user_message else "",
                         )
                     else:
-                        # Preserve initiative items even when LLM returns empty
-                        current_turn_registry = initiative_items
+                        # Preserve protected items even when LLM returns empty
+                        current_turn_registry = protected_items
                         logger.info(
                             "intelligent_filtering_no_matches",
                             run_id=run_id,
-                            initiative_preserved=len(initiative_items),
+                            protected_preserved=len(protected_items),
                             user_query_preview=last_user_message[:50] if last_user_message else "",
                         )
         except (ValueError, KeyError, TypeError, AttributeError, RuntimeError) as e:

@@ -183,6 +183,7 @@ Iterative mode changes how LIA interacts with an MCP server:
 **⚠️ Requirements:**
 • The administrator must enable `MCP_REACT_ENABLED=true` globally
 • Iterative mode uses more tokens per request (multiple LLM calls for the ReAct loop)
+• Iterative tools get an extended execution timeout (120s minimum vs. 60s for regular tools) to accommodate multi-step ReAct iterations
 
 **🤖 Smart AI selection:**
 • MCP servers with interactive widgets (like Excalidraw) automatically use a more powerful AI model

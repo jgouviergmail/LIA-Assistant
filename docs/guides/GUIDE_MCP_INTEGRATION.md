@@ -413,6 +413,10 @@ Detection is automatic via `_has_mcp_app_tools()` — no user action needed.
 
 `_MCPReActWrapper` catches all MCP tool exceptions and returns them as strings to the ReAct agent. This enables retry with corrected parameters instead of crashing.
 
+### Step Timeout
+
+Iterative MCP tools get a minimum execution timeout of **120s** (vs. 60s default for regular tools). This is enforced automatically by the parallel executor for any tool ending with `_task`. Configurable via `mcp_react_step_timeout_seconds` setting. MCP App servers using Opus typically complete in 55-90s across 2-3 ReAct iterations.
+
 ### Requirements
 
 - `MCP_REACT_ENABLED=true` (global feature flag, default `false`)

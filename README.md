@@ -36,7 +36,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.15.0</strong> — 3-phase memory resolution, initiative eligibility, unified planner, error hardening, token optimization — April 2026
+  <strong>Version 1.15.1</strong> — MCP ReAct timeout fix, registry protection for interactive widgets, LLM config tuning — April 2026
 </p>
 
 ---

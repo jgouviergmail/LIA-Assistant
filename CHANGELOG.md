@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.15.1] - 2026-04-08
+
+### Fixed
+
+- **MCP ReAct Step Timeout** — The parallel executor step timeout for MCP iterative (ReAct) tools was defaulting to 60s, insufficient for multi-iteration Opus-based ReAct agents (read_me + create_view takes ~55-90s). The planner's `timeout_seconds` override only matched the legacy `mcp_excalidraw_create_view` tool name, not the new `mcp_excalidraw_task` iterative tool name. Now all tools ending with `_task` (MCP iterative suffix) get a minimum timeout of 120s via `max(planner_timeout, 120)`, regardless of what the planner LLM specifies.
+- **MCP App Registry Filtering** — Interactive MCP App widgets (Excalidraw diagrams, etc.) were silently dropped by the response node's intelligent filtering. When the LLM returned `<relevant_ids>` for search results, `filter_registry_by_relevant_ids()` removed all items not in the list — including MCP App items that are not search results. Now items of type `MCP_APP` and `DRAFT` are protected from intelligent filtering and always preserved in the registry, alongside initiative-protected items.
+- **LLM Config Defaults** — `mcp_app_react_agent` LLM config: temperature reduced from 0.2 to 0.0 for deterministic output, max_tokens adjusted from 20000 to 16000, reasoning_effort from "medium" to "low".
+
+### Documentation
+
+- Updated ADR-062 with MCP ReAct timeout and registry protection amendments.
+- Updated MCP_INTEGRATION.md with step timeout configuration for iterative tools.
+- Updated GUIDE_MCP_INTEGRATION.md with timeout requirements section.
+- Updated ARCHITECTURE_LANGRAPH.md with protected registry items in response node.
+- Updated knowledge base `11_mcp_servers.md` with timeout information.
+- Updated FAQ changelog (6 languages) with v1.15.1 entries.
+
 ## [1.15.0] - 2026-04-08
 
 ### Added

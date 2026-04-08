@@ -1374,20 +1374,21 @@ class SmartPlannerService:
             step_timeout = step_data.get("timeout_seconds")
 
             # ================================================================
-            # Excalidraw timeout override (evolution F2 — Iterative Builder)
-            # The iterative builder makes a single LLM call within the tool
-            # execution, so the default 30s timeout is insufficient.
+            # MCP iterative (ReAct) timeout override
+            # ReAct tools (*_task) run a multi-iteration sub-agent loop
+            # that needs significantly more time than single tool calls.
+            # The default step timeout (60s) is insufficient for Opus-based
+            # MCP App React agents which do read_me + create_view (~55-90s).
             # ================================================================
-            from src.infrastructure.mcp.excalidraw.overrides import (
-                EXCALIDRAW_CREATE_VIEW_NORMALIZED,
-            )
+            from src.core.constants import MCP_ITERATIVE_TASK_SUFFIX
 
-            if step_timeout is None and normalized_tool_name == EXCALIDRAW_CREATE_VIEW_NORMALIZED:
-                excalidraw_timeout = getattr(settings, "mcp_excalidraw_step_timeout_seconds", 90)
-                step_timeout = excalidraw_timeout
+            if normalized_tool_name.endswith(MCP_ITERATIVE_TASK_SUFFIX):
+                react_timeout = getattr(settings, "mcp_react_step_timeout_seconds", 120)
+                step_timeout = max(step_timeout or 0, react_timeout)
                 logger.info(
-                    "excalidraw_step_timeout_override",
+                    "mcp_react_step_timeout_override",
                     step_id=step_data.get("id"),
+                    tool_name=normalized_tool_name,
                     timeout_seconds=step_timeout,
                 )
 

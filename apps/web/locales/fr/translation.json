@@ -2644,6 +2644,15 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_15_1": {
+          "title": "v1.15.1 — Correction MCP App & timeout ReAct",
+          "date": "Avril 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>Correction timeout MCP itératif</b> — Les diagrammes Excalidraw et autres outils MCP itératifs ne fonctionnaient plus car le timeout était trop court (60s) pour l'agent ReAct multi-étapes. Le timeout est désormais automatiquement étendu à 120s minimum pour tous les outils MCP itératifs.",
+            "i2": "<b>Correction affichage widgets MCP App</b> — Les widgets interactifs (comme les diagrammes Excalidraw) pouvaient disparaître de la réponse lorsque le filtrage intelligent ne les reconnaissait pas comme résultats pertinents. Les widgets MCP App sont désormais toujours préservés dans la réponse."
+          }
+        },
         "v1_15": {
           "title": "v1.15 — Résolution mémoire intelligente, optimisation & sécurité",
           "date": "Avril 2026",

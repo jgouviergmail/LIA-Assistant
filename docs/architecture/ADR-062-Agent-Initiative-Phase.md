@@ -159,3 +159,15 @@ If any of these keys is present in state, the node returns immediately with `ini
 **MCP App dedicated LLM**: New LLM type `mcp_app_react_agent` (renamed from dead code `mcp_excalidraw`) auto-selected for MCP servers with interactive widgets (`app_resource_uri`). Detection via `_has_mcp_app_tools()`. Defaults to Opus for complex workflows; regular MCP servers use `mcp_react_agent`. Removed ~80 lines of dead `mcp_excalidraw_llm_*` settings and 8 unused constants.
 
 **Files changed:** `mcp_react_tools.py`, `user_context.py`, `context.py`, `registration.py`, `smart_planner_service.py`, `constants.py`, `router.py`, `config/mcp.py`, `llm_config/constants.py`, `llm/factory.py`.
+
+### Amendment 2026-04-08: MCP ReAct Step Timeout & Registry Protection (v1.15.1)
+
+**Problem 1 — Step timeout**: The parallel executor step timeout for MCP iterative tools defaulted to 60s (either from the planner LLM or from the ExecutionStep default). The legacy `EXCALIDRAW_CREATE_VIEW_NORMALIZED` override in `smart_planner_service.py` only matched the old `mcp_excalidraw_create_view` tool name, not the new `mcp_excalidraw_task` iterative tool. Multi-iteration Opus ReAct agents (read_me + create_view) require ~55-90s, causing systematic `CancelledError` timeouts.
+
+**Solution 1**: Replaced the tool-name-specific override with a generic suffix match: any tool ending with `MCP_ITERATIVE_TASK_SUFFIX` (`"_task"`) gets `max(planner_timeout, mcp_react_step_timeout_seconds)` with a default of 120s. Uses `max()` to ensure the floor is respected even when the planner LLM specifies a lower timeout.
+
+**Problem 2 — Registry filtering**: In `response_node`, the intelligent filtering (`filter_registry_by_relevant_ids()`) dropped MCP App registry items (`type=MCP_APP`) because the response LLM's `<relevant_ids>` tag only referenced search result IDs, not interactive widget IDs. Only initiative-protected items were re-injected after filtering.
+
+**Solution 2**: Extended the protection mechanism to cover items of type `MCP_APP` and `DRAFT` (interactive widgets and HITL confirmation flows). These items are extracted before filtering and unconditionally re-injected after, alongside initiative-protected items. Handles both dict (serialized) and Pydantic RegistryItem object formats.
+
+**Files changed:** `response_node.py`, `smart_planner_service.py`, `llm_config/constants.py`.
