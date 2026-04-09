@@ -101,3 +101,19 @@ Eight enhancements were added to the Psyche Engine without changing the core arc
 8. **Proactive emotions**: Engine can generate anticipatory emotions (e.g., before scheduled events) rather than only reacting
 
 Test coverage grew from 51 to ~155 tests.
+
+## v3 Consolidation: Template Variable Injection (2026-04-10)
+
+Triggered by a user-facing bug: proactive notifications attributed the assistant's emotions to the user (e.g., "Ta détermination du jour mérite mieux qu'un e-mail en suspens"). Root cause: psyche context was injected via hidden string concatenation without usage directives, and the LLM conflated the assistant's inner state with the user's.
+
+Four changes to how psyche context reaches prompts:
+
+1. **Template variable injection**: All prompts migrated from string concatenation (`prompt += psyche_block`) to `{psyche_context}` template placeholders resolved **before** `template.format()`. Every injection is now visible in the prompt template file.
+
+2. **Structured XML wrappers with usage directives**: Each prompt wraps `{psyche_context}` in an `<InnerState purpose="tone-calibration">` block with explicit instructions: what the data is ("YOUR current inner emotional state"), how to use it ("calibrate warmth, energy, rhythm — not content"), what NOT to do ("NEVER attribute to the user"), and fallback behavior ("if empty, use neutral tone"). Other injections (`{personality_instruction}`, `{memory_section}`, etc.) similarly wrapped in typed XML blocks (`<Personality purpose="voice-identity">`, `<Memory purpose="personalization">`, `<JournalContext purpose="behavioral-continuity">`, etc.).
+
+3. **Injection point cleanup**: Removed psyche injection entirely from 3 non-pertinent contexts: `emails_tools.py` (user email content), `sub_agents/executor.py` (factual synthesis), `initiative_node.py` (analytical decision). Psyche is reserved for user-facing text generation only.
+
+4. **Safety guardrail**: `build_psyche_prompt_block()` now includes: "NEVER attribute your emotions or mood to the user. These are YOUR internal states." Triple protection: guardrail in PsycheContext itself + wrapper directive in each prompt + removal from non-pertinent contexts.
+
+No changes to the core engine, models, or computation logic.

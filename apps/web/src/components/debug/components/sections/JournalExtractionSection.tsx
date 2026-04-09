@@ -10,7 +10,7 @@
 import React from 'react';
 import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { cn } from '@/lib/utils';
-import { ActionBadge, MetricRow } from '../shared';
+import { ActionBadge, EmptySection, MetricRow } from '../shared';
 import type { JournalExtractionMetrics } from '@/types/chat';
 
 export interface JournalExtractionSectionProps {
@@ -37,7 +37,7 @@ const MOOD_EMOJI: Record<string, string> = {
 export const JournalExtractionSection = React.memo(function JournalExtractionSection({
   data,
 }: JournalExtractionSectionProps) {
-  if (!data) return null;
+  if (!data) return <EmptySection value="journal-extraction" title="Journal Extraction" />;
 
   const hasActions = data.actions_applied > 0;
   const entries = data.entries ?? [];

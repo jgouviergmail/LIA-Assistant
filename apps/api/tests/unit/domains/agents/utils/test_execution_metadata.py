@@ -147,7 +147,7 @@ class TestGetToolDisplayMetadata:
         # Mock the registry and tool manifest
         mock_display = MagicMock()
         mock_display.emoji = "🔍"
-        mock_display.i18n_key = "search_contacts"
+        mock_display.i18n_key = "get_contacts"
         mock_display.visible = True
         mock_display.category = "tool"
 
@@ -159,10 +159,10 @@ class TestGetToolDisplayMetadata:
 
         with patch(REGISTRY_PATCH_PATH, return_value=mock_registry):
             with patch("src.domains.agents.utils.execution_metadata.logger"):
-                result = get_tool_display_metadata("search_contacts_tool")
+                result = get_tool_display_metadata("get_contacts_tool")
 
         assert result == mock_display
-        mock_registry.get_tool_manifest.assert_called_once_with("search_contacts_tool")
+        mock_registry.get_tool_manifest.assert_called_once_with("get_contacts_tool")
 
     def test_returns_none_when_tool_not_found(self):
         """Test returning None when tool is not in registry."""
@@ -348,7 +348,7 @@ class TestBuildExecutionStepEvent:
         """Test building tool event with correct structure."""
         mock_display = MagicMock()
         mock_display.emoji = "🔍"
-        mock_display.i18n_key = "search_contacts"
+        mock_display.i18n_key = "get_contacts"
         mock_display.visible = True
         mock_display.category = "tool"
 
@@ -362,17 +362,17 @@ class TestBuildExecutionStepEvent:
             with patch("src.domains.agents.utils.execution_metadata.logger"):
                 result = build_execution_step_event(
                     step_type="tool",
-                    step_name="search_contacts_tool",
+                    step_name="get_contacts_tool",
                     status="started",
                 )
 
         assert result is not None
         assert result["type"] == "execution_step"
         assert result["step_type"] == "tool"
-        assert result["step_name"] == "search_contacts_tool"
+        assert result["step_name"] == "get_contacts_tool"
         assert result[FIELD_STATUS] == "started"
         assert result["emoji"] == "🔍"
-        assert result["i18n_key"] == "search_contacts"
+        assert result["i18n_key"] == "get_contacts"
         assert result["category"] == "tool"
 
     def test_builds_node_event_correctly(self):

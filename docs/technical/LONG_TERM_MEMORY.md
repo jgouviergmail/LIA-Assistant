@@ -216,11 +216,16 @@ async def extract_memories_background(
 - `apps/api/src/domains/agents/prompts/v1/memory_extraction_prompt.txt`
 - `apps/api/src/domains/agents/prompts/v1/memory_extraction_personality_addon.txt`
 
-Le prompt principal inclut :
-- Analyse du dernier message USER uniquement
-- Instructions pour les 7 types d'informations à détecter
-- Format JSON avec tous les champs du schéma
-- Règles strictes (max 0-2 mémoires par message)
+Le prompt principal inclut 7 règles obligatoires :
+1. **First person** — écrire comme l'utilisateur parle ("I like X")
+2. **Exact words only** — ne jamais inférer, extraire uniquement les faits explicites
+3. **Atomic** — un fait par mémoire
+4. **Name relationships** — résoudre les relations connues en noms complets
+5. **Absolute temporal references** (v1.16.2) — toutes les dates relatives ("demain", "samedi prochain", "la semaine prochaine") sont systématiquement converties en dates absolues via la date/heure courante. Liste noire explicite des termes relatifs interdits
+6. **Qualify** — poids émotionnel (-10 à +10) et importance (0.0-1.0)
+7. **Categorize** — preference | personal | relationship | event | pattern | sensitivity
+
+Format JSON avec actions `create`, `update` (UUID existant), `delete` (UUID existant).
 
 ### 5. API Router
 

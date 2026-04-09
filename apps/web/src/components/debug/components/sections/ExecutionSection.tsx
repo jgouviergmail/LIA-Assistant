@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
-import { MetricRow } from '../shared';
+import { MetricRow, EmptySection } from '../shared';
 import { EXECUTION_STATUS_COLORS } from '../../utils/constants';
 import { formatDuration } from '../../utils/formatters';
 import { cn } from '@/lib/utils';
@@ -31,7 +31,7 @@ export const ExecutionSection = React.memo(function ExecutionSection({
   data,
 }: ExecutionSectionProps) {
   if (!data) {
-    return null;
+    return <EmptySection value="execution" title="Execution Timeline" />;
   }
 
   const { steps = [], total_steps, completed_steps } = data;

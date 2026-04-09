@@ -28,21 +28,9 @@ import { SSEHandlerContext, ProgressMessageMetadata } from './types';
 // ============================================================================
 
 /**
- * Get a random analyzing message from the translated array.
- * Falls back to the static 'analyzing' key if array is not available.
+ * Maximum number of execution steps to display before collapsing older ones.
  */
-function getRandomAnalyzingMessage(t: SSEHandlerContext['t']): string {
-  const messages = t('hitl.progress.analyzingMessages', { returnObjects: true });
-
-  // Check if we got an array back
-  if (Array.isArray(messages) && messages.length > 0) {
-    const randomIndex = Math.floor(Math.random() * messages.length);
-    return messages[randomIndex];
-  }
-
-  // Fallback to static message if array is not available
-  return t('hitl.progress.analyzing');
-}
+const MAX_VISIBLE_STEPS = 10;
 
 /**
  * Get user-facing progress message based on SSE event type.
@@ -55,19 +43,44 @@ export function getProgressMessage(
 ): string {
   switch (eventType) {
     case 'router_decision':
-      return getRandomAnalyzingMessage(t);
+      return `*🧭 ${t('execution.steps.router_decision', { defaultValue: 'Analyzing...' })}*`;
     case 'planner_metadata':
-      return t('hitl.progress.planning');
+      return `*📋 ${t('execution.steps.planner_generation', { defaultValue: 'Planning...' })}*`;
     case 'hitl_interrupt_metadata':
       return t('hitl.validating_access');
     case 'execution_step':
       if (metadata?.emoji && metadata?.i18n_key) {
-        return `*${metadata.emoji} ${t(`execution.steps.${metadata.i18n_key}`)}*`;
+        const stepText = t(`execution.steps.${metadata.i18n_key}`, { defaultValue: '' });
+        if (stepText) {
+          return `*${metadata.emoji} ${stepText}*`;
+        }
+      }
+      // Fallback: use detail if available (e.g., reasoning snippet)
+      if (metadata?.detail) {
+        const emoji = metadata.emoji || '🧠';
+        const truncated =
+          metadata.detail.length > 80 ? metadata.detail.slice(0, 77) + '...' : metadata.detail;
+        return `*${emoji} ${truncated}*`;
       }
       return t('hitl.progress.thinking');
     default:
       return t('hitl.progress.thinking');
   }
+}
+
+/**
+ * Build the full accumulated steps display content.
+ * Caps at MAX_VISIBLE_STEPS with a "... N previous steps" indicator.
+ */
+function buildAccumulatedStepsContent(steps: string[], t: SSEHandlerContext['t']): string {
+  if (steps.length <= MAX_VISIBLE_STEPS) {
+    return steps.join('\n');
+  }
+  const hidden = steps.length - MAX_VISIBLE_STEPS;
+  return [
+    `*... ${hidden} ${t('execution.steps.previous_steps', { count: hidden, defaultValue: 'previous steps' })}*`,
+    ...steps.slice(-MAX_VISIBLE_STEPS),
+  ].join('\n');
 }
 
 // ============================================================================
@@ -187,8 +200,15 @@ export function handleDebugMetricsUpdate(chunk: ChatStreamChunk, context: SSEHan
  * Handle router_decision: First progress feedback (~1s after send)
  */
 export function handleRouterDecision(chunk: ChatStreamChunk, context: SSEHandlerContext): void {
-  const { dispatch, withContext, t, assistantMessageId, progressMessageId, setProgressMessageId } =
-    context;
+  const {
+    dispatch,
+    withContext,
+    t,
+    assistantMessageId,
+    progressMessageId,
+    setProgressMessageId,
+    executionStepsRef,
+  } = context;
 
   logger.debug(
     'chat_router_decision',
@@ -212,8 +232,13 @@ export function handleRouterDecision(chunk: ChatStreamChunk, context: SSEHandler
   // Transition to connected state
   dispatch({ type: 'SSE_CONNECTED' });
 
-  // Create or update ephemeral progress message
-  const routerMessage = getProgressMessage('router_decision', t);
+  // Reset accumulated steps and add router as first step
+  executionStepsRef.current = [];
+  context.emittedStepKeysRef.current = new Set();
+  const routerStep = getProgressMessage('router_decision', t);
+  executionStepsRef.current.push(routerStep);
+  context.emittedStepKeysRef.current.add('router_decision');
+  const fullContent = buildAccumulatedStepsContent(executionStepsRef.current, t);
 
   if (!progressMessageId) {
     // First progress event - create message
@@ -222,14 +247,14 @@ export function handleRouterDecision(chunk: ChatStreamChunk, context: SSEHandler
       type: 'STREAM_START',
       payload: {
         messageId: assistantMessageId,
-        initialContent: routerMessage,
+        initialContent: fullContent,
       },
     });
   } else {
     // Update existing progress message
     dispatch({
       type: 'STREAM_REPLACE',
-      payload: { content: routerMessage },
+      payload: { content: fullContent },
     });
   }
 }
@@ -238,7 +263,16 @@ export function handleRouterDecision(chunk: ChatStreamChunk, context: SSEHandler
  * Handle planner_metadata: Planning progress (~2s after send)
  */
 export function handlePlannerMetadata(chunk: ChatStreamChunk, context: SSEHandlerContext): void {
-  const { dispatch, withContext, t, progressMessageId } = context;
+  const {
+    dispatch,
+    withContext,
+    t,
+    progressMessageId,
+    setProgressMessageId,
+    assistantMessageId,
+    executionStepsRef,
+    emittedStepKeysRef,
+  } = context;
 
   logger.info(
     'chat_planner_metadata',
@@ -248,22 +282,44 @@ export function handlePlannerMetadata(chunk: ChatStreamChunk, context: SSEHandle
     })
   );
 
-  // Update ephemeral progress message
-  const plannerMessage = getProgressMessage('planner_metadata', t);
+  // Accumulate planner step and register for dedup
+  const plannerStep = getProgressMessage('planner_metadata', t);
+  executionStepsRef.current.push(plannerStep);
+  emittedStepKeysRef.current.add('planner_generation');
+  const fullContent = buildAccumulatedStepsContent(executionStepsRef.current, t);
 
   if (progressMessageId) {
     dispatch({
       type: 'STREAM_REPLACE',
-      payload: { content: plannerMessage },
+      payload: { content: fullContent },
+    });
+  } else {
+    // Edge case: planner_metadata arrived before router_decision
+    setProgressMessageId(assistantMessageId);
+    dispatch({
+      type: 'STREAM_START',
+      payload: {
+        messageId: assistantMessageId,
+        initialContent: fullContent,
+      },
     });
   }
 }
 
 /**
- * Handle execution_step: Dynamic execution progress messages
+ * Handle execution_step: Dynamic execution progress messages (accumulated)
  */
 export function handleExecutionStep(chunk: ChatStreamChunk, context: SSEHandlerContext): void {
-  const { dispatch, withContext, t, progressMessageId } = context;
+  const {
+    dispatch,
+    withContext,
+    t,
+    progressMessageId,
+    setProgressMessageId,
+    assistantMessageId,
+    executionStepsRef,
+    emittedStepKeysRef,
+  } = context;
 
   logger.debug(
     'chat_execution_step',
@@ -273,17 +329,37 @@ export function handleExecutionStep(chunk: ChatStreamChunk, context: SSEHandlerC
     })
   );
 
-  // Update ephemeral progress message with execution step
-  const executionMessage = getProgressMessage(
-    'execution_step',
-    t,
-    chunk.metadata as ProgressMessageMetadata | undefined
-  );
+  const metadata = chunk.metadata as ProgressMessageMetadata | undefined;
+
+  // Deduplication by i18n_key: skip if already emitted by router/planner handlers.
+  // This prevents duplicates between router_decision/planner_metadata handlers and
+  // execution_step events from the backend "updates" stream mode.
+  if (metadata?.i18n_key && emittedStepKeysRef.current.has(metadata.i18n_key)) {
+    return; // Already shown by router/planner handler
+  }
+
+  // Build and accumulate step message
+  const stepMessage = getProgressMessage('execution_step', t, metadata);
+  executionStepsRef.current.push(stepMessage);
+  if (metadata?.i18n_key) {
+    emittedStepKeysRef.current.add(metadata.i18n_key);
+  }
+  const fullContent = buildAccumulatedStepsContent(executionStepsRef.current, t);
 
   if (progressMessageId) {
     dispatch({
       type: 'STREAM_REPLACE',
-      payload: { content: executionMessage },
+      payload: { content: fullContent },
+    });
+  } else {
+    // Edge case: execution_step arrived before router_decision
+    setProgressMessageId(assistantMessageId);
+    dispatch({
+      type: 'STREAM_START',
+      payload: {
+        messageId: assistantMessageId,
+        initialContent: fullContent,
+      },
     });
   }
 }
@@ -303,9 +379,13 @@ export function handleToken(chunk: ChatStreamChunk, context: SSEHandlerContext):
     setProgressMessageId,
     normalStreamInitialized,
     setNormalStreamInitialized,
+    executionStepsRef,
   } = context;
 
   if (progressMessageId && !normalStreamInitialized) {
+    // Clear accumulated execution steps — real content is arriving
+    executionStepsRef.current = [];
+    context.emittedStepKeysRef.current = new Set();
     // Progress message exists → replace with first token
     dispatch({
       type: 'STREAM_REPLACE',
@@ -341,6 +421,7 @@ export function handleContentReplacement(chunk: ChatStreamChunk, context: SSEHan
     setNormalStreamInitialized,
     progressMessageId,
     setProgressMessageId,
+    executionStepsRef,
   } = context;
 
   // Ensure a message container exists AND currentMessageId is set before replacing.
@@ -350,6 +431,9 @@ export function handleContentReplacement(chunk: ChatStreamChunk, context: SSEHan
   // whether progress events fired, or currentMessageId was cleared by an
   // intermediate event.
   if (!normalStreamInitialized) {
+    // Clear accumulated execution steps — real content is arriving
+    executionStepsRef.current = [];
+    context.emittedStepKeysRef.current = new Set();
     dispatch({ type: 'STREAM_START', payload: { messageId: assistantMessageId } });
     setNormalStreamInitialized(true);
     if (progressMessageId) {
@@ -403,8 +487,15 @@ export function handleHitlInterruptMetadata(
   chunk: ChatStreamChunk,
   context: SSEHandlerContext
 ): void {
-  const { dispatch, withContext, t, hitlQuestionBuffer, progressMessageId, setProgressMessageId } =
-    context;
+  const {
+    dispatch,
+    withContext,
+    t,
+    hitlQuestionBuffer,
+    progressMessageId,
+    setProgressMessageId,
+    executionStepsRef,
+  } = context;
 
   const metadataChunk = chunk.metadata as ToolApprovalMetadata & {
     message_id: string;
@@ -422,6 +513,10 @@ export function handleHitlInterruptMetadata(
 
   // Initialize buffer for this question
   hitlQuestionBuffer.current.set(messageId, '');
+
+  // Clear accumulated execution steps — HITL takes over the UI
+  executionStepsRef.current = [];
+  context.emittedStepKeysRef.current = new Set();
 
   // Update ephemeral progress message to HITL state
   const hitlMessage = getProgressMessage('hitl_interrupt_metadata', t);

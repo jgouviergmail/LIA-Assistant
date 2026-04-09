@@ -14,7 +14,7 @@
 import React from 'react';
 import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { cn } from '@/lib/utils';
-import { MetricRow, SectionBadge } from '../shared';
+import { MetricRow, SectionBadge, EmptySection } from '../shared';
 import { CONFIDENCE_BAR_COLORS, SCORE_BAR_MAX_WIDTH_PX } from '../../utils/constants';
 import type { RAGInjectionMetrics } from '@/types/chat';
 
@@ -45,7 +45,7 @@ export const RAGInjectionSection = React.memo(function RAGInjectionSection({
 }: RAGInjectionSectionProps) {
   // Case: no data (RAG disabled or no active spaces)
   if (!data) {
-    return null;
+    return <EmptySection value="rag-injection" title="RAG Knowledge Spaces" />;
   }
 
   const hasChunks = data.chunks_injected > 0;

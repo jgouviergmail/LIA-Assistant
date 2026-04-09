@@ -8,6 +8,7 @@
 
 import React from 'react';
 import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
+import { EmptySection } from '../shared';
 import { getNodeColor, MODEL_NAME_TRUNCATE_LENGTH } from '../../utils/constants';
 import { formatTokenCount, formatCost, formatDuration, truncateText } from '../../utils/formatters';
 import { cn } from '@/lib/utils';
@@ -31,7 +32,7 @@ export const LLMPipelineSection = React.memo(function LLMPipelineSection({
   data,
 }: LLMPipelineSectionProps) {
   if (!data || data.calls.length === 0) {
-    return null;
+    return <EmptySection value="llm_pipeline" title="LLM Pipeline" />;
   }
 
   return (

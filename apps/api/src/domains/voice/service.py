@@ -144,6 +144,7 @@ class VoiceCommentService:
         user_language: str,
         current_datetime: str,
         user_query: str = "",
+        psyche_context: str = "",
     ) -> str:
         """Build the prompt for voice comment generation."""
         from src.core.constants import ASSISTANT_NAME
@@ -157,6 +158,7 @@ class VoiceCommentService:
             max_sentences=settings.voice_max_sentences,
             context_instructions=user_query,  # Maps user_query to prompt's {context_instructions}
             assistant_name=ASSISTANT_NAME,
+            psyche_context=psyche_context,
         )
 
     def _normalize_text_for_tts(self, text: str) -> str:
@@ -360,15 +362,8 @@ class VoiceCommentService:
         Returns:
             Complete voice comment text.
         """
-        prompt = self._build_prompt(
-            context_summary=request.context_summary,
-            personality_instruction=request.personality_instruction,
-            user_language=request.user_language,
-            current_datetime=request.current_datetime,
-            user_query=request.user_query,
-        )
-
-        # Inject psyche context if user_id is available
+        # Resolve psyche context before template formatting
+        psyche_block = ""
         if self._user_id:
             try:
                 from src.domains.psyche.service import build_psyche_prompt_block
@@ -376,9 +371,17 @@ class VoiceCommentService:
                 psyche_block = await build_psyche_prompt_block(
                     user_id=self._user_id, user_timezone=None
                 )
-                prompt += psyche_block
             except Exception:
                 pass  # Psyche injection is best-effort
+
+        prompt = self._build_prompt(
+            context_summary=request.context_summary,
+            personality_instruction=request.personality_instruction,
+            user_language=request.user_language,
+            current_datetime=request.current_datetime,
+            user_query=request.user_query,
+            psyche_context=psyche_block,
+        )
 
         # Get LLM for voice comment generation (uses centralized config from settings)
         llm = get_llm("voice_comment")

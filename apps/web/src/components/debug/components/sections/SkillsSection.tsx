@@ -11,7 +11,7 @@
 import React from 'react';
 import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { cn } from '@/lib/utils';
-import { MetricRow } from '../shared';
+import { MetricRow, EmptySection } from '../shared';
 import type { SkillsMetrics } from '@/types/chat';
 
 export interface SkillsSectionProps {
@@ -45,7 +45,7 @@ function getActivationBadge(mode: string): { label: string; className: string } 
 
 export const SkillsSection = React.memo(function SkillsSection({ data }: SkillsSectionProps) {
   if (!data) {
-    return null;
+    return <EmptySection value="skills" title="Skills" />;
   }
 
   const activation = getActivationBadge(data.activation_mode);

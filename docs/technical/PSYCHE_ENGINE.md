@@ -374,6 +374,33 @@ never state your mood or emotions explicitly.
 </PsycheContext>
 ```
 
+### Template Variable Consolidation (v1.16.2)
+
+Previously, psyche blocks were appended to prompts via string concatenation **after** `template.format()`, leaving them outside the template's XML structure. As of v1.16.2, all prompts use `{psyche_context}` template placeholders resolved **before** formatting:
+
+```python
+# Before (string concat — removed in v1.16.2)
+prompt = load_prompt("reminder_prompt").format(reminder_info=info, ...)
+prompt += "\n" + build_psyche_prompt_block(psyche_state, personality)
+
+# After (template variable — v1.16.2)
+psyche_block = build_psyche_prompt_block(psyche_state, personality)
+prompt = load_prompt("reminder_prompt").format(
+    reminder_info=info,
+    psyche_context=psyche_block,  # Injected inside the template's XML structure
+    ...
+)
+```
+
+This ensures the psyche block is properly enclosed within semantic XML tags rather than dangling at the end of the prompt. Each prompt wraps `{psyche_context}` in an `<InnerState purpose="tone-calibration">` directive block that tells the LLM:
+
+- **What it is**: "YOUR current inner emotional state"
+- **How to use it**: "calibrate warmth, energy, and rhythm — not content"
+- **What NOT to do**: "NEVER reference, describe, or attribute these emotions to the user"
+- **Fallback**: "If this section is empty, use a neutral, warm tone"
+
+Each prompt's `<InnerState>` directive is tailored to the generation context (e.g., voice → "modulate vocal energy, rhythm", reminder → "adjust warmth and friendliness").
+
 ---
 
 ## Global Injection Points
@@ -388,12 +415,19 @@ The psyche context is injected into **all user-facing text generation**:
 | Reminder notification | B (compact) | `scheduler/reminder_notification.py` |
 | Fallback response | B (compact) | `agents/services/fallback_response.py` |
 | Voice comment | B (compact) | `voice/service.py` |
-| Email generation | B (compact) | `agents/tools/emails_tools.py` |
-| Sub-agent synthesis | B (compact) | `sub_agents/executor.py` |
-| Initiative suggestion | B (compact) | `agents/nodes/initiative_node.py` |
+
+> **Note (v1.16.2):** Email generation (`emails_tools.py`), sub-agent synthesis (`sub_agents/executor.py`), and initiative suggestion (`initiative_node.py`) no longer inject psyche context directly. As of v1.16.2, these rely on the main response prompt's psyche context (no separate injection).
 
 **Not injected** (internal processing, not user-facing):
 memory extraction, journal extraction/consolidation, compaction, query analyzer, semantic validator.
+
+### Safety Guardrail (v1.16.2)
+
+`build_psyche_prompt_block()` includes an explicit instruction:
+
+> "NEVER attribute your emotions or mood to the user. These are YOUR internal states, not descriptions of the user's feelings."
+
+This prevents the psyche context from causing the LLM to project its own emotional state onto user descriptions (e.g., "You seem happy today" when the user hasn't expressed any emotion).
 
 ---
 

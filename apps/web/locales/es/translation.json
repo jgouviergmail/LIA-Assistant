@@ -2410,7 +2410,7 @@
   },
   "execution": {
     "steps": {
-      "router_decision": "Analizando tu solicitud...",
+      "router_decision": "Analizando su solicitud...",
       "planner_generation": "Preparando plan de acción...",
       "semantic_validation": "Verificando plan...",
       "clarification_request": "Aclaración necesaria...",
@@ -2421,17 +2421,79 @@
       "react_reasoning": "Razonando...",
       "react_tool_execution": "Ejecutando herramienta...",
       "react_finalize": "Finalizando análisis...",
-
-      "search_contacts": "Buscando contactos...",
-      "list_contacts": "Recuperando lista de contactos...",
-      "get_contact_details": "Recuperando detalles del contacto...",
+      "get_contacts": "Recuperando contactos...",
+      "create_contact": "Creando contacto...",
+      "update_contact": "Actualizando contacto...",
+      "delete_contact": "Eliminando contacto...",
+      "get_events": "Recuperando eventos...",
+      "create_event": "Creando evento...",
+      "update_event": "Actualizando evento...",
+      "delete_event": "Eliminando evento...",
+      "list_calendars": "Listando calendarios...",
+      "get_emails": "Recuperando correos...",
+      "send_email": "Enviando correo...",
+      "reply_email": "Respondiendo correo...",
+      "forward_email": "Reenviando correo...",
+      "delete_email": "Eliminando correo...",
+      "list_labels": "Listando etiquetas...",
+      "create_label": "Creando etiqueta...",
+      "update_label": "Actualizando etiqueta...",
+      "delete_label": "Eliminando etiqueta...",
+      "apply_labels": "Aplicando etiquetas...",
+      "remove_labels": "Eliminando etiquetas...",
+      "get_tasks": "Recuperando tareas...",
+      "create_task": "Creando tarea...",
+      "complete_task": "Completando tarea...",
+      "update_task": "Actualizando tarea...",
+      "delete_task": "Eliminando tarea...",
+      "list_task_lists": "Listando listas de tareas...",
+      "create_reminder": "Creando recordatorio...",
+      "list_reminders": "Listando recordatorios...",
+      "cancel_reminder": "Cancelando recordatorio...",
+      "get_files": "Recuperando archivos...",
+      "get_places": "Buscando lugares...",
+      "get_current_location": "Obteniendo ubicación actual...",
+      "get_route": "Calculando ruta...",
+      "get_route_matrix": "Calculando matriz de rutas...",
+      "get_current_weather": "Obteniendo clima actual...",
+      "get_weather_forecast": "Obteniendo pronóstico del tiempo...",
+      "get_hourly_forecast": "Obteniendo pronóstico por horas...",
+      "search_wikipedia": "Buscando en Wikipedia...",
+      "get_wikipedia_summary": "Obteniendo resumen de Wikipedia...",
+      "get_wikipedia_article": "Obteniendo artículo de Wikipedia...",
+      "get_wikipedia_related": "Buscando artículos relacionados...",
+      "unified_web_search": "Buscando en la web...",
+      "brave_search": "Buscando con Brave...",
+      "brave_news": "Obteniendo noticias de Brave...",
+      "fetch_web_page": "Recuperando contenido de la página web...",
+      "perplexity_search": "Buscando con Perplexity...",
+      "perplexity_ask": "Preguntando a Perplexity...",
+      "browser": {
+        "navigate": "Navegando a la página...",
+        "snapshot": "Capturando la página...",
+        "click": "Haciendo clic en el elemento...",
+        "fill": "Rellenando campo...",
+        "press_key": "Presionando tecla..."
+      },
+      "list_hue_lights": "Listando luces Hue...",
+      "control_hue_light": "Controlando luz Hue...",
+      "list_hue_rooms": "Listando habitaciones Hue...",
+      "control_hue_room": "Controlando habitación Hue...",
+      "list_hue_scenes": "Listando escenas Hue...",
+      "activate_hue_scene": "Activando escena Hue...",
+      "generate_image": "Generando imagen...",
+      "edit_image": "Editando imagen...",
       "resolve_reference": "Resolviendo referencia...",
       "set_current_item": "Seleccionando elemento...",
       "get_context_state": "Recuperando estado del contexto...",
       "list_active_domains": "Listando dominios activos...",
       "get_context_list": "Recuperando lista contextual...",
-      "fetch_web_page": "Recuperando el contenido de la página web...",
-      "mcp_tool": "Ejecutando herramienta MCP externa..."
+      "local_query_engine": "Consultando base de conocimientos...",
+      "claude_server_task": "Ejecutando tarea del servidor...",
+      "delegate_to_sub_agent": "Delegando al sub-agente...",
+      "mcp_tool": "Ejecutando herramienta MCP externa...",
+      "previous_steps_one": "paso anterior",
+      "previous_steps_other": "pasos anteriores"
     }
   },
   "faq": {
@@ -2507,7 +2569,7 @@
         },
         "streaming": {
           "title": "⚡ Streaming & Tiempo Real",
-          "description": "Respuestas en streaming SSE (Server-Sent Events) con eventos tipificados: tokens, estados de herramientas, solicitudes HITL, metadatos de ejecución. El frontend procesa el flujo progresivamente para una experiencia interactiva inmediata."
+          "description": "Respuestas en streaming SSE (Server-Sent Events) con eventos tipados: tokens, estados de herramientas, solicitudes HITL, metadatos de ejecución. El frontend muestra cada paso de ejecución en tiempo real (enrutamiento, planificación, validación, llamadas de herramientas) con progreso acumulativo, y luego transmite la respuesta token a token."
         },
         "llm": {
           "title": "🤖 Multi-Proveedores LLM & Pattern Learning",
@@ -2648,6 +2710,18 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_16_2": {
+          "title": "v1.16.2 — Visualización progresiva de pasos de ejecución",
+          "date": "Abril 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>Pasos de ejecución en tiempo real</b> — Ahora puede ver cada paso del procesamiento a medida que ocurre: análisis, planificación, validación, orquestación y cada llamada de herramienta (emails, calendario, clima, contactos...). Los pasos se acumulan visualmente y desaparecen cuando llega la respuesta.",
+            "i2": "<b>Nombres de herramientas en modo ReAct</b> — El modo ReAct ahora muestra qué herramienta específica se está utilizando (ej. \"Recuperando eventos...\", \"Buscando contactos...\") en lugar de un mensaje genérico. También se muestra un extracto del razonamiento.",
+            "i3": "<b>Pasos Pipeline ahora visibles</b> — Anteriormente, solo se mostraba una frase aleatoria de análisis durante la ejecución Pipeline. Ahora ve la progresión real: enrutamiento → planificación → validación → orquestación → ejecución de herramientas → respuesta.",
+            "i4": "<b>Consistencia de tono mejorada</b> — La personalidad y el estado emocional de LIA se integran ahora de forma más fiable en todas las respuestas, incluidas las notificaciones proactivas, recordatorios y comentarios de voz. Una protección garantiza que LIA nunca proyecte su propio estado de ánimo en usted.",
+            "i5": "<b>Memoria temporal fiable</b> — Cuando menciona fechas relativas (\"mañana\", \"el próximo sábado\", \"la próxima semana\"), LIA ahora las convierte sistemáticamente en fechas absolutas antes de almacenarlas. Sus recuerdos permanecen fiables y relevantes incluso semanas después."
+          }
+        },
         "v1_16_1": {
           "title": "v1.16.1 — Fiabilidad de la configuración LLM",
           "date": "Abril 2026",
@@ -4715,7 +4789,7 @@
       },
       "realtime": {
         "title": "Streaming en tiempo real",
-        "description": "Respuestas en streaming SSE, ejecución paralela de agentes, resultados mostrados sobre la marcha. Sin esperas innecesarias."
+        "description": "Vea cada paso de ejecución en tiempo real — enrutamiento, planificación, validación, llamadas de herramientas — y luego la respuesta en streaming token a token. Sin caja negra, sin esperas."
       },
       "stack": {
         "title": "Stack moderno",

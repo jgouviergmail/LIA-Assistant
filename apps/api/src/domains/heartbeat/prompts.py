@@ -177,22 +177,23 @@ async def generate_heartbeat_message(
     language_name = get_language_name(user_language)
     current_dt = datetime.now(tz=UTC).strftime("%d/%m/%Y %H:%M")
 
-    system_prompt = load_prompt("heartbeat_message_prompt").format(
-        personality_instruction=personality_instruction or DEFAULT_PERSONALITY_PROMPT,
-        language=language_name,
-        current_datetime=current_dt,
-        message_draft=message_draft,
-    )
-
-    # Inject psyche context if user_id is available
+    # Resolve psyche context before template formatting
+    psyche_block = ""
     if user_id:
         try:
             from src.domains.psyche.service import build_psyche_prompt_block
 
             psyche_block = await build_psyche_prompt_block(user_id=user_id, user_timezone=None)
-            system_prompt += psyche_block
         except Exception:
             pass  # Psyche injection is best-effort
+
+    system_prompt = load_prompt("heartbeat_message_prompt").format(
+        personality_instruction=personality_instruction or DEFAULT_PERSONALITY_PROMPT,
+        language=language_name,
+        current_datetime=current_dt,
+        message_draft=message_draft,
+        psyche_context=psyche_block,
+    )
 
     llm = get_llm("heartbeat_message")
 

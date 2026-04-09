@@ -5,6 +5,72 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.16.2] - 2026-04-10
+
+### Progressive Execution Step Display
+
+Real-time visibility of execution steps during both Pipeline and ReAct modes. Previously, pipeline mode only showed a random "analyzing" phrase, and ReAct mode showed generic "Executing tool..." / "Reasoning..." messages. Steps are now accumulated and displayed persistently until the response arrives.
+
+#### Added
+- **Pipeline step visibility via LangGraph "updates" stream mode**: Added `stream_mode="updates"` to `graph.astream()`. Every pipeline node (router, planner, semantic_validator, approval_gate, task_orchestrator, response) now emits an `execution_step` SSE event with emoji + i18n label. Previously, only router_decision was visible — planner, semantic_validator, approval_gate, and task_orchestrator were completely invisible because they don't update the `messages` state key.
+- **Per-tool execution steps in Pipeline mode**: When task_orchestrator completes, tool names are extracted from the ExecutionPlan and emitted as individual `execution_step` events (e.g., "📅 Retrieving events...", "🌤️ Fetching weather...").
+- **Per-tool execution steps in ReAct mode**: When react_call_model produces an AIMessage with tool_calls, individual `execution_step` events are emitted for each tool using the catalogue's DisplayMetadata.
+- **Reasoning detail in ReAct mode**: AIMessage content from react_call_model is extracted, truncated to 120 chars, and included as a `detail` field in the execution_step event.
+- **Accumulated step display**: Frontend accumulates execution steps in a multi-line progress message (each step persists) instead of replacing each step. Capped at 10 visible steps with "... N previous steps" indicator.
+- **Deduplication by i18n_key**: `emittedStepKeysRef` (Set) prevents duplicate step display between `router_decision`/`planner_metadata` handlers and `execution_step` events from "updates" mode.
+- **52 new i18n keys for tool execution steps** (6 languages): Contacts CRUD, Calendar events, Emails/Labels, Tasks, Reminders, Drive files, Places, Routes, Weather, Wikipedia, Web Search (Brave/Perplexity/unified), Browser actions (nested), Hue smart lights, Image generation, Context tools, Knowledge base, DevOps, Sub-agents.
+
+#### Fixed
+- **`planner_metadata` SSE events were dead code**: Backend defined the event type in schema but never emitted it. Frontend handler existed but never received data. Pipeline steps now work via "updates" mode execution_step events.
+- **3 orphaned i18n keys replaced**: `search_contacts`, `list_contacts`, `get_contact_details` → replaced with catalogue-aligned `get_contacts`, etc.
+- **Singular pluralization**: Added `previous_steps_one`/`previous_steps_other` i18n plural forms for step cap indicator.
+
+#### Changed
+- **`_process_messages_chunk()` simplified**: Node transition detection removed (delegated to "updates" mode). Method now only handles token streaming from response node.
+- **`getProgressMessage('router_decision')` uses real i18n step text**: Replaced random funny analyzing phrases with `execution.steps.router_decision` label for consistency with accumulated step display.
+
+### Psyche Context Injection Consolidation
+
+Systematic migration of all prompts from **string concatenation** to **template variable injection** for psyche context. Previously, psyche blocks were appended after template formatting via string concat, leaving them outside the XML structure. All prompts now use `{psyche_context}` placeholders resolved **before** `template.format()`.
+
+#### Changed
+- **6 prompt templates restructured with XML semantic blocks**: `fallback_response_prompt.txt`, `heartbeat_message_prompt.txt`, `voice_comment_prompt.txt`, `reminder_prompt.txt`, `interest_content_prompt.txt`, `response_system_prompt_base.txt` — all now use typed XML blocks (`<Personality purpose="voice-identity">`, `<InnerState purpose="tone-calibration">`, `<TaskContext purpose="grounding">`, `<ReminderContext purpose="what-to-remind">`, `<SourceMaterial purpose="content-to-present">`, `<Memory purpose="personalization">`, `<UserContext purpose="decision-filter">`, `<JournalContext purpose="behavioral-continuity">`, `<WebSearchContext purpose="factual-enrichment">`, `<UserDocuments purpose="personal-knowledge">`, `<AppKnowledge purpose="product-support">`) for LLM clarity. Each block includes explicit usage directives and fallback behavior when empty.
+- **5 service files refactored**: `fallback_response.py`, `heartbeat/prompts.py`, `interests/proactive_task.py`, `voice/service.py`, `scheduler/reminder_notification.py` — psyche block resolved before template formatting.
+- **3 service files cleaned**: `initiative_node.py`, `emails_tools.py`, `sub_agents/executor.py` — removed psyche injection entirely (non-pertinent contexts: analytical decisions, factual synthesis, user email content).
+- **Memory extraction prompt overhauled**: Exhaustive temporal reference rules covering days, periods, times, months with concrete conversion examples. Explicit blacklist of relative terms ("today", "tomorrow", "next week", "soon", "recently", etc.).
+
+#### Fixed
+- **Proactive notification emotion projection** (user-facing): Notifications attributed the assistant's emotional state to the user (e.g., "Ta détermination du jour mérite mieux qu'un e-mail en suspens"). Root cause: psyche context was injected without usage directive, and the LLM conflated the assistant's inner state with the user's. Fixed via triple protection: safety guardrail in `build_psyche_prompt_block()`, `<InnerState>` wrapper directives in each prompt, and removal of psyche from non-user-facing prompts.
+- **Dead instruction in heartbeat prompt**: Removed reference to "journal observations" that were not available in the message generation phase (journal entries are only in the decision phase context).
+
+### Debug Panel Reorganization
+
+#### Added
+- **6 logical section groups with persistent headers**: Sections reorganized into — Request Analysis, Planning & Execution, Intelligent Mechanisms, Context Injection, Background Extraction, LLM & API Pipeline. Each group has a visible `SectionGroupHeader` separator.
+- **Always-visible empty sections**: New `EmptySection` shared component replaces `return null` in all 15 conditional sections. Sections now always render with an "N/A" badge and placeholder content when no data is available, instead of disappearing entirely.
+
+#### Fixed
+- **6 accordion value mismatches**: EmptySection `value` props corrected to match their AccordionItem counterparts (hyphen vs underscore inconsistencies: `request-lifecycle`→`request_lifecycle`, `llm-pipeline`→`llm_pipeline`, etc.).
+- **3 title inconsistencies**: EmptySection titles harmonized with AccordionTrigger titles (`Journal Injection`→`Personal Journals`, `RAG Injection`→`RAG Knowledge Spaces`, `Google API Calls`→`Google API`).
+- **Circular import in EmptySection**: Changed `import { SectionBadge } from '../shared'` to direct import from `'./badges/SectionBadge'` to avoid barrel re-export cycle.
+
+### Documentation
+- Updated `docs/technical/REACT_EXECUTION_MODE.md` with streaming step visibility details.
+- Updated `docs/ARCHITECTURE_LANGRAPH.md` with "updates" stream mode and per-tool events.
+- Updated `docs/architecture/ADR-018-SSE-Streaming-Pattern.md` with execution_step event structure.
+- Updated `docs/technical/PSYCHE_ENGINE.md` with template variable consolidation, injection point cleanup, and safety guardrail.
+- Updated `docs/technical/DEBUG_PANEL_ARCHITECTURE.md` with 6-group section organization and EmptySection component.
+- Updated `docs/architecture/ADR-068-Psyche-Engine.md` with v3 template variable injection pattern.
+- Updated `docs/technical/PROMPTS.md` with psyche context via template variables pattern.
+- Updated `docs/knowledge/02_chat.md` with execution step visibility user documentation.
+- Updated `docs/knowledge/03_settings.md` with absolute temporal memory extraction.
+- Updated `docs/knowledge/09_proactive_notifications.md` with tone calibration note.
+- Updated `docs/knowledge/22_psyche.md` with non-projection guarantee.
+- Updated `docs/technical/LONG_TERM_MEMORY.md` with 7-rule extraction prompt documentation.
+- Updated `README.md` with 6-group debug panel table and psyche safety guardrail.
+- Updated FAQ changelog (6 languages) with v1.16.2 entries (5 items incl. tone consistency and temporal memory).
+
+
 ## [1.16.1] - 2026-04-09
 
 ### Homogeneous LLM Config Resolution

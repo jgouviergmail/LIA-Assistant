@@ -8,7 +8,7 @@
 
 import React from 'react';
 import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
-import { MetricRow } from '../shared';
+import { EmptySection, MetricRow } from '../shared';
 import { formatPercent } from '../../utils/formatters';
 import type { IntelligentMechanisms } from '@/types/chat';
 
@@ -25,10 +25,10 @@ export interface IntelligentMechanismsSectionProps {
 export const IntelligentMechanismsSection = React.memo(function IntelligentMechanismsSection({
   data,
 }: IntelligentMechanismsSectionProps) {
-  if (!data) return null;
+  if (!data) return <EmptySection value="mechanisms" title="Intelligent Mechanisms" />;
 
   const mechanismsApplied = Object.values(data).filter(m => m?.applied).length;
-  if (mechanismsApplied === 0) return null;
+  if (mechanismsApplied === 0) return <EmptySection value="mechanisms" title="Intelligent Mechanisms" />;
 
   return (
     <AccordionItem value="mechanisms">

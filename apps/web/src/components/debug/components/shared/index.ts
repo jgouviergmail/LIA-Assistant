@@ -19,3 +19,6 @@ export { ToolMatchRow, type ToolMatchRowProps, type ToolMatch } from './ToolMatc
 
 // Section wrapper
 export { DebugSection, type DebugSectionProps } from './DebugSection';
+
+// Empty state placeholder
+export { EmptySection, type EmptySectionProps } from './EmptySection';

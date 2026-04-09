@@ -313,7 +313,7 @@ LIA learns about you through its **intelligent memory**:
 • **Sensitive areas**: topics to approach with care
 
 **🔄 Automatic extraction:**
-LIA analyzes your conversations and automatically extracts relevant information in the background.
+LIA analyzes your conversations and automatically extracts relevant information in the background. When you mention relative dates ("tomorrow", "next Saturday", "next week"), LIA converts them to **absolute dates** before storing — so your memories stay accurate even weeks later.
 
 **🔍 Hybrid search:**
 LIA uses **hybrid search** combining keywords (BM25) and meaning (semantic) to retrieve your relevant memories with optimal accuracy.

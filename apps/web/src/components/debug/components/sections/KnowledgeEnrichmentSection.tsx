@@ -15,7 +15,7 @@
 import React from 'react';
 import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { cn } from '@/lib/utils';
-import { MetricRow, SectionBadge } from '../shared';
+import { EmptySection, MetricRow, SectionBadge } from '../shared';
 import { INFO_SECTION_CLASSES } from '../../utils/constants';
 import type { KnowledgeEnrichmentMetrics } from '@/types/chat';
 
@@ -80,7 +80,7 @@ export const KnowledgeEnrichmentSection = React.memo(function KnowledgeEnrichmen
 }: KnowledgeEnrichmentSectionProps) {
   // Case: no data
   if (!data) {
-    return null;
+    return <EmptySection value="knowledge-enrichment" title="Knowledge Enrichment" />;
   }
 
   // Case: feature globally disabled

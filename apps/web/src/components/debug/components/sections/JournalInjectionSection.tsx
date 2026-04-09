@@ -23,7 +23,7 @@
 import React from 'react';
 import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { cn } from '@/lib/utils';
-import { MetricRow, SectionBadge } from '../shared';
+import { EmptySection, MetricRow, SectionBadge } from '../shared';
 import { CONFIDENCE_BAR_COLORS, SCORE_BAR_MAX_WIDTH_PX } from '../../utils/constants';
 import type { JournalInjectionMetrics } from '@/types/chat';
 
@@ -223,7 +223,7 @@ export const JournalInjectionSection = React.memo(function JournalInjectionSecti
   plannerData,
 }: JournalInjectionSectionProps) {
   if (!data && !plannerData) {
-    return null;
+    return <EmptySection value="journal-injection" title="Personal Journals" />;
   }
 
   const hasResponseEntries = data ? data.entries_injected > 0 : false;

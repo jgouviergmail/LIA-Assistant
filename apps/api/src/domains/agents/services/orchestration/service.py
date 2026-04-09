@@ -1205,7 +1205,7 @@ class OrchestrationService:
         - Token tracking callback
         - Langfuse callbacks for observability
         - Context dict for ToolRuntime
-        - Graph.astream() execution with stream_mode=["values", "messages"]
+        - Graph.astream() execution with stream_mode=["values", "messages", "updates"]
 
         Args:
             graph: Compiled LangGraph instance
@@ -1345,7 +1345,7 @@ class OrchestrationService:
             )
 
         # === Stream outputs from graph using recommended LangGraph API ===
-        # Using astream() with stream_mode=["values", "messages"] instead of astream_events()
+        # Using astream() with stream_mode=["values", "messages", "updates"] instead of astream_events()
         # Reason: LangGraph documentation states "astream_events is usually not necessary with LangGraph"
         # Benefits: Type-safe state access, simpler code, better performance
         #
@@ -1382,7 +1382,7 @@ class OrchestrationService:
                 async for mode, chunk in graph.astream(
                     command_input,
                     runnable_config,
-                    stream_mode=["values", "messages"],
+                    stream_mode=["values", "messages", "updates"],
                     context=context_dict,
                 ):
                     yield (mode, chunk)
@@ -1391,7 +1391,7 @@ class OrchestrationService:
                 async for mode, chunk in graph.astream(
                     state,
                     runnable_config,
-                    stream_mode=["values", "messages"],
+                    stream_mode=["values", "messages", "updates"],
                     context=context_dict,
                 ):
                     yield (mode, chunk)

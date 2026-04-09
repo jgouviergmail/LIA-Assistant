@@ -186,6 +186,24 @@ async def router_node(state: MessagesState) -> dict:
     return {"routing_decision": response.model_dump()}
 ```
 
+### Psyche Context via Template Variables (v1.16.2)
+
+All user-facing prompts now inject psyche context via template placeholders rather than string concatenation:
+
+```python
+# Example: reminder_prompt.txt contains {psyche_context} placeholder
+from src.domains.psyche.service import PsycheService
+
+psyche_block = await PsycheService.build_psyche_prompt_block(psyche_state, personality)
+prompt = load_prompt("reminder_prompt").format(
+    reminder_info=reminder_data,
+    memory_context=memory_block,
+    psyche_context=psyche_block,  # Injected inside the template's XML structure
+)
+```
+
+This ensures psyche directives are enclosed within semantic XML blocks (e.g., `<InnerState purpose="tone-calibration">`) rather than appended outside the template structure. All 6 user-facing prompt templates (`fallback_response_prompt`, `heartbeat_message_prompt`, `voice_comment_prompt`, `reminder_prompt`, `interest_content_prompt`, `response_system_prompt_base`) follow this pattern.
+
 ---
 
 ## 📁 Domain Agent Prompts
@@ -374,15 +392,17 @@ Output: "J'ai trouvé trois contacts pour toi. Marie Dupont, Jean Martin et Pier
 ### Memory Prompts
 
 #### `memory_extraction_prompt.txt`
-Extrait les informations à mémoriser long-terme depuis la conversation.
+Extracts long-term memory facts from the user's last message. 7 mandatory rules:
 
-```
-Analyse cette conversation et extrait:
-1. Faits sur l'utilisateur (préférences, habitudes)
-2. Relations personnelles (famille, amis, collègues)
-3. Événements importants (anniversaires, rendez-vous récurrents)
-4. Préférences de communication
-```
+1. **First person** — Write as the user speaks ("I like X", "My son is named Y")
+2. **Exact words only** — Extract only explicitly stated facts, never infer
+3. **Atomic** — One fact per memory, split compound statements
+4. **Name relationships** — Resolve known relationships to full names
+5. **Absolute temporal references** (v1.16.2) — ALL relative dates/times must be converted to absolute using current datetime. Exhaustive examples for days, periods, times, months. Explicit blacklist: "today", "tomorrow", "yesterday", "next/last [day]", "this [period]", "in [duration]", "soon", "recently"
+6. **Qualify** — emotional_weight (-10 to +10) and importance (0.0-1.0)
+7. **Categorize** — preference | personal | relationship | event | pattern | sensitivity
+
+Supports 3 actions: `create`, `update` (with existing UUID), `delete` (with existing UUID).
 
 #### `memory_extraction_personality_addon.txt`
 Addon pour extraire les traits de personnalité.

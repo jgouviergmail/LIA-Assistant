@@ -36,7 +36,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.16.1</strong> — Homogeneous LLM config resolution, DB override enforcement — April 2026
+  <strong>Version 1.16.2</strong> — Execution step visibility, prompt engineering consolidation, psyche safety — April 2026
 </p>
 
 ---
@@ -172,7 +172,8 @@ LIA is available as a hosted service at **https://lia.jeyswork.com/** — no ins
 - **4-Chart Dashboard**: Interactive recharts visualization of mood (PAD), emotions, relationship, and drives over time (24h to 90 days)
 - **Education Guide**: 7-section interactive documentation explaining every layer, with descriptive tables for 14 moods and 22 emotions
 - **Customizable Temperament**: Expressiveness (stoic → highly expressive) and stability (volatile → very stable) sliders. Soft reset (mood only) and full reset (everything) with explicit scope descriptions
-- **Global Injection**: Behavioral directives injected into all user-facing text generation (response, notifications, reminders, emails, voice, sub-agents)
+- **Global Injection**: Behavioral directives injected via template variables into all user-facing text generation (response, notifications, reminders, voice) within semantic XML blocks (`<InnerState purpose="tone-calibration">`)
+- **Safety Guardrail**: Explicit instruction prevents the LLM from projecting its own emotional state onto the user
 - **Self-Report**: Zero-cost emotion tracking via hidden `<psyche_eval/>` tag — no additional LLM call
 
 ### Voice: Input & Output
@@ -423,16 +424,16 @@ A web-based administration panel covering every operational aspect:
 
 ### Real-Time Debug Panel
 
-A multi-section debug panel embedded in the chat interface, providing real-time introspection into every aspect of a conversation turn:
+A 24-section debug panel embedded in the chat interface, organized into **6 logical groups** with always-visible sections (empty sections show "N/A" instead of disappearing):
 
-| Category | Sections |
-|----------|----------|
-| **Intent Analysis** | Intent classification, Domain detection, Routing decision (with confidence scores) |
-| **Execution Pipeline** | Planner output, Execution waves, Tool calls (inputs/outputs), ForEach analysis |
-| **LLM Internals** | LLM Pipeline (chronological reconciliation of all LLM + embedding calls), LLM call details (model, tokens, latency), Token budget tracking, Google API calls |
-| **Context & Memory** | Context resolution, Memory injection, Knowledge enrichment, RAG injection (scores), Interest profile |
-| **Intelligence** | Intelligent mechanisms (cache hits, pattern learning, semantic expansion) |
-| **Lifecycle** | Full request lifecycle with timing breakdown per phase |
+| Group | Sections |
+|-------|----------|
+| **Request Analysis** | Intent classification, Domain detection, Routing decision, Query transformations |
+| **Planning & Execution** | Planner output, Tool selection, Context resolution, Token budget, Execution timeline, ForEach analysis, Execution waves |
+| **Intelligent Mechanisms** | Cache hits, pattern learning, semantic expansion, Skills activation |
+| **Context Injection** | Memory injection (scores), RAG injection (scores), Knowledge enrichment (Brave), Journal injection (per-entry scores, budget) |
+| **Background Extraction** | Memory detection (create/update/delete), Journal extraction, Interest profile |
+| **LLM & API Pipeline** | Request lifecycle (timing breakdown per node), LLM Pipeline (chronological reconciliation), LLM call details (model, tokens, latency, cost), Google API calls |
 
 > The debug panel is designed for **developers and operators** to diagnose issues, optimize prompts, and understand the agent's decision-making process in real time — without needing external tools or log access.
 

@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
-import { MetricRow, StrategyBadge } from '../shared';
+import { MetricRow, StrategyBadge, EmptySection } from '../shared';
 import { formatTokenCount, formatCost, formatPercent } from '../../utils/formatters';
 import type { DebugMetrics } from '@/types/chat';
 
@@ -29,7 +29,7 @@ export interface PlannerSectionProps {
  */
 export const PlannerSection = React.memo(function PlannerSection({ data }: PlannerSectionProps) {
   if (!data) {
-    return null;
+    return <EmptySection value="planner" title="Planner Intelligence" />;
   }
 
   const { strategy, tokens, plan, flags, success, error } = data;

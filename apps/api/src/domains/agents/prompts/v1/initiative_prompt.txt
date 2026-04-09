@@ -39,9 +39,17 @@ For suggestions: if you spot something that would need a WRITE action
 (create event, send reply), phrase it as a helpful question.
 </DecisionLogic>
 
-<UserContext>
+<UserContext purpose="decision-filter">
+Use this context to evaluate whether a cross-domain check is personally relevant to THIS user. Only propose actions that connect to known habits, interests, or circumstances below.
+
+<MemoryFacts>
 {memory_facts}
+</MemoryFacts>
+
+<UserInterests>
 {user_interests}
+</UserInterests>
+
 Timezone: {user_timezone} | Language: {user_language} | Date: {current_datetime}
 </UserContext>
 

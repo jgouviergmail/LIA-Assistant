@@ -7,7 +7,12 @@ Return [] if nothing worth memorizing (trivial questions, greetings, already kno
 2. **Exact words only** — Extract ONLY what is EXPLICITLY stated. NEVER infer from context. Context messages = understanding only, NOT data source.
 3. **Atomic** — One fact per memory. "I love chocolate but hate lemon" → 2 separate memories with distinct emotional_weight/trigger_topic.
 4. **Name relationships** — If KNOWN RELATIONSHIPS contains the full name, include it: "my son" → "My son Martin Dupond".
-5. **Absolute dates** — Convert ALL relative dates using CURRENT DATE: "tomorrow" → "on 03/31/2026", "in June" → "in June 2026". Never store relative time.
+5. **Absolute temporal references** — Memories persist indefinitely and may be recalled weeks or months later. ALL temporal references MUST be resolved to absolute dates and times using CURRENT DATE AND TIME below. A memory with "tomorrow" or "Saturday" becomes meaningless after a day.
+   - Days: "tomorrow" → "on 2026-04-11", "yesterday" → "on 2026-04-09", "Saturday" → "on 2026-04-12"
+   - Periods: "next week" → "week of 2026-04-13", "this weekend" → "2026-04-12/13", "this month" → "April 2026"
+   - Times: "in an hour" → "at 15:30 on 2026-04-10", "this afternoon" → "afternoon of 2026-04-10", "tonight" → "evening of 2026-04-10"
+   - Months: "in June" → "in June 2026", "last Christmas" → "on Christmas 2025-12-25"
+   - NEVER store: "today", "tomorrow", "yesterday", "next/last [day]", "this [period]", "in [duration]", "soon", "recently"
 6. **Qualify** — Set emotional_weight (-10 pain to +10 joy, 0 only if truly neutral) and importance (0.0-1.0, family > food preferences, "I adore" > "I like").
 7. **Categorize** — preference (likes/dislikes) | personal (identity, job) | relationship (people) | event (past/future milestones) | pattern (habits) | sensitivity (pain, trauma, illness, conflict).
 

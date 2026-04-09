@@ -7,6 +7,7 @@ Proactive notifications allow LIA to **take the initiative** to contact you with
 • LIA continuously analyzes multiple data sources (calendar, weather, emails, interests, memories)
 • An LLM **intelligently decides** whether there's something useful to tell you
 • The message is rewritten with your **personality** and in your **language**
+• LIA's inner emotional state subtly shapes the **tone** of notifications (warmth, energy, rhythm) — but is **never projected onto you**
 
 **📌 Examples:**
 • "*Rain expected in 45 minutes, don't forget your umbrella*"

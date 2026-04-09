@@ -45,6 +45,8 @@ Before each response, LIA loads its psychological state, applies natural decay t
 
 After each response, LIA self-evaluates: what emotion did this exchange trigger? How positive was the user? This hidden evaluation feeds the next cycle — creating a continuous emotional loop that makes conversations feel natural and alive.
 
+**Important:** LIA's emotional state shapes its **own tone** (word choice, rhythm, energy) — it is **never projected onto you**. LIA will never say "you seem determined today" based on its own inner state. The psyche is invisible to you unless you ask about it directly.
+
 ## FAQ
 
 **Does the Psyche Engine cost extra tokens?** Very little — about 150 input tokens and 25 output tokens per message. The self-evaluation uses a hidden XML tag, not an extra LLM call.

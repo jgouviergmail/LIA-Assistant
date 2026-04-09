@@ -2431,16 +2431,98 @@
       "react_tool_execution": "Executing tool...",
       "react_finalize": "Finalizing analysis...",
 
-      "search_contacts": "Searching contacts...",
-      "list_contacts": "Retrieving contact list...",
-      "get_contact_details": "Retrieving contact details...",
+      "get_contacts": "Retrieving contacts...",
+      "create_contact": "Creating contact...",
+      "update_contact": "Updating contact...",
+      "delete_contact": "Deleting contact...",
+
+      "get_events": "Retrieving events...",
+      "create_event": "Creating event...",
+      "update_event": "Updating event...",
+      "delete_event": "Deleting event...",
+      "list_calendars": "Listing calendars...",
+
+      "get_emails": "Retrieving emails...",
+      "send_email": "Sending email...",
+      "reply_email": "Replying to email...",
+      "forward_email": "Forwarding email...",
+      "delete_email": "Deleting email...",
+      "list_labels": "Listing labels...",
+      "create_label": "Creating label...",
+      "update_label": "Updating label...",
+      "delete_label": "Deleting label...",
+      "apply_labels": "Applying labels...",
+      "remove_labels": "Removing labels...",
+
+      "get_tasks": "Retrieving tasks...",
+      "create_task": "Creating task...",
+      "complete_task": "Completing task...",
+      "update_task": "Updating task...",
+      "delete_task": "Deleting task...",
+      "list_task_lists": "Listing task lists...",
+
+      "create_reminder": "Creating reminder...",
+      "list_reminders": "Listing reminders...",
+      "cancel_reminder": "Cancelling reminder...",
+
+      "get_files": "Retrieving files...",
+
+      "get_places": "Searching places...",
+      "get_current_location": "Getting current location...",
+
+      "get_route": "Calculating route...",
+      "get_route_matrix": "Calculating route matrix...",
+
+      "get_current_weather": "Fetching current weather...",
+      "get_weather_forecast": "Fetching weather forecast...",
+      "get_hourly_forecast": "Fetching hourly forecast...",
+
+      "search_wikipedia": "Searching Wikipedia...",
+      "get_wikipedia_summary": "Fetching Wikipedia summary...",
+      "get_wikipedia_article": "Fetching Wikipedia article...",
+      "get_wikipedia_related": "Finding related articles...",
+
+      "unified_web_search": "Searching the web...",
+      "brave_search": "Searching with Brave...",
+      "brave_news": "Fetching Brave news...",
+
+      "fetch_web_page": "Fetching web page content...",
+
+      "perplexity_search": "Searching with Perplexity...",
+      "perplexity_ask": "Asking Perplexity...",
+
+      "browser": {
+        "navigate": "Navigating to page...",
+        "snapshot": "Taking page snapshot...",
+        "click": "Clicking element...",
+        "fill": "Filling form field...",
+        "press_key": "Pressing key..."
+      },
+
+      "list_hue_lights": "Listing Hue lights...",
+      "control_hue_light": "Controlling Hue light...",
+      "list_hue_rooms": "Listing Hue rooms...",
+      "control_hue_room": "Controlling Hue room...",
+      "list_hue_scenes": "Listing Hue scenes...",
+      "activate_hue_scene": "Activating Hue scene...",
+
+      "generate_image": "Generating image...",
+      "edit_image": "Editing image...",
+
       "resolve_reference": "Resolving reference...",
       "set_current_item": "Selecting item...",
       "get_context_state": "Retrieving context state...",
       "list_active_domains": "Listing active domains...",
       "get_context_list": "Retrieving contextual list...",
-      "fetch_web_page": "Fetching web page content...",
-      "mcp_tool": "Executing external MCP tool..."
+
+      "local_query_engine": "Querying knowledge base...",
+      "claude_server_task": "Executing server task...",
+      "delegate_to_sub_agent": "Delegating to sub-agent...",
+
+      "mcp_tool": "Executing external MCP tool...",
+
+      "previous_steps_one": "previous step",
+      "previous_steps_other": "previous steps"
     }
   },
   "faq": {
@@ -2516,7 +2598,7 @@
         },
         "streaming": {
           "title": "⚡ Streaming & Real-Time",
-          "description": "SSE (Server-Sent Events) streaming responses with typed events: tokens, tool states, HITL requests, execution metadata. The frontend processes the stream progressively for immediate interactive experience."
+          "description": "SSE (Server-Sent Events) streaming responses with typed events: tokens, tool states, HITL requests, execution metadata. The frontend displays each execution step in real time (routing, planning, validation, tool calls) with accumulated progress, then streams the response token by token."
         },
         "llm": {
           "title": "🤖 Multi-Provider LLM & Pattern Learning",
@@ -2657,6 +2739,18 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_16_2": {
+          "title": "v1.16.2 — Progressive Execution Step Display",
+          "date": "April 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>Real-time execution steps</b> — You can now see each processing step as it happens: analysis, planning, validation, orchestration, and each tool call (emails, calendar, weather, contacts...). Steps accumulate visually and disappear when the response arrives.",
+            "i2": "<b>Tool names in ReAct mode</b> — ReAct mode now shows which specific tool is being used (e.g., \"Retrieving events...\", \"Searching contacts...\") instead of a generic \"Executing tool...\" message. A reasoning snippet is also displayed.",
+            "i3": "<b>Pipeline steps now visible</b> — Previously, only a random analyzing phrase was shown during Pipeline execution. You now see the actual progression: routing → planning → validation → task orchestration → tool execution → response.",
+            "i4": "<b>Improved tone consistency</b> — LIA's personality and emotional state are now more reliably integrated into all responses, including proactive notifications, reminders, and voice comments. A safety guardrail ensures LIA never projects its own mood onto you.",
+            "i5": "<b>Reliable temporal memory</b> — When you mention relative dates (\"tomorrow\", \"next Saturday\", \"next week\"), LIA now systematically converts them to absolute dates before storing them. Your memories stay reliable and relevant even weeks later."
+          }
+        },
         "v1_16_1": {
           "title": "v1.16.1 — LLM Configuration Reliability",
           "date": "April 2026",
@@ -4716,7 +4810,7 @@
       },
       "realtime": {
         "title": "Real-time streaming",
-        "description": "SSE streaming responses, parallel agent execution, results displayed as they come. No unnecessary waiting."
+        "description": "See each execution step in real time — routing, planning, validation, tool calls — then watch the response stream token by token. No black box, no waiting."
       },
       "stack": {
         "title": "Modern stack",

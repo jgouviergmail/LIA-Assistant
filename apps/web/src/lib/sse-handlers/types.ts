@@ -25,6 +25,10 @@ export interface SSEHandlerContext {
   handleVoiceChunk: (chunk: VoiceAudioChunk) => void;
   /** Buffer for HITL streaming questions (accumulates tokens) */
   hitlQuestionBuffer: MutableRefObject<Map<string, string>>;
+  /** Accumulated execution step lines for progressive display (cleared on first token) */
+  executionStepsRef: MutableRefObject<string[]>;
+  /** Set of i18n_keys already emitted — used for deduplication between handlers */
+  emittedStepKeysRef: MutableRefObject<Set<string>>;
   /** Current assistant message ID */
   assistantMessageId: string;
   /** Progress message ID (ephemeral router/planner/HITL messages) */
@@ -54,4 +58,6 @@ export type SSEHandlerMap = Partial<Record<string, SSEHandler>>;
 export interface ProgressMessageMetadata {
   emoji?: string;
   i18n_key?: string;
+  detail?: string;
+  tool_name?: string;
 }

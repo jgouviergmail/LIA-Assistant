@@ -7,7 +7,7 @@
 
 import React from 'react';
 import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
-import { MetricRow } from '../shared';
+import { MetricRow, EmptySection } from '../shared';
 import { formatPercent } from '../../utils/formatters';
 import { DEBUG_TEXT_SIZES, DEBUG_WIDTHS } from '../../utils/constants';
 import type { ExecutionWavesInfo } from '@/types/chat';
@@ -31,7 +31,7 @@ export const ExecutionWavesSection = React.memo(function ExecutionWavesSection({
   data,
 }: ExecutionWavesSectionProps) {
   if (!data || data.total_waves === 0) {
-    return null;
+    return <EmptySection value="execution_waves" title="Execution Waves" />;
   }
 
   // Calculate parallelism efficiency (avg vs max possible)

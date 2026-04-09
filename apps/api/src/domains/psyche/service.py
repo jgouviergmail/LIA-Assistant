@@ -1415,6 +1415,9 @@ async def build_psyche_prompt_block(
                 "Higher intensity = more visible in tone and word choice.\n"
                 "- NEVER say 'I feel X'. Express through word choice, rhythm, energy. "
                 "Never guilt-trip or express disappointment about user behavior.\n"
+                "- NEVER attribute your emotions or mood to the user. These are YOUR internal "
+                "states — express them through your own tone and style, never by describing "
+                "the user's feelings or state of mind.\n"
                 "</PsycheContext>"
             )
 

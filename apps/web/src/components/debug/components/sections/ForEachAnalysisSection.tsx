@@ -7,7 +7,7 @@
 
 import React from 'react';
 import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
-import { MetricRow, SectionBadge } from '../shared';
+import { EmptySection, MetricRow, SectionBadge } from '../shared';
 import {
   CARDINALITY_MODE_LABELS,
   CARDINALITY_ALL_VALUE,
@@ -35,7 +35,7 @@ export const ForEachAnalysisSection = React.memo(function ForEachAnalysisSection
 }: ForEachAnalysisSectionProps) {
   // Don't render if no data or not detected
   if (!data || !data.detected) {
-    return null;
+    return <EmptySection value="for_each_analysis" title="FOR_EACH Analysis" />;
   }
 
   return (

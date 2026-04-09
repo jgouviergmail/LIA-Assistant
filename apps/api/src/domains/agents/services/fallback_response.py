@@ -74,20 +74,21 @@ async def generate_fallback_response(
         query_preview=user_query[:50] if user_query else "empty",
     )
 
-    # Build the prompt
-    prompt = load_prompt("fallback_response_prompt").format(
-        user_query=user_query or "unavailable query"
-    )
-
-    # Inject psyche context if user_id is available
+    # Resolve psyche context before template formatting
+    psyche_block = ""
     if user_id:
         try:
             from src.domains.psyche.service import build_psyche_prompt_block
 
             psyche_block = await build_psyche_prompt_block(user_id=user_id, user_timezone=None)
-            prompt += psyche_block
         except Exception:
             pass  # Psyche injection is best-effort
+
+    # Build the prompt
+    prompt = load_prompt("fallback_response_prompt").format(
+        user_query=user_query or "unavailable query",
+        psyche_context=psyche_block,
+    )
 
     try:
         # Use response LLM for consistency with main response generation
@@ -149,19 +150,20 @@ async def generate_fallback_response_sync(
         query_preview=user_query[:50] if user_query else "empty",
     )
 
-    prompt = load_prompt("fallback_response_prompt").format(
-        user_query=user_query or "unavailable query"
-    )
-
-    # Inject psyche context if user_id is available
+    # Resolve psyche context before template formatting
+    psyche_block = ""
     if user_id:
         try:
             from src.domains.psyche.service import build_psyche_prompt_block
 
             psyche_block = await build_psyche_prompt_block(user_id=user_id, user_timezone=None)
-            prompt += psyche_block
         except Exception:
             pass  # Psyche injection is best-effort
+
+    prompt = load_prompt("fallback_response_prompt").format(
+        user_query=user_query or "unavailable query",
+        psyche_context=psyche_block,
+    )
 
     try:
         llm = get_llm("response")

@@ -16,7 +16,8 @@
 8. [Token Tracking](#token-tracking)
 9. [Skills Integration](#skills-integration)
 10. [Configuration](#configuration)
-11. [Key Files](#key-files)
+11. [Streaming Step Visibility](#streaming-step-visibility-v1162)
+12. [Key Files](#key-files)
 
 ---
 
@@ -176,6 +177,18 @@ REACT_AGENT_HISTORY_WINDOW_TURNS=5    # Conversation history window
 
 LLM type: `react_agent` — configurable in admin LLM config panel.
 Default: `qwen3.5-plus`, temperature 0.0, reasoning_effort medium, max_tokens 16000.
+
+## Streaming Step Visibility (v1.16.2)
+
+During ReAct execution, the frontend displays accumulated execution steps in real time:
+
+1. **Node-level steps**: Each ReAct node transition (`react_setup` → `react_call_model` → `react_execute_tools` → `react_finalize`) emits an `execution_step` SSE event via the "updates" stream mode.
+
+2. **Per-tool steps**: When `react_call_model` produces an AIMessage with `tool_calls`, the streaming service inspects the state delta and emits individual `execution_step` events for each tool (e.g., "Retrieving contacts...", "Retrieving events..."), using the tool catalogue's `DisplayMetadata` for emoji and i18n_key.
+
+3. **Reasoning detail**: The AIMessage content (reasoning text) from `react_call_model` is extracted, cleaned of markdown formatting, truncated to 120 characters, and included as a `detail` field in the node-level execution_step event.
+
+4. **Frontend accumulation**: Steps are accumulated in a multi-line progress message (not replaced). All steps remain visible until the first response token arrives. Deduplication by `i18n_key` prevents duplicates.
 
 ## Key Files
 

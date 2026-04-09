@@ -7,7 +7,7 @@
 
 import React from 'react';
 import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
-import { MetricRow } from '../shared';
+import { MetricRow, EmptySection } from '../shared';
 import { formatCost } from '../../utils/formatters';
 import { cn } from '@/lib/utils';
 import type { DebugMetrics } from '@/types/chat';
@@ -64,7 +64,7 @@ export const GoogleApiCallsSection = React.memo(function GoogleApiCallsSection({
   summary,
 }: GoogleApiCallsSectionProps) {
   if (!calls || !summary || calls.length === 0) {
-    return null;
+    return <EmptySection value="google-api" title="Google API" />;
   }
 
   return (

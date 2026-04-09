@@ -2,8 +2,8 @@
 
 > Carte complète de toute la documentation du projet LIA - Assistant IA multi-agent avec LangGraph
 
-**Version**: 7.0
-**Dernière mise à jour**: 2026-04-08
+**Version**: 7.1
+**Dernière mise à jour**: 2026-04-10
 **Statut**: Complète (190+ documents)
 
 ---

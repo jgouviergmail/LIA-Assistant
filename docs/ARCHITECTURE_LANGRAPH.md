@@ -1011,7 +1011,7 @@ async def node_function(state: MessagesState) -> dict:
 │   OrchestrationService.async_stream()                               │
 │        │                                                            │
 │        ▼                                                            │
-│   graph.astream(input, config, stream_mode=["messages", "updates"]) │
+│   graph.astream(input, config, stream_mode=["values", "messages", "updates"]) │
 │        │                                                            │
 │        ▼                                                            │
 │   yield (mode, chunk) tuples                                        │
@@ -1036,6 +1036,19 @@ async def node_function(state: MessagesState) -> dict:
 │                                                                      │
 └─────────────────────────────────────────────────────────────────────┘
 ```
+
+### Progressive Execution Step Display (v1.16.2)
+
+The graph uses `stream_mode=["values", "messages", "updates"]`:
+- **"values"**: Full state snapshot after each node (router_decision extraction, debug data caching)
+- **"messages"**: Token-by-token streaming from response node only
+- **"updates"**: Node completion events `{node_name: state_delta}` — enables execution_step SSE emission for ALL nodes
+
+The "updates" mode solved a fundamental visibility gap: pipeline nodes (planner, semantic_validator, approval_gate, task_orchestrator) don't update the `messages` state key, so "messages" mode never fires for them. With "updates", every node completion triggers an execution_step SSE event.
+
+**Pipeline tool visibility**: When task_orchestrator completes, tool names are extracted from the ExecutionPlan (set by planner) and emitted as individual execution_step events.
+
+**ReAct tool visibility**: When react_call_model produces an AIMessage with tool_calls, per-tool execution_step events are emitted using the catalogue's DisplayMetadata. Reasoning content is extracted and included as a `detail` field.
 
 ---
 

@@ -8,6 +8,7 @@
 
 import React from 'react';
 import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
+import { EmptySection } from '../shared';
 import { formatDuration } from '../../utils/formatters';
 import { getNodeColor, DEBUG_TEXT_SIZES, DEBUG_WIDTHS } from '../../utils/constants';
 import { cn } from '@/lib/utils';
@@ -30,7 +31,7 @@ export const RequestLifecycleSection = React.memo(function RequestLifecycleSecti
   data,
 }: RequestLifecycleSectionProps) {
   if (!data || data.nodes.length === 0) {
-    return null;
+    return <EmptySection value="request_lifecycle" title="Execution Times" />;
   }
 
   // Calculate total duration (use provided total or sum)

@@ -456,6 +456,60 @@ export function useConversationStream(conversationId: string) {
 }
 ```
 
+### execution_step (v1.16.2 — Progressive Display)
+
+Emitted for every node completion (pipeline + ReAct) via `stream_mode="updates"`, and for individual tool executions.
+
+**Node-level event**:
+```json
+{
+  "type": "execution_step",
+  "content": "",
+  "metadata": {
+    "type": "execution_step",
+    "step_type": "node",
+    "step_name": "planner",
+    "status": "started",
+    "emoji": "📋",
+    "i18n_key": "planner_generation",
+    "category": "system"
+  }
+}
+```
+
+**Tool-level event** (ReAct + Pipeline):
+```json
+{
+  "type": "execution_step",
+  "content": "",
+  "metadata": {
+    "type": "execution_step",
+    "step_type": "tool",
+    "step_name": "get_events_tool",
+    "status": "started",
+    "emoji": "📅",
+    "i18n_key": "get_events",
+    "category": "tool"
+  }
+}
+```
+
+**With reasoning detail** (ReAct only):
+```json
+{
+  "type": "execution_step",
+  "metadata": {
+    "type": "execution_step",
+    "step_type": "node",
+    "step_name": "react_call_model",
+    "status": "started",
+    "detail": "I need to check the user's calendar events for Saturday..."
+  }
+}
+```
+
+The frontend accumulates these events in a multi-line progress message, cleared when the first response token arrives.
+
 ### Consequences
 
 **Positive**:

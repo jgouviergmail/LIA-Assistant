@@ -2453,16 +2453,98 @@
       "react_tool_execution": "Exécution d'outil...",
       "react_finalize": "Finalisation de l'analyse...",
 
-      "search_contacts": "Recherche de contacts...",
-      "list_contacts": "Récupération de la liste des contacts...",
-      "get_contact_details": "Récupération des détails du contact...",
+      "get_contacts": "Recherche de contacts...",
+      "create_contact": "Création du contact...",
+      "update_contact": "Mise à jour du contact...",
+      "delete_contact": "Suppression du contact...",
+
+      "get_events": "Récupération des événements...",
+      "create_event": "Création de l'événement...",
+      "update_event": "Mise à jour de l'événement...",
+      "delete_event": "Suppression de l'événement...",
+      "list_calendars": "Liste des calendriers...",
+
+      "get_emails": "Récupération des e-mails...",
+      "send_email": "Envoi de l'e-mail...",
+      "reply_email": "Réponse à l'e-mail...",
+      "forward_email": "Transfert de l'e-mail...",
+      "delete_email": "Suppression de l'e-mail...",
+      "list_labels": "Liste des libellés...",
+      "create_label": "Création du libellé...",
+      "update_label": "Mise à jour du libellé...",
+      "delete_label": "Suppression du libellé...",
+      "apply_labels": "Application des libellés...",
+      "remove_labels": "Suppression des libellés...",
+
+      "get_tasks": "Récupération des tâches...",
+      "create_task": "Création de la tâche...",
+      "complete_task": "Finalisation de la tâche...",
+      "update_task": "Mise à jour de la tâche...",
+      "delete_task": "Suppression de la tâche...",
+      "list_task_lists": "Liste des listes de tâches...",
+
+      "create_reminder": "Création du rappel...",
+      "list_reminders": "Liste des rappels...",
+      "cancel_reminder": "Annulation du rappel...",
+
+      "get_files": "Récupération des fichiers...",
+
+      "get_places": "Recherche de lieux...",
+      "get_current_location": "Récupération de la position actuelle...",
+
+      "get_route": "Calcul de l'itinéraire...",
+      "get_route_matrix": "Calcul de la matrice d'itinéraires...",
+
+      "get_current_weather": "Récupération de la météo actuelle...",
+      "get_weather_forecast": "Récupération des prévisions météo...",
+      "get_hourly_forecast": "Récupération des prévisions horaires...",
+
+      "search_wikipedia": "Recherche sur Wikipedia...",
+      "get_wikipedia_summary": "Récupération du résumé Wikipedia...",
+      "get_wikipedia_article": "Récupération de l'article Wikipedia...",
+      "get_wikipedia_related": "Recherche d'articles connexes...",
+
+      "unified_web_search": "Recherche sur le web...",
+      "brave_search": "Recherche avec Brave...",
+      "brave_news": "Récupération des actualités Brave...",
+
+      "fetch_web_page": "Récupération du contenu de la page web...",
+
+      "perplexity_search": "Recherche avec Perplexity...",
+      "perplexity_ask": "Question à Perplexity...",
+
+      "browser": {
+        "navigate": "Navigation vers la page...",
+        "snapshot": "Capture de la page...",
+        "click": "Clic sur l'élément...",
+        "fill": "Remplissage du champ...",
+        "press_key": "Appui sur la touche..."
+      },
+
+      "list_hue_lights": "Liste des lampes Hue...",
+      "control_hue_light": "Contrôle de la lampe Hue...",
+      "list_hue_rooms": "Liste des pièces Hue...",
+      "control_hue_room": "Contrôle de la pièce Hue...",
+      "list_hue_scenes": "Liste des scènes Hue...",
+      "activate_hue_scene": "Activation de la scène Hue...",
+
+      "generate_image": "Génération de l'image...",
+      "edit_image": "Modification de l'image...",
+
       "resolve_reference": "Résolution de la référence...",
       "set_current_item": "Sélection de l'élément...",
       "get_context_state": "Récupération de l'état du contexte...",
       "list_active_domains": "Liste des domaines actifs...",
       "get_context_list": "Récupération de la liste contextuelle...",
-      "fetch_web_page": "Récupération du contenu de la page web...",
-      "mcp_tool": "Exécution de l'outil MCP externe..."
+
+      "local_query_engine": "Interrogation de la base de connaissances...",
+      "claude_server_task": "Exécution de la tâche serveur...",
+      "delegate_to_sub_agent": "Délégation au sous-agent...",
+
+      "mcp_tool": "Exécution de l'outil MCP externe...",
+
+      "previous_steps_one": "étape précédente",
+      "previous_steps_other": "étapes précédentes"
     }
   },
   "faq": {
@@ -2538,7 +2620,7 @@
         },
         "streaming": {
           "title": "⚡ Streaming & Temps Réel",
-          "description": "Réponses en streaming SSE (Server-Sent Events) avec événements typés : tokens, états des outils, requêtes HITL, métadonnées d'exécution. Le frontend traite le flux progressivement pour une expérience interactive immédiate."
+          "description": "Réponses en streaming SSE (Server-Sent Events) avec événements typés : tokens, états des outils, requêtes HITL, métadonnées d'exécution. Le frontend affiche chaque étape d'exécution en temps réel (routage, planification, validation, appels d'outils) avec un affichage cumulatif, puis streame la réponse token par token."
         },
         "llm": {
           "title": "🤖 Multi-Fournisseurs LLM & Pattern Learning",
@@ -2679,6 +2761,18 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_16_2": {
+          "title": "v1.16.2 — Affichage progressif des étapes d'exécution",
+          "date": "Avril 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>Étapes d'exécution en temps réel</b> — Vous pouvez désormais voir chaque étape du traitement au fur et à mesure : analyse, planification, validation, orchestration, et chaque appel d'outil (emails, calendrier, météo, contacts...). Les étapes s'accumulent visuellement et disparaissent quand la réponse arrive.",
+            "i2": "<b>Nom des outils en mode ReAct</b> — Le mode ReAct affiche maintenant quel outil spécifique est utilisé (ex. « Récupération des événements... », « Recherche de contacts... ») au lieu d'un message générique « Exécution d'outil... ». Un extrait du raisonnement est également affiché.",
+            "i3": "<b>Étapes Pipeline désormais visibles</b> — Auparavant, seule une phrase aléatoire d'analyse était affichée pendant l'exécution Pipeline. Vous voyez maintenant la progression réelle : routage → planification → validation → orchestration → exécution des outils → réponse.",
+            "i4": "<b>Cohérence du ton améliorée</b> — La personnalité et l'état émotionnel de LIA sont désormais intégrés de façon plus fiable dans toutes les réponses, y compris les notifications proactives, rappels et commentaires vocaux. Un garde-fou garantit que LIA ne projette jamais son propre état d'humeur sur vous.",
+            "i5": "<b>Mémoire temporelle fiable</b> — Lorsque vous mentionnez des dates relatives (« demain », « samedi prochain », « la semaine prochaine »), LIA les convertit systématiquement en dates absolues avant de les mémoriser. Vos souvenirs restent fiables et pertinents même des semaines plus tard."
+          }
+        },
         "v1_16_1": {
           "title": "v1.16.1 — Fiabilité de la configuration LLM",
           "date": "Avril 2026",
@@ -4738,7 +4832,7 @@
       },
       "realtime": {
         "title": "Streaming temps réel",
-        "description": "Réponses en streaming SSE, exécution parallèle des agents, résultats affichés au fur et à mesure. Aucune attente inutile."
+        "description": "Voyez chaque étape d'exécution en temps réel — routage, planification, validation, appels d'outils — puis la réponse en streaming token par token. Pas de boîte noire, pas d'attente."
       },
       "stack": {
         "title": "Stack moderne",

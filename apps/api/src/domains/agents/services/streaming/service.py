@@ -11,6 +11,7 @@ Responsibilities:
 """
 
 import asyncio
+import re
 import time
 import uuid
 from collections.abc import AsyncGenerator
@@ -24,6 +25,7 @@ from src.core.field_names import (
     FIELD_CONVERSATION_ID,
     FIELD_METADATA,
     FIELD_RUN_ID,
+    FIELD_STATUS,
 )
 from src.domains.agents.api.schemas import ChatStreamChunk
 from src.infrastructure.observability.metrics_agents import (
@@ -314,7 +316,7 @@ class StreamingService:
                         yield (sse_chunk, content_fragment)
 
                 elif mode == "messages":
-                    # Message tuple - extract tokens and execution steps
+                    # Message tuple - extract tokens (node detection via "updates")
                     # Type narrowing: LangGraph "messages" mode always emits tuple
                     if not isinstance(chunk, tuple):
                         logger.warning(
@@ -325,9 +327,7 @@ class StreamingService:
                         )
                         continue
 
-                    sse_chunks = self._process_messages_chunk(
-                        chunk, state, last_emitted_node, first_token_time
-                    )
+                    sse_chunks = self._process_messages_chunk(chunk, state, first_token_time)
 
                     for sse_chunk, content_fragment in sse_chunks:
                         # PHASE 2.5 - P5: Track streaming chunk emission
@@ -348,17 +348,36 @@ class StreamingService:
                                 intention=intention_label,
                             )
 
-                        # Track node transitions
-                        if sse_chunk.type == "execution_step":
-                            if sse_chunk.metadata:
-                                node_name = sse_chunk.metadata.get("step_name")
-                                if node_name:
-                                    last_emitted_node = node_name
-
                         # Track token count and emit
                         if sse_chunk.type == "token":
                             token_count += 1
                             response_content += content_fragment
+
+                        yield (sse_chunk, content_fragment)
+
+                elif mode == "updates":
+                    # Node completion — emit execution_step for all nodes
+                    # "updates" yields {node_name: state_delta} after each node
+                    if not isinstance(chunk, dict):
+                        logger.warning(
+                            "updates_mode_non_dict_chunk",
+                            mode=mode,
+                            chunk_type=type(chunk).__name__,
+                            run_id=run_id,
+                        )
+                        continue
+
+                    sse_chunks = self._process_updates_chunk(chunk, state)
+
+                    for sse_chunk, content_fragment in sse_chunks:
+                        event_type = _get_chunk_event_type(sse_chunk.type)
+                        langgraph_streaming_chunks_total.labels(event_type=event_type).inc()
+
+                        # Track node transitions for diagnostic logging
+                        if sse_chunk.type == "execution_step" and sse_chunk.metadata:
+                            step_name = sse_chunk.metadata.get("step_name")
+                            if step_name:
+                                last_emitted_node = step_name
 
                         yield (sse_chunk, content_fragment)
 
@@ -1051,27 +1070,309 @@ class StreamingService:
                 error_type=type(e).__name__,
             )
 
+    # ============================================================================
+    # "updates" mode processing — Pipeline + ReAct step detection
+    # ============================================================================
+
+    def _process_updates_chunk(
+        self,
+        chunk: dict[str, Any],
+        accumulated_state: dict[str, Any],
+    ) -> list[tuple[ChatStreamChunk, str]]:
+        """
+        Process mode="updates" node completion.
+
+        "updates" mode yields {node_name: state_delta} after each node completes,
+        regardless of which state keys the node updates. This enables execution_step
+        emission for ALL nodes (pipeline + ReAct).
+
+        For ReAct: extracts per-tool details from react_call_model's AIMessage.
+        For Pipeline: extracts tool names from execution_plan when task_orchestrator completes.
+
+        Args:
+            chunk: Dict with single key = node_name, value = state delta.
+            accumulated_state: Full state accumulated from "values" mode (from previous nodes).
+
+        Returns:
+            List of (SSE chunk, "") tuples for execution_step events.
+        """
+        sse_chunks: list[tuple[ChatStreamChunk, str]] = []
+
+        if not chunk:
+            return sse_chunks
+
+        node_name = next(iter(chunk))
+        state_delta = chunk[node_name]
+
+        # Skip LangGraph internal nodes
+        if node_name in ("__start__", "__end__"):
+            return sse_chunks
+
+        # Guard: state_delta must be a dict
+        if not isinstance(state_delta, dict):
+            logger.warning(
+                "updates_mode_non_dict_state_delta",
+                node_name=node_name,
+                state_delta_type=type(state_delta).__name__,
+            )
+            # Still emit node-level step (no enrichment possible)
+            node_step = self._emit_execution_step(node_name)
+            if node_step:
+                sse_chunks.append((node_step, ""))
+            return sse_chunks
+
+        # --- Node-level execution_step ---
+        # For react_call_model: enrich with reasoning detail from AIMessage
+        additional_data: dict[str, Any] | None = None
+        if node_name == "react_call_model":
+            additional_data = self._extract_react_enrichment(state_delta)
+
+        node_step = self._emit_execution_step(node_name, additional_data=additional_data)
+        if node_step:
+            sse_chunks.append((node_step, ""))
+
+        # --- Per-tool execution_steps ---
+        if node_name == "react_call_model":
+            # ReAct: extract tool names from AIMessage.tool_calls
+            tool_steps = self._extract_react_tool_steps(state_delta)
+            sse_chunks.extend(tool_steps)
+        elif node_name == "task_orchestrator":
+            # Pipeline: extract tool names from execution_plan (set by planner)
+            tool_steps = self._extract_pipeline_tool_steps(accumulated_state)
+            sse_chunks.extend(tool_steps)
+
+        logger.debug(
+            "updates_chunk_processed",
+            node_name=node_name,
+            steps_emitted=len(sse_chunks),
+        )
+
+        return sse_chunks
+
+    def _extract_react_enrichment(self, state_delta: dict[str, Any]) -> dict[str, Any] | None:
+        """
+        Extract reasoning detail from react_call_model's AIMessage.
+
+        Args:
+            state_delta: State delta from react_call_model containing messages.
+
+        Returns:
+            Dict with "detail" key if reasoning found, None otherwise.
+        """
+        from langchain_core.messages import AIMessage
+
+        messages = state_delta.get("messages", [])
+        for msg in messages:
+            if isinstance(msg, AIMessage) and msg.content:
+                detail = self._extract_reasoning_detail(msg.content)
+                if detail:
+                    logger.debug(
+                        "react_reasoning_detail_extracted",
+                        detail_length=len(detail),
+                    )
+                    return {"detail": detail}
+        return None
+
+    def _extract_react_tool_steps(
+        self, state_delta: dict[str, Any]
+    ) -> list[tuple[ChatStreamChunk, str]]:
+        """
+        Extract per-tool execution_step events from react_call_model's AIMessage.
+
+        When the ReAct LLM decides to call tools, emit individual execution_step
+        events for each tool using the catalogue's DisplayMetadata.
+
+        Args:
+            state_delta: State delta from react_call_model containing messages.
+
+        Returns:
+            List of (ChatStreamChunk, "") tuples for each tool.
+        """
+        from langchain_core.messages import AIMessage
+
+        tool_steps: list[tuple[ChatStreamChunk, str]] = []
+        messages = state_delta.get("messages", [])
+
+        for msg in messages:
+            if isinstance(msg, AIMessage) and msg.tool_calls:
+                for tc in msg.tool_calls:
+                    tool_name = tc.get("name", "")
+                    if tool_name:
+                        tool_chunk = self._emit_tool_execution_step(tool_name)
+                        if tool_chunk:
+                            tool_steps.append((tool_chunk, ""))
+
+        if tool_steps:
+            logger.debug(
+                "react_tool_steps_extracted",
+                tool_count=len(tool_steps),
+            )
+
+        return tool_steps
+
+    def _extract_pipeline_tool_steps(
+        self, accumulated_state: dict[str, Any]
+    ) -> list[tuple[ChatStreamChunk, str]]:
+        """
+        Extract per-tool execution_step events from the pipeline execution plan.
+
+        When task_orchestrator completes, the execution_plan (set by planner) contains
+        the list of tools that were executed. Emit an execution_step for each TOOL-type
+        step using the catalogue's DisplayMetadata.
+
+        Args:
+            accumulated_state: Full state from "values" mode containing execution_plan.
+
+        Returns:
+            List of (ChatStreamChunk, "") tuples for each tool in the plan.
+        """
+        tool_steps: list[tuple[ChatStreamChunk, str]] = []
+
+        execution_plan = accumulated_state.get("execution_plan")
+        if not execution_plan:
+            return tool_steps
+
+        # ExecutionPlan.steps is a list of ExecutionStep objects
+        steps = getattr(execution_plan, "steps", None)
+        if not steps:
+            return tool_steps
+
+        seen_tools: set[str] = set()
+        for step in steps:
+            tool_name = getattr(step, "tool_name", None)
+            if not tool_name or tool_name in seen_tools:
+                continue
+            seen_tools.add(tool_name)
+
+            tool_chunk = self._emit_tool_execution_step(tool_name)
+            if tool_chunk:
+                tool_steps.append((tool_chunk, ""))
+
+        if tool_steps:
+            logger.debug(
+                "pipeline_tool_steps_extracted",
+                tool_count=len(tool_steps),
+                tool_names=list(seen_tools),
+            )
+
+        return tool_steps
+
+    def _extract_reasoning_detail(self, content: str | list[dict[str, Any]] | None) -> str | None:
+        """
+        Extract a truncated reasoning snippet from AIMessage content.
+
+        Handles both OpenAI format (str) and Anthropic format (list of content blocks).
+
+        Args:
+            content: AIMessage.content — str or list[dict] (Anthropic content blocks).
+
+        Returns:
+            Truncated reasoning text (max 120 chars) or None if empty.
+        """
+        if not content:
+            return None
+
+        # Extract text from content
+        text = ""
+        if isinstance(content, str):
+            text = content
+        elif isinstance(content, list):
+            # Anthropic format: [{"type": "text", "text": "..."}, ...]
+            parts = []
+            for block in content:
+                if isinstance(block, dict) and block.get("type") == "text":
+                    parts.append(block.get("text", ""))
+            text = " ".join(parts)
+
+        if not text or not text.strip():
+            return None
+
+        # Strip markdown formatting
+        text = re.sub(r"[*#`_~]", "", text).strip()
+        # Collapse whitespace
+        text = re.sub(r"\s+", " ", text).strip()
+
+        if not text:
+            return None
+
+        # Truncate to 120 chars
+        if len(text) > 120:
+            text = text[:117] + "..."
+
+        return text
+
+    def _emit_tool_execution_step(self, tool_name: str) -> ChatStreamChunk | None:
+        """
+        Emit execution_step event for a specific tool call.
+
+        Uses the tool catalogue's DisplayMetadata for emoji and i18n_key.
+        Falls back to generic tool execution metadata if not in catalogue.
+
+        Args:
+            tool_name: Tool name from AIMessage.tool_calls (e.g., "get_contacts_tool").
+
+        Returns:
+            ChatStreamChunk with tool execution_step metadata, or None.
+        """
+        from src.domains.agents.utils.execution_metadata import build_execution_step_event
+
+        # Try catalogue-based metadata first
+        execution_event = build_execution_step_event(
+            step_type="tool",
+            step_name=tool_name,
+            status="started",
+        )
+
+        if execution_event:
+            return ChatStreamChunk(
+                type="execution_step",
+                content="",
+                metadata=execution_event,
+            )
+
+        # Fallback: generic tool execution metadata for tools not in catalogue
+        logger.debug(
+            "tool_execution_step_fallback",
+            tool_name=tool_name,
+            reason="tool_not_in_catalogue",
+        )
+        return ChatStreamChunk(
+            type="execution_step",
+            content="",
+            metadata={
+                "type": "execution_step",
+                "step_type": "tool",
+                "step_name": tool_name,
+                FIELD_STATUS: "started",
+                "emoji": "⚙️",
+                "i18n_key": "react_tool_execution",
+                "category": "tool",
+            },
+        )
+
+    # ============================================================================
+    # "messages" mode processing — Token streaming
+    # ============================================================================
+
     def _process_messages_chunk(
         self,
         message_tuple: tuple,
         _state: dict,
-        last_emitted_node: str | None,
         _first_token_time: float | None,
     ) -> list[tuple[ChatStreamChunk, str]]:
         """
         Process mode="messages" message update.
 
-        Extracts node transitions and tokens from messages.
+        Streams tokens from response node only. Node transition detection is
+        handled by _process_updates_chunk() via "updates" stream mode.
 
         Args:
             message_tuple: (message, metadata) tuple from LangGraph
-            state: Current state dict
-            last_emitted_node: Last node that emitted an execution_step
-            first_token_time: First token timestamp (None if not received yet)
+            _state: Current state dict
+            _first_token_time: First token timestamp (None if not received yet)
 
         Returns:
             List of (SSE chunk, content) tuples
-            - execution_step events: (chunk, "")
             - token events: (chunk, content_fragment)
         """
         sse_chunks: list[tuple[ChatStreamChunk, str]] = []
@@ -1084,12 +1385,6 @@ class StreamingService:
 
         # Extract node name from metadata
         node_name = metadata.get("langgraph_node") if metadata else None
-
-        # Emit execution_step for node transitions
-        if node_name and node_name != last_emitted_node:
-            execution_step = self._emit_execution_step(node_name)
-            if execution_step:
-                sse_chunks.append((execution_step, ""))
 
         # Stream tokens ONLY from response node
         if node_name == "response" and self._should_stream_token(node_name):
@@ -1120,12 +1415,17 @@ class StreamingService:
 
         return sse_chunks
 
-    def _emit_execution_step(self, node_name: str) -> ChatStreamChunk | None:
+    def _emit_execution_step(
+        self,
+        node_name: str,
+        additional_data: dict | None = None,
+    ) -> ChatStreamChunk | None:
         """
         Emit execution_step event for node transition.
 
         Args:
             node_name: Name of the node (router, planner, response, etc.)
+            additional_data: Optional extra fields (e.g., {"detail": "reasoning..."})
 
         Returns:
             ChatStreamChunk with execution_step metadata or None if not visible
@@ -1136,6 +1436,7 @@ class StreamingService:
             step_type="node",
             step_name=node_name,
             status="started",
+            additional_data=additional_data,
         )
 
         if execution_event:

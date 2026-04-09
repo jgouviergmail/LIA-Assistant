@@ -146,6 +146,11 @@ export const useChat = ({
   // HITL streaming buffer (stores partial questions during progressive rendering)
   const hitlQuestionBuffer = useRef<Map<string, string>>(new Map());
 
+  // Accumulated execution steps for progressive display (cleared on first token)
+  const executionStepsRef = useRef<string[]>([]);
+  // Set of i18n_keys already emitted — deduplication between router/planner and execution_step
+  const emittedStepKeysRef = useRef<Set<string>>(new Set());
+
   // API health monitoring - syncs with reducer state via callback
   useAPIHealth({
     user,
@@ -248,6 +253,10 @@ export const useChat = ({
       // Track progress message lifecycle (ephemeral messages: router → planner → execution_step → HITL)
       let progressMessageId: string | null = null;
 
+      // Reset accumulated execution steps for this new message
+      executionStepsRef.current = [];
+      emittedStepKeysRef.current = new Set();
+
       // Prepare SSE request
       // Session management: Using user.id as session identifier
       // Sessions are persisted in backend Redis store via HTTP-only cookie
@@ -296,6 +305,8 @@ export const useChat = ({
               withContext,
               handleVoiceChunk,
               hitlQuestionBuffer,
+              executionStepsRef,
+              emittedStepKeysRef,
               assistantMessageId,
               progressMessageId,
               setProgressMessageId: (id: string | null) => {

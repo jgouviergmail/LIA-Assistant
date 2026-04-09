@@ -220,6 +220,18 @@ Generate a short, natural message in {language}.
         fallback_content=fallback_prompt,
     )
 
+    # Resolve psyche context before template formatting
+    psyche_block = ""
+    if user_id:
+        try:
+            from src.domains.psyche.service import build_psyche_prompt_block
+
+            psyche_block = await build_psyche_prompt_block(
+                user_id=user_id, user_timezone=user_timezone
+            )
+        except Exception:
+            pass  # Psyche injection is best-effort
+
     system_prompt = template.format(
         persona_prompt=persona_prompt,
         original_message=original_message,
@@ -229,19 +241,8 @@ Generate a short, natural message in {language}.
         trigger_text=trigger_text,
         memory_section=memory_section,
         user_language=language,
+        psyche_context=psyche_block,
     )
-
-    # Inject psyche context if user_id is available
-    if user_id:
-        try:
-            from src.domains.psyche.service import build_psyche_prompt_block
-
-            psyche_block = await build_psyche_prompt_block(
-                user_id=user_id, user_timezone=user_timezone
-            )
-            system_prompt += psyche_block
-        except Exception:
-            pass  # Psyche injection is best-effort
 
     try:
         # Use the response LLM with custom settings for short message generation

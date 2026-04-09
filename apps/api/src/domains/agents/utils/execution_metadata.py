@@ -14,14 +14,14 @@ Usage:
     from src.domains.agents.utils.execution_metadata import get_tool_display_metadata
 
     # In streaming code, when tool is executed:
-    metadata = get_tool_display_metadata("search_contacts_tool")
+    metadata = get_tool_display_metadata("get_contacts_tool")
     if metadata and metadata.visible:
         yield {
             "type": "execution_step",
             "category": metadata.category,
             "emoji": metadata.emoji,
             "i18n_key": metadata.i18n_key,
-            "step_name": "search_contacts_tool",
+            "step_name": "get_contacts_tool",
         }
 """
 
@@ -142,16 +142,16 @@ def get_tool_display_metadata(tool_name: str) -> DisplayMetadata | None:
     without requiring any additional configuration files or registries.
 
     Args:
-        tool_name: Name of the tool (e.g., "search_contacts_tool")
+        tool_name: Name of the tool (e.g., "get_contacts_tool")
 
     Returns:
         DisplayMetadata if found and configured, None otherwise
 
     Example:
-        >>> metadata = get_tool_display_metadata("search_contacts_tool")
+        >>> metadata = get_tool_display_metadata("get_contacts_tool")
         >>> if metadata:
         ...     print(f"{metadata.emoji} {metadata.i18n_key}")
-        🔍 search_contacts
+        🔍 get_contacts
     """
     try:
         # Get global registry instance
@@ -247,7 +247,7 @@ def should_emit_execution_step(
         True if step should be emitted, False otherwise
 
     Example:
-        >>> if should_emit_execution_step("tool", "search_contacts_tool"):
+        >>> if should_emit_execution_step("tool", "get_contacts_tool"):
         ...     # Emit SSE event
         ...     pass
     """
@@ -294,7 +294,7 @@ def build_execution_step_event(
     Example:
         >>> event = build_execution_step_event(
         ...     step_type="tool",
-        ...     step_name="search_contacts_tool",
+        ...     step_name="get_contacts_tool",
         ...     status="started",
         ... )
         >>> if event:
@@ -302,10 +302,10 @@ def build_execution_step_event(
         {
             "type": "execution_step",
             "step_type": "tool",
-            "step_name": "search_contacts_tool",
+            "step_name": "get_contacts_tool",
             FIELD_STATUS: "started",
             "emoji": "🔍",
-            "i18n_key": "search_contacts",
+            "i18n_key": "get_contacts",
             "category": "tool"
         }
     """

@@ -7,7 +7,7 @@
 
 import React from 'react';
 import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
-import { MetricRow } from '../shared';
+import { MetricRow, EmptySection } from '../shared';
 import { getNodeColor, MODEL_NAME_TRUNCATE_LENGTH } from '../../utils/constants';
 import { formatTokenCount, formatCost, truncateText } from '../../utils/formatters';
 import { cn } from '@/lib/utils';
@@ -36,7 +36,7 @@ export const LLMCallsSection = React.memo(function LLMCallsSection({
   summary,
 }: LLMCallsSectionProps) {
   if (!calls || !summary || calls.length === 0) {
-    return null;
+    return <EmptySection value="llm" title="LLM Calls" />;
   }
 
   // Calculate cache efficiency

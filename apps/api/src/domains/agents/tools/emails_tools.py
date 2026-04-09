@@ -1906,16 +1906,6 @@ async def _generate_email_content(
         required_fields = ["subject", "body"]
         logger.debug("email_content_generation_mode", mode="full")
 
-    # Inject psyche context if user_id is available
-    if user_id:
-        try:
-            from src.domains.psyche.service import build_psyche_prompt_block
-
-            psyche_block = await build_psyche_prompt_block(user_id=user_id, user_timezone=None)
-            prompt += psyche_block
-        except Exception:
-            pass  # Psyche injection is best-effort
-
     llm = get_llm("email_agent")
 
     # Enrich config with node metadata for token tracking

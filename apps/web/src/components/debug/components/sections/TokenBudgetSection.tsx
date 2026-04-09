@@ -7,7 +7,7 @@
 
 import React from 'react';
 import { AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
-import { MetricRow, ZoneBadge } from '../shared';
+import { MetricRow, ZoneBadge, EmptySection } from '../shared';
 import {
   getZoneColor,
   TOKEN_BAR_HEIGHT,
@@ -53,7 +53,7 @@ export const TokenBudgetSection = React.memo(function TokenBudgetSection({
   data,
 }: TokenBudgetSectionProps) {
   if (!data) {
-    return null;
+    return <EmptySection value="token_budget" title="Token Budget" />;
   }
 
   const {

@@ -66,6 +66,19 @@ import {
 // Constants
 import { DEFAULT_OPEN_SECTIONS } from './utils/constants';
 
+/**
+ * Section group header - always visible separator between logical groups.
+ */
+function SectionGroupHeader({ label }: { label: string }) {
+  return (
+    <div className="pt-3 pb-1 px-1 first:pt-1">
+      <div className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-semibold border-b border-border/30 pb-1">
+        {label}
+      </div>
+    </div>
+  );
+}
+
 export interface DebugPanelProps {
   /** Debug metrics (validated by useDebugMetrics) */
   metrics: DebugMetrics | null;
@@ -149,43 +162,47 @@ function MetricsSections({ metrics }: { metrics: DebugMetrics }) {
 
   return (
     <Accordion type="multiple" defaultValue={DEFAULT_OPEN_SECTIONS} className="px-3">
+      {/* ── REQUEST ANALYSIS ── */}
+      <SectionGroupHeader label="Request Analysis" />
       <IntentSection data={intent_detection} mechanisms={intelligent_mechanisms} />
       <DomainSection data={domain_selection} mechanisms={intelligent_mechanisms} />
       <RoutingSection data={routing_decision} />
+      <QuerySection data={query_info} />
+
+      {/* ── PLANNING & EXECUTION ── */}
+      <SectionGroupHeader label="Planning & Execution" />
+      <PlannerSection data={planner_intelligence} />
       <ToolSection data={tool_selection} />
       <ContextSection data={context_resolution} />
-      <QuerySection data={query_info} />
+      <TokenBudgetSection data={token_budget} />
+      <ExecutionSection data={execution_timeline} />
+      <ForEachAnalysisSection data={for_each_analysis} />
+      <ExecutionWavesSection data={execution_waves} />
+
+      {/* ── INTELLIGENT MECHANISMS ── */}
+      <SectionGroupHeader label="Intelligent Mechanisms" />
       <IntelligentMechanismsSection data={intelligent_mechanisms} />
+      <SkillsSection data={skills} />
+
       {/* ── CONTEXT INJECTION (fed to LLM before response) ── */}
-      <div className="pt-2 pb-1 px-1">
-        <div className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-semibold">
-          Context Injection
-        </div>
-      </div>
+      <SectionGroupHeader label="Context Injection" />
       <MemoryInjectionSection data={memory_injection} />
       <RAGInjectionSection data={rag_injection} />
       <KnowledgeEnrichmentSection data={knowledge_enrichment} />
       <JournalInjectionSection data={journal_injection} plannerData={journal_planner_injection} />
 
       {/* ── BACKGROUND EXTRACTION (after response, fire-and-forget) ── */}
-      <div className="pt-3 pb-1 px-1">
-        <div className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-semibold">
-          Background Extraction
-        </div>
-      </div>
+      <SectionGroupHeader label="Background Extraction" />
       <MemoryDetectionSection data={memory_detection} />
       <JournalExtractionSection data={journal_extraction} />
       <InterestProfileSection data={interest_profile} />
-      <TokenBudgetSection data={token_budget} />
-      <PlannerSection data={planner_intelligence} />
-      <ExecutionSection data={execution_timeline} />
-      <ForEachAnalysisSection data={for_each_analysis} />
-      <ExecutionWavesSection data={execution_waves} />
+
+      {/* ── LLM & API PIPELINE ── */}
+      <SectionGroupHeader label="LLM & API Pipeline" />
       <RequestLifecycleSection data={request_lifecycle} />
       <LLMPipelineSection data={llm_pipeline} />
       <LLMCallsSection calls={llm_calls} summary={llm_summary} />
       <GoogleApiCallsSection calls={google_api_calls} summary={google_api_summary} />
-      <SkillsSection data={skills} />
     </Accordion>
   );
 }

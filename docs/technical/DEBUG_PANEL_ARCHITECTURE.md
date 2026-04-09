@@ -604,3 +604,39 @@ useChat.ts
 4. **Long terme** : Nettoyer les anciennes métriques (refactoring 2)
 
 **Principe** : Un fix ciblé vaut mieux que 5 correctifs superposés.
+
+---
+
+## Section Reorganization (v1.16.2)
+
+### Logical Grouping
+
+Previously, debug sections were displayed in a flat list with only two group headers ("Context Injection" and "Background Extraction"). In v1.16.2, all 24 sections are organized into **6 logical groups** with persistent `SectionGroupHeader` separators:
+
+| Group | Sections | Purpose |
+|-------|----------|---------|
+| **Request Analysis** | Intent, Domain, Routing, Query | How the request was understood |
+| **Planning & Execution** | Planner, Tools, Context, Token Budget, Execution, ForEach, Waves | How the plan was built and executed |
+| **Intelligent Mechanisms** | Mechanisms, Skills | Smart services and skill activation |
+| **Context Injection** | Memory, RAG, Knowledge, Journal | Data fed to LLM before response |
+| **Background Extraction** | Memory Detection, Journal Extraction, Interest Profile | Post-response fire-and-forget tasks |
+| **LLM & API Pipeline** | Request Lifecycle, LLM Pipeline, LLM Calls, Google API | Token usage and API call details |
+
+### Always-Visible Empty Sections
+
+Previously, sections with no data returned `null` and disappeared entirely, making it impossible to know what data the backend *didn't* provide. In v1.16.2:
+
+- New `EmptySection` shared component replaces `return null` in all 15 conditional sections
+- Empty sections display with a dimmed "N/A" `SectionBadge` and placeholder content
+- Section group headers are always visible regardless of data availability
+- 4 sections with domain-specific empty states (MemoryInjection, MemoryDetection, InterestProfile, ToolSection) retain their custom messages (e.g., "OFF", "SKIP", "N/A — routed to chat")
+- 5 sections always render (Intent, Domain, Routing, Context, Query) as their data is guaranteed by the `DebugMetrics` type
+
+### Key Files
+
+| File | Change |
+|------|--------|
+| `DebugPanel.tsx` | `SectionGroupHeader` component + 6-group layout |
+| `shared/EmptySection.tsx` | New shared empty state component |
+| `shared/index.ts` | `EmptySection` export added |
+| 15 section files | `return null` → `<EmptySection />` |

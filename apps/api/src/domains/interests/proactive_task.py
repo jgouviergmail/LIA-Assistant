@@ -339,6 +339,18 @@ class InterestProactiveTask:
         try:
             current_datetime = datetime.now(tz=UTC).strftime("%d/%m/%Y %H:%M")
 
+            # Resolve psyche context before template formatting
+            psyche_block = ""
+            if user_id:
+                try:
+                    from src.domains.psyche.service import build_psyche_prompt_block
+
+                    psyche_block = await build_psyche_prompt_block(
+                        user_id=user_id, user_timezone=None
+                    )
+                except Exception:
+                    pass  # Psyche injection is best-effort
+
             prompt = load_prompt("interest_content_prompt").format(
                 personality_instruction=personality_instruction or DEFAULT_PERSONALITY_PROMPT,
                 interest_topic=topic,
@@ -348,19 +360,8 @@ class InterestProactiveTask:
                 citations=", ".join(citations) if citations else "Aucune",
                 user_language=get_language_name(user_language),
                 current_datetime=current_datetime,
+                psyche_context=psyche_block,
             )
-
-            # Inject psyche context if user_id is available
-            if user_id:
-                try:
-                    from src.domains.psyche.service import build_psyche_prompt_block
-
-                    psyche_block = await build_psyche_prompt_block(
-                        user_id=user_id, user_timezone=None
-                    )
-                    prompt += psyche_block
-                except Exception:
-                    pass  # Psyche injection is best-effort
 
             llm = get_llm("interest_content")
 
