@@ -52,16 +52,30 @@ function intensityBarWidth(intensity: number): string {
 /** Map emotion name to a simple color for the mini-bar. */
 const EMOTION_BAR_COLORS: Record<string, string> = {
   // Positive
-  joy: 'bg-emerald-400', gratitude: 'bg-cyan-400', pride: 'bg-amber-400',
-  amusement: 'bg-pink-400', enthusiasm: 'bg-orange-400', tenderness: 'bg-pink-500',
-  playfulness: 'bg-violet-400', relief: 'bg-emerald-300', wonder: 'bg-yellow-400',
+  joy: 'bg-emerald-400',
+  gratitude: 'bg-cyan-400',
+  pride: 'bg-amber-400',
+  amusement: 'bg-pink-400',
+  enthusiasm: 'bg-orange-400',
+  tenderness: 'bg-pink-500',
+  playfulness: 'bg-violet-400',
+  relief: 'bg-emerald-300',
+  wonder: 'bg-yellow-400',
   // Negative
-  frustration: 'bg-red-400', concern: 'bg-orange-500', melancholy: 'bg-indigo-400',
-  disappointment: 'bg-purple-400', nervousness: 'bg-rose-300',
+  frustration: 'bg-red-400',
+  concern: 'bg-orange-500',
+  melancholy: 'bg-indigo-400',
+  disappointment: 'bg-purple-400',
+  nervousness: 'bg-rose-300',
   // Neutral
-  curiosity: 'bg-violet-400', serenity: 'bg-sky-400', surprise: 'bg-fuchsia-400',
-  empathy: 'bg-teal-400', confusion: 'bg-slate-400', determination: 'bg-sky-500',
-  protectiveness: 'bg-teal-500', resolve: 'bg-slate-500',
+  curiosity: 'bg-violet-400',
+  serenity: 'bg-sky-400',
+  surprise: 'bg-fuchsia-400',
+  empathy: 'bg-teal-400',
+  confusion: 'bg-slate-400',
+  determination: 'bg-sky-500',
+  protectiveness: 'bg-teal-500',
+  resolve: 'bg-slate-500',
 };
 
 export function AssistantAvatar({ psycheState, tooltipLines, animate }: AssistantAvatarProps) {
@@ -109,7 +123,6 @@ export function AssistantAvatar({ psycheState, tooltipLines, animate }: Assistan
       {(tooltipLines || psycheState) && (
         <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block z-50 pointer-events-none">
           <div className="bg-popover/95 backdrop-blur-sm border border-border rounded-lg shadow-lg text-xs whitespace-nowrap min-w-[180px]">
-
             {/* Header: Relationship stage */}
             <div className="px-3 pt-2 pb-1.5 border-b border-border/30">
               <div className="flex items-center justify-between gap-3">
@@ -117,7 +130,10 @@ export function AssistantAvatar({ psycheState, tooltipLines, animate }: Assistan
                   {t('psyche.relationshipStage', 'Relationship')}
                 </span>
                 <span className="text-foreground font-medium text-[11px]">
-                  {t(`psyche.stages.${psycheState.relationship_stage}`, psycheState.relationship_stage)}
+                  {t(
+                    `psyche.stages.${psycheState.relationship_stage}`,
+                    psycheState.relationship_stage
+                  )}
                 </span>
               </div>
             </div>
@@ -159,13 +175,13 @@ export function AssistantAvatar({ psycheState, tooltipLines, animate }: Assistan
                     : t('psyche.tooltip.emotions', 'Emotions')}
                 </div>
                 <div className="space-y-0.5">
-                  {emotions.map((emo) => (
+                  {emotions.map(emo => (
                     <div key={emo.name} className="flex items-center gap-1.5">
                       <div
                         className={cn(
                           'h-1.5 rounded-full shrink-0',
                           intensityBarWidth(emo.intensity),
-                          EMOTION_BAR_COLORS[emo.name] ?? 'bg-muted-foreground',
+                          EMOTION_BAR_COLORS[emo.name] ?? 'bg-muted-foreground'
                         )}
                       />
                       <span className="text-foreground font-medium text-[11px]">

@@ -168,7 +168,8 @@ PLANNER_LLM_MODEL=deepseek-reasoner
 | Modele (valeur config) | Context | Notes |
 |------------------------|---------|-------|
 | `qwen3-max` | 262K | Thinking only (pas de tools, pas de vision) |
-| `qwen3.5-plus` | 1M | Tools + Vision + Thinking (par defaut) |
+| `qwen3.6-plus` | 1M | Tools + Vision + Thinking, latest generation |
+| `qwen3.5-plus` | 1M | Tools + Vision + Thinking |
 | `qwen3.5-flash` | 1M | Tools + Vision + Thinking, cout reduit |
 
 **Notes Qwen** :
@@ -176,7 +177,7 @@ PLANNER_LLM_MODEL=deepseek-reasoner
 - Thinking mode : `enable_thinking` + `thinking_budget` via `extra_body`
 - Implicit cache automatique (>=256 tokens, pas de flag necessaire)
 - `frequency_penalty` non supporte (utiliser `presence_penalty`)
-- Prix (international) : qwen3.5-flash $0.10/$0.40, qwen3.5-plus $0.40/$2.40, qwen3-max $1.20/$6.00
+- Prix (international) : qwen3.5-flash $0.10/$0.40, qwen3.5-plus $0.40/$2.40, qwen3.6-plus $0.60/$3.60, qwen3-max $1.20/$6.00
 
 ### Ollama (local)
 

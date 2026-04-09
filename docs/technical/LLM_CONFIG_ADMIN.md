@@ -201,7 +201,7 @@ Cross-worker cache invalidation is handled via Redis Pub/Sub (ADR-063). When `in
 | **Background** | `interest_extraction`, `interest_content`, `heartbeat_decision`, `heartbeat_message`, `broadcast_translator` |
 | **Initiative** | `initiative` — Post-execution cross-domain enrichment |
 | **MCP ReAct** | `mcp_react_agent` — Iterative sub-agent for regular MCP servers with `iterative_mode` |
-| **MCP App (ReAct)** | `mcp_app_react_agent` — Iterative sub-agent for MCP App servers (with interactive widgets like Excalidraw). Auto-selected when `app_resource_uri` present. Defaults to Opus. |
+| **MCP App (ReAct)** | `mcp_app_react_agent` — Iterative sub-agent for MCP App servers (with interactive widgets like Excalidraw). Auto-selected when `app_resource_uri` present. Defaults to Qwen 3.6-plus. |
 | **Specialized** | `voice_comment`, `mcp_description`, `evaluator` |
 
 ---

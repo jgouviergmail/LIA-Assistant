@@ -36,7 +36,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.15.2</strong> — Psyche Engine v2: 22 emotions, graduated directives, serenity floor, narrative transitions, multi-emotion, resonance — April 2026
+  <strong>Version 1.15.3</strong> — Similarity threshold calibration, LLM config alignment — April 2026
 </p>
 
 ---

@@ -56,7 +56,7 @@ Migrate all embedding operations from OpenAI `text-embedding-3-small` to Google 
 1. Alembic migration adds `keyword_embedding` columns to `memories` and `journal_entries`
 2. `scripts/reindex_embeddings.py --only-memories` then `--only-journals` then `--skip-store --skip-memories --skip-journals` (interests)
 3. RAG reindex via admin API: `POST /api/v1/rag-spaces/admin/reindex`
-4. Threshold recalibration: `MEMORY_MIN_SEARCH_SCORE` may need adjustment for Gemini score distribution
+4. Threshold recalibration: All similarity thresholds recalibrated for Gemini score distribution (`MEMORY_MIN_SEARCH_SCORE` 0.65, `MEMORY_RELEVANCE_THRESHOLD` 0.72, `JOURNAL_CONTEXT_MIN_SCORE` 0.63, `JOURNAL_DEDUP_SIMILARITY_THRESHOLD` 0.87, `INTEREST_DEDUP_SIMILARITY_THRESHOLD` 0.89, `INTEREST_CONTENT_SIMILARITY_THRESHOLD` 0.90, `QUERY_ENGINE_SIMILARITY_THRESHOLD` 0.93, `RAG_SPACES_RETRIEVAL_MIN_SCORE` 0.55)
 
 ## Alternatives Considered
 

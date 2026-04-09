@@ -2622,6 +2622,19 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_15_3": {
+          "title": "v1.15.3 — Memory precision, interest deduplication, improved RAG search",
+          "date": "April 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>More precise memory retrieval</b> — Irrelevant memories appear less often in conversation context, thanks to recalibrated similarity thresholds.",
+            "i2": "<b>Better targeted journal behavioral directives</b> — Directives from your journals are now more relevant and less generic.",
+            "i3": "<b>Improved interest deduplication</b> — Similar but distinct interests (e.g., Italian cuisine vs Japanese cuisine) are no longer incorrectly merged.",
+            "i4": "<b>Less repetitive content notifications</b> — Proactive notifications now avoid sending you similar content repeatedly.",
+            "i5": "<b>More relevant RAG document search</b> — Search results across your documents are more precise and better targeted.",
+            "i6": "<b>Optimized LLM models for extraction</b> — Data extraction tasks now use more capable models for better results."
+          }
+        },
         "v1_15_2": {
           "title": "v1.15.2 — Psyche v2: expanded emotion palette (22 emotions), graduated directives, serenity floor, narrative transitions, multi-emotion self-report, emotional resonance, proactive emotions, enriched avatar tooltip.",
           "date": "April 2026",

@@ -77,7 +77,7 @@ safe_fire_and_forget(                                    safe_fire_and_forget(
                                                                       ▼
                                                          InterestExtractionService
                                                          - LLM analysis (0-2 interests)
-                                                         - Dedup via OpenAI embeddings (0.80 threshold)
+                                                         - Dedup via OpenAI embeddings (0.89 threshold)
                                                          - Consolidate or create with embedding
                                                          - Token tracking via TrackingContext
 ```
@@ -113,7 +113,7 @@ safe_fire_and_forget(                                    safe_fire_and_forget(
        ├── Generate embedding for topic (OpenAI text-embedding-3-small, 1536 dims)
        │
        ├── Check similarity with existing (embedding-based)
-       │   ├── cosine_similarity >= 0.80? → consolidate_on_mention()
+       │   ├── cosine_similarity >= 0.89? → consolidate_on_mention()
        │   ├── String fallback if no embedding → consolidate_on_mention()
        │   └── New? → repo.create() with embedding
        │
@@ -283,7 +283,7 @@ Parmi les interets de l'utilisateur, un seul est selectionne selon l'algorithme 
 | `INTEREST_TOP_PERCENT` | 0.20 | Pourcentage du top des interets a considerer |
 | `INTEREST_PER_TOPIC_COOLDOWN_HOURS` | 24 | Cooldown par topic (eviter repetition) |
 | `INTEREST_DECAY_RATE_PER_DAY` | 0.01 | Decroissance du poids (1%/jour sans mention) |
-| `INTEREST_DEDUP_SIMILARITY_THRESHOLD` | 0.80 | Seuil similarite pour consolidation interets |
+| `INTEREST_DEDUP_SIMILARITY_THRESHOLD` | 0.89 | Seuil similarite pour consolidation interets |
 
 ### 2.5.3 Generation du contenu
 
@@ -306,7 +306,7 @@ Le contenu est genere via une **chaine de fallback** :
 
 **Deduplication** :
 - Hash SHA256 du contenu compare aux 30 derniers jours
-- Similarite semantique via OpenAI embeddings (1536 dims) - seuil 0.85
+- Similarite semantique via OpenAI embeddings (1536 dims) - seuil 0.90
 
 **Generation des embeddings (automatique)** :
 - Chaque contenu genere par une source recoit automatiquement un embedding OpenAI
@@ -405,7 +405,7 @@ topic_embedding = embeddings.embed_query(topic)
 for interest in existing_interests:
     if interest.embedding:
         similarity = cosine_similarity(topic_embedding, interest.embedding)
-        if similarity >= INTEREST_DEDUP_SIMILARITY_THRESHOLD:  # 0.80
+        if similarity >= INTEREST_DEDUP_SIMILARITY_THRESHOLD:  # 0.89
             return True, interest  # Consolidation
 ```
 
@@ -420,7 +420,7 @@ Lors de la generation de contenu, le systeme verifie si un contenu similaire a d
 content.embedding = embeddings.embed_query(content.content)
 for existing_embedding in recent_notification_embeddings:
     similarity = cosine_similarity(content.embedding, existing_embedding)
-    if similarity >= INTEREST_CONTENT_SIMILARITY_THRESHOLD:  # 0.85
+    if similarity >= INTEREST_CONTENT_SIMILARITY_THRESHOLD:  # 0.90
         return True  # Duplicate, skip
 ```
 
@@ -434,8 +434,8 @@ Les embeddings sont persistes en base pour permettre les comparaisons futures :
 | `interest_notifications` | `content_embedding` | Deduplication lors generation contenu |
 
 **Seuils de similarite** :
-- **Interets** : 0.80 (INTEREST_DEDUP_SIMILARITY_THRESHOLD) - plus tolerant pour consolider
-- **Contenu** : 0.85 (INTEREST_CONTENT_SIMILARITY_THRESHOLD) - plus strict pour eviter repetition
+- **Interets** : 0.89 (INTEREST_DEDUP_SIMILARITY_THRESHOLD) - plus tolerant pour consolider
+- **Contenu** : 0.90 (INTEREST_CONTENT_SIMILARITY_THRESHOLD) - plus strict pour eviter repetition
 
 ### 2.5.7 Affichage temps reel (SSE → Chat)
 
@@ -994,11 +994,12 @@ Section du debug panel affichant :
 INTEREST_EXTRACTION_ENABLED=true
 INTEREST_NOTIFICATIONS_ENABLED=false  # Phase future
 
-# LLM Configuration
+# LLM Configuration (default: openai/gpt-5.4-mini, reasoning_effort: low)
 INTEREST_EXTRACTION_LLM_PROVIDER=openai
-INTEREST_EXTRACTION_LLM_MODEL=gpt-4o-mini
-INTEREST_EXTRACTION_LLM_TEMPERATURE=0.3
+INTEREST_EXTRACTION_LLM_MODEL=gpt-5.4-mini
+INTEREST_EXTRACTION_LLM_TEMPERATURE=0.5
 INTEREST_EXTRACTION_LLM_MAX_TOKENS=500
+INTEREST_EXTRACTION_LLM_REASONING_EFFORT=low
 
 # Weight Evolution
 INTEREST_DECAY_RATE_PER_DAY=0.01
@@ -1006,7 +1007,7 @@ INTEREST_DORMANT_THRESHOLD_DAYS=30
 INTEREST_DELETION_THRESHOLD_DAYS=90
 
 # Deduplication
-INTEREST_DEDUP_SIMILARITY_THRESHOLD=0.8
+INTEREST_DEDUP_SIMILARITY_THRESHOLD=0.89
 ```
 
 ### 8.2 Constantes

@@ -2644,6 +2644,19 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_15_3": {
+          "title": "v1.15.3 — Précision mémoire, déduplication centres d'intérêt, recherche RAG améliorée",
+          "date": "Avril 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>Récupération mémoire plus précise</b> — Les souvenirs non pertinents apparaissent moins souvent dans le contexte de conversation, grâce à des seuils de similarité recalibrés.",
+            "i2": "<b>Directives comportementales du journal mieux ciblées</b> — Les directives issues de vos carnets de bord sont désormais plus pertinentes et moins génériques.",
+            "i3": "<b>Déduplication des centres d'intérêt améliorée</b> — Les centres d'intérêt proches mais distincts (ex : cuisine italienne vs cuisine japonaise) ne sont plus fusionnés par erreur.",
+            "i4": "<b>Notifications de contenu moins répétitives</b> — Les notifications proactives évitent désormais de vous envoyer des contenus similaires à répétition.",
+            "i5": "<b>Recherche documentaire RAG plus pertinente</b> — Les résultats de recherche dans vos documents sont plus précis et mieux ciblés.",
+            "i6": "<b>Modèles LLM optimisés pour l'extraction</b> — Les tâches d'extraction de données utilisent désormais des modèles plus performants pour de meilleurs résultats."
+          }
+        },
         "v1_15_2": {
           "title": "v1.15.2 — Psyche v2 : palette émotionnelle élargie (22 émotions), directives graduées, ancrage de sérénité, transitions narratives, auto-évaluation multi-émotion, résonance émotionnelle, émotions proactives, tooltip d'avatar enrichi.",
           "date": "Avril 2026",

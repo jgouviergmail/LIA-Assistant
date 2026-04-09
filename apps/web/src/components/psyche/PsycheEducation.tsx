@@ -604,9 +604,7 @@ export function PsycheEducation({ lng }: PsycheEducationProps) {
                 )}
               </li>
               <li>
-                <strong>
-                  {t('psyche.education.relationship.resonance_title', 'Resonance')}:
-                </strong>{' '}
+                <strong>{t('psyche.education.relationship.resonance_title', 'Resonance')}:</strong>{' '}
                 {t(
                   'psyche.education.relationship.resonance_desc',
                   'Computed emotional alignment between you and the assistant. Empathetic matching boosts warmth, honest disagreement in a stable relationship boosts trust.'

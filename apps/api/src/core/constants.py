@@ -1347,8 +1347,8 @@ INTEREST_EXTRACTION_QUERY_TRUNCATION_LENGTH = 500
 INTEREST_DEDUP_SEARCH_LIMIT = 20  # Max embeddings to check for similarity
 # Gemini gemini-embedding-001 with RETRIEVAL task types produces discriminative scores.
 # Thresholds calibrated for Gemini (may need re-tuning if model changes).
-INTEREST_DEDUP_SIMILARITY_THRESHOLD = 0.75  # Embedding similarity for merging
-INTEREST_CONTENT_SIMILARITY_THRESHOLD = 0.70  # Content deduplication threshold
+INTEREST_DEDUP_SIMILARITY_THRESHOLD = 0.89  # Calibrated for Gemini embedding-001 (2026-04-09 v2)
+INTEREST_CONTENT_SIMILARITY_THRESHOLD = 0.90  # Calibrated for Gemini embedding-001 (2026-04-09 v2)
 
 # Notification batch processing
 INTEREST_NOTIFICATION_BATCH_SIZE = 50  # Users per scheduler run
@@ -1757,9 +1757,7 @@ PLANNER_LLM_TEMPERATURE_DEFAULT = 0.0
 FOR_EACH_MUTATION_THRESHOLD_DEFAULT = 1
 MAX_CONTEXT_BATCH_SIZE_DEFAULT = 10
 MEMORY_MAX_RESULTS_DEFAULT = 50  # Aligned from .env.prod (was 10)
-MEMORY_MIN_SEARCH_SCORE_DEFAULT = (
-    0.45  # Calibrated for Gemini gemini-embedding-001 (may need re-tuning)
-)
+MEMORY_MIN_SEARCH_SCORE_DEFAULT = 0.65  # Calibrated for Gemini embedding-001 (2026-04-09)
 MEMORY_EXTRACTION_LLM_MODEL_DEFAULT = "qwen3.5-plus"
 MEMORY_EXTRACTION_LLM_TEMPERATURE_DEFAULT = 0.3
 MEMORY_EXTRACTION_MAX_TOKENS_DEFAULT = 1000
@@ -1776,7 +1774,7 @@ MEMORY_MIN_USAGE_COUNT_DEFAULT = 1  # Aligned from .env.prod (was 3)
 MEMORY_PURGE_THRESHOLD_DEFAULT = 0.5  # Aligned from .env.prod (was 0.3)
 MEMORY_CLEANUP_HOUR_DEFAULT = 4
 MEMORY_CLEANUP_MINUTE_DEFAULT = 0
-MEMORY_RELEVANCE_THRESHOLD_DEFAULT = 0.85  # Aligned from .env.prod (was 0.8)
+MEMORY_RELEVANCE_THRESHOLD_DEFAULT = 0.72  # Calibrated for Gemini embedding-001 (2026-04-09)
 MEMORY_RETENTION_WEIGHT_USAGE_DEFAULT = 0.4
 MEMORY_RETENTION_WEIGHT_IMPORTANCE_DEFAULT = 0.3
 MEMORY_RETENTION_WEIGHT_RECENCY_DEFAULT = 0.3
@@ -1799,7 +1797,7 @@ SEMANTIC_DOMAIN_SOFT_THRESHOLD_DEFAULT = 0.65
 SEMANTIC_DOMAIN_MAX_DOMAINS_DEFAULT = 3  # Aligned from .env.prod (was 5)
 SEMANTIC_INTENT_FALLBACK_THRESHOLD_DEFAULT = 0.7  # Aligned from .env.prod (was 0.50)
 SEMANTIC_INTENT_HIGH_THRESHOLD_DEFAULT = 0.85  # Aligned from .env.prod (was 0.75)
-QUERY_ENGINE_SIMILARITY_THRESHOLD_DEFAULT = 0.85
+QUERY_ENGINE_SIMILARITY_THRESHOLD_DEFAULT = 0.93  # Calibrated 2026-04-09 (SequenceMatcher)
 SEMANTIC_PIVOT_LLM_PROVIDER_CONFIG_DEFAULT = "{}"
 SEMANTIC_PIVOT_LLM_MODEL_DEFAULT = "gpt-5-mini"
 SEMANTIC_PIVOT_LLM_TEMPERATURE_DEFAULT = 0.0
@@ -1828,10 +1826,10 @@ INTEREST_CONTENT_MAX_LENGTH_DEFAULT = 500
 INTEREST_CONTENT_LOOKBACK_DAYS_DEFAULT = 7  # Aligned from .env.prod (was 30)
 INTEREST_DEDUP_SEARCH_LIMIT_DEFAULT = 20
 INTEREST_DEDUP_SIMILARITY_THRESHOLD_DEFAULT = (
-    0.75  # Calibrated for Gemini embeddings (may need re-tuning)
+    0.89  # Calibrated for Gemini embedding-001 (2026-04-09 v2)
 )
 INTEREST_CONTENT_SIMILARITY_THRESHOLD_DEFAULT = (
-    0.70  # Calibrated for Gemini embeddings (may need re-tuning)
+    0.90  # Calibrated for Gemini embedding-001 (2026-04-09)
 )
 HEARTBEAT_DECISION_LLM_PROVIDER_DEFAULT = "qwen"
 HEARTBEAT_MESSAGE_LLM_PROVIDER_DEFAULT = "qwen"
@@ -3057,7 +3055,7 @@ RAG_SPACES_MAX_CHUNKS_PER_DOCUMENT_DEFAULT = 500
 
 # Retrieval
 RAG_SPACES_RETRIEVAL_LIMIT_DEFAULT = 5
-RAG_SPACES_RETRIEVAL_MIN_SCORE_DEFAULT = 0.5
+RAG_SPACES_RETRIEVAL_MIN_SCORE_DEFAULT = 0.55  # Calibrated for Gemini embedding-001 (2026-04-09)
 RAG_SPACES_MAX_CONTEXT_TOKENS_DEFAULT = 2000
 RAG_SPACES_HYBRID_ALPHA_DEFAULT = 0.7  # Weight for semantic vs BM25
 
@@ -3327,11 +3325,13 @@ JOURNAL_MAX_TOTAL_CHARS_DEFAULT = 40000  # ~10k tokens total budget
 JOURNAL_MAX_ENTRY_CHARS_DEFAULT = 800  # per entry (directive format is compact)
 JOURNAL_CONTEXT_MAX_CHARS_DEFAULT = 2000  # ~500 tokens injection budget
 JOURNAL_CONTEXT_MAX_RESULTS_DEFAULT = 5  # max semantic search results
-JOURNAL_CONTEXT_MIN_SCORE_DEFAULT = 0.55  # min cosine similarity to include in context
+JOURNAL_CONTEXT_MIN_SCORE_DEFAULT = 0.63  # Calibrated for Gemini embedding-001 (2026-04-09 v2)
 JOURNAL_CONTEXT_RECENT_ENTRIES_DEFAULT = 2  # recent entries injected regardless of score
 
 # --- Semantic dedup guard (extraction) ---
-JOURNAL_DEDUP_SIMILARITY_THRESHOLD_DEFAULT = 0.72  # min similarity to merge instead of create
+JOURNAL_DEDUP_SIMILARITY_THRESHOLD_DEFAULT = (
+    0.87  # Calibrated for Gemini embedding-001 (2026-04-09 v2)
+)
 
 # --- Embedding ---
 JOURNAL_EMBEDDING_MODEL_DEFAULT = "models/gemini-embedding-001"  # Gemini embedding model

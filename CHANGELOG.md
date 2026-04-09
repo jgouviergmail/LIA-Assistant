@@ -5,6 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.15.3] - 2026-04-10
+
+### Similarity Threshold Calibration for Gemini Embedding-001
+
+Comprehensive calibration of all 8 similarity thresholds using realistic test datasets (80 memories + 30 queries, 30 journal entries + 20 queries, 25 RAG chunks + 15 queries, 50 interest topics, 30 content articles, 16 journal dedup pairs). Precision/Recall/F1 analysis at each threshold to find optimal trade-off between noise (token waste) and recall (missed matches).
+
+#### Changes
+- **MEMORY_MIN_SEARCH_SCORE** (0.70 → 0.65): Previous value cut valid matches like "birthday" (0.666), "work" (0.654). New value: F1=0.519, avg 1.8 results/query with 80-memory bank. Cuts all unrelated noise (max 0.618).
+- **MEMORY_RELEVANCE_THRESHOLD** (0.70 → 0.72): Purge protection now targets p75 of match scores (0.735). Only strongly relevant memories increment usage_count.
+- **JOURNAL_CONTEXT_MIN_SCORE** (0.75 → 0.63): Previous value missed 4/12 matches. New value: F1=0.638, avg 1.1 entry/query. Journal behavioral directives match at 0.58–0.75 range.
+- **JOURNAL_DEDUP_SIMILARITY_THRESHOLD** (0.75 → 0.87): Previous value was far too low for doc↔doc symmetric comparisons. New value: F1=0.889 (P=0.800, R=1.000). Catches all true duplicate entries while avoiding false merges on related-but-different content.
+- **INTEREST_DEDUP_SIMILARITY_THRESHOLD** (0.82 → 0.89): New value: P=1.000, R=0.667, F1=0.800. Zero false merges — distinct interests like "Italian cuisine" vs "Japanese cuisine" (0.881) correctly kept separate.
+- **INTEREST_CONTENT_SIMILARITY_THRESHOLD** (0.81 → 0.90): Clear separation gap — duplicate content scores 0.95+, different content max 0.84. Previous value blocked legitimate new articles.
+- **QUERY_ENGINE_SIMILARITY_THRESHOLD** (0.85 → 0.93): SequenceMatcher string-based (not embeddings). Avoids false positives like "same name, different email domain" (0.922).
+- **RAG_SPACES_RETRIEVAL_MIN_SCORE** (0.60 → 0.55): Hybrid score (0.7×semantic + 0.3×BM25) compresses the range. Semantic-only best F1 at 0.67 ≈ 0.55 hybrid.
+
+#### Calibration Scripts
+- New `scripts/test_similarity_thresholds_v2.py` — Large-scale calibration script with realistic user profile data (81 memories, 30 journal directives, 25 RAG chunks, 20 interests, 15 recent articles). Computes P/R/F1 at every threshold for each domain.
+
+### LLM Configuration Alignment
+
+#### Changes
+- **Power tier adjustments** — `memory_extraction`, `interest_extraction`, `journal_extraction`: HIGH (orange) → MEDIUM (blue). `mcp_react_agent`: CRITICAL (red) → HIGH (orange). `mcp_app_react_agent`: CRITICAL (red) → HIGH (orange).
+- **LLM defaults aligned with production config** — Code defaults (`LLM_DEFAULTS`) now reflect proven production configuration:
+  - `memory_extraction`: qwen/qwen3.5-plus → openai/gpt-5.4-mini, reasoning_effort: low
+  - `interest_extraction`: qwen/qwen3.5-plus → openai/gpt-5.4-mini, reasoning_effort: low
+  - `journal_extraction`: qwen/qwen3.5-plus → openai/gpt-5.4-mini, reasoning_effort: low
+  - `mcp_react_agent`: anthropic/claude-opus-4-6 → qwen/qwen3.6-plus, temp 0.2, max_tokens 20000, reasoning_effort: medium
+  - `mcp_app_react_agent`: anthropic/claude-opus-4-6 → qwen/qwen3.6-plus, temp 0.5
+  - `heartbeat_decision`, `interest_content`, `journal_consolidation`: reasoning_effort: none → low
+
+### Documentation
+- Updated `docs/technical/LONG_TERM_MEMORY.md` with calibrated threshold values.
+- Updated `docs/technical/JOURNALS.md` with calibrated threshold values.
+- Updated `docs/technical/INTERESTS.md` with calibrated threshold values.
+- Updated `docs/technical/LLM_CONFIG_ADMIN.md` with updated power tiers and default models.
+- Updated `docs/technical/LLM_PROVIDERS.md` with updated extraction LLM defaults.
+- Updated FAQ changelog (6 languages) with v1.15.3 entries.
+- Fixed missing v1.15.2 and v1.15.1 changelog version keys in FAQContent.tsx.
+
 ## [1.15.2] - 2026-04-09
 
 ### Psyche Engine v2 — Enriched Emotional Intelligence

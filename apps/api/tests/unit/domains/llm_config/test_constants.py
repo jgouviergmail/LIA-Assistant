@@ -46,7 +46,7 @@ class TestLLMDefaults:
             ("router", "openai", "gpt-5-mini"),
             ("response", "qwen", "qwen3.5-plus"),
             ("planner", "qwen", "qwen3.5-plus"),
-            ("mcp_app_react_agent", "anthropic", "claude-opus-4-6"),
+            ("mcp_app_react_agent", "qwen", "qwen3.6-plus"),
             ("subagent", "qwen", "qwen3.5-plus"),
         ],
     )

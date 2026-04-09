@@ -2613,6 +2613,19 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_15_3": {
+          "title": "v1.15.3 — Gedächtnispräzision, Interessen-Deduplizierung, verbesserte RAG-Suche",
+          "date": "April 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>Präzisere Gedächtnisabfrage</b> — Irrelevante Erinnerungen erscheinen seltener im Gesprächskontext dank neu kalibrierter Ähnlichkeitsschwellen.",
+            "i2": "<b>Besser ausgerichtete Journal-Verhaltensdirektiven</b> — Direktiven aus Ihren Journalen sind jetzt relevanter und weniger generisch.",
+            "i3": "<b>Verbesserte Interessen-Deduplizierung</b> — Ähnliche, aber unterschiedliche Interessen (z. B. italienische Küche vs. japanische Küche) werden nicht mehr fälschlicherweise zusammengeführt.",
+            "i4": "<b>Weniger repetitive Inhaltsbenachrichtigungen</b> — Proaktive Benachrichtigungen vermeiden es jetzt, Ihnen wiederholt ähnliche Inhalte zu senden.",
+            "i5": "<b>Relevantere RAG-Dokumentensuche</b> — Suchergebnisse in Ihren Dokumenten sind präziser und besser ausgerichtet.",
+            "i6": "<b>Optimierte LLM-Modelle für Extraktion</b> — Datenextraktionsaufgaben verwenden jetzt leistungsfähigere Modelle für bessere Ergebnisse."
+          }
+        },
         "v1_15_2": {
           "title": "v1.15.2 — Psyche v2: erweiterte Emotionspalette (22 Emotionen), abgestufte Direktiven, Serenitätsbasis, narrative Übergänge, Multi-Emotions-Selbstbericht, emotionale Resonanz, proaktive Emotionen, verbesserter Avatar-Tooltip.",
           "date": "April 2026",

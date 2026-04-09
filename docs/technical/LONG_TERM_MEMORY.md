@@ -359,15 +359,17 @@ MEMORY_INJECTION_ENABLED=true
 
 # Paramètres de recherche sémantique
 MEMORY_MAX_RESULTS=10
-MEMORY_MIN_SEARCH_SCORE=0.6
+MEMORY_MIN_SEARCH_SCORE=0.65
 
-# LLM pour extraction
-MEMORY_EXTRACTION_LLM_MODEL=gpt-4.1-mini
-MEMORY_EXTRACTION_LLM_TEMPERATURE=0.3
+# LLM pour extraction (default: openai/gpt-5.4-mini, reasoning_effort: low)
+MEMORY_EXTRACTION_LLM_PROVIDER=openai
+MEMORY_EXTRACTION_LLM_MODEL=gpt-5.4-mini
+MEMORY_EXTRACTION_LLM_TEMPERATURE=0.5
 MEMORY_EXTRACTION_MAX_TOKENS=1000
-MEMORY_EXTRACTION_TOP_P=0.9
+MEMORY_EXTRACTION_TOP_P=1.0
 MEMORY_EXTRACTION_FREQUENCY_PENALTY=0.0
 MEMORY_EXTRACTION_PRESENCE_PENALTY=0.0
+MEMORY_EXTRACTION_LLM_REASONING_EFFORT=low
 
 # Embedding
 MEMORY_EMBEDDING_MODEL=text-embedding-3-small
@@ -382,7 +384,7 @@ MEMORY_EMBEDDING_DIMENSIONS=1536
 | `memory_extraction_enabled` | bool | True | Active l'extraction background |
 | `memory_injection_enabled` | bool | True | Active l'injection dans le prompt |
 | `memory_max_results` | int | 10 | Max mémoires par recherche |
-| `memory_min_search_score` | float | 0.6 | Score minimum pour inclusion |
+| `memory_min_search_score` | float | 0.65 | Score minimum pour inclusion |
 | `memory_extraction_top_p` | float | 0.9 | Top-p pour LLM extraction |
 | `memory_extraction_frequency_penalty` | float | 0.0 | Frequency penalty LLM |
 | `memory_extraction_presence_penalty` | float | 0.0 | Presence penalty LLM |

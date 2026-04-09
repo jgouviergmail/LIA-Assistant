@@ -101,7 +101,7 @@ Conversation
 - **Embeddings**: OpenAI `text-embedding-3-small` (1536 dims, pgvector HNSW index)
 - **Search**: Cosine distance computed via pgvector HNSW index (SQL-level, efficient at scale)
 - **Search hints**: LLM-generated keywords in user vocabulary supplement embeddings to bridge the gap between assistant introspective style and user direct queries
-- **Min score prefilter**: `JOURNAL_CONTEXT_MIN_SCORE` (default 0.55) — entries below this threshold are discarded BEFORE being sent to the LLM
+- **Min score prefilter**: `JOURNAL_CONTEXT_MIN_SCORE` (default 0.63) — entries below this threshold are discarded BEFORE being sent to the LLM
 - **Temporal continuity**: `JOURNAL_CONTEXT_RECENT_ENTRIES` most recent entries are always injected regardless of semantic score
 - **Injection tracking**: Each injected entry increments `injection_count` and updates `last_injected_at` (fire-and-forget, non-blocking)
 - **Dual injection**: Journal context is injected into both the **planner** (via `intelligence.original_query`) and the **response** (via `last_user_message`) prompts
@@ -122,8 +122,8 @@ Conversation
 - `JOURNAL_DEFAULT_CONTEXT_MAX_CHARS` — Default injection budget (default: 1500)
 - `JOURNAL_MAX_ENTRY_CHARS` — Default max per entry (default: 800)
 - `JOURNAL_CONTEXT_MAX_RESULTS` — Default max search results (default: 10)
-- `JOURNAL_CONTEXT_MIN_SCORE` — Min cosine similarity for prefiltering (default: 0.3)
-- `JOURNAL_DEDUP_SIMILARITY_THRESHOLD` — Min similarity to trigger merge instead of create (default: 0.72)
+- `JOURNAL_CONTEXT_MIN_SCORE` — Min cosine similarity for prefiltering (default: 0.63)
+- `JOURNAL_DEDUP_SIMILARITY_THRESHOLD` — Min similarity to trigger merge instead of create (default: 0.87)
 
 **User (Settings > Features)**:
 - Enable/disable journals (data preserved when disabled)
@@ -138,8 +138,8 @@ Conversation
 ### LLM Configuration
 
 Two entries in `LLM_DEFAULTS` + `LLM_TYPES_REGISTRY`:
-- `journal_extraction` — Post-conversation (frequent, lightweight)
-- `journal_consolidation` — Periodic review (rare, complex)
+- `journal_extraction` — Post-conversation (frequent, lightweight). Default: `openai/gpt-5.4-mini`, temp 0.5, reasoning_effort: low, power tier: MEDIUM
+- `journal_consolidation` — Periodic review (rare, complex). Default: `qwen/qwen3.5-plus`, temp 0.5, reasoning_effort: low, power tier: HIGH
 
 Both configurable in Admin > LLM Configuration (category: `background`).
 
@@ -159,7 +159,7 @@ Personal Journals are integrated as a context source for proactive heartbeat not
 When the extraction LLM proposes a `create` action, a programmatic guard checks for semantic duplicates before persisting:
 
 1. **Embedding**: Generate an embedding for the proposed entry (title + content + search_hints)
-2. **Search**: Query existing entries via pgvector cosine similarity (threshold: `JOURNAL_DEDUP_SIMILARITY_THRESHOLD`, default 0.72)
+2. **Search**: Query existing entries via pgvector cosine similarity (threshold: `JOURNAL_DEDUP_SIMILARITY_THRESHOLD`, default 0.87)
 3. **Merge (N→1)**: If one or more existing entries exceed the threshold:
    - Call the merge LLM (`journal_merge_prompt.txt`) with ALL matching entries + the new proposal
    - **Update** the primary entry (highest score) with the merged content
