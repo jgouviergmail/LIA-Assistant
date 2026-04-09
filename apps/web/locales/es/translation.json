@@ -2648,6 +2648,15 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_16_1": {
+          "title": "v1.16.1 — Fiabilidad de la configuración LLM",
+          "date": "Abril 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>Overrides LLM del admin ahora completamente aplicados</b> — Los cambios de configuración realizados en el panel de Administración (proveedor, modelo, temperatura, modo de razonamiento, etc.) ahora se aplican en todas partes, incluidas las notificaciones de intereses y el contenido proactivo. Anteriormente, algunas tareas en segundo plano podían ignorar la configuración del admin.",
+            "i2": "<b>Truncamiento de notificaciones de intereses corregido</b> — Las notificaciones proactivas de intereses que terminaban con \"...\" a mitad de frase ahora están completas. El problema era causado por un modo de razonamiento incorrecto que consumía los tokens de salida."
+          }
+        },
         "v1_16_0": {
           "title": "v1.16.0 — Modo de ejecución ReAct",
           "date": "Abril 2026",

@@ -233,6 +233,7 @@ function highlightTextContent(text: string, normalizedQuery: string): string {
 }
 
 const changelogVersionKeys = [
+  'v1_16_1',
   'v1_16_0',
   'v1_15_3',
   'v1_15_2',
@@ -283,6 +284,11 @@ const featureIcons = {
   ragSpaces: Library,
   subAgents: Bot,
   browserControl: Monitor,
+  psycheEngine: Brain,
+  personalJournals: BookOpen,
+  imageGeneration: ImageIcon,
+  reactMode: Zap,
+  proactiveInitiative: Compass,
 };
 
 const featureKeys = [
@@ -316,6 +322,11 @@ const featureKeys = [
   'ragSpaces',
   'subAgents',
   'browserControl',
+  'psycheEngine',
+  'personalJournals',
+  'imageGeneration',
+  'reactMode',
+  'proactiveInitiative',
 ];
 
 export function FAQContent({ lng, onShowWelcome, showWelcomeButton = false }: FAQContentProps) {

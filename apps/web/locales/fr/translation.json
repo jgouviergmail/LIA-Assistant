@@ -2679,6 +2679,15 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_16_1": {
+          "title": "v1.16.1 — Fiabilité de la configuration LLM",
+          "date": "Avril 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>Overrides LLM admin désormais pleinement appliqués</b> — Les modifications de configuration effectuées dans le panneau d'Administration (provider, modèle, température, mode de raisonnement, etc.) sont désormais garanties d'être appliquées partout, y compris dans les notifications d'intérêt et le contenu proactif. Auparavant, certaines tâches de fond pouvaient ignorer les paramètres admin.",
+            "i2": "<b>Troncature des notifications d'intérêt corrigée</b> — Les notifications proactives de centres d'intérêt qui se terminaient par « ... » en pleine phrase sont désormais complètes. Le problème était causé par un mode de raisonnement incorrect qui consommait les tokens de sortie."
+          }
+        },
         "v1_16_0": {
           "title": "v1.16.0 — Mode d'exécution ReAct",
           "date": "Avril 2026",

@@ -28,6 +28,14 @@ Bouton "Réinitialiser" :
   Supprime l'override DB → retour aux constantes code
 ```
 
+### Garantie d'Application (v1.16.1)
+
+**Tous** les chemins runtime de résolution LLM passent par `get_llm_config_for_agent()` ou `get_llm()` (qui l'appelle). Aucun code ne lit `settings.*_llm_*` directement pour créer ou configurer un LLM.
+
+**Règle pour les développeurs** : ne **jamais** construire un `LLMAgentConfig` à la main depuis `settings.*`. Utiliser :
+- `get_llm("type")` pour obtenir une instance LLM (résolution automatique)
+- `get_llm_config_for_agent(settings, "type").model` pour accéder aux valeurs effectives (ex: logging, métriques)
+
 ---
 
 ## Architecture

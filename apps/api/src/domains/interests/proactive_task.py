@@ -262,6 +262,10 @@ class InterestProactiveTask:
                 tokens_out=total_tokens_out,
             )
 
+            from src.core.llm_config_helper import get_llm_config_for_agent
+
+            effective_model = get_llm_config_for_agent(settings, "interest_content").model
+
             return ProactiveTaskResult(
                 success=True,
                 content=presented_content,
@@ -269,7 +273,7 @@ class InterestProactiveTask:
                 target_id=str(target.id),
                 tokens_in=total_tokens_in,
                 tokens_out=total_tokens_out,
-                model_name=settings.interest_content_llm_model,
+                model_name=effective_model,
                 metadata={
                     "interest_topic": target.topic,
                     "interest_category": target.category,
@@ -279,7 +283,7 @@ class InterestProactiveTask:
                     # Token info for frontend display
                     "tokens_in": total_tokens_in,
                     "tokens_out": total_tokens_out,
-                    "model_name": settings.interest_content_llm_model,
+                    "model_name": effective_model,
                 },
             )
 
@@ -327,7 +331,6 @@ class InterestProactiveTask:
             Tuple of (formatted_content, tokens_in, tokens_out)
         """
 
-        from src.core.llm_agent_config import LLMAgentConfig
         from src.domains.agents.prompts import load_prompt
         from src.domains.personalities.constants import DEFAULT_PERSONALITY_PROMPT
         from src.infrastructure.llm import get_llm
@@ -359,18 +362,7 @@ class InterestProactiveTask:
                 except Exception:
                     pass  # Psyche injection is best-effort
 
-            content_config = LLMAgentConfig(
-                provider=settings.interest_content_llm_provider,
-                model=settings.interest_content_llm_model,
-                temperature=settings.interest_content_llm_temperature,
-                max_tokens=settings.interest_content_llm_max_tokens,
-                top_p=settings.interest_content_llm_top_p,
-                frequency_penalty=settings.interest_content_llm_frequency_penalty,
-                presence_penalty=settings.interest_content_llm_presence_penalty,
-                reasoning_effort=settings.interest_content_llm_reasoning_effort,
-            )
-
-            llm = get_llm("response", config_override=content_config)
+            llm = get_llm("interest_content")
 
             result = await invoke_with_instrumentation(
                 llm=llm,

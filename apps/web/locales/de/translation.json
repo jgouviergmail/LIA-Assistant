@@ -2648,6 +2648,15 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_16_1": {
+          "title": "v1.16.1 — Zuverlässigkeit der LLM-Konfiguration",
+          "date": "April 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>Admin-LLM-Overrides jetzt vollständig durchgesetzt</b> — Konfigurationsänderungen im Administrationspanel (Provider, Modell, Temperatur, Reasoning-Modus usw.) werden jetzt garantiert überall angewendet, einschließlich Interessenbenachrichtigungen und proaktiver Inhalte. Zuvor konnten einige Hintergrundaufgaben Admin-Einstellungen ignorieren.",
+            "i2": "<b>Abschneidung von Interessenbenachrichtigungen behoben</b> — Proaktive Interessenbenachrichtigungen, die mitten im Satz mit \u201E...\u201C endeten, sind jetzt vollständig. Das Problem wurde durch einen falschen Reasoning-Modus verursacht, der Ausgabe-Tokens verbrauchte."
+          }
+        },
         "v1_16_0": {
           "title": "v1.16.0 — ReAct-Ausführungsmodus",
           "date": "April 2026",

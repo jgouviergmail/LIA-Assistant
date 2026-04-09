@@ -353,10 +353,11 @@ def _create_summarization_middleware(agent_model: str | None = None) -> Any | No
         from langchain.agents.middleware import SummarizationMiddleware
 
         from src.core.config.llm import get_model_context_window
+        from src.core.llm_config_helper import get_llm_config_for_agent
 
         # Determine context window based on agent's model
         # The summarization trigger should be based on the agent's LLM context, not the summarizer's
-        effective_model = agent_model or settings.response_llm_model
+        effective_model = agent_model or get_llm_config_for_agent(settings, "response").model
         context_window = get_model_context_window(effective_model)
 
         # Convert fraction-based trigger to absolute token count

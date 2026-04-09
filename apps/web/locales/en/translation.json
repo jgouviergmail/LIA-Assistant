@@ -2657,6 +2657,15 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_16_1": {
+          "title": "v1.16.1 — LLM Configuration Reliability",
+          "date": "April 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>Admin LLM overrides now fully enforced</b> — Configuration changes made in the Administration panel (provider, model, temperature, reasoning mode, etc.) are now guaranteed to apply everywhere, including interest notifications and proactive content. Previously, some background tasks could ignore admin settings.",
+            "i2": "<b>Interest notification truncation fixed</b> — Proactive interest notifications that ended with \"...\" mid-sentence are now complete. The issue was caused by an incorrect reasoning mode consuming output tokens."
+          }
+        },
         "v1_16_0": {
           "title": "v1.16.0 — ReAct Execution Mode",
           "date": "April 2026",

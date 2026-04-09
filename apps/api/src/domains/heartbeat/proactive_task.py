@@ -172,8 +172,10 @@ class HeartbeatProactiveTask:
         total_out = target.decision_tokens_out + msg_tok_out
         total_cache = target.decision_tokens_cache + msg_tok_cache
 
+        from src.core.llm_config_helper import get_llm_config_for_agent
+
         settings = get_settings()
-        model_name = settings.heartbeat_message_llm_model
+        model_name = get_llm_config_for_agent(settings, "heartbeat_message").model
 
         return ProactiveTaskResult(
             success=True,
@@ -273,10 +275,11 @@ class HeartbeatProactiveTask:
             return
 
         try:
+            from src.core.llm_config_helper import get_llm_config_for_agent
             from src.infrastructure.proactive.tracking import track_proactive_tokens
 
             settings = get_settings()
-            model_name = settings.heartbeat_decision_llm_model
+            model_name = get_llm_config_for_agent(settings, "heartbeat_decision").model
 
             await track_proactive_tokens(
                 user_id=user_id,

@@ -12,11 +12,8 @@ Usage Example (Gmail Agent):
     ...     agent_name="emails_agent",
     ...     tools=[send_email_tool, search_email_tool, ...],
     ...     system_prompt=EMAILS_AGENT_SYSTEM_PROMPT.format(datetime=..., context=...),
-    ...     llm_config=LLMConfig(
-    ...         model=settings.emails_agent_llm_model,
-    ...         temperature=0.5,
-    ...         max_tokens=10000,
-    ...     ),
+    ...     # llm_config: omit to use centralized config (LLM_DEFAULTS + DB overrides)
+    ...     # or override: llm_config=get_llm_config_for_agent(settings, "emails_agent")
     ...     enable_hitl=True,  # Tools with manifest.permissions.hitl_required=True need approval
     ... )
     >>> emails_agent = build_generic_agent(config)
@@ -159,11 +156,8 @@ def build_generic_agent(config: AgentConfig) -> Any:
         ...         current_datetime=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         ...         context_instructions="...",
         ...     ),
-        ...     llm_config=LLMConfig(
-        ...         model=settings.contacts_agent_llm_model,
-        ...         temperature=settings.contacts_agent_llm_temperature,
-        ...         max_tokens=settings.contacts_agent_llm_max_tokens,
-        ...     ),
+        ...     # llm_config: omit to use centralized config (LLM_DEFAULTS + DB overrides)
+        ...     # or override: llm_config=get_llm_config_for_agent(settings, "contacts_agent")
         ...     enable_hitl=True,  # Always enabled
         ... )
         >>> contacts_agent = build_generic_agent(config)
@@ -173,11 +167,7 @@ def build_generic_agent(config: AgentConfig) -> Any:
         ...     agent_name="emails_agent",
         ...     tools=[send_email_tool, search_email_tool, ...],
         ...     system_prompt=EMAILS_AGENT_SYSTEM_PROMPT.format(...),
-        ...     llm_config=LLMConfig(
-        ...         model=settings.emails_agent_llm_model,
-        ...         temperature=0.5,
-        ...         max_tokens=10000,
-        ...     ),
+        ...     # llm_config: omit to use centralized config (LLM_DEFAULTS + DB overrides)
         ...     enable_hitl=True,
         ... )
         >>> emails_agent = build_generic_agent(config)

@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.16.1] - 2026-04-09
+
+### Homogeneous LLM Config Resolution
+
+Systematic enforcement that all runtime LLM configuration reads go through the centralized `get_llm_config_for_agent()` helper, which merges code defaults (`LLM_DEFAULTS`) with admin DB overrides (`LLMConfigOverrideCache`). Previously, several code paths read `settings.*_llm_*` directly, silently ignoring admin UI configuration changes.
+
+#### Fixed
+- **Interest content presentation bypass** (CRITICAL): `_present_content()` in `proactive_task.py` manually constructed `LLMAgentConfig` from 8 `settings.interest_content_llm_*` fields and called `get_llm("response", config_override=...)` — completely bypassing DB overrides. With Qwen provider, this caused truncated notifications (thinking mode consuming output tokens). Replaced with `get_llm("interest_content")`.
+- **Stale model name in interest logging**: `settings.interest_content_llm_model` replaced with `get_llm_config_for_agent(settings, "interest_content").model` for accurate token tracking metadata.
+- **Stale model name in heartbeat logging**: `settings.heartbeat_message_llm_model` and `settings.heartbeat_decision_llm_model` replaced with centralized config resolution.
+- **Stale model in voice metrics**: Prometheus metric label `settings.voice_llm_model` replaced with centralized config resolution.
+- **Semantic validator provider fallback**: `settings.semantic_validator_llm_provider` replaced with `get_llm_config_for_agent(settings, "semantic_validator").provider`.
+- **Summarization middleware context window**: `settings.response_llm_model` fallback replaced with `get_llm_config_for_agent(settings, "response").model` for correct context window calculation.
+
+### Documentation
+- Updated `docs/technical/LLM_CONFIG_ADMIN.md` with runtime enforcement guarantee.
+- Updated FAQ changelog (6 languages) with v1.16.1 entries.
+- Updated docstring examples in `base_agent_builder.py` to show centralized config pattern.
+
 ## [1.16.0] - 2026-04-09
 
 ### ReAct Execution Mode (ADR-070)

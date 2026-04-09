@@ -36,7 +36,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.16.0</strong> — ReAct execution mode, token tracking robustness — April 2026
+  <strong>Version 1.16.1</strong> — Homogeneous LLM config resolution, DB override enforcement — April 2026
 </p>
 
 ---

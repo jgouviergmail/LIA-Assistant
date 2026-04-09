@@ -461,8 +461,10 @@ class VoiceCommentService:
             llm_duration = time.time() - llm_start_time
 
             # Track LLM generation duration
+            from src.core.llm_config_helper import get_llm_config_for_agent
+
             voice_comment_generation_duration_seconds.labels(
-                model=settings.voice_llm_model
+                model=get_llm_config_for_agent(settings, "voice_comment").model
             ).observe(llm_duration)
 
             if not comment_text:

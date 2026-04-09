@@ -1258,7 +1258,11 @@ class PlanSemanticValidator:
             timeout_seconds: Validation timeout. If None, uses settings.semantic_validation_timeout_seconds
         """
         self._llm = llm
-        self._provider = provider or settings.semantic_validator_llm_provider
+        from src.core.llm_config_helper import get_llm_config_for_agent
+
+        self._provider = (
+            provider or get_llm_config_for_agent(settings, "semantic_validator").provider
+        )
         self._timeout_seconds = timeout_seconds or settings.semantic_validation_timeout_seconds
 
         # Lazy initialization of LLM
