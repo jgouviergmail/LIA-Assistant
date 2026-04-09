@@ -504,15 +504,17 @@ async def get_memory_facts_for_query(
                 )
                 return None
 
-            # Sort by usage_count + importance + score (descending)
-            # Preserves the exact same sorting as the original implementation
-            # NOTE: Must sort INSIDE the session to access ORM attributes
+            # Sort by relevance score (primary), then importance, then usage_count.
+            # Semantic similarity is the most critical signal when retrieving facts
+            # for a specific query — usage_count as primary key caused targeted
+            # reference resolution to miss specific facts (e.g., "mon fils") in
+            # favor of more frequently used but less relevant memories.
             sorted_results = sorted(
                 results,
                 key=lambda x: (
-                    x[0].usage_count or 0,
-                    x[0].importance or 0.5,
                     x[1] or 0.0,
+                    x[0].importance or 0.5,
+                    x[0].usage_count or 0,
                 ),
                 reverse=True,
             )

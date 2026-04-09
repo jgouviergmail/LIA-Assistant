@@ -116,6 +116,15 @@ class User(BaseModel):
         comment="User preference for long-term memory (extraction + injection). True = enabled by default.",
     )
 
+    # Execution mode preference (pipeline vs react)
+    execution_mode: Mapped[str] = mapped_column(
+        String(20),
+        default="pipeline",
+        nullable=False,
+        server_default="pipeline",
+        comment="Execution mode preference: 'pipeline' (classic planner) or 'react' (ReAct agent loop).",
+    )
+
     # Voice comments (TTS) preference
     voice_enabled: Mapped[bool] = mapped_column(
         default=False,

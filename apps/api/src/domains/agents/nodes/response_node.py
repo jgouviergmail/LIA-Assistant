@@ -1083,6 +1083,36 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             has_vision_content = any(
                 a["content_type"] == AttachmentContentType.IMAGE for a in current_turn_attachments
             )
+        # =====================================================================
+        # ADR-070: ReAct mode — inject the agent's final message as agent_results
+        # so the response LLM can reformulate with personality, display mode, etc.
+        # This preserves ALL post-processing: voice, registry SSE, memory extraction,
+        # psyche, journal, interest extraction — unlike a direct bypass.
+        # =====================================================================
+        react_result = state.get("react_agent_result")
+        if react_result and react_result.get("final_message"):
+            react_message = react_result["final_message"]
+            current_turn = state.get(STATE_KEY_CURRENT_TURN_ID, 0)
+            # Inject as agent_results with registry_updates so that
+            # _filter_registry_by_current_turn() can find the current turn's
+            # registry items and generate_data_for_filtering() produces data
+            # for HTML cards / display mode.
+            current_registry = state.get("current_turn_registry") or state.get("registry") or {}
+            if not state.get(STATE_KEY_AGENT_RESULTS):
+                state[STATE_KEY_AGENT_RESULTS] = {
+                    f"{current_turn}:react_agent": {
+                        "data": {"react_synthesis": react_message},
+                        "registry_updates": current_registry,
+                    }
+                }
+            logger.info(
+                "response_node_react_passthrough",
+                run_id=run_id,
+                iterations=react_result.get("iteration_count", 0),
+                registry_items=len(current_registry),
+                message_preview=react_message[:80] if react_message else "",
+            )
+
         llm = get_llm("vision_analysis") if has_vision_content else get_llm("response")
 
         # Dynamic Few-Shot: Detect domains and operations for targeted prompt loading

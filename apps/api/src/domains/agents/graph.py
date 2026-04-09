@@ -43,6 +43,10 @@ from src.domains.agents.constants import (
     NODE_COMPACTION,
     NODE_DRAFT_CRITIQUE,
     NODE_PLANNER,
+    NODE_REACT_CALL_MODEL,
+    NODE_REACT_EXECUTE_TOOLS,
+    NODE_REACT_FINALIZE,
+    NODE_REACT_SETUP,
     NODE_RESPONSE,
     NODE_ROUTER,
     NODE_SEMANTIC_VALIDATOR,
@@ -195,6 +199,16 @@ def route_from_router(state: MessagesState) -> str:
             message="Router v6 binary mode: redirecting task_orchestrator → planner",
         )
         next_node = NODE_PLANNER
+
+    # ADR-070: ReAct execution mode — route to react_setup instead of planner
+    execution_mode = state.get("execution_mode", "pipeline")
+    if execution_mode == "react" and next_node == NODE_PLANNER and settings.react_agent_enabled:
+        next_node = NODE_REACT_SETUP
+        logger.info(
+            "route_from_router_react_mode",
+            intention=intention,
+            confidence=confidence,
+        )
 
     logger.debug(
         "route_from_router",
@@ -598,6 +612,7 @@ async def build_graph(
         route_from_router,
         {
             NODE_PLANNER: NODE_PLANNER,
+            NODE_REACT_SETUP: NODE_REACT_SETUP,  # ADR-070: ReAct execution mode
             NODE_RESPONSE: NODE_RESPONSE,
         },
     )
@@ -714,6 +729,35 @@ async def build_graph(
             NODE_RESPONSE: NODE_RESPONSE,  # Done: proceed to synthesis
         },
     )
+
+    # ========================================================================
+    # ADR-070: ReAct Execution Mode — Custom loop in parent graph
+    # ========================================================================
+    from src.domains.agents.nodes.react_nodes import (
+        react_call_model_node,
+        react_execute_tools_node,
+        react_finalize_node,
+        react_setup_node,
+    )
+    from src.domains.agents.nodes.routing import route_from_react_call_model
+
+    graph.add_node(NODE_REACT_SETUP, react_setup_node)
+    graph.add_node(NODE_REACT_CALL_MODEL, react_call_model_node)
+    graph.add_node(NODE_REACT_EXECUTE_TOOLS, react_execute_tools_node)
+    graph.add_node(NODE_REACT_FINALIZE, react_finalize_node)
+
+    # ReAct flow: setup → call_model ←→ execute_tools → finalize → response
+    graph.add_edge(NODE_REACT_SETUP, NODE_REACT_CALL_MODEL)
+    graph.add_conditional_edges(
+        NODE_REACT_CALL_MODEL,
+        route_from_react_call_model,
+        {
+            NODE_REACT_EXECUTE_TOOLS: NODE_REACT_EXECUTE_TOOLS,
+            NODE_REACT_FINALIZE: NODE_REACT_FINALIZE,
+        },
+    )
+    graph.add_edge(NODE_REACT_EXECUTE_TOOLS, NODE_REACT_CALL_MODEL)  # Loop back
+    graph.add_edge(NODE_REACT_FINALIZE, NODE_RESPONSE)
 
     # Response is terminal
     graph.add_edge(NODE_RESPONSE, END)

@@ -185,14 +185,30 @@ export function chatReducer(state: ChatState, action: ChatAction): ChatState {
       // Create assistant message immediately with optional initial content
       // This ensures instant visual feedback when streaming starts
       const initialContent = action.payload.initialContent || '';
+
+      // Idempotent: if message already exists (e.g., created by router progress),
+      // just ensure currentMessageId is set so STREAM_REPLACE has a target.
+      // This prevents duplicate messages when handleContentReplacement re-dispatches
+      // STREAM_START after a progress message was already created.
+      const existingIndex = state.messages.findIndex(m => m.id === action.payload.messageId);
+      if (existingIndex >= 0) {
+        return {
+          ...state,
+          status: 'streaming',
+          streaming: {
+            ...state.streaming,
+            currentMessageId: action.payload.messageId,
+            streamBuffer: state.messages[existingIndex].content,
+          },
+        };
+      }
+
       const newMessage: Message = {
         id: action.payload.messageId,
         role: 'assistant',
-        content: initialContent, // Can be empty or contain placeholder
+        content: initialContent,
         timestamp: new Date(),
       };
-
-      // Note: Removed console.log - content length may leak sensitive information about PII
 
       return {
         ...state,

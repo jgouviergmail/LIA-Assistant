@@ -260,10 +260,13 @@ class MemoryReferenceResolutionService:
             return result
 
         except TimeoutError:
+            from src.core.llm_config_helper import get_llm_config_for_agent
+
+            _cfg = get_llm_config_for_agent(self._settings, "memory_reference_resolution")
             logger.warning(
                 "memory_resolution_timeout",
                 query_preview=query[:50],
-                timeout_ms=self._settings.memory_reference_resolution_timeout_ms,
+                timeout_seconds=_cfg.timeout_seconds,
             )
             return ResolvedReferences(
                 original_query=query,
@@ -470,13 +473,15 @@ class MemoryReferenceResolutionService:
         Args:
             query: User query (any language)
             memory_facts: Memory facts to search in
-            timeout_ms: Max timeout in milliseconds
+            timeout_ms: Deprecated — timeout is now read from centralized LLM config
             base_config: RunnableConfig for callback propagation
 
         Returns:
             ResolvedReferences with enriched_query and mappings
         """
         import json
+
+        from src.core.llm_config_helper import get_llm_config_for_agent
 
         llm = get_llm("memory_reference_resolution")
 
@@ -488,7 +493,17 @@ class MemoryReferenceResolutionService:
         )
 
         config = enrich_config_with_node_metadata(base_config or {}, "memory_reference_resolution")
-        timeout_seconds = timeout_ms / 1000.0
+
+        # Use timeout from centralized LLM config (DB/defaults), not hardcoded setting
+        llm_config = get_llm_config_for_agent(self._settings, "memory_reference_resolution")
+        timeout_seconds = llm_config.timeout_seconds
+
+        logger.debug(
+            "memory_resolution_llm_input",
+            query=query,
+            memory_facts_truncated=memory_facts[:1000],
+            prompt_length=len(full_prompt),
+        )
 
         try:
             result = await asyncio.wait_for(
@@ -499,6 +514,12 @@ class MemoryReferenceResolutionService:
             raw_content = result.content if hasattr(result, "content") else str(result)
             response = (
                 raw_content.strip() if isinstance(raw_content, str) else str(raw_content).strip()
+            )
+
+            logger.debug(
+                "memory_resolution_llm_raw_response",
+                response_preview=response[:500],
+                response_length=len(response),
             )
 
             # Parse JSON response

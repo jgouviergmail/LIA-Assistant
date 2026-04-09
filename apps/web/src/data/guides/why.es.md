@@ -103,7 +103,12 @@ El objetivo de LIA no es convertirte en administrador de sistemas. Es ofrecerte 
 
 ## 3. Lo que LIA sabe hacer
 
-LIA actúa de forma concreta en tu vida digital gracias a 16 agentes especializados que cubren el conjunto de necesidades cotidianas: gestión de tus datos personales (correos, calendario, contactos, tareas, archivos), acceso a información externa (búsqueda web, tiempo, lugares, rutas), creación de contenido (imágenes, diagramas), control de tu hogar conectado, navegación web autónoma y anticipación proactiva de tus necesidades.
+LIA actúa de forma concreta en tu vida digital gracias a 19+ agentes especializados que cubren el conjunto de necesidades cotidianas: gestión de tus datos personales (correos, calendario, contactos, tareas, archivos), acceso a información externa (búsqueda web, tiempo, lugares, rutas), creación de contenido (imágenes, diagramas), control de tu hogar conectado, navegación web autónoma y anticipación proactiva de tus necesidades.
+
+Tú eliges cómo razona LIA, mediante un simple toggle (⚡) en el encabezado del chat:
+
+- **Modo Pipeline** (por defecto) — Una verdadera proeza de ingeniería: LIA planifica todos los pasos por adelantado, los valida semánticamente y ejecuta las herramientas en paralelo. Resultado: la misma potencia que un agente autónomo, pero consumiendo 4 a 8 veces menos tokens. El modo más económico y predecible.
+- **Modo ReAct** (⚡) — El asistente razona paso a paso: llama a una herramienta, analiza el resultado y decide qué hacer después. Más autónomo, más adaptable, pero más costoso en tokens. Ideal para investigaciones exploratorias o preguntas complejas cuyo valor añadido justifica el costo.
 
 ### 3.1. Conversación natural
 
@@ -198,7 +203,7 @@ Con LIA, **todo se queda en tu PostgreSQL**: conversaciones, memoria, perfil psi
 
 ### 5.2. Incluso una Raspberry Pi es suficiente
 
-LIA funciona en producción sobre una **Raspberry Pi 5** — un ordenador de placa única de 80 euros. 16 agentes especializados, una stack de observabilidad completa, un sistema de memoria psicológica, todo sobre un micro-servidor ARM. Las imágenes Docker multi-arquitectura (amd64/arm64) permiten el despliegue en cualquier hardware: NAS Synology, VPS a pocos euros al mes, servidor empresarial o cluster Kubernetes.
+LIA funciona en producción sobre una **Raspberry Pi 5** — un ordenador de placa única de 80 euros. 19+ agentes especializados, una stack de observabilidad completa, un sistema de memoria psicológica, todo sobre un micro-servidor ARM. Las imágenes Docker multi-arquitectura (amd64/arm64) permiten el despliegue en cualquier hardware: NAS Synology, VPS a pocos euros al mes, servidor empresarial o cluster Kubernetes.
 
 La soberanía digital ya no es un privilegio empresarial — es un derecho accesible para todos.
 
@@ -211,7 +216,7 @@ LIA no solo funciona con hardware modesto — **optimiza activamente** su consum
 - **Message Windowing**: cada componente ve únicamente el contexto estrictamente necesario
 - **Cache de prompts**: aprovechamiento de la caché nativa de los proveedores para limitar los costes recurrentes
 
-Estas optimizaciones combinadas permiten una reducción significativa del consumo de tokens en comparación con un enfoque agéntico ingenuo.
+Estas optimizaciones combinadas permiten una reducción significativa del consumo de tokens en comparación con el modo ReAct.
 
 ---
 
@@ -313,7 +318,7 @@ LIA no rechaza las acciones sensibles — te las **presenta** con el nivel de de
 
 ChatGPT te ata a OpenAI. Gemini a Google. Copilot a Microsoft.
 
-LIA te conecta a **7 proveedores de IA simultáneamente**: OpenAI, Anthropic, Google, DeepSeek, Perplexity, Qwen y Ollama (modelos locales). Puedes combinarlos: OpenAI para la planificación, Anthropic para la respuesta, DeepSeek para las tareas en segundo plano — todo configurable desde la interfaz de administración, en un clic.
+LIA te conecta a **8 proveedores de IA simultáneamente**: OpenAI, Anthropic, Google, DeepSeek, Perplexity, Qwen y Ollama (modelos locales). Puedes combinarlos: OpenAI para la planificación, Anthropic para la respuesta, DeepSeek para las tareas en segundo plano — todo configurable desde la interfaz de administración, en un clic.
 
 Si un proveedor cambia sus tarifas o degrada su servicio, cambias al instante. Sin dependencias, sin trampas.
 

@@ -36,7 +36,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.15.3</strong> — Similarity threshold calibration, LLM config alignment — April 2026
+  <strong>Version 1.16.0</strong> — ReAct execution mode, token tracking robustness — April 2026
 </p>
 
 ---
@@ -135,7 +135,7 @@ LIA is available as a hosted service at **https://lia.jeyswork.com/** — no ins
 
 <p align="center">
   <img src="docs/assets/screenshot-settings-administration-llm.png" alt="Settings — LLM Configuration with multi-provider support" width="800" />
-  <br /><em>Administration — LLM Configuration: 7 providers (OpenAI, Anthropic, DeepSeek, Qwen, Perplexity, Ollama, Gemini), per-node model selection</em>
+  <br /><em>Administration — LLM Configuration: 8 providers (OpenAI, Anthropic, DeepSeek, Qwen, Perplexity, Ollama, Gemini, Mistral), per-node model selection</em>
 </p>
 
 <p align="center">
@@ -152,6 +152,7 @@ LIA is available as a hosted service at **https://lia.jeyswork.com/** — no ins
 ### Multi-Agent Intelligence (LangGraph 1.x)
 
 - **19+ Specialized Agents**: Contacts, Emails, Calendar, Drive, Tasks, Reminders, Places, Routes, Weather, Wikipedia, Perplexity, Brave, Web Search, Web Fetch, Browser Control (with progressive screenshot streaming), Smart Home (Philips Hue), Context, Query + dynamic MCP agents
+- **ReAct Execution Mode** ([ADR-070](docs/architecture/ADR-070-ReAct-Execution-Mode.md)): Alternative to the pipeline — the LLM iteratively reasons about tool outputs and decides next steps autonomously. User-toggleable preference, 4-node LangGraph architecture with native HITL support, timeout enforcement, cross-domain initiative via prompt engineering. Supports all tools including MCP and Skills
 - **MCP (Model Context Protocol)**: Per-user external tool servers with OAuth 2.1, SSRF protection, structured items parsing, MCP Apps (interactive iframe widgets), **Iterative Mode (ReAct)** for complex servers — a dedicated agent reads docs then calls tools correctly
 - **Agent Initiative Phase**: Post-execution cross-domain enrichment — the assistant proactively verifies related information (e.g., weather shows rain → checks calendar for outdoor events). Prompt-driven, read-only, fully configurable
 - **Skills (agentskills.io)**: Open standard for expert instructions (SKILL.md), model-driven activation, progressive disclosure (L1/L2/L3), sandboxed scripts, marketplace import, auto-translated multi-language descriptions, ZIP download, admin management. **Planner skill guard**: multi-domain deterministic skills are protected from false-positive early clarification requests via domain overlap detection (`_has_potential_skill_match`). **Built-in Skill Generator**: create custom skills in natural language — the assistant guides you through need analysis, archetype selection, and produces a ready-to-import SKILL.md with automatic validation
@@ -582,25 +583,38 @@ Production targets include Raspberry Pi (ARM64) via multi-arch Docker builds (`l
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Conversation Flow
+### Two Execution Modes
+
+LIA offers two execution strategies, switchable per user via a toggle in the chat header:
+
+**Pipeline mode** (default) — A feat of engineering that delivers the same power as ReAct with **4–8× fewer tokens**:
+
+1. A smart **Planner** decomposes the request into an optimized execution plan (DSL)
+2. A **Semantic Validator** checks plan coherence (cardinality, scope, dependencies)
+3. An **Approval Gate** handles HITL for mutations
+4. A **Task Orchestrator** executes tools in parallel waves via `asyncio.gather()`
+5. **Bayesian learning** optimizes planning patterns over time
+
+**ReAct mode** (⚡) — The LLM reasons iteratively, calling tools one by one and adapting to each result. More autonomous but higher token cost. Ideal for exploratory, research, or ambiguous queries.
 
 ```mermaid
 graph TD
     A[User Message] --> B[Router Node]
     B -->|conversation| C[Response Node]
-    B -->|actionable| D[Planner Node]
+    B -->|pipeline mode| D[Planner Node]
+    B -->|react mode| R1[ReAct Setup]
     D --> E[Semantic Validator]
     E --> F{Approval Gate}
     F -->|approved| G[Task Orchestrator]
-    F -->|rejected sub-agents| D
     F -->|rejected| C
     G --> H[Domain Agents + Tools]
-    G --> L[Sub-Agent Delegation]
-    H --> I[External APIs]
-    L --> M[Sub-Agent Pipeline]
-    M --> G
-    I --> G
+    H --> G
     G --> C
+    R1 --> R2[ReAct Call Model]
+    R2 -->|tool_calls| R3[ReAct Execute Tools]
+    R2 -->|done| R4[ReAct Finalize]
+    R3 --> R2
+    R4 --> C
     C --> J[SSE Stream]
 ```
 

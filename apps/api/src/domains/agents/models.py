@@ -368,6 +368,14 @@ class MessagesState(TypedDict):
     initiative_skipped_reason: str | None  # Why initiative was skipped (debug panel)
     initiative_suggestion: str | None  # Proactive write suggestion for response_node
 
+    # ReAct Execution Mode (ADR-070)
+    execution_mode: str | None  # "pipeline" | "react" (from user preference)
+    react_agent_result: dict[str, Any] | None  # Final metadata (iteration_count, mode)
+    # react_iteration: reuses existing field from line 304 (Semantic Agent Phase 2)
+    react_tool_names: list[str]  # Tool names selected for this ReAct session
+    react_hitl_map: dict[str, bool]  # tool_name → hitl_required
+    react_start_time: float | None  # Epoch timestamp for timeout enforcement
+
 
 class AgentMessagesState(TypedDict):
     """
@@ -533,6 +541,13 @@ def create_initial_state(
         initiative_results=[],
         initiative_skipped_reason=None,
         initiative_suggestion=None,
+        # ReAct Execution Mode (ADR-070)
+        execution_mode=None,
+        react_agent_result=None,
+        # react_iteration already initialized above (Semantic Agent Phase 2)
+        react_tool_names=[],
+        react_hitl_map={},
+        react_start_time=None,
     )
 
 
@@ -658,7 +673,7 @@ def validate_state_consistency(state: MessagesState) -> list[str]:
 # SCHEMA MIGRATION FUNCTIONS (LangGraph v1.0 Best Practice)
 # ============================================================================
 
-CURRENT_SCHEMA_VERSION = "1.1"
+CURRENT_SCHEMA_VERSION = "1.2"  # ADR-070: ReAct execution mode fields
 
 
 def get_state_schema_version(state: MessagesState) -> str:
@@ -704,6 +719,7 @@ def migrate_state_to_current(state: MessagesState) -> MessagesState:
     Migration Path:
         0.0 (legacy) → 1.0 (add _schema_version field)
         1.0 → 1.1 (F4: add compaction_summary, compaction_count)
+        1.1 → 1.2 (ADR-070: add ReAct execution mode fields)
 
     Usage:
         >>> # After loading state from checkpoint
@@ -737,6 +753,24 @@ def migrate_state_to_current(state: MessagesState) -> MessagesState:
             state["compaction_count"] = 0
         state["_schema_version"] = "1.1"
         current_version = "1.1"
+
+    # Migration: 1.1 → 1.2 (add ReAct execution mode fields — ADR-070)
+    if current_version == "1.1":
+        logger.info("migrating_state_1.1_to_1.2")
+        if "execution_mode" not in state:
+            state["execution_mode"] = None
+        if "react_agent_result" not in state:
+            state["react_agent_result"] = None
+        if "react_iteration" not in state:
+            state["react_iteration"] = 0
+        if "react_tool_names" not in state:
+            state["react_tool_names"] = []
+        if "react_hitl_map" not in state:
+            state["react_hitl_map"] = {}
+        if "react_start_time" not in state:
+            state["react_start_time"] = None
+        state["_schema_version"] = "1.2"
+        current_version = "1.2"
 
     # Verify final version
     if current_version != CURRENT_SCHEMA_VERSION:

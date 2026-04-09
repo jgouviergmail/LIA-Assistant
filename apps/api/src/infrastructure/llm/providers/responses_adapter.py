@@ -189,15 +189,16 @@ class ResponsesLLM(BaseChatModel):
             )
             return self._fallback_to_chat_completions(messages, stop, run_manager, **kwargs)
 
-        # Tool calling: route to Chat Completions which has full tool_calls support.
-        # The Responses API path does not yet extract function_call output items
-        # from responses, so tool_calls would be silently lost.
+        # Tool calling: route to Chat Completions which has native tool_calls support.
+        # The Responses API uses a different tool schema format (flat vs nested) and
+        # a different response format (function_call output items vs tool_calls).
+        # Chat Completions is the proven, production-tested path for tool calling.
         if kwargs.get("tools"):
             logger.info(
                 "responses_api_tools_chat_completions_redirect",
                 model=self.model,
                 tool_count=len(kwargs["tools"]),
-                msg="Tools provided, using Chat Completions for full tool_calls support",
+                msg="Tools provided, using Chat Completions for tool_calls support",
             )
             return self._fallback_to_chat_completions(messages, stop, run_manager, **kwargs)
 
@@ -485,23 +486,45 @@ class ResponsesLLM(BaseChatModel):
                     }
                 )
 
+        # Extract usage metadata from Chat Completions response for token tracking.
+        # Chat Completions ALWAYS returns usage in non-streaming responses.
+        # Without this, token tracking callbacks receive an AIMessage without
+        # usage_metadata and report zero tokens for the call.
+        usage_metadata = None
+        if hasattr(response, "usage") and response.usage:
+            usage = response.usage
+            prompt_tokens = getattr(usage, "prompt_tokens", 0) or 0
+            completion_tokens = getattr(usage, "completion_tokens", 0) or 0
+            cached_tokens = 0
+            if hasattr(usage, "prompt_tokens_details") and usage.prompt_tokens_details:
+                cached_tokens = getattr(usage.prompt_tokens_details, "cached_tokens", 0) or 0
+            usage_metadata = {
+                "input_tokens": prompt_tokens,
+                "output_tokens": completion_tokens,
+                "total_tokens": prompt_tokens + completion_tokens,
+                "input_token_details": {"cache_read": cached_tokens},
+            }
+
         logger.info(
             "chat_completions_fallback_success",
             model=self.model,
             response_id=response.id,
             output_length=len(content),
             has_tool_calls=bool(tool_calls),
+            usage=usage_metadata,
         )
 
-        # Create AIMessage with tool_calls via constructor (not attribute assignment!)
-        # LangChain requires tool_calls to be passed at construction time
+        # Create AIMessage with tool_calls AND usage_metadata
         ai_message = AIMessage(content=content, tool_calls=tool_calls or [])
+        if usage_metadata:
+            ai_message.usage_metadata = usage_metadata
+        ai_message.response_metadata = {"model_name": response.model or self.model}
 
         generation = ChatGeneration(
             message=ai_message,
             generation_info={
                 "response_id": response.id,
-                "model": self.model,
+                "model": response.model or self.model,
                 "api": "chat_completions",
                 "fallback": True,
             },

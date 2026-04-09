@@ -121,6 +121,8 @@ LLMType = Literal[
     # ADR-062: Initiative Phase + MCP ReAct
     "initiative",  # Initiative: post-execution read-only enrichment evaluation
     "mcp_react_agent",  # MCP ReAct: iterative multi-step MCP interaction
+    # ADR-070: ReAct Execution Mode
+    "react_agent",  # ReAct Agent: autonomous reasoning loop with tools (pipeline alternative)
     # ADR-068: Psyche Engine
     "psyche_summary",  # Psyche: LLM-generated natural language state summary
     # 3-Phase Memory Reference Resolution

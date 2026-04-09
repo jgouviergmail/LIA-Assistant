@@ -580,7 +580,9 @@ class ProviderAdapter:
             additional_kwargs["openai_api_key"] = _require_api_key("qwen")
             provider_for_init = "openai"
 
-            # Streaming: enable token usage metadata (same as OpenAI block)
+            # Enable token usage metadata in streaming responses.
+            # Qwen's DashScope API rejects stream_options when stream=false,
+            # unlike OpenAI which silently ignores it.
             if streaming:
                 additional_kwargs["model_kwargs"] = {"stream_options": {"include_usage": True}}
 
@@ -632,7 +634,12 @@ class ProviderAdapter:
 
             provider_for_init = "openai"
 
-            # Phase 6 - LLM Observability: Enable token metadata during streaming
+            # Phase 6 - LLM Observability: Enable token metadata during streaming.
+            # Note: LangGraph's astream_events() may force internal streaming even
+            # when streaming=False, but the LLM factory `streaming` parameter here
+            # reflects the configured intent. Token tracking for non-streaming LLM
+            # types (like react_agent) is handled by the LangChain callback system
+            # which extracts usage_metadata from the final AIMessage.
             if streaming:
                 additional_kwargs["model_kwargs"] = {"stream_options": {"include_usage": True}}
 

@@ -248,6 +248,14 @@ async def router_node_v3(
         # skips tokens in _process_messages_chunk (line 780-781) before response_node
         # has a chance to update the value. Clearing at turn start prevents this.
         "content_final_replacement": None,
+        # ADR-070: Clear ReAct state from previous turn.
+        # Without this, a conversation turn following a ReAct turn would hit the
+        # react_bypass in response_node and replay the previous ReAct response.
+        "react_agent_result": None,
+        "react_tool_names": [],
+        "react_hitl_map": {},
+        "react_iteration": 0,
+        "react_start_time": None,
         # Store intelligence for planner (as serializable dict for LangGraph checkpointing)
         # Also store the object for in-memory access by streaming service
         STATE_KEY_QUERY_INTELLIGENCE: intelligence.to_serializable_dict(),
@@ -255,6 +263,8 @@ async def router_node_v3(
         "_query_intelligence_obj": intelligence,
         # Store tool selection result for debug panel (semantic similarity of domain tools)
         "tool_selection_result": tool_scores_dict,
+        # ADR-070: Inject execution_mode from configurable into state for routing
+        "execution_mode": configurable.get("user_execution_mode", "pipeline"),
     }
 
     # Add resolved context if available

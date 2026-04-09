@@ -387,6 +387,7 @@ class AgentService(
         user_journals_enabled: bool = False,
         user_psyche_enabled: bool = False,
         user_display_mode: str = "cards",
+        user_execution_mode: str = "pipeline",
         auto_approve_plan: bool = False,
         attachment_ids: list[uuid.UUID] | None = None,
     ) -> AsyncGenerator[ChatStreamChunk, None]:
@@ -456,6 +457,7 @@ class AgentService(
             user_journals_enabled,
             user_psyche_enabled,
             user_display_mode,
+            user_execution_mode,
             auto_approve_plan,
             attachment_ids,
         ):
@@ -474,6 +476,7 @@ class AgentService(
         user_journals_enabled: bool = False,
         user_psyche_enabled: bool = False,
         user_display_mode: str = "cards",
+        user_execution_mode: str = "pipeline",
         auto_approve_plan: bool = False,
         attachment_ids: list[uuid.UUID] | None = None,
     ) -> AsyncGenerator[ChatStreamChunk, None]:
@@ -816,6 +819,7 @@ class AgentService(
                                 user_journals_enabled=user_journals_enabled,  # User journals preference
                                 user_psyche_enabled=user_psyche_enabled,  # User psyche preference
                                 user_display_mode=user_display_mode,  # User display mode (cards/html/markdown)
+                                user_execution_mode=user_execution_mode,  # Execution mode (pipeline/react)
                                 side_channel_queue=side_channel_queue,  # SSE side-channel
                             ),
                             conversation_id=conversation_id,

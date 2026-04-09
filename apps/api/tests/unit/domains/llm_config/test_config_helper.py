@@ -25,7 +25,7 @@ class TestGetLLMConfigForAgent:
         assert config.provider == "openai"
         assert config.model == "gpt-5-mini"
         assert config.temperature == 0.2
-        assert config.max_tokens == 1000
+        assert config.max_tokens == 5000
 
     def test_applies_cache_override(self) -> None:
         """Should merge DB override on top of code defaults."""
@@ -41,7 +41,7 @@ class TestGetLLMConfigForAgent:
         assert config.temperature == 0.5
         # Non-overridden fields keep defaults
         assert config.provider == "openai"
-        assert config.max_tokens == 1000
+        assert config.max_tokens == 5000
         assert config.top_p == 1.0
 
     def test_alias_resolution(self) -> None:
@@ -101,5 +101,5 @@ class TestGetLLMConfigForAgent:
 
         assert config.temperature == 0.9
         assert config.model == "qwen3.5-plus"  # Default preserved
-        assert config.max_tokens == 8000  # Default preserved
+        assert config.max_tokens == 10000  # Default preserved
         assert config.provider == "qwen"  # Default preserved

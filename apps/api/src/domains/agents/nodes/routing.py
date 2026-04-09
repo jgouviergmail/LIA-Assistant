@@ -672,3 +672,79 @@ def route_from_initiative(state: MessagesState) -> Literal["initiative", "respon
         decision=NODE_RESPONSE,
     ).inc()
     return NODE_RESPONSE
+
+
+# ============================================================================
+# ReAct Execution Mode Routing (ADR-070)
+# ============================================================================
+
+
+def route_from_react_call_model(
+    state: MessagesState,
+) -> Literal["react_execute_tools", "react_finalize"]:
+    """Route after ReAct LLM call: continue loop if tool_calls, else finalize.
+
+    Enforces two safety limits:
+    1. Max iterations — prevents infinite loops
+    2. Hard timeout — prevents slow tool calls from accumulating
+
+    Args:
+        state: Current graph state with messages and react_iteration.
+
+    Returns:
+        Next node name.
+    """
+    import time
+
+    from langchain_core.messages import AIMessage
+
+    from src.core.config import settings
+    from src.domains.agents.constants import NODE_REACT_EXECUTE_TOOLS, NODE_REACT_FINALIZE
+
+    last_message = state["messages"][-1] if state.get("messages") else None
+    iteration = state.get("react_iteration", 0)
+
+    # Safety limit 1: prevent infinite loops
+    if iteration >= settings.react_agent_max_iterations:
+        logger.warning(
+            "react_max_iterations_reached",
+            iteration=iteration,
+            max_iterations=settings.react_agent_max_iterations,
+        )
+        langgraph_conditional_edges_total.labels(
+            edge_name="route_from_react_call_model",
+            decision=NODE_REACT_FINALIZE,
+        ).inc()
+        return NODE_REACT_FINALIZE
+
+    # Safety limit 2: hard timeout
+    start_time = state.get("react_start_time")
+    if start_time is not None:
+        elapsed = time.time() - start_time
+        if elapsed > settings.react_agent_timeout_seconds:
+            logger.warning(
+                "react_timeout_reached",
+                elapsed_seconds=round(elapsed, 1),
+                timeout_seconds=settings.react_agent_timeout_seconds,
+                iteration=iteration,
+            )
+            langgraph_conditional_edges_total.labels(
+                edge_name="route_from_react_call_model",
+                decision=NODE_REACT_FINALIZE,
+            ).inc()
+            return NODE_REACT_FINALIZE
+
+    # Continue loop if LLM produced tool_calls
+    if isinstance(last_message, AIMessage) and last_message.tool_calls:
+        langgraph_conditional_edges_total.labels(
+            edge_name="route_from_react_call_model",
+            decision=NODE_REACT_EXECUTE_TOOLS,
+        ).inc()
+        return NODE_REACT_EXECUTE_TOOLS
+
+    # No tool_calls = LLM is done reasoning → finalize
+    langgraph_conditional_edges_total.labels(
+        edge_name="route_from_react_call_model",
+        decision=NODE_REACT_FINALIZE,
+    ).inc()
+    return NODE_REACT_FINALIZE

@@ -103,7 +103,12 @@ Das Ziel von LIA ist nicht, Sie zum Systemadministrator zu machen. Es geht darum
 
 ## 3. Was LIA kann
 
-LIA handelt konkret in Ihrem digitalen Leben dank 16 spezialisierter Agenten, die alle alltäglichen Bedürfnisse abdecken: Verwaltung Ihrer persönlichen Daten (E-Mails, Kalender, Kontakte, Aufgaben, Dateien), Zugang zu externen Informationen (Websuche, Wetter, Orte, Routen), Inhaltserstellung (Bilder, Diagramme), Steuerung Ihres Smart Home, autonomes Web-Browsing und proaktive Antizipation Ihrer Bedürfnisse.
+LIA handelt konkret in Ihrem digitalen Leben dank 19+ spezialisierter Agenten, die alle alltäglichen Bedürfnisse abdecken: Verwaltung Ihrer persönlichen Daten (E-Mails, Kalender, Kontakte, Aufgaben, Dateien), Zugang zu externen Informationen (Websuche, Wetter, Orte, Routen), Inhaltserstellung (Bilder, Diagramme), Steuerung Ihres Smart Home, autonomes Web-Browsing und proaktive Antizipation Ihrer Bedürfnisse.
+
+Sie wählen, wie LIA denkt, über einen einfachen Toggle (⚡) im Chat-Header:
+
+- **Pipeline-Modus** (Standard) — Echte Ingenieurskunst: LIA plant alle Schritte im Voraus, validiert sie semantisch und führt Tools parallel aus. Ergebnis: dieselbe Leistung wie ein autonomer Agent, aber mit 4- bis 8-mal weniger Token-Verbrauch. Der wirtschaftlichste und vorhersagbarste Modus.
+- **ReAct-Modus** (⚡) — Der Assistent denkt Schritt für Schritt: Er ruft ein Tool auf, analysiert das Ergebnis und entscheidet dann, was als Nächstes zu tun ist. Autonomer, anpassungsfähiger, aber kostenintensiver bei den Tokens. Ideal für explorative Recherchen oder komplexe Fragen, bei denen der Mehrwert die Kosten rechtfertigt.
 
 ### 3.1. Natürliche Unterhaltung
 
@@ -198,7 +203,7 @@ Mit LIA **bleibt alles in Ihrem PostgreSQL**: Gespräche, Gedächtnis, psycholog
 
 ### 5.2. Sogar ein Raspberry Pi reicht
 
-LIA läuft produktiv auf einem **Raspberry Pi 5** — einem Einplatinencomputer für 80 Euro. 16 spezialisierte Agenten, ein vollständiger Observability-Stack, ein psychologisches Gedächtnissystem — alles auf einem ARM-Mikroserver. Die Multi-Architektur-Docker-Images (amd64/arm64) ermöglichen den Einsatz auf beliebiger Hardware: Synology NAS, VPS für wenige Euro im Monat, Unternehmensserver oder Kubernetes-Cluster.
+LIA läuft produktiv auf einem **Raspberry Pi 5** — einem Einplatinencomputer für 80 Euro. 19+ spezialisierte Agenten, ein vollständiger Observability-Stack, ein psychologisches Gedächtnissystem — alles auf einem ARM-Mikroserver. Die Multi-Architektur-Docker-Images (amd64/arm64) ermöglichen den Einsatz auf beliebiger Hardware: Synology NAS, VPS für wenige Euro im Monat, Unternehmensserver oder Kubernetes-Cluster.
 
 Digitale Souveränität ist kein Vorrecht von Unternehmen mehr — sie ist ein Recht, das allen zugänglich ist.
 
@@ -211,7 +216,7 @@ LIA läuft nicht nur auf bescheidener Hardware — sie **optimiert aktiv** ihren
 - **Message Windowing**: Jede Komponente sieht nur den unbedingt notwendigen Kontext
 - **Prompt-Cache**: Nutzung des nativen Caches der Anbieter zur Reduzierung wiederkehrender Kosten
 
-Diese kombinierten Optimierungen ermöglichen eine deutliche Reduzierung des Token-Verbrauchs gegenüber einem naiven agentischen Ansatz.
+Diese kombinierten Optimierungen ermöglichen eine deutliche Reduzierung des Token-Verbrauchs gegenüber dem ReAct-Modus.
 
 ---
 
@@ -313,7 +318,7 @@ LIA lehnt sensible Aktionen nicht ab — sie **legt sie Ihnen vor** mit dem jewe
 
 ChatGPT bindet Sie an OpenAI. Gemini an Google. Copilot an Microsoft.
 
-LIA verbindet Sie mit **7 KI-Anbietern gleichzeitig**: OpenAI, Anthropic, Google, DeepSeek, Perplexity, Qwen und Ollama (lokale Modelle). Sie können mischen: OpenAI für die Planung, Anthropic für die Antwort, DeepSeek für Hintergrundaufgaben — alles über die Administrationsoberfläche konfigurierbar, mit einem Klick.
+LIA verbindet Sie mit **8 KI-Anbietern gleichzeitig**: OpenAI, Anthropic, Google, DeepSeek, Perplexity, Qwen und Ollama (lokale Modelle). Sie können mischen: OpenAI für die Planung, Anthropic für die Antwort, DeepSeek für Hintergrundaufgaben — alles über die Administrationsoberfläche konfigurierbar, mit einem Klick.
 
 Wenn ein Anbieter seine Preise ändert oder seinen Service verschlechtert, wechseln Sie sofort. Keine Abhängigkeiten, keine Fallen.
 

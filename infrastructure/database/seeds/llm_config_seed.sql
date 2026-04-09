@@ -1,13 +1,13 @@
 -- LLM Configuration Seed Data
--- Generated: 2026-03-29
+-- Generated: 2026-04-09
 -- Source: Development database (admin-configured optimal settings)
--- Contains: 44 LLM config overrides for all agent/node types
+-- Contains: 45 LLM config overrides for all agent/node types
 --
 -- Applied on first deployment (APPLY_SEEDS=true or personalities table empty)
 -- Uses INSERT ... ON CONFLICT to safely merge with existing config
 
 -- ============================================================================
--- LLM CONFIG OVERRIDES (44 entries)
+-- LLM CONFIG OVERRIDES (45 entries)
 -- ============================================================================
 -- Strategy:
 --   - Domain agents (contacts, emails, calendar, etc.): gpt-4.1-nano (fast, cheap)
@@ -36,9 +36,10 @@ VALUES
 
     -- Routing & analysis (balanced — gpt-4.1-mini)
     (gen_random_uuid(), 'broadcast_translator', NULL, 'gpt-4.1-mini', NULL, NULL, NULL, NOW(), NOW()),
-    (gen_random_uuid(), 'context_resolver', NULL, 'gpt-4.1-mini', 0.2, NULL, NULL, NOW(), NOW()),
+    (gen_random_uuid(), 'context_resolver', 'openai', 'gpt-5-mini', 0.2, NULL, 'minimal', NOW(), NOW()),
     (gen_random_uuid(), 'hitl_classifier', NULL, 'gpt-4.1-nano', NULL, NULL, NULL, NOW(), NOW()),
-    (gen_random_uuid(), 'memory_reference_resolution', NULL, 'gpt-4.1-mini', NULL, NULL, NULL, NOW(), NOW()),
+    (gen_random_uuid(), 'memory_reference_extraction', 'openai', 'gpt-4.1-nano', 0, NULL, 'minimal', NOW(), NOW()),
+    (gen_random_uuid(), 'memory_reference_resolution', 'openai', 'gpt-5-mini', NULL, NULL, 'minimal', NOW(), NOW()),
     (gen_random_uuid(), 'router', NULL, 'gpt-4.1-mini', 0.2, NULL, NULL, NOW(), NOW()),
     (gen_random_uuid(), 'semantic_pivot', NULL, 'gpt-4.1-mini', 0.2, NULL, NULL, NOW(), NOW()),
     (gen_random_uuid(), 'semantic_validator', 'openai', 'gpt-4.1-mini', 0.2, NULL, 'minimal', NOW(), NOW()),

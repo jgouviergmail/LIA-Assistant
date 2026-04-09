@@ -103,7 +103,12 @@ LIA's goal is not to turn you into a system administrator. It's to give you the 
 
 ## 3. What LIA can do
 
-LIA acts concretely in your digital life through 16 specialized agents covering all everyday needs: managing your personal data (emails, calendar, contacts, tasks, files), accessing external information (web search, weather, places, routing), creating content (images, diagrams), controlling your smart home, autonomous web browsing, and proactively anticipating your needs.
+LIA acts concretely in your digital life through 19+ specialized agents covering all everyday needs: managing your personal data (emails, calendar, contacts, tasks, files), accessing external information (web search, weather, places, routing), creating content (images, diagrams), controlling your smart home, autonomous web browsing, and proactively anticipating your needs.
+
+You choose how LIA reasons, via a simple toggle (⚡) in the chat header:
+
+- **Pipeline mode** (default) — A genuine feat of engineering: LIA plans all steps upfront, validates them semantically, then executes tools in parallel. Result: the same power as an autonomous agent, but with 4 to 8 times fewer tokens consumed. This is the most economical and predictable mode.
+- **ReAct mode** (⚡) — The assistant reasons step by step: it calls a tool, analyzes the result, then decides what to do next. More autonomous, more adaptable, but more costly in tokens. Ideal for exploratory research or complex questions where the added value justifies the cost.
 
 ### 3.1. Natural conversation
 
@@ -198,7 +203,7 @@ With LIA, **everything stays in your PostgreSQL**: conversations, memory, psycho
 
 ### 5.2. Even a Raspberry Pi is enough
 
-LIA runs in production on a **Raspberry Pi 5** — a single-board computer costing around $80. 16 specialized agents, a full observability stack, a psychological memory system, all on a tiny ARM server. Multi-architecture Docker images (amd64/arm64) enable deployment on any hardware: Synology NAS, VPS for a few dollars a month, enterprise server, or Kubernetes cluster.
+LIA runs in production on a **Raspberry Pi 5** — a single-board computer costing around $80. 19+ specialized agents, a full observability stack, a psychological memory system, all on a tiny ARM server. Multi-architecture Docker images (amd64/arm64) enable deployment on any hardware: Synology NAS, VPS for a few dollars a month, enterprise server, or Kubernetes cluster.
 
 Digital sovereignty is no longer an enterprise privilege — it's a right accessible to everyone.
 
@@ -211,7 +216,7 @@ LIA doesn't just run on modest hardware — it **actively optimizes** its AI res
 - **Message Windowing**: each component sees only the strictly necessary context
 - **Prompt caching**: leveraging native provider caching to limit recurring costs
 
-These combined optimizations enable a significant reduction in token consumption compared to a naive agentic approach.
+These combined optimizations enable a significant reduction in token consumption compared to ReAct mode.
 
 ---
 
@@ -313,7 +318,7 @@ LIA doesn't refuse sensitive actions — it **submits** them to you with the app
 
 ChatGPT ties you to OpenAI. Gemini to Google. Copilot to Microsoft.
 
-LIA connects you to **7 AI providers simultaneously**: OpenAI, Anthropic, Google, DeepSeek, Perplexity, Qwen, and Ollama (local models). You can mix: OpenAI for planning, Anthropic for response, DeepSeek for background tasks — all configurable from the admin interface, in one click.
+LIA connects you to **8 AI providers simultaneously**: OpenAI, Anthropic, Google, DeepSeek, Perplexity, Qwen, and Ollama (local models). You can mix: OpenAI for planning, Anthropic for response, DeepSeek for background tasks — all configurable from the admin interface, in one click.
 
 If a provider changes its pricing or degrades its service, you switch instantly. No dependency, no trap.
 

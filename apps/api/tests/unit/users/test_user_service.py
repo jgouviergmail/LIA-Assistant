@@ -81,6 +81,7 @@ def create_mock_user(
         image_generation_default_quality="low",
         image_generation_default_size="portrait",
         image_generation_output_format="png",
+        execution_mode="pipeline",
     )
     return user
 

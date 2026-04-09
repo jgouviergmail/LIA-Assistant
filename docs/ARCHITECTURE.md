@@ -54,7 +54,7 @@ LIA est une **plateforme d'assistant conversationnel entreprise** construite sur
 - **Architecture Async-First** : FastAPI async, SQLAlchemy async, asyncio natif
 - **Stateless Backend** : State centralisé (PostgreSQL checkpoints + Redis sessions)
 - **Event-Driven** : SSE streaming pour communication temps-réel
-- **Multi-Provider LLM** : Abstraction via Factory pattern (7 providers supportés)
+- **Multi-Provider LLM** : Abstraction via Factory pattern (8 providers supportés)
 - **Enterprise-Grade Observability** : Prometheus, Grafana, Loki, Tempo, Langfuse
 
 ### Métriques Projet
@@ -255,7 +255,7 @@ apps/api/src/
 │   │   ├── security.py          #    SecuritySettings (OAuth, JWT, cookies)
 │   │   ├── database.py          #    DatabaseSettings (PostgreSQL, Redis)
 │   │   ├── observability.py     #    ObservabilitySettings (OTEL, Prometheus)
-│   │   ├── llm.py               #    LLMSettings (7 providers configs)
+│   │   ├── llm.py               #    LLMSettings (8 providers configs)
 │   │   ├── agents.py            #    AgentsSettings (SSE, HITL, Router)
 │   │   ├── connectors.py        #    ConnectorsSettings (Google APIs, rate limiting)
 │   │   └── advanced.py          #    AdvancedSettings (pricing, i18n, features)

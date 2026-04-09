@@ -37,8 +37,8 @@ class TestLLMDefaults:
             ), f"LLM_DEFAULTS['{llm_type}'] is {type(config)}, expected LLMAgentConfig"
 
     def test_default_count(self) -> None:
-        """Should have 48 LLM types (including memory_reference_extraction)."""
-        assert len(LLM_DEFAULTS) == 48
+        """Should have 49 LLM types (including react_agent — ADR-070)."""
+        assert len(LLM_DEFAULTS) == 49
 
     @pytest.mark.parametrize(
         "llm_type,expected_provider,expected_model",
@@ -46,7 +46,7 @@ class TestLLMDefaults:
             ("router", "openai", "gpt-5-mini"),
             ("response", "qwen", "qwen3.5-plus"),
             ("planner", "qwen", "qwen3.5-plus"),
-            ("mcp_app_react_agent", "qwen", "qwen3.6-plus"),
+            ("mcp_app_react_agent", "anthropic", "claude-opus-4-6"),
             ("subagent", "qwen", "qwen3.5-plus"),
         ],
     )
@@ -57,12 +57,17 @@ class TestLLMDefaults:
         assert config.model == expected_model
 
     def test_planner_has_timeout(self) -> None:
-        """Planner should have a 30s timeout."""
-        assert LLM_DEFAULTS["planner"].timeout_seconds == 30
+        """Planner should have a 60s timeout."""
+        assert LLM_DEFAULTS["planner"].timeout_seconds == 60
 
     def test_mcp_app_react_agent_has_timeout(self) -> None:
-        """MCP App ReAct agent should have a 60s timeout."""
-        assert LLM_DEFAULTS["mcp_app_react_agent"].timeout_seconds == 60
+        """MCP App ReAct agent should have a 120s timeout."""
+        assert LLM_DEFAULTS["mcp_app_react_agent"].timeout_seconds == 120
+
+    def test_all_entries_have_timeout(self) -> None:
+        """All LLM defaults should have an explicit timeout_seconds."""
+        for llm_type, config in LLM_DEFAULTS.items():
+            assert config.timeout_seconds is not None, f"{llm_type} missing timeout_seconds"
 
 
 class TestLLMTypesRegistry:

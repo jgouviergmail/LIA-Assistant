@@ -1082,6 +1082,7 @@ class TestEdgeCases:
             image_generation_default_quality="low",
             image_generation_default_size="1024x1536",
             image_generation_output_format="png",
+            execution_mode="pipeline",
         )
         new_user.id = uuid4()
         new_user.created_at = datetime.now(UTC)

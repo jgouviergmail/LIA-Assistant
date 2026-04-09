@@ -26,6 +26,12 @@ NODE_COMPACTION = "compaction"  # 2026-03: Intelligent context compaction node
 NODE_HITL_DISPATCH = "hitl_dispatch"  # 2025-12-23: Generic HITL dispatch node
 NODE_DRAFT_CRITIQUE = NODE_HITL_DISPATCH  # Backward compatibility alias
 
+# ReAct execution mode nodes (ADR-070)
+NODE_REACT_SETUP = "react_setup"
+NODE_REACT_CALL_MODEL = "react_call_model"
+NODE_REACT_EXECUTE_TOOLS = "react_execute_tools"
+NODE_REACT_FINALIZE = "react_finalize"
+
 # Agent nodes (NAMING: domain=entity(singular), agent=domain+"_agent")
 NODE_QUERY_AGENT = "query_agent"  # INTELLIA: LocalQueryEngine agent
 NODE_WEATHER_AGENT = "weather_agent"  # LOT 10: Weather API agent
@@ -592,6 +598,11 @@ __all__ = [
     "NODE_WEB_FETCH_AGENT",
     "NODE_BROWSER_AGENT",
     "NODE_HUE_AGENT",
+    # ReAct execution mode nodes (ADR-070)
+    "NODE_REACT_SETUP",
+    "NODE_REACT_CALL_MODEL",
+    "NODE_REACT_EXECUTE_TOOLS",
+    "NODE_REACT_FINALIZE",
     # Agent names (v3.2 convention: singular domain names)
     "AGENT_CONTACT",
     "AGENT_EMAIL",

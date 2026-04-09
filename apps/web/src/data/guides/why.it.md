@@ -103,7 +103,12 @@ L'obiettivo di LIA non è trasformarti in un amministratore di sistema. È offri
 
 ## 3. Cosa sa fare LIA
 
-LIA agisce concretamente nella tua vita digitale grazie a 16 agenti specializzati che coprono tutte le esigenze di tutti i giorni: gestione dei tuoi dati personali (email, calendario, contatti, attività, file), accesso alle informazioni esterne (ricerca web, meteo, luoghi, itinerari), creazione di contenuti (immagini, diagrammi), controllo della casa connessa, navigazione web autonoma, e anticipazione proattiva dei tuoi bisogni.
+LIA agisce concretamente nella tua vita digitale grazie a 19+ agenti specializzati che coprono tutte le esigenze di tutti i giorni: gestione dei tuoi dati personali (email, calendario, contatti, attività, file), accesso alle informazioni esterne (ricerca web, meteo, luoghi, itinerari), creazione di contenuti (immagini, diagrammi), controllo della casa connessa, navigazione web autonoma, e anticipazione proattiva dei tuoi bisogni.
+
+Scegli tu come ragiona LIA, tramite un semplice toggle (⚡) nell'intestazione della chat:
+
+- **Modalità Pipeline** (predefinita) — Un vero capolavoro di ingegneria: LIA pianifica tutti i passaggi in anticipo, li valida semanticamente ed esegue gli strumenti in parallelo. Risultato: la stessa potenza di un agente autonomo, ma con 4-8 volte meno token consumati. La modalità più economica e prevedibile.
+- **Modalità ReAct** (⚡) — L'assistente ragiona passo dopo passo: chiama uno strumento, analizza il risultato e decide cosa fare dopo. Più autonomo, più adattabile, ma più costoso in token. Ideale per ricerche esplorative o domande complesse il cui valore aggiunto giustifica il costo.
 
 ### 3.1. Conversazione naturale
 
@@ -198,7 +203,7 @@ Con LIA, **tutto rimane nel tuo PostgreSQL**: conversazioni, memoria, profilo ps
 
 ### 5.2. Basta anche un Raspberry Pi
 
-LIA gira in produzione su un **Raspberry Pi 5** — un computer a scheda singola da 80 euro. 16 agenti specializzati, uno stack di osservabilità completo, un sistema di memoria psicologica, il tutto su un micro-server ARM. Le immagini Docker multi-architettura (amd64/arm64) permettono il deployment su qualsiasi hardware: NAS Synology, VPS a pochi euro al mese, server aziendale, o cluster Kubernetes.
+LIA gira in produzione su un **Raspberry Pi 5** — un computer a scheda singola da 80 euro. 19+ agenti specializzati, uno stack di osservabilità completo, un sistema di memoria psicologica, il tutto su un micro-server ARM. Le immagini Docker multi-architettura (amd64/arm64) permettono il deployment su qualsiasi hardware: NAS Synology, VPS a pochi euro al mese, server aziendale, o cluster Kubernetes.
 
 La sovranità digitale non è più un privilegio per le aziende — è un diritto accessibile a tutti.
 
@@ -211,7 +216,7 @@ LIA non si limita a girare su hardware modesto — **ottimizza attivamente** il 
 - **Message Windowing**: ogni componente vede solo il contesto strettamente necessario
 - **Cache dei prompt**: sfruttamento della cache nativa dei provider per limitare i costi ricorrenti
 
-Queste ottimizzazioni combinate permettono una riduzione significativa del consumo di token rispetto a un approccio agentivo naïve.
+Queste ottimizzazioni combinate permettono una riduzione significativa del consumo di token rispetto alla modalità ReAct.
 
 ---
 
@@ -313,7 +318,7 @@ LIA non rifiuta le azioni sensibili — te le **sottopone** con il livello di de
 
 ChatGPT ti lega a OpenAI. Gemini a Google. Copilot a Microsoft.
 
-LIA ti connette a **7 provider IA simultaneamente**: OpenAI, Anthropic, Google, DeepSeek, Perplexity, Qwen, e Ollama (modelli locali). Puoi mixare: OpenAI per la pianificazione, Anthropic per la risposta, DeepSeek per le attività in background — tutto configurabile dall'interfaccia di amministrazione, con un clic.
+LIA ti connette a **8 provider IA simultaneamente**: OpenAI, Anthropic, Google, DeepSeek, Perplexity, Qwen, e Ollama (modelli locali). Puoi mixare: OpenAI per la pianificazione, Anthropic per la risposta, DeepSeek per le attività in background — tutto configurabile dall'interfaccia di amministrazione, con un clic.
 
 Se un provider cambia i prezzi o peggiora il servizio, passi istantaneamente all'altro. Nessuna dipendenza, nessuna trappola.
 

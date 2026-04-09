@@ -101,6 +101,31 @@ DEFAULT_NODE_METADATA: dict[str, DefaultDisplayMetadata] = {
         visible=True,
         category="system",
     ),
+    # ReAct Execution Mode nodes (ADR-070)
+    "react_setup": DefaultDisplayMetadata(
+        emoji="🔧",
+        i18n_key="react_setup",
+        visible=True,
+        category="system",
+    ),
+    "react_call_model": DefaultDisplayMetadata(
+        emoji="🧠",
+        i18n_key="react_reasoning",
+        visible=True,
+        category="system",
+    ),
+    "react_execute_tools": DefaultDisplayMetadata(
+        emoji="⚙️",
+        i18n_key="react_tool_execution",
+        visible=True,
+        category="system",
+    ),
+    "react_finalize": DefaultDisplayMetadata(
+        emoji="✅",
+        i18n_key="react_finalize",
+        visible=True,
+        category="system",
+    ),
 }
 
 

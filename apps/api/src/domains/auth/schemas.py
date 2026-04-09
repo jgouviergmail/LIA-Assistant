@@ -2,6 +2,8 @@
 Authentication domain schemas (Pydantic models for API).
 """
 
+from typing import Literal
+
 from pydantic import BaseModel, EmailStr, Field
 
 from src.domains.shared.schemas import (
@@ -122,6 +124,25 @@ class MemoryPreferenceResponse(BaseModel):
     memory_enabled: bool = Field(..., description="Current memory preference state")
     message: str = Field(
         default="Memory preference updated",
+        description="Confirmation message",
+    )
+
+
+class ExecutionModePreferenceRequest(BaseModel):
+    """Schema for updating user execution mode preference (pipeline vs react)."""
+
+    execution_mode: Literal["pipeline", "react"] = Field(
+        ...,
+        description="Execution mode: 'pipeline' (classic planner) or 'react' (ReAct agent loop)",
+    )
+
+
+class ExecutionModePreferenceResponse(BaseModel):
+    """Schema for execution mode preference update response."""
+
+    execution_mode: str = Field(..., description="Current execution mode preference")
+    message: str = Field(
+        default="Execution mode preference updated",
         description="Confirmation message",
     )
 

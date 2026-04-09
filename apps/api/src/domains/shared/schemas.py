@@ -272,6 +272,10 @@ class UserBase(BaseModel, TimezoneValidatorMixin, ThemeValidatorMixin, FontFamil
     oauth_provider: str | None = Field(None, description="OAuth provider name")
     picture_url: str | None = Field(None, description="Profile picture URL")
     memory_enabled: bool = Field(default=True, description="Long-term memory enabled")
+    execution_mode: str = Field(
+        default="pipeline",
+        description="Execution mode: 'pipeline' (classic planner) or 'react' (ReAct agent loop)",
+    )
     voice_enabled: bool = Field(default=False, description="Voice comments (TTS) enabled")
     voice_mode_enabled: bool = Field(
         default=False, description="Voice mode (wake word + STT input) enabled"

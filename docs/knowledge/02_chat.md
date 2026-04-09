@@ -149,3 +149,26 @@ The **/resume** command triggers **intelligent context compaction**:
 4. LIA confirms the compaction with a brief summary
 
 **💡 Note:** Compaction also triggers automatically when the conversation becomes very long. The /resume command lets you force it at any time.
+
+## What is ReAct mode?
+
+LIA offers two execution modes, switchable via the **⚡ toggle** in the chat header:
+
+### Pipeline mode (default)
+The classic mode: LIA plans all steps upfront, then executes them in parallel. Fast and efficient for well-defined requests.
+
+### ReAct mode (⚡)
+The assistant **reasons step by step**: it calls a tool, analyzes the result, then autonomously decides what to do next. This mode is ideal for:
+• **Exploratory questions** — "What's happening this weekend?"
+• **Complex research** — multi-step queries where the optimal tool sequence isn't known upfront
+• **Cross-domain initiative** — after getting weather, the assistant may proactively check your calendar
+
+**Key differences:**
+| Aspect | Pipeline | ReAct |
+|--------|----------|-------|
+| Planning | Upfront plan | Step-by-step reasoning |
+| Adaptability | Follows plan | Pivots on tool results |
+| Token cost | Lower | Higher (1 LLM call per step) |
+| Best for | Structured requests | Exploration, research |
+
+**Your skills and MCP tools** work in both modes. The toggle preference is saved automatically.

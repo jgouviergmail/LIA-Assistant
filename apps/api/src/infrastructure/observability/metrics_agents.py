@@ -1353,3 +1353,33 @@ adaptive_replanner_recovery_success_total = Counter(
     # strategy: broaden_search, alternative_source, reduce_scope, skip_optional, add_verification
     # Tracks which recovery strategies are most effective
 )
+
+
+# ============================================================================
+# ReAct Execution Mode (ADR-070)
+# ============================================================================
+react_agent_executions_total = Counter(
+    "react_agent_executions_total",
+    "Total ReAct agent node executions",
+    ["status"],  # success, error, timeout
+)
+react_agent_iterations = Histogram(
+    "react_agent_iterations",
+    "ReAct agent iteration count distribution",
+    buckets=[1, 2, 3, 5, 8, 10, 15],
+)
+react_agent_duration_seconds = Histogram(
+    "react_agent_duration_seconds",
+    "ReAct agent total execution duration",
+    buckets=[1, 2, 5, 10, 30, 60, 120],
+)
+react_agent_tools_called_total = Counter(
+    "react_agent_tools_called_total",
+    "Tools called by ReAct agent",
+    ["tool_name"],
+)
+react_agent_hitl_interrupts_total = Counter(
+    "react_agent_hitl_interrupts_total",
+    "HITL interrupts triggered in ReAct mode",
+    ["tool_name", "decision"],  # decision: approve, reject
+)

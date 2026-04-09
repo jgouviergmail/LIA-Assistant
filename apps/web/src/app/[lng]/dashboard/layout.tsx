@@ -7,7 +7,7 @@ import { useLanguageParam } from '@/hooks/useLanguageParam';
 import { fallbackLng } from '@/i18n/settings';
 import { getLanguageFromPath, buildLocalizedPath } from '@/utils/i18n-path-utils';
 import Link from 'next/link';
-import { MemoryToggle } from '@/components/memory-toggle';
+import { ExecutionModeToggle } from '@/components/execution-mode-toggle';
 import { VoiceToggle } from '@/components/voice-toggle';
 import { TokensDisplayToggle } from '@/components/tokens-display-toggle';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -158,7 +158,7 @@ export default function DashboardLayout({ children, params }: DashboardLayoutPro
             <div className="flex items-center flex-1 md:flex-none">
               {/* Icons container - evenly spaced on mobile, normal gap on desktop */}
               <div className="flex items-center flex-1 justify-evenly md:justify-end md:gap-3">
-                <MemoryToggle lng={lng} />
+                <ExecutionModeToggle lng={lng} />
                 <VoiceToggle lng={lng} />
                 {/* TokensDisplayToggle - Desktop only */}
                 <div className="hidden md:block">

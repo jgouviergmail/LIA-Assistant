@@ -53,6 +53,16 @@
       "tooltip_disabled": "长期记忆已禁用 - 简单对话模式"
     }
   },
+  "executionMode": {
+    "toggle": {
+      "enable_react": "切换到 ReAct 模式",
+      "enable_pipeline": "切换到 Pipeline 模式",
+      "enabled": "ReAct 模式已启用",
+      "disabled": "Pipeline 模式已启用",
+      "tooltip_react": "ReAct 模式 — 使用工具进行实时自主推理",
+      "tooltip_pipeline": "Pipeline 模式 — 结构化计划后执行"
+    }
+  },
   "voice": {
     "toggle": {
       "enable": "启用语音",
@@ -2402,6 +2412,11 @@
       "approval_gate": "验证计划...",
       "task_orchestration": "编排任务...",
       "response_generation": "生成响应...",
+      "react_setup": "准备ReAct代理...",
+      "react_reasoning": "推理中...",
+      "react_tool_execution": "执行工具...",
+      "react_finalize": "完成分析...",
+
       "search_contacts": "搜索联系人...",
       "list_contacts": "检索联系人列表...",
       "get_contact_details": "检索联系人详情...",
@@ -2431,7 +2446,7 @@
       "features": {
         "architecture": {
           "title": "🏗️ LangGraph 多智能体架构",
-          "description": "LIA 使用 LangGraph，一个用于 AI 智能体编排的状态图框架。16个专门的智能体覆盖各个领域（邮件、日历、联系人、任务、云端硬盘、天气、地点、路线、维基百科、Perplexity、Brave Search、网页阅读、网络搜索、提醒、Hue、上下文、本地查询等），具有条件转换和通过 PostgreSQL 检查点实现的状态持久化。动态MCP代理无限扩展能力。"
+          "description": "LIA 使用 LangGraph，一个用于 AI 智能体编排的状态图框架。19+个专门的智能体覆盖各个领域（邮件、日历、联系人、任务、云端硬盘、天气、地点、路线、维基百科、Perplexity、Brave Search、网页阅读、网络搜索、提醒、Hue、上下文、本地查询等），具有条件转换和通过 PostgreSQL 检查点实现的状态持久化。动态MCP代理无限扩展能力。"
         },
         "queryAnalyzer": {
           "title": "🧭 Query Analyzer v3.2",
@@ -2491,7 +2506,7 @@
         },
         "llm": {
           "title": "🤖 多供应商 LLM 与模式学习",
-          "description": "支持 OpenAI（GPT-4、o1）、Anthropic（Claude）、Google Gemini、DeepSeek、Qwen、Perplexity 和本地 Ollama（7 个供应商）。贝叶斯规划模式学习（≥90% 置信度 → 绕过 LLM）。平均节省 89% token。按任务配置配置文件，实时成本跟踪。"
+          "description": "支持 OpenAI（GPT-4、o1）、Anthropic（Claude）、Google Gemini、DeepSeek、Qwen、Perplexity 和本地 Ollama（8 个供应商）。贝叶斯规划模式学习（≥90% 置信度 → 绕过 LLM）。平均节省 89% token。按任务配置配置文件，实时成本跟踪。"
         },
         "security": {
           "title": "🔐 多层安全",
@@ -2523,11 +2538,11 @@
         },
         "observability": {
           "title": "📊 生产级可观测性",
-          "description": "完整堆栈：Prometheus 指标（token、延迟、错误、成本）、Grafana 仪表板（15+）、Tempo 分布式追踪、Loki 集中日志，以及 Langfuse 集成用于 LLM 性能分析。可配置告警，按环境设置阈值。"
+          "description": "完整堆栈：Prometheus 指标（token、延迟、错误、成本）、Grafana 仪表板（18）、Tempo 分布式追踪、Loki 集中日志，以及 Langfuse 集成用于 LLM 性能分析。可配置告警，按环境设置阈值。"
         },
         "tools": {
-          "title": "🔧 50+类型化工具",
-          "description": "超过50个原生工具，JSON 模式从 Python/Pydantic 自动生成。声明式清单带 semantic_keywords 支持智能路由。统一的 StandardToolOutput 带注册表更新支持上下文引用。通过MCP服务器无限扩展。"
+          "title": "🔧 65+类型化工具",
+          "description": "超过65个原生工具，JSON 模式从 Python/Pydantic 自动生成。声明式清单带 semantic_keywords 支持智能路由。统一的 StandardToolOutput 带注册表更新支持上下文引用。通过MCP服务器无限扩展。"
         },
         "costTransparency": {
           "title": "💰 成本透明度",
@@ -2600,6 +2615,26 @@
         "browserControl": {
           "title": "🌐 浏览器控制",
           "description": "交互式网页浏览，具备自主导航功能：在电商网站搜索产品、填写表单、从JavaScript渲染的页面提取数据。浏览器代理自动处理多步骤交互。"
+        },
+        "psycheEngine": {
+          "title": "🧠 Psyche引擎",
+          "description": "随每次交流动态演变的心理状态。情绪（22种情感）、能量、与用户的关系、人格特质（大五人格）。助手有机地调整其语调、词汇和行为——从不明说，而是展现。内置情感安全：强负面情感记忆自动触发保护模式。"
+        },
+        "personalJournals": {
+          "title": "📓 个人日志",
+          "description": "LIA在个人日志中保持自己的思考：自我反思、对用户的观察、想法、学习。这些以第一人称撰写并受活跃人格影响的笔记，有机地影响未来的回应。自动定期整合。用户保持完全控制：阅读、编辑、删除。"
+        },
+        "imageGeneration": {
+          "title": "🎨 图像生成与编辑",
+          "description": "从文本描述生成图像，用自然语言指令编辑现有图像。多提供商工厂架构，用户级质量/尺寸/格式偏好，数据库缓存定价的成本跟踪。"
+        },
+        "reactMode": {
+          "title": "⚡ ReAct执行模式",
+          "description": "Pipeline的替代模式，助手逐步推理：调用工具、分析结果，然后自主决定下一步操作。父LangGraph图中的4个自定义节点，原生HITL支持。Pipeline模式（默认）通过智能规划和并行执行消耗4至8倍更少的token。"
+        },
+        "proactiveInitiative": {
+          "title": "🎯 主动倡议",
+          "description": "完成主要请求后，助手评估结果是否揭示了与用户相关的跨域连接。例如：天气预报周六有雨→检查日历是否有户外活动。在Pipeline模式中，专用节点进行LLM评估。在ReAct模式中，直接集成在代理的推理中。"
         }
       },
       "diagram_alt": "LIA架构图"
@@ -2608,6 +2643,18 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_16_0": {
+          "title": "v1.16.0 — ReAct执行模式",
+          "date": "2026年4月",
+          "count": "5",
+          "items": {
+            "i1": "<b>ReAct模式</b> — 新的执行模式，助手逐步推理：调用工具、分析结果，然后自主决定下一步操作。更自主但<b>消耗4至8倍更多的token</b>——建议仅用于复杂研究或探索性问题，其附加价值足以证明成本合理。通过聊天标题中的🔀/⚡切换按钮激活（🔀 = Pipeline，⚡ = ReAct）。",
+            "i2": "<b>跨域主动性</b> — 在ReAct模式下，助手会主动检查相关信息。例如：询问周日天气时可能还会显示您当天的日历事件。",
+            "i3": "<b>ReAct中的技能</b> — 您的活跃技能现在可在ReAct模式中使用。助手可以在推理过程中自主激活和使用它们。",
+            "i4": "<b>改进的成本跟踪</b> — 现在可以准确跟踪所有LLM提供商的令牌消耗和成本，包括多步ReAct对话。",
+            "i5": "<b>调试面板中的执行步骤</b> — ReAct推理步骤（准备、推理、工具执行、完成）现在显示在调试面板中。"
+          }
+        },
         "v1_15_3": {
           "title": "v1.15.3 — 记忆精度提升、兴趣去重优化、RAG搜索改进",
           "date": "2026年4月",
@@ -2622,7 +2669,7 @@
           }
         },
         "v1_15_2": {
-          "title": "v1.15.2 — 心理引擎v2：扩展情感调色板（22种情感）、分级指令、宁静基线、叙事过渡、多情感自我报告、情感共鸣、主动情感、增强头像工具提示。",
+          "title": "v1.15.2 — Psyche v2",
           "date": "2026年4月",
           "count": "1",
           "items": {
@@ -2862,7 +2909,7 @@
       "chat": {
         "title": "对话",
         "description": "使用聊天和对话",
-        "count": "9",
+        "count": "10",
         "questions": {
           "q1": {
             "question": "我可以同时进行多个对话吗？",
@@ -2899,6 +2946,10 @@
           "q9": {
             "question": "/resume 命令是什么？",
             "answer": "<strong>/resume</strong> 命令触发<strong>智能上下文压缩</strong>：<br><br><strong>功能：</strong><br>• 使用 AI 总结旧对话历史<br>• 保留关键标识符（姓名、电子邮件、ID）<br>• 释放上下文窗口空间以支持更长的对话<br><br><strong>使用时机：</strong><br>• 对话持续时间较长时<br>• LIA 似乎丢失了先前上下文时<br>• 想要「重置」上下文但不丢失重要信息时<br><br><strong>工作原理：</strong><br>1. 在聊天中输入 <strong>/resume</strong><br>2. LIA 将旧消息总结为简洁摘要<br>3. 最近的消息保持不变<br>4. LIA 用简短摘要确认压缩<br><br><strong>💡 提示：</strong>当对话变得很长时，压缩也会自动触发。/resume 命令允许您随时强制执行。"
+          },
+          "q10": {
+            "question": "Pipeline模式（🔀）和ReAct模式（⚡）有什么区别？",
+            "answer": "LIA提供两种执行模式，可通过聊天标题中的🔀/⚡切换按钮选择：<br><br><strong>🔀 Pipeline模式（默认）</strong><br>LIA提前规划所有步骤，验证后并行执行工具。这是<strong>最快、最经济</strong>的模式：比ReAct模式消耗少4至8倍的token。<br><br><strong>⚡ ReAct模式</strong><br>LIA逐步推理：调用工具、分析结果，然后自主决定下一步。更<strong>灵活和自主</strong>，但消耗显著更多token。<br><br><strong>💡 何时使用哪种模式？</strong><br>• <strong>Pipeline（🔀）</strong>：适用于大多数请求——邮件、日历、天气、联系人、任务...<br>• <strong>ReAct（⚡）</strong>：适用于探索性研究、复杂的多步骤问题，或需要LIA实时适应结果时。<br><br><strong>⚠️ 成本提醒：</strong>ReAct模式消耗4至8倍更多的token。仅在附加价值足以证明额外成本时使用。"
           }
         }
       },
@@ -4330,7 +4381,7 @@
   "landing": {
     "meta": {
       "title": "LIA — 开源个人AI助手 | 多智能体、HITL、6种语言",
-      "description": "LIA编排16个专业AI智能体管理您的邮件、日历、联系人、Drive等。开源、人工验证(HITL)、7个LLM供应商、6种语言。隐私设计。"
+      "description": "LIA编排19+个专业AI智能体管理您的邮件、日历、联系人、Drive等。开源、人工验证(HITL)、8个LLM供应商、6种语言。隐私设计。"
     },
     "nav": {
       "features": "功能",
@@ -4365,7 +4416,7 @@
       "trust_gdpr": "符合GDPR",
       "badge_opensource": "开源项目",
       "cta_github": "GitHub",
-      "intro_paragraph": "LIA是一个开源的个人AI助手，协调16个专业代理来管理您的邮件、日历、联系人、文件、任务、提醒、网络搜索、天气、路线和智能家居。兼容Google Workspace、Apple iCloud和Microsoft 365，LIA使用自然语言工作，对每个敏感操作进行人工验证。"
+      "intro_paragraph": "LIA是一个开源的个人AI助手，协调19+个专业代理来管理您的邮件、日历、联系人、文件、任务、提醒、网络搜索、天气、路线和智能家居。兼容Google Workspace、Apple iCloud和Microsoft 365，LIA使用自然语言工作，对每个敏感操作进行人工验证。"
     },
     "chat_mockup": {
       "user_message": "给Marie发一封邮件说我今晚会迟到，用幽默的语气",
@@ -4440,7 +4491,7 @@
         "description": "无需记忆任何命令。像对人类助手一样提出需求，LIA理解并执行。"
       },
       "multi_agent": {
-        "title": "16个专业智能体",
+        "title": "19+个专业智能体",
         "description": "邮件、日历、联系人、文件、任务、天气、网络搜索、Wikipedia、地点、路线、提醒等。一条指令自动激活正确的智能体。"
       },
       "proactive": {
@@ -4630,14 +4681,14 @@
     "tech": {
       "title": "技术底层",
       "subtitle": "为性能和可扩展性设计的架构",
-      "intro": "LIA的架构基于LangGraph编排管道，将每个请求分解为子任务，分配给专业代理并行执行计划。系统通过贝叶斯模型从重复模式中学习，随时间优化规划，降低延迟和API成本。",
+      "intro": "LIA提供两种互补的执行模式。Pipeline模式（默认）是真正的工程杰作：智能规划、语义验证、并行工具执行——比ReAct模式节省4至8倍的token消耗。ReAct模式（⚡）提供最大自主性：LLM逐步推理，逐个调用工具并实时适应。两种模式共享相同的19+专业代理、相同的HITL系统和贝叶斯模式学习。",
       "deep_dive_link": "完整技术深度解析",
       "langgraph": {
         "title": "LangGraph",
         "description": "基于状态图的智能体编排、波次并行执行和贝叶斯计划模式学习。"
       },
       "llm_providers": {
-        "title": "7家LLM供应商",
+        "title": "8家LLM供应商",
         "description": "OpenAI、Anthropic、Google Gemini、DeepSeek、Qwen、Perplexity、Ollama。按任务类型动态选择最佳模型。"
       },
       "bayesian": {
@@ -4658,8 +4709,8 @@
       }
     },
     "architecture": {
-      "title": "编排管线",
-      "subtitle": "从自然语言到行动，实时响应",
+      "title": "两种执行模式",
+      "subtitle": "Pipeline追求效率，ReAct追求自主——由您选择",
       "nodes": {
         "query": "请求",
         "router": "路由器",
@@ -4684,7 +4735,7 @@
         "settings_features": "设置 — 功能：记忆、兴趣、通知、子智能体",
         "settings_administration": "管理 — 运营者完整控制面板",
         "settings_administration_oneclick": "管理 — 一键简易操作：每个操作即时可用",
-        "settings_administration_llm": "管理 — LLM配置：7个提供商，按节点选择模型",
+        "settings_administration_llm": "管理 — LLM配置：8个提供商，按节点选择模型",
         "faq": "常见问题 — 可搜索的分类帮助中心"
       }
     },
@@ -4909,7 +4960,7 @@
     },
     "articles": {
       "multi-agent-orchestration": {
-        "title": "LIA如何编排16个专业AI智能体",
+        "title": "LIA如何编排19+个专业AI智能体",
         "excerpt": "探索LIA的多智能体系统：智能路由器通过LangGraph、规划器和并行任务编排器将每个请求导向正确的智能体。",
         "body": "<h2>系统核心：8节点状态图</h2><p>当您向LIA发送消息时，消息并不会直接发送到语言模型，而是经过一个<strong>由8个节点组成的LangGraph状态机</strong>：<code>compaction</code>、<code>router_v3</code>、<code>planner</code>、<code>task_orchestrator</code>、<code>approval_gate</code>、<code>semantic_validator</code>、<code>clarification</code>和<code>response</code>。每个节点都是一个专门的异步函数，具有条件转换。</p><h2>统一智能路由器</h2><p><code>router_v3</code>节点使用<code>QueryAnalyzerService.analyze_full()</code>对每条消息进行统一分析。结果是一个<strong>RouterOutput</strong>，包含：意图（<code>action</code>或<code>conversation</code>）、置信度分数、检测到的领域列表以及路由器的推理过程。如果意图是对话性的，流程直接进入<code>response</code>节点；如果是操作性的，流程进入<code>planner</code>生成结构化计划。</p><h2>丰富的状态与Token管理</h2><p>LangGraph状态（<code>MessagesState</code>）是一个包含<strong>50多个字段</strong>的TypedDict。它使用基于tiktoken的自定义reducer <code>add_messages_with_truncate</code>来管理按Token截断、消息窗口化和OpenAI消息序列验证。该状态通过LangGraph持久化系统检查点保存到<strong>PostgreSQL</strong>中。</p><h2>原生并行执行</h2><p>对于可操作的请求（如\"发送一封邮件并创建一个日程\"），LIA通过规划节点生成结构化的<strong>ExecutionPlan</strong>。任务编排器分析依赖图，并通过原生<code>asyncio.gather()</code>（Phase 5.2B）并行执行独立步骤，大幅减少了多领域请求的响应时间。</p><h2>按领域专门化的智能体</h2><p>每个领域都有自己的智能体：邮件、日历、联系人、任务、Drive、天气、路线、网络搜索、Wikipedia、智能家居等。每个智能体都有专属工具、专业提示和独立上下文。这种划分使LIA能够自动协调多个智能体来处理跨领域请求，例如\"将我下次会议的详情发送给所有参与者\"。</p><h2>持久化与恢复</h2><p>每个对话的完整状态通过LangGraph持久化系统检查点保存到PostgreSQL中。如果中断，对话会从中断处精确恢复，保留所有上下文——包括正在执行的计划和等待中的审批。</p>"
       },
@@ -4989,9 +5040,9 @@
         "body": "<h2>隐私设计</h2><p>LIA从一开始就以数据保护为基本原则来设计，而非事后补充。</p><h2>Fernet对称加密</h2><p>所有敏感数据通过<strong>Fernet</strong>（AES-128 CBC + HMAC-SHA256）使用<code>encrypt_data()</code>函数加密。覆盖范围包括OAuth令牌、连接器凭据、PII和MCP服务器凭据。OAuth凭据在写入数据库前加密，读取时即时解密。加密密钥与数据分开管理。</p><h2>最小化数据收集</h2><p>LIA仅收集运行所需的最少数据：</p><ul><li>个人资料信息（姓名、邮箱、偏好设置）</li><li>对话历史（加密）</li><li>服务连接令牌（加密）</li><li>匿名使用指标</li></ul><h2>删除与级联</h2><p>删除用户账户会触发完整的<strong>级联删除</strong>：连接器、对话、设置、会话、记忆和所有关联数据都将不可逆地删除。数据库中不会保留任何孤立数据。</p><h2>安全会话与Cookie</h2><p>会话Cookie配置了<code>HttpOnly</code>、<code>Secure</code>（生产环境）和<code>SameSite=lax</code>属性。默认会话持续时间为7天，选择\"记住我\"可延长至30天。一次性令牌在首次使用后通过Redis黑名单机制失效。</p><h2>外部内容防护</h2><p>从外部来源（邮件、网页、文档）获取的内容在注入提示前标记为<code>UNTRUSTED</code>，并进行可配置封装。web_fetch工具限制为每个用户在60秒窗口内最多10次调用，以防止滥用。</p><h2>日志中PII过滤</h2><p>日志系统应用<strong>OWASP日志备忘录</strong>建议，自动从应用日志中过滤个人数据。敏感数据不会出现在日志中。</p><h2>数据可移植性 (v1.9.1)</h2><p>LIA允许每个用户从设置 > 功能中<strong>导出个人消费数据</strong>为CSV格式。三种导出类型：LLM消费（每次调用的Token和成本）、Google API消费和汇总摘要。安全性：<code>user_id</code>在服务器端强制设置——不暴露任何参数（IDOR防护）。</p>"
       },
       "observability": {
-        "title": "350+个Prometheus指标、18个Grafana仪表板和Langfuse追踪",
-        "excerpt": "LIA提供企业级可观测性：350+指标、Grafana仪表板和通过Langfuse的LLM追踪。",
-        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 350+个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中并带有PII过滤</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>17个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。17个模块覆盖：HTTP、agents/SSE/router/LLM/HITL/planner、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>18个Grafana仪表板</h2><p>LIA提供18个编号01至18的Grafana仪表板：app-overview、http-performance、agent-pipeline、llm-tokens-costs、oauth-connectors、streaming-sse、hitl-approval、planner-optimizer、voice-pipeline、memory-system、error-analysis、redis-cache、channels-telegram、scheduled-actions、mcp-tools、browser-attachments、sub-agents和rag-spaces。每个仪表板提供按用户、时间段和环境可过滤的视图。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成拥有8个专用指标来追踪每次LLM调用：消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p>"
+        "title": "400+个Prometheus指标、18个Grafana仪表板和Langfuse追踪",
+        "excerpt": "LIA提供企业级可观测性：400+指标、Grafana仪表板和通过Langfuse的LLM追踪。",
+        "body": "<h2>可观测性三大支柱</h2><p>LIA实现了现代可观测性的三大支柱：</p><ul><li><strong>指标</strong> — 400+个Prometheus指标，覆盖HTTP、智能体、Token、成本、OAuth和性能</li><li><strong>日志</strong> — 通过structlog的结构化JSON日志，集中在Loki中并带有PII过滤</li><li><strong>追踪</strong> — 通过OpenTelemetry（Tempo）的分布式追踪和通过Langfuse的LLM追踪</li></ul><h2>17个专业指标文件</h2><p>每个领域都有自己的声明式指标文件。17个模块覆盖：HTTP、agents/SSE/router/LLM/HITL/planner、数据库、LangGraph、Langfuse、语音、RAG空间、OAuth、频道、错误、子智能体、Redis、附件、浏览器、压缩。每个文件定义了适合该领域的Counter、Histogram和Gauge Prometheus指标。</p><h2>Prometheus指标定义</h2><p>每个领域以声明方式定义其指标：</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>18个Grafana仪表板</h2><p>LIA提供18个编号01至18的Grafana仪表板：app-overview、http-performance、agent-pipeline、llm-tokens-costs、oauth-connectors、streaming-sse、hitl-approval、planner-optimizer、voice-pipeline、memory-system、error-analysis、redis-cache、channels-telegram、scheduled-actions、mcp-tools、browser-attachments、sub-agents和rag-spaces。每个仪表板提供按用户、时间段和环境可过滤的视图。</p><h2>源代码中的目标KPI</h2><p>LIA监控源代码中定义的精确指标：流式TTFT（首Token时间）、路由器延迟0.1到2秒、智能体工具执行时间0.1到10秒、路由器置信度p50 &gt; 0.8、每请求LLM成本 &lt; 0.05€、HTTP 5xx错误率 &lt; 1%。</p><h2>Langfuse：专用LLM追踪</h2><p>Langfuse集成拥有8个专用指标来追踪每次LLM调用：消耗的Token（输入/输出/缓存）、响应时间、使用的模型、估计成本和请求上下文。这使得能够识别低效提示、比较不同LLM模型并长期优化Token消耗。</p><h2>DevOps Claude CLI：自然语言诊断 (v1.13.0)</h2><p>可观测性栈的最新演进：管理员现在可以直接从LIA对话中诊断服务器。Claude Code CLI——安装在API Docker容器中——独立检查日志、验证容器健康状况并分析资源使用情况。支持持久会话进行多轮调查、按环境配置权限以及通过SSE实时流式传输调查步骤。</p>"
       },
       "prompt-engineering": {
         "title": "版本化提示系统：55个提示作为代码管理",

@@ -33,6 +33,8 @@ from src.domains.auth.schemas import (
     DebugPanelPreferenceResponse,
     DisplayModePreferenceRequest,
     DisplayModePreferenceResponse,
+    ExecutionModePreferenceRequest,
+    ExecutionModePreferenceResponse,
     MemoryPreferenceRequest,
     MemoryPreferenceResponse,
     MessageResponse,
@@ -433,6 +435,50 @@ async def update_memory_preference(
     return MemoryPreferenceResponse(
         memory_enabled=user.memory_enabled,
         message=APIMessages.memory_preference_updated(enabled=data.memory_enabled),
+    )
+
+
+@router.patch(
+    "/me/execution-mode-preference",
+    response_model=ExecutionModePreferenceResponse,
+    summary="Update execution mode preference",
+    description="Switch between pipeline (classic planner) and react (ReAct agent loop) execution modes.",
+)
+async def update_execution_mode_preference(
+    data: ExecutionModePreferenceRequest,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> ExecutionModePreferenceResponse:
+    """
+    Update user's execution mode preference.
+
+    This controls how actionable queries are processed:
+    - pipeline: Planner generates a plan, tools execute directly (fast, economical)
+    - react: ReAct agent reasons iteratively with tools (autonomous, adaptive)
+
+    Args:
+        data: Execution mode preference with pipeline or react value.
+        user: Current authenticated user.
+        db: Database session.
+
+    Returns:
+        ExecutionModePreferenceResponse with updated state and confirmation.
+    """
+    user.execution_mode = data.execution_mode
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+
+    logger.info(
+        "user_execution_mode_preference_updated",
+        user_id=str(user.id),
+        execution_mode=data.execution_mode,
+    )
+
+    mode_label = "ReAct" if data.execution_mode == "react" else "Pipeline"
+    return ExecutionModePreferenceResponse(
+        execution_mode=user.execution_mode,
+        message=f"Execution mode switched to {mode_label}",
     )
 
 

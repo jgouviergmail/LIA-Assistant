@@ -52,7 +52,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | ARM64 self-hosting | Multi-arch Docker, semantic embeddings (multilingual), Playwright chromium cross-platform |
 | Data sovereignty | Local PostgreSQL (no SaaS DB), Fernet encryption at rest, local Redis sessions |
 | Multi-provider LLM | Factory pattern with 7 adapters, per-node configuration, no tight coupling to any provider |
-| Full transparency | 350+ Prometheus metrics, embedded debug panel, token-by-token tracking |
+| Full transparency | 400+ Prometheus metrics, embedded debug panel, token-by-token tracking |
 | Production reliability | 59 ADRs, 2,300+ tests, native observability, 6-level HITL |
 | Cost control | Smart Services (89% token savings), semantic embeddings, prompt caching, catalogue filtering |
 
@@ -75,7 +75,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Reusable fixtures | 170+ |
 | Documentation documents | 190+ |
 | ADRs (Architecture Decision Records) | 59 |
-| Prometheus metrics | 350+ definitions |
+| Prometheus metrics | 400+ definitions |
 | Grafana dashboards | 18 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
 
@@ -125,7 +125,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Qwen | qwen3-max, qwen3.5-plus, qwen3.5-flash | Thinking mode, tools + vision (Alibaba Cloud) |
 | Ollama | Any local model (dynamic discovery) | Zero API cost, self-hosted |
 
-**Why 7 providers?** The choice is not collection for its own sake. It is a resilience strategy: each pipeline node can be assigned to a different provider. If OpenAI raises its prices, the router switches to DeepSeek. If Anthropic has an outage, the response falls back to Gemini. The LLM abstraction (`src/infrastructure/llm/factory.py`) uses the Factory pattern with `init_chat_model()`, overridden by specific adapters (`ResponsesLLM` for the OpenAI Responses API, eligibility by regex `^(gpt-4\.1|gpt-5|o[1-9])`).
+**Why 8 providers?** The choice is not collection for its own sake. It is a resilience strategy: each pipeline node can be assigned to a different provider. If OpenAI raises its prices, the router switches to DeepSeek. If Anthropic has an outage, the response falls back to Gemini. The LLM abstraction (`src/infrastructure/llm/factory.py`) uses the Factory pattern with `init_chat_model()`, overridden by specific adapters (`ResponsesLLM` for the OpenAI Responses API, eligibility by regex `^(gpt-4\.1|gpt-5|o[1-9])`).
 
 ---
 
@@ -314,6 +314,32 @@ A critical mechanism is the use of Python `ContextVar` to propagate state withou
 | `request_tool_manifests_ctx` | Per-request filtered tool manifests | Built once, read by 7+ consumers (eliminates duplication ADR-061) |
 
 This approach maintains per-request isolation in an asyncio context without polluting function signatures.
+
+### 5.3. ReAct execution mode (ADR-070)
+
+LIA offers a second execution mode: **ReAct** (Reasoning + Acting). Instead of planning upfront, the LLM iteratively calls tools, observes results, and decides the next step autonomously.
+
+**Architecture**: 4 custom nodes in the parent LangGraph graph (not a subgraph):
+
+```
+Router → react_setup → react_call_model ↔ react_execute_tools → react_finalize → Response
+```
+
+**Pipeline vs ReAct — engineering trade-offs**:
+
+| Aspect | Pipeline (default) | ReAct (⚡) |
+|--------|-------------------|-----------|
+| **Token cost** | **4–8× lower** — 1 planner + 1 response call | 1 LLM call per iteration (2–15 iterations typical) |
+| **Planning** | Upfront ExecutionPlan with semantic validation | None — LLM decides step by step |
+| **Parallel execution** | Yes — `asyncio.gather()` waves | No — sequential tool calls |
+| **Adaptability** | Follows plan rigidly | Pivots on each tool result |
+| **Control** | Full — planner DSL, HITL gates, validators | Minimal — prompt-driven behavior |
+| **Cost predictability** | High — bounded by plan steps | Low — depends on LLM reasoning |
+| **Best for** | Well-structured multi-domain requests | Exploratory research, ambiguous queries |
+
+The Pipeline mode is a genuine engineering achievement: the SmartPlanner, Semantic Validator, Bayesian pattern cache, and parallel executor together deliver the same functional power as ReAct while consuming a fraction of the tokens. The trade-off is adaptability — when the optimal tool sequence cannot be predicted upfront, ReAct's iterative reasoning excels.
+
+Both modes share the same tool registry, HITL system, response node, and observability infrastructure. Users switch between them via a toggle in the chat header.
 
 ---
 
@@ -702,7 +728,7 @@ Autonomous ReAct agent (headless Playwright Chromium). Redis-backed session pool
 
 | Technology | Role |
 |------------|------|
-| Prometheus | 350+ custom metrics (RED pattern) |
+| Prometheus | 400+ custom metrics (RED pattern) |
 | Grafana | 18 production-ready dashboards |
 | Loki | Aggregated structured JSON logs |
 | Tempo | Cross-service distributed traces (OTLP gRPC) |

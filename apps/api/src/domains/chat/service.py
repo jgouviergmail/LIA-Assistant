@@ -536,16 +536,25 @@ class TrackingContext:
             FIELD_IMAGE_GENERATION_COST_EUR: image_generation_cost_eur,
         }
 
-        # DEBUG: Log detailed breakdown by node for token verification
-        node_breakdown = {
-            r.node_name: {
-                "prompt": r.prompt_tokens,
-                "completion": r.completion_tokens,
-                "cached": r.cached_tokens,
-                "total": r.prompt_tokens + r.completion_tokens + r.cached_tokens,
-            }
-            for r in self._node_records
-        }
+        # DEBUG: Log detailed breakdown by node for token verification.
+        # Aggregate tokens per node_name (sum across multiple executions).
+        # Fixes: ReAct loop has multiple react_call_model calls — dict comprehension
+        # would only keep the last one, losing tokens from earlier iterations.
+        node_breakdown: dict[str, dict[str, int]] = {}
+        for r in self._node_records:
+            if r.node_name in node_breakdown:
+                entry = node_breakdown[r.node_name]
+                entry["prompt"] += r.prompt_tokens
+                entry["completion"] += r.completion_tokens
+                entry["cached"] += r.cached_tokens
+                entry["total"] += r.prompt_tokens + r.completion_tokens + r.cached_tokens
+            else:
+                node_breakdown[r.node_name] = {
+                    "prompt": r.prompt_tokens,
+                    "completion": r.completion_tokens,
+                    "cached": r.cached_tokens,
+                    "total": r.prompt_tokens + r.completion_tokens + r.cached_tokens,
+                }
 
         logger.debug(
             "tracking_summary_generated",

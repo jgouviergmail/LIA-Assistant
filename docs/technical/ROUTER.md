@@ -41,9 +41,12 @@ graph LR
     C --> D[RouterOutput]
     D --> E{next_node?}
     E -->|response| F[Response Node<br/>Conversational]
-    E -->|planner| G[Planner Node<br/>Complex Multi-Step]
+    E -->|planner, pipeline mode| G[Planner Node<br/>Complex Multi-Step]
+    E -->|react_setup, react mode| I[ReAct Setup<br/>Iterative Reasoning]
     E -->|task_orchestrator| H[Task Orchestrator<br/>Simple Single-Step]
 ```
+
+> **ADR-070**: When `execution_mode == "react"` (user preference) and the query is actionable, the router routes to `react_setup` instead of `planner`. See [REACT_EXECUTION_MODE.md](./REACT_EXECUTION_MODE.md).
 
 **Inputs**:
 - `messages`: Historique conversationnel (windowed)

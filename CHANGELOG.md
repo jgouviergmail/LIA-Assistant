@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.16.0] - 2026-04-09
+
+### ReAct Execution Mode (ADR-070)
+
+User-toggleable alternative to the pipeline mode. The ReAct pattern enables iterative reasoning: the LLM observes each tool result, reasons about the next step, and decides whether to act again or finalize. Implemented as 4 custom nodes in the parent LangGraph graph (not a subgraph), with native HITL support via `interrupt()`.
+
+#### Added
+- **ReAct 4-node loop**: `react_setup` → `react_call_model` ↔ `react_execute_tools` → `react_finalize` → response.
+- **Frontend toggle**: Zap icon in chat header, user preference persisted in DB (`users.execution_mode` column).
+- **Timeout enforcement**: `react_start_time` in state + hard timeout check in routing function.
+- **Skills in ReAct**: Filtered L1 skills catalogue injected as SystemMessage in `react_setup_node`. The 3 existing skill tools (`activate_skill_tool`, `run_skill_script`, `read_skill_resource`) are available.
+- **Debug panel**: 4 ReAct nodes registered in `DEFAULT_NODE_METADATA` with i18n (6 languages).
+- **Prometheus metrics**: 5 ReAct-specific metrics (`executions_total`, `iterations`, `duration_seconds`, `tools_called_total`, `hitl_interrupts_total`).
+- **Initiative via prompt**: CROSS-CHECK step integrated in the ReAct workflow prompt (autonomous, no separate LLM call).
+- **Alembic migration**: `execution_mode_001` adds `execution_mode` column to users table.
+
+#### Fixed
+- **Token tracking for OpenAI Responses API with tools**: `_fallback_to_chat_completions()` in `ResponsesLLM` now extracts `usage_metadata` from Chat Completions response and sets it on the AIMessage. Previously, all tokens from react_call_model were lost when using OpenAI models.
+- **Node breakdown aggregation**: Token tracking summary now sums tokens across multiple executions of the same node (dict accumulation instead of overwrite). Fixes incorrect cost display for multi-iteration ReAct.
+- **`current_turn_registry` merge**: Each ReAct iteration now merges with existing registry items from previous iterations, preventing loss of data cards.
+- **Frontend `STREAM_START` idempotent**: Reducer checks for existing message before creating a new one. Prevents empty response display on first ReAct message.
+- **`handleContentReplacement` simplified**: Always dispatches `STREAM_START` (safe with idempotent reducer) to guarantee `currentMessageId` is set.
+- **ADR reference correction**: All 25+ code references changed from ADR-069 (Gemini Embedding) to ADR-070 (ReAct).
+- **Test fixtures**: `execution_mode="pipeline"` added to `UserFactory`, test auth service, and user service factories.
+- **LLM defaults count**: Test updated 48 → 49 for `react_agent` type.
+
+### Documentation
+- Created `docs/technical/REACT_EXECUTION_MODE.md` — comprehensive technical documentation.
+- Updated `docs/INDEX.md`, `docs/ARCHITECTURE_LANGRAPH.md`, `docs/technical/GRAPH_AND_AGENTS_ARCHITECTURE.md`, `docs/technical/ROUTER.md`, `docs/technical/PLANNER.md`, `README.md` with ReAct references and diagrams.
+- Updated FAQ changelog (6 languages) with v1.16.0 entries.
+
 ## [1.15.3] - 2026-04-10
 
 ### Similarity Threshold Calibration for Gemini Embedding-001

@@ -100,6 +100,42 @@ LIA utilise **LangGraph v1.1.2** avec exécution parallèle native **asyncio** p
 
 ---
 
+## 1b. ReAct Execution Mode (ADR-070)
+
+Alternative path when `execution_mode == "react"`: the router routes to `react_setup` instead of `planner`.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          ReAct Execution Loop                               │
+│                                                                             │
+│   router_node ──(react)──► react_setup ──► react_call_model ◄──┐           │
+│                                                │                │           │
+│                                         tool_calls?             │           │
+│                                        yes │    no │            │           │
+│                                            ▼       ▼            │           │
+│                                  react_execute   react_         │           │
+│                                  _tools          finalize       │           │
+│                                     │               │           │           │
+│                                     └───────────────┘           │           │
+│                                                 │                           │
+│                                                 ▼                           │
+│                                           response_node                     │
+│                                                 │                           │
+│                                               [END]                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+- **react_setup**: Selects all available tools, builds system prompt, injects memory + skills catalogue
+- **react_call_model**: Calls LLM with bound tools, applies message windowing
+- **react_execute_tools**: Executes tools with HITL (`interrupt()`) for mutations, idempotence pattern
+- **react_finalize**: Records metrics, sets `react_agent_result` for response node
+
+Safety: max iterations (`REACT_AGENT_MAX_ITERATIONS`) + hard timeout (`REACT_AGENT_TIMEOUT_SECONDS`).
+
+See [REACT_EXECUTION_MODE.md](./technical/REACT_EXECUTION_MODE.md) for full documentation.
+
+---
+
 ## 2. Nodes et Responsabilités
 
 ### 2.1 router_node

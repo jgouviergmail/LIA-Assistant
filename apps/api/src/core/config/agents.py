@@ -197,6 +197,10 @@ from src.core.constants import (
     PLANNER_TIMEOUT_SECONDS,
     PROACTIVE_CROSS_TYPE_COOLDOWN_MINUTES_DEFAULT,
     QUERY_ENGINE_SIMILARITY_THRESHOLD_DEFAULT,
+    REACT_AGENT_HISTORY_WINDOW_TURNS_DEFAULT,
+    REACT_AGENT_MAX_ITERATIONS_DEFAULT,
+    REACT_AGENT_MAX_TOOLS_DEFAULT,
+    REACT_AGENT_TIMEOUT_SECONDS_DEFAULT,
     REGISTRY_MAX_ITEMS_DEFAULT,
     RESPONSE_LLM_TIMEOUT_SECONDS_DEFAULT,
     RESPONSE_MESSAGE_WINDOW_SIZE_DEFAULT,
@@ -392,6 +396,38 @@ class AgentsSettings(BaseSettings):
         gt=0,
         le=AGENT_MAX_ITERATIONS_MAX,
         description="Max iterations for ReAct agents (security: prevents infinite loops & cost explosion)",
+    )
+
+    # ========================================================================
+    # ReAct Execution Mode (ADR-070)
+    # ========================================================================
+    react_agent_enabled: bool = Field(
+        default=True,
+        description="Feature flag for ReAct execution mode. When disabled, toggle is ignored.",
+    )
+    react_agent_max_iterations: int = Field(
+        default=REACT_AGENT_MAX_ITERATIONS_DEFAULT,
+        gt=1,
+        le=30,
+        description="Max ReAct loop iterations (each = 1 LLM call + tool execution).",
+    )
+    react_agent_timeout_seconds: int = Field(
+        default=REACT_AGENT_TIMEOUT_SECONDS_DEFAULT,
+        ge=10,
+        le=600,
+        description="Hard timeout for entire ReAct execution (seconds).",
+    )
+    react_agent_max_tools: int = Field(
+        default=REACT_AGENT_MAX_TOOLS_DEFAULT,
+        ge=5,
+        le=200,
+        description="Maximum number of tools provided to the ReAct agent per request.",
+    )
+    react_agent_history_window_turns: int = Field(
+        default=REACT_AGENT_HISTORY_WINDOW_TURNS_DEFAULT,
+        ge=1,
+        le=30,
+        description="Conversation turns from previous turns to include in ReAct context.",
     )
 
     # ========================================================================
@@ -706,7 +742,7 @@ class AgentsSettings(BaseSettings):
     plan_pattern_suggestion_timeout_ms: int = Field(
         default=PLAN_PATTERN_SUGGESTION_TIMEOUT_MS_DEFAULT,
         ge=1,
-        le=100,
+        le=60000,
         description="Timeout (ms) for Redis lookup. Fail-open on timeout.",
     )
     plan_pattern_local_cache_ttl_s: float = Field(
@@ -1627,7 +1663,7 @@ class AgentsSettings(BaseSettings):
     memory_reference_resolution_timeout_ms: int = Field(
         default=MEMORY_REFERENCE_RESOLUTION_TIMEOUT_MS_DEFAULT,
         ge=100,
-        le=10000,
+        le=60000,
         description=(
             "Timeout for memory reference resolution LLM call in milliseconds. "
             "If exceeded, returns original query (fail-safe). "

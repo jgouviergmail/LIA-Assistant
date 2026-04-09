@@ -53,6 +53,16 @@
       "tooltip_disabled": "Memoria a lungo termine disattivata - Modalità conversazione semplice"
     }
   },
+  "executionMode": {
+    "toggle": {
+      "enable_react": "Passa alla modalità ReAct",
+      "enable_pipeline": "Passa alla modalità Pipeline",
+      "enabled": "Modalità ReAct attivata",
+      "disabled": "Modalità Pipeline attivata",
+      "tooltip_react": "Modalità ReAct — Ragionamento autonomo con strumenti in tempo reale",
+      "tooltip_pipeline": "Modalità Pipeline — Piano strutturato poi esecuzione"
+    }
+  },
   "voice": {
     "toggle": {
       "enable": "Attiva voce",
@@ -2409,6 +2419,11 @@
       "approval_gate": "Validazione del piano...",
       "task_orchestration": "Orchestrazione attività...",
       "response_generation": "Generazione risposta...",
+      "react_setup": "Preparazione agente ReAct...",
+      "react_reasoning": "Ragionamento in corso...",
+      "react_tool_execution": "Esecuzione strumento...",
+      "react_finalize": "Finalizzazione analisi...",
+
       "search_contacts": "Ricerca contatti...",
       "list_contacts": "Recupero elenco contatti...",
       "get_contact_details": "Recupero dettagli contatto...",
@@ -2438,7 +2453,7 @@
       "features": {
         "architecture": {
           "title": "🏗️ Architettura LangGraph Multi-Agenti",
-          "description": "LIA utilizza LangGraph, un framework di grafi di stato per l'orchestrazione di 16 agenti IA. Ogni dominio (email, calendario, contatti, attività, drive, meteo, luoghi, percorsi, Wikipedia, Perplexity, Brave Search, promemoria, hue, contesto, ecc.) ha il proprio agente specializzato con transizioni condizionali e persistenza dello stato tramite checkpointing PostgreSQL. Gli agenti MCP dinamici estendono le capacità senza limiti."
+          "description": "LIA utilizza LangGraph, un framework di grafi di stato per l'orchestrazione di 19+ agenti IA. Ogni dominio (email, calendario, contatti, attività, drive, meteo, luoghi, percorsi, Wikipedia, Perplexity, Brave Search, promemoria, hue, contesto, ecc.) ha il proprio agente specializzato con transizioni condizionali e persistenza dello stato tramite checkpointing PostgreSQL. Gli agenti MCP dinamici estendono le capacità senza limiti."
         },
         "queryAnalyzer": {
           "title": "🧭 Query Analyzer v3.2",
@@ -2498,7 +2513,7 @@
         },
         "llm": {
           "title": "🤖 Multi-Provider LLM & Pattern Learning",
-          "description": "Supporto OpenAI (GPT-4, o1), Anthropic (Claude), Google Gemini, DeepSeek, Qwen, Perplexity e Ollama locale (7 provider). Apprendimento bayesiano dei pattern di pianificazione (≥90% confidenza → bypass LLM). Risparmio medio dell'89% dei token. Profili configurabili per attività con tracciamento costi in tempo reale."
+          "description": "Supporto OpenAI (GPT-4, o1), Anthropic (Claude), Google Gemini, DeepSeek, Qwen, Perplexity e Ollama locale (8 provider). Apprendimento bayesiano dei pattern di pianificazione (≥90% confidenza → bypass LLM). Risparmio medio dell'89% dei token. Profili configurabili per attività con tracciamento costi in tempo reale."
         },
         "security": {
           "title": "🔐 Sicurezza Multi-Livello",
@@ -2530,11 +2545,11 @@
         },
         "observability": {
           "title": "📊 Osservabilità Production-Ready",
-          "description": "Stack completo: metriche Prometheus (token, latenza, errori, costi), dashboard Grafana (15+), tracing distribuito Tempo, log centralizzati Loki e integrazione Langfuse per analisi prestazioni LLM. Alert configurabili con soglie per ambiente."
+          "description": "Stack completo: metriche Prometheus (token, latenza, errori, costi), dashboard Grafana (18), tracing distribuito Tempo, log centralizzati Loki e integrazione Langfuse per analisi prestazioni LLM. Alert configurabili con soglie per ambiente."
         },
         "tools": {
-          "title": "🔧 50+ Strumenti Tipizzati",
-          "description": "Oltre 50 strumenti nativi con schemi JSON auto-generati da Python/Pydantic. Manifesti dichiarativi con semantic_keywords per routing intelligente. StandardToolOutput unificato con registry updates per riferimenti contestuali. Estensibili infinitamente tramite server MCP."
+          "title": "🔧 65+ Strumenti Tipizzati",
+          "description": "Oltre 65 strumenti nativi con schemi JSON auto-generati da Python/Pydantic. Manifesti dichiarativi con semantic_keywords per routing intelligente. StandardToolOutput unificato con registry updates per riferimenti contestuali. Estensibili infinitamente tramite server MCP."
         },
         "costTransparency": {
           "title": "💰 Trasparenza dei Costi",
@@ -2607,6 +2622,26 @@
         "browserControl": {
           "title": "🌐 Controllo browser",
           "description": "Navigazione web interattiva con navigazione autonoma: cercare prodotti su siti e-commerce, compilare moduli, estrarre dati da pagine JavaScript. L'agente browser gestisce le interazioni multi-step automaticamente."
+        },
+        "psycheEngine": {
+          "title": "🧠 Psyche Engine",
+          "description": "Stato psicologico dinamico che evolve con ogni scambio. Umore (22 emozioni), energia, relazione con l'utente, tratti di personalità (Big Five). L'assistente adatta organicamente tono, vocabolario e comportamento — non lo dice mai, lo mostra. Sicurezza emotiva integrata: i ricordi con forte carica negativa attivano un modo protettivo automatico."
+        },
+        "personalJournals": {
+          "title": "📓 Diari Personali",
+          "description": "LIA tiene le proprie riflessioni in diari personali: autoriflessione, osservazioni sull'utente, idee, apprendimenti. Queste note, scritte in prima persona e colorate dalla personalità attiva, influenzano organicamente le risposte future. Consolidamento automatico periodico. L'utente mantiene il controllo completo."
+        },
+        "imageGeneration": {
+          "title": "🎨 Generazione e Modifica Immagini",
+          "description": "Genera immagini da descrizioni testuali e modifica immagini esistenti con istruzioni in linguaggio naturale. Architettura factory multi-provider, preferenze utente per qualità/dimensione/formato, tracciamento costi con prezzi in database."
+        },
+        "reactMode": {
+          "title": "⚡ Modalità di Esecuzione ReAct",
+          "description": "Modalità alternativa alla pipeline in cui l'assistente ragiona passo dopo passo: chiama uno strumento, analizza il risultato e decide autonomamente cosa fare. 4 nodi custom nel grafo LangGraph principale con supporto HITL nativo. La modalità Pipeline (predefinita) consuma 4-8 volte meno token grazie alla pianificazione intelligente e all'esecuzione parallela."
+        },
+        "proactiveInitiative": {
+          "title": "🎯 Iniziativa Proattiva",
+          "description": "Dopo il completamento della richiesta principale, l'assistente valuta se i risultati rivelano connessioni cross-dominio rilevanti. Esempio: il meteo annuncia pioggia sabato → controlla il calendario per attività all'aperto. In modalità Pipeline, un nodo dedicato con valutazione LLM. In modalità ReAct, integrato direttamente nel ragionamento dell'agente."
         }
       },
       "diagram_alt": "Diagramma dell'architettura di LIA"
@@ -2615,6 +2650,18 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_16_0": {
+          "title": "v1.16.0 — Modalità di esecuzione ReAct",
+          "date": "Aprile 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>Modalità ReAct</b> — Nuova modalità di esecuzione in cui l'assistente ragiona passo dopo passo: chiama uno strumento, analizza il risultato e decide autonomamente cosa fare. Più autonomo ma <b>consuma 4-8 volte più token</b> rispetto alla modalità Pipeline — da riservare a ricerche complesse o domande esplorative dove il valore aggiunto giustifica il costo. Attivala con il toggle 🔀/⚡ nell'intestazione della chat (🔀 = Pipeline, ⚡ = ReAct).",
+            "i2": "<b>Iniziativa cross-dominio</b> — In modalità ReAct, l'assistente verifica proattivamente informazioni correlate. Esempio: chiedere il meteo di domenica può mostrare anche i tuoi eventi di calendario.",
+            "i3": "<b>Skills in ReAct</b> — Le tue skill attive sono ora disponibili in modalità ReAct. L'assistente può attivarle e utilizzarle autonomamente durante il suo ragionamento.",
+            "i4": "<b>Monitoraggio costi migliorato</b> — Il consumo di token e i costi sono ora tracciati con precisione per tutti i provider LLM, anche nelle conversazioni ReAct multi-step.",
+            "i5": "<b>Passi di esecuzione nel pannello di debug</b> — I passi di ragionamento ReAct (preparazione, ragionamento, esecuzione strumenti, finalizzazione) appaiono nel pannello di debug."
+          }
+        },
         "v1_15_3": {
           "title": "v1.15.3 — Precisione memoria, deduplicazione interessi, ricerca RAG migliorata",
           "date": "Aprile 2026",
@@ -2629,7 +2676,7 @@
           }
         },
         "v1_15_2": {
-          "title": "v1.15.2 — Psyche v2: palette emotiva ampliata (22 emozioni), direttive graduate, base di serenità, transizioni narrative, auto-valutazione multi-emozione, risonanza emotiva, emozioni proattive, tooltip avatar arricchito.",
+          "title": "v1.15.2 — Psyche v2",
           "date": "Aprile 2026",
           "count": "1",
           "items": {
@@ -2869,7 +2916,7 @@
       "chat": {
         "title": "Conversazioni",
         "description": "Utilizzo della chat e delle conversazioni",
-        "count": "9",
+        "count": "10",
         "questions": {
           "q1": {
             "question": "Posso avere più conversazioni contemporaneamente?",
@@ -2906,6 +2953,10 @@
           "q9": {
             "question": "Cos'è il comando /resume?",
             "answer": "Il comando <strong>/resume</strong> attiva la <strong>compattazione intelligente del contesto</strong>:<br><br><strong>Cosa fa:</strong><br>• Riassume la cronologia delle conversazioni precedenti usando l'IA<br>• Preserva gli identificatori critici (nomi, email, ID)<br>• Libera spazio nella finestra di contesto per conversazioni più lunghe<br><br><strong>Quando usarlo:</strong><br>• Quando la conversazione dura da molto tempo<br>• Quando LIA sembra perdere il filo del contesto precedente<br>• Quando vuoi «resettare» il contesto senza perdere informazioni importanti<br><br><strong>Come funziona:</strong><br>1. Digita <strong>/resume</strong> nella chat<br>2. LIA riassume i vecchi messaggi in un riepilogo conciso<br>3. I messaggi recenti vengono conservati intatti<br>4. LIA conferma la compattazione con un breve riepilogo<br><br><strong>💡 Nota:</strong> La compattazione si attiva anche automaticamente quando la conversazione diventa molto lunga. Il comando /resume ti permette di forzarla in qualsiasi momento."
+          },
+          "q10": {
+            "question": "Qual è la differenza tra modalità Pipeline (🔀) e ReAct (⚡)?",
+            "answer": "LIA offre due modalità di esecuzione, selezionabili tramite il toggle 🔀/⚡ nell'intestazione della chat:<br><br><strong>🔀 Modalità Pipeline (predefinita)</strong><br>LIA pianifica tutti i passaggi in anticipo, li valida ed esegue gli strumenti in parallelo. È la modalità più <strong>veloce ed economica</strong>: consuma 4-8 volte meno token rispetto alla modalità ReAct.<br><br><strong>⚡ Modalità ReAct</strong><br>LIA ragiona passo dopo passo: chiama uno strumento, analizza il risultato e decide autonomamente cosa fare dopo. Più <strong>adattabile e autonoma</strong>, ma consuma significativamente più token.<br><br><strong>💡 Quando usare quale modalità?</strong><br>• <strong>Pipeline (🔀)</strong>: per la maggior parte delle richieste — email, calendario, meteo, contatti, attività...<br>• <strong>ReAct (⚡)</strong>: per ricerche esplorative, domande complesse multi-step o quando hai bisogno che LIA si adatti in tempo reale.<br><br><strong>⚠️ Attenzione ai costi:</strong> la modalità ReAct consuma 4-8× più token. Riservala alle richieste dove il valore aggiunto giustifica il costo extra."
           }
         }
       },
@@ -4337,7 +4388,7 @@
   "landing": {
     "meta": {
       "title": "LIA — Assistente IA Personale Open Source | Multi-Agente, HITL, 6 Lingue",
-      "description": "LIA orchestra 16 agenti IA specializzati per gestire email, calendario, contatti, Drive e altro. Open source, validazione umana (HITL), 7 provider LLM, 6 lingue. Privacy by design."
+      "description": "LIA orchestra 19+ agenti IA specializzati per gestire email, calendario, contatti, Drive e altro. Open source, validazione umana (HITL), 8 provider LLM, 6 lingue. Privacy by design."
     },
     "nav": {
       "features": "Funzionalità",
@@ -4372,7 +4423,7 @@
       "trust_gdpr": "Conforme GDPR",
       "badge_opensource": "Open Source",
       "cta_github": "GitHub",
-      "intro_paragraph": "LIA è un assistente IA personale open source che orchestra 16 agenti specializzati per gestire email, calendario, contatti, file, attività, promemoria, ricerca web, meteo, percorsi e casa intelligente. Compatibile con Google Workspace, Apple iCloud e Microsoft 365, LIA funziona in linguaggio naturale con validazione umana di ogni azione sensibile."
+      "intro_paragraph": "LIA è un assistente IA personale open source che orchestra 19+ agenti specializzati per gestire email, calendario, contatti, file, attività, promemoria, ricerca web, meteo, percorsi e casa intelligente. Compatibile con Google Workspace, Apple iCloud e Microsoft 365, LIA funziona in linguaggio naturale con validazione umana di ogni azione sensibile."
     },
     "chat_mockup": {
       "user_message": "Manda un'email a Maria dicendole che farò tardi stasera, usa un tono umoristico",
@@ -4447,7 +4498,7 @@
         "description": "Nessun comando da memorizzare. Chiedi quello che vuoi come a un assistente umano, LIA capisce e agisce."
       },
       "multi_agent": {
-        "title": "16 agenti specializzati",
+        "title": "19+ agenti specializzati",
         "description": "Email, calendario, contatti, file, attività, meteo, ricerca web, Wikipedia, luoghi, percorsi, promemoria e altro ancora. Una singola richiesta attiva automaticamente gli agenti giusti."
       },
       "proactive": {
@@ -4637,14 +4688,14 @@
     "tech": {
       "title": "Sotto il cofano",
       "subtitle": "Un'architettura pensata per prestazioni e scalabilità",
-      "intro": "L'architettura di LIA si basa su una pipeline di orchestrazione LangGraph che scompone ogni richiesta in sotto-attività, le assegna ad agenti specializzati ed esegue i piani in parallelo. Il sistema apprende dai pattern ricorrenti tramite un modello bayesiano che ottimizza la pianificazione nel tempo, riducendo la latenza e i costi API.",
+      "intro": "LIA offre due modalità di esecuzione complementari. La modalità Pipeline (predefinita) è un capolavoro di ingegneria: pianificazione intelligente, validazione semantica, esecuzione parallela degli strumenti — consumando 4-8 volte meno token rispetto alla modalità ReAct. La modalità ReAct (⚡) offre massima autonomia: il LLM ragiona passo dopo passo, chiama gli strumenti uno per uno e si adatta in tempo reale. Entrambe le modalità condividono gli stessi 19+ agenti specializzati, lo stesso sistema HITL e l'apprendimento bayesiano dei pattern.",
       "deep_dive_link": "Approfondimento tecnico completo",
       "langgraph": {
         "title": "LangGraph",
         "description": "Orchestrazione di agenti con grafi di stato, esecuzione parallela a ondate e apprendimento bayesiano dei pattern di pianificazione."
       },
       "llm_providers": {
-        "title": "7 fornitori LLM",
+        "title": "8 fornitori LLM",
         "description": "OpenAI, Anthropic, Google Gemini, DeepSeek, Qwen, Perplexity, Ollama. Selezione dinamica del miglior modello per tipo di attività."
       },
       "bayesian": {
@@ -4665,8 +4716,8 @@
       }
     },
     "architecture": {
-      "title": "Pipeline di orchestrazione",
-      "subtitle": "Dal linguaggio naturale all'azione, in tempo reale",
+      "title": "Due modalità di esecuzione",
+      "subtitle": "Pipeline per l'efficienza, ReAct per l'autonomia — a te la scelta",
       "nodes": {
         "query": "Richiesta",
         "router": "Router",
@@ -4691,7 +4742,7 @@
         "settings_features": "Impostazioni — Funzionalità: memoria, interessi, notifiche, sub-agenti",
         "settings_administration": "Amministrazione — Pannello di controllo completo per gli operatori",
         "settings_administration_oneclick": "Amministrazione — Semplicità in un clic: ogni azione accessibile istantaneamente",
-        "settings_administration_llm": "Amministrazione — Configurazione LLM: 7 provider, selezione modello per nodo",
+        "settings_administration_llm": "Amministrazione — Configurazione LLM: 8 provider, selezione modello per nodo",
         "faq": "FAQ — Centro assistenza con ricerca e categorie"
       }
     },
@@ -4916,7 +4967,7 @@
     },
     "articles": {
       "multi-agent-orchestration": {
-        "title": "Come LIA orchestra 16 agenti IA specializzati",
+        "title": "Come LIA orchestra 19+ agenti IA specializzati",
         "excerpt": "Scopri il sistema multi-agente di LIA: un router intelligente indirizza ogni richiesta all'agente giusto con LangGraph, un pianificatore e un orchestratore di task paralleli.",
         "body": "<h2>Un grafo a 8 nodi al cuore del sistema</h2><p>Quando invii un messaggio a LIA, questo non viene inviato direttamente a un modello linguistico. Attraversa una <strong>macchina a stati LangGraph composta da 8 nodi</strong>: <code>compaction</code>, <code>router_v3</code>, <code>planner</code>, <code>task_orchestrator</code>, <code>approval_gate</code>, <code>semantic_validator</code>, <code>clarification</code> e <code>response</code>. Ogni nodo è una funzione asincrona specializzata con transizioni condizionali.</p><h2>Un router a intelligenza unificata</h2><p>Il nodo <code>router_v3</code> utilizza <code>QueryAnalyzerService.analyze_full()</code> per un'analisi unificata di ogni messaggio. Il risultato è un <strong>RouterOutput</strong> contenente: l'intenzione (<code>action</code> o <code>conversation</code>), un punteggio di confidenza, la lista dei domini rilevati e il ragionamento del router. Se l'intenzione è conversazionale, il flusso passa direttamente al nodo <code>response</code>. Se è azionabile, il flusso passa al <code>planner</code> per generare un piano strutturato.</p><h2>Uno stato ricco con gestione dei token</h2><p>Lo stato LangGraph (<code>MessagesState</code>) è un TypedDict con <strong>oltre 50 campi</strong>. Utilizza un riduttore personalizzato <code>add_messages_with_truncate</code> basato su tiktoken per gestire il troncamento per token, il windowing dei messaggi e la validazione delle sequenze di messaggi OpenAI. Questo stato viene salvato in checkpoint in <strong>PostgreSQL</strong> tramite il sistema di persistenza LangGraph.</p><h2>Esecuzione parallela nativa</h2><p>Per le richieste azionabili (\"invia un'email e crea un evento\"), LIA genera un <strong>ExecutionPlan</strong> strutturato tramite il nodo pianificatore. L'orchestratore di task analizza il grafo delle dipendenze ed esegue i passi indipendenti in parallelo grazie a <code>asyncio.gather()</code> nativo (Fase 5.2B), riducendo considerevolmente il tempo di risposta per le richieste multi-dominio.</p><h2>Agenti specializzati per dominio</h2><p>Ogni dominio dispone del proprio agente: email, calendario, contatti, attività, Drive, meteo, itinerari, ricerca web, Wikipedia, casa intelligente e altro. Ogni agente possiede i propri strumenti dedicati, il proprio prompt specializzato e il proprio contesto. Questa suddivisione permette a LIA di coordinare automaticamente più agenti per richieste trasversali come \"invia i dettagli del mio prossimo appuntamento a tutti i partecipanti\".</p><h2>Persistenza e ripresa</h2><p>Lo stato completo di ogni conversazione viene salvato in checkpoint in PostgreSQL tramite il sistema di persistenza di LangGraph. In caso di interruzione, la conversazione riprende esattamente da dove si era interrotta, con tutto il contesto preservato — inclusi i piani in corso di esecuzione e le approvazioni in attesa.</p>"
       },
@@ -4996,9 +5047,9 @@
         "body": "<h2>Privacy by design</h2><p>LIA è progettato fin dall'origine con la protezione dei dati come principio fondante, non come un'aggiunta a posteriori.</p><h2>Crittografia simmetrica Fernet</h2><p>Tutti i dati sensibili sono crittografati con <strong>Fernet</strong> (AES-128 CBC + HMAC-SHA256) tramite la funzione <code>encrypt_data()</code>. Ciò copre i token OAuth, le credenziali dei connettori, i PII e le credenziali dei server MCP. Le credenziali OAuth vengono crittografate prima della scrittura nel database e decrittografate al volo durante il recupero. Le chiavi di crittografia sono gestite separatamente dai dati.</p><h2>Minimizzazione della raccolta</h2><p>LIA raccoglie solo i dati strettamente necessari al suo funzionamento:</p><ul><li>Informazioni del profilo (nome, email, preferenze)</li><li>Storico delle conversazioni (crittografato)</li><li>Token di connessione ai servizi (crittografati)</li><li>Metriche di utilizzo anonimizzate</li></ul><h2>Eliminazione e cascading</h2><p>L'eliminazione di un account utente attiva un <strong>cascading delete</strong> completo: connettori, conversazioni, impostazioni, sessioni, memorie e tutti i dati associati vengono eliminati irreversibilmente. Nessun dato orfano persiste nel database.</p><h2>Sessioni e cookie sicuri</h2><p>I cookie di sessione sono configurati con gli attributi <code>HttpOnly</code>, <code>Secure</code> (in produzione) e <code>SameSite=lax</code>. La durata della sessione è di 7 giorni per impostazione predefinita, estensibile a 30 giorni con l'opzione \"Ricordami\". I token monouso vengono invalidati dopo il primo utilizzo tramite una blacklist Redis.</p><h2>Protezione dei contenuti esterni</h2><p>I contenuti recuperati da fonti esterne (email, pagine web, documenti) vengono contrassegnati come <code>UNTRUSTED</code> con un wrapping configurabile prima dell'iniezione nei prompt. Lo strumento web_fetch è limitato a 10 chiamate per finestra di 60 secondi per utente per prevenire gli abusi.</p><h2>Filtraggio PII nei log</h2><p>Il sistema di logging applica le raccomandazioni <strong>OWASP Logging Cheat Sheet</strong> per filtrare automaticamente i dati personali dai log applicativi. Nessun dato sensibile appare nei log.</p><h2>Portabilità dei dati (v1.9.1)</h2><p>LIA consente a ogni utente di <strong>esportare i propri dati di consumo</strong> in formato CSV da Impostazioni > Funzionalità. Tre tipi di esportazione: consumo LLM (token e costi per chiamata), consumo API Google e riepilogo aggregato. Sicurezza: lo <code>user_id</code> viene forzato lato server — nessun parametro è esposto (protezione IDOR).</p>"
       },
       "observability": {
-        "title": "350+ metriche Prometheus, 18 dashboard Grafana e tracing Langfuse",
-        "excerpt": "LIA offre osservabilità enterprise con 350+ metriche, dashboard Grafana e tracing LLM via Langfuse.",
-        "body": "<h2>I tre pilastri dell'osservabilità</h2><p>LIA implementa i tre pilastri dell'osservabilità moderna:</p><ul><li><strong>Metriche</strong> — 350+ metriche Prometheus che coprono HTTP, agenti, token, costi, OAuth e prestazioni</li><li><strong>Log</strong> — Logging strutturato JSON tramite structlog, centralizzato in Loki con filtraggio PII</li><li><strong>Trace</strong> — Tracing distribuito tramite OpenTelemetry (Tempo) e tracing LLM tramite Langfuse</li></ul><h2>17 file di metriche specializzati</h2><p>Ogni dominio possiede il proprio file di metriche dichiarativo. I 17 moduli coprono: HTTP, agents/SSE/router/LLM/HITL/planner, database, LangGraph, Langfuse, voice, RAG spaces, OAuth, channels, errori, sub-agenti, Redis, attachments, browser, compaction. Ogni file definisce Counter, Histogram e Gauge Prometheus adattati al dominio.</p><h2>Definizione delle metriche Prometheus</h2><p>Ogni dominio definisce le proprie metriche in modo dichiarativo:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>18 dashboard Grafana</h2><p>LIA fornisce 18 dashboard Grafana numerati da 01 a 18: app-overview, http-performance, agent-pipeline, llm-tokens-costs, oauth-connectors, streaming-sse, hitl-approval, planner-optimizer, voice-pipeline, memory-system, error-analysis, redis-cache, channels-telegram, scheduled-actions, mcp-tools, browser-attachments, sub-agents e rag-spaces. Ogni dashboard offre viste filtrabili per utente, periodo e ambiente.</p><h2>KPI target estratti dal codice</h2><p>LIA monitora indicatori precisi definiti nel codice sorgente: TTFT (Time To First Token) dello streaming, latenza del router tra 0.1 e 2 secondi, durata di esecuzione degli strumenti agenti tra 0.1 e 10 secondi, confidenza router p50 &gt; 0.8, costo LLM per richiesta &lt; 0.05€, tasso di errore HTTP 5xx &lt; 1%.</p><h2>Langfuse: tracing LLM dedicato</h2><p>L'integrazione Langfuse dispone di 8 metriche dedicate per tracciare ogni chiamata LLM: token consumati (input/output/cache), tempo di risposta, modello utilizzato, costo stimato e contesto della richiesta. Questo permette di identificare i prompt inefficaci, confrontare i modelli LLM tra loro e ottimizzare il consumo di token nel tempo.</p><h2>DevOps Claude CLI: Diagnostica in linguaggio naturale (v1.13.0)</h2><p>Ultima evoluzione dello stack di osservabilità: gli amministratori possono ora diagnosticare i server direttamente dalla conversazione LIA. Claude Code CLI — installato nel container API Docker — ispeziona in modo autonomo i log, verifica la salute dei container e analizza l'utilizzo delle risorse. Sessioni persistenti, permessi configurabili per ambiente e streaming in tempo reale dei passaggi di indagine via SSE.</p>"
+        "title": "400+ metriche Prometheus, 18 dashboard Grafana e tracing Langfuse",
+        "excerpt": "LIA offre osservabilità enterprise con 400+ metriche, dashboard Grafana e tracing LLM via Langfuse.",
+        "body": "<h2>I tre pilastri dell'osservabilità</h2><p>LIA implementa i tre pilastri dell'osservabilità moderna:</p><ul><li><strong>Metriche</strong> — 400+ metriche Prometheus che coprono HTTP, agenti, token, costi, OAuth e prestazioni</li><li><strong>Log</strong> — Logging strutturato JSON tramite structlog, centralizzato in Loki con filtraggio PII</li><li><strong>Trace</strong> — Tracing distribuito tramite OpenTelemetry (Tempo) e tracing LLM tramite Langfuse</li></ul><h2>17 file di metriche specializzati</h2><p>Ogni dominio possiede il proprio file di metriche dichiarativo. I 17 moduli coprono: HTTP, agents/SSE/router/LLM/HITL/planner, database, LangGraph, Langfuse, voice, RAG spaces, OAuth, channels, errori, sub-agenti, Redis, attachments, browser, compaction. Ogni file definisce Counter, Histogram e Gauge Prometheus adattati al dominio.</p><h2>Definizione delle metriche Prometheus</h2><p>Ogni dominio definisce le proprie metriche in modo dichiarativo:</p><pre><code class=\"language-python\">from prometheus_client import Counter, Histogram, Gauge\n\nhttp_requests_total = Counter(\n    \"http_requests_total\",\n    \"Total HTTP requests\",\n    [\"method\", \"endpoint\", \"status\"],\n)\n\nhttp_request_duration_seconds = Histogram(\n    \"http_request_duration_seconds\",\n    \"HTTP request duration in seconds\",\n    [\"method\", \"endpoint\"],\n)\n\nrouter_confidence_score = Histogram(\n    \"router_confidence_score\",\n    \"Router confidence score distribution\",\n    [\"intention\"],\n    buckets=[0.0, 0.3, 0.5, 0.7, 0.8, 0.9, 1.0],\n)</code></pre><h2>18 dashboard Grafana</h2><p>LIA fornisce 18 dashboard Grafana numerati da 01 a 18: app-overview, http-performance, agent-pipeline, llm-tokens-costs, oauth-connectors, streaming-sse, hitl-approval, planner-optimizer, voice-pipeline, memory-system, error-analysis, redis-cache, channels-telegram, scheduled-actions, mcp-tools, browser-attachments, sub-agents e rag-spaces. Ogni dashboard offre viste filtrabili per utente, periodo e ambiente.</p><h2>KPI target estratti dal codice</h2><p>LIA monitora indicatori precisi definiti nel codice sorgente: TTFT (Time To First Token) dello streaming, latenza del router tra 0.1 e 2 secondi, durata di esecuzione degli strumenti agenti tra 0.1 e 10 secondi, confidenza router p50 &gt; 0.8, costo LLM per richiesta &lt; 0.05€, tasso di errore HTTP 5xx &lt; 1%.</p><h2>Langfuse: tracing LLM dedicato</h2><p>L'integrazione Langfuse dispone di 8 metriche dedicate per tracciare ogni chiamata LLM: token consumati (input/output/cache), tempo di risposta, modello utilizzato, costo stimato e contesto della richiesta. Questo permette di identificare i prompt inefficaci, confrontare i modelli LLM tra loro e ottimizzare il consumo di token nel tempo.</p><h2>DevOps Claude CLI: Diagnostica in linguaggio naturale (v1.13.0)</h2><p>Ultima evoluzione dello stack di osservabilità: gli amministratori possono ora diagnosticare i server direttamente dalla conversazione LIA. Claude Code CLI — installato nel container API Docker — ispeziona in modo autonomo i log, verifica la salute dei container e analizza l'utilizzo delle risorse. Sessioni persistenti, permessi configurabili per ambiente e streaming in tempo reale dei passaggi di indagine via SSE.</p>"
       },
       "prompt-engineering": {
         "title": "Sistema di prompt versionati: 55 prompt gestiti come codice",

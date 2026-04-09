@@ -1189,6 +1189,7 @@ class OrchestrationService:
         user_journals_enabled: bool = False,  # User preference for personal journals
         user_psyche_enabled: bool = False,  # User preference for psyche engine
         user_display_mode: str = "cards",  # User display mode (cards/html/markdown)
+        user_execution_mode: str = "pipeline",  # Execution mode (pipeline/react) — ADR-070
         side_channel_queue: asyncio.Queue | None = None,  # SSE side-channel for tools
     ) -> AsyncGenerator[tuple[str, Any], None]:
         """
@@ -1268,6 +1269,7 @@ class OrchestrationService:
                 "user_journals_enabled": user_journals_enabled,  # User preference for journals
                 "user_psyche_enabled": user_psyche_enabled,  # User preference for psyche engine
                 "user_display_mode": user_display_mode,  # User display mode (cards/html/markdown)
+                "user_execution_mode": user_execution_mode,  # Execution mode (pipeline/react) — ADR-070
                 "__deps": tool_deps,
                 "__browser_context": browser_context,  # For location-aware tools (weather, places)
                 "__user_message": user_message,  # Original message for location phrase detection
@@ -1283,7 +1285,12 @@ class OrchestrationService:
                 FIELD_CONVERSATION_ID: str(conversation_id),
             },
             callbacks=[token_callback],  # Propagates to ALL nodes automatically
-            recursion_limit=settings.agent_max_iterations,  # Security: prevent infinite loops
+            # ADR-070: ReAct mode needs higher recursion_limit (each iteration = 2 transitions)
+            recursion_limit=(
+                settings.react_agent_max_iterations * 2 + 15
+                if user_execution_mode == "react"
+                else settings.agent_max_iterations
+            ),
         )
 
         # === Phase 6 - LLM Observability: Enrich config with Langfuse callbacks ===

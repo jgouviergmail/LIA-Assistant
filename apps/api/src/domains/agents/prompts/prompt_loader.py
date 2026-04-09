@@ -118,6 +118,8 @@ PromptName = Literal[
     # ADR-062: Initiative Phase + MCP ReAct
     "initiative_prompt",
     "mcp_react_agent_prompt",
+    # ADR-070: ReAct Execution Mode
+    "react_agent_prompt",
     # Long-term Memory (psychological profiling)
     "memory_extraction_prompt",
     "memory_extraction_personality_addon",

@@ -126,7 +126,8 @@ graph TD
     START([User Message]) --> ROUTER[Router Node v8]
 
     ROUTER -->|conversation| RESPONSE[Response Node]
-    ROUTER -->|actionable| PLANNER[Planner Node v5]
+    ROUTER -->|actionable, pipeline| PLANNER[Planner Node v5]
+    ROUTER -->|actionable, react| REACT_SETUP[ReAct Setup]
 
     PLANNER --> VALIDATOR[Plan Validator]
     VALIDATOR --> APPROVAL[Approval Gate HITL]
@@ -138,6 +139,13 @@ graph TD
     CONTACTS --> ORCHESTRATOR
 
     ORCHESTRATOR --> RESPONSE
+
+    REACT_SETUP --> REACT_LLM[ReAct Call Model]
+    REACT_LLM -->|tool_calls| REACT_TOOLS[ReAct Execute Tools]
+    REACT_LLM -->|no tool_calls| REACT_FIN[ReAct Finalize]
+    REACT_TOOLS --> REACT_LLM
+    REACT_FIN --> RESPONSE
+
     RESPONSE --> END([Stream to User])
 
     style ROUTER fill:#e1f5ff
@@ -145,6 +153,10 @@ graph TD
     style APPROVAL fill:#ffe1e1
     style ORCHESTRATOR fill:#e1ffe1
     style RESPONSE fill:#f0e1ff
+    style REACT_SETUP fill:#ffecd2
+    style REACT_LLM fill:#ffecd2
+    style REACT_TOOLS fill:#ffecd2
+    style REACT_FIN fill:#ffecd2
 ```
 
 ### Node Constants
@@ -158,6 +170,12 @@ NODE_PLANNER = "planner"
 NODE_APPROVAL_GATE = "approval_gate"
 NODE_TASK_ORCHESTRATOR = "task_orchestrator"
 NODE_RESPONSE = "response"
+
+# ReAct execution mode nodes (ADR-070)
+NODE_REACT_SETUP = "react_setup"
+NODE_REACT_CALL_MODEL = "react_call_model"
+NODE_REACT_EXECUTE_TOOLS = "react_execute_tools"
+NODE_REACT_FINALIZE = "react_finalize"
 
 # Agent names
 AGENT_CONTACTS = "contacts_agent"

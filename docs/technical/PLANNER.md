@@ -32,6 +32,8 @@
 
 Le **Planner Node** est le cerveau orchestrateur du système multi-agents LIA. Il génère des **ExecutionPlan** structurés qui coordonnent l'exécution de multiples tools à travers différents agents.
 
+> **Note**: The Planner is only used in **pipeline** execution mode. In **ReAct** mode (ADR-070), the LLM reasons iteratively without upfront planning. See [REACT_EXECUTION_MODE.md](./REACT_EXECUTION_MODE.md).
+
 ### Responsabilités
 
 ```mermaid

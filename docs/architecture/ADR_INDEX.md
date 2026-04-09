@@ -2316,6 +2316,32 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 
 ---
 
+### ADR-070: ReAct Execution Mode
+
+**Status**: ✅ ACCEPTED (2026-04-08)
+**Fichier**: `docs/architecture/ADR-070-ReAct-Execution-Mode.md`
+
+**Décision**: Ajouter un mode d'exécution ReAct (Reasoning + Acting) alternatif comme préférence utilisateur, à côté du pipeline existant (Planner → Orchestrator → Response).
+
+**Problème résolu**:
+- ❌ Pipeline rigide: impossible d'adapter l'exécution en cours de route
+- ❌ Pas de réaction aux résultats inattendus des outils
+- ❌ Tâches exploratoires mal servies par un plan fixe
+
+**Solution**:
+- ✅ 4 nodes dans le graphe parent: `react_setup` → `react_call_model` ←→ `react_execute_tools` → `react_finalize`
+- ✅ HITL via `interrupt()` natif dans `react_execute_tools` (pas de subgraph)
+- ✅ Pattern d'idempotence pour re-exécution multi-interrupt
+- ✅ LLM type dédié `react_agent` (qwen3.5-plus, thinking medium)
+- ✅ Toggle utilisateur sur la page chat (persisté en DB)
+
+**Trade-offs**:
+- ReAct: 3-10x plus d'appels LLM, mais adaptatif et autonome
+- Pipeline: Rapide, économique, mais rigide
+- Les deux modes partagent outils, registry et infrastructure HITL
+
+---
+
 ## ADRs Archivés
 
 ### ADR-005 (Version Originale): Workflow-Based HITL

@@ -327,9 +327,36 @@ export function handleToken(chunk: ChatStreamChunk, context: SSEHandlerContext):
 
 /**
  * Handle content_replacement: Post-processed content replacement
+ *
+ * When content_final_replacement is set (e.g., HTML cards), the backend skips
+ * streaming tokens entirely and sends only this replacement. In that case,
+ * no message container exists yet — we must create one first via STREAM_START.
+ * This happens in ReAct mode where the response LLM tokens are skipped.
  */
 export function handleContentReplacement(chunk: ChatStreamChunk, context: SSEHandlerContext): void {
-  const { dispatch } = context;
+  const {
+    dispatch,
+    assistantMessageId,
+    normalStreamInitialized,
+    setNormalStreamInitialized,
+    progressMessageId,
+    setProgressMessageId,
+  } = context;
+
+  // Ensure a message container exists AND currentMessageId is set before replacing.
+  // STREAM_START is idempotent in the reducer — if the message already exists
+  // (e.g., created by router progress), it just re-sets currentMessageId.
+  // This guarantees STREAM_REPLACE always has a valid target, regardless of
+  // whether progress events fired, or currentMessageId was cleared by an
+  // intermediate event.
+  if (!normalStreamInitialized) {
+    dispatch({ type: 'STREAM_START', payload: { messageId: assistantMessageId } });
+    setNormalStreamInitialized(true);
+    if (progressMessageId) {
+      setProgressMessageId(null);
+    }
+  }
+
   dispatch({
     type: 'STREAM_REPLACE',
     payload: { content: chunk.content as string },

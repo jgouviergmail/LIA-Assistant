@@ -15,6 +15,7 @@ export interface User {
   is_verified: boolean;
   is_superuser: boolean;
   memory_enabled: boolean;
+  execution_mode: string;
   voice_enabled: boolean;
   voice_mode_enabled: boolean;
   tokens_display_enabled: boolean;
