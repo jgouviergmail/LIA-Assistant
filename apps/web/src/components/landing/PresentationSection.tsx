@@ -7,7 +7,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FadeInOnScroll } from './FadeInOnScroll';
 
-const TOTAL_SLIDES = 13;
+const TOTAL_SLIDES = 15;
 
 const SLIDES = Array.from({ length: TOTAL_SLIDES }, (_, i) => ({
   index: i + 1,
