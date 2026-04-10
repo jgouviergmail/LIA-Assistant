@@ -50,7 +50,7 @@ export async function TechSection({ lng }: TechSectionProps) {
             <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
               {t('landing.tech.subtitle')}
             </p>
-            <p className="text-muted-foreground text-sm max-w-2xl mx-auto mt-4 leading-relaxed">
+            <p className="text-muted-foreground text-sm max-w-2xl mx-auto mt-4 leading-relaxed whitespace-pre-line">
               {t('landing.tech.intro')}
             </p>
           </div>

@@ -39,6 +39,14 @@ export const BLOG_CATEGORIES: { id: BlogCategory; icon: string }[] = [
 export const BLOG_ARTICLES: BlogArticle[] = [
   // --- Architecture ---
   {
+    slug: 'react-execution-mode',
+    category: 'architecture',
+    icon: 'Repeat',
+    date: '2026-04-08',
+    readTime: 5,
+    tags: ['react', 'pipeline', 'execution-mode', 'langgraph', 'iteration', 'agent-loop'],
+  },
+  {
     slug: 'multi-agent-orchestration',
     category: 'architecture',
     icon: 'Network',
@@ -73,6 +81,14 @@ export const BLOG_ARTICLES: BlogArticle[] = [
 
   // --- Integrations ---
   {
+    slug: 'mcp-react-agent',
+    category: 'integrations',
+    icon: 'Bot',
+    date: '2026-04-05',
+    readTime: 5,
+    tags: ['mcp', 'react-agent', 'iterative', 'sub-agent', 'tool-server', 'extensibility'],
+  },
+  {
     slug: 'google-workspace',
     category: 'integrations',
     icon: 'Mail',
@@ -106,6 +122,22 @@ export const BLOG_ARTICLES: BlogArticle[] = [
   },
 
   // --- Features ---
+  {
+    slug: 'psyche-engine',
+    category: 'features',
+    icon: 'Heart',
+    date: '2026-04-07',
+    readTime: 5,
+    tags: ['psyche', 'emotions', 'personality', 'emotional-intelligence', 'pad-model', 'big-five'],
+  },
+  {
+    slug: 'progressive-steps',
+    category: 'features',
+    icon: 'ListOrdered',
+    date: '2026-04-10',
+    readTime: 4,
+    tags: ['execution-steps', 'real-time', 'progressive-display', 'sse', 'ux', 'transparency'],
+  },
   {
     slug: 'voice-mode',
     category: 'features',
@@ -157,6 +189,22 @@ export const BLOG_ARTICLES: BlogArticle[] = [
 
   // --- Security ---
   {
+    slug: 'account-lifecycle',
+    category: 'security',
+    icon: 'UserCog',
+    date: '2026-04-03',
+    readTime: 5,
+    tags: ['account', 'lifecycle', 'gdpr', 'soft-delete', 'erasure', 'data-retention'],
+  },
+  {
+    slug: 'hallucination-defense',
+    category: 'security',
+    icon: 'ShieldAlert',
+    date: '2026-04-06',
+    readTime: 4,
+    tags: ['hallucination', 'defense', 'parameter-stripping', 'hitl', 'robustness', 'planner'],
+  },
+  {
     slug: 'security-architecture',
     category: 'security',
     icon: 'Lock',
@@ -174,6 +222,22 @@ export const BLOG_ARTICLES: BlogArticle[] = [
   },
 
   // --- Technical ---
+  {
+    slug: 'embedding-calibration',
+    category: 'technical',
+    icon: 'SlidersHorizontal',
+    date: '2026-04-04',
+    readTime: 5,
+    tags: ['embeddings', 'similarity', 'calibration', 'gemini', 'thresholds', 'f1-score'],
+  },
+  {
+    slug: 'llm-config-governance',
+    category: 'technical',
+    icon: 'Settings',
+    date: '2026-04-09',
+    readTime: 4,
+    tags: ['llm-config', 'admin-ui', 'governance', 'db-overrides', 'multi-provider', 'defaults'],
+  },
   {
     slug: 'observability',
     category: 'technical',
@@ -212,14 +276,14 @@ export const BLOG_ARTICLES: BlogArticle[] = [
  * Get articles filtered by category.
  */
 export function getArticlesByCategory(category: BlogCategory): BlogArticle[] {
-  return BLOG_ARTICLES.filter(a => a.category === category);
+  return BLOG_ARTICLES.filter((a) => a.category === category);
 }
 
 /**
  * Find an article by its slug.
  */
 export function getArticleBySlug(slug: string): BlogArticle | undefined {
-  return BLOG_ARTICLES.find(a => a.slug === slug);
+  return BLOG_ARTICLES.find((a) => a.slug === slug);
 }
 
 /**
@@ -229,7 +293,7 @@ export function getAdjacentArticles(slug: string): {
   prev: BlogArticle | undefined;
   next: BlogArticle | undefined;
 } {
-  const idx = BLOG_ARTICLES.findIndex(a => a.slug === slug);
+  const idx = BLOG_ARTICLES.findIndex((a) => a.slug === slug);
   return {
     prev: idx > 0 ? BLOG_ARTICLES[idx - 1] : undefined,
     next: idx < BLOG_ARTICLES.length - 1 ? BLOG_ARTICLES[idx + 1] : undefined,

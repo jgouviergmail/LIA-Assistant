@@ -4782,7 +4782,7 @@
     "tech": {
       "title": "Sotto il cofano",
       "subtitle": "Un'architettura pensata per prestazioni e scalabilità",
-      "intro": "LIA offre due modalità di esecuzione complementari.\n\nLa modalità Pipeline (predefinita) è un capolavoro di ingegneria: pianificazione intelligente, validazione semantica, esecuzione parallela degli strumenti — consumando 4-8 volte meno token rispetto alla modalità ReAct.\nLa modalità ReAct offre massima autonomia: il LLM ragiona passo dopo passo, chiama gli strumenti uno per uno e si adatta in tempo reale.\n\nEntrambe le modalità condividono gli stessi 19+ agenti specializzati, lo stesso sistema HITL e l'apprendimento bayesiano dei pattern.",
+      "intro": "LIA offre due modalità di esecuzione complementari.\n\nLa modalità Pipeline (predefinita) è un capolavoro di ingegneria: pianificazione intelligente, validazione semantica, esecuzione parallela degli strumenti — consumando 4-8 volte meno token rispetto alla modalità ReAct. La modalità ReAct offre massima autonomia: il LLM ragiona passo dopo passo, chiama gli strumenti uno per uno e si adatta in tempo reale.\n\nEntrambe le modalità condividono gli stessi 19+ agenti specializzati, lo stesso sistema HITL e l'apprendimento bayesiano dei pattern.",
       "deep_dive_link": "Approfondimento tecnico completo",
       "langgraph": {
         "title": "LangGraph",

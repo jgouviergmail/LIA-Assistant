@@ -4780,7 +4780,7 @@
     "tech": {
       "title": "Bajo el capó",
       "subtitle": "Una arquitectura pensada para el rendimiento y la escalabilidad",
-      "intro": "LIA ofrece dos modos de ejecución complementarios.\n\nEl modo Pipeline (por defecto) es una proeza de ingeniería: planificación inteligente, validación semántica, ejecución paralela de herramientas — consumiendo 4 a 8 veces menos tokens que el modo ReAct.\nEl modo ReAct ofrece autonomía máxima: el LLM razona paso a paso, llama herramientas una por una y se adapta en tiempo real.\n\nAmbos modos comparten los mismos 19+ agentes especializados, el mismo sistema HITL y el aprendizaje bayesiano de patrones.",
+      "intro": "LIA ofrece dos modos de ejecución complementarios.\n\nEl modo Pipeline (por defecto) es una proeza de ingeniería: planificación inteligente, validación semántica, ejecución paralela de herramientas — consumiendo 4 a 8 veces menos tokens que el modo ReAct. El modo ReAct ofrece autonomía máxima: el LLM razona paso a paso, llama herramientas una por una y se adapta en tiempo real.\n\nAmbos modos comparten los mismos 19+ agentes especializados, el mismo sistema HITL y el aprendizaje bayesiano de patrones.",
       "deep_dive_link": "Inmersión técnica completa",
       "langgraph": {
         "title": "LangGraph",

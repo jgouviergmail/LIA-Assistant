@@ -4780,7 +4780,7 @@
     "tech": {
       "title": "Unter der Haube",
       "subtitle": "Eine Architektur für Leistung und Skalierbarkeit",
-      "intro": "LIA bietet zwei komplementäre Ausführungsmodi.\n\nDer Pipeline-Modus (Standard) ist echte Ingenieurskunst: intelligente Planung, semantische Validierung, parallele Tool-Ausführung — bei 4- bis 8-mal weniger Token-Verbrauch als der ReAct-Modus.\nDer ReAct-Modus bietet maximale Autonomie: das LLM denkt Schritt für Schritt, ruft Tools nacheinander auf und passt sich in Echtzeit an.\n\nBeide Modi teilen dieselben 19+ spezialisierten Agenten, dasselbe HITL-System und Bayesianisches Pattern-Learning.",
+      "intro": "LIA bietet zwei komplementäre Ausführungsmodi.\n\nDer Pipeline-Modus (Standard) ist echte Ingenieurskunst: intelligente Planung, semantische Validierung, parallele Tool-Ausführung — bei 4- bis 8-mal weniger Token-Verbrauch als der ReAct-Modus. Der ReAct-Modus bietet maximale Autonomie: das LLM denkt Schritt für Schritt, ruft Tools nacheinander auf und passt sich in Echtzeit an.\n\nBeide Modi teilen dieselben 19+ spezialisierten Agenten, dasselbe HITL-System und Bayesianisches Pattern-Learning.",
       "deep_dive_link": "Vollständiger technischer Einblick",
       "langgraph": {
         "title": "LangGraph",

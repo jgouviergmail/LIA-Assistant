@@ -4801,7 +4801,7 @@
     "tech": {
       "title": "Under the hood",
       "subtitle": "An architecture built for performance and scalability",
-      "intro": "LIA offers two complementary execution modes.\n\nPipeline mode (default) is a feat of engineering: smart planning, semantic validation, parallel tool execution — all while consuming 4 to 8 times fewer tokens than ReAct mode.\nReAct mode provides maximum autonomy: the LLM reasons step by step, calls tools one by one, and adapts in real time.\n\nBoth modes share the same 19+ specialized agents, the same HITL system, and Bayesian pattern learning.",
+      "intro": "LIA offers two complementary execution modes.\n\nPipeline mode (default) is a feat of engineering: smart planning, semantic validation, parallel tool execution — all while consuming 4 to 8 times fewer tokens than ReAct mode. ReAct mode provides maximum autonomy: the LLM reasons step by step, calls tools one by one, and adapts in real time.\n\nBoth modes share the same 19+ specialized agents, the same HITL system, and Bayesian pattern learning.",
       "deep_dive_link": "Full technical deep dive",
       "langgraph": {
         "title": "LangGraph",

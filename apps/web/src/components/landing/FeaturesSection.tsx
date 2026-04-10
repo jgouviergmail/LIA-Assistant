@@ -208,7 +208,7 @@ export async function FeaturesSection({ lng }: FeaturesSectionProps) {
             <FadeInOnScroll key={key} delay={i * 100}>
               <Card className="hover-lift hover-glow h-full border-border/60 overflow-hidden">
                 <div className={cn('h-1', accent)} aria-hidden="true" />
-                <CardHeader className="space-y-4">
+                <CardHeader className="space-y-4 items-center text-center">
                   <div
                     className={cn('w-14 h-14 rounded-xl flex items-center justify-center', iconBg)}
                   >
@@ -242,10 +242,10 @@ export async function FeaturesSection({ lng }: FeaturesSectionProps) {
               <FadeInOnScroll key={groupKey} delay={gi * 80}>
                 <div>
                   {/* Group header */}
-                  <div className="flex items-center gap-3 mb-4">
+                  <div className="flex flex-col items-center gap-2 mb-6 text-center">
                     <div
                       className={cn(
-                        'w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0',
+                        'w-10 h-10 rounded-lg flex items-center justify-center',
                         headerIconBg
                       )}
                     >

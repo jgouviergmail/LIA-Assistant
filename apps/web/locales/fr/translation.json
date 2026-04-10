@@ -4823,7 +4823,7 @@
     "tech": {
       "title": "Sous le capot",
       "subtitle": "Une architecture pensée pour la performance et l'évolutivité",
-      "intro": "LIA propose deux modes d'exécution complémentaires.\n\nLe mode Pipeline (par défaut) est un véritable travail d'ingénierie : planification intelligente, validation sémantique, exécution parallèle des outils — le tout en consommant 4 à 8 fois moins de tokens que le mode ReAct.\nLe mode ReAct offre une autonomie maximale : le LLM raisonne étape par étape, appelle les outils un par un et s'adapte en temps réel.\n\nLes deux modes partagent les mêmes 19+ agents spécialisés, le même système HITL et l'apprentissage bayésien de patterns.",
+      "intro": "LIA propose deux modes d'exécution complémentaires.\n\nLe mode Pipeline (par défaut) est un véritable travail d'ingénierie : planification intelligente, validation sémantique, exécution parallèle des outils — le tout en consommant 4 à 8 fois moins de tokens que le mode ReAct. Le mode ReAct offre une autonomie maximale : le LLM raisonne étape par étape, appelle les outils un par un et s'adapte en temps réel.\n\nLes deux modes partagent les mêmes 19+ agents spécialisés, le même système HITL et l'apprentissage bayésien de patterns.",
       "deep_dive_link": "Plongée technique complète",
       "langgraph": {
         "title": "LangGraph",
