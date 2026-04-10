@@ -13,8 +13,8 @@ const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://lia.jeyswork.com';
  * - Block all bots from authenticated areas (/dashboard, /api)
  */
 export default function robots(): MetadataRoute.Robots {
-  const publicPaths = [
-    '/',
+  const locales = ['fr', 'en', 'de', 'es', 'it', 'zh'];
+  const basePublicPaths = [
     '/login',
     '/register',
     '/faq',
@@ -25,15 +25,20 @@ export default function robots(): MetadataRoute.Robots {
     '/privacy',
     '/terms',
   ];
+
+  const publicPaths = [
+    '/',
+    ...basePublicPaths,
+    ...locales.flatMap((lng) => [`/${lng}`, ...basePublicPaths.map((p) => `/${lng}${p}`)]),
+  ];
+
+  const baseBlockedPaths = ['/dashboard', '/dashboard/*', '/account-inactive'];
+
   const blockedPaths = [
-    '/dashboard',
-    '/dashboard/*',
+    ...baseBlockedPaths,
     '/api/*',
-    '/account-inactive',
     '/_next/*',
-    // Block default-language prefix — /fr/* redirects to /* (no prefix for FR)
-    '/fr',
-    '/fr/*',
+    ...locales.flatMap((lng) => baseBlockedPaths.map((p) => `/${lng}${p}`)),
   ];
 
   return {
