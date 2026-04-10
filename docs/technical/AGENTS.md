@@ -34,7 +34,7 @@
 LIA utilise une **architecture multi-agent** pour gérer différents domaines fonctionnels (contacts, email, calendar, tasks, etc.) de manière modulaire et extensible.
 
 **Standards utilisés** :
-- LangGraph v1.1.2 multi-agent best practices
+- LangGraph v1.1.6 multi-agent best practices
 - LangChain v1.2 agent API (`create_agent`)
 - Registry pattern (centralized dependency injection)
 - Builder pattern (agent factory)

@@ -61,7 +61,7 @@ plan_template:
 7. Commencer par le plus urgent, terminer par les suggestions proactives
 8. Si aucune tâche/événement : mentionner "journée libre" et suggérer des activités
 9. Si aucun email : mentionner "aucun email reçu aujourd'hui"
-10. Si aucun rappel : ne pas afficher la section Rappels
+10. Si aucun rappel : mentionner "aucun rappel aujourd'hui"
 
 ## Format de sortie
 
@@ -87,7 +87,7 @@ plan_template:
 - Signaler les emails importants ou urgents nécessitant une action
 
 ### 🔔 Rappels
-- Rappels programmés pour aujourd'hui avec leur heure de déclenchement
+- Pour chaque rappel : **heure de déclenchement** + **objet/contenu** du rappel
 - Rappels en retard (heure dépassée) signalés en priorité
 - Si aucun rappel en attente, ne pas afficher cette section
 

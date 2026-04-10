@@ -21,10 +21,10 @@
 <p align="center">
   <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.12%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.12+"></a>
   <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-22%20LTS-5FA04E?style=flat-square&logo=nodedotjs&logoColor=white" alt="Node.js 22 LTS"></a>
-  <a href="https://fastapi.tiangolo.com/"><img src="https://img.shields.io/badge/FastAPI-0.135.1-009688?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI"></a>
+  <a href="https://fastapi.tiangolo.com/"><img src="https://img.shields.io/badge/FastAPI-0.135.3-009688?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI"></a>
   <a href="https://nextjs.org/"><img src="https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=nextdotjs&logoColor=white" alt="Next.js 16"></a>
-  <a href="https://langchain-ai.github.io/langgraph/"><img src="https://img.shields.io/badge/LangGraph-1.1.2-FF6F00?style=flat-square" alt="LangGraph"></a>
-  <a href="https://python.langchain.com/"><img src="https://img.shields.io/badge/LangChain-1.2.12-4B8BBE?style=flat-square" alt="LangChain"></a>
+  <a href="https://langchain-ai.github.io/langgraph/"><img src="https://img.shields.io/badge/LangGraph-1.1.6-FF6F00?style=flat-square" alt="LangGraph"></a>
+  <a href="https://python.langchain.com/"><img src="https://img.shields.io/badge/LangChain-1.2.15-4B8BBE?style=flat-square" alt="LangChain"></a>
   <a href="#internationalization-i18n--6-languages"><img src="https://img.shields.io/badge/i18n-6%20languages-E040FB?style=flat-square" alt="6 languages"></a>
   <a href="#license"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue?style=flat-square" alt="License"></a>
   <a href="https://deepwiki.com/jgouviergmail/LIA-Assistant"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
@@ -691,10 +691,10 @@ apps/api/src/
 | Technology | Version | Role |
 |------------|---------|------|
 | Python | 3.12+ | Primary runtime |
-| FastAPI | 0.135.1 | REST API + SSE framework |
-| LangGraph | 1.1.2 | Multi-agent orchestration |
-| LangChain | 1.2.12 | LLM abstraction + tools |
-| SQLAlchemy | 2.0.48 | Async ORM |
+| FastAPI | 0.135.3 | REST API + SSE framework |
+| LangGraph | 1.1.6 | Multi-agent orchestration |
+| LangChain | 1.2.15 | LLM abstraction + tools |
+| SQLAlchemy | 2.0.49 | Async ORM |
 | Alembic | latest | Database migrations |
 | PostgreSQL | 16 + pgvector | Database + vector search |
 | Redis | 7.3.0 | Cache, sessions, rate limiting |

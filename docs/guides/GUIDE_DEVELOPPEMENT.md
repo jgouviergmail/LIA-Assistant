@@ -78,11 +78,11 @@ version = "6.0.0"
 requires-python = ">=3.12"
 
 dependencies = [
-    "fastapi==0.135.1",
-    "langgraph==1.1.2",
-    "langchain==1.2.12",
-    "langchain-core==1.2.19",
-    "sqlalchemy[asyncio]==2.0.48",
+    "fastapi==0.135.3",
+    "langgraph==1.1.6",
+    "langchain==1.2.15",
+    "langchain-core==1.2.28",
+    "sqlalchemy[asyncio]==2.0.49",
     "pydantic==2.12.5",
     "redis==7.3.0",
     # ... autres dependencies (voir pyproject.toml pour liste complète)

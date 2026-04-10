@@ -8,7 +8,7 @@
 
 ## Vue d'Ensemble
 
-LIA utilise **LangGraph v1.1.2** avec exécution parallèle native **asyncio** pour orchestrer un assistant intelligent multi-domaines. L'architecture supporte:
+LIA utilise **LangGraph v1.1.6** avec exécution parallèle native **asyncio** pour orchestrer un assistant intelligent multi-domaines. L'architecture supporte:
 
 **Domaines actifs**: Contacts, Emails, Calendar, Drive, Tasks, Weather, Wikipedia, Perplexity, Places, Routes, Brave Search, Web Fetch, Browser, MCP, Sub-Agents
 

@@ -317,7 +317,7 @@ class PsycheEngine:
                 )
 
         # Warmth decay (toward 0.5 neutral) when no interaction
-        if not has_interaction and hours_elapsed > 0:
+        if not has_interaction:
             warmth_decay = math.exp(-warmth_decay_rate * hours_elapsed)
             new_warmth = 0.5 + (warmth - 0.5) * warmth_decay
         else:

@@ -77,8 +77,8 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 
 | Technologie | Version | Role |
 |-------------|---------|------|
-| **FastAPI** | 0.135.1 | Web framework async |
-| **Uvicorn** | 0.41.0 | ASGI server |
+| **FastAPI** | 0.135.3 | Web framework async |
+| **Uvicorn** | 0.44.0 | ASGI server |
 | **Pydantic** | 2.12.5 | Data validation |
 | **pydantic-settings** | 2.10.x | Configuration |
 
@@ -86,7 +86,7 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 
 | Technologie | Version | Role |
 |-------------|---------|------|
-| **SQLAlchemy** | 2.0.48 | ORM async |
+| **SQLAlchemy** | 2.0.49 | ORM async |
 | **Alembic** | 1.14.0 | Migrations |
 | **asyncpg** | 0.31.0 | PostgreSQL driver async |
 | **psycopg** | 3.3.x | PostgreSQL driver |
@@ -103,12 +103,12 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 
 | Technologie | Version | Role |
 |-------------|---------|------|
-| **langchain-core** | 1.2.19 | Core abstractions |
-| **langchain** | 1.2.12 | LLM framework |
-| **langgraph** | 1.1.2 | Agent orchestration |
+| **langchain-core** | 1.2.28 | Core abstractions |
+| **langchain** | 1.2.15 | LLM framework |
+| **langgraph** | 1.1.6 | Agent orchestration |
 | **langgraph-checkpoint** | 4.0.1 | Checkpoint serialization |
 | **langgraph-checkpoint-postgres** | 3.0.4 | State persistence |
-| **langgraph-prebuilt** | 1.0.8 | Prebuilt agent components |
+| **langgraph-prebuilt** | 1.0.9 | Prebuilt agent components |
 | **langmem** | 0.0.30+ | Long-term memory |
 
 ### LLM Providers
@@ -120,7 +120,7 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 | **langchain-google-genai** | 4.2.1 | Gemini |
 | **langchain-deepseek** | 1.0.1 | DeepSeek |
 | **openai** | 2.20.0 | OpenAI SDK |
-| **anthropic** | 0.84.0 | Claude SDK direct |
+| **anthropic** | 0.89.0 | Claude SDK direct |
 | **tiktoken** | 0.8.x | Token counting |
 
 ### Embeddings & ML
@@ -166,7 +166,7 @@ Ce document constitue la **reference officielle** des versions de toutes les tec
 |-------------|---------|------|
 | **black** | 24.x | Code formatter |
 | **ruff** | 0.15.6 | Fast linter |
-| **mypy** | 1.19.1 | Type checker |
+| **mypy** | 1.20.0 | Type checker |
 | **pytest** | 9.0.2 | Testing framework |
 | **pytest-asyncio** | 1.3.0 | Async test support |
 | **pytest-cov** | 7.0.0 | Coverage |

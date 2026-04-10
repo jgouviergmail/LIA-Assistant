@@ -337,7 +337,7 @@ class TokenTrackingCallback(AsyncCallbackHandler):
 
 **Fichier** : `apps/api/src/infrastructure/observability/token_extractor.py`
 
-Le `TokenExtractor` utilise une **stratégie à 3 niveaux** pour extraire les tokens des réponses LLM, compatible avec LangChain 1.x (actuellement 1.1.2) :
+Le `TokenExtractor` utilise une **stratégie à 3 niveaux** pour extraire les tokens des réponses LLM, compatible avec LangChain 1.x (actuellement 1.1.6) :
 
 ```python
 class TokenExtractor:
