@@ -1285,7 +1285,7 @@ async def detect_early_insufficient_content(
 
 ### Skill Guard Bypass (v1.8.1)
 
-Early detection is **skipped** when a deterministic skill has high domain overlap with the query. This prevents false-positive clarification requests on multi-domain skills (e.g., daily briefing = event+task+weather+email). The guard function `_has_potential_skill_match()` in `planner_node_v3.py` checks active deterministic skills and allows up to `SKILLS_EARLY_DETECTION_MAX_MISSING_DOMAINS` (default: 1) domains to be missing. When a match is found, the full planner pipeline decides instead of short-circuiting to clarification.
+Early detection is **skipped** when a deterministic skill has high domain overlap with the query. This prevents false-positive clarification requests on multi-domain skills (e.g., daily briefing = event+task+weather+email+reminder). The guard function `_has_potential_skill_match()` in `planner_node_v3.py` checks active deterministic skills and allows up to N missing domains (per-skill `plan_template.max_missing_domains` override, falls back to `SKILLS_EARLY_DETECTION_MAX_MISSING_DOMAINS` default: 1). When a match is found, the full planner pipeline decides instead of short-circuiting to clarification.
 
 See [Skills Integration Guide — Early Detection Guard](SKILLS_INTEGRATION.md#5-early-detection-guard-v181) for details.
 

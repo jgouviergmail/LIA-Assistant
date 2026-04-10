@@ -9,6 +9,10 @@
 </p>
 
 <p align="center">
+  <strong>If you find my project and work valuable, I would be grateful for a star on GitHub. Thank you !</strong>
+</p>
+
+<p align="center">
   <a href="https://lia.jeyswork.com/"><img src="https://img.shields.io/badge/🚀_Try_LIA-lia.jeyswork.com-0EA5E9?style=for-the-badge" alt="Try LIA"></a>
   &nbsp;&nbsp;
   <a href="https://github.com/jgouviergmail/LIA-Assistant/stargazers"><img src="https://img.shields.io/github/stars/jgouviergmail/LIA-Assistant?style=for-the-badge&logo=github&label=Star&color=gold" alt="GitHub Stars"></a>
@@ -36,7 +40,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.16.2</strong> — Execution step visibility, prompt engineering consolidation, psyche safety — April 2026
+  <strong>Version 1.16.3</strong> — Briefing skill fix, reminders integration, scope-aware skill execution — April 2026
 </p>
 
 ---

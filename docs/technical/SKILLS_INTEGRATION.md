@@ -162,23 +162,27 @@ A synthetic `tool_calls` entry is added to the result `AIMessage` so the streami
 
 ### 5. Deterministic Bypass (Optimization)
 
-Skills with `plan_template.deterministic: true` bypass the LLM planner entirely via `SkillBypassStrategy`.
+Skills with `plan_template.deterministic: true` bypass the LLM planner entirely via `SkillBypassStrategy`. The strategy uses **relaxed domain matching**: the QueryAnalyzer may not detect all domains for composite queries (e.g., "briefing quotidien" may miss "email" or "reminder" domains), so the bypass tolerates a configurable number of missing domains.
+
+**Matching logic** (aligned between `SkillBypassStrategy` and `_has_potential_skill_match`):
+- Extracts `agent_name` domains from each deterministic skill's `plan_template.steps`
+- Computes overlap with the query's detected domains (from QueryIntelligence)
+- Requires at least 1 domain overlap
+- Allows up to N missing domains (configurable per skill or globally)
+
+**Domain tolerance** is resolved per skill:
+1. `plan_template.max_missing_domains` (per-skill override in SKILL.md) — takes precedence
+2. `SKILLS_EARLY_DETECTION_MAX_MISSING_DOMAINS` in `src/core/constants.py` (global default: 1)
+
+**Scope-aware step filtering**: after domain matching, the bypass filters out template steps whose tools require OAuth scopes the user hasn't granted. This allows graceful partial execution (e.g., a briefing without email for users who haven't connected Gmail). The `depends_on` references to removed steps are automatically cleaned up.
+
+**Example**: "briefing quotidien" → QueryAnalyzer detects {event, task, weather} → skill has 5 domains {event, task, weather, email, reminder} with `max_missing_domains: 2` → overlap=3, missing=2 ≤ 2 → skill match → deterministic plan executed with all 5 steps (or fewer if OAuth scopes are missing for some tools).
 
 ### 6. Early Detection Guard (v1.8.1)
 
-The planner has an "early insufficient content detection" feature that short-circuits LLM planning when required parameters are missing (e.g., "send an email" without subject/body). However, multi-domain deterministic skills can trigger false positives: the QueryAnalyzer may classify a skill trigger as a single-domain mutation (e.g., "create event") when it's actually a multi-domain skill invocation (e.g., daily briefing = event+task+weather+email).
+The planner has an "early insufficient content detection" feature that short-circuits LLM planning when required parameters are missing (e.g., "send an email" without subject/body). However, multi-domain deterministic skills can trigger false positives: the QueryAnalyzer may classify a skill trigger as a single-domain mutation (e.g., "create event") when it's actually a multi-domain skill invocation.
 
-**Solution**: `_has_potential_skill_match()` in `planner_node_v3.py` checks if any active deterministic skill has high domain overlap with the query domains. If so, early detection is skipped entirely and the full planner pipeline decides (SkillBypassStrategy exact match OR LLM-driven skill activation).
-
-**Matching logic** (intentionally relaxed vs. `SkillBypassStrategy.can_handle()`):
-- Extracts `agent_name` domains from each deterministic skill's `plan_template.steps`
-- Computes overlap with the query's detected domains (from QueryIntelligence)
-- Allows up to `SKILLS_EARLY_DETECTION_MAX_MISSING_DOMAINS` (default: 1) domains to be missing
-- Requires at least 1 domain overlap
-
-**Configuration**: `SKILLS_EARLY_DETECTION_MAX_MISSING_DOMAINS` in `src/core/constants.py` (default: 1 — at most 1 domain may be missing from the query).
-
-**Example**: "briefing quotidien" → QueryAnalyzer detects `event` domain → skill `briefing-quotidien` has domains {event, task, weather, email} → overlap=1, missing=3 > threshold → no match → early detection proceeds normally. But if user says "what's my schedule, tasks and weather" → domains {event, task, weather} → overlap=3, missing=1 ≤ threshold → skill match → early detection skipped.
+**Solution**: `_has_potential_skill_match()` in `planner_node_v3.py` checks if any active deterministic skill has high domain overlap with the query domains. If so, early detection is skipped entirely and the full planner pipeline decides. This function uses the same per-skill `max_missing_domains` threshold as `SkillBypassStrategy`.
 
 ## Backend Files
 
@@ -363,42 +367,45 @@ Best for: dashboards, briefings, recurring data aggregation workflows.
 ---
 name: briefing-quotidien
 description: >
-  Generates a comprehensive morning briefing combining calendar events, priority
-  tasks, and weather forecast. Use when the user asks for a daily briefing,
-  morning summary, or "what's on my schedule today".
+  Generates a comprehensive daily briefing combining calendar events, priority
+  tasks, weather forecast, recent emails, and pending reminders. Use when the
+  user asks for a briefing, daily summary, or "what's on my schedule today".
 category: quotidien
 priority: 70
 plan_template:
   deterministic: true
+  max_missing_domains: 2   # Tolerates 2 undetected domains out of 5
   steps:
     - step_id: get_events
       agent_name: event_agent
       tool_name: get_events_tool
-      parameters: {}
+      parameters: {days_ahead: 2, max_results: 5}
       depends_on: []
       description: Retrieve today's and tomorrow's events
     - step_id: get_tasks
       agent_name: task_agent
       tool_name: get_tasks_tool
-      parameters:
-        show_completed: false
+      parameters: {show_completed: false}
       depends_on: []
       description: List active and priority tasks
     - step_id: get_weather
       agent_name: weather_agent
       tool_name: get_weather_forecast_tool
-      parameters:
-        days: 3
+      parameters: {days: 3}
       depends_on: []
       description: Weather today + 3-day trend
     - step_id: get_emails
       agent_name: email_agent
       tool_name: get_emails_tool
-      parameters:
-        query: "in:inbox newer_than:1d"
-        max_results: 5
+      parameters: {query: "in:inbox newer_than:1d", max_results: 5}
       depends_on: []
       description: 5 most recent inbox emails today
+    - step_id: get_reminders
+      agent_name: reminder_agent
+      tool_name: list_reminders_tool
+      parameters: {}
+      depends_on: []
+      description: List pending reminders for the day
 ---
 
 # Briefing Quotidien
@@ -408,7 +415,8 @@ plan_template:
 2. Lister les tâches prioritaires, en retard et à venir
 3. Obtenir la météo locale (aujourd'hui + tendance 3 jours)
 4. Récupérer les 5 derniers emails reçus dans la boîte de réception aujourd'hui
-5. Formater en sections : Agenda → Tâches → Météo → Emails → À noter
+5. Lister les rappels en attente pour la journée
+6. Formater en sections : Agenda → Tâches → Météo → Emails → Rappels → À noter
 ```
 
 ---
@@ -464,6 +472,14 @@ All `agent_name` values (from `domains/agents/constants.py`):
 | `web_search_agent` | `unified_web_search_tool` | `query` | Meta-agent: routes to best available search |
 | `web_fetch_agent` | `fetch_web_page_tool` | `url` | Fetch and read a web page |
 
+### Reminders
+
+| agent_name | tool_name | Key parameters | Notes |
+|------------|-----------|----------------|-------|
+| `reminder_agent` | `list_reminders_tool` | — | Lists all pending reminders. No OAuth required (internal). |
+| `reminder_agent` | `create_reminder_tool` | `content`, `original_message`, `trigger_datetime` | |
+| `reminder_agent` | `cancel_reminder_tool` | `reminder_identifier` | UUID or natural reference ("next", "le prochain") |
+
 ### Location & Navigation
 
 | agent_name | tool_name | Key parameters | Notes |
@@ -483,7 +499,15 @@ All `agent_name` values (from `domains/agents/constants.py`):
 
 ---
 
-## plan_template Step Fields
+## plan_template Fields
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `deterministic` | Yes | `true` to bypass LLM planner and execute steps directly. |
+| `max_missing_domains` | No | Max undetected domains allowed for relaxed matching. Default: 1 (global constant `SKILLS_EARLY_DETECTION_MAX_MISSING_DOMAINS`). Increase for skills with many domains where the QueryAnalyzer may not detect all of them (e.g., 5-domain briefing → set to 2). |
+| `steps` | Yes | List of execution steps (see below). |
+
+### Step Fields
 
 | Field | Required | Description |
 |-------|----------|-------------|

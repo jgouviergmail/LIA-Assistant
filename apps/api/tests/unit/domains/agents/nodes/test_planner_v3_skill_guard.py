@@ -48,9 +48,11 @@ def _make_skill(
 
 BRIEFING_SKILL = _make_skill(
     "briefing-quotidien",
-    ["event", "task", "weather", "email"],
+    ["event", "task", "weather", "email", "reminder"],
     priority=70,
 )
+# Briefing tolerates up to 2 missing domains (5 domains total)
+BRIEFING_SKILL["plan_template"]["max_missing_domains"] = 2
 
 COACHING_SKILL = _make_skill(
     "coaching-productivite",
@@ -94,12 +96,12 @@ class TestHasPotentialSkillMatch:
     # Positive cases: should detect potential match (skip early detection)
     # =================================================================
 
-    def test_briefing_with_one_missing_domain(self):
-        """Briefing skill should match when 3/4 domains detected (email missing).
+    def test_briefing_with_two_missing_domains(self):
+        """Briefing skill should match when 3/5 domains detected (email+reminder missing).
 
         This is the exact production scenario: "Fais mon briefing quotidien"
         gets domains {weather, event, task, brave} but skill needs {event, task,
-        weather, email}. With 1 missing domain, this should match.
+        weather, email, reminder}. With max_missing_domains=2, this should match.
         """
         intel = _make_intelligence(
             primary_domain="weather",
@@ -113,7 +115,7 @@ class TestHasPotentialSkillMatch:
         """Exact domain match should also trigger (superset of relaxed match)."""
         intel = _make_intelligence(
             primary_domain="weather",
-            domains=["event", "task", "email"],
+            domains=["event", "task", "email", "reminder"],
         )
         with patch("src.core.context.active_skills_ctx") as ctx:
             ctx.get.return_value = {"briefing-quotidien"}
@@ -123,7 +125,7 @@ class TestHasPotentialSkillMatch:
         """Query with extra domains should still match (superset)."""
         intel = _make_intelligence(
             primary_domain="weather",
-            domains=["event", "task", "email", "brave", "contact"],
+            domains=["event", "task", "email", "reminder", "brave", "contact"],
         )
         with patch("src.core.context.active_skills_ctx") as ctx:
             ctx.get.return_value = None  # None = all skills considered
@@ -141,21 +143,21 @@ class TestHasPotentialSkillMatch:
     # =================================================================
 
     def test_single_domain_query_vs_multidomain_skill(self):
-        """Single-domain query should NOT match a 4-domain skill.
+        """Single-domain query should NOT match a 5-domain skill.
 
-        "Créer un événement" with domains={event} has only 1/4 overlap
-        with briefing {event,task,weather,email}. This is a real "create event",
-        not a skill invocation.
+        "Créer un événement" with domains={event} has only 1/5 overlap
+        with briefing {event,task,weather,email,reminder}. This is a real
+        "create event", not a skill invocation.
         """
         intel = _make_intelligence(primary_domain="event", domains=[])
         with patch("src.core.context.active_skills_ctx") as ctx:
             ctx.get.return_value = {"briefing-quotidien"}
             # coaching (single domain=task) doesn't match event
-            # briefing: 1/4 overlap, needs >= 3 → no match
+            # briefing: 1/5 overlap, 4 missing > max_missing_domains=2 → no match
             assert _has_potential_skill_match(intel) is False
 
-    def test_two_domains_vs_four_domain_skill(self):
-        """Two domains should NOT match a 4-domain skill (2 missing > threshold)."""
+    def test_two_domains_vs_five_domain_skill(self):
+        """Two domains should NOT match a 5-domain skill (3 missing > max_missing_domains=2)."""
         intel = _make_intelligence(
             primary_domain="event",
             domains=["weather"],

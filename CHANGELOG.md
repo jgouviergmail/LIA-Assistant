@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.16.3] - 2026-04-10
+
+### Skill Bypass Relaxed Matching & Scope-Aware Filtering
+
+Deterministic skill templates (e.g., daily briefing) were never triggered via `SkillBypassStrategy` because the `QueryAnalyzer` didn't detect all template domains for composite queries. The bypass required exact domain coverage (0 missing), while the early detection guard allowed 1 missing — a gap that caused the LLM planner to generate plans without email steps.
+
+#### Fixed
+- **Skill bypass now uses relaxed domain matching**: `SkillBypassStrategy.can_handle()` and `plan()` aligned with `_has_potential_skill_match()` — both now allow up to N missing domains instead of requiring exact coverage. The threshold is configurable per skill via `plan_template.max_missing_domains` (falls back to global `SKILLS_EARLY_DETECTION_MAX_MISSING_DOMAINS` constant, default: 1).
+- **Scope-aware step filtering**: Template steps whose tools require OAuth scopes the user hasn't granted are filtered out before building the execution plan. This avoids a validation-fail → replan round-trip for users without a given connector (e.g., no Gmail → email step removed gracefully). `depends_on` references to removed steps are sanitized (shallow-copy to avoid cache mutation).
+- **`oauth_scopes` injected into `RunnableConfig.configurable`**: `planner_node_v3` now injects `oauth_scopes` from state into the configurable dict, making them available to bypass strategies without interface changes.
+
+### Daily Briefing Skill Enrichment
+
+#### Added
+- **Reminders in daily briefing**: New `get_reminders` step added to `briefing-quotidien` skill template using `reminder_agent` / `list_reminders_tool` (no OAuth required). Pending reminders are displayed between Emails and Notes sections. Empty section is hidden.
+- **Per-skill `max_missing_domains`**: New optional field in `plan_template` YAML. The briefing skill sets `max_missing_domains: 2` to tolerate 2 undetected domains out of 5 (email + reminder often missed by QueryAnalyzer for "briefing" queries).
+
+### Random Analyzing Phrases Restored
+
+#### Changed
+- **Router decision step shows random personality phrases**: Restored `getRandomAnalyzingMessage()` for the initial `router_decision` step, picking from the i18n `analyzingMessages` array (~30 witty phrases per language). All subsequent steps (planner, execution, HITL) keep their descriptive i18n labels.
+
+### Documentation
+- Updated `docs/technical/SKILLS_INTEGRATION.md` with relaxed matching, scope-aware filtering, `max_missing_domains` field, `reminder_agent` tool reference, and updated briefing example.
+- Updated `docs/knowledge/12_skills.md` with skill matching and scope filtering documentation.
+- Updated `apps/web/src/components/settings/SkillGuideModal.tsx` with `max_missing_domains` in example and field legend.
+- Added `guide_modal_plan_field_max_missing_domains` i18n key in all 6 languages.
+- Updated FAQ changelog (6 languages) with v1.16.3 entries.
+
 ## [1.16.2] - 2026-04-10
 
 ### Progressive Execution Step Display

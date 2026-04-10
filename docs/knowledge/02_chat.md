@@ -90,13 +90,13 @@ Response time varies based on your request's complexity:
 
 **💡 Visual indicators:**
 During processing, you see each step in real time as it happens. Steps accumulate vertically:
-• *🧭 Analyzing your request...*
+• *🔮 Consultation de la boule de cristal...* (random fun phrase during initial analysis)
 • *📋 Planning actions...*
 • *✅ Validating plan...*
 • *📅 Retrieving events...*
 • *🌤️ Fetching weather...*
 
-Each step appears as the pipeline progresses — routing, planning, validation, tool execution — then disappears when the response starts streaming. In ReAct mode, you also see which specific tool is being called and a snippet of LIA's reasoning.
+The first step shows a random witty phrase for a touch of personality, while subsequent steps display descriptive progress labels. Steps accumulate as the pipeline progresses — routing, planning, validation, tool execution — then disappear when the response starts streaming. In ReAct mode, you also see which specific tool is being called and a snippet of LIA's reasoning.
 
 ## How do I get better results with LIA?
 Here are the **best practices** for communicating with LIA:

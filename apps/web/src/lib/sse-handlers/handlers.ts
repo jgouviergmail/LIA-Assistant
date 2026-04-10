@@ -33,6 +33,19 @@ import { SSEHandlerContext, ProgressMessageMetadata } from './types';
 const MAX_VISIBLE_STEPS = 10;
 
 /**
+ * Pick a random phrase from the i18n analyzingMessages array.
+ * Used only for the initial router_decision step to add a touch of personality.
+ */
+function getRandomAnalyzingMessage(t: SSEHandlerContext['t']): string {
+  const messages = t('hitl.progress.analyzingMessages', { returnObjects: true });
+  if (Array.isArray(messages) && messages.length > 0) {
+    const randomIndex = Math.floor(Math.random() * messages.length);
+    return messages[randomIndex];
+  }
+  return t('hitl.progress.analyzing');
+}
+
+/**
  * Get user-facing progress message based on SSE event type.
  * Maps backend events to localized, user-friendly messages.
  */
@@ -43,7 +56,7 @@ export function getProgressMessage(
 ): string {
   switch (eventType) {
     case 'router_decision':
-      return `*🧭 ${t('execution.steps.router_decision', { defaultValue: 'Analyzing...' })}*`;
+      return getRandomAnalyzingMessage(t);
     case 'planner_metadata':
       return `*📋 ${t('execution.steps.planner_generation', { defaultValue: 'Planning...' })}*`;
     case 'hitl_interrupt_metadata':

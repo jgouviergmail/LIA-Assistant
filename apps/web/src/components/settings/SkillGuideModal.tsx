@@ -81,6 +81,7 @@ category: quotidien
 priority: 70
 plan_template:
   deterministic: true
+  max_missing_domains: 2
   steps:
     - step_id: get_events
       agent_name: event_agent
@@ -106,6 +107,13 @@ plan_template:
         days: 3
       depends_on: []
       description: Météo + tendance 3 jours
+
+    - step_id: get_reminders
+      agent_name: reminder_agent
+      tool_name: list_reminders_tool
+      parameters: {}
+      depends_on: []
+      description: Rappels en attente
 ---
 
 # Briefing Quotidien
@@ -959,6 +967,7 @@ export function SkillGuideModal({ lng, open, onOpenChange }: SkillGuideModalProp
                   <div className="grid grid-cols-1 gap-1.5 text-xs">
                     {(
                       [
+                        'max_missing_domains',
                         'step_id',
                         'agent_name',
                         'tool_name',
@@ -968,7 +977,7 @@ export function SkillGuideModal({ lng, open, onOpenChange }: SkillGuideModalProp
                       ] as const
                     ).map(key => (
                       <div key={key} className="flex gap-2">
-                        <code className="shrink-0 font-mono text-primary/80 w-24">{key}</code>
+                        <code className="shrink-0 font-mono text-primary/80 w-40">{key}</code>
                         <span className="text-muted-foreground">
                           {t(`settings.skills.guide_modal_plan_field_${key}`)}
                         </span>

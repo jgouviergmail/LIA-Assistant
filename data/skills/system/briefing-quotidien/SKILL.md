@@ -2,12 +2,13 @@
 name: briefing-quotidien
 description: >
   Generates a comprehensive today briefing combining calendar events, priority tasks,
-  and weather forecast. Use when the user asks for a briefing, daily summary,
-  or "what's on my schedule today".
+  weather forecast, recent emails, and pending reminders. Use when the user asks
+  for a briefing, daily summary, or "what's on my schedule today".
 category: quotidien
 priority: 70
 plan_template:
   deterministic: true
+  max_missing_domains: 2
   steps:
     - step_id: get_events
       agent_name: event_agent
@@ -39,6 +40,12 @@ plan_template:
         max_results: 5
       depends_on: []
       description: Récupérer les 5 derniers emails reçus aujourd'hui dans la boîte de réception
+    - step_id: get_reminders
+      agent_name: reminder_agent
+      tool_name: list_reminders_tool
+      parameters: {}
+      depends_on: []
+      description: Lister les rappels en attente pour la journée
 ---
 
 # Briefing Quotidien
@@ -49,10 +56,12 @@ plan_template:
 2. Lister les tâches prioritaires, en retard et à venir via tasks
 3. Obtenir la météo locale (aujourd'hui + tendance 3 jours)
 4. Récupérer les 5 derniers emails reçus dans la boîte de réception aujourd'hui
-5. Formater en sections structurées : Agenda → Tâches → Météo → Emails → À noter
-6. Commencer par le plus urgent, terminer par les suggestions proactives
-7. Si aucune tâche/événement : mentionner "journée libre" et suggérer des activités
-8. Si aucun email : mentionner "aucun email reçu aujourd'hui"
+5. Lister les rappels en attente pour la journée
+6. Formater en sections structurées : Agenda → Tâches → Météo → Emails → Rappels → À noter
+7. Commencer par le plus urgent, terminer par les suggestions proactives
+8. Si aucune tâche/événement : mentionner "journée libre" et suggérer des activités
+9. Si aucun email : mentionner "aucun email reçu aujourd'hui"
+10. Si aucun rappel : ne pas afficher la section Rappels
 
 ## Format de sortie
 
@@ -77,8 +86,13 @@ plan_template:
 - Expéditeur, objet et résumé court pour chaque email
 - Signaler les emails importants ou urgents nécessitant une action
 
+### 🔔 Rappels
+- Rappels programmés pour aujourd'hui avec leur heure de déclenchement
+- Rappels en retard (heure dépassée) signalés en priorité
+- Si aucun rappel en attente, ne pas afficher cette section
+
 ### 💡 À noter
-- Suggestions proactives basées sur le contexte (agenda, tâches, météo, emails)
+- Suggestions proactives basées sur le contexte (agenda, tâches, météo, emails, rappels)
 - Rappels utiles (parapluie, vêtements chauds, réponses urgentes, etc.)
 
 ## Ressources disponibles

@@ -444,6 +444,11 @@ async def planner_node_v3(
                 error=str(e),
             )
 
+    # Inject oauth_scopes into configurable so bypass strategies can filter
+    # steps requiring scopes the user lacks (no interface change needed).
+    if "oauth_scopes" not in configurable:
+        configurable["oauth_scopes"] = state.get("oauth_scopes", [])
+
     # Plan with smart filtering
     planning_result = await planner_service.plan(
         intelligence=intelligence,
@@ -807,9 +812,12 @@ def _has_potential_skill_match(intelligence: Any) -> bool:
         if not skill_domains:
             continue
 
+        max_missing = template.get(
+            "max_missing_domains", SKILLS_EARLY_DETECTION_MAX_MISSING_DOMAINS
+        )
         overlap = len(skill_domains & query_domains)
         missing = len(skill_domains) - overlap
-        if overlap >= 1 and missing <= SKILLS_EARLY_DETECTION_MAX_MISSING_DOMAINS:
+        if overlap >= 1 and missing <= max_missing:
             logger.info(
                 "potential_skill_match_detected",
                 skill_name=skill["name"],

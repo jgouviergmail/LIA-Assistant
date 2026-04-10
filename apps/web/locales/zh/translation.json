@@ -1971,6 +1971,7 @@
       "guide_modal_plan_title": "Plan Template（自动化）",
       "guide_modal_plan_body": "plan_template 定义自动执行的工具序列，无需经过 LLM 规划器。适合重复性、可预测的工作流。没有 depends_on 的步骤并行执行。",
       "guide_modal_plan_fields_title": "步骤（step）字段说明：",
+      "guide_modal_plan_field_max_missing_domains": "匹配时容许的最大未检测域数（默认值：1）",
       "guide_modal_plan_field_step_id": "步骤的唯一标识符（如：get_events）",
       "guide_modal_plan_field_agent_name": "要使用的代理名称（见下方目录）",
       "guide_modal_plan_field_tool_name": "要调用的工具名称",
@@ -2705,13 +2706,23 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_16_3": {
+          "title": "v1.16.3 — 丰富简报、邮件修复和随机短语",
+          "date": "2026年4月",
+          "count": "3",
+          "items": {
+            "i1": "<b>每日简报：邮件和提醒现已包含</b> — 每日简报技能现在可靠地检索您最近的邮件和待处理提醒，以及日历事件、任务和天气。邮件从未出现在简报中的问题已修复。",
+            "i2": "<b>技能兼容所有用户配置</b> — 如果您未连接某项服务（如 Gmail），相应步骤将自动跳过，不会阻碍其余简报。您始终获得最大可用信息。",
+            "i3": "<b>有趣的分析短语回来了</b> — 诙谐的等待消息（\"🔮 正在咨询水晶球...\"、\"🚀 即将起飞...\"）在分析您的请求时再次出现，增添一丝趣味。"
+          }
+        },
         "v1_16_2": {
           "title": "v1.16.2 — 渐进式执行步骤显示",
           "date": "2026年4月",
           "count": "5",
           "items": {
             "i1": "<b>实时执行步骤</b> — 您现在可以看到每个处理步骤的实时进展：分析、规划、验证、编排，以及每个工具调用（邮件、日历、天气、联系人等）。步骤会累积显示，直到回复到达时消失。",
-            "i2": "<b>ReAct模式中的工具名称</b> — ReAct模式现在会显示正在使用的具体工具（例如\u201c正在检索日程...\u201d、\u201c正在搜索联系人...\u201d），而不是通用的\u201c正在执行工具...\u201d消息。同时还会显示推理摘要。",
+            "i2": "<b>ReAct模式中的工具名称</b> — ReAct模式现在会显示正在使用的具体工具（例如“正在检索日程...”、“正在搜索联系人...”），而不是通用的“正在执行工具...”消息。同时还会显示推理摘要。",
             "i3": "<b>Pipeline步骤现在可见</b> — 以前，Pipeline执行期间只显示随机分析短语。现在您可以看到实际进展：路由 → 规划 → 验证 → 任务编排 → 工具执行 → 回复。",
             "i4": "<b>语调一致性提升</b> — LIA的个性和情绪状态现在更可靠地融入所有回复中，包括主动通知、提醒和语音评论。安全机制确保LIA永远不会将自己的情绪投射到用户身上。",
             "i5": "<b>可靠的时间记忆</b> — 当您提到相对日期（\"明天\"、\"下周六\"、\"下周\"）时，LIA现在会在存储前将其系统性地转换为绝对日期。您的记忆即使在数周后仍然可靠和相关。"
@@ -2803,7 +2814,7 @@
             "i10": "<b>脚本执行修复</b> — 技能脚本执行现在可在所有环境（Docker、Linux、Windows）中工作，具有进程隔离和健壮的错误处理",
             "i11": "<b>更快启动</b> — 工具选择嵌入现在缓存在磁盘上。服务器重启更快，不再消耗不必要的API调用",
             "i12": "<b>主动建议保留</b> — 主动建议（天气、提醒等）在智能响应过滤期间不再丢失",
-            "i13": "<b>简化确认流程</b> — 删除和修改操作现在只需一次确认，而不是两到三次。确认标题现在更加明确（\u201c确认删除\u201d、\u201c确认发送\u201d等）",
+            "i13": "<b>简化确认流程</b> — 删除和修改操作现在只需一次确认，而不是两到三次。确认标题现在更加明确（“确认删除”、“确认发送”等）",
             "i14": "<b>反幻觉防御</b> — 系统自动检测并修正AI在规划过程中编造的参数，防止删除和其他操作的静默失败"
           }
         },
@@ -4764,7 +4775,7 @@
     "tech": {
       "title": "技术底层",
       "subtitle": "为性能和可扩展性设计的架构",
-      "intro": "LIA提供两种互补的执行模式。Pipeline模式（默认）是真正的工程杰作：智能规划、语义验证、并行工具执行——比ReAct模式节省4至8倍的token消耗。ReAct模式（⚡）提供最大自主性：LLM逐步推理，逐个调用工具并实时适应。两种模式共享相同的19+专业代理、相同的HITL系统和贝叶斯模式学习。",
+      "intro": "LIA提供两种互补的执行模式。\n\nPipeline模式（默认）是真正的工程杰作：智能规划、语义验证、并行工具执行——比ReAct模式节省4至8倍的token消耗。\nReAct模式提供最大自主性：LLM逐步推理，逐个调用工具并实时适应。\n\n两种模式共享相同的19+专业代理、相同的HITL系统和贝叶斯模式学习。",
       "deep_dive_link": "完整技术深度解析",
       "langgraph": {
         "title": "LangGraph",
@@ -5141,6 +5152,46 @@
         "title": "6种语言，完整的i18n架构",
         "excerpt": "LIA支持法语、英语、德语、西班牙语、意大利语和中文，具有完整的国际化。",
         "body": "<h2>原生支持6种语言</h2><p>LIA完全支持<strong>法语、英语、德语、西班牙语、意大利语和中文</strong>。国际化不仅限于界面：还涵盖助手回复、通知、FAQ和文档。</p><h2>前端i18n架构</h2><p>前端使用<strong>react-i18next</strong>，每种语言一个JSON文件，语言选择通过<code>NEXT_LOCALE</code> cookie持久化（TTL 1年）。Next.js路由使用动态段<code>[lng]</code>为每种语言提供专属URL。语言标志显示为Unicode表情符号。区域映射将每个短代码关联到其完整变体（fr-FR、en-US、de-DE、es-ES、it-IT、zh-CN）。页面在构建时为每种语言静态预生成。</p><h2>Hreflang与多语言SEO</h2><p>每个公共页面为6种语言声明<code>hreflang</code>替代标签，<code>x-default</code>值指向法语。XML站点地图包含每个URL的多语言替代链接。</p><h2>多语言AI响应</h2><p>助手以用户配置的语言回复。后端通过<code>SUPPORTED_LANGUAGES</code>环境变量配置支持的语言。系统提示以英文编写以最大化LLM推理质量，但明确的语言指令引导以目标语言生成响应。三个提示专门按语言适配：<code>journal_introspection_personality_addon</code>、<code>memory_extraction_personality_addon</code>和<code>broadcast_translation_prompt</code>。</p><h2>多语言语音识别</h2><p>用于语音转录的Whisper模型原生支持99+种语言的离线模式，使您几乎可以用世界上任何语言与LIA交谈，无需额外配置或依赖云服务。</p>"
+      },
+      "react-execution-mode": {
+        "title": "Pipeline vs ReAct：当结构化工程超越放任自流",
+        "excerpt": "LIA 提供两种执行模式：精心编排的 Pipeline 比 ReAct 少消耗 4 到 8 倍 token，以及用于简单场景的迭代式 ReAct 模式。",
+        "body": "<h2>两种哲学，同一目标</h2><p>在 AI 代理生态系统中，<strong>ReAct</strong>（Reasoning + Acting）已成为事实标准。其原则：让 LLM 在每次迭代中决定调用哪个工具，无需预定义计划。因其简单性而引人入胜，这是当今大多数框架的方法。LIA 也提供该模式 — 但通过其 <strong>Pipeline 模式</strong>走得更远：这是深度工程的成果，以根本性更高的效率实现相同的灵活性。</p><h2>Pipeline：规划、验证、执行</h2><p>Pipeline 模式遵循 <strong>8 节点</strong> LangGraph 图：</p><ol><li><strong>Router</strong> — 对请求分类</li><li><strong>Planner</strong> — 生成结构化 ExecutionPlan</li><li><strong>Semantic Validator</strong> — 执行前验证计划一致性</li><li><strong>Approval Gate</strong> — 必要时人工验证 (HITL)</li><li><strong>Task Orchestrator</strong> — 并行执行步骤</li><li><strong>Response</strong> — 最终综合</li></ol><p>此模式<strong>只规划一次</strong>然后执行。结果：Pipeline 消耗的 token <strong>比 ReAct 少 4 到 8 倍</strong>。</p><h2>效率：数字说明一切</h2><p>以取消会议并发邮件为例。ReAct 模式下，LLM 反复迭代，每次都重新注入全部上下文。Pipeline 模式下，规划器生成<strong>一个计划</strong>，编排器<strong>并行</strong>执行。更少调用，更少 token，相同结果。</p><h2>控制与可观测性</h2><p>Pipeline 提供 ReAct 无法匹敌的<strong>完整可追溯性</strong>。每个步骤都有名称、类型和单独度量。</p><h2>可靠性与保护</h2><p>Pipeline 集成了 ReAct 所缺少的验证层：<strong>Semantic Validator</strong>、<strong>幻觉防御</strong>和 <strong>6 个 HITL 确认级别</strong>。</p><h2>可扩展架构</h2><p>Pipeline 的<strong>通用模块化设计</strong>是核心优势。添加新代理只需注册工具。Skills 系统进一步推动可扩展性。</p><h2>ReAct：当简单性优先</h2><p>ReAct 对于<strong>简单交互</strong>仍然相关。LIA 通过原生 <code>interrupt()</code> 实现 HITL，可配置超时，以及 5 个 Prometheus 指标。</p><h2>选择权在用户</h2><p>偏好按<strong>用户级别</strong>持久化，可从仪表板一键切换。我们的信念：Pipeline 虽然设计更复杂，但证明了严谨编排在大多数场景中超越放任自流。</p>"
+      },
+      "mcp-react-agent": {
+        "title": "MCP ReAct：由迭代代理驱动的 MCP 服务器",
+        "excerpt": "LIA 将您的个人 MCP 服务器连接到专用 ReAct 代理，自主链接工具调用，具备超时和错误恢复功能。",
+        "body": "<h2>MCP + ReAct = 扩展自主性</h2><p><strong>Model Context Protocol</strong>（MCP）允许将外部工具服务器连接到 LIA。在 v1.15.0 中，这些工具不再仅被调用一次：它们由<strong>专用 ReAct 代理</strong>驱动，可以迭代地链接多次调用，直到达到预期结果。</p><h2>工作原理</h2><p>当规划器识别到任务需要 MCP 工具时，会委托给 <strong>ReactSubAgentRunner</strong>。该代理：</p><ul><li>接收明确目标和可用 MCP 工具列表</li><li>逐步推理（Reasoning + Acting）</li><li>调用必要的 MCP 工具，观察结果</li><li>迭代直到解决或超时</li></ul><p>这种模式对于暴露多个相互依赖工具的复杂 MCP 服务器特别强大。</p><h2>专用 LLM</h2><p>MCP ReAct 代理使用<strong>独立配置的 LLM</strong>（类型 <code>mcp_react_agent</code>），具有自己的模型、温度和超时设置。管理员可以通过管理界面调整这些参数。</p><h2>超时和恢复</h2><p>每次 MCP ReAct 执行都受<strong>可配置的每步超时</strong>限制。在超时或 MCP 工具错误时，代理尝试<strong>优雅恢复</strong>：重新构建调用或返回部分结果。</p><h2>注册表保护</h2><p>用户 MCP 服务器与管理员 MCP 服务器隔离。注册表防止工具名称冲突。</p><h2>可观测性</h2><p>MCP ReAct 代理的每次迭代都在 Langfuse 中跟踪，包括消耗的 token、持续时间和每次工具调用的结果。</p>"
+      },
+      "psyche-engine": {
+        "title": "Psyche Engine：LIA 的情感智能",
+        "excerpt": "LIA 拥有一个模拟情感、情绪和人格特质的心理引擎。22种情感、5大人格特质和分级指令塑造每一个回复。",
+        "body": "<h2>完整的心理引擎</h2><p>Psyche Engine 是 LIA 的情感核心。受 Anthropic 「Emotion Concepts」研究启发，它模拟<strong>动态心理状态</strong>，随每次交互而演变。这不是角色扮演：而是一个参数化系统，切实影响助手的语气、措辞和行为。</p><h2>22种 PAD 验证的情感</h2><p>LIA 拥有 <strong>22种情感</strong>的调色板，每种都由 PAD 空间中的向量定义：喜悦、好奇、同理心、自豪、感激、俏皮、保护欲、释然、紧张、惊叹、决心等等。</p><h2>Big Five 人格特质</h2><p>五种基本特质调节基线行为：</p><ul><li><strong>开放性</strong> — 求知欲和创造力</li><li><strong>尽责性</strong> — 严谨和组织性</li><li><strong>外向性</strong> — 表达力和热情</li><li><strong>宜人性</strong> — 同理心和合作</li><li><strong>神经质</strong> — 情感敏感性和反应性</li></ul><p>这些特质会持久化存储，用户可在设置中调整。</p><h2>分级指令</h2><p>Psyche Engine 生成<strong>提示指令</strong>，其详细程度随情感强度调整。四个级别：<strong>compact</strong>、<strong>medium</strong>、<strong>rich</strong> 和 <strong>reinforced</strong>。</p><h2>宁静基线</h2><p>当没有活跃情感时，LIA 维持<strong>宁静基线</strong>：一种平静稳定的状态，防止助手显得情感空白。</p><h2>情感锚点</h2><p>锚定机制防止<strong>负面情感螺旋</strong>。当负面情感累积时，会注入一条接地指令。</p><h2>共鸣与多情感</h2><p>LIA 可以每条消息表达<strong>1到3种同时情感</strong>，权重递减（0.5、0.25）。<strong>情感共鸣</strong>在 [-1, +1] 轴上衡量用户与助手状态的对齐程度。</p><h2>158个单元测试</h2><p>Psyche Engine 拥有 <strong>158个单元测试</strong>覆盖，验证 PAD 向量、衰减函数、分级指令和反膨胀保护。</p>"
+      },
+      "progressive-steps": {
+        "title": "实时执行步骤：观看 LIA 工作过程",
+        "excerpt": "LIA 在处理请求时逐步显示每个执行步骤 — 路由、规划、工具调用 — 实时呈现。",
+        "body": "<h2>透明度的实践</h2><p>当您向 LIA 发送复杂请求时，可能需要数秒才能收到回复。通过渐进式步骤显示，您可以<strong>实时了解</strong>：每个经过的节点、每个调用的工具都会即时显示。</p><h2>工作原理</h2><p>后端使用 LangGraph 的 <code>updates</code> 流模式检测每个图节点的完成。每一步都会向前端发送 SSE <code>execution_step</code> 事件，包含：</p><ul><li>工具或节点的 <strong>i18n 键</strong>（翻译成用户的语言）</li><li>ReAct 模式下的<strong>推理摘要</strong>（截断至120个字符）</li><li>目录中未列出工具的<strong>后备元数据</strong></li></ul><h2>前端显示</h2><p>步骤在界面中逐行累积显示，上限为同时可见 <strong>10个步骤</strong>。<strong>i18n 键去重</strong>机制防止相同步骤重复。</p><h2>Pipeline 和 ReAct</h2><p>在 <strong>Pipeline</strong> 模式下，步骤来自 ExecutionPlan。在 <strong>ReAct</strong> 模式下，每次工具调用都会生成一个步骤。</p><h2>覆盖63个工具</h2><p>目录中的所有 <strong>63个工具</strong>在6种语言中都有专用 i18n 键。</p><h2>不再有随机消息</h2><p>旧系统显示有趣但随机的等待短语。该系统已被完全替换为<strong>真实的上下文步骤</strong>。</p>"
+      },
+      "account-lifecycle": {
+        "title": "账户生命周期：4种状态实现完整 GDPR 合规",
+        "excerpt": "LIA 通过4状态模型管理用户账户 — 活跃、停用、删除、擦除 — 自动清理22个表并保留账单历史。",
+        "body": "<h2>4状态模型</h2><p>LIA 的账户管理遵循严格的生命周期，符合 GDPR 要求：</p><ol><li><strong>Active</strong> — 功能正常的账户，完全访问</li><li><strong>Deactivated</strong> — 停用的账户（软删除），数据保留但访问被阻止</li><li><strong>Deleted</strong> — 个人数据已清除，账单历史保留</li><li><strong>Erased</strong> — 完全不可逆删除（GDPR 被遗忘权）</li></ol><p>每个转换都是<strong>单向的</strong>。</p><h2>22个表的清理</h2><p><code>AccountDeletionService</code> 协调跨 <strong>22个数据库表</strong>的数据删除。LangGraph 检查点和存储也会被清理。</p><h2>账单保留</h2><p>账单表即使在删除后也会被<strong>保留</strong>。外键使用 <code>SET NULL</code> 而非 <code>CASCADE</code>。</p><h2>后台任务保护</h2><p>七个后台任务在执行前检查账户状态。停用或删除的用户会被<strong>静默跳过</strong>。</p><h2>缓存失效</h2><p>账户停用时，授权缓存<strong>立即失效</strong>。</p><h2>管理员界面</h2><p>管理面板清晰区分<strong>删除</strong>（可逆）和<strong>擦除</strong>（不可逆，GDPR）操作。可视徽章实时显示状态。</p>"
+      },
+      "hallucination-defense": {
+        "title": "幻觉防御：当 LLM 编造参数时",
+        "excerpt": "LIA 在工具执行前检测并中和 LLM 幻觉参数，使用签名检查和规划器中的禁用工具列表。",
+        "body": "<h2>幽灵参数问题</h2><p>LLM 很有创造力 — 有时太有创造力。当规划器生成 ExecutionPlan 时，可能会编造目标工具签名中不存在的参数：<code>order</code>、<code>order_by</code>、<code>sort</code>、<code>limit</code>…这些幻觉参数导致静默的 <code>TypeError</code> 崩溃。</p><h2>基于签名的清理</h2><p>并行执行器在调用前通过 <code>inspect.signature()</code> 检查每个工具的 <strong>Python 签名</strong>。签名中未声明的任何参数都会被<strong>自动删除</strong>。</p><h2>规划器中的禁用工具</h2><p>规划器提示包含<strong>明确的禁用工具列表</strong>：<code>resolve_reference</code>、<code>get_context_list</code>、<code>get_context</code>、<code>resolve_context</code>、<code>lookup_reference</code>。这大幅减少了不必要的重新规划幻觉。</p><h2>简化的 HITL</h2><p>审批门现在以<strong>直通</strong>模式运行。人工验证集中在下游的<strong>上下文确认</strong>。</p><h2>干净的取消</h2><p>FOR_EACH 循环取消现在产生<strong>快速路径</strong>响应。</p><h2>纵深防御</h2><p>这些机制构成<strong>多层防御</strong>：提示指令减少幻觉、签名自省中和幽灵参数、上下文 HITL 处理关键操作。结果：更健壮的执行计划。</p>"
+      },
+      "embedding-calibration": {
+        "title": "嵌入向量校准：8个阈值调优以实现语义精度",
+        "excerpt": "LIA 在迁移到 Gemini embedding-001 后重新校准了8个相似度阈值，使用真实测试数据集和 F1 指标。",
+        "body": "<h2>为什么要重新校准？</h2><p>每个嵌入模型对语义的编码方式不同。当 LIA 迁移到 <strong>Gemini embedding-001</strong> 时，需要系统性的重新校准。</p><h2>8个阈值，5个子系统</h2><p>LIA 在5个子系统中使用相似度搜索：</p><ul><li><strong>记忆</strong> — 搜索（0.65）和相关性清理（0.72）</li><li><strong>日志</strong> — 上下文（0.63）和去重（0.87）</li><li><strong>兴趣</strong> — 去重（0.89）和内容匹配（0.90）</li><li><strong>RAG 空间</strong> — 文档检索（0.55）</li><li><strong>查询引擎</strong> — 查询相似度（0.93）</li></ul><h2>校准方法</h2><p>每个阈值都使用<strong>真实测试数据集</strong>进行校准，计算 <strong>Precision</strong>、<strong>Recall</strong> 和 <strong>F1-score</strong> 指标。</p><h2>具体结果</h2><p>改善显著：</p><ul><li>记忆：F1 = 0.519，平均每次查询1.8个结果</li><li>日志上下文：F1 = 0.638</li><li>日志去重：F1 = 0.889，Precision = 1.0</li><li>兴趣去重：Precision = 1.0</li></ul><h2>成本影响</h2><p>更好校准的阈值意味着<strong>更少浪费的 token</strong>。校准减少了噪声，同时提升响应质量和成本效率。</p><h2>轻量级向量</h2><p>所有嵌入使用 <strong>384维</strong>向量，在语义精度和存储/搜索性能之间取得最佳平衡。</p>"
+      },
+      "llm-config-governance": {
+        "title": "LLM 治理：通过单一仪表板管理 24 个 AI 模型",
+        "excerpt": "LIA 如何让管理员实时配置、调整和监控 24 种不同的 LLM 类型，无需重启或重新部署。",
+        "body": "<h2>挑战：编排 24 个大脑</h2><p>LIA 不是使用单一的 LLM，而是<strong>超过 24 种不同类型</strong>，每种都针对其任务进行了优化。每种类型都有自己的参数：<code>provider</code>、<code>model</code>、<code>temperature</code>、<code>timeout</code>、<code>reasoning_effort</code>。</p><p>挑战：如何让管理员<strong>不触碰代码</strong>就能管理这一切？</p><h2>3 级解析链</h2><p>每个 LLM 配置通过 <strong>3 源优先级链</strong>解析：</p><ol><li><strong>DB 覆盖</strong> — 通过管理界面设置（最高优先级）</li><li><strong>环境变量</strong> — 部署配置</li><li><strong>LLM_DEFAULTS</strong> — 代码中的 24 个默认配置</li></ol><p><code>LLMConfigOverrideCache</code> 提供 O(1) 查找。管理界面的更改<strong>立即生效</strong>。</p><h2>单一入口</h2><p><code>get_llm_config_for_agent()</code> 是获取 LLM 配置的<strong>唯一路径</strong>。这是一个<strong>架构原则</strong>。</p><h2>实时管理界面</h2><p>从管理面板，您可以为每种 LLM 类型：</p><ul><li>更改<strong>提供商和模型</strong></li><li>调整<strong>温度</strong>、<strong>top_p</strong>、<strong>惩罚</strong></li><li>配置<strong>超时</strong>和<strong>最大 token 数</strong></li><li>启用或禁用<strong>推理模式</strong></li></ul><h2>精细化成本优化</h2><p>管理员按<strong>任务类型</strong>而非全局调整质量/成本比。</p><h2>自适应推理模型</h2><p>LIA 提供 <strong>5 个 reasoning_effort 级别</strong>，可按类型配置。</p><h2>内置可观测性</h2><p>每次 LLM 调用都会记录其类型、提供商、实际模型、持续时间和 token。Prometheus 指标和 Langfuse 追踪允许<strong>比较不同配置的性能</strong>。</p>"
       }
     }
   },
