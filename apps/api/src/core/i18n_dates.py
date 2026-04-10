@@ -236,6 +236,6 @@ def _extract_language(locale: str | None) -> Language:
 
     # Validate it's a supported language
     if lang in DAY_NAMES:
-        return lang  # type: ignore[return-value]
+        return lang
 
     return DEFAULT_LANGUAGE

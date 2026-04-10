@@ -2130,7 +2130,7 @@ def get_user_language(
     if user_language:
         normalized = HitlMessages._normalize_language(user_language)
         if normalized in SUPPORTED_LANGUAGES:
-            return normalized  # type: ignore[return-value]
+            return normalized
 
     # Priority 2: Accept-Language header
     if accept_language_header:

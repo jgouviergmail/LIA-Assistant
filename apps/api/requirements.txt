@@ -1,9 +1,9 @@
 # Core Framework
-fastapi==0.135.2
-uvicorn[standard]==0.42.0
+fastapi==0.135.3
+uvicorn[standard]==0.44.0
 
 # Database
-sqlalchemy[asyncio]==2.0.48
+sqlalchemy[asyncio]==2.0.49
 asyncpg==0.31.0
 psycopg[binary]==3.3.3  # PostgreSQL adapter v3 (modern, for LangGraph checkpointer & SQLAlchemy)
 alembic==1.18.4
@@ -25,7 +25,7 @@ tzdata==2026.1  # IANA timezone database for Windows/Python 3.9+
 # Authentication & Security
 python-jose[cryptography]==3.5.0  # CVE-2024-33663 fix (algorithm confusion)
 passlib[bcrypt]==1.7.4
-python-multipart==0.0.22  # CVE-2024-53981, CVE-2026-24486 fixes (DoS)
+python-multipart==0.0.24  # CVE-2024-53981, CVE-2026-24486 fixes (DoS)
 cryptography==46.0.7  # CVE-2024-12797, CVE-2026-26007 fixes
 
 # Observability
@@ -36,7 +36,7 @@ opentelemetry-sdk==1.40.0
 opentelemetry-instrumentation-fastapi==0.61b0
 opentelemetry-exporter-otlp==1.40.0
 prometheus-client==0.24.1
-langfuse==4.0.2  # Phase 6 - LLM Observability
+langfuse==4.0.6  # Phase 6 - LLM Observability
 
 # Rate Limiting
 slowapi==0.1.9
@@ -62,13 +62,13 @@ apscheduler==3.11.2
 
 # AI/ML Stack - LangChain/LangGraph 1.0.x ecosystem
 langchain-core==1.2.28
-langchain==1.2.13  # Updated 2026-03-09 for ecosystem upgrade (merge_lists fix, SummarizationMiddleware, ContextOverflowError)
+langchain==1.2.15  # Updated 2026-03-09 for ecosystem upgrade (merge_lists fix, SummarizationMiddleware, ContextOverflowError)
 langchain-text-splitters==1.1.1  # RecursiveCharacterTextSplitter for RAG Spaces document chunking
 langchain-openai==1.1.12
 openai==2.30.0  # Requis par langchain-openai 1.1.10 (pin 2.14.0 levé — gardes adapter L229-239 protègent input_items)
-langgraph==1.1.3
+langgraph==1.1.6
 langgraph-checkpoint==4.0.1  # Pinné explicitement (transitif de langgraph, reproductibilité builds)
-langgraph-prebuilt==1.0.8  # Pinné explicitement (requis par langgraph 1.0.10)
+langgraph-prebuilt==1.0.9  # Pinné explicitement (requis par langgraph 1.0.10)
 langgraph-checkpoint-postgres==3.0.5
 tiktoken==0.12.0
 
@@ -82,7 +82,7 @@ networkx==3.6.1  # Dependency graph for semantic type expansion
 langchain-deepseek==1.0.1  # DeepSeek V3/R1 models
 langchain-anthropic==1.4.0  # Claude models (auto-compaction, effort="max" sans beta, cache_control fix)
 langchain-google-genai==4.2.1  # Gemini models
-anthropic==0.86.0  # Anthropic SDK (Claude Opus 4.6, structured outputs natifs, cache control GA)
+anthropic==0.89.0  # Anthropic SDK (Claude Opus 4.6, structured outputs natifs, cache control GA)
 
 # MCP (Model Context Protocol) — evolution F2
 mcp>=1.20.0,<2.0.0  # MCP 1.20+ adds list_resources/read_resource (MCP Apps support). Requires starlette>=0.27
