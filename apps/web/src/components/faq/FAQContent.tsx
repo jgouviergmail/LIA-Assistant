@@ -233,6 +233,9 @@ function highlightTextContent(text: string, normalizedQuery: string): string {
 }
 
 const changelogVersionKeys = [
+  'v1_16_4',
+  'v1_16_3',
+  'v1_16_2',
   'v1_16_1',
   'v1_16_0',
   'v1_15_3',

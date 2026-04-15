@@ -162,27 +162,24 @@ A synthetic `tool_calls` entry is added to the result `AIMessage` so the streami
 
 ### 5. Deterministic Bypass (Optimization)
 
-Skills with `plan_template.deterministic: true` bypass the LLM planner entirely via `SkillBypassStrategy`. The strategy uses **relaxed domain matching**: the QueryAnalyzer may not detect all domains for composite queries (e.g., "briefing quotidien" may miss "email" or "reminder" domains), so the bypass tolerates a configurable number of missing domains.
+Skills with `plan_template.deterministic: true` bypass the LLM planner entirely via `SkillBypassStrategy`. Eligibility is resolved by the **semantic identification** produced by `QueryAnalyzer`: when the LLM detects that the user's request aligns with a skill's description, it populates `QueryIntelligence.detected_skill_name`; `SkillBypassStrategy` then loads the template by name and builds the plan directly.
 
-**Matching logic** (aligned between `SkillBypassStrategy` and `_has_potential_skill_match`):
-- Extracts `agent_name` domains from each deterministic skill's `plan_template.steps`
-- Computes overlap with the query's detected domains (from QueryIntelligence)
-- Requires at least 1 domain overlap
-- Allows up to N missing domains (configurable per skill or globally)
+**Matching logic**:
+- `can_handle` is a cheap presence check on `intelligence.detected_skill_name`.
+- `plan` performs the **user-scoped** lookup via `SkillsCache.get_by_name_for_user(name, user_id)` — user skills override admin skills of the same name, and no other user's skill is ever reachable.
+- The resolved skill must have `plan_template.deterministic = true` and be present in `active_skills_ctx` for the current user. Any mismatch falls through to the LLM planner gracefully.
 
-**Domain tolerance** is resolved per skill:
-1. `plan_template.max_missing_domains` (per-skill override in SKILL.md) — takes precedence
-2. `SKILLS_EARLY_DETECTION_MAX_MISSING_DOMAINS` in `src/core/constants.py` (global default: 1)
+No domain-overlap heuristic is used anywhere: skill identification is purely description-driven. This ensures the same signal carries both deterministic and non-deterministic skills, avoiding false positives on queries that share domains with a skill but not its intent (e.g., *"send the weather by email to my wife and plan us a meeting"* covers {weather, email, event} but is not a briefing).
 
-**Scope-aware step filtering**: after domain matching, the bypass filters out template steps whose tools require OAuth scopes the user hasn't granted. This allows graceful partial execution (e.g., a briefing without email for users who haven't connected Gmail). The `depends_on` references to removed steps are automatically cleaned up.
+**Scope-aware step filtering**: after lookup, the bypass filters out template steps whose tools require OAuth scopes the user hasn't granted. This allows graceful partial execution (e.g., a briefing without email for users who haven't connected Gmail). The `depends_on` references to removed steps are automatically cleaned up.
 
-**Example**: "briefing quotidien" → QueryAnalyzer detects {event, task, weather} → skill has 5 domains {event, task, weather, email, reminder} with `max_missing_domains: 2` → overlap=3, missing=2 ≤ 2 → skill match → deterministic plan executed with all 5 steps (or fewer if OAuth scopes are missing for some tools).
+**Example**: *"Je veux mon briefing quotidien"* → QueryAnalyzer reads the `briefing-quotidien` description and sets `detected_skill_name="briefing-quotidien"` → `SkillBypassStrategy.plan` loads the template for the user → deterministic plan with all 5 steps (or fewer if OAuth scopes are missing).
 
-### 6. Early Detection Guard (v1.8.1)
+### 6. Early Detection Guard
 
-The planner has an "early insufficient content detection" feature that short-circuits LLM planning when required parameters are missing (e.g., "send an email" without subject/body). However, multi-domain deterministic skills can trigger false positives: the QueryAnalyzer may classify a skill trigger as a single-domain mutation (e.g., "create event") when it's actually a multi-domain skill invocation.
+The planner has an "early insufficient content detection" feature that short-circuits LLM planning when required parameters are missing (e.g., *"send an email"* without subject/body). This must be skipped whenever the user's request has been identified as a skill invocation — otherwise the skill's template or instructions would be replaced by a clarification prompt.
 
-**Solution**: `_has_potential_skill_match()` in `planner_node_v3.py` checks if any active deterministic skill has high domain overlap with the query domains. If so, early detection is skipped entirely and the full planner pipeline decides. This function uses the same per-skill `max_missing_domains` threshold as `SkillBypassStrategy`.
+**Solution**: `_has_potential_skill_match()` in `planner_node_v3.py` returns `True` whenever `intelligence.detected_skill_name` is set, regardless of whether the skill is deterministic. Downstream, `SkillBypassStrategy` handles deterministic skills and the LLM planner handles the rest.
 
 ## Backend Files
 
@@ -267,9 +264,6 @@ SKILLS_SCRIPTS_ENABLED=false
 SKILLS_SCRIPT_TIMEOUT_SECONDS=30
 SKILLS_SCRIPT_MAX_OUTPUT_KB=50
 SKILLS_SCRIPT_MAX_INPUT_KB=100
-
-# Early detection guard (v1.8.1)
-# SKILLS_EARLY_DETECTION_MAX_MISSING_DOMAINS=1  # in constants.py (not env var)
 ```
 
 ## Script Execution Security
@@ -374,7 +368,6 @@ category: quotidien
 priority: 70
 plan_template:
   deterministic: true
-  max_missing_domains: 2   # Tolerates 2 undetected domains out of 5
   steps:
     - step_id: get_events
       agent_name: event_agent
@@ -504,7 +497,6 @@ All `agent_name` values (from `domains/agents/constants.py`):
 | Field | Required | Description |
 |-------|----------|-------------|
 | `deterministic` | Yes | `true` to bypass LLM planner and execute steps directly. |
-| `max_missing_domains` | No | Max undetected domains allowed for relaxed matching. Default: 1 (global constant `SKILLS_EARLY_DETECTION_MAX_MISSING_DOMAINS`). Increase for skills with many domains where the QueryAnalyzer may not detect all of them (e.g., 5-domain briefing → set to 2). |
 | `steps` | Yes | List of execution steps (see below). |
 
 ### Step Fields

@@ -1,10 +1,12 @@
-"""Unit tests for SkillBypassStrategy — relaxed domain matching + scope filtering.
+"""Unit tests for SkillBypassStrategy — semantic identification + scope filtering.
 
 Verifies that:
-1. Deterministic skill templates match with up to N missing domains
-2. Steps requiring unavailable OAuth scopes are filtered out
-3. Exact match still works (backward compatibility)
-4. Edge cases: empty scopes, all steps filtered, inactive skills
+1. ``can_handle`` returns True iff ``detected_skill_name`` is set (cheap presence check).
+2. ``plan`` builds a plan only when the identified skill exists (user-scoped lookup),
+   is deterministic, and is active for the user.
+3. Steps requiring unavailable OAuth scopes are filtered out.
+4. Edge cases: skill not found, non-deterministic, inactive, empty steps.
+5. User isolation: lookups go through ``SkillsCache.get_by_name_for_user``.
 """
 
 from dataclasses import dataclass, field
@@ -17,17 +19,15 @@ from src.domains.agents.services.planner.strategies.skill_bypass import (
     _filter_steps_by_scopes,
 )
 
-# ============================================================================
-# Fixtures and helpers
-# ============================================================================
-
 
 def _make_intelligence(
-    primary_domain: str | None = None,
+    detected_skill_name: str | None = None,
     domains: list[str] | None = None,
+    primary_domain: str | None = None,
 ) -> MagicMock:
     """Create a minimal QueryIntelligence mock."""
     intel = MagicMock()
+    intel.detected_skill_name = detected_skill_name
     intel.primary_domain = primary_domain
     intel.domains = domains or []
     intel.immediate_intent = "search"
@@ -42,6 +42,8 @@ def _make_skill(
     agent_names: list[str],
     deterministic: bool = True,
     priority: int = 50,
+    scope: str = "admin",
+    owner_id: str | None = None,
 ) -> dict:
     """Create a skill dict matching SkillsCache format."""
     steps = [
@@ -55,6 +57,8 @@ def _make_skill(
     return {
         "name": name,
         "priority": priority,
+        "scope": scope,
+        "owner_id": owner_id,
         "plan_template": {
             "deterministic": deterministic,
             "steps": steps,
@@ -67,21 +71,28 @@ BRIEFING_SKILL = _make_skill(
     ["event", "task", "weather", "email", "reminder"],
     priority=70,
 )
-# Override: briefing tolerates up to 2 missing domains (5 domains total)
-BRIEFING_SKILL["plan_template"]["max_missing_domains"] = 2
 
-SINGLE_SKILL = _make_skill(
+COACHING_SKILL = _make_skill(
     "coaching-productivite",
     ["task"],
     priority=60,
 )
 
+NON_DETERMINISTIC_SKILL = _make_skill(
+    "research-assistant",
+    ["brave"],
+    deterministic=False,
+)
 
-def _make_config(oauth_scopes: list[str] | None = None) -> dict:
+
+def _make_config(
+    user_id: str = "test-user-123",
+    oauth_scopes: list[str] | None = None,
+) -> dict:
     """Create a minimal RunnableConfig dict."""
     return {
         "configurable": {
-            "user_id": "test-user-123",
+            "user_id": user_id,
             "run_id": "test-run",
             "session_id": "test-session",
             "oauth_scopes": oauth_scopes or [],
@@ -100,50 +111,57 @@ class _MockManifest:
     permissions: _MockPermissions
 
 
-# Tool manifests for scope checking
 TOOL_MANIFESTS = {
     "get_event_tool": _MockManifest("get_event_tool", _MockPermissions(["calendar.read"])),
     "get_task_tool": _MockManifest("get_task_tool", _MockPermissions(["tasks.read"])),
     "get_weather_tool": _MockManifest("get_weather_tool", _MockPermissions([])),
     "get_email_tool": _MockManifest("get_email_tool", _MockPermissions(["gmail.read"])),
     "get_reminder_tool": _MockManifest("get_reminder_tool", _MockPermissions([])),
+    "get_brave_tool": _MockManifest("get_brave_tool", _MockPermissions([])),
 }
 
 
-@pytest.fixture(autouse=True)
-def _enable_skills():
-    """Enable skills feature flag for all tests."""
-    mock_settings = MagicMock()
-    mock_settings.skills_enabled = True
-    with patch("src.core.config.get_settings", return_value=mock_settings):
-        yield
+def _make_cache_lookup(skills: list[dict]):
+    """Build a get_by_name_for_user side_effect that returns skills by name.
+
+    User override semantics are preserved: the first skill whose ``name`` matches
+    and whose ``owner_id`` equals the requested user is preferred, falling back
+    to the admin match.
+    """
+
+    def _lookup(name: str, user_id: str) -> dict | None:
+        admin_match = None
+        for s in skills:
+            if s["name"] != name:
+                continue
+            if s["scope"] == "user" and s.get("owner_id") == user_id:
+                return s
+            if s["scope"] == "admin":
+                admin_match = s
+        return admin_match
+
+    return _lookup
 
 
 @pytest.fixture(autouse=True)
 def _skills_cache():
-    """Mock SkillsCache as loaded with test skills."""
-    with (
-        patch(
-            "src.domains.skills.cache.SkillsCache.is_loaded",
-            return_value=True,
-        ),
-        patch(
-            "src.domains.skills.cache.SkillsCache.get_all",
-            return_value=[BRIEFING_SKILL, SINGLE_SKILL],
-        ),
-        patch(
-            "src.domains.skills.cache.SkillsCache.get_for_user",
-            return_value=[BRIEFING_SKILL, SINGLE_SKILL],
-        ),
+    """Mock SkillsCache with test skills.
+
+    Uses ``get_by_name_for_user`` exclusively to ensure user-scoped lookups.
+    """
+    default_skills = [BRIEFING_SKILL, COACHING_SKILL, NON_DETERMINISTIC_SKILL]
+    with patch(
+        "src.domains.skills.cache.SkillsCache.get_by_name_for_user",
+        side_effect=_make_cache_lookup(default_skills),
     ):
         yield
 
 
 @pytest.fixture(autouse=True)
 def _active_skills_all():
-    """Default: all skills active."""
+    """Default: all skills active (active_skills_ctx.get() returns None)."""
     with patch("src.core.context.active_skills_ctx") as ctx:
-        ctx.get.return_value = None  # None = all considered
+        ctx.get.return_value = None
         yield ctx
 
 
@@ -160,7 +178,7 @@ def _mock_registry():
 
 
 # ============================================================================
-# can_handle — relaxed domain matching
+# can_handle — cheap presence check on detected_skill_name
 # ============================================================================
 
 
@@ -168,86 +186,29 @@ class TestCanHandle:
     """Tests for SkillBypassStrategy.can_handle()."""
 
     @pytest.mark.unit
-    async def test_briefing_with_two_missing_domains(self):
-        """Briefing should match with 3/5 domains (email + reminder missing).
-
-        This is the exact production scenario: 'Fais mon briefing quotidien'
-        gets domains {weather, event, task} but skill needs {event, task,
-        weather, email, reminder}. With max_missing_domains=2 in the template,
-        2 missing domains should match.
-        """
+    async def test_returns_true_when_skill_detected(self):
+        """Any detected skill name triggers can_handle=True (verification deferred to plan)."""
         strategy = SkillBypassStrategy()
-        intel = _make_intelligence(
-            primary_domain="weather",
-            domains=["event", "task"],
-        )
+        intel = _make_intelligence(detected_skill_name="briefing-quotidien")
         assert await strategy.can_handle(intel) is True
 
     @pytest.mark.unit
-    async def test_exact_match(self):
-        """All 5 domains present → should match."""
+    async def test_returns_false_when_no_skill_detected(self):
+        """No detected skill → can_handle=False, strategy yields to next."""
         strategy = SkillBypassStrategy()
-        intel = _make_intelligence(
-            primary_domain="weather",
-            domains=["event", "task", "email", "reminder"],
-        )
-        assert await strategy.can_handle(intel) is True
-
-    @pytest.mark.unit
-    async def test_superset_match(self):
-        """Extra domains beyond template → should still match."""
-        strategy = SkillBypassStrategy()
-        intel = _make_intelligence(
-            primary_domain="weather",
-            domains=["event", "task", "email", "reminder", "brave"],
-        )
-        assert await strategy.can_handle(intel) is True
-
-    @pytest.mark.unit
-    async def test_three_missing_no_match(self):
-        """3 missing domains → exceeds max_missing_domains=2 → no match."""
-        strategy = SkillBypassStrategy()
-        intel = _make_intelligence(
-            primary_domain="weather",
-            domains=["event"],
-        )
+        intel = _make_intelligence(detected_skill_name=None)
         assert await strategy.can_handle(intel) is False
 
     @pytest.mark.unit
-    async def test_single_domain_no_match_multidomain_skill(self):
-        """Single domain 'event' → 4 missing out of 5 → no match for briefing."""
+    async def test_returns_true_even_for_non_deterministic_skill(self):
+        """can_handle is minimalist; deterministic check happens in plan()."""
         strategy = SkillBypassStrategy()
-        intel = _make_intelligence(primary_domain="event", domains=[])
-        # coaching has task only, event != task → no match either
-        assert await strategy.can_handle(intel) is False
-
-    @pytest.mark.unit
-    async def test_single_domain_skill_exact_match(self):
-        """Single-domain skill 'task' → exact match with primary_domain=task."""
-        strategy = SkillBypassStrategy()
-        intel = _make_intelligence(primary_domain="task", domains=[])
+        intel = _make_intelligence(detected_skill_name="research-assistant")
         assert await strategy.can_handle(intel) is True
-
-    @pytest.mark.unit
-    async def test_inactive_skill_not_matched(self):
-        """Skill not in active set should not match even with full domain overlap."""
-        strategy = SkillBypassStrategy()
-        intel = _make_intelligence(
-            primary_domain="weather",
-            domains=["event", "task", "email"],
-        )
-        with patch("src.core.context.active_skills_ctx") as ctx:
-            ctx.get.return_value = {"coaching-productivite"}  # briefing NOT active
-            # coaching: domain=task, query has task → 0 missing → matches
-            assert await strategy.can_handle(intel) is True
-
-        with patch("src.core.context.active_skills_ctx") as ctx:
-            ctx.get.return_value = set()  # NO skill active
-            assert await strategy.can_handle(intel) is False
 
 
 # ============================================================================
-# plan — relaxed matching + scope filtering
+# plan — user-scoped resolution + deterministic filter + scope filtering
 # ============================================================================
 
 
@@ -255,14 +216,12 @@ class TestPlan:
     """Tests for SkillBypassStrategy.plan()."""
 
     @pytest.mark.unit
-    async def test_briefing_with_missing_domains_and_all_scopes(self):
-        """Briefing with 3/5 domains + all scopes → 5-step plan."""
+    async def test_deterministic_skill_with_all_scopes_builds_full_plan(self):
+        """Detected deterministic skill + all scopes → full-template plan."""
         strategy = SkillBypassStrategy()
-        intel = _make_intelligence(
-            primary_domain="weather",
-            domains=["event", "task"],
-        )
+        intel = _make_intelligence(detected_skill_name="briefing-quotidien")
         config = _make_config(oauth_scopes=["calendar.read", "tasks.read", "gmail.read"])
+
         result = await strategy.plan(intelligence=intel, config=config)
 
         assert result.success is True
@@ -272,61 +231,120 @@ class TestPlan:
         assert result.plan.metadata["skill_bypass"] is True
 
     @pytest.mark.unit
-    async def test_briefing_without_gmail_scope_filters_email_step(self):
-        """Briefing with 3/5 domains + no gmail scope → 4-step plan (email filtered)."""
+    async def test_missing_gmail_scope_filters_email_step(self):
+        """Skill steps whose tools require unavailable scopes are dropped gracefully."""
         strategy = SkillBypassStrategy()
-        intel = _make_intelligence(
-            primary_domain="weather",
-            domains=["event", "task"],
-        )
+        intel = _make_intelligence(detected_skill_name="briefing-quotidien")
         config = _make_config(oauth_scopes=["calendar.read", "tasks.read"])
+
         result = await strategy.plan(intelligence=intel, config=config)
 
         assert result.success is True
         assert result.plan is not None
-        assert len(result.plan.steps) == 4
-        # Email step should be filtered out, reminder kept (no scopes needed)
         step_agents = [s.agent_name for s in result.plan.steps]
         assert "email_agent" not in step_agents
         assert "event_agent" in step_agents
         assert "task_agent" in step_agents
         assert "weather_agent" in step_agents
         assert "reminder_agent" in step_agents
+        assert len(result.plan.steps) == 4
 
     @pytest.mark.unit
-    async def test_briefing_exact_match_all_scopes(self):
-        """All 5 domains + all scopes → 5-step plan."""
+    async def test_non_deterministic_skill_returns_failure(self):
+        """Non-deterministic skills are left to the LLM planner."""
         strategy = SkillBypassStrategy()
-        intel = _make_intelligence(
-            primary_domain="weather",
-            domains=["event", "task", "email", "reminder"],
-        )
-        config = _make_config(oauth_scopes=["calendar.read", "tasks.read", "gmail.read"])
+        intel = _make_intelligence(detected_skill_name="research-assistant")
+        config = _make_config()
+
         result = await strategy.plan(intelligence=intel, config=config)
 
-        assert result.success is True
-        assert len(result.plan.steps) == 5
+        assert result.success is False
+        assert result.plan is None
+        assert "not deterministic" in (result.error or "")
 
     @pytest.mark.unit
-    async def test_no_matching_skill_returns_failure(self):
-        """No domain overlap → PlanningResult with success=False."""
+    async def test_skill_not_in_cache_returns_failure(self):
+        """Unknown skill name → graceful failure, no crash."""
         strategy = SkillBypassStrategy()
-        intel = _make_intelligence(primary_domain="contact", domains=["brave"])
+        intel = _make_intelligence(detected_skill_name="non-existent-skill")
         config = _make_config()
+
+        result = await strategy.plan(intelligence=intel, config=config)
+
+        assert result.success is False
+        assert result.plan is None
+        assert "not found" in (result.error or "")
+
+    @pytest.mark.unit
+    async def test_no_detected_skill_returns_failure(self):
+        """Empty detected_skill_name → graceful failure."""
+        strategy = SkillBypassStrategy()
+        intel = _make_intelligence(detected_skill_name=None)
+        config = _make_config()
+
         result = await strategy.plan(intelligence=intel, config=config)
 
         assert result.success is False
         assert result.plan is None
 
     @pytest.mark.unit
-    async def test_missing_oauth_scopes_key_in_config_falls_back(self):
-        """Config without oauth_scopes key → empty set → scope-requiring steps filtered."""
+    async def test_inactive_skill_returns_failure(self):
+        """Skill not in active_skills_ctx → not matched even when identified."""
         strategy = SkillBypassStrategy()
-        intel = _make_intelligence(
-            primary_domain="weather",
-            domains=["event", "task"],
+        intel = _make_intelligence(detected_skill_name="briefing-quotidien")
+        config = _make_config(oauth_scopes=["calendar.read", "tasks.read", "gmail.read"])
+
+        with patch("src.core.context.active_skills_ctx") as ctx:
+            ctx.get.return_value = {"coaching-productivite"}  # briefing not active
+            result = await strategy.plan(intelligence=intel, config=config)
+
+        assert result.success is False
+        assert result.plan is None
+        assert "not active" in (result.error or "")
+
+    @pytest.mark.unit
+    async def test_all_steps_filtered_by_scopes_returns_failure(self):
+        """Scope-filtering that strips every step yields a failure result."""
+        strategy = SkillBypassStrategy()
+        intel = _make_intelligence(detected_skill_name="coaching-productivite")
+        config = _make_config(oauth_scopes=[])  # coaching needs tasks.read
+
+        result = await strategy.plan(intelligence=intel, config=config)
+
+        assert result.success is False
+        assert result.plan is None
+
+    @pytest.mark.unit
+    async def test_user_override_prefers_user_skill_over_admin(self):
+        """A user's own skill with same name must override the admin version."""
+        user_id = "alice"
+        alice_briefing = _make_skill(
+            "briefing-quotidien",
+            ["task"],
+            deterministic=False,  # Alice's version is non-deterministic
+            scope="user",
+            owner_id=user_id,
         )
-        # Config explicitly without oauth_scopes key
+
+        strategy = SkillBypassStrategy()
+        intel = _make_intelligence(detected_skill_name="briefing-quotidien")
+        config = _make_config(user_id=user_id)
+
+        with patch(
+            "src.domains.skills.cache.SkillsCache.get_by_name_for_user",
+            side_effect=_make_cache_lookup([BRIEFING_SKILL, alice_briefing]),
+        ):
+            result = await strategy.plan(intelligence=intel, config=config)
+
+        # Alice's version is non-deterministic → bypass declines (correctly)
+        assert result.success is False
+        assert "not deterministic" in (result.error or "")
+
+    @pytest.mark.unit
+    async def test_missing_oauth_scopes_key_in_config_falls_back_to_empty(self):
+        """Config without oauth_scopes key → scope-requiring steps filtered out."""
+        strategy = SkillBypassStrategy()
+        intel = _make_intelligence(detected_skill_name="briefing-quotidien")
         config = {
             "configurable": {
                 "user_id": "test-user",
@@ -334,36 +352,21 @@ class TestPlan:
                 "session_id": "test-session",
             }
         }
+
         result = await strategy.plan(intelligence=intel, config=config)
 
         assert result.success is True
-        # Tools with required scopes should be filtered (no scopes available)
-        # Only weather and reminder (no required scopes) should remain
         step_agents = [s.agent_name for s in result.plan.steps]
+        # Only tools without required scopes remain
         assert "weather_agent" in step_agents
         assert "reminder_agent" in step_agents
         assert "email_agent" not in step_agents
         assert "event_agent" not in step_agents
         assert "task_agent" not in step_agents
 
-    @pytest.mark.unit
-    async def test_inactive_skill_skipped_in_plan(self):
-        """Skill not in active set should be skipped during planning."""
-        strategy = SkillBypassStrategy()
-        intel = _make_intelligence(
-            primary_domain="weather",
-            domains=["event", "task", "email"],
-        )
-        config = _make_config(oauth_scopes=["calendar.read", "tasks.read", "gmail.read"])
-        with patch("src.core.context.active_skills_ctx") as ctx:
-            ctx.get.return_value = set()  # No skill active
-            result = await strategy.plan(intelligence=intel, config=config)
-
-        assert result.success is False
-
 
 # ============================================================================
-# _filter_steps_by_scopes
+# _filter_steps_by_scopes — unchanged behaviour
 # ============================================================================
 
 
@@ -432,12 +435,10 @@ class TestFilterStepsByScopes:
             {"step_id": "s2", "tool_name": "get_email_tool", "depends_on": ["s1"]},
             {"step_id": "s3", "tool_name": "get_weather_tool", "depends_on": ["s1", "s2"]},
         ]
-        # s2 (email) requires gmail.read → filtered out
         result = _filter_steps_by_scopes(steps, {"calendar.read"})
         assert len(result) == 2
         assert result[0]["step_id"] == "s1"
         assert result[1]["step_id"] == "s3"
-        # s3's depends_on should no longer reference s2
         assert result[1]["depends_on"] == ["s1"]
         # Original step dict must NOT be mutated (cache safety)
         assert steps[2]["depends_on"] == ["s1", "s2"]

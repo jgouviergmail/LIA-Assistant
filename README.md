@@ -40,7 +40,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.16.3</strong> — Briefing skill fix, reminders integration, scope-aware skill execution — April 2026
+  <strong>Version 1.16.4</strong> — Semantic skill identification refactor, user-isolation hardening, routing guard for skill detection — April 2026
 </p>
 
 ---

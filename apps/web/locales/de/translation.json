@@ -1963,7 +1963,6 @@
       "guide_modal_plan_title": "Plan Template (Automatisierung)",
       "guide_modal_plan_body": "Das plan_template definiert eine Folge von Werkzeugen, die automatisch ausgeführt werden, ohne den LLM-Planer zu durchlaufen. Ideal für wiederkehrende, vorhersehbare Workflows. Schritte ohne depends_on laufen parallel.",
       "guide_modal_plan_fields_title": "Felder eines Schritts (step):",
-      "guide_modal_plan_field_max_missing_domains": "Max. nicht erkannte Domänen für das Matching toleriert (Standard: 1)",
       "guide_modal_plan_field_step_id": "Eindeutiger Schritt-Bezeichner (z.B. get_events)",
       "guide_modal_plan_field_agent_name": "Name des zu verwendenden Agenten (siehe Katalog unten)",
       "guide_modal_plan_field_tool_name": "Name des aufzurufenden Werkzeugs",
@@ -2711,6 +2710,15 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_16_4": {
+          "title": "v1.16.4 — Zuverlässigere Skill-Aktivierung",
+          "date": "April 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>Skills werden bei natürlichen Formulierungen zuverlässiger aktiviert</b> — LIA versteht Ihre Absicht jetzt, indem es die Beschreibung jedes Skills liest, anstatt sich auf technische Hinweise (erkannte Domänen) zu verlassen. Varianten wie „Ich möchte mein tägliches Briefing\", „Mach mein Briefing des Tages\" oder „Fasse meinen Tag zusammen\" aktivieren jetzt immer den richtigen Skill, ohne Fehlauslösungen.",
+            "i2": "<b>Erstellung benutzerdefinierter Skills vereinfacht</b> — Das Konfigurationsfeld <code>max_missing_domains</code> wurde aus dem Skill-Bearbeitungsleitfaden entfernt. Skills werden automatisch aktiviert, wenn ihre Beschreibung Ihrer Anfrage entspricht — keine technischen Parameter mehr anpassen, damit LIA sie erkennt."
+          }
+        },
         "v1_16_3": {
           "title": "v1.16.3 — Erweitertes Briefing, E-Mail-Fix & zufällige Phrasen",
           "date": "April 2026",

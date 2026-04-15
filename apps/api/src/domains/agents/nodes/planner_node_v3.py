@@ -287,12 +287,10 @@ async def planner_node_v3(
     # - Without early detection: 2 planner calls before clarification
     # - With early detection: 0 planner calls, immediate clarification
     #
-    # GUARD: Skip when a deterministic skill has high domain overlap with the
-    # query. Multi-domain skills (e.g., briefing = event+task+weather+email)
-    # trigger false positives in early detection because the QueryAnalyzer may
-    # classify the query as a single-domain mutation (e.g., "create event")
-    # when it's actually a skill invocation. In that case, let the planner
-    # pipeline decide (SkillBypassStrategy or LLM-driven skill activation).
+    # GUARD: Skip when the QueryAnalyzer has semantically identified a skill.
+    # Skill invocations (whether deterministic via SkillBypassStrategy or
+    # model-driven via the LLM planner) must be allowed to reach the planner
+    # pipeline so the skill's template or instructions can shape the plan.
     # =========================================================================
     if planner_iteration == 0 and not clarification_response:
         if _has_potential_skill_match(intelligence):
@@ -760,75 +758,36 @@ def _format_validation_feedback(semantic_validation) -> str:
 
 
 def _has_potential_skill_match(intelligence: Any) -> bool:
-    """Check if a deterministic skill has high domain overlap with query domains.
+    """Return True when the QueryAnalyzer has semantically identified a skill.
 
-    Used to gate early insufficient content detection: when a deterministic skill
-    is likely relevant, we skip the early short-circuit and let the full planner
-    pipeline decide (SkillBypassStrategy exact match OR LLM-driven skill activation).
+    Used to gate early insufficient content detection: when a skill has been
+    identified (whether deterministic or not), we skip the early short-circuit
+    and let the full planner pipeline decide — SkillBypassStrategy for
+    deterministic skills, LLM planner (using the skill's description and
+    instructions) for the rest.
 
-    Matching is intentionally relaxed compared to SkillBypassStrategy.can_handle()
-    which requires ALL template domains to be covered. Here we allow up to
-    SKILLS_EARLY_DETECTION_MAX_MISSING_DOMAINS domains to be missing, since the
-    QueryAnalyzer may not detect all domains for multi-domain skill triggers
-    (e.g., "briefing quotidien" may miss "email" domain).
+    No cache lookup is performed here: presence of ``detected_skill_name`` in
+    the intelligence is a sufficient signal that the query maps to a skill.
+    Downstream code enforces the proper user-scoped skill resolution.
 
     Args:
-        intelligence: QueryIntelligence with detected domains and primary_domain.
+        intelligence: QueryIntelligence produced by the QueryAnalyzer, which
+            sets ``detected_skill_name`` when a skill description matches the
+            user's request.
 
     Returns:
-        True if at least one active deterministic skill has sufficient domain overlap.
+        True when ``intelligence.detected_skill_name`` is set.
     """
-    from src.core.config import get_settings
-    from src.core.constants import SKILLS_EARLY_DETECTION_MAX_MISSING_DOMAINS
-
-    if not getattr(get_settings(), "skills_enabled", False):
+    skill_name = getattr(intelligence, "detected_skill_name", None)
+    if not skill_name:
         return False
 
-    from src.core.context import active_skills_ctx
-    from src.domains.skills.cache import SkillsCache
-
-    if not SkillsCache.is_loaded():
-        return False
-
-    query_domains = set(intelligence.domains or [])
-    if intelligence.primary_domain:
-        query_domains.add(intelligence.primary_domain)
-    if not query_domains:
-        return False
-
-    active = active_skills_ctx.get()
-
-    for skill in SkillsCache.get_all():
-        if active is not None and skill["name"] not in active:
-            continue
-        template = skill.get("plan_template")
-        if not template or not template.get("deterministic"):
-            continue
-
-        steps = template.get("steps", [])
-        skill_domains = {
-            s.get("agent_name", "").replace("_agent", "") for s in steps if s.get("agent_name")
-        }
-        if not skill_domains:
-            continue
-
-        max_missing = template.get(
-            "max_missing_domains", SKILLS_EARLY_DETECTION_MAX_MISSING_DOMAINS
-        )
-        overlap = len(skill_domains & query_domains)
-        missing = len(skill_domains) - overlap
-        if overlap >= 1 and missing <= max_missing:
-            logger.info(
-                "potential_skill_match_detected",
-                skill_name=skill["name"],
-                skill_domains=sorted(skill_domains),
-                query_domains=sorted(query_domains),
-                missing_domains=sorted(skill_domains - query_domains),
-                msg="Skipping early insufficient content detection",
-            )
-            return True
-
-    return False
+    logger.info(
+        "potential_skill_match_detected",
+        skill_name=skill_name,
+        msg="Skipping early insufficient content detection",
+    )
+    return True
 
 
 # Alias for backward compatibility

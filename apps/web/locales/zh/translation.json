@@ -1971,7 +1971,6 @@
       "guide_modal_plan_title": "Plan Template（自动化）",
       "guide_modal_plan_body": "plan_template 定义自动执行的工具序列，无需经过 LLM 规划器。适合重复性、可预测的工作流。没有 depends_on 的步骤并行执行。",
       "guide_modal_plan_fields_title": "步骤（step）字段说明：",
-      "guide_modal_plan_field_max_missing_domains": "匹配时容许的最大未检测域数（默认值：1）",
       "guide_modal_plan_field_step_id": "步骤的唯一标识符（如：get_events）",
       "guide_modal_plan_field_agent_name": "要使用的代理名称（见下方目录）",
       "guide_modal_plan_field_tool_name": "要调用的工具名称",
@@ -2706,6 +2705,15 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_16_4": {
+          "title": "v1.16.4 — 技能触发更可靠",
+          "date": "2026 年 4 月",
+          "count": "2",
+          "items": {
+            "i1": "<b>技能在自然表达下触发更可靠</b> — LIA 现在通过阅读每个技能的描述来理解您的意图，而不是依赖技术提示（检测到的领域）。「我要我的每日简报」、「帮我做今日简报」、「总结一下我的一天」等不同表达现在总能激活正确的技能，不会误触发。",
+            "i2": "<b>简化自定义技能创建</b> — 技能编辑指南中的 <code>max_missing_domains</code> 配置字段已移除。技能会在其描述与您的请求匹配时自动触发 — 无需再调整技术参数让 LIA 识别它们。"
+          }
+        },
         "v1_16_3": {
           "title": "v1.16.3 — 丰富简报、邮件修复和随机短语",
           "date": "2026年4月",

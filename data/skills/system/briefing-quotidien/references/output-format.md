@@ -3,53 +3,84 @@
 ## Structure attendue
 
 ### 1. En-tete
-```
-📅 Briefing du [date] — [jour de la semaine]
-```
+
+📅 Briefing du [date]
+<hr />
 
 ### 2. Agenda du jour
+Classement par échéance :
+🔴 date et heure de début <= 1 heure
+🟡 1 heure < date et heure de début <= 4 heures
+🟢 4 heures < date et heure de début
+
 Pour chaque rdv, afficher :
 - **Heure** — Titre du rdv
-- Lieu (si disponible)
-- Participants cles (si reunion)
+Lieu (si disponible)
+Participants cles (si reunion)
 
-Si aucun evenement : "Journee libre — pas d'evenements planifies."
+Si aucun evenement : "Aucun rdv planifie."
+Si des evenements du lendemain necessitent une preparation, les mentionner (🟢).
 
-Si des evenements du lendemain necessitent une preparation, les mentionner.
+<hr />
 
 ### 3. Taches prioritaires
 Classement par urgence :
-1. **🔴 Urgent** — Taches en retard ou a echeance aujourd'hui
-2. **🟡 Important** — Taches prioritaires a venir
-3. **🟢 A planifier** — Taches sans echeance immediate
+🔴 Taches en retard ou a echeance aujourd'hui
+🟡 Taches prioritaires a venir
+🟢 Taches sans echeance immediate
 
-Si aucune tache : "Aucune tache en cours — c'est le moment d'en planifier."
+Pour chaque tache, afficher :
+- **Date** — Titre de la tâche
+Titre - Description
+
+Si aucune tache : "Aucune tache en cours"
+
+<hr />
 
 ### 4. Meteo
-- **Aujourd'hui** : Conditions, temperature min/max, precipitations
+🔴 Alerte météo
+🟡 Pluie/Neige
+
+- **Aujourd'hui** : Conditions, vent km/h et direction, temperature min/max, precipitations
 - **Tendance 3 jours** : Resume en une ligne par jour
 - Alertes meteo si pertinent
 
+<hr />
+
 ### 5. Emails du jour
+Classement par importance/urgence estimée ou explicite :
+🔴 email important ou urgent
+🟡 email nécessitant un vigilance
+🟢 email standard ou inutile
+
 Pour chaque email (5 derniers) :
 - **Expediteur** — Objet du mail
-- Resume court (1 ligne)
-- Signaler les emails importants ou urgents necessitant une action
+**Date et heure** — Date et heure de réception
+Resume court (1 ligne)
+Signaler les emails importants ou urgents necessitant une action
 
-Si aucun email : "Aucun email recu aujourd'hui."
+Si aucun email : " Aucun email recu aujourd'hui"
+
+<hr />
 
 ### 6. Rappels
-Pour chaque rappel en attente :
-- **Heure de declenchement** — Objet/contenu du rappel
-- Rappels en retard (heure depassee) signales en priorite avec indicateur visuel
+Classement par échéance :
+🔴 date et heure de début <= 1 heure
+🟡 1 heure < date et heure de début <= 4 heures
+🟢 4 heures < date et heure de début
 
-Si aucun rappel en attente : ne pas afficher cette section.
+Pour chaque rappel en attente :
+- **Heure de declenchement** - Objet/contenu du rappel
+
+Si aucun rappel : " Aucun rappel aujourd'hui"
+
+<hr />
 
 ### 7. A noter
 Points d'attention proactifs :
 - Conflits d'agenda detectes
 - Taches en retard depuis plusieurs jours
 - Changement meteo notable (pluie prevue, chute de temperature)
-- Emails necessitant une reponse urgente
+- Emails importants ou necessitant une reponse urgente
 - Rappels imminents (dans l'heure)
 - Suggestions contextuelles (parapluie, prevoir plus de temps pour un trajet, etc.)

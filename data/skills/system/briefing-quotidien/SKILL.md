@@ -8,7 +8,6 @@ category: quotidien
 priority: 70
 plan_template:
   deterministic: true
-  max_missing_domains: 2
   steps:
     - step_id: get_events
       agent_name: event_agent

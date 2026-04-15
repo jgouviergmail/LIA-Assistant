@@ -1640,17 +1640,25 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                 return bool(skill_data.get("references")) and not skill_data.get("scripts")
 
             def _load_all_resources(skill_name: str) -> str:
-                """Load all reference files for a skill and return concatenated content."""
+                """Load all reference files for a skill and return concatenated content.
+
+                The ``references`` field of a skill contains basenames only
+                (see loader.py — ``_list_dir(path.parent / "references")``).
+                Files live inside the ``references/`` subdirectory of the skill,
+                so we must re-prefix the path here to resolve them correctly.
+                """
                 skill_data = _get_skill_data(skill_name)
                 if not skill_data:
                     return ""
                 from pathlib import Path
 
                 skill_dir = Path(skill_data["source_path"]).parent.resolve()
+                references_dir = skill_dir / "references"
                 parts: list[str] = []
                 for ref in skill_data.get("references", []):
-                    ref_path = (skill_dir / ref).resolve()
-                    # Path traversal protection
+                    ref_path = (references_dir / ref).resolve()
+                    # Path traversal protection: reject any ref that escapes
+                    # the skill directory (e.g., "../other-skill/secret.md").
                     try:
                         ref_path.relative_to(skill_dir)
                     except ValueError:
@@ -1671,6 +1679,13 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                                 path=ref,
                                 error=str(read_err),
                             )
+                    else:
+                        logger.warning(
+                            "skill_resource_file_not_found",
+                            skill_name=skill_name,
+                            path=ref,
+                            expected_location=str(ref_path),
+                        )
                 return "\n\n".join(parts)
 
             # --- Identify target skill name (planner or always-loaded) ---

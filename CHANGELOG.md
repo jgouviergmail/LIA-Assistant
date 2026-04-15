@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.16.4] - 2026-04-15
+
+### Skill Identification — Semantic-Only, Unified
+
+Replaced the domain-overlap heuristic by a unified semantic identification path. The `QueryAnalyzer` now reads all active skills (deterministic and non-deterministic) and picks the one whose description semantically matches the user's intent. `SkillBypassStrategy`, the planner guard, and the routing decider all consume that single signal.
+
+Root cause addressed: on 2026-04-15 a production briefing request identified the correct skill semantically but still missed emails/tasks/reminders because the bypass required domain overlap that the `QueryAnalyzer` had partially classified as `web_search`.
+
+#### Changed
+- **`SkillBypassStrategy`**: `can_handle` is now a minimal presence check on `QueryIntelligence.detected_skill_name`; `plan` performs a user-scoped lookup via `SkillsCache.get_by_name_for_user(name, user_id)`, verifies the skill is deterministic and active, then builds the plan. No domain-overlap maths anywhere.
+- **`_has_potential_skill_match` (planner guard)**: returns `True` whenever a skill has been identified, regardless of type. No cache lookup, no domain analysis.
+- **QueryAnalyzer catalogue**: the deterministic-skill filter was removed from the visible set — the LLM can now identify any active skill by description. User/admin isolation preserved via `SkillsCache.get_for_user`.
+- **QueryAnalyzer prompt**: strengthened instruction to match on whole-intent semantic alignment, not keyword presence; explicit warning that action compositions are not skill invocations unless a skill covers that composition; explicit separation of `skill_name` from `primary_domain`/`secondary_domains` to avoid LLM field confusion.
+- **`RoutingDecider`**: new Rule 1 — when `detected_skill_name` is set, route to the planner regardless of the domains list (closes the hole where the LLM stored the skill in `skill_name` only and left domains empty, causing the previous "no domains → response" fallback to skip the planner entirely).
+
+#### Fixed
+- **`reconstruct_query_intelligence`** (pre-existing bug revealed by the refactor): the helper that rebuilds a `QueryIntelligence` from its serialized state dict was missing two fields — `detected_skill_name` and `is_app_help_query` — so the bypass and app-help guard could see `None` after checkpoint round-trips. Both fields are now correctly propagated.
+
+#### Removed
+- `plan_template.max_missing_domains` field (no longer read; leftover occurrences in user YAMLs are silently ignored).
+- `SKILLS_EARLY_DETECTION_MAX_MISSING_DOMAINS` constant in `src/core/constants.py`.
+- Removed `max_missing_domains: 2` from `briefing-quotidien` system skill.
+- UI guide field, translations and YAML example reference for `max_missing_domains` (SkillGuideModal + 6 locales).
+
+#### Documentation
+- `docs/technical/SKILLS_INTEGRATION.md` — rewrote the "Deterministic Bypass" and "Early Detection Guard" sections; removed the `max_missing_domains` table row.
+- `docs/technical/HITL.md` — updated the Skill Guard Bypass paragraph.
+- `docs/knowledge/12_skills.md` — simplified the user-facing explanation of skill matching.
+- Added ADR-071: Skill Semantic Identification (replaces the domain-overlap matching with a single semantic signal).
+- Updated FAQ changelog (6 languages) with v1.16.4 entries.
+
 ## [1.16.3] - 2026-04-10
 
 ### Skill Bypass Relaxed Matching & Scope-Aware Filtering

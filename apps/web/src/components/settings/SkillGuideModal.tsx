@@ -81,7 +81,6 @@ category: quotidien
 priority: 70
 plan_template:
   deterministic: true
-  max_missing_domains: 2
   steps:
     - step_id: get_events
       agent_name: event_agent
@@ -967,7 +966,6 @@ export function SkillGuideModal({ lng, open, onOpenChange }: SkillGuideModalProp
                   <div className="grid grid-cols-1 gap-1.5 text-xs">
                     {(
                       [
-                        'max_missing_domains',
                         'step_id',
                         'agent_name',
                         'tool_name',

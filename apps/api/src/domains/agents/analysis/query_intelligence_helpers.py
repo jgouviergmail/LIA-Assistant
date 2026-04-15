@@ -214,6 +214,10 @@ def reconstruct_query_intelligence(data: dict[str, Any]) -> QueryIntelligence:
         # Knowledge Enrichment (Brave Search) - CRITICAL for debug panel
         encyclopedia_keywords=data.get("encyclopedia_keywords", []),
         is_news_query=data.get("is_news_query", False),
+        # App self-knowledge
+        is_app_help_query=data.get("is_app_help_query", False),
+        # Skill activation - CRITICAL for SkillBypassStrategy and response_node
+        detected_skill_name=data.get("detected_skill_name"),
     )
 
 

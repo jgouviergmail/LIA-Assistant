@@ -1,26 +1,31 @@
-"""Skill Bypass Strategy — deterministic plan templates.
+"""Skill Bypass Strategy — deterministic plan templates, semantic identification.
 
-OPTIMIZATION ONLY: converts deterministic plan_template → ExecutionPlan without LLM.
-The PRIMARY activation mechanism is model-driven (LLM reads catalogue and decides).
-This strategy fires BEFORE the LLM planner for skills marked deterministic=true.
+OPTIMIZATION: converts a deterministic plan_template → ExecutionPlan without an
+LLM planner call when the QueryAnalyzer has semantically identified a matching
+skill. Runs first in the strategy chain.
 
-Matching: relaxed domain overlap — allows up to SKILLS_EARLY_DETECTION_MAX_MISSING_DOMAINS
-missing domains between query's detected domains and template agent names.
-This compensates for the QueryAnalyzer not detecting all domains in composite queries
-(e.g., "briefing quotidien" may miss "email" domain).
+Identification signal: ``QueryIntelligence.detected_skill_name`` — produced by
+the QueryAnalyzer via semantic alignment between the user's request and each
+skill's description (not by domain overlap or keyword matching).
 
-Steps whose tools require OAuth scopes the user lacks are filtered out before building
-the plan, so users without a given connector get a graceful partial briefing instead
-of a validation-fail → replan round-trip.
+Scope: only skills with ``plan_template.deterministic = true`` are eligible here.
+Non-deterministic skills are left to the LLM planner which shapes plan steps
+based on the skill's instructions (model-driven activation).
 
-If no match → falls through to LLM planner which may still activate the skill.
+Per-user isolation: all cache lookups are user-scoped via
+``SkillsCache.get_by_name_for_user(name, user_id)`` so that a user's own skill
+overrides an admin skill of the same name (per agentskills.io semantics), and
+no other user's skill is ever reachable.
 
-Pattern: ReferenceBypassStrategy, CrossDomainBypassStrategy.
+Steps whose tools require OAuth scopes the user lacks are filtered out before
+building the plan, so users without a given connector get a graceful partial
+briefing instead of a validation-fail → replan round-trip.
+
+If no match → falls through to the LLM planner.
 """
 
 from typing import TYPE_CHECKING, Any
 
-from src.core.constants import SKILLS_EARLY_DETECTION_MAX_MISSING_DOMAINS
 from src.domains.agents.orchestration.plan_schemas import ExecutionStep, StepType
 from src.domains.agents.services.planner.planning_result import PlanningResult
 from src.infrastructure.observability.logging import get_logger
@@ -37,18 +42,20 @@ __all__ = ["SkillBypassStrategy"]
 
 
 class SkillBypassStrategy:
-    """Bypass LLM planning when a deterministic skill template matches.
+    """Bypass the LLM planner when QueryAnalyzer identifies a deterministic skill.
 
-    requires_catalogue = False → bypass group (no catalogue needed).
+    ``requires_catalogue = False`` → bypass group (no tool catalogue needed).
 
-    Matching logic (relaxed — tolerates partial domain coverage):
-    - Only deterministic plan_template skills are considered
-    - Template domains must be covered by query domains with at most
-      SKILLS_EARLY_DETECTION_MAX_MISSING_DOMAINS missing (default: 1)
-    - Single-domain queries (e.g., "show events") won't match multi-domain
-      skills (e.g., briefing = event+task+weather+email → 3 missing > 1)
-    - Steps whose tools require unavailable OAuth scopes are filtered out
-    - If mismatch → no bypass → LLM planner handles it (standard path)
+    Matching:
+    - ``can_handle`` is a lightweight presence check on
+      ``intelligence.detected_skill_name`` (no cache lookup, no user context).
+    - ``plan`` performs the user-scoped lookup, checks the skill is deterministic
+      and active for the current user, then builds the ExecutionPlan from the
+      template (with OAuth scope-based step filtering).
+
+    On any mismatch (skill not found, non-deterministic, inactive, or all steps
+    filtered out by scopes), the strategy returns ``PlanningResult(success=False)``
+    and the planner falls through to the next strategy (typically the LLM planner).
     """
 
     requires_catalogue = False
@@ -58,45 +65,20 @@ class SkillBypassStrategy:
         intelligence: "QueryIntelligence",
         catalogue: "FilteredCatalogue | None" = None,
     ) -> bool:
-        from src.core.context import active_skills_ctx
-        from src.domains.skills.cache import SkillsCache
+        """Return True when the QueryAnalyzer has identified any skill.
 
-        if not SkillsCache.is_loaded():
-            return False
+        Cheap presence check. The full verification (user-scoped lookup,
+        deterministic flag, active skills filter) happens in ``plan`` so that
+        user isolation is enforced with the proper ``user_id`` from config.
 
-        query_domains = set(intelligence.domains or [])
-        if intelligence.primary_domain:
-            query_domains.add(intelligence.primary_domain)
-        if not query_domains:
-            return False
+        Args:
+            intelligence: Parsed query intelligence including ``detected_skill_name``.
+            catalogue: Unused (kept for strategy interface uniformity).
 
-        active = active_skills_ctx.get()
-
-        for skill in SkillsCache.get_all():
-            if active is not None and skill["name"] not in active:
-                continue
-            template = skill.get("plan_template")
-            if not template or not template.get("deterministic"):
-                continue
-
-            steps = template.get("steps", [])
-            skill_domains = {
-                s.get("agent_name", "").replace("_agent", "") for s in steps if s.get("agent_name")
-            }
-            if not skill_domains:
-                continue
-            # Relaxed matching: require at least 1 overlapping domain and allow
-            # up to N missing. Per-skill override via plan_template.max_missing_domains,
-            # falls back to the global constant.
-            max_missing = template.get(
-                "max_missing_domains", SKILLS_EARLY_DETECTION_MAX_MISSING_DOMAINS
-            )
-            overlap = len(skill_domains & query_domains)
-            missing = len(skill_domains) - overlap
-            if overlap >= 1 and missing <= max_missing:
-                return True
-
-        return False
+        Returns:
+            True if a skill was semantically identified by the QueryAnalyzer.
+        """
+        return getattr(intelligence, "detected_skill_name", None) is not None
 
     async def plan(
         self,
@@ -108,6 +90,25 @@ class SkillBypassStrategy:
         clarification_field: str | None = None,
         existing_plan: "Any | None" = None,
     ) -> PlanningResult:
+        """Build a deterministic ExecutionPlan from the identified skill's template.
+
+        Enforces user isolation at every lookup and bails out gracefully whenever
+        the identified skill is not eligible for deterministic bypass.
+
+        Args:
+            intelligence: Query intelligence with ``detected_skill_name``.
+            config: Runnable config — ``configurable.user_id`` and
+                ``configurable.oauth_scopes`` are read for scoping and filtering.
+            catalogue: Unused (virtual catalogue is built from the template).
+            validation_feedback: Unused in bypass (no replan).
+            clarification_response: Unused in bypass.
+            clarification_field: Unused in bypass.
+            existing_plan: Unused in bypass.
+
+        Returns:
+            ``PlanningResult(success=True)`` when the skill matches and a plan is
+            built, otherwise ``PlanningResult(success=False)`` with a reason.
+        """
         from src.core.context import active_skills_ctx
         from src.domains.agents.services.planner.planner_utils import (
             build_plan_from_steps,
@@ -115,114 +116,112 @@ class SkillBypassStrategy:
         )
         from src.domains.skills.cache import SkillsCache
 
-        query_domains = set(intelligence.domains or [])
-        if intelligence.primary_domain:
-            query_domains.add(intelligence.primary_domain)
+        skill_name = getattr(intelligence, "detected_skill_name", None)
+        if not skill_name:
+            return PlanningResult(plan=None, success=False, error="No skill detected")
+
+        user_id = str(config.get("configurable", {}).get("user_id", ""))
+
+        # User-scoped lookup: a user's own skill overrides an admin skill with
+        # the same name; skills owned by other users are never reachable.
+        skill = SkillsCache.get_by_name_for_user(skill_name, user_id)
+        if not skill:
+            return PlanningResult(
+                plan=None, success=False, error=f"Skill '{skill_name}' not found for user"
+            )
+
+        template = skill.get("plan_template") or {}
+        if not template.get("deterministic"):
+            # Non-deterministic skills are handled by the LLM planner.
+            return PlanningResult(
+                plan=None, success=False, error=f"Skill '{skill_name}' is not deterministic"
+            )
 
         active = active_skills_ctx.get()
-
-        # User-scoped lookup: admin skills + user's own skills (override semantics)
-        user_id = config.get("configurable", {}).get("user_id", "")
-        skills = SkillsCache.get_for_user(str(user_id)) if user_id else SkillsCache.get_all()
-
-        for skill in sorted(
-            skills,
-            key=lambda s: s.get("priority", 50),
-            reverse=True,
-        ):
-            template = skill.get("plan_template")
-            if not template or not template.get("deterministic"):
-                continue
-            if active is not None and skill["name"] not in active:
-                continue
-
-            steps_data = template.get("steps", [])
-            skill_domains = {
-                s.get("agent_name", "").replace("_agent", "")
-                for s in steps_data
-                if s.get("agent_name")
-            }
-
-            # Relaxed matching: require at least 1 overlapping domain and allow
-            # up to N missing (same logic as can_handle, per-skill override).
-            max_missing = template.get(
-                "max_missing_domains", SKILLS_EARLY_DETECTION_MAX_MISSING_DOMAINS
-            )
-            overlap = len(skill_domains & query_domains)
-            missing = len(skill_domains) - overlap
-            if not skill_domains or overlap < 1 or missing > max_missing:
-                continue
-
-            # Filter steps whose tools require OAuth scopes the user lacks.
-            # This avoids a validation-fail → replan round-trip for users without
-            # a given connector (e.g., no Gmail → skip email step gracefully).
-            available_scopes = set(config.get("configurable", {}).get("oauth_scopes", []))
-            filtered_steps_data = _filter_steps_by_scopes(steps_data, available_scopes)
-
-            if not filtered_steps_data:
-                logger.info(
-                    "skill_bypass_all_steps_filtered",
-                    skill_name=skill["name"],
-                    reason="No steps remain after scope filtering",
-                )
-                continue
-
-            # Convert template → ExecutionPlan steps
-            steps: list[ExecutionStep] = []
-            try:
-                for step_data in filtered_steps_data:
-                    steps.append(
-                        ExecutionStep(
-                            step_id=step_data["step_id"],
-                            step_type=StepType(step_data.get("step_type", "TOOL")),
-                            agent_name=step_data["agent_name"],
-                            tool_name=step_data.get("tool_name"),
-                            parameters=step_data.get("parameters", {}),
-                            depends_on=step_data.get("depends_on", []),
-                            description=step_data.get("description", ""),
-                        )
-                    )
-            except (KeyError, ValueError) as e:
-                logger.warning(
-                    "skill_template_invalid",
-                    skill_name=skill["name"],
-                    error=str(e),
-                )
-                continue
-
-            if not steps:
-                continue
-
-            skipped_count = len(steps_data) - len(filtered_steps_data)
-
-            plan = build_plan_from_steps(steps, intelligence, config)
-            plan.metadata["skill_name"] = skill["name"]
-            plan.metadata["skill_bypass"] = True
-
-            tool_names = [s.tool_name for s in steps if s.tool_name]
-            virtual_catalogue = create_virtual_catalogue(
-                tool_names=tool_names,
-                domains=intelligence.domains or [],
-                is_bypass=True,
+        if active is not None and skill_name not in active:
+            return PlanningResult(
+                plan=None, success=False, error=f"Skill '{skill_name}' is not active for user"
             )
 
+        steps_data = template.get("steps", [])
+        if not steps_data:
+            return PlanningResult(
+                plan=None, success=False, error=f"Skill '{skill_name}' has no steps"
+            )
+
+        # Filter steps whose tools require OAuth scopes the user lacks.
+        # This avoids a validation-fail → replan round-trip for users without
+        # a given connector (e.g., no Gmail → skip email step gracefully).
+        available_scopes = set(config.get("configurable", {}).get("oauth_scopes", []))
+        filtered_steps_data = _filter_steps_by_scopes(steps_data, available_scopes)
+
+        if not filtered_steps_data:
             logger.info(
-                "skill_bypass_matched",
-                skill_name=skill["name"],
-                steps_count=len(steps),
-                skipped_steps=skipped_count,
-                missing_domains=sorted(skill_domains - query_domains),
+                "skill_bypass_all_steps_filtered",
+                skill_name=skill_name,
+                reason="No steps remain after scope filtering",
             )
             return PlanningResult(
-                plan=plan,
-                success=True,
-                used_template=True,
-                tokens_used=0,
-                tokens_saved=500,
-                filtered_catalogue=virtual_catalogue,
+                plan=None, success=False, error="All skill steps filtered by missing scopes"
             )
 
-        return PlanningResult(plan=None, success=False, error="No skill matched")
+        # Convert template → ExecutionPlan steps
+        steps: list[ExecutionStep] = []
+        try:
+            for step_data in filtered_steps_data:
+                steps.append(
+                    ExecutionStep(
+                        step_id=step_data["step_id"],
+                        step_type=StepType(step_data.get("step_type", "TOOL")),
+                        agent_name=step_data["agent_name"],
+                        tool_name=step_data.get("tool_name"),
+                        parameters=step_data.get("parameters", {}),
+                        depends_on=step_data.get("depends_on", []),
+                        description=step_data.get("description", ""),
+                    )
+                )
+        except (KeyError, ValueError) as e:
+            logger.warning(
+                "skill_template_invalid",
+                skill_name=skill_name,
+                error=str(e),
+            )
+            return PlanningResult(
+                plan=None, success=False, error=f"Invalid template for skill '{skill_name}'"
+            )
+
+        if not steps:
+            return PlanningResult(
+                plan=None, success=False, error=f"Skill '{skill_name}' produced no steps"
+            )
+
+        skipped_count = len(steps_data) - len(filtered_steps_data)
+
+        plan = build_plan_from_steps(steps, intelligence, config)
+        plan.metadata["skill_name"] = skill_name
+        plan.metadata["skill_bypass"] = True
+
+        tool_names = [s.tool_name for s in steps if s.tool_name]
+        virtual_catalogue = create_virtual_catalogue(
+            tool_names=tool_names,
+            domains=intelligence.domains or [],
+            is_bypass=True,
+        )
+
+        logger.info(
+            "skill_bypass_matched",
+            skill_name=skill_name,
+            steps_count=len(steps),
+            skipped_steps=skipped_count,
+        )
+        return PlanningResult(
+            plan=plan,
+            success=True,
+            used_template=True,
+            tokens_used=0,
+            tokens_saved=500,
+            filtered_catalogue=virtual_catalogue,
+        )
 
 
 def _filter_steps_by_scopes(

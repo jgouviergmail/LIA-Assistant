@@ -1965,7 +1965,6 @@
       "guide_modal_plan_title": "Plan Template (automazione)",
       "guide_modal_plan_body": "Il plan_template definisce una sequenza di strumenti eseguiti automaticamente, senza passare per il planner LLM. Ideale per workflow ricorrenti e prevedibili. I passi senza depends_on vengono eseguiti in parallelo.",
       "guide_modal_plan_fields_title": "Campi di un passo (step):",
-      "guide_modal_plan_field_max_missing_domains": "Max domini non rilevati tollerati per il matching (predefinito: 1)",
       "guide_modal_plan_field_step_id": "Identificatore univoco del passo (es: get_events)",
       "guide_modal_plan_field_agent_name": "Nome dell'agente da usare (vedi catalogo sotto)",
       "guide_modal_plan_field_tool_name": "Nome dello strumento da chiamare",
@@ -2713,6 +2712,15 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_16_4": {
+          "title": "v1.16.4 — Attivazione delle skill più affidabile",
+          "date": "Aprile 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>Le skill si attivano meglio con formulazioni naturali</b> — LIA ora capisce la tua intenzione leggendo la descrizione di ogni skill, invece di basarsi su indizi tecnici (domini rilevati). Varianti come «Voglio il mio briefing quotidiano», «Fai il mio briefing del giorno» o «Riassumimi la giornata» attivano sempre la skill giusta, senza errori.",
+            "i2": "<b>Creazione di skill personalizzate semplificata</b> — Il campo di configurazione <code>max_missing_domains</code> è stato rimosso dalla guida di modifica delle skill. Le skill si attivano automaticamente quando la loro descrizione corrisponde alla tua richiesta — non devi più regolare parametri tecnici perché LIA le riconosca."
+          }
+        },
         "v1_16_3": {
           "title": "v1.16.3 — Briefing arricchito, fix email e frasi casuali",
           "date": "Aprile 2026",

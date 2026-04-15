@@ -609,8 +609,12 @@ async def analyze_query(
         user_timezone = configurable.get("user_timezone", DEFAULT_USER_DISPLAY_TIMEZONE)
         user_language = configurable.get("user_language", settings.default_language)
 
-        # Build available skills for skill detection.
+        # Build available skills for semantic identification.
         # skill_name is declared in QueryAnalysisOutput with default=None.
+        # All active skills (deterministic and non-deterministic) are exposed:
+        # the LLM identifies a matching skill by description alignment, and the
+        # deterministic-vs-dynamic distinction is resolved downstream (SkillBypass
+        # triggers for deterministic; LLM planner handles the rest).
         skills_str = "(no skills available)"
         if getattr(settings, "skills_enabled", False):
             from src.core.context import active_skills_ctx
@@ -624,7 +628,6 @@ async def analyze_query(
                 for s in _qa_skills
                 if not s.get("disable_model_invocation")
                 and (_qa_active is None or s["name"] in _qa_active)
-                and not (s.get("plan_template") or {}).get("deterministic")
             ]
             if _qa_visible:
                 skills_str = "\n".join(
@@ -1152,6 +1155,7 @@ class QueryAnalyzerService:
                 domains=domains,
                 semantic_score=confidence,
                 is_app_help_query=analysis_result.is_app_help_query,
+                detected_skill_name=analysis_result.skill_name,
             )
 
             # Build domain scores with softmax calibration

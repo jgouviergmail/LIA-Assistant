@@ -1985,7 +1985,6 @@
       "guide_modal_plan_title": "Plan Template (automation)",
       "guide_modal_plan_body": "The plan_template defines a sequence of tools executed automatically, bypassing the LLM planner. Ideal for recurring, predictable workflows. Steps without depends_on run in parallel.",
       "guide_modal_plan_fields_title": "Step fields:",
-      "guide_modal_plan_field_max_missing_domains": "Max undetected domains tolerated for matching (default: 1)",
       "guide_modal_plan_field_step_id": "Unique step identifier (e.g. get_events)",
       "guide_modal_plan_field_agent_name": "Agent name to use (see catalogue below)",
       "guide_modal_plan_field_tool_name": "Tool name to call",
@@ -2740,6 +2739,15 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_16_4": {
+          "title": "v1.16.4 — More reliable skill triggering",
+          "date": "April 2026",
+          "count": "2",
+          "items": {
+            "i1": "<b>Skills trigger more reliably on natural phrasing</b> — LIA now understands your intent by reading each skill's description rather than relying on technical hints (detected domains). Variations like \"I want my daily briefing\", \"Do my briefing\", or \"Summarize my day\" now always activate the right skill, without misfiring.",
+            "i2": "<b>Custom skill authoring simplified</b> — The <code>max_missing_domains</code> configuration field has been removed from the skill-editing guide. Skills trigger automatically when their description matches your request — no more fiddling with technical parameters for LIA to recognize them."
+          }
+        },
         "v1_16_3": {
           "title": "v1.16.3 — Enriched briefing, email fix & random phrases",
           "date": "April 2026",
