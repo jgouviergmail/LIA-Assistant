@@ -51,7 +51,7 @@
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "react-hook-form": "^7.72.1",
-    "react-i18next": "^16.5.8",
+    "react-i18next": "^17.0.3",
     "react-markdown": "^10.1.0",
     "react-snowfall": "^2.4.0",
     "recharts": "^3.8.1",
