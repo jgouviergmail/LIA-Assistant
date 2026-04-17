@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { Github } from 'lucide-react';
+import { GithubIcon } from '@/components/icons/GithubIcon';
 import { initI18next } from '@/i18n';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 import type { Language } from '@/i18n/settings';
@@ -80,7 +80,7 @@ export async function PublicFooter({ lng }: PublicFooterProps) {
             rel="noopener noreferrer"
             className="flex items-center gap-1 hover:text-foreground transition-colors"
           >
-            <Github className="w-3.5 h-3.5" />
+            <GithubIcon className="w-3.5 h-3.5" />
             GitHub
           </a>
         </div>
