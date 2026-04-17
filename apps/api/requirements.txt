@@ -64,7 +64,7 @@ apscheduler==3.11.2
 langchain-core==1.2.28
 langchain==1.2.15  # Updated 2026-03-09 for ecosystem upgrade (merge_lists fix, SummarizationMiddleware, ContextOverflowError)
 langchain-text-splitters==1.1.1  # RecursiveCharacterTextSplitter for RAG Spaces document chunking
-langchain-openai==1.1.12
+langchain-openai==1.1.14
 openai==2.31.0  # Requis par langchain-openai 1.1.10 (pin 2.14.0 levé — gardes adapter L229-239 protègent input_items)
 langgraph==1.1.6
 langgraph-checkpoint==4.0.1  # Pinné explicitement (transitif de langgraph, reproductibilité builds)
