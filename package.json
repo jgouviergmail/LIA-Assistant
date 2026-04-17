@@ -35,7 +35,8 @@
       "picomatch": "4.0.4",
       "brace-expansion": "2.0.2",
       "vite": "7.3.2",
-      "defu": "6.1.5"
+      "defu": "6.1.5",
+      "protobufjs": "^7.5.5"
     }
   }
 }
