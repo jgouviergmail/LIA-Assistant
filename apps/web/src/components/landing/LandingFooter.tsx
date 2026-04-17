@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { initI18next } from '@/i18n';
 import Image from 'next/image';
-import { Github } from 'lucide-react';
+import { GithubIcon } from '@/components/icons/GithubIcon';
 import { APP_VERSION } from '@/lib/version';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
 import type { Language } from '@/i18n/settings';
@@ -69,7 +69,7 @@ export async function LandingFooter({ lng }: LandingFooterProps) {
                           rel="noopener noreferrer"
                           className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
                         >
-                          <Github className="w-3.5 h-3.5" />
+                          <GithubIcon className="w-3.5 h-3.5" />
                           {label}
                         </a>
                       </li>
