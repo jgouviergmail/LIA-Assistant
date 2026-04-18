@@ -2710,6 +2710,17 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_16_6": {
+          "title": "v1.16.6 — Memoria a largo plazo más precisa",
+          "date": "Abril 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>Tus correcciones factuales se tienen realmente en cuenta</b> — Cuando dices «en realidad, he cambiado de trabajo, ahora estoy en Meta» o «mi hija se llama Elsa, no Emma», LIA ahora actualiza la memoria existente en lugar de crear un duplicado contradictorio. Tu historial se mantiene coherente.",
+            "i2": "<b>Memorias fijadas estrictamente protegidas</b> — LIA ya no intenta nunca modificar ni eliminar las memorias que has bloqueado. Mantienes el control total sobre lo que debe permanecer inalterado.",
+            "i3": "<b>Menos redundancia en lo que LIA recuerda</b> — Una nueva limpieza diaria fusiona automáticamente las memorias casi idénticas acumuladas a lo largo de las conversaciones. Tu perfil psicológico se mantiene nítido.",
+            "i4": "<b>Las memorias envejecen mejor</b> — LIA distingue ahora con más precisión lo que merece ser memorizado (hechos duraderos, útiles para personalizarte) de lo que es transitorio (agradecimientos, estados de ánimo pasajeros). Las preferencias de importancia media dejan de saturar la memoria después de algunas semanas, mientras que la información importante (familia, identidad, eventos destacados) se preserva a largo plazo."
+          }
+        },
         "v1_16_5": {
           "title": "v1.16.5 — Seguimiento del contexto conversacional reforzado",
           "date": "Abril 2026",

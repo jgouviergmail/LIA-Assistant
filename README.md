@@ -40,7 +40,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.16.5</strong> — Tool Context Manager simplification (two-keys design), reference resolution keeps current_item in sync, HITL update template rework — April 2026
+  <strong>Version 1.16.6</strong> — Long-term memory precision overhaul: rewritten extraction prompt, rebuilt retention formula, daily semantic consolidation job, pinned-memory protection in extraction, factual-contradiction detection — April 2026
 </p>
 
 ---

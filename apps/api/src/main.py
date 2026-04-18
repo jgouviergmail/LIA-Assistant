@@ -41,6 +41,7 @@ from src.core.constants import (
     SCHEDULER_JOB_JOURNAL_CONSOLIDATION,
     SCHEDULER_JOB_LEADER_LOCK_RENEWAL,
     SCHEDULER_JOB_MEMORY_CLEANUP,
+    SCHEDULER_JOB_MEMORY_CONSOLIDATION,
     SCHEDULER_JOB_OAUTH_HEALTH,
     SCHEDULER_JOB_PSYCHE_DREAM_CYCLE,
     SCHEDULER_JOB_REMINDER_NOTIFICATION,
@@ -64,6 +65,7 @@ from src.infrastructure.scheduler.interest_cleanup import cleanup_interests
 from src.infrastructure.scheduler.interest_notification import process_interest_notifications
 from src.infrastructure.scheduler.leader_elector import SchedulerLeaderElector
 from src.infrastructure.scheduler.memory_cleanup import cleanup_memories
+from src.infrastructure.scheduler.memory_consolidation import consolidate_memories
 from src.infrastructure.scheduler.oauth_health import check_oauth_health_all_users
 from src.infrastructure.scheduler.reminder_notification import process_pending_reminders
 from src.infrastructure.scheduler.scheduled_action_executor import process_scheduled_actions
@@ -691,6 +693,25 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             hour=settings.memory_cleanup_hour,
             minute=settings.memory_cleanup_minute,
         )
+
+        # Schedule daily memory consolidation (merge near-duplicates)
+        # Runs at configured hour (default: 5:00 AM UTC, right after cleanup)
+        # so the table is pruned before consolidation. Gated by feature flag.
+        if settings.memory_consolidation_enabled:
+            scheduler.add_job(
+                consolidate_memories,
+                trigger="cron",
+                hour=settings.memory_consolidation_hour,
+                minute=0,
+                id=SCHEDULER_JOB_MEMORY_CONSOLIDATION,
+                name="Consolidate near-duplicate memories",
+                replace_existing=True,
+            )
+            logger.info(
+                "memory_consolidation_job_scheduled",
+                hour=settings.memory_consolidation_hour,
+                similarity_threshold=settings.memory_consolidation_similarity_threshold,
+            )
 
         # Schedule daily interest cleanup (dormant marking + deletion)
         # Runs at 3:00 AM UTC (before memory cleanup at 4 AM)

@@ -15,6 +15,7 @@ Date: 2025-12-21
 
 import json
 import time
+from types import SimpleNamespace
 
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
@@ -22,6 +23,7 @@ from langchain_core.messages import AIMessage, HumanMessage
 from src.core.llm_agent_config import LLMAgentConfig
 from src.domains.agents.services.memory_extractor import (
     _cache_debug_result,
+    _format_existing_memories_with_ids,
     _format_messages_for_extraction,
     _memory_extraction_debug_cache,
     _parse_extraction_result,
@@ -297,6 +299,52 @@ class TestExtractedMemorySchema:
 
         with pytest.raises(Exception):
             ExtractedMemory(content="Test", category="personal", importance=1.1)
+
+
+@pytest.mark.unit
+class TestFormatExistingMemoriesWithIds:
+    """Tests for _format_existing_memories_with_ids — PINNED tag behavior."""
+
+    def _make_memory(self, **overrides):
+        defaults = {
+            "id": "uuid-xyz",
+            "content": "I work as an accountant",
+            "category": "personal",
+            "importance": 0.8,
+            "pinned": False,
+        }
+        defaults.update(overrides)
+        return SimpleNamespace(**defaults)
+
+    def test_unpinned_memory_no_pinned_tag(self):
+        memory = self._make_memory(pinned=False)
+        result = _format_existing_memories_with_ids([(memory, 0.85)])
+
+        assert "[PINNED]" not in result
+        assert "uuid-xyz" in result
+        assert "I work as an accountant" in result
+
+    def test_pinned_memory_includes_pinned_tag(self):
+        memory = self._make_memory(pinned=True)
+        result = _format_existing_memories_with_ids([(memory, 0.85)])
+
+        assert "[PINNED]" in result
+        assert "uuid-xyz" in result
+
+    def test_mixed_pinned_and_unpinned_memories(self):
+        pinned = self._make_memory(id="pinned-uuid", pinned=True, content="pinned fact")
+        unpinned = self._make_memory(id="normal-uuid", pinned=False, content="normal fact")
+        result = _format_existing_memories_with_ids([(pinned, 0.9), (unpinned, 0.8)])
+
+        lines = result.splitlines()
+        assert len(lines) == 2
+        pinned_line = next(line for line in lines if "pinned-uuid" in line)
+        normal_line = next(line for line in lines if "normal-uuid" in line)
+        assert "[PINNED]" in pinned_line
+        assert "[PINNED]" not in normal_line
+
+    def test_empty_list_returns_none_string(self):
+        assert _format_existing_memories_with_ids([]) == "None"
 
 
 @pytest.mark.unit

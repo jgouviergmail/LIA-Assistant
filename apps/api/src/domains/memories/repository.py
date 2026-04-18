@@ -25,6 +25,7 @@ from uuid import UUID
 
 from sqlalchemy import and_, delete, distinct, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from src.domains.memories.models import Memory, MemoryCategory
 from src.infrastructure.observability.logging import get_logger
@@ -415,17 +416,17 @@ class MemoryRepository:
     async def get_for_cleanup(
         self,
         user_id: UUID,
-        max_age_days: int,
+        min_age_for_cleanup_days: int,
     ) -> list[Memory]:
         """Get memories eligible for cleanup evaluation.
 
         Returns all non-pinned memories for a user for retention scoring.
-        The caller applies the retention algorithm (usage + importance + recency).
+        The caller applies the retention algorithm (importance + recency + usage penalty).
 
         Args:
             user_id: User UUID.
-            max_age_days: Not used for filtering (caller handles age check),
-                kept for API consistency.
+            min_age_for_cleanup_days: Not used for filtering here (caller handles the
+                grace period in should_purge), kept for API consistency.
 
         Returns:
             All non-pinned memories for the user.
@@ -454,6 +455,62 @@ class MemoryRepository:
         stmt = select(distinct(Memory.user_id))
         result = await self.db.execute(stmt)
         return [row[0] for row in result.all()]
+
+    # =========================================================================
+    # Consolidation (daily semantic deduplication)
+    # =========================================================================
+
+    async def find_consolidation_pairs(
+        self,
+        user_id: UUID,
+        similarity_threshold: float,
+        limit: int,
+    ) -> list[tuple[Memory, Memory, float]]:
+        """Find near-duplicate memory pairs eligible for consolidation.
+
+        Performs a self-join on the memories table with pgvector cosine
+        similarity. Pairs involving a pinned memory are excluded at SQL
+        level: pinned memories are user-locked and never merged. Further
+        filters (category match, emotional weight divergence) are applied
+        by the caller in Python for clarity.
+
+        Args:
+            user_id: Target user UUID.
+            similarity_threshold: Minimum cosine similarity (0.0 to 1.0)
+                for a pair to qualify as a near-duplicate.
+            limit: Maximum number of pairs returned. Caps blast radius per
+                run and keeps the sort stable.
+
+        Returns:
+            List of (memory_a, memory_b, similarity) tuples, ordered by
+            similarity descending. memory_a.id < memory_b.id for each pair
+            (canonical ordering to avoid evaluating (A,B) and (B,A) twice).
+        """
+        mem_a = aliased(Memory, name="mem_a")
+        mem_b = aliased(Memory, name="mem_b")
+
+        similarity_expr = 1.0 - mem_a.embedding.cosine_distance(mem_b.embedding)
+
+        stmt = (
+            select(mem_a, mem_b, similarity_expr.label("similarity"))
+            .where(
+                and_(
+                    mem_a.user_id == user_id,
+                    mem_b.user_id == user_id,
+                    mem_a.id < mem_b.id,
+                    mem_a.pinned.is_(False),
+                    mem_b.pinned.is_(False),
+                    mem_a.embedding.is_not(None),
+                    mem_b.embedding.is_not(None),
+                    similarity_expr >= similarity_threshold,
+                )
+            )
+            .order_by(similarity_expr.desc())
+            .limit(limit)
+        )
+
+        result = await self.db.execute(stmt)
+        return [(row[0], row[1], float(row[2])) for row in result.all()]
 
     # =========================================================================
     # GDPR / Bulk Operations

@@ -37,8 +37,6 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
 from src.core.config import settings
 from src.core.constants import (
-    MEMORY_DEDUP_MIN_SCORE,
-    MEMORY_DEDUP_SEARCH_LIMIT,
     MEMORY_EXTRACTION_QUERY_TRUNCATION_LENGTH,
     MEMORY_RELATIONSHIP_MIN_SCORE,
     MEMORY_RELATIONSHIP_SEARCH_LIMIT,
@@ -202,7 +200,9 @@ def _format_existing_memories_with_ids(
     """Format existing memories for the extraction prompt with IDs.
 
     Shows memories with their UUIDs so the LLM can reference them
-    for update/delete actions.
+    for update/delete actions. Pinned memories are tagged [PINNED] so the LLM
+    avoids emitting update/delete on user-locked entries (these would be
+    rejected downstream anyway; tagging saves output tokens and log noise).
 
     Args:
         memories: List of (Memory, score) tuples from search_by_relevance.
@@ -218,7 +218,10 @@ def _format_existing_memories_with_ids(
         content = memory.content or ""
         category = memory.category or "personal"
         importance = memory.importance or 0.7
-        lines.append(f"- [id={memory.id} | {category} | importance={importance:.1f}] {content}")
+        pinned_tag = " [PINNED]" if memory.pinned else ""
+        lines.append(
+            f"- [id={memory.id} | {category} | importance={importance:.1f}]{pinned_tag} {content}"
+        )
 
     return "\n".join(lines)
 
@@ -512,8 +515,8 @@ async def extract_memories_background(
                 existing_results = await repo.search_by_relevance(
                     user_id=UUID(user_id),
                     query_embedding=query_embedding,
-                    limit=MEMORY_DEDUP_SEARCH_LIMIT,
-                    min_score=MEMORY_DEDUP_MIN_SCORE,
+                    limit=settings.memory_dedup_search_limit,
+                    min_score=settings.memory_dedup_min_score,
                 )
 
                 # Relationship enrichment search
@@ -670,6 +673,16 @@ async def extract_memories_background(
                                 importance=action.importance or 0.7,
                             )
                             applied_count += 1
+                            logger.info(
+                                "memory_action_applied",
+                                user_id=user_id,
+                                action="create",
+                                category=action.category,
+                                importance=round(action.importance or 0.7, 2),
+                                emotional_weight=action.emotional_weight or 0,
+                                trigger_topic=action.trigger_topic or "",
+                                content_preview=(action.content or "")[:80],
+                            )
                             stored_memories_debug.append(
                                 {
                                     "action": "create",
@@ -704,6 +717,27 @@ async def extract_memories_background(
                                     importance=action.importance,
                                 )
                                 applied_count += 1
+                                logger.info(
+                                    "memory_action_applied",
+                                    user_id=user_id,
+                                    action="update",
+                                    memory_id=action.memory_id,
+                                    category=memory.category,
+                                    importance=round(
+                                        (
+                                            action.importance
+                                            if action.importance is not None
+                                            else memory.importance
+                                        ),
+                                        2,
+                                    ),
+                                    emotional_weight=(
+                                        action.emotional_weight
+                                        if action.emotional_weight is not None
+                                        else memory.emotional_weight
+                                    ),
+                                    content_preview=(action.content or memory.content or "")[:80],
+                                )
                                 stored_memories_debug.append(
                                     {
                                         "action": "update",
@@ -744,6 +778,16 @@ async def extract_memories_background(
                                     continue
                                 await service.delete_memory(memory)
                                 applied_count += 1
+                                logger.info(
+                                    "memory_action_applied",
+                                    user_id=user_id,
+                                    action="delete",
+                                    memory_id=action.memory_id,
+                                    category=memory.category,
+                                    importance=round(memory.importance, 2),
+                                    emotional_weight=memory.emotional_weight,
+                                    content_preview=(memory.content or "")[:80],
+                                )
                                 stored_memories_debug.append(
                                     {
                                         "action": "delete",

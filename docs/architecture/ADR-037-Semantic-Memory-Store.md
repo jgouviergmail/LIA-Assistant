@@ -341,18 +341,26 @@ async def export_memories(user: User):
 def calculate_retention_score(memory: dict) -> float:
     """
     Retention score formula:
-    score = 0.4 * usage_boost + 0.3 * importance + 0.3 * recency_boost
-    """
-    usage_boost = min(1.0, memory["usage_count"] / MIN_USAGE_COUNT)
-    importance_boost = memory["importance"]
-    recency_boost = max(0.0, 1.0 - age_days / MAX_AGE_DAYS)
+    score = weight_importance * importance + weight_recency * recency_factor
 
-    return 0.4 * usage_boost + 0.3 * importance_boost + 0.3 * recency_boost
+    usage_count is intentionally NOT a positive signal (semantic-retrieval
+    eligibility != actual use in a response). It is applied only as a
+    negative penalty for never-activated memories past a grace period.
+    """
+    importance_boost = memory["importance"]
+    recency_factor = max(0.0, 1.0 - age_days / RECENCY_DECAY_DAYS)
+
+    score = 0.7 * importance_boost + 0.3 * recency_factor
+
+    # Negative penalty: never-activated memories past grace period
+    if age_days > USAGE_PENALTY_AGE_DAYS and memory["usage_count"] == 0:
+        score *= USAGE_PENALTY_FACTOR
+
+    return score
 
 # Protection rules (never purged):
-# - pinned = True
-# - category = "sensitivity"
-# - abs(emotional_weight) >= 7
+# - pinned = True (user-locked)
+# - age_days < MIN_AGE_FOR_CLEANUP_DAYS (grace period)
 ```
 
 ### Configuration
@@ -372,8 +380,13 @@ memory_extraction_llm_model: str = "gpt-4.1-mini"
 memory_embedding_model: str = "text-embedding-3-small"
 memory_embedding_dimensions: int = 1536
 
-memory_max_age_days: int = 180
-memory_purge_threshold: float = 0.3
+memory_min_age_for_cleanup_days: int = 7
+memory_recency_decay_days: int = 45
+memory_usage_penalty_age_days: int = 30
+memory_usage_penalty_factor: float = 0.5
+memory_retention_weight_importance: float = 0.7
+memory_retention_weight_recency: float = 0.3
+memory_purge_threshold: float = 0.5
 memory_cleanup_hour: int = 4  # 4 AM UTC
 ```
 
@@ -447,6 +460,7 @@ vector = await embeddings.aembed_query("search query")
 - **Memory Extraction**: `apps/api/src/domains/agents/services/memory_extractor.py`
 - **Memory Router**: `apps/api/src/domains/memories/router.py`
 - **Memory Cleanup**: `apps/api/src/infrastructure/scheduler/memory_cleanup.py`
+- **Memory Consolidation**: `apps/api/src/infrastructure/scheduler/memory_consolidation.py` (daily merge of near-duplicates, runs at 5 AM UTC after cleanup)
 - **Prompts**: `apps/api/src/domains/agents/prompts/v1/memory_*.txt`
 
 ---

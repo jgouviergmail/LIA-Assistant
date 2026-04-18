@@ -1,41 +1,82 @@
-Extract NEW facts from the user's LAST message into long-term memory.
-Return [] if nothing worth memorizing (trivial questions, greetings, already known).
+Extract NEW user facts from the LAST user message into long-term memory.
+Return [] if nothing is worth memorizing.
+
+## WHAT TO EXTRACT (ALL four must hold)
+- **Durable utility** — helps personalize future unrelated conversations
+- **Stable** — lasts weeks+ (not a transient mood, state, or task)
+- **Unique** — not derivable from user profile, settings, or system context
+- **Actionable** — enables meaningful tone or content adaptation
+
+## WHAT NOT TO EXTRACT
+- Transient states ("I'm tired today", "busy right now")
+- Conversational feedback ("thanks", "shorter please", "perfect")
+- Task-only details (one-shot recipients, scheduled event specifics)
+- Facts already in EXISTING MEMORIES with equivalent content
 
 ## RULES (all mandatory)
 
-1. **First person** — Write as if the user speaks: "I like X", "My son is named Y". NEVER "The user likes..." or "You like...". Keep correct subject: "my husband sings" ≠ "I sing".
-2. **Exact words only** — Extract ONLY what is EXPLICITLY stated. NEVER infer from context. Context messages = understanding only, NOT data source.
-3. **Atomic** — One fact per memory. "I love chocolate but hate lemon" → 2 separate memories with distinct emotional_weight/trigger_topic.
-4. **Name relationships** — If KNOWN RELATIONSHIPS contains the full name, include it: "my son" → "My son Martin Dupond".
-5. **Absolute temporal references** — Memories persist indefinitely and may be recalled weeks or months later. ALL temporal references MUST be resolved to absolute dates and times using CURRENT DATE AND TIME below. A memory with "tomorrow" or "Saturday" becomes meaningless after a day.
-   - Days: "tomorrow" → "on 2026-04-11", "yesterday" → "on 2026-04-09", "Saturday" → "on 2026-04-12"
-   - Periods: "next week" → "week of 2026-04-13", "this weekend" → "2026-04-12/13", "this month" → "April 2026"
-   - Times: "in an hour" → "at 15:30 on 2026-04-10", "this afternoon" → "afternoon of 2026-04-10", "tonight" → "evening of 2026-04-10"
-   - Months: "in June" → "in June 2026", "last Christmas" → "on Christmas 2025-12-25"
-   - NEVER store: "today", "tomorrow", "yesterday", "next/last [day]", "this [period]", "in [duration]", "soon", "recently"
-6. **Qualify** — Set emotional_weight (-10 pain to +10 joy, 0 only if truly neutral) and importance (0.0-1.0, family > food preferences, "I adore" > "I like").
-7. **Categorize** — preference (likes/dislikes) | personal (identity, job) | relationship (people) | event (past/future milestones) | pattern (habits) | sensitivity (pain, trauma, illness, conflict).
+1. **First person** — Write as the user speaks: "I like X", "My son is Y". NEVER "The user...". Keep correct subject ("my husband sings" ≠ "I sing").
+2. **Facts exact, affect interpretable** — Quote facts as stated (names, dates, numbers, places). You MAY infer emotional intensity from language ("I hate", "breaks me", flat "ok"). NEVER diagnose ("anxious", "introvert") or invent facts.
+3. **Atomic** — One fact per memory. Decompose composite statements. "My brother Jean got married last year" → 2 memories: a `relationship` (Jean) + an `event` (wedding, dated).
+4. **Full names** — If KNOWN RELATIONSHIPS provides the full name, use it ("my son" → "My son Martin Dupond").
+5. **Absolute dates** — Resolve all temporal references using CURRENT DATE AND TIME. Never store "tomorrow", "last week", "soon". Use "on 2026-04-12", "in April 2026", "week of 2026-04-13".
+6. **Semantic recallability** — Write content to match how the user or assistant may later refer to it. Favor generic vocabulary over slang. Include the concept AND the specifics ("My daughter Emma, 8, loves drawing" > "Emma draws"). Pick `trigger_topic` = canonical concept, not just a name ("family daughter Emma" > "Emma").
+7. **Content language** — Write `content`, `trigger_topic`, `usage_nuance` in the user's message language. Keep JSON keys, `action`, and `category` values in English.
+
+## CATEGORIES (choose the narrowest fit; decompose when multiple fit)
+- `preference` — enduring likes/dislikes/tastes
+- `personal` — stable identity attribute (job, city, nationality, belief)
+- `relationship` — a person + their link to the user (include name if known)
+- `event` — a datable one-time occurrence, past or future (with resolved date)
+- `pattern` — recurring behavior or habit over time ("I run every morning")
+- `sensitivity` — pain, trauma, illness, grief, conflict, active avoidance
+
+## QUALIFICATION
+
+**emotional_weight** (−10 trauma → +10 joy):
+- 0: factual, no affect ("I work as an accountant")
+- ±1 to ±2: light affect ("I'm not a fan of X")
+- ±3 to ±6: marked ("I love", "it hurts")
+- ±7 to ±10: intense ("devastating", "lost my mother")
+
+**importance** (0.0 → 1.0, avoid default 0.7 by laziness):
+- 0.3 minor preference · 0.5 standard context · 0.7 meaningful relationship or stable identity · 0.9 core identity, major event, sensitivity
+
+**usage_nuance** (≤300 chars) — concrete directive to the future assistant:
+- `sensitivity` category OR `emotional_weight ≤ −3`: frame as OBLIGATION ("Never joke about...", "Do not bring up unless user does")
+- Otherwise: frame as hint ("Use when discussing...", "Helpful for personalizing...")
+
+**trigger_topic** (≤100 chars) — canonical concept-level keyword matching likely future queries, not just a name.
 
 ## ACTIONS
 
-JSON array only. No markdown, no comments.
+JSON array only. No markdown, no comments. Use ONLY UUIDs from EXISTING MEMORIES. Never invent IDs. Memories tagged `[PINNED]` are user-locked: NEVER emit update or delete for them (if a new fact contradicts a pinned memory, create a new memory with the new fact — the two will coexist).
 
-**create** — New fact:
+**create** — new fact, no equivalent existing memory:
 ```json
-{{"action":"create","content":"Fact in one sentence","category":"preference|personal|relationship|event|pattern|sensitivity","emotional_weight":-10 to +10,"trigger_topic":"keyword","usage_nuance":"How to use this info","importance":0.0 to 1.0}}
+{{"action":"create","content":"...","category":"...","emotional_weight":0,"trigger_topic":"...","usage_nuance":"...","importance":0.5}}
 ```
 
-**update** — Enrich/correct existing memory (copy-paste EXACT UUID):
+**update** — actively check: if any existing memory refers to the SAME entity (person, place, job, attribute) and the new fact changes/enriches/contradicts it → emit update. Rewrite the full content.
 ```json
-{{"action":"update","memory_id":"<UUID>","content":"Updated text","emotional_weight":0}}
+{{"action":"update","memory_id":"<UUID>","content":"...","emotional_weight":0}}
 ```
 
-**delete** — Remove obsolete/contradicted memory:
+**delete** — existing memory is now obsolete or was misrecorded and has no replacement.
 ```json
 {{"action":"delete","memory_id":"<UUID>"}}
 ```
 
-For update/delete: use ONLY UUIDs from the list below. Do NOT invent IDs.
+## EXAMPLES
+
+1. Message: *"J'ai une fille Emma, 8 ans, elle adore dessiner."*
+   → `[{{"action":"create","content":"Ma fille Emma a 8 ans et adore dessiner","category":"relationship","emotional_weight":5,"trigger_topic":"fille enfant Emma","usage_nuance":"Utiliser pour personnaliser les discussions famille/enfants","importance":0.9}}]`
+
+2. Message: *"Merci, c'était parfait !"* → `[]`
+
+3. Existing: `[id=abc-123 | personal | importance=0.8] Je travaille chez Google`
+   Message: *"En fait j'ai changé, je suis chez Meta maintenant."*
+   → `[{{"action":"update","memory_id":"abc-123","content":"Je travaille chez Meta","emotional_weight":0}}]`
 
 ## CURRENT DATE AND TIME
 {current_datetime}
@@ -46,7 +87,7 @@ For update/delete: use ONLY UUIDs from the list below. Do NOT invent IDs.
 ## EXCHANGE TO ANALYZE
 {conversation}
 
-FOCUS: Analyze ONLY the last USER message. Context is for understanding only.
+FOCUS: Extract ONLY from the LAST user message. Context is for disambiguation, not a data source.
 
-## EXISTING MEMORIES (update or delete these)
+## EXISTING MEMORIES (candidates for update/delete)
 {existing_memories}

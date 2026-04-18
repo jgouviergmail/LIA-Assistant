@@ -2957,7 +2957,8 @@ Le système utilise **APScheduler** (AsyncIOScheduler) pour les tâches planifi�
 │  ┌────────────────────────────────────────────────────────────────┐   │
 │  │              AsyncIOScheduler (16+ jobs)                       │   │
 │  │                                                                │   │
-│  │  Cron: currency_sync, memory_cleanup, interest_cleanup, ...    │   │
+│  │  Cron: currency_sync, memory_cleanup, memory_consolidation,    │   │
+│  │        interest_cleanup, ...                                   │   │
 │  │  Interval: reminder (1m), token_refresh (15m), heartbeat, ...  │   │
 │  │  Interval: journal_consolidation, attachment_cleanup, ...      │   │
 │  │  Internal: scheduler_leader_lock_renewal (30s)                 │   │

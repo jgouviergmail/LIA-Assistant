@@ -2710,6 +2710,17 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_16_6": {
+          "title": "v1.16.6 — Präziseres Langzeitgedächtnis",
+          "date": "April 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>Ihre faktischen Korrekturen werden wirklich berücksichtigt</b> — Wenn Sie sagen „eigentlich habe ich den Job gewechselt, ich arbeite jetzt bei Meta\" oder „meine Tochter heißt Elsa, nicht Emma\", aktualisiert LIA nun die bestehende Erinnerung, statt ein widersprüchliches Duplikat zu erstellen. Ihre Historie bleibt kohärent.",
+            "i2": "<b>Angeheftete Erinnerungen strikt geschützt</b> — LIA versucht nie mehr, von Ihnen fixierte Erinnerungen zu ändern oder zu löschen. Sie behalten die volle Kontrolle darüber, was unverändert bleiben soll.",
+            "i3": "<b>Weniger Redundanz in dem, woran LIA sich erinnert</b> — Eine neue tägliche Bereinigung fusioniert automatisch nahezu identische Erinnerungen, die sich über Gespräche ansammeln. Ihr psychologisches Profil bleibt prägnant.",
+            "i4": "<b>Erinnerungen altern besser</b> — LIA unterscheidet nun feiner zwischen Dingen, die es wert sind, gespeichert zu werden (dauerhafte Fakten, die zur Personalisierung nützlich sind), und transienten Informationen (Danksagungen, flüchtige Stimmungen). Mittelwichtige Präferenzen belasten den Speicher nach einigen Wochen nicht mehr, während wichtige Informationen (Familie, Identität, markante Ereignisse) dauerhaft erhalten bleiben."
+          }
+        },
         "v1_16_5": {
           "title": "v1.16.5 — Präziseres Tracking des Gesprächskontexts",
           "date": "April 2026",

@@ -2739,6 +2739,17 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_16_6": {
+          "title": "v1.16.6 — Sharper long-term memory",
+          "date": "April 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>Your factual corrections finally stick</b> — When you say \"actually, I changed jobs, I'm at Meta now\" or \"my daughter's name is Elsa, not Emma\", LIA now updates the existing memory instead of creating a contradictory duplicate. Your history stays coherent.",
+            "i2": "<b>Pinned memories strictly protected</b> — LIA never tries to modify or delete memories you've locked. You keep full control over what stays frozen.",
+            "i3": "<b>Less redundancy in what LIA remembers</b> — A new daily cleanup automatically merges near-identical memories that accumulate over conversations. Your psychological profile stays crisp.",
+            "i4": "<b>Memories age more gracefully</b> — LIA now better distinguishes what deserves to be remembered (durable facts useful for personalization) from what is transient (thanks, passing moods). Medium-importance preferences stop cluttering memory after a few weeks, while important information (family, identity, milestones) is preserved long-term."
+          }
+        },
         "v1_16_5": {
           "title": "v1.16.5 — Sharper conversational context tracking",
           "date": "April 2026",

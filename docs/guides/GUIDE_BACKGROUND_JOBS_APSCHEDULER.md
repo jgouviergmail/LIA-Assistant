@@ -132,7 +132,8 @@ class AgentsSettings(BaseSettings):
     # Memory cleanup schedule
     memory_cleanup_hour: int = Field(default=4, description="Hour (UTC) for cleanup")
     memory_cleanup_minute: int = Field(default=0)
-    memory_max_age_days: int = Field(default=180, description="Max memory age")
+    memory_min_age_for_cleanup_days: int = Field(default=7, description="Grace period before purge eligibility")
+    memory_recency_decay_days: int = Field(default=45, description="Horizon over which recency_factor decays to 0")
 
     # Currency sync schedule
     currency_sync_enabled: bool = Field(default=True)

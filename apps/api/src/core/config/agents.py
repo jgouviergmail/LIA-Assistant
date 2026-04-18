@@ -138,6 +138,13 @@ from src.core.constants import (
     MEMORY_BM25_CACHE_MAX_USERS_DEFAULT,
     MEMORY_CLEANUP_HOUR_DEFAULT,
     MEMORY_CLEANUP_MINUTE_DEFAULT,
+    MEMORY_CONSOLIDATION_EMOTIONAL_DIFF_SKIP_DEFAULT,
+    MEMORY_CONSOLIDATION_ENABLED_DEFAULT,
+    MEMORY_CONSOLIDATION_HOUR_DEFAULT,
+    MEMORY_CONSOLIDATION_MAX_PAIRS_PER_USER_DEFAULT,
+    MEMORY_CONSOLIDATION_SIMILARITY_THRESHOLD_DEFAULT,
+    MEMORY_DEDUP_MIN_SCORE_DEFAULT,
+    MEMORY_DEDUP_SEARCH_LIMIT_DEFAULT,
     MEMORY_EMBEDDING_DIMENSIONS_DEFAULT,
     MEMORY_EMBEDDING_MODEL_DEFAULT,
     MEMORY_EXTRACTION_FREQUENCY_PENALTY_DEFAULT,
@@ -150,11 +157,11 @@ from src.core.constants import (
     MEMORY_HYBRID_ALPHA_DEFAULT,
     MEMORY_HYBRID_BOOST_THRESHOLD_DEFAULT,
     MEMORY_HYBRID_MIN_SCORE_DEFAULT,
-    MEMORY_MAX_AGE_DAYS_DEFAULT,
     MEMORY_MAX_RESULTS_DEFAULT,
+    MEMORY_MIN_AGE_FOR_CLEANUP_DAYS_DEFAULT,
     MEMORY_MIN_SEARCH_SCORE_DEFAULT,
-    MEMORY_MIN_USAGE_COUNT_DEFAULT,
     MEMORY_PURGE_THRESHOLD_DEFAULT,
+    MEMORY_RECENCY_DECAY_DAYS_DEFAULT,
     MEMORY_REFERENCE_RESOLUTION_LLM_FREQUENCY_PENALTY_DEFAULT,
     MEMORY_REFERENCE_RESOLUTION_LLM_MAX_TOKENS_DEFAULT,
     MEMORY_REFERENCE_RESOLUTION_LLM_MODEL_DEFAULT,
@@ -166,7 +173,8 @@ from src.core.constants import (
     MEMORY_RELEVANCE_THRESHOLD_DEFAULT,
     MEMORY_RETENTION_WEIGHT_IMPORTANCE_DEFAULT,
     MEMORY_RETENTION_WEIGHT_RECENCY_DEFAULT,
-    MEMORY_RETENTION_WEIGHT_USAGE_DEFAULT,
+    MEMORY_USAGE_PENALTY_AGE_DAYS_DEFAULT,
+    MEMORY_USAGE_PENALTY_FACTOR_DEFAULT,
     MODEL_CALL_RUN_LIMIT_DEFAULT,
     MODEL_CALL_THREAD_LIMIT_DEFAULT,
     ORCHESTRATOR_MESSAGE_WINDOW_SIZE_DEFAULT,
@@ -1487,6 +1495,26 @@ class AgentsSettings(BaseSettings):
             "Default 0.5 balances precision and recall for conversational memory."
         ),
     )
+    memory_dedup_search_limit: int = Field(
+        default=MEMORY_DEDUP_SEARCH_LIMIT_DEFAULT,
+        ge=1,
+        le=50,
+        description=(
+            "Max candidates checked for semantic duplicates at extraction time. "
+            "Higher values catch more contradictions but increase prompt tokens."
+        ),
+    )
+    memory_dedup_min_score: float = Field(
+        default=MEMORY_DEDUP_MIN_SCORE_DEFAULT,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Min similarity score for extraction-time dedup candidates. Lower values "
+            "broaden the window and help catch factual contradictions (e.g. job/location "
+            "changes) at the cost of a few extra tokens in the extraction prompt. "
+            "Default 0.4."
+        ),
+    )
     memory_extraction_llm_model: str = Field(
         default=MEMORY_EXTRACTION_LLM_MODEL_DEFAULT,
         description=(
@@ -1574,23 +1602,43 @@ class AgentsSettings(BaseSettings):
     # Long-Term Memory - Purge Configuration (Phase 6)
     # ========================================================================
     # Controls automatic cleanup of old, unused memories.
-    # Uses a hybrid strategy: usage_count + importance + emotional_weight + age.
-    memory_max_age_days: int = Field(
-        default=MEMORY_MAX_AGE_DAYS_DEFAULT,
+    # Retention score = weight_importance * importance + weight_recency * recency_factor
+    # with a negative penalty multiplier when usage_count == 0 past a grace period.
+    memory_min_age_for_cleanup_days: int = Field(
+        default=MEMORY_MIN_AGE_FOR_CLEANUP_DAYS_DEFAULT,
         ge=1,
-        le=730,
+        le=365,
         description=(
-            "Maximum age (in days) before a memory becomes eligible for purge. "
-            "Default: 180 days (6 months). Memories younger than this are never purged."
+            "Grace period (in days) before a memory becomes eligible for purge evaluation. "
+            "Memories younger than this are never purged. Default: 7 days."
         ),
     )
-    memory_min_usage_count: int = Field(
-        default=MEMORY_MIN_USAGE_COUNT_DEFAULT,
-        ge=1,
-        le=100,
+    memory_recency_decay_days: int = Field(
+        default=MEMORY_RECENCY_DECAY_DAYS_DEFAULT,
+        ge=7,
+        le=730,
         description=(
-            "Minimum usage count for protection from purge. "
-            "Memories used >= this many times get a boost in retention score."
+            "Horizon (in days) over which recency_factor decays linearly from 1.0 to 0.0. "
+            "Shorter horizon = faster decay, more aggressive purge of non-important memories. "
+            "Default: 45 days."
+        ),
+    )
+    memory_usage_penalty_age_days: int = Field(
+        default=MEMORY_USAGE_PENALTY_AGE_DAYS_DEFAULT,
+        ge=1,
+        le=365,
+        description=(
+            "Age threshold (in days) beyond which a memory with usage_count == 0 is penalized. "
+            "Reflects that never-activated memories are likely irrelevant. Default: 30 days."
+        ),
+    )
+    memory_usage_penalty_factor: float = Field(
+        default=MEMORY_USAGE_PENALTY_FACTOR_DEFAULT,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Multiplier applied to retention score when usage_count == 0 past penalty age. "
+            "Lower value = stronger penalty. Default: 0.5 (halves the score)."
         ),
     )
     memory_purge_threshold: float = Field(
@@ -1599,7 +1647,7 @@ class AgentsSettings(BaseSettings):
         le=1.0,
         description=(
             "Retention score threshold below which memories are purged (0.0-1.0). "
-            "Score = 0.4*usage + 0.3*importance + 0.3*recency. "
+            "Score = weight_importance * importance + weight_recency * recency_factor. "
             "Lower threshold = more aggressive purge."
         ),
     )
@@ -1625,22 +1673,13 @@ class AgentsSettings(BaseSettings):
             "Prevents inflation from low-relevance retrievals."
         ),
     )
-    memory_retention_weight_usage: float = Field(
-        default=MEMORY_RETENTION_WEIGHT_USAGE_DEFAULT,
-        ge=0.0,
-        le=1.0,
-        description=(
-            "Weight for usage_count in retention score calculation. "
-            "Higher = more importance to frequently accessed memories."
-        ),
-    )
     memory_retention_weight_importance: float = Field(
         default=MEMORY_RETENTION_WEIGHT_IMPORTANCE_DEFAULT,
         ge=0.0,
         le=1.0,
         description=(
-            "Weight for importance field in retention score calculation. "
-            "Higher = more importance to high-importance memories."
+            "Weight for importance field in retention score. "
+            "Default 0.7 (dominant signal, LLM-assigned at extraction)."
         ),
     )
     memory_retention_weight_recency: float = Field(
@@ -1648,8 +1687,54 @@ class AgentsSettings(BaseSettings):
         ge=0.0,
         le=1.0,
         description=(
-            "Weight for recency in retention score calculation. "
-            "Higher = more importance to recent memories."
+            "Weight for recency_factor in retention score. "
+            "Default 0.3. Combined with weight_importance should sum to 1.0."
+        ),
+    )
+    # ========================================================================
+    # Long-Term Memory - Consolidation (daily semantic deduplication)
+    # ========================================================================
+    # Merges near-identical memory pairs to counter post-hoc accumulation that
+    # escapes the extraction-time dedup. Pairs involving a pinned memory are
+    # always skipped (user-locked). Different categories or emotional weights
+    # with large divergence are also skipped to avoid semantic coincidences.
+    memory_consolidation_enabled: bool = Field(
+        default=MEMORY_CONSOLIDATION_ENABLED_DEFAULT,
+        description="Enable the daily memory consolidation job.",
+    )
+    memory_consolidation_hour: int = Field(
+        default=MEMORY_CONSOLIDATION_HOUR_DEFAULT,
+        ge=0,
+        le=23,
+        description=(
+            "Hour (UTC) for the daily consolidation job. Default 5 AM, right after "
+            "memory_cleanup (4 AM). Ensures the table is pruned before consolidation."
+        ),
+    )
+    memory_consolidation_similarity_threshold: float = Field(
+        default=MEMORY_CONSOLIDATION_SIMILARITY_THRESHOLD_DEFAULT,
+        ge=0.5,
+        le=1.0,
+        description=(
+            "Cosine similarity threshold for considering two memories near-duplicates. "
+            "Higher = stricter, fewer fusions. Default 0.9."
+        ),
+    )
+    memory_consolidation_max_pairs_per_user: int = Field(
+        default=MEMORY_CONSOLIDATION_MAX_PAIRS_PER_USER_DEFAULT,
+        ge=1,
+        le=1000,
+        description=(
+            "Cap on fusions per user per run. Prevents cascading unintended merges. " "Default 50."
+        ),
+    )
+    memory_consolidation_emotional_diff_skip: int = Field(
+        default=MEMORY_CONSOLIDATION_EMOTIONAL_DIFF_SKIP_DEFAULT,
+        ge=0,
+        le=20,
+        description=(
+            "Skip a pair when |emotional_weight_a - emotional_weight_b| exceeds this. "
+            "Two memories with opposing affect are unlikely to be true duplicates. Default 5."
         ),
     )
     # ========================================================================

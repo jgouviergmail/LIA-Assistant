@@ -1,14 +1,19 @@
 """
 Scheduled task for automatic memory cleanup (Phase 6).
 
-Uses a hybrid retention algorithm combining:
-- Usage count (40% weight)
-- Importance score (30% weight)
-- Recency/freshness (30% weight)
+Retention formula:
+    score = weight_importance * importance + weight_recency * recency_factor
+    recency_factor = max(0, 1 - age_days / recency_decay_days)
+
+Negative penalty: if usage_count == 0 and age_days > usage_penalty_age_days,
+    score *= usage_penalty_factor
+This treats usage_count strictly as a negative signal (never-activated memories
+are suspect), avoiding the false-positive bias of counting semantic retrieval
+as actual utility.
 
 Protected memories (never auto-deleted):
-- pinned = True
-- Age < max_age_days (not yet eligible)
+- pinned = True (user-locked)
+- Age < min_age_for_cleanup_days (grace period, not yet eligible)
 
 Runs daily at configured hour (default: 4 AM UTC).
 
@@ -37,9 +42,9 @@ logger = structlog.get_logger(__name__)
 def calculate_retention_score(
     memory: Memory,
     now: datetime,
-    max_age_days: int,
-    min_usage_count: int,
-    weight_usage: float,
+    recency_decay_days: int,
+    usage_penalty_age_days: int,
+    usage_penalty_factor: float,
     weight_importance: float,
     weight_recency: float,
 ) -> float:
@@ -48,70 +53,76 @@ def calculate_retention_score(
     Higher score = higher chance of being kept.
 
     Formula:
-    - weight_usage * usage boost (usage_count / min_usage_count, capped at 1.0)
-    - weight_importance * importance boost (already 0-1)
-    - weight_recency * recency boost (1.0 for new, decays linearly with age)
+        score = weight_importance * importance + weight_recency * recency_factor
+        recency_factor = max(0, 1 - age_days / recency_decay_days)
+
+    Negative penalty:
+        if usage_count == 0 and age_days > usage_penalty_age_days:
+            score *= usage_penalty_factor
+
+    usage_count is intentionally NOT a positive signal. Semantic-retrieval
+    eligibility is not proof of actual use in a response, and the false-positive
+    rate would inflate the score of irrelevant memories. Zero activation past a
+    grace period is, however, a reliable negative signal.
 
     Args:
         memory: Memory ORM object.
         now: Current datetime.
-        max_age_days: Maximum age in days before full decay.
-        min_usage_count: Usage count for 100% usage boost.
-        weight_usage: Weight for usage component (default 0.4).
-        weight_importance: Weight for importance component (default 0.3).
-        weight_recency: Weight for recency component (default 0.3).
+        recency_decay_days: Horizon over which recency_factor decays to 0.
+        usage_penalty_age_days: Age threshold for applying zero-usage penalty.
+        usage_penalty_factor: Multiplier applied to score when penalty triggers.
+        weight_importance: Weight for importance component.
+        weight_recency: Weight for recency component.
 
     Returns:
         Retention score between 0.0 and 1.0.
     """
-    # Usage boost (0-1, capped at 1)
-    usage_count = memory.usage_count or 0
-    usage_boost = min(1.0, usage_count / max(1, min_usage_count))
-
-    # Importance boost (already 0-1)
     importance_boost = memory.importance or 0.7
 
-    # Recency boost (decays linearly with age)
     created_at = memory.created_at
     if created_at:
         age_days = (now - created_at).days
-        recency_boost = max(0.0, 1.0 - age_days / max(1, max_age_days))
+        recency_boost = max(0.0, 1.0 - age_days / max(1, recency_decay_days))
     else:
+        age_days = 0
         recency_boost = 0.5  # Default if no date
 
-    # Weighted score
-    return float(
-        weight_usage * usage_boost
-        + weight_importance * importance_boost
-        + weight_recency * recency_boost
-    )
+    score = weight_importance * importance_boost + weight_recency * recency_boost
+
+    # Negative penalty for never-activated memories past grace period
+    if age_days > usage_penalty_age_days and (memory.usage_count or 0) == 0:
+        score *= usage_penalty_factor
+
+    return float(score)
 
 
 def should_purge(
     memory: Memory,
     now: datetime,
-    max_age_days: int,
-    min_usage_count: int,
+    min_age_for_cleanup_days: int,
+    recency_decay_days: int,
+    usage_penalty_age_days: int,
+    usage_penalty_factor: float,
     purge_threshold: float,
-    weight_usage: float,
     weight_importance: float,
     weight_recency: float,
 ) -> tuple[bool, float]:
     """Determine if a memory should be purged.
 
     Protection rules (never purged):
-    1. pinned = True
-    2. Age < max_age_days (not yet eligible)
+    1. pinned = True (user-locked)
+    2. Age < min_age_for_cleanup_days (grace period)
 
     If none of the above, purge if retention_score < purge_threshold.
 
     Args:
         memory: Memory ORM object.
         now: Current datetime.
-        max_age_days: Age threshold for eligibility.
-        min_usage_count: Usage count for full boost.
+        min_age_for_cleanup_days: Grace period before purge eligibility.
+        recency_decay_days: Horizon for recency decay.
+        usage_penalty_age_days: Age threshold for zero-usage penalty.
+        usage_penalty_factor: Multiplier when penalty triggers.
         purge_threshold: Score below which to purge.
-        weight_usage: Weight for usage component.
         weight_importance: Weight for importance component.
         weight_recency: Weight for recency component.
 
@@ -122,20 +133,19 @@ def should_purge(
     if memory.pinned:
         return False, 1.0
 
-    # Protection 2: Too recent (not yet eligible)
+    # Protection 2: Grace period not yet elapsed
     created_at = memory.created_at
     if created_at:
         age_days = (now - created_at).days
-        if age_days < max_age_days:
+        if age_days < min_age_for_cleanup_days:
             return False, 1.0  # Not yet eligible
 
-    # Calculate retention score
     retention_score = calculate_retention_score(
         memory,
         now,
-        max_age_days,
-        min_usage_count,
-        weight_usage,
+        recency_decay_days,
+        usage_penalty_age_days,
+        usage_penalty_factor,
         weight_importance,
         weight_recency,
     )
@@ -147,9 +157,9 @@ async def cleanup_memories() -> dict[str, Any]:
     """Daily memory cleanup job.
 
     Iterates through all user memories and purges those that:
-    - Are older than MEMORY_MAX_AGE_DAYS
-    - Have low retention score (< MEMORY_PURGE_THRESHOLD)
-    - Are not protected (pinned only)
+    - Are past the grace period (MEMORY_MIN_AGE_FOR_CLEANUP_DAYS)
+    - Have a retention score < MEMORY_PURGE_THRESHOLD
+    - Are not pinned (user-locked)
 
     Metrics:
         - background_job_duration_seconds{job_name="memory_cleanup"}
@@ -182,19 +192,21 @@ async def cleanup_memories() -> dict[str, Any]:
         now = datetime.now(UTC)
 
         # Get config from settings
-        max_age_days = settings.memory_max_age_days
-        min_usage_count = settings.memory_min_usage_count
+        min_age_for_cleanup_days = settings.memory_min_age_for_cleanup_days
+        recency_decay_days = settings.memory_recency_decay_days
+        usage_penalty_age_days = settings.memory_usage_penalty_age_days
+        usage_penalty_factor = settings.memory_usage_penalty_factor
         purge_threshold = settings.memory_purge_threshold
-        weight_usage = settings.memory_retention_weight_usage
         weight_importance = settings.memory_retention_weight_importance
         weight_recency = settings.memory_retention_weight_recency
 
         logger.info(
             "memory_cleanup_started",
-            max_age_days=max_age_days,
-            min_usage_count=min_usage_count,
+            min_age_for_cleanup_days=min_age_for_cleanup_days,
+            recency_decay_days=recency_decay_days,
+            usage_penalty_age_days=usage_penalty_age_days,
+            usage_penalty_factor=usage_penalty_factor,
             purge_threshold=purge_threshold,
-            weight_usage=weight_usage,
             weight_importance=weight_importance,
             weight_recency=weight_recency,
         )
@@ -220,7 +232,7 @@ async def cleanup_memories() -> dict[str, Any]:
                     # Get non-pinned memories for cleanup evaluation
                     memories = await repo.get_for_cleanup(
                         user_id=user_id,
-                        max_age_days=max_age_days,
+                        min_age_for_cleanup_days=min_age_for_cleanup_days,
                     )
                 except Exception as e:
                     logger.warning(
@@ -236,10 +248,11 @@ async def cleanup_memories() -> dict[str, Any]:
                     should_delete, score = should_purge(
                         memory,
                         now,
-                        max_age_days,
-                        min_usage_count,
+                        min_age_for_cleanup_days,
+                        recency_decay_days,
+                        usage_penalty_age_days,
+                        usage_penalty_factor,
                         purge_threshold,
-                        weight_usage,
                         weight_importance,
                         weight_recency,
                     )
@@ -298,9 +311,8 @@ async def cleanup_memories() -> dict[str, Any]:
         duration = time.perf_counter() - start_time
         background_job_duration_seconds.labels(job_name=job_name).observe(duration)
 
-        logger.error(
+        logger.exception(
             "memory_cleanup_failed",
-            error=str(e),
             error_type=type(e).__name__,
             duration_seconds=round(duration, 3),
         )

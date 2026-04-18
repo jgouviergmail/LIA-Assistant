@@ -315,6 +315,18 @@ LIA learns about you through its **intelligent memory**:
 **🔄 Automatic extraction:**
 LIA analyzes your conversations and automatically extracts relevant information in the background. When you mention relative dates ("tomorrow", "next Saturday", "next week"), LIA converts them to **absolute dates** before storing — so your memories stay accurate even weeks later.
 
+**✏️ Factual corrections stick (v1.16.6):**
+When you correct a fact ("actually, I changed jobs, I'm at Meta now" or "my daughter's name is Elsa, not Emma"), LIA updates the existing memory instead of creating a contradictory duplicate. Your history stays coherent over time.
+
+**📌 Pinned memories fully protected (v1.16.6):**
+Memories you've pinned are never modified or deleted automatically — neither by the extraction pipeline nor by the cleanup jobs. You keep absolute control over what stays frozen.
+
+**🧹 Daily semantic consolidation (v1.16.6):**
+Every day, LIA merges near-identical memories that accumulate over conversations (e.g., "I love coffee in the morning" and "I drink coffee every morning"). The profile stays crisp without manual cleanup.
+
+**🌱 Memories age gracefully (v1.16.6):**
+Medium-importance preferences stop cluttering memory after a few weeks, while important information (family, identity, milestones) is preserved long-term. Memories never activated past a grace period are penalized in the retention score.
+
 **🔍 Hybrid search:**
 LIA uses **hybrid search** combining keywords (BM25) and meaning (semantic) to retrieve your relevant memories with optimal accuracy.
 

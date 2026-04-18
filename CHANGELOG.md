@@ -5,6 +5,62 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.16.6] - 2026-04-18
+
+### Long-Term Memory — Precision Overhaul
+
+Refonte complète du pipeline mémoire long-terme (extraction + rétention + consolidation). Le prompt d'extraction manquait de critères explicites sur ce qui mérite d'être mémorisé et comment formuler les souvenirs pour un recall sémantique efficace. La formule de rétention combinait trois signaux dont un (`usage_count`) était toxique (éligibilité sémantique ≠ utilité réelle) et un autre (`recency_factor`) était cassé en pratique (la même constante servait de gate et de dénominateur, le facteur tombait à 0 au moment exact où l'évaluation devenait possible). Des doublons quasi-identiques s'accumulaient sans mécanisme de consolidation. Cette release adresse ces trois axes en bloc.
+
+#### Added
+
+- **Job `memory_consolidation` quotidien à 5 h UTC** — fusionne les paires de mémoires avec similarité cosine ≥ 0.9. Exclut les mémoires épinglées (côté SQL via `WHERE NOT (a.pinned OR b.pinned)`), les paires de catégories différentes, et les paires avec écart d'`emotional_weight` > 5. Cascade de sélection du survivor : `importance > content length (completeness) > created_at (recency)` — `usage_count` délibérément absent du critère. Plafond 50 paires/user/run. Lock Redis distribué pour multi-worker safety.
+- **Tag `[PINNED]` dans le prompt d'extraction** — les mémoires verrouillées par l'utilisateur sont désormais annotées dans la section `EXISTING MEMORIES` et le LLM reçoit la règle explicite *"NEVER emit update or delete for them"*. Évite les actions rejetées downstream (économie de tokens output + moins de bruit dans les logs).
+- **Détection active de contradictions factuelles** — règle explicite dans le prompt : *"if any existing memory refers to the SAME entity and the new fact changes/enriches/contradicts it → emit update"*. Couplé à un seuil de dédup élargi, attrape les corrections utilisateur ("je suis chez Meta maintenant") qui créaient auparavant des doublons contradictoires.
+- **9 nouveaux settings Pydantic exposés via `.env`** :
+  - Consolidation (5) : `MEMORY_CONSOLIDATION_ENABLED`, `MEMORY_CONSOLIDATION_HOUR`, `MEMORY_CONSOLIDATION_SIMILARITY_THRESHOLD`, `MEMORY_CONSOLIDATION_MAX_PAIRS_PER_USER`, `MEMORY_CONSOLIDATION_EMOTIONAL_DIFF_SKIP`.
+  - Rétention (4) : `MEMORY_MIN_AGE_FOR_CLEANUP_DAYS`, `MEMORY_RECENCY_DECAY_DAYS`, `MEMORY_USAGE_PENALTY_AGE_DAYS`, `MEMORY_USAGE_PENALTY_FACTOR`.
+- **2 settings dédup exposés (étaient constantes figées)** : `MEMORY_DEDUP_SEARCH_LIMIT`, `MEMORY_DEDUP_MIN_SCORE`.
+- **Log structuré `memory_action_applied`** sur chaque `create`/`update`/`delete` mémoire avec `user_id`, `category`, `importance`, `emotional_weight`, `trigger_topic`, `content_preview`. Alimente Loki pour calibration fine.
+- **26 tests unitaires** couvrant la calibration de la formule de rétention (importance 0.5 purgée à 30 j, importance 0.9 préservée, pénalité zero-usage), la cascade de sélection du survivor, les règles de skip, et le tag `[PINNED]`.
+
+#### Changed
+
+- **Prompt d'extraction entièrement réécrit** (`memory_extraction_prompt.txt`) — remplace l'ancienne structure ambiguë (règles monolithiques, *"Exact words only"* absolutiste, catégories sans définitions) par :
+  - Sections explicites `WHAT TO EXTRACT` (4 critères positifs : utilité durable, stabilité, unicité, actionabilité) et `WHAT NOT TO EXTRACT` (4 critères négatifs avec exemples).
+  - Règle 2 assouplie : *"Facts exact, affect interpretable"* — interprétation émotionnelle autorisée, inférences psychologiques toujours interdites.
+  - Nouvelle règle `Semantic recallability` — formuler le `content` et le `trigger_topic` en concepts canoniques qui matcheront les requêtes futures.
+  - Nouvelle règle `Content language` — produire dans la langue du message utilisateur (structures JSON en anglais).
+  - Définitions précises des 6 catégories + règle de décomposition atomique en cas d'ambiguïté.
+  - Bandes explicites pour `emotional_weight` (0 / ±1-2 / ±3-6 / ±7-10) et `importance` (0.3 / 0.5 / 0.7 / 0.9) avec ancres concrètes.
+  - 3 few-shot examples (extraction nominale, rejet de bruit, correction contradictoire via `update`).
+- **Formule de rétention refondue** — `score = 0.7 * importance + 0.3 * recency_factor` avec pénalité négative `score *= 0.5` si `usage_count == 0` et `age_days > 30`. L'ancienne formule `0.4 * usage_boost + 0.3 * importance + 0.3 * recency_boost` avait trois problèmes : `usage_count` était un signal toxique (éligibilité sémantique ≠ utilité réelle, taux de faux positifs), `recency_factor` était quasi systématiquement à 0 (bug de configuration), et `importance` à 0.3 de poids n'était pas assez dominant.
+- **Gate d'éligibilité séparé du decay** — `MEMORY_MIN_AGE_FOR_CLEANUP_DAYS = 7` (protection nouveau-né) indépendant de `MEMORY_RECENCY_DECAY_DAYS = 45` (horizon de décroissance). Résout le bug où `recency_factor` valait toujours 0 dès qu'une mémoire devenait éligible.
+- **Seuil de dédup extraction abaissé** 0.5 → 0.4 (`MEMORY_DEDUP_MIN_SCORE`) pour élargir la fenêtre de détection des contradictions factuelles sans surcoût LLM (seulement +50-100 tokens d'input par run, amortis par cache).
+- **`logger.exception()` remplace `logger.error()`** dans les handlers globaux de `memory_cleanup.py` et `memory_consolidation.py` pour capturer la stack trace complète dans Loki.
+- **Docstrings et noms de paramètres** — `max_age_days` renommé `min_age_for_cleanup_days` partout (repository + scheduler) pour refléter la vraie sémantique.
+
+#### Fixed
+
+- **`recency_factor` toujours à 0 en pratique** — `MEMORY_MAX_AGE_DAYS = 2` servait à la fois de gate d'éligibilité ET de dénominateur du decay linéaire. Conséquence : toute mémoire évaluée avait `recency_factor ≤ max(0, 1 - 2/2) = 0`. La formule reposait de facto uniquement sur `usage_count` (toxique). Corrigé par séparation des deux horizons.
+- **Mémoires d'importance moyenne (0.5) jamais purgées** malgré leur âge — critère produit non respecté. Désormais purgées autour de 30 jours avec la formule recalibrée.
+- **Corrections factuelles créaient des doublons contradictoires** — ex : mémoire existante *"Je travaille chez Google"* + utilisateur dit *"J'ai changé, je suis chez Meta"* → la dédup à 0.5 n'attrapait pas la relation (sémantiquement divergente), le LLM émettait `create` au lieu de `update`. Résolu par seuil élargi + règle de détection active dans le prompt.
+- **Protections obsolètes dans la documentation ADR** (filtres par catégorie `sensitivity`, par `abs(emotional_weight) >= 7`, par `emotional_protection_threshold`) qui n'étaient **jamais implémentées** dans le code réel. Les docs citaient un système plus riche que la réalité. Harmonisé — seules les deux protections effectives restent documentées : `pinned = True` et grace period.
+- **`existing_similar` debug loupait les contradictions** — seuil élargi de 0.5 à 0.4 fait apparaître les candidats quasi-contradictoires dans le debug panel pour calibration.
+
+#### Removed
+
+- **3 settings obsolètes** : `memory_max_age_days`, `memory_min_usage_count`, `memory_retention_weight_usage` — remplacés par la nouvelle modélisation.
+- **Ordre de priorité des catégories** dans le prompt d'extraction — confusion initiale entre priorité d'affichage (dans le profil psycho) et priorité de classification (à l'extraction). Remplacé par des définitions précises + règle de décomposition atomique.
+- **Règle *"Exact words only"*** du prompt d'extraction — remplacée par *"Facts exact, affect interpretable"* pour permettre l'interprétation émotionnelle implicite tout en interdisant le diagnostic psychologique.
+
+#### Documentation
+
+- `docs/architecture/ADR-037-Semantic-Memory-Store.md` — formule de rétention et pointer vers `memory_consolidation.py` ajouté.
+- `docs/architecture/ADR-042-Conversation-Lifecycle-Management.md` — formule de rétention et `_is_protected` simplifié (suppression des protections docs-only non implémentées).
+- `docs/architecture/ADR-046-Background-Job-Scheduling.md` — ligne `memory_consolidation` dans le tableau des jobs + bloc `calculate_retention_score` / `should_purge` réécrit.
+- `docs/ARCHITECTURE.md` — `memory_consolidation` ajouté à la liste des cron jobs APScheduler.
+- `docs/guides/GUIDE_BACKGROUND_JOBS_APSCHEDULER.md` — exemples de settings alignés sur la nouvelle API.
+
 ## [1.16.5] - 2026-04-18
 
 ### Tool Context Manager — Two-Keys Simplification (ADR-072)

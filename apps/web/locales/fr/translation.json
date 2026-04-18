@@ -2761,6 +2761,17 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_16_6": {
+          "title": "v1.16.6 — Mémoire long terme plus fidèle",
+          "date": "Avril 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>Vos corrections factuelles sont vraiment prises en compte</b> — Quand vous dites « en fait, j'ai changé de job, je suis chez Meta maintenant » ou « ma fille s'appelle Elsa, pas Emma », LIA met désormais à jour la mémoire existante au lieu de créer un doublon contradictoire. Votre historique reste cohérent.",
+            "i2": "<b>Mémoires épinglées strictement protégées</b> — LIA n'essaie plus jamais de modifier ni de supprimer les mémoires que vous avez verrouillées. Vous gardez un contrôle total sur ce qui doit rester figé.",
+            "i3": "<b>Moins de doublons dans ce dont LIA se souvient</b> — Un nouveau nettoyage quotidien fusionne automatiquement les mémoires quasi-identiques accumulées au fil des conversations. Le profil psychologique reste net.",
+            "i4": "<b>Mémoires qui vieillissent mieux</b> — LIA distingue désormais plus finement ce qui mérite d'être mémorisé (faits durables, utiles pour vous personnaliser) de ce qui est transitoire (remerciements, humeurs passagères). Les préférences moyennes cessent d'encombrer la mémoire après quelques semaines, tandis que les informations importantes (famille, identité, événements marquants) sont préservées durablement."
+          }
+        },
         "v1_16_5": {
           "title": "v1.16.5 — Suivi du contexte conversationnel renforcé",
           "date": "Avril 2026",

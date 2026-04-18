@@ -404,6 +404,7 @@ CURRENCY_SYNC_MINUTE = 0
 # APScheduler job IDs
 SCHEDULER_JOB_CURRENCY_SYNC = "sync_currency_rates"
 SCHEDULER_JOB_MEMORY_CLEANUP = "memory_cleanup"
+SCHEDULER_JOB_MEMORY_CONSOLIDATION = "memory_consolidation"
 SCHEDULER_JOB_REMINDER_NOTIFICATION = "reminder_notification"
 SCHEDULER_JOB_UNVERIFIED_CLEANUP = "unverified_account_cleanup"
 SCHEDULER_JOB_TOKEN_REFRESH = "token_refresh"
@@ -1056,9 +1057,11 @@ MICROSOFT_GRAPH_BASE_URL = "https://graph.microsoft.com/v1.0"
 MEMORY_EXTRACTION_QUERY_TRUNCATION_LENGTH = 500
 
 # Deduplication search parameters
-# Used to find existing similar memories before storing new ones
-MEMORY_DEDUP_SEARCH_LIMIT = 10  # Max results to check for duplicates
-MEMORY_DEDUP_MIN_SCORE = 0.5  # Min similarity score for potential duplicate
+# Used to find existing similar memories before storing new ones.
+# Threshold lowered to 0.4 to broaden the recall window for factual contradictions
+# (e.g., job/location changes), which the extraction prompt explicitly handles.
+MEMORY_DEDUP_SEARCH_LIMIT_DEFAULT = 10  # Max results to check for duplicates
+MEMORY_DEDUP_MIN_SCORE_DEFAULT = 0.4  # Min similarity score for potential duplicate
 
 # Relationship enrichment search parameters
 # Used to find known relationships for name resolution (e.g., "my son" → "John Smith")
@@ -1764,15 +1767,31 @@ MEMORY_EMBEDDING_MODEL_DEFAULT = "models/gemini-embedding-001"
 MEMORY_EMBEDDING_DIMENSIONS_DEFAULT = 1536
 INTEREST_EMBEDDING_MODEL_DEFAULT = "models/gemini-embedding-001"
 INTEREST_EMBEDDING_DIMENSIONS_DEFAULT = 1536
-MEMORY_MAX_AGE_DAYS_DEFAULT = 2  # Aligned from .env.prod (was 180)
-MEMORY_MIN_USAGE_COUNT_DEFAULT = 1  # Aligned from .env.prod (was 3)
-MEMORY_PURGE_THRESHOLD_DEFAULT = 0.5  # Aligned from .env.prod (was 0.3)
+MEMORY_PURGE_THRESHOLD_DEFAULT = 0.5  # Score below this triggers purge
 MEMORY_CLEANUP_HOUR_DEFAULT = 4
 MEMORY_CLEANUP_MINUTE_DEFAULT = 0
 MEMORY_RELEVANCE_THRESHOLD_DEFAULT = 0.72  # Calibrated for Gemini embedding-001 (2026-04-09)
-MEMORY_RETENTION_WEIGHT_USAGE_DEFAULT = 0.4
-MEMORY_RETENTION_WEIGHT_IMPORTANCE_DEFAULT = 0.3
+# Retention score = weight_importance * importance + weight_recency * recency_factor
+# usage_count is NOT a positive signal (eligibility at 0.72 != actual use in response).
+# It is kept as a negative penalty only: if usage_count==0 beyond usage_penalty_age_days,
+# the score is multiplied by usage_penalty_factor.
+MEMORY_RETENTION_WEIGHT_IMPORTANCE_DEFAULT = 0.7
 MEMORY_RETENTION_WEIGHT_RECENCY_DEFAULT = 0.3
+MEMORY_MIN_AGE_FOR_CLEANUP_DAYS_DEFAULT = 7  # Memories younger than this are not eligible for purge
+MEMORY_RECENCY_DECAY_DAYS_DEFAULT = 45  # Horizon over which recency_factor decays from 1.0 to 0.0
+MEMORY_USAGE_PENALTY_AGE_DAYS_DEFAULT = 30  # Age threshold for applying zero-usage penalty
+MEMORY_USAGE_PENALTY_FACTOR_DEFAULT = (
+    0.5  # Multiplier on score when usage_count==0 beyond threshold
+)
+
+# Memory Consolidation (daily semantic deduplication of near-identical memories)
+# A pair is consolidated only if similarity >= threshold, neither is pinned,
+# categories match, and emotional weights don't differ drastically.
+MEMORY_CONSOLIDATION_ENABLED_DEFAULT = True
+MEMORY_CONSOLIDATION_HOUR_DEFAULT = 5  # UTC, right after memory_cleanup (4 AM UTC)
+MEMORY_CONSOLIDATION_SIMILARITY_THRESHOLD_DEFAULT = 0.9  # Cosine similarity threshold
+MEMORY_CONSOLIDATION_MAX_PAIRS_PER_USER_DEFAULT = 50  # Cap per user per run
+MEMORY_CONSOLIDATION_EMOTIONAL_DIFF_SKIP_DEFAULT = 5  # Skip pair if |weight_a - weight_b| > this
 MEMORY_REFERENCE_RESOLUTION_TIMEOUT_MS_DEFAULT = 30000  # Aligned from .env.prod (was 2000)
 MEMORY_REFERENCE_RESOLUTION_LLM_PROVIDER_CONFIG_DEFAULT = "{}"
 MEMORY_REFERENCE_RESOLUTION_LLM_MODEL_DEFAULT = "qwen3.5-plus"

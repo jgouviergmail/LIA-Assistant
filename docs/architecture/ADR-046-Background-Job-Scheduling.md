@@ -245,9 +245,9 @@ async def cleanup_memories() -> dict:
     Daily memory cleanup job with hybrid retention algorithm.
 
     Purges memories that:
-    - Are older than MEMORY_MAX_AGE_DAYS
+    - Are past the grace period (MEMORY_MIN_AGE_FOR_CLEANUP_DAYS)
     - Have low retention score (< MEMORY_PURGE_THRESHOLD)
-    - Are not protected (pinned, sensitive, highly emotional)
+    - Are not pinned (user-locked)
     """
     # Implementation with retention scoring...
     pass
@@ -255,40 +255,40 @@ async def cleanup_memories() -> dict:
 def calculate_retention_score(
     memory: dict,
     now: datetime,
-    max_age_days: int,
-    min_usage_count: int,
+    recency_decay_days: int,
+    usage_penalty_age_days: int,
+    usage_penalty_factor: float,
 ) -> float:
     """
     Calculate retention score for a memory (0-1).
 
     Formula:
-    - 40% usage boost (usage_count / min_usage_count, capped at 1.0)
-    - 30% importance boost (already 0-1)
-    - 30% recency boost (1.0 for new, decays linearly)
+        score = 0.7 * importance + 0.3 * recency_factor
+        recency_factor = max(0, 1 - age_days / recency_decay_days)
+
+    Negative penalty: if usage_count == 0 and age_days > usage_penalty_age_days,
+        score *= usage_penalty_factor
+    (usage_count is not a positive signal: semantic-retrieval eligibility is
+    not proof of actual use in a response.)
     """
-    usage_boost = min(1.0, usage_count / max(1, min_usage_count))
     importance_boost = memory.get("importance", 0.7)
-    recency_boost = max(0.0, 1.0 - age_days / max(1, max_age_days))
+    recency_factor = max(0.0, 1.0 - age_days / max(1, recency_decay_days))
 
-    return 0.4 * usage_boost + 0.3 * importance_boost + 0.3 * recency_boost
+    score = 0.7 * importance_boost + 0.3 * recency_factor
 
-def should_purge(memory, now, max_age_days, min_usage_count, purge_threshold):
+    if age_days > usage_penalty_age_days and memory.get("usage_count", 0) == 0:
+        score *= usage_penalty_factor
+
+    return score
+
+def should_purge(memory, now, min_age_for_cleanup_days, purge_threshold, ...):
     """Determine if a memory should be purged."""
-    # Protection 1: Pinned
+    # Protection 1: Pinned (user-locked)
     if memory.get("pinned", False):
         return False, 1.0
 
-    # Protection 2: Protected category (sensitivity)
-    if memory.get("category") in PROTECTED_CATEGORIES:
-        return False, 1.0
-
-    # Protection 3: High emotional weight
-    emotional = memory.get("emotional_weight", 0)
-    if abs(emotional) >= settings.memory_emotional_protection_threshold:
-        return False, 1.0
-
-    # Protection 4: Too recent
-    if age_days < max_age_days:
+    # Protection 2: Grace period (age < min_age_for_cleanup_days)
+    if age_days < min_age_for_cleanup_days:
         return False, 1.0
 
     retention_score = calculate_retention_score(...)
@@ -647,22 +647,39 @@ SCHEDULER_JOB_REMINDER_NOTIFICATION = "reminder_notification"
 |--------|---------|----------|-------------|
 | `sync_currency_rates` | Cron | 3:00 AM UTC | Sync USD→EUR exchange rates |
 | `memory_cleanup` | Cron | 4:00 AM UTC | Purge old unused memories |
+| `memory_consolidation` | Cron | 5:00 AM UTC | Merge near-duplicate memories (daily) |
 | `reminder_notification` | Interval | Every 1 minute | Process pending reminders |
 
 ```python
 # apps/api/src/core/config/agents.py
 
-memory_max_age_days: int = Field(
-    default=180,
-    description="Maximum age before memory eligible for purge",
+memory_min_age_for_cleanup_days: int = Field(
+    default=7,
+    description="Grace period (days) before a memory becomes purge-eligible",
 )
-memory_min_usage_count: int = Field(
-    default=3,
-    description="Minimum usage count for protection",
+memory_recency_decay_days: int = Field(
+    default=45,
+    description="Horizon (days) over which recency_factor decays from 1.0 to 0.0",
+)
+memory_usage_penalty_age_days: int = Field(
+    default=30,
+    description="Age threshold beyond which usage_count==0 triggers a score penalty",
+)
+memory_usage_penalty_factor: float = Field(
+    default=0.5,
+    description="Multiplier applied to score when usage_count==0 past penalty age",
+)
+memory_retention_weight_importance: float = Field(
+    default=0.7,
+    description="Weight for importance in retention score (dominant signal)",
+)
+memory_retention_weight_recency: float = Field(
+    default=0.3,
+    description="Weight for recency_factor in retention score",
 )
 memory_purge_threshold: float = Field(
-    default=0.3,
-    description="Retention score threshold (0-1)",
+    default=0.5,
+    description="Retention score threshold (0-1) below which memories are purged",
 )
 memory_cleanup_hour: int = Field(
     default=4,
@@ -670,10 +687,6 @@ memory_cleanup_hour: int = Field(
 )
 memory_cleanup_minute: int = Field(
     default=0,
-)
-memory_emotional_protection_threshold: int = Field(
-    default=7,
-    description="Absolute emotional weight for protection",
 )
 ```
 

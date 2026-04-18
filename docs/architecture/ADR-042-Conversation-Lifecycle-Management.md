@@ -363,12 +363,12 @@ class MemoryCleanupJob:
         Execute memory cleanup with retention scoring.
 
         Retention Score Formula:
-        score = 0.4 * usage_boost + 0.3 * importance + 0.3 * recency_boost
+        score = 0.7 * importance + 0.3 * recency_factor
+        (usage_count applied only as negative penalty when == 0 past grace period)
 
-        Protected Categories (never purged):
-        - pinned = True
-        - category = "sensitivity"
-        - abs(emotional_weight) >= emotional_protection_threshold
+        Protections (never purged):
+        - pinned = True (user-locked)
+        - age_days < min_age_for_cleanup_days (grace period, default 7 days)
         """
         stats = CleanupStats()
 
@@ -400,16 +400,18 @@ class MemoryCleanupJob:
 
         return stats
 
-    def _is_protected(self, memory: dict) -> bool:
-        """Check if memory is protected from purge."""
+    def _is_protected(self, memory: dict, age_days: int) -> bool:
+        """Check if memory is protected from purge.
+
+        Only two protections remain after the v1.16+ refactor: pinned (user-locked)
+        and grace period. Category- and emotional-based protections were removed
+        because they overlapped with `importance` (which the LLM already sets high
+        for sensitivities) and lacked empirical justification.
+        """
         if memory.get("pinned", False):
             return True
 
-        if memory.get("category") == "sensitivity":
-            return True
-
-        emotional_weight = abs(memory.get("emotional_weight", 0))
-        if emotional_weight >= settings.memory_emotional_protection_threshold:
+        if age_days < settings.memory_min_age_for_cleanup_days:
             return True
 
         return False
@@ -418,24 +420,29 @@ class MemoryCleanupJob:
         """
         Calculate retention score (0-1).
 
-        Higher score = keep longer.
+        Higher score = keep longer. usage_count is intentionally NOT a positive
+        signal (eligibility at retrieval threshold != actual use in response).
+        It is applied only as a negative penalty for never-activated memories.
         """
-        # Usage boost (40% weight)
-        usage_count = memory.get("usage_count", 0)
-        usage_boost = min(1.0, usage_count / settings.memory_min_usage_count)
-
-        # Importance boost (30% weight)
-        importance = memory.get("importance", 0.5)
+        # Importance boost (70% weight, dominant signal)
+        importance = memory.get("importance", 0.7)
 
         # Recency boost (30% weight)
-        last_accessed = memory.get("last_accessed_at")
-        if last_accessed:
-            age_days = (datetime.utcnow() - last_accessed).days
-            recency_boost = max(0.0, 1.0 - age_days / settings.memory_max_age_days)
+        created_at = memory.get("created_at")
+        if created_at:
+            age_days = (datetime.utcnow() - created_at).days
+            recency_factor = max(0.0, 1.0 - age_days / settings.memory_recency_decay_days)
         else:
-            recency_boost = 0.0
+            age_days = 0
+            recency_factor = 0.5
 
-        return 0.4 * usage_boost + 0.3 * importance + 0.3 * recency_boost
+        score = 0.7 * importance + 0.3 * recency_factor
+
+        # Negative penalty: never-activated memories past grace period are suspect
+        if age_days > settings.memory_usage_penalty_age_days and memory.get("usage_count", 0) == 0:
+            score *= settings.memory_usage_penalty_factor
+
+        return score
 ```
 
 ### GDPR Compliance Endpoints
