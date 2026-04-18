@@ -4,13 +4,12 @@ Pydantic schemas for Tool Context Management.
 Defines type-safe data structures for storing and retrieving tool results
 in LangGraph BaseStore.
 
-Architecture:
+Architecture (two-keys design, 2026-04):
     - ToolContextList: Liste d'items pour un domaine (stored under key "list")
-    - ToolContextDetails: Item details for a domain (stored under key "details")
     - ToolContextCurrentItem: Item courant pour un domaine (stored under key "current")
     - ResolutionResult: Result of reference resolution
     - ContextMetadata: Additional metadata for context items
-    - ContextSaveMode: Classification enum for save routing (list vs details vs current)
+    - ContextSaveMode: Classification enum for save routing (list vs current)
 
 These schemas ensure type safety across the entire context management system.
 """
@@ -25,31 +24,26 @@ class ContextSaveMode(str, Enum):
     """
     Classification modes for context save routing.
 
-    Determines which Store key to use when auto-saving tool results.
+    Determines where tool results should be persisted in the TCM.
 
     Modes:
-        LIST: Search/list results → Store key "list" (overwrite behavior)
-        DETAILS: Item details → Store key "details" (LRU merge, max 10 items)
-        CURRENT: Selected item → Store key "current" (manual set only)
+        LIST: Search/list results → Store key "list" (overwrite behavior, auto-manages current)
+        CURRENT: Single focused item → Store key "current" only (never touches "list")
         NONE: No auto-save (tool doesn't produce context-worthy results)
 
     Usage:
-        >>> mode = classify_save_mode(tool_name="search_contacts_tool", result_count=10)
-        >>> # Returns ContextSaveMode.LIST
+        - Search/list tools (`get_X_tool(query=)`) → LIST
+        - Direct ID fetch (`get_X_tool(event_id=)`) → CURRENT (preserves LIST)
+        - Batch ID fetch (`event_ids=[a,b,c]`) → CURRENT with N>1 → clears current, preserves LIST
+        - Create/Update via HITL → CURRENT (set newly-created/updated item as focused)
+        - Delete via HITL → not auto-save, uses remove_item_from_list() directly
 
-        >>> mode = classify_save_mode(tool_name="get_contact_details_tool", result_count=2)
-        >>> # Returns ContextSaveMode.DETAILS
-
-    Convention-based Classification Rules:
-        1. Tool name contains "search", "list", "find" → LIST
-        2. Tool name contains "get", "show", "detail" → DETAILS
-        3. Result count > 10 → LIST
-        4. Result count <= 10 → DETAILS
-        5. Explicit manifest.context_save_mode → Use explicit mode
+    Classification Rule (single):
+        - If tool sets context_save_mode explicitly → use it
+        - Default → LIST (conservative: assume bulk operation result)
     """
 
     LIST = "list"
-    DETAILS = "details"
     CURRENT = "current"
     NONE = "none"
 
@@ -166,76 +160,6 @@ class ToolContextList(BaseModel):
         Example:
             >>> item = context_list.get_item_by_field("resource_name", "people/c123")
         """
-        for item in self.items:
-            if item.get(field_name) == field_value:
-                return item
-        return None
-
-
-class ToolContextDetails(BaseModel):
-    """
-    Item details for a specific domain (LRU cache pattern).
-
-    Stored in LangGraph BaseStore under:
-        Namespace: (user_id, "context", domain)
-        Key: "details"
-
-    This schema implements an LRU (Least Recently Used) cache for detailed item views.
-    Unlike ToolContextList (which overwrites), ToolContextDetails MERGES new items
-    and evicts oldest when max_items is reached.
-
-    Attributes:
-        domain: Domain identifier ("contacts", "emails", "events").
-        items: List of detailed items (max 10 by default).
-        metadata: Metadata for the details cache.
-
-    Example:
-        >>> # Initial state: Empty details
-        >>> details = ToolContextDetails(domain="contacts", items=[], metadata=...)
-
-        >>> # After get_contact_details("people/c123")
-        >>> details.items = [{"index": 1, "resource_name": "people/c123", ...}]
-
-        >>> # After get_contact_details("people/c456", "people/c789")
-        >>> details.items = [
-        ...     {"index": 1, "resource_name": "people/c123", ...},  # Existing
-        ...     {"index": 2, "resource_name": "people/c456", ...},  # New
-        ...     {"index": 3, "resource_name": "people/c789", ...},  # New
-        ... ]
-
-    Merge Logic (LRU):
-        1. Fetch existing ToolContextDetails from Store key "details"
-        2. Merge new items (deduplicate by primary_id_field)
-        3. Reindex items (1-based sequential)
-        4. Evict oldest items if count > max_items (default 10)
-        5. Update metadata.total_count and timestamp
-        6. Save back to Store key "details"
-
-    Store Pattern:
-        >>> namespace = (user_id, "context", "contacts")
-        >>> key = "details"
-        >>> await store.aput(namespace, key, details.model_dump())
-
-    Difference from ToolContextList:
-        - ToolContextList: Overwrites on save (for search results)
-        - ToolContextDetails: Merges on save (accumulates detail views)
-    """
-
-    domain: str = Field(description="Domain identifier (contacts, emails, events)")
-    items: list[dict[str, Any]] = Field(
-        description="Detailed items with enriched data (includes 'index' field)"
-    )
-    metadata: ContextMetadata = Field(description="Details cache metadata")
-
-    def get_item_by_index(self, index: int) -> dict[str, Any] | None:
-        """Get item by 1-based index."""
-        for item in self.items:
-            if item.get("index") == index:
-                return item
-        return None
-
-    def get_item_by_field(self, field_name: str, field_value: Any) -> dict[str, Any] | None:
-        """Get item by field exact match."""
         for item in self.items:
             if item.get(field_name) == field_value:
                 return item

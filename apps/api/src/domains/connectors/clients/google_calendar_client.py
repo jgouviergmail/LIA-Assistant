@@ -14,6 +14,7 @@ from uuid import UUID
 import structlog
 
 from src.core.i18n_api_messages import APIMessages
+from src.core.time_utils import normalize_to_rfc3339
 from src.domains.connectors.clients.base_google_client import BaseGoogleClient
 from src.domains.connectors.models import ConnectorType
 from src.domains.connectors.schemas import ConnectorCredentials
@@ -377,19 +378,33 @@ class GoogleCalendarClient(BaseGoogleClient):
             event_body["summary"] = existing_event["summary"]
 
         # Update datetime fields
+        # Google Calendar requires start and end to use the same format.
+        # Detect from EXISTING event whether it's all-day or timed,
+        # then force the same format regardless of what the LLM produced.
+        is_all_day = "date" in existing_event.get(
+            "start", {}
+        ) and "dateTime" not in existing_event.get("start", {})
+
         if start_datetime is not None:
-            event_body["start"] = {
-                "dateTime": start_datetime,
-                "timeZone": effective_timezone,
-            }
+            if is_all_day:
+                # All-day: strip any time part, keep YYYY-MM-DD only
+                event_body["start"] = {"date": str(start_datetime).split("T")[0]}
+            else:
+                event_body["start"] = {
+                    "dateTime": normalize_to_rfc3339(start_datetime) or start_datetime,
+                    "timeZone": effective_timezone,
+                }
         elif "start" in existing_event:
             event_body["start"] = existing_event["start"]
 
         if end_datetime is not None:
-            event_body["end"] = {
-                "dateTime": end_datetime,
-                "timeZone": effective_timezone,
-            }
+            if is_all_day:
+                event_body["end"] = {"date": str(end_datetime).split("T")[0]}
+            else:
+                event_body["end"] = {
+                    "dateTime": normalize_to_rfc3339(end_datetime) or end_datetime,
+                    "timeZone": effective_timezone,
+                }
         elif "end" in existing_event:
             event_body["end"] = existing_event["end"]
 

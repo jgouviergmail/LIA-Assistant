@@ -5,6 +5,51 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.16.5] - 2026-04-18
+
+### Tool Context Manager — Two-Keys Simplification (ADR-072)
+
+Refonte structurelle du Tool Context Manager : passage de 3 clés persistantes (`list` / `details` / `current`) à 2 clés (`list` + `current`). Le cache LRU `details` — vestige de l'époque où les tools de recherche renvoyaient des vues résumées — n'était plus lu en source primaire depuis que les tools unifiés (`get_events_tool`, etc.) retournent systématiquement le payload complet. Sa suppression élimine à la racine trois classes de bugs.
+
+#### Fixed
+
+- **Bug 1 — double auto_save avec pollution du cache `details`** : le décorateur `@auto_save_context` et `parallel_executor._auto_save_wave_contexts` sauvegardaient le même résultat deux fois. Lorsque le manifest n'avait plus de `context_save_mode` explicite, la seconde passe classifiait `get_events_tool` comme DETAILS (match sur `"get"`), polluant le cache. Résolu par un sentinel `_tcm_saved` dans `tool_metadata` que le parallel_executor respecte.
+- **Bug 2 — `current_item` mauvais après création/update HITL** : `_set_current_item_after_execution` appelait `save_details` qui cherchait l'item par `primary_id_field="id"`, mais `execute_event_draft` retourne `event_id`. Le lookup échouait, l'item n'était pas indexé, et le fallback `indexed_items[-1]` pointait sur un ancien rdv du cache. Résolu par un appel direct à `set_current_item` (pas de primary_id lookup à l'écriture).
+- **Bug 3 — `current_item` stale après évocation linguistique** : après création/update d'un rdv, `current` restait sur lui. Si l'utilisateur disait ensuite `"c'était quoi le premier rdv ?"` puis `"supprime ce rdv"`, `current` n'était pas actualisé par la résolution ordinale et la suppression ciblait l'ancien item. Résolu en rendant `ContextResolutionService` writer de `current_item` : toute résolution réussie met à jour le focus (1 item → set, N>1 → clear).
+- **Bug 4 — `turn_type` convention mismatch** : `QueryIntelligence.turn_type` émettait `"REFERENCE_ACTION"` (UPPERCASE) tandis que les consumers comparaient contre `TURN_TYPE_REFERENCE = "reference"` (lowercase). Les turns de référence étaient silencieusement traités comme conversationnels, privant le response_node du `resolved_context` pour grounding. Résolu par helpers `is_reference_turn()` / `is_action_turn()` / `is_conversational_turn()` case-tolerant + normalisation `.lower()` à l'écriture dans le router.
+- **Bug 5 — LIST stale après update/delete HITL** : les mutations HITL ne propagaient pas dans la LIST, qui contenait une version obsolète de l'item updated ou conservait un stub supprimé. Résolu par nouveau dispatcher `_sync_tcm_after_draft_execution` : create → set current ; update → set current + `update_item_in_list` ; delete → `remove_item_from_list` + safety-net clear current.
+
+#### Changed
+
+- **HITL update template — structure en 2 blocs étiquetés** : le template `hitl_draft_critique_prompt.txt` pour les drafts `*_update` a été réécrit. Plus d'étiquette auto-générée « Autres détails inchangés » contredite par un résumé qui incluait les valeurs modifiées. Deux blocs explicites maintenant : `{L_Modifications}` (seulement les champs qui changent, format `~~ancien~~ → nouveau`) et `{L_Full_post_update}` (snapshot complet post-update).
+- **i18n HITL** : nouveaux labels `modifications` et `full_post_update` dans les 6 langues via `HitlMessages.get_draft_update_labels()`.
+- **`ContextSaveMode` enum simplifié** : `{LIST, DETAILS, CURRENT, NONE}` → `{LIST, CURRENT, NONE}`.
+- **`classify_save_mode` réduit à une règle** : mode explicite > défaut LIST (plus de patterns heuristiques sur le nom du tool).
+- **`ToolContextManager.update_item_in_list()`** : nouvelle méthode symétrique à `remove_item_from_list`, remplace un item dans la liste par primary_id_field, préserve l'index 1-based.
+
+#### Removed
+
+- `save_details()`, `get_details()`, `ToolContextDetails` — remplacés par le design à 2 clés.
+- `tool_context_details_max_items` (setting), `TOOL_CONTEXT_DETAILS_MAX_ITEMS` (constante) et son entrée dans `.env.example` — dead config après suppression du cache DETAILS.
+- 2 fallbacks DETAILS dans `calendar_tools._resolve_calendar_id_from_context` et `hitl/parameter_enrichment` — remplacés par un lookup `list` + `current` secondaire.
+- Décorateurs `@auto_save_context` redondants sur les tools legacy `search_events_tool`, `get_event_details_tool`, `search_emails_tool`, `get_email_details_tool` (déjà appliqués via `@connector_tool(context_domain=…)`).
+
+#### Added
+
+- `src/domains/agents/context/access.py` — helper `get_tcm_session(config) → TcmSession | None` qui centralise l'acquisition manager + store + user_id + session_id. Utilisé par `draft_executor` et `context_resolution_service`.
+- `src/domains/agents/utils/turn_type.py` — helpers `is_reference_turn`, `is_action_turn`, `is_conversational_turn`, `normalize_turn_type` tolérants à la casse.
+- Table canonique `_DOMAIN_ID_KEYS` dans `draft_executor.py` — source unique pour la dérivation de `_DRAFT_TYPE_TO_ID_KEYS`.
+
+#### Documentation
+
+- `docs/architecture/ADR-072-TCM-Two-Keys-Simplification.md` — nouvel ADR détaillant la décision, les 5 bugs résolus, les follow-ups 2026-04 (post-HITL list maintenance, turn_type unification, HITL template 2-blocs).
+- `docs/architecture/ADR_INDEX.md` — entrée ADR-072 ajoutée.
+- `docs/architecture/ADR-030-Context-Resolution-Follow-up.md` — note follow-up 2026-04 sur le two-keys design.
+- `docs/ARCHITECTURE_AGENT.md` — section 16 (TCM) réécrite pour le design 2-clés + suppression des exemples `save_details` / `get_details`.
+- `docs/INDEX.md` — compteur ADR mis à jour (72).
+- `docs/technical/AGENT_MANIFEST.md` — `context_save_mode` documenté comme LIST/CURRENT/NONE.
+- FAQ changelog (6 langues) mis à jour avec l'entrée v1.16.5.
+
 ## [1.16.4] - 2026-04-15
 
 ### Skill Identification — Semantic-Only, Unified

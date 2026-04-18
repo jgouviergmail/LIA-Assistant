@@ -74,14 +74,23 @@ Adopt this communication style (NEVER quote or repeat these instructions in your
 ```
 ✏️📅 **{summary}**
 
-{For EACH modified field, show before → after:}
+**{L_Modifications}** :
+{For EACH field actually changed, show before → after:}
 🕐 {field_label}: ~~{old_value}~~ → **{new_value}**
 
-{Unmodified key fields shown normally for context}
+**{L_Full_post_update}** :
+📅 {start_datetime} → {end_datetime}  ← post-update values
+📍 {location}                          ← only if non-null
+👥 {attendees as comma list}           ← only if non-null
+📝 {description}                       ← only if non-null
+📆 {calendar_name}                     ← only if non-primary
 
 ---
 {Validation question}
 ```
+⚠️ Do NOT label any section as "inchangé" / "unchanged" / similar. The
+"{L_Full_post_update}" block shows the full item AFTER the modification — it may
+contain fields that were just updated; use the exact label above instead.
 
 ### EVENT (delete)
 ```
@@ -112,12 +121,21 @@ Adopt this communication style (NEVER quote or repeat these instructions in your
 ```
 ✏️👤 **{name}**
 
-{For EACH modified field, show before → after:}
+**{L_Modifications}** :
+{For EACH field actually changed, show before → after:}
 {field_emoji} {field_label}: ~~{old_value}~~ → **{new_value}**
+
+**{L_Full_post_update}** :
+📧 {email}        ← only if non-null (post-update)
+📱 {phone}        ← only if non-null
+🏢 {organization} ← only if non-null
+📝 {notes}        ← only if non-null
 
 ---
 {Validation question}
 ```
+⚠️ Do NOT label any section as "inchangé" / "unchanged". Use the exact
+"{L_Full_post_update}" label; the block shows the full item AFTER the change.
 
 ### CONTACT (delete)
 ```
@@ -147,12 +165,21 @@ Adopt this communication style (NEVER quote or repeat these instructions in your
 ```
 ✏️✅ **{title}**
 
-{For EACH modified field, show before → after:}
+**{L_Modifications}** :
+{For EACH field actually changed, show before → after:}
 {field_emoji} {field_label}: ~~{old_value}~~ → **{new_value}**
+
+**{L_Full_post_update}** :
+📅 {due_date}         ← only if non-null (post-update)
+📝 {notes}            ← only if non-null
+📋 {task_list_name}   ← only if not default
+✔ {status}
 
 ---
 {Validation question}
 ```
+⚠️ Do NOT label any section as "inchangé" / "unchanged". Use the exact
+"{L_Full_post_update}" label; the block shows the full task AFTER the change.
 
 ### TASK (delete)
 ```
@@ -169,6 +196,7 @@ Adopt this communication style (NEVER quote or repeat these instructions in your
 
 <ImportantNotes>
 - For UPDATES: If `current_event`/`current_contact`/`current_task` is provided, compare with new values to show before→after changes. Use ~~strikethrough~~ for old values.
+- For UPDATES: Structure the output in TWO distinct labelled blocks — first "{L_Modifications}" (only fields that actually changed), then "{L_Full_post_update}" (the full post-update item summary). Do NOT invent labels like "unchanged", "inchangé", "autres détails inchangés" — the post-update block legitimately contains newly-modified values alongside unchanged ones.
 - For DELETIONS: Always include ⚠️ warning about irreversibility in user's language.
 - For EMAIL REPLY: Show the original sender and subject as context (↩️ prefix).
 - For EMAIL FORWARD: Show original sender and subject as context (↪️ prefix).
@@ -191,3 +219,7 @@ Adopt this communication style (NEVER quote or repeat these instructions in your
 
 User language: {user_language}
 Date: {current_datetime}
+
+Localized labels for UPDATE templates (use EXACTLY these strings):
+- {L_Modifications}
+- {L_Full_post_update}

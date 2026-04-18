@@ -1,20 +1,28 @@
 """
 Context resolution service for multi-turn conversations.
 
-Resolves references to previous agent results using:
-1. Explicit reference resolution (ordinals, demonstratives)
-2. Active context from last action turn
-3. Turn-based fallback
+Resolves context references detected by the QueryAnalyzer LLM to actual items
+via ToolContextManager, agent_results, and data_registry fallbacks.
 
-Integrates with existing ToolContextManager and ContextTypeRegistry.
+LLM-first approach (2026-04): Reference detection is delegated to the
+QueryAnalyzer LLM which sees conversation history and understands semantics
+natively. Eliminates regex-based false positives and stale routing_history bugs.
+
 This service is stateless - all request state is passed via method parameters.
 
 Created: 2025-01
 Phase: Context Resolution - Planner Reliability Improvement
+Updated: 2026-04 - LLM-First Context Reference Detection
+Updated: 2026-04 - Reference resolution also maintains current_item:
+    an item evoked by the user (ordinal, demonstrative, pronoun) becomes the
+    new focused item. Enforces the rule "current = last item manipulated,
+    searched, or evoked by the user".
 """
 
+from __future__ import annotations
+
 import time
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import structlog
 from langchain_core.runnables import RunnableConfig
@@ -26,17 +34,12 @@ from src.domains.agents.constants import (
     STATE_KEY_CURRENT_TURN_ID,
     STATE_KEY_LAST_LIST_DOMAIN,
     STATE_KEY_LAST_LIST_TURN_ID,
-    STATE_KEY_ROUTING_HISTORY,
     TURN_TYPE_ACTION,
-    TURN_TYPE_CONVERSATIONAL,
     TURN_TYPE_REFERENCE,
 )
+from src.domains.agents.context.access import get_tcm_session
 from src.domains.agents.models import MessagesState
-from src.domains.agents.services.reference_resolver import (
-    ExtractedReferences,
-    ResolvedContext,
-    get_reference_resolver,
-)
+from src.domains.agents.services.reference_resolver import ResolvedContext
 from src.domains.agents.utils.type_domain_mapping import TOOL_PATTERN_TO_DOMAIN_MAP
 from src.infrastructure.observability.metrics_agents import (
     context_resolution_attempts_total,
@@ -44,6 +47,9 @@ from src.infrastructure.observability.metrics_agents import (
     context_resolution_duration_seconds,
     context_resolution_turn_type_distribution_total,
 )
+
+if TYPE_CHECKING:
+    from src.domains.agents.services.query_analyzer_service import ContextReferenceOutput
 
 logger = structlog.get_logger(__name__)
 
@@ -57,13 +63,19 @@ class ContextResolutionService:
     """
     Resolves context for follow-up questions in multi-turn conversations.
 
-    Uses existing ToolContextManager for context storage and adds a reference
-    resolution layer on top. Domain-agnostic - works with any agent results.
+    Uses LLM-detected context references (from QueryAnalyzer structured output)
+    to identify when users reference previous results, and resolves those
+    references to actual items via ToolContextManager.
+
+    LLM-first approach (2026-04): Reference detection is delegated to the
+    QueryAnalyzer LLM which sees conversation history and understands semantics
+    natively. Eliminates regex-based false positives and stale routing_history bugs.
 
     Resolution Strategy:
-    1. Check for explicit linguistic references ("le deuxième", "celui-ci")
-    2. If found, resolve to items from last_action_turn_id
-    3. If not found, classify as action or conversational turn
+        1. LLM detects reference type and domain via context_reference output
+        2. If reference detected, fetch items from ToolContextManager (primary)
+        3. Fallback to agent_results/data_registry if TCM empty
+        4. Resolve ordinals, demonstratives, or pronouns to specific items
 
     Usage:
         service = get_context_resolution_service()
@@ -72,6 +84,7 @@ class ContextResolutionService:
             state=state,
             config=config,
             run_id=run_id,
+            context_reference=llm_context_reference,
         )
     """
 
@@ -86,7 +99,6 @@ class ContextResolutionService:
             settings: Optional settings. Uses global settings if not provided.
         """
         self.settings = settings or get_settings()
-        self.reference_resolver = get_reference_resolver()
 
     async def resolve_context(
         self,
@@ -94,35 +106,43 @@ class ContextResolutionService:
         state: MessagesState,
         config: RunnableConfig,
         run_id: str,
-        english_query: str | None = None,
+        *,
+        context_reference: ContextReferenceOutput,
     ) -> tuple[ResolvedContext, str]:
-        """
-        Resolve context for a user query.
+        """Resolve context for a user query using LLM-detected references.
 
-        Determines if the query references previous results and resolves
-        those references to actual items. Also classifies the turn type.
+        Uses the context_reference from QueryAnalyzer's structured output to
+        determine if the query references previous results, then resolves those
+        references to actual items via ToolContextManager.
 
         Args:
-            query: User query text (original language).
+            query: User query text (for logging only).
             state: Current conversation state.
             config: LangGraph runnable config.
             run_id: Current run ID for logging.
-            english_query: Optional translated English query from Semantic Pivot.
-                          If provided, used for reference detection with English patterns only.
-                          This avoids maintaining regex patterns for all supported languages.
+            context_reference: LLM-detected context reference from QueryAnalyzer.
 
         Returns:
             Tuple of (ResolvedContext, turn_type).
-            turn_type is one of: "action", "reference", "conversational"
+            turn_type is one of: "action", "reference"
 
         Example:
+            >>> from src.domains.agents.services.query_analyzer_service import (
+            ...     ContextReferenceOutput,
+            ... )
             >>> service = get_context_resolution_service()
+            >>> ref = ContextReferenceOutput(
+            ...     has_reference=True,
+            ...     reference_type="ordinal",
+            ...     ordinal_positions=[1],
+            ...     reference_domain="contact",
+            ... )
             >>> resolved, turn_type = await service.resolve_context(
-            ...     query="detail de la premiere",
+            ...     query="detail du premier",
             ...     state=state,
             ...     config=config,
             ...     run_id="run_123",
-            ...     english_query="details of the first one",
+            ...     context_reference=ref,
             ... )
             >>> turn_type
             'reference'
@@ -132,9 +152,8 @@ class ContextResolutionService:
         start_time = time.perf_counter()
 
         try:
-            # Check if resolution is enabled
+            # Check if resolution is enabled (system kill-switch)
             if not self.settings.context_reference_resolution_enabled:
-                # PHASE 1.2 - Context resolution metrics instrumentation (disabled case)
                 duration_seconds = (time.perf_counter() - start_time) * 1000.0 / 1000.0
                 context_resolution_attempts_total.labels(turn_type="disabled").inc()
                 context_resolution_turn_type_distribution_total.labels(turn_type="disabled").inc()
@@ -153,22 +172,14 @@ class ContextResolutionService:
                     TURN_TYPE_ACTION,
                 )
 
-            # Extract references from query
-            # SEMANTIC PIVOT FIX (2025-12-25): Use english_query if available for reference detection.
-            # This allows using English-only patterns instead of maintaining patterns for all languages.
-            # Example: "detail de la premiere" → english_query="details of the first one" → matches "first"
-            detection_query = english_query if english_query else query
-            references = self.reference_resolver.extract_references(
-                detection_query, english_only=bool(english_query)
-            )
-
-            if references.has_explicit():
-                # Has explicit references → resolve them
-                result = await self._resolve_explicit_references(references, state, config, run_id)
+            # LLM-first: use structured context_reference from QueryAnalyzer
+            if context_reference.has_reference:
+                result = await self._resolve_llm_detected_reference(
+                    context_reference, state, config, run_id
+                )
                 turn_type = TURN_TYPE_REFERENCE
-                method = "explicit"
+                method = "llm_detected"
             else:
-                # No explicit references → default to action turn
                 result = ResolvedContext(
                     items=[],
                     confidence=1.0,
@@ -191,12 +202,12 @@ class ContextResolutionService:
                 items_count=len(result.items),
                 source_turn_id=result.source_turn_id,
                 duration_ms=round(duration_ms, 2),
-                # SEMANTIC PIVOT: Log which query was used for reference detection
-                detection_query=detection_query[:80] if detection_query else None,
-                used_english_pivot=bool(english_query),
+                detection_query=query[:80] if query else None,
+                llm_has_reference=context_reference.has_reference,
+                llm_reference_type=context_reference.reference_type,
             )
 
-            # PHASE 1.2 - Context resolution metrics instrumentation
+            # Prometheus metrics
             context_resolution_attempts_total.labels(turn_type=turn_type).inc()
             context_resolution_turn_type_distribution_total.labels(turn_type=turn_type).inc()
             context_resolution_duration_seconds.labels(turn_type=turn_type).observe(
@@ -220,7 +231,6 @@ class ContextResolutionService:
                 duration_ms=round(duration_ms, 2),
             )
 
-            # PHASE 1.2 - Context resolution metrics instrumentation (error case)
             context_resolution_attempts_total.labels(turn_type="error").inc()
             context_resolution_turn_type_distribution_total.labels(turn_type="error").inc()
             context_resolution_duration_seconds.labels(turn_type="error").observe(duration_seconds)
@@ -237,229 +247,325 @@ class ContextResolutionService:
                 TURN_TYPE_ACTION,
             )
 
-    async def _resolve_explicit_references(
+    async def _resolve_llm_detected_reference(
         self,
-        references: ExtractedReferences,
+        context_reference: ContextReferenceOutput,
         state: MessagesState,
         config: RunnableConfig,
         run_id: str,
     ) -> ResolvedContext:
-        """
-        Resolve explicit references to items from previous results.
+        """Resolve a context reference detected by the QueryAnalyzer LLM.
 
-        REFACTORED 2025-01: Uses ToolContextManager.get_list() as PRIMARY and ONLY source.
-        This is the canonical approach because:
-        - The "list" key stores the LAST SEARCH results (not overwritten by detail actions)
-        - Works consistently across ALL domains (contacts, emails, calendar, etc.)
-        - Decoupled from last_action_turn_id which gets overwritten by ALL actions
+        LLM-first approach: the LLM provides the reference type, domain, and
+        ordinal positions. This method uses existing ToolContextManager infrastructure
+        to fetch actual items and resolve the reference.
 
-        Resolution Strategy:
-        1. Detect domain: routing_history[-1].domains || last_list_domain
-        2. Get items: ToolContextManager.get_list(domain) - canonical source
-        3. Fallback to last_list_turn_id extraction (if TCM empty, e.g., Redis down)
+        Domain source priority:
+        1. context_reference.reference_domain (LLM-detected, singular)
+        2. STATE_KEY_LAST_LIST_DOMAIN (fallback, plural → normalized to singular)
+        Never reads routing_history — eliminates the stale-state bug.
 
-        IMPORTANT: We use last_list_turn_id (not last_action_turn_id) for fallback.
-        last_list_turn_id is ONLY updated when LIST tools execute (search_*, list_*).
-        last_action_turn_id is overwritten by ALL actions including details.
+        Item fetch priority (3 strategies, same as legacy):
+        1. ToolContextManager.get_list() — primary, canonical source
+        2. agent_results from last list turn — fallback if TCM empty
+        3. data_registry — final fallback
 
         Args:
-            references: Extracted references from query.
+            context_reference: LLM-detected reference with type, domain, positions.
             state: Current conversation state.
-            config: RunnableConfig with user_id, thread_id for Store access.
+            config: RunnableConfig with user_id and thread_id for Store access.
             run_id: Current run ID for logging.
 
         Returns:
-            ResolvedContext with resolved items.
+            ResolvedContext with resolved items, confidence, and source_domain.
         """
-        # Get last LIST turn (NOT last action turn - that's the bug we fixed!)
+        from src.domains.agents.utils.type_domain_mapping import (
+            get_domain_from_result_key,
+        )
+
         last_list_turn = cast(int | None, state.get(STATE_KEY_LAST_LIST_TURN_ID))
         agent_results = cast(dict[str, Any], state.get(STATE_KEY_AGENT_RESULTS, {}))
 
-        # Detect domain for ordinal resolution
-        source_domain = self._detect_domain_for_ordinal_resolution(state, run_id)
+        # === 1. DOMAIN RESOLUTION (always singular) ===
+        source_domain: str | None = context_reference.reference_domain or None
 
-        logger.info(
-            "context_resolution_state_debug",
-            run_id=run_id,
-            last_list_turn_id=last_list_turn,
-            source_domain=source_domain,
-            agent_results_keys=list(agent_results.keys()) if agent_results else [],
-            current_turn_id=state.get(STATE_KEY_CURRENT_TURN_ID),
-        )
-
-        # =========================================================================
-        # STRATEGY 1: Use ToolContextManager.get_list() as PRIMARY source
-        # This is the CANONICAL approach - stores last search results per domain
-        # =========================================================================
-        all_items: list[Any] = []
-        resolution_method = "explicit"
-
-        if source_domain:
-            # CRITICAL: Translate routing domain to context domain
-            # Router uses "calendar" but TCM stores under "events"
-            # See TOOL_PATTERN_TO_DOMAIN_MAP for full mapping
-            context_domain = TOOL_PATTERN_TO_DOMAIN_MAP.get(source_domain, source_domain)
-            if context_domain != source_domain:
-                logger.debug(
-                    "routing_to_context_domain_translation",
-                    run_id=run_id,
-                    routing_domain=source_domain,
-                    context_domain=context_domain,
+        if not source_domain:
+            # Fallback to last_list_domain (plural from task_orchestrator)
+            # Normalize plural → singular via reverse lookup
+            last_list_domain = state.get(STATE_KEY_LAST_LIST_DOMAIN)
+            if last_list_domain:
+                source_domain = get_domain_from_result_key(str(last_list_domain)) or str(
+                    last_list_domain
                 )
 
-            # Try to get items from ToolContextManager
-            context_items = await self._get_items_from_tool_context_manager(
-                config, context_domain, run_id
-            )
-            if context_items:
-                all_items = context_items
-                resolution_method = "tool_context_manager"
-                logger.info(
-                    "context_resolution_from_tool_context_manager",
-                    run_id=run_id,
-                    routing_domain=source_domain,
-                    context_domain=context_domain,
-                    items_count=len(all_items),
-                )
-
-        # =========================================================================
-        # STRATEGY 2: Fallback to last_list_turn extraction (if TCM empty)
-        # Uses last_list_turn_id (NOT last_action_turn_id) to avoid the bug
-        # =========================================================================
-        if not all_items and last_list_turn is not None:
-            # Get agent results from last LIST turn (not last action)
-            last_turn_results = self._get_results_for_turn(agent_results, last_list_turn)
-
-            if last_turn_results:
-                # Extract all items from agent results
-                all_items = self._extract_all_items(last_turn_results)
-                if all_items:
-                    resolution_method = "agent_results_list_turn"
-                    logger.info(
-                        "context_resolution_from_agent_results",
-                        run_id=run_id,
-                        turn_id=last_list_turn,
-                        items_count=len(all_items),
-                    )
-
-            # Fallback to data_registry if agent_results only have summaries
-            if not all_items:
-                all_items = self._extract_items_from_registry(
-                    state, run_id, last_list_turn, agent_results
-                )
-                if all_items:
-                    resolution_method = "data_registry"
-                    logger.info(
-                        "context_resolution_from_registry",
-                        run_id=run_id,
-                        turn_id=last_list_turn,
-                        items_count=len(all_items),
-                    )
-
-        # No items found - return empty result
-        if not all_items:
+        if not source_domain:
             logger.info(
-                "context_resolution_no_items_found",
+                "llm_reference_no_domain",
                 run_id=run_id,
-                source_domain=source_domain,
-                last_list_turn_id=last_list_turn,
-                resolution_method=resolution_method,
+                reference_type=context_reference.reference_type,
+                reason="no_domain_from_llm_and_no_last_list_domain",
             )
             return ResolvedContext(
                 items=[],
                 confidence=0.0,
-                method="explicit",
+                method="llm_detected",
+                source_turn_id=last_list_turn,
+                source_domain=None,
+            )
+
+        # Translate routing domain (singular) to context domain (plural) for TCM
+        context_domain = TOOL_PATTERN_TO_DOMAIN_MAP.get(source_domain, source_domain)
+
+        logger.info(
+            "llm_reference_domain_resolved",
+            run_id=run_id,
+            source_domain=source_domain,
+            context_domain=context_domain,
+            reference_type=context_reference.reference_type,
+            ordinal_positions=context_reference.ordinal_positions,
+        )
+
+        # === 2. FETCH ITEMS (3 strategies) ===
+        all_items: list[Any] = []
+
+        # Strategy 1: ToolContextManager (primary)
+        all_items = await self._get_items_from_tool_context_manager(config, context_domain, run_id)
+
+        # Strategy 2: agent_results from last list turn
+        if not all_items and last_list_turn is not None:
+            last_turn_results = self._get_results_for_turn(agent_results, last_list_turn)
+            if last_turn_results:
+                all_items = self._extract_all_items(last_turn_results)
+
+        # Strategy 3: data_registry (final fallback)
+        if not all_items:
+            all_items = self._extract_items_from_registry(
+                state, run_id, last_list_turn, agent_results
+            )
+
+        if not all_items:
+            logger.info(
+                "llm_reference_no_items_found",
+                run_id=run_id,
+                source_domain=source_domain,
+                context_domain=context_domain,
+                last_list_turn_id=last_list_turn,
+            )
+            return ResolvedContext(
+                items=[],
+                confidence=0.0,
+                method="llm_detected",
                 source_turn_id=last_list_turn,
                 source_domain=source_domain,
             )
 
-        # Debug: Log available items before resolution
-        logger.debug(
-            "ordinal_resolution_start",
-            run_id=run_id,
-            all_items_count=len(all_items),
-            ordinal_refs=[r.index for r in references.get_ordinals()],
-            demonstrative_refs=len(references.get_demonstratives()),
-        )
-
-        # Resolve ordinal references
+        # === 3. RESOLVE BY TYPE ===
         resolved_items: list[Any] = []
         total_confidence = 0.0
+        ref_type = context_reference.reference_type
 
-        for ref in references.get_ordinals():
-            if ref.index is not None:
-                item, confidence = self.reference_resolver.resolve_ordinal_to_item(
-                    ref.index, all_items
-                )
-                if item is not None:
-                    resolved_items.append(item)
-                    total_confidence += confidence
+        if ref_type == "ordinal":
+            positions = context_reference.ordinal_positions
+            for pos in positions:
+                # Guard: 0 is invalid in 1-based (would convert to -1 = last)
+                if pos == 0:
+                    logger.warning(
+                        "llm_ordinal_position_zero_skipped",
+                        run_id=run_id,
+                        reason="0 is invalid in 1-based indexing",
+                    )
+                    continue
+
+                # Convert 1-based (LLM) → 0-based (Python). -1 stays -1 (last).
+                index = pos - 1 if pos > 0 else pos
+
+                if index == -1 and all_items:
+                    resolved_items.append(all_items[-1])
+                    total_confidence += 1.0
+                elif 0 <= index < len(all_items):
+                    resolved_items.append(all_items[index])
+                    total_confidence += 1.0
                 else:
-                    # Log failed resolution for debugging
                     logger.debug(
-                        "ordinal_resolution_failed",
+                        "llm_ordinal_out_of_bounds",
                         run_id=run_id,
-                        ordinal_index=ref.index,
-                        all_items_count=len(all_items),
-                        reason="index_out_of_bounds" if ref.index >= len(all_items) else "unknown",
+                        position=pos,
+                        index=index,
+                        items_count=len(all_items),
                     )
 
-        # Resolve demonstrative references
-        # PRIORITY: current_item > list[0]
-        # "ce rdv", "this event" refers to the CURRENT item (after "detail du 2e"),
-        # not necessarily the first item in the list.
-        for _ref in references.get_demonstratives():
-            # Try current_item first (set by get_*_details tools)
-            if source_domain:
-                context_domain = TOOL_PATTERN_TO_DOMAIN_MAP.get(source_domain, source_domain)
-                current_item = await self._get_current_item_from_tool_context_manager(
-                    config, context_domain, run_id
-                )
-                if current_item:
-                    resolved_items.append(current_item)
-                    total_confidence += settings.context_current_item_confidence
-                    logger.info(
-                        "demonstrative_resolved_to_current_item",
-                        run_id=run_id,
-                        domain=context_domain,
-                        item_index=current_item.get("index"),
-                        reason="current_item_exists",
-                    )
-                    continue  # Skip fallback to list[0]
+            avg_confidence = total_confidence / len(positions) if positions else 0.0
 
-            # Fallback: use first item from list
-            if all_items:
-                resolved_items.append(all_items[0])
-                total_confidence += settings.context_demonstrative_confidence
-                logger.debug(
-                    "demonstrative_resolved_to_first_item",
+        elif ref_type in ("demonstrative", "pronoun"):
+            # Priority 1: current_item from TCM (set by detail tools)
+            current_item = await self._get_current_item_from_tool_context_manager(
+                config, context_domain, run_id
+            )
+            if current_item:
+                resolved_items.append(current_item)
+                avg_confidence = settings.context_current_item_confidence
+                logger.info(
+                    "llm_demonstrative_resolved_to_current_item",
                     run_id=run_id,
-                    reason="no_current_item_fallback_to_list",
+                    domain=context_domain,
                 )
+            elif all_items:
+                # Priority 2: first item from list
+                resolved_items.append(all_items[0])
+                avg_confidence = settings.context_demonstrative_confidence
+                logger.debug(
+                    "llm_demonstrative_resolved_to_first_item",
+                    run_id=run_id,
+                    domain=context_domain,
+                )
+            else:
+                avg_confidence = 0.0
 
-        # Calculate average confidence
-        ref_count = len(references.references)
-        avg_confidence = total_confidence / ref_count if ref_count > 0 else 0.0
+        elif ref_type == "none":
+            # Contradiction: has_reference=true but reference_type="none"
+            logger.warning(
+                "llm_reference_type_none_with_has_reference_true",
+                run_id=run_id,
+            )
+            return ResolvedContext(
+                items=[],
+                confidence=0.0,
+                method="llm_detected",
+                source_turn_id=last_list_turn,
+                source_domain=source_domain,
+            )
 
-        # NOTE: source_domain already detected at start of method via _detect_domain_for_ordinal_resolution
-        # No need to re-detect here - the legacy code was removed in 2025-01 refactoring
+        else:
+            # Unknown reference_type: treat as demonstrative (safe fallback)
+            logger.warning(
+                "llm_unknown_reference_type",
+                run_id=run_id,
+                reference_type=ref_type,
+                fallback="demonstrative",
+            )
+            current_item = await self._get_current_item_from_tool_context_manager(
+                config, context_domain, run_id
+            )
+            if current_item:
+                resolved_items.append(current_item)
+                avg_confidence = settings.context_current_item_confidence
+            elif all_items:
+                resolved_items.append(all_items[0])
+                avg_confidence = settings.context_demonstrative_confidence
+            else:
+                avg_confidence = 0.0
 
-        logger.debug(
-            "references_resolved",
+        logger.info(
+            "llm_reference_resolved",
             run_id=run_id,
+            reference_type=ref_type,
             resolved_count=len(resolved_items),
             total_items=len(all_items),
             confidence=round(avg_confidence, 2),
             source_domain=source_domain,
         )
 
+        # Enforce the rule: current_item = last item evoked by the user.
+        # A successful reference resolution is an evocation — the focus shifts.
+        await self._update_current_after_resolution(
+            resolved_items=resolved_items,
+            state=state,
+            config=config,
+            context_domain=context_domain,
+            run_id=run_id,
+        )
+
         return ResolvedContext(
             items=resolved_items,
             confidence=avg_confidence,
-            method=resolution_method,
+            method="llm_detected",
             source_turn_id=last_list_turn,
             source_domain=source_domain,
         )
+
+    async def _update_current_after_resolution(
+        self,
+        resolved_items: list[Any],
+        state: MessagesState,
+        config: RunnableConfig,
+        context_domain: str,
+        run_id: str,
+    ) -> None:
+        """Update current_item to reflect the item just evoked by the user.
+
+        Implements the invariant: current_item always holds the last item the
+        user manipulated, searched, or evoked. Reference resolution is an
+        evocation, so its outcome must propagate to TCM.
+
+        Behavior (aligned with save_list):
+            - len(resolved_items) == 1 → set_current_item (unambiguous evocation)
+            - len(resolved_items) > 1  → clear_current_item (ambiguous, multi-evocation)
+            - len(resolved_items) == 0 → no-op (resolution failed, keep existing focus)
+
+        Side-effect policy: failures are logged but never raise. This method
+        never blocks the response path.
+
+        Args:
+            resolved_items: Items returned by the reference resolution step.
+            state: Conversation state (used to extract current_turn_id for metadata).
+            config: RunnableConfig carrying user_id and thread_id.
+            context_domain: Plural domain key used in the TCM namespace
+                (e.g. "events", "contacts"), already translated from singular.
+            run_id: Run ID for logging correlation.
+        """
+        if not resolved_items:
+            return
+
+        try:
+            session = await get_tcm_session(config)
+            if session is None:
+                logger.debug(
+                    "current_item_update_skipped_no_session",
+                    run_id=run_id,
+                    domain=context_domain,
+                )
+                return
+
+            turn_id = cast(int, state.get(STATE_KEY_CURRENT_TURN_ID, 0) or 0)
+
+            if len(resolved_items) == 1:
+                await session.manager.set_current_item(
+                    user_id=session.user_id,
+                    session_id=session.session_id,
+                    domain=context_domain,
+                    item=resolved_items[0],
+                    set_by="auto",
+                    turn_id=turn_id,
+                    store=session.store,
+                )
+                logger.info(
+                    "current_item_updated_after_resolution",
+                    run_id=run_id,
+                    domain=context_domain,
+                    reason="single_resolved_item",
+                    turn_id=turn_id,
+                )
+            else:
+                # Multi-item evocation ("le 1er et le 3e"): no single focus.
+                await session.manager.clear_current_item(
+                    user_id=session.user_id,
+                    session_id=session.session_id,
+                    domain=context_domain,
+                    store=session.store,
+                )
+                logger.info(
+                    "current_item_cleared_after_resolution",
+                    run_id=run_id,
+                    domain=context_domain,
+                    reason="multiple_resolved_items",
+                    count=len(resolved_items),
+                )
+        except Exception:
+            logger.exception(
+                "current_item_update_after_resolution_failed",
+                run_id=run_id,
+                domain=context_domain,
+            )
 
     def _get_results_for_turn(
         self,
@@ -888,87 +994,6 @@ class ContextResolutionService:
 
         return get_result_key_from_type(item_type)
 
-    def _detect_domain_for_ordinal_resolution(
-        self,
-        state: MessagesState,
-        run_id: str,
-    ) -> str | None:
-        """
-        Detect domain for ordinal resolution ("detail du 2ème").
-
-        Priority order:
-        1. routing_history[-1].domains - Domain detected by router for CURRENT turn
-           (Handles explicit override: "detail du 1er contact" after "recherche taches")
-        2. STATE_KEY_LAST_LIST_DOMAIN - Fallback to last search/list action domain
-           (Used when router doesn't detect explicit domain in query)
-
-        Example flows:
-            Flow 1 - Implicit (same domain):
-                Turn 1: "recherche contacts" → router: ["contacts"], last_list_domain = "contacts"
-                Turn 2: "detail du premier"  → router: ["contacts"], uses "contacts" ✅
-
-            Flow 2 - Explicit override (different domain):
-                Turn 1: "recherche taches"   → router: ["tasks"], last_list_domain = "tasks"
-                Turn 2: "detail du 1er contact" → router: ["contacts"], uses "contacts" ✅
-                        (Router detects "contact" in query, overrides last_list_domain)
-
-            Flow 3 - No explicit domain, uses last list:
-                Turn 1: "recherche contacts" → router: ["contacts"], last_list_domain = "contacts"
-                Turn 2: "salut ca va?"       → router: [], last_list_domain = "contacts" (unchanged)
-                Turn 3: "detail du premier"  → router: [], uses "contacts" from last_list_domain ✅
-
-        Args:
-            state: Current conversation state.
-            run_id: Run ID for logging.
-
-        Returns:
-            Domain name (e.g., "contacts", "emails") or None if not found.
-        """
-        # PRIORITY 1: Use routing_history[-1].domains (current turn's detected domain)
-        # This handles explicit override: "detail du 1er contact" after "recherche taches"
-        # The router detects "contact" in the query and sets domains=["contacts"]
-        routing_history = state.get(STATE_KEY_ROUTING_HISTORY, [])
-        if routing_history:
-            last_route = routing_history[-1]  # type: ignore
-
-            # Extract domains from RouterOutput
-            domains: list[str] = []
-            if hasattr(last_route, "domains"):
-                domains = last_route.domains or []
-            elif isinstance(last_route, dict):
-                domains = last_route.get("domains", [])
-
-            if domains:
-                primary_domain = domains[0]
-                logger.debug(
-                    "detect_domain_from_routing_history",
-                    run_id=run_id,
-                    primary_domain=primary_domain,
-                    all_domains=domains,
-                    source="routing_history[-1] (explicit override)",
-                )
-                return primary_domain
-
-        # PRIORITY 2: Fallback to last_list_domain from state
-        # Used when router doesn't detect explicit domain (e.g., "detail du premier")
-        last_list_domain = state.get(STATE_KEY_LAST_LIST_DOMAIN)
-        if last_list_domain:
-            logger.debug(
-                "detect_domain_from_last_list_domain",
-                run_id=run_id,
-                domain=last_list_domain,
-                source="STATE_KEY_LAST_LIST_DOMAIN (fallback)",
-            )
-            return last_list_domain  # type: ignore
-
-        logger.debug(
-            "detect_domain_no_source_found",
-            run_id=run_id,
-            has_routing_history=bool(routing_history),
-            has_last_list_domain=bool(last_list_domain),
-        )
-        return None
-
     async def _get_items_from_tool_context_manager(
         self,
         config: RunnableConfig,
@@ -1129,30 +1154,6 @@ class ContextResolutionService:
                 exc_info=True,
             )
             return None
-
-    def determine_turn_type(
-        self,
-        query: str,
-        router_action: str,
-        has_references: bool,
-    ) -> str:
-        """
-        Determine the type of turn based on context.
-
-        Args:
-            query: User query text.
-            router_action: Router decision (e.g., "conversational", "actionable").
-            has_references: Whether query contains references.
-
-        Returns:
-            Turn type: "action", "reference", or "conversational".
-        """
-        if has_references:
-            return TURN_TYPE_REFERENCE
-        elif router_action.lower() in ["conversational", "conversation"]:
-            return TURN_TYPE_CONVERSATIONAL
-        else:
-            return TURN_TYPE_ACTION
 
 
 # =============================================================================

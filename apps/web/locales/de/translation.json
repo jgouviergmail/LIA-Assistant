@@ -2710,6 +2710,16 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_16_5": {
+          "title": "v1.16.5 — Präziseres Tracking des Gesprächskontexts",
+          "date": "April 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>„Dieser Termin\", „der erste\", „lösch ihn\" — LIA folgt jetzt zuverlässig</b> — Der Assistent merkt sich jetzt das zuletzt bearbeitete, gesuchte oder einfach erwähnte Element. Keine Verwechslung mehr zwischen einem gerade erstellten Termin und dem, über den Sie jetzt sprechen: Wenn Sie „Lösch diesen Termin\" sagen, nachdem Sie „Was war der erste zurückgegebene Termin?\" gefragt haben, löscht LIA den richtigen.",
+            "i2": "<b>Klarere HITL-Vorschau für Änderungen</b> — Wenn LIA Sie bittet, eine Änderung zu bestätigen (Termin, Kontakt, Aufgabe), ist die Vorschau jetzt in zwei klaren Blöcken strukturiert: „Änderungen\" (nur das, was sich ändert, alt → neu) und „Details nach der Änderung\" (vollständiger Post-Update-Snapshot). Keine widersprüchlichen „Andere Details unverändert\"-Bezeichnungen mehr, gefolgt von Werten, die gerade geändert wurden.",
+            "i3": "<b>Konsistenz nach Erstellen / Ändern / Löschen</b> — Nach Bestätigung einer Aktion (z. B. Termin über HITL erstellt) bleibt die zuvor angezeigte Liste automatisch synchron: Änderungen propagieren in die Suchergebnisse, Löschungen entfernen das betroffene Element, und der Gesprächsfokus folgt immer dem zuletzt bearbeiteten Element."
+          }
+        },
         "v1_16_4": {
           "title": "v1.16.4 — Zuverlässigere Skill-Aktivierung",
           "date": "April 2026",

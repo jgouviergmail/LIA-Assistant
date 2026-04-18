@@ -38,17 +38,21 @@ Data Registry LOT 5.4: Write Operations
 from __future__ import annotations
 
 from collections.abc import Callable, Coroutine
-from typing import Any
+from typing import TYPE_CHECKING, Any, Literal
 from uuid import UUID
 
 import structlog
 from langchain_core.runnables import RunnableConfig
 
 from src.core.field_names import FIELD_METADATA, FIELD_USER_ID
+from src.domains.agents.context.access import get_tcm_session
 from src.domains.agents.drafts.models import DraftAction, DraftType
 from src.infrastructure.observability.metrics_agents import (
     registry_drafts_executed_total,
 )
+
+if TYPE_CHECKING:
+    from src.domains.agents.context.access import TcmSession
 
 logger = structlog.get_logger(__name__)
 
@@ -369,6 +373,309 @@ async def execute_draft_if_confirmed(
         return None
 
 
+# Canonical per-domain id-key convention. Single source of truth: adding a new
+# domain here + one draft type → tcm_domain row below is enough.
+_DOMAIN_ID_KEYS: dict[str, tuple[str, ...]] = {
+    "events": ("event_id",),
+    "contacts": ("resource_name",),
+    "tasks": ("task_id",),
+    "emails": ("message_id", "id"),
+}
+
+# Draft type → TCM domain (plural key used by namespace).
+_DRAFT_TYPE_TO_TCM_DOMAIN: dict[str, str] = {
+    # Create
+    "event": "events",
+    "contact": "contacts",
+    "task": "tasks",
+    "email": "emails",
+    "email_reply": "emails",
+    "email_forward": "emails",
+    # Update
+    "event_update": "events",
+    "contact_update": "contacts",
+    "task_update": "tasks",
+    # Delete
+    "event_delete": "events",
+    "contact_delete": "contacts",
+    "task_delete": "tasks",
+    "email_delete": "emails",
+}
+
+# Derived from _DOMAIN_ID_KEYS — never edit by hand.
+_DRAFT_TYPE_TO_ID_KEYS: dict[str, tuple[str, ...]] = {
+    draft_type: _DOMAIN_ID_KEYS[domain] for draft_type, domain in _DRAFT_TYPE_TO_TCM_DOMAIN.items()
+}
+
+
+DraftFamily = Literal["create", "update", "delete"]
+
+
+def _classify_draft_type(draft_type: str) -> DraftFamily:
+    """Return the draft family.
+
+    Args:
+        draft_type: Canonical draft type string (e.g. "event_update").
+
+    Returns:
+        "delete" for `*_delete`, "update" for `*_update`, else "create".
+    """
+    if draft_type.endswith("_delete"):
+        return "delete"
+    if draft_type.endswith("_update"):
+        return "update"
+    return "create"
+
+
+def _extract_item_id(
+    draft_type: str,
+    draft_content: dict[str, Any],
+    result_data: dict[str, Any] | None,
+) -> str | None:
+    """Extract the canonical item id for a draft type.
+
+    Prefers result_data (post-execution fresh id) over draft_content.
+
+    Args:
+        draft_type: Canonical draft type string (e.g. "event_delete").
+        draft_content: Original draft content payload.
+        result_data: Executor return value, may be None.
+
+    Returns:
+        The first non-empty value found among the id keys declared for the
+        draft type, stringified. None when no id can be found.
+    """
+    keys = _DRAFT_TYPE_TO_ID_KEYS.get(draft_type, ())
+    sources = (result_data or {}, draft_content)
+    for source in sources:
+        for key in keys:
+            value = source.get(key)
+            if value:
+                return str(value)
+    return None
+
+
+async def _set_current_from_merged(
+    session: TcmSession,
+    domain: str,
+    merged_item: dict[str, Any],
+) -> None:
+    """Write merged_item as the current_item for the given domain.
+
+    Shared by create and update handlers. Uses set_by="auto" since the write
+    is triggered by HITL approval, not an explicit user "focus" action.
+
+    Args:
+        session: Active TCM session (manager + store + identifiers).
+        domain: TCM domain (plural key, e.g. "events").
+        merged_item: Full post-execution item payload.
+    """
+    await session.manager.set_current_item(
+        user_id=session.user_id,
+        session_id=session.session_id,
+        domain=domain,
+        item=merged_item,
+        set_by="auto",
+        turn_id=0,
+        store=session.store,
+    )
+
+
+async def _sync_create(
+    session: TcmSession,
+    domain: str,
+    merged_item: dict[str, Any],
+    draft_type: str,
+    run_id: str,
+) -> None:
+    """CREATE family → set current only. List is untouched (item wasn't in it).
+
+    Args:
+        session: Active TCM session.
+        domain: TCM domain (plural key).
+        merged_item: Post-execution item payload.
+        draft_type: Draft type, for logging correlation.
+        run_id: Run ID, for logging correlation.
+    """
+    await _set_current_from_merged(session, domain, merged_item)
+    logger.info(
+        "tcm_sync_after_create",
+        run_id=run_id,
+        draft_type=draft_type,
+        domain=domain,
+    )
+
+
+async def _sync_update(
+    session: TcmSession,
+    domain: str,
+    item_id: str | None,
+    merged_item: dict[str, Any],
+    draft_type: str,
+    run_id: str,
+) -> None:
+    """UPDATE family → set current AND propagate merged payload to list in place.
+
+    Args:
+        session: Active TCM session.
+        domain: TCM domain (plural key).
+        item_id: Canonical item id; required for list propagation.
+        merged_item: Post-execution item payload.
+        draft_type: Draft type, for logging correlation.
+        run_id: Run ID, for logging correlation.
+    """
+    await _set_current_from_merged(session, domain, merged_item)
+    updated_in_list = False
+    if item_id:
+        updated_in_list = await session.manager.update_item_in_list(
+            user_id=session.user_id,
+            session_id=session.session_id,
+            domain=domain,
+            item_id=item_id,
+            updated_item=merged_item,
+            store=session.store,
+        )
+    logger.info(
+        "tcm_sync_after_update",
+        run_id=run_id,
+        draft_type=draft_type,
+        domain=domain,
+        item_id=item_id,
+        propagated_to_list=updated_in_list,
+    )
+
+
+async def _sync_delete(
+    session: TcmSession,
+    domain: str,
+    item_id: str | None,
+    draft_type: str,
+    run_id: str,
+) -> None:
+    """DELETE family → remove from list; clear current if the deleted item was focused.
+
+    Args:
+        session: Active TCM session.
+        domain: TCM domain (plural key).
+        item_id: Canonical item id; no-op if None.
+        draft_type: Draft type, used for logging and current-item matching.
+        run_id: Run ID, for logging correlation.
+    """
+    if not item_id:
+        logger.debug(
+            "tcm_sync_delete_skipped_no_item_id",
+            run_id=run_id,
+            draft_type=draft_type,
+        )
+        return
+
+    removed = await session.manager.remove_item_from_list(
+        user_id=session.user_id,
+        session_id=session.session_id,
+        domain=domain,
+        item_id=item_id,
+        store=session.store,
+    )
+
+    # Safety net: if the item wasn't in the list but was current (direct-fetch
+    # flow with no prior search), explicitly clear current.
+    if not removed:
+        current = await session.manager.get_current_item(
+            user_id=session.user_id,
+            session_id=session.session_id,
+            domain=domain,
+            store=session.store,
+        )
+        if current and _current_matches_id(current, item_id, draft_type):
+            await session.manager.clear_current_item(
+                user_id=session.user_id,
+                session_id=session.session_id,
+                domain=domain,
+                store=session.store,
+            )
+
+    logger.info(
+        "tcm_sync_after_delete",
+        run_id=run_id,
+        draft_type=draft_type,
+        domain=domain,
+        item_id=item_id,
+        list_had_item=removed,
+    )
+
+
+def _current_matches_id(current: dict[str, Any], item_id: str, draft_type: str) -> bool:
+    """Check whether current_item points at the given item id.
+
+    Matching uses the draft type's canonical id keys plus a generic "id"
+    fallback, to tolerate both raw API payloads and TCM-enriched items.
+
+    Args:
+        current: current_item payload from TCM.
+        item_id: Canonical id string to compare against.
+        draft_type: Draft type used to look up the id keys.
+
+    Returns:
+        True if any id key on ``current`` matches ``item_id``.
+    """
+    keys = _DRAFT_TYPE_TO_ID_KEYS.get(draft_type, ())
+    return any(str(current.get(k, "")) == item_id for k in keys) or (
+        str(current.get("id", "")) == item_id
+    )
+
+
+async def _sync_tcm_after_draft_execution(
+    draft_type: str,
+    draft_content: dict[str, Any],
+    result_data: dict[str, Any] | None,
+    config: RunnableConfig,
+    run_id: str,
+) -> None:
+    """Propagate draft execution to the TCM (list + current) per draft family.
+
+    Dispatches to a family-specific handler (create / update / delete) and
+    enforces the invariant "current = last manipulated/searched/evoked".
+    Failures are caught and logged — this side-effect never blocks draft
+    execution.
+
+    Args:
+        draft_type: Draft type (e.g., "event_update", "task_delete").
+        draft_content: Original draft content (contains canonical ids).
+        result_data: Execution result with enriched item data.
+        config: RunnableConfig with user_id and thread_id in configurable.
+        run_id: Run ID for logging correlation.
+    """
+    domain = _DRAFT_TYPE_TO_TCM_DOMAIN.get(draft_type)
+    if not domain:
+        return
+
+    try:
+        session = await get_tcm_session(config)
+        if session is None:
+            return
+
+        item_id = _extract_item_id(draft_type, draft_content, result_data or {})
+        family = _classify_draft_type(draft_type)
+
+        if family == "delete":
+            await _sync_delete(session, domain, item_id, draft_type, run_id)
+        else:
+            if not result_data:
+                return
+            merged_item = {**draft_content, **result_data}
+            if family == "update":
+                await _sync_update(session, domain, item_id, merged_item, draft_type, run_id)
+            else:  # create
+                await _sync_create(session, domain, merged_item, draft_type, run_id)
+
+    except Exception:
+        logger.exception(
+            "tcm_sync_after_draft_failed",
+            run_id=run_id,
+            draft_type=draft_type,
+        )
+
+
 async def _execute_confirmed_draft(
     draft_action_result: dict[str, Any],
     config: RunnableConfig,
@@ -502,6 +809,13 @@ async def _execute_confirmed_draft(
         # This allows _format_draft_execution_result to show ALL attributes
         if result_data and isinstance(result_data, dict):
             result_data["_draft_content"] = draft_content
+
+        # Propagate execution to TCM (list + current) per draft family.
+        # Create/update → set current + update list in place.
+        # Delete → remove from list + clear current if match.
+        await _sync_tcm_after_draft_execution(
+            draft_type, draft_content, result_data, config, run_id
+        )
 
         return DraftExecutionResult(
             success=True,

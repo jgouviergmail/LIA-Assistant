@@ -578,11 +578,25 @@ Examples of EDIT (modification_instructions should capture the user's request):
 - "mets le sujet 'Urgent'" → EDIT {"modification_instructions": "mets le sujet 'Urgent'"}
 - "envoie plutôt à son mail pro" → EDIT {"modification_instructions": "envoie à son mail pro"}
 
+**REPLAN**: User wants a FUNDAMENTALLY DIFFERENT action type than the current draft.
+The user is not modifying the draft content — they want to CHANGE THE ACTION ITSELF.
+
+Examples of REPLAN:
+- On a DELETE draft, user says "non déplace le au 23 mai" → REPLAN {"modification_instructions": "déplace le au 23 mai"} (wants update instead of delete)
+- On a DELETE draft, user says "non modifie juste l'heure" → REPLAN {"modification_instructions": "modifie l'heure"} (wants update instead of delete)
+- On an UPDATE/SEND draft, user says "non supprime-le" → REPLAN {"modification_instructions": "supprime"} (wants delete instead of update/send)
+- On a REPLY draft, user says "non efface l'email" → REPLAN {"modification_instructions": "efface"} (wants delete instead of reply)
+- "en fait annule le rdv" (on an update draft) → REPLAN {"modification_instructions": "annule le rdv"} (wants delete)
+- "finalement déplace-le plutôt" (on a delete draft) → REPLAN {"modification_instructions": "déplace-le"} (wants update)
+
 ⚠️ KEY RULES:
 - If user provides ANY instruction to change/modify/improve the draft → EDIT
+- If user wants a DIFFERENT ACTION TYPE (delete↔update/modify/move) → REPLAN
 - Extract the FULL modification instruction into "modification_instructions"
 - "non" alone = REJECT (no modification requested)
 - "modifie...", "change...", "reformule...", "plus...", "moins...", "ajoute...", "enlève..." = EDIT
+- "supprime...", "efface...", "annule..." on a non-delete draft = REPLAN
+- "déplace...", "modifie...", "change la date..." on a delete draft = REPLAN
 - If unclear what to modify → AMBIGUOUS (ask for clarification)
 """
         elif action_type == ACTION_TYPE_FOR_EACH_CONFIRMATION:

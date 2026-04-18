@@ -195,10 +195,24 @@
       "query_preview": "modifie le premier rdv, mets la localisation à Joinville Le Pont",
       "timestamp": "2026-04-07T21:56:21.872954+00:00",
       "was_new": false
+    },
+    {
+      "tool": "resolve_reference",
+      "domain": "event",
+      "query_preview": "cétait quoi le premier rdv renvoyé ?",
+      "timestamp": "2026-04-18T09:31:08.169460+00:00",
+      "was_new": false
+    },
+    {
+      "tool": "resolve_reference",
+      "domain": "event",
+      "query_preview": "c'était quoi le premier rdv renvoyé ?",
+      "timestamp": "2026-04-18T10:56:34.235954+00:00",
+      "was_new": false
     }
   ],
   "stats": {
-    "total_detections": 26,
-    "last_updated": "2026-04-07T21:56:21.872972+00:00"
+    "total_detections": 28,
+    "last_updated": "2026-04-18T10:56:34.235973+00:00"
   }
 }

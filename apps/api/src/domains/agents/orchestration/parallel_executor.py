@@ -954,10 +954,9 @@ async def _auto_save_wave_contexts(
         >>> # Result: Saves contacts to Store (list + auto-set current if 1 item)
 
     Context Save Logic (from manager.auto_save):
-        - LIST mode: Overwrites existing (search/list tools)
-        - DETAILS mode: Merges with existing (get_details tools)
-        - Auto-set current_item if exactly 1 result
-        - Clear current_item if > 1 results (ambiguous)
+        - LIST mode: Overwrites list (search/list tools) + auto-manage current
+        - CURRENT mode: Set current only (direct ID fetch), never touches list
+        - Decorated tools signal _tcm_saved=True → skipped here (no double-save)
 
     Error Handling:
         - Auto-save failures are logged but DO NOT crash wave execution
@@ -1060,17 +1059,24 @@ async def _auto_save_wave_contexts(
             skipped_count += 1
             continue
 
-        # CRITICAL FIX: Add tool_name to result_data for correct classification
-        # manager.auto_save() needs tool_name to classify LIST vs DETAILS mode
-        # Without tool_name, classify_save_mode() defaults to "unknown_tool" → DETAILS
-        # This breaks search results (should be LIST, not DETAILS)
+        # Skip if decorator already saved this tool's context (prevents double-save).
+        # @auto_save_context sets _tcm_saved=True on tool_metadata after save.
+        if result_data.get("_tcm_saved"):
+            skipped_count += 1
+            logger.debug(
+                "auto_save_wave_skipped_already_saved",
+                step_id=step_result.step_id,
+                tool=step.tool_name,
+            )
+            continue
+
+        # Inject tool_name for manager's classification
         enriched_result_data = {
             **result_data,
-            FIELD_TOOL_NAME: step.tool_name,  # Add tool_name from step manifest
+            FIELD_TOOL_NAME: step.tool_name,
         }
 
         # Build RunnableConfig for auto_save (same pattern as plan_executor.py)
-        # Turn ID = wave_id (approximation for now)
         config_dict = {
             "configurable": {
                 FIELD_USER_ID: str(user_id),
@@ -1081,14 +1087,21 @@ async def _auto_save_wave_contexts(
         save_config = RunnableConfig(**config_dict)
 
         try:
-            # Call manager.auto_save() with enriched tool result
-            # This handles classification (LIST vs DETAILS) and Store persistence
+            # Save mode resolution for tools without decorator (e.g. MCP):
+            # 1. tool output context_save_mode (rare, but possible)
+            # 2. manifest.context_save_mode (legacy manifest opt-in)
+            # 3. None → classify_save_mode defaults to LIST
+            dynamic_mode = result_data.get("context_save_mode")
+            effective_mode = (
+                dynamic_mode if dynamic_mode is not None else manifest.context_save_mode
+            )
+
             await manager.auto_save(
                 context_type=manifest.context_key,
-                result_data=enriched_result_data,  # Use enriched data with tool_name
+                result_data=enriched_result_data,
                 config=save_config,
                 store=store,
-                explicit_mode=manifest.context_save_mode,
+                explicit_mode=effective_mode,
             )
 
             saved_count += 1
@@ -2744,11 +2757,25 @@ async def _execute_tool(
                         distinct_count=len(result.tool_metadata["distinct_values"]),
                     )
 
+            # Propagate TCM flag and save mode so _auto_save_wave_contexts can
+            # detect decorator-saved tools and skip the duplicate save path.
+            tcm_saved = (
+                result.tool_metadata.get("_tcm_saved", False) if result.tool_metadata else False
+            )
+            save_mode_value = (
+                result.context_save_mode.value
+                if result.context_save_mode is not None
+                and hasattr(result.context_save_mode, "value")
+                else result.context_save_mode
+            )
+
             return ToolExecutionResult(
                 result={
                     "success": True,
                     "data": structured_data,
                     "message": result.summary_for_llm,
+                    "_tcm_saved": tcm_saved,
+                    "context_save_mode": save_mode_value,
                 },
                 registry_updates=registry_updates,
                 draft_info=draft_info,

@@ -2515,14 +2515,33 @@ class UpdateContactDraftTool(ToolOutputMixin, ConnectorTool[GooglePeopleClient])
             has_address=address is not None,
         )
 
+        # Fill unchanged fields from current_contact so the HITL draft shows
+        # actual values instead of "Non défini" for fields the user didn't change.
+        names = current_contact.get("names", [])
+        current_name = names[0].get("displayName") if names and isinstance(names[0], dict) else None
+        emails = current_contact.get("emailAddresses", [])
+        current_email = emails[0].get("value") if emails and isinstance(emails[0], dict) else None
+        phones = current_contact.get("phoneNumbers", [])
+        current_phone = phones[0].get("value") if phones and isinstance(phones[0], dict) else None
+        orgs = current_contact.get("organizations", [])
+        current_org = orgs[0].get("name") if orgs and isinstance(orgs[0], dict) else None
+        bios = current_contact.get("biographies", [])
+        current_notes = bios[0].get("value") if bios and isinstance(bios[0], dict) else None
+        addresses = current_contact.get("addresses", [])
+        current_address = (
+            addresses[0].get("formattedValue")
+            if addresses and isinstance(addresses[0], dict)
+            else None
+        )
+
         return {
             "resource_name": resource_name,
-            "name": name,
-            "email": email,
-            "phone": phone,
-            "organization": organization,
-            "notes": notes,
-            "address": address,
+            "name": name or current_name,
+            "email": email or current_email,
+            "phone": phone or current_phone,
+            "organization": organization or current_org,
+            "notes": notes if notes is not None else current_notes,
+            "address": address if address is not None else current_address,
             "current_contact": current_contact,
         }
 
@@ -2716,10 +2735,20 @@ class DeleteContactDraftTool(ToolOutputMixin, ConnectorTool[GooglePeopleClient])
         """
         from src.domains.agents.drafts import create_contact_delete_draft
 
-        # create_contact_delete_draft returns UnifiedToolOutput directly
+        contact = result.get("contact", {})
+        names = contact.get("names", [])
+        display_name = names[0].get("displayName") if names else None
+        emails = contact.get("emailAddresses", [])
+        phones = contact.get("phoneNumbers", [])
+        orgs = contact.get("organizations", [])
+
         return create_contact_delete_draft(
             resource_name=result["resource_name"],
-            contact=result.get("contact"),
+            current_contact=contact,
+            name=display_name,
+            email=emails[0].get("value") if emails and isinstance(emails[0], dict) else None,
+            phone=phones[0].get("value") if phones and isinstance(phones[0], dict) else None,
+            organization=orgs[0].get("name") if orgs and isinstance(orgs[0], dict) else None,
             source_tool="delete_contact_tool",
             user_language=self.get_user_language(),
         )
@@ -2862,7 +2891,7 @@ async def execute_contact_delete_draft(
     await client.delete_contact(draft_content["resource_name"])
 
     # Get name from contact data if available
-    contact = draft_content.get("contact", {})
+    contact = draft_content.get("current_contact", {})
     names = contact.get("names", [])
     display_name = names[0].get("displayName") if names else ""
 
@@ -2889,7 +2918,6 @@ async def execute_contact_delete_draft(
     name="get_contacts",
     agent_name=AGENT_CONTACT,
     context_domain=CONTEXT_DOMAIN_CONTACTS,
-    context_save_mode=ContextSaveMode.LIST,
     category="read",
 )
 async def get_contacts_tool(
@@ -2929,31 +2957,37 @@ async def get_contacts_tool(
     """
     # Route to appropriate implementation based on parameters
     if resource_name or resource_names:
-        # ID mode: direct fetch with full details
-        return await _get_contact_details_tool_instance.execute(
+        # ID mode: direct fetch → CURRENT (preserves search list)
+        result = await _get_contact_details_tool_instance.execute(
             runtime=runtime,
             resource_name=resource_name,
             resource_names=resource_names,
             fields=fields,
             force_refresh=force_refresh,
         )
+        result.context_save_mode = ContextSaveMode.CURRENT
+        return result
     elif query:
-        # Query mode: search + full details
-        return await _search_contacts_tool_instance.execute(
+        # Query mode: search + full details → LIST (overwrites list)
+        result = await _search_contacts_tool_instance.execute(
             runtime=runtime,
             query=query,
             max_results=max_results,
             fields=fields,
             force_refresh=force_refresh,
         )
+        result.context_save_mode = ContextSaveMode.LIST
+        return result
     else:
-        # List mode: return all contacts with full details
-        return await _list_contacts_tool_instance.execute(
+        # List mode: return all contacts with full details → LIST (overwrites list)
+        result = await _list_contacts_tool_instance.execute(
             runtime=runtime,
             limit=max_results,
             fields=fields,
             force_refresh=force_refresh,
         )
+        result.context_save_mode = ContextSaveMode.LIST
+        return result
 
 
 # ============================================================================

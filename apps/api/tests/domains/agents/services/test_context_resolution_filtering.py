@@ -393,7 +393,7 @@ class TestDomainDetection:
         """Helper: Derive domain from RegistryItemType."""
         assert context_service._derive_domain_from_type("EMAIL") == "emails"
         assert context_service._derive_domain_from_type("CONTACT") == "contacts"
-        assert context_service._derive_domain_from_type("EVENT") == "calendar"
+        assert context_service._derive_domain_from_type("EVENT") == "events"
         assert context_service._derive_domain_from_type("PLACE") == "places"
         assert context_service._derive_domain_from_type("UNKNOWN") is None
 

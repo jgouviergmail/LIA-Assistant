@@ -15,7 +15,7 @@ Usage:
 
 from typing import Any
 
-from src.domains.agents.constants import TURN_TYPE_REFERENCE
+from src.domains.agents.utils.turn_type import is_reference_turn as _is_reference_turn
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -226,8 +226,8 @@ def filter_registry_by_current_turn(
             source_turn_id=source_turn_id,
         )
 
-    # Security: REFERENCE turns must NOT leak data from other turns
-    if turn_type == TURN_TYPE_REFERENCE:
+    # Security: REFERENCE turns (any variant) must NOT leak data from other turns
+    if _is_reference_turn(turn_type):
         logger.warning(
             "filtering_registry_reference_turn_no_match",
             turn_id=current_turn_id,

@@ -4,17 +4,23 @@ Generic Tool Context Manager for LangGraph BaseStore.
 Provides CRUD operations for tool context management with zero tool-specific code.
 All operations are configuration-driven via ContextTypeRegistry.
 
-Architecture (Phase 5 - Session Isolation + Phase 3.2.9 - Multi-Keys Store Pattern):
+Architecture (two-keys design, 2026-04):
     - Hierarchical namespaces: (user_id, session_id, "context", domain)
-    - Three keys per domain (Multi-Keys Store Pattern):
-        * "list" → ToolContextList (search results, overwrite behavior)
-        * "details" → ToolContextDetails (item details, LRU merge, max 10)
-        * "current" → ToolContextCurrentItem (single item or null)
+    - Two keys per domain:
+        * "list" → ToolContextList (results of last bulk operation, overwrite behavior)
+        * "current" → ToolContextCurrentItem (single focused item)
     - Auto-enrichment: Adds "index" field to all items
     - Type-safe: Uses Pydantic schemas for validation
     - Auto-set current_item: When 1 result → automatic selection
     - Session isolation: Each conversation has its own context
-    - Convention-based classification: Tool name patterns route to list vs details
+    - Explicit save mode: Tools opt into LIST, CURRENT, or NONE via UnifiedToolOutput
+
+Write Rules:
+    - Search/list operations → LIST (overwrite, auto-manage current)
+    - Direct ID fetch (single) → CURRENT only (LIST preserved)
+    - Direct ID fetch (batch) → CURRENT=clear (LIST preserved)
+    - Create/Update via HITL → set_current_item() directly
+    - Delete via HITL → remove_item_from_list() directly
 
 Usage:
     manager = ToolContextManager()
@@ -80,7 +86,6 @@ from src.domains.agents.context.schemas import (
     ContextMetadata,
     ContextSaveMode,
     ToolContextCurrentItem,
-    ToolContextDetails,
     ToolContextList,
 )
 from src.infrastructure.observability.logging import get_logger
@@ -500,6 +505,181 @@ class ToolContextManager:
             )
             return None
 
+    async def remove_item_from_list(
+        self,
+        user_id: str | UUID,
+        session_id: str,
+        domain: str,
+        item_id: str,
+        store: BaseStore,
+    ) -> bool:
+        """Remove a specific item from the list context (e.g., after confirmed deletion).
+
+        Reads the current list, removes the item matching item_id on the domain's
+        primary_id_field, reindexes remaining items, and saves back. Also clears
+        current_item if it was the deleted item.
+
+        Args:
+            user_id: User UUID or identifier.
+            session_id: Session UUID for conversation isolation.
+            domain: Domain identifier (e.g., "contacts", "emails").
+            item_id: ID value of the item to remove (matched against primary_id_field).
+            store: LangGraph BaseStore instance.
+
+        Returns:
+            True if item was found and removed, False if not found.
+
+        Example:
+            >>> removed = await manager.remove_item_from_list(
+            ...     user_id="user123",
+            ...     session_id="sess456",
+            ...     domain="emails",
+            ...     item_id="msg_abc123",
+            ...     store=store,
+            ... )
+        """
+        namespace = self._build_namespace(str(user_id), session_id, domain)
+
+        try:
+            # Get current list
+            existing = await store.aget(namespace, "list")
+            if not existing or not existing.value:
+                return False
+
+            context_list = ToolContextList(**existing.value)
+            definition = ContextTypeRegistry.get_definition(domain)
+            primary_id_field = definition.primary_id_field
+
+            # Find and remove the item
+            original_count = len(context_list.items)
+            filtered_items = [
+                item for item in context_list.items if item.get(primary_id_field) != item_id
+            ]
+
+            if len(filtered_items) == original_count:
+                # Item not found
+                return False
+
+            # Reindex remaining items (1-based)
+            reindexed = [{**item, FIELD_INDEX: i + 1} for i, item in enumerate(filtered_items)]
+
+            # Update and save
+            context_list.items = reindexed
+            context_list.metadata.total_count = len(reindexed)
+            await store.aput(namespace, "list", context_list.model_dump())
+
+            # Clear current_item if it was the deleted item
+            current = await store.aget(namespace, "current")
+            if current and current.value:
+                current_item_data = current.value.get("item", {})
+                if current_item_data.get(primary_id_field) == item_id:
+                    await self.clear_current_item(user_id, session_id, domain, store)
+
+            logger.info(
+                "item_removed_from_list",
+                user_id=str(user_id),
+                domain=domain,
+                removed_count=original_count - len(reindexed),
+                remaining_count=len(reindexed),
+            )
+            return True
+
+        except Exception:
+            logger.exception(
+                "remove_item_from_list_failed",
+                user_id=str(user_id),
+                domain=domain,
+            )
+            return False
+
+    async def update_item_in_list(
+        self,
+        user_id: str | UUID,
+        session_id: str,
+        domain: str,
+        item_id: str,
+        updated_item: dict[str, Any],
+        store: BaseStore,
+    ) -> bool:
+        """Update a specific item in the list context (e.g., after confirmed update).
+
+        Reads the current list, finds the item by primary_id_field, replaces its
+        payload in place while preserving its 1-based "index" field. Does NOT
+        touch other items or change the list size. If the item is not found in
+        the list, it is a no-op (returns False).
+
+        Symmetrical to remove_item_from_list() — both operate on LIST entries
+        by primary_id_field and preserve the overall list structure.
+
+        Args:
+            user_id: User UUID or identifier.
+            session_id: Session UUID for conversation isolation.
+            domain: Domain identifier (e.g., "events", "contacts").
+            item_id: ID value matched against primary_id_field.
+            updated_item: Full replacement item dict (without "index" — preserved).
+            store: LangGraph BaseStore instance.
+
+        Returns:
+            True if item was found and updated, False if not in list.
+
+        Example:
+            >>> updated = await manager.update_item_in_list(
+            ...     user_id="user123",
+            ...     session_id="sess456",
+            ...     domain="events",
+            ...     item_id="evt_abc",
+            ...     updated_item={"id": "evt_abc", "summary": "new title", ...},
+            ...     store=store,
+            ... )
+        """
+        namespace = self._build_namespace(str(user_id), session_id, domain)
+
+        try:
+            existing = await store.aget(namespace, "list")
+            if not existing or not existing.value:
+                return False
+
+            context_list = ToolContextList(**existing.value)
+            definition = ContextTypeRegistry.get_definition(domain)
+            primary_id_field = definition.primary_id_field
+
+            # Locate and replace in place, preserving the "index" field
+            replaced = False
+            new_items: list[dict[str, Any]] = []
+            for item in context_list.items:
+                if item.get(primary_id_field) == item_id:
+                    preserved_index = item.get(FIELD_INDEX)
+                    merged = {**updated_item}
+                    if preserved_index is not None:
+                        merged[FIELD_INDEX] = preserved_index
+                    new_items.append(merged)
+                    replaced = True
+                else:
+                    new_items.append(item)
+
+            if not replaced:
+                return False
+
+            context_list.items = new_items
+            await store.aput(namespace, "list", context_list.model_dump())
+
+            logger.info(
+                "item_updated_in_list",
+                user_id=str(user_id),
+                domain=domain,
+                item_id=item_id,
+            )
+            return True
+
+        except Exception:
+            logger.exception(
+                "update_item_in_list_failed",
+                user_id=str(user_id),
+                domain=domain,
+                item_id=item_id,
+            )
+            return False
+
     async def clear_current_item(
         self,
         user_id: str | UUID,
@@ -594,7 +774,7 @@ class ToolContextManager:
         return active_domains
 
     # ==========================================
-    # LEGACY COMPATIBILITY (V1)
+    # AUTO-SAVE DISPATCH
     # ==========================================
 
     async def auto_save(
@@ -605,44 +785,25 @@ class ToolContextManager:
         store: BaseStore,
         explicit_mode: ContextSaveMode | None = None,
     ) -> None:
-        """
-        Auto-save context from tool result (called by @auto_save_context decorator).
+        """Auto-save context from tool result (called by @auto_save_context decorator).
 
-        V2 - Multi-Keys Store Pattern:
-            - Classifies tool results (LIST vs DETAILS)
-            - Routes to save_list() or save_details() accordingly
-            - LIST mode: Overwrites existing (search results)
-            - DETAILS mode: Merges with existing (detail views)
+        Routes to save_list() or set_current_item() based on explicit_mode.
+        LIST → overwrite list + auto-manage current.
+        CURRENT → set current only when N=1, clear current when N>1, never touch list.
+        NONE → no-op.
 
         Convention:
-            - Tool result must have key "{domain}s" (plural)
-            - Example: domain="contacts" → result["contacts"]
-            - Example: domain="email" → result["emails"]
+            Tool result must have key "{domain}s" (plural) in its data payload.
+            Example: domain="contacts" → result["contacts"], domain="event" → result["events"].
 
         Args:
             context_type: Context type identifier (maps to domain).
-            result_data: Parsed JSON result from tool (dict).
+            result_data: Parsed result from tool (dict). May be wrapped in {"data": {...}}.
             config: RunnableConfig with user_id and metadata.
             store: LangGraph BaseStore instance.
-            explicit_mode: Explicit LIST/DETAILS override from ToolManifest.context_save_mode.
-                If None, uses name-based heuristic in classify_save_mode().
-
-        Example:
-            >>> # Called by decorator after tool execution
-            >>> result = {"success": True, "contacts": [...], "tool_name": "search_contacts_tool"}
-            >>> await manager.auto_save(
-            ...     context_type="contacts",
-            ...     result_data=result,
-            ...     config=config,
-            ...     store=store
-            ... )
-            >>> # Classifies as LIST mode → calls save_list()
-
-            >>> result = {"success": True, "contacts": [...], "tool_name": "get_contact_details_tool"}
-            >>> await manager.auto_save(...)
-            >>> # Classifies as DETAILS mode → calls save_details()
+            explicit_mode: Save mode from UnifiedToolOutput.context_save_mode.
+                If None, defaults to LIST (conservative).
         """
-        # DEBUG: Log entry to trace if auto_save is called
         logger.info(
             "auto_save_entered",
             context_type=context_type,
@@ -652,7 +813,6 @@ class ToolContextManager:
             tool_name=result_data.get(FIELD_TOOL_NAME),
         )
 
-        # Map context_type to domain (1:1 in V1)
         domain = context_type
 
         # Validate domain exists (raises ValueError if not found)
@@ -663,10 +823,8 @@ class ToolContextManager:
             return
 
         # Extract items from result
-        # CRITICAL: ToolResponse schema wraps data in {"success": bool, "data": {...}}
-        # So we need to extract from result_data["data"]["{domain}s"]
-        # NOT directly from result_data["{domain}s"]
-        data_payload = result_data.get("data", result_data)  # Fallback for legacy tools
+        # ToolResponse may wrap data in {"success": bool, "data": {...}}
+        data_payload = result_data.get("data", result_data)
         items_key = f"{domain}s" if not domain.endswith("s") else domain
         items = data_payload.get(items_key, [])
 
@@ -689,13 +847,9 @@ class ToolContextManager:
             )
             return
 
-        # Extract session_id from config (Phase 5 - Session Isolation)
-        # session_id is stored in configurable by LangGraph
-        # CRITICAL: session_id is REQUIRED for data isolation - NO fallback to empty string
         session_id = config.get("configurable", {}).get("thread_id")
         if not session_id:
             # FAIL-FAST: session_id is MANDATORY for namespace isolation
-            # Using empty string would cause data collisions across sessions
             logger.error(
                 "auto_save_critical_missing_session_id",
                 domain=domain,
@@ -707,7 +861,6 @@ class ToolContextManager:
                 "Data isolation breach prevented. Ensure thread_id is set in config.configurable."
             )
 
-        # Extract metadata from config
         turn_id = config.get(FIELD_METADATA, {}).get(FIELD_TURN_ID, 0)
         tool_name = result_data.get(FIELD_TOOL_NAME)
         query = result_data.get(FIELD_QUERY)
@@ -720,17 +873,12 @@ class ToolContextManager:
             FIELD_TIMESTAMP: datetime.now(UTC).isoformat(),
         }
 
-        # ========================================
-        # PHASE 3.2.9: MULTI-KEYS STORE PATTERN
-        # ========================================
-        # Classify save mode based on tool name and result count
         save_mode = self.classify_save_mode(
             tool_name=tool_name or "unknown_tool",
             result_count=len(items),
             explicit_mode=explicit_mode,
         )
 
-        # DEBUG: Log classification result to trace persistence issue
         logger.info(
             "auto_save_classified",
             domain=domain,
@@ -742,9 +890,8 @@ class ToolContextManager:
         )
 
         try:
-            # Route to appropriate save method
             if save_mode == ContextSaveMode.LIST:
-                # LIST mode: Overwrites existing (search/list results)
+                # LIST: overwrite list + auto-manage current
                 await self.save_list(
                     user_id=user_id,
                     session_id=session_id,
@@ -753,19 +900,23 @@ class ToolContextManager:
                     metadata=metadata,
                     store=store,
                 )
-            elif save_mode == ContextSaveMode.DETAILS:
-                # DETAILS mode: Merges with existing (detail views)
-                await self.save_details(
-                    user_id=user_id,
-                    session_id=session_id,
-                    domain=domain,
-                    items=items,
-                    metadata=metadata,
-                    store=store,
-                    max_items=settings.tool_context_details_max_items,
-                )
+            elif save_mode == ContextSaveMode.CURRENT:
+                # CURRENT: set current only, never touch list
+                if len(items) == 1:
+                    indexed_item = {**items[0], FIELD_INDEX: 1}
+                    await self.set_current_item(
+                        user_id=user_id,
+                        session_id=session_id,
+                        domain=domain,
+                        item=indexed_item,
+                        set_by="auto",
+                        turn_id=turn_id,
+                        store=store,
+                    )
+                else:
+                    # N > 1: ambiguous focus → clear current, preserve list
+                    await self.clear_current_item(user_id, session_id, domain, store)
             elif save_mode == ContextSaveMode.NONE:
-                # NONE mode: Skip save (tool doesn't produce context-worthy results)
                 logger.debug(
                     "auto_save_skipped_mode_none",
                     domain=domain,
@@ -779,11 +930,6 @@ class ToolContextManager:
                 error=str(e),
                 exc_info=True,
             )
-        # Note: ContextSaveMode.CURRENT is not used in auto_save (manual only)
-
-    # ==========================================
-    # MULTI-KEYS STORE PATTERN (V2 - Phase 3.2.9)
-    # ==========================================
 
     @staticmethod
     def classify_save_mode(
@@ -791,42 +937,19 @@ class ToolContextManager:
         result_count: int,
         explicit_mode: ContextSaveMode | None = None,
     ) -> ContextSaveMode:
-        """
-        Classify which Store key to use based on convention and result structure.
+        """Classify save mode: explicit if provided, else LIST (conservative default).
 
-        This is the core routing logic for the Multi-Keys Store Pattern.
-        It determines whether tool results should go to "list", "details", or nowhere.
-
-        Classification Rules (priority order):
-            1. Explicit mode from manifest → Use explicit mode
-            2. Tool name contains "search", "list", "find" → LIST
-            3. Tool name contains "get", "show", "detail", "fetch" → DETAILS
-            4. Result count > 10 → LIST (large result set)
-            5. Result count <= 10 → DETAILS (small result set)
-            6. Default → DETAILS (safe fallback)
+        Unified tools opt into LIST/CURRENT/NONE via UnifiedToolOutput.context_save_mode.
+        Legacy tools without explicit mode fall back to LIST (overwrite, safe default).
 
         Args:
-            tool_name: Name of the tool that produced results.
-            result_count: Number of items in result.
-            explicit_mode: Optional explicit mode from ToolManifest.context_save_mode.
+            tool_name: Name of the tool (kept for logging).
+            result_count: Number of items (kept for logging).
+            explicit_mode: Explicit mode from tool output or manifest.
 
         Returns:
-            ContextSaveMode enum value (LIST, DETAILS, CURRENT, or NONE).
-
-        Examples:
-            >>> classify_save_mode("search_contacts_tool", 10)
-            ContextSaveMode.LIST
-
-            >>> classify_save_mode("get_contact_details_tool", 2)
-            ContextSaveMode.DETAILS
-
-            >>> classify_save_mode("list_contacts_tool", 50)
-            ContextSaveMode.LIST
-
-            >>> classify_save_mode("update_contact_tool", 1, explicit_mode=ContextSaveMode.NONE)
-            ContextSaveMode.NONE
+            ContextSaveMode (LIST, CURRENT, or NONE).
         """
-        # Rule 1: Explicit mode from manifest (highest priority)
         if explicit_mode is not None:
             logger.debug(
                 "classify_save_mode_explicit",
@@ -836,293 +959,12 @@ class ToolContextManager:
             )
             return explicit_mode
 
-        tool_name_lower = tool_name.lower()
-
-        # Rule 2: Tool name pattern - LIST keywords
-        list_keywords = ["search", "list", "find", "query"]
-        if any(keyword in tool_name_lower for keyword in list_keywords):
-            logger.debug(
-                "classify_save_mode_by_name",
-                tool_name=tool_name,
-                result_count=result_count,
-                mode="list",
-                reason="tool_name_contains_list_keyword",
-            )
-            return ContextSaveMode.LIST
-
-        # Rule 3: Tool name pattern - DETAILS keywords
-        details_keywords = ["get", "show", "detail", "fetch", "retrieve"]
-        if any(keyword in tool_name_lower for keyword in details_keywords):
-            logger.debug(
-                "classify_save_mode_by_name",
-                tool_name=tool_name,
-                result_count=result_count,
-                mode="details",
-                reason="tool_name_contains_details_keyword",
-            )
-            return ContextSaveMode.DETAILS
-
-        # Rule 4: Result count > 10 → LIST (large result set)
-        if result_count > 10:
-            # Debug log removed - classification logic is clear from conditional
-            return ContextSaveMode.LIST
-
-        # Rule 5: Result count <= 10 → DETAILS (small result set)
-        # Debug log removed - classification logic is clear from conditional
-        return ContextSaveMode.DETAILS
-
-    async def save_details(
-        self,
-        user_id: str | UUID,
-        session_id: str,
-        domain: str,
-        items: list[dict[str, Any]],
-        metadata: dict[str, Any],
-        store: BaseStore,
-        max_items: int = 10,
-    ) -> None:
-        """
-        Save item details to Store with LRU merge logic.
-
-        Unlike save_list() which OVERWRITES, save_details() MERGES new items
-        with existing details, deduplicates, reindexes, and evicts oldest items
-        when max_items is exceeded.
-
-        Current Item Management (based on NEW items, not cache size):
-            - If 1 new item → Auto-set that item as current (user is viewing it)
-            - If > 1 new items → Clear current_item (ambiguous which one)
-            - If 0 new items → Don't touch current_item
-            This differs from save_list() because save_details() uses LRU merge.
-            The current_item represents "what the user is currently viewing",
-            so it should be the newly saved item, regardless of cache size.
-
-        LRU Merge Algorithm:
-            1. Fetch existing ToolContextDetails from Store key "details"
-            2. Merge new items with existing (deduplicate by primary_id_field)
-            3. Keep most recent version of each unique item
-            4. Reindex items (1-based sequential)
-            5. Evict oldest items if count > max_items
-            6. Update metadata (total_count, timestamp)
-            7. Save back to Store key "details"
-
-        Args:
-            user_id: User identifier.
-            session_id: Session/thread identifier.
-            domain: Domain identifier (must exist in ContextTypeRegistry).
-            items: List of item dicts to save (will be enriched with "index").
-            metadata: Metadata dict (turn_id, query, tool_name, timestamp).
-            store: LangGraph BaseStore instance.
-            max_items: Maximum items to keep in details cache (default 10).
-
-        Example:
-            >>> # First call: Save 1 contact detail
-            >>> await manager.save_details(
-            ...     user_id="user123",
-            ...     session_id="sess456",
-            ...     domain="contacts",
-            ...     items=[{"resource_name": "people/c123", "name": "Jean"}],
-            ...     metadata={FIELD_TURN_ID: 5, ...},
-            ...     store=store,
-            ... )
-            >>> # Store["details"] = {items: [{"index": 1, "resource_name": "people/c123", ...}]}
-
-            >>> # Second call: Save 2 more contact details
-            >>> await manager.save_details(
-            ...     user_id="user123",
-            ...     session_id="sess456",
-            ...     domain="contacts",
-            ...     items=[
-            ...         {"resource_name": "people/c456", "name": "Marie"},
-            ...         {"resource_name": "people/c789", "name": "Paul"},
-            ...     ],
-            ...     metadata={FIELD_TURN_ID: 6, ...},
-            ...     store=store,
-            ... )
-            >>> # Store["details"] = {items: [
-            >>> #     {"index": 1, "resource_name": "people/c123", ...},  # Existing
-            >>> #     {"index": 2, "resource_name": "people/c456", ...},  # New
-            >>> #     {"index": 3, "resource_name": "people/c789", ...},  # New
-            >>> # ]}
-
-        Deduplication Logic:
-            If new item has same primary_id_field as existing item → Replace existing.
-            Example: get_contact_details("people/c123") twice → Only 1 item kept.
-        """
-        # Validate domain
-        definition = ContextTypeRegistry.get_definition(domain)
-
-        # Build namespace
-        namespace = self._build_namespace(str(user_id), session_id, domain)
-
-        # Fetch existing details (if any)
-        existing_item = await store.aget(namespace, "details")
-        existing_details: ToolContextDetails | None = None
-
-        if existing_item and existing_item.value:
-            try:
-                existing_details = ToolContextDetails(**existing_item.value)
-            except Exception as exc:
-                logger.warning(
-                    "save_details_invalid_existing",
-                    domain=domain,
-                    error=str(exc),
-                    message="Existing details corrupted, starting fresh",
-                )
-
-        # Merge items (deduplicate by primary_id_field)
-        primary_id_field = definition.primary_id_field
-        merged_items_map: dict[Any, dict[str, Any]] = {}
-
-        # Add existing items to map
-        if existing_details:
-            for item in existing_details.items:
-                primary_id = item.get(primary_id_field)
-                if primary_id:
-                    merged_items_map[primary_id] = item
-
-        # Add/overwrite with new items
-        for item in items:
-            primary_id = item.get(primary_id_field)
-            if primary_id:
-                merged_items_map[primary_id] = item
-            else:
-                logger.warning(
-                    "save_details_missing_primary_id",
-                    domain=domain,
-                    primary_id_field=primary_id_field,
-                    item=item,
-                )
-
-        # Convert map back to list (preserves insertion order in Python 3.7+)
-        merged_items = list(merged_items_map.values())
-
-        # Evict oldest items if exceeds max_items
-        if len(merged_items) > max_items:
-            # Debug log removed - LRU eviction is expected behavior, no actionable info
-            # Keep most recent max_items (assumes list order = insertion order)
-            merged_items = merged_items[-max_items:]
-
-        # Reindex items (1-based sequential)
-        indexed_items = [{FIELD_INDEX: i + 1, **item} for i, item in enumerate(merged_items)]
-
-        # Create ToolContextDetails schema
-        context_metadata = ContextMetadata(**metadata)
-        context_metadata.total_count = len(indexed_items)  # Update to merged count
-
-        context_details = ToolContextDetails(
-            domain=domain,
-            items=indexed_items,
-            metadata=context_metadata,
+        logger.debug(
+            "classify_save_mode_default_list",
+            tool_name=tool_name,
+            result_count=result_count,
         )
-
-        # Save to Store key "details"
-        await store.aput(namespace, "details", context_details.model_dump())
-
-        # ============================================================
-        # AUTO-MANAGE current_item based on NEW items (not cache size)
-        # ============================================================
-        # IMPORTANT: Unlike save_list(), save_details() uses LRU merge.
-        # The current_item should be based on NEW items being saved:
-        # - If 1 new item → Set that item as current (user is viewing it)
-        # - If > 1 new items → Clear current (ambiguous which one user wants)
-        # - If 0 new items → Don't touch current_item
-        #
-        # This fixes the bug where "detail of the 2nd" would clear current_item
-        # because the LRU cache had multiple items from previous detail views.
-        # ============================================================
-        if len(items) == 1:
-            # Single NEW item → Auto-set as current
-            # Find this item in indexed_items by primary_id
-            primary_id = items[0].get(primary_id_field)
-            new_item = next(
-                (item for item in indexed_items if item.get(primary_id_field) == primary_id),
-                indexed_items[-1] if indexed_items else None,  # Fallback to last
-            )
-            if new_item:
-                await self.set_current_item(
-                    user_id=user_id,
-                    session_id=session_id,
-                    domain=domain,
-                    item=new_item,
-                    set_by="auto",
-                    turn_id=metadata.get(FIELD_TURN_ID, 0),
-                    store=store,
-                )
-                logger.info(
-                    "current_item_auto_set_from_details",
-                    user_id=str(user_id),
-                    session_id=session_id,
-                    domain=domain,
-                    reason="single_new_detail_item",
-                    item_index=new_item.get(FIELD_INDEX),
-                    cache_size=len(indexed_items),
-                )
-        elif len(items) > 1:
-            # Multiple NEW items → Clear current_item (ambiguous)
-            await self.clear_current_item(user_id, session_id, domain, store)
-            logger.debug(
-                "current_item_cleared_multiple_new",
-                user_id=str(user_id),
-                domain=domain,
-                new_items_count=len(items),
-            )
-        else:
-            # len(items) == 0: Edge case - empty save should clear current for consistency
-            # with save_list() behavior. This shouldn't normally happen in practice.
-            await self.clear_current_item(user_id, session_id, domain, store)
-
-        logger.info(
-            "details_saved",
-            domain=domain,
-            user_id=str(user_id),
-            session_id=session_id,
-            items_count=len(indexed_items),
-            turn_id=metadata.get(FIELD_TURN_ID),
-            tool_name=metadata.get(FIELD_TOOL_NAME),
-        )
-
-    async def get_details(
-        self, user_id: str | UUID, session_id: str, domain: str, store: BaseStore
-    ) -> ToolContextDetails | None:
-        """
-        Get item details from Store key "details".
-
-        Args:
-            user_id: User identifier.
-            session_id: Session/thread identifier.
-            domain: Domain identifier.
-            store: LangGraph BaseStore instance.
-
-        Returns:
-            ToolContextDetails if exists, None otherwise.
-
-        Example:
-            >>> details = await manager.get_details(
-            ...     user_id="user123",
-            ...     session_id="sess456",
-            ...     domain="contacts",
-            ...     store=store
-            ... )
-            >>> if details:
-            ...     print(f"Details cache: {len(details.items)} items")
-        """
-        namespace = self._build_namespace(str(user_id), session_id, domain)
-        item = await store.aget(namespace, "details")
-
-        if not item or not item.value:
-            return None
-
-        try:
-            return ToolContextDetails(**item.value)
-        except Exception as exc:
-            logger.error(
-                "get_details_parse_error",
-                domain=domain,
-                user_id=str(user_id),
-                session_id=session_id,
-                error=str(exc),
-            )
-            return None
+        return ContextSaveMode.LIST
 
     # ==========================================
     # SESSION CLEANUP OPERATIONS
@@ -1144,7 +986,7 @@ class ToolContextManager:
         Deletes all Store entries with namespace prefix:
             (user_id, session_id, "context", *)
 
-        This removes ALL keys (list, details, current) for ALL domains.
+        This removes ALL keys (list, current) for ALL domains.
 
         Args:
             user_id: User identifier.
@@ -1196,7 +1038,7 @@ class ToolContextManager:
 
             for item in search_results:
                 # item.namespace is the full tuple: (user_id, session_id, "context", domain)
-                # item.key is one of: "list", "details", "current"
+                # item.key is one of: "list", "current"
                 namespace = item.namespace
                 key = item.key
 

@@ -13,6 +13,28 @@ Resolve all implicit references using CONVERSATION HISTORY and PERSONAL MEMORY b
 - Temporal ("tomorrow", "next week") → resolve to absolute date using current datetime
 - Contextual ("the details", "the second one") → identify from conversation topic
 
+### context_reference — Previous result references
+
+Populate context_reference to indicate whether the user refers to a SPECIFIC ITEM from a PREVIOUS SEARCH/LIST/DETAIL result shown by the assistant in conversation history.
+
+Set has_reference=true ONLY when the user points to an item the assistant already returned:
+- "details of the first one" → ordinal, ordinal_positions=[1], reference_domain from context
+- "delete this email" (after listing emails) → demonstrative, reference_domain="email"
+- "the second contact" → ordinal, ordinal_positions=[2], reference_domain="contact"
+- "the first and the third" → ordinal, ordinal_positions=[1, 3]
+- "the last one" → ordinal, ordinal_positions=[-1]
+- "reply to it" (after discussing an email) → pronoun, reference_domain="email"
+- "tell me more" (after showing a single item) → demonstrative
+
+Set has_reference=false when there is NO reference to previously returned items:
+- "what do you see in this photo?" → false ("this photo" = user attachment, not a previous result)
+- "this morning I went out" → false (temporal expression)
+- "search for restaurants" → false (new query)
+- "what is this?" → false (general question)
+- "send an email to Alice" → false (new action, no previous result referenced)
+
+reference_domain uses domain names from AVAILABLE DOMAINS (singular): contact, email, event, task, etc. Leave empty if domain is implicit and should be inferred from context.
+
 **ACTION CONFIRMATIONS:** If user message is a confirmation/approval ("yes", "go ahead", "ok do it") AND history contains a PENDING ACTION (send, create, delete, modify) → intent="action" with the pending action's domain.
 
 **english_query MUST be self-contained, understandable without context, and preserve ALL verbs/actions from the original query.** If multiple actions linked by "and/then", english_query MUST include ALL of them. A partial translation = downstream tool selection failure.

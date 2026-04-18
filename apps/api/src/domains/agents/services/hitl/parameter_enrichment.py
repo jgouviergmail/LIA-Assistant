@@ -198,11 +198,10 @@ async def _resolve_id_to_label(
     domain: str,
     store: BaseStore,
 ) -> str | None:
-    """
-    Resolve a single ID to its user-friendly display label.
+    """Resolve a single ID to its user-friendly display label.
 
-    Looks up the ID in both "list" and "details" context keys and returns
-    the display_name_field value if found.
+    Looks up the ID in the "list" context key (primary) and then "current" item
+    (secondary, covers direct-fetch items that never hit the list cache).
 
     Args:
         id_value: ID to resolve (e.g., "people/c123") or full object dict.
@@ -216,13 +215,10 @@ async def _resolve_id_to_label(
     Returns:
         Display label if found (e.g., "jean dupond"), None otherwise.
     """
-    # FIX: Handle case where id_value is already a full object dict
-    # (happens when get_context_list returns full contact objects)
+    # Handle case where id_value is already a full object dict
     if isinstance(id_value, dict):
-        # If object already has display field, return it directly
         if display_field in id_value:
             return id_value.get(display_field)
-        # Otherwise extract the ID field for lookup
         id_value = id_value.get(primary_id_field)
         if not id_value:
             return None
@@ -238,20 +234,12 @@ async def _resolve_id_to_label(
         session_id=session_id,
     )
 
-    # Step 1: Try "list" context (most common case - search results)
+    # Step 1: Try "list" (last search/list results)
     context_list = await manager.get_list(
         user_id=user_id,
         session_id=session_id,
         domain=domain,
         store=store,
-    )
-
-    logger.info(
-        "enrichment_list_context_retrieved",
-        domain=domain,
-        has_list=bool(context_list),
-        items_count=len(context_list.items) if context_list and context_list.items else 0,
-        session_id=session_id,
     )
 
     if context_list and context_list.items:
@@ -267,28 +255,24 @@ async def _resolve_id_to_label(
                     )
                     return display_label
 
-    # Step 2: Try "details" context (fallback - previously fetched details)
-    context_details = await manager.get_details(
+    # Step 2: Try "current" item (direct-fetch items not in list)
+    current_item = await manager.get_current_item(
         user_id=user_id,
         session_id=session_id,
         domain=domain,
         store=store,
     )
+    if current_item and current_item.get(primary_id_field) == id_value:
+        display_label = current_item.get(display_field)
+        if display_label:
+            logger.debug(
+                "enrichment_resolved_from_current",
+                id_value=str(id_value)[:50],
+                display_label=display_label,
+                domain=domain,
+            )
+            return display_label
 
-    if context_details and context_details.items:
-        for item in context_details.items:
-            if item.get(primary_id_field) == id_value:
-                display_label = item.get(display_field)
-                if display_label:
-                    logger.debug(
-                        "enrichment_resolved_from_details",
-                        id_value=str(id_value)[:50],
-                        display_label=display_label,
-                        domain=domain,
-                    )
-                    return display_label
-
-    # Step 3: No match found - return None (caller will use original ID)
     logger.debug(
         "enrichment_no_match",
         id_value=str(id_value)[:50],

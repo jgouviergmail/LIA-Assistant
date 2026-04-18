@@ -18,6 +18,7 @@ from src.domains.agents.constants import (
     HITL_DECISION_APPROVE,
     HITL_DECISION_EDIT,
     HITL_DECISION_REJECT,
+    HITL_DECISION_REPLAN,
 )
 from src.domains.agents.domain_schemas import ToolApprovalDecision
 from src.domains.agents.services.hitl.policies.classification_extractor import (
@@ -201,6 +202,18 @@ class ApprovalDecisionBuilder:
                     user_language=user_language,
                 )
                 decisions.append(decision_dict)
+            elif decision == HITL_DECISION_REPLAN:
+                # REPLAN = user wants a different action type (e.g., delete → update)
+                # Pass modification_instructions through for hitl_dispatch_node
+                replan_instructions = ""
+                if edited_params and "modification_instructions" in edited_params:
+                    replan_instructions = edited_params["modification_instructions"]
+                decisions.append(
+                    {
+                        "type": "replan",
+                        "modification_instructions": replan_instructions,
+                    }
+                )
             elif decision == HITL_DECISION_EDIT:
                 # Ensure edited_params is not None
                 if edited_params is None:

@@ -401,6 +401,16 @@ class UnifiedToolOutput(BaseModel):
         default_factory=dict,
         description="Optional metadata for debugging/observability",
     )
+    context_save_mode: Any = Field(
+        default=None,
+        description=(
+            "TCM save mode selected by the tool per invocation. "
+            "LIST → overwrite list (search/list operations). "
+            "CURRENT → set current item only, preserve list (direct ID fetch). "
+            "NONE → skip auto-save. "
+            "Declared as Any to avoid circular import of ContextSaveMode."
+        ),
+    )
 
     # =========================================================================
     # Pydantic Validation

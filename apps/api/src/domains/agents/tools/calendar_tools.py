@@ -53,7 +53,6 @@ from src.domains.agents.constants import (
     CONTEXT_DOMAIN_EVENTS,
 )
 from src.domains.agents.context import ContextTypeDefinition, ContextTypeRegistry
-from src.domains.agents.context.decorators import auto_save_context
 from src.domains.agents.context.manager import ToolContextManager
 from src.domains.agents.context.schemas import ContextSaveMode
 from src.domains.agents.tools.base import ConnectorTool
@@ -452,7 +451,6 @@ _search_events_tool_instance = SearchEventsTool()
     context_domain=CONTEXT_DOMAIN_EVENTS,
     category="read",
 )
-@auto_save_context("events")
 async def search_events_tool(
     query: Annotated[
         str | None, "Free text search query for event titles/descriptions (optional)"
@@ -867,7 +865,6 @@ _get_event_details_tool_instance = GetEventDetailsTool()
     context_domain=CONTEXT_DOMAIN_EVENTS,
     category="read",
 )
-@auto_save_context("events")
 async def get_event_details_tool(
     event_id: Annotated[str | None, "Google Calendar event ID to retrieve (single mode)"] = None,
     event_ids: Annotated[
@@ -1187,40 +1184,37 @@ async def _resolve_calendar_id_from_context(
         calendar_id if found, None otherwise.
     """
     manager = ToolContextManager()
-    context_items: list[dict[str, Any]] | None = None
 
-    # Try LIST first (parallel_executor path with explicit context_save_mode=LIST)
+    # Single source: LIST (last search/list results).
+    # current_item (single focused item) is also checked as secondary source
+    # for the case where a direct-fetch set current without populating LIST.
     context_list = await manager.get_list(
         user_id=config.user_id,
         session_id=config.session_id,
         domain=CONTEXT_DOMAIN_EVENTS,
         store=config.store,
     )
-    if context_list and context_list.items:
-        context_items = context_list.items
+    context_items: list[dict[str, Any]] = list(context_list.items) if context_list else []
 
-    # Fallback to DETAILS (decorator path or legacy classification)
-    if not context_items:
-        context_details = await manager.get_details(
-            user_id=config.user_id,
-            session_id=config.session_id,
-            domain=CONTEXT_DOMAIN_EVENTS,
-            store=config.store,
-        )
-        if context_details and context_details.items:
-            context_items = context_details.items
+    current_item = await manager.get_current_item(
+        user_id=config.user_id,
+        session_id=config.session_id,
+        domain=CONTEXT_DOMAIN_EVENTS,
+        store=config.store,
+    )
+    if current_item:
+        context_items.append(current_item)
 
-    if context_items:
-        for item in context_items:
-            item_id = item.get("id") or item.get("event_id")
-            if item_id == event_id:
-                calendar_id = item.get("calendar_id")
-                logger.info(
-                    "calendar_id_resolved_from_context",
-                    event_id=event_id,
-                    calendar_id=calendar_id,
-                )
-                return calendar_id
+    for item in context_items:
+        item_id = item.get("id") or item.get("event_id")
+        if item_id == event_id:
+            calendar_id = item.get("calendar_id")
+            logger.info(
+                "calendar_id_resolved_from_context",
+                event_id=event_id,
+                calendar_id=calendar_id,
+            )
+            return calendar_id
 
     logger.warning(
         "calendar_id_context_resolution_failed",
@@ -1338,16 +1332,34 @@ class UpdateEventDraftTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
                     if converted_dt:
                         dt_obj["dateTime"] = converted_dt.isoformat()
 
+        # Fill unchanged fields from current_event so the HITL draft shows
+        # actual values instead of "Non défini" for fields the user didn't change.
+        start_obj = current_event.get("start", {})
+        end_obj = current_event.get("end", {})
+        current_start = start_obj.get("dateTime") or start_obj.get("date")
+        current_end = end_obj.get("dateTime") or end_obj.get("date")
+
         return {
             "event_id": event_id,
-            "summary": summary,
-            "start_datetime": start_datetime,
-            "end_datetime": end_datetime,
+            "summary": summary or current_event.get("summary"),
+            "start_datetime": start_datetime or current_start,
+            "end_datetime": end_datetime or current_end,
             "timezone": timezone,
             "calendar_id": calendar_id,
-            "description": description,
-            "location": location,
-            "attendees": attendees,
+            "description": (
+                description if description is not None else current_event.get("description")
+            ),
+            "location": location if location is not None else current_event.get("location"),
+            "attendees": (
+                attendees
+                if attendees is not None
+                else [
+                    a.get("email", "")
+                    for a in current_event.get("attendees", [])
+                    if isinstance(a, dict)
+                ]
+                or None
+            ),
             "current_event": current_event,
         }
 
@@ -1533,12 +1545,26 @@ class DeleteEventDraftTool(ToolOutputMixin, ConnectorTool[GoogleCalendarClient])
         }
 
     def format_registry_response(self, result: dict[str, Any]) -> UnifiedToolOutput:
-        """Create delete event draft via DraftService."""
+        """Create delete event draft via DraftService.
+
+        Passes full event data as flat fields + current_event for homogenized
+        draft structure (enables delete ↔ update type changes during HITL).
+        """
         from src.domains.agents.drafts import create_delete_event_draft
+
+        event = result.get("event", {})
+        start = event.get("start", {})
+        end = event.get("end", {})
 
         return create_delete_event_draft(
             event_id=result["event_id"],
-            event=result["event"],
+            current_event=event,
+            summary=event.get("summary"),
+            start_datetime=start.get("dateTime") or start.get("date"),
+            end_datetime=end.get("dateTime") or end.get("date"),
+            description=event.get("description"),
+            location=event.get("location"),
+            attendees=[a.get("email", "") for a in event.get("attendees", [])],
             send_updates=result.get("send_updates", "all"),
             calendar_id=result.get("calendar_id"),
             source_tool="delete_event_tool",
@@ -1745,6 +1771,7 @@ async def execute_event_draft(
         "summary": draft_content["summary"],
         "start": draft_content["start_datetime"],
         "end": draft_content["end_datetime"],
+        "calendar_id": calendar_id,
         "message": APIMessages.event_created_successfully(draft_content["summary"]),
     }
 
@@ -1800,6 +1827,7 @@ async def execute_event_update_draft(
         "event_id": result.get("id"),
         "html_link": result.get("htmlLink"),
         "summary": result.get("summary"),
+        "calendar_id": calendar_id,
         "message": APIMessages.event_updated_successfully(result.get("summary", "")),
     }
 
@@ -1837,7 +1865,7 @@ async def execute_event_delete_draft(
     )
 
     # Extract summary from event data for message
-    event_data = draft_content.get("event", {})
+    event_data = draft_content.get("current_event", {})
     summary = event_data.get("summary", "")
 
     logger.info(
@@ -2132,7 +2160,6 @@ async def list_calendars_tool(
     name="get_events",
     agent_name=AGENT_EVENT,
     context_domain=CONTEXT_DOMAIN_EVENTS,
-    context_save_mode=ContextSaveMode.LIST,
     category="read",
 )
 async def get_events_tool(
@@ -2185,17 +2212,19 @@ async def get_events_tool(
 
     # Route to appropriate implementation based on parameters
     if event_id or event_ids:
-        # ID mode: direct fetch with full details
-        return await _get_event_details_tool_instance.execute(
+        # ID mode: direct fetch → CURRENT (preserves search list)
+        result = await _get_event_details_tool_instance.execute(
             runtime=runtime,
             event_id=event_id,
             event_ids=event_ids,
             calendar_id=calendar_id,
             force_refresh=force_refresh,
         )
+        result.context_save_mode = ContextSaveMode.CURRENT
+        return result
     else:
-        # Query/Time mode: search + full details
-        return await _search_events_tool_instance.execute(
+        # Query/Time mode: search → LIST (overwrites list, new search results)
+        result = await _search_events_tool_instance.execute(
             runtime=runtime,
             query=query,
             time_min=time_min,
@@ -2204,6 +2233,8 @@ async def get_events_tool(
             calendar_id=calendar_id,
             force_refresh=force_refresh,
         )
+        result.context_save_mode = ContextSaveMode.LIST
+        return result
 
 
 # ============================================================================

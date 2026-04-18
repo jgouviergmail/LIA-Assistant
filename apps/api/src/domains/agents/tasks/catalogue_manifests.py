@@ -13,7 +13,6 @@ from src.core.constants import (
     GOOGLE_TASKS_SCOPES,
     TASKS_TOOL_DEFAULT_LIMIT,
 )
-from src.domains.agents.context.schemas import ContextSaveMode
 from src.domains.agents.registry.catalogue import (
     CostProfile,
     DisplayMetadata,
@@ -155,7 +154,7 @@ get_tasks_catalogue_manifest = ToolManifest(
         required_scopes=GOOGLE_TASKS_SCOPES, hitl_required=False, data_classification="CONFIDENTIAL"
     ),
     context_key="tasks",
-    context_save_mode=ContextSaveMode.LIST,
+    # context_save_mode set dynamically by tool (LIST for search, DETAILS for ID fetch)
     reference_examples=["tasks[0].id", "tasks[0].title", "tasks[0].notes", "total"],
     version="2.0.0",
     maintainer="Team Agents",

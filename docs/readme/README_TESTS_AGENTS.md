@@ -199,7 +199,6 @@ tests/agents/
 ├── test_response_node_formatting.py            # Response formatting
 ├── test_resumption_strategies.py               # Resumption after interrupts
 ├── test_runtime_helpers.py                     # Runtime utility functions
-├── test_save_details_current_management.py     # Detail persistence
 ├── test_state_performance.py                   # State performance benchmarks
 ├── test_tool_dependencies_concurrency.py       # Concurrent tool execution
 ├── test_tool_schemas.py                        # Tool schema validation

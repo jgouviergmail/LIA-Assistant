@@ -58,8 +58,6 @@ from src.domains.agents.constants import (
     STATE_KEY_SEMANTIC_VALIDATION,
     STATE_KEY_TURN_TYPE,
     TURN_TYPE_ACTION,
-    TURN_TYPE_CONVERSATIONAL,
-    TURN_TYPE_REFERENCE,
 )
 
 # V3 Display Architecture imports
@@ -101,6 +99,15 @@ from src.domains.agents.utils.registry_filtering import (
     parse_relevant_ids_from_response,
 )
 from src.domains.agents.utils.state_tracking import track_state_updates
+from src.domains.agents.utils.turn_type import (
+    is_action_turn as _is_action_turn,
+)
+from src.domains.agents.utils.turn_type import (
+    is_conversational_turn as _is_conversational_turn,
+)
+from src.domains.agents.utils.turn_type import (
+    is_reference_turn as _is_reference_turn,
+)
 from src.domains.interests.services import extract_interests_background
 from src.infrastructure.async_utils import safe_fire_and_forget
 from src.infrastructure.llm import get_llm
@@ -1362,17 +1369,19 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             if user_id and last_user_message:
                 try:
                     thread_id_for_memory = config.get("configurable", {}).get("thread_id")
-                    profile_result, emotional_state, memory_debug_details = (
-                        await build_psychological_profile(
-                            user_id=user_id,
-                            query=last_user_message,
-                            query_embedding=user_message_embedding,
-                            limit=settings.memory_max_results,
-                            min_score=settings.memory_min_search_score,
-                            session_id=thread_id_for_memory,
-                            conversation_id=thread_id_for_memory,
-                            include_debug=True,
-                        )
+                    (
+                        profile_result,
+                        emotional_state,
+                        memory_debug_details,
+                    ) = await build_psychological_profile(
+                        user_id=user_id,
+                        query=last_user_message,
+                        query_embedding=user_message_embedding,
+                        limit=settings.memory_max_results,
+                        min_score=settings.memory_min_search_score,
+                        session_id=thread_id_for_memory,
+                        conversation_id=thread_id_for_memory,
+                        include_debug=True,
                     )
                     psychological_profile = profile_result
                     memory_injection_debug = {
@@ -2008,8 +2017,11 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         # Used when REFERENCE turn uses resolved_context directly (no current_turn_registry)
         resolved_context_for_html: dict[str, Any] | None = None
 
-        # Format agent results based on turn type
-        if turn_type == TURN_TYPE_REFERENCE and resolved_context and resolved_context.get("items"):
+        # Format agent results based on turn type.
+        # NOTE: use the helper (tolerant to REFERENCE_PURE/REFERENCE_ACTION emitted
+        # by QueryIntelligence) so resolved_context is correctly used even when
+        # the state carries the composite UPPERCASE variant.
+        if _is_reference_turn(turn_type) and resolved_context and resolved_context.get("items"):
             # Reference turn: Check if current turn has agent_results (e.g., from get_email_details)
             # If so, use them (they contain enriched data like body) instead of resolved_context items
             current_turn_agent_results = {
@@ -2060,7 +2072,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                     items_count=len(resolved_context.get("items", [])),
                     html_mode=True,  # NOTE: V3 HTML rendering is always enabled
                 )
-        elif turn_type == TURN_TYPE_CONVERSATIONAL:
+        elif _is_conversational_turn(turn_type):
             # Conversational turn: no agent results
             agent_results_summary = ""
         else:
@@ -2159,16 +2171,14 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                 error_count=len(errors),
             )
 
-        # Detect if this is a conversational turn based on turn_type from context resolution
-        # This replaces the previous heuristic-based detection
-        # Use cached i18n-aware set for all supported languages (performance)
+        # Detect if this is a conversational turn based on turn_type from context resolution.
+        # Helpers tolerate the UPPERCASE composite values (REFERENCE_PURE / REFERENCE_ACTION)
+        # emitted by QueryIntelligence in addition to the lowercase constants.
+        is_reference = _is_reference_turn(turn_type)
         is_conversational_turn = (
-            turn_type == TURN_TYPE_CONVERSATIONAL
-            or (
-                agent_results_summary in NO_EXTERNAL_AGENT_MESSAGES
-                and turn_type != TURN_TYPE_REFERENCE
-            )
-            or (not agent_results_summary.strip() and turn_type != TURN_TYPE_REFERENCE)
+            _is_conversational_turn(turn_type)
+            or (agent_results_summary in NO_EXTERNAL_AGENT_MESSAGES and not is_reference)
+            or (not agent_results_summary.strip() and not is_reference)
         )
 
         # Detect mono vs multi-domain for metrics and logging
@@ -2808,13 +2818,8 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             execution_plan = state.get(STATE_KEY_EXECUTION_PLAN)
             semantic_validation = state.get(STATE_KEY_SEMANTIC_VALIDATION)
 
-            # Only record if: ACTION turn + plan exists + not already recorded by semantic_validator
-            # Note: turn_type from QueryIntelligence is uppercase "ACTION", constant is lowercase
-            if (
-                (turn_type or "").upper() == TURN_TYPE_ACTION.upper()
-                and execution_plan
-                and semantic_validation is None
-            ):
+            # Only record if: ACTION turn + plan exists + not already recorded by semantic_validator.
+            if _is_action_turn(turn_type) and execution_plan and semantic_validation is None:
                 qi_object = get_query_intelligence_from_state(state)
 
                 if qi_object:

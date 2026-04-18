@@ -50,7 +50,6 @@ from src.core.i18n_types import get_language_name
 from src.core.validators import validate_email
 from src.domains.agents.constants import AGENT_EMAIL, CONTEXT_DOMAIN_EMAILS
 from src.domains.agents.context import ContextTypeDefinition, ContextTypeRegistry
-from src.domains.agents.context.decorators import auto_save_context
 from src.domains.agents.context.schemas import ContextSaveMode
 from src.domains.agents.prompts import load_prompt
 from src.domains.agents.tools.base import ConnectorTool
@@ -675,10 +674,8 @@ _get_emails_tool_instance = GetEmailsTool()
     name="get_emails",
     agent_name=AGENT_EMAIL,
     context_domain=CONTEXT_DOMAIN_EMAILS,
-    context_save_mode=ContextSaveMode.LIST,
     category="read",
 )
-@auto_save_context("emails")
 async def get_emails_tool(
     query: Annotated[
         str | None, "Gmail search query (optional, supports all Gmail operators)"
@@ -794,6 +791,13 @@ async def get_emails_tool(
                 )
         except Exception as e:
             logger.debug("store_context_failed", error=str(e))
+
+    # Dynamic save mode: ID params → CURRENT (preserves search list), else → LIST
+    if isinstance(result, UnifiedToolOutput):
+        if message_id or message_ids:
+            result.context_save_mode = ContextSaveMode.CURRENT
+        else:
+            result.context_save_mode = ContextSaveMode.LIST
 
     return result
 
@@ -974,7 +978,6 @@ _search_emails_tool_instance = SearchEmailsTool()
     context_domain=CONTEXT_DOMAIN_EMAILS,
     category="read",
 )
-@auto_save_context("emails")
 async def search_emails_tool(
     query: Annotated[str, "Gmail search query (supports all Gmail search operators)"],
     max_results: Annotated[
@@ -1451,7 +1454,6 @@ _get_email_details_tool_instance = GetEmailDetailsTool()
     context_domain=CONTEXT_DOMAIN_EMAILS,
     category="read",
 )
-@auto_save_context("emails")
 async def get_email_details_tool(
     message_id: Annotated[str | None, "Gmail message ID to retrieve (single mode)"] = None,
     message_ids: Annotated[

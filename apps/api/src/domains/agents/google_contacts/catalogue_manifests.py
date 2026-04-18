@@ -11,7 +11,6 @@ Architecture Simplification (2026-01):
 from src.core.config import settings
 from src.core.constants import GOOGLE_CONTACTS_SCOPES
 from src.core.field_names import FIELD_QUERY, FIELD_RESOURCE_NAME
-from src.domains.agents.context.schemas import ContextSaveMode
 from src.domains.agents.google_contacts.common_mappings import get_contacts_field_mappings
 from src.domains.agents.registry.catalogue import (
     CostProfile,
@@ -174,7 +173,7 @@ get_contacts_catalogue_manifest = ToolManifest(
     supports_dry_run=True,
     reference_fields=["resource_name", "name", "emailAddresses", "phoneNumbers", "addresses"],
     context_key="contacts",
-    context_save_mode=ContextSaveMode.LIST,
+    # context_save_mode set dynamically by tool (LIST for search, DETAILS for ID fetch)
     field_mappings=get_contacts_field_mappings(),
     reference_examples=[
         "contacts[0].resource_name",

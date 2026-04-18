@@ -302,37 +302,23 @@ class TestCleanupSessionContexts:
             store=store,
         )
 
-        # Save details (separate key)
-        await manager.save_details(
-            user_id,
-            session_id,
-            domain,
-            items=[{"resource_name": "people/c123", "name": "Jean Dupond"}],
-            metadata=metadata,
-            store=store,
-        )
-
-        # Verify all 3 keys exist
+        # Verify both keys exist
         context_list = await manager.get_list(user_id, session_id, domain, store)
         context_current = await manager.get_current_item(user_id, session_id, domain, store)
-        context_details = await manager.get_details(user_id, session_id, domain, store)
         assert context_list is not None
         assert context_current is not None
-        assert context_details is not None
 
         # Execute cleanup
         cleanup_stats = await manager.cleanup_session_contexts(user_id, session_id, store)
 
-        # Validate all 3 keys are deleted
+        # Validate both keys are deleted
         assert cleanup_stats["success"] is True
-        assert cleanup_stats["total_items_deleted"] == 3  # list + current + details
+        assert cleanup_stats["total_items_deleted"] == 2  # list + current
 
         context_list_after = await manager.get_list(user_id, session_id, domain, store)
         context_current_after = await manager.get_current_item(user_id, session_id, domain, store)
-        context_details_after = await manager.get_details(user_id, session_id, domain, store)
         assert context_list_after is None
         assert context_current_after is None
-        assert context_details_after is None
 
 
 class TestResetConversationIntegration:

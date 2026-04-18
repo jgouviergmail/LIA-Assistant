@@ -2739,6 +2739,16 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_16_5": {
+          "title": "v1.16.5 — Sharper conversational context tracking",
+          "date": "April 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>\"This meeting\", \"the first one\", \"delete it\" — LIA finally keeps up</b> — The assistant now remembers the last item you actually manipulated, searched for, or even just referenced. No more confusion between a meeting you just created and the one you're talking about now: when you say \"delete this meeting\" after asking \"what was the first meeting returned?\", LIA deletes the right one.",
+            "i2": "<b>Clearer HITL preview for updates</b> — When LIA asks you to confirm a modification (meeting, contact, task), the preview is now structured as two clean blocks: \"Changes\" (only what actually changes, with old → new) and \"Full details after update\" (the complete post-update snapshot). No more contradictory \"Other details unchanged\" labels followed by values that just got updated.",
+            "i3": "<b>Consistency after create / update / delete</b> — After an action is confirmed (e.g., a meeting created via HITL), the previously displayed list stays in sync automatically: updates propagate to search results, deletions remove the deleted item, and the conversational focus always tracks the latest handled item."
+          }
+        },
         "v1_16_4": {
           "title": "v1.16.4 — More reliable skill triggering",
           "date": "April 2026",

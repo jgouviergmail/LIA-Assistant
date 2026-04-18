@@ -2710,6 +2710,16 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_16_5": {
+          "title": "v1.16.5 — Seguimiento del contexto conversacional reforzado",
+          "date": "Abril 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>«Esta reunión», «la primera», «elimínala» — LIA por fin lleva el hilo</b> — El asistente ahora recuerda el último elemento que realmente has manipulado, buscado o simplemente mencionado. Se acabó confundir una reunión que acabas de crear con aquella de la que hablas ahora: cuando dices «elimina esta reunión» tras preguntar «¿cuál era la primera reunión devuelta?», LIA elimina la correcta.",
+            "i2": "<b>Vista previa HITL más clara para las modificaciones</b> — Cuando LIA te pide validar una modificación (reunión, contacto, tarea), la vista previa se estructura ahora en dos bloques limpios: «Cambios» (solo lo que realmente cambia, con antiguo → nuevo) y «Detalles completos tras la modificación» (instantánea completa tras la actualización). Se acabaron las etiquetas contradictorias tipo «Otros detalles sin cambios» seguidas de valores que acaban de cambiar.",
+            "i3": "<b>Coherencia tras crear / modificar / eliminar</b> — Tras confirmar una acción (p. ej., crear una reunión vía HITL), la lista mostrada anteriormente se mantiene sincronizada automáticamente: las modificaciones se propagan a los resultados de búsqueda, las eliminaciones retiran el elemento eliminado, y el foco conversacional sigue siempre al último elemento tratado."
+          }
+        },
         "v1_16_4": {
           "title": "v1.16.4 — Activación de skills más fiable",
           "date": "Abril 2026",

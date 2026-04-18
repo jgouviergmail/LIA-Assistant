@@ -83,6 +83,44 @@ STATE_KEY_TOOL_CONFIRMATION_RESULT = "tool_confirmation_result"
 
 STATE_KEY_REGISTRY = "registry"
 
+# Draft type change mappings (2026-04 — homogenized draft structures)
+_TYPE_TO_DELETE: dict[str, str] = {
+    "event_update": "event_delete",
+    "contact_update": "contact_delete",
+    "task_update": "task_delete",
+    "email_reply": "email_delete",
+    "email_forward": "email_delete",
+}
+_UPDATABLE_DELETE_TYPES: dict[str, str] = {
+    "event_delete": "event_update",
+    "contact_delete": "contact_update",
+    "task_delete": "task_update",
+}
+_DRAFT_TYPE_TO_TOOL: dict[str, str] = {
+    "event_update": "update_event_tool",
+    "event_delete": "delete_event_tool",
+    "contact_update": "update_contact_tool",
+    "contact_delete": "delete_contact_tool",
+    "task_update": "update_task_tool",
+    "task_delete": "delete_task_tool",
+    "email_delete": "delete_email_tool",
+}
+_PRESERVED_FIELDS_FOR_DIFF: set[str] = {
+    "event_id",
+    "calendar_id",
+    "timezone",
+    "send_updates",
+    "resource_name",
+    "task_id",
+    "task_list_id",
+    "current_event",
+    "current_contact",
+    "current_task",
+    "related_registry_ids",
+    "user_language",
+    "user_timezone",
+}
+
 
 # ============================================================================
 # HELPER FUNCTIONS - DRAFT CRITIQUE
@@ -672,12 +710,40 @@ async def _handle_draft_critique(
             track_state_updates(state, result, "hitl_dispatch", pending_draft.draft_id)
             return result
 
+        # === REPLAN: User wants a different action type (LLM classifier detected) ===
+        elif action == "replan":
+            new_type = _TYPE_TO_DELETE.get(pending_draft.draft_type)
+            if new_type:
+                logger.info(
+                    "hitl_draft_type_changed_via_replan",
+                    draft_id=pending_draft.draft_id,
+                    from_type=pending_draft.draft_type,
+                    to_type=new_type,
+                    instructions=decision_data.get("modification_instructions", "")[:80],
+                )
+                pending_draft = PendingDraftInfo(
+                    draft_id=pending_draft.draft_id,
+                    draft_type=new_type,
+                    draft_content=pending_draft.draft_content,
+                    draft_summary="",
+                    registry_ids=pending_draft.registry_ids,
+                    tool_name=_DRAFT_TYPE_TO_TOOL.get(new_type, pending_draft.tool_name),
+                    step_id=pending_draft.step_id,
+                )
+                continue
+            else:
+                logger.warning(
+                    "hitl_replan_no_target_type",
+                    draft_id=pending_draft.draft_id,
+                    draft_type=pending_draft.draft_type,
+                )
+                continue
+
         # === EDIT: Modify the draft and re-present for validation ===
         elif action == "edit":
             modification_instructions = decision_data.get("modification_instructions", "")
 
             if not modification_instructions:
-                # No instructions provided - treat as if user wants to continue
                 logger.warning(
                     "hitl_dispatch_draft_edit_no_instructions",
                     draft_id=pending_draft.draft_id,
@@ -693,14 +759,13 @@ async def _handle_draft_critique(
                 iteration=iteration,
             )
 
+            new_draft_type = pending_draft.draft_type
+
             try:
-                # Call DraftModificationService to regenerate content
                 from src.domains.agents.services.hitl.draft_modifier import (
                     get_draft_modification_service,
                 )
 
-                # FIX 2026-01-11: Build contact context for email address resolution
-                # Enables resolution of references like "@carven" to alternative emails
                 contact_context = await _build_contact_context(state, pending_draft.registry_ids)
 
                 modifier = get_draft_modification_service()
@@ -713,23 +778,45 @@ async def _handle_draft_critique(
                     contact_context=contact_context,
                 )
 
+                # Detect DELETE → UPDATE: modifier produced content changes
+                # on a delete draft → user wants to update, not delete
+                if pending_draft.draft_type in _UPDATABLE_DELETE_TYPES:
+                    content_changes = [
+                        k
+                        for k in modified_content
+                        if k not in _PRESERVED_FIELDS_FOR_DIFF
+                        and (
+                            k not in pending_draft.draft_content
+                            or modified_content[k] != pending_draft.draft_content.get(k)
+                        )
+                    ]
+                    if content_changes:
+                        new_draft_type = _UPDATABLE_DELETE_TYPES[pending_draft.draft_type]
+                        logger.info(
+                            "hitl_draft_type_changed_to_update",
+                            draft_id=pending_draft.draft_id,
+                            from_type=pending_draft.draft_type,
+                            to_type=new_draft_type,
+                            content_changes=content_changes,
+                        )
+
                 logger.info(
                     "hitl_dispatch_draft_modified",
                     draft_id=pending_draft.draft_id,
-                    draft_type=pending_draft.draft_type,
+                    draft_type=new_draft_type,
+                    original_type=pending_draft.draft_type,
+                    type_changed=new_draft_type != pending_draft.draft_type,
                     modified_fields=list(modified_content.keys()),
                     iteration=iteration,
                 )
 
-                # Update the pending draft with modified content
-                # Preserve registry_ids, regenerate summary
                 pending_draft = PendingDraftInfo(
                     draft_id=pending_draft.draft_id,
-                    draft_type=pending_draft.draft_type,
+                    draft_type=new_draft_type,
                     draft_content=modified_content,
-                    draft_summary="",  # Will be regenerated by DraftCritiqueInteraction
+                    draft_summary="",
                     registry_ids=pending_draft.registry_ids,
-                    tool_name=pending_draft.tool_name,
+                    tool_name=_DRAFT_TYPE_TO_TOOL.get(new_draft_type, pending_draft.tool_name),
                     step_id=pending_draft.step_id,
                 )
 

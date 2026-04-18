@@ -2712,6 +2712,16 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_16_5": {
+          "title": "v1.16.5 — Tracciamento del contesto conversazionale rafforzato",
+          "date": "Aprile 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>«Questo appuntamento», «il primo», «eliminalo» — LIA finalmente segue il filo</b> — L'assistente ora ricorda l'ultimo elemento che hai effettivamente manipolato, cercato o semplicemente menzionato. Basta confusione tra un appuntamento appena creato e quello di cui stai parlando ora: quando dici «elimina questo appuntamento» dopo aver chiesto «qual era il primo appuntamento restituito?», LIA elimina quello giusto.",
+            "i2": "<b>Anteprima HITL più chiara per le modifiche</b> — Quando LIA ti chiede di confermare una modifica (appuntamento, contatto, attività), l'anteprima è ora strutturata in due blocchi netti: «Modifiche» (solo ciò che cambia davvero, con vecchio → nuovo) e «Dettagli dopo la modifica» (snapshot completo post-aggiornamento). Niente più etichette contraddittorie tipo «Altri dettagli invariati» seguite da valori appena modificati.",
+            "i3": "<b>Coerenza dopo creazione / modifica / eliminazione</b> — Dopo la conferma di un'azione (es. appuntamento creato via HITL), la lista visualizzata in precedenza resta sincronizzata automaticamente: le modifiche si propagano ai risultati di ricerca, le eliminazioni rimuovono l'elemento eliminato, e il focus conversazionale segue sempre l'ultimo elemento gestito."
+          }
+        },
         "v1_16_4": {
           "title": "v1.16.4 — Attivazione delle skill più affidabile",
           "date": "Aprile 2026",

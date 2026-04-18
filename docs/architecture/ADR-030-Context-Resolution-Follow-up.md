@@ -9,6 +9,22 @@
 > La resolution de contexte est maintenant integree dans `QueryAnalyzerService.analyze_full()`.
 > Voir [SMART_SERVICES.md](../technical/SMART_SERVICES.md) pour la documentation actuelle.
 
+> **Update 2026-04 (LLM-First Context Reference Detection)**: The regex-based reference detection
+> (`ReferenceResolver.extract_references()`) has been replaced by LLM-native detection via
+> the `context_reference` field of `QueryAnalysisOutput`. The QueryAnalyzer LLM now directly
+> detects whether the user references previous results (ordinals, demonstratives, pronouns),
+> eliminating regex false positives (e.g., "this photo" treated as email reference) and the
+> stale `routing_history[-1]` temporal coupling bug. The resolution infrastructure
+> (ToolContextManager, agent_results/registry fallbacks) is preserved — only the **detection**
+> mechanism changed. See `ContextReferenceOutput` in `query_analyzer_service.py` and
+> `_resolve_llm_detected_reference()` in `context_resolution_service.py`.
+
+> **Update 2026-04 (TCM Two-Keys Simplification — ADR-072)**: The Tool Context Manager
+> now exposes only two keys per domain (`list` + `current`). The legacy `details` key
+> (LRU merge cache) has been removed — it was never read as a primary source. The
+> `_get_items_from_tool_context_manager()` helper reads only from `list`. See ADR-072
+> for the full rationale.
+
 ---
 
 ## Context and Problem Statement

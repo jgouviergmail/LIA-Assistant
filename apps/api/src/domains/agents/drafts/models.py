@@ -307,20 +307,29 @@ class EventDeleteDraftInput(BaseDraftInput):
     Input for deleting a calendar event draft.
 
     Maps to DeleteEventInput but deferred for user confirmation.
+    Homogenized with EventUpdateDraftInput to enable draft type changes
+    (e.g., user says "non déplace le au 23 mai" on a delete HITL).
     """
 
     event_id: str = Field(..., description="Event ID to delete")
-    event: dict[str, Any] = Field(
+    summary: str | None = Field(default=None, description="Event title")
+    start_datetime: str | None = Field(default=None, description="Start datetime (ISO format)")
+    end_datetime: str | None = Field(default=None, description="End datetime (ISO format)")
+    description: str | None = Field(default=None, description="Event description")
+    location: str | None = Field(default=None, description="Event location")
+    attendees: list[str] | None = Field(default=None, description="Attendee emails")
+    timezone: str = Field(default="Europe/Paris", description="Timezone")
+    calendar_id: str | None = Field(
+        default=None,
+        description="Calendar ID where the event is located. If None, uses user's default calendar preference.",
+    )
+    current_event: dict[str, Any] = Field(
         default_factory=dict,
-        description="Event data for confirmation display",
+        description="Current event data for confirmation display and type change",
     )
     send_updates: str = Field(
         default="all",
         description="How to notify attendees: all, externalOnly, none",
-    )
-    calendar_id: str | None = Field(
-        default=None,
-        description="Calendar ID where the event is located. If None, uses user's default calendar preference.",
     )
 
     def to_delete_event_args(self) -> dict[str, Any]:
@@ -406,12 +415,19 @@ class ContactDeleteDraftInput(BaseDraftInput):
     Input for deleting a contact draft.
 
     Maps to DeleteContactInput but deferred for user confirmation.
+    Homogenized with ContactUpdateDraftInput to enable draft type changes.
     """
 
     resource_name: str = Field(..., description="Contact resource name (people/c...)")
-    contact: dict[str, Any] = Field(
+    name: str | None = Field(default=None, description="Contact name")
+    email: str | None = Field(default=None, description="Contact email")
+    phone: str | None = Field(default=None, description="Contact phone")
+    organization: str | None = Field(default=None, description="Company name")
+    notes: str | None = Field(default=None, description="Notes")
+    address: str | None = Field(default=None, description="Address")
+    current_contact: dict[str, Any] = Field(
         default_factory=dict,
-        description="Contact data for confirmation display",
+        description="Current contact data for confirmation display and type change",
     )
 
     def to_delete_contact_args(self) -> dict[str, Any]:
@@ -478,11 +494,19 @@ class TaskDeleteDraftInput(BaseDraftInput):
     Input for deleting a task draft.
 
     Maps to DeleteTaskInput but deferred for user confirmation.
+    Homogenized with TaskUpdateDraftInput to enable draft type changes.
     """
 
     task_id: str = Field(..., description="Task ID to delete")
-    title: str | None = Field(default=None, description="Task title for display")
+    title: str | None = Field(default=None, description="Task title")
+    notes: str | None = Field(default=None, description="Task notes")
+    due: str | None = Field(default=None, description="Due date (RFC 3339)")
+    status: str | None = Field(default=None, description="Status: needsAction or completed")
     task_list_id: str = Field(default="@default", description="Task list ID")
+    current_task: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Current task data for confirmation display and type change",
+    )
 
     def to_delete_task_args(self) -> dict[str, Any]:
         """Convert to args for delete_task execution."""

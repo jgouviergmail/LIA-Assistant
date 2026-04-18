@@ -2467,9 +2467,9 @@ async def run_agent(self, user_id: UUID, message: str):
 
 Le `ToolContextManager` gère la persistence des résultats de recherche et détails dans le LangGraph BaseStore.
 
-### 16.1 Architecture Multi-Keys Store
+### 16.1 Architecture Two-Keys Store (2026-04)
 
-**Pattern**: Namespace hiérarchique avec 3 clés par domaine
+**Pattern**: Namespace hiérarchique avec 2 clés par domaine. Voir ADR-072.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -2479,55 +2479,44 @@ Le `ToolContextManager` gère la persistence des résultats de recherche et dét
 │  Namespace: (user_id, session_id, "context", domain)                    │
 │                                                                          │
 │  Keys per domain:                                                        │
-│  ├── "list"    → ToolContextList (search results, OVERWRITE behavior)  │
-│  ├── "details" → ToolContextDetails (item details, MERGE LRU, max 10)  │
+│  ├── "list"    → ToolContextList (bulk operation results, OVERWRITE)   │
 │  └── "current" → ToolContextCurrentItem (single focused item)          │
 │                                                                          │
 │  Example for contacts:                                                   │
 │  (user123, session456, "context", "contacts")                           │
 │  ├── "list"    → {items: [{name: "Jean"}, {name: "Marie"}], meta: ...} │
-│  ├── "details" → {items: [{name: "Jean", full_details: ...}], meta: ...}│
 │  └── "current" → {item: {name: "Jean", ...}, meta: ...}                │
 │                                                                          │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 16.2 Classification Automatique (Save Mode)
+**Historique**: La clé `"details"` (LRU merge) a été supprimée en 2026-04 (ADR-072). Depuis l'architecture v2.0 (2026-01) les tools unifiés retournent toujours les payloads complets, rendant la distinction LIST/DETAILS caduque.
+
+### 16.2 Classification Save Mode (règle unique)
 
 **Fichier**: `src/domains/agents/context/manager.py`
 
 ```python
 def classify_save_mode(
     tool_name: str,
-    item_count: int,
-    explicit_mode: str | None = None,
-) -> Literal["list", "details"]:
-    """
-    Détermine automatiquement le mode de sauvegarde.
-
-    Priorité:
-    1. Mode explicite du manifest
-    2. Patterns dans le nom du tool
-    3. Nombre d'items
-    """
-    if explicit_mode:
+    result_count: int,
+    explicit_mode: ContextSaveMode | None = None,
+) -> ContextSaveMode:
+    """Explicit wins, else default LIST (conservative)."""
+    if explicit_mode is not None:
         return explicit_mode
-
-    # Patterns pour LIST
-    list_patterns = ["search", "list", "find", "query"]
-    if any(p in tool_name.lower() for p in list_patterns):
-        return "list"
-
-    # Patterns pour DETAILS
-    detail_patterns = ["get", "show", "detail", "fetch"]
-    if any(p in tool_name.lower() for p in detail_patterns):
-        return "details"
-
-    # Heuristique par count
-    return "list" if item_count > 10 else "details"
+    return ContextSaveMode.LIST
 ```
 
-### 16.3 Sauvegarde de Liste (Overwrite)
+Les tools unifiés opt-in explicitement via `UnifiedToolOutput.context_save_mode` :
+
+| Opération | Mode |
+|---|---|
+| `get_X_tool(query=…)` (search) | `LIST` |
+| `get_X_tool(id=…)` (direct fetch) | `CURRENT` |
+| `get_X_tool(ids=[…])` (batch fetch) | `CURRENT` (clear si N>1) |
+
+### 16.3 Sauvegarde de Liste (LIST — overwrite)
 
 ```python
 await manager.save_list(
@@ -2552,22 +2541,24 @@ await manager.save_list(
 # - Si >1 items → clear current_item
 ```
 
-### 16.4 Sauvegarde de Détails (Merge LRU)
+### 16.4 Sauvegarde de l'item courant (CURRENT — non-intrusive)
+
+Pour les direct-fetches par ID (search list préservée) et après exécution HITL (create/update) :
 
 ```python
-await manager.save_details(
+# Via auto_save (décorateur, depuis UnifiedToolOutput.context_save_mode = CURRENT)
+# → set_current_item si 1 item, clear_current_item si > 1
+
+# Via appel direct (draft_executor après HITL approve)
+await manager.set_current_item(
     user_id=user_id,
     session_id=session_id,
-    domain="contacts",
-    items=[{"resourceName": "people/c123", "full_data": {...}}],
-    metadata={...},
-    max_items=10,  # Éviction LRU si dépassé
+    domain="events",
+    item={**draft_content, **result_data},  # porte event_id, summary, …
+    set_by="auto",
+    turn_id=0,
     store=store,
 )
-# Comportement:
-# - Merge avec détails existants
-# - Déduplique par primary_id_field (resourceName pour contacts)
-# - Évince items les plus anciens si > max_items
 ```
 
 ### 16.5 Décorateur @auto_save_context
@@ -2582,76 +2573,40 @@ from src.domains.agents.context.decorators import auto_save_context
 async def search_contacts_tool(
     runtime: Annotated[ToolRuntime, InjectedToolArg],
     query: str,
-) -> str:
-    """
-    Le décorateur intercepte le retour et sauvegarde automatiquement
-    dans le context store.
-    """
+) -> UnifiedToolOutput:
     result = await search_contacts(query)
-    return json.dumps({"success": True, "contacts": result})
+    return UnifiedToolOutput(
+        success=True,
+        registry_updates={...},
+        context_save_mode=ContextSaveMode.LIST,  # ← opt-in explicite
+    )
 ```
 
-**Fonctionnement:**
-1. Intercepte le retour du tool
-2. Détecte le mode (registry ou legacy JSON)
-3. Extrait les items à sauvegarder
-4. Appelle `manager.auto_save()` avec classification automatique
-5. **Fail-safe**: Erreurs de sauvegarde n'affectent jamais le tool
-
-```python
-def auto_save_context(domain: str):
-    """
-    Décorateur pour persistence automatique des résultats.
-
-    Supporte deux modes:
-    - Legacy: Parse JSON, extrait items
-    - Registry: Extrait de StandardToolOutput.registry_updates
-    """
-    def decorator(func):
-        @wraps(func)
-        async def wrapper(*args, **kwargs):
-            result = await func(*args, **kwargs)
-
-            try:
-                # Mode Registry (nouveau)
-                if isinstance(result, StandardToolOutput):
-                    items = _extract_items_from_registry(result.registry_updates)
-                # Mode Legacy (JSON string)
-                else:
-                    items = _extract_items_from_json(result)
-
-                if items:
-                    await manager.auto_save(
-                        user_id, session_id, domain,
-                        items=items,
-                        tool_name=func.__name__,
-                        store=store,
-                    )
-            except Exception as e:
-                # FAIL-SAFE: Ne jamais bloquer le tool
-                logger.warning("auto_save_context_failed", error=str(e))
-
-            return result
-        return wrapper
-    return decorator
-```
+**Fonctionnement**:
+1. Exécute le tool
+2. Détecte `UnifiedToolOutput` vs legacy JSON string
+3. Extrait les items depuis `registry_updates`
+4. Lit `tool_result.context_save_mode` (priorité) ou le mode par défaut
+5. Appelle `manager.auto_save(explicit_mode=…)`
+6. Pose `tool_metadata["_tcm_saved"] = True` pour éviter un double save par `parallel_executor._auto_save_wave_contexts`
+7. **Fail-safe**: les erreurs de sauvegarde n'interrompent jamais le tool
 
 ### 16.6 Récupération du Contexte
 
 ```python
-# Current item (pour références $context.contacts.current)
+# Current item (pour références démonstratives "ce rdv", "this contact")
 current = await manager.get_current_item(
     user_id, session_id, "contacts", store
 )
 
-# Liste complète (pour références $context.contacts.0)
+# Liste complète (pour références ordinales "le 2e", "the first")
 context_list = await manager.get_list(
     user_id, session_id, "contacts", store
 )
 
-# Détails (pour enrichissement)
-details = await manager.get_details(
-    user_id, session_id, "contacts", store
+# Retrait après delete confirmé (HITL)
+await manager.remove_item_from_list(
+    user_id, session_id, domain, item_id, store
 )
 ```
 

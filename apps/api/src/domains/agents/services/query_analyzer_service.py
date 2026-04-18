@@ -307,6 +307,63 @@ class ConstraintHints(BaseModel):
     has_count: bool = PydanticField(default=False, description="Numeric count limit")
 
 
+class ContextReferenceOutput(BaseModel):
+    """LLM-detected reference to items from previous conversation results.
+
+    Populated by the QueryAnalyzer LLM to indicate whether the user's query
+    references specific items from a previous assistant response (ordinal,
+    demonstrative, or pronoun references). Used by ContextResolutionService
+    to resolve references to actual items via ToolContextManager.
+
+    Examples of has_reference=True:
+        - "details of the first one" → ordinal, ordinal_positions=[1]
+        - "delete this email" → demonstrative, reference_domain="email"
+        - "reply to it" → pronoun, reference_domain="email"
+
+    Examples of has_reference=False:
+        - "this photo is nice" → attachment, not a previous result
+        - "this morning" → temporal expression
+        - "search for restaurants" → new query
+    """
+
+    has_reference: bool = PydanticField(
+        default=False,
+        description=(
+            "True ONLY when user refers to a specific item from a previous assistant response "
+            "in the conversation (ordinal like 'the 2nd one', demonstrative like 'this email', "
+            "or pronoun like 'reply to it'). "
+            "False for attachments ('this photo'), temporal expressions ('this morning'), "
+            "new queries, or general conversation."
+        ),
+    )
+    reference_type: str = PydanticField(
+        default="none",
+        description=(
+            "'ordinal' (the first, the 2nd, the last, the 1st and 3rd), "
+            "'demonstrative' (this email, that contact), "
+            "'pronoun' (it, them, reply to him), "
+            "or 'none'"
+        ),
+    )
+    ordinal_positions: list[int] = PydanticField(
+        default_factory=list,
+        description=(
+            "1-based positions for ordinal references. "
+            "Examples: [1] for 'the first', [2] for 'the second', "
+            "[1, 3] for 'the first and third', [-1] for 'the last'. "
+            "Empty list when not an ordinal reference."
+        ),
+    )
+    reference_domain: str = PydanticField(
+        default="",
+        description=(
+            "Domain of the referenced items, using the domain name from AVAILABLE DOMAINS "
+            "(singular form): contact, email, event, task, file, place, reminder. "
+            "Empty string if domain should be inferred from last search context."
+        ),
+    )
+
+
 class QueryAnalysisOutput(BaseModel):
     """Structured output from query analysis LLM."""
 
@@ -355,6 +412,13 @@ class QueryAnalysisOutput(BaseModel):
     constraint_hints: ConstraintHints = PydanticField(
         default_factory=ConstraintHints,
         description="Detected query constraints for result filtering",
+    )
+    context_reference: ContextReferenceOutput = PydanticField(
+        default_factory=ContextReferenceOutput,
+        description=(
+            "Detected reference to items from a previous assistant response. "
+            "Set has_reference=true only when user points to previously returned results."
+        ),
     )
     encyclopedia_keywords: list[str] = PydanticField(
         default_factory=list,
@@ -437,6 +501,8 @@ class QueryAnalysisResult:
     # App self-knowledge
     is_app_help_query: bool = False
     skill_name: str | None = None
+    # Context reference (LLM-first, 2026-04)
+    context_reference: ContextReferenceOutput = field(default_factory=ContextReferenceOutput)
     raw_output: dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -723,6 +789,8 @@ async def analyze_query(
             is_news_query=result.is_news_query,
             is_app_help_query=result.is_app_help_query,
             skill_name=result.skill_name,
+            # Context reference (LLM-first, 2026-04)
+            context_reference=result.context_reference,
             raw_output=result.model_dump(),
         )
 
@@ -1086,19 +1154,28 @@ class QueryAnalyzerService:
                         "reason": "LLM classified as conversation",
                     }
 
-            # === STEP 5: Context Resolution ===
-            # FIX: Use semantic pivot query (faithful translation with demonstratives intact)
-            # for reference detection, NOT the QA english_query (which resolves references
-            # like "these emails" → "the two most recently received emails", destroying
-            # the demonstrative needed for context resolution detection).
+            # === STEP 5: Context Resolution (LLM-first) ===
+            # Uses context_reference from LLM structured output (Step 2) instead of
+            # regex-based reference detection. Eliminates stale routing_history[-1] bug
+            # and false positives like "this photo" being treated as a reference.
             context_result, _ = await self.context_resolver.resolve_context(
                 query=query,
                 state=state,  # type: ignore
                 config=config,
                 run_id=run_id,
-                english_query=query,  # Semantic pivot query preserves "these/this/that"
+                context_reference=analysis_result.context_reference,
             )
             turn_type = self._determine_turn_type(context_result, immediate_intent)
+
+            # Track context reference detection for debug panel
+            intelligent_mechanisms["context_reference_llm"] = {
+                "applied": analysis_result.context_reference.has_reference,
+                "reference_type": analysis_result.context_reference.reference_type,
+                "reference_domain": analysis_result.context_reference.reference_domain,
+                "ordinal_positions": analysis_result.context_reference.ordinal_positions,
+                "resolved_items_count": len(context_result.items) if context_result else 0,
+                "method": context_result.method if context_result else "none",
+            }
 
             # === STEP 6: Set english_enriched_query ===
             english_enriched_query: str | None = english_query if resolved_refs_dict else None

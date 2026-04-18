@@ -2761,6 +2761,16 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_16_5": {
+          "title": "v1.16.5 — Suivi du contexte conversationnel renforcé",
+          "date": "Avril 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>« Ce rdv », « le premier », « supprime-le » — LIA suit enfin correctement</b> — L'assistant garde désormais en mémoire le dernier élément que vous avez manipulé, recherché ou simplement évoqué. Plus de confusion entre un rendez-vous que vous venez de créer et celui dont vous parlez maintenant : quand vous dites « supprime ce rdv » après avoir demandé « c'était quoi le premier rdv renvoyé ? », LIA supprime bien le bon.",
+            "i2": "<b>Aperçu HITL plus lisible pour les modifications</b> — Quand LIA vous demande de valider une modification (rendez-vous, contact, tâche), l'aperçu est désormais structuré en deux blocs clairs : « Modifications » (seulement ce qui change, avec ancien → nouveau) et « Détails après modification » (la vision complète post-update). Fini les libellés contradictoires du type « Autres détails inchangés » suivis de valeurs qui venaient de changer.",
+            "i3": "<b>Cohérence après création / modification / suppression</b> — Après qu'une action soit confirmée (ex : création d'un rendez-vous via HITL), la liste précédemment affichée reste à jour automatiquement : les modifications se propagent aux résultats recherchés, les suppressions retirent l'élément supprimé, et le focus conversationnel suit toujours le dernier élément traité."
+          }
+        },
         "v1_16_4": {
           "title": "v1.16.4 — Identification des skills plus fiable",
           "date": "Avril 2026",

@@ -67,8 +67,14 @@ Yes! LIA maintains an **intelligent context** throughout the conversation:
 • Contacts, emails, events mentioned
 • Drafts awaiting approval
 • The conversation thread
+• **The last item you manipulated, searched for, or referenced** — so demonstratives like "*this one*", "*it*", "*delete it*" always target what you most recently talked about, even across several turns.
 
 **💡 Tip:** Use natural references like "*the first one*", "*Mary's one*", "*tomorrow's appointment*".
+
+**🧭 How the focus follows you (v1.16.5):**
+After you search, create, update, or even just mention an item by ordinal ("*the first meeting*"), LIA updates its internal focus to that item. Subsequent references like "*this meeting*" or "*delete it*" target the correct item — no more confusion with something you created earlier in the conversation.
+
+When LIA asks you to validate a modification (meeting, contact, task), the preview is structured in two clear blocks: **Changes** (only the fields that actually change, shown as old → new) and **Full details after update** (the complete post-update snapshot).
 
 ## Why does LIA sometimes take time to respond?
 Response time varies based on your request's complexity:

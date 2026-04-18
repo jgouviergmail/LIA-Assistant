@@ -58,41 +58,6 @@ plan_template:
 5. Lister les rappels en attente pour la journée
 6. Formater en sections structurées : Agenda → Tâches → Météo → Emails → Rappels → À noter
 7. Commencer par le plus urgent, terminer par les suggestions proactives
-8. Si aucune tâche/événement : mentionner "journée libre" et suggérer des activités
-9. Si aucun email : mentionner "aucun email reçu aujourd'hui"
-10. Si aucun rappel : mentionner "aucun rappel aujourd'hui"
-
-## Format de sortie
-
-### 📅 Agenda du jour
-- Lister chaque rdv avec heure, titre et lieu
-- Mettre en évidence les conflits horaires éventuels
-- Mentionner les événements du lendemain s'ils nécessitent une préparation
-
-### ✅ Tâches prioritaires
-- Tâches en retard (avec date d'échéance dépassée)
-- Tâches du jour classées par priorité
-- Tâches à venir nécessitant une action aujourd'hui
-
-### 🌤 Météo
-- Conditions actuelles (température, ciel, vent)
-- Prévisions pour la journée
-- Tendance sur 3 jours
-- Alertes météo si pertinent
-
-### 📧 Emails du jour
-- Les 5 derniers emails reçus aujourd'hui dans la boîte de réception
-- Expéditeur, objet et résumé court pour chaque email
-- Signaler les emails importants ou urgents nécessitant une action
-
-### 🔔 Rappels
-- Pour chaque rappel : **heure de déclenchement** + **objet/contenu** du rappel
-- Rappels en retard (heure dépassée) signalés en priorité
-- Si aucun rappel en attente, ne pas afficher cette section
-
-### 💡 À noter
-- Suggestions proactives basées sur le contexte (agenda, tâches, météo, emails, rappels)
-- Rappels utiles (parapluie, vêtements chauds, réponses urgentes, etc.)
 
 ## Ressources disponibles
 

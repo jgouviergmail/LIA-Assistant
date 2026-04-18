@@ -13,7 +13,6 @@ from src.core.constants import (
     CALENDAR_TOOL_DEFAULT_LIMIT,
     GOOGLE_CALENDAR_SCOPES,
 )
-from src.domains.agents.context.schemas import ContextSaveMode
 from src.domains.agents.registry.catalogue import (
     CostProfile,
     DisplayMetadata,
@@ -200,7 +199,7 @@ get_events_catalogue_manifest = ToolManifest(
     max_iterations=1,
     supports_dry_run=False,
     context_key="events",
-    context_save_mode=ContextSaveMode.LIST,
+    # context_save_mode set dynamically by tool (LIST for search, DETAILS for ID fetch)
     reference_examples=[
         "events[0].id",
         "events[0].start.dateTime",

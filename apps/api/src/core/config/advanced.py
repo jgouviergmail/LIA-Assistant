@@ -44,7 +44,6 @@ from src.core.constants import (
     TOKEN_COUNT_DEFAULT_MODEL_DEFAULT,
     TOKEN_ENCODING_NAME_DEFAULT,
     TOOL_CONTEXT_CONFIDENCE_THRESHOLD,
-    TOOL_CONTEXT_DETAILS_MAX_ITEMS,
     TOOL_CONTEXT_MAX_ITEMS,
     WEB_FETCH_CACHE_PREFIX,
     WEB_FETCH_CACHE_TTL_DEFAULT,
@@ -121,11 +120,6 @@ class AdvancedSettings(BaseSettings):
         default=TOOL_CONTEXT_MAX_ITEMS,
         gt=0,
         description="Maximum number of items to store per context list",
-    )
-    tool_context_details_max_items: int = Field(
-        default=TOOL_CONTEXT_DETAILS_MAX_ITEMS,
-        gt=0,
-        description="Maximum number of detailed items to cache per domain (LRU eviction)",
     )
 
     # ========================================================================

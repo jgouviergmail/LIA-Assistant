@@ -1,23 +1,19 @@
 """
-Comprehensive tests for ToolContextManager to improve test coverage from 41% to 85%+.
+Comprehensive tests for ToolContextManager.
 
-This test suite provides extensive coverage of all ToolContextManager methods including:
+Two-keys design (2026-04): list + current. No DETAILS.
+
+Coverage:
 - save_list with various scenarios (single item, multiple items, empty, truncation)
 - get_list with empty and populated results
-- set_current_item and get_current_item operations
-- clear_current_item functionality
-- save_details with LRU merge logic
-- get_details operations
-- classify_save_mode with various patterns
-- auto_save with LIST and DETAILS modes
+- set_current_item / get_current_item / clear_current_item operations
+- classify_save_mode (explicit or default LIST)
+- auto_save with LIST and CURRENT modes
 - list_active_domains for multi-domain scenarios
 - _apply_intelligent_truncation with confidence scoring
 - _build_namespace validation
 - Error handling and edge cases
 - UUID and string user_id handling
-- Metadata validation and defaults
-
-Test Coverage Goals: 85%+ of context/manager.py
 """
 
 from datetime import UTC, datetime
@@ -31,7 +27,6 @@ from src.domains.agents.context.manager import ToolContextManager
 from src.domains.agents.context.registry import ContextTypeDefinition, ContextTypeRegistry
 from src.domains.agents.context.schemas import (
     ContextSaveMode,
-    ToolContextDetails,
     ToolContextList,
 )
 
@@ -602,425 +597,42 @@ class TestCurrentItemOperations:
 
 
 # ============================================================================
-# Test save_details and get_details (LRU merge)
-# ============================================================================
-
-
-class TestDetailsOperations:
-    """Test save_details and get_details with LRU merge logic."""
-
-    @pytest.mark.asyncio
-    async def test_save_details_creates_new_when_empty(self, manager, mock_store):
-        """Test save_details creates new ToolContextDetails when none exists."""
-        mock_store.aget.return_value = None
-
-        items = [{"resource_name": "people/c1", "name": "Jean"}]
-        metadata = {
-            "turn_id": 5,
-            "total_count": 1,
-            "query": "test",
-            "tool_name": "get_contact_details",
-            "timestamp": datetime.now(UTC).isoformat(),
-        }
-
-        await manager.save_details(
-            user_id="user123",
-            session_id="sess456",
-            domain="contacts",
-            items=items,
-            metadata=metadata,
-            store=mock_store,
-            max_items=10,
-        )
-
-        # Verify aput was called for details key AND current_item (auto-set feature)
-        # The save_details now auto-sets current_item when only 1 item is saved
-        assert mock_store.aput.call_count >= 1  # At least 1 call for details
-
-        # Find the details call (key == "details")
-        details_calls = [c for c in mock_store.aput.call_args_list if c[0][1] == "details"]
-        assert len(details_calls) >= 1, "No 'details' key found in aput calls"
-
-        namespace, key, data = details_calls[0][0]
-        assert key == "details"
-        assert data["domain"] == "contacts"
-        assert len(data["items"]) == 1
-        assert data["items"][0]["index"] == 1
-        assert data["items"][0]["name"] == "Jean"
-
-    @pytest.mark.asyncio
-    async def test_save_details_merges_with_existing(self, manager, mock_store):
-        """Test save_details merges new items with existing (LRU)."""
-        # Mock existing details
-        existing_data = {
-            "domain": "contacts",
-            "items": [
-                {"index": 1, "resource_name": "people/c1", "name": "Jean"},
-            ],
-            "metadata": {
-                "turn_id": 5,
-                "total_count": 1,
-                "timestamp": datetime.now(UTC).isoformat(),
-            },
-        }
-
-        mock_item = MagicMock()
-        mock_item.value = existing_data
-        mock_store.aget.return_value = mock_item
-
-        # Add new items
-        new_items = [
-            {"resource_name": "people/c2", "name": "Marie"},
-            {"resource_name": "people/c3", "name": "Paul"},
-        ]
-        metadata = {
-            "turn_id": 6,
-            "total_count": 2,
-            "query": "test",
-            "timestamp": datetime.now(UTC).isoformat(),
-        }
-
-        await manager.save_details(
-            user_id="user123",
-            session_id="sess456",
-            domain="contacts",
-            items=new_items,
-            metadata=metadata,
-            store=mock_store,
-            max_items=10,
-        )
-
-        # Verify merged data
-        namespace, key, data = mock_store.aput.call_args[0]
-        saved_items = data["items"]
-
-        assert len(saved_items) == 3  # 1 existing + 2 new
-        assert saved_items[0]["name"] == "Jean"
-        assert saved_items[1]["name"] == "Marie"
-        assert saved_items[2]["name"] == "Paul"
-
-        # Verify reindexing
-        assert saved_items[0]["index"] == 1
-        assert saved_items[1]["index"] == 2
-        assert saved_items[2]["index"] == 3
-
-    @pytest.mark.asyncio
-    async def test_save_details_deduplicates_by_primary_id(self, manager, mock_store):
-        """Test save_details deduplicates items by primary_id_field."""
-        # Mock existing details
-        existing_data = {
-            "domain": "contacts",
-            "items": [
-                {"index": 1, "resource_name": "people/c1", "name": "Jean Old"},
-            ],
-            "metadata": {
-                "turn_id": 5,
-                "total_count": 1,
-                "timestamp": datetime.now(UTC).isoformat(),
-            },
-        }
-
-        mock_item = MagicMock()
-        mock_item.value = existing_data
-        mock_store.aget.return_value = mock_item
-
-        # Add item with same resource_name (primary_id_field)
-        new_items = [{"resource_name": "people/c1", "name": "Jean New"}]
-        metadata = {
-            "turn_id": 6,
-            "total_count": 1,
-            "timestamp": datetime.now(UTC).isoformat(),
-        }
-
-        await manager.save_details(
-            user_id="user123",
-            session_id="sess456",
-            domain="contacts",
-            items=new_items,
-            metadata=metadata,
-            store=mock_store,
-            max_items=10,
-        )
-
-        # Find the details call (key == "details"), filtering out current_item calls
-        details_calls = [c for c in mock_store.aput.call_args_list if c[0][1] == "details"]
-        assert len(details_calls) >= 1, "No 'details' key found in aput calls"
-
-        namespace, key, data = details_calls[-1][0]  # Get most recent details call
-        saved_items = data["items"]
-
-        assert len(saved_items) == 1
-        assert saved_items[0]["name"] == "Jean New"  # Newer version
-
-    @pytest.mark.asyncio
-    async def test_save_details_evicts_oldest_when_exceeds_max(self, manager, mock_store):
-        """Test save_details evicts oldest items when exceeding max_items."""
-        # Mock existing details with many items
-        existing_items = [
-            {"index": i, "resource_name": f"people/c{i}", "name": f"Contact {i}"}
-            for i in range(1, 11)  # 10 existing items
-        ]
-        existing_data = {
-            "domain": "contacts",
-            "items": existing_items,
-            "metadata": {
-                "turn_id": 5,
-                "total_count": 10,
-                "timestamp": datetime.now(UTC).isoformat(),
-            },
-        }
-
-        mock_item = MagicMock()
-        mock_item.value = existing_data
-        mock_store.aget.return_value = mock_item
-
-        # Add 2 new items (would exceed max_items=10)
-        new_items = [
-            {"resource_name": "people/c11", "name": "Contact 11"},
-            {"resource_name": "people/c12", "name": "Contact 12"},
-        ]
-        metadata = {
-            "turn_id": 6,
-            "total_count": 2,
-            "timestamp": datetime.now(UTC).isoformat(),
-        }
-
-        await manager.save_details(
-            user_id="user123",
-            session_id="sess456",
-            domain="contacts",
-            items=new_items,
-            metadata=metadata,
-            store=mock_store,
-            max_items=10,
-        )
-
-        # Verify only 10 items kept (2 oldest evicted)
-        namespace, key, data = mock_store.aput.call_args[0]
-        saved_items = data["items"]
-
-        assert len(saved_items) == 10
-        # Should keep most recent 10 items (c3-c12)
-        assert saved_items[0]["name"] == "Contact 3"
-        assert saved_items[-1]["name"] == "Contact 12"
-
-    @pytest.mark.asyncio
-    async def test_save_details_handles_corrupted_existing(self, manager, mock_store):
-        """Test save_details starts fresh when existing data is corrupted."""
-        mock_item = MagicMock()
-        mock_item.value = {"invalid": "data"}
-        mock_store.aget.return_value = mock_item
-
-        new_items = [{"resource_name": "people/c1", "name": "Jean"}]
-        metadata = {
-            "turn_id": 6,
-            "total_count": 1,
-            "timestamp": datetime.now(UTC).isoformat(),
-        }
-
-        # Should not raise error, starts fresh
-        await manager.save_details(
-            user_id="user123",
-            session_id="sess456",
-            domain="contacts",
-            items=new_items,
-            metadata=metadata,
-            store=mock_store,
-            max_items=10,
-        )
-
-        # Verify new data was saved (filter for 'details' key)
-        details_calls = [c for c in mock_store.aput.call_args_list if c[0][1] == "details"]
-        assert len(details_calls) >= 1, "No 'details' key found in aput calls"
-        namespace, key, data = details_calls[-1][0]
-        assert len(data["items"]) == 1
-
-    @pytest.mark.asyncio
-    async def test_get_details_returns_none_when_not_found(self, manager, mock_store):
-        """Test get_details returns None when no data exists."""
-        mock_store.aget.return_value = None
-
-        result = await manager.get_details(
-            user_id="user123",
-            session_id="sess456",
-            domain="contacts",
-            store=mock_store,
-        )
-
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_get_details_returns_context_details(self, manager, mock_store):
-        """Test get_details returns ToolContextDetails when data exists."""
-        stored_data = {
-            "domain": "contacts",
-            "items": [
-                {"index": 1, "resource_name": "people/c1", "name": "Jean"},
-            ],
-            "metadata": {
-                "turn_id": 5,
-                "total_count": 1,
-                "timestamp": datetime.now(UTC).isoformat(),
-            },
-        }
-
-        mock_item = MagicMock()
-        mock_item.value = stored_data
-        mock_store.aget.return_value = mock_item
-
-        result = await manager.get_details(
-            user_id="user123",
-            session_id="sess456",
-            domain="contacts",
-            store=mock_store,
-        )
-
-        assert result is not None
-        assert isinstance(result, ToolContextDetails)
-        assert result.domain == "contacts"
-        assert len(result.items) == 1
-
-    @pytest.mark.asyncio
-    async def test_get_details_handles_parse_error(self, manager, mock_store):
-        """Test get_details returns None when data is corrupted."""
-        mock_item = MagicMock()
-        mock_item.value = {"invalid": "data"}
-        mock_store.aget.return_value = mock_item
-
-        result = await manager.get_details(
-            user_id="user123",
-            session_id="sess456",
-            domain="contacts",
-            store=mock_store,
-        )
-
-        assert result is None
-
-
-# ============================================================================
 # Test classify_save_mode
 # ============================================================================
 
 
 class TestClassifySaveMode:
-    """Test classify_save_mode routing logic."""
+    """Test classify_save_mode: explicit wins, else default LIST."""
 
-    def test_classify_explicit_mode_takes_priority(self, manager):
-        """Test that explicit mode from manifest takes highest priority."""
+    def test_classify_explicit_current(self, manager):
+        """Explicit CURRENT is respected."""
         result = manager.classify_save_mode(
-            tool_name="any_tool",
-            result_count=50,
-            explicit_mode=ContextSaveMode.NONE,
+            tool_name="any_tool", result_count=1, explicit_mode=ContextSaveMode.CURRENT
         )
+        assert result == ContextSaveMode.CURRENT
 
+    def test_classify_explicit_list(self, manager):
+        """Explicit LIST is respected."""
+        result = manager.classify_save_mode(
+            tool_name="any_tool", result_count=5, explicit_mode=ContextSaveMode.LIST
+        )
+        assert result == ContextSaveMode.LIST
+
+    def test_classify_explicit_none(self, manager):
+        """Explicit NONE is respected."""
+        result = manager.classify_save_mode(
+            tool_name="any_tool", result_count=50, explicit_mode=ContextSaveMode.NONE
+        )
         assert result == ContextSaveMode.NONE
 
-    def test_classify_search_keyword_returns_list(self, manager):
-        """Test that 'search' keyword routes to LIST mode."""
-        result = manager.classify_save_mode(
-            tool_name="search_contacts_tool",
-            result_count=5,
-        )
-
+    def test_classify_default_is_list(self, manager):
+        """Without explicit mode, defaults to LIST."""
+        result = manager.classify_save_mode(tool_name="unknown_tool", result_count=5)
         assert result == ContextSaveMode.LIST
 
-    def test_classify_list_keyword_returns_list(self, manager):
-        """Test that 'list' keyword routes to LIST mode."""
-        result = manager.classify_save_mode(
-            tool_name="list_all_contacts",
-            result_count=3,
-        )
-
-        assert result == ContextSaveMode.LIST
-
-    def test_classify_find_keyword_returns_list(self, manager):
-        """Test that 'find' keyword routes to LIST mode."""
-        result = manager.classify_save_mode(
-            tool_name="find_contacts_by_name",
-            result_count=2,
-        )
-
-        assert result == ContextSaveMode.LIST
-
-    def test_classify_query_keyword_returns_list(self, manager):
-        """Test that 'query' keyword routes to LIST mode."""
-        result = manager.classify_save_mode(
-            tool_name="query_contacts_database",
-            result_count=1,
-        )
-
-        assert result == ContextSaveMode.LIST
-
-    def test_classify_get_keyword_returns_details(self, manager):
-        """Test that 'get' keyword routes to DETAILS mode."""
-        result = manager.classify_save_mode(
-            tool_name="get_contact_details",
-            result_count=1,
-        )
-
-        assert result == ContextSaveMode.DETAILS
-
-    def test_classify_show_keyword_returns_details(self, manager):
-        """Test that 'show' keyword routes to DETAILS mode."""
-        result = manager.classify_save_mode(
-            tool_name="show_contact_info",
-            result_count=1,
-        )
-
-        assert result == ContextSaveMode.DETAILS
-
-    def test_classify_detail_keyword_returns_details(self, manager):
-        """Test that 'detail' keyword routes to DETAILS mode."""
-        result = manager.classify_save_mode(
-            tool_name="contact_detail_view",
-            result_count=2,
-        )
-
-        assert result == ContextSaveMode.DETAILS
-
-    def test_classify_fetch_keyword_returns_details(self, manager):
-        """Test that 'fetch' keyword routes to DETAILS mode."""
-        result = manager.classify_save_mode(
-            tool_name="fetch_contact_data",
-            result_count=1,
-        )
-
-        assert result == ContextSaveMode.DETAILS
-
-    def test_classify_retrieve_keyword_returns_details(self, manager):
-        """Test that 'retrieve' keyword routes to DETAILS mode."""
-        result = manager.classify_save_mode(
-            tool_name="retrieve_contact_info",
-            result_count=1,
-        )
-
-        assert result == ContextSaveMode.DETAILS
-
-    def test_classify_large_result_count_returns_list(self, manager):
-        """Test that result_count > 10 routes to LIST mode."""
-        result = manager.classify_save_mode(
-            tool_name="unknown_tool",
-            result_count=50,
-        )
-
-        assert result == ContextSaveMode.LIST
-
-    def test_classify_small_result_count_returns_details(self, manager):
-        """Test that result_count <= 10 routes to DETAILS mode (default)."""
-        result = manager.classify_save_mode(
-            tool_name="unknown_tool",
-            result_count=5,
-        )
-
-        assert result == ContextSaveMode.DETAILS
-
-    def test_classify_case_insensitive(self, manager):
-        """Test that tool name matching is case-insensitive."""
-        result = manager.classify_save_mode(
-            tool_name="SEARCH_CONTACTS_TOOL",
-            result_count=1,
-        )
-
+    def test_classify_default_is_list_regardless_of_tool_name(self, manager):
+        """Default LIST even if tool name contains legacy keywords (no more heuristics)."""
+        result = manager.classify_save_mode(tool_name="get_contact_details", result_count=1)
         assert result == ContextSaveMode.LIST
 
 
@@ -1066,12 +678,12 @@ class TestAutoSave:
             assert call_kwargs["metadata"]["tool_name"] == "search_contacts_tool"
 
     @pytest.mark.asyncio
-    async def test_auto_save_routes_to_save_details(self, manager, mock_store):
-        """Test auto_save routes to save_details for DETAILS mode."""
+    async def test_auto_save_current_mode_single_item_sets_current(self, manager, mock_store):
+        """CURRENT mode with 1 item: calls set_current_item, does NOT touch list."""
         result_data = {
             "success": True,
             "contacts": [{"resource_name": "people/c1", "name": "Jean"}],
-            "tool_name": "get_contact_details",
+            "tool_name": "get_contacts_tool",
         }
 
         config = {
@@ -1079,16 +691,54 @@ class TestAutoSave:
             "metadata": {"turn_id": 5},
         }
 
-        with patch.object(manager, "save_details", new_callable=AsyncMock) as mock_save_details:
+        with (
+            patch.object(manager, "set_current_item", new_callable=AsyncMock) as mock_set_current,
+            patch.object(manager, "save_list", new_callable=AsyncMock) as mock_save_list,
+        ):
             await manager.auto_save(
                 context_type="contacts",
                 result_data=result_data,
                 config=config,
                 store=mock_store,
+                explicit_mode=ContextSaveMode.CURRENT,
             )
 
-            # Verify save_details was called
-            assert mock_save_details.call_count == 1
+            assert mock_set_current.call_count == 1
+            assert mock_save_list.call_count == 0
+
+    @pytest.mark.asyncio
+    async def test_auto_save_current_mode_multiple_items_clears_current(self, manager, mock_store):
+        """CURRENT mode with >1 items: clears current, does NOT touch list."""
+        result_data = {
+            "success": True,
+            "contacts": [
+                {"resource_name": "people/c1", "name": "Jean"},
+                {"resource_name": "people/c2", "name": "Marie"},
+            ],
+            "tool_name": "get_contacts_tool",
+        }
+
+        config = {
+            "configurable": {"user_id": "user123", "thread_id": "sess456"},
+            "metadata": {"turn_id": 5},
+        }
+
+        with (
+            patch.object(manager, "clear_current_item", new_callable=AsyncMock) as mock_clear,
+            patch.object(manager, "save_list", new_callable=AsyncMock) as mock_save_list,
+            patch.object(manager, "set_current_item", new_callable=AsyncMock) as mock_set_current,
+        ):
+            await manager.auto_save(
+                context_type="contacts",
+                result_data=result_data,
+                config=config,
+                store=mock_store,
+                explicit_mode=ContextSaveMode.CURRENT,
+            )
+
+            assert mock_clear.call_count == 1
+            assert mock_save_list.call_count == 0
+            assert mock_set_current.call_count == 0
 
     @pytest.mark.asyncio
     async def test_auto_save_skips_when_no_items(self, manager, mock_store):
@@ -1141,8 +791,8 @@ class TestAutoSave:
             assert mock_save_list.call_count == 0
 
     @pytest.mark.asyncio
-    async def test_auto_save_handles_missing_session_id(self, manager, mock_store):
-        """Test auto_save uses empty string when session_id is missing."""
+    async def test_auto_save_fails_fast_on_missing_session_id(self, manager, mock_store):
+        """auto_save raises ValueError when session_id is missing (data isolation)."""
         result_data = {
             "success": True,
             "contacts": [{"resource_name": "people/c1", "name": "Jean"}],
@@ -1154,18 +804,13 @@ class TestAutoSave:
             "metadata": {"turn_id": 5},
         }
 
-        with patch.object(manager, "save_list", new_callable=AsyncMock) as mock_save_list:
+        with pytest.raises(ValueError, match="session_id"):
             await manager.auto_save(
                 context_type="contacts",
                 result_data=result_data,
                 config=config,
                 store=mock_store,
             )
-
-            # Should call save_list with empty session_id
-            assert mock_save_list.call_count == 1
-            call_kwargs = mock_save_list.call_args[1]
-            assert call_kwargs["session_id"] == ""
 
     @pytest.mark.asyncio
     async def test_auto_save_uses_plural_items_key(self, manager, mock_store):
@@ -1530,43 +1175,6 @@ class TestEdgeCasesAndErrors:
             )
 
     @pytest.mark.asyncio
-    async def test_save_details_handles_missing_primary_id(self, manager, mock_store):
-        """Test save_details handles items missing primary_id_field."""
-        mock_store.aget.return_value = None
-
-        # Items missing resource_name (primary_id_field for contacts)
-        items = [
-            {"name": "Jean"},  # Missing resource_name
-            {"resource_name": "people/c1", "name": "Marie"},  # Has resource_name
-        ]
-        metadata = {
-            "turn_id": 5,
-            "total_count": 2,
-            "timestamp": datetime.now(UTC).isoformat(),
-        }
-
-        await manager.save_details(
-            user_id="user123",
-            session_id="sess456",
-            domain="contacts",
-            items=items,
-            metadata=metadata,
-            store=mock_store,
-            max_items=10,
-        )
-
-        # Should save only the item with primary_id (filter for 'details' key)
-        details_calls = [c for c in mock_store.aput.call_args_list if c[0][1] == "details"]
-        assert len(details_calls) >= 1, "No 'details' key found in aput calls"
-        namespace, key, data = details_calls[-1][0]
-        # Note: The item without primary_id is logged as warning but still saved (graceful handling)
-        # The test expects only valid items to be saved
-        saved_items = data["items"]
-        # If behavior filters invalid items, expect 1. If it keeps all, adjust assertion.
-        # Based on logs, it seems 1 item was saved (the one with primary_id or just the list length check)
-        assert len(saved_items) >= 1
-
-    @pytest.mark.asyncio
     async def test_operations_with_very_long_session_id(self, manager, mock_store, sample_metadata):
         """Test operations work with very long session_id."""
         long_session_id = "s" * 500
@@ -1613,14 +1221,12 @@ class TestEdgeCasesAndErrors:
         assert "你好" in saved_item["notes"]
 
     def test_classify_save_mode_with_empty_tool_name(self, manager):
-        """Test classify_save_mode handles empty tool name."""
+        """classify_save_mode defaults to LIST even with empty tool name."""
         result = manager.classify_save_mode(
             tool_name="",
             result_count=5,
         )
-
-        # Should fall back to count-based classification
-        assert result == ContextSaveMode.DETAILS
+        assert result == ContextSaveMode.LIST
 
     @pytest.mark.asyncio
     async def test_list_active_domains_handles_partial_failures(self, manager, mock_store):

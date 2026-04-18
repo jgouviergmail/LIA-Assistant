@@ -406,6 +406,13 @@ class DraftCritiqueInteraction:
             "{personnalite}", personality_instruction or default_personality
         )
 
+        # Inject localized two-block labels for UPDATE templates.
+        # The LLM renders these verbatim, replacing any legacy "unchanged" framing.
+        update_labels = HitlMessages.get_draft_update_labels(user_language)
+        system_prompt = system_prompt.replace(
+            "{L_Modifications}", update_labels["modifications"]
+        ).replace("{L_Full_post_update}", update_labels["full_post_update"])
+
         # Pre-convert datetime values to user's local timezone for display
         # This ensures the LLM receives human-readable local dates instead of raw UTC
         display_content = self._preconvert_dates_for_display(
@@ -570,7 +577,7 @@ Generate the review question:"""
                 extra_lines.append(f"🕐 {start}")
 
         elif draft_type == "event_delete":
-            event_data = draft_content.get("event", {})
+            event_data = draft_content.get("current_event", {})
             summary_text = event_data.get("summary", "?")
             summary = HitlMessages.get_draft_summary(
                 draft_type, user_language, summary=summary_text
@@ -604,7 +611,7 @@ Generate the review question:"""
             summary = HitlMessages.get_draft_summary(draft_type, user_language, name=name)
 
         elif draft_type == "contact_delete":
-            contact = draft_content.get("contact", {})
+            contact = draft_content.get("current_contact", {})
             names = contact.get("names", [])
             name = names[0].get("displayName", "?") if names else "?"
             summary = HitlMessages.get_draft_summary(draft_type, user_language, name=name)
@@ -742,7 +749,7 @@ Generate the review question:"""
                 )
 
         elif draft_type == "event_delete":
-            event = content.get("event", {})
+            event = content.get("current_event", {})
             label = event.get("summary", content.get("event_id", "?"))
             start = event.get("start", {}).get("dateTime")
             if start:
@@ -751,7 +758,7 @@ Generate the review question:"""
                 )
 
         elif draft_type == "contact_delete":
-            contact = content.get("contact", {})
+            contact = content.get("current_contact", {})
             names = contact.get("names", [])
             label = names[0].get("displayName", "?") if names else "?"
             emails = contact.get("emailAddresses", [])

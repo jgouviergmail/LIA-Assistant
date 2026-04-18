@@ -5,7 +5,7 @@ This module provides a generic, domain-based system for managing contextual refe
 to tool results, allowing agents to understand and resolve references like "the 2nd one",
 "the last email", "Jean Dupont" by maintaining type-safe context stores.
 
-Architecture (V2 - Domain-based):
+Architecture (two-keys design, 2026-04):
     - Registry: Auto-discovery of domains (contacts, emails, events)
     - Store: LangGraph BaseStore/InMemoryStore for persistence
     - Decorators: Auto-save tool results with zero boilerplate
@@ -13,9 +13,9 @@ Architecture (V2 - Domain-based):
     - Current Item: Auto-set when 1 result, explicit selection otherwise
 
 Namespace Structure:
-    (user_id, "context", domain)
-    ├─ key="list" → ToolContextList (all items indexed)
-    └─ key="current" → ToolContextCurrentItem (single item or null)
+    (user_id, session_id, "context", domain)
+    ├─ key="list" → ToolContextList (items from last bulk operation)
+    └─ key="current" → ToolContextCurrentItem (single focused item)
 
 Usage:
     # 1. Register domain (in tool module)
@@ -85,7 +85,6 @@ from src.domains.agents.context.registry import ContextTypeDefinition, ContextTy
 from src.domains.agents.context.schemas import (
     ContextSaveMode,
     ToolContextCurrentItem,
-    ToolContextDetails,
     ToolContextList,
 )
 from src.domains.agents.context.store import cleanup_tool_context_store, get_tool_context_store
@@ -100,7 +99,6 @@ __all__ = [
     "ResolvedEntity",
     "ResolutionStatus",
     "ToolContextCurrentItem",
-    "ToolContextDetails",
     "ToolContextList",
     "ToolContextManager",
     "auto_save_context",

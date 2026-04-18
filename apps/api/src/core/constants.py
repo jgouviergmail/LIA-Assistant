@@ -150,11 +150,6 @@ TOOL_CONTEXT_CONFIDENCE_THRESHOLD = 0.7
 # Prevents memory bloat with very large result sets
 TOOL_CONTEXT_MAX_ITEMS = 100
 
-# Maximum number of detailed items to cache per domain (Phase 3.2.9 - Multi-Keys Store Pattern)
-# Details are merged (not overwritten) using LRU eviction when limit is exceeded
-# Lower value = less memory, more evictions. Higher value = more memory, fewer evictions
-TOOL_CONTEXT_DETAILS_MAX_ITEMS = 10
-
 # ============================================================================
 # GOOGLE PEOPLE API - FIELD PROJECTION
 # ============================================================================

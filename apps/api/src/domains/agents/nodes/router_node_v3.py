@@ -38,6 +38,7 @@ from src.domains.agents.constants import (
 )
 from src.domains.agents.domain_schemas import RouterOutput
 from src.domains.agents.models import MessagesState
+from src.domains.agents.utils.turn_type import normalize_turn_type
 from src.infrastructure.observability.decorators import track_metrics
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_agents import (
@@ -225,10 +226,14 @@ async def router_node_v3(
         confidence_bucket=get_confidence_bucket(intelligence.confidence),
     ).inc()
 
-    # Build state update
+    # Build state update.
+    # turn_type is normalized to the lowercase canonical form so state
+    # consumers (response_node, task_orchestrator, …) can compare against
+    # TURN_TYPE_* constants without worrying about the UPPERCASE legacy form
+    # emitted by QueryIntelligence.
     state_update = {
         STATE_KEY_ROUTING_HISTORY: state.get(STATE_KEY_ROUTING_HISTORY, []) + [router_output],
-        STATE_KEY_TURN_TYPE: intelligence.turn_type,
+        STATE_KEY_TURN_TYPE: normalize_turn_type(intelligence.turn_type),
         STATE_KEY_DETECTED_INTENT: intelligence.immediate_intent,
         # Clear per-turn state
         STATE_KEY_PLAN_APPROVED: None,
@@ -267,11 +272,14 @@ async def router_node_v3(
         "execution_mode": configurable.get("user_execution_mode", "pipeline"),
     }
 
-    # Add resolved context if available
-    # Convert to dict for state compatibility (response_node expects dict)
-    # smart_planner_service uses intelligence.resolved_context (object) for to_llm_context()
+    # Resolved context for response_node registry filtering.
+    # ALWAYS write to state (even None) to clear stale context from previous turns.
+    # Without this, a previous turn's resolved_context persists in state and causes
+    # the response_node to inject old registry items (e.g., email cards after a photo query).
     if intelligence.resolved_context:
         state_update[STATE_KEY_RESOLVED_CONTEXT] = intelligence.resolved_context.to_dict()
+    else:
+        state_update[STATE_KEY_RESOLVED_CONTEXT] = None
 
     # Add resolved references if available
     if intelligence.resolved_references:

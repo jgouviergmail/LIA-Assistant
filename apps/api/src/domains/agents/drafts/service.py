@@ -1335,7 +1335,14 @@ def create_update_event_draft(
 
 def create_delete_event_draft(
     event_id: str,
-    event: dict[str, Any] | None = None,
+    current_event: dict[str, Any] | None = None,
+    summary: str | None = None,
+    start_datetime: str | None = None,
+    end_datetime: str | None = None,
+    description: str | None = None,
+    location: str | None = None,
+    attendees: list[str] | None = None,
+    timezone: str = "Europe/Paris",
     send_updates: str = "all",
     calendar_id: str | None = None,
     related_registry_ids: list[str] | None = None,
@@ -1345,22 +1352,39 @@ def create_delete_event_draft(
     """
     Convenience function to create an event delete draft.
 
+    Homogenized with create_event_update_draft: carries flat fields + full event
+    object to enable draft type changes (delete ↔ update) during HITL.
+
     Args:
-        event_id: ID of event to delete
-        event: Event data for confirmation display
-        send_updates: How to notify attendees (all, externalOnly, none)
-        calendar_id: Calendar ID. If None or "primary", uses user's default calendar preference.
-        related_registry_ids: Related registry items
-        source_tool: Source tool name
-        user_language: Language for HITL
+        event_id: ID of event to delete.
+        current_event: Full event object for display and type change.
+        summary: Event title (extracted from current_event).
+        start_datetime: Start datetime ISO (extracted from current_event).
+        end_datetime: End datetime ISO (extracted from current_event).
+        description: Event description.
+        location: Event location.
+        attendees: Attendee email list.
+        timezone: Timezone.
+        send_updates: How to notify attendees (all, externalOnly, none).
+        calendar_id: Calendar ID.
+        related_registry_ids: Related registry items.
+        source_tool: Source tool name.
+        user_language: Language for HITL.
 
     Returns:
-        UnifiedToolOutput with draft
+        UnifiedToolOutput with draft.
     """
     service = DraftService()
     draft_input = EventDeleteDraftInput(
         event_id=event_id,
-        event=event or {},
+        current_event=current_event or {},
+        summary=summary,
+        start_datetime=start_datetime,
+        end_datetime=end_datetime,
+        description=description,
+        location=location,
+        attendees=attendees,
+        timezone=timezone,
         send_updates=send_updates,
         calendar_id=calendar_id,
         related_registry_ids=related_registry_ids or [],
@@ -1419,7 +1443,13 @@ def create_contact_update_draft(
 
 def create_contact_delete_draft(
     resource_name: str,
-    contact: dict[str, Any] | None = None,
+    current_contact: dict[str, Any] | None = None,
+    name: str | None = None,
+    email: str | None = None,
+    phone: str | None = None,
+    organization: str | None = None,
+    notes: str | None = None,
+    address: str | None = None,
     related_registry_ids: list[str] | None = None,
     source_tool: str = "delete_contact_tool",
     user_language: str = "fr",
@@ -1427,20 +1457,34 @@ def create_contact_delete_draft(
     """
     Convenience function to create a contact delete draft.
 
+    Homogenized with create_contact_update_draft for draft type changes.
+
     Args:
-        resource_name: Contact resource name (people/c...)
-        contact: Contact data for confirmation display
-        related_registry_ids: Related registry items
-        source_tool: Source tool name
-        user_language: Language for HITL
+        resource_name: Contact resource name (people/c...).
+        current_contact: Full contact object for display and type change.
+        name: Contact name.
+        email: Contact email.
+        phone: Contact phone.
+        organization: Company name.
+        notes: Notes.
+        address: Address.
+        related_registry_ids: Related registry items.
+        source_tool: Source tool name.
+        user_language: Language for HITL.
 
     Returns:
-        UnifiedToolOutput with draft
+        UnifiedToolOutput with draft.
     """
     service = DraftService()
     draft_input = ContactDeleteDraftInput(
         resource_name=resource_name,
-        contact=contact or {},
+        current_contact=current_contact or {},
+        name=name,
+        email=email,
+        phone=phone,
+        organization=organization,
+        notes=notes,
+        address=address,
         related_registry_ids=related_registry_ids or [],
         user_language=user_language,
     )
@@ -1531,7 +1575,11 @@ def create_task_update_draft(
 def create_task_delete_draft(
     task_id: str,
     title: str | None = None,
+    notes: str | None = None,
+    due: str | None = None,
+    status: str | None = None,
     task_list_id: str = "@default",
+    current_task: dict[str, Any] | None = None,
     related_registry_ids: list[str] | None = None,
     source_tool: str = "delete_task_tool",
     user_language: str = "fr",
@@ -1539,22 +1587,32 @@ def create_task_delete_draft(
     """
     Convenience function to create a task delete draft.
 
+    Homogenized with create_task_update_draft for draft type changes.
+
     Args:
-        task_id: Task ID to delete
-        title: Task title for display
-        task_list_id: Task list ID
-        related_registry_ids: Related registry items
-        source_tool: Source tool name
-        user_language: Language for HITL
+        task_id: Task ID to delete.
+        title: Task title.
+        notes: Task notes.
+        due: Due date (RFC 3339).
+        status: Status (needsAction or completed).
+        task_list_id: Task list ID.
+        current_task: Full task object for type change.
+        related_registry_ids: Related registry items.
+        source_tool: Source tool name.
+        user_language: Language for HITL.
 
     Returns:
-        UnifiedToolOutput with draft
+        UnifiedToolOutput with draft.
     """
     service = DraftService()
     draft_input = TaskDeleteDraftInput(
         task_id=task_id,
         title=title,
+        notes=notes,
+        due=due,
+        status=status,
         task_list_id=task_list_id,
+        current_task=current_task or {},
         related_registry_ids=related_registry_ids or [],
         user_language=user_language,
     )

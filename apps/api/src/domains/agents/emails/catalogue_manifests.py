@@ -11,7 +11,6 @@ Architecture Simplification (2026-01):
 from src.core.config import settings
 from src.core.constants import GOOGLE_GMAIL_SCOPES
 from src.core.field_names import FIELD_QUERY
-from src.domains.agents.context.schemas import ContextSaveMode
 from src.domains.agents.registry.catalogue import (
     CostProfile,
     DisplayMetadata,
@@ -161,7 +160,7 @@ get_emails_catalogue_manifest = ToolManifest(
     supports_dry_run=False,
     reference_fields=["id", "snippet", "body"],
     context_key="emails",
-    context_save_mode=ContextSaveMode.LIST,
+    # context_save_mode set dynamically by tool (LIST for search, DETAILS for ID fetch)
     reference_examples=["emails[0].id", "emails[0].body", "emails[0].subject", "total"],
     version="2.0.0",
     maintainer="Team Agents",

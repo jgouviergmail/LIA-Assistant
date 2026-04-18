@@ -170,7 +170,7 @@ def auto_save_context(
                                 else context_type
                             )
 
-                            # CRITICAL: Inject tool_name so manager can classify as LIST vs DETAILS
+                            # Inject tool_name so manager can classify save mode correctly
                             from src.core.field_names import FIELD_TOOL_NAME
 
                             result_data = {
@@ -179,14 +179,27 @@ def auto_save_context(
                                 FIELD_TOOL_NAME: func.__name__,
                             }
 
+                            # Tool's own context_save_mode wins over decorator's static mode.
+                            # Unified tools set LIST (search) or CURRENT (ID fetch) per-call.
+                            effective_mode = (
+                                tool_result.context_save_mode
+                                if hasattr(tool_result, "context_save_mode")
+                                and tool_result.context_save_mode is not None
+                                else context_save_mode
+                            )
+
                             manager = ToolContextManager()
                             await manager.auto_save(
                                 context_type=context_type,
                                 result_data=result_data,
                                 config=config,
                                 store=store,
-                                explicit_mode=context_save_mode,
+                                explicit_mode=effective_mode,
                             )
+
+                            # Mark as saved so parallel_executor.auto_save_wave_contexts
+                            # can skip the duplicate save path for decorated tools.
+                            tool_result.tool_metadata["_tcm_saved"] = True
 
                             logger.debug(
                                 "auto_save_registry_completed",

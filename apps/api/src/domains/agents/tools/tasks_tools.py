@@ -1176,12 +1176,14 @@ class UpdateTaskDraftTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
             has_status=status is not None,
         )
 
+        # Fill unchanged fields from current_task so the HITL draft shows
+        # actual values instead of "Non défini" for fields the user didn't change.
         return {
             "task_id": task_id,
-            "title": title,
-            "notes": notes,
-            "due": due,
-            "status": status,
+            "title": title or current_task.get("title"),
+            "notes": notes if notes is not None else current_task.get("notes"),
+            "due": due or current_task.get("due"),
+            "status": status or current_task.get("status"),
             "task_list_id": task_list_id,
             "current_task": current_task,
         }
@@ -1376,11 +1378,14 @@ class DeleteTaskDraftTool(ToolOutputMixin, ConnectorTool[GoogleTasksClient]):
         """
         from src.domains.agents.drafts import create_task_delete_draft
 
-        # create_task_delete_draft returns UnifiedToolOutput directly
         return create_task_delete_draft(
             task_id=result["task_id"],
             title=result.get("title"),
+            notes=result.get("notes"),
+            due=result.get("due"),
+            status=result.get("status"),
             task_list_id=result.get("task_list_id", "@default"),
+            current_task=result,
             source_tool="delete_task_tool",
             user_language=self.get_user_language(),
         )
@@ -1558,6 +1563,7 @@ async def execute_task_draft(
         "task_id": task_id,
         "html_link": html_link,
         "title": draft_content["title"],
+        "task_list_id": draft_content.get("task_list_id", "@default"),
         "message": APIMessages.task_created_successfully(draft_content["title"]),
     }
 
@@ -1606,6 +1612,7 @@ async def execute_task_update_draft(
         "task_id": task_id,
         "html_link": html_link,
         "title": title,
+        "task_list_id": draft_content.get("task_list_id", "@default"),
         "message": APIMessages.task_updated_successfully(title),
     }
 
@@ -1653,7 +1660,6 @@ async def execute_task_delete_draft(
     name="get_tasks",
     agent_name=AGENT_TASK,
     context_domain=CONTEXT_DOMAIN_TASKS,
-    context_save_mode=ContextSaveMode.LIST,
     category="read",
 )
 async def get_tasks_tool(
@@ -1693,22 +1699,26 @@ async def get_tasks_tool(
     """
     # Route to appropriate implementation based on parameters
     if task_id or task_ids:
-        # ID mode: direct fetch with full details
-        return await _get_task_details_tool_instance.execute(
+        # ID mode: direct fetch → CURRENT (preserves search list)
+        result = await _get_task_details_tool_instance.execute(
             runtime=runtime,
             task_id=task_id,
             task_ids=task_ids,
             task_list_id=task_list_id,
         )
+        result.context_save_mode = ContextSaveMode.CURRENT
+        return result
     else:
-        # List mode: return tasks with full details
-        return await _list_tasks_tool_instance.execute(
+        # List mode: return tasks → LIST (overwrites list)
+        result = await _list_tasks_tool_instance.execute(
             runtime=runtime,
             task_list_id=task_list_id,
             max_results=max_results,
             show_completed=show_completed,
             only_completed=only_completed,
         )
+        result.context_save_mode = ContextSaveMode.LIST
+        return result
 
 
 # ============================================================================

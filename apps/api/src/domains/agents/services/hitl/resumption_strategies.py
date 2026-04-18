@@ -344,6 +344,9 @@ def _build_resume_value(
             "edit": "edit",
             "reject": "cancel",
             "cancel": "cancel",
+            # REPLAN = user wants a different action type (e.g., delete → update)
+            # Mapped to "replan" action handled by hitl_dispatch_node
+            "replan": "replan",
         }
         draft_action = action_mapping.get(draft_action.lower(), "cancel")
 
@@ -357,11 +360,16 @@ def _build_resume_value(
             "edited_content"
         )
 
-        resume_value = {
+        # Get modification_instructions for edit/replan actions
+        modification_instructions = first_decision.get("modification_instructions")
+
+        resume_value: dict[str, Any] = {
             "action": draft_action,
             "draft_id": draft_id,
             "updated_content": updated_content,
         }
+        if modification_instructions:
+            resume_value["modification_instructions"] = modification_instructions
 
         logger.info(
             "hitl_draft_critique_resume_value_built",
