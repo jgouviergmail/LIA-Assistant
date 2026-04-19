@@ -36,20 +36,26 @@ If the user's request is clear enough, you may skip some questions and proceed d
 
 ### Phase 2 — Choose the Archetype
 
-Based on the answers, recommend one of 3 archetypes:
+Based on the answers, recommend one of 5 archetypes:
 
 - Prompt Expert: Expert guidance, no specific tools. Best for writing advice, coaching, analysis frameworks.
 - Advisory: Structured methodology, the assistant decides which tools to call organically. Best for research, preparation, analysis.
 - Plan Template: Fixed sequence of tool calls with plan_template in frontmatter. Best for briefings, dashboards, recurring workflows.
+- Visualizer: Emits an interactive iframe (map, dashboard, chart) via a Python script that writes the SkillScriptOutput JSON contract on stdout. Best for data visualization, mini-apps embedded in the chat.
+- Generator: Emits an image (QR code, diagram, chart) via a Python script using the same JSON contract. Best for generating visual artifacts from text input.
+
+Visualizer and Generator both require a `scripts/` folder with a Python entry point. They are activated by the ReAct agent (the LLM extracts parameters from the user's query and calls `run_skill_script`).
 
 Present your recommendation with a brief rationale. Let the user confirm or adjust.
 
 ### Phase 3 — Generate
 
-1. ALWAYS load references/format-specification.md to get the exact SKILL.md format
+1. ALWAYS load references/format-specification.md to get the exact SKILL.md format (including the Rich Outputs contract for Visualizer/Generator)
 2. If Plan Template: also load references/tool-catalogue.md for valid agent_name/tool_name
-3. If unsure about structure: load references/archetype-examples.md for complete examples
-4. Generate the SKILL.md following the EXACT structure shown in existing skills (see below)
+3. If Visualizer or Generator: also load references/archetype-examples.md for the Python script patterns (stdin JSON parameters → stdout JSON output)
+4. If unsure about structure: load references/archetype-examples.md for complete examples
+5. Generate the SKILL.md following the EXACT structure shown in existing skills (see below)
+6. For Visualizer / Generator archetypes, ALSO produce the Python script content (script.py) that emits the `SkillScriptOutput` JSON contract
 
 ### Phase 4 — Validate and Deliver
 
@@ -69,8 +75,9 @@ FRONTMATTER (plain YAML between --- delimiters):
   - category: one-word-category
   - priority: 50 (integer, 1-100)
   - plan_template: (only for Plan Template archetype)
+  - outputs: [text] / [text, frame] / [text, image] / [text, frame, image] (only for Visualizer/Generator; declarative — documents what the script can emit)
   DO NOT add any other frontmatter field. No version, no archetype, no author,
-  no tags, no trigger_phrases. Only the 4 fields above (+ plan_template if needed).
+  no tags, no trigger_phrases.
 
 BODY (markdown after the closing ---):
   - # Title (in user's language)
@@ -148,8 +155,38 @@ WRONG output (will be REJECTED by the importer):
 - If user writes in French, generate body in French
 - If user writes in English, generate body in English
 
+## Runtime Conventions (Visualizer / Generator)
+
+When the generated skill uses a Python script, the LIA runtime provides
+several behaviors automatically. Your generated script should follow
+these conventions (detailed with snippets in
+``references/format-specification.md`` and
+``references/archetype-examples.md``):
+
+- **Auto-injected parameters**: every ``run_skill_script`` call receives
+  ``_lang`` (user language) and ``_tz`` (user timezone) in its parameters
+  dict. Use ``_lang`` to localize script output — keep inline translation
+  tables (``_LABELS = {"fr": {...}, "en": {...}, ...}``) because the
+  container lacks system locales.
+- **Theme-aware CSS** (for ``frame.html``): use
+  ``html[data-theme="dark"]`` selectors, NOT
+  ``@media (prefers-color-scheme: dark)``. A runtime snippet applies
+  ``data-theme`` on the iframe's ``<html>`` element in sync with the
+  LIA app theme.
+- **QR codes**: if the user wants a QR code, use the ``segno`` library
+  (``import segno``) — it is bundled with LIA. Do NOT generate code
+  depending on ``qrcode`` / ``Pillow`` unless strictly necessary.
+- **Auto-resize**: iframes self-resize via a backend-injected snippet.
+  Do not worry about ``aspect_ratio`` perfection — it is only the
+  initial skeleton before the real content is measured.
+- **Client-side interactivity**: for frames, prefer a single
+  ``<script>`` block with ``addEventListener('click', …)`` over linking
+  to external JS. Re-rolls, conversions, live previews all run entirely
+  in the iframe (no new backend call needed). See the Coin Flip example
+  in archetype-examples.md for the canonical pattern.
+
 ## Ressources disponibles
 
 - references/format-specification.md — Complete SKILL.md format specification
 - references/tool-catalogue.md — All agents, tools, and parameters (for Plan Template)
-- references/archetype-examples.md — One complete example per archetype
+- references/archetype-examples.md — One complete example per archetype (incl. interactive Visualizer)

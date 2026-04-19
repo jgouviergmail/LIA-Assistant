@@ -5,6 +5,70 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.16.8] - 2026-04-20
+
+### Rich Skill Outputs — Interactive Frames, Images & Runtime Conventions
+
+Les skills ne sont plus limités à du texte. Cette release introduit un **contrat de sortie enrichi** (`SkillScriptOutput`) qui permet à un skill de retourner, en plus du texte, une **frame HTML interactive** (iframe sandboxée avec srcDoc ou URL externe) et/ou une **image statique**. Les trois champs sont indépendants et combinables — le script décide, l'application route. Le pipeline existant (Data Registry → SSE `registry_update` → sentinel HTML → composant React) a été répliqué pour les skills avec un nouveau type `SKILL_APP`, un sentinel dédié et un widget frontend `SkillAppWidget`. Cinq nouveaux skills systèmes illustrent le contrat (interactive-map, weather-dashboard, calendar-month, qr-code, pomodoro-timer, unit-converter, dice-roller). Le skill-generator et le guide utilisateur sont mis à jour en conséquence, avec documentation complète des conventions runtime (paramètres auto-injectés `_lang`/`_tz`, synchronisation thème/langue, auto-resize iframe, interactivité client-side sous CSP stricte).
+
+#### Added
+
+- **Contrat `SkillScriptOutput`** — modèle Pydantic (`src/domains/skills/script_output.py`) définissant le JSON écrit sur stdout par les scripts Python : champ `text` obligatoire, champs `frame` et `image` indépendants et combinables. `frame.html` XOR `frame.url` (srcDoc vs iframe externe), taille HTML bornée à `SKILLS_FRAME_MAX_HTML_BYTES = 200 KB`. Parser `parse_skill_stdout` tolérant : stdout non-JSON → dégradation en texte brut (rétrocompat totale).
+- **Type `RegistryItemType.SKILL_APP`** et builder `build_skill_app_output` (`src/domains/skills/output_builder.py`) qui produit un `UnifiedToolOutput.data_success` avec `RegistryItem` typé, injection automatique d'un `<meta http-equiv="Content-Security-Policy">` strict pour les skills utilisateur (skills système exemptés — admin de confiance), et snippet auto-resize + theme-sync ajouté aux frames inline.
+- **`SkillAppSentinel`** (`src/domains/agents/display/components/skill_app_sentinel.py`) — rendu HTML sous forme de `<div class="lia-skill-app" data-registry-id="…">` calqué sur `MCPAppSentinel`. Détecté côté React (`MarkdownContent.tsx`) et remplacé par `<SkillAppWidget>`.
+- **`SkillAppWidget`** (`apps/web/src/components/chat/SkillAppWidget.tsx`) — rend séquentiellement `image` (via `ImageLightbox`) puis `frame` (iframe sandbox `allow-scripts allow-popups`, pas `allow-same-origin`, background transparent). Caption `text_summary` pour l'accessibilité.
+- **Hook `useSkillAppBridge`** (`apps/web/src/hooks/useSkillAppBridge.ts`) — bridge `postMessage` minimaliste : `ui/initialize` (host info + theme + locale), `ui/notifications/size-changed` (resize iframe), `ui/open-link` (HTTPS only), push proactif de `ui/theme-changed` et `ui/locale-changed` sur iframe `load`, `MutationObserver` sur `<html class>` et `<html lang>` pour propagation live. **Délibérément sans** `tools/call`, `resources/read`, `ui/download-file` (attack surface réduite).
+- **Auto-injection `_lang` et `_tz`** — `run_skill_script` enrichit automatiquement les paramètres du script avec la langue et le fuseau horaire de l'utilisateur, sans intervention du LLM ReAct.
+- **Sept nouveaux skills systèmes** :
+  - `interactive-map` (frame URL Google Maps embed) — affiche un lieu sur une carte.
+  - `weather-dashboard` (frame HTML) — météo 5 jours avec icônes et gradients alignés OpenWeatherMap (11 groupes de conditions).
+  - `calendar-month` (frame HTML) — vue mensuelle interactive d'un mois donné.
+  - `qr-code` (image) — génération QR code via `segno` (pure-Python, bundled).
+  - `pomodoro-timer` (frame HTML) — minuteur 25/5 interactif.
+  - `unit-converter` (frame HTML) — conversion d'unités temps réel.
+  - `dice-roller` (frame HTML) — lancer de dés avec animation, CSPRNG (`crypto.getRandomValues` + rejection sampling), re-roll depuis la frame.
+- **Interactivité client-side** — pattern documenté : pas de `onclick` inline (CSP stricte), utilisation de `addEventListener` dans un `<script>`, CSPRNG pour les tirages aléatoires, animation via `cloneNode` + `replaceChild`.
+- **Constante `SKILLS_FRAME_MAX_HTML_BYTES`** (`src/core/constants.py`) — borne supérieure de taille du HTML inline, enforced par validator Pydantic.
+- **Dépendance `segno>=1.6.0`** dans `requirements.txt` — génération de QR codes pure-Python, sans Pillow.
+- **Mise à jour skill-generator** (`data/skills/system/skill-generator/`) — nouvelle section "Runtime Conventions (Visualizer / Generator)" dans `SKILL.md`, sous-sections "Auto-injected parameters", "Theme & locale sync", "Iframe auto-resize", "Client-side interactivity" dans `references/format-specification.md`, chapitre 6 "Interactive Visualizer — canonical pattern" (skill `coin-flip` complet : SKILL.md + render_coin.py) dans `references/archetype-examples.md`. Exemple QR mis à jour avec `segno` (au lieu de `qrcode` + Pillow).
+- **Mise à jour guide utilisateur** (`apps/web/src/components/settings/SkillGuideModal.tsx`) — nouvelle section "Localization, theming and runtime conventions" dans l'onglet Advanced avec 3 cartes explicatives (`_lang`/`_tz`, `data-theme`, auto-resize) + 2 exemples de code (Generator `segno`, Interactive `coin-flip`). Champs `outputs` et `compatibility` ajoutés à la liste des frontmatter fields. 17 nouvelles clés i18n par locale (6 langues).
+
+#### Changed
+
+- **Rendu conditionnel des widgets interactifs** — nouveau `INTERACTIVE_WIDGET_TYPES = frozenset({SKILL_APP, MCP_APP, DRAFT})` (`src/domains/agents/data_registry/models.py`). Le rendu dans `response_node` est désormais séparé en deux chemins : Path 1 (widgets interactifs) toujours injectés indépendamment du `user_display_mode` (HTML / Markdown / Cards), Path 2 (data cards) conditionnel sur le mode `CARDS`. Avant le fix, les frames de skills étaient invisibles pour les utilisateurs en mode "HTML enrichi" ou "Markdown".
+- **Injection des instructions skill dans le prompt** — `skills_context` n'est plus interpolé dans `response_system_prompt_base.txt` mais injecté comme 2ᵉ message système dédié avec préfixe "SKILL INSTRUCTIONS CONTRACT (PRIORITY: HIGHEST)" et override explicite des `<ResponseGuidelines>`. L'effet de primauté (primacy-effect) du LLM honore désormais les `references/*.md` du skill actif au lieu des règles génériques.
+- **Règle `<ResponseGuidelines>` enrichie** — directive ajoutée : quand un skill est actif, ses instructions l'emportent sur les formats par défaut.
+- **Initiative proactive désactivée pendant l'exécution d'un skill** — évite les digressions cross-domaine du mode ReAct quand le skill est souverain sur sa réponse.
+- **Auto-resize iframe via `getBoundingClientRect().bottom`** — remplace `Math.max(scrollHeight, offsetHeight)` qui incluait le viewport de l'iframe (frames météo systématiquement trop hautes). Pattern iframe-resizer. CSS reset avec `body{background:transparent!important}` pour que le thème de l'hôte soit visible.
+- **Coercion des paramètres `run_skill_script`** — helper `_coerce_parameters(value: dict | str | None)` accepte désormais les chaînes JSON (contournement du modèle Qwen qui sérialise parfois `parameters` comme string). Évite les boucles infinies / `GraphRecursionError`.
+- **Settings "Skills intégrées" et "Mes skills importées"** — sections collapsibles fermées par défaut (évite la surcharge visuelle quand l'utilisateur a beaucoup de skills). Chevron rotate -90° à l'état fermé.
+- **Tables de traduction inline dans les skills** — `_WEEKDAYS_LONG/SHORT` et `_MONTHS_LONG/SHORT` pour les 6 langues (fr/en/es/de/it/zh), au lieu de `strftime` + `setlocale` (les locales POSIX ne sont pas installées dans le container).
+
+#### Fixed
+
+- **Frames skills invisibles en modes "HTML enrichi" / "Markdown"** — `user_display_mode != CARDS` court-circuitait toute injection HTML. Les widgets interactifs (SKILL_APP, MCP_APP, DRAFT) sont maintenant toujours rendus.
+- **Frames météo en thème clair malgré l'app en thème sombre** — race condition : l'iframe émettait `ui/initialize` avant le mount du handler React. Fix : push proactif `ui/theme-changed` sur `load` event avec double `requestAnimationFrame`, `MutationObserver` en secours.
+- **Dates météo affichées en anglais malgré la locale `fr`** — `strftime` tombait silencieusement en fallback US car `fr_FR.UTF-8` n'est pas installé dans le container. Tables de traduction inline par locale.
+- **Dice-roller : même valeur pour 2 dés + pas d'animation + pas de re-roll** — `plan_template` figeait `notation: "1d6"` pour toutes les requêtes. Skill migré en A1 (script-only) avec parser regex tolérant. JS client avec CSPRNG + rejection sampling pour distribution uniforme.
+- **Qwen : `parameters` envoyés comme string JSON → GraphRecursionError** — coercion automatique ajoutée.
+- **Background iframe blanc en thème sombre** — CSS reset `body{background:transparent!important}` + `<iframe style="background:transparent">` + conversion des media queries `prefers-color-scheme` en sélecteurs `html[data-theme="dark"]` (plus fiable, synchronisé avec l'app).
+- **Skill LLM ReAct n'appelle pas `run_skill_script`** — prompts reformulés pour généraliser : "use run_skill_script for validation, computation OR rich outputs".
+
+#### Removed
+
+- Aucune API publique retirée — rétrocompatibilité totale avec les scripts qui retournent du texte brut.
+
+#### Documentation
+
+- **`data/skills/system/skill-generator/SKILL.md`** — section "Runtime Conventions (Visualizer / Generator)" avec paramètres auto-injectés, thème via `[data-theme]`, `segno` pour QR, auto-resize, interactivité.
+- **`data/skills/system/skill-generator/references/format-specification.md`** — section "Runtime Conventions" (4 sous-sections), frontmatter `outputs: [text|frame|image]`.
+- **`data/skills/system/skill-generator/references/archetype-examples.md`** — chapitre 6 "Interactive Visualizer — canonical pattern" (skill `coin-flip` complet).
+- **`data/skills/system/skill-generator/scripts/validate_skill.py`** — validation du frontmatter `outputs`, check de présence d'un script Python si `frame`/`image` déclaré, lint AST léger.
+- **`apps/web/src/components/settings/SkillGuideModal.tsx`** — section "Localization, theming and runtime conventions" dans Advanced avec 3 cartes + 2 exemples.
+- **`docs/guides/GUIDE_TOOL_CREATION.md`** — section "Rich Skill Outputs" ajoutée (schéma JSON, exemples, conventions, sécurité).
+- **`docs/knowledge/12_skills.md`** — contrat `SkillScriptOutput` documenté.
+- **`docs/technical/SKILLS_INTEGRATION.md`** — flow Data Registry pour skills, détails SKILL_APP.
+
 ## [1.16.7] - 2026-04-19
 
 ### Proactive Weather — Temperature Detection Fix + Travel Location (ADR-073)

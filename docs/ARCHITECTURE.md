@@ -3325,6 +3325,8 @@ data/skills/
 2. **Planner pre-activation** (complémentaire) : Le LLM planner peut aussi inclure `"skill_name"` dans sa sortie JSON via le catalogue L1. Le `response_node` traite ce skill_name de la même manière (scripts → runner, resources → Python, etc.)
 3. **Bypass déterministe** (optimisation) : Skills avec `plan_template.deterministic: true` contournent le planner LLM via `SkillBypassStrategy`
 
+**Rich Outputs — frames HTML et images (v1.16.8, [ADR-075](architecture/ADR-075-Rich-Skill-Outputs.md))** : Un script Python peut émettre, en plus du texte, une **frame HTML interactive** (iframe srcDoc ou URL externe) et/ou une **image** (QR code, graphique) via le contrat JSON `SkillScriptOutput` sur stdout. Les trois canaux (`text`, `frame`, `image`) sont indépendants et combinables. Le rendu réutilise la pipeline Data Registry (`RegistryItemType.SKILL_APP` → sentinel HTML → `SkillAppWidget` React). Sécurité : iframe sandbox strict (`allow-scripts allow-popups`, jamais `allow-same-origin`), CSP auto-injectée pour les skills utilisateur (`connect-src 'none'; frame-src 'none'`), limite `SKILLS_FRAME_MAX_HTML_BYTES = 200 KB`, bridge `postMessage` minimaliste sans `tools/call`. Conventions runtime : `_lang`/`_tz` auto-injectés, thème/langue synchronisés en live, auto-resize, CSPRNG. Sept skills pilotes : `interactive-map`, `weather-dashboard`, `calendar-month`, `qr-code`, `pomodoro-timer`, `unit-converter`, `dice-roller`.
+
 **Per-user toggle** : Table `user_skill_states` (user_id, skill_id, is_active) pour chaque utilisateur. Table `skills` pour le registre (name, is_system, admin_enabled, description, descriptions). Configurable dans Settings > Features.
 
 **Fichiers clés** :
@@ -3336,7 +3338,9 @@ data/skills/
 | `domains/skills/injection.py` | Constructeur du catalogue L1 (XML) |
 | `domains/skills/activation.py` | Wrapping structuré L2 |
 | `domains/skills/executor.py` | Exécution scripts en subprocess sandboxé (`env -i` pour isolation debugpy, `unshare -rn` fallback) |
-| `domains/skills/tools.py` | Outils LangChain (`activate_skill`, `run_skill_script`, `read_skill_resource`) |
+| `domains/skills/tools.py` | Outils LangChain (`activate_skill`, `run_skill_script`, `read_skill_resource`) — auto-injection `_lang`/`_tz` |
+| `domains/skills/script_output.py` | `SkillScriptOutput` (contrat JSON rich outputs), `parse_skill_stdout()` |
+| `domains/skills/output_builder.py` | `build_skill_app_output()` — `RegistryItem(type=SKILL_APP)`, CSP injection, snippet auto-resize |
 | `domains/skills/catalogue_manifests.py` | Manifestes pour le catalogue sémantique |
 | `domains/skills/router.py` | Endpoints API (list, import, delete, toggle, reload) |
 | `core/config/skills.py` | `SkillsSettings` |

@@ -17,7 +17,10 @@ Flow:
 
 import asyncio
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from src.domains.agents.data_registry.models import RegistryItemType
 from urllib.parse import urlparse
 from uuid import UUID
 
@@ -887,6 +890,82 @@ def _detect_result_domains_from_registry(
 # are imported from src.domains.agents.utils.registry_filtering
 
 
+def _filter_registry_by_types(
+    data_registry: dict[str, Any] | None,
+    allowed_types: "frozenset[RegistryItemType]",
+    *,
+    include: bool,
+) -> dict[str, Any]:
+    """Return a copy of ``data_registry`` filtered by item type.
+
+    Args:
+        data_registry: Source registry dict (may contain Pydantic
+            ``RegistryItem`` instances or their dict serializations).
+        allowed_types: Set of ``RegistryItemType`` members to match against.
+        include: If True, keep only items whose type is in ``allowed_types``.
+            If False, keep only items whose type is NOT in ``allowed_types``.
+
+    Returns:
+        New dict with the same ids mapping to the same item references —
+        filtered according to ``include``.
+    """
+    if not data_registry:
+        return {}
+
+    allowed_values: set[str] = {t.value for t in allowed_types}
+    result: dict[str, Any] = {}
+    for item_id, item in data_registry.items():
+        raw_type = getattr(item, "type", None)
+        if raw_type is None and isinstance(item, dict):
+            raw_type = item.get("type")
+        if hasattr(raw_type, "value"):
+            raw_type = raw_type.value
+        is_allowed = raw_type in allowed_values
+        if (include and is_allowed) or (not include and not is_allowed):
+            result[item_id] = item
+    return result
+
+
+def generate_html_for_interactive_widgets(
+    data_registry: dict[str, Any] | None,
+    user_viewport: str = "desktop",
+    user_language: str = settings.default_language,
+    user_timezone: str = DEFAULT_USER_DISPLAY_TIMEZONE,
+) -> str:
+    """Render only the interactive-widget registry items (SKILL_APP, MCP_APP,
+    DRAFT) to their frontend sentinels.
+
+    These widgets are **features the user explicitly requested** (a skill
+    producing a frame/image, an MCP app, a draft awaiting confirmation).
+    They rely on React host components (iframe sandbox, draft UI) which
+    cannot be reproduced by the LLM in plain markdown or HTML. Therefore
+    they must always be injected post-LLM — independently of the user's
+    ``user_display_mode`` preference, which only governs the data-card
+    rendering path.
+
+    Args:
+        data_registry: Full current-turn registry dict.
+        user_viewport: Device viewport (mobile/tablet/desktop).
+        user_language: Language code.
+        user_timezone: User's IANA timezone.
+
+    Returns:
+        HTML string containing only the sentinels for interactive widgets,
+        or ``""`` if the registry has none.
+    """
+    from src.domains.agents.data_registry.models import INTERACTIVE_WIDGET_TYPES
+
+    filtered = _filter_registry_by_types(data_registry, INTERACTIVE_WIDGET_TYPES, include=True)
+    if not filtered:
+        return ""
+    return generate_html_for_registry(
+        data_registry=filtered,
+        user_viewport=user_viewport,
+        user_language=user_language,
+        user_timezone=user_timezone,
+    )
+
+
 def generate_html_for_registry(
     data_registry: dict[str, Any] | None,
     user_viewport: str = "desktop",
@@ -1641,6 +1720,43 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                     return False
                 return bool(skill_data.get("scripts"))
 
+            def _plan_already_produced_skill_app(skill_name: str) -> bool:
+                """Return True when the deterministic plan has already produced a
+                SKILL_APP registry item for this skill.
+
+                Addresses the B1 hybrid case (plan_template + scripts): when the
+                plan's ``run_skill_script`` step has already emitted the interactive
+                widget, the ReactSubAgentRunner would only re-synthesize text
+                around a frame that is already final. Skipping the runner avoids
+                a ~15k tokens LLM round-trip for zero net gain.
+
+                Scoping by ``skill_name`` prevents confusion if another skill
+                produced a SKILL_APP earlier in the same turn (edge case).
+                """
+                agent_results = state.get(STATE_KEY_AGENT_RESULTS) or {}
+                for result_entry in agent_results.values():
+                    if not isinstance(result_entry, dict):
+                        continue
+                    registry_updates = result_entry.get("registry_updates") or {}
+                    for item in registry_updates.values():
+                        # RegistryItem may be a Pydantic model or a dict
+                        item_type = getattr(item, "type", None)
+                        if item_type is None and isinstance(item, dict):
+                            item_type = item.get("type")
+                        # Enum values stringify consistently
+                        if hasattr(item_type, "value"):
+                            item_type = item_type.value
+                        if item_type != "SKILL_APP":
+                            continue
+                        payload = getattr(item, "payload", None)
+                        if payload is None and isinstance(item, dict):
+                            payload = item.get("payload") or {}
+                        if not payload:
+                            continue
+                        if payload.get("skill_name") == skill_name:
+                            return True
+                return False
+
             def _skill_has_resources_only(skill_name: str) -> bool:
                 """Return True if the skill has resources but no scripts."""
                 skill_data = _get_skill_data(skill_name)
@@ -1752,10 +1868,31 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                         _activated_skill_name = _target_skill_name
 
             # --- Run ReAct agent only when target skill needs it ---
-            _needs_runner = _activated_skill_name and _skill_needs_runner(_activated_skill_name)
+            # Skip the runner when the deterministic plan has already produced
+            # a SKILL_APP widget for this skill (B1 hybrid optimisation — avoids
+            # a redundant LLM reformulation around an already-final frame).
+            _needs_runner = bool(
+                _activated_skill_name
+                and _skill_needs_runner(_activated_skill_name)
+                and not _plan_already_produced_skill_app(_activated_skill_name)
+            )
+            if (
+                _activated_skill_name
+                and not _needs_runner
+                and _skill_needs_runner(_activated_skill_name)
+            ):
+                logger.info(
+                    "skill_runner_skipped_plan_already_produced",
+                    run_id=run_id,
+                    skill_name=_activated_skill_name,
+                    msg="Plan deterministic produced SKILL_APP — skipping runner",
+                )
             if _needs_runner:
                 from src.core.constants import SKILLS_REACT_RECURSION_LIMIT
                 from src.domains.agents.tools.react_runner import ReactSubAgentRunner
+                from src.domains.agents.tools.react_tool_wrapper import (
+                    ReactToolWrapper,
+                )
                 from src.domains.skills.tools import skills_tools
 
                 try:
@@ -1817,9 +1954,16 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                         store=get_global_registry().get_store(),
                     )
 
+                    # Wrap skills_tools so ReactSubAgentRunner can collect
+                    # registry_updates (frames/images) via _accumulated_registry.
+                    # Without wrapping, rich skill outputs never reach the frontend.
+                    _wrapped_skills_tools = [
+                        ReactToolWrapper(original_tool=t) for t in skills_tools
+                    ]
+
                     react_result = await runner.run(
                         task=_task,
-                        tools=skills_tools,
+                        tools=_wrapped_skills_tools,
                         prompt_vars={
                             "skills_catalog": _catalog_for_prompt,
                             "user_language": _user_lang,
@@ -1840,6 +1984,24 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                             response_length=len(skill_react_response),
                             duration_ms=react_result.duration_ms,
                         )
+
+                        # Propagate registry items accumulated by the wrappers
+                        # into the node state so generate_html_for_registry()
+                        # renders sentinels and the streaming service emits
+                        # registry_update SSE chunks for the frontend.
+                        if react_result.accumulated_registry:
+                            if current_turn_registry is None:
+                                current_turn_registry = {}
+                            current_turn_registry.update(react_result.accumulated_registry)
+                            full_registry = state.get("registry") or {}
+                            full_registry.update(react_result.accumulated_registry)
+                            state["registry"] = full_registry
+                            logger.info(
+                                "skill_react_registry_propagated",
+                                run_id=run_id,
+                                skill_name=_activated_skill_name,
+                                registry_items=len(react_result.accumulated_registry),
+                            )
                 except Exception as exc:
                     logger.warning(
                         "skill_react_agent_error",
@@ -2294,8 +2456,30 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         # ("system", "") which causes 400 errors with strict providers.
         safe_rejection_override = escape_braces(rejection_override)
         safe_agent_results = escape_braces(agent_results_summary)
+        safe_skills_context = escape_braces(skills_context) if skills_context else ""
 
         prompt_messages: list[Any] = [("system", base_system_prompt)]
+        # Skill instructions are injected as a DEDICATED high-priority system
+        # message placed right after the base prompt. Rationale: when a skill
+        # is active, its ``references/*.md`` content (format rules, business
+        # logic, examples, constraints) defines the authoritative behavior for
+        # the turn. Placing it as a separate system block — and declaring it
+        # explicitly as overriding the generic <ResponseGuidelines> — mitigates
+        # the primacy-effect problem where generic guidelines placed early in
+        # ``base_system_prompt`` would otherwise outweigh the skill content
+        # that used to be diluted deep inside the template.
+        if safe_skills_context:
+            # Versioned template at ``prompts/v1/skill_contract_prefix_prompt.txt`` —
+            # keeps the "primacy effect" wrapper under source control and load_prompt
+            # LRU cache (CLAUDE.md §16). Template has a single ``{skills_context}``
+            # placeholder substituted by str.format(). ``safe_skills_context`` is
+            # already escape_braces()'d, so downstream ChatPromptTemplate will see
+            # it as literal text (no double-processing).
+            skill_contract_template = load_prompt("skill_contract_prefix_prompt")
+            skill_contract_prefix = skill_contract_template.format(
+                skills_context=safe_skills_context
+            )
+            prompt_messages.append(("system", skill_contract_prefix))
         if safe_rejection_override:
             prompt_messages.append(("system", safe_rejection_override))
         if safe_agent_results:
@@ -2548,7 +2732,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             # - MCP App items (interactive widgets — not search results)
             # - Draft items (HITL confirmation flow)
             # Items may be dicts (model_dump) or RegistryItem Pydantic objects.
-            _UNFILTERABLE_TYPES = {"MCP_APP", "DRAFT"}
+            _UNFILTERABLE_TYPES = {"MCP_APP", "SKILL_APP", "DRAFT"}
             protected_items: dict[str, Any] = {}
             for k, v in (current_turn_registry or {}).items():
                 if k in initiative_protected_ids:
@@ -2648,15 +2832,54 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         # =====================================================================
         # V3 HTML RENDERING: Inject structured HTML after LLM response
         # =====================================================================
-        # V3 HTML rendering: Inject structured HTML cards for data display
-        # Only in "cards" display mode (user_display_mode already read above)
+        # Two distinct rendering paths:
+        #
+        # 1. **Interactive widgets** (SKILL_APP, MCP_APP, DRAFT) — always
+        #    injected, regardless of ``user_display_mode``. They are features
+        #    the user explicitly requested (a skill frame, an MCP app, a draft
+        #    awaiting confirmation) and cannot be reproduced by the LLM in
+        #    markdown or HTML. See ``INTERACTIVE_WIDGET_TYPES``.
+        #
+        # 2. **Data cards** (Event, Email, Contact, Weather, …) — only in
+        #    ``cards`` display mode. In ``html`` and ``markdown`` modes the
+        #    LLM is expected to format these itself.
         html_content = ""
         source = ""
 
+        # ---------- Path 1: interactive widgets (always on) ----------
+        widget_html = ""
+        if current_turn_registry:
+            try:
+                widget_html = generate_html_for_interactive_widgets(
+                    data_registry=current_turn_registry,
+                    user_viewport=user_viewport,
+                    user_language=user_language,
+                    user_timezone=user_timezone,
+                )
+            except (ValueError, KeyError, TypeError, AttributeError, RuntimeError) as e:
+                logger.warning(
+                    "interactive_widgets_rendering_failed",
+                    run_id=run_id,
+                    error=str(e),
+                    error_type=type(e).__name__,
+                )
+        if widget_html:
+            final_content = final_content + "\n\n" + widget_html
+            logger.info(
+                "interactive_widgets_injected_post_llm",
+                run_id=run_id,
+                html_length=len(widget_html),
+                user_display_mode=user_display_mode,
+            )
+
+        # ---------- Path 2: data cards (cards mode only) ----------
+        # In ``cards`` mode, render data-oriented items. Interactive widgets
+        # are filtered out here to avoid double-rendering (path 1 already did).
         if user_display_mode != RESPONSE_DISPLAY_MODE_CARDS:
             logger.info(
                 "html_cards_skipped_user_disabled",
                 run_id=run_id,
+                user_display_mode=user_display_mode,
             )
 
         elif not current_turn_registry and not resolved_context_for_html:
@@ -2665,14 +2888,24 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         else:
             try:
                 if current_turn_registry:
-                    # Primary: Use registry data from tool results
-                    html_content = generate_html_for_registry(
-                        data_registry=current_turn_registry,
-                        user_viewport=user_viewport,
-                        user_language=user_language,
-                        user_timezone=user_timezone,
+                    # Exclude interactive widgets — already rendered in path 1.
+                    from src.domains.agents.data_registry.models import (
+                        INTERACTIVE_WIDGET_TYPES,
                     )
-                    source = "registry"
+
+                    data_only_registry = _filter_registry_by_types(
+                        current_turn_registry,
+                        INTERACTIVE_WIDGET_TYPES,
+                        include=False,
+                    )
+                    if data_only_registry:
+                        html_content = generate_html_for_registry(
+                            data_registry=data_only_registry,
+                            user_viewport=user_viewport,
+                            user_language=user_language,
+                            user_timezone=user_timezone,
+                        )
+                        source = "registry"
                 elif resolved_context_for_html:
                     # Fallback: Use resolved_context for REFERENCE turns
                     html_content = generate_html_for_resolved_context(

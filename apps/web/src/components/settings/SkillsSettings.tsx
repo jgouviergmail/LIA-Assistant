@@ -1,7 +1,15 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { Blocks, BookOpen, Download, Upload, Trash2, ShieldCheck } from 'lucide-react';
+import {
+  Blocks,
+  BookOpen,
+  ChevronDown,
+  Download,
+  ShieldCheck,
+  Trash2,
+  Upload,
+} from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 import { Button } from '@/components/ui/button';
@@ -47,6 +55,12 @@ export function SkillsSettings({ lng }: SkillsSettingsProps) {
   const [deletingName, setDeletingName] = useState<string | null>(null);
   const [downloadingName, setDownloadingName] = useState<string | null>(null);
   const [showGuide, setShowGuide] = useState(false);
+  // Collapse state for each section — lets the user fold either list when
+  // it grows long without scrolling through everything. Both start closed
+  // so the Skills panel is compact at first glance; clicking the header
+  // expands the list on demand.
+  const [adminOpen, setAdminOpen] = useState(false);
+  const [userOpen, setUserOpen] = useState(false);
 
   const adminSkills = skills.filter(s => s.scope === 'admin');
   const userSkills = skills.filter(s => s.scope === 'user');
@@ -137,47 +151,69 @@ export function SkillsSettings({ lng }: SkillsSettingsProps) {
 
       {!loading && !error && (
         <div className="space-y-6">
-          {/* Admin skills section */}
+          {/* Admin skills section — collapsible */}
           {adminSkills.length > 0 && (
             <div>
-              <div className="flex items-center gap-2 mb-3">
+              <button
+                type="button"
+                onClick={() => setAdminOpen(v => !v)}
+                aria-expanded={adminOpen}
+                className="flex items-center gap-2 mb-3 w-full text-left hover:opacity-80 transition-opacity"
+              >
+                <ChevronDown
+                  className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${
+                    adminOpen ? '' : '-rotate-90'
+                  }`}
+                />
                 <ShieldCheck className="h-4 w-4 text-muted-foreground" />
                 <h4 className="text-sm font-medium text-muted-foreground">
                   {t('settings.skills.admin_section_title')}
                 </h4>
                 <span className="text-xs text-muted-foreground">({adminSkills.length})</span>
-              </div>
-              <div className="space-y-2">
-                {adminSkills.map(skill => (
-                  <SkillCard
-                    key={skill.name}
-                    skill={skill}
-                    t={t}
-                    lng={lng}
-                    onToggle={() => handleToggle(skill)}
-                    onDownload={() => handleDownload(skill)}
-                    downloading={downloadingName === skill.name}
-                    toggling={toggling}
-                  />
-                ))}
-              </div>
+              </button>
+              {adminOpen && (
+                <div className="space-y-2">
+                  {adminSkills.map(skill => (
+                    <SkillCard
+                      key={skill.name}
+                      skill={skill}
+                      t={t}
+                      lng={lng}
+                      onToggle={() => handleToggle(skill)}
+                      onDownload={() => handleDownload(skill)}
+                      downloading={downloadingName === skill.name}
+                      toggling={toggling}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
           {/* Separator */}
           {adminSkills.length > 0 && <div className="border-t" />}
 
-          {/* User skills section */}
+          {/* User skills section — collapsible */}
           <div>
             <div className="flex flex-col gap-2 mb-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setUserOpen(v => !v)}
+                aria-expanded={userOpen}
+                className="flex items-center gap-2 flex-wrap text-left hover:opacity-80 transition-opacity"
+              >
+                <ChevronDown
+                  className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${
+                    userOpen ? '' : '-rotate-90'
+                  }`}
+                />
                 <h4 className="text-sm font-medium text-muted-foreground">
                   {t('settings.skills.user_section_title')}
                 </h4>
                 {userSkills.length > 0 && (
                   <span className="text-xs text-muted-foreground">({userSkills.length})</span>
                 )}
-              </div>
+              </button>
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
@@ -215,28 +251,32 @@ export function SkillsSettings({ lng }: SkillsSettingsProps) {
             {/* Guide modal */}
             <SkillGuideModal lng={lng} open={showGuide} onOpenChange={setShowGuide} />
 
-            {userSkills.length === 0 && (
-              <div className="text-center py-6 text-muted-foreground">
-                <p className="text-sm">{t('settings.skills.empty')}</p>
-              </div>
-            )}
+            {userOpen && (
+              <>
+                {userSkills.length === 0 && (
+                  <div className="text-center py-6 text-muted-foreground">
+                    <p className="text-sm">{t('settings.skills.empty')}</p>
+                  </div>
+                )}
 
-            {userSkills.length > 0 && (
-              <div className="space-y-2">
-                {userSkills.map(skill => (
-                  <SkillCard
-                    key={skill.name}
-                    skill={skill}
-                    t={t}
-                    lng={lng}
-                    onToggle={() => handleToggle(skill)}
-                    onDownload={() => handleDownload(skill)}
-                    downloading={downloadingName === skill.name}
-                    onDelete={() => setDeletingName(skill.name)}
-                    toggling={toggling}
-                  />
-                ))}
-              </div>
+                {userSkills.length > 0 && (
+                  <div className="space-y-2">
+                    {userSkills.map(skill => (
+                      <SkillCard
+                        key={skill.name}
+                        skill={skill}
+                        t={t}
+                        lng={lng}
+                        onToggle={() => handleToggle(skill)}
+                        onDownload={() => handleDownload(skill)}
+                        downloading={downloadingName === skill.name}
+                        onDelete={() => setDeletingName(skill.name)}
+                        toggling={toggling}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>

@@ -127,3 +127,79 @@ class TestFormatHelpers:
         result = _format_interests(profile)
         assert "cycling" in result
         assert "cooking" not in result  # inactive filtered out
+
+
+@pytest.mark.unit
+@pytest.mark.asyncio
+class TestInitiativeSkippedWhenSkillActive:
+    """Initiative is skipped when a skill is driving the turn.
+
+    Skills define a deterministic output contract (plan_template + references).
+    Running initiative on top would inject orthogonal domains (e.g. "nearby
+    places" during a daily briefing), polluting the skill's intended output
+    and confusing the response LLM that must follow the skill's formatting.
+    """
+
+    async def test_skips_when_execution_plan_carries_skill_name(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from src.domains.agents.nodes import initiative_node as mod
+
+        monkeypatch.setattr(mod.settings, "initiative_enabled", True, raising=False)
+
+        plan = MagicMock()
+        plan.metadata = {"skill_name": "briefing-quotidien"}
+        state = {
+            "execution_plan": plan,
+            "initiative_iteration": 0,
+        }
+        config = {"configurable": {"user_id": "test-user"}}
+
+        result = await mod.initiative_node(state, config)
+
+        assert result.get("initiative_skipped_reason") == "skill_active"
+        assert result.get("initiative_iteration") == 1
+
+    async def test_runs_when_plan_has_no_skill_name(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Regular (non-skill) plans still proceed past the skill check.
+
+        Verified by letting the node reach the next early-return
+        (``no_adjacent_read_only_tools``) — proof the skill check did not
+        short-circuit first.
+        """
+        from src.domains.agents.nodes import initiative_node as mod
+
+        monkeypatch.setattr(mod.settings, "initiative_enabled", True, raising=False)
+
+        plan = MagicMock()
+        plan.metadata = {}  # no skill_name
+        state = {
+            "execution_plan": plan,
+            "initiative_iteration": 0,
+            "query_intelligence": None,  # forces empty executed_domains
+        }
+        config = {"configurable": {"user_id": "test-user"}}
+
+        result = await mod.initiative_node(state, config)
+
+        assert result.get("initiative_skipped_reason") != "skill_active"
+
+    async def test_skips_when_plan_metadata_missing(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A plan without ``metadata`` attribute does not crash the check."""
+        from src.domains.agents.nodes import initiative_node as mod
+
+        monkeypatch.setattr(mod.settings, "initiative_enabled", True, raising=False)
+
+        plan = MagicMock()
+        plan.metadata = None
+        state = {
+            "execution_plan": plan,
+            "initiative_iteration": 0,
+            "query_intelligence": None,
+        }
+        config = {"configurable": {"user_id": "test-user"}}
+
+        result = await mod.initiative_node(state, config)
+
+        # Not skipped for "skill_active" since no skill_name present
+        assert result.get("initiative_skipped_reason") != "skill_active"

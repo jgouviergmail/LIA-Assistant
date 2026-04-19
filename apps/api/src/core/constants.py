@@ -3186,6 +3186,10 @@ SKILLS_SCRIPT_MAX_OUTPUT_KB = 50
 SKILLS_SCRIPT_MAX_INPUT_KB = 100
 SKILLS_SCRIPT_ALLOWED_EXTENSIONS = frozenset({".py"})
 
+# Rich outputs — Skills can emit frame (HTML iframe) or image artifacts via stdout JSON
+# Max size of inline HTML content in frame.html (bytes). Applies to skill user+system.
+SKILLS_FRAME_MAX_HTML_BYTES = 200 * 1024
+
 # Resource reading (L3 tier — on-demand file access)
 SKILLS_RESOURCE_MAX_SIZE_KB = 50
 

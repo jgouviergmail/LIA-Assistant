@@ -233,11 +233,16 @@ class BraveSearchToolImpl(APIKeyConnectorTool[BraveSearchClient]):
         return UnifiedToolOutput.data_success(
             message=summary,
             registry_updates=registry_updates,
+            structured_data={
+                "braves": formatted_results,
+                "count": len(formatted_results),
+                "query": query,
+                "endpoint": endpoint,
+            },
             metadata={
                 "query": query,
                 "endpoint": endpoint,
                 "results_count": len(formatted_results),
-                "braves": formatted_results,  # For structured_data access
             },
         )
 

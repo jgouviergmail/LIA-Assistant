@@ -31,6 +31,7 @@ from src.domains.agents.display.components.place_card import PlaceCard
 from src.domains.agents.display.components.reminder_card import ReminderCard
 from src.domains.agents.display.components.route_card import RouteCard
 from src.domains.agents.display.components.search_result_card import SearchResultCard
+from src.domains.agents.display.components.skill_app_sentinel import SkillAppSentinel
 from src.domains.agents.display.components.task_item import TaskItem
 from src.domains.agents.display.components.weather_card import WeatherCard
 from src.domains.agents.display.components.web_search_card import WebSearchCard
@@ -111,6 +112,7 @@ class HtmlRenderer:
             "routes": RouteCard(),
             "mcps": McpResultCard(),  # CONTEXT_DOMAIN_MCP (evolution F2.3)
             "mcp_apps": McpAppSentinel(),  # CONTEXT_DOMAIN_MCP_APPS (evolution F2.5)
+            "skill_apps": SkillAppSentinel(),  # CONTEXT_DOMAIN_SKILL_APPS (skill rich outputs)
         }
 
         # Domain to data key mapping
@@ -143,6 +145,7 @@ class HtmlRenderer:
             "routes": ["route", "routes", "items"],
             "mcps": ["mcps", "mcp_results", "items"],
             "mcp_apps": ["mcp_apps", "items"],
+            "skill_apps": ["skill_apps", "items"],
         }
 
     def render(

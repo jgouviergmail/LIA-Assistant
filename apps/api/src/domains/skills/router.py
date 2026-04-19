@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, UploadFile, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,6 +25,17 @@ from src.core.session_dependencies import (
     get_current_superuser_session,
 )
 from src.domains.auth.models import User
+from src.domains.skills.exceptions import (
+    raise_admin_skill_delete_forbidden,
+    raise_admin_skill_only,
+    raise_skill_file_too_large,
+    raise_skill_invalid_format,
+    raise_skill_not_found,
+    raise_skill_quota_exceeded,
+    raise_skill_translation_failed,
+    raise_skill_translation_invalid,
+    raise_skill_write_failed,
+)
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -93,15 +104,15 @@ def _extract_skill_to_dir(content: bytes, filename: str, base_dir: Path) -> Path
     """Extract a SKILL.md or .zip package to a target directory.
 
     Returns the target directory containing SKILL.md.
-    Raises HTTPException on validation errors.
+
+    Raises:
+        BaseAPIException: 413 when the file exceeds ``SKILLS_MAX_FILE_SIZE_KB``.
+        ValidationError: 400 on any format / zip / UTF-8 / YAML error.
     """
     from src.core.constants import SKILLS_MAX_FILE_SIZE_KB
 
     if len(content) > SKILLS_MAX_FILE_SIZE_KB * 1024:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"File exceeds {SKILLS_MAX_FILE_SIZE_KB}KB limit",
-        )
+        raise_skill_file_too_large(len(content), SKILLS_MAX_FILE_SIZE_KB)
 
     if filename.endswith(".zip"):
         return _extract_zip(content, base_dir)
@@ -119,10 +130,7 @@ def _extract_zip(content: bytes, base_dir: Path) -> Path:
         with zipfile.ZipFile(BytesIO(content)) as zf:
             skill_files = [n for n in zf.namelist() if n.endswith("SKILL.md")]
             if not skill_files:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="No SKILL.md found in zip",
-                )
+                raise_skill_invalid_format("No SKILL.md found in zip")
             skill_md_path = skill_files[0]
             parent = Path(skill_md_path).parent
 
@@ -142,20 +150,14 @@ def _extract_zip(content: bytes, base_dir: Path) -> Path:
                 try:
                     member_path.relative_to(extract_to_resolved)
                 except ValueError:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail="Zip contains path traversal entries",
-                    ) from None
+                    raise_skill_invalid_format("Zip contains path traversal entries")
 
             if parent == Path(".") or parent == Path(""):
                 zf.extractall(str(target_dir))
             else:
                 zf.extractall(str(base_dir))
-    except zipfile.BadZipFile as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid zip file",
-        ) from exc
+    except zipfile.BadZipFile:
+        raise_skill_invalid_format("Invalid zip file")
     return target_dir
 
 
@@ -168,39 +170,24 @@ def _extract_single_md(content: bytes, base_dir: Path) -> Path:
         text = content.decode("utf-8")
     except UnicodeDecodeError as exc:
         logger.warning("skill_file_decode_error", error=str(exc))
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="SKILL.md must be a valid UTF-8 text file",
-        ) from exc
+        raise_skill_invalid_format("SKILL.md must be a valid UTF-8 text file")
 
     if not text.startswith("---"):
         logger.warning("skill_file_no_frontmatter_import", preview=text[:80])
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="SKILL.md must start with YAML frontmatter (---)",
-        )
+        raise_skill_invalid_format("SKILL.md must start with YAML frontmatter (---)")
     parts = text.split("---", 2)
     if len(parts) < 3:
         logger.warning("skill_file_bad_frontmatter_import")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid YAML frontmatter (missing closing ---)",
-        )
+        raise_skill_invalid_format("Invalid YAML frontmatter (missing closing ---)")
     try:
         meta = yaml.safe_load(parts[1])
     except yaml.YAMLError as exc:
         logger.warning("skill_file_yaml_error_import", error=str(exc))
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid YAML in frontmatter: {exc}",
-        ) from exc
+        raise_skill_invalid_format(f"Invalid YAML in frontmatter: {exc}")
 
     if not isinstance(meta, dict):
         logger.warning("skill_file_invalid_meta_import", meta_type=type(meta).__name__)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="YAML frontmatter must be a mapping (key: value pairs)",
-        )
+        raise_skill_invalid_format("YAML frontmatter must be a mapping (key: value pairs)")
 
     skill_name: str = meta.get("name", "imported-skill")
     target_dir = base_dir / skill_name
@@ -290,9 +277,8 @@ def _validate_skill(target_dir: Path) -> dict[str, Any]:
     skill = parse_skill_file(skill_file)
     if not skill:
         shutil.rmtree(target_dir, ignore_errors=True)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="SKILL.md validation failed (missing description or invalid format)",
+        raise_skill_invalid_format(
+            "SKILL.md validation failed (missing description or invalid format)"
         )
 
     return skill
@@ -361,9 +347,7 @@ async def download_admin_skill(
 
     skill = SkillsCache.get_by_name(skill_name)
     if not skill or skill.get("scope") != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"Admin skill '{skill_name}' not found"
-        )
+        raise_skill_not_found(skill_name, scope="admin")
 
     zip_bytes = _create_skill_zip(skill)
     return StreamingResponse(
@@ -389,9 +373,7 @@ async def delete_admin_skill(
 
     skill = SkillsCache.get_by_name(skill_name)
     if not skill or skill.get("scope") != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"Admin skill '{skill_name}' not found"
-        )
+        raise_skill_not_found(skill_name, scope="admin")
 
     # Delete from disk
     skill_dir = Path(skill["source_path"]).parent
@@ -428,9 +410,7 @@ async def update_admin_skill_description(
 
     skill = SkillsCache.get_by_name(skill_name)
     if not skill or skill.get("scope") != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"Admin skill '{skill_name}' not found"
-        )
+        raise_skill_not_found(skill_name, scope="admin")
 
     invoke_config = enrich_config_with_node_metadata(None, "skill_description_translation")
 
@@ -440,15 +420,12 @@ async def update_admin_skill_description(
         logger.warning(
             "skill_description_translation_parse_error", skill_name=skill_name, error=str(exc)
         )
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="LLM returned invalid JSON for translations",
-        ) from exc
+        raise_skill_translation_invalid(skill_name)
     except Exception as exc:
-        logger.error("skill_description_translation_error", skill_name=skill_name, error=str(exc))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Translation failed"
-        ) from exc
+        logger.exception(
+            "skill_description_translation_error", skill_name=skill_name, error=str(exc)
+        )
+        raise_skill_translation_failed(skill_name)
 
     english_desc = translations.get("en", body.description)
     skill_path = Path(skill["source_path"])
@@ -459,19 +436,13 @@ async def update_admin_skill_description(
         _update_skill_file_description(skill_path, english_desc)
     except (OSError, ValueError) as exc:
         logger.error("skill_description_write_error", skill_name=skill_name, error=str(exc))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to update SKILL.md",
-        ) from exc
+        raise_skill_write_failed(skill_name, "SKILL.md")
 
     try:
         _save_translations(skill_dir, translations)
     except OSError as exc:
         logger.error("skill_translations_write_error", skill_name=skill_name, error=str(exc))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to write translations.json",
-        ) from exc
+        raise_skill_write_failed(skill_name, "translations.json")
 
     # Update DB
     svc = SkillPreferenceService(db)
@@ -503,14 +474,11 @@ async def download_skill(
     user_id = str(user.id)
     skill = SkillsCache.get_by_name_for_user(skill_name, user_id)
     if not skill:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"Skill '{skill_name}' not found"
-        )
+        raise_skill_not_found(skill_name)
 
     if skill.get("scope") == "user" and skill.get("owner_id") != user_id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"Skill '{skill_name}' not found"
-        )
+        # Hide existence — respond with the same 404 as missing skill.
+        raise_skill_not_found(skill_name)
 
     zip_bytes = _create_skill_zip(skill)
     return StreamingResponse(
@@ -542,10 +510,7 @@ async def import_skill(
     # Check per-user limit
     user_skills = [s for s in SkillsCache.get_all() if s.get("owner_id") == user_id]
     if len(user_skills) >= settings.skills_max_per_user:
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=f"Maximum {settings.skills_max_per_user} skills per user",
-        )
+        raise_skill_quota_exceeded(user_id, settings.skills_max_per_user)
 
     content = await file.read()
     base_dir = Path(settings.skills_users_path) / user_id
@@ -626,22 +591,14 @@ async def delete_skill(
 
     skill = SkillsCache.get_by_name_for_user(skill_name, user_id)
     if not skill:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Skill '{skill_name}' not found",
-        )
+        raise_skill_not_found(skill_name)
 
     if skill["scope"] == "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Cannot delete admin skills",
-        )
+        raise_admin_skill_delete_forbidden()
 
     if skill.get("owner_id") != user_id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Skill '{skill_name}' not found",
-        )
+        # Hide existence — respond with the same 404 as missing skill.
+        raise_skill_not_found(skill_name)
 
     # Delete from disk
     skill_dir = Path(skill["source_path"]).parent
@@ -676,11 +633,8 @@ async def toggle_skill(
     svc = SkillPreferenceService(db)
     try:
         new_state = await svc.toggle_user_skill(user.id, skill_name)
-    except ValueError as err:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Skill '{skill_name}' not found",
-        ) from err
+    except ValueError:
+        raise_skill_not_found(skill_name)
     await db.commit()
 
     return {"skill_name": skill_name, "enabled_for_user": new_state}
@@ -706,10 +660,7 @@ async def admin_system_toggle_skill(
     skill_repo = SkillRepository(db)
     db_skill = await skill_repo.get_by_name(skill_name)
     if not db_skill or not db_skill.is_system:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"System skill '{skill_name}' not found",
-        )
+        raise_skill_not_found(skill_name, scope="admin")
 
     new_state = not db_skill.admin_enabled
     svc = SkillPreferenceService(db)
@@ -745,14 +696,9 @@ async def translate_skill_description(
 
     skill = SkillsCache.get_by_name(skill_name)
     if not skill:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"Skill '{skill_name}' not found"
-        )
+        raise_skill_not_found(skill_name)
     if skill.get("scope") != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only admin (system) skills can be translated via this endpoint",
-        )
+        raise_admin_skill_only("translated")
 
     invoke_config = enrich_config_with_node_metadata(None, "skill_description_translation")
     try:
@@ -761,15 +707,12 @@ async def translate_skill_description(
         logger.warning(
             "skill_description_translation_parse_error", skill_name=skill_name, error=str(exc)
         )
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="LLM returned invalid JSON for translations",
-        ) from exc
+        raise_skill_translation_invalid(skill_name)
     except Exception as exc:
-        logger.error("skill_description_translation_error", skill_name=skill_name, error=str(exc))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Translation failed"
-        ) from exc
+        logger.exception(
+            "skill_description_translation_error", skill_name=skill_name, error=str(exc)
+        )
+        raise_skill_translation_failed(skill_name)
 
     # Save to disk
     skill_dir = Path(skill["source_path"]).parent
@@ -777,10 +720,7 @@ async def translate_skill_description(
         _save_translations(skill_dir, translations)
     except OSError as exc:
         logger.error("skill_translations_write_error", skill_name=skill_name, error=str(exc))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to write translations.json",
-        ) from exc
+        raise_skill_write_failed(skill_name, "translations.json")
 
     # Save to DB
     svc = SkillPreferenceService(db)

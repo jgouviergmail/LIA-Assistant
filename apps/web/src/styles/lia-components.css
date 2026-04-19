@@ -6890,3 +6890,108 @@ a:focus-visible {
   color: var(--lia-text-muted);
   font-size: var(--lia-text-sm);
 }
+
+/* =============================================================================
+   Skill App Widget (rich skill outputs: frames + images)
+   ============================================================================= */
+
+.lia-skill-app-widget {
+  margin: var(--lia-space-lg) 0;
+  border-radius: var(--lia-radius);
+  overflow: hidden;
+  border: 1px solid var(--lia-border);
+  background: var(--lia-bg);
+}
+
+.lia-skill-app-widget__header {
+  padding: var(--lia-space-sm) var(--lia-space-md);
+  background: var(--lia-bg-muted);
+  border-bottom: 1px solid var(--lia-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lia-space-sm);
+}
+
+.lia-skill-app-widget__external-badge {
+  font-size: var(--lia-text-xs);
+  color: var(--lia-text-muted);
+  padding: 2px var(--lia-space-xs);
+  border: 1px solid var(--lia-border);
+  border-radius: var(--lia-radius-sm);
+  background: var(--lia-bg);
+}
+
+.lia-skill-app-widget__iframe {
+  width: 100%;
+  min-height: 320px;
+  max-height: 80vh;
+  border: none;
+  background: var(--lia-bg);
+  display: block;
+}
+
+@media (max-width: 640px) {
+  .lia-skill-app-widget__iframe {
+    min-height: 260px;
+  }
+}
+
+.lia-skill-app-widget__image-button {
+  display: block;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  background: none;
+  border: none;
+  cursor: zoom-in;
+}
+
+.lia-skill-app-widget__image {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  display: block;
+  object-fit: contain;
+}
+
+.lia-skill-app-widget__link-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--lia-space-sm);
+  padding: var(--lia-space-xs) var(--lia-space-md);
+  background: var(--lia-bg-muted);
+  border-bottom: 1px solid var(--lia-border);
+  font-size: 0.85rem;
+}
+
+.lia-skill-app-widget__link-banner a {
+  color: var(--lia-primary);
+  text-decoration: underline;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lia-skill-app-widget__link-close {
+  background: none;
+  border: none;
+  color: var(--lia-text-muted);
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0 var(--lia-space-xs);
+}
+
+/* Server-rendered placeholder (before React hydration / fallback) */
+.lia-skill-app__placeholder {
+  padding: var(--lia-space-lg);
+  text-align: center;
+}
+
+.lia-skill-app__loading {
+  margin-top: var(--lia-space-sm);
+  color: var(--lia-text-muted);
+  font-size: var(--lia-text-sm);
+}

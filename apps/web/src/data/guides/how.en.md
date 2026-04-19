@@ -4,9 +4,9 @@
 >
 > Technical presentation documentation for architects, engineers and technical experts.
 
-**Version**: 2.1
-**Date**: 2026-03-28
-**Application**: LIA v1.14.2
+**Version**: 2.2
+**Date**: 2026-04-20
+**Application**: LIA v1.16.8
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -851,6 +851,35 @@ All tools return `ToolResponse` (success) or `ToolErrorModel` (failure) with a `
 ### 23.6. Feature Flags
 
 Every optional subsystem is controlled by a `{FEATURE}_ENABLED` flag, checked at startup (scheduler registration), route wiring, and node entry (instant short-circuit). This allows deploying the full codebase while activating subsystems incrementally.
+
+### 23.7. Rich skill outputs: HTML frames and images (v1.16.8)
+
+Skills (agentskills.io standard) can now return, in addition to text, **interactive HTML frames** and **images** through a typed JSON contract `SkillScriptOutput`. The Python script writes on stdout:
+
+```json
+{ "text": "required", "frame": { "html" | "url", "title", "aspect_ratio" }, "image": { "url", "alt" } }
+```
+
+The three channels are independent and combinable (text alone, text+frame, text+image, or all three). The full pipeline reuses the existing Data Registry infrastructure:
+
+```
+run_skill_script → parse_skill_stdout() → SkillScriptOutput
+                 → build_skill_app_output() → RegistryItem(type=SKILL_APP)
+                 → ReactToolWrapper._accumulated_registry
+                 → response_node → SkillAppSentinel.render() → <div class="lia-skill-app">
+                 → SSE registry_update + sentinel HTML
+                 → MarkdownContent.tsx → SkillAppWidget (sandboxed iframe + image card)
+```
+
+**Defence in depth**: iframe sandbox `allow-scripts allow-popups` (never `allow-same-origin`), strict CSP auto-injected into `frame.html` for user-imported skills (`connect-src 'none'`, `frame-src 'none'`), `SKILLS_FRAME_MAX_HTML_BYTES = 200 KB` limit, minimal `postMessage` bridge without `tools/call` or `resources/read`.
+
+**Runtime conventions**: `_lang` and `_tz` auto-injected into `parameters` (POSIX locales aren't installed in the container, so scripts rely on inline translation tables rather than `strftime`+`setlocale`). Theme and locale synced live via `postMessage` + `MutationObserver` on `<html class>` and `<html lang>`. Iframe auto-resize via `getBoundingClientRect().bottom` (iframe-resizer pattern). Client-side interactivity uses `addEventListener` only (no inline `onclick` under CSP) and `crypto.getRandomValues` for randomness.
+
+**Primacy effect**: `skills_context` is injected as a dedicated 2nd system message prefixed with `"SKILL INSTRUCTIONS CONTRACT (PRIORITY: HIGHEST)"`, ensuring an active skill's `references/*.md` dominate over the generic `<ResponseGuidelines>`.
+
+**Conditional rendering**: `INTERACTIVE_WIDGET_TYPES = {SKILL_APP, MCP_APP, DRAFT}` — these widgets are injected as HTML regardless of `user_display_mode` (Rich HTML / Markdown / Cards), while other RegistryItems remain conditional on Cards mode.
+
+Seven built-in skills ship with v1.16.8 demonstrating the contract: `interactive-map`, `weather-dashboard`, `calendar-month`, `qr-code`, `pomodoro-timer`, `unit-converter`, `dice-roller`.
 
 ---
 

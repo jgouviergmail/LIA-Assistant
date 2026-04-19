@@ -131,8 +131,71 @@ class SkillBypassStrategy:
             )
 
         template = skill.get("plan_template") or {}
-        if not template.get("deterministic"):
-            # Non-deterministic skills are handled by the LLM planner.
+        is_deterministic = bool(template.get("deterministic"))
+        has_scripts = bool(skill.get("scripts"))
+
+        # Script-only skills (no deterministic plan_template) must still bypass
+        # the LLM planner — otherwise the planner would generate a spurious plan
+        # based on the primary_domain (e.g. "place" → Google Places API calls)
+        # before the ReactSubAgentRunner ever gets to execute the skill's own
+        # script. Emit an empty plan: parallel_executor handles it gracefully,
+        # and response_node then triggers the runner (which discovers the skill
+        # via `_skill_needs_runner` and executes the script end-to-end).
+        if not is_deterministic and has_scripts:
+            active = active_skills_ctx.get()
+            if active is not None and skill_name not in active:
+                return PlanningResult(
+                    plan=None,
+                    success=False,
+                    error=f"Skill '{skill_name}' is not active for user",
+                )
+            # ExecutionPlan requires either steps or a documented empty reason.
+            # Build directly (skipping build_plan_from_steps) so metadata is
+            # complete BEFORE the model_validator runs.
+            from src.domains.agents.nodes.utils import extract_session_id_from_config
+            from src.domains.agents.orchestration.plan_schemas import ExecutionPlan
+
+            configurable = config.get("configurable", {})
+            plan = ExecutionPlan(
+                plan_id=f"smart_{configurable.get('run_id', 'unknown')}",
+                user_id=str(configurable.get("user_id", "")),
+                session_id=extract_session_id_from_config(config, required=False) or "",
+                steps=[],
+                execution_mode="sequential",
+                metadata={
+                    "smart_planner": True,
+                    "intent": intelligence.immediate_intent,
+                    "domains": intelligence.domains,
+                    "user_goal": intelligence.user_goal.value,
+                    "tokens_estimate": 0,
+                    "cardinality_magnitude": intelligence.cardinality_magnitude,
+                    "for_each_detected": intelligence.for_each_detected,
+                    "skill_name": skill_name,
+                    "skill_bypass": True,
+                    "skill_bypass_noop": True,
+                },
+            )
+            logger.info(
+                "skill_bypass_noop_script_only",
+                skill_name=skill_name,
+                msg="Empty plan — ReactSubAgentRunner will execute the script",
+            )
+            return PlanningResult(
+                plan=plan,
+                success=True,
+                used_template=False,
+                tokens_used=0,
+                tokens_saved=500,
+                filtered_catalogue=create_virtual_catalogue(
+                    tool_names=[],
+                    domains=intelligence.domains or [],
+                    is_bypass=True,
+                ),
+            )
+
+        if not is_deterministic:
+            # Non-deterministic skills without scripts fall back to the LLM
+            # planner (prompt-expert / advisory archetypes).
             return PlanningResult(
                 plan=None, success=False, error=f"Skill '{skill_name}' is not deterministic"
             )

@@ -204,6 +204,7 @@ CONTEXT_DOMAIN_WEB_SEARCH = "web_searchs"  # domain + "s" pattern
 CONTEXT_DOMAIN_WEB_FETCH = "web_fetchs"  # domain + "s" pattern (evolution F1)
 CONTEXT_DOMAIN_MCP = "mcps"  # domain + "s" pattern (evolution F2)
 CONTEXT_DOMAIN_MCP_APPS = "mcp_apps"  # MCP Apps interactive widgets (evolution F2.5)
+CONTEXT_DOMAIN_SKILL_APPS = "skill_apps"  # Skill rich outputs (frame/image widgets)
 CONTEXT_DOMAIN_BROWSERS = "browsers"  # Interactive web browsing (evolution F7)
 CONTEXT_DOMAIN_HUE = "hues"  # Philips Hue smart lights (Smart Home)
 CONTEXT_DOMAIN_REMINDERS = "reminders"  # Personal push notification reminders
@@ -682,6 +683,7 @@ __all__ = [
     "CONTEXT_DOMAIN_WEB_FETCH",
     "CONTEXT_DOMAIN_MCP",
     "CONTEXT_DOMAIN_MCP_APPS",
+    "CONTEXT_DOMAIN_SKILL_APPS",
     "CONTEXT_DOMAIN_BROWSERS",
     "CONTEXT_DOMAIN_HUE",
     "WEB_SEARCH_SOURCE_PERPLEXITY",

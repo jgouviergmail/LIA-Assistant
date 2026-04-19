@@ -3,10 +3,12 @@
 ## What is a skill?
 A skill is a **SKILL.md** file that extends the assistant's capabilities with expert instructions, structured workflows, or planning templates. They follow the open agentskills.io standard, compatible with 30+ products (Claude Code, Cursor, VS Code, GitHub Copilot...).
 
-**Three skill types:**
+**Five skill archetypes:**
 - **Prompt expert**: expert instructions without tools (writing, coaching...)
 - **Advisory**: methodology + LIA can call its own tools organically
 - **Plan template**: deterministic plan with automatic tool calls (briefing, meeting prep...)
+- **Visualizer**: Python script emits an interactive iframe (map, dashboard) via the SkillScriptOutput JSON contract
+- **Generator**: Python script emits an image artifact (QR code, chart) via the SkillScriptOutput JSON contract
 
 ## How do I import a skill?
 In **Settings > Features > My Skills**, click **Import skill** and select a .md or .zip file. Compatible skills are available on **skillsmp.com** or GitHub. Limits: 100 KB for SKILL.md, 50 KB per resource file, 20 skills max per user.
@@ -58,3 +60,59 @@ A skill package (.zip) can contain:
 - **translations.json**: multilingual descriptions (6 languages)
 
 These resources are loaded on demand (L3 tier) to optimize token usage.
+
+## Rich outputs (frames + images)
+
+Since **v1.16.8**, skills can return interactive content beyond text by writing
+a JSON object on stdout matching the `SkillScriptOutput` contract:
+
+```json
+{
+  "text": "Required caption (voice, LLM, accessibility).",
+  "frame": { "url": "https://...", "title": "...", "aspect_ratio": 1.333 },
+  "image": { "url": "data:image/png;base64,...", "alt": "..." }
+}
+```
+
+- `text` is always required. `frame` and `image` are independent and
+  combinable (text alone, text+frame, text+image, or all three).
+- `frame.html` (inline via srcDoc) and `frame.url` (external via src) are
+  mutually exclusive; `frame.html` is bounded by `SKILLS_FRAME_MAX_HTML_BYTES`
+  (200 KB).
+- User-skill `frame.html` automatically receives a strict CSP (`connect-src none`,
+  `frame-src none`) to prevent exfiltration. System skills are trusted and
+  skip CSP injection.
+- All frames render inside an iframe sandbox without `allow-same-origin` —
+  parent cookies and storage are unreachable.
+
+**Seven built-in rich skills** ship with v1.16.8: `interactive-map`,
+`weather-dashboard`, `calendar-month`, `qr-code`, `pomodoro-timer`,
+`unit-converter`, `dice-roller`.
+
+### Runtime conventions
+
+When a script emits a `frame`, the runtime provides a number of behaviours
+automatically:
+
+- **`_lang` and `_tz` auto-injection** — `run_skill_script` automatically adds
+  the user's language code (ISO 639-1) and IANA timezone to `parameters`.
+  Scripts should read these rather than calling `locale.setlocale()` (not
+  available in the container) — inline translation tables for
+  weekdays/months are the canonical approach.
+- **Theme and locale sync** — the host pushes `ui/initialize`,
+  `ui/theme-changed` and `ui/locale-changed` `postMessage` events to every
+  frame. Scripts listen and flip CSS via `html[data-theme="dark"]` selectors
+  (not `prefers-color-scheme`) for consistency with the app.
+- **Auto-resize** — frames are auto-sized by the host via
+  `ui/notifications/size-changed` events emitted from an injected snippet that
+  measures `document.body.getBoundingClientRect().bottom`. The iframe grows or
+  shrinks to fit content.
+- **Client-side interactivity** — the CSP forbids `onclick` inline handlers;
+  use `addEventListener` inside a `<script>` element instead. Use
+  `crypto.getRandomValues` for randomness, not `Math.random`.
+
+See the **Skills Guide** in Settings (Advanced tab → "Localization, theming
+and runtime conventions") for copy-paste examples.
+
+See `docs/technical/SKILLS_INTEGRATION.md` § Rich Outputs for the full
+registry flow (SKILL_APP registry item → sentinel HTML → SkillAppWidget).

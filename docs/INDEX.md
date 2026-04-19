@@ -2,8 +2,8 @@
 
 > Carte complète de toute la documentation du projet LIA - Assistant IA multi-agent avec LangGraph
 
-**Version**: 7.1
-**Dernière mise à jour**: 2026-04-10
+**Version**: 7.2
+**Dernière mise à jour**: 2026-04-20
 **Statut**: Complète (190+ documents)
 
 ---
@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 50+ |
 | Guides pratiques | 15+ |
 | Runbooks | 34+ |
-| ADRs | 62 |
+| ADRs | 75 |
 | Skills Claude | 10 |
 
 ---
@@ -42,7 +42,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Architecture globale |
 | [GRAPH_AND_AGENTS_ARCHITECTURE.md](./technical/GRAPH_AND_AGENTS_ARCHITECTURE.md) | Système multi-agents LangGraph |
 | [STATE_AND_CHECKPOINT.md](./technical/STATE_AND_CHECKPOINT.md) | State management et persistence |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (73) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (75) |
 
 ### Pour les Product Managers
 
@@ -113,7 +113,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [HEARTBEAT_AUTONOME.md](./technical/HEARTBEAT_AUTONOME.md) | Notifications proactives LLM-driven (Heartbeat) — evolution F5 | ✅ |
 | [LANDING_PAGE.md](./technical/LANDING_PAGE.md) | Architecture Landing Page — composants React, SEO, OpenGraph | ✅ |
 | [LLM_CONFIG_ADMIN.md](./technical/LLM_CONFIG_ADMIN.md) | Administration dynamique des configurations LLM (34 types, 8 providers) | ✅ |
-| [SKILLS_INTEGRATION.md](./technical/SKILLS_INTEGRATION.md) | Skills system (agentskills.io standard) — SKILL.md files, activation, scripts | ✅ |
+| [SKILLS_INTEGRATION.md](./technical/SKILLS_INTEGRATION.md) | Skills system (agentskills.io standard) — SKILL.md files, activation, scripts, rich outputs (frames + images), runtime conventions (v1.16.8) | ✅ |
 
 ### Cost Tracking & Billing
 
@@ -156,6 +156,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [PSYCHE_ENGINE.md](./technical/PSYCHE_ENGINE.md) | Psyche Engine — complete functional & technical documentation with scenarios | ✅ |
 | [ADR-068-Psyche-Engine.md](./architecture/ADR-068-Psyche-Engine.md) | Psyche Engine — architectural decision record | ✅ |
 | [ADR-069-Gemini-Embedding-Migration.md](./architecture/ADR-069-Gemini-Embedding-Migration.md) | Gemini embedding migration (OpenAI → Google) — ADR | ✅ |
+| [ADR-075-Rich-Skill-Outputs.md](./architecture/ADR-075-Rich-Skill-Outputs.md) | Rich Skill Outputs — SkillScriptOutput JSON contract, SKILL_APP registry type, sandboxed iframe widget, theme/locale sync (v1.16.8) | ✅ |
 
 ### Human-in-the-Loop (HITL)
 
@@ -251,6 +252,11 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Titre | Date |
 |-----|-------|------|
+| ADR-075 | Rich Skill Outputs — Interactive Frames and Images | 2026-04 |
+| ADR-074 | `structured_data` Contract for Tool Outputs | 2026-04 |
+| ADR-073 | Last-Known Location Persistence for Proactive Weather | 2026-04 |
+| ADR-072 | Tool Context Manager — Two-Keys Simplification | 2026-04 |
+| ADR-071 | Skill Semantic Identification | 2026-04 |
 | ADR-070 | ReAct Execution Mode | 2026-04 |
 | ADR-069 | Gemini Embedding Migration (OpenAI → Google) | 2026-04 |
 | ADR-068 | Psyche Engine — Dynamic Psychological State | 2026-04 |

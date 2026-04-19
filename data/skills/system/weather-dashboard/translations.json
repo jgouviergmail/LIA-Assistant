@@ -1,0 +1,8 @@
+{
+  "fr": "Affiche un tableau de bord météo visuel sur plusieurs jours avec des cartes quotidiennes (icône de conditions, températures min/max, humidité, vent). À utiliser quand l'utilisateur demande un dashboard météo, des prévisions visuelles, la météo en un coup d'œil ou un résumé graphique des jours à venir.",
+  "en": "Displays a visual multi-day weather dashboard with daily cards (conditions icon, min/max temperature, humidity, wind). Use when the user asks for a weather dashboard, a visual forecast, the weather at a glance, or a graphical summary of the upcoming days.",
+  "es": "Muestra un panel meteorológico visual multi-día con tarjetas diarias (icono de condiciones, temperatura mín/máx, humedad, viento). Úselo cuando el usuario pida un panel del clima, un pronóstico visual, el clima de un vistazo o un resumen gráfico de los próximos días.",
+  "de": "Zeigt ein visuelles mehrtägiges Wetter-Dashboard mit Tageskarten (Bedingungs-Icon, Min-/Max-Temperatur, Luftfeuchtigkeit, Wind) an. Verwenden, wenn der Nutzer ein Wetter-Dashboard, eine visuelle Vorhersage, das Wetter auf einen Blick oder eine grafische Zusammenfassung der kommenden Tage möchte.",
+  "it": "Mostra un cruscotto meteo visivo su più giorni con schede giornaliere (icona delle condizioni, temperatura min/max, umidità, vento). Usalo quando l'utente chiede un cruscotto meteo, una previsione visiva, il meteo a colpo d'occhio o un riepilogo grafico dei prossimi giorni.",
+  "zh": "显示多日天气可视化仪表板，包含每日卡片（天气图标、最高/最低温度、湿度、风速）。当用户请求天气仪表板、可视化预报、天气概览或未来几天的图形摘要时使用。"
+}

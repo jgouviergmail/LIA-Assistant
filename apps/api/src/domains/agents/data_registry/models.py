@@ -78,11 +78,35 @@ class RegistryItemType(str, Enum):
     WEB_PAGE = "WEB_PAGE"  # Fetched web page content (evolution F1)
     MCP_RESULT = "MCP_RESULT"  # MCP tool result (evolution F2.3)
     MCP_APP = "MCP_APP"  # MCP Apps interactive widget (evolution F2.5)
+    SKILL_APP = "SKILL_APP"  # Skill rich output (frame/image) interactive widget
     BROWSER_PAGE = "BROWSER_PAGE"  # Browser page snapshot (evolution F7)
 
     # Generic/utility types
     NOTE = "NOTE"
     CALENDAR_SLOT = "CALENDAR_SLOT"
+
+
+# Interactive widget registry types.
+#
+# These types represent standalone interactive widgets explicitly produced
+# by a user action (a skill emitting a frame or image, an MCP App being
+# invoked, a draft awaiting confirmation). Unlike data-oriented types
+# (EMAIL, EVENT, CONTACT, ...) whose rich cards are a *display mode*
+# choice, interactive widgets are **features the user asked for** — the
+# LLM cannot reproduce them in plain markdown or HTML because they rely
+# on a React host-side component (iframe sandbox, draft UI, etc.).
+#
+# Consequence: they MUST be rendered post-LLM regardless of the user's
+# ``user_display_mode`` preference. ``response_node`` uses this set to
+# keep the widget rendering path active even when the data-card path is
+# disabled by the display-mode setting.
+INTERACTIVE_WIDGET_TYPES: frozenset[RegistryItemType] = frozenset(
+    {
+        RegistryItemType.SKILL_APP,
+        RegistryItemType.MCP_APP,
+        RegistryItemType.DRAFT,
+    }
+)
 
 
 class RegistryItemMeta(BaseModel):

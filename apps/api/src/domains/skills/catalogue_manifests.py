@@ -122,7 +122,13 @@ run_skill_script_catalogue_manifest = ToolManifest(
     description=(
         "**Tool: run_skill_script** - Execute a Python script from a skill.\n"
         "**Use for**: Running scripts in a skill's scripts/ directory.\n"
-        "**Output**: Script stdout output."
+        "**Output**: Textual message always present. When the script emits the\n"
+        "``SkillScriptOutput`` JSON contract on stdout with a ``frame`` or\n"
+        "``image`` field, a ``SKILL_APP`` registry item is also produced and\n"
+        "the widget renders as an interactive frame/image card in the chat.\n"
+        "Runtime auto-injects ``_lang`` (user language) and ``_tz`` (user\n"
+        "timezone) into ``parameters`` — scripts should read those for\n"
+        "localization rather than calling ``strftime``/``setlocale``."
     ),
     semantic_keywords=[
         "skill",
@@ -148,14 +154,42 @@ run_skill_script_catalogue_manifest = ToolManifest(
             name="parameters",
             type="object",
             required=False,
-            description="Parameters passed to the script via stdin JSON",
+            description=(
+                "Parameters passed to the script via stdin JSON. Accepts either a "
+                "JSON object (preferred) or a JSON string — both are normalized."
+            ),
         ),
     ],
     outputs=[
+        # Always emitted: textual message (used by the LLM reformulator).
         OutputFieldSchema(
-            path="output",
+            path="message",
             type="string",
-            description="Script stdout output",
+            description="Text response (always present — from SkillScriptOutput.text)",
+        ),
+        # Rich outputs (v1.16.8, ADR-075): emitted only when the script returns
+        # a SkillScriptOutput JSON with frame or image. The SKILL_APP registry
+        # item is rendered as an interactive widget (iframe + optional image).
+        OutputFieldSchema(
+            path="skill_apps[].skill_name",
+            type="string",
+            description="Emitting skill name (only when frame/image is produced)",
+            nullable=True,
+        ),
+        OutputFieldSchema(
+            path="skill_apps[]._registry_id",
+            type="string",
+            description=(
+                "Registry identifier of the SKILL_APP widget — chainable via "
+                "$steps.<step_id>.skill_apps[]._registry_id"
+            ),
+            nullable=True,
+        ),
+        OutputFieldSchema(
+            path="skill_apps[].title",
+            type="string",
+            description="Display title (frame header / image alt fallback)",
+            nullable=True,
         ),
     ],
     cost=CostProfile(
@@ -169,5 +203,5 @@ run_skill_script_catalogue_manifest = ToolManifest(
         hitl_required=False,
         data_classification="INTERNAL",
     ),
-    version="1.0.0",
+    version="1.1.0",
 )

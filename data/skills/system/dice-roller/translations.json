@@ -1,0 +1,8 @@
+{
+  "fr": "Lance un ou plusieurs dés avec une animation visuelle et le détail complet du résultat. Supporte la notation JDR standard (d4, d6, d8, d10, d12, d20, d100) et les dés multiples (ex : '2d6+3'). À utiliser quand l'utilisateur veut lancer un dé, tirer un nombre au hasard, ou décider quelque chose aléatoirement.",
+  "en": "Rolls one or several dice with an animated visual and a full breakdown of the result. Supports standard RPG notation (d4, d6, d8, d10, d12, d20, d100) and multiple dice (e.g. '2d6+3'). Use when the user wants to roll dice, pick a random number, or decide something at random.",
+  "es": "Lanza uno o varios dados con una animación visual y un desglose completo del resultado. Compatible con la notación estándar de rol (d4, d6, d8, d10, d12, d20, d100) y con varios dados (por ejemplo, '2d6+3'). Úselo cuando el usuario quiera tirar dados, elegir un número al azar o decidir algo aleatoriamente.",
+  "de": "Wirft einen oder mehrere Würfel mit animierter Anzeige und vollständiger Ergebnisaufschlüsselung. Unterstützt Standard-Rollenspiel-Notation (d4, d6, d8, d10, d12, d20, d100) sowie mehrere Würfel (z. B. '2d6+3'). Verwenden, wenn der Nutzer würfeln, eine Zufallszahl wählen oder etwas zufällig entscheiden möchte.",
+  "it": "Lancia uno o più dadi con un'animazione visiva e il dettaglio completo del risultato. Supporta la notazione GDR standard (d4, d6, d8, d10, d12, d20, d100) e più dadi (ad es. '2d6+3'). Usalo quando l'utente vuole lanciare dei dadi, estrarre un numero a caso o decidere qualcosa in modo casuale.",
+  "zh": "掷一个或多个骰子，带有动画效果和完整的结果分解。支持标准跑团符号（d4、d6、d8、d10、d12、d20、d100）和多骰子（例如 '2d6+3'）。当用户希望掷骰子、随机选一个数字或随机决定某事时使用。"
+}

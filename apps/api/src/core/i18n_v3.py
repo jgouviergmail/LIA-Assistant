@@ -2914,6 +2914,15 @@ _DISPLAY_MCP_APP_LOADING: dict[str, str] = {
     "zh-CN": "\u52a0\u8f7d\u5e94\u7528\u7a0b\u5e8f\u2026",
 }
 
+_DISPLAY_SKILL_APP_LOADING: dict[str, str] = {
+    "fr": "Chargement du skill\u2026",
+    "en": "Loading skill\u2026",
+    "es": "Cargando skill\u2026",
+    "de": "Skill wird geladen\u2026",
+    "it": "Caricamento skill\u2026",
+    "zh-CN": "\u6b63\u5728\u52a0\u8f7d\u6280\u80fd\u2026",
+}
+
 
 class V3Messages:
     """
@@ -4092,3 +4101,9 @@ class V3Messages:
         """Get MCP Apps loading placeholder text."""
         lang = V3Messages._normalize_language(language)
         return _DISPLAY_MCP_APP_LOADING.get(lang, _DISPLAY_MCP_APP_LOADING["en"])
+
+    @staticmethod
+    def get_skill_app_loading(language: str) -> str:
+        """Get Skill Apps loading placeholder text."""
+        lang = V3Messages._normalize_language(language)
+        return _DISPLAY_SKILL_APP_LOADING.get(lang, _DISPLAY_SKILL_APP_LOADING["en"])

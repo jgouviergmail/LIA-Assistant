@@ -456,7 +456,11 @@ def get_response_prompt(
         desc = f"\n{description}" if description else ""
         return f"<{tag}>{desc}\n{escaped}\n</{tag}>"
 
-    safe_skills_context = _wrap_section("SkillContext", skills_context)
+    # skills_context is NOT injected in the base prompt anymore — the response
+    # node wraps it in a dedicated, priority-higher "SKILL INSTRUCTIONS
+    # CONTRACT" system message. Kept in the signature for backwards-compatible
+    # call sites; value is intentionally discarded here.
+    _ = skills_context  # noqa: F841
     safe_rag_context = _wrap_section(
         "RAGDocuments",
         rag_context,
@@ -498,7 +502,6 @@ def get_response_prompt(
         data_for_filtering=safe_data_for_filtering,
         resolved_references=resolved_refs_str,
         anticipated_needs=anticipated_needs_str,
-        skills_context=safe_skills_context,
         app_knowledge_context=safe_app_knowledge,
         journal_context=safe_journal_context,
         psyche_context=safe_psyche_context,

@@ -1,0 +1,6 @@
+SKILL INSTRUCTIONS CONTRACT (PRIORITY: HIGHEST):
+The user's request activated a skill. The <SkillContext> below contains its full instructions and bundled resources — these define the AUTHORITATIVE rules for this turn, whatever their nature (output format, content selection, ordering, examples to follow, business logic, constraints, etc.). Apply them VERBATIM. Do not simplify, paraphrase, or substitute with your defaults. When the skill's content conflicts with <ResponseGuidelines> above, the skill takes precedence.
+
+<SkillContext>
+{skills_context}
+</SkillContext>

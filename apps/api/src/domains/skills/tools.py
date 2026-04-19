@@ -7,6 +7,7 @@ Per agentskills.io client implementation guide (Step 4):
 Pattern: web_fetch_tools.py (validate_runtime_config → UnifiedToolOutput).
 """
 
+import json
 from typing import Annotated, Any
 
 from langchain.tools import ToolRuntime
@@ -21,6 +22,65 @@ from src.infrastructure.observability.metrics_agents import (
     agent_tool_duration_seconds,
     agent_tool_invocations,
 )
+
+
+def _coerce_parameters(
+    parameters: dict[str, Any] | str | None,
+) -> tuple[dict[str, Any] | None, UnifiedToolOutput | None]:
+    """Coerce the ``parameters`` argument of :func:`run_skill_script` to a dict.
+
+    Some LLMs (notably Qwen) serialize nested ``dict`` tool arguments as JSON
+    strings instead of structured objects, causing the tool to be invoked with
+    ``parameters = '{"location": "Paris"}'`` rather than
+    ``parameters = {"location": "Paris"}``. Pydantic rejects the string, the
+    ReAct loop retries indefinitely, and we hit ``GraphRecursionError``.
+
+    This helper normalizes the three accepted forms (``dict``, ``str``,
+    ``None``) into a ``dict | None`` usable by the executor, returning a
+    clean :class:`UnifiedToolOutput.failure` when the input is an invalid
+    JSON string.
+
+    Args:
+        parameters: Raw value received from the tool invocation.
+
+    Returns:
+        Tuple ``(coerced_dict, failure_output)``. Exactly one element is
+        non-None: either the coerced dict (possibly ``None`` for empty input)
+        or a failure output describing the validation error.
+    """
+    if parameters is None or isinstance(parameters, dict):
+        return parameters, None
+
+    if not isinstance(parameters, str):
+        return None, UnifiedToolOutput.failure(
+            message=(
+                "parameters must be a dict or a JSON string — " f"got {type(parameters).__name__}"
+            ),
+            error_code="INVALID_INPUT",
+        )
+
+    stripped = parameters.strip()
+    if not stripped:
+        return None, None
+
+    try:
+        parsed = json.loads(stripped)
+    except json.JSONDecodeError as exc:
+        return None, UnifiedToolOutput.failure(
+            message=f"parameters is not a valid JSON string: {exc}",
+            error_code="INVALID_INPUT",
+        )
+
+    if not isinstance(parsed, dict):
+        return None, UnifiedToolOutput.failure(
+            message=(
+                "parameters JSON must decode to an object (dict), " f"got {type(parsed).__name__}"
+            ),
+            error_code="INVALID_INPUT",
+        )
+
+    return parsed, None
+
 
 # Rate limit constants (per-user, per minute)
 _RATE_LIMIT_SCRIPT = 5  # subprocess execution — conservative
@@ -75,10 +135,20 @@ async def activate_skill_tool(
 async def run_skill_script(
     skill_name: Annotated[str, "Name of the skill containing the script"],
     script: Annotated[str, "Script filename (e.g., 'extract.py')"],
-    parameters: Annotated[dict[str, Any] | None, "Parameters passed to the script"] = None,
+    parameters: Annotated[
+        dict[str, Any] | str | None,
+        (
+            "Parameters passed to the script. Either a JSON object "
+            "(preferred) or a JSON string — both are accepted and normalized."
+        ),
+    ] = None,
     runtime: Annotated[ToolRuntime, InjectedToolArg] = None,
 ) -> UnifiedToolOutput:
     """Execute a Python script from a skill's scripts/ directory."""
+    coerced_parameters, coercion_error = _coerce_parameters(parameters)
+    if coercion_error is not None:
+        return coercion_error
+
     config = validate_runtime_config(runtime, "run_skill_script")
     if isinstance(config, UnifiedToolOutput):
         return config
@@ -91,19 +161,56 @@ async def run_skill_script(
             error_code="FEATURE_DISABLED",
         )
 
+    # Inject runtime context (user language, timezone) into parameters so
+    # skill scripts can localize their output without the plan_template having
+    # to pass these explicitly. Keys are prefixed with ``_`` to signal they
+    # are framework-managed and avoid collisions with user-defined parameters.
+    # Explicit user-provided values take precedence.
+    runtime_configurable = (
+        runtime.config.get("configurable", {}) if runtime and runtime.config else {}
+    )
+    enriched_parameters: dict[str, Any] = dict(coerced_parameters or {})
+    if "_lang" not in enriched_parameters:
+        enriched_parameters["_lang"] = runtime_configurable.get("user_language", "en")
+    if "_tz" not in enriched_parameters:
+        enriched_parameters["_tz"] = runtime_configurable.get("user_timezone", "UTC")
+
     from src.domains.skills.executor import SkillScriptExecutor
 
     result = await SkillScriptExecutor.execute(
         skill_name=skill_name,
         script_name=script,
-        parameters=parameters or {},
+        parameters=enriched_parameters,
         user_id=str(config.user_id),
     )
 
     if result.success:
+        # Parse stdout for rich output contract (text/frame/image).
+        # Falls back to plain text wrapping if stdout is not valid JSON —
+        # preserves backward compatibility with scripts emitting raw text.
+        from src.domains.skills.cache import SkillsCache
+        from src.domains.skills.output_builder import build_skill_app_output
+        from src.domains.skills.script_output import parse_skill_stdout
+
+        parsed = parse_skill_stdout(result.output)
+
+        # Rich output: emit SKILL_APP registry item for frontend widget.
+        if parsed.frame is not None or parsed.image is not None:
+            skill_info = SkillsCache.get_by_name_for_user(
+                skill_name, str(config.user_id)
+            ) or SkillsCache.get_by_name(skill_name)
+            is_system = bool(skill_info.get("is_system", True)) if skill_info else True
+            return build_skill_app_output(
+                output=parsed,
+                skill_name=skill_name,
+                is_system_skill=is_system,
+                execution_time_ms=result.execution_time_ms,
+            )
+
+        # Text-only output: preserve legacy behaviour (action_success, no registry).
         return UnifiedToolOutput.action_success(
-            message=result.output,
-            structured_data={"skill_output": result.output},
+            message=parsed.text,
+            structured_data={"skill_output": parsed.text},
             metadata={
                 "skill_name": skill_name,
                 "script": script,

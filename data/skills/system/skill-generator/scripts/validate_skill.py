@@ -55,6 +55,8 @@ VALID_STEP_TYPES: frozenset[str] = frozenset({
     "RESPONSE",
 })
 
+VALID_OUTPUTS: frozenset[str] = frozenset({"text", "frame", "image"})
+
 
 # ============================================================================
 # Validation
@@ -203,6 +205,36 @@ def validate_skill(content: str) -> dict[str, object]:
                                 f"Step '{step_id}': depends_on references "
                                 f"'{dep}' which appears later or doesn't exist"
                             )
+
+    # --- outputs field validation (rich outputs contract) ---
+    outputs = meta.get("outputs")
+    if outputs is not None:
+        if not isinstance(outputs, list):
+            errors.append("'outputs' must be a list (e.g., [text, frame, image])")
+        else:
+            for out in outputs:
+                if not isinstance(out, str):
+                    errors.append(f"'outputs' entry must be a string, got {type(out).__name__}")
+                elif out not in VALID_OUTPUTS:
+                    errors.append(
+                        f"Invalid output type '{out}' "
+                        f"(valid: {', '.join(sorted(VALID_OUTPUTS))})"
+                    )
+            # 'text' should always be present (required by SkillScriptOutput contract)
+            if outputs and "text" not in outputs:
+                warnings.append(
+                    "'outputs' should include 'text' — the SkillScriptOutput contract "
+                    "always requires a text field for voice/accessibility"
+                )
+            # If frame or image is declared, the skill must have a scripts/ folder
+            # (cannot verify directly here but the LLM reformulator should mention it
+            # — emit a warning as a reminder).
+            if ("frame" in outputs or "image" in outputs) and not outputs == ["text"]:
+                warnings.append(
+                    "Skills declaring 'frame' or 'image' outputs must ship a Python "
+                    "script in scripts/ that emits the SkillScriptOutput JSON contract "
+                    "(see references/format-specification.md § Rich Outputs Contract)"
+                )
 
     # --- Body check ---
     body = parts[2].strip() if len(parts) > 2 else ""

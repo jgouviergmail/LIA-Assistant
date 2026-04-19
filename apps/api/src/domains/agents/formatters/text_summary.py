@@ -50,6 +50,7 @@ DOMAIN_LABELS = {
         "routes": "Itinéraire(s)",
         "mcps": "Résultat(s) MCP",  # CONTEXT_DOMAIN_MCP
         "mcp_apps": "Application(s) MCP",  # CONTEXT_DOMAIN_MCP_APPS
+        "skill_apps": "Skill(s) interactif(s)",  # CONTEXT_DOMAIN_SKILL_APPS
         "other": "Élément(s)",
     },
     "en": {
@@ -80,6 +81,7 @@ DOMAIN_LABELS = {
         "routes": "Route(s)",
         "mcps": "MCP result(s)",  # CONTEXT_DOMAIN_MCP
         "mcp_apps": "MCP app(s)",  # CONTEXT_DOMAIN_MCP_APPS
+        "skill_apps": "Skill widget(s)",  # CONTEXT_DOMAIN_SKILL_APPS
         "other": "Item(s)",
     },
     "es": {
@@ -110,6 +112,7 @@ DOMAIN_LABELS = {
         "routes": "Ruta(s)",
         "mcps": "Resultado(s) MCP",
         "mcp_apps": "Aplicación(es) MCP",
+        "skill_apps": "Skill(s) interactivo(s)",
         "other": "Elemento(s)",
     },
     "de": {
@@ -140,6 +143,7 @@ DOMAIN_LABELS = {
         "routes": "Route(n)",
         "mcps": "MCP-Ergebnis(se)",
         "mcp_apps": "MCP-App(s)",
+        "skill_apps": "Skill-Widget(s)",
         "other": "Element(e)",
     },
     "it": {
@@ -170,6 +174,7 @@ DOMAIN_LABELS = {
         "routes": "Percorso/i",
         "mcps": "Risultato/i MCP",
         "mcp_apps": "App MCP",
+        "skill_apps": "Skill interattivo/i",
         "other": "Elemento/i",
     },
     "zh": {
@@ -200,6 +205,7 @@ DOMAIN_LABELS = {
         "routes": "路线",
         "mcps": "MCP结果",
         "mcp_apps": "MCP应用",
+        "skill_apps": "技能小部件",
         "other": "项目",
     },
 }
@@ -297,9 +303,9 @@ def generate_text_summary_for_llm(
                 item_type = item_type.value
             payload = item.get("payload", {})
 
-        # Skip DRAFT and MCP_APP items (interactive widgets rendered in iframe,
+        # Skip DRAFT, MCP_APP and SKILL_APP items (interactive widgets rendered in iframe,
         # not useful for LLM text commentary — payload contains html_content/tool_result)
-        if item_type in ("DRAFT", "MCP_APP"):
+        if item_type in ("DRAFT", "MCP_APP", "SKILL_APP"):
             continue
 
         # Generate text summary using generic serializer
@@ -370,9 +376,9 @@ def generate_data_for_filtering(
                     item_type = item_type.value
                 payload = item.get("payload", {})
 
-            # Skip DRAFT and MCP_APP items (interactive widgets rendered in iframe,
+            # Skip DRAFT, MCP_APP and SKILL_APP items (interactive widgets rendered in iframe,
             # not useful for LLM filtering — payload contains html_content/tool_result)
-            if item_type in ("DRAFT", "MCP_APP"):
+            if item_type in ("DRAFT", "MCP_APP", "SKILL_APP"):
                 continue
 
             # Use generic serializer for full data details

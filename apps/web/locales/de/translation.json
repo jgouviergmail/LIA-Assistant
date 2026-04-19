@@ -511,6 +511,15 @@
       }
     }
   },
+  "skill_apps": {
+    "loading": "Skill wird geladen…",
+    "error": "Skill-Widget konnte nicht geladen werden",
+    "external_frame": "Extern"
+  },
+  "mcp_apps": {
+    "loading": "Anwendung wird geladen...",
+    "error": "Fehler beim Laden der Anwendung"
+  },
   "settings": {
     "title": "Einstellungen",
     "subtitle": "Verwalten Sie Ihre Einstellungen und Ihr Konto",
@@ -1557,10 +1566,6 @@
       "toggle_error": "Fehler beim Umschalten",
       "load_error": "Anwendungs-MCP-Server konnten nicht geladen werden"
     },
-    "mcp_apps": {
-      "loading": "Anwendung wird geladen...",
-      "error": "Fehler beim Laden der Anwendung"
-    },
     "mcp": {
       "title": "MCP-Server",
       "description": "Verbinden Sie Ihre eigenen MCP-Server, um die Fähigkeiten des Assistenten zu erweitern",
@@ -1940,10 +1945,38 @@
       "guide_field_priority": "Anzeigereihenfolge (Standard: 50, höher = zuerst angezeigt)",
       "guide_field_plan_template": "Deterministischer Ausführungsplan (siehe Tab Erweitert)",
       "guide_field_always_loaded": "Anweisungen immer laden (kostet Token bei jeder Konversation)",
+      "guide_field_outputs": "Deklarierte Ausgabekanäle (text, frame, image) — nur für Visualizer / Generator Skills",
+      "guide_field_compatibility": "Voraussetzungen im Katalog (z. B. „Erfordert Kalender-Connector\")",
+      "guide_runtime_title": "Lokalisierung, Theme und Runtime-Konventionen",
+      "guide_runtime_intro": "Wenn dein Skill ein Python-Skript verwendet, stellt die LIA-Plattform automatisch mehrere Verhaltensweisen bereit — hier ist, was du wissen musst, um Skills zu erstellen, die sich natürlich integrieren.",
+      "guide_runtime_autoparams_label": "Automatisch eingefügte Parameter",
+      "guide_runtime_autoparams_body": "Jeder run_skill_script-Aufruf erhält automatisch die Sprache (_lang) und die Zeitzone (_tz) des Nutzers in den Parametern. Verwende _lang, um deine Labels über Inline-Übersetzungstabellen zu lokalisieren.",
+      "guide_runtime_autoparams_hint": "Verlasse dich nicht auf locale.setlocale — schlanke Container-Images enthalten keine System-Locales, sodass strftime stillschweigend auf Englisch zurückfällt.",
+      "guide_runtime_theme_label": "Dunkles / helles Thema",
+      "guide_runtime_theme_body": "Verwende html[data-theme=\"dark\"] CSS-Selektoren statt @media (prefers-color-scheme: dark). Ein von LIA eingefügtes Runtime-Snippet setzt das data-theme-Attribut und die Sprache auf <html>, synchron zur App.",
+      "guide_runtime_resize_label": "Automatische Iframe-Größenanpassung",
+      "guide_runtime_resize_body": "Iframes passen ihre Größe automatisch an die Inhaltshöhe an. Das deklarierte aspect_ratio ist nur das Anfangsskelett vor der Messung. Lasse die html/body-Ränder in der Standardeinstellung und style deine eigenen inneren Container.",
+      "guide_runtime_example_qr": "Generator-Beispiel (QR-Code mit segno, lokalisierte Bildunterschrift):",
+      "guide_runtime_example_interactive": "Interaktives Visualizer-Beispiel (clientseitiger Neu-Wurf-Button):",
+      "guide_runtime_interactive_note": "Empfohlenes Muster für jedes interaktive Frame: Client-JS mit crypto.getRandomValues und addEventListener — Inline-onclick wird von der CSP bei Nutzer-Skills blockiert.",
       "guide_example_simple_title": "Beispiel: Prompt Expert Skill",
       "guide_example_simple_desc": "Der einfachste Typ — reine Anweisungen, denen der Assistent folgt, wenn das Thema aufkommt. Keine Werkzeuge oder Pläne erforderlich.",
       "guide_example_advisory_title": "Beispiel: Advisory Skill",
       "guide_example_advisory_desc": "Der Assistent folgt einer Methodik und nutzt verfügbare Werkzeuge (Kalender, E-Mails, Kontakte) organisch nach Bedarf.",
+      "guide_rich_outputs_title": "Reiche Ausgaben (Frames + Bilder)",
+      "guide_rich_outputs_intro": "Skills können interaktive iFrames und generierte Bilder ausgeben, indem sie ein JSON-Objekt auf stdout schreiben. Der Skill entscheidet über die Darstellung — die drei Kanäle (text, frame, image) sind unabhängig und kombinierbar.",
+      "guide_rich_outputs_text_label": "Immer erforderlich — Beschriftung für Sprachausgabe, LLM-Kontext und Barrierefreiheit.",
+      "guide_rich_outputs_frame_label": "Optionaler interaktiver iFrame (Inline-HTML via srcDoc oder externe HTTPS-URL).",
+      "guide_rich_outputs_image_label": "Optionales Bild (data:-URI oder HTTPS-URL) mit erforderlichem Alt-Text.",
+      "guide_rich_outputs_example_map": "Visualizer-Beispiel — interaktive Google-Maps-Einbettung:",
+      "guide_rich_outputs_example_qr": "Generator-Beispiel — QR-Code aus Text generiert:",
+      "guide_rich_outputs_security_title": "Frame-Sicherheit",
+      "guide_rich_outputs_sandbox": "Alle Frames werden in einer iFrame-Sandbox ohne allow-same-origin gerendert — Parent-Cookies und Storage sind unabhängig vom Frame-Inhalt unerreichbar.",
+      "guide_rich_outputs_csp": "Wenn ein Benutzer-Skill frame.html ausgibt, injiziert LIA automatisch eine strikte Content Security Policy, die ausgehende fetch/XHR-Anfragen (connect-src none) und verschachtelte iFrames (frame-src none) blockiert. System-Skills gelten als vertrauenswürdig und erhalten keine CSP-Injektion.",
+      "guide_rich_outputs_csp_warning": "Folge: Inline-Frames von Benutzer-Skills können keine externen APIs aufrufen. Für externe Daten verwenden Sie frame.url (die entfernte Seite steuert ihre eigenen Header).",
+      "guide_rich_outputs_tip_1": "Schreiben Sie nur JSON auf stdout — Logs und Fortschritt gehören auf stderr.",
+      "guide_rich_outputs_tip_2": "frame.html und frame.url schließen sich gegenseitig aus — ein Frame hat eine Quelle.",
+      "guide_rich_outputs_tip_3": "Legen Sie immer image.alt fest — für Barrierefreiheit und Sprachausgabe.",
       "guide_modal_struct_title": "Ordnerstruktur",
       "guide_modal_struct_body": "Für komplexe Skills importieren Sie eine .zip-Datei mit SKILL.md und optionalen Unterordnern:",
       "guide_struct_skillmd": "Hauptdatei (erforderlich)",
@@ -2668,8 +2701,8 @@
           "description": "Upload von Fotos und PDF-Dokumenten per 📎-Button oder Drag & Drop, mit automatischer clientseitiger Komprimierung. Visuelle Analyse durch konfigurierbares Vision-LLM (gpt-4.1-mini standardmäßig). PDF-Textextraktion via PyMuPDF. Inline-Miniaturansichten in Nachrichten, zugängliche Lightbox. Strikte Benutzerisolation, automatische Bereinigung (Konversations-Reset + TTL 24h). « Reference + Late Resolution »-Architektur für leichtgewichtige Checkpoints."
         },
         "skills": {
-          "title": "Skills",
-          "description": "Erweitern Sie LIA mit maßgeschneiderten Experten-Skills. Erstellen Sie eigene Skills in natürlicher Sprache mit dem integrierten Skill Generator — oder importieren Sie von agentskills.io-kompatiblen Marktplätzen. Kompatibel mit 30+ Tools wie Claude Code, Cursor und VS Code."
+          "title": "Skills (mit interaktiven Karten und Mini-Apps)",
+          "description": "Erweitern Sie LIA mit maßgeschneiderten Experten-Skills. Erstellen Sie eigene Skills in natürlicher Sprache mit dem integrierten Skill Generator — oder importieren Sie von agentskills.io-kompatiblen Marktplätzen. Seit v1.16.8 kann ein Skill zusätzlich zum Text auch einen interaktiven HTML-Frame (Karte, Dashboard, Kalender, Umrechner...) oder ein Bild (QR-Code, Diagramm) zurückgeben, mit automatischer Theme- und Sprachsynchronisation. Kompatibel mit 30+ Tools wie Claude Code, Cursor und VS Code."
         },
         "ragSpaces": {
           "title": "📚 RAG-Wissensräume",
@@ -2710,6 +2743,18 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_16_8": {
+          "title": "v1.16.8 — Angereicherte Skills: Karten, Bilder, Mini-Apps im Chat",
+          "date": "April 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>Ihre Skills können jetzt Karten, Bilder und interaktive Mini-Apps anzeigen</b> — Zusätzlich zur Textantwort kann ein Skill nun einen interaktiven HTML-Frame (Google Maps-Ansicht, Wetter-Dashboard, Monatskalender, Einheitenumrechner...) und/oder ein Bild (QR-Code, Diagramm) zurückgeben. Sieben neue integrierte Skills demonstrieren dies: <code>interactive-map</code>, <code>weather-dashboard</code>, <code>calendar-month</code>, <code>qr-code</code>, <code>pomodoro-timer</code>, <code>unit-converter</code>, <code>dice-roller</code>.",
+            "i2": "<b>Theme und Sprache synchron mit Ihren Frames</b> — Wenn Sie in den Dunkelmodus wechseln oder die Sprache der App ändern, aktualisieren sich die im Chat eingebetteten Mini-Apps automatisch ohne Neuladen. Die Ergonomie bleibt in der gesamten Konversation konsistent.",
+            "i3": "<b>Frames immer sichtbar, unabhängig von Ihrem Anzeigemodus</b> — Interaktive Mini-Apps (Skills, MCP-Apps, Entwürfe) werden jetzt in den Modi Rich HTML, Markdown und Karten angezeigt — zuvor waren sie außerhalb des Karten-Modus unsichtbar.",
+            "i4": "<b>End-to-End-Dokumentation zur Erstellung angereicherter Skills</b> — Der Skills-Leitfaden enthält jetzt einen vollständigen Abschnitt „Localization, theming and runtime conventions\" im Tab Erweitert, mit sofort einsetzbaren Code-Beispielen (QR-Code mit <code>segno</code>, Münzwurf mit Animation und Wiederholung). Der integrierte skill-generator wurde ebenfalls aktualisiert, um bereits beim ersten Versuch konforme Skills zu erzeugen.",
+            "i5": "<b>Skills-Einstellungen: weniger visueller Ballast</b> — Die Abschnitte „Integrierte Skills\" und „Meine importierten Skills\" sind jetzt standardmäßig eingeklappt: wenn Sie viele Skills angesammelt haben, bleibt die Einstellungsseite lesbar."
+          }
+        },
         "v1_16_7": {
           "title": "v1.16.7 — Relevante Wetterwarnungen, auch auf Reisen",
           "date": "April 2026",
@@ -3557,7 +3602,7 @@
       "skills": {
         "title": "Fähigkeiten (Skills)",
         "description": "LIA-Fähigkeiten mit Expertenanweisungen erweitern",
-        "count": "7",
+        "count": "8",
         "questions": {
           "q1": {
             "question": "Was ist eine Skill?",
@@ -3586,6 +3631,10 @@
           "q7": {
             "question": "Was ist der Skill Generator?",
             "answer": "<p>Der <strong>Skill Generator</strong> ist eine integrierte System-Skill, mit der Sie <strong>eigene Skills in natürlicher Sprache erstellen</strong> können. Beschreiben Sie einfach Ihren Bedarf («<em>ich möchte einen detaillierten 5-Tage-Wetterbericht</em>») und der Assistent führt Sie durch 4 Schritte:</p><ol><li><strong>Bedarfsanalyse</strong>: Fragen zur Aufgabe, Werkzeugen und gewünschtem Format</li><li><strong>Archetyp-Auswahl</strong>: Prompt Expert, Advisory oder Plan Template</li><li><strong>Generierung</strong>: Erstellung der SKILL.md-Datei gemäß dem agentskills.io-Standard</li><li><strong>Validierung</strong>: automatische Formatprüfung durch ein integriertes Skript</li></ol><p>Die generierte Datei kann direkt in <strong>Einstellungen &gt; Funktionen &gt; Meine Skills</strong> importiert werden.</p>"
+          },
+          "q8": {
+            "question": "Können Skills Karten, Bilder oder interaktive Mini-Apps anzeigen? (v1.16.8)",
+            "answer": "<p>Ja. Seit v1.16.8 kann ein Python-Skill-Skript zusätzlich zum Text <strong>einen interaktiven HTML-Frame</strong> (Google Maps-Ansicht, Wetter-Dashboard, Monatskalender, Pomodoro-Timer, Einheitenumrechner...) und/oder <strong>ein Bild</strong> (QR-Code, Diagramm) zurückgeben.</p><p><strong>Sieben neue integrierte Skills</strong> veranschaulichen diesen Mechanismus: <code>interactive-map</code>, <code>weather-dashboard</code>, <code>calendar-month</code>, <code>qr-code</code>, <code>pomodoro-timer</code>, <code>unit-converter</code>, <code>dice-roller</code>.</p><p><strong>Wie es funktioniert:</strong></p><ul><li><strong>Theme und Sprache bleiben synchron</strong> — Frames erkennen und respektieren automatisch Ihr aktuelles Theme (hell/dunkel) und Ihre Sprache. Ein Theme-Wechsel wird live ohne Neuladen übertragen.</li><li><strong>Automatische Größenanpassung</strong> — der Frame passt sich automatisch an seinen Inhalt an.</li><li><strong>Strenge Sicherheit</strong> — Frames werden in einem sandboxed iframe (<code>allow-scripts allow-popups</code>, ohne <code>allow-same-origin</code>) mit einer für Benutzer-Skills injizierten Content Security Policy ausgeführt.</li><li><strong>Sichtbar in allen Anzeigemodi</strong> — Rich HTML, Markdown, Karten: Frames werden überall angezeigt.</li></ul><p>Um eigene Skills mit Frames oder Bildern zu bauen, öffnen Sie den <strong>Skills-Leitfaden</strong> (Tab Erweitert → Abschnitt «Localization, theming and runtime conventions»), oder sagen Sie einfach: «<em>erstelle einen Skill, der einen QR-Code anzeigt</em>».</p>"
           }
         }
       },
@@ -4720,8 +4769,8 @@
         "description": "5 Farbthemen, Dark/Light-Modus, 9 Schriftfamilien. Pass LIA an deinen Stil an."
       },
       "skills": {
-        "title": "Skills",
-        "description": "Erweitern Sie LIA mit maßgeschneiderten Experten-Skills. Erstellen Sie eigene Skills in natürlicher Sprache mit dem integrierten Skill Generator — oder importieren Sie von agentskills.io-kompatiblen Marktplätzen. Kompatibel mit 30+ Tools wie Claude Code, Cursor und VS Code."
+        "title": "Skills mit Karten & Mini-Apps",
+        "description": "Erweitern Sie LIA mit maßgeschneiderten Experten-Skills. Skills können nun interaktive Karten, Dashboards, Kalender, QR-Codes und Mini-Apps direkt im Chat anzeigen — mit automatischer Theme- und Sprachsynchronisation. Erstellen Sie eigene Skills in natürlicher Sprache mit dem integrierten Skill Generator, oder importieren Sie von agentskills.io-kompatiblen Marktplätzen. Kompatibel mit 30+ Tools wie Claude Code, Cursor und VS Code."
       },
       "sub_agents": {
         "title": "Sub-Agenten",
@@ -4863,6 +4912,14 @@
       "stack": {
         "title": "Moderner Stack",
         "description": "FastAPI, Next.js, React, TailwindCSS, PostgreSQL, Redis. Striktes TypeScript im Frontend, async Python im Backend."
+      },
+      "rich_skills": {
+        "title": "Skills mit Frames & Bildern",
+        "description": "SkillScriptOutput-Vertrag (text/frame/image) — sandboxed Python-Skripte, strenge Sandbox-iframes mit injizierter CSP, automatische Größenanpassung, Theme- und Sprachsynchronisation via postMessage. Sieben integrierte Skills demonstrieren den Mechanismus."
+      },
+      "hitl": {
+        "title": "Human-in-the-Loop",
+        "description": "Sechs Freigabeebenen — Plan-Freigabe, Klärung, Entwurfskritik, destruktive Bestätigung, FOR_EACH-Bestätigung, Änderungsprüfung. Schutzmaßnahmen auf Plan-Ebene vor der Ausführung statt Rollback nach einem Fehler. Automatische Risikoklassifizierung und Vorschau der betroffenen Elemente."
       }
     },
     "architecture": {
@@ -5153,8 +5210,8 @@
       },
       "skills-system": {
         "title": "Skills: Expertenanweisungen zur Anpassung von LIA",
-        "excerpt": "Importieren oder erstellen Sie spezialisierte Skills, damit LIA neue Bereiche beherrscht.",
-        "body": "<h2>Was ist ein Skill?</h2><p>Ein <strong>Skill</strong> ist ein Satz strukturierter Anweisungen, der LIA ermöglicht, einen bestimmten Bereich zu beherrschen. Im Gegensatz zu Tools, die Aktionen ausführen, bereichern Skills das <strong>Reasoning und Verhalten</strong> des Assistenten. Die Architektur basiert auf einem Schlüsselprinzip: Die <strong>Festplatte ist die Wahrheitsquelle</strong> für Skill-Inhalte, während die Datenbank nur Metadaten verwaltet (Aktivierung, Eigentümer, Statistiken).</p><h2>Drei Skill-Typen</h2><ul><li><strong>Prompt Expert</strong> — Detaillierte Anweisungen für eine Domäne (z.B. professionelles Schreiben, Finanzanalyse)</li><li><strong>Advisory</strong> — Tipps und Best Practices (z.B. Stilratgeber, Qualitätscheckliste)</li><li><strong>Plan Template</strong> — Ausführungsplan-Vorlagen für wiederkehrende Szenarien</li></ul><h2>Sandboxed Ausführung</h2><p>Ausführbare Skills laufen in einer <strong>Sandbox-Umgebung</strong> über <code>subprocess</code> (niemals <code>shell=True</code>). Die Ausführungsumgebung wird gefiltert: Nur die Variablen <code>PATH</code>, <code>HOME</code>, <code>LANG</code>, <code>LC_ALL</code> und <code>TZ</code> werden an den Kindprozess übergeben. Unter Linux wird die <strong>Netzwerkisolation</strong> über <code>unshare</code> sichergestellt, um jeden Netzwerkzugriff aus einem Skill-Skript zu verhindern.</p><h2>Strukturiertes Ergebnis</h2><p>Jede Skill-Ausführung gibt ein standardisiertes <strong>ScriptResult</strong>-Objekt zurück mit: <code>success</code> (Boolean), <code>output</code> (stdout), <code>error</code> (stderr), <code>exit_code</code> und <code>execution_time_ms</code>. Dieses Format ermöglicht eine einheitliche Behandlung von Erfolgen und Fehlern.</p><h2>SkillBypassStrategy: Den Planer umgehen</h2><p>Wenn ein deterministischer Skill genau zur Anfrage passt, umgeht die <strong>SkillBypassStrategy</strong> den LLM-Planer. Der Skill wird direkt ausgeführt, ohne die Kette Planer → Validator → Orchestrator zu durchlaufen, was Latenz und Token-Verbrauch reduziert.</p><h2>Planer-Skill-Guard</h2><p>Der Planer verfügt über eine Früherkennung, die bei fehlenden Pflichtparametern nach Klärung fragt. Multi-Domain-deterministische Skills (z.B. tägliches Briefing = Events + Aufgaben + Wetter + E-Mails) können jedoch <strong>falsch-positive Klärungsanfragen</strong> auslösen. Der Skill-Guard erkennt, wenn ein deterministischer Skill eine hohe Domain-Überlappung mit der Anfrage hat, und lässt die vollständige Planer-Pipeline entscheiden.</p><h2>Der Skill-Generator</h2><p>LIA enthält einen <strong>integrierten Skill-Generator</strong>. Beschreiben Sie die gewünschte Expertise in natürlicher Sprache, und LIA generiert automatisch einen strukturierten Skill im SKILL.md-Format, kompatibel mit dem Standard agentskills.io.</p><h2>Benutzerverwaltung</h2><p>Jeder Benutzer kann seine Skills in der Oberfläche unter Einstellungen aktivieren, deaktivieren, importieren oder löschen. Administratoren können außerdem globale Skills definieren, die allen Benutzern zur Verfügung stehen.</p>"
+        "excerpt": "Importieren oder erstellen Sie spezialisierte Skills, damit LIA neue Bereiche beherrscht — mit interaktiven Karten, Mini-Dashboards und Bildern zusätzlich zum Text.",
+        "body": "<h2>Was ist ein Skill?</h2><p>Ein <strong>Skill</strong> ist ein Satz strukturierter Anweisungen, der LIA ermöglicht, einen bestimmten Bereich zu beherrschen. Im Gegensatz zu Tools, die Aktionen ausführen, bereichern Skills das <strong>Reasoning und Verhalten</strong> des Assistenten. Die Architektur basiert auf einem Schlüsselprinzip: Die <strong>Festplatte ist die Wahrheitsquelle</strong> für Skill-Inhalte, während die Datenbank nur Metadaten verwaltet (Aktivierung, Eigentümer, Statistiken).</p><h2>Angereicherte Ausgaben (v1.16.8)</h2><p>Seit v1.16.8 kann ein Python-Skript zusätzlich zum Text einen <strong>interaktiven HTML-Frame</strong> (Google Maps-Ansicht, Wetter-Dashboard, Pomodoro-Timer...) und/oder ein <strong>Bild</strong> (QR-Code, Diagramm) zurückgeben. Der Vertrag ist einfach: Das Skript schreibt ein JSON-Objekt auf stdout (<code>SkillScriptOutput</code>) mit den Feldern <code>text</code> (Pflicht), <code>frame</code> und <code>image</code> — unabhängig und kombinierbar. Frames werden in einem strengen <em>Sandbox</em>-iframe mit einer automatisch injizierten <strong>Content Security Policy</strong> für Benutzer-Skills ausgeführt. Theme und Sprache werden live via <code>postMessage</code> synchronisiert. Sieben neue integrierte Skills zeigen den Mechanismus: <code>interactive-map</code>, <code>weather-dashboard</code>, <code>calendar-month</code>, <code>qr-code</code>, <code>pomodoro-timer</code>, <code>unit-converter</code>, <code>dice-roller</code>.</p><h2>Drei Skill-Typen</h2><ul><li><strong>Prompt Expert</strong> — Detaillierte Anweisungen für eine Domäne (z.B. professionelles Schreiben, Finanzanalyse)</li><li><strong>Advisory</strong> — Tipps und Best Practices (z.B. Stilratgeber, Qualitätscheckliste)</li><li><strong>Plan Template</strong> — Ausführungsplan-Vorlagen für wiederkehrende Szenarien</li></ul><h2>Sandboxed Ausführung</h2><p>Ausführbare Skills laufen in einer <strong>Sandbox-Umgebung</strong> über <code>subprocess</code> (niemals <code>shell=True</code>). Die Ausführungsumgebung wird gefiltert: Nur die Variablen <code>PATH</code>, <code>HOME</code>, <code>LANG</code>, <code>LC_ALL</code> und <code>TZ</code> werden an den Kindprozess übergeben. Unter Linux wird die <strong>Netzwerkisolation</strong> über <code>unshare</code> sichergestellt, um jeden Netzwerkzugriff aus einem Skill-Skript zu verhindern.</p><h2>Strukturiertes Ergebnis</h2><p>Jede Skill-Ausführung gibt ein standardisiertes <strong>ScriptResult</strong>-Objekt zurück mit: <code>success</code> (Boolean), <code>output</code> (stdout), <code>error</code> (stderr), <code>exit_code</code> und <code>execution_time_ms</code>. Dieses Format ermöglicht eine einheitliche Behandlung von Erfolgen und Fehlern.</p><h2>SkillBypassStrategy: Den Planer umgehen</h2><p>Wenn ein deterministischer Skill genau zur Anfrage passt, umgeht die <strong>SkillBypassStrategy</strong> den LLM-Planer. Der Skill wird direkt ausgeführt, ohne die Kette Planer → Validator → Orchestrator zu durchlaufen, was Latenz und Token-Verbrauch reduziert.</p><h2>Planer-Skill-Guard</h2><p>Der Planer verfügt über eine Früherkennung, die bei fehlenden Pflichtparametern nach Klärung fragt. Multi-Domain-deterministische Skills (z.B. tägliches Briefing = Events + Aufgaben + Wetter + E-Mails) können jedoch <strong>falsch-positive Klärungsanfragen</strong> auslösen. Der Skill-Guard erkennt, wenn ein deterministischer Skill eine hohe Domain-Überlappung mit der Anfrage hat, und lässt die vollständige Planer-Pipeline entscheiden.</p><h2>Der Skill-Generator</h2><p>LIA enthält einen <strong>integrierten Skill-Generator</strong>. Beschreiben Sie die gewünschte Expertise in natürlicher Sprache, und LIA generiert automatisch einen strukturierten Skill im SKILL.md-Format, kompatibel mit dem Standard agentskills.io.</p><h2>Benutzerverwaltung</h2><p>Jeder Benutzer kann seine Skills in der Oberfläche unter Einstellungen aktivieren, deaktivieren, importieren oder löschen. Administratoren können außerdem globale Skills definieren, die allen Benutzern zur Verfügung stehen.</p>"
       },
       "voice-mode": {
         "title": "Sprachmodus: Sprechen Sie mit LIA wie mit einem persönlichen Assistenten",

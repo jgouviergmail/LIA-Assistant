@@ -1,0 +1,8 @@
+{
+  "fr": "Lance un minuteur Pomodoro interactif (cycle travail/pause) avec un compte à rebours circulaire animé. À utiliser quand l'utilisateur demande un Pomodoro, une session de concentration, un minuteur 25/5 ou tout intervalle de travail/pause chronométré.",
+  "en": "Launches an interactive Pomodoro timer (work/break cycle) with an animated circular countdown. Use when the user asks to start a Pomodoro, a focus session, a 25/5 timer, or any timed work/break interval.",
+  "es": "Inicia un temporizador Pomodoro interactivo (ciclo trabajo/descanso) con una cuenta regresiva circular animada. Úselo cuando el usuario pida un Pomodoro, una sesión de concentración, un temporizador 25/5 o cualquier intervalo de trabajo/descanso cronometrado.",
+  "de": "Startet einen interaktiven Pomodoro-Timer (Arbeits-/Pausen-Zyklus) mit animierter kreisförmiger Zeitanzeige. Verwenden, wenn der Nutzer einen Pomodoro, eine Fokussitzung, einen 25/5-Timer oder ein beliebiges zeitgesteuertes Arbeits-/Pausen-Intervall starten möchte.",
+  "it": "Avvia un timer Pomodoro interattivo (ciclo lavoro/pausa) con un conto alla rovescia circolare animato. Usalo quando l'utente chiede un Pomodoro, una sessione di concentrazione, un timer 25/5 o qualsiasi intervallo lavoro/pausa temporizzato.",
+  "zh": "启动一个交互式番茄钟计时器（工作/休息循环），配有动画圆形倒计时。当用户请求番茄钟、专注会话、25/5 计时器或任何定时工作/休息间隔时使用。"
+}

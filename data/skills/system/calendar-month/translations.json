@@ -1,0 +1,8 @@
+{
+  "fr": "Affiche un calendrier visuel du mois en cours (ou d'un mois spécifié) sous forme de grille HTML interactive avec en-têtes de jours et mise en évidence du jour courant. À utiliser quand l'utilisateur demande d'afficher le calendrier du mois, le mois en un coup d'œil ou une vue d'un mois spécifique.",
+  "en": "Displays a visual calendar of the current month (or a specified month) as an interactive HTML grid with weekday headers and highlighted current day. Use when the user asks to show the calendar of the month, the month at a glance, or a specific month's grid.",
+  "es": "Muestra un calendario visual del mes actual (o de un mes especificado) como una cuadrícula HTML interactiva con encabezados de días y el día actual resaltado. Úselo cuando el usuario pida mostrar el calendario del mes, el mes de un vistazo o la cuadrícula de un mes específico.",
+  "de": "Zeigt einen visuellen Kalender des aktuellen Monats (oder eines angegebenen Monats) als interaktives HTML-Raster mit Wochentagsüberschriften und hervorgehobenem aktuellen Tag an. Verwenden, wenn der Nutzer den Monatskalender, den Monatsüberblick oder das Raster eines bestimmten Monats anzeigen möchte.",
+  "it": "Mostra un calendario visivo del mese corrente (o di un mese specificato) come griglia HTML interattiva con intestazioni dei giorni e giorno corrente evidenziato. Usalo quando l'utente chiede di mostrare il calendario del mese, il mese a colpo d'occhio o la griglia di un mese specifico.",
+  "zh": "以交互式 HTML 网格显示当前月份（或指定月份）的可视化日历，包含星期标题并高亮显示当天。当用户请求显示月历、快速浏览月份或特定月份的网格视图时使用。"
+}

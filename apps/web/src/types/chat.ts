@@ -200,7 +200,8 @@ export type RegistryItemType =
   | 'NOTE'
   | 'CALENDAR_SLOT'
   | 'ROUTE'
-  | 'MCP_APP';
+  | 'MCP_APP'
+  | 'SKILL_APP';
 
 /**
  * RegistryItemMeta - Metadata for registry items

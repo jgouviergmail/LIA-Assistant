@@ -642,4 +642,186 @@ The Administration tab (`AdminSkillsSection.tsx`) exposes per-skill action butto
 # 8. Admin: delete system skill → file removed → cache reloaded
 # 9. SKILLS_SCRIPTS_ENABLED=true → run_skill_script executes sandboxed Python
 # 10. Script timeout / path traversal → clean error returned
+# 11. Rich output skill (frame/image) → SKILL_APP RegistryItem → sentinel → widget
 ```
+
+## Rich Outputs (Frames + Images)
+
+Skills can return interactive iframes and images through a typed JSON contract
+on stdout. The full flow is:
+
+```
+Python script stdout JSON
+     │
+     ▼  parse_skill_stdout()  (src/domains/skills/script_output.py)
+SkillScriptOutput { text, frame?, image? }
+     │
+     ▼  build_skill_app_output()  (src/domains/skills/output_builder.py)
+UnifiedToolOutput.data_success(
+    message=text,
+    registry_updates={ rid: RegistryItem(type=SKILL_APP, payload=...) }
+)
+     │
+     ▼  run_skill_script  →  ReactToolWrapper._accumulated_registry
+     │
+     ▼  ReactSubAgentRunner.run()  →  react_result.accumulated_registry
+     │
+     ▼  response_node.py  (merge into current_turn_registry + state.registry)
+     │
+     ▼  generate_html_for_registry()  →  SkillAppSentinel.render()
+<div class="lia-skill-app" data-registry-id="skill_app_...">
+     │
+     ▼  SSE registry_update chunk  +  sentinel HTML in message content
+     │
+     ▼  Frontend: MarkdownContent.tsx detects sentinel
+     │
+     ▼  SkillAppWidget (iframe srcDoc/src + optional image card)
+```
+
+### JSON contract — `SkillScriptOutput`
+
+```json
+{
+  "text": "Required — caption used for voice, LLM, accessibility.",
+  "frame": {
+    "html": "Inline HTML (srcDoc)",
+    "url":  "https://external.example.com/...",
+    "title": "Frame header title",
+    "aspect_ratio": 1.333
+  },
+  "image": {
+    "url": "data:image/png;base64,...  OR  https://...",
+    "alt": "Required alt text"
+  }
+}
+```
+
+Rules:
+- `text` is always required (voice, TTS, accessibility, LLM context).
+- `frame.html` XOR `frame.url` — a frame has exactly one source.
+- `frame.html` capped at `SKILLS_FRAME_MAX_HTML_BYTES` (200 KB).
+- `image.url` must be `data:` or `https://` (no `http://`, no `javascript:`).
+- `image.alt` required and non-empty.
+- The three channels (text, frame, image) are independent and combinable.
+- Plain-text stdout (non-JSON) is auto-wrapped as `{text: <stdout>}` for
+  backward compatibility — existing skills continue to work unchanged.
+
+### Security model
+
+| Layer | Behavior |
+|---|---|
+| iframe sandbox | `allow-scripts allow-popups` — NEVER `allow-same-origin` |
+| CSP (user skills) | Strict `<meta>` tag auto-injected into `frame.html` blocking `connect-src` (no outbound fetch/XHR) and `frame-src` (no nested iframes) |
+| CSP (system skills) | No injection — admin-curated, trusted |
+| External `frame.url` | HTTPS only; remote site controls its own headers |
+| Image `url` | Only `data:` and `https://` schemes accepted |
+| Bridge (`useSkillAppBridge`) | Supports only `ui/initialize`, `size-changed`, `ui/open-link` (HTTPS), `notifications/message`. NO `tools/call`, `resources/read`, `ui/download-file` |
+| Script stdout | JSON only; logs on stderr. Mixed stdout falls back to text mode (no crash) |
+
+### Runtime conventions (v1.16.8)
+
+The backend transparently enriches the script runtime and the frontend bridge
+so that Visualizer / Generator skills stay consistent with the app:
+
+| Behaviour | Where | Details |
+|---|---|---|
+| `_lang` / `_tz` auto-injection | `run_skill_script` | Reads `user_language`, `user_timezone` from `runtime_configurable` and injects them into `parameters` before calling the executor. Scripts should use these — POSIX locales are not installed in the container, `strftime`+`setlocale` falls back to English silently. |
+| Theme & locale sync | `useSkillAppBridge` | On iframe `load`, pushes `ui/theme-changed` + `ui/locale-changed` to each frame (with double `requestAnimationFrame` defer). A `MutationObserver` on `<html class>` and `<html lang>` propagates live theme / locale changes. Scripts listen and swap CSS via `html[data-theme="dark"]` selectors. |
+| Auto-resize | Injected snippet in `build_skill_app_output._AUTORESIZE_SCRIPT` | Measures `document.body.getBoundingClientRect().bottom` and emits `ui/notifications/size-changed`. The bridge clamps and applies `aspectRatio: 'auto'` on the iframe container. |
+| Client-side interactivity | CSP constraint | `onclick` inline handlers forbidden → use `addEventListener`. Use `crypto.getRandomValues` (CSPRNG) + rejection sampling for uniform randomness. |
+| Parameter coercion | `_coerce_parameters` helper | Accepts `dict | str | None`. Workaround for Qwen serializing `parameters` as a JSON string instead of an object. |
+| Widget always rendered | `INTERACTIVE_WIDGET_TYPES` in `data_registry/models.py` | `SKILL_APP`, `MCP_APP`, `DRAFT` are injected as HTML regardless of `user_display_mode` (HTML / Markdown / Cards). Other registry items render only in CARDS mode. |
+| Skill instructions primacy | `response_node` | `skills_context` is injected as a dedicated 2nd system message prefixed with `"SKILL INSTRUCTIONS CONTRACT (PRIORITY: HIGHEST)"` so the LLM honours the skill's `references/*.md` over generic `<ResponseGuidelines>` (primacy effect). |
+| Proactive initiative suppression | `response_node` | Cross-domain initiative is disabled when a skill is active — the skill owns the response. |
+
+### Key files
+
+Backend:
+- `apps/api/src/domains/skills/script_output.py` — `SkillScriptOutput`, `parse_skill_stdout()`
+- `apps/api/src/domains/skills/output_builder.py` — `build_skill_app_output()` + CSP injection + `_AUTORESIZE_SCRIPT`
+- `apps/api/src/domains/skills/tools.py` — `run_skill_script` parses stdout and emits registry, auto-injects `_lang` / `_tz`
+- `apps/api/src/domains/agents/data_registry/models.py` — `INTERACTIVE_WIDGET_TYPES` frozenset
+- `apps/api/src/domains/agents/display/components/skill_app_sentinel.py` — sentinel HTML emitter
+- `apps/api/src/domains/agents/nodes/response_node.py` — wraps `skills_tools` with `ReactToolWrapper`, merges `accumulated_registry`, splits rendering into widget vs data-card paths
+
+Frontend:
+- `apps/web/src/types/skill-apps.ts` — `SkillAppRegistryPayload`
+- `apps/web/src/components/chat/SkillAppWidget.tsx` — iframe + image card (transparent background)
+- `apps/web/src/hooks/useSkillAppBridge.ts` — minimal postMessage bridge + live theme/locale observers
+- `apps/web/src/components/chat/MarkdownContent.tsx` — sentinel `lia-skill-app` detection
+
+## Tool output contract for skill scripts (`structured_data`)
+
+Deterministic plan templates can chain steps via ``$steps.<step_id>.<key>``
+resolution. The values resolved by the Jinja2 template engine come from the
+``structured_data`` field of ``UnifiedToolOutput``. See
+[ADR-074](../architecture/ADR-074-Structured-Data-Contract.md) for the
+full rationale and rules.
+
+### What a skill script can reference
+
+```yaml
+# Example: weather-dashboard SKILL.md
+plan_template:
+  deterministic: true
+  steps:
+    - step_id: get_weather
+      agent_name: weather_agent
+      tool_name: get_weather_forecast_tool
+      parameters: { location: auto, days: 5 }
+
+    - step_id: render_dashboard
+      agent_name: query_agent
+      tool_name: run_skill_script
+      parameters:
+        skill_name: weather-dashboard
+        script: render_dashboard.py
+        parameters:
+          forecasts: "$steps.get_weather.forecasts"   # ← exposed via structured_data
+          location: "$steps.get_weather.location"
+      depends_on: [get_weather]
+```
+
+### Canonical keys exposed by native tools
+
+| Tool family | Plural key(s) in `structured_data` | Notes |
+|---|---|---|
+| `build_contacts_output` | `contacts` + `count`, `query`, `operation`, `from_cache` | google_contacts_tools, resolver |
+| `build_emails_output` | `emails` + `count`, `query`, `user_timezone`, `from_cache` | emails_tools |
+| `build_events_output` | `events` + `count`, `query`, `time_min`, `time_max`, `calendar_id`, `user_timezone` | calendar_tools |
+| `build_tasks_output` | `tasks` + `count`, `task_list_id`, `user_timezone` | tasks_tools |
+| `build_files_output` | `files` + `count`, `query`, `folder_id`, `user_timezone` | drive_tools |
+| `build_places_output` | `places` + `count`, `query`, `operation`, `center`, `radius` | places_tools |
+| `build_weather_output` | `weathers` (list of 1) + `count`, `location`, `city_name` | weather_tools helper (current weather) |
+| `get_weather_forecast_tool` | `forecasts` (list), `location`, `days` | weather_tools (forecast) |
+| `brave_tools` | `braves` + `count`, `query`, `endpoint` | brave search |
+| `hue_tools::ListHueRoomsTool` | `rooms` + `count` | Hue rooms list |
+| `hue_tools::ListHueScenesTool` | `scenes` + `count` | Hue scenes list |
+| `hue_tools::Control*` / `Activate*` | `action`, `success`, resource id/name/state | Action confirmations |
+
+### Rules in short
+
+1. **Domain entities live in `structured_data`**, never in `metadata`. `metadata`
+   is reserved for debug/telemetry (cache flags, execution_time_ms, totals).
+2. **Flat layout** — entities are reachable in one Jinja hop:
+   `{{ steps.search.contacts[0].name }}`.
+3. **`count` is always present** when a list is exposed.
+4. **Plural keys** are aligned with the canonical `REGISTRY_TYPE_TO_KEY`
+   mapping in `apps/api/src/domains/agents/tools/output.py`.
+5. When a tool also returns `registry_updates`, the parallel executor merges
+   registry-derived payloads with the tool's `structured_data` without
+   overwriting — registry wins on conflict (preserves `_registry_id`).
+
+### Writing a new tool (checklist)
+
+When adding a new native tool to LIA:
+
+- Use `ToolOutputMixin._build_items_structured_data(items, plural_key, **meta)`
+  via the existing `build_*_output` helpers, or pass `structured_data=` explicitly
+  to `UnifiedToolOutput.data_success()` / `action_success()`.
+- Expose at least `<plural_key>` and `count`; include search/context metadata
+  (`query`, `operation`, `user_timezone`, …) when applicable.
+- Never put domain entities in `metadata` — a code review tripwire.
+- Add a unit test asserting the `structured_data` shape (see
+  `tests/unit/domains/agents/tools/test_mixins_structured_data.py` for the
+  reference pattern).

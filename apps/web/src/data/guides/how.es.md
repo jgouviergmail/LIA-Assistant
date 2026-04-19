@@ -4,9 +4,9 @@
 >
 > Documentación de presentación técnica destinada a arquitectos, ingenieros y expertos técnicos.
 
-**Versión**: 2.1
-**Fecha**: 2026-03-25
-**Aplicación**: LIA v1.14.2
+**Versión**: 2.2
+**Fecha**: 2026-04-20
+**Aplicación**: LIA v1.16.8
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---

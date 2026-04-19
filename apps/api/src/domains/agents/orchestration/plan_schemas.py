@@ -648,20 +648,23 @@ class ExecutionPlan(BaseModel):
     @model_validator(mode="after")
     def validate_steps_or_clarification(self) -> ExecutionPlan:
         """
-        Validate that plan has steps OR needs_clarification=True.
+        Validate that plan has steps OR a documented reason for being empty.
 
         A plan must either:
         - Have at least one step (normal execution), OR
-        - Have metadata.needs_clarification=True (awaiting user clarification)
-
-        This allows the planner to return an empty plan when it needs to ask
-        the user for missing required parameters.
+        - Have metadata.needs_clarification=True (awaiting user clarification), OR
+        - Have metadata.skill_bypass_noop=True (execution delegated to the
+          ReactSubAgentRunner for a script-only skill; the planner intentionally
+          returns an empty plan so the task_orchestrator short-circuits and the
+          response_node takes over).
         """
         if not self.steps:
             needs_clarification = self.metadata.get("needs_clarification", False)
-            if not needs_clarification:
+            skill_bypass_noop = self.metadata.get("skill_bypass_noop", False)
+            if not (needs_clarification or skill_bypass_noop):
                 raise ValueError(
-                    "Plan must contain at least one step, or metadata.needs_clarification must be True"
+                    "Plan must contain at least one step, or metadata.needs_clarification "
+                    "or metadata.skill_bypass_noop must be True"
                 )
         return self
 

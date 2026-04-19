@@ -1,0 +1,8 @@
+{
+  "fr": "Affiche une carte Google Maps interactive pour un lieu donné (ville, point d'intérêt, adresse). À utiliser quand l'utilisateur demande de montrer, afficher ou trouver un endroit sur une carte.",
+  "en": "Shows an interactive Google Maps view for a given location (city, landmark, address). Use when the user asks to show, display, or find a place on a map.",
+  "es": "Muestra una vista interactiva de Google Maps para una ubicación dada (ciudad, punto de interés, dirección). Úselo cuando el usuario pida mostrar, visualizar o encontrar un lugar en un mapa.",
+  "de": "Zeigt eine interaktive Google-Maps-Ansicht für einen angegebenen Ort (Stadt, Wahrzeichen, Adresse) an. Verwenden, wenn der Nutzer einen Ort auf einer Karte anzeigen, darstellen oder finden möchte.",
+  "it": "Mostra una vista interattiva di Google Maps per una posizione data (città, punto d'interesse, indirizzo). Usalo quando l'utente chiede di mostrare, visualizzare o trovare un luogo su una mappa.",
+  "zh": "为指定位置（城市、地标、地址）显示交互式 Google 地图视图。当用户请求在地图上显示、展示或查找某个地点时使用。"
+}

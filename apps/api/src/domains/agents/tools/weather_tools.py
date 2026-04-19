@@ -792,9 +792,34 @@ class GetWeatherForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
         summary = f"Prévisions météo pour {location_str} ({len(daily_forecasts)} jours):\n"
         summary += "\n".join(f"- {s}" for s in forecast_summaries)
 
+        # Expose forecasts via structured_data so downstream skill scripts
+        # can consume them through $steps.<step_id>.forecasts references
+        # inside a deterministic plan_template (B1 hybrid skills).
+        structured_forecasts = [
+            {
+                "date": day.get("date"),
+                "description": day.get("description"),
+                "temp_min": day.get("temp", {}).get("min"),
+                "temp_max": day.get("temp", {}).get("max"),
+                "temp_avg": day.get("temp", {}).get("avg"),
+                "humidity": day.get("humidity"),
+                "wind_speed": day.get("wind_speed"),
+            }
+            for day in daily_forecasts
+        ]
+
         return UnifiedToolOutput.data_success(
             message=summary,
             registry_updates=registry_updates,
+            structured_data={
+                "location": {
+                    "name": location_info.get("name"),
+                    "country": location_info.get("country"),
+                    "display": location_str,
+                },
+                "forecasts": structured_forecasts,
+                "days": len(daily_forecasts),
+            },
             metadata={
                 "location": location_str,
                 "type": "forecast",

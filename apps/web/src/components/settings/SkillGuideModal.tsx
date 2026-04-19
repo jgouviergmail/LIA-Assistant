@@ -8,9 +8,11 @@ import {
   FileCode2,
   FolderOpen,
   Globe,
+  Languages,
   Lightbulb,
   Puzzle,
   Rocket,
+  Shield,
   Sparkles,
   Terminal,
   Zap,
@@ -130,6 +132,110 @@ import sys
 data = json.loads(sys.stdin.read())
 # ... traitement ...
 print(json.dumps({"result": "ok"}))`;
+
+const SKILL_VISUALIZER_EXAMPLE = `---
+name: interactive-map
+description: >
+  Shows an interactive Google Maps view for a given location.
+  Use when the user asks to show or find a place on a map.
+category: utilities
+priority: 50
+outputs: [text, frame]
+---
+
+# Interactive Map
+
+## Instructions
+
+1. Extract the location from the user's query.
+2. Call run_skill_script with:
+   - script: render_map.py
+   - parameters: {"location": "<extracted>"}
+3. Present the resulting frame with a one-sentence caption.`;
+
+const SCRIPT_VISUALIZER_EXAMPLE = `# scripts/render_map.py
+import json
+import sys
+from urllib.parse import quote
+
+payload = json.loads(sys.stdin.read() or "{}")
+location = (payload.get("parameters", {}).get("location") or "").strip()
+
+if not location:
+    print(json.dumps({
+        "text": "No location provided.",
+        "error": "Missing 'location' parameter"
+    }))
+else:
+    url = f"https://maps.google.com/maps?q={quote(location)}&output=embed"
+    print(json.dumps({
+        "text": f"Here is {location} on the map.",
+        "frame": {
+            "url": url,
+            "title": f"Map: {location}",
+            "aspect_ratio": 1.333
+        }
+    }))`;
+
+const SCRIPT_GENERATOR_EXAMPLE = `# scripts/generate_qr.py
+import base64, io, json, sys
+import segno  # pure-Python QR lib bundled with LIA
+
+payload = json.loads(sys.stdin.read() or "{}")
+params = payload.get("parameters", {})
+content = (params.get("content") or "").strip()
+lang = (params.get("_lang") or "en").split("-")[0]
+
+# _lang auto-injected → localize the caption
+CAPTIONS = {"fr": "Code QR pour : {c}", "en": "QR code for: {c}"}
+caption = CAPTIONS.get(lang, CAPTIONS["en"]).format(c=content[:60])
+
+qr = segno.make(content, error="m")
+buf = io.BytesIO()
+qr.save(buf, kind="png", scale=10, border=2)
+data_uri = "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+
+print(json.dumps({
+    "text": caption,
+    "image": {"url": data_uri, "alt": caption}
+}))`;
+
+const SCRIPT_INTERACTIVE_EXAMPLE = `# scripts/render_coin.py — interactive frame
+import json, secrets, sys
+
+payload = json.loads(sys.stdin.read() or "{}")
+lang = (payload.get("parameters", {}).get("_lang") or "en").split("-")[0]
+
+# i18n tables (inline — container lacks system locales)
+LABELS = {
+    "fr": {"heads": "Pile", "tails": "Face", "reroll": "Relancer"},
+    "en": {"heads": "Heads", "tails": "Tails", "reroll": "Flip again"},
+}.get(lang, {"heads": "Heads", "tails": "Tails", "reroll": "Flip again"})
+
+initial = LABELS["heads"] if secrets.randbelow(2) == 0 else LABELS["tails"]
+cfg = json.dumps(LABELS, ensure_ascii=False)
+
+html = f"""<!DOCTYPE html><html lang="{lang}"><head><style>
+  body {{ font-family: system-ui; color: #1f2937; text-align: center; padding: 24px; }}
+  .coin {{ font-size: 2rem; font-weight: 700; padding: 24px; margin-bottom: 16px; }}
+  button {{ padding: 10px 22px; border: none; border-radius: 999px;
+    background: #4f46e5; color: white; cursor: pointer; font-weight: 600; }}
+  /* Theme sync: use [data-theme], NOT @media prefers-color-scheme */
+  html[data-theme="dark"] body {{ color: #e5e7eb; }}
+</style></head><body>
+  <div class="coin" id="c">{initial}</div>
+  <button id="b">{LABELS["reroll"]}</button>
+  <script>
+    var LBL = {cfg};
+    document.getElementById('b').addEventListener('click', function() {{
+      var buf = new Uint32Array(1); crypto.getRandomValues(buf);
+      document.getElementById('c').textContent = (buf[0] & 1) ? LBL.heads : LBL.tails;
+    }});
+  </script>
+</body></html>"""
+
+print(json.dumps({"text": f"Coin: {initial}",
+                  "frame": {"html": html, "title": "Coin", "aspect_ratio": 1.2}}))`;
 
 // --- Tools catalogue organized by category ---
 
@@ -810,6 +916,8 @@ export function SkillGuideModal({ lng, open, onOpenChange }: SkillGuideModalProp
                         ['category', 'string', false],
                         ['priority', 'int (1-100)', false],
                         ['plan_template', 'object', false],
+                        ['outputs', 'list[string]', false],
+                        ['compatibility', 'string', false],
                         ['always_loaded', 'bool', false],
                       ] as const
                     ).map(([key, type, req]) => (
@@ -852,6 +960,41 @@ export function SkillGuideModal({ lng, open, onOpenChange }: SkillGuideModalProp
                   {t('settings.skills.guide_example_advisory_desc')}
                 </p>
                 <CodeBlock>{SKILL_ADVISORY_EXAMPLE}</CodeBlock>
+              </section>
+
+              {/* Rich Outputs: frames + images */}
+              <section className="space-y-3">
+                <SectionHeader
+                  icon={<Sparkles className="h-4 w-4 text-emerald-500" />}
+                  iconBg="bg-emerald-500/10"
+                  title={t('settings.skills.guide_rich_outputs_title')}
+                />
+                <p className="text-sm text-muted-foreground pl-9 leading-relaxed">
+                  {t('settings.skills.guide_rich_outputs_intro')}
+                </p>
+                <ul className="text-sm text-muted-foreground pl-9 space-y-1 list-disc list-inside">
+                  <li>
+                    <span className="font-medium text-foreground">text</span> —{' '}
+                    {t('settings.skills.guide_rich_outputs_text_label')}
+                  </li>
+                  <li>
+                    <span className="font-medium text-foreground">frame</span> —{' '}
+                    {t('settings.skills.guide_rich_outputs_frame_label')}
+                  </li>
+                  <li>
+                    <span className="font-medium text-foreground">image</span> —{' '}
+                    {t('settings.skills.guide_rich_outputs_image_label')}
+                  </li>
+                </ul>
+                <p className="text-sm text-muted-foreground pl-9 font-medium">
+                  {t('settings.skills.guide_rich_outputs_example_map')}
+                </p>
+                <CodeBlock>{SKILL_VISUALIZER_EXAMPLE}</CodeBlock>
+                <CodeBlock>{SCRIPT_VISUALIZER_EXAMPLE}</CodeBlock>
+                <p className="text-sm text-muted-foreground pl-9 font-medium">
+                  {t('settings.skills.guide_rich_outputs_example_qr')}
+                </p>
+                <CodeBlock>{SCRIPT_GENERATOR_EXAMPLE}</CodeBlock>
               </section>
 
               {/* Directory structure */}
@@ -946,6 +1089,100 @@ export function SkillGuideModal({ lng, open, onOpenChange }: SkillGuideModalProp
           {/* ═══════════════════ TAB 3: Advanced ═══════════════════ */}
           <TabsContent value="advanced">
             <div className="space-y-6">
+              {/* Localization, theming and runtime conventions */}
+              <section className="space-y-3">
+                <SectionHeader
+                  icon={<Languages className="h-4 w-4 text-emerald-500" />}
+                  iconBg="bg-emerald-500/10"
+                  title={t('settings.skills.guide_runtime_title')}
+                />
+                <p className="text-sm text-muted-foreground pl-9 leading-relaxed">
+                  {t('settings.skills.guide_runtime_intro')}
+                </p>
+
+                <div className="pl-9 space-y-3">
+                  <div className="rounded-lg border p-3 bg-card/50">
+                    <div className="flex items-center gap-2 mb-1">
+                      <code className="text-xs font-mono font-semibold text-primary/80">
+                        _lang / _tz
+                      </code>
+                      <span className="text-xs text-muted-foreground/60">
+                        {t('settings.skills.guide_runtime_autoparams_label')}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {t('settings.skills.guide_runtime_autoparams_body')}
+                    </p>
+                    <p className="text-xs text-muted-foreground/60 mt-1 italic">
+                      {t('settings.skills.guide_runtime_autoparams_hint')}
+                    </p>
+                  </div>
+
+                  <div className="rounded-lg border p-3 bg-card/50">
+                    <div className="flex items-center gap-2 mb-1">
+                      <code className="text-xs font-mono font-semibold text-primary/80">
+                        html[data-theme=&quot;dark&quot;]
+                      </code>
+                      <span className="text-xs text-muted-foreground/60">
+                        {t('settings.skills.guide_runtime_theme_label')}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {t('settings.skills.guide_runtime_theme_body')}
+                    </p>
+                  </div>
+
+                  <div className="rounded-lg border p-3 bg-card/50">
+                    <div className="flex items-center gap-2 mb-1">
+                      <code className="text-xs font-mono font-semibold text-primary/80">
+                        ui/notifications/size-changed
+                      </code>
+                      <span className="text-xs text-muted-foreground/60">
+                        {t('settings.skills.guide_runtime_resize_label')}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {t('settings.skills.guide_runtime_resize_body')}
+                    </p>
+                  </div>
+                </div>
+
+                <p className="text-sm text-muted-foreground pl-9 font-medium">
+                  {t('settings.skills.guide_runtime_example_qr')}
+                </p>
+                <CodeBlock>{SCRIPT_GENERATOR_EXAMPLE}</CodeBlock>
+
+                <p className="text-sm text-muted-foreground pl-9 font-medium">
+                  {t('settings.skills.guide_runtime_example_interactive')}
+                </p>
+                <CodeBlock>{SCRIPT_INTERACTIVE_EXAMPLE}</CodeBlock>
+
+                <p className="text-xs text-muted-foreground/60 italic pl-9">
+                  {t('settings.skills.guide_runtime_interactive_note')}
+                </p>
+              </section>
+
+              {/* Frame security */}
+              <section className="space-y-3">
+                <SectionHeader
+                  icon={<Shield className="h-4 w-4 text-rose-500" />}
+                  iconBg="bg-rose-500/10"
+                  title={t('settings.skills.guide_rich_outputs_security_title')}
+                />
+                <div className="space-y-2 pl-9 text-sm text-muted-foreground leading-relaxed">
+                  <p>{t('settings.skills.guide_rich_outputs_sandbox')}</p>
+                  <p>{t('settings.skills.guide_rich_outputs_csp')}</p>
+                  <p className="text-xs italic">
+                    {t('settings.skills.guide_rich_outputs_csp_warning')}
+                  </p>
+                  <ul className="list-disc list-inside space-y-1 text-xs">
+                    <li>{t('settings.skills.guide_rich_outputs_tip_1')}</li>
+                    <li>{t('settings.skills.guide_rich_outputs_tip_2')}</li>
+                    <li>{t('settings.skills.guide_rich_outputs_tip_3')}</li>
+                  </ul>
+                </div>
+              </section>
+
               {/* Plan template */}
               <section className="space-y-3">
                 <SectionHeader

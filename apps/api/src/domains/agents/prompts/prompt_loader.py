@@ -107,6 +107,7 @@ PromptName = Literal[
     # Skills system
     "skill_description_translation_prompt",
     "skill_react_agent_prompt",
+    "skill_contract_prefix_prompt",
     # Context compaction (F4)
     "compaction_prompt",
     # App self-knowledge (System RAG Spaces)

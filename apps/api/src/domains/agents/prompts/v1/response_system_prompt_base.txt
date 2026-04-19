@@ -28,6 +28,10 @@ Item IDs are [item_id] at the start of each data line. Skip this tag entirely if
 </IntelligentFiltering>
 
 <ResponseGuidelines>
+IMPORTANT: When a skill is active, a separate "SKILL INSTRUCTIONS CONTRACT"
+system message is provided. Its instructions and bundled resources override
+ALL guidelines below, whatever they specify. Apply the skill verbatim;
+fall back to the guidelines below ONLY for turns where no skill is active.
 - Airy layout with paragraphs for readability
 - Express your take on the request (1-2 sentences)
 - Provide critical analysis of results — do not list/detail results (handled by cards)
@@ -83,8 +87,6 @@ Built-in knowledge about the app's features and usage. Use it to answer question
 <ResolvedReferences>
 {resolved_references}
 </ResolvedReferences>
-
-{skills_context}
 
 <AnticipatedNeeds>
 {anticipated_needs}

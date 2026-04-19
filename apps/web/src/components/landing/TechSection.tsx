@@ -1,6 +1,15 @@
 import Link from 'next/link';
 import { initI18next } from '@/i18n';
-import { GitBranch, Cpu, TrendingUp, Search, Radio, Layers } from 'lucide-react';
+import {
+  GitBranch,
+  Cpu,
+  TrendingUp,
+  Search,
+  Radio,
+  Layers,
+  Blocks,
+  ShieldCheck,
+} from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { buildLocalizedPath } from '@/utils/i18n-path-utils';
@@ -34,6 +43,16 @@ const TECH_ITEMS = [
   },
   { key: 'realtime', icon: Radio, iconBg: 'bg-gradient-to-br from-rose-500/15 to-pink-500/15' },
   { key: 'stack', icon: Layers, iconBg: 'bg-gradient-to-br from-cyan-500/15 to-sky-500/15' },
+  {
+    key: 'rich_skills',
+    icon: Blocks,
+    iconBg: 'bg-gradient-to-br from-fuchsia-500/15 to-pink-500/15',
+  },
+  {
+    key: 'hitl',
+    icon: ShieldCheck,
+    iconBg: 'bg-gradient-to-br from-orange-500/15 to-red-500/15',
+  },
 ];
 
 export async function TechSection({ lng }: TechSectionProps) {
@@ -56,8 +75,8 @@ export async function TechSection({ lng }: TechSectionProps) {
           </div>
         </FadeInOnScroll>
 
-        {/* 2x3 grid with per-tech accent colors */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 mobile:grid-cols-3 gap-6">
+        {/* 2x4 grid at >=880px, 4x2 at >=640px, stacked on mobile */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 mobile:grid-cols-4 gap-6">
           {TECH_ITEMS.map(({ key, icon: Icon, iconBg }, i) => (
             <FadeInOnScroll key={key} delay={i * 80}>
               <Card className="glass hover-lift hover-glow h-full border-border/60">

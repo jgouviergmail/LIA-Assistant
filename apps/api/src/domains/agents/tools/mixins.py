@@ -52,7 +52,7 @@ from src.domains.agents.data_registry.models import (
     RegistryItemType,
     generate_registry_id,
 )
-from src.domains.agents.tools.output import UnifiedToolOutput
+from src.domains.agents.tools.output import REGISTRY_TYPE_TO_KEY, UnifiedToolOutput
 
 logger = structlog.get_logger(__name__)
 
@@ -168,6 +168,39 @@ class ToolOutputMixin:
             preview += f" (+{len(items) - max_preview} more)"
         return preview
 
+    @staticmethod
+    def _build_items_structured_data(
+        items: list[dict[str, Any]],
+        plural_key: str,
+        **extra: Any,
+    ) -> dict[str, Any]:
+        """Build a queryable ``structured_data`` payload for a list of items.
+
+        Produces a flat dict aligned with the INTELLIPLANNER B+ contract so that
+        Jinja2 templates can access the items via ``{{ steps.<step_id>.<plural_key>[i].field }}``
+        and downstream skill scripts can consume them without relying on the
+        registry reconstruction fallback in ``parallel_executor``.
+
+        The items are shallow-copied to guarantee the ``structured_data`` snapshot
+        is stable even when the caller later mutates the original list.
+
+        Args:
+            items: List of item payload dicts.
+            plural_key: Canonical plural key aligned with ``REGISTRY_TYPE_TO_KEY``
+                (e.g. ``"contacts"``, ``"emails"``, ``"rooms"``).
+            **extra: Optional metadata keys to propagate (query, operation,
+                user_timezone, etc.). ``None`` values are filtered out to keep
+                the payload compact.
+
+        Returns:
+            Structured data dict: ``{plural_key: [...], "count": N, **extra_non_none}``.
+        """
+        return {
+            plural_key: [dict(item) for item in items],
+            "count": len(items),
+            **{k: v for k, v in extra.items() if v is not None},
+        }
+
     def build_standard_output(
         self,
         items: list[dict[str, Any]],
@@ -179,6 +212,7 @@ class ToolOutputMixin:
         preview_limit: int = 3,
         domain: str | None = None,
         metadata: dict[str, Any] | None = None,
+        plural_key: str | None = None,
     ) -> UnifiedToolOutput:
         """
         Build a UnifiedToolOutput from a list of items.
@@ -193,6 +227,8 @@ class ToolOutputMixin:
             preview_limit: Max items to show in preview
             domain: Optional domain context
             metadata: Optional tool metadata
+            plural_key: Plural key exposed in ``structured_data``. Defaults to
+                :data:`REGISTRY_TYPE_TO_KEY` mapping for ``item_type``.
 
         Returns:
             UnifiedToolOutput with items in registry and summary for LLM
@@ -227,9 +263,19 @@ class ToolOutputMixin:
 
         summary = summary_template.format(count=len(items), preview=preview)
 
+        resolved_plural_key = plural_key or REGISTRY_TYPE_TO_KEY.get(
+            item_type, item_type.value.lower() + "s"
+        )
+
         return UnifiedToolOutput.data_success(
             message=summary,
             registry_updates=registry_updates,
+            structured_data=self._build_items_structured_data(
+                items=items,
+                plural_key=resolved_plural_key,
+                domain=domain,
+                source=source,
+            ),
             metadata=metadata or {},
         )
 
@@ -342,6 +388,15 @@ class ToolOutputMixin:
         return UnifiedToolOutput.data_success(
             message=summary,
             registry_updates=registry_updates,
+            structured_data=self._build_items_structured_data(
+                items=places,
+                plural_key="places",
+                query=query,
+                operation=op,
+                from_cache=from_cache,
+                center=center,
+                radius=radius,
+            ),
             metadata=metadata,
         )
 
@@ -416,6 +471,13 @@ class ToolOutputMixin:
         return UnifiedToolOutput.data_success(
             message=summary,
             registry_updates=registry_updates,
+            structured_data=self._build_items_structured_data(
+                items=contacts,
+                plural_key="contacts",
+                query=query,
+                operation=op,
+                from_cache=from_cache,
+            ),
             metadata={
                 "from_cache": from_cache,
                 "query": query,
@@ -507,6 +569,13 @@ class ToolOutputMixin:
         return UnifiedToolOutput.data_success(
             message=summary,
             registry_updates=registry_updates,
+            structured_data=self._build_items_structured_data(
+                items=emails,
+                plural_key="emails",
+                query=query,
+                from_cache=from_cache,
+                user_timezone=user_timezone,
+            ),
             metadata={
                 "from_cache": from_cache,
                 "query": query,
@@ -663,6 +732,16 @@ class ToolOutputMixin:
         return UnifiedToolOutput.data_success(
             message=summary,
             registry_updates=registry_updates,
+            structured_data=self._build_items_structured_data(
+                items=events,
+                plural_key="events",
+                query=query,
+                time_min=time_min,
+                time_max=time_max,
+                calendar_id=calendar_id,
+                from_cache=from_cache,
+                user_timezone=user_timezone,
+            ),
             metadata={
                 "from_cache": from_cache,
                 "query": query,
@@ -745,6 +824,13 @@ class ToolOutputMixin:
         return UnifiedToolOutput.data_success(
             message=summary,
             registry_updates=registry_updates,
+            structured_data=self._build_items_structured_data(
+                items=tasks,
+                plural_key="tasks",
+                task_list_id=task_list_id,
+                from_cache=from_cache,
+                user_timezone=user_timezone,
+            ),
             metadata={
                 "from_cache": from_cache,
                 "task_list_id": task_list_id,
@@ -824,6 +910,14 @@ class ToolOutputMixin:
         return UnifiedToolOutput.data_success(
             message=summary,
             registry_updates=registry_updates,
+            structured_data=self._build_items_structured_data(
+                items=files,
+                plural_key="files",
+                query=query,
+                folder_id=folder_id,
+                from_cache=from_cache,
+                user_timezone=user_timezone,
+            ),
             metadata={
                 "from_cache": from_cache,
                 "query": query,
@@ -886,6 +980,14 @@ class ToolOutputMixin:
         return UnifiedToolOutput.data_success(
             message=summary,
             registry_updates=registry_updates,
+            structured_data=self._build_items_structured_data(
+                items=[weather_data],
+                plural_key="weathers",
+                location=location,
+                city_name=city_name,
+                from_cache=from_cache,
+                user_timezone=user_timezone,
+            ),
             metadata={
                 "from_cache": from_cache,
                 "location": location,
@@ -928,6 +1030,8 @@ def create_tool_formatter(
         output = format_events(events, query="meeting")
     """
 
+    plural_key = REGISTRY_TYPE_TO_KEY.get(item_type, item_type.value.lower() + "s")
+
     def formatter(
         items: list[dict[str, Any]],
         query: str | None = None,
@@ -963,6 +1067,13 @@ def create_tool_formatter(
         return UnifiedToolOutput.data_success(
             message=summary,
             registry_updates=registry_updates,
+            structured_data=ToolOutputMixin._build_items_structured_data(
+                items=items,
+                plural_key=plural_key,
+                query=query,
+                source=source,
+                domain=domain,
+            ),
         )
 
     return formatter

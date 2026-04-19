@@ -1,0 +1,8 @@
+{
+  "fr": "Génère un QR code scannable à partir d'un texte, d'une URL, d'un mot de passe WiFi ou d'une fiche contact. À utiliser quand l'utilisateur demande un QR code, veut partager un lien, un réseau WiFi ou un contact via un code à scanner.",
+  "en": "Generates a scannable QR code from text, a URL, WiFi credentials or a contact card. Use when the user asks for a QR code, wants to share a link, a WiFi network, or a contact via a scannable code.",
+  "es": "Genera un código QR escaneable a partir de un texto, una URL, credenciales WiFi o una tarjeta de contacto. Úselo cuando el usuario pida un código QR, quiera compartir un enlace, una red WiFi o un contacto mediante un código escaneable.",
+  "de": "Erzeugt einen scanbaren QR-Code aus Text, einer URL, WLAN-Zugangsdaten oder einer Kontaktkarte. Verwenden, wenn der Nutzer einen QR-Code anfragt, einen Link, ein WLAN-Netzwerk oder einen Kontakt per Code teilen möchte.",
+  "it": "Genera un codice QR scansionabile a partire da un testo, un URL, credenziali WiFi o un biglietto da visita. Usalo quando l'utente chiede un codice QR, vuole condividere un link, una rete WiFi o un contatto tramite codice scansionabile.",
+  "zh": "从文本、URL、WiFi 凭据或联系人卡片生成可扫描的 QR 码。当用户请求 QR 码、希望通过可扫描的代码共享链接、WiFi 网络或联系人时使用。"
+}

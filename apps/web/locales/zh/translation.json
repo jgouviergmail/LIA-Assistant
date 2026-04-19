@@ -519,6 +519,15 @@
       }
     }
   },
+  "skill_apps": {
+    "loading": "正在加载技能……",
+    "error": "无法加载技能小部件",
+    "external_frame": "外部"
+  },
+  "mcp_apps": {
+    "loading": "正在加载应用...",
+    "error": "加载应用失败"
+  },
   "settings": {
     "title": "设置",
     "subtitle": "管理您的偏好设置和账户",
@@ -1565,10 +1574,6 @@
       "toggle_error": "切换时出错",
       "load_error": "无法加载应用MCP服务器"
     },
-    "mcp_apps": {
-      "loading": "正在加载应用...",
-      "error": "加载应用失败"
-    },
     "mcp": {
       "title": "MCP 服务器",
       "description": "连接您自己的 MCP 服务器以扩展助手的功能",
@@ -1948,10 +1953,38 @@
       "guide_field_priority": "显示顺序（默认：50，越高越靠前）",
       "guide_field_plan_template": "确定性执行计划（见高级标签页）",
       "guide_field_always_loaded": "始终注入指令（每次对话都消耗 token）",
+      "guide_field_outputs": "声明的输出通道（text、frame、image）—— 仅适用于 Visualizer / Generator 类型技能",
+      "guide_field_compatibility": "目录中显示的先决条件（例如「需要日历连接器」）",
+      "guide_runtime_title": "本地化、主题与运行时约定",
+      "guide_runtime_intro": "当你的技能使用 Python 脚本时，LIA 平台会自动提供若干行为——以下是创建自然融入的技能需要了解的内容。",
+      "guide_runtime_autoparams_label": "自动注入的参数",
+      "guide_runtime_autoparams_body": "每次调用 run_skill_script 都会在参数中自动接收用户的语言（_lang）和时区（_tz）。请使用 _lang 通过内联翻译表来本地化标签。",
+      "guide_runtime_autoparams_hint": "不要依赖 locale.setlocale——精简容器镜像不附带系统 locale，因此 strftime 会静默回退到英语。",
+      "guide_runtime_theme_label": "暗色 / 亮色主题",
+      "guide_runtime_theme_body": "请使用 html[data-theme=\"dark\"] 的 CSS 选择器，而不是 @media (prefers-color-scheme: dark)。LIA 注入的运行时代码片段会在 <html> 上自动应用 data-theme 属性和 lang，与应用保持同步。",
+      "guide_runtime_resize_label": "iframe 自动调整大小",
+      "guide_runtime_resize_body": "iframe 会自动调整大小以匹配内容高度。你声明的 aspect_ratio 仅作为测量前的初始骨架。请保持 html/body 的默认边距，为自己的内部容器设置样式。",
+      "guide_runtime_example_qr": "Generator 示例（使用 segno 的 QR 码，带本地化说明）：",
+      "guide_runtime_example_interactive": "交互式 Visualizer 示例（客户端重新触发按钮）：",
+      "guide_runtime_interactive_note": "任何交互式框架的推荐模式：客户端 JS 使用 crypto.getRandomValues 和 addEventListener —— 用户技能的 CSP 会阻止内联 onclick。",
       "guide_example_simple_title": "示例：Prompt Expert 技能",
       "guide_example_simple_desc": "最简单的类型——助手在话题出现时遵循的纯指令。无需工具或计划。",
       "guide_example_advisory_title": "示例：Advisory 技能",
       "guide_example_advisory_desc": "助手遵循方法论，根据需要有机地使用可用工具（日历、邮件、联系人）。",
+      "guide_rich_outputs_title": "富输出（框架 + 图像）",
+      "guide_rich_outputs_intro": "技能可以通过在 stdout 上写入 JSON 对象来输出交互式 iframe 和生成的图像。技能自行决定渲染方式——三种通道（text、frame、image）相互独立且可组合。",
+      "guide_rich_outputs_text_label": "始终必需——用于语音、LLM 上下文和无障碍的说明文字。",
+      "guide_rich_outputs_frame_label": "可选的交互式 iframe（通过 srcDoc 的内联 HTML 或外部 HTTPS URL）。",
+      "guide_rich_outputs_image_label": "可选的图像（data: URI 或 HTTPS URL），必须提供 alt 文本。",
+      "guide_rich_outputs_example_map": "Visualizer 示例——交互式 Google 地图嵌入：",
+      "guide_rich_outputs_example_qr": "Generator 示例——从文本生成的二维码：",
+      "guide_rich_outputs_security_title": "框架安全",
+      "guide_rich_outputs_sandbox": "所有框架都在未启用 allow-same-origin 的 iframe 沙箱中渲染——无论框架内容如何，父级的 cookies 和存储都不可访问。",
+      "guide_rich_outputs_csp": "当用户技能输出 frame.html 时，LIA 会自动注入严格的内容安全策略（CSP），阻止对外 fetch/XHR（connect-src none）和嵌套 iframe（frame-src none）。系统技能受信任，不会注入 CSP。",
+      "guide_rich_outputs_csp_warning": "后果：用户技能的内联框架无法调用外部 API。如需外部数据，请改用 frame.url（远程站点控制自己的响应头）。",
+      "guide_rich_outputs_tip_1": "在 stdout 上仅写入 JSON——将日志和进度写入 stderr。",
+      "guide_rich_outputs_tip_2": "frame.html 和 frame.url 互斥——一个框架只有一个来源。",
+      "guide_rich_outputs_tip_3": "始终设置 image.alt 以保证无障碍和语音回退。",
       "guide_modal_struct_title": "文件夹结构",
       "guide_modal_struct_body": "对于复杂的技能，可导入包含 SKILL.md 和可选子文件夹的 .zip 文件：",
       "guide_struct_skillmd": "主文件（必需）",
@@ -2663,8 +2696,8 @@
           "description": "通过📎按钮或拖放上传照片和PDF文档，支持自动客户端压缩。通过可配置的Vision LLM进行视觉分析（默认gpt-4.1-mini）。通过PyMuPDF提取PDF文本。消息中内联缩略图，可访问的灯箱查看。严格的用户隔离，自动清理（对话重置 + TTL 24h）。「Reference + Late Resolution」架构实现轻量级检查点。"
         },
         "skills": {
-          "title": "Skills",
-          "description": "用定制专家技能增强LIA。通过内置技能生成器用自然语言创建自己的技能——或从agentskills.io兼容的市场导入。兼容30+工具，包括Claude Code、Cursor和VS Code。"
+          "title": "Skills（带地图和交互式迷你应用）",
+          "description": "用定制专家技能增强LIA。通过内置技能生成器用自然语言创建自己的技能——或从agentskills.io兼容的市场导入。从 v1.16.8 开始，技能除了文本外还可以返回交互式 HTML 框架（地图、仪表板、日历、换算器...）或图像（QR 码、图表），并自动同步主题和语言。兼容30+工具，包括Claude Code、Cursor和VS Code。"
         },
         "ragSpaces": {
           "title": "📚 RAG知识空间",
@@ -2705,6 +2738,18 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_16_8": {
+          "title": "v1.16.8 — 丰富的技能:在聊天中显示卡片、图像和迷你应用",
+          "date": "2026 年 4 月",
+          "count": "5",
+          "items": {
+            "i1": "<b>您的技能现在可以显示卡片、图像和交互式迷你应用</b> — 除了文本回复外,技能现在可以返回交互式 HTML 框架(Google 地图视图、天气仪表板、月历、单位换算器...)和/或图像(QR 码、图表)。七个新的内置技能展示了这一点:<code>interactive-map</code>、<code>weather-dashboard</code>、<code>calendar-month</code>、<code>qr-code</code>、<code>pomodoro-timer</code>、<code>unit-converter</code>、<code>dice-roller</code>。",
+            "i2": "<b>主题和语言与您的框架同步</b> — 当您切换到深色模式或更改应用程序语言时,嵌入在聊天中的迷你应用会自动更新,无需重新加载。整个对话的人体工学保持一致。",
+            "i3": "<b>无论您的显示模式如何,框架始终可见</b> — 交互式迷你应用(技能、MCP 应用、草稿)现在在富 HTML、Markdown 和卡片模式下都会显示 — 以前它们在卡片模式之外不可见。",
+            "i4": "<b>端到端文档,用于构建丰富的技能</b> — 技能指南现在在「高级」选项卡中包含完整的「Localization, theming and runtime conventions」部分,附有可复制的代码示例(使用 <code>segno</code> 的 QR 码、带动画和重掷功能的抛硬币)。内置的技能生成器也已更新,可以在第一次尝试时就生成符合规范的技能。",
+            "i5": "<b>技能设置:减少视觉混乱</b> — 「内置技能」和「我导入的技能」部分现在默认折叠:当您积累了很多技能时,设置页面仍然保持可读。"
+          }
+        },
         "v1_16_7": {
           "title": "v1.16.7 — 即使在旅行中也能获得相关的天气提醒",
           "date": "2026 年 4 月",
@@ -3552,7 +3597,7 @@
       "skills": {
         "title": "技能（Skills）",
         "description": "通过专家指令扩展LIA的能力",
-        "count": "7",
+        "count": "8",
         "questions": {
           "q1": {
             "question": "什么是技能（Skill）？",
@@ -3581,6 +3626,10 @@
           "q7": {
             "question": "什么是技能生成器？",
             "answer": "<p><strong>技能生成器</strong>是一个内置的系统技能，让你可以<strong>用自然语言创建自己的技能</strong>。只需描述你的需求（「<em>我想要一个详细的5天天气预报</em>」），助手会引导你完成4个步骤：</p><ol><li><strong>需求分析</strong>：关于任务、工具和期望格式的问题</li><li><strong>原型选择</strong>：Prompt Expert、Advisory或Plan Template</li><li><strong>生成</strong>：创建符合agentskills.io标准的SKILL.md文件</li><li><strong>验证</strong>：通过内置脚本自动验证格式</li></ol><p>生成的文件可以直接在<strong>设置 &gt; 功能 &gt; 我的技能</strong>中导入。</p>"
+          },
+          "q8": {
+            "question": "技能可以显示地图、图像或交互式迷你应用吗？（v1.16.8）",
+            "answer": "<p>可以。从 v1.16.8 开始，Python 技能脚本除了文本之外，还可以返回<strong>交互式 HTML 框架</strong>（Google 地图视图、天气仪表板、月历、番茄钟计时器、单位换算器……）和/或<strong>图像</strong>（QR 码、图表）。</p><p><strong>七个新的内置技能</strong>展示了这一机制：<code>interactive-map</code>、<code>weather-dashboard</code>、<code>calendar-month</code>、<code>qr-code</code>、<code>pomodoro-timer</code>、<code>unit-converter</code>、<code>dice-roller</code>。</p><p><strong>工作原理：</strong></p><ul><li><strong>主题和语言保持同步</strong> — 框架自动检测并遵循您当前的主题（浅色/深色）和语言。主题更改会实时传播，无需重新加载。</li><li><strong>自动调整大小</strong> — 框架会自动调整以适应其内容。</li><li><strong>严格的安全性</strong> — 框架在沙盒 iframe 中运行（<code>allow-scripts allow-popups</code>，没有 <code>allow-same-origin</code>），并为用户技能注入内容安全策略。</li><li><strong>在所有显示模式下都可见</strong> — 富 HTML、Markdown、卡片：框架到处都会显示。</li></ul><p>要构建自己的带框架或图像的技能，请打开<strong>技能指南</strong>（高级选项卡 → 「Localization, theming and runtime conventions」部分），或者直接说：「<em>创建一个显示 QR 码的技能</em>」。</p>"
           }
         }
       },
@@ -4715,8 +4764,8 @@
         "description": "5种配色主题、深色/浅色模式、9种字体。按您的风格定制LIA。"
       },
       "skills": {
-        "title": "Skills",
-        "description": "用定制专家技能增强LIA。通过内置技能生成器用自然语言创建自己的技能——或从agentskills.io兼容的市场导入。兼容30+工具，包括Claude Code、Cursor和VS Code。"
+        "title": "带地图和迷你应用的 Skills",
+        "description": "用定制专家技能增强LIA。技能现在可以在聊天中直接渲染交互式地图、仪表板、日历、QR 码和迷你应用 — 主题和语言自动同步。通过内置技能生成器用自然语言创建自己的技能，或从agentskills.io兼容的市场导入。兼容30+工具，包括Claude Code、Cursor和VS Code。"
       },
       "sub_agents": {
         "title": "子代理",
@@ -4858,6 +4907,14 @@
       "stack": {
         "title": "现代技术栈",
         "description": "FastAPI、Next.js、React、TailwindCSS、PostgreSQL、Redis。前端严格TypeScript，后端异步Python。"
+      },
+      "rich_skills": {
+        "title": "带框架和图像的 Skills",
+        "description": "SkillScriptOutput 合约（text/frame/image）— 沙盒 Python 脚本，带注入 CSP 的严格沙盒 iframe，自动调整大小，通过 postMessage 同步主题和语言。七个内置技能展示了该机制。"
+      },
+      "hitl": {
+        "title": "Human-in-the-Loop",
+        "description": "六个审批级别 — 计划审批、澄清、草稿评审、破坏性确认、FOR_EACH 确认、修改审查。在执行前进行计划级防护，而不是在失败后回滚。自动风险分类和受影响项目的预览。"
       }
     },
     "architecture": {
@@ -5148,8 +5205,8 @@
       },
       "skills-system": {
         "title": "技能：专家指令定制LIA",
-        "excerpt": "导入或创建专业技能，让LIA掌握新领域。",
-        "body": "<h2>什么是技能？</h2><p><strong>技能</strong>是一组结构化指令，使LIA能够掌握特定领域。与执行操作的工具不同，技能丰富的是助手的<strong>推理和行为</strong>。架构基于一个关键原则：<strong>磁盘是技能内容的唯一真实来源</strong>，而数据库仅管理元数据（激活状态、所有者、统计信息）。</p><h2>三种技能类型</h2><ul><li><strong>Prompt Expert</strong> — 某一领域的详细指令（如：专业写作、财务分析）</li><li><strong>Advisory</strong> — 建议和最佳实践（如：风格指南、质量检查清单）</li><li><strong>Plan Template</strong> — 常见场景的执行计划模板</li></ul><h2>沙盒执行</h2><p>可执行技能在<strong>沙盒环境</strong>中通过<code>subprocess</code>运行（永远不使用<code>shell=True</code>）。执行环境经过过滤：仅<code>PATH</code>、<code>HOME</code>、<code>LANG</code>、<code>LC_ALL</code>和<code>TZ</code>变量传递给子进程。在Linux上，通过<code>unshare</code>实现<strong>网络隔离</strong>，防止技能脚本进行任何网络访问。</p><h2>结构化结果</h2><p>每次技能执行返回一个标准化的<strong>ScriptResult</strong>对象，包含：<code>success</code>（布尔值）、<code>output</code>（stdout）、<code>error</code>（stderr）、<code>exit_code</code>和<code>execution_time_ms</code>。这种格式使系统能够统一处理成功和错误情况。</p><h2>SkillBypassStrategy：绕过规划器</h2><p>当确定性技能完全匹配请求时，<strong>SkillBypassStrategy</strong>会短路LLM规划器。技能直接执行，无需经过planner → validator → orchestrator链，从而降低延迟和Token消耗。</p><h2>规划器技能守卫</h2><p>规划器具有早期检测功能，在缺少必需参数时请求澄清。然而，多域确定性技能（例如：每日简报 = 事件 + 任务 + 天气 + 邮件）可能会触发<strong>错误的澄清请求</strong>。技能守卫检测到确定性技能与查询具有高域重叠时，会让完整的规划器管道来决定，而不是直接跳转到澄清。</p><h2>技能生成器</h2><p>LIA包含内置的<strong>技能生成器</strong>。用自然语言描述所需的专业领域，LIA会自动生成符合agentskills.io标准的SKILL.md格式的结构化技能。</p><h2>用户管理</h2><p>每个用户可以在设置界面中激活、停用、导入或删除技能。管理员还可以定义面向所有用户的全局技能。</p>"
+        "excerpt": "导入或创建专业技能，让LIA掌握新领域 — 除文本外还包括交互式地图、迷你仪表板和图像。",
+        "body": "<h2>什么是技能？</h2><p><strong>技能</strong>是一组结构化指令，使LIA能够掌握特定领域。与执行操作的工具不同，技能丰富的是助手的<strong>推理和行为</strong>。架构基于一个关键原则：<strong>磁盘是技能内容的唯一真实来源</strong>，而数据库仅管理元数据（激活状态、所有者、统计信息）。</p><h2>丰富的输出（v1.16.8）</h2><p>自 v1.16.8 起，Python 脚本除了文本之外，还可以返回<strong>交互式 HTML 框架</strong>（Google 地图视图、天气仪表板、番茄钟计时器……）和/或<strong>图像</strong>（QR 码、图表）。合约很简单：脚本在 stdout 上写入 JSON 对象（<code>SkillScriptOutput</code>），包含 <code>text</code>（必需）、<code>frame</code> 和 <code>image</code> 字段 — 独立且可组合。框架在严格的<em>沙盒</em> iframe 中运行，为用户技能自动注入<strong>内容安全策略</strong>。主题和语言通过 <code>postMessage</code> 实时同步。七个新的内置技能展示了该机制：<code>interactive-map</code>、<code>weather-dashboard</code>、<code>calendar-month</code>、<code>qr-code</code>、<code>pomodoro-timer</code>、<code>unit-converter</code>、<code>dice-roller</code>。</p><h2>三种技能类型</h2><ul><li><strong>Prompt Expert</strong> — 某一领域的详细指令（如：专业写作、财务分析）</li><li><strong>Advisory</strong> — 建议和最佳实践（如：风格指南、质量检查清单）</li><li><strong>Plan Template</strong> — 常见场景的执行计划模板</li></ul><h2>沙盒执行</h2><p>可执行技能在<strong>沙盒环境</strong>中通过<code>subprocess</code>运行（永远不使用<code>shell=True</code>）。执行环境经过过滤：仅<code>PATH</code>、<code>HOME</code>、<code>LANG</code>、<code>LC_ALL</code>和<code>TZ</code>变量传递给子进程。在Linux上，通过<code>unshare</code>实现<strong>网络隔离</strong>，防止技能脚本进行任何网络访问。</p><h2>结构化结果</h2><p>每次技能执行返回一个标准化的<strong>ScriptResult</strong>对象，包含：<code>success</code>（布尔值）、<code>output</code>（stdout）、<code>error</code>（stderr）、<code>exit_code</code>和<code>execution_time_ms</code>。这种格式使系统能够统一处理成功和错误情况。</p><h2>SkillBypassStrategy：绕过规划器</h2><p>当确定性技能完全匹配请求时，<strong>SkillBypassStrategy</strong>会短路LLM规划器。技能直接执行，无需经过planner → validator → orchestrator链，从而降低延迟和Token消耗。</p><h2>规划器技能守卫</h2><p>规划器具有早期检测功能，在缺少必需参数时请求澄清。然而，多域确定性技能（例如：每日简报 = 事件 + 任务 + 天气 + 邮件）可能会触发<strong>错误的澄清请求</strong>。技能守卫检测到确定性技能与查询具有高域重叠时，会让完整的规划器管道来决定，而不是直接跳转到澄清。</p><h2>技能生成器</h2><p>LIA包含内置的<strong>技能生成器</strong>。用自然语言描述所需的专业领域，LIA会自动生成符合agentskills.io标准的SKILL.md格式的结构化技能。</p><h2>用户管理</h2><p>每个用户可以在设置界面中激活、停用、导入或删除技能。管理员还可以定义面向所有用户的全局技能。</p>"
       },
       "voice-mode": {
         "title": "语音模式：像与个人助手一样与LIA对话",

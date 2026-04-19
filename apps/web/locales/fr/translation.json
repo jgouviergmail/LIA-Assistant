@@ -538,6 +538,15 @@
       }
     }
   },
+  "skill_apps": {
+    "loading": "Chargement du skill…",
+    "error": "Impossible de charger le widget du skill",
+    "external_frame": "Externe"
+  },
+  "mcp_apps": {
+    "loading": "Chargement de l'application...",
+    "error": "Erreur de chargement de l'application"
+  },
   "settings": {
     "title": "Paramètres",
     "subtitle": "Gérez vos préférences et votre compte",
@@ -692,10 +701,6 @@
       "disabled_toast": "{{name}} désactivé",
       "toggle_error": "Erreur lors de la modification",
       "load_error": "Impossible de charger les serveurs MCP applicatifs"
-    },
-    "mcp_apps": {
-      "loading": "Chargement de l'application...",
-      "error": "Erreur de chargement de l'application"
     },
     "mcp": {
       "title": "Serveurs MCP",
@@ -1934,10 +1939,8 @@
       "guide_tab_fundamentals": "Fondamentaux",
       "guide_tab_create": "Créer une skill",
       "guide_tab_advanced": "Avancé",
-
       "guide_modal_what_title": "Qu'est-ce qu'une skill ?",
       "guide_modal_what_body": "Une skill est un fichier SKILL.md qui donne à l'assistant des instructions expertes pour un domaine précis. L'assistant lit ces instructions et les applique automatiquement quand la situation le demande — sans que vous ayez à répéter le contexte à chaque fois. Les skills peuvent inclure des documents de référence, des scripts Python et des templates.",
-
       "guide_archetypes_title": "Les 3 types de skills",
       "guide_archetype_prompt_expert_name": "Prompt Expert",
       "guide_archetype_prompt_expert_badge": "Instructions pures",
@@ -1948,13 +1951,11 @@
       "guide_archetype_plan_template_name": "Plan Template",
       "guide_archetype_plan_template_badge": "Automatisation",
       "guide_archetype_plan_template_desc": "Un workflow déterministe avec des appels d'outils prédéfinis, exécutés en séquence ou en parallèle. Idéal pour les routines récurrentes (briefing, rapports, audits…).",
-
       "guide_activation_title": "Comment l'activation fonctionne",
       "guide_activation_body": "Les skills utilisent un modèle de chargement à 3 niveaux pour optimiser la consommation de tokens :",
       "guide_tier_l1": "Catalogue — Nom et description chargés en début de session (~50 tokens/skill)",
       "guide_tier_l2": "Instructions — Corps complet du SKILL.md chargé quand la skill est activée (< 5000 tokens)",
       "guide_tier_l3": "Ressources — Fichiers individuels (references/, scripts/, assets/) chargés à la demande",
-
       "guide_modal_tips_title": "Bonnes pratiques",
       "guide_modal_tip_1": "Rédigez la description en anglais à la 3ème personne : \"Generates...\", \"Provides...\", \"Guides...\"",
       "guide_modal_tip_2": "La description doit indiquer ce que fait la skill ET quand l'utiliser (le déclencheur).",
@@ -1962,7 +1963,6 @@
       "guide_modal_tip_4": "Nommez votre skill en kebab-case : mon-skill (minuscules, tirets, pas d'espaces).",
       "guide_modal_tip_5": "Listez les ressources disponibles en fin de SKILL.md avec le chemin relatif et une description.",
       "guide_modal_tip_6": "Testez avec des requêtes simples avant de complexifier la skill.",
-
       "guide_modal_format_title": "Format du fichier SKILL.md",
       "guide_modal_format_intro": "Un fichier SKILL.md commence par un en-tête YAML (entre ---) avec les métadonnées, suivi du corps Markdown avec les instructions détaillées.",
       "guide_frontmatter_title": "Champs de l'en-tête YAML :",
@@ -1972,12 +1972,38 @@
       "guide_field_priority": "Ordre d'affichage (défaut: 50, plus haut = affiché en premier)",
       "guide_field_plan_template": "Plan d'exécution déterministe (voir onglet Avancé)",
       "guide_field_always_loaded": "Toujours injecter les instructions (coûte des tokens à chaque conversation)",
-
+      "guide_field_outputs": "Canaux de sortie déclarés (text, frame, image) — uniquement pour Visualizer / Generator",
+      "guide_field_compatibility": "Prérequis affichés dans le catalogue (ex: « Nécessite le connecteur Calendrier »)",
+      "guide_runtime_title": "Localisation, thème et conventions runtime",
+      "guide_runtime_intro": "Quand votre skill utilise un script Python, la plateforme LIA fournit plusieurs comportements automatiquement — voici ceux à connaître pour produire des skills qui s'intègrent naturellement.",
+      "guide_runtime_autoparams_label": "Paramètres auto-injectés",
+      "guide_runtime_autoparams_body": "Chaque appel à run_skill_script reçoit automatiquement la langue de l'utilisateur (_lang) et son fuseau horaire (_tz) dans les paramètres. Utilisez _lang pour localiser vos libellés via des tables inline.",
+      "guide_runtime_autoparams_hint": "Ne dépendez pas de locale.setlocale — les conteneurs minces n'embarquent pas les locales système, strftime retombe silencieusement en anglais.",
+      "guide_runtime_theme_label": "Thème sombre / clair",
+      "guide_runtime_theme_body": "Utilisez des sélecteurs CSS html[data-theme=\"dark\"] plutôt que @media (prefers-color-scheme: dark). Un snippet runtime injecté par LIA applique automatiquement l'attribut data-theme et la langue sur <html>, synchronisés avec l'application.",
+      "guide_runtime_resize_label": "Auto-dimensionnement iframe",
+      "guide_runtime_resize_body": "Les iframes se redimensionnent automatiquement à la hauteur du contenu. L'aspect_ratio que vous déclarez est seulement le squelette initial avant mesure. Laissez les marges html/body par défaut, stylez vos propres conteneurs internes.",
+      "guide_runtime_example_qr": "Exemple Generator (QR code avec segno, caption localisée) :",
+      "guide_runtime_example_interactive": "Exemple Visualizer interactif (bouton qui relance côté client) :",
+      "guide_runtime_interactive_note": "Pattern recommandé pour tout frame interactif : JS client avec crypto.getRandomValues et addEventListener (pas d'onclick inline — bloqué par CSP sur les skills utilisateur).",
       "guide_example_simple_title": "Exemple : Skill Prompt Expert",
       "guide_example_simple_desc": "Le type le plus simple — des instructions pures que l'assistant suit quand le sujet est abordé. Pas besoin d'outils ni de plan.",
       "guide_example_advisory_title": "Exemple : Skill Advisory",
       "guide_example_advisory_desc": "L'assistant suit une méthodologie et utilise les outils disponibles (calendrier, emails, contacts) de manière organique selon les besoins.",
-
+      "guide_rich_outputs_title": "Sorties riches (cadres + images)",
+      "guide_rich_outputs_intro": "Les skills peuvent produire des iframes interactives et des images en écrivant un objet JSON sur stdout. Le skill décide de son rendu — les trois canaux (text, frame, image) sont indépendants et cumulables.",
+      "guide_rich_outputs_text_label": "Toujours requis — légende utilisée pour la voix, le contexte LLM et l'accessibilité.",
+      "guide_rich_outputs_frame_label": "Iframe interactive optionnelle (HTML inline via srcDoc ou URL HTTPS externe).",
+      "guide_rich_outputs_image_label": "Image optionnelle (URI data: ou URL HTTPS) avec texte alternatif obligatoire.",
+      "guide_rich_outputs_example_map": "Exemple Visualizer — Google Maps interactif intégré :",
+      "guide_rich_outputs_example_qr": "Exemple Generator — QR code généré depuis un texte :",
+      "guide_rich_outputs_security_title": "Sécurité des cadres",
+      "guide_rich_outputs_sandbox": "Tous les cadres s'affichent dans une iframe sandboxée sans allow-same-origin — les cookies et le stockage parent restent inaccessibles, quel que soit le contenu du cadre.",
+      "guide_rich_outputs_csp": "Lorsqu'un skill utilisateur émet frame.html, LIA injecte automatiquement une Content Security Policy stricte qui bloque les requêtes sortantes (connect-src none) et les iframes imbriquées (frame-src none). Les skills système sont de confiance et ne reçoivent pas de CSP forcée.",
+      "guide_rich_outputs_csp_warning": "Conséquence : les cadres inline d'un skill utilisateur ne peuvent pas appeler d'API externe. Pour des données externes, utilisez frame.url (le site distant contrôle ses propres en-têtes).",
+      "guide_rich_outputs_tip_1": "Écrivez uniquement le JSON sur stdout — envoyez logs et progression sur stderr.",
+      "guide_rich_outputs_tip_2": "frame.html et frame.url sont mutuellement exclusifs — un cadre a une seule source.",
+      "guide_rich_outputs_tip_3": "Toujours définir image.alt pour l'accessibilité et la fallback vocale.",
       "guide_modal_struct_title": "Structure du dossier",
       "guide_modal_struct_body": "Pour les skills complexes, importez un fichier .zip contenant SKILL.md et des sous-dossiers optionnels :",
       "guide_struct_skillmd": "Fichier principal (obligatoire)",
@@ -1985,7 +2011,6 @@
       "guide_struct_scripts": "Scripts Python exécutables dans un sandbox",
       "guide_struct_assets": "Templates, images et ressources statiques",
       "guide_struct_translations": "Descriptions multilingues (6 langues)",
-
       "guide_resources_title": "Utiliser les ressources",
       "guide_resource_references_desc": "Documents texte (.md, .txt) que l'assistant peut consulter à la demande via read_skill_resource. Idéal pour stocker des guides détaillés, templates ou données de référence trop volumineuses pour le SKILL.md.",
       "guide_resource_references_usage": "Usage : mentionnez le fichier dans la section « Ressources disponibles » du SKILL.md — l'assistant les lira automatiquement.",
@@ -1993,10 +2018,8 @@
       "guide_resource_scripts_usage": "Usage : décrivez le script et ses paramètres dans le SKILL.md. L'assistant l'exécutera quand nécessaire.",
       "guide_resource_assets_desc": "Fichiers statiques (images, templates HTML/CSV, données JSON) accessibles en lecture. Utile pour des templates de sortie, des logos ou des configurations.",
       "guide_resource_assets_usage": "Usage : référencez-les dans les instructions. L'assistant peut les lire et les utiliser pour formater ses réponses.",
-
       "guide_import_title": "Comment importer",
       "guide_import_body": "Importez un fichier SKILL.md seul pour une skill simple, ou un fichier .zip contenant le dossier complet (SKILL.md + references/ + scripts/ + assets/). Utilisez le bouton « Importer » ci-dessus. Limite : 100 Ko pour SKILL.md, 50 Ko par fichier ressource, 20 skills max par utilisateur.",
-
       "guide_modal_plan_title": "Plan Template (automatisation)",
       "guide_modal_plan_body": "Le plan_template permet de définir une séquence d'outils exécutés automatiquement, sans passer par le LLM planner. Idéal pour les workflows récurrents et prévisibles. Les étapes sans depends_on s'exécutent en parallèle.",
       "guide_modal_plan_fields_title": "Champs d'une étape (step) :",
@@ -2006,10 +2029,8 @@
       "guide_modal_plan_field_parameters": "Paramètres à passer à l'outil (ex: {days: 3})",
       "guide_modal_plan_field_depends_on": "[] = parallèle, [\"step_id\"] = séquentiel après cette étape",
       "guide_modal_plan_field_step_type": "Type : TOOL (défaut), CONDITIONAL, PARALLEL ou RESPONSE",
-
       "guide_autotrigger_title": "Déclenchement automatique",
       "guide_autotrigger_body": "Les skills avec plan_template sont auto-déclenchées quand la requête de l'utilisateur couvre TOUS les domaines du template. Ex : une skill avec event_agent + weather_agent se déclenche quand l'utilisateur demande à la fois son agenda et la météo.",
-
       "guide_tools_title": "Catalogue des agents et outils",
       "guide_tools_intro": "Référence complète des agents et de leurs outils avec paramètres et types. Utilisez les noms exacts dans agent_name et tool_name du plan_template. Les paramètres marqués * sont obligatoires.",
       "guide_cat_productivity": "Productivité (Agenda, Email, Contacts, Drive, Tâches)",
@@ -2017,7 +2038,6 @@
       "guide_cat_location_weather": "Localisation & Météo",
       "guide_cat_other": "Autres (Rappels, Browser, IoT, Images)",
       "guide_tools_note": "Les outils marqués « Connector » fonctionnent avec Google, Microsoft ou Apple selon le fournisseur connecté. Les agents MCP (serveurs externes) sont dynamiques et ne peuvent pas être utilisés dans les plan_template statiques.",
-
       "tool_get_events": "Rechercher/lister des événements",
       "tool_create_event": "Créer un événement",
       "tool_update_event": "Modifier un événement",
@@ -2056,7 +2076,6 @@
       "tool_activate_scene": "Activer une scène Hue",
       "tool_generate_image": "Générer une image par IA",
       "tool_edit_image": "Modifier une image existante",
-
       "param_search_query": "Requête de recherche",
       "param_event_id": "ID de l'événement",
       "param_time_min": "Début de la plage horaire (ISO 8601)",
@@ -2131,7 +2150,6 @@
       "param_scene_name": "Nom ou ID de la scène",
       "param_image_prompt": "Description détaillée de l'image",
       "param_source_image": "UUID de l'image source à modifier",
-
       "guide_scripts_title": "Scripts Python",
       "guide_scripts_body": "Les skills peuvent inclure des scripts Python exécutés dans un sandbox isolé. Les scripts reçoivent des données via stdin (JSON) et retournent des résultats via stdout (JSON). Utile pour les calculs, transformations de données, ou traitements personnalisés.",
       "guide_scripts_rules_title": "Règles des scripts :",
@@ -2139,13 +2157,11 @@
       "guide_scripts_rule_2": "Les scripts s'exécutent dans un sandbox avec un timeout limité",
       "guide_scripts_rule_3": "Communication via stdin/stdout en format JSON",
       "guide_scripts_rule_4": "Nécessite l'activation du feature flag SKILLS_SCRIPTS_ENABLED",
-
       "guide_skill_tools_title": "Outils internes des skills",
       "guide_skill_tools_body": "L'assistant dispose de 3 outils spéciaux pour interagir avec les skills activées. Ces outils sont appelés automatiquement — vous n'avez pas besoin de les référencer dans vos instructions.",
       "guide_skilltool_activate": "Charge les instructions complètes (L2) d'une skill",
       "guide_skilltool_read": "Lit un fichier de référence ou asset depuis la skill",
       "guide_skilltool_run": "Exécute un script Python du dossier scripts/",
-
       "guide_modal_compat_title": "Standard ouvert agentskills.io",
       "guide_modal_compat_body": "Les skills sont 100% compatibles avec l'écosystème agentskills.io — le même format est utilisé par Claude Code, Cursor, VS Code, GitHub Copilot et 30+ autres produits. Importez des skills depuis des marketplaces comme skillsmp.com.",
       "guide_modal_link": "En savoir plus sur le standard agentskills.io"
@@ -2452,18 +2468,15 @@
       "react_reasoning": "Raisonnement en cours...",
       "react_tool_execution": "Exécution d'outil...",
       "react_finalize": "Finalisation de l'analyse...",
-
       "get_contacts": "Recherche de contacts...",
       "create_contact": "Création du contact...",
       "update_contact": "Mise à jour du contact...",
       "delete_contact": "Suppression du contact...",
-
       "get_events": "Récupération des événements...",
       "create_event": "Création de l'événement...",
       "update_event": "Mise à jour de l'événement...",
       "delete_event": "Suppression de l'événement...",
       "list_calendars": "Liste des calendriers...",
-
       "get_emails": "Récupération des e-mails...",
       "send_email": "Envoi de l'e-mail...",
       "reply_email": "Réponse à l'e-mail...",
@@ -2475,44 +2488,33 @@
       "delete_label": "Suppression du libellé...",
       "apply_labels": "Application des libellés...",
       "remove_labels": "Suppression des libellés...",
-
       "get_tasks": "Récupération des tâches...",
       "create_task": "Création de la tâche...",
       "complete_task": "Finalisation de la tâche...",
       "update_task": "Mise à jour de la tâche...",
       "delete_task": "Suppression de la tâche...",
       "list_task_lists": "Liste des listes de tâches...",
-
       "create_reminder": "Création du rappel...",
       "list_reminders": "Liste des rappels...",
       "cancel_reminder": "Annulation du rappel...",
-
       "get_files": "Récupération des fichiers...",
-
       "get_places": "Recherche de lieux...",
       "get_current_location": "Récupération de la position actuelle...",
-
       "get_route": "Calcul de l'itinéraire...",
       "get_route_matrix": "Calcul de la matrice d'itinéraires...",
-
       "get_current_weather": "Récupération de la météo actuelle...",
       "get_weather_forecast": "Récupération des prévisions météo...",
       "get_hourly_forecast": "Récupération des prévisions horaires...",
-
       "search_wikipedia": "Recherche sur Wikipedia...",
       "get_wikipedia_summary": "Récupération du résumé Wikipedia...",
       "get_wikipedia_article": "Récupération de l'article Wikipedia...",
       "get_wikipedia_related": "Recherche d'articles connexes...",
-
       "unified_web_search": "Recherche sur le web...",
       "brave_search": "Recherche avec Brave...",
       "brave_news": "Récupération des actualités Brave...",
-
       "fetch_web_page": "Récupération du contenu de la page web...",
-
       "perplexity_search": "Recherche avec Perplexity...",
       "perplexity_ask": "Question à Perplexity...",
-
       "browser": {
         "navigate": "Navigation vers la page...",
         "snapshot": "Capture de la page...",
@@ -2520,29 +2522,23 @@
         "fill": "Remplissage du champ...",
         "press_key": "Appui sur la touche..."
       },
-
       "list_hue_lights": "Liste des lampes Hue...",
       "control_hue_light": "Contrôle de la lampe Hue...",
       "list_hue_rooms": "Liste des pièces Hue...",
       "control_hue_room": "Contrôle de la pièce Hue...",
       "list_hue_scenes": "Liste des scènes Hue...",
       "activate_hue_scene": "Activation de la scène Hue...",
-
       "generate_image": "Génération de l'image...",
       "edit_image": "Modification de l'image...",
-
       "resolve_reference": "Résolution de la référence...",
       "set_current_item": "Sélection de l'élément...",
       "get_context_state": "Récupération de l'état du contexte...",
       "list_active_domains": "Liste des domaines actifs...",
       "get_context_list": "Récupération de la liste contextuelle...",
-
       "local_query_engine": "Interrogation de la base de connaissances...",
       "claude_server_task": "Exécution de la tâche serveur...",
       "delegate_to_sub_agent": "Délégation au sous-agent...",
-
       "mcp_tool": "Exécution de l'outil MCP externe...",
-
       "previous_steps_one": "étape précédente",
       "previous_steps_other": "étapes précédentes"
     }
@@ -2719,8 +2715,8 @@
           "description": "Upload de photos et documents PDF via bouton 📎 ou glisser-déposer, avec compression client-side automatique. Analyse visuelle par LLM vision configurable (gpt-4.1-mini par défaut). Extraction texte PDF via PyMuPDF. Miniatures inline dans les messages, lightbox accessible. Isolation stricte par utilisateur, cleanup automatique (reset conversation + TTL 24h). Architecture « Reference + Late Resolution » pour des checkpoints légers."
         },
         "skills": {
-          "title": "Skills",
-          "description": "Spécialisez LIA avec des compétences expertes sur mesure. Créez vos propres skills en langage naturel grâce au Skill Generator intégré — ou importez depuis les marketplaces compatibles agentskills.io. Compatible avec 30+ outils dont Claude Code, Cursor et VS Code."
+          "title": "Skills (avec cartes & mini-apps interactives)",
+          "description": "Spécialisez LIA avec des compétences expertes sur mesure. Créez vos propres skills en langage naturel grâce au Skill Generator intégré — ou importez depuis les marketplaces compatibles agentskills.io. Depuis v1.16.8, un skill peut produire une frame HTML interactive (carte, dashboard, calendrier, convertisseur...) ou une image (QR code, graphique) en plus du texte, avec thème et langue synchronisés automatiquement. Compatible avec 30+ outils dont Claude Code, Cursor et VS Code."
         },
         "ragSpaces": {
           "title": "📚 Espaces de connaissances RAG",
@@ -2761,6 +2757,18 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_16_8": {
+          "title": "v1.16.8 — Skills enrichis : cartes, images, mini-apps dans le chat",
+          "date": "Avril 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>Vos skills peuvent désormais afficher des cartes, images et mini-applications interactives</b> — En plus d'une réponse texte, un skill peut maintenant renvoyer une frame HTML interactive (carte Google Maps, dashboard météo, calendrier mensuel, convertisseur d'unités...) ou une image (QR code, graphique). Sept nouveaux skills intégrés illustrent le mécanisme : <code>interactive-map</code>, <code>weather-dashboard</code>, <code>calendar-month</code>, <code>qr-code</code>, <code>pomodoro-timer</code>, <code>unit-converter</code>, <code>dice-roller</code>.",
+            "i2": "<b>Thème et langue synchronisés avec vos frames</b> — Quand vous basculez en mode sombre ou changez la langue de l'application, les mini-applications embarquées dans le chat se mettent à jour automatiquement sans rechargement. L'ergonomie reste cohérente sur toute la conversation.",
+            "i3": "<b>Frames toujours visibles, quel que soit votre mode d'affichage</b> — Les mini-applications interactives (skills, apps MCP, brouillons) s'affichent désormais en mode HTML enrichi, Markdown et Cards — avant, elles étaient invisibles hors du mode Cards.",
+            "i4": "<b>Création de skills enrichis documentée de bout en bout</b> — Le Guide des Compétences (Skills) inclut maintenant une section complète « Localization, theming and runtime conventions » dans l'onglet Advanced, avec des exemples de code prêts à copier (QR code avec <code>segno</code>, lancer de pièce avec animation et rejeu). Le skill-generator intégré est également à jour pour produire des skills conformes dès la première itération.",
+            "i5": "<b>Réglages Skills plus aérés</b> — Les sections « Skills intégrées » et « Mes skills importées » sont désormais repliées par défaut : quand vous accumulez beaucoup de skills, la page Réglages reste lisible."
+          }
+        },
         "v1_16_7": {
           "title": "v1.16.7 — Alertes météo pertinentes, même en déplacement",
           "date": "Avril 2026",
@@ -3608,7 +3616,7 @@
       "skills": {
         "title": "Compétences (skills)",
         "description": "Étendre les capacités de LIA avec des instructions expertes",
-        "count": "7",
+        "count": "8",
         "questions": {
           "q1": {
             "question": "Qu'est-ce qu'une skill ?",
@@ -3637,6 +3645,10 @@
           "q7": {
             "question": "Qu'est-ce que le Skill Generator ?",
             "answer": "<p>Le <strong>Skill Generator</strong> est une skill système intégrée qui vous permet de <strong>créer vos propres skills en langage naturel</strong>. Décrivez simplement votre besoin (« <em>je veux un bulletin météo détaillé sur 5 jours</em> ») et l'assistant vous guide à travers 4 étapes :</p><ol><li><strong>Analyse du besoin</strong> : questions de cadrage sur la tâche, les outils, le format souhaité</li><li><strong>Choix de l'archétype</strong> : Prompt Expert, Advisory ou Plan Template</li><li><strong>Génération</strong> : création du fichier SKILL.md conforme au standard agentskills.io</li><li><strong>Validation</strong> : vérification automatique du format via un script intégré</li></ol><p>Le fichier généré est prêt à être importé dans <strong>Réglages &gt; Fonctionnalités &gt; Mes skills</strong>.</p>"
+          },
+          "q8": {
+            "question": "Les skills peuvent-elles afficher des cartes, des images ou des mini-applications interactives ? (v1.16.8)",
+            "answer": "<p>Oui. Depuis la v1.16.8, un script Python de skill peut retourner, en plus du texte, <strong>une frame HTML interactive</strong> (carte Google Maps, dashboard météo, calendrier mensuel, minuteur pomodoro, convertisseur d'unités...) et/ou <strong>une image</strong> (QR code, graphique).</p><p><strong>Sept nouveaux skills intégrés</strong> illustrent le mécanisme : <code>interactive-map</code>, <code>weather-dashboard</code>, <code>calendar-month</code>, <code>qr-code</code>, <code>pomodoro-timer</code>, <code>unit-converter</code>, <code>dice-roller</code>.</p><p><strong>Comment ça fonctionne :</strong></p><ul><li><strong>Thème et langue synchronisés</strong> — les frames détectent et respectent automatiquement votre thème (clair/sombre) et votre langue courante. Un changement de thème se propage en direct sans recharger.</li><li><strong>Auto-dimensionnement</strong> — la frame s'ajuste automatiquement à son contenu.</li><li><strong>Sécurité stricte</strong> — les frames s'exécutent dans une iframe sandbox (<code>allow-scripts allow-popups</code>, sans <code>allow-same-origin</code>) avec une Content Security Policy injectée pour les skills utilisateur.</li><li><strong>Visibles dans tous les modes d'affichage</strong> — HTML enrichi, Markdown, Cards : les frames apparaissent partout.</li></ul><p>Pour créer vos propres skills avec frames ou images, consultez le <strong>Guide des Compétences</strong> (onglet Advanced → section « Localization, theming and runtime conventions »), ou demandez simplement : « <em>crée-moi un skill qui affiche un QR code</em> ».</p>"
           }
         }
       },
@@ -4763,8 +4775,8 @@
         "description": "5 thèmes de couleurs, mode sombre/clair, 9 polices de caractères. Adapte LIA à ton image."
       },
       "skills": {
-        "title": "Skills",
-        "description": "Spécialisez LIA avec des compétences expertes sur mesure. Créez vos propres skills en langage naturel grâce au Skill Generator intégré — ou importez depuis les marketplaces compatibles agentskills.io. Compatible avec 30+ outils dont Claude Code, Cursor et VS Code."
+        "title": "Skills avec cartes et mini-apps",
+        "description": "Spécialisez LIA avec des compétences expertes sur mesure. Les skills peuvent désormais afficher des cartes interactives, des dashboards, des calendriers, des QR codes et des mini-applications directement dans le chat — avec thème et langue synchronisés. Créez les vôtres en langage naturel grâce au Skill Generator intégré, ou importez depuis les marketplaces compatibles agentskills.io. Compatible avec 30+ outils dont Claude Code, Cursor et VS Code."
       },
       "sub_agents": {
         "title": "Sous-agents",
@@ -4906,6 +4918,14 @@
       "stack": {
         "title": "Stack moderne",
         "description": "FastAPI, Next.js, React, TailwindCSS, PostgreSQL, Redis. TypeScript strict côté frontend, Python async côté backend."
+      },
+      "rich_skills": {
+        "title": "Skills avec frames & images",
+        "description": "Contrat SkillScriptOutput (text/frame/image) — scripts Python sandboxés, iframes sandbox strict avec CSP injectée, auto-resize, synchronisation thème + langue via postMessage. Sept skills intégrés illustrent le mécanisme."
+      },
+      "hitl": {
+        "title": "Human-in-the-Loop",
+        "description": "6 niveaux d'approbation — validation de plan, clarification, critique de brouillon, confirmation destructive, FOR_EACH confirm, modifier review. Garde-fou plan-level avant exécution plutôt que rollback après erreur. Classification automatique des risques et prévisualisation des items affectés."
       }
     },
     "architecture": {
@@ -5196,8 +5216,8 @@
       },
       "skills-system": {
         "title": "Skills : des instructions expertes pour personnaliser LIA",
-        "excerpt": "Importez ou créez des skills spécialisés pour que LIA maîtrise de nouveaux domaines : rédaction, analyse de données, code, et bien plus.",
-        "body": "<h2>Qu'est-ce qu'un skill ?</h2><p>Un <strong>skill</strong> est un ensemble d'instructions structurées qui permet à LIA de maîtriser un domaine spécifique. Contrairement aux outils qui exécutent des actions, les skills enrichissent le <strong>raisonnement et le comportement</strong> de l'assistant. L'architecture repose sur un principe clé : le <strong>disque est la source de vérité</strong> pour le contenu des skills, tandis que la base de données gère uniquement les métadonnées (activation, propriétaire, statistiques).</p><h2>Trois types de skills</h2><ul><li><strong>Prompt Expert</strong> — Instructions détaillées pour un domaine (ex : rédaction professionnelle, analyse financière)</li><li><strong>Advisory</strong> — Conseils et bonnes pratiques (ex : guide de style, checklist qualité)</li><li><strong>Plan Template</strong> — Modèles de plans d'exécution pour des scénarios récurrents</li></ul><h2>Exécution sandboxée</h2><p>Les skills exécutables tournent dans un <strong>environnement sandboxé</strong> via <code>subprocess</code> (jamais <code>shell=True</code>). L'environnement d'exécution est filtré : seules les variables <code>PATH</code>, <code>HOME</code>, <code>LANG</code>, <code>LC_ALL</code> et <code>TZ</code> sont transmises au processus fils. Sur Linux, l'<strong>isolation réseau</strong> est assurée via <code>unshare</code> pour empêcher tout accès réseau depuis un script skill.</p><h2>Résultat structuré</h2><p>Chaque exécution de skill retourne un objet <strong>ScriptResult</strong> standardisé contenant : <code>success</code> (booléen), <code>output</code> (stdout), <code>error</code> (stderr), <code>exit_code</code> et <code>execution_time_ms</code>. Ce format permet au système de traiter uniformément les succès et les erreurs.</p><h2>SkillBypassStrategy : contourner le planificateur</h2><p>Quand un skill déterministe correspond exactement à la demande, la <strong>SkillBypassStrategy</strong> court-circuite le planificateur LLM. Le skill est exécuté directement sans passer par la chaîne planner → validator → orchestrator, ce qui réduit la latence et la consommation de tokens.</p><h2>Garde planificateur pour skills</h2><p>Le planificateur dispose d'une détection précoce qui demande des clarifications lorsque des paramètres obligatoires sont manquants. Cependant, les skills déterministes multi-domaines (ex : briefing quotidien = événements + tâches + météo + emails) peuvent déclencher des <strong>faux positifs de clarification</strong>. La garde skill détecte quand un skill déterministe a un fort chevauchement de domaines avec la requête et laisse le pipeline planificateur complet décider au lieu de court-circuiter vers la clarification.</p><h2>Le Skill Generator</h2><p>LIA inclut un <strong>générateur de skills</strong> intégré. Décrivez le domaine d'expertise souhaité en langage naturel, et LIA génère automatiquement un skill structuré au format SKILL.md compatible avec le standard agentskills.io.</p><h2>Gestion par l'utilisateur</h2><p>Chaque utilisateur peut activer, désactiver, importer ou supprimer ses skills dans l'interface Réglages. Les administrateurs peuvent également définir des skills globaux disponibles pour tous les utilisateurs.</p>"
+        "excerpt": "Importez ou créez des skills spécialisés pour que LIA maîtrise de nouveaux domaines — avec cartes interactives, mini-dashboards et images en plus du texte.",
+        "body": "<h2>Qu'est-ce qu'un skill ?</h2><p>Un <strong>skill</strong> est un ensemble d'instructions structurées qui permet à LIA de maîtriser un domaine spécifique. Contrairement aux outils qui exécutent des actions, les skills enrichissent le <strong>raisonnement et le comportement</strong> de l'assistant. L'architecture repose sur un principe clé : le <strong>disque est la source de vérité</strong> pour le contenu des skills, tandis que la base de données gère uniquement les métadonnées (activation, propriétaire, statistiques).</p><h2>Cinq archétypes de skills</h2><ul><li><strong>Prompt Expert</strong> — Instructions détaillées pour un domaine (ex : rédaction professionnelle, analyse financière)</li><li><strong>Advisory</strong> — Conseils et bonnes pratiques (ex : guide de style, checklist qualité)</li><li><strong>Plan Template</strong> — Modèles de plans d'exécution pour des scénarios récurrents</li><li><strong>Visualizer</strong> (v1.16.8) — Script Python qui produit une iframe interactive (carte, dashboard, calendrier)</li><li><strong>Generator</strong> (v1.16.8) — Script Python qui produit une image (QR code, graphique)</li></ul><h2>Exécution sandboxée</h2><p>Les skills exécutables tournent dans un <strong>environnement sandboxé</strong> via <code>subprocess</code> (jamais <code>shell=True</code>). L'environnement d'exécution est filtré : seules les variables <code>PATH</code>, <code>HOME</code>, <code>LANG</code>, <code>LC_ALL</code> et <code>TZ</code> sont transmises au processus fils. Sur Linux, l'<strong>isolation réseau</strong> est assurée via <code>unshare</code> pour empêcher tout accès réseau depuis un script skill.</p><h2>Résultat structuré</h2><p>Chaque exécution de skill retourne un objet <strong>ScriptResult</strong> standardisé contenant : <code>success</code> (booléen), <code>output</code> (stdout), <code>error</code> (stderr), <code>exit_code</code> et <code>execution_time_ms</code>. Ce format permet au système de traiter uniformément les succès et les erreurs.</p><h2>Sorties enrichies (v1.16.8)</h2><p>Depuis la v1.16.8, un script Python peut retourner — en plus du texte — une <strong>frame HTML interactive</strong> (carte Google Maps, dashboard météo, minuteur pomodoro...) et/ou une <strong>image</strong> (QR code, graphique). Le contrat est simple : le script écrit un JSON sur stdout (<code>SkillScriptOutput</code>) avec les champs <code>text</code> (obligatoire), <code>frame</code> et <code>image</code>, indépendants et combinables. Les frames tournent dans une iframe <em>sandbox</em> stricte (<code>allow-scripts allow-popups</code>, jamais <code>allow-same-origin</code>), avec une <strong>Content Security Policy</strong> injectée automatiquement pour les skills utilisateur — les skills système sont exemptés (admin de confiance). Thème et langue sont synchronisés en temps réel via <code>postMessage</code> : basculer en mode sombre se propage immédiatement dans chaque frame sans rechargement. Sept nouveaux skills intégrés démontrent le mécanisme : <code>interactive-map</code>, <code>weather-dashboard</code>, <code>calendar-month</code>, <code>qr-code</code>, <code>pomodoro-timer</code>, <code>unit-converter</code>, <code>dice-roller</code>.</p><h2>SkillBypassStrategy : contourner le planificateur</h2><p>Quand un skill déterministe correspond exactement à la demande, la <strong>SkillBypassStrategy</strong> court-circuite le planificateur LLM. Le skill est exécuté directement sans passer par la chaîne planner → validator → orchestrator, ce qui réduit la latence et la consommation de tokens.</p><h2>Garde planificateur pour skills</h2><p>Le planificateur dispose d'une détection précoce qui demande des clarifications lorsque des paramètres obligatoires sont manquants. Cependant, les skills déterministes multi-domaines (ex : briefing quotidien = événements + tâches + météo + emails) peuvent déclencher des <strong>faux positifs de clarification</strong>. La garde skill détecte quand un skill déterministe a un fort chevauchement de domaines avec la requête et laisse le pipeline planificateur complet décider au lieu de court-circuiter vers la clarification.</p><h2>Le Skill Generator</h2><p>LIA inclut un <strong>générateur de skills</strong> intégré. Décrivez le domaine d'expertise souhaité en langage naturel, et LIA génère automatiquement un skill structuré au format SKILL.md compatible avec le standard agentskills.io — y compris les nouveaux archétypes Visualizer et Generator avec les conventions runtime (thème, langue, auto-resize).</p><h2>Gestion par l'utilisateur</h2><p>Chaque utilisateur peut activer, désactiver, importer ou supprimer ses skills dans l'interface Réglages. Les administrateurs peuvent également définir des skills globaux disponibles pour tous les utilisateurs.</p>"
       },
       "voice-mode": {
         "title": "Mode vocal : parlez à LIA comme à un assistant personnel",
@@ -5480,9 +5500,15 @@
       "mood": {
         "title": "L'humeur (PAD)",
         "description": "L'humeur de l'assistant est modélisée dans un espace 3D : Plaisir (positif/négatif), Activation (niveau d'énergie) et Dominance (sentiment de contrôle). Ces trois axes se combinent pour produire 14 humeurs distinctes.",
-        "pleasure": "Plaisir", "pleasure_neg": "malheureux", "pleasure_pos": "content",
-        "arousal": "Activation", "arousal_neg": "calme", "arousal_pos": "énergique",
-        "dominance": "Dominance", "dominance_neg": "soumis", "dominance_pos": "assertif",
+        "pleasure": "Plaisir",
+        "pleasure_neg": "malheureux",
+        "pleasure_pos": "content",
+        "arousal": "Activation",
+        "arousal_neg": "calme",
+        "arousal_pos": "énergique",
+        "dominance": "Dominance",
+        "dominance_neg": "soumis",
+        "dominance_pos": "assertif",
         "table_title": "Profils d'humeur :",
         "col_mood": "Humeur",
         "col_influence": "Influence comportementale",
@@ -5554,12 +5580,24 @@
         "title": "Traits de personnalité",
         "description": "La personnalité de l'assistant est définie par le modèle Big Five.",
         "intro": "Chaque personnalité a des traits Big Five qui façonnent activement le comportement émotionnel — pas seulement l'humeur de base, mais la façon dont l'assistant réagit, récupère et compatit.",
-        "trait": "Trait", "modulates": "Module", "effect": "Effet",
-        "neuroticism": "Névrosisme", "neuroticism_mod": "Réactivité émotionnelle", "neuroticism_effect": "Élevé = les émotions frappent plus fort. Bas = stoïque, réactions atténuées.",
-        "agreeableness": "Agréabilité", "agreeableness_mod": "Empathie et résilience", "agreeableness_effect": "Élevé = miroir fort de vos émotions. Bas = résistant, tire vers le neutre quand négatif.",
-        "conscientiousness": "Conscienciosité", "conscientiousness_mod": "Vitesse de récupération", "conscientiousness_effect": "Élevé = retour rapide à la baseline. Bas = les humeurs persistent.",
-        "openness": "Ouverture", "openness_mod": "Baseline de l'humeur", "openness_effect": "Élevé = baseline curieuse, plus exploratoire.",
-        "extraversion": "Extraversion", "extraversion_mod": "Baseline de l'humeur", "extraversion_effect": "Élevé = baseline positive, chaleureuse. Bas = réservé, plus calme."
+        "trait": "Trait",
+        "modulates": "Module",
+        "effect": "Effet",
+        "neuroticism": "Névrosisme",
+        "neuroticism_mod": "Réactivité émotionnelle",
+        "neuroticism_effect": "Élevé = les émotions frappent plus fort. Bas = stoïque, réactions atténuées.",
+        "agreeableness": "Agréabilité",
+        "agreeableness_mod": "Empathie et résilience",
+        "agreeableness_effect": "Élevé = miroir fort de vos émotions. Bas = résistant, tire vers le neutre quand négatif.",
+        "conscientiousness": "Conscienciosité",
+        "conscientiousness_mod": "Vitesse de récupération",
+        "conscientiousness_effect": "Élevé = retour rapide à la baseline. Bas = les humeurs persistent.",
+        "openness": "Ouverture",
+        "openness_mod": "Baseline de l'humeur",
+        "openness_effect": "Élevé = baseline curieuse, plus exploratoire.",
+        "extraversion": "Extraversion",
+        "extraversion_mod": "Baseline de l'humeur",
+        "extraversion_effect": "Élevé = baseline positive, chaleureuse. Bas = réservé, plus calme."
       },
       "relationship": {
         "title": "La relation",

@@ -185,6 +185,10 @@ class ListHueLightsTool(ConnectorTool[PhilipsHueClient]):
         return UnifiedToolOutput.data_success(
             message=", ".join(summary_parts),
             registry_updates=registry_updates,
+            structured_data={
+                "count": len(lights),
+                "on_count": on_count,
+            },
             metadata={"type": "hue_lights", "count": len(lights)},
         )
 
@@ -257,6 +261,7 @@ class ControlHueLightTool(ConnectorTool[PhilipsHueClient]):
         if not result.get("success"):
             return UnifiedToolOutput.data_success(
                 message=result.get("error", "Light control failed"),
+                structured_data={"action": "control_light", "success": False},
                 metadata={"type": "hue_control", "success": False},
             )
 
@@ -271,6 +276,15 @@ class ControlHueLightTool(ConnectorTool[PhilipsHueClient]):
 
         return UnifiedToolOutput.data_success(
             message=" ".join(parts),
+            structured_data={
+                "action": "control_light",
+                "success": True,
+                "light_id": data.get("light_id"),
+                "name": data.get("name"),
+                "on": data.get("on"),
+                "brightness": data.get("brightness"),
+                "color": data.get("color"),
+            },
             metadata={"type": "hue_control", "light_id": data.get("light_id")},
         )
 
@@ -305,15 +319,25 @@ class ListHueRoomsTool(ConnectorTool[PhilipsHueClient]):
         rooms = result.get("data", {}).get("rooms", [])
 
         summary_parts = []
+        structured_rooms: list[dict[str, Any]] = []
         for room in rooms:
             name = room.get("metadata", {}).get("name", "?")
+            room_id = room.get("id", "")
             children_count = len(room.get("children", []))
             summary_parts.append(f"{name} ({children_count} devices)")
+            structured_rooms.append(
+                {
+                    "room_id": room_id,
+                    "name": name,
+                    "children_count": children_count,
+                }
+            )
 
         return UnifiedToolOutput.data_success(
             message=(
                 f"{len(rooms)} room(s): {', '.join(summary_parts)}" if rooms else "No rooms found"
             ),
+            structured_data={"rooms": structured_rooms, "count": len(rooms)},
             metadata={"type": "hue_rooms", "count": len(rooms)},
         )
 
@@ -376,6 +400,7 @@ class ControlHueRoomTool(ConnectorTool[PhilipsHueClient]):
         if not result.get("success"):
             return UnifiedToolOutput.data_success(
                 message=result.get("error", "Room control failed"),
+                structured_data={"action": "control_room", "success": False},
                 metadata={"type": "hue_room_control", "success": False},
             )
 
@@ -388,6 +413,14 @@ class ControlHueRoomTool(ConnectorTool[PhilipsHueClient]):
 
         return UnifiedToolOutput.data_success(
             message=" ".join(parts),
+            structured_data={
+                "action": "control_room",
+                "success": True,
+                "room_id": data.get("room_id"),
+                "name": data.get("name"),
+                "on": data.get("on"),
+                "brightness": data.get("brightness"),
+            },
             metadata={"type": "hue_room_control", "room_id": data.get("room_id")},
         )
 
@@ -421,9 +454,18 @@ class ListHueScenesTool(ConnectorTool[PhilipsHueClient]):
         """Format scenes list."""
         scenes = result.get("data", {}).get("scenes", [])
         names = [s.get("metadata", {}).get("name", "?") for s in scenes]
+        structured_scenes = [
+            {
+                "scene_id": s.get("id", ""),
+                "name": s.get("metadata", {}).get("name", "?"),
+                "group": s.get("group", {}).get("rid"),
+            }
+            for s in scenes
+        ]
 
         return UnifiedToolOutput.data_success(
             message=f"{len(scenes)} scene(s): {', '.join(names)}" if scenes else "No scenes found",
+            structured_data={"scenes": structured_scenes, "count": len(scenes)},
             metadata={"type": "hue_scenes", "count": len(scenes)},
         )
 
@@ -481,12 +523,19 @@ class ActivateHueSceneTool(ConnectorTool[PhilipsHueClient]):
         if not result.get("success"):
             return UnifiedToolOutput.data_success(
                 message=result.get("error", "Scene activation failed"),
+                structured_data={"action": "activate_scene", "success": False},
                 metadata={"type": "hue_scene", "success": False},
             )
 
         data = result.get("data", {})
         return UnifiedToolOutput.data_success(
             message=f"Scene '{data.get('name')}' activated",
+            structured_data={
+                "action": "activate_scene",
+                "success": True,
+                "scene_id": data.get("scene_id"),
+                "name": data.get("name"),
+            },
             metadata={"type": "hue_scene", "scene_id": data.get("scene_id")},
         )
 

@@ -45,7 +45,11 @@ from src.core.constants import (
 )
 from src.core.llm_config_helper import get_llm_config_for_agent
 from src.core.time_utils import get_prompt_datetime_formatted
-from src.domains.agents.constants import STATE_KEY_AGENT_RESULTS, STATE_KEY_CURRENT_TURN_ID
+from src.domains.agents.constants import (
+    STATE_KEY_AGENT_RESULTS,
+    STATE_KEY_CURRENT_TURN_ID,
+    STATE_KEY_EXECUTION_PLAN,
+)
 from src.domains.agents.models import MessagesState
 from src.domains.agents.orchestration.plan_schemas import ParameterItem, parameters_to_dict
 from src.domains.agents.prompts.prompt_loader import load_prompt
@@ -498,6 +502,30 @@ async def initiative_node(
         return {STATE_KEY_INITIATIVE_SKIPPED_REASON: "hitl_just_resolved"}
 
     iteration = state.get(STATE_KEY_INITIATIVE_ITERATION, 0)
+
+    # ── 1c. Skip when a skill is driving the turn ───────────────────
+    # Skills define their own deterministic output scope (plan_template +
+    # references). Running initiative on top injects orthogonal domains
+    # (e.g. "nearby places" during a daily briefing) that pollute the
+    # skill's intended output contract and confuse the response LLM which
+    # must follow the skill's formatting instructions verbatim.
+    execution_plan = state.get(STATE_KEY_EXECUTION_PLAN)
+    active_skill_name = (
+        execution_plan.metadata.get("skill_name")
+        if execution_plan is not None and getattr(execution_plan, "metadata", None)
+        else None
+    )
+    if active_skill_name:
+        logger.info(
+            "initiative_skipped",
+            reason="skill_active",
+            skill_name=active_skill_name,
+            run_id=run_id,
+        )
+        return {
+            STATE_KEY_INITIATIVE_SKIPPED_REASON: "skill_active",
+            STATE_KEY_INITIATIVE_ITERATION: iteration + 1,
+        }
 
     # ── 2. Iteration budget ──────────────────────────────────────────
     if iteration >= settings.initiative_max_iterations:

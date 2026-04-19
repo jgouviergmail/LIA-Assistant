@@ -4,9 +4,9 @@
 >
 > Documentation de présentation technique destinée aux architectes, ingénieurs et experts techniques.
 
-**Version** : 2.1
-**Date** : 2026-03-28
-**Application** : LIA v1.14.2
+**Version** : 2.2
+**Date** : 2026-04-20
+**Application** : LIA v1.16.8
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -851,6 +851,35 @@ Système en 3 couches résolvant un problème de duplication : avant l'ADR-061, 
 ### 23.6. Feature Flags
 
 Chaque sous-système optionnel est contrôlé par un flag `{FEATURE}_ENABLED`, vérifié au démarrage (enregistrement scheduler), au câblage des routes et à l'entrée des nœuds (court-circuit instantané). Cela permet de déployer le codebase complet tout en activant les sous-systèmes progressivement.
+
+### 23.7. Skills enrichis : frames HTML et images (v1.16.8)
+
+Les Skills (standard agentskills.io) peuvent désormais retourner, en plus du texte, des **frames HTML interactives** et des **images** via un contrat JSON typé `SkillScriptOutput`. Le script Python écrit sur stdout :
+
+```json
+{ "text": "required", "frame": { "html" | "url", "title", "aspect_ratio" }, "image": { "url", "alt" } }
+```
+
+Les trois canaux sont indépendants et combinables (text seul, text+frame, text+image, tous les trois). La pipeline complète réutilise l'infrastructure Data Registry existante :
+
+```
+run_skill_script → parse_skill_stdout() → SkillScriptOutput
+                 → build_skill_app_output() → RegistryItem(type=SKILL_APP)
+                 → ReactToolWrapper._accumulated_registry
+                 → response_node → SkillAppSentinel.render() → <div class="lia-skill-app">
+                 → SSE registry_update + sentinel HTML
+                 → MarkdownContent.tsx → SkillAppWidget (iframe sandbox + image card)
+```
+
+**Sécurité multi-couches** : iframe sandbox `allow-scripts allow-popups` (jamais `allow-same-origin`), CSP stricte auto-injectée pour `frame.html` des skills utilisateur (`connect-src 'none'`, `frame-src 'none'`), limite `SKILLS_FRAME_MAX_HTML_BYTES = 200 KB`, bridge `postMessage` minimaliste sans `tools/call` ni `resources/read`.
+
+**Conventions runtime** : `_lang` et `_tz` auto-injectés dans `parameters` (les locales POSIX n'étant pas installées dans le container, les scripts utilisent des tables de traduction inline plutôt que `strftime`+`setlocale`). Thème et langue synchronisés en live via `postMessage` + `MutationObserver` sur `<html class>` et `<html lang>`. Auto-resize iframe via `getBoundingClientRect().bottom` (pattern iframe-resizer). Interactivité client-side via `addEventListener` uniquement (pas de `onclick` inline sous CSP) et `crypto.getRandomValues` pour le pseudo-aléatoire.
+
+**Primacy effect** : `skills_context` est injecté comme 2ᵉ message système dédié avec préfixe `"SKILL INSTRUCTIONS CONTRACT (PRIORITY: HIGHEST)"`, ce qui garantit que les `references/*.md` d'un skill actif l'emportent sur les `<ResponseGuidelines>` génériques.
+
+**Rendu conditionnel** : `INTERACTIVE_WIDGET_TYPES = {SKILL_APP, MCP_APP, DRAFT}` — ces widgets sont injectés en HTML indépendamment du `user_display_mode` (Rich HTML / Markdown / Cards), alors que les autres RegistryItems restent conditionnels au mode Cards.
+
+Sept skills système livrés en v1.16.8 démontrent le contrat : `interactive-map`, `weather-dashboard`, `calendar-month`, `qr-code`, `pomodoro-timer`, `unit-converter`, `dice-roller`.
 
 ---
 

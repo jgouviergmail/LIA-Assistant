@@ -1569,9 +1569,101 @@ Ce mecanisme est particulierement important pour les outils MCP dont le `build_a
 
 ---
 
+## Rich Skill Outputs (frames + images)
+
+Skill scripts can return interactive iframes and generated images via the
+`SkillScriptOutput` JSON contract. The script writes a JSON object on stdout
+with three optional channels:
+
+- `text` — always required (voice, TTS, accessibility, LLM context)
+- `frame` — optional interactive iframe (`{html}` inline via srcDoc OR `{url}` external via src)
+- `image` — optional image (`{url, alt}`; url is `data:` or `https://`)
+
+All three are independent and combinable. Rendering order in the chat is
+`text → image → frame`. Plain-text stdout is auto-wrapped as `{text}` for
+backward compatibility.
+
+Minimal pattern:
+
+```python
+import json, sys
+payload = json.loads(sys.stdin.read() or "{}")
+params = payload.get("parameters", {})
+# ... your logic ...
+print(json.dumps({
+    "text": "Short caption.",
+    "frame": {"url": "https://...", "title": "Map", "aspect_ratio": 1.333},
+    # "image": {"url": "data:image/png;base64,...", "alt": "..."},
+}))
+```
+
+User-owned skills emitting `frame.html` receive an auto-injected strict CSP
+(`connect-src 'none'`, `frame-src 'none'`) to prevent exfiltration. All iframes
+(user + system) render with `sandbox="allow-scripts allow-popups"` — never
+`allow-same-origin`. Full flow and file map: see
+[docs/technical/SKILLS_INTEGRATION.md § Rich Outputs](../technical/SKILLS_INTEGRATION.md).
+
+---
+
+## `structured_data` contract (queryable tool outputs)
+
+Every tool must expose its business entities via `UnifiedToolOutput.structured_data`
+so that deterministic plans can chain downstream steps via `$steps.<step_id>.<key>`
+and skill scripts can consume the data directly. `metadata` is reserved for
+debug / observability only — never put domain data there.
+
+See [ADR-074](../architecture/ADR-074-Structured-Data-Contract.md) for the
+full contract. Quick reference:
+
+```python
+# Using the mixin helper (preferred)
+return self.build_contacts_output(
+    contacts=contacts,
+    query=query,
+    operation="search",
+    from_cache=from_cache,
+)
+# → structured_data = {
+#       "contacts": [...], "count": N,
+#       "query": "...", "operation": "search", "from_cache": False,
+#   }
+
+# Or exposing structured_data explicitly
+return UnifiedToolOutput.data_success(
+    message=summary,
+    registry_updates=registry_updates,
+    structured_data={
+        "forecasts": [...],          # plural domain key (REGISTRY_TYPE_TO_KEY)
+        "count": len(forecasts),     # always when exposing a list
+        "location": {...},           # context metadata
+    },
+    metadata={                        # debug only
+        "from_cache": False,
+        "execution_time_ms": 142,
+    },
+)
+```
+
+Rules:
+- **Plural keys** aligned with `REGISTRY_TYPE_TO_KEY` (`contacts`, `emails`,
+  `events`, `tasks`, `files`, `places`, `weathers`, `rooms`, `scenes`, …).
+- **Flat layout** — reachable in one Jinja hop: `{{ steps.search.contacts[0].name }}`.
+- **`count`** always present when exposing a list.
+- **Never** put entities in `metadata`.
+- Use `ToolOutputMixin._build_items_structured_data(items, plural_key, **meta)`
+  if you write a new helper.
+
+Tests:
+- Reference pattern: `tests/unit/domains/agents/tools/test_mixins_structured_data.py`
+- Anti-regression: `tests/unit/domains/agents/tools/test_brave_hue_structured_data.py`
+
+---
+
 **Fin de GUIDE_TOOL_CREATION.md**
 
-**Version** : 1.2
-**Derniere mise a jour** : 2026-03-08
+**Version** : 1.4
+**Derniere mise a jour** : 2026-04-19
+*v1.4 : Ajout section `structured_data` contract (ADR-074)*
+*v1.3 : Ajout section Rich Skill Outputs (frames + images, SkillScriptOutput contract)*
 *v1.2 : Ajout section Outils MCP (UserMCPToolAdapter, MCPToolAdapter, MCP Apps, Excalidraw, read_me, coerce_args)*
 *v1.1 : Helpers centralises et retour d'experience Gmail*
