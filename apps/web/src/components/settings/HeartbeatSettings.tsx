@@ -24,6 +24,7 @@ import {
 import { useTranslation } from '@/i18n/client';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { useHeartbeatSettings } from '@/hooks/useHeartbeatSettings';
+import { WeatherLocationBlock } from '@/components/settings/WeatherLocationBlock';
 import { toast } from 'sonner';
 import type { BaseSettingsProps } from '@/types/settings';
 
@@ -265,6 +266,14 @@ export function HeartbeatSettings({ lng, collapsible = true }: BaseSettingsProps
                 );
               })}
             </div>
+          </div>
+
+          {/* Weather location cascade (Phase 3 — ADR-073) */}
+          <div className="space-y-2 border-t pt-4">
+            <Label className="text-sm">
+              {t('heartbeat.weather_location.section_label')}
+            </Label>
+            <WeatherLocationBlock lng={lng} />
           </div>
         </div>
       )}

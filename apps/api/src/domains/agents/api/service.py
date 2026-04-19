@@ -443,6 +443,29 @@ class AgentService(
                 return
         # === END USAGE LIMIT CHECK ===
 
+        # === LAST-KNOWN LOCATION CAPTURE (Phase 3) ===
+        # Fire-and-forget: persist the browser geolocation for proactive
+        # weather alerts when the user has opted in. Opt-in and throttle
+        # are enforced inside the service. Failures are swallowed to
+        # never break the chat UX. Uses safe_fire_and_forget to keep a
+        # strong reference (avoids GC while the task runs).
+        if browser_context is not None and browser_context.geolocation is not None:
+            from src.domains.auth.user_location_service import (
+                update_user_location_fire_and_forget,
+            )
+            from src.infrastructure.async_utils import safe_fire_and_forget
+
+            safe_fire_and_forget(
+                update_user_location_fire_and_forget(
+                    user_id,
+                    browser_context.geolocation.lat,
+                    browser_context.geolocation.lon,
+                    browser_context.geolocation.accuracy,
+                ),
+                name="last_known_location_update",
+            )
+        # === END LAST-KNOWN LOCATION CAPTURE ===
+
         # === PHASE 3.3 - Service Architecture (Migration Complete Day 7) ===
         # Uses: OrchestrationService, StreamingService, ConversationOrchestrator, HITLOrchestrator
         async for chunk in self._stream_with_new_services(

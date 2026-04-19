@@ -511,6 +511,31 @@ class APIMessages:
         }
         return messages.get(language, messages["en"])
 
+    @staticmethod
+    def weather_location_preference_updated(
+        enabled: bool, language: SupportedLanguage = "fr"
+    ) -> str:
+        """Success - weather location preference updated."""
+        if enabled:
+            messages = {
+                "fr": "Localisation actuelle activée pour les alertes météo",
+                "en": "Current location enabled for weather alerts",
+                "es": "Ubicación actual habilitada para alertas meteorológicas",
+                "de": "Aktueller Standort für Wetterwarnungen aktiviert",
+                "it": "Posizione attuale abilitata per gli avvisi meteo",
+                "zh-CN": "已启用当前位置用于天气提醒",
+            }
+        else:
+            messages = {
+                "fr": "Localisation actuelle désactivée, position effacée",
+                "en": "Current location disabled, stored position cleared",
+                "es": "Ubicación actual deshabilitada, posición borrada",
+                "de": "Aktueller Standort deaktiviert, gespeicherte Position gelöscht",
+                "it": "Posizione attuale disattivata, posizione memorizzata cancellata",
+                "zh-CN": "当前位置已禁用,已清除存储的位置",
+            }
+        return messages.get(language, messages["en"])
+
     # =========================================================================
     # CONVERSATIONS
     # =========================================================================

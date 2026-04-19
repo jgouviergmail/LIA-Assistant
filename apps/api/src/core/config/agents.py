@@ -128,6 +128,8 @@ from src.core.constants import (
     INTEREST_PRIOR_ALPHA_DEFAULT,
     INTEREST_PRIOR_BETA_DEFAULT,
     INTEREST_TOP_PERCENT_DEFAULT,
+    LAST_KNOWN_LOCATION_MIN_DISTANCE_KM_DEFAULT,
+    LAST_KNOWN_LOCATION_TTL_HOURS_DEFAULT,
     MAX_AGENT_RESULTS_DEFAULT,
     MAX_CONTEXT_BATCH_SIZE_DEFAULT,
     MAX_MESSAGES_HISTORY_DEFAULT,
@@ -2690,6 +2692,27 @@ class AgentsSettings(BaseSettings):
         ge=8.0,
         le=25.0,
         description="Wind speed in m/s above which a wind alert is triggered.",
+    )
+
+    # Last-known location cascade (proactive notifications only)
+    last_known_location_ttl_hours: int = Field(
+        default=LAST_KNOWN_LOCATION_TTL_HOURS_DEFAULT,
+        ge=1,
+        le=168,
+        description=(
+            "TTL (hours) after which a persisted browser geolocation is considered "
+            "stale and the proactive weather cascade falls back to the user's home."
+        ),
+    )
+    last_known_location_min_distance_km: float = Field(
+        default=LAST_KNOWN_LOCATION_MIN_DISTANCE_KM_DEFAULT,
+        ge=1.0,
+        le=500.0,
+        description=(
+            "Minimum distance (km) between the last-known location and the user's "
+            "home for the cascade to prefer last-known over home. Below this "
+            "threshold, home is used (avoids switching for intra-city noise)."
+        ),
     )
 
     # Early-exit optimization

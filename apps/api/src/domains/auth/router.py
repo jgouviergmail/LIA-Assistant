@@ -13,6 +13,7 @@ from src.core.exceptions import (
     raise_external_service_connection_error,
     raise_external_service_fetch_error,
     raise_invalid_input,
+    raise_permission_denied,
 )
 from src.core.i18n_api_messages import APIMessages
 from src.core.session_dependencies import get_current_active_session, get_current_session
@@ -35,6 +36,9 @@ from src.domains.auth.schemas import (
     DisplayModePreferenceResponse,
     ExecutionModePreferenceRequest,
     ExecutionModePreferenceResponse,
+    LastLocationUpdateRequest,
+    LastLocationUpdateResponse,
+    LastLocationViewResponse,
     MemoryPreferenceRequest,
     MemoryPreferenceResponse,
     MessageResponse,
@@ -54,8 +58,11 @@ from src.domains.auth.schemas import (
     VoiceModePreferenceResponse,
     VoicePreferenceRequest,
     VoicePreferenceResponse,
+    WeatherLocationPreferenceRequest,
+    WeatherLocationPreferenceResponse,
 )
 from src.domains.auth.service import AuthService
+from src.domains.auth.user_location_service import UserLocationService
 from src.infrastructure.cache.redis import get_redis_session
 from src.infrastructure.cache.session_store import SessionStore
 from src.infrastructure.observability.metrics import (
@@ -479,6 +486,134 @@ async def update_execution_mode_preference(
     return ExecutionModePreferenceResponse(
         execution_mode=user.execution_mode,
         message=f"Execution mode switched to {mode_label}",
+    )
+
+
+@router.patch(
+    "/me/weather-location-preference",
+    response_model=WeatherLocationPreferenceResponse,
+    summary="Update weather last-known location opt-in",
+    description=(
+        "Toggle persistence of the browser geolocation for proactive weather "
+        "notifications. Disabling wipes any stored location."
+    ),
+)
+async def update_weather_location_preference(
+    data: WeatherLocationPreferenceRequest,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> WeatherLocationPreferenceResponse:
+    """Update the weather last-known location opt-in flag.
+
+    When ``enabled`` is False, the persisted last-known location is wiped
+    immediately so no stale coordinates linger after opt-out.
+
+    Args:
+        data: Toggle payload (``enabled``).
+        user: Current authenticated user.
+        db: Database session.
+
+    Returns:
+        Current opt-in state with a localized confirmation message.
+    """
+    user.weather_use_last_known_location = data.enabled
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+
+    if not data.enabled:
+        await UserLocationService(db).wipe_last_known_location(user)
+
+    logger.info(
+        "user_weather_location_preference_updated",
+        user_id=str(user.id),
+        enabled=data.enabled,
+    )
+
+    return WeatherLocationPreferenceResponse(
+        enabled=user.weather_use_last_known_location,
+        message=APIMessages.weather_location_preference_updated(enabled=data.enabled),
+    )
+
+
+@router.put(
+    "/me/last-location",
+    response_model=LastLocationUpdateResponse,
+    summary="Push a browser geolocation sample",
+    description=(
+        "Persist the current browser geolocation for proactive weather alerts. "
+        "Requires opt-in (weather_use_last_known_location = True). Throttled "
+        "server-side to one write per user per 30 minutes."
+    ),
+)
+async def put_last_location(
+    data: LastLocationUpdateRequest,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> LastLocationUpdateResponse:
+    """Persist a geolocation sample for the authenticated user.
+
+    Returns 403 when the user has not opted in. Returns 200 with
+    ``throttled=True`` when the call is rejected due to the throttle
+    window — this is informational, not an error.
+
+    Args:
+        data: New geolocation sample.
+        user: Current authenticated user.
+        db: Database session.
+
+    Returns:
+        Update result (``updated``, ``throttled``).
+
+    Raises:
+        HTTPException: 403 Forbidden if the user has not opted in.
+    """
+    result = await UserLocationService(db).update_last_known_location(
+        user, lat=data.lat, lon=data.lon, accuracy=data.accuracy
+    )
+    if result.forbidden:
+        raise_permission_denied(
+            action="store",
+            resource_type="last_known_location",
+            user_id=user.id,
+            details="weather_use_last_known_location is disabled for this user",
+        )
+    return LastLocationUpdateResponse(updated=result.updated, throttled=result.throttled)
+
+
+@router.get(
+    "/me/last-location",
+    response_model=LastLocationViewResponse,
+    summary="View the currently stored last-known location",
+    description=(
+        "Transparency endpoint (RGPD): returns the decrypted last-known "
+        "location stored for the current user, or an empty payload if none."
+    ),
+)
+async def get_last_location(
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> LastLocationViewResponse:
+    """Return the user's stored last-known location for transparency.
+
+    Args:
+        user: Current authenticated user.
+        db: Database session.
+
+    Returns:
+        ``LastLocationViewResponse`` with ``stored=False`` if nothing is
+        persisted, otherwise the decrypted view including a ``stale`` flag.
+    """
+    stored = await UserLocationService(db).get_last_known_location(user)
+    if stored is None:
+        return LastLocationViewResponse(stored=False)
+    return LastLocationViewResponse(
+        stored=True,
+        lat=stored.lat,
+        lon=stored.lon,
+        accuracy=stored.accuracy,
+        updated_at=stored.updated_at,
+        stale=stored.stale,
     )
 
 

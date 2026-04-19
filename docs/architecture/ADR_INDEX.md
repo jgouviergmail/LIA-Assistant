@@ -2398,6 +2398,34 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 
 ---
 
+### ADR-073: Last-Known Location Persistence for Proactive Weather
+
+**Status**: ✅ ACCEPTED (2026-04-19)
+**Fichier**: `docs/architecture/ADR-073-Last-Known-Location-Persistence.md`
+
+**Décision**: Persister côté serveur la géolocalisation navigateur (opt-in, chiffrée Fernet, non historisée) pour que les notifications météo proactives utilisent la position réelle de l'utilisateur en déplacement plutôt que son domicile. Cascade miroir de celle du tool météo conversationnel cas implicite (`browser > home` → `last_known > home`).
+
+**Problème résolu**:
+- ❌ Notifs météo du heartbeat toujours basées sur `home_location_encrypted` → faux positifs systématiques quand l'utilisateur voyage
+- ❌ Asymétrie entre chat (geoloc runtime dispo) et heartbeat (geoloc runtime inaccessible car job scheduler out-of-session)
+
+**Solution**:
+- ✅ 3 colonnes users : `last_known_location_encrypted` (Fernet JSON), `last_known_location_updated_at` (TTL + throttle), `weather_use_last_known_location` (opt-in)
+- ✅ `UserLocationService.get_effective_location_for_proactive` : cascade home | last_known selon opt-in + fraîcheur (TTL env-configurable, default 24h) + distance (env-configurable, default 50 km)
+- ✅ Capture fire-and-forget dans `stream_chat_response` avec throttle 30 min serveur
+- ✅ Endpoints PATCH preference, PUT last-location (403 si opt-out), GET last-location (transparence RGPD)
+- ✅ Auto-wipe sur opt-out ET sur suppression home
+- ✅ Reverse geocoding OpenWeatherMap avec cache Redis 3 décimales / TTL 30j → ville dans prompt de notif
+- ✅ Métriques Prometheus dédiées (source, put result, geocode cache, active users)
+- ✅ UI settings avec toggle + zone transparence + bouton "Clear now" + libellé privacy + i18n 6 langues
+
+**Trade-offs**:
+- One-tick staleness acceptée (pas de trigger dynamique de heartbeat sur changement de position)
+- Pas de multi-home / work location / travel mode manuel — à introduire via table `user_locations` dans un futur ADR si le besoin émerge
+- Dépendance OpenWeatherMap reverse pour city name (notifs fonctionnent sans, mais sans ville)
+
+---
+
 ## ADRs Archivés
 
 ### ADR-005 (Version Originale): Workflow-Based HITL

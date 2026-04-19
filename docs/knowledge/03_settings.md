@@ -54,6 +54,9 @@ LIA can use your **geographic location** for contextual searches:
 **🌐 Browser geolocation:**
 You can also allow real-time geolocation via your browser for even more accurate results.
 
+**✈️ Travel-aware weather alerts (v1.16.7, opt-in):**
+In **Settings > Proactive notifications**, you can enable "Use my current location for weather alerts". When enabled, proactive weather notifications use your current browser position (rather than your home address) if you are more than 50 km from home and the position is less than 24 h old. The notification always names the city concerned. Your position is encrypted, never historized (each update overwrites the previous), and wiped immediately if you disable the option or remove your home address.
+
 **🔒 Privacy:**
 Your address is stored securely and only used for your proximity queries.
 

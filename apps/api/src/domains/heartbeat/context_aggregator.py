@@ -21,8 +21,7 @@ Sources:
 from __future__ import annotations
 
 import asyncio
-import json
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, time, timedelta
 from typing import Any
 from uuid import UUID
 from zoneinfo import ZoneInfo
@@ -262,12 +261,16 @@ class ContextAggregator:
             context.available_sources.append("emails")
 
         elif name == "weather" and result:
-            weather_current, weather_changes = result
+            weather_current, weather_changes, location_source, city_name = result
             if weather_current:
                 context.weather_current = weather_current
                 context.available_sources.append("weather")
             if weather_changes:
                 context.weather_changes = weather_changes
+            if location_source is not None:
+                context.weather_location_source = location_source
+            if city_name is not None:
+                context.weather_location_city = city_name
 
         elif name == "interests" and result:
             context.trending_interests = result
@@ -548,11 +551,17 @@ class ContextAggregator:
         user_id: UUID,
         user: Any,
         settings: Any,
-    ) -> tuple[dict[str, Any] | None, list[WeatherChange] | None] | None:
+    ) -> tuple[dict[str, Any] | None, list[WeatherChange] | None, str | None, str | None] | None:
         """Fetch current weather and detect upcoming transitions.
 
+        Resolves the effective location via the Phase 3 cascade
+        (last-known if opted-in, fresh, and far from home — otherwise home),
+        reverse-geocodes it to a city name, and emits the appropriate
+        observability metric.
+
         Returns:
-            Tuple of (current_weather, changes) or None if unavailable.
+            Tuple of ``(current_weather, changes, location_source, city_name)``
+            or ``None`` if unavailable.
         """
         # Check OpenWeatherMap connector
         connector_service = ConnectorService(self._db)
@@ -562,25 +571,26 @@ class ContextAggregator:
         if not credentials:
             return None
 
-        # Decrypt home location
-        if not user.home_location_encrypted:
-            return None
-
-        from src.core.security.utils import decrypt_data
+        # Resolve effective location via the Phase 3 cascade
+        from src.domains.auth.user_location_service import (
+            NoLocationAvailableError,
+            UserLocationService,
+        )
+        from src.infrastructure.observability.metrics_heartbeat import (
+            heartbeat_weather_location_source_total,
+        )
 
         try:
-            location_json = decrypt_data(user.home_location_encrypted)
-            location = json.loads(location_json)
-            lat = location.get("lat")
-            lon = location.get("lon")
-            if lat is None or lon is None:
-                return None
-        except (ValueError, json.JSONDecodeError, KeyError):
-            logger.debug(
-                "heartbeat_weather_location_decrypt_failed",
-                user_id=str(user_id),
+            effective = await UserLocationService(self._db).get_effective_location_for_proactive(
+                user
             )
+        except NoLocationAvailableError:
             return None
+
+        lat = effective.lat
+        lon = effective.lon
+        source = effective.source
+        heartbeat_weather_location_source_total.labels(source=source).inc()
 
         from src.domains.connectors.clients.openweathermap_client import (
             OpenWeatherMapClient,
@@ -588,14 +598,18 @@ class ContextAggregator:
 
         client = OpenWeatherMapClient(api_key=credentials.api_key, user_id=user_id)
 
-        # Fetch current + forecast in parallel
+        # Fetch current + forecast + city (reverse geocode) in parallel
+        from src.domains.heartbeat.geocoding import resolve_city_name
+
         results = await asyncio.gather(
             client.get_current_weather(lat=lat, lon=lon, units="metric"),
-            client.get_forecast(lat=lat, lon=lon, units="metric", cnt=8),
+            client.get_forecast(lat=lat, lon=lon, units="metric", cnt=16),
+            resolve_city_name(lat=lat, lon=lon, api_key=credentials.api_key),
             return_exceptions=True,
         )
         current_result: dict[str, Any] | BaseException = results[0]
         forecast_result: dict[str, Any] | BaseException = results[1]
+        city_result: str | None | BaseException = results[2]
 
         current = None
         if not isinstance(current_result, BaseException):
@@ -608,7 +622,11 @@ class ContextAggregator:
             hourly = forecast_result.get("list", [])
             changes = self._detect_weather_changes(current, hourly, user_tz, settings)
 
-        return current, changes
+        city: str | None = None
+        if isinstance(city_result, str):
+            city = city_result
+
+        return current, changes, source, city
 
     def _detect_weather_changes(
         self,
@@ -618,6 +636,12 @@ class ContextAggregator:
         settings: Any,
     ) -> list[WeatherChange]:
         """Detect notable weather transitions between now and forecast.
+
+        Temperature detection compares the average temperature of today vs
+        tomorrow (in the user's local timezone) to filter out the natural
+        day/night cycle, which previously caused noisy "temperature drop"
+        alerts about nighttime cooling. Rain and wind alerts still use the
+        3-hour forecast entries directly.
 
         The current weather API (/data/2.5/weather) does NOT return 'pop'.
         We use weather[0].main (e.g. "Rain", "Clear") for current state,
@@ -640,7 +664,6 @@ class ContextAggregator:
             "drizzle",
             "thunderstorm",
         )
-        current_temp = current.get("main", {}).get("temp", 0)
 
         rain_high = settings.heartbeat_weather_rain_threshold_high
         rain_low = settings.heartbeat_weather_rain_threshold_low
@@ -650,9 +673,50 @@ class ContextAggregator:
         # Track detected types to avoid duplicate detections
         detected_types: set[str] = set()
 
+        # Temperature change: today vs tomorrow average (local timezone).
+        # Requires at least 2 entries per day to avoid biased averages when
+        # the job runs near local midnight.
+        today_date = datetime.now(user_tz).date()
+        tomorrow_date = today_date + timedelta(days=1)
+        temps_today: list[float] = []
+        temps_tomorrow: list[float] = []
+        for entry in hourly:
+            try:
+                entry_time = datetime.fromtimestamp(entry["dt"], tz=user_tz)
+            except (KeyError, ValueError, OSError):
+                continue
+            entry_temp = entry.get("main", {}).get("temp")
+            if entry_temp is None:
+                continue
+            if entry_time.date() == today_date:
+                temps_today.append(entry_temp)
+            elif entry_time.date() == tomorrow_date:
+                temps_tomorrow.append(entry_temp)
+
+        if len(temps_today) >= 2 and len(temps_tomorrow) >= 2:
+            avg_today = sum(temps_today) / len(temps_today)
+            avg_tomorrow = sum(temps_tomorrow) / len(temps_tomorrow)
+            diff = avg_today - avg_tomorrow  # > 0: colder tomorrow, < 0: warmer
+            if abs(diff) > temp_threshold:
+                change_type = "temp_drop" if diff > 0 else "temp_rise"
+                direction = "colder" if diff > 0 else "warmer"
+                severity = "warning" if abs(diff) > temp_threshold * 1.6 else "info"
+                expected_at = datetime.combine(tomorrow_date, time(12, 0), tzinfo=user_tz)
+                changes.append(
+                    WeatherChange(
+                        change_type=change_type,
+                        expected_at=expected_at,
+                        description=(
+                            f"Tomorrow {abs(diff):.0f}°C {direction} on average "
+                            f"({avg_tomorrow:.0f}°C vs {avg_today:.0f}°C today)"
+                        ),
+                        severity=severity,
+                    )
+                )
+                detected_types.add(change_type)
+
         for entry in hourly:
             entry_pop = entry.get("pop", 0)
-            entry_temp = entry.get("main", {}).get("temp", current_temp)
             try:
                 entry_time = datetime.fromtimestamp(entry["dt"], tz=user_tz)
             except (KeyError, ValueError, OSError):
@@ -689,20 +753,6 @@ class ContextAggregator:
                 )
                 detected_types.add("rain_end")
                 is_currently_raining = False
-
-            # Temperature drop
-            temp_diff = current_temp - entry_temp
-            if temp_diff > temp_threshold and "temp_drop" not in detected_types:
-                severity = "warning" if temp_diff > temp_threshold * 1.6 else "info"
-                changes.append(
-                    WeatherChange(
-                        change_type="temp_drop",
-                        expected_at=entry_time,
-                        description=(f"Temperature dropping {temp_diff:.0f}°C by {time_str}"),
-                        severity=severity,
-                    )
-                )
-                detected_types.add("temp_drop")
 
             # Wind alert
             wind_speed = entry.get("wind", {}).get("speed", 0)

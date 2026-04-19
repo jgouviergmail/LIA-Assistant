@@ -2705,6 +2705,16 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_16_7": {
+          "title": "v1.16.7 — 即使在旅行中也能获得相关的天气提醒",
+          "date": "2026 年 4 月",
+          "count": "3",
+          "items": {
+            "i1": "<b>不再有夜间荒谬的温度提醒</b> — LIA 不再向您发送仅描述自然昼夜循环的「温度下降」通知。检测器现在将今天的平均温度与明天的平均温度进行比较 — 并在两个方向上提醒您(变冷或变暖),以便您真正知道如何为第二天穿衣。",
+            "i2": "<b>天气提醒在您旅行时跟随您(可选加入)</b> — 如果您启用它,LIA 可以使用您当前的浏览器位置进行主动天气通知,当您距离家超过 50 公里时。您的位置已加密,不会被历史记录(每次更新都会覆盖之前的),如果您禁用该选项或删除家庭地址,则会立即删除。通知始终会告知您天气预报所指的城市。",
+            "i3": "<b>对存储内容的完全透明度</b> — 主动通知下的新「当前存储」块显示 LIA 保留的确切坐标、上次更新时间以及「立即清除」按钮。隐私应该是这样的。"
+          }
+        },
         "v1_16_6": {
           "title": "v1.16.6 — 长期记忆更精准",
           "date": "2026 年 4 月",
@@ -3433,7 +3443,7 @@
       "heartbeat": {
         "title": "主动通知",
         "description": "LIA主动为您提供有用信息",
-        "count": "6",
+        "count": "7",
         "questions": {
           "q1": {
             "question": "什么是主动通知？",
@@ -3445,7 +3455,7 @@
           },
           "q3": {
             "question": "使用了哪些数据源？",
-            "answer": "LIA并行聚合<strong>10个数据源</strong>来决定是否通知您：<br><br><strong>📅 日历：</strong><br>• 即将到来的事件（未来几小时）<br>• 需要活跃的日历连接器（Google Calendar、Apple Calendar 或 Microsoft）<br><br><strong>🌤️ 天气 + 变化：</strong><br>• 当前状况 + 变化检测（开始/停止下雨、温度下降、强风）<br>• 需要OpenWeatherMap连接器 + 已配置位置<br><br><strong>✅ 任务：</strong><br>• 待办或逾期任务<br>• 需要活跃的任务连接器（Google Tasks 或 Microsoft To Do）<br><br><strong>📧 邮件：</strong><br>• 今天未读的邮件（紧急、可操作的）<br>• 需要活跃的邮件连接器（Gmail、Apple、Microsoft）<br><br><strong>⭐ 兴趣：</strong><br>• 您活跃兴趣中的热门话题<br><br><strong>🧠 记忆：</strong><br>• 从您的记忆中提取的相关信息<br><br><strong>📓 日志：</strong><br>• 助手个人日志中的相关条目（自我反思、观察、学习心得）<br>• 需要启用日志功能（设置 > 功能 > 个人日志）<br><br><strong>📊 指标：</strong><br>设置部分为每个已连接的源显示<strong>绿色徽章</strong>，为不可用的源显示<strong>灰色徽章</strong>。"
+            "answer": "LIA并行聚合<strong>10个数据源</strong>来决定是否通知您：<br><br><strong>📅 日历：</strong><br>• 即将到来的事件（未来几小时）<br>• 需要活跃的日历连接器（Google Calendar、Apple Calendar 或 Microsoft）<br><br><strong>🌤️ 天气 + 变化：</strong><br>• 当前状况 + 变化检测：开始/停止下雨、<strong>明天温度下降或上升</strong>（基于每日平均温度比较 — 夜间降温不再触发虚假「温度下降」警报）、强风<br>• 需要OpenWeatherMap连接器 + 已配置家庭地址<br>• <strong>可选的旅行位置（v1.16.7）</strong>：启用「使用我当前的位置进行天气提醒」后,当您离家超过50公里时,LIA使用您的浏览器位置而不是家庭地址。请参阅下面的专用问题。<br><br><strong>✅ 任务：</strong><br>• 待办或逾期任务<br>• 需要活跃的任务连接器（Google Tasks 或 Microsoft To Do）<br><br><strong>📧 邮件：</strong><br>• 今天未读的邮件（紧急、可操作的）<br>• 需要活跃的邮件连接器（Gmail、Apple、Microsoft）<br><br><strong>⭐ 兴趣：</strong><br>• 您活跃兴趣中的热门话题<br><br><strong>🧠 记忆：</strong><br>• 从您的记忆中提取的相关信息<br><br><strong>📓 日志：</strong><br>• 助手个人日志中的相关条目（自我反思、观察、学习心得）<br>• 需要启用日志功能（设置 > 功能 > 个人日志）<br><br><strong>📊 指标：</strong><br>设置部分为每个已连接的源显示<strong>绿色徽章</strong>，为不可用的源显示<strong>灰色徽章</strong>。"
           },
           "q4": {
             "question": "我多久会收到一次通知？",
@@ -3458,6 +3468,10 @@
           "q6": {
             "question": "主动通知是否受使用限制影响？",
             "answer": "是的，会自动暂停。"
+          },
+          "q7": {
+            "question": "我在旅行时天气提醒如何工作？(v1.16.7)",
+            "answer": "默认情况下,主动天气通知使用您的<strong>家庭地址</strong>。如果您在旅行,可以启用使用您的<strong>当前位置</strong>:<br><br><strong>⚙️ 如何启用:</strong><br>设置 → <em>主动通知</em> → 滚动到<em>旅行时的天气位置</em> → 开启开关。<br><br><strong>🎯 何时生效:</strong><br>仅当<strong>所有</strong>这些条件都满足时,LIA才会使用您的浏览器位置(而不是您的家)：<br>• 该选项已启用<br>• 您最后一次已知的位置<strong>不到24小时</strong><br>• 您距离您的家庭地址<strong>超过50公里</strong><br><br>低于该距离,将保留家庭地址(避免因市内移动而切换)。超过24小时,位置被视为过时,通知将自动回退到家庭地址。<br><br><strong>🏙️ 透明的通知:</strong><br>当使用的位置不是您的家时,通知总是会提及相关城市。<br><br><strong>🔒 隐私设计:</strong><br>• 您的位置<strong>已加密</strong>(与您的家庭地址使用相同的加密方案)<br>• <strong>不会被历史记录</strong> — 每次更新都会覆盖上一次,没有痕迹<br>• 如果您禁用该选项或删除您的家庭地址,它将<strong>立即被删除</strong><br>• <em>当前存储</em>块准确显示LIA保留的内容,并提供<strong>立即清除</strong>按钮<br>• 后端自动限制为每个用户每30分钟一次更新<br><br><strong>💡 前提条件:</strong><br>您还需要启用浏览器地理定位(设置 → 位置 → 地理定位)。没有它,无法捕获任何位置。"
           }
         }
       },
@@ -4431,7 +4445,22 @@
     "enabled_success": "主动通知已启用",
     "disabled_success": "主动通知已禁用",
     "settings_updated": "设置已更新",
-    "settings_error": "更新设置时出错"
+    "settings_error": "更新设置时出错",
+    "weather_location": {
+      "section_label": "旅行时的天气位置",
+      "toggle_label": "使用我当前的位置进行天气提醒",
+      "toggle_description": "使用您的浏览器位置(离家时)代替您的家庭地址用于主动天气通知。",
+      "privacy_note": "您的位置已加密且不会被历史记录(每次更新都会覆盖)。如果您禁用此选项或删除家庭地址,则会被删除。",
+      "enabled_success": "已启用智能天气位置",
+      "disabled_success": "已禁用智能天气位置,存储的位置已清除",
+      "stored_title": "当前存储",
+      "stored_coords": "坐标",
+      "stored_updated_at": "最后更新",
+      "stored_stale": "此位置已超过新鲜度窗口 — 通知将使用您的家庭地址。",
+      "no_stored": "尚未存储位置。将在您下次聊天消息时捕获。",
+      "clear_button": "立即清除",
+      "geoloc_required_hint": "还需在上面的地理定位部分启用浏览器地理位置 — 否则将永远不会捕获任何位置。"
+    }
   },
   "notifications": {
     "already_enabled": "通知已经启用。",

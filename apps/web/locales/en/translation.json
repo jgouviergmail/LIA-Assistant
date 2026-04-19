@@ -2739,6 +2739,16 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_16_7": {
+          "title": "v1.16.7 — Relevant weather alerts, even when you travel",
+          "date": "April 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>No more nonsense temperature alerts at night</b> — LIA no longer sends you \"temperature dropping\" notifications that just describe the natural day/night cycle. The detector now compares today's average temperature with tomorrow's — and alerts you in both directions (colder OR warmer) so you actually know how to dress for the day ahead.",
+            "i2": "<b>Weather alerts follow you when you're away (opt-in)</b> — If you enable it, LIA can use your current browser position for proactive weather notifications when you're travelling more than 50 km from home. Your location is encrypted, never historized (each update overwrites the previous one), and wiped immediately if you turn the option off or remove your home address. The notification always tells you the city it's talking about, so you know where the forecast refers to.",
+            "i3": "<b>Full transparency on what's stored</b> — A new \"Currently stored\" block under Proactive notifications shows the exact coordinates LIA has kept, when they were last updated, and a \"Clear now\" button to wipe them on demand. This is how privacy should be."
+          }
+        },
         "v1_16_6": {
           "title": "v1.16.6 — Sharper long-term memory",
           "date": "April 2026",
@@ -3467,7 +3477,7 @@
       "heartbeat": {
         "title": "Proactive Notifications",
         "description": "LIA takes the initiative to keep you informed",
-        "count": "6",
+        "count": "7",
         "questions": {
           "q1": {
             "question": "What are proactive notifications?",
@@ -3479,7 +3489,7 @@
           },
           "q3": {
             "question": "What data sources are used?",
-            "answer": "LIA aggregates <strong>10 data sources</strong> in parallel to decide whether to notify you:<br><br><strong>📅 Calendar:</strong><br>• Upcoming events (next few hours)<br>• Requires an active calendar connector (Google Calendar, Apple Calendar, or Microsoft)<br><br><strong>🌤️ Weather + Changes:</strong><br>• Current conditions + transition detection (rain starting/stopping, temperature drops, strong wind)<br>• Requires an OpenWeatherMap connector + configured location<br><br><strong>✅ Tasks:</strong><br>• Pending or overdue tasks<br>• Requires an active tasks connector (Google Tasks or Microsoft To Do)<br><br><strong>📧 Emails:</strong><br>• Today's unread emails (urgent, actionable)<br>• Requires an active email connector (Gmail, Apple, Microsoft)<br><br><strong>⭐ Interests:</strong><br>• Trending topics among your active interests<br><br><strong>🧠 Memories:</strong><br>• Relevant information extracted from your memories<br><br><strong>📓 Journals:</strong><br>• Relevant entries from the assistant's personal journals (self-reflection, observations, learnings)<br>• Requires journals to be enabled (Settings > Features > Personal Journals)<br><br><strong>📊 Indicators:</strong><br>The Settings section shows a <strong>green badge</strong> for each connected source and a <strong>gray badge</strong> for unavailable sources."
+            "answer": "LIA aggregates <strong>10 data sources</strong> in parallel to decide whether to notify you:<br><br><strong>📅 Calendar:</strong><br>• Upcoming events (next few hours)<br>• Requires an active calendar connector (Google Calendar, Apple Calendar, or Microsoft)<br><br><strong>🌤️ Weather + Changes:</strong><br>• Current conditions + transition detection: rain starting/stopping, <strong>temperature drop OR rise for tomorrow</strong> (compared on daily averages — nighttime cooling no longer triggers false \"temperature drop\" alerts), strong wind<br>• Requires an OpenWeatherMap connector + configured home location<br>• <strong>Optional travel-aware location (v1.16.7)</strong>: when you enable \"Use my current location for weather alerts\", LIA uses your browser position instead of your home address when you're more than 50 km away. See the dedicated question below.<br><br><strong>✅ Tasks:</strong><br>• Pending or overdue tasks<br>• Requires an active tasks connector (Google Tasks or Microsoft To Do)<br><br><strong>📧 Emails:</strong><br>• Today's unread emails (urgent, actionable)<br>• Requires an active email connector (Gmail, Apple, Microsoft)<br><br><strong>⭐ Interests:</strong><br>• Trending topics among your active interests<br><br><strong>🧠 Memories:</strong><br>• Relevant information extracted from your memories<br><br><strong>📓 Journals:</strong><br>• Relevant entries from the assistant's personal journals (self-reflection, observations, learnings)<br>• Requires journals to be enabled (Settings > Features > Personal Journals)<br><br><strong>📊 Indicators:</strong><br>The Settings section shows a <strong>green badge</strong> for each connected source and a <strong>gray badge</strong> for unavailable sources."
           },
           "q4": {
             "question": "How often will I receive notifications?",
@@ -3492,6 +3502,10 @@
           "q6": {
             "question": "Are proactive notifications affected by usage limits?",
             "answer": "Yes. When your usage limits are reached, proactive notifications are <strong>automatically paused</strong> until your limits are reset or adjusted by your administrator."
+          },
+          "q7": {
+            "question": "How do weather alerts work when I'm travelling? (v1.16.7)",
+            "answer": "By default, proactive weather notifications use your <strong>home address</strong>. If you're travelling, you can opt in to let LIA use your <strong>current position</strong> instead:<br><br><strong>⚙️ How to enable:</strong><br>Settings → <em>Proactive Notifications</em> → scroll to <em>Weather location when traveling</em> → toggle on.<br><br><strong>🎯 When it kicks in:</strong><br>LIA uses your current browser position (instead of your home) only when <strong>all</strong> these conditions are met:<br>• The option is enabled<br>• Your last known position is <strong>less than 24 hours old</strong><br>• You are <strong>more than 50 km</strong> away from your home address<br><br>Below that distance, the home address is kept (avoids switching for intra-city noise). Past 24 h, the position is considered stale and notifications fall back to home automatically.<br><br><strong>🏙️ Transparent notifications:</strong><br>When the position used isn't your home, the notification always mentions the city it's referring to, so you instantly know where the forecast is from.<br><br><strong>🔒 Privacy by design:</strong><br>• Your position is <strong>encrypted</strong> (same cryptographic scheme as your home address)<br>• It is <strong>not historized</strong> — each update overwrites the previous one, there is no trail<br>• It is <strong>wiped immediately</strong> if you disable the option or remove your home address<br>• A <em>Currently stored</em> block shows you exactly what LIA has kept, with a <strong>Clear now</strong> button to wipe on demand<br>• The backend rate-limits itself to one update per 30 minutes per user<br><br><strong>💡 Requirements:</strong><br>You also need to enable browser geolocation (in Settings → Location → Geolocation). Without it, no position can be captured — a banner reminds you if needed."
           }
         }
       },
@@ -4193,7 +4207,22 @@
     "enabled_success": "Proactive notifications enabled",
     "disabled_success": "Proactive notifications disabled",
     "settings_updated": "Settings updated",
-    "settings_error": "Error updating settings"
+    "settings_error": "Error updating settings",
+    "weather_location": {
+      "section_label": "Weather location when traveling",
+      "toggle_label": "Use my current location for weather alerts",
+      "toggle_description": "Use your browser position (when away from home) instead of your home address for proactive weather notifications.",
+      "privacy_note": "Your location is encrypted and not historized (overwritten on each update). It is deleted if you disable this option or remove your home address.",
+      "enabled_success": "Smart weather location enabled",
+      "disabled_success": "Smart weather location disabled, stored position cleared",
+      "stored_title": "Currently stored",
+      "stored_coords": "Coordinates",
+      "stored_updated_at": "Last updated",
+      "stored_stale": "This position is past the freshness window — notifications will fall back to home.",
+      "no_stored": "No location stored yet. It will be captured on your next chat message.",
+      "clear_button": "Clear now",
+      "geoloc_required_hint": "Also enable browser geolocation in the Geolocation section above — otherwise no position will ever be captured."
+    }
   },
   "notifications": {
     "title": "Notifications",

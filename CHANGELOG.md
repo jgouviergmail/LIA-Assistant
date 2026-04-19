@@ -5,6 +5,59 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.16.7] - 2026-04-19
+
+### Proactive Weather — Temperature Detection Fix + Travel Location (ADR-073)
+
+Deux évolutions complémentaires du système de notifications proactives météo. D'abord, un **correctif du détecteur de chute de température** qui produisait des faux positifs quotidiens en confondant le cycle jour/nuit naturel avec un changement climatique réel : le code comparait la température courante avec chaque entrée forecast des 24 prochaines heures, donc une notification envoyée en fin d'après-midi flaggait systématiquement les températures nocturnes comme « chute ». Remplacé par une comparaison **moyenne du jour vs moyenne du lendemain** (bucketée par date locale), qui filtre naturellement le bruit diurne et capture les vraies transitions climatiques — chute **et** hausse désormais détectées. Ensuite, un **mécanisme de localisation en déplacement** (opt-in, chiffré, non historisé) pour que les notifications météo restent pertinentes quand l'utilisateur est loin de son domicile : la cascade `last_known (récent + > 50 km du domicile) > home` reproduit en mode asynchrone le comportement déjà exposé par le tool conversationnel `quelle météo` (cas implicite : `browser > home`).
+
+#### Added
+
+- **Détection de hausse de température (`temp_rise`)** en plus de `temp_drop` — comportement symétrique, même seuil `HEARTBEAT_WEATHER_TEMP_CHANGE_THRESHOLD`. Utile pour anticiper la tenue à prévoir pour le lendemain dans les deux sens.
+- **Last-known location persistée côté serveur** — 3 colonnes ajoutées au modèle `User` : `last_known_location_encrypted` (Fernet JSON `{lat, lon, accuracy}`), `last_known_location_updated_at` (UTC), `weather_use_last_known_location` (opt-in, default `false`). Migration `last_known_loc_001`.
+- **3 nouveaux endpoints `/auth/me/*`** :
+  - `PATCH /weather-location-preference` — toggle opt-in (désactivation → wipe immédiat).
+  - `PUT /last-location` — push d'une géolocalisation (403 si opt-out, 200 `throttled=True` si < 30 min depuis le dernier push).
+  - `GET /last-location` — vue transparence RGPD avec flag `stale` basé sur le TTL configuré.
+- **Service `UserLocationService`** avec la cascade `get_effective_location_for_proactive(user)` : retourne `(lat, lon, "home"|"last_known")`. Réutilise `_haversine_distance` existante et la clé Fernet globale.
+- **Hook fire-and-forget dans `stream_chat_response`** — quand l'utilisateur a opt-in et que le frontend envoie une `BrowserGeolocation` dans le chat request, la position est persistée en arrière-plan via `safe_fire_and_forget`, sans bloquer la réponse. Opt-in et throttle 30 min enforcés côté serveur.
+- **Reverse geocoding avec cache Redis** — `resolve_city_name(lat, lon, api_key)` dans `domains/heartbeat/geocoding.py` appelle l'API OpenWeatherMap reverse, cache Redis 30 jours sur bucket 3 décimales (≈100 m, partageable entre utilisateurs car coordonnées publiques). Le nom de ville est injecté dans le contexte du prompt `heartbeat_decision` (nouvelle règle 16 : obligation d'inclure la ville dans le message quand l'utilisateur est en déplacement, pour transparence).
+- **Auto-wipe cascadé** — la suppression de `home_location` déclenche automatiquement le wipe de `last_known_location` : sans domicile comme référence, la cascade n'a plus de sens.
+- **4 nouvelles constantes centralisées** dans `src/core/constants.py` — `LAST_KNOWN_LOCATION_TTL_HOURS_DEFAULT=24`, `_MIN_DISTANCE_KM_DEFAULT=50.0`, `_UPDATE_THROTTLE_MINUTES=30`, `_GEOCODE_CACHE_TTL_SECONDS=30j`.
+- **2 settings `.env`** — `LAST_KNOWN_LOCATION_TTL_HOURS`, `LAST_KNOWN_LOCATION_MIN_DISTANCE_KM`.
+- **3 métriques Prometheus** — `heartbeat_weather_location_source_total{source}`, `user_location_put_total{result}`, `user_location_geocode_total{result}`. Enregistrées au startup via l'import top-level du service.
+- **UI `WeatherLocationBlock`** intégrée dans la section « Notifications proactives » (HeartbeatSettings) : toggle opt-in, note de confidentialité, alerte si geoloc navigateur désactivée, vue de la position stockée (coordonnées + fraîcheur + flag `stale`), bouton « Effacer maintenant ». 6 langues.
+- **Tests** — 16 unitaires pour `UserLocationService` (update / throttle / forbidden / wipe / stale / cascade 5 branches), 9 pour `geocoding` (cache hit/miss, fallback API), 8 intégration pour les endpoints (opt-in/out, 403, throttle, DELETE home → wipe cascadé).
+- **ADR-073** et runbook dédié (`docs/runbooks/LAST_KNOWN_LOCATION.md`).
+
+#### Changed
+
+- **`_detect_weather_changes` refondu côté température** — remplace la boucle `current.temp − entry.temp > threshold` qui générait des faux positifs nuit (ex : notif à 16h flaggait systématiquement la baisse nocturne à 2h du matin) par une comparaison **des moyennes quotidiennes** : entries bucketées par date locale → `avg_today` vs `avg_tomorrow` → déclenchement `temp_drop`/`temp_rise` si `|diff| > threshold`. Garde-fou : au moins 2 entries par bucket sinon la détection est skippée (protège contre les calculs biaisés près de minuit local). `expected_at` positionné à midi local du lendemain.
+- **Forecast étendu à 48 h** (`cnt=8` → `cnt=16`) pour couvrir le lendemain complet quelle que soit l'heure d'envoi du heartbeat.
+- **`_fetch_weather_with_changes` enrichi** — retourne désormais un tuple `(current, changes, source, city)` au lieu de `(current, changes)`. La source (`"home"`/`"last_known"`) et le nom de ville résolu sont propagés dans `HeartbeatContext` (nouveaux champs `weather_location_source`, `weather_location_city`) pour que le prompt LLM puisse mentionner explicitement la ville.
+- **`HeartbeatContext.to_prompt_context()`** — la section CURRENT WEATHER inclut maintenant le nom de ville et un suffixe `(at home)` / `(away from home)` pour que le LLM n'ait aucune ambiguïté sur la localisation du forecast.
+- **Prompts heartbeat v1** — nouvelle règle 16 dans `heartbeat_decision_prompt.txt` : obligation d'inclure la ville dans `message_draft` quand `weather_location_city` est disponible et source=`last_known`. Instruction de préservation de la ville dans `heartbeat_message_prompt.txt` lors de la réécriture de style.
+- **UI settings** — la section « Localisation météo en déplacement » est intégrée dans la carte existante **Notifications proactives** (pas une nouvelle section), ce qui garde la page settings compacte et aligne la feature sur son contexte d'usage.
+
+#### Fixed
+
+- **Faux positifs `temp_drop` nocturnes** — les notifications « chute de température de X°C » apparaissaient quasi quotidiennement car la logique comparait la température de l'instant avec celle des heures à venir sur 24 h : toute entrée forecast nocturne déclenchait mécaniquement le seuil, même en l'absence de tout changement climatique. Remplacé par la comparaison des moyennes journalières qui lisse par nature le cycle jour/nuit (voir `Changed`).
+- **Notifications météo non pertinentes en voyage** — quand l'utilisateur partait plusieurs jours loin de son domicile, les notifications heartbeat continuaient de parler du temps à son adresse `home`. Résolu par la cascade last-known opt-in (`> 50 km` + `< 24 h` de fraîcheur).
+- **Counter `user_location_put_total{result="forbidden"}` pollué** — le hook chat appelait le service pour chaque message avec geoloc, même pour les utilisateurs non opt-in, incrémentant `forbidden` comme cas normal et masquant les vrais abus. Fix : check opt-in silencieux **avant** le service dans `update_user_location_fire_and_forget`. `forbidden` est désormais réservé aux appels explicites PUT en état opt-out (abus ou désync frontend).
+- **Cohérence conversationnelle** — le tool météo implicite (`"quelle météo"`) utilisait déjà `browser > home` en runtime ; la notification proactive parlait exclusivement de `home`. Asymétrie supprimée : même logique des deux côtés, avec un browser persisté pour les jobs asynchrones.
+
+#### Removed
+
+- Aucune dépendance ajoutée, aucun package retiré.
+
+#### Documentation
+
+- **`docs/architecture/ADR-073-Last-Known-Location-Persistence.md`** — nouvelle ADR (scope, cascade, privacy-by-design, non-goals, alternatives rejetées).
+- **`docs/architecture/ADR_INDEX.md`** — entrée ADR-073, compteur 72 → 73.
+- **`docs/INDEX.md`** — compteur 72 → 73, arbre docs mis à jour.
+- **`docs/runbooks/LAST_KNOWN_LOCATION.md`** — nouveau runbook (ops : wipe manuel, métriques attendues, troubleshooting, incident playbook).
+- **`docs/technical/HEARTBEAT_AUTONOME.md`** — 2 settings `.env` ajoutés au tableau, nouveau champ user, nouvelle section « Location cascade (Phase 3 — ADR-073) », description `temp_drop`/`temp_rise` alignée sur la logique J vs J+1.
+
 ## [1.16.6] - 2026-04-18
 
 ### Long-Term Memory — Precision Overhaul

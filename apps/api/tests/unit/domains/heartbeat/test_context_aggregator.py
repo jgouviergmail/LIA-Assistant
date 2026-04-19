@@ -129,10 +129,12 @@ class TestApplySourceResult:
             )
         ]
 
-        aggregator._apply_source_result(context, "weather", (current, changes))
+        aggregator._apply_source_result(context, "weather", (current, changes, "home", "Lyon"))
 
         assert context.weather_current == current
         assert context.weather_changes == changes
+        assert context.weather_location_source == "home"
+        assert context.weather_location_city == "Lyon"
         assert "weather" in context.available_sources
 
     def test_interests_result(self):
@@ -357,46 +359,121 @@ class TestDetectWeatherChanges:
         assert changes[0].severity == "info"
 
     def test_temp_drop_detected(self):
-        """Test temperature drop detection."""
+        """Tomorrow's average is colder than today's by > threshold."""
         aggregator = ContextAggregator(MagicMock())
         settings = _make_settings()
         user_tz = ZoneInfo("UTC")
-        now = datetime.now(UTC)
+        # Anchor on today 10:00 to keep "today" and "today+1" deterministic
+        base = datetime.now(UTC).replace(hour=10, minute=0, second=0, microsecond=0)
 
         current = {
             "weather": [{"main": "Clear"}],
-            "main": {"temp": 25},
+            "main": {"temp": 20},
         }
         hourly = [
-            self._make_forecast_entry(now + timedelta(hours=3), temp=18),
+            self._make_forecast_entry(base, temp=20),
+            self._make_forecast_entry(base + timedelta(hours=3), temp=22),
+            self._make_forecast_entry(base + timedelta(days=1), temp=13),
+            self._make_forecast_entry(base + timedelta(days=1, hours=3), temp=13),
         ]
 
         changes = aggregator._detect_weather_changes(current, hourly, user_tz, settings)
 
-        assert len(changes) == 1
-        assert changes[0].change_type == "temp_drop"
-        assert "7°C" in changes[0].description
+        temp_changes = [c for c in changes if c.change_type == "temp_drop"]
+        assert len(temp_changes) == 1
+        # avg_today = 21, avg_tomorrow = 13 → diff = 8, within threshold*1.6 → info
+        assert temp_changes[0].severity == "info"
+        assert "colder" in temp_changes[0].description
+
+    def test_temp_rise_detected(self):
+        """Tomorrow's average is warmer than today's by > threshold."""
+        aggregator = ContextAggregator(MagicMock())
+        settings = _make_settings()
+        user_tz = ZoneInfo("UTC")
+        base = datetime.now(UTC).replace(hour=10, minute=0, second=0, microsecond=0)
+
+        current = {
+            "weather": [{"main": "Clear"}],
+            "main": {"temp": 10},
+        }
+        hourly = [
+            self._make_forecast_entry(base, temp=10),
+            self._make_forecast_entry(base + timedelta(hours=3), temp=12),
+            self._make_forecast_entry(base + timedelta(days=1), temp=20),
+            self._make_forecast_entry(base + timedelta(days=1, hours=3), temp=22),
+        ]
+
+        changes = aggregator._detect_weather_changes(current, hourly, user_tz, settings)
+
+        temp_changes = [c for c in changes if c.change_type == "temp_rise"]
+        assert len(temp_changes) == 1
+        assert "warmer" in temp_changes[0].description
 
     def test_severe_temp_drop_warning(self):
-        """Test that severe temperature drop gets warning severity."""
+        """Severe temperature drop gets warning severity."""
         aggregator = ContextAggregator(MagicMock())
         settings = _make_settings()
         user_tz = ZoneInfo("UTC")
-        now = datetime.now(UTC)
+        base = datetime.now(UTC).replace(hour=10, minute=0, second=0, microsecond=0)
 
         current = {
             "weather": [{"main": "Clear"}],
-            "main": {"temp": 25},
+            "main": {"temp": 22},
         }
+        # avg_today = 22, avg_tomorrow = 12 → diff = 10 > 5.0 * 1.6 = 8.0 → warning
         hourly = [
-            # 14°C drop > 5.0 * 1.6 = 8.0 → warning
-            self._make_forecast_entry(now + timedelta(hours=3), temp=11),
+            self._make_forecast_entry(base, temp=22),
+            self._make_forecast_entry(base + timedelta(hours=3), temp=22),
+            self._make_forecast_entry(base + timedelta(days=1), temp=12),
+            self._make_forecast_entry(base + timedelta(days=1, hours=3), temp=12),
         ]
 
         changes = aggregator._detect_weather_changes(current, hourly, user_tz, settings)
 
-        assert len(changes) == 1
-        assert changes[0].severity == "warning"
+        temp_changes = [c for c in changes if c.change_type == "temp_drop"]
+        assert len(temp_changes) == 1
+        assert temp_changes[0].severity == "warning"
+
+    def test_temp_change_skipped_when_insufficient_today_entries(self):
+        """Skip detection if fewer than 2 forecast entries fall on today."""
+        aggregator = ContextAggregator(MagicMock())
+        settings = _make_settings()
+        user_tz = ZoneInfo("UTC")
+        base = datetime.now(UTC).replace(hour=10, minute=0, second=0, microsecond=0)
+
+        current = {"weather": [{"main": "Clear"}], "main": {"temp": 20}}
+        hourly = [
+            # Only 1 entry today
+            self._make_forecast_entry(base, temp=20),
+            self._make_forecast_entry(base + timedelta(days=1), temp=10),
+            self._make_forecast_entry(base + timedelta(days=1, hours=3), temp=10),
+        ]
+
+        changes = aggregator._detect_weather_changes(current, hourly, user_tz, settings)
+
+        temp_changes = [c for c in changes if c.change_type in ("temp_drop", "temp_rise")]
+        assert temp_changes == []
+
+    def test_temp_change_skipped_when_diff_below_threshold(self):
+        """Skip detection if |avg_today - avg_tomorrow| <= threshold."""
+        aggregator = ContextAggregator(MagicMock())
+        settings = _make_settings()
+        user_tz = ZoneInfo("UTC")
+        base = datetime.now(UTC).replace(hour=10, minute=0, second=0, microsecond=0)
+
+        current = {"weather": [{"main": "Clear"}], "main": {"temp": 20}}
+        hourly = [
+            self._make_forecast_entry(base, temp=20),
+            self._make_forecast_entry(base + timedelta(hours=3), temp=20),
+            # diff = 4, below threshold 5.0
+            self._make_forecast_entry(base + timedelta(days=1), temp=16),
+            self._make_forecast_entry(base + timedelta(days=1, hours=3), temp=16),
+        ]
+
+        changes = aggregator._detect_weather_changes(current, hourly, user_tz, settings)
+
+        temp_changes = [c for c in changes if c.change_type in ("temp_drop", "temp_rise")]
+        assert temp_changes == []
 
     def test_wind_alert_detected(self):
         """Test wind alert detection."""
@@ -465,15 +542,19 @@ class TestDetectWeatherChanges:
         aggregator = ContextAggregator(MagicMock())
         settings = _make_settings()
         user_tz = ZoneInfo("UTC")
-        now = datetime.now(UTC)
+        base = datetime.now(UTC).replace(hour=10, minute=0, second=0, microsecond=0)
 
         current = {
             "weather": [{"main": "Clear"}],
-            "main": {"temp": 25},
+            "main": {"temp": 22},
         }
         hourly = [
-            # Rain start + temp drop + wind alert
-            self._make_forecast_entry(now + timedelta(hours=1), pop=0.8, temp=18, wind=16),
+            # Today: warm, triggers rain_start + wind_alert on first entry
+            self._make_forecast_entry(base, pop=0.8, temp=22, wind=16),
+            self._make_forecast_entry(base + timedelta(hours=3), pop=0.2, temp=22, wind=5),
+            # Tomorrow: colder, triggers temp_drop via daily average
+            self._make_forecast_entry(base + timedelta(days=1), pop=0.1, temp=12, wind=5),
+            self._make_forecast_entry(base + timedelta(days=1, hours=3), pop=0.1, temp=12, wind=5),
         ]
 
         changes = aggregator._detect_weather_changes(current, hourly, user_tz, settings)

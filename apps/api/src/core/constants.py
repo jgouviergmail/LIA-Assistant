@@ -1409,6 +1409,22 @@ HEARTBEAT_WEATHER_RAIN_THRESHOLD_LOW_DEFAULT = 0.3
 HEARTBEAT_WEATHER_TEMP_CHANGE_THRESHOLD_DEFAULT = 5.0
 HEARTBEAT_WEATHER_WIND_THRESHOLD_DEFAULT = 14.0
 
+# Last-known location for proactive weather (Phase 3)
+# TTL after which a persisted browser geolocation is considered stale and
+# the fallback falls back to the user's home location instead.
+LAST_KNOWN_LOCATION_TTL_HOURS_DEFAULT = 24
+# Minimum distance (km) between last-known and home to prefer last-known.
+# Below this threshold, the home location is used (avoid switching for
+# intra-city noise).
+LAST_KNOWN_LOCATION_MIN_DISTANCE_KM_DEFAULT = 50.0
+# Minimum interval between two persisted updates for the same user.
+# Prevents write amplification when the frontend streams geolocation
+# on every chat message.
+LAST_KNOWN_LOCATION_UPDATE_THROTTLE_MINUTES = 30
+# Reverse-geocode cache TTL (seconds) for (lat, lon) -> city resolution.
+# 30 days — city names for a bucketed coordinate pair are effectively stable.
+LAST_KNOWN_LOCATION_GEOCODE_CACHE_TTL_SECONDS = 30 * 24 * 3600
+
 # LLM model defaults for heartbeat
 HEARTBEAT_DECISION_LLM_MODEL_DEFAULT = "qwen3.5-plus"
 HEARTBEAT_MESSAGE_LLM_MODEL_DEFAULT = "qwen3.5-plus"

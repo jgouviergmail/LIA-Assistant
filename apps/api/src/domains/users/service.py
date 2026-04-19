@@ -554,6 +554,10 @@ class UserService:
         """
         Clear user's home location.
 
+        Also wipes the last-known location (Phase 3): without a home as
+        baseline, the proactive cascade can no longer evaluate distance,
+        so keeping a persisted position would be meaningless.
+
         Args:
             user_id: User UUID
 
@@ -563,6 +567,8 @@ class UserService:
         Raises:
             HTTPException: If user not found
         """
+        from src.domains.auth.user_location_service import UserLocationService
+
         user = await self.repository.get_by_id(user_id)
 
         if not user:
@@ -574,6 +580,9 @@ class UserService:
         # Clear location
         await self.repository.update(user, {"home_location_encrypted": None})
         await self.db.commit()
+
+        # Cascade wipe: last-known location is meaningless without home
+        await UserLocationService(self.db).wipe_last_known_location(user)
 
         logger.info("home_location_cleared", user_id=str(user_id))
 

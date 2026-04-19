@@ -40,8 +40,9 @@ LIA aggregates **10 data sources** in parallel to decide whether to notify you:
 • Requires an active calendar connector (Google Calendar, Apple Calendar, or Microsoft)
 
 **🌤️ Weather + Changes:**
-• Current conditions + transition detection (rain starting/stopping, temperature drops, strong wind)
-• Requires an OpenWeatherMap connector + configured location
+• Current conditions + transition detection: rain starting/stopping, **temperature drop OR rise for tomorrow** (compared on daily averages — the old detector was removed because it flagged nighttime cooling as a "temperature drop", which was just the normal day/night cycle), strong wind
+• Requires an OpenWeatherMap connector + configured home location
+• **Travel-aware location (v1.16.7, opt-in)** — If you enable "Use my current location for weather alerts" in Settings > Proactive notifications, LIA uses your browser position instead of your home address when you're more than 50 km away from home and the position is less than 24 h old. The notification always mentions the city it's referring to. Your location is encrypted, never historized (each update overwrites the previous one), and wiped immediately if you disable the option or remove your home address.
 
 **✅ Tasks:**
 • Pending or overdue tasks

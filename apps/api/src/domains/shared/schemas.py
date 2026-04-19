@@ -313,6 +313,13 @@ class UserBase(BaseModel, TimezoneValidatorMixin, ThemeValidatorMixin, FontFamil
     image_generation_output_format: str = Field(
         default="png", description="Default output format: png, jpeg, webp"
     )
+    weather_use_last_known_location: bool = Field(
+        default=False,
+        description=(
+            "Opt-in for persisting the browser geolocation for proactive "
+            "weather notifications when the user is away from home."
+        ),
+    )
 
     created_at: datetime = Field(..., description="Account creation timestamp")
     updated_at: datetime = Field(..., description="Last update timestamp")
@@ -354,6 +361,12 @@ class UserBase(BaseModel, TimezoneValidatorMixin, ThemeValidatorMixin, FontFamil
     def set_sub_agents_enabled_default(cls, v: bool | None) -> bool:
         """Ensure sub_agents_enabled defaults to True if None (opt-out)."""
         return v if v is not None else True
+
+    @field_validator("weather_use_last_known_location", mode="before")
+    @classmethod
+    def set_weather_use_last_known_location_default(cls, v: bool | None) -> bool:
+        """Ensure weather_use_last_known_location defaults to False if None."""
+        return v if v is not None else False
 
     @field_validator("response_display_mode", mode="before")
     @classmethod

@@ -12,6 +12,7 @@ INSTRUCTIONS:
 - Do NOT use greetings ("Bonjour!", "Hey!") — get straight to the point
 - Do NOT use hashtags, bullet points, or formatting
 - If the draft combines multiple signals, weave them naturally into one message
+- If the draft mentions a city name for weather context, PRESERVE it in the rewrite — this is important transparency for users who may be traveling
 - Current time: {current_datetime}
 
 DRAFT TO REWRITE:

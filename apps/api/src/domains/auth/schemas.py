@@ -2,6 +2,7 @@
 Authentication domain schemas (Pydantic models for API).
 """
 
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, EmailStr, Field
@@ -144,6 +145,69 @@ class ExecutionModePreferenceResponse(BaseModel):
     message: str = Field(
         default="Execution mode preference updated",
         description="Confirmation message",
+    )
+
+
+class WeatherLocationPreferenceRequest(BaseModel):
+    """Schema for updating the weather last-known location opt-in flag."""
+
+    enabled: bool = Field(
+        ...,
+        description=(
+            "Enable or disable use of the persisted browser geolocation for "
+            "proactive weather notifications. Disabling wipes any stored location."
+        ),
+    )
+
+
+class WeatherLocationPreferenceResponse(BaseModel):
+    """Schema for weather location preference update response."""
+
+    enabled: bool = Field(..., description="Current weather location preference state")
+    message: str = Field(
+        default="Weather location preference updated",
+        description="Confirmation message",
+    )
+
+
+class LastLocationUpdateRequest(BaseModel):
+    """Schema for pushing a new browser geolocation sample."""
+
+    lat: float = Field(..., ge=-90.0, le=90.0, description="Latitude in degrees")
+    lon: float = Field(..., ge=-180.0, le=180.0, description="Longitude in degrees")
+    accuracy: float | None = Field(
+        default=None,
+        ge=0.0,
+        description="Optional accuracy in meters (non-negative)",
+    )
+
+
+class LastLocationUpdateResponse(BaseModel):
+    """Schema for last-location update response."""
+
+    updated: bool = Field(..., description="True if a new row was written")
+    throttled: bool = Field(
+        ...,
+        description="True if the call was throttled (< throttle window since last update)",
+    )
+
+
+class LastLocationViewResponse(BaseModel):
+    """Schema for the read-only view of the user's stored last-known location.
+
+    When no location is stored, all fields except ``stored`` are None.
+    """
+
+    stored: bool = Field(..., description="True if a location is currently stored")
+    lat: float | None = Field(default=None, description="Latitude (only if stored)")
+    lon: float | None = Field(default=None, description="Longitude (only if stored)")
+    accuracy: float | None = Field(default=None, description="Accuracy in meters (only if stored)")
+    updated_at: datetime | None = Field(
+        default=None, description="UTC timestamp of last update (only if stored)"
+    )
+    stale: bool = Field(
+        default=False,
+        description="True if the stored location is past the configured TTL",
     )
 
 

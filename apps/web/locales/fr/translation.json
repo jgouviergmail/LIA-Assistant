@@ -2761,6 +2761,16 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_16_7": {
+          "title": "v1.16.7 — Alertes météo pertinentes, même en déplacement",
+          "date": "Avril 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>Fini les alertes de température absurdes la nuit</b> — LIA ne vous envoie plus de notifications « chute de température » qui décrivent juste le cycle jour/nuit naturel. Le détecteur compare désormais la moyenne du jour avec celle du lendemain — et vous alerte dans les deux sens (plus froid OU plus chaud) pour que vous sachiez réellement comment vous habiller.",
+            "i2": "<b>Les alertes météo vous suivent en déplacement (opt-in)</b> — Si vous l'activez, LIA peut utiliser votre position actuelle (navigateur) pour les notifications météo quand vous êtes à plus de 50 km de chez vous. Votre position est chiffrée, non historisée (chaque mise à jour écrase la précédente) et immédiatement supprimée si vous désactivez l'option ou retirez votre adresse de domicile. La notification précise toujours la ville concernée.",
+            "i3": "<b>Transparence totale sur ce qui est stocké</b> — Un nouveau bloc « Actuellement stockée » sous Notifications proactives affiche les coordonnées exactes conservées par LIA, la date de la dernière mise à jour, et un bouton « Effacer maintenant ». La confidentialité bien faite."
+          }
+        },
         "v1_16_6": {
           "title": "v1.16.6 — Mémoire long terme plus fidèle",
           "date": "Avril 2026",
@@ -3489,7 +3499,7 @@
       "heartbeat": {
         "title": "Notifications proactives",
         "description": "LIA prend l'initiative de vous informer",
-        "count": "6",
+        "count": "7",
         "questions": {
           "q1": {
             "question": "Qu'est-ce que les notifications proactives ?",
@@ -3501,7 +3511,7 @@
           },
           "q3": {
             "question": "Quelles sources de données sont utilisées ?",
-            "answer": "LIA agrège <strong>10 sources de données</strong> en parallèle pour décider s'il doit vous prévenir :<br><br><strong>📅 Calendrier :</strong><br>• Événements à venir (prochaines heures)<br>• Nécessite un connecteur calendrier actif (Google Calendar, Apple Calendar ou Microsoft)<br><br><strong>🌤️ Météo + Changements :</strong><br>• Conditions actuelles + détection de transitions (début/fin de pluie, chute de température, vent fort)<br>• Nécessite un connecteur OpenWeatherMap + localisation configurée<br><br><strong>✅ Tâches :</strong><br>• Tâches en attente ou en retard<br>• Nécessite un connecteur de tâches actif (Google Tasks ou Microsoft To Do)<br><br><strong>📧 Emails :</strong><br>• Emails non lus du jour (urgents, actionnables)<br>• Nécessite un connecteur email actif (Gmail, Apple, Microsoft)<br><br><strong>⭐ Centres d'intérêt :</strong><br>• Sujets en tendance parmi vos intérêts actifs<br><br><strong>🧠 Mémoires :</strong><br>• Informations pertinentes extraites de vos mémoires<br><br><strong>📓 Journaux :</strong><br>• Entrées pertinentes des journaux personnels de l'assistant (auto-réflexion, observations, apprentissages)<br>• Nécessite l'activation des journaux (Paramètres > Fonctionnalités > Journaux Personnels)<br><br><strong>📊 Indicateurs :</strong><br>La section Paramètres affiche un <strong>badge vert</strong> pour chaque source connectée et un <strong>badge gris</strong> pour les sources non disponibles."
+            "answer": "LIA agrège <strong>10 sources de données</strong> en parallèle pour décider s'il doit vous prévenir :<br><br><strong>📅 Calendrier :</strong><br>• Événements à venir (prochaines heures)<br>• Nécessite un connecteur calendrier actif (Google Calendar, Apple Calendar ou Microsoft)<br><br><strong>🌤️ Météo + Changements :</strong><br>• Conditions actuelles + détection de transitions : début/fin de pluie, <strong>chute OU hausse de température pour demain</strong> (comparée sur les moyennes quotidiennes — le refroidissement nocturne ne déclenche plus de fausses alertes « chute de température »), vent fort<br>• Nécessite un connecteur OpenWeatherMap + adresse de domicile configurée<br>• <strong>Localisation en déplacement optionnelle (v1.16.7)</strong> : quand vous activez « Utiliser ma position actuelle pour les alertes météo », LIA utilise votre position navigateur au lieu de votre domicile quand vous êtes à plus de 50 km de chez vous. Voir la question dédiée ci-dessous.<br><br><strong>✅ Tâches :</strong><br>• Tâches en attente ou en retard<br>• Nécessite un connecteur de tâches actif (Google Tasks ou Microsoft To Do)<br><br><strong>📧 Emails :</strong><br>• Emails non lus du jour (urgents, actionnables)<br>• Nécessite un connecteur email actif (Gmail, Apple, Microsoft)<br><br><strong>⭐ Centres d'intérêt :</strong><br>• Sujets en tendance parmi vos intérêts actifs<br><br><strong>🧠 Mémoires :</strong><br>• Informations pertinentes extraites de vos mémoires<br><br><strong>📓 Journaux :</strong><br>• Entrées pertinentes des journaux personnels de l'assistant (auto-réflexion, observations, apprentissages)<br>• Nécessite l'activation des journaux (Paramètres > Fonctionnalités > Journaux Personnels)<br><br><strong>📊 Indicateurs :</strong><br>La section Paramètres affiche un <strong>badge vert</strong> pour chaque source connectée et un <strong>badge gris</strong> pour les sources non disponibles."
           },
           "q4": {
             "question": "À quelle fréquence vais-je recevoir des notifications ?",
@@ -3514,6 +3524,10 @@
           "q6": {
             "question": "Les notifications proactives sont-elles affectées par les limites d'utilisation ?",
             "answer": "Oui. Quand vos limites sont atteintes, les notifications proactives sont <strong>automatiquement suspendues</strong> jusqu'à la réinitialisation de vos limites ou leur ajustement par votre administrateur."
+          },
+          "q7": {
+            "question": "Comment fonctionnent les alertes météo quand je suis en déplacement ? (v1.16.7)",
+            "answer": "Par défaut, les notifications météo proactives utilisent votre <strong>adresse de domicile</strong>. Si vous voyagez, vous pouvez activer l'utilisation de votre <strong>position actuelle</strong> à la place :<br><br><strong>⚙️ Comment activer :</strong><br>Paramètres → <em>Notifications proactives</em> → descendre jusqu'à <em>Localisation météo en déplacement</em> → activer le switch.<br><br><strong>🎯 Quand ça s'active :</strong><br>LIA utilise votre position navigateur (au lieu de votre domicile) uniquement quand <strong>toutes</strong> ces conditions sont réunies :<br>• L'option est activée<br>• Votre dernière position connue a <strong>moins de 24 heures</strong><br>• Vous êtes à <strong>plus de 50 km</strong> de votre adresse de domicile<br><br>En dessous de ce seuil, l'adresse de domicile est conservée (évite de basculer pour des déplacements intra-ville). Au-delà de 24 h, la position est considérée périmée et les notifications reviennent automatiquement sur le domicile.<br><br><strong>🏙️ Notifications transparentes :</strong><br>Quand la position utilisée n'est pas votre domicile, la notification mentionne toujours la ville concernée, pour que vous sachiez immédiatement d'où vient la prévision.<br><br><strong>🔒 Privacy by design :</strong><br>• Votre position est <strong>chiffrée</strong> (même schéma cryptographique que votre adresse de domicile)<br>• Elle n'est <strong>pas historisée</strong> — chaque mise à jour écrase la précédente, aucune trace<br>• Elle est <strong>immédiatement supprimée</strong> si vous désactivez l'option ou supprimez votre adresse de domicile<br>• Un bloc <em>Actuellement stockée</em> vous montre exactement ce que LIA a conservé, avec un bouton <strong>Effacer maintenant</strong> pour supprimer sur demande<br>• Le backend s'auto-limite à une mise à jour toutes les 30 minutes par utilisateur<br><br><strong>💡 Prérequis :</strong><br>Vous devez aussi avoir activé la géolocalisation navigateur (Paramètres → Localisation → Géolocalisation). Sans cela, aucune position ne peut être capturée — une bannière vous le rappelle si besoin."
           }
         }
       },
@@ -4215,7 +4229,22 @@
     "enabled_success": "Notifications proactives activées",
     "disabled_success": "Notifications proactives désactivées",
     "settings_updated": "Paramètres mis à jour",
-    "settings_error": "Erreur lors de la mise à jour"
+    "settings_error": "Erreur lors de la mise à jour",
+    "weather_location": {
+      "section_label": "Localisation météo en déplacement",
+      "toggle_label": "Utiliser ma position actuelle pour les alertes météo",
+      "toggle_description": "Utiliser votre position navigateur (quand vous n'êtes pas chez vous) à la place de votre adresse de domicile pour les notifications météo proactives.",
+      "privacy_note": "Votre position est chiffrée et non historisée (écrasée à chaque mise à jour). Elle est supprimée si vous désactivez cette option ou supprimez votre adresse de domicile.",
+      "enabled_success": "Localisation météo en déplacement activée",
+      "disabled_success": "Localisation météo en déplacement désactivée, position effacée",
+      "stored_title": "Actuellement stockée",
+      "stored_coords": "Coordonnées",
+      "stored_updated_at": "Dernière mise à jour",
+      "stored_stale": "Cette position dépasse la fenêtre de fraîcheur — les notifications utiliseront votre domicile.",
+      "no_stored": "Aucune position stockée pour le moment. Elle sera capturée à votre prochain message.",
+      "clear_button": "Effacer maintenant",
+      "geoloc_required_hint": "Activez aussi la géolocalisation du navigateur dans la section Géolocalisation ci-dessus — sans cela, aucune position ne sera jamais capturée."
+    }
   },
   "notifications": {
     "title": "Notifications",

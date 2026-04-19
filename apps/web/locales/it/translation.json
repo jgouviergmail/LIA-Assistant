@@ -2712,6 +2712,16 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_16_7": {
+          "title": "v1.16.7 — Avvisi meteo rilevanti, anche quando viaggi",
+          "date": "Aprile 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>Basta avvisi di temperatura assurdi di notte</b> — LIA non ti invia più notifiche di «calo di temperatura» che descrivono solo il ciclo giorno/notte naturale. Il rilevatore ora confronta la temperatura media di oggi con quella di domani — e ti avvisa in entrambe le direzioni (più freddo O più caldo) così sai davvero come vestirti per il giorno successivo.",
+            "i2": "<b>Gli avvisi meteo ti seguono quando viaggi (opt-in)</b> — Se lo attivi, LIA può usare la tua posizione corrente del browser per le notifiche meteo proattive quando sei a più di 50 km da casa. La tua posizione è crittografata, non storicizzata (ogni aggiornamento sovrascrive il precedente) ed eliminata immediatamente se disattivi l'opzione o rimuovi il tuo domicilio. La notifica indica sempre la città a cui si riferisce la previsione.",
+            "i3": "<b>Piena trasparenza su ciò che viene memorizzato</b> — Un nuovo blocco «Attualmente memorizzata» sotto Notifiche proattive mostra le coordinate esatte che LIA ha conservato, quando sono state aggiornate l'ultima volta, e un pulsante «Cancella ora». Così dovrebbe essere la privacy."
+          }
+        },
         "v1_16_6": {
           "title": "v1.16.6 — Memoria a lungo termine più precisa",
           "date": "Aprile 2026",
@@ -3440,7 +3450,7 @@
       "heartbeat": {
         "title": "Notifiche proattive",
         "description": "LIA prende l'iniziativa di informarti",
-        "count": "6",
+        "count": "7",
         "questions": {
           "q1": {
             "question": "Cosa sono le notifiche proattive?",
@@ -3452,7 +3462,7 @@
           },
           "q3": {
             "question": "Quali fonti di dati vengono utilizzate?",
-            "answer": "LIA aggrega <strong>10 fonti di dati</strong> in parallelo per decidere se notificarti:<br><br><strong>📅 Calendario:</strong><br>• Eventi imminenti (prossime ore)<br>• Richiede un connettore calendario attivo (Google Calendar, Apple Calendar o Microsoft)<br><br><strong>🌤️ Meteo + Cambiamenti:</strong><br>• Condizioni attuali + rilevamento transizioni (inizio/fine pioggia, calo temperatura, vento forte)<br>• Richiede un connettore OpenWeatherMap + posizione configurata<br><br><strong>✅ Attività:</strong><br>• Attività in sospeso o scadute<br>• Richiede un connettore attività attivo (Google Tasks o Microsoft To Do)<br><br><strong>📧 Email:</strong><br>• Email non lette di oggi (urgenti, azionabili)<br>• Richiede un connettore email attivo (Gmail, Apple, Microsoft)<br><br><strong>⭐ Interessi:</strong><br>• Argomenti in tendenza tra i tuoi interessi attivi<br><br><strong>🧠 Memorie:</strong><br>• Informazioni rilevanti estratte dalle tue memorie<br><br><strong>📓 Diari:</strong><br>• Voci rilevanti dai diari personali dell'assistente (auto-riflessione, osservazioni, apprendimenti)<br>• Richiede l'attivazione dei diari (Impostazioni > Funzionalità > Diari Personali)<br><br><strong>📊 Indicatori:</strong><br>La sezione Impostazioni mostra un <strong>badge verde</strong> per ogni fonte connessa e un <strong>badge grigio</strong> per le fonti non disponibili."
+            "answer": "LIA aggrega <strong>10 fonti di dati</strong> in parallelo per decidere se notificarti:<br><br><strong>📅 Calendario:</strong><br>• Eventi imminenti (prossime ore)<br>• Richiede un connettore calendario attivo (Google Calendar, Apple Calendar o Microsoft)<br><br><strong>🌤️ Meteo + Cambiamenti:</strong><br>• Condizioni attuali + rilevamento transizioni: inizio/fine pioggia, <strong>calo O aumento di temperatura per domani</strong> (confrontato sulle medie giornaliere — il raffreddamento notturno non genera più falsi allarmi di «calo di temperatura»), vento forte<br>• Richiede un connettore OpenWeatherMap + indirizzo di casa configurato<br>• <strong>Posizione in viaggio opzionale (v1.16.7)</strong>: attivando «Usa la mia posizione attuale per gli avvisi meteo», LIA usa la tua posizione del browser invece del domicilio quando sei a più di 50 km. Vedi domanda dedicata sotto.<br><br><strong>✅ Attività:</strong><br>• Attività in sospeso o scadute<br>• Richiede un connettore attività attivo (Google Tasks o Microsoft To Do)<br><br><strong>📧 Email:</strong><br>• Email non lette di oggi (urgenti, azionabili)<br>• Richiede un connettore email attivo (Gmail, Apple, Microsoft)<br><br><strong>⭐ Interessi:</strong><br>• Argomenti in tendenza tra i tuoi interessi attivi<br><br><strong>🧠 Memorie:</strong><br>• Informazioni rilevanti estratte dalle tue memorie<br><br><strong>📓 Diari:</strong><br>• Voci rilevanti dai diari personali dell'assistente (auto-riflessione, osservazioni, apprendimenti)<br>• Richiede l'attivazione dei diari (Impostazioni > Funzionalità > Diari Personali)<br><br><strong>📊 Indicatori:</strong><br>La sezione Impostazioni mostra un <strong>badge verde</strong> per ogni fonte connessa e un <strong>badge grigio</strong> per le fonti non disponibili."
           },
           "q4": {
             "question": "Con quale frequenza riceverò notifiche?",
@@ -3465,6 +3475,10 @@
           "q6": {
             "question": "Le notifiche proattive sono influenzate dai limiti?",
             "answer": "Sì, vengono automaticamente sospese."
+          },
+          "q7": {
+            "question": "Come funzionano gli avvisi meteo quando sono in viaggio? (v1.16.7)",
+            "answer": "Per impostazione predefinita, le notifiche meteo proattive usano il tuo <strong>indirizzo di casa</strong>. Se sei in viaggio, puoi attivare l'uso della tua <strong>posizione attuale</strong>:<br><br><strong>⚙️ Come attivare:</strong><br>Impostazioni → <em>Notifiche proattive</em> → sezione <em>Posizione meteo in viaggio</em> → attiva l'interruttore.<br><br><strong>🎯 Quando si attiva:</strong><br>LIA usa la tua posizione del browser (invece del domicilio) solo quando <strong>tutte</strong> queste condizioni sono soddisfatte:<br>• L'opzione è attiva<br>• La tua ultima posizione conosciuta ha <strong>meno di 24 ore</strong><br>• Sei a <strong>più di 50 km</strong> dal tuo indirizzo di casa<br><br>Sotto quella distanza, viene mantenuto il domicilio (evita di cambiare per spostamenti intra-cittadini). Dopo 24 h, la posizione è considerata obsoleta e le notifiche tornano automaticamente al domicilio.<br><br><strong>🏙️ Notifiche trasparenti:</strong><br>Quando la posizione usata non è il tuo domicilio, la notifica indica sempre la città interessata.<br><br><strong>🔒 Privacy by design:</strong><br>• La tua posizione è <strong>crittografata</strong> (stesso schema crittografico del tuo indirizzo di casa)<br>• <strong>Non viene storicizzata</strong> — ogni aggiornamento sovrascrive il precedente, nessuna traccia<br>• Viene <strong>cancellata immediatamente</strong> se disattivi l'opzione o rimuovi il tuo indirizzo di casa<br>• Un blocco <em>Attualmente memorizzata</em> mostra esattamente ciò che LIA ha conservato, con un pulsante <strong>Cancella ora</strong><br>• Il backend si auto-limita a un aggiornamento ogni 30 minuti per utente<br><br><strong>💡 Requisito:</strong><br>Devi anche attivare la geolocalizzazione del browser (Impostazioni → Posizione → Geolocalizzazione). Senza di essa, nessuna posizione può essere acquisita."
           }
         }
       },
@@ -4438,7 +4452,22 @@
     "enabled_success": "Notifiche proattive attivate",
     "disabled_success": "Notifiche proattive disattivate",
     "settings_updated": "Impostazioni aggiornate",
-    "settings_error": "Errore durante l'aggiornamento delle impostazioni"
+    "settings_error": "Errore durante l'aggiornamento delle impostazioni",
+    "weather_location": {
+      "section_label": "Posizione meteo in viaggio",
+      "toggle_label": "Usa la mia posizione attuale per gli avvisi meteo",
+      "toggle_description": "Usa la tua posizione del browser (quando sei lontano da casa) invece del tuo indirizzo di casa per le notifiche meteo proattive.",
+      "privacy_note": "La tua posizione è crittografata e non storicizzata (sovrascritta ad ogni aggiornamento). Viene eliminata se disattivi questa opzione o rimuovi il tuo indirizzo di casa.",
+      "enabled_success": "Posizione meteo intelligente attivata",
+      "disabled_success": "Posizione meteo intelligente disattivata, posizione memorizzata cancellata",
+      "stored_title": "Attualmente memorizzata",
+      "stored_coords": "Coordinate",
+      "stored_updated_at": "Ultimo aggiornamento",
+      "stored_stale": "Questa posizione è oltre la finestra di freschezza — le notifiche useranno il tuo domicilio.",
+      "no_stored": "Nessuna posizione memorizzata per ora. Sarà acquisita al tuo prossimo messaggio.",
+      "clear_button": "Cancella ora",
+      "geoloc_required_hint": "Attiva anche la geolocalizzazione del browser nella sezione Geolocalizzazione sopra — altrimenti nessuna posizione sarà mai acquisita."
+    }
   },
   "notifications": {
     "already_enabled": "Le notifiche sono già attivate.",

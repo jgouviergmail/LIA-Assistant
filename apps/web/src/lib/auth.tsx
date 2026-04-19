@@ -30,6 +30,7 @@ export interface User {
   image_generation_default_quality?: string;
   image_generation_default_size?: string;
   image_generation_output_format?: string;
+  weather_use_last_known_location?: boolean;
 }
 
 interface AuthContextType {

@@ -91,6 +91,12 @@ class HeartbeatContext:
     weather_current: dict[str, Any] | None = None
     weather_changes: list[WeatherChange] | None = None
 
+    # Weather location provenance (Phase 3): "home" or "last_known".
+    # ``weather_location_city`` is the reverse-geocoded city name shown in
+    # notification content so the user understands where the forecast is from.
+    weather_location_source: Literal["home", "last_known"] | None = None
+    weather_location_city: str | None = None
+
     # Tasks — pending Google Tasks (due soon or overdue)
     pending_tasks: list[dict[str, Any]] | None = None
 
@@ -185,7 +191,13 @@ class HeartbeatContext:
             temp = self.weather_current.get("main", {}).get("temp", "?")
             desc = self.weather_current.get("weather", [{}])[0].get("description", "?")
             wind = self.weather_current.get("wind", {}).get("speed", "?")
-            sections.append(f"CURRENT WEATHER: {desc}, {temp}°C, wind {wind} m/s")
+            location_suffix = ""
+            if self.weather_location_city:
+                src_label = (
+                    "away from home" if self.weather_location_source == "last_known" else "at home"
+                )
+                location_suffix = f" in {self.weather_location_city} ({src_label})"
+            sections.append(f"CURRENT WEATHER{location_suffix}: {desc}, {temp}°C, wind {wind} m/s")
 
         if self.weather_changes:
             changes_text = "\n".join(

@@ -67,6 +67,8 @@ APScheduler (30 min, configurable)
 | `HEARTBEAT_WEATHER_RAIN_THRESHOLD_LOW` | `0.3` | pop below = clearing |
 | `HEARTBEAT_WEATHER_TEMP_CHANGE_THRESHOLD` | `5.0` | Degrees C change to flag |
 | `HEARTBEAT_WEATHER_WIND_THRESHOLD` | `14.0` | m/s for wind alert |
+| `LAST_KNOWN_LOCATION_TTL_HOURS` | `24` | TTL for persisted browser geoloc before fallback to home |
+| `LAST_KNOWN_LOCATION_MIN_DISTANCE_KM` | `50.0` | Min distance from home to prefer last-known over home |
 | `HEARTBEAT_INACTIVE_SKIP_DAYS` | `7` | Skip if user inactive > N days |
 
 ## User Settings
@@ -78,6 +80,7 @@ APScheduler (30 min, configurable)
 | `heartbeat_push_enabled` | bool | `true` | Enable FCM/Telegram push (if false, silent archive only) |
 | `heartbeat_notify_start_hour` | int | `9` | Start hour (0-23) for notification window |
 | `heartbeat_notify_end_hour` | int | `22` | End hour (0-23) for notification window |
+| `weather_use_last_known_location` | bool | `false` | Opt-in: use persisted browser geoloc (Phase 3) when traveling (>50 km from home, <24 h old) |
 
 ## Context Sources
 
@@ -102,10 +105,22 @@ The `ContextAggregator` fetches all sources in parallel via `asyncio.gather(retu
 Compares current weather (`weather[0].main`) with forecast entries (`pop` values) to detect:
 - **rain_start**: Not raining + pop > threshold
 - **rain_end**: Raining + pop < threshold
-- **temp_drop**: Temperature dropping > threshold degrees
+- **temp_drop** / **temp_rise**: Daily average (today vs tomorrow, bucketed by local date) differs by more than `HEARTBEAT_WEATHER_TEMP_CHANGE_THRESHOLD`. Uses 48 h forecast (`cnt=16`) so the comparison is well-defined regardless of the trigger time — and filters out the noisy day/night cycle that plagued the earlier now-vs-forecast-entry algorithm.
 - **wind_alert**: Wind speed > threshold m/s
 
 Each change type is detected at most once (dedup via `detected_types` set).
+
+### Location cascade (Phase 3 — ADR-073)
+
+Before fetching weather, `ContextAggregator` resolves the effective location via `UserLocationService.get_effective_location_for_proactive(user)`:
+
+```
+last_known (opt-in + fresh + > LAST_KNOWN_LOCATION_MIN_DISTANCE_KM from home) > home
+```
+
+If the cascade returns `"last_known"`, the subsequent `get_current_weather` / `get_forecast` / reverse-geocoding all use the traveling user's coordinates. `HeartbeatContext` exposes `weather_location_source` and `weather_location_city` so the decision prompt can mention the city (prompt rule 16). Prometheus counter `heartbeat_weather_location_source_total{source="home|last_known"}` tracks the split.
+
+Privacy: the persisted coordinates are encrypted (Fernet), non-historized (overwritten on each update), auto-wiped on opt-out or home deletion. See `docs/runbooks/LAST_KNOWN_LOCATION.md`.
 
 ## Two-Phase LLM Approach
 

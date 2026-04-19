@@ -2710,6 +2710,16 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_16_7": {
+          "title": "v1.16.7 — Relevante Wetterwarnungen, auch auf Reisen",
+          "date": "April 2026",
+          "count": "3",
+          "items": {
+            "i1": "<b>Keine unsinnigen Temperaturwarnungen mehr in der Nacht</b> — LIA sendet keine „Temperatur fällt\"-Benachrichtigungen mehr, die nur den natürlichen Tag/Nacht-Zyklus beschreiben. Der Detektor vergleicht jetzt die durchschnittliche Temperatur von heute mit der von morgen — und warnt in beide Richtungen (kälter ODER wärmer), damit Sie wirklich wissen, wie Sie sich für den kommenden Tag kleiden sollen.",
+            "i2": "<b>Wetterwarnungen folgen Ihnen auf Reisen (Opt-in)</b> — Wenn Sie es aktivieren, kann LIA Ihre aktuelle Browser-Position für proaktive Wetterbenachrichtigungen verwenden, wenn Sie mehr als 50 km von zu Hause entfernt sind. Ihr Standort wird verschlüsselt, nicht historisiert (jede Aktualisierung überschreibt die vorherige) und sofort gelöscht, wenn Sie die Option deaktivieren oder Ihre Heimatadresse entfernen. Die Benachrichtigung nennt immer die Stadt, auf die sich die Vorhersage bezieht.",
+            "i3": "<b>Volle Transparenz über das, was gespeichert wird</b> — Ein neuer Block „Aktuell gespeichert\" unter Proaktive Benachrichtigungen zeigt die exakten von LIA gespeicherten Koordinaten, wann sie zuletzt aktualisiert wurden, und eine Schaltfläche „Jetzt löschen\". So sollte Datenschutz aussehen."
+          }
+        },
         "v1_16_6": {
           "title": "v1.16.6 — Präziseres Langzeitgedächtnis",
           "date": "April 2026",
@@ -3438,7 +3448,7 @@
       "heartbeat": {
         "title": "Proaktive Benachrichtigungen",
         "description": "LIA ergreift die Initiative, Sie zu informieren",
-        "count": "6",
+        "count": "7",
         "questions": {
           "q1": {
             "question": "Was sind proaktive Benachrichtigungen?",
@@ -3450,7 +3460,7 @@
           },
           "q3": {
             "question": "Welche Datenquellen werden verwendet?",
-            "answer": "LIA aggregiert <strong>10 Datenquellen</strong> parallel, um zu entscheiden, ob Sie benachrichtigt werden sollten:<br><br><strong>📅 Kalender:</strong><br>• Bevorstehende Termine (nächste Stunden)<br>• Erfordert einen aktiven Kalender-Connector (Google Calendar, Apple Calendar oder Microsoft)<br><br><strong>🌤️ Wetter + Änderungen:</strong><br>• Aktuelle Bedingungen + Übergangserkennung (Regen Beginn/Ende, Temperaturabfall, starker Wind)<br>• Erfordert einen OpenWeatherMap-Connector + konfigurierter Standort<br><br><strong>✅ Aufgaben:</strong><br>• Ausstehende oder überfällige Aufgaben<br>• Erfordert einen aktiven Aufgaben-Connector (Google Tasks oder Microsoft To Do)<br><br><strong>📧 E-Mails:</strong><br>• Ungelesene E-Mails des Tages (dringend, handlungsrelevant)<br>• Erfordert einen aktiven E-Mail-Connector (Gmail, Apple, Microsoft)<br><br><strong>⭐ Interessen:</strong><br>• Trendthemen unter Ihren aktiven Interessen<br><br><strong>🧠 Erinnerungen:</strong><br>• Relevante Informationen aus Ihren Erinnerungen<br><br><strong>📓 Journale:</strong><br>• Relevante Einträge aus den persönlichen Journalen des Assistenten (Selbstreflexion, Beobachtungen, Erkenntnisse)<br>• Erfordert aktivierte Journale (Einstellungen > Funktionen > Persönliche Journale)<br><br><strong>📊 Indikatoren:</strong><br>Der Einstellungsbereich zeigt ein <strong>grünes Badge</strong> für jede verbundene Quelle und ein <strong>graues Badge</strong> für nicht verfügbare Quellen."
+            "answer": "LIA aggregiert <strong>10 Datenquellen</strong> parallel, um zu entscheiden, ob Sie benachrichtigt werden sollten:<br><br><strong>📅 Kalender:</strong><br>• Bevorstehende Termine (nächste Stunden)<br>• Erfordert einen aktiven Kalender-Connector (Google Calendar, Apple Calendar oder Microsoft)<br><br><strong>🌤️ Wetter + Änderungen:</strong><br>• Aktuelle Bedingungen + Übergangserkennung: Regen Beginn/Ende, <strong>Temperaturabfall ODER -anstieg für morgen</strong> (Vergleich der Tagesdurchschnittswerte — nächtliche Abkühlung löst keine falschen „Temperaturabfall\"-Warnungen mehr aus), starker Wind<br>• Erfordert einen OpenWeatherMap-Connector + konfigurierte Heimatadresse<br>• <strong>Optionale Reisestandort-Erkennung (v1.16.7)</strong>: bei aktivierter Option „Aktuellen Standort für Wetterwarnungen verwenden\" nutzt LIA Ihre Browser-Position statt Ihrer Heimatadresse, wenn Sie mehr als 50 km entfernt sind. Siehe dedizierte Frage unten.<br><br><strong>✅ Aufgaben:</strong><br>• Ausstehende oder überfällige Aufgaben<br>• Erfordert einen aktiven Aufgaben-Connector (Google Tasks oder Microsoft To Do)<br><br><strong>📧 E-Mails:</strong><br>• Ungelesene E-Mails des Tages (dringend, handlungsrelevant)<br>• Erfordert einen aktiven E-Mail-Connector (Gmail, Apple, Microsoft)<br><br><strong>⭐ Interessen:</strong><br>• Trendthemen unter Ihren aktiven Interessen<br><br><strong>🧠 Erinnerungen:</strong><br>• Relevante Informationen aus Ihren Erinnerungen<br><br><strong>📓 Journale:</strong><br>• Relevante Einträge aus den persönlichen Journalen des Assistenten (Selbstreflexion, Beobachtungen, Erkenntnisse)<br>• Erfordert aktivierte Journale (Einstellungen > Funktionen > Persönliche Journale)<br><br><strong>📊 Indikatoren:</strong><br>Der Einstellungsbereich zeigt ein <strong>grünes Badge</strong> für jede verbundene Quelle und ein <strong>graues Badge</strong> für nicht verfügbare Quellen."
           },
           "q4": {
             "question": "Wie oft werde ich Benachrichtigungen erhalten?",
@@ -3463,6 +3473,10 @@
           "q6": {
             "question": "Sind proaktive Benachrichtigungen von Nutzungslimits betroffen?",
             "answer": "Ja, sie werden automatisch pausiert."
+          },
+          "q7": {
+            "question": "Wie funktionieren Wetterwarnungen auf Reisen? (v1.16.7)",
+            "answer": "Standardmäßig nutzen proaktive Wetterbenachrichtigungen Ihre <strong>Heimatadresse</strong>. Auf Reisen können Sie LIA erlauben, Ihre <strong>aktuelle Position</strong> zu verwenden:<br><br><strong>⚙️ Aktivierung:</strong><br>Einstellungen → <em>Proaktive Benachrichtigungen</em> → Bereich <em>Wetterstandort unterwegs</em> → Schalter aktivieren.<br><br><strong>🎯 Wann es greift:</strong><br>LIA nutzt Ihre Browser-Position (statt Ihres Zuhauses) nur, wenn <strong>alle</strong> diese Bedingungen erfüllt sind:<br>• Die Option ist aktiviert<br>• Ihre letzte bekannte Position ist <strong>weniger als 24 Stunden alt</strong><br>• Sie sind <strong>mehr als 50 km</strong> von Ihrer Heimatadresse entfernt<br><br>Unterhalb dieser Entfernung wird die Heimatadresse beibehalten (vermeidet Umschalten bei innerstädtischen Bewegungen). Nach 24 h gilt die Position als veraltet und Benachrichtigungen fallen automatisch auf die Heimatadresse zurück.<br><br><strong>🏙️ Transparente Benachrichtigungen:</strong><br>Wenn die verwendete Position nicht Ihr Zuhause ist, erwähnt die Benachrichtigung immer die betreffende Stadt.<br><br><strong>🔒 Privacy by Design:</strong><br>• Ihre Position wird <strong>verschlüsselt</strong> (gleiches Kryptoschema wie Ihre Heimatadresse)<br>• Sie wird <strong>nicht historisiert</strong> — jede Aktualisierung überschreibt die vorherige, keine Spur<br>• Sie wird <strong>sofort gelöscht</strong>, wenn Sie die Option deaktivieren oder Ihre Heimatadresse entfernen<br>• Ein <em>Aktuell gespeichert</em>-Block zeigt, was LIA gespeichert hat, mit einer <strong>Jetzt löschen</strong>-Schaltfläche<br>• Das Backend limitiert sich selbst auf eine Aktualisierung pro 30 Minuten pro Benutzer<br><br><strong>💡 Voraussetzung:</strong><br>Sie müssen auch die Browser-Geolokalisierung aktivieren (Einstellungen → Standort → Geolokalisierung). Ohne diese kann keine Position erfasst werden."
           }
         }
       },
@@ -4436,7 +4450,22 @@
     "enabled_success": "Proaktive Benachrichtigungen aktiviert",
     "disabled_success": "Proaktive Benachrichtigungen deaktiviert",
     "settings_updated": "Einstellungen aktualisiert",
-    "settings_error": "Fehler beim Aktualisieren der Einstellungen"
+    "settings_error": "Fehler beim Aktualisieren der Einstellungen",
+    "weather_location": {
+      "section_label": "Wetterstandort unterwegs",
+      "toggle_label": "Aktuellen Standort für Wetterwarnungen verwenden",
+      "toggle_description": "Browser-Position verwenden (wenn Sie nicht zu Hause sind) anstelle Ihrer Heimatadresse für proaktive Wetterbenachrichtigungen.",
+      "privacy_note": "Ihr Standort wird verschlüsselt und nicht historisiert (bei jedem Update überschrieben). Er wird gelöscht, wenn Sie diese Option deaktivieren oder Ihre Heimatadresse entfernen.",
+      "enabled_success": "Intelligenter Wetterstandort aktiviert",
+      "disabled_success": "Intelligenter Wetterstandort deaktiviert, gespeicherte Position gelöscht",
+      "stored_title": "Aktuell gespeichert",
+      "stored_coords": "Koordinaten",
+      "stored_updated_at": "Letzte Aktualisierung",
+      "stored_stale": "Diese Position liegt außerhalb des Aktualitätsfensters — Benachrichtigungen verwenden Ihre Heimatadresse.",
+      "no_stored": "Noch keine Position gespeichert. Sie wird bei Ihrer nächsten Chat-Nachricht erfasst.",
+      "clear_button": "Jetzt löschen",
+      "geoloc_required_hint": "Aktivieren Sie auch die Browser-Standortbestimmung im obigen Abschnitt Geolokalisierung — sonst wird nie eine Position erfasst."
+    }
   },
   "notifications": {
     "already_enabled": "Benachrichtigungen sind bereits aktiviert.",

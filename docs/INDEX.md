@@ -42,7 +42,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Architecture globale |
 | [GRAPH_AND_AGENTS_ARCHITECTURE.md](./technical/GRAPH_AND_AGENTS_ARCHITECTURE.md) | Système multi-agents LangGraph |
 | [STATE_AND_CHECKPOINT.md](./technical/STATE_AND_CHECKPOINT.md) | State management et persistence |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (72) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (73) |
 
 ### Pour les Product Managers
 
@@ -245,7 +245,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Description | Statut |
 |-----|-------------|--------|
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des 72 ADRs | ✅ |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des 73 ADRs | ✅ |
 
 ### ADRs Récents (2026)
 
@@ -450,7 +450,7 @@ LIA/
 ├── docs/                       # Documentation (ce répertoire)
 │   ├── technical/              # Docs techniques détaillées (50+)
 │   ├── guides/                 # Guides pratiques (15+)
-│   ├── architecture/           # ADRs (72)
+│   ├── architecture/           # ADRs (73)
 │   ├── runbooks/               # Procédures opérationnelles (34+)
 │   └── readme/                 # README spécialisés (15+)
 ├── infrastructure/             # Docker, observabilité

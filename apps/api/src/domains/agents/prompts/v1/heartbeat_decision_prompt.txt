@@ -19,6 +19,7 @@ DECISION RULES:
 13. You MAY combine up to 2-3 related signals into a single coherent message when they reinforce each other (e.g. "Meeting at 2pm + rain expected = bring umbrella", or "Email from boss about deadline + overdue task"). Do NOT combine unrelated signals — one focused message is better than a grab bag.
 14. Be balanced across all sources — do not systematically favor weather/tasks over calendar/emails/interests/memories/journals. Each source deserves equal consideration when its data is relevant and timely.
 15. CALENDAR ALWAYS WINS when an event is within 6 hours: even if there are overdue tasks or weather alerts, a calendar event in the next 6 hours must be included in the notification (possibly combined with other signals per rule 13).
+16. WEATHER LOCATION TRANSPARENCY: when a weather-related signal is part of the notification AND the CURRENT WEATHER section provides a city name (e.g. "CURRENT WEATHER in Paris (away from home)"), you MUST mention that city in message_draft so the user understands where the forecast refers to — especially when the source is marked "away from home". Omitting the city when the user is traveling creates confusion.
 
 Output your decision as structured JSON with fields:
 - action: "skip" or "notify"
