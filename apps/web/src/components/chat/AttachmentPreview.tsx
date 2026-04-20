@@ -17,6 +17,7 @@ import { X, FileText, Loader2 } from 'lucide-react';
 import type { PendingAttachment } from '@/hooks/useFileUpload';
 import { formatFileSize } from '@/lib/utils/image-compress';
 import { useTranslation } from 'react-i18next';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 interface AttachmentPreviewProps {
   attachments: PendingAttachment[];
@@ -67,14 +68,19 @@ export default function AttachmentPreview({ attachments, onRemove }: AttachmentP
           )}
 
           {/* Remove button — always visible on mobile (no hover), visible on hover/focus on desktop */}
-          <button
-            type="button"
-            onClick={() => onRemove(att.tempId)}
-            className="absolute top-0.5 right-0.5 rounded-full bg-background/80 p-0.5 opacity-100 mobile:opacity-0 mobile:group-hover:opacity-100 mobile:focus:opacity-100 transition-opacity hover:bg-destructive hover:text-destructive-foreground"
-            aria-label={t('chat.attachments.remove')}
-          >
-            <X className="h-3 w-3" />
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                onClick={() => onRemove(att.tempId)}
+                className="absolute top-0.5 right-0.5 rounded-full bg-background/80 p-0.5 opacity-100 mobile:opacity-0 mobile:group-hover:opacity-100 mobile:focus:opacity-100 transition-opacity hover:bg-destructive hover:text-destructive-foreground"
+                aria-label={t('chat.attachments.remove')}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>{t('chat.attachments.remove')}</TooltipContent>
+          </Tooltip>
 
           {/* File size badge */}
           <div className="absolute bottom-0.5 left-0.5 bg-background/80 rounded px-1">

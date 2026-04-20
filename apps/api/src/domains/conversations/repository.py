@@ -10,15 +10,18 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from src.core.field_names import (
     FIELD_CREATED_AT,
+    FIELD_FEEDBACK_SUBMITTED,
+    FIELD_FEEDBACK_VALUE,
     FIELD_GOOGLE_API_REQUESTS,
     FIELD_RUN_ID,
+    FIELD_TARGET_ID,
     FIELD_TOTAL_COST_EUR,
     FIELD_TOTAL_GOOGLE_API_REQUESTS,
     FIELD_TOTAL_TOKENS_CACHE,
@@ -269,6 +272,7 @@ class ConversationRepository(BaseRepository[Conversation]):
         self,
         conversation_id: UUID,
         limit: int = 50,
+        search: str | None = None,
     ) -> Sequence[tuple[ConversationMessage, dict]]:
         """
         Get messages with their token summaries in a single optimized query.
@@ -279,6 +283,8 @@ class ConversationRepository(BaseRepository[Conversation]):
         Args:
             conversation_id: Conversation UUID
             limit: Maximum number of messages
+            search: Optional case-insensitive substring to filter message content.
+                    Uses PostgreSQL ILIKE (case-insensitive, accent-sensitive).
 
         Returns:
             List of (message, token_summary_dict) tuples
@@ -306,9 +312,15 @@ class ConversationRepository(BaseRepository[Conversation]):
                     == MessageTokenSummary.run_id,
                 )
                 .where(ConversationMessage.conversation_id == conversation_id)
-                .order_by(ConversationMessage.created_at.desc())
-                .limit(limit)
             )
+
+            # Apply optional full-text search filter on message content.
+            # MVP: ILIKE is case-insensitive but accent-sensitive. Upgrade to
+            # pg_trgm / unaccent extensions if accent-insensitive matching is needed.
+            if search:
+                stmt = stmt.where(ConversationMessage.content.ilike(f"%{search}%"))
+
+            stmt = stmt.order_by(ConversationMessage.created_at.desc()).limit(limit)
 
             result = await self.db.execute(stmt)
             rows = result.all()
@@ -638,6 +650,83 @@ class ConversationRepository(BaseRepository[Conversation]):
                 "create_message_failed",
                 conversation_id=str(conversation_id),
                 role=role,
+                error=str(e),
+            )
+            raise
+
+    async def mark_interest_feedback_submitted(
+        self,
+        user_id: UUID,
+        interest_id: UUID,
+        feedback_value: str,
+    ) -> int:
+        """Persist interest feedback state on all related proactive messages.
+
+        Updates ``message_metadata`` JSONB on every ConversationMessage whose
+        metadata references ``target_id == interest_id``. The update adds two
+        keys: ``feedback_submitted=true`` and ``feedback_value=<value>``.
+
+        Scoped by ``user_id`` via conversation join to prevent cross-tenant
+        writes. Uses ``jsonb_set`` with ``coalesce`` to handle NULL metadata.
+
+        Args:
+            user_id: Owner of the messages (security filter).
+            interest_id: UUID referenced as ``target_id`` in message metadata.
+            feedback_value: One of "thumbs_up", "thumbs_down", "block".
+
+        Returns:
+            Number of messages updated (0 if no matching proactive messages).
+
+        Raises:
+            SQLAlchemyError: On database failure.
+        """
+        from sqlalchemy import cast, update
+        from sqlalchemy.dialects.postgresql import JSONB
+
+        try:
+            conv_ids_subq = select(Conversation.id).where(Conversation.user_id == user_id)
+            empty_jsonb = cast("{}", JSONB)
+
+            stmt = (
+                update(ConversationMessage)
+                .where(
+                    ConversationMessage.conversation_id.in_(conv_ids_subq),
+                    ConversationMessage.message_metadata[FIELD_TARGET_ID].astext
+                    == str(interest_id),
+                )
+                .values(
+                    message_metadata=func.jsonb_set(
+                        func.jsonb_set(
+                            func.coalesce(
+                                ConversationMessage.message_metadata,
+                                empty_jsonb,
+                            ),
+                            "{" + FIELD_FEEDBACK_SUBMITTED + "}",
+                            func.to_jsonb(True),
+                        ),
+                        "{" + FIELD_FEEDBACK_VALUE + "}",
+                        func.to_jsonb(feedback_value),
+                    )
+                )
+            )
+            result = await self.db.execute(stmt)
+            count = result.rowcount or 0
+
+            logger.debug(
+                "interest_feedback_marked_on_messages",
+                user_id=str(user_id),
+                interest_id=str(interest_id),
+                feedback_value=feedback_value,
+                messages_updated=count,
+            )
+
+            return count
+
+        except (SQLAlchemyError, IntegrityError, OperationalError) as e:
+            logger.error(
+                "mark_interest_feedback_submitted_failed",
+                user_id=str(user_id),
+                interest_id=str(interest_id),
                 error=str(e),
             )
             raise

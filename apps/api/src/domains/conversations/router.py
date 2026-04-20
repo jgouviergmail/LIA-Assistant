@@ -6,6 +6,10 @@ REST endpoints for conversation management and message history.
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.core.constants import (
+    CONVERSATION_SEARCH_MAX_LENGTH,
+    CONVERSATION_SEARCH_MIN_LENGTH,
+)
 from src.core.dependencies import get_db
 from src.core.exceptions import raise_no_active_conversation
 from src.core.field_names import (
@@ -81,6 +85,12 @@ async def get_my_conversation(
 )
 async def get_conversation_messages(
     limit: int = Query(50, ge=1, le=200, description="Maximum number of messages to return"),
+    search: str | None = Query(
+        None,
+        min_length=CONVERSATION_SEARCH_MIN_LENGTH,
+        max_length=CONVERSATION_SEARCH_MAX_LENGTH,
+        description="Optional case-insensitive substring to filter message content",
+    ),
     current_user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
 ) -> ConversationMessagesResponse:
@@ -92,6 +102,8 @@ async def get_conversation_messages(
 
     Args:
         limit: Maximum number of messages (1-200, default 50)
+        search: Optional substring filter on message content (case-insensitive
+                ILIKE match, accent-sensitive). 2-200 chars.
         current_user: Authenticated user from session dependency.
         db: Database session from FastAPI dependency injection.
 
@@ -111,7 +123,9 @@ async def get_conversation_messages(
 
     # Get messages with token usage (auto-routing with feature flag for N+1 optimization)
     # Note: ALL messages are now returned including HITL (APPROVE/REJECT/EDIT/AMBIGUOUS)
-    messages = await service.get_messages_with_tokens_auto(current_user.id, limit, db)
+    messages = await service.get_messages_with_tokens_auto(
+        current_user.id, limit, db, search=search
+    )
 
     # Calculate total_count from messages (consistent with returned data)
     # Count all user messages including HITL responses

@@ -541,6 +541,50 @@ class ConnectorTool[ClientType](ABC):
 
         return user_timezone, locale
 
+    # Internal key used by subclasses to propagate user language from
+    # execute_api_call() (async) to format_registry_response() (sync) via
+    # the result dict. Prevents unsafe reliance on shared instance state,
+    # since ConnectorTool instances are singletons across concurrent requests.
+    _LANGUAGE_RESULT_KEY: str = "_language"
+
+    async def _fetch_language(self, default: str = "fr") -> str:
+        """Fetch user language from runtime with safe fallback.
+
+        Use this in ``execute_api_call`` to retrieve the user's language
+        code, then store it in the returned result dict under the
+        ``_LANGUAGE_RESULT_KEY`` so that ``format_registry_response`` can
+        read it without re-calling async helpers (that method is sync).
+
+        Args:
+            default: Language code returned when runtime is unavailable.
+
+        Returns:
+            Two-letter (or IETF) language code such as "fr", "en", "de".
+        """
+        if not self.runtime:
+            return default
+        from src.domains.agents.tools.runtime_helpers import get_user_language_safe
+
+        return await get_user_language_safe(self.runtime, default=default)
+
+    def _language_from_result(self, result: dict[str, Any], default: str = "fr") -> str:
+        """Extract the user language stashed by ``execute_api_call``.
+
+        Paired with :meth:`_fetch_language`. Keeps subclasses free of
+        magic string keys and keeps the contract localised in the base
+        class.
+
+        Args:
+            result: Dict returned by ``execute_api_call``.
+            default: Language code returned if the key is missing.
+
+        Returns:
+            Language code found in ``result[_LANGUAGE_RESULT_KEY]`` or
+            ``default``.
+        """
+        value = result.get(self._LANGUAGE_RESULT_KEY, default)
+        return value if isinstance(value, str) and value else default
+
 
 class APIKeyConnectorTool[ClientType](ABC):
     """

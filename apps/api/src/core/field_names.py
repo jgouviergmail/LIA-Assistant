@@ -102,6 +102,13 @@ FIELD_INTERRUPT_DATA = "interrupt_data"
 FIELD_TYPE = "type"  # Generic type field (HITL action type, etc.)
 FIELD_DRAFT_ID = "draft_id"  # Draft identifier for draft_critique HITL
 
+# Proactive Messages Metadata (interest/heartbeat notifications archived in
+# conversation_messages.message_metadata JSONB)
+FIELD_TARGET_ID = "target_id"  # Reference to the source entity (interest_id, heartbeat_id, ...)
+FIELD_FEEDBACK_ENABLED = "feedback_enabled"  # Whether feedback buttons should be shown
+FIELD_FEEDBACK_SUBMITTED = "feedback_submitted"  # Persisted after user submits feedback
+FIELD_FEEDBACK_VALUE = "feedback_value"  # Feedback kind (thumbs_up/thumbs_down/block)
+
 # Data Registry & Correlation (Correlated Display)
 FIELD_REGISTRY_ID = "_registry_id"  # Internal registry item ID (enriched in structured_data)
 FIELD_CORRELATION_PARENT_ID = "_correlation_parent_id"  # System param for FOR_EACH correlation

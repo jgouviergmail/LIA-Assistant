@@ -412,12 +412,14 @@ class GetCurrentWeatherTool(APIKeyConnectorTool[OpenWeatherMapClient]):
         if not user_message and runtime:
             user_message = get_original_user_message(runtime)
 
-        # Get user timezone for sunrise/sunset formatting
+        # Get user timezone for sunrise/sunset formatting.
+        # User's language preference takes precedence over kwargs default so that
+        # translated error messages (via _()) match the user's locale.
         user_timezone = "UTC"
         try:
             if runtime:
                 user_timezone, user_lang, _locale = await get_user_preferences(runtime)
-                if not language:
+                if user_lang:
                     language = user_lang
         except Exception:
             pass  # Use default
@@ -456,7 +458,7 @@ class GetCurrentWeatherTool(APIKeyConnectorTool[OpenWeatherMapClient]):
                 return {
                     "success": False,
                     "error": "location_required",
-                    "message": _("Please specify a city or enable geolocation."),
+                    "message": _("Please specify a city or enable geolocation.", language),
                 }
 
             coords = await _geocode_with_city_fallback(client, location)
@@ -464,7 +466,9 @@ class GetCurrentWeatherTool(APIKeyConnectorTool[OpenWeatherMapClient]):
                 return {
                     "success": False,
                     "error": "location_not_found",
-                    "message": _("Unable to find location: {location}").format(location=location),
+                    "message": _("Unable to find location: {location}", language).format(
+                        location=location
+                    ),
                 }
 
             lat, lon, resolved_name, country = coords
@@ -684,7 +688,7 @@ class GetWeatherForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
                 return {
                     "success": False,
                     "error": "location_required",
-                    "message": _("Please specify a city or enable geolocation."),
+                    "message": _("Please specify a city or enable geolocation.", language),
                 }
 
             coords = await _geocode_with_city_fallback(client, location)
@@ -692,7 +696,9 @@ class GetWeatherForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
                 return {
                     "success": False,
                     "error": "location_not_found",
-                    "message": _("Unable to find location: {location}").format(location=location),
+                    "message": _("Unable to find location: {location}", language).format(
+                        location=location
+                    ),
                 }
 
             lat, lon, resolved_name, country = coords
@@ -874,11 +880,12 @@ class GetHourlyForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
         if not user_message and runtime:
             user_message = get_original_user_message(runtime)
 
-        # Get user language
+        # Get user language preference (takes precedence over kwargs default so that
+        # translated error messages via _() match the user's locale).
         try:
             if runtime:
                 _tz, user_lang, _locale = await get_user_preferences(runtime)
-                if not language:
+                if user_lang:
                     language = user_lang
         except Exception as e:
             logger.debug("user_preferences_fallback", error=str(e))
@@ -916,7 +923,7 @@ class GetHourlyForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
                 return {
                     "success": False,
                     "error": "location_required",
-                    "message": _("Please specify a city or enable geolocation."),
+                    "message": _("Please specify a city or enable geolocation.", language),
                 }
 
             coords = await _geocode_with_city_fallback(client, location)
@@ -924,7 +931,9 @@ class GetHourlyForecastTool(APIKeyConnectorTool[OpenWeatherMapClient]):
                 return {
                     "success": False,
                     "error": "location_not_found",
-                    "message": _("Unable to find location: {location}").format(location=location),
+                    "message": _("Unable to find location: {location}", language).format(
+                        location=location
+                    ),
                 }
 
             lat, lon, resolved_name, country = coords

@@ -38,6 +38,7 @@ fall back to the guidelines below ONLY for turns where no skill is active.
 - Share observations and insights
 - Propose 2-5 relevant suggestions as markdown '-' list, each prefixed by an illustrative emoji
 - Adapt suggestion count to query complexity: simple query = fewer suggestions
+- For mathematical expressions, use LaTeX: `$inline$` for inline math, `$$block$$` for display math (e.g. `$E = mc^2$`, `$$a^2 + b^2 = c^2$$`)
 </ResponseGuidelines>
 
 --- DYNAMIC CONTEXT ---

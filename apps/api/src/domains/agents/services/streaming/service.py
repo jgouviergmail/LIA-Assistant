@@ -1055,12 +1055,35 @@ class StreamingService:
                         "debug_cache_filtered_catalogue",
                         tools_count=len(planning_result.filtered_catalogue.tools),
                     )
-                # Capture skill_name for done metadata (frontend badge)
-                plan = getattr(planning_result, "plan", None)
-                if plan and hasattr(plan, "metadata"):
-                    skill_name = plan.metadata.get("skill_name")
-                    if skill_name:
-                        self.activated_skill_name = skill_name
+                # Capture skill_name for done metadata (frontend badge).
+                # Guard against stale planning_result from the previous turn: the
+                # plan persists in LangGraph state when the current turn skips the
+                # planner (route=response). Only trust plan.metadata.skill_name
+                # when this turn actually routed through the planner.
+                current_route_to = (
+                    self._cached_query_intelligence.route_to
+                    if self._cached_query_intelligence
+                    else None
+                )
+                if current_route_to == "planner":
+                    plan = getattr(planning_result, "plan", None)
+                    if plan and hasattr(plan, "metadata"):
+                        skill_name = plan.metadata.get("skill_name")
+                        if skill_name:
+                            self.activated_skill_name = skill_name
+                else:
+                    plan = getattr(planning_result, "plan", None)
+                    stale_skill = (
+                        plan.metadata.get("skill_name")
+                        if plan and hasattr(plan, "metadata")
+                        else None
+                    )
+                    if stale_skill:
+                        logger.debug(
+                            "debug_cache_stale_planning_result_skill_ignored",
+                            stale_skill_name=stale_skill,
+                            route_to=current_route_to,
+                        )
 
         except (ImportError, ValueError, KeyError, TypeError, AttributeError, RuntimeError) as e:
             # Fail silently - debug metrics should not break streaming
@@ -2579,9 +2602,16 @@ class StreamingService:
         try:
             # Route 3 (conversation fallback): detect activate_skill_tool calls from messages.
             # When the response LLM called activate_skill_tool, the tool call is in state messages.
+            # Scope: current turn only — stop at the last HumanMessage so we don't
+            # pick up activate_skill_tool calls from previous turns (which would
+            # surface a stale skill badge on a turn that did not actually activate one).
             if not self.activated_skill_name and state:
+                from langchain_core.messages import HumanMessage
+
                 messages = state.get("messages", [])
-                for msg in reversed(messages[-10:]):
+                for msg in reversed(messages):
+                    if isinstance(msg, HumanMessage):
+                        break
                     tool_calls = getattr(msg, "tool_calls", None) or []
                     for tc in tool_calls:
                         if isinstance(tc, dict) and tc.get("name") == "activate_skill_tool":

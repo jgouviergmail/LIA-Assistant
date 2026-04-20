@@ -28,6 +28,7 @@ from langchain.tools import ToolRuntime
 from langchain_core.tools import InjectedToolArg, tool
 from pydantic import BaseModel
 
+from src.core.i18n import _
 from src.domains.agents.constants import AGENT_HUE, CONTEXT_DOMAIN_HUE
 from src.domains.agents.context.registry import ContextTypeDefinition, ContextTypeRegistry
 from src.domains.agents.data_registry.models import (
@@ -142,8 +143,9 @@ class ListHueLightsTool(ConnectorTool[PhilipsHueClient]):
         **kwargs: Any,
     ) -> dict[str, Any]:
         """Execute list lights API call."""
+        language = await self._fetch_language()
         lights = await client.list_lights()
-        return {"success": True, "data": {"lights": lights}}
+        return {"success": True, "data": {"lights": lights}, self._LANGUAGE_RESULT_KEY: language}
 
     def format_registry_response(
         self,
@@ -151,6 +153,7 @@ class ListHueLightsTool(ConnectorTool[PhilipsHueClient]):
     ) -> UnifiedToolOutput:
         """Format lights as Data Registry UnifiedToolOutput."""
         lights = result.get("data", {}).get("lights", [])
+        language = self._language_from_result(result)
         registry_updates: dict[str, RegistryItem] = {}
 
         for light in lights:
@@ -178,9 +181,9 @@ class ListHueLightsTool(ConnectorTool[PhilipsHueClient]):
 
         summary_parts = []
         on_count = sum(1 for lt in lights if lt.get("on", {}).get("on", False))
-        summary_parts.append(f"{len(lights)} light(s) found")
+        summary_parts.append(_("{count} light(s) found", language).format(count=len(lights)))
         if on_count:
-            summary_parts.append(f"{on_count} currently on")
+            summary_parts.append(_("{count} currently on", language).format(count=on_count))
 
         return UnifiedToolOutput.data_success(
             message=", ".join(summary_parts),
@@ -212,6 +215,7 @@ class ControlHueLightTool(ConnectorTool[PhilipsHueClient]):
         **kwargs: Any,
     ) -> dict[str, Any]:
         """Execute light control API call."""
+        language = await self._fetch_language()
         light_name_or_id: str = kwargs.get("light_name_or_id", "")
         on: bool | None = kwargs.get("on")
         brightness: int | None = kwargs.get("brightness")
@@ -224,7 +228,10 @@ class ControlHueLightTool(ConnectorTool[PhilipsHueClient]):
             available = [lt.get("metadata", {}).get("name", "?") for lt in lights]
             return {
                 "success": False,
-                "error": f"Light '{light_name_or_id}' not found. Available: {available}",
+                "error": _("Light '{name}' not found. Available: {available}", language).format(
+                    name=light_name_or_id, available=", ".join(available)
+                ),
+                self._LANGUAGE_RESULT_KEY: language,
             }
 
         light_id = target["id"]
@@ -251,6 +258,7 @@ class ControlHueLightTool(ConnectorTool[PhilipsHueClient]):
                 "color": color,
                 "api_result": result,
             },
+            self._LANGUAGE_RESULT_KEY: language,
         }
 
     def format_registry_response(
@@ -258,9 +266,11 @@ class ControlHueLightTool(ConnectorTool[PhilipsHueClient]):
         result: dict[str, Any],
     ) -> UnifiedToolOutput:
         """Format light control result."""
+        language = self._language_from_result(result)
+
         if not result.get("success"):
             return UnifiedToolOutput.data_success(
-                message=result.get("error", "Light control failed"),
+                message=result.get("error") or _("Light control failed", language),
                 structured_data={"action": "control_light", "success": False},
                 metadata={"type": "hue_control", "success": False},
             )
@@ -268,11 +278,11 @@ class ControlHueLightTool(ConnectorTool[PhilipsHueClient]):
         data = result.get("data", {})
         parts = [f"'{data.get('name')}':"]
         if data.get("on") is not None:
-            parts.append("on" if data["on"] else "off")
+            parts.append(_("on", language) if data["on"] else _("off", language))
         if data.get("brightness") is not None:
-            parts.append(f"brightness {data['brightness']}%")
+            parts.append(_("brightness {pct}%", language).format(pct=data["brightness"]))
         if data.get("color"):
-            parts.append(f"color {data['color']}")
+            parts.append(_("color {color}", language).format(color=data["color"]))
 
         return UnifiedToolOutput.data_success(
             message=" ".join(parts),
@@ -308,8 +318,9 @@ class ListHueRoomsTool(ConnectorTool[PhilipsHueClient]):
         **kwargs: Any,
     ) -> dict[str, Any]:
         """Execute list rooms API call."""
+        language = await self._fetch_language()
         rooms = await client.list_rooms()
-        return {"success": True, "data": {"rooms": rooms}}
+        return {"success": True, "data": {"rooms": rooms}, self._LANGUAGE_RESULT_KEY: language}
 
     def format_registry_response(
         self,
@@ -317,6 +328,7 @@ class ListHueRoomsTool(ConnectorTool[PhilipsHueClient]):
     ) -> UnifiedToolOutput:
         """Format rooms list."""
         rooms = result.get("data", {}).get("rooms", [])
+        language = self._language_from_result(result)
 
         summary_parts = []
         structured_rooms: list[dict[str, Any]] = []
@@ -324,7 +336,9 @@ class ListHueRoomsTool(ConnectorTool[PhilipsHueClient]):
             name = room.get("metadata", {}).get("name", "?")
             room_id = room.get("id", "")
             children_count = len(room.get("children", []))
-            summary_parts.append(f"{name} ({children_count} devices)")
+            summary_parts.append(
+                _("{name} ({count} devices)", language).format(name=name, count=children_count)
+            )
             structured_rooms.append(
                 {
                     "room_id": room_id,
@@ -333,10 +347,15 @@ class ListHueRoomsTool(ConnectorTool[PhilipsHueClient]):
                 }
             )
 
+        if rooms:
+            message = _("{count} room(s): {rooms}", language).format(
+                count=len(rooms), rooms=", ".join(summary_parts)
+            )
+        else:
+            message = _("No rooms found", language)
+
         return UnifiedToolOutput.data_success(
-            message=(
-                f"{len(rooms)} room(s): {', '.join(summary_parts)}" if rooms else "No rooms found"
-            ),
+            message=message,
             structured_data={"rooms": structured_rooms, "count": len(rooms)},
             metadata={"type": "hue_rooms", "count": len(rooms)},
         )
@@ -361,6 +380,7 @@ class ControlHueRoomTool(ConnectorTool[PhilipsHueClient]):
         **kwargs: Any,
     ) -> dict[str, Any]:
         """Execute room control API call."""
+        language = await self._fetch_language()
         room_name_or_id: str = kwargs.get("room_name_or_id", "")
         on: bool | None = kwargs.get("on")
         brightness: int | None = kwargs.get("brightness")
@@ -372,7 +392,10 @@ class ControlHueRoomTool(ConnectorTool[PhilipsHueClient]):
             available = [r.get("metadata", {}).get("name", "?") for r in rooms]
             return {
                 "success": False,
-                "error": f"Room '{room_name_or_id}' not found. Available: {available}",
+                "error": _("Room '{name}' not found. Available: {available}", language).format(
+                    name=room_name_or_id, available=", ".join(available)
+                ),
+                self._LANGUAGE_RESULT_KEY: language,
             }
 
         room_id = target["id"]
@@ -390,6 +413,7 @@ class ControlHueRoomTool(ConnectorTool[PhilipsHueClient]):
                 "brightness": brightness,
                 "api_result": result,
             },
+            self._LANGUAGE_RESULT_KEY: language,
         }
 
     def format_registry_response(
@@ -397,19 +421,21 @@ class ControlHueRoomTool(ConnectorTool[PhilipsHueClient]):
         result: dict[str, Any],
     ) -> UnifiedToolOutput:
         """Format room control result."""
+        language = self._language_from_result(result)
+
         if not result.get("success"):
             return UnifiedToolOutput.data_success(
-                message=result.get("error", "Room control failed"),
+                message=result.get("error") or _("Room control failed", language),
                 structured_data={"action": "control_room", "success": False},
                 metadata={"type": "hue_room_control", "success": False},
             )
 
         data = result.get("data", {})
-        parts = [f"Room '{data.get('name')}':"]
+        parts = [_("Room '{name}':", language).format(name=data.get("name"))]
         if data.get("on") is not None:
-            parts.append("all on" if data["on"] else "all off")
+            parts.append(_("all on", language) if data["on"] else _("all off", language))
         if data.get("brightness") is not None:
-            parts.append(f"brightness {data['brightness']}%")
+            parts.append(_("brightness {pct}%", language).format(pct=data["brightness"]))
 
         return UnifiedToolOutput.data_success(
             message=" ".join(parts),
@@ -444,8 +470,9 @@ class ListHueScenesTool(ConnectorTool[PhilipsHueClient]):
         **kwargs: Any,
     ) -> dict[str, Any]:
         """Execute list scenes API call."""
+        language = await self._fetch_language()
         scenes = await client.list_scenes()
-        return {"success": True, "data": {"scenes": scenes}}
+        return {"success": True, "data": {"scenes": scenes}, self._LANGUAGE_RESULT_KEY: language}
 
     def format_registry_response(
         self,
@@ -453,6 +480,7 @@ class ListHueScenesTool(ConnectorTool[PhilipsHueClient]):
     ) -> UnifiedToolOutput:
         """Format scenes list."""
         scenes = result.get("data", {}).get("scenes", [])
+        language = self._language_from_result(result)
         names = [s.get("metadata", {}).get("name", "?") for s in scenes]
         structured_scenes = [
             {
@@ -463,8 +491,15 @@ class ListHueScenesTool(ConnectorTool[PhilipsHueClient]):
             for s in scenes
         ]
 
+        if scenes:
+            message = _("{count} scene(s): {scenes}", language).format(
+                count=len(scenes), scenes=", ".join(names)
+            )
+        else:
+            message = _("No scenes found", language)
+
         return UnifiedToolOutput.data_success(
-            message=f"{len(scenes)} scene(s): {', '.join(names)}" if scenes else "No scenes found",
+            message=message,
             structured_data={"scenes": structured_scenes, "count": len(scenes)},
             metadata={"type": "hue_scenes", "count": len(scenes)},
         )
@@ -489,6 +524,7 @@ class ActivateHueSceneTool(ConnectorTool[PhilipsHueClient]):
         **kwargs: Any,
     ) -> dict[str, Any]:
         """Execute scene activation API call."""
+        language = await self._fetch_language()
         scene_name_or_id: str = kwargs.get("scene_name_or_id", "")
 
         # Resolve name → ID
@@ -498,7 +534,10 @@ class ActivateHueSceneTool(ConnectorTool[PhilipsHueClient]):
             available = [s.get("metadata", {}).get("name", "?") for s in scenes]
             return {
                 "success": False,
-                "error": f"Scene '{scene_name_or_id}' not found. Available: {available}",
+                "error": _("Scene '{name}' not found. Available: {available}", language).format(
+                    name=scene_name_or_id, available=", ".join(available)
+                ),
+                self._LANGUAGE_RESULT_KEY: language,
             }
 
         scene_id = target["id"]
@@ -513,6 +552,7 @@ class ActivateHueSceneTool(ConnectorTool[PhilipsHueClient]):
                 "name": scene_name,
                 "api_result": result,
             },
+            self._LANGUAGE_RESULT_KEY: language,
         }
 
     def format_registry_response(
@@ -520,16 +560,18 @@ class ActivateHueSceneTool(ConnectorTool[PhilipsHueClient]):
         result: dict[str, Any],
     ) -> UnifiedToolOutput:
         """Format scene activation result."""
+        language = self._language_from_result(result)
+
         if not result.get("success"):
             return UnifiedToolOutput.data_success(
-                message=result.get("error", "Scene activation failed"),
+                message=result.get("error") or _("Scene activation failed", language),
                 structured_data={"action": "activate_scene", "success": False},
                 metadata={"type": "hue_scene", "success": False},
             )
 
         data = result.get("data", {})
         return UnifiedToolOutput.data_success(
-            message=f"Scene '{data.get('name')}' activated",
+            message=_("Scene '{name}' activated", language).format(name=data.get("name")),
             structured_data={
                 "action": "activate_scene",
                 "success": True,

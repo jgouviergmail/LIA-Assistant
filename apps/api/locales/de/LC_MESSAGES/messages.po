@@ -9,12 +9,12 @@ msgstr ""
 "POT-Creation-Date: 2025-10-24 14:00+0200\n"
 "PO-Revision-Date: 2025-10-24 14:00+0200\n"
 "Last-Translator: Claude Code <noreply@anthropic.com>\n"
-"Language: de\n"
 "Language-Team: German\n"
-"Plural-Forms: nplurals=2; plural=(n != 1)\n"
+"Language: de\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1)\n"
 
 # Authentication errors
 msgid "Invalid credentials"
@@ -163,14 +163,20 @@ msgstr "Ihr LIA-Konto wurde deaktiviert"
 msgid "Account deactivated"
 msgstr "Konto deaktiviert"
 
-msgid "We inform you that your LIA account has been deactivated by an administrator."
-msgstr "Wir informieren Sie, dass Ihr LIA-Konto von einem Administrator deaktiviert wurde."
+msgid ""
+"We inform you that your LIA account has been deactivated by an "
+"administrator."
+msgstr ""
+"Wir informieren Sie, dass Ihr LIA-Konto von einem Administrator deaktiviert "
+"wurde."
 
 msgid "You can no longer access the application."
 msgstr "Sie können nicht mehr auf die Anwendung zugreifen."
 
 msgid "If you think this is an error, please contact the administrator."
-msgstr "Wenn Sie glauben, dass dies ein Fehler ist, wenden Sie sich bitte an den Administrator."
+msgstr ""
+"Wenn Sie glauben, dass dies ein Fehler ist, wenden Sie sich bitte an den "
+"Administrator."
 
 msgid "Your LIA account has been reactivated"
 msgstr "Ihr LIA-Konto wurde reaktiviert"
@@ -210,7 +216,8 @@ msgid "Welcome to LIA! Your account has been created successfully."
 msgstr "Willkommen bei LIA! Ihr Konto wurde erfolgreich erstellt."
 
 msgid "Your account is currently pending activation by an administrator."
-msgstr "Ihr Konto wartet derzeit auf die Aktivierung durch einen Administrator."
+msgstr ""
+"Ihr Konto wartet derzeit auf die Aktivierung durch einen Administrator."
 
 msgid "You will receive an email once your account has been activated."
 msgstr "Sie erhalten eine E-Mail, sobald Ihr Konto aktiviert wurde."
@@ -248,17 +255,25 @@ msgid "Internal error: registry not available."
 msgstr "Interner Fehler: Registry nicht verfügbar."
 
 msgid "I've reached the action limit. Here's what I was able to accomplish."
-msgstr "Ich habe das Aktionslimit erreicht. Hier ist, was ich erreichen konnte."
+msgstr ""
+"Ich habe das Aktionslimit erreicht. Hier ist, was ich erreichen konnte."
 
 msgid "I'm sorry, an error occurred. Please try again."
-msgstr "Es tut mir leid, ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut."
+msgstr ""
+"Es tut mir leid, ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut."
 
 # Semantic Architecture - HITL Tool Gate
-msgid "The action '{tool_name}' requires your approval. Do you want to continue?"
-msgstr "Die Aktion '{tool_name}' erfordert Ihre Genehmigung. Möchten Sie fortfahren?"
+msgid ""
+"The action '{tool_name}' requires your approval. Do you want to continue?"
+msgstr ""
+"Die Aktion '{tool_name}' erfordert Ihre Genehmigung. Möchten Sie fortfahren?"
 
-msgid "The following actions require your approval: {tool_names}. Do you want to continue?"
-msgstr "Die folgenden Aktionen erfordern Ihre Genehmigung: {tool_names}. Möchten Sie fortfahren?"
+msgid ""
+"The following actions require your approval: {tool_names}. Do you want to "
+"continue?"
+msgstr ""
+"Die folgenden Aktionen erfordern Ihre Genehmigung: {tool_names}. Möchten Sie"
+" fortfahren?"
 
 msgid "Action cancelled: {reason}"
 msgstr "Aktion abgebrochen: {reason}"
@@ -269,7 +284,6 @@ msgstr "Aktion vom Benutzer abgebrochen."
 # ============================================================================
 # Context Tools (Phase 5 i18n - 2025-12-22)
 # ============================================================================
-
 msgid "No active domain. Please perform a search first."
 msgstr "Keine aktive Domain. Führe zuerst eine Suche durch."
 
@@ -279,8 +293,12 @@ msgstr "Domain '{domain}' nicht registriert. Verfügbare Domains: {available}"
 msgid "none"
 msgstr "keine"
 
-msgid "No active '{domain}' list in memory. Please perform a search first to create a context."
-msgstr "Keine aktive '{domain}'-Liste im Speicher. Führe zuerst eine Suche durch, um einen Kontext zu erstellen."
+msgid ""
+"No active '{domain}' list in memory. Please perform a search first to create"
+" a context."
+msgstr ""
+"Keine aktive '{domain}'-Liste im Speicher. Führe zuerst eine Suche durch, um"
+" einen Kontext zu erstellen."
 
 msgid "Error retrieving domains: {error}"
 msgstr "Fehler beim Abrufen der Domains: {error}"
@@ -300,7 +318,6 @@ msgstr "Fehler beim Abrufen der Liste: {error}"
 # ============================================================================
 # Wikipedia Tools (Phase 5 i18n - 2025-12-22)
 # ============================================================================
-
 msgid "No article found for '{query}' on Wikipedia ({language})"
 msgstr "Kein Artikel für '{query}' auf Wikipedia ({language}) gefunden"
 
@@ -352,7 +369,6 @@ msgstr "Fehler beim Abrufen verwandter Artikel: {error}"
 # ============================================================================
 # Weather Tools (Phase 5 i18n - 2025-12-22)
 # ============================================================================
-
 msgid "Current location"
 msgstr "Aktueller Standort"
 
@@ -365,15 +381,22 @@ msgstr "Standort nicht gefunden: {location}"
 # ============================================================================
 # Adaptive Replanner (Phase 5 i18n - 2025-12-22)
 # ============================================================================
-
-msgid "I couldn't find any results matching your request. Could you clarify or rephrase?"
-msgstr "Ich konnte keine Ergebnisse zu deiner Anfrage finden. Kannst du sie präzisieren oder umformulieren?"
+msgid ""
+"I couldn't find any results matching your request. Could you clarify or "
+"rephrase?"
+msgstr ""
+"Ich konnte keine Ergebnisse zu deiner Anfrage finden. Kannst du sie "
+"präzisieren oder umformulieren?"
 
 msgid "Sorry, some operations failed after multiple attempts: {operations}"
-msgstr "Entschuldigung, einige Operationen sind nach mehreren Versuchen fehlgeschlagen: {operations}"
+msgstr ""
+"Entschuldigung, einige Operationen sind nach mehreren Versuchen "
+"fehlgeschlagen: {operations}"
 
 msgid "The required data could not be found. Could you clarify your request?"
-msgstr "Die erforderlichen Daten konnten nicht gefunden werden. Kannst du deine Anfrage präzisieren?"
+msgstr ""
+"Die erforderlichen Daten konnten nicht gefunden werden. Kannst du deine "
+"Anfrage präzisieren?"
 
 msgid "A dependency error occurred between steps."
 msgstr "Ein Abhängigkeitsfehler ist zwischen den Schritten aufgetreten."
@@ -381,8 +404,11 @@ msgstr "Ein Abhängigkeitsfehler ist zwischen den Schritten aufgetreten."
 msgid "The operation is taking too long. Try a more specific request."
 msgstr "Die Operation dauert zu lange. Versuche eine spezifischere Anfrage."
 
-msgid "Unable to execute this request after multiple attempts. Errors: {errors}"
-msgstr "Diese Anfrage konnte nach mehreren Versuchen nicht ausgeführt werden. Fehler: {errors}"
+msgid ""
+"Unable to execute this request after multiple attempts. Errors: {errors}"
+msgstr ""
+"Diese Anfrage konnte nach mehreren Versuchen nicht ausgeführt werden. "
+"Fehler: {errors}"
 
 msgid "Unable to execute this request after multiple attempts."
 msgstr "Diese Anfrage konnte nach mehreren Versuchen nicht ausgeführt werden."
@@ -390,7 +416,6 @@ msgstr "Diese Anfrage konnte nach mehreren Versuchen nicht ausgeführt werden."
 # ============================================================================
 # Response Node - Gmail Labels (Phase 5 i18n - 2025-12-22)
 # ============================================================================
-
 msgid "Inbox"
 msgstr "Posteingang"
 
@@ -436,7 +461,6 @@ msgstr "Chat"
 # ============================================================================
 # Response Node - Draft Execution (Phase 5 i18n - 2025-12-22)
 # ============================================================================
-
 msgid "Error during execution: {error}"
 msgstr "Fehler bei der Ausführung: {error}"
 
@@ -450,3 +474,65 @@ msgstr "Fehler"
 msgid "Important message"
 msgstr "Wichtige Nachricht"
 
+msgid "{count} light(s) found"
+msgstr "{count} Lampe(n) gefunden"
+
+msgid "{count} currently on"
+msgstr "{count} derzeit eingeschaltet"
+
+msgid "Light '{name}' not found. Available: {available}"
+msgstr "Lampe '{name}' nicht gefunden. Verfügbar: {available}"
+
+msgid "Light control failed"
+msgstr "Lichtsteuerung fehlgeschlagen"
+
+msgid "on"
+msgstr "an"
+
+msgid "off"
+msgstr "aus"
+
+msgid "brightness {pct}%"
+msgstr "Helligkeit {pct}%"
+
+msgid "color {color}"
+msgstr "Farbe {color}"
+
+msgid "{name} ({count} devices)"
+msgstr "{name} ({count} Geräte)"
+
+msgid "{count} room(s): {rooms}"
+msgstr "{count} Raum/Räume: {rooms}"
+
+msgid "No rooms found"
+msgstr "Keine Räume gefunden"
+
+msgid "Room '{name}' not found. Available: {available}"
+msgstr "Raum '{name}' nicht gefunden. Verfügbar: {available}"
+
+msgid "Room control failed"
+msgstr "Raumsteuerung fehlgeschlagen"
+
+msgid "Room '{name}':"
+msgstr "Raum '{name}':"
+
+msgid "all on"
+msgstr "alle an"
+
+msgid "all off"
+msgstr "alle aus"
+
+msgid "{count} scene(s): {scenes}"
+msgstr "{count} Szene(n): {scenes}"
+
+msgid "No scenes found"
+msgstr "Keine Szenen gefunden"
+
+msgid "Scene '{name}' not found. Available: {available}"
+msgstr "Szene '{name}' nicht gefunden. Verfügbar: {available}"
+
+msgid "Scene activation failed"
+msgstr "Szenenaktivierung fehlgeschlagen"
+
+msgid "Scene '{name}' activated"
+msgstr "Szene '{name}' aktiviert"

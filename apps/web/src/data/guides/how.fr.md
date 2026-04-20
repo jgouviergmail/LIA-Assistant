@@ -4,9 +4,9 @@
 >
 > Documentation de présentation technique destinée aux architectes, ingénieurs et experts techniques.
 
-**Version** : 2.2
+**Version** : 2.3
 **Date** : 2026-04-20
-**Application** : LIA v1.16.8
+**Application** : LIA v1.16.9
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -880,6 +880,27 @@ run_skill_script → parse_skill_stdout() → SkillScriptOutput
 **Rendu conditionnel** : `INTERACTIVE_WIDGET_TYPES = {SKILL_APP, MCP_APP, DRAFT}` — ces widgets sont injectés en HTML indépendamment du `user_display_mode` (Rich HTML / Markdown / Cards), alors que les autres RegistryItems restent conditionnels au mode Cards.
 
 Sept skills système livrés en v1.16.8 démontrent le contrat : `interactive-map`, `weather-dashboard`, `calendar-month`, `qr-code`, `pomodoro-timer`, `unit-converter`, `dice-roller`.
+
+### 23.8. Recherche d'historique et rendu riche du chat (v1.16.9)
+
+Trois améliorations transverses se partagent la même philosophie : **feedback immédiat, zéro surcoût serveur quand ce n'est pas nécessaire**.
+
+- **Recherche d'historique conversation** — nouveau query parameter `?search=` sur `GET /conversations/me/messages`. Le filtrage passe par PostgreSQL `ILIKE` (case-insensitive, accent-sensitive en MVP — contrat verrouillé par test). Côté frontend, un `useMemo` sur `messages` filtre instantanément les 50 messages chargés ; l'endpoint backend reste disponible comme capacité latente pour un futur UI de recherche profonde.
+- **Rendu LaTeX** — `remark-math` + `rehype-katex` branchés dans `MarkdownContent.tsx`. Syntaxe `$inline$` / `$$block$$`. Les plugins sont ordonnés `rehypeRaw → rehypeKatex` pour éviter toute double-exécution sur le HTML brut. KaTeX produit son propre HTML sanitisé (spans typés), sans surface d'attaque nouvelle au-delà de ce que `rehypeRaw` autorise déjà.
+- **Coloration syntaxique** — `react-syntax-highlighter` (PrismAsyncLight) lazy-loaded. 25 langages enregistrés à la demande via `SyntaxHighlighter.registerLanguage(...)` pour garder le bundle initial léger (+50 KB, langages chargés au premier code block). Thème automatique `one-dark` / `one-light` piloté par `next-themes`.
+
+### 23.9. Persistance du feedback proactif (v1.16.9)
+
+**Bug fix à impact UX** : les boutons 👍/👎/🚫 des notifications proactives (intérêts, heartbeat) réapparaissaient au reload parce que l'état `feedbackSubmitted` n'était qu'un `useState` local. La correction persiste le feedback directement dans `conversation_messages.message_metadata` JSONB via `jsonb_set(jsonb_set(coalesce(metadata, '{}'::jsonb), '{feedback_submitted}', 'true'), '{feedback_value}', '"thumbs_up"')`. L'update est **scoped par `user_id`** via subquery sur `conversations.user_id` pour prévenir toute fuite cross-tenant.
+
+Côté frontend, l'état initial lit `message.metadata?.feedback_submitted` et le feedback est appliqué **de manière optimiste** (boutons cachés + toast proactif avant la mutation réseau). Les clés de metadata sont centralisées dans `src/core/field_names.py` (`FIELD_TARGET_ID`, `FIELD_FEEDBACK_ENABLED`, `FIELD_FEEDBACK_SUBMITTED`, `FIELD_FEEDBACK_VALUE`).
+
+### 23.10. Internationalisation des tools i18n-ready (v1.16.9)
+
+Deux corrections rendent le backend i18n cohérent de bout en bout :
+
+- **Weather tools** : les appels `_("Unable to find location: {location}")` recevaient `DEFAULT_LANGUAGE` (fr) au lieu de la locale utilisateur, parce que la condition d'override `if not language: language = user_lang` ne se déclenchait jamais (kwargs retournait toujours une valeur truthy). Corrigé par `if user_lang: language = user_lang` et propagation de `language` à `gettext.gettext(text, language)` sur les 6 sites concernés.
+- **Hue tools** : les 6 tools (`list_lights`, `control_light`, `list_rooms`, `control_room`, `list_scenes`, `activate_scene`) étaient des classes `ConnectorTool` avec messages hardcodés anglais. Refactor vers une Option C **thread-safe** : deux helpers `_fetch_language()` (async, utilisé dans `execute_api_call`) et `_language_from_result(result)` (sync, utilisé dans `format_registry_response`) ajoutés à `ConnectorTool`, avec une constante `_LANGUAGE_RESULT_KEY = "_language"` qui sert de contrat interne pour passer la langue entre les deux phases sans s'appuyer sur un état d'instance partagé (les tool instances sont des singletons concurrents). 21 chaînes ajoutées aux 6 fichiers `.po`/`.mo` (126 entrées gettext).
 
 ---
 

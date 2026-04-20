@@ -79,6 +79,8 @@ reference_domain uses domain names from AVAILABLE DOMAINS (singular): contact, e
 
 A skill matches when its description semantically aligns with the user's intent as a whole — not merely because a keyword appears in the query. Read each skill's description and decide which one (if any) best captures what the user wants to accomplish. If exactly one skill fits, set `skill_name` to that skill's name; if no skill clearly fits, leave it null. A request that composes several unrelated actions (e.g., "do X then send Y and plan Z") is not a skill invocation unless a skill explicitly covers that whole composition.
 
+**HISTORY IS NOT INTENT.** `skill_name` must reflect what the user asks in the CURRENT query, never what appeared in previous turns. If the current query is a greeting ("hi", "ca va", "bonjour"), an acknowledgement, a thank-you, a clarification, an off-topic comment, or any message that does not itself invoke the skill's purpose, set `skill_name` to null — even if the conversation history mentions or previously activated that skill. A past activation does not persist: the user must re-invoke the skill explicitly in the current query.
+
 ## USER CONTEXT
 - Date/Time: {current_datetime}
 - Position: {user_location}

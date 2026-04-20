@@ -54,16 +54,74 @@ Present your recommendation with a brief rationale. Let the user confirm or adju
 2. If Plan Template: also load references/tool-catalogue.md for valid agent_name/tool_name
 3. If Visualizer or Generator: also load references/archetype-examples.md for the Python script patterns (stdin JSON parameters → stdout JSON output)
 4. If unsure about structure: load references/archetype-examples.md for complete examples
-5. Generate the SKILL.md following the EXACT structure shown in existing skills (see below)
-6. For Visualizer / Generator archetypes, ALSO produce the Python script content (script.py) that emits the `SkillScriptOutput` JSON contract
+5. Generate ALL files required for the skill to function. Every file listed
+   under `## Ressources disponibles` in your SKILL.md MUST be produced with
+   full content. File types you may produce:
 
-### Phase 4 — Validate and Deliver
+   - **SKILL.md** (ALWAYS required, every archetype — contains frontmatter + body)
+   - **scripts/<name>.py** — MANDATORY for Visualizer and Generator archetypes.
+     Without the script the skill does not work. Must emit the
+     `SkillScriptOutput` JSON contract on stdout.
+   - **references/<name>.md** — Reference documents loaded on demand (L3).
+     Produce one if your SKILL.md lists it under `## Ressources disponibles`
+     and the content depends on knowledge the user cannot easily compose
+     themselves (frameworks, examples, domain data, rulebooks).
+   - **translations.json** — ONLY if the user explicitly asks for multilingual
+     description support. Otherwise skip.
 
-1. Run the validation script:
+   **Rule of exhaustiveness:** any resource declared under
+   `## Ressources disponibles` in the SKILL.md MUST be produced in full in
+   the delivery. If you cannot produce a file's content (e.g. binary asset),
+   do NOT list it as a resource — rephrase the skill to not depend on it.
+
+### Phase 4 — Validate and Deliver EVERY File
+
+1. Validate the SKILL.md:
    run_skill_script("skill-generator", "validate_skill.py", {"content": "<the raw SKILL.md content>"})
-2. If validation returns errors, fix and re-validate
-3. Present the SKILL.md inside a ```yaml code block (so the user can use the copy button)
-4. Tell the user to click the copy button on the code block, save as SKILL.md, then import via Settings > Features > My Skills
+
+2. If validation returns errors, fix and re-validate. If warnings appear
+   (e.g. "Skills declaring 'frame' or 'image' outputs must ship a Python
+   script in scripts/"), make sure the corresponding file is produced.
+
+3. Deliver EVERY file generated in Phase 3, each in its own fenced code
+   block. ALWAYS prefix each code block with a bold filename header so the
+   user knows where to save it. Use this EXACT protocol:
+
+   **📄 `SKILL.md`**
+   ```yaml
+   ---
+   name: ...
+   ...
+   ---
+
+   # ...
+   [full raw SKILL.md content]
+   ```
+
+   **🐍 `scripts/<script-name>.py`**  (Visualizer / Generator only)
+   ```python
+   [full raw Python content]
+   ```
+
+   **📚 `references/<reference-name>.md`**  (only if listed under `## Ressources disponibles`)
+   ```markdown
+   [full raw markdown content]
+   ```
+
+   **🌐 `translations.json`**  (only if user asked for multilingual)
+   ```json
+   [full raw JSON content]
+   ```
+
+   Repeat the pattern for EVERY file declared in the SKILL.md's
+   `## Ressources disponibles` section. The filename header above the code
+   block is what tells the user the exact path to save the file.
+
+4. Closing message (adapt to user language). Example (French):
+   "Créez un dossier `<skill-name>/`, placez-y chaque fichier dans le
+   chemin indiqué au-dessus de son bloc (SKILL.md à la racine, scripts
+   dans `scripts/`, références dans `references/`, etc.). Importez ensuite
+   via Settings > Features > My Skills."
 
 ## Exact Structure to Follow
 
@@ -184,6 +242,33 @@ these conventions (detailed with snippets in
   to external JS. Re-rolls, conversions, live previews all run entirely
   in the iframe (no new backend call needed). See the Coin Flip example
   in archetype-examples.md for the canonical pattern.
+
+## Delivery Checklist (enforce before ending your response)
+
+Before sending your final message, verify EACH item below. A skill with
+missing files cannot be imported by the user — partial delivery is a FAIL.
+
+- [ ] **SKILL.md** delivered in a ```yaml code block with its filename
+      header (**📄 `SKILL.md`**) placed immediately above the block
+- [ ] For **Visualizer/Generator** archetypes: EVERY script listed in
+      `## Ressources disponibles` delivered in its own ```python code
+      block, each preceded by its filename header
+      (e.g. **🐍 `scripts/render_map.py`**)
+- [ ] For every `references/*.md` declared in `## Ressources disponibles`:
+      delivered in its own ```markdown code block with filename header
+      (e.g. **📚 `references/rules.md`**)
+- [ ] If multilingual support requested: **translations.json** delivered in
+      a ```json code block with filename header
+      (**🌐 `translations.json`**)
+- [ ] Every code block has a filename header ABOVE it. No naked code blocks.
+- [ ] Closing message tells the user how to assemble the folder structure
+      (SKILL.md at root, scripts in `scripts/`, references in `references/`)
+
+**Consistency cross-check**: count the resources you listed under
+`## Ressources disponibles` inside the SKILL.md — you must deliver exactly
+that number of additional files. If the count does not match, your response
+is INCOMPLETE. Go back and either produce the missing files or remove the
+unused entries from `## Ressources disponibles`.
 
 ## Ressources disponibles
 

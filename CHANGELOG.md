@@ -5,6 +5,112 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.16.9] - 2026-04-20
+
+### Chat UX Polish — LaTeX, syntax highlighting, history search, copy buttons, a11y
+
+Cette itération concentre une quinzaine d'améliorations ciblées de l'expérience
+chat, un correctif de bug, et le nettoyage du skill-generator pour garantir la
+livraison exhaustive des fichiers d'un skill.
+
+#### Added
+
+- **Support LaTeX dans les réponses assistant** — `remark-math` + `rehype-katex`
+  branchés dans [MarkdownContent.tsx](apps/web/src/components/chat/MarkdownContent.tsx).
+  Syntaxe : `$inline$` et `$$block$$`. CSS KaTeX chargé globalement dans
+  [[lng]/layout.tsx](apps/web/src/app/[lng]/layout.tsx). Le prompt
+  `response_system_prompt_base.txt` encourage le LLM à utiliser LaTeX pour les
+  expressions mathématiques.
+- **Coloration syntaxique + copy button sur blocs de code** — nouveau composant
+  [CodeBlock.tsx](apps/web/src/components/chat/CodeBlock.tsx) avec
+  `react-syntax-highlighter` en lazy-load (`PrismAsyncLight`), thème automatique
+  (one-dark / one-light via `next-themes`), 25 langages enregistrés à la
+  demande, bouton copy avec toggle Copy → Check + toast.
+- **Copy button sur messages assistant** — bouton copy discret en top-right de
+  chaque bulle (hover-only desktop, toujours visible mobile) avec tooltip et
+  toast i18n.
+- **Dates relatives dans ChatMessage** — `formatTime` renvoie maintenant
+  l'heure seule pour aujourd'hui, « Hier + heure » pour J-1, nom de jour + heure
+  pour J-2 à J-6, format complet au-delà (via `Intl.RelativeTimeFormat` /
+  `Intl.DateTimeFormat`, zéro dépendance supplémentaire).
+- **Recherche dans l'historique de conversations** — `GET /conversations/me/messages?search=`
+  accepte un substring via PostgreSQL `ILIKE` (case-insensitive, MVP
+  accent-sensitive). Input de recherche dans le header du chat avec filtrage
+  client-side pour feedback instantané.
+- **Primitive Tooltip Radix** — nouveau composant [tooltip.tsx](apps/web/src/components/ui/tooltip.tsx)
+  (preset shadcn), `TooltipProvider` monté dans le layout racine. Migration
+  appliquée aux icônes prioritaires du chat (paperclip, copy, feedback 👍/👎/🚫,
+  download image, remove attachment).
+- **Accessibilité TypingIndicator** — `role="status"` + `aria-live="polite"` +
+  `aria-label` localisé pour annoncer le streaming aux lecteurs d'écran.
+- **Attributs mobiles natifs du textarea chat** — `autoCapitalize`,
+  `autoCorrect`, `spellCheck`, `enterKeyHint="send"` pour une expérience
+  clavier mobile standard (bouton « Envoyer » au lieu de « Return »).
+- **InterestFeedback optimistic UI** — les boutons 👍/👎/🚫 disparaissent
+  immédiatement au clic, avec toast de confirmation proactif. Le backend
+  reste source de vérité en cas d'échec (bouton réapparaîtra au prochain
+  reload).
+- **Constantes `FIELD_TARGET_ID`, `FIELD_FEEDBACK_ENABLED`,
+  `FIELD_FEEDBACK_SUBMITTED`, `FIELD_FEEDBACK_VALUE`** dans
+  [`core/field_names.py`](apps/api/src/core/field_names.py) — centralisation
+  des clés JSONB de la metadata des messages proactifs. Migration
+  correspondante dans [notification.py](apps/api/src/infrastructure/proactive/notification.py)
+  (boy scout rule).
+- **Helpers `_fetch_language` / `_language_from_result`** sur
+  `ConnectorTool` ([base.py](apps/api/src/domains/agents/tools/base.py)) +
+  constante `_LANGUAGE_RESULT_KEY`. Factorise le pattern Option C utilisé
+  par les 6 tools Hue pour propager la langue utilisateur de l'execute
+  async vers le formatter sync sans s'appuyer sur un état d'instance
+  partagé (les tool instances sont des singletons concurrents).
+- **Tests unitaires** — 14 tests `test_hue_i18n.py` (helpers + formatage),
+  5 tests `test_feedback_persistence.py` (intégration, isolation
+  cross-tenant, NULL metadata, multi-messages), 4 tests
+  `test_messages_search.py` (ILIKE, no-match, None, accent-sensitive MVP).
+
+#### Fixed
+
+- **Bug InterestFeedback boutons réaffichés au reload** — le clic sur 👍/👎/🚫
+  persiste désormais dans `conversation_messages.message_metadata.feedback_submitted`
+  via `ConversationRepository.mark_interest_feedback_submitted`. Au reload,
+  le frontend lit `message.metadata?.feedback_submitted` — plus de
+  réapparition cross-session / cross-device.
+- **Weather erreurs localisées correctement** — dans les 3 tool variants,
+  `language` est désormais overridé par la préférence utilisateur
+  (`if user_lang: language = user_lang`) au lieu du défaut kwargs, et les
+  6 sites `_()` propagent `language` à gettext (message "Unable to find
+  location" / "Please specify a city" rendu en allemand / italien / etc.).
+- **Hue tool messages localisés** — les 6 tools Philips Hue
+  (list_lights/control_light/list_rooms/control_room/list_scenes/activate_scene)
+  passent par `_(text, language)` avec propagation via `self.runtime` →
+  `self._fetch_language()`. 126 entrées ajoutées aux 6 fichiers `.po`
+  (`fr/en/de/es/it/zh-CN`) et `.mo` recompilés.
+- **Skill-generator livraison incomplète des fichiers** — `SKILL.md` du
+  skill-generator renforcé : Phase 3 liste explicitement TOUS les types
+  de fichiers à produire (scripts/*.py, references/*.md,
+  translations.json), Phase 4 impose un protocole de livraison avec
+  header de chemin avant chaque bloc de code, section "Delivery
+  Checklist" ajoute une vérification finale comptant les resources
+  déclarées vs livrées.
+- **Prompt LaTeX KeyError runtime** — l'exemple initial
+  `e^{-x}` déclenchait `KeyError: '-x'` dans `str.format()`. Remplacé
+  par `a^2 + b^2 = c^2` (sans accolades) dans
+  [response_system_prompt_base.txt](apps/api/src/domains/agents/prompts/v1/response_system_prompt_base.txt).
+
+#### Removed
+
+- **Image de fond + parallax sur la page chat** — suppression complète du
+  hook `useDeviceParallax` (orphelin après cleanup) et de l'image de fond
+  dans [[lng]/dashboard/chat/page.tsx](apps/web/src/app/[lng]/dashboard/chat/page.tsx).
+  Interface chat plus épurée, performance mobile améliorée.
+
+#### Dependencies
+
+- Ajout : `remark-math@^6`, `rehype-katex@^7`, `katex@^0.16`,
+  `@radix-ui/react-tooltip@^1.2`, `react-syntax-highlighter@^16` +
+  `@types/react-syntax-highlighter` (frontend).
+- Ajout dev : `polib` (backend — pour compiler les `.po` → `.mo` via
+  `scripts/i18n/compile_translations.py`).
+
 ## [1.16.8] - 2026-04-20
 
 ### Rich Skill Outputs — Interactive Frames, Images & Runtime Conventions

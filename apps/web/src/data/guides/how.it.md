@@ -4,9 +4,9 @@
 >
 > Documentazione di presentazione tecnica destinata ad architetti, ingegneri ed esperti tecnici.
 
-**Versione**: 2.2
+**Versione**: 2.3
 **Data**: 2026-04-20
-**Applicazione**: LIA v1.16.8
+**Applicazione**: LIA v1.16.9
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -851,6 +851,16 @@ Sistema a 3 livelli che risolve un problema di duplicazione: prima dell'ADR-061,
 ### 23.6. Feature Flag
 
 Ogni sottosistema opzionale è controllato da un flag `{FEATURE}_ENABLED`, verificato all'avvio (registrazione scheduler), al cablaggio delle rotte e all'ingresso dei nodi (cortocircuito istantaneo). Questo permette di distribuire il codebase completo attivando progressivamente i sottosistemi.
+
+### 23.7. Miglioramenti UX della chat (v1.16.9)
+
+Diversi miglioramenti trasversali con la stessa filosofia: **feedback immediato, zero costo server quando non necessario**.
+
+- **Ricerca nella cronologia** — nuovo parametro `?search=` su `GET /conversations/me/messages` (PostgreSQL `ILIKE`, case-insensitive, MVP accent-sensitive). Il frontend filtra i messaggi caricati istantaneamente tramite `useMemo`.
+- **Rendering LaTeX** — `remark-math` + `rehype-katex` collegati in `MarkdownContent.tsx`. Sintassi `$inline$` / `$$block$$`. Ordine plugin `rehypeRaw → rehypeKatex`, KaTeX produce il proprio HTML sanitizzato.
+- **Evidenziazione sintassi** — `react-syntax-highlighter` (PrismAsyncLight) lazy-loaded, 25 linguaggi on-demand, temi `one-dark` / `one-light` via `next-themes`.
+- **Fix persistenza feedback proattivo** — i pulsanti 👍/👎/🚫 ora scompaiono in modo persistente cross-session/cross-device. Feedback persistito in `conversation_messages.message_metadata` JSONB (`jsonb_set`, user-scoped tramite subquery `conversations.user_id`). Chiavi metadata centralizzate in `src/core/field_names.py`.
+- **Coerenza i18n dei tool** — Weather e Hue tool propagano ora correttamente la locale utente (`if user_lang: language = user_lang`). Hue refactored a una Option C thread-safe via `ConnectorTool._fetch_language()` / `_language_from_result()` con costante `_LANGUAGE_RESULT_KEY`. 126 voci gettext aggiunte ai 6 file `.po`/`.mo`.
 
 ---
 

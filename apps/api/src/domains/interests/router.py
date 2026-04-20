@@ -660,6 +660,8 @@ async def submit_feedback(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, str]:
     """Submit feedback on an interest."""
+    from src.domains.conversations.repository import ConversationRepository
+
     try:
         repo = InterestRepository(db)
 
@@ -669,8 +671,18 @@ async def submit_feedback(
         if not interest or interest.user_id != user.id:
             raise_interest_not_found(interest_id)
 
-        # Apply feedback
+        # Apply feedback on the interest entity
         await repo.apply_feedback(interest, data.feedback)
+
+        # Persist feedback state on all associated proactive messages so that
+        # the frontend feedback buttons stay hidden across reloads and devices.
+        conv_repo = ConversationRepository(db)
+        messages_updated = await conv_repo.mark_interest_feedback_submitted(
+            user_id=user.id,
+            interest_id=interest_id,
+            feedback_value=data.feedback,
+        )
+
         await db.commit()
 
         logger.info(
@@ -679,6 +691,7 @@ async def submit_feedback(
             interest_id=str(interest_id),
             feedback=data.feedback,
             new_status=interest.status,
+            messages_updated=messages_updated,
         )
 
         return {"message": APIMessages.feedback_submitted_successfully()}

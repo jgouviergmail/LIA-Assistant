@@ -1153,6 +1153,24 @@ class QueryAnalyzerService:
                         "override_threshold": self.thresholds.chat_override_threshold,
                         "reason": "LLM classified as conversation",
                     }
+                    # Prevent skill contamination from conversation history:
+                    # when intent is confidently classified as conversation, any
+                    # skill_name the LLM returned is almost certainly inferred
+                    # from prior turns (e.g. a greeting after a skill was used)
+                    # rather than from the current query. Clear it so the
+                    # response_node does not re-activate the skill ReAct agent.
+                    if analysis_result.skill_name:
+                        logger.info(
+                            "chat_override_cleared_skill_name",
+                            skill_name=analysis_result.skill_name,
+                            intent=intent,
+                            confidence=confidence,
+                            reason="conversation intent — skill likely inferred from history",
+                        )
+                        reasoning_trace.append(
+                            f"Chat Override: skill_name cleared ({analysis_result.skill_name})"
+                        )
+                        analysis_result.skill_name = None
 
             # === STEP 5: Context Resolution (LLM-first) ===
             # Uses context_reference from LLM structured output (Step 2) instead of

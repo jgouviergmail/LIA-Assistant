@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, KeyboardEvent, FormEvent, DragEvent } from 'react';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { Send, Mic, Paperclip } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
@@ -352,17 +353,22 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           />
           {/* Paperclip button */}
           {attachmentsEnabled && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="lg"
-              className="h-12 self-end px-3"
-              disabled={disabled || !apiAvailable || isUploading}
-              onClick={() => fileInputRef.current?.click()}
-              aria-label={t('chat.attachments.add')}
-            >
-              <Paperclip className="h-4 w-4" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="lg"
+                  className="h-12 self-end px-3"
+                  disabled={disabled || !apiAvailable || isUploading}
+                  onClick={() => fileInputRef.current?.click()}
+                  aria-label={t('chat.attachments.add')}
+                >
+                  <Paperclip className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('chat.attachments.add')}</TooltipContent>
+            </Tooltip>
           )}
           <textarea
             ref={textareaRef}
@@ -379,6 +385,10 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             rows={1}
             disabled={disabled || !apiAvailable}
             style={{ minHeight: '48px', maxHeight: '200px' }}
+            autoCapitalize="sentences"
+            autoCorrect="on"
+            spellCheck
+            enterKeyHint="send"
           />
           {/* Send / Push-to-talk button */}
           <Button

@@ -18,11 +18,13 @@ import { FontProvider } from '@/lib/font-context';
 import { TranslationsProvider } from '@/components/TranslationsProvider';
 import { fontVariables } from '@/lib/fonts';
 import { Toaster } from '@/components/ui/toaster';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { SnowfallEffect } from '@/components/effects/SnowfallEffect';
 import { languages } from '@/i18n/settings';
 import { initI18next, validateLanguage } from '@/i18n';
 import { WebSiteJsonLd, OrganizationJsonLd } from '@/components/seo/JsonLd';
 import '@/styles/globals.css';
+import 'katex/dist/katex.min.css';
 
 // Use local Inter font to avoid network dependency during Docker build
 const inter = localFont({
@@ -123,8 +125,10 @@ export default async function LanguageLayout({ children, params }: LayoutProps) 
                 <QueryProvider>
                   <AuthProvider>
                     <LoggingProvider>
-                      {children}
-                      <Toaster />
+                      <TooltipProvider delayDuration={300}>
+                        {children}
+                        <Toaster />
+                      </TooltipProvider>
                     </LoggingProvider>
                   </AuthProvider>
                 </QueryProvider>

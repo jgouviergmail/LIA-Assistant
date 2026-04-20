@@ -185,3 +185,43 @@ The assistant **reasons step by step**: it calls a tool, analyzes the result, th
 | Best for | Structured requests | Exploration, research |
 
 **Your skills and MCP tools** work in both modes. The toggle preference is saved automatically.
+
+## How do I copy a message or code, and are math formulas rendered correctly?
+
+Since v1.16.9, the chat has several useful finishing touches:
+
+**📋 Copy button on messages and code**
+- Hover over a LIA reply or a code block → a "Copy" button appears
+- Text is copied as-is to your clipboard, with visual confirmation
+
+**🎨 Syntax highlighting on code**
+- Code blocks ```python, ```typescript, ```json, ```bash, ```sql... are auto-colored (25 languages)
+- Light or dark theme based on your display preferences
+
+**🧮 Math formulas (LaTeX)**
+- Formulas are rendered with proper mathematical notation
+- Inline: `$E = mc^2$`
+- Centered block: `$$a^2 + b^2 = c^2$$`
+
+**📅 Relative dates**
+- Today's messages: time only (14:30)
+- Yesterday's: "Yesterday 14:30"
+- This week: weekday + time (Monday 14:30)
+- Beyond: full date
+
+## Can I search through my conversation history?
+
+Yes, since v1.16.9:
+
+**🔍 Search bar in the chat**
+- A search input now appears in the chat header (🔍 icon)
+- Type a word or phrase → matching messages are filtered instantly
+- Search is case-insensitive ("pizza" also finds "Pizza")
+
+**💡 Current limitations**
+- Searches through already-loaded messages (the last 50)
+- Accent-sensitive ("reunion" won't find "réunion")
+- Click ✕ to clear the search and see all messages again
+
+**🎯 When to use it?**
+Find an address, a name, a decision or a detail mentioned earlier in the conversation without scrolling.

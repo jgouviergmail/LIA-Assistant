@@ -40,7 +40,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.16.8</strong> — Rich Skill Outputs: skills can now return interactive HTML frames and images in addition to text (SkillScriptOutput JSON contract), with automatic theme + locale sync, iframe auto-resize, CSP-sandboxed client-side interactivity. Five new system skills shipped (interactive-map, weather-dashboard, calendar-month, qr-code, pomodoro-timer, unit-converter, dice-roller). Skill-generator and user guide fully updated to document the runtime conventions — April 2026
+  <strong>Version 1.16.9</strong> — Chat UX polish: LaTeX math rendering (`$E=mc^2$`), syntax highlighting on code blocks (25 languages, Prism one-dark/one-light, lazy-loaded), copy buttons on messages and code blocks, relative dates ("Yesterday 14:30" / "Monday 14:30"), conversation history search (PostgreSQL ILIKE + client-side instant filter), Tooltip primitive (Radix) migrated across chat. A11y: TypingIndicator with role/aria-live, textarea mobile attrs (autoCapitalize/autoCorrect/enterKeyHint). Bug fixes: proactive feedback persisted in `message_metadata` JSONB (cross-session/cross-device), Weather & Philips Hue tools now localized to user language (Option C thread-safe via `ConnectorTool._fetch_language()` + `_language_from_result()`), skill-generator delivers all files — April 2026
 </p>
 
 ---

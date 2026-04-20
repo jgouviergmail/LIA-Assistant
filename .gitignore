@@ -237,6 +237,12 @@ test_*.sh
 # Personal development notes
 JGO/
 
+# Local production audit / diagnostic workspace (analysis scripts + reports)
+PROD/
+
+# Local observability audit dumps (analysis scripts + outputs, not part of release)
+infrastructure/observability/scripts/audit_*/
+
 # Open-source transition tracking (internal only)
 OPENSOURCE.md
 

@@ -2,7 +2,9 @@ import React, { useState, useMemo, memo, useEffect, lazy, Suspense } from 'react
 import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
 import rehypeRaw from 'rehype-raw';
+import rehypeKatex from 'rehype-katex';
 import { useTranslation } from 'react-i18next';
 import { cn, GOOGLE_IMAGE_DOMAINS, proxyGoogleImageUrl } from '@/lib/utils';
 import { ImageLightbox } from '@/components/ui/image-lightbox';
@@ -18,6 +20,11 @@ const McpAppWidget = lazy(() =>
 // Skill Apps widget — lazy loaded (only needed when Skill App sentinel divs are present)
 const SkillAppWidget = lazy(() =>
   import('@/components/chat/SkillAppWidget').then(m => ({ default: m.SkillAppWidget }))
+);
+
+// Code block with syntax highlighting — lazy loaded to keep Prism out of main bundle
+const CodeBlock = lazy(() =>
+  import('@/components/chat/CodeBlock').then(m => ({ default: m.CodeBlock }))
 );
 
 /**
@@ -453,9 +460,9 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = memo(
     return (
       <div className={cn('markdown-content text-[13px] mobile:text-sm leading-relaxed', className)}>
         <ReactMarkdown
-          remarkPlugins={[remarkGfm]}
+          remarkPlugins={[remarkGfm, remarkMath]}
           remarkRehypeOptions={{ allowDangerousHtml: true }}
-          rehypePlugins={[rehypeRaw]}
+          rehypePlugins={[rehypeRaw, rehypeKatex]}
           // Custom URL transform to allow tel: and mailto: protocols
           // Default only allows: http, https, irc, ircs, mailto, xmpp
           urlTransform={(url: string) => {
@@ -591,19 +598,25 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = memo(
 
               if (isCodeBlock) {
                 const language = codeClassName?.replace('language-', '') || 'text';
+                const codeText = String(children).replace(/\n$/, '');
 
-                // Regular code block - multiline
-                return (
+                // Suspense fallback matches the old plain <pre> look so the
+                // visual transition on lazy-load is imperceptible.
+                const fallback = (
                   <div className="my-3 rounded-lg overflow-hidden border border-border/50 shadow-sm">
-                    {language !== 'text' && (
-                      <div className="px-3 py-1 text-xs font-mono bg-muted/50 text-muted-foreground border-b border-border/50">
-                        {language}
-                      </div>
-                    )}
+                    <div className="px-3 py-1 text-xs font-mono bg-muted/50 text-muted-foreground border-b border-border/50">
+                      {language}
+                    </div>
                     <pre className="p-3 overflow-x-auto bg-muted/20">
-                      <code className="text-sm font-mono text-foreground block">{children}</code>
+                      <code className="text-sm font-mono text-foreground block">{codeText}</code>
                     </pre>
                   </div>
+                );
+
+                return (
+                  <Suspense fallback={fallback}>
+                    <CodeBlock language={language}>{codeText}</CodeBlock>
+                  </Suspense>
                 );
               }
 

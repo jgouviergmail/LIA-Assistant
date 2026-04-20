@@ -456,12 +456,22 @@
       "disconnected": "Disconnected",
       "reconnecting": "Reconnecting..."
     },
+    "assistant_typing": "Assistant is typing...",
     "message": {
       "you": "You",
       "assistant": "Assistant",
       "system": "System",
       "error": "Failed to send message",
-      "retry": "Retry"
+      "retry": "Retry",
+      "copy": "Copy message",
+      "copied": "Copied to clipboard"
+    },
+    "code": {
+      "copy": "Copy code",
+      "copied": "Code copied to clipboard"
+    },
+    "date": {
+      "yesterday": "Yesterday"
     },
     "avatar_alt": {
       "user": "You",
@@ -3063,6 +3073,21 @@
           "items": {
             "i1": "<b>LAN Access</b> — Configure access from other devices on your local network (mobile, tablet)"
           }
+        },
+        "v1_16_9": {
+          "title": "v1.16.9 — LaTeX, code highlighting, history search and UX polish",
+          "date": "April 2026",
+          "count": "8",
+          "items": {
+            "i1": "<b>One-click copy on messages and code</b> — A copy button now appears on hover of every LIA reply, and on every code block. No more manual selection to grab an address, a sentence or a snippet.",
+            "i2": "<b>Math formulas rendered beautifully</b> — When you ask LIA for an equation or a scientific calculation, formulas are now displayed with their mathematical notation (LaTeX). Examples: <code>$E = mc^2$</code> inline, <code>$$a^2 + b^2 = c^2$$</code> for centered blocks.",
+            "i3": "<b>Colored code with automatic language detection</b> — Python, TypeScript, JSON, Bash, SQL... code blocks now render with syntax highlighting (25 languages supported). Light or dark theme based on your preferences.",
+            "i4": "<b>Search in your conversation history</b> — A search bar has been added to the chat header. Type a word and LIA instantly filters matching messages among those loaded.",
+            "i5": "<b>Readable dates in the chat</b> — Just the time for today's messages, \"Yesterday 14:30\" for yesterday's, the weekday for the current week, and the full date beyond. No more \"Saturday, March 29, 2026\" repeated under every recent message.",
+            "i6": "<b>Proactive feedback that sticks</b> — When you click 👍 / 👎 / 🚫 on an interest suggestion, your choice is now persisted server-side and survives a reload or a device switch.",
+            "i7": "<b>Error messages in your language</b> — Weather and Philips Hue smart-light responses are now translated to your preferred language instead of defaulting to French.",
+            "i8": "<b>Smarter mobile keyboard</b> — On your phone, the chat input now enables auto-capitalization, autocorrect, and shows a dedicated \"Send\" button on the native keyboard instead of a plain return key."
+          }
         }
       }
     },
@@ -3101,7 +3126,7 @@
       "chat": {
         "title": "Conversations",
         "description": "Using chat and conversations",
-        "count": "10",
+        "count": "12",
         "questions": {
           "q1": {
             "question": "Can I have multiple conversations at the same time?",
@@ -3142,6 +3167,14 @@
           "q10": {
             "question": "What is the difference between Pipeline (🔀) and ReAct (⚡) mode?",
             "answer": "LIA offers two execution modes, switchable via the 🔀/⚡ toggle in the chat header:<br><br><strong>🔀 Pipeline mode (default)</strong><br>LIA plans all steps upfront, validates them, then executes tools in parallel. This is the <strong>fastest and most economical</strong> mode: it consumes 4 to 8 times fewer tokens than ReAct mode.<br><br><strong>⚡ ReAct mode</strong><br>LIA reasons step by step: it calls a tool, analyzes the result, then autonomously decides what to do next. More <strong>adaptable and autonomous</strong>, but consumes significantly more tokens.<br><br><strong>💡 When to use which mode?</strong><br>• <strong>Pipeline (🔀)</strong>: for most requests — emails, calendar, weather, contacts, tasks...<br>• <strong>ReAct (⚡)</strong>: for exploratory research, complex multi-step questions, or when you need LIA to adapt in real time to results.<br><br><strong>⚠️ Cost warning:</strong> ReAct mode consumes 4 to 8× more tokens. Reserve it for requests where the added value justifies the extra cost."
+          },
+          "q11": {
+            "question": "How do I copy a message, code, and are math formulas rendered correctly?",
+            "answer": "Since v1.16.9, the chat has several useful finishing touches:<br><br><strong>📋 Copy button on messages and code</strong><br>• Hover over a LIA reply or a code block → a \"Copy\" button appears<br>• Text is copied as-is to your clipboard, with visual confirmation<br><br><strong>🎨 Syntax highlighting on code</strong><br>• Code blocks ```python, ```typescript, ```json, ```bash, ```sql... are auto-colored (25 languages)<br>• Light or dark theme based on your display preferences<br><br><strong>🧮 Math formulas (LaTeX)</strong><br>• Formulas are rendered with proper mathematical notation<br>• Inline: <code>$E = mc^2$</code><br>• Centered block: <code>$$a^2 + b^2 = c^2$$</code><br><br><strong>📅 Relative dates</strong><br>• Today's messages: time only (14:30)<br>• Yesterday's: \"Yesterday 14:30\"<br>• This week: weekday + time (Monday 14:30)<br>• Beyond: full date"
+          },
+          "q12": {
+            "question": "Can I search through my conversation history?",
+            "answer": "Yes, since v1.16.9:<br><br><strong>🔍 Search bar in the chat</strong><br>• A search input now appears in the chat header (🔍 icon)<br>• Type a word or phrase → matching messages are filtered instantly<br>• Search is case-insensitive (\"pizza\" also finds \"Pizza\")<br><br><strong>💡 Current limitations</strong><br>• Searches through already-loaded messages (the last 50)<br>• Accent-sensitive (\"reunion\" won't find \"réunion\")<br>• Click ✕ to clear the search and see all messages again<br><br><strong>🎯 When to use it?</strong><br>Find an address, a name, a decision or a detail mentioned earlier in the conversation without scrolling."
           }
         }
       },
@@ -4719,7 +4752,7 @@
       },
       "rich_responses": {
         "title": "Rich visual responses",
-        "description": "Choose your display mode: interactive HTML cards, direct HTML rendering, or Markdown text. Emails, events, contacts, weather, routes — everything adapts to your preferences."
+        "description": "Choose your display mode: interactive HTML cards, rich HTML rendering or plain Markdown. Emails, events, contacts, weather, routes — everything adapts to your preferences. Syntax-highlighted code blocks, math formulas (LaTeX) and a copy button on every message to grab the content in one click."
       },
       "multichannel": {
         "title": "Web, Telegram & push",
@@ -5720,5 +5753,9 @@
       "AFFECTIVE": "Affective",
       "STABLE": "Stable"
     }
+  },
+  "conversations": {
+    "search_placeholder": "Search in history...",
+    "search_clear": "Clear search"
   }
 }

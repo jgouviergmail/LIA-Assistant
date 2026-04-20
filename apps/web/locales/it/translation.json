@@ -435,12 +435,22 @@
       "disconnected": "Disconnesso",
       "reconnecting": "Riconnessione..."
     },
+    "assistant_typing": "L'assistente sta scrivendo...",
     "message": {
       "you": "Tu",
       "assistant": "Assistente",
       "system": "Sistema",
       "error": "Errore nell'invio del messaggio",
-      "retry": "Riprova"
+      "retry": "Riprova",
+      "copy": "Copia messaggio",
+      "copied": "Copiato negli appunti"
+    },
+    "code": {
+      "copy": "Copia codice",
+      "copied": "Codice copiato negli appunti"
+    },
+    "date": {
+      "yesterday": "Ieri"
     },
     "avatar_alt": {
       "user": "Tu",
@@ -3056,6 +3066,21 @@
           "items": {
             "i1": "<b>Accesso LAN</b> — Configurate l'accesso da altri dispositivi nella vostra rete locale (mobile, tablet)"
           }
+        },
+        "v1_16_9": {
+          "title": "v1.16.9 — LaTeX, colorazione del codice, ricerca e rifiniture UX",
+          "date": "Aprile 2026",
+          "count": "8",
+          "items": {
+            "i1": "<b>Copiare i tuoi messaggi e il codice con un clic</b> — Un pulsante di copia appare ora al passaggio del cursore su ogni risposta di LIA e su ogni blocco di codice. Non serve più selezionare a mano per recuperare un indirizzo, una frase o uno snippet.",
+            "i2": "<b>Formule matematiche rese con precisione</b> — Quando chiedi a LIA un'equazione o un calcolo scientifico, le formule sono ora visualizzate con la loro notazione matematica (LaTeX). Esempi: <code>$E = mc^2$</code> in linea, <code>$$a^2 + b^2 = c^2$$</code> per blocchi centrati.",
+            "i3": "<b>Codice colorato con rilevamento automatico del linguaggio</b> — I blocchi di codice Python, TypeScript, JSON, Bash, SQL... sono ora visualizzati con colorazione sintattica (25 linguaggi supportati). Tema chiaro o scuro secondo le tue preferenze.",
+            "i4": "<b>Ricerca nella cronologia della conversazione</b> — È stata aggiunta una barra di ricerca nell'intestazione della chat. Digita una parola e LIA filtra istantaneamente i messaggi corrispondenti tra quelli caricati.",
+            "i5": "<b>Date più leggibili nella chat</b> — Solo l'ora per i messaggi di oggi, «Ieri 14:30» per quelli di ieri, il nome del giorno per la settimana in corso, e la data completa oltre. Niente più «sabato, 29 marzo 2026» ripetuti sotto ogni messaggio recente.",
+            "i6": "<b>Feedback proattivo che resta al suo posto</b> — Quando clicchi 👍 / 👎 / 🚫 su un suggerimento di interesse, la tua scelta è ora salvata sul server e sopravvive a un ricaricamento o a un cambio di dispositivo.",
+            "i7": "<b>Messaggi di errore nella tua lingua</b> — Le risposte del meteo e delle lampade smart Philips Hue sono ora tradotte nella tua lingua preferita invece di apparire in francese per impostazione predefinita.",
+            "i8": "<b>Tastiera mobile più intelligente</b> — Sullo smartphone, l'area di input della chat attiva ora la maiuscola automatica, la correzione automatica e mostra un pulsante «Invia» dedicato sulla tastiera nativa, invece di un semplice ritorno a capo."
+          }
         }
       }
     },
@@ -3094,7 +3119,7 @@
       "chat": {
         "title": "Conversazioni",
         "description": "Utilizzo della chat e delle conversazioni",
-        "count": "10",
+        "count": "12",
         "questions": {
           "q1": {
             "question": "Posso avere più conversazioni contemporaneamente?",
@@ -3135,6 +3160,14 @@
           "q10": {
             "question": "Qual è la differenza tra modalità Pipeline (🔀) e ReAct (⚡)?",
             "answer": "LIA offre due modalità di esecuzione, selezionabili tramite il toggle 🔀/⚡ nell'intestazione della chat:<br><br><strong>🔀 Modalità Pipeline (predefinita)</strong><br>LIA pianifica tutti i passaggi in anticipo, li valida ed esegue gli strumenti in parallelo. È la modalità più <strong>veloce ed economica</strong>: consuma 4-8 volte meno token rispetto alla modalità ReAct.<br><br><strong>⚡ Modalità ReAct</strong><br>LIA ragiona passo dopo passo: chiama uno strumento, analizza il risultato e decide autonomamente cosa fare dopo. Più <strong>adattabile e autonoma</strong>, ma consuma significativamente più token.<br><br><strong>💡 Quando usare quale modalità?</strong><br>• <strong>Pipeline (🔀)</strong>: per la maggior parte delle richieste — email, calendario, meteo, contatti, attività...<br>• <strong>ReAct (⚡)</strong>: per ricerche esplorative, domande complesse multi-step o quando hai bisogno che LIA si adatti in tempo reale.<br><br><strong>⚠️ Attenzione ai costi:</strong> la modalità ReAct consuma 4-8× più token. Riservala alle richieste dove il valore aggiunto giustifica il costo extra."
+          },
+          "q11": {
+            "question": "Come copio un messaggio o del codice, e le formule matematiche vengono visualizzate correttamente?",
+            "answer": "Dalla v1.16.9, la chat ha diverse rifiniture utili:<br><br><strong>📋 Pulsante Copia su messaggi e codice</strong><br>• Passa il cursore su una risposta di LIA o un blocco di codice → appare un pulsante «Copia»<br>• Il testo viene copiato così com'è negli appunti, con conferma visiva<br><br><strong>🎨 Colorazione sintattica del codice</strong><br>• I blocchi di codice ```python, ```typescript, ```json, ```bash, ```sql... sono colorati automaticamente (25 linguaggi supportati)<br>• Tema chiaro o scuro secondo le tue preferenze di visualizzazione<br><br><strong>🧮 Formule matematiche (LaTeX)</strong><br>• Le formule vengono rese con la loro notazione matematica propria<br>• In linea: <code>$E = mc^2$</code><br>• Blocco centrato: <code>$$a^2 + b^2 = c^2$$</code><br><br><strong>📅 Date relative</strong><br>• Messaggi di oggi: solo l'ora (14:30)<br>• Messaggi di ieri: «Ieri 14:30»<br>• Questa settimana: nome del giorno + ora (Lunedì 14:30)<br>• Oltre: data completa"
+          },
+          "q12": {
+            "question": "Posso cercare nella mia cronologia della conversazione?",
+            "answer": "Sì, dalla v1.16.9:<br><br><strong>🔍 Barra di ricerca nella chat</strong><br>• Un campo di ricerca appare ora nell'intestazione della chat (icona 🔍)<br>• Digita una parola o espressione → i messaggi corrispondenti vengono filtrati istantaneamente<br>• La ricerca ignora maiuscole/minuscole («pizza» trova anche «Pizza»)<br><br><strong>💡 Limitazioni attuali</strong><br>• La ricerca riguarda i messaggi già caricati (gli ultimi 50)<br>• È sensibile agli accenti («reunion» non troverà «riunione»)<br>• Clicca ✕ per cancellare la ricerca e rivedere tutti i messaggi<br><br><strong>🎯 Quando usarla?</strong><br>Ritrovare un indirizzo, un nome, una decisione o un dettaglio menzionato in precedenza nella conversazione senza scorrere."
           }
         }
       },
@@ -4720,7 +4753,7 @@
       },
       "rich_responses": {
         "title": "Risposte visive arricchite",
-        "description": "Scegli la tua modalità di visualizzazione: schede HTML interattive, rendering HTML diretto o testo Markdown. Email, eventi, contatti, meteo, percorsi — tutto si adatta alle tue preferenze."
+        "description": "Scegli la tua modalità di visualizzazione: card HTML interattive, rendering HTML arricchito o Markdown semplice. Email, eventi, contatti, meteo, percorsi — tutto si adatta alle tue preferenze. Codice colorato automaticamente, formule matematiche (LaTeX) e un pulsante Copia su ogni messaggio per recuperare il contenuto con un solo clic."
       },
       "multichannel": {
         "title": "Web, Telegram e push",
@@ -5721,5 +5754,9 @@
       "STABLE": "Stabile"
     },
     "currentState": "Stato attuale"
+  },
+  "conversations": {
+    "search_placeholder": "Cerca nella cronologia...",
+    "search_clear": "Cancella ricerca"
   }
 }

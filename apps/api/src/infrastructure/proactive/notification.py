@@ -19,6 +19,10 @@ from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import settings
+from src.core.field_names import (
+    FIELD_FEEDBACK_ENABLED,
+    FIELD_TARGET_ID,
+)
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_channels import (
     channel_notification_errors_total,
@@ -153,7 +157,7 @@ async def _send_to_channel(
             body=body,
             data={
                 "type": task_type,
-                "target_id": target_id,
+                FIELD_TARGET_ID: target_id,
             },
         )
 
@@ -256,8 +260,8 @@ class NotificationDispatcher:
         # Build complete metadata
         full_metadata = {
             "type": f"proactive_{task_type}",
-            "target_id": target_id,
-            "feedback_enabled": settings.proactive_feedback_enabled,
+            FIELD_TARGET_ID: target_id,
+            FIELD_FEEDBACK_ENABLED: settings.proactive_feedback_enabled,
             "sent_at": datetime.now(UTC).isoformat(),
             **metadata,
         }
@@ -412,8 +416,8 @@ class NotificationDispatcher:
             body=body,
             data={
                 "type": f"proactive_{task_type}",
-                "target_id": target_id,
-                "feedback_enabled": "true",  # FCM data values must be strings
+                FIELD_TARGET_ID: target_id,
+                FIELD_FEEDBACK_ENABLED: "true",  # FCM data values must be strings
                 "click_action": "OPEN_CHAT",
             },
         )
@@ -459,7 +463,7 @@ class NotificationDispatcher:
             "type": f"proactive_{task_type}",
             "content": content,
             "title": title,
-            "target_id": target_id,
+            FIELD_TARGET_ID: target_id,
             "metadata": metadata,
             "timestamp": datetime.now(UTC).isoformat(),
         }

@@ -11,6 +11,8 @@ import {
   X,
   Globe,
   Download,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { formatNumber, formatEuro } from '@/lib/format';
 import { proxyGoogleImageUrl } from '@/lib/utils';
@@ -20,6 +22,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '@/hooks/useAuth';
 import { getIntlLocale, Language } from '@/i18n/settings';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { useApiMutation } from '@/hooks/useApiMutation';
 import { toast } from 'sonner';
 import { formatFileSize } from '@/lib/utils/image-compress';
@@ -65,23 +68,26 @@ function InterestFeedbackButtons({
       if (isSubmitting) return;
       setIsSubmitting(true);
 
+      // Optimistic UX: hide buttons + show toast immediately.
+      // The underlying POST runs asynchronously; onError callback will
+      // revert isSubmitting=false if the mutation fails, re-showing buttons.
+      onFeedbackSubmitted();
+      switch (feedback) {
+        case 'thumbs_up':
+          toast.success(t('interests.feedback.liked'));
+          break;
+        case 'thumbs_down':
+          toast.info(t('interests.feedback.disliked'));
+          break;
+        case 'block':
+          toast.info(t('interests.feedback.blocked'));
+          break;
+      }
+
       try {
         await mutate(`/interests/${targetId}/feedback`, { feedback });
-        onFeedbackSubmitted();
-
-        switch (feedback) {
-          case 'thumbs_up':
-            toast.success(t('interests.feedback.liked'));
-            break;
-          case 'thumbs_down':
-            toast.info(t('interests.feedback.disliked'));
-            break;
-          case 'block':
-            toast.info(t('interests.feedback.blocked'));
-            break;
-        }
       } catch {
-        // Error handled by onError callback
+        // Error handled by onError callback (toast.error + setIsSubmitting(false))
       }
     },
     [mutate, targetId, isSubmitting, t, onFeedbackSubmitted]
@@ -92,36 +98,51 @@ function InterestFeedbackButtons({
       <span className="text-xs text-muted-foreground mr-2">
         {t('interests.notification.helpful')}
       </span>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-7 w-7 hover:bg-green-100 hover:text-green-600 dark:hover:bg-green-900/30"
-        onClick={() => handleFeedback('thumbs_up')}
-        disabled={isSubmitting}
-        aria-label={t('interests.feedback.like')}
-      >
-        <ThumbsUp className="h-4 w-4" />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-7 w-7 hover:bg-orange-100 hover:text-orange-600 dark:hover:bg-orange-900/30"
-        onClick={() => handleFeedback('thumbs_down')}
-        disabled={isSubmitting}
-        aria-label={t('interests.feedback.dislike')}
-      >
-        <ThumbsDown className="h-4 w-4" />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-7 w-7 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30"
-        onClick={() => handleFeedback('block')}
-        disabled={isSubmitting}
-        aria-label={t('interests.feedback.block')}
-      >
-        <Ban className="h-4 w-4" />
-      </Button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 hover:bg-green-100 hover:text-green-600 dark:hover:bg-green-900/30"
+            onClick={() => handleFeedback('thumbs_up')}
+            disabled={isSubmitting}
+            aria-label={t('interests.feedback.like')}
+          >
+            <ThumbsUp className="h-4 w-4" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>{t('interests.feedback.like')}</TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 hover:bg-orange-100 hover:text-orange-600 dark:hover:bg-orange-900/30"
+            onClick={() => handleFeedback('thumbs_down')}
+            disabled={isSubmitting}
+            aria-label={t('interests.feedback.dislike')}
+          >
+            <ThumbsDown className="h-4 w-4" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>{t('interests.feedback.dislike')}</TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30"
+            onClick={() => handleFeedback('block')}
+            disabled={isSubmitting}
+            aria-label={t('interests.feedback.block')}
+          >
+            <Ban className="h-4 w-4" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent>{t('interests.feedback.block')}</TooltipContent>
+      </Tooltip>
     </div>
   );
 }
@@ -152,17 +173,22 @@ function GeneratedImageCards({ images }: { images: { url: string; alt: string }[
                 onClick={() => setLightboxImage({ url: displayUrl, alt: img.alt })}
               />
               {/* Discrete download button — visible on hover (desktop) or always visible (touch) */}
-              <button
-                type="button"
-                onClick={e => {
-                  e.stopPropagation();
-                  downloadImage(displayUrl, img.alt);
-                }}
-                className="absolute bottom-2 right-2 p-1.5 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70 max-sm:opacity-70"
-                aria-label={t('common.download')}
-              >
-                <Download className="w-4 h-4" />
-              </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={e => {
+                      e.stopPropagation();
+                      downloadImage(displayUrl, img.alt);
+                    }}
+                    className="absolute bottom-2 right-2 p-1.5 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70 max-sm:opacity-70"
+                    aria-label={t('common.download')}
+                  >
+                    <Download className="w-4 h-4" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>{t('common.download')}</TooltipContent>
+              </Tooltip>
             </div>
           );
         })}
@@ -368,8 +394,26 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(({ message, isUser }
   const locale = getIntlLocale(i18n.language as Language);
   const showTokens = user?.tokens_display_enabled ?? false;
 
-  // Track if feedback has been submitted for proactive interest messages
-  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+  // Track if feedback has been submitted for proactive interest messages.
+  // Initial value read from message metadata (persisted backend-side by POST
+  // /interests/{id}/feedback) so buttons stay hidden across reloads & devices.
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(
+    Boolean(message.metadata?.feedback_submitted)
+  );
+
+  // Copy-to-clipboard UI state for assistant messages
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyMessage = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(message.content);
+      setCopied(true);
+      toast.success(t('chat.message.copied'));
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error(t('chat.message.error'));
+    }
+  }, [message.content, t]);
 
   // Psyche store — must be called before any early return (Rules of Hooks)
   const storeState = usePsycheStore();
@@ -405,13 +449,35 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(({ message, isUser }
       minute: '2-digit',
     }).format(date);
 
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const diffDays = Math.round(
+      (startOfToday.getTime() - startOfDate.getTime()) / 86_400_000
+    );
+
+    // Today: just the time (e.g. "14:30")
+    if (diffDays === 0) return time;
+
+    // Yesterday: localized label + time (e.g. "Hier 14:30")
+    if (diffDays === 1) return `${t('chat.date.yesterday')} ${time}`;
+
+    // Within the last week: weekday + time (e.g. "Lundi 14:30")
+    if (diffDays >= 2 && diffDays <= 6) {
+      const weekday = new Intl.DateTimeFormat(locale, {
+        weekday: 'long',
+      }).format(date);
+      const weekdayCap = weekday.charAt(0).toLocaleUpperCase(locale) + weekday.slice(1);
+      return `${weekdayCap} ${time}`;
+    }
+
+    // Older: full date | time (preserves previous behavior for historical messages)
     const dateStr = new Intl.DateTimeFormat(locale, {
       weekday: 'long',
       day: '2-digit',
       month: 'long',
       year: 'numeric',
     }).format(date);
-
     return `${time} | ${dateStr}`;
   };
 
@@ -502,8 +568,26 @@ export const ChatMessage: React.FC<ChatMessageProps> = memo(({ message, isUser }
         </div>
 
         {/* Message bubble - Full width on mobile, flex-1 on tablet/desktop */}
-        <div className="flex flex-col w-full mobile:flex-1 items-end">
-          <div className="message-bubble message-bubble-assistant px-4 py-3 rounded-xl shadow-md bg-card/70 backdrop-blur-md text-foreground rounded-tr-none border border-border/20 hover:shadow-lg hover:border-primary/30 hover:bg-card/80 mobile:rounded-tr-xl transition-colors">
+        <div className="group flex flex-col w-full mobile:flex-1 items-end">
+          <div className="relative message-bubble message-bubble-assistant px-4 py-3 rounded-xl shadow-md bg-card/70 backdrop-blur-md text-foreground rounded-tr-none border border-border/20 hover:shadow-lg hover:border-primary/30 hover:bg-card/80 mobile:rounded-tr-xl transition-colors">
+            {/* Copy to clipboard button — always visible on mobile (no hover), hover-only on desktop */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={handleCopyMessage}
+                  aria-label={t('chat.message.copy')}
+                  className="absolute top-2 right-2 p-1.5 rounded-md bg-background/80 hover:bg-background border border-border/30 opacity-100 mobile:opacity-0 mobile:group-hover:opacity-100 mobile:focus-visible:opacity-100 transition-opacity z-10"
+                >
+                  {copied ? (
+                    <Check className="h-3.5 w-3.5 text-green-600" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                  )}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>{t('chat.message.copy')}</TooltipContent>
+            </Tooltip>
             {/* Skill indicator — top of bubble, always visible when a skill is active */}
             {message.skillName && (
               <div className="flex items-center gap-1.5 mb-2 pb-2 border-b border-border/30">

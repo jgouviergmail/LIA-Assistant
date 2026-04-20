@@ -150,3 +150,66 @@ msgstr ""
 
 msgid "Currency rate not found"
 msgstr ""
+
+msgid "{count} light(s) found"
+msgstr ""
+
+msgid "{count} currently on"
+msgstr ""
+
+msgid "Light '{name}' not found. Available: {available}"
+msgstr ""
+
+msgid "Light control failed"
+msgstr ""
+
+msgid "on"
+msgstr ""
+
+msgid "off"
+msgstr ""
+
+msgid "brightness {pct}%"
+msgstr ""
+
+msgid "color {color}"
+msgstr ""
+
+msgid "{name} ({count} devices)"
+msgstr ""
+
+msgid "{count} room(s): {rooms}"
+msgstr ""
+
+msgid "No rooms found"
+msgstr ""
+
+msgid "Room '{name}' not found. Available: {available}"
+msgstr ""
+
+msgid "Room control failed"
+msgstr ""
+
+msgid "Room '{name}':"
+msgstr ""
+
+msgid "all on"
+msgstr ""
+
+msgid "all off"
+msgstr ""
+
+msgid "{count} scene(s): {scenes}"
+msgstr ""
+
+msgid "No scenes found"
+msgstr ""
+
+msgid "Scene '{name}' not found. Available: {available}"
+msgstr ""
+
+msgid "Scene activation failed"
+msgstr ""
+
+msgid "Scene '{name}' activated"
+msgstr ""

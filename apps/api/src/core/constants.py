@@ -981,6 +981,11 @@ REDIS_KEY_CURRENCY_RATE_PREFIX = "async_currency_rate_"
 REDIS_KEY_CONVERSATION_ID_PREFIX = "conv:user:"
 REDIS_CONVERSATION_ID_TTL_SECONDS_DEFAULT = 300  # 5 minutes (configurable via .env)
 
+# Conversation message history search (GET /conversations/me/messages?search=)
+# Case-insensitive ILIKE substring match on ConversationMessage.content.
+CONVERSATION_SEARCH_MIN_LENGTH = 2  # Shortest substring accepted (avoid 1-char noise)
+CONVERSATION_SEARCH_MAX_LENGTH = 200  # Upper bound to prevent pathological queries
+
 # System settings cache keys
 REDIS_KEY_VOICE_TTS_MODE = "system:voice_tts_mode"
 REDIS_KEY_DEBUG_PANEL_ENABLED = "system:debug_panel_enabled"

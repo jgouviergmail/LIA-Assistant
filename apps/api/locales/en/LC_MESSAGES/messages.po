@@ -9,12 +9,12 @@ msgstr ""
 "POT-Creation-Date: 2025-10-24 14:00+0200\n"
 "PO-Revision-Date: 2025-10-24 14:00+0200\n"
 "Last-Translator: Claude Code <noreply@anthropic.com>\n"
-"Language: en\n"
 "Language-Team: English\n"
-"Plural-Forms: nplurals=2; plural=(n != 1)\n"
+"Language: en\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1)\n"
 
 # Authentication errors
 msgid "Invalid credentials"
@@ -163,8 +163,12 @@ msgstr "Your LIA account has been deactivated"
 msgid "Account deactivated"
 msgstr "Account deactivated"
 
-msgid "We inform you that your LIA account has been deactivated by an administrator."
-msgstr "We inform you that your LIA account has been deactivated by an administrator."
+msgid ""
+"We inform you that your LIA account has been deactivated by an "
+"administrator."
+msgstr ""
+"We inform you that your LIA account has been deactivated by an "
+"administrator."
 
 msgid "You can no longer access the application."
 msgstr "You can no longer access the application."
@@ -254,11 +258,17 @@ msgid "I'm sorry, an error occurred. Please try again."
 msgstr "I'm sorry, an error occurred. Please try again."
 
 # Semantic Architecture - HITL Tool Gate
-msgid "The action '{tool_name}' requires your approval. Do you want to continue?"
-msgstr "The action '{tool_name}' requires your approval. Do you want to continue?"
+msgid ""
+"The action '{tool_name}' requires your approval. Do you want to continue?"
+msgstr ""
+"The action '{tool_name}' requires your approval. Do you want to continue?"
 
-msgid "The following actions require your approval: {tool_names}. Do you want to continue?"
-msgstr "The following actions require your approval: {tool_names}. Do you want to continue?"
+msgid ""
+"The following actions require your approval: {tool_names}. Do you want to "
+"continue?"
+msgstr ""
+"The following actions require your approval: {tool_names}. Do you want to "
+"continue?"
 
 msgid "Action cancelled: {reason}"
 msgstr "Action cancelled: {reason}"
@@ -269,7 +279,6 @@ msgstr "Action cancelled by user."
 # ============================================================================
 # Context Tools (Phase 5 i18n - 2025-12-22)
 # ============================================================================
-
 msgid "No active domain. Please perform a search first."
 msgstr "No active domain. Please perform a search first."
 
@@ -279,8 +288,12 @@ msgstr "Domain '{domain}' not registered. Available domains: {available}"
 msgid "none"
 msgstr "none"
 
-msgid "No active '{domain}' list in memory. Please perform a search first to create a context."
-msgstr "No active '{domain}' list in memory. Please perform a search first to create a context."
+msgid ""
+"No active '{domain}' list in memory. Please perform a search first to create"
+" a context."
+msgstr ""
+"No active '{domain}' list in memory. Please perform a search first to create"
+" a context."
 
 msgid "Error retrieving domains: {error}"
 msgstr "Error retrieving domains: {error}"
@@ -300,7 +313,6 @@ msgstr "Error retrieving list: {error}"
 # ============================================================================
 # Wikipedia Tools (Phase 5 i18n - 2025-12-22)
 # ============================================================================
-
 msgid "No article found for '{query}' on Wikipedia ({language})"
 msgstr "No article found for '{query}' on Wikipedia ({language})"
 
@@ -352,7 +364,6 @@ msgstr "Error retrieving related articles: {error}"
 # ============================================================================
 # Weather Tools (Phase 5 i18n - 2025-12-22)
 # ============================================================================
-
 msgid "Current location"
 msgstr "Current location"
 
@@ -365,9 +376,12 @@ msgstr "Unable to find location: {location}"
 # ============================================================================
 # Adaptive Replanner (Phase 5 i18n - 2025-12-22)
 # ============================================================================
-
-msgid "I couldn't find any results matching your request. Could you clarify or rephrase?"
-msgstr "I couldn't find any results matching your request. Could you clarify or rephrase?"
+msgid ""
+"I couldn't find any results matching your request. Could you clarify or "
+"rephrase?"
+msgstr ""
+"I couldn't find any results matching your request. Could you clarify or "
+"rephrase?"
 
 msgid "Sorry, some operations failed after multiple attempts: {operations}"
 msgstr "Sorry, some operations failed after multiple attempts: {operations}"
@@ -381,8 +395,10 @@ msgstr "A dependency error occurred between steps."
 msgid "The operation is taking too long. Try a more specific request."
 msgstr "The operation is taking too long. Try a more specific request."
 
-msgid "Unable to execute this request after multiple attempts. Errors: {errors}"
-msgstr "Unable to execute this request after multiple attempts. Errors: {errors}"
+msgid ""
+"Unable to execute this request after multiple attempts. Errors: {errors}"
+msgstr ""
+"Unable to execute this request after multiple attempts. Errors: {errors}"
 
 msgid "Unable to execute this request after multiple attempts."
 msgstr "Unable to execute this request after multiple attempts."
@@ -390,7 +406,6 @@ msgstr "Unable to execute this request after multiple attempts."
 # ============================================================================
 # Response Node - Gmail Labels (Phase 5 i18n - 2025-12-22)
 # ============================================================================
-
 msgid "Inbox"
 msgstr "Inbox"
 
@@ -436,7 +451,6 @@ msgstr "Chat"
 # ============================================================================
 # Response Node - Draft Execution (Phase 5 i18n - 2025-12-22)
 # ============================================================================
-
 msgid "Error during execution: {error}"
 msgstr "Error during execution: {error}"
 
@@ -449,15 +463,16 @@ msgstr "Error"
 # ============================================================================
 # Email Verification (2026-01-10)
 # ============================================================================
-
 msgid "Verify your LIA account email"
 msgstr "Verify your LIA account email"
 
 msgid "Email verification"
 msgstr "Email verification"
 
-msgid "Welcome to LIA! Please verify your email address to activate your account."
-msgstr "Welcome to LIA! Please verify your email address to activate your account."
+msgid ""
+"Welcome to LIA! Please verify your email address to activate your account."
+msgstr ""
+"Welcome to LIA! Please verify your email address to activate your account."
 
 msgid "Verify my email"
 msgstr "Verify my email"
@@ -474,7 +489,6 @@ msgstr "Verification link"
 # ============================================================================
 # Password Reset (2026-01-10)
 # ============================================================================
-
 msgid "Reset your LIA password"
 msgstr "Reset your LIA password"
 
@@ -500,3 +514,65 @@ msgstr "Reset link"
 msgid "Important message"
 msgstr "Important message"
 
+msgid "{count} light(s) found"
+msgstr "{count} light(s) found"
+
+msgid "{count} currently on"
+msgstr "{count} currently on"
+
+msgid "Light '{name}' not found. Available: {available}"
+msgstr "Light '{name}' not found. Available: {available}"
+
+msgid "Light control failed"
+msgstr "Light control failed"
+
+msgid "on"
+msgstr "on"
+
+msgid "off"
+msgstr "off"
+
+msgid "brightness {pct}%"
+msgstr "brightness {pct}%"
+
+msgid "color {color}"
+msgstr "color {color}"
+
+msgid "{name} ({count} devices)"
+msgstr "{name} ({count} devices)"
+
+msgid "{count} room(s): {rooms}"
+msgstr "{count} room(s): {rooms}"
+
+msgid "No rooms found"
+msgstr "No rooms found"
+
+msgid "Room '{name}' not found. Available: {available}"
+msgstr "Room '{name}' not found. Available: {available}"
+
+msgid "Room control failed"
+msgstr "Room control failed"
+
+msgid "Room '{name}':"
+msgstr "Room '{name}':"
+
+msgid "all on"
+msgstr "all on"
+
+msgid "all off"
+msgstr "all off"
+
+msgid "{count} scene(s): {scenes}"
+msgstr "{count} scene(s): {scenes}"
+
+msgid "No scenes found"
+msgstr "No scenes found"
+
+msgid "Scene '{name}' not found. Available: {available}"
+msgstr "Scene '{name}' not found. Available: {available}"
+
+msgid "Scene activation failed"
+msgstr "Scene activation failed"
+
+msgid "Scene '{name}' activated"
+msgstr "Scene '{name}' activated"

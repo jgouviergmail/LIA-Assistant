@@ -4,9 +4,9 @@
 >
 > Technische Präsentationsdokumentation für Architekten, Ingenieure und technische Experten.
 
-**Version**: 2.2
+**Version**: 2.3
 **Datum**: 2026-04-20
-**Application**: LIA v1.16.8
+**Application**: LIA v1.16.9
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -851,6 +851,16 @@ Alle Tools geben `ToolResponse` (Erfolg) oder `ToolErrorModel` (Fehler) mit eine
 ### 23.6. Feature Flags
 
 Jedes optionale Subsystem wird durch ein `{FEATURE}_ENABLED`-Flag gesteuert, geprüft beim Start (Scheduler-Registrierung), bei der Routen-Verdrahtung und beim Knoteneintritt (sofortiger Short-Circuit). Dies ermöglicht das Deployment der vollständigen Codebasis bei schrittweiser Subsystem-Aktivierung.
+
+### 23.7. Chat-UX-Verbesserungen (v1.16.9)
+
+Mehrere bereichsübergreifende Verbesserungen mit gemeinsamer Philosophie: **sofortiges Feedback, keine Server-Kosten, wenn nicht nötig**.
+
+- **Konversations-Verlaufssuche** — neuer `?search=`-Query-Parameter auf `GET /conversations/me/messages` (PostgreSQL `ILIKE`, case-insensitive, MVP akzent-sensitiv). Frontend filtert per `useMemo` die geladenen Nachrichten sofort.
+- **LaTeX-Rendering** — `remark-math` + `rehype-katex` im `MarkdownContent.tsx`. Syntax `$inline$` / `$$block$$`. Plugin-Reihenfolge `rehypeRaw → rehypeKatex`, KaTeX erzeugt eigenes sanitisiertes HTML.
+- **Syntax-Highlighting** — `react-syntax-highlighter` (PrismAsyncLight) lazy-loaded, 25 Sprachen on-demand, Themes `one-dark` / `one-light` via `next-themes`.
+- **Proaktiver Feedback-Persistenz-Fix** — 👍/👎/🚫-Buttons verschwinden jetzt dauerhaft über Sessions/Geräte hinweg. Feedback wird in `conversation_messages.message_metadata` JSONB persistiert (`jsonb_set`, user-scoped via `conversations.user_id`-Subquery). Zentralisierte Metadata-Keys in `src/core/field_names.py`.
+- **Tool-i18n-Kohärenz** — Weather- und Hue-Tools propagieren jetzt die Benutzer-Locale korrekt (`if user_lang: language = user_lang`). Hue refactored zu einer thread-sicheren Option C via `ConnectorTool._fetch_language()` / `_language_from_result()` und `_LANGUAGE_RESULT_KEY`-Konstante. 126 gettext-Einträge über 6 `.po`/`.mo`-Dateien hinzugefügt.
 
 ---
 

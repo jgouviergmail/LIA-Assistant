@@ -1817,11 +1817,34 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             _target_skill_name: str | None = None
 
             # 1. Planner-activated skill (from plan.metadata)
+            # Guard against stale execution_plan from a previous turn: the plan
+            # persists in LangGraph state across turns via the checkpoint. A
+            # conversational turn (route=response) skips the planner entirely,
+            # so any execution_plan we see belongs to the previous action turn
+            # and must not re-trigger its skill.
             execution_plan = state.get(STATE_KEY_EXECUTION_PLAN)
-            if execution_plan and execution_plan.metadata:
+            qi_state = state.get("query_intelligence")
+            qi_route_to = (
+                qi_state.get("route_to")
+                if isinstance(qi_state, dict)
+                else getattr(qi_state, "route_to", None)
+            )
+            if qi_route_to == "planner" and execution_plan and execution_plan.metadata:
                 plan_skill_name = execution_plan.metadata.get("skill_name")
                 if plan_skill_name and (active is None or plan_skill_name in active):
                     _target_skill_name = plan_skill_name
+            elif (
+                execution_plan
+                and execution_plan.metadata
+                and execution_plan.metadata.get("skill_name")
+            ):
+                logger.info(
+                    "skill_stale_execution_plan_ignored",
+                    run_id=run_id,
+                    stale_skill_name=execution_plan.metadata.get("skill_name"),
+                    route_to=qi_route_to,
+                    reason="execution_plan from previous turn — current turn did not route to planner",
+                )
 
             # 2. Always-loaded skills — passive L2 injection (additive, always)
             for s in SkillsCache.get_always_loaded(skill_user_id):

@@ -1114,6 +1114,7 @@ class ConversationService:
         limit: int,
         db: AsyncSession,
         hide_hitl_approvals: bool = False,
+        search: str | None = None,
     ) -> list[dict[str, Any]]:
         """
         OPTIMIZED version of get_messages_with_tokens using ConversationRepository.
@@ -1156,6 +1157,7 @@ class ConversationService:
         results = await repo.get_messages_with_token_summaries(
             conversation_id=conversation.id,
             limit=limit,
+            search=search,
         )
 
         # Build enriched message list - O(n) with no additional DB queries
@@ -1244,6 +1246,7 @@ class ConversationService:
         limit: int,
         db: AsyncSession,
         hide_hitl_approvals: bool = False,
+        search: str | None = None,
     ) -> list[dict[str, Any]]:
         """
         Automatic routing between old and new implementation based on feature flag.
@@ -1274,7 +1277,11 @@ class ConversationService:
         # Always use optimized v2 implementation (N+1 query fix)
         with conversation_messages_query_duration_seconds.labels(version="v2").time():
             return await self.get_messages_with_tokens_v2(
-                user_id, limit, db, hide_hitl_approvals=hide_hitl_approvals
+                user_id,
+                limit,
+                db,
+                hide_hitl_approvals=hide_hitl_approvals,
+                search=search,
             )
 
     async def get_conversation_totals(self, user_id: UUID, db: AsyncSession) -> dict[str, Any]:

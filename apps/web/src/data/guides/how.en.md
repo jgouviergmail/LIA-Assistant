@@ -4,9 +4,9 @@
 >
 > Technical presentation documentation for architects, engineers and technical experts.
 
-**Version**: 2.2
+**Version**: 2.3
 **Date**: 2026-04-20
-**Application**: LIA v1.16.8
+**Application**: LIA v1.16.9
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -880,6 +880,27 @@ run_skill_script → parse_skill_stdout() → SkillScriptOutput
 **Conditional rendering**: `INTERACTIVE_WIDGET_TYPES = {SKILL_APP, MCP_APP, DRAFT}` — these widgets are injected as HTML regardless of `user_display_mode` (Rich HTML / Markdown / Cards), while other RegistryItems remain conditional on Cards mode.
 
 Seven built-in skills ship with v1.16.8 demonstrating the contract: `interactive-map`, `weather-dashboard`, `calendar-month`, `qr-code`, `pomodoro-timer`, `unit-converter`, `dice-roller`.
+
+### 23.8. Conversation search and rich chat rendering (v1.16.9)
+
+Three cross-cutting improvements share the same philosophy: **instant feedback, zero server cost when unnecessary**.
+
+- **Conversation history search** — new `?search=` query param on `GET /conversations/me/messages`. Filtering uses PostgreSQL `ILIKE` (case-insensitive, accent-sensitive in MVP — contract locked by test). Frontend uses a `useMemo` over `messages` to filter the 50 loaded messages instantly; the backend endpoint is a latent capability for a future deep-search UI.
+- **LaTeX rendering** — `remark-math` + `rehype-katex` wired into `MarkdownContent.tsx`. Syntax `$inline$` / `$$block$$`. Plugins ordered `rehypeRaw → rehypeKatex` to avoid double-execution on raw HTML. KaTeX produces its own sanitised HTML (typed spans), no new attack surface beyond what `rehypeRaw` already allows.
+- **Syntax highlighting** — `react-syntax-highlighter` (PrismAsyncLight) lazy-loaded. 25 languages registered on-demand via `SyntaxHighlighter.registerLanguage(...)` to keep the initial bundle small (+50 KB, languages fetched at first code block). Theme auto-switches `one-dark` / `one-light` driven by `next-themes`.
+
+### 23.9. Proactive feedback persistence (v1.16.9)
+
+**UX-impacting bug fix**: 👍/👎/🚫 buttons on proactive notifications (interests, heartbeat) reappeared on reload because `feedbackSubmitted` was a local `useState` only. The fix persists feedback directly into `conversation_messages.message_metadata` JSONB via `jsonb_set(jsonb_set(coalesce(metadata, '{}'::jsonb), '{feedback_submitted}', 'true'), '{feedback_value}', '"thumbs_up"')`. The update is **scoped by `user_id`** via subquery on `conversations.user_id` to prevent cross-tenant leaks.
+
+Frontend reads initial state from `message.metadata?.feedback_submitted` and applies feedback **optimistically** (buttons hidden + proactive toast before the network mutation). Metadata keys are centralised in `src/core/field_names.py` (`FIELD_TARGET_ID`, `FIELD_FEEDBACK_ENABLED`, `FIELD_FEEDBACK_SUBMITTED`, `FIELD_FEEDBACK_VALUE`).
+
+### 23.10. i18n-ready tools (v1.16.9)
+
+Two fixes make the backend i18n coherent end-to-end:
+
+- **Weather tools**: `_("Unable to find location: {location}")` calls received `DEFAULT_LANGUAGE` (fr) instead of the user's locale because the override `if not language: language = user_lang` never fired (kwargs always returned a truthy value). Fixed with `if user_lang: language = user_lang` and propagation of `language` to `gettext.gettext(text, language)` on all 6 call-sites.
+- **Hue tools**: the 6 tools (`list_lights`, `control_light`, `list_rooms`, `control_room`, `list_scenes`, `activate_scene`) were `ConnectorTool` classes with hardcoded English messages. Refactored to a **thread-safe Option C**: two helpers `_fetch_language()` (async, used in `execute_api_call`) and `_language_from_result(result)` (sync, used in `format_registry_response`) added to `ConnectorTool`, with a `_LANGUAGE_RESULT_KEY = "_language"` class constant acting as the internal contract for passing language between phases without relying on shared instance state (tool instances are concurrent singletons). 21 strings added to the 6 `.po`/`.mo` files (126 gettext entries).
 
 ---
 

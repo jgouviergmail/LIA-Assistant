@@ -5,8 +5,6 @@ import { useChat } from '@/hooks/useChat';
 import { useConversation, ConversationTotals } from '@/hooks/useConversation';
 import { useLocalizedRouter } from '@/hooks/useLocalizedRouter';
 import { useNotifications } from '@/hooks/useNotifications';
-import { useLiaGender } from '@/hooks/useLiaGender';
-import { useDeviceParallax } from '@/hooks/useDeviceParallax';
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { Message } from '@/types/chat';
 import { RegistryProvider } from '@/lib/registry-context';
@@ -15,14 +13,13 @@ import { ChatInput } from '@/components/chat/ChatInput';
 import { GeolocationPrompt } from '@/components/chat/GeolocationPrompt';
 import { DebugPanel } from '@/components/debug/DebugPanel';
 import { useDebugMetrics } from '@/components/debug/hooks/useDebugMetrics';
-import { WifiOff, Trash2 } from 'lucide-react';
+import { WifiOff, Trash2, Search, X } from 'lucide-react';
 import { VoiceModeBadge } from '@/components/voice/VoiceModeBadge';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { formatNumber, formatEuro } from '@/lib/format';
 import { logger } from '@/lib/logger';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
-import Image from 'next/image';
 import { FeatureErrorBoundary } from '@/components/errors';
 
 import { useDebugPanelEnabled } from '@/hooks/useDebugPanelEnabled';
@@ -33,16 +30,6 @@ import { ActiveSpacesIndicator } from '@/components/spaces/ActiveSpacesIndicator
 
 export default function ChatPage() {
   const { user, isLoading } = useAuth();
-  const { liaBackgroundImage, mounted: liaImageMounted } = useLiaGender();
-  const {
-    offset: parallaxOffset,
-    isSupported: parallaxSupported,
-    hasPermission: parallaxPermission,
-    requestPermission: requestParallaxPermission,
-  } = useDeviceParallax({
-    maxOffset: 15, // pixels
-    smoothing: 0.12,
-  });
   // Debug Panel: Check if enabled (runtime admin setting only)
   // Must be before useChat so we can pass visibility for viewport_width calculation
   const { isEnabled: debugPanelEnabled } = useDebugPanelEnabled();
@@ -250,6 +237,16 @@ export default function ChatPage() {
     return messages.filter(msg => msg.role === 'user').length;
   }, [messages]);
 
+  // Client-side history search: filters currently-loaded messages by content.
+  // The backend endpoint also supports ?search=... for server-side filtering,
+  // but client-side is instant for already-loaded history.
+  const [searchQuery, setSearchQuery] = useState('');
+  const displayedMessages = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return messages;
+    return messages.filter(msg => msg.content.toLowerCase().includes(q));
+  }, [messages, searchQuery]);
+
   // Verify that the user is active
   useEffect(() => {
     if (!isLoading && user && !user.is_active) {
@@ -426,8 +423,30 @@ export default function ChatPage() {
               {/* RAG Spaces Indicator */}
               <ActiveSpacesIndicator />
 
-              {/* Right side: Delete/New chat */}
+              {/* Right side: Search + Delete/New chat */}
               <div className="flex items-center gap-2">
+                {/* Search input — filters currently loaded messages by content */}
+                <div className="relative hidden mobile:flex items-center">
+                  <Search className="absolute left-2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                  <input
+                    type="search"
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    placeholder={t('conversations.search_placeholder')}
+                    aria-label={t('conversations.search_placeholder')}
+                    className="h-8 w-48 pl-7 pr-7 text-xs rounded-full bg-background border border-border focus:outline-none focus:ring-1 focus:ring-ring"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      aria-label={t('conversations.search_clear')}
+                      className="absolute right-1 p-0.5 rounded-full hover:bg-muted"
+                    >
+                      <X className="h-3 w-3 text-muted-foreground" />
+                    </button>
+                  )}
+                </div>
                 {/* Delete/New chat button */}
                 <button
                   onClick={handleResetConversation}
@@ -491,45 +510,15 @@ export default function ChatPage() {
               </div>
             )}
 
-          {/* Messages Area - With fixed LIA background image + parallax effect */}
-          <div className="relative flex-1 overflow-hidden">
-            {/* Fixed Background Image - with parallax on mobile device tilt */}
-            {liaImageMounted && (
-              <div
-                className="absolute z-0 pointer-events-none transition-transform duration-75 ease-out"
-                style={{
-                  // Extend beyond bounds to allow parallax movement without showing edges
-                  inset: '-20px',
-                  transform: `translate(${parallaxOffset.x}px, ${parallaxOffset.y}px)`,
-                }}
-                // Request iOS permission on first touch
-                onTouchStart={() => {
-                  if (parallaxSupported && !parallaxPermission) {
-                    requestParallaxPermission();
-                  }
-                }}
-              >
-                <Image
-                  src={liaBackgroundImage}
-                  alt=""
-                  fill
-                  className="object-cover opacity-8 dark:opacity-12"
-                  priority
-                />
-                {/* Gradient overlay for better text readability */}
-                <div className="absolute inset-0 bg-gradient-to-b from-background/60 via-background/40 to-background/60" />
-              </div>
-            )}
-            {/* Scrollable messages container with thin scrollbar */}
-            <div className="relative z-10 h-full overflow-y-auto chat-scrollbar">
-              <RegistryProvider value={registry}>
-                <ChatMessageList
-                  messages={messages}
-                  isTyping={isTyping}
-                  browserScreenshot={browserScreenshot}
-                />
-              </RegistryProvider>
-            </div>
+          {/* Messages Area */}
+          <div className="flex-1 overflow-y-auto chat-scrollbar">
+            <RegistryProvider value={registry}>
+              <ChatMessageList
+                messages={displayedMessages}
+                isTyping={isTyping && !searchQuery}
+                browserScreenshot={browserScreenshot}
+              />
+            </RegistryProvider>
           </div>
 
           {/* Geolocation Prompt - Shows when user types location phrases */}
