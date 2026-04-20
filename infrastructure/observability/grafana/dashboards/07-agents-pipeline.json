@@ -1,7 +1,12 @@
 {
   "title": "07 - Agent Orchestration Pipeline",
   "uid": "07-agents-pipeline",
-  "tags": ["lia", "agents", "langgraph", "orchestration"],
+  "tags": [
+    "lia",
+    "agents",
+    "langgraph",
+    "orchestration"
+  ],
   "timezone": "browser",
   "schemaVersion": 38,
   "version": 1,
@@ -14,7 +19,9 @@
     {
       "title": "LIA",
       "type": "dashboards",
-      "tags": ["lia"],
+      "tags": [
+        "lia"
+      ],
       "targetBlank": false
     }
   ],
@@ -24,37 +31,58 @@
         "name": "datasource",
         "type": "datasource",
         "query": "prometheus",
-        "current": { "text": "Prometheus", "value": "Prometheus" }
+        "current": {
+          "text": "Prometheus",
+          "value": "Prometheus"
+        }
       },
       {
         "name": "node_name",
         "type": "query",
-        "datasource": { "type": "prometheus", "uid": "$datasource" },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$datasource"
+        },
         "query": "label_values(agent_node_executions_total, node_name)",
         "multi": true,
         "includeAll": true,
         "refresh": 1,
-        "current": { "text": "All", "value": "$__all" }
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
       },
       {
         "name": "intention",
         "type": "query",
-        "datasource": { "type": "prometheus", "uid": "$datasource" },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$datasource"
+        },
         "query": "label_values(router_decisions_total, intention)",
         "multi": true,
         "includeAll": true,
         "refresh": 1,
-        "current": { "text": "All", "value": "$__all" }
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
       },
       {
         "name": "agent_type",
         "type": "query",
-        "datasource": { "type": "prometheus", "uid": "$datasource" },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$datasource"
+        },
         "query": "label_values(agent_success_rate_total, agent_type)",
         "multi": true,
         "includeAll": true,
         "refresh": 1,
-        "current": { "text": "All", "value": "$__all" }
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
       }
     ]
   },
@@ -64,15 +92,28 @@
       "type": "row",
       "title": "Router",
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "panels": []
     },
     {
       "id": 2,
       "type": "timeseries",
       "title": "Router Latency P50/P95",
-      "datasource": { "type": "prometheus", "uid": "$datasource" },
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 1 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "histogram_quantile(0.5, sum by (le) (rate(router_latency_seconds_bucket[$__rate_interval])))",
@@ -91,23 +132,39 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null }
+              {
+                "color": "green",
+                "value": null
+              }
             ]
           }
         },
         "overrides": []
       },
       "options": {
-        "tooltip": { "mode": "multi" },
-        "legend": { "displayMode": "list", "placement": "bottom" }
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
       }
     },
     {
       "id": 3,
       "type": "piechart",
       "title": "Decision Distribution (1h)",
-      "datasource": { "type": "prometheus", "uid": "$datasource" },
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 1 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "router_decisions_by_intention:1h",
@@ -120,7 +177,10 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null }
+              {
+                "color": "green",
+                "value": null
+              }
             ]
           }
         },
@@ -128,9 +188,14 @@
       },
       "options": {
         "pieType": "donut",
-        "legend": { "displayMode": "list", "placement": "right" },
+        "legend": {
+          "displayMode": "list",
+          "placement": "right"
+        },
         "reduceOptions": {
-          "calcs": ["lastNotNull"]
+          "calcs": [
+            "lastNotNull"
+          ]
         }
       }
     },
@@ -138,8 +203,16 @@
       "id": 4,
       "type": "timeseries",
       "title": "Confidence by Intention",
-      "datasource": { "type": "prometheus", "uid": "$datasource" },
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 1 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "histogram_quantile(0.95, sum by (intention, le) (rate(router_confidence_score_bucket{intention=~\"$intention\"}[$__rate_interval])))",
@@ -152,23 +225,39 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null }
+              {
+                "color": "green",
+                "value": null
+              }
             ]
           }
         },
         "overrides": []
       },
       "options": {
-        "tooltip": { "mode": "multi" },
-        "legend": { "displayMode": "list", "placement": "bottom" }
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
       }
     },
     {
       "id": 5,
       "type": "stat",
       "title": "Fallback Rate",
-      "datasource": { "type": "prometheus", "uid": "$datasource" },
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 9 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 9
+      },
       "targets": [
         {
           "expr": "sum(rate(router_fallback_total[$__rate_interval])) / sum(rate(router_decisions_total[$__rate_interval])) * 100",
@@ -182,7 +271,10 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null }
+              {
+                "color": "green",
+                "value": null
+              }
             ]
           }
         },
@@ -192,7 +284,9 @@
         "graphMode": "area",
         "colorMode": "value",
         "reduceOptions": {
-          "calcs": ["lastNotNull"]
+          "calcs": [
+            "lastNotNull"
+          ]
         }
       }
     },
@@ -200,8 +294,16 @@
       "id": 6,
       "type": "timeseries",
       "title": "Data Presumption Decisions",
-      "datasource": { "type": "prometheus", "uid": "$datasource" },
-      "gridPos": { "h": 8, "w": 16, "x": 8, "y": 9 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 16,
+        "x": 8,
+        "y": 9
+      },
       "targets": [
         {
           "expr": "sum by (pattern_detected, decision) (rate(router_data_presumption_total[$__rate_interval]))",
@@ -215,15 +317,23 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null }
+              {
+                "color": "green",
+                "value": null
+              }
             ]
           }
         },
         "overrides": []
       },
       "options": {
-        "tooltip": { "mode": "multi" },
-        "legend": { "displayMode": "list", "placement": "bottom" }
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
       }
     },
     {
@@ -231,17 +341,30 @@
       "type": "row",
       "title": "Planner & Orchestrator",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 17 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 17
+      },
       "panels": [
         {
           "id": 8,
           "type": "timeseries",
           "title": "Plans Created",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 18 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 18
+          },
           "targets": [
             {
-              "expr": "sum by (intention) (rate(task_orchestrator_plans_created[$__rate_interval]))",
+              "expr": "sum by (intention) (rate(task_orchestrator_plans_created_total[$__rate_interval]))",
               "legendFormat": "{{intention}}",
               "refId": "A"
             }
@@ -252,23 +375,39 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null }
+                  {
+                    "color": "green",
+                    "value": null
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 9,
           "type": "timeseries",
           "title": "Agents/Plan Distribution",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 18 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 18
+          },
           "targets": [
             {
               "expr": "histogram_quantile(0.5, sum by (le) (rate(orchestration_plan_agents_count_bucket[$__rate_interval])))",
@@ -286,23 +425,39 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null }
+                  {
+                    "color": "green",
+                    "value": null
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 10,
           "type": "stat",
           "title": "Domain Filtering Status",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 4, "x": 16, "y": 18 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 4,
+            "x": 16,
+            "y": 18
+          },
           "targets": [
             {
               "expr": "planner_domain_filtering_active",
@@ -317,16 +472,28 @@
                 {
                   "type": "value",
                   "options": {
-                    "1": { "text": "ENABLED", "index": 0 },
-                    "0": { "text": "DISABLED", "index": 1 }
+                    "1": {
+                      "text": "ENABLED",
+                      "index": 0
+                    },
+                    "0": {
+                      "text": "DISABLED",
+                      "index": 1
+                    }
                   }
                 }
               ],
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "red", "value": null },
-                  { "color": "green", "value": 1 }
+                  {
+                    "color": "red",
+                    "value": null
+                  },
+                  {
+                    "color": "green",
+                    "value": 1
+                  }
                 ]
               }
             },
@@ -336,7 +503,9 @@
             "graphMode": "none",
             "colorMode": "background",
             "reduceOptions": {
-              "calcs": ["lastNotNull"]
+              "calcs": [
+                "lastNotNull"
+              ]
             }
           }
         },
@@ -344,8 +513,16 @@
           "id": 11,
           "type": "timeseries",
           "title": "Domain Confidence Score",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 4, "x": 20, "y": 18 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 4,
+            "x": 20,
+            "y": 18
+          },
           "targets": [
             {
               "expr": "histogram_quantile(0.95, sum by (le) (rate(planner_domain_confidence_score_bucket[$__rate_interval])))",
@@ -358,23 +535,39 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null }
+                  {
+                    "color": "green",
+                    "value": null
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 12,
           "type": "gauge",
           "title": "Filtered Cache Hit Rate",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 26 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 26
+          },
           "targets": [
             {
               "expr": "planner_filtered_cache_hit_rate:5m * 100",
@@ -390,9 +583,18 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "red", "value": null },
-                  { "color": "yellow", "value": 30 },
-                  { "color": "green", "value": 50 }
+                  {
+                    "color": "red",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 30
+                  },
+                  {
+                    "color": "green",
+                    "value": 50
+                  }
                 ]
               }
             },
@@ -400,7 +602,9 @@
           },
           "options": {
             "reduceOptions": {
-              "calcs": ["lastNotNull"]
+              "calcs": [
+                "lastNotNull"
+              ]
             }
           }
         },
@@ -408,8 +612,16 @@
           "id": 13,
           "type": "stat",
           "title": "Low Confidence Fallback Rate",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 26 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 26
+          },
           "targets": [
             {
               "expr": "planner_domain_filtering_low_confidence_rate:1h * 100",
@@ -423,7 +635,10 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null }
+                  {
+                    "color": "green",
+                    "value": null
+                  }
                 ]
               }
             },
@@ -433,7 +648,9 @@
             "graphMode": "area",
             "colorMode": "value",
             "reduceOptions": {
-              "calcs": ["lastNotNull"]
+              "calcs": [
+                "lastNotNull"
+              ]
             }
           }
         }
@@ -444,14 +661,27 @@
       "type": "row",
       "title": "Agent Node Execution",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 34 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 34
+      },
       "panels": [
         {
           "id": 15,
           "type": "timeseries",
           "title": "Node Execution Rate",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 35 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 35
+          },
           "targets": [
             {
               "expr": "agent_node_executions:rate5m",
@@ -463,29 +693,47 @@
             "defaults": {
               "unit": "ops",
               "custom": {
-                "stacking": { "mode": "normal" },
+                "stacking": {
+                  "mode": "normal"
+                },
                 "fillOpacity": 20
               },
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null }
+                  {
+                    "color": "green",
+                    "value": null
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 16,
           "type": "bargauge",
           "title": "Node Success Rate",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 35 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 35
+          },
           "targets": [
             {
               "expr": "agent_node_success_rate:5m * 100",
@@ -499,10 +747,22 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "red", "value": null },
-                  { "color": "yellow", "value": 90 },
-                  { "color": "orange", "value": 95 },
-                  { "color": "green", "value": 99 }
+                  {
+                    "color": "red",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 90
+                  },
+                  {
+                    "color": "orange",
+                    "value": 95
+                  },
+                  {
+                    "color": "green",
+                    "value": 99
+                  }
                 ]
               }
             },
@@ -512,7 +772,9 @@
             "orientation": "horizontal",
             "displayMode": "gradient",
             "reduceOptions": {
-              "calcs": ["lastNotNull"]
+              "calcs": [
+                "lastNotNull"
+              ]
             }
           }
         },
@@ -520,8 +782,16 @@
           "id": 17,
           "type": "timeseries",
           "title": "Node Duration P95",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 35 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 35
+          },
           "targets": [
             {
               "expr": "histogram_quantile(0.95, sum by (node_name, le) (rate(agent_node_duration_seconds_bucket{node_name=~\"$node_name\"}[$__rate_interval])))",
@@ -535,23 +805,39 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null }
+                  {
+                    "color": "green",
+                    "value": null
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 18,
           "type": "timeseries",
           "title": "Graph Exceptions",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 43 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 43
+          },
           "targets": [
             {
               "expr": "sum by (node_name, exception_type) (rate(graph_exceptions_total[$__rate_interval]))",
@@ -565,15 +851,23 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null }
+                  {
+                    "color": "green",
+                    "value": null
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         }
       ]
@@ -583,17 +877,30 @@
       "type": "row",
       "title": "Tool Execution",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 51 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 51
+      },
       "panels": [
         {
           "id": 20,
           "type": "timeseries",
           "title": "Tool Invocations Rate",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 52 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 52
+          },
           "targets": [
             {
-              "expr": "sum by (tool_name) (rate(agent_tool_invocations[$__rate_interval]))",
+              "expr": "sum by (tool_name) (rate(agent_tool_invocations_total[$__rate_interval]))",
               "legendFormat": "{{tool_name}}",
               "refId": "A"
             }
@@ -604,23 +911,39 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null }
+                  {
+                    "color": "green",
+                    "value": null
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 21,
           "type": "bargauge",
           "title": "Tool Success Rate",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 52 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 52
+          },
           "targets": [
             {
               "expr": "business:tool_success_rate:5m_by_tool * 100",
@@ -634,10 +957,22 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "red", "value": null },
-                  { "color": "yellow", "value": 90 },
-                  { "color": "orange", "value": 95 },
-                  { "color": "green", "value": 99 }
+                  {
+                    "color": "red",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 90
+                  },
+                  {
+                    "color": "orange",
+                    "value": 95
+                  },
+                  {
+                    "color": "green",
+                    "value": 99
+                  }
                 ]
               }
             },
@@ -647,7 +982,9 @@
             "orientation": "horizontal",
             "displayMode": "gradient",
             "reduceOptions": {
-              "calcs": ["lastNotNull"]
+              "calcs": [
+                "lastNotNull"
+              ]
             }
           }
         },
@@ -655,8 +992,16 @@
           "id": 22,
           "type": "table",
           "title": "Tool Duration P95",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 52 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 52
+          },
           "targets": [
             {
               "expr": "histogram_quantile(0.95, sum by (tool_name, le) (rate(agent_tool_duration_seconds_bucket[$__rate_interval])))",
@@ -671,7 +1016,10 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null }
+                  {
+                    "color": "green",
+                    "value": null
+                  }
                 ]
               }
             },
@@ -683,11 +1031,19 @@
           "id": 23,
           "type": "timeseries",
           "title": "Tool Rate Limit Hits",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 60 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 60
+          },
           "targets": [
             {
-              "expr": "sum by (tool_name) (rate(agent_tool_rate_limit_hits[$__rate_interval]))",
+              "expr": "sum by (tool_name) (rate(agent_tool_rate_limit_hits_total[$__rate_interval]))",
               "legendFormat": "{{tool_name}}",
               "refId": "A"
             }
@@ -698,23 +1054,39 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null }
+                  {
+                    "color": "green",
+                    "value": null
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 24,
           "type": "table",
           "title": "Tool Usage by Agent Type",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 60 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 60
+          },
           "targets": [
             {
               "expr": "sum by (agent_type, tool_name) (increase(agent_tool_usage_total[1h]))",
@@ -728,7 +1100,10 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null }
+                  {
+                    "color": "green",
+                    "value": null
+                  }
                 ]
               }
             },
@@ -740,8 +1115,16 @@
           "id": 25,
           "type": "bargauge",
           "title": "Tool Rejection Rate",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 60 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 60
+          },
           "targets": [
             {
               "expr": "business:tool_rejection_rate:1h_by_tool * 100",
@@ -755,7 +1138,10 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null }
+                  {
+                    "color": "green",
+                    "value": null
+                  }
                 ]
               }
             },
@@ -765,7 +1151,9 @@
             "orientation": "horizontal",
             "displayMode": "gradient",
             "reduceOptions": {
-              "calcs": ["lastNotNull"]
+              "calcs": [
+                "lastNotNull"
+              ]
             }
           }
         }
@@ -776,14 +1164,27 @@
       "type": "row",
       "title": "Context & State",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 68 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 68
+      },
       "panels": [
         {
           "id": 27,
           "type": "timeseries",
           "title": "Context Tokens by Node",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 69 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 69
+          },
           "targets": [
             {
               "expr": "agent_context_tokens_gauge",
@@ -797,23 +1198,39 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null }
+                  {
+                    "color": "green",
+                    "value": null
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 28,
           "type": "timeseries",
           "title": "Message History Count P95",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 69 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 69
+          },
           "targets": [
             {
               "expr": "histogram_quantile(0.95, sum by (le) (rate(agent_messages_history_count_bucket[$__rate_interval])))",
@@ -827,23 +1244,39 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null }
+                  {
+                    "color": "green",
+                    "value": null
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 29,
           "type": "timeseries",
           "title": "Context Resolution Confidence",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 69 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 69
+          },
           "targets": [
             {
               "expr": "histogram_quantile(0.95, sum by (le) (rate(context_resolution_confidence_score_bucket[$__rate_interval])))",
@@ -857,23 +1290,39 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null }
+                  {
+                    "color": "green",
+                    "value": null
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 30,
           "type": "piechart",
           "title": "Turn Type Distribution",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 77 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 77
+          },
           "targets": [
             {
               "expr": "sum by (turn_type) (increase(context_resolution_turn_type_distribution_total[1h]))",
@@ -886,7 +1335,10 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null }
+                  {
+                    "color": "green",
+                    "value": null
+                  }
                 ]
               }
             },
@@ -894,9 +1346,14 @@
           },
           "options": {
             "pieType": "donut",
-            "legend": { "displayMode": "list", "placement": "right" },
+            "legend": {
+              "displayMode": "list",
+              "placement": "right"
+            },
             "reduceOptions": {
-              "calcs": ["lastNotNull"]
+              "calcs": [
+                "lastNotNull"
+              ]
             }
           }
         },
@@ -904,8 +1361,16 @@
           "id": 31,
           "type": "timeseries",
           "title": "Context Resolution Attempts",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 77 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 77
+          },
           "targets": [
             {
               "expr": "sum by (turn_type) (rate(context_resolution_attempts_total[$__rate_interval]))",
@@ -919,15 +1384,23 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null }
+                  {
+                    "color": "green",
+                    "value": null
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         }
       ]
@@ -937,14 +1410,27 @@
       "type": "row",
       "title": "SSE Streaming",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 85 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 85
+      },
       "panels": [
         {
           "id": 33,
           "type": "timeseries",
           "title": "Streaming Duration P95",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 86 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 86
+          },
           "targets": [
             {
               "expr": "sse_streaming_duration:p95_5m",
@@ -958,23 +1444,39 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null }
+                  {
+                    "color": "green",
+                    "value": null
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 34,
           "type": "timeseries",
           "title": "TTFT P95",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 86 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 86
+          },
           "targets": [
             {
               "expr": "sse_ttft:p95_5m",
@@ -988,23 +1490,39 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null }
+                  {
+                    "color": "green",
+                    "value": null
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 35,
           "type": "timeseries",
           "title": "Tokens Generated Rate",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 86 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 86
+          },
           "targets": [
             {
               "expr": "sse_tokens_rate:5m",
@@ -1018,23 +1536,39 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null }
+                  {
+                    "color": "green",
+                    "value": null
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 36,
           "type": "timeseries",
           "title": "SSE Events by Type",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 94 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 94
+          },
           "targets": [
             {
               "expr": "sum by (event_type) (rate(sse_events_total[$__rate_interval]))",
@@ -1048,23 +1582,39 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null }
+                  {
+                    "color": "green",
+                    "value": null
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 37,
           "type": "timeseries",
           "title": "Streaming Errors",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 94 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 94
+          },
           "targets": [
             {
               "expr": "sum by (error_type, node_name) (rate(sse_streaming_errors_total[$__rate_interval]))",
@@ -1078,23 +1628,39 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null }
+                  {
+                    "color": "green",
+                    "value": null
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 38,
           "type": "timeseries",
           "title": "Registry Update Size P95",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 94 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 94
+          },
           "targets": [
             {
               "expr": "histogram_quantile(0.95, sum by (le) (rate(sse_registry_update_bytes_bucket[$__rate_interval])))",
@@ -1108,15 +1674,1163 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null }
+                  {
+                    "color": "green",
+                    "value": null
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 39,
+      "type": "row",
+      "title": "Planner — Advanced metrics",
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 102
+      },
+      "panels": [
+        {
+          "id": 40,
+          "type": "timeseries",
+          "title": "Plans Created Rate (by execution mode)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 0,
+            "y": 103
+          },
+          "targets": [
+            {
+              "expr": "sum by (execution_mode) (rate(planner_plans_created_total[$__rate_interval]))",
+              "legendFormat": "{{execution_mode}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 41,
+          "type": "timeseries",
+          "title": "Plans Rejected (by reason)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 6,
+            "y": 103
+          },
+          "targets": [
+            {
+              "expr": "sum by (reason) (rate(planner_plans_rejected_total[$__rate_interval]))",
+              "legendFormat": "{{reason}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 42,
+          "type": "timeseries",
+          "title": "Planner Errors (by type)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 12,
+            "y": 103
+          },
+          "targets": [
+            {
+              "expr": "sum by (error_type) (rate(planner_errors_total[$__rate_interval]))",
+              "legendFormat": "{{error_type}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 43,
+          "type": "timeseries",
+          "title": "Planner Prompt Token Count P95",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 18,
+            "y": 103
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(planner_token_count_bucket[$__rate_interval])))",
+              "legendFormat": "P95 tokens",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 44,
+          "type": "timeseries",
+          "title": "Planner Retries (by attempt)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 0,
+            "y": 111
+          },
+          "targets": [
+            {
+              "expr": "sum by (retry_attempt) (rate(planner_retries_total[$__rate_interval]))",
+              "legendFormat": "attempt {{retry_attempt}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 45,
+          "type": "timeseries",
+          "title": "Retry Outcomes",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 6,
+            "y": 111
+          },
+          "targets": [
+            {
+              "expr": "sum(rate(planner_retry_success_total[$__rate_interval]))",
+              "legendFormat": "success",
+              "refId": "A"
+            },
+            {
+              "expr": "sum(rate(planner_retry_exhausted_total[$__rate_interval]))",
+              "legendFormat": "exhausted",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 46,
+          "type": "timeseries",
+          "title": "Planner Catalogue Size P95 (tools)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 12,
+            "y": 111
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (filtering_applied, le) (rate(planner_catalogue_size_tools_bucket[$__rate_interval])))",
+              "legendFormat": "{{filtering_applied}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 47,
+          "type": "timeseries",
+          "title": "LLM JSON Parse (success vs error)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 18,
+            "y": 111
+          },
+          "targets": [
+            {
+              "expr": "sum(rate(agent_llm_json_parse_success_total[$__rate_interval]))",
+              "legendFormat": "success",
+              "refId": "A"
+            },
+            {
+              "expr": "sum by (error_type) (rate(agent_llm_json_parse_errors_total[$__rate_interval]))",
+              "legendFormat": "err: {{error_type}}",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 48,
+          "type": "timeseries",
+          "title": "For-Each Auto-Corrections",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 119
+          },
+          "targets": [
+            {
+              "expr": "sum by (correction_type) (rate(planner_for_each_auto_corrections_total[$__rate_interval]))",
+              "legendFormat": "{{correction_type}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 49,
+          "type": "timeseries",
+          "title": "Planner Fallback Triggered",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 119
+          },
+          "targets": [
+            {
+              "expr": "sum by (from_level, to_level) (rate(planner_fallback_triggered_total[$__rate_interval]))",
+              "legendFormat": "{{from_level}} -> {{to_level}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 50,
+      "type": "row",
+      "title": "Adaptive Replanner",
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 127
+      },
+      "panels": [
+        {
+          "id": 51,
+          "type": "timeseries",
+          "title": "Replanner Triggers (by type)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 0,
+            "y": 128
+          },
+          "targets": [
+            {
+              "expr": "sum by (trigger) (rate(adaptive_replanner_triggers_total[$__rate_interval]))",
+              "legendFormat": "{{trigger}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 52,
+          "type": "piechart",
+          "title": "Replanner Decisions (1h)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 6,
+            "y": 128
+          },
+          "targets": [
+            {
+              "expr": "sum by (decision) (increase(adaptive_replanner_decisions_total[1h]))",
+              "legendFormat": "{{decision}}",
+              "refId": "A",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "pieType": "donut",
+            "displayLabels": [
+              "percent"
+            ],
+            "legend": {
+              "displayMode": "list",
+              "placement": "right"
+            }
+          }
+        },
+        {
+          "id": 53,
+          "type": "timeseries",
+          "title": "Replanner Attempts (by attempt number)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 12,
+            "y": 128
+          },
+          "targets": [
+            {
+              "expr": "sum by (attempt_number) (rate(adaptive_replanner_attempts_total[$__rate_interval]))",
+              "legendFormat": "attempt {{attempt_number}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 54,
+          "type": "timeseries",
+          "title": "Recovery Success (by strategy)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 18,
+            "y": 128
+          },
+          "targets": [
+            {
+              "expr": "sum by (strategy) (rate(adaptive_replanner_recovery_success_total[$__rate_interval]))",
+              "legendFormat": "{{strategy}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 55,
+      "type": "row",
+      "title": "Semantic Validation & Plan Edit",
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 136
+      },
+      "panels": [
+        {
+          "id": 56,
+          "type": "piechart",
+          "title": "Semantic Validation Results (1h)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 0,
+            "y": 137
+          },
+          "targets": [
+            {
+              "expr": "sum by (result) (increase(semantic_validation_total[1h]))",
+              "legendFormat": "{{result}}",
+              "refId": "A",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "pieType": "donut",
+            "displayLabels": [
+              "percent"
+            ],
+            "legend": {
+              "displayMode": "list",
+              "placement": "right"
+            }
+          }
+        },
+        {
+          "id": 57,
+          "type": "timeseries",
+          "title": "Semantic Validation Duration P95",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 6,
+            "y": 137
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(semantic_validation_duration_seconds_bucket[$__rate_interval])))",
+              "legendFormat": "P95",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 58,
+          "type": "timeseries",
+          "title": "Validation Timeouts",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 12,
+            "y": 137
+          },
+          "targets": [
+            {
+              "expr": "sum(rate(semantic_validation_timeout_total[$__rate_interval]))",
+              "legendFormat": "timeouts",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 59,
+          "type": "timeseries",
+          "title": "Validation Issues Detected (by type)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 18,
+            "y": 137
+          },
+          "targets": [
+            {
+              "expr": "sum by (issue_type) (rate(semantic_validation_issues_detected_total[$__rate_interval]))",
+              "legendFormat": "{{issue_type}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 60,
+          "type": "timeseries",
+          "title": "Plan Edit Operations (by type)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 0,
+            "y": 145
+          },
+          "targets": [
+            {
+              "expr": "sum by (operation) (rate(plan_edit_operations_total[$__rate_interval]))",
+              "legendFormat": "{{operation}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 61,
+          "type": "timeseries",
+          "title": "Plan Edit Schema Validation Failures",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 6,
+            "y": 145
+          },
+          "targets": [
+            {
+              "expr": "sum by (tool_name) (rate(plan_edit_schema_validation_failures_total[$__rate_interval]))",
+              "legendFormat": "{{tool_name}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 62,
+          "type": "timeseries",
+          "title": "Plan Edit Injection Blocked",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 12,
+            "y": 145
+          },
+          "targets": [
+            {
+              "expr": "sum by (pattern) (rate(plan_edit_injection_blocked_total[$__rate_interval]))",
+              "legendFormat": "{{pattern}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 63,
+          "type": "timeseries",
+          "title": "Plan Edit Undo Operations",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 18,
+            "y": 145
+          },
+          "targets": [
+            {
+              "expr": "sum(rate(plan_edit_undo_operations_total[$__rate_interval]))",
+              "legendFormat": "undo",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         }
       ]

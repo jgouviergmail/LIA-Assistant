@@ -57,15 +57,38 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     Yields:
         AsyncSession: SQLAlchemy async session
     """
+    import time as _time
+
+    _tx_start = _time.perf_counter()
     async with AsyncSessionLocal() as session:
         try:
             yield session
             await session.commit()
         except Exception as exc:
             await session.rollback()
+            try:
+                from src.infrastructure.observability.metrics_database import (
+                    db_transaction_rollback_total,
+                )
+
+                db_transaction_rollback_total.labels(
+                    endpoint="fastapi", reason=type(exc).__name__
+                ).inc()
+            except Exception:
+                pass
             logger.error("database_session_error", error=str(exc), exc_info=True)
             raise
         finally:
+            try:
+                from src.infrastructure.observability.metrics_database import (
+                    db_transaction_duration_seconds,
+                )
+
+                db_transaction_duration_seconds.labels(
+                    endpoint="fastapi", transaction_type="request"
+                ).observe(_time.perf_counter() - _tx_start)
+            except Exception:
+                pass
             # Shield session.close() from CancelledError to prevent connection
             # pool leaks. Without this, client disconnections during SSE streaming
             # cancel the close() call, leaving connections checked out from the pool.
@@ -99,12 +122,25 @@ async def get_db_context() -> AsyncGenerator[AsyncSession, None]:
     Raises:
         Exception: Any database error (logged and re-raised)
     """
+    import time as _time
+
+    _tx_start = _time.perf_counter()
     async with AsyncSessionLocal() as session:
         try:
             yield session
             await session.commit()
         except Exception as exc:
             await session.rollback()
+            try:
+                from src.infrastructure.observability.metrics_database import (
+                    db_transaction_rollback_total,
+                )
+
+                db_transaction_rollback_total.labels(
+                    endpoint="background", reason=type(exc).__name__
+                ).inc()
+            except Exception:
+                pass
             logger.error(
                 "database_session_error",
                 error=str(exc),
@@ -113,6 +149,16 @@ async def get_db_context() -> AsyncGenerator[AsyncSession, None]:
             )
             raise
         finally:
+            try:
+                from src.infrastructure.observability.metrics_database import (
+                    db_transaction_duration_seconds,
+                )
+
+                db_transaction_duration_seconds.labels(
+                    endpoint="background", transaction_type="task"
+                ).observe(_time.perf_counter() - _tx_start)
+            except Exception:
+                pass
             # Shield session.close() from CancelledError (see get_db_session)
             try:
                 await asyncio.shield(session.close())

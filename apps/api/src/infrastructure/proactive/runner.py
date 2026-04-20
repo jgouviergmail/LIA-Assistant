@@ -309,6 +309,20 @@ class ProactiveTaskRunner:
         now = datetime.now(UTC)
         user_settings = self._extract_user_settings(user)
 
+        # Lazy import to avoid circular deps; isolated behind a helper so metric
+        # failures never break the business logic.
+        def _record_eligibility(result: str) -> None:
+            try:
+                from src.infrastructure.observability.metrics_registry import (
+                    proactive_eligibility_check_total,
+                )
+
+                proactive_eligibility_check_total.labels(
+                    task_type=self.task.task_type, result=result
+                ).inc()
+            except Exception:
+                pass
+
         # 0. Usage limit check (Layer 3) — centralized via is_user_blocked_for_llm
         from src.domains.usage_limits.service import UsageLimitService
 
@@ -319,6 +333,7 @@ class ProactiveTaskRunner:
             extra_log_fields={"task_type": self.task.task_type},
         ):
             stats.record_skip("usage_limit_exceeded")
+            _record_eligibility("usage_limit_exceeded")
             return False
 
         # 1. Common eligibility checks
@@ -333,6 +348,7 @@ class ProactiveTaskRunner:
                     details=eligibility.details,
                 )
                 stats.record_skip(eligibility.reason.value)
+                _record_eligibility(eligibility.reason.value)
                 return False
 
             # 1b. Probabilistic check: should we send now?
@@ -366,6 +382,7 @@ class ProactiveTaskRunner:
                     **debug_info,
                 )
                 stats.record_skip("probabilistic_skip")
+                _record_eligibility("probabilistic_skip")
                 return False
 
             logger.info(
@@ -383,7 +400,11 @@ class ProactiveTaskRunner:
                 user_id=str(user.id),
             )
             stats.record_skip("task_eligibility_failed")
+            _record_eligibility("task_eligibility_failed")
             return False
+
+        # Eligibility passed all checks
+        _record_eligibility("eligible")
 
         # 3. Select target
         target = await self.task.select_target(user.id)
@@ -412,6 +433,22 @@ class ProactiveTaskRunner:
             )
             stats.record_failure("content_generation_failed")
             return False
+
+        # Track content source (wikipedia, perplexity, llm_reflection, etc.).
+        # `source_name` is an optional attribute on task-specific result subclasses —
+        # use getattr() so tasks that don't populate it (or test fakes) don't break.
+        _source_name = getattr(result, "source_name", None)
+        if _source_name:
+            try:
+                from src.infrastructure.observability.metrics_registry import (
+                    proactive_content_source_total,
+                )
+
+                proactive_content_source_total.labels(
+                    task_type=self.task.task_type, source=_source_name
+                ).inc()
+            except Exception:
+                pass
 
         # 4b. Pre-generate run_id and compute cost for metadata injection.
         # This ensures the archived message contains run_id + token data
@@ -471,6 +508,32 @@ class ProactiveTaskRunner:
             )
             stats.record_failure("dispatch_failed")
             return False
+
+        # Track per-channel notification delivery + tokens/cost (dashboard 13).
+        # Failures here must never break the proactive pipeline.
+        try:
+            from src.infrastructure.observability.metrics_registry import (
+                track_proactive_notification,
+            )
+            from src.infrastructure.observability.metrics_registry import (
+                track_proactive_tokens as metric_track_proactive_tokens,
+            )
+
+            track_proactive_notification(
+                task_type=self.task.task_type,
+                fcm_sent=notification_result.fcm_success > 0,
+                sse_sent=notification_result.sse_sent,
+                archived=notification_result.archived,
+            )
+            metric_track_proactive_tokens(
+                task_type=self.task.task_type,
+                tokens_in=result.tokens_in,
+                tokens_out=result.tokens_out,
+                tokens_cache=result.tokens_cache,
+                cost_eur=cost_eur,
+            )
+        except Exception:
+            pass
 
         # 6. Track tokens (autonomous transaction - each component manages its own)
         tracked_run_id = await track_proactive_tokens(
@@ -686,29 +749,28 @@ class ProactiveTaskRunner:
         """
         Record Prometheus metrics for this execution.
 
-        Args:
-            stats: Execution statistics
+        Emits both the generic background_job_duration_seconds (for cross-job comparison)
+        and the domain-specific proactive_task_* metrics (for dashboard 13 panels).
         """
-        # Duration
+        # Generic job duration (for dashboard 06 / background jobs)
         background_job_duration_seconds.labels(job_name=self.job_name).observe(
             stats.duration_seconds
         )
 
-        # Task-specific metrics (use lazy import to avoid circular imports)
+        # Domain-specific proactive metrics (dashboard 13)
         try:
             from src.infrastructure.observability.metrics_registry import (
-                proactive_task_failed_total,
-                proactive_task_processed_total,
-                proactive_task_skipped_total,
-                proactive_task_success_total,
+                track_proactive_task_execution,
             )
 
-            proactive_task_processed_total.labels(task_type=self.task.task_type).inc(
-                stats.processed
+            track_proactive_task_execution(
+                task_type=self.task.task_type,
+                processed=stats.processed,
+                success=stats.success,
+                failed=stats.failed,
+                skipped=stats.skipped,
+                duration_seconds=stats.duration_seconds,
             )
-            proactive_task_success_total.labels(task_type=self.task.task_type).inc(stats.success)
-            proactive_task_failed_total.labels(task_type=self.task.task_type).inc(stats.failed)
-            proactive_task_skipped_total.labels(task_type=self.task.task_type).inc(stats.skipped)
 
         except ImportError:
             # Metrics not yet defined, skip

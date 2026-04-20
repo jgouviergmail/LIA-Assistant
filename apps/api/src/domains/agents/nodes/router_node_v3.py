@@ -41,10 +41,14 @@ from src.domains.agents.models import MessagesState
 from src.domains.agents.utils.turn_type import normalize_turn_type
 from src.infrastructure.observability.decorators import track_metrics
 from src.infrastructure.observability.logging import get_logger
+from src.infrastructure.observability.metrics import router_confidence_score
 from src.infrastructure.observability.metrics_agents import (
     agent_node_executions_total,
     get_confidence_bucket,
+    router_data_presumption_total,
     router_decisions_total,
+    router_fallback_total,
+    router_latency_seconds,
 )
 from src.infrastructure.observability.tracing import trace_node
 
@@ -81,10 +85,13 @@ async def router_node_v3(
     - Goal inference
     - Routing decision
     """
+    import time as _time
+
     from src.domains.agents.services.query_analyzer_service import (
         get_query_analyzer_service,
     )
 
+    _router_start = _time.perf_counter()
     messages = state[STATE_KEY_MESSAGES]
 
     # Extract run_id for logging
@@ -225,6 +232,31 @@ async def router_node_v3(
         intention=router_output.intention,
         confidence_bucket=get_confidence_bucket(intelligence.confidence),
     ).inc()
+
+    # Router-specific metrics (dashboard 07 panels). Wrapped defensively:
+    # the router is on the hot path for every chat turn, so metric failures
+    # must never propagate.
+    try:
+        router_latency_seconds.observe(_time.perf_counter() - _router_start)
+        router_confidence_score.labels(intention=router_output.intention).observe(
+            float(intelligence.confidence)
+        )
+        # Fallback tracking: low-bucket confidence or explicit fallback flag.
+        # Reuses the shared bucketizer so the threshold stays in lockstep with
+        # `router_decisions_total{confidence_bucket}`.
+        if get_confidence_bucket(intelligence.confidence) == "low" or getattr(
+            intelligence, "fallback_triggered", False
+        ):
+            router_fallback_total.labels(original_intention=router_output.intention).inc()
+        # Data-presumption: pattern detection in QueryAnalyzerService
+        patterns = getattr(intelligence, "data_presumption_patterns", None)
+        if patterns:
+            for pattern in patterns:
+                router_data_presumption_total.labels(
+                    pattern_detected=pattern, decision=router_output.intention
+                ).inc()
+    except Exception:
+        pass
 
     # Build state update.
     # turn_type is normalized to the lowercase canonical form so state

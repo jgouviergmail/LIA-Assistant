@@ -685,6 +685,16 @@ async def submit_feedback(
 
         await db.commit()
 
+        # Prometheus metric for dashboard 13 "User Feedback"
+        try:
+            from src.infrastructure.observability.metrics_registry import (
+                track_proactive_feedback,
+            )
+
+            track_proactive_feedback(task_type="interest", feedback_type=data.feedback)
+        except Exception:
+            pass
+
         logger.info(
             "interest_feedback_submitted",
             user_id=str(user.id),

@@ -173,6 +173,16 @@ class ContextTypeRegistry:
 
         cls._registry[definition.context_type] = definition
 
+        # Dashboard 15 "Domain Handlers Registered" (startup-time counter)
+        try:
+            from src.infrastructure.observability.metrics_agents import (
+                domain_handlers_registered_total,
+            )
+
+            domain_handlers_registered_total.labels(domain=definition.agent_name).inc()
+        except Exception:
+            pass
+
         logger.info(
             "context_type_registered",
             context_type=definition.context_type,

@@ -1,7 +1,11 @@
 {
   "title": "08 - HITL Human-in-the-Loop",
   "uid": "08-hitl",
-  "tags": ["lia", "hitl", "approval"],
+  "tags": [
+    "lia",
+    "hitl",
+    "approval"
+  ],
   "timezone": "browser",
   "schemaVersion": 38,
   "version": 1,
@@ -14,7 +18,9 @@
     {
       "title": "LIA",
       "type": "dashboards",
-      "tags": ["lia"],
+      "tags": [
+        "lia"
+      ],
       "targetBlank": false
     }
   ],
@@ -58,7 +64,12 @@
       "id": 100,
       "title": "HITL Overview",
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "panels": []
     },
     {
@@ -66,7 +77,12 @@
       "title": "Total Interrupts (24h)",
       "type": "stat",
       "datasource": "$datasource",
-      "gridPos": { "h": 8, "w": 4, "x": 0, "y": 1 },
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "sum(increase(hitl_interrupts_total[24h]))",
@@ -80,7 +96,10 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "value": null, "color": "green" }
+              {
+                "value": null,
+                "color": "green"
+              }
             ]
           }
         },
@@ -92,7 +111,9 @@
         "textMode": "auto",
         "justifyMode": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         }
@@ -103,7 +124,12 @@
       "title": "Approval Rate",
       "type": "stat",
       "datasource": "$datasource",
-      "gridPos": { "h": 8, "w": 4, "x": 4, "y": 1 },
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 4,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "hitl_approval_rate:1h * 100",
@@ -117,9 +143,18 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "value": null, "color": "red" },
-              { "value": 60, "color": "yellow" },
-              { "value": 80, "color": "green" }
+              {
+                "value": null,
+                "color": "red"
+              },
+              {
+                "value": 60,
+                "color": "yellow"
+              },
+              {
+                "value": 80,
+                "color": "green"
+              }
             ]
           }
         },
@@ -131,7 +166,9 @@
         "textMode": "auto",
         "justifyMode": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         }
@@ -142,7 +179,12 @@
       "title": "User Response Time P95",
       "type": "stat",
       "datasource": "$datasource",
-      "gridPos": { "h": 8, "w": 4, "x": 8, "y": 1 },
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 8,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "hitl:user_response_time:p95_5m",
@@ -156,9 +198,18 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "value": null, "color": "green" },
-              { "value": 30, "color": "yellow" },
-              { "value": 120, "color": "red" }
+              {
+                "value": null,
+                "color": "green"
+              },
+              {
+                "value": 30,
+                "color": "yellow"
+              },
+              {
+                "value": 120,
+                "color": "red"
+              }
             ]
           }
         },
@@ -170,7 +221,9 @@
         "textMode": "auto",
         "justifyMode": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         }
@@ -181,7 +234,12 @@
       "title": "Resolution Breakdown",
       "type": "piechart",
       "datasource": "$datasource",
-      "gridPos": { "h": 8, "w": 4, "x": 12, "y": 1 },
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 12,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "sum by (action) (increase(hitl_resolutions_total[24h]))",
@@ -197,7 +255,9 @@
       },
       "options": {
         "pieType": "donut",
-        "tooltip": { "mode": "single" },
+        "tooltip": {
+          "mode": "single"
+        },
         "legend": {
           "displayMode": "list",
           "placement": "right"
@@ -209,7 +269,12 @@
       "title": "Question TTFT P95",
       "type": "stat",
       "datasource": "$datasource",
-      "gridPos": { "h": 8, "w": 4, "x": 16, "y": 1 },
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 16,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "histogram_quantile(0.95, sum by (le) (rate(hitl_question_ttft_seconds_bucket[$__rate_interval])))",
@@ -223,7 +288,10 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "value": null, "color": "green" }
+              {
+                "value": null,
+                "color": "green"
+              }
             ]
           }
         },
@@ -235,7 +303,9 @@
         "textMode": "auto",
         "justifyMode": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         }
@@ -246,7 +316,12 @@
       "title": "Question Generation Duration P95",
       "type": "stat",
       "datasource": "$datasource",
-      "gridPos": { "h": 8, "w": 4, "x": 20, "y": 1 },
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 20,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "histogram_quantile(0.95, sum by (le) (rate(hitl_question_generation_duration_seconds_bucket[$__rate_interval])))",
@@ -260,7 +335,10 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "value": null, "color": "green" }
+              {
+                "value": null,
+                "color": "green"
+              }
             ]
           }
         },
@@ -272,7 +350,9 @@
         "textMode": "auto",
         "justifyMode": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         }
@@ -283,14 +363,24 @@
       "id": 101,
       "title": "Classification Quality",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 9
+      },
       "panels": [
         {
           "id": 7,
           "title": "Classification Latency P50/P95/P99",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 10 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 10
+          },
           "targets": [
             {
               "expr": "method:hitl_classification_duration:p50_rate5m",
@@ -321,7 +411,9 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
@@ -333,7 +425,12 @@
           "title": "Clarification Fallback Rate",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 10 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 10
+          },
           "targets": [
             {
               "expr": "hitl:clarification_fallback_rate:1h * 100",
@@ -349,20 +446,30 @@
                 "lineInterpolation": "smooth",
                 "fillOpacity": 10,
                 "lineWidth": 1,
-                "thresholdsStyle": { "mode": "line" }
+                "thresholdsStyle": {
+                  "mode": "line"
+                }
               },
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "green" },
-                  { "value": 20, "color": "orange" }
+                  {
+                    "value": null,
+                    "color": "green"
+                  },
+                  {
+                    "value": 20,
+                    "color": "orange"
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
@@ -374,7 +481,12 @@
           "title": "Classification by Method",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 10 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 10
+          },
           "targets": [
             {
               "expr": "sum by (method) (rate(hitl_classification_method_total[$__rate_interval]))",
@@ -390,13 +502,17 @@
                 "lineInterpolation": "smooth",
                 "fillOpacity": 30,
                 "lineWidth": 1,
-                "stacking": { "mode": "normal" }
+                "stacking": {
+                  "mode": "normal"
+                }
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
@@ -408,7 +524,12 @@
           "title": "LLM Fallback Ratio",
           "type": "stat",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 18 },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 18
+          },
           "targets": [
             {
               "expr": "hitl_llm_fallback_ratio:1h * 100",
@@ -422,7 +543,10 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "green" }
+                  {
+                    "value": null,
+                    "color": "green"
+                  }
                 ]
               }
             },
@@ -434,7 +558,9 @@
             "textMode": "auto",
             "justifyMode": "auto",
             "reduceOptions": {
-              "calcs": ["lastNotNull"],
+              "calcs": [
+                "lastNotNull"
+              ],
               "fields": "",
               "values": false
             }
@@ -445,7 +571,12 @@
           "title": "Clarification Requests",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 18 },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 18
+          },
           "targets": [
             {
               "expr": "sum by (reason) (rate(hitl_clarification_requests_total[$__rate_interval]))",
@@ -466,7 +597,9 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
@@ -480,14 +613,27 @@
       "id": 102,
       "title": "User Behavior",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 26 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 26
+      },
       "panels": [
         {
           "id": 12,
           "title": "Response Time Distribution",
           "type": "heatmap",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 27 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 27
+          },
           "targets": [
             {
               "expr": "sum by (le) (increase(hitl_user_response_time_seconds_bucket[$__rate_interval]))",
@@ -515,7 +661,12 @@
           "title": "Response Time by Decision P50/P99",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 27 },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 27
+          },
           "targets": [
             {
               "expr": "decision:hitl_user_response_time:p50_rate5m",
@@ -541,7 +692,9 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
@@ -553,7 +706,12 @@
           "title": "HITL Usage by Interaction Type",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 35 },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 35
+          },
           "targets": [
             {
               "expr": "business:hitl_usage:rate5m_by_interaction",
@@ -574,7 +732,9 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
@@ -586,7 +746,12 @@
           "title": "HITL Usage by Agent",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 35 },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 35
+          },
           "targets": [
             {
               "expr": "business:hitl_usage:rate5m_by_agent",
@@ -607,7 +772,9 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
@@ -621,14 +788,24 @@
       "id": 103,
       "title": "Edit & Rejection",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 43 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 43
+      },
       "panels": [
         {
           "id": 16,
           "title": "Edit Actions by Type",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 44 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 44
+          },
           "targets": [
             {
               "expr": "hitl:edit_actions:rate1h",
@@ -649,7 +826,9 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
@@ -661,7 +840,12 @@
           "title": "Full Rewrite Rate",
           "type": "stat",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 4, "x": 8, "y": 44 },
+          "gridPos": {
+            "h": 8,
+            "w": 4,
+            "x": 8,
+            "y": 44
+          },
           "targets": [
             {
               "expr": "sum(rate(hitl_edit_actions_total{edit_type=\"full_rewrite\"}[$__rate_interval])) / sum(rate(hitl_edit_actions_total[$__rate_interval])) * 100",
@@ -675,7 +859,10 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "green" }
+                  {
+                    "value": null,
+                    "color": "green"
+                  }
                 ]
               }
             },
@@ -687,7 +874,9 @@
             "textMode": "auto",
             "justifyMode": "auto",
             "reduceOptions": {
-              "calcs": ["lastNotNull"],
+              "calcs": [
+                "lastNotNull"
+              ],
               "fields": "",
               "values": false
             }
@@ -698,7 +887,12 @@
           "title": "Rejection by Type",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 4, "x": 12, "y": 44 },
+          "gridPos": {
+            "h": 8,
+            "w": 4,
+            "x": 12,
+            "y": 44
+          },
           "targets": [
             {
               "expr": "hitl:rejection_rate:1h",
@@ -719,7 +913,9 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
@@ -731,7 +927,12 @@
           "title": "Rejection Total",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 44 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 44
+          },
           "targets": [
             {
               "expr": "rate(hitl_rejection_total[$__rate_interval])",
@@ -752,7 +953,9 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
@@ -764,7 +967,12 @@
           "title": "Approval Rate by Agent",
           "type": "bargauge",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 52 },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 52
+          },
           "targets": [
             {
               "expr": "business:hitl_approval_rate:1h_by_agent * 100",
@@ -778,9 +986,18 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "red" },
-                  { "value": 60, "color": "yellow" },
-                  { "value": 80, "color": "green" }
+                  {
+                    "value": null,
+                    "color": "red"
+                  },
+                  {
+                    "value": 60,
+                    "color": "yellow"
+                  },
+                  {
+                    "value": 80,
+                    "color": "green"
+                  }
                 ]
               }
             },
@@ -790,7 +1007,9 @@
             "orientation": "horizontal",
             "displayMode": "gradient",
             "reduceOptions": {
-              "calcs": ["lastNotNull"]
+              "calcs": [
+                "lastNotNull"
+              ]
             }
           }
         },
@@ -799,7 +1018,12 @@
           "title": "Tool Rejections by Reason",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 52 },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 52
+          },
           "targets": [
             {
               "expr": "sum by (rejection_type) (rate(hitl_tool_rejections_by_reason_total[$__rate_interval]))",
@@ -820,7 +1044,9 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
@@ -834,14 +1060,24 @@
       "id": 104,
       "title": "Resumption",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 60 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 60
+      },
       "panels": [
         {
           "id": 22,
           "title": "Resumption Duration P50/P95/P99",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 61 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 61
+          },
           "targets": [
             {
               "expr": "strategy:hitl_resumption_duration:p50_rate5m",
@@ -872,7 +1108,9 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
@@ -884,7 +1122,12 @@
           "title": "HITL Wait Duration P95",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 61 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 61
+          },
           "targets": [
             {
               "expr": "histogram_quantile(0.95, sum by (reason, le) (rate(hitl_wait_duration_seconds_bucket[$__rate_interval])))",
@@ -905,7 +1148,9 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"
@@ -917,7 +1162,12 @@
           "title": "Resumption Total by Type",
           "type": "timeseries",
           "datasource": "$datasource",
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 61 },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 61
+          },
           "targets": [
             {
               "expr": "sum by (interrupt_type) (rate(hitl_resumption_total[$__rate_interval]))",
@@ -938,7 +1188,1171 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 105,
+      "type": "row",
+      "title": "HITL — Plan Approval",
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 69
+      },
+      "panels": [
+        {
+          "id": 106,
+          "type": "timeseries",
+          "title": "Plan Approval Requests (by strategy)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 0,
+            "y": 70
+          },
+          "targets": [
+            {
+              "expr": "sum by (strategy) (rate(hitl_plan_approval_requests_total[$__rate_interval]))",
+              "legendFormat": "{{strategy}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 107,
+          "type": "timeseries",
+          "title": "Plan Approval Latency P95",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 6,
+            "y": 70
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(hitl_plan_approval_latency_seconds_bucket[$__rate_interval])))",
+              "legendFormat": "P95",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 108,
+          "type": "piechart",
+          "title": "Plan Decisions (1h)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 12,
+            "y": 70
+          },
+          "targets": [
+            {
+              "expr": "sum by (decision) (increase(hitl_plan_decisions_total[1h]))",
+              "legendFormat": "{{decision}}",
+              "refId": "A",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "pieType": "donut",
+            "displayLabels": [
+              "percent"
+            ],
+            "legend": {
+              "displayMode": "list",
+              "placement": "right"
+            }
+          }
+        },
+        {
+          "id": 109,
+          "type": "piechart",
+          "title": "Plan Modifications (1h)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 18,
+            "y": 70
+          },
+          "targets": [
+            {
+              "expr": "sum by (modification_type) (increase(hitl_plan_modifications_total[1h]))",
+              "legendFormat": "{{modification_type}}",
+              "refId": "A",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "pieType": "donut",
+            "displayLabels": [
+              "percent"
+            ],
+            "legend": {
+              "displayMode": "list",
+              "placement": "right"
+            }
+          }
+        },
+        {
+          "id": 110,
+          "type": "timeseries",
+          "title": "Approval Question Generation Duration",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 0,
+            "y": 78
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(hitl_plan_approval_question_duration_seconds_bucket[$__rate_interval])))",
+              "legendFormat": "P95 gen",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 111,
+          "type": "timeseries",
+          "title": "Approval Question Static Fallback",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 6,
+            "y": 78
+          },
+          "targets": [
+            {
+              "expr": "sum by (error_type) (rate(hitl_plan_approval_question_fallback_total[$__rate_interval]))",
+              "legendFormat": "{{error_type}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 112,
+      "type": "row",
+      "title": "HITL — For-Each Approvals",
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 86
+      },
+      "panels": [
+        {
+          "id": 113,
+          "type": "timeseries",
+          "title": "For-Each Approval Latency P95",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 0,
+            "y": 87
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(hitl_for_each_approval_latency_seconds_bucket[$__rate_interval])))",
+              "legendFormat": "P95 latency",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 114,
+          "type": "piechart",
+          "title": "For-Each Decisions (1h)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 6,
+            "y": 87
+          },
+          "targets": [
+            {
+              "expr": "sum by (decision) (increase(hitl_for_each_decisions_total[1h]))",
+              "legendFormat": "{{decision}}",
+              "refId": "A",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "pieType": "donut",
+            "displayLabels": [
+              "percent"
+            ],
+            "legend": {
+              "displayMode": "list",
+              "placement": "right"
+            }
+          }
+        },
+        {
+          "id": 115,
+          "type": "timeseries",
+          "title": "Pre-Execution Duration P95",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 12,
+            "y": 87
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(hitl_for_each_pre_execution_duration_seconds_bucket[$__rate_interval])))",
+              "legendFormat": "P95 pre-exec",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 116,
+          "type": "timeseries",
+          "title": "Pre-Execution Outcomes",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 18,
+            "y": 87
+          },
+          "targets": [
+            {
+              "expr": "sum by (outcome) (rate(hitl_for_each_pre_execution_total[$__rate_interval]))",
+              "legendFormat": "{{outcome}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 117,
+          "type": "timeseries",
+          "title": "Items Counted Distribution (P95)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 95
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(hitl_for_each_items_counted_bucket[$__rate_interval])))",
+              "legendFormat": "P95 items",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 118,
+      "type": "row",
+      "title": "HITL — Classification Advanced",
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 103
+      },
+      "panels": [
+        {
+          "id": 119,
+          "type": "timeseries",
+          "title": "Classification Confidence Distribution (P50/P95)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 104
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.5, sum by (decision, le) (rate(hitl_classification_confidence_bucket[$__rate_interval])))",
+              "legendFormat": "P50 {{decision}}",
+              "refId": "A"
+            },
+            {
+              "expr": "histogram_quantile(0.95, sum by (decision, le) (rate(hitl_classification_confidence_bucket[$__rate_interval])))",
+              "legendFormat": "P95 {{decision}}",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 120,
+          "type": "timeseries",
+          "title": "Classification Demotions (by reason)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 104
+          },
+          "targets": [
+            {
+              "expr": "sum by (from_decision, to_decision, reason) (rate(hitl_classification_demoted_total[$__rate_interval]))",
+              "legendFormat": "{{from_decision}}->{{to_decision}} ({{reason}})",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 121,
+          "type": "timeseries",
+          "title": "Clarification Fallback (by reason)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 112
+          },
+          "targets": [
+            {
+              "expr": "sum by (reason) (rate(hitl_clarification_fallback_total[$__rate_interval]))",
+              "legendFormat": "{{reason}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 122,
+          "type": "timeseries",
+          "title": "Streaming Fallback (by type)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 112
+          },
+          "targets": [
+            {
+              "expr": "sum by (type, error_type) (rate(hitl_streaming_fallback_total[$__rate_interval]))",
+              "legendFormat": "{{type}} ({{error_type}})",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 123,
+      "type": "row",
+      "title": "HITL — Question / Edit / Rejection Detail",
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 120
+      },
+      "panels": [
+        {
+          "id": 124,
+          "type": "timeseries",
+          "title": "Question Generation Tokens/sec (P50/P95)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 121
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.5, sum by (type, le) (rate(hitl_question_tokens_per_second_bucket[$__rate_interval])))",
+              "legendFormat": "P50 {{type}}",
+              "refId": "A"
+            },
+            {
+              "expr": "histogram_quantile(0.95, sum by (type, le) (rate(hitl_question_tokens_per_second_bucket[$__rate_interval])))",
+              "legendFormat": "P95 {{type}}",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 125,
+          "type": "timeseries",
+          "title": "Question TTFT P95 by Type",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 121
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (type, le) (rate(hitl_question_ttft_seconds_bucket[$__rate_interval])))",
+              "legendFormat": "P95 {{type}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 126,
+          "type": "timeseries",
+          "title": "Rejection Response Tokens",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 121
+          },
+          "targets": [
+            {
+              "expr": "sum(rate(hitl_rejection_response_tokens_total[$__rate_interval]))",
+              "legendFormat": "tokens/s",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 127,
+          "type": "timeseries",
+          "title": "EDIT Decisions with Param Modified",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 129
+          },
+          "targets": [
+            {
+              "expr": "sum by (tool_name, param_modified) (rate(hitl_edit_decisions_total[$__rate_interval]))",
+              "legendFormat": "{{tool_name}} ({{param_modified}})",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 128,
+          "type": "timeseries",
+          "title": "Rejection Type Distribution (by agent)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 129
+          },
+          "targets": [
+            {
+              "expr": "sum by (rejection_type, agent_type) (rate(hitl_rejection_type_total[$__rate_interval]))",
+              "legendFormat": "{{rejection_type}} on {{agent_type}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 129,
+      "type": "row",
+      "title": "HITL — Registry Interrupts",
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 137
+      },
+      "panels": [
+        {
+          "id": 130,
+          "type": "timeseries",
+          "title": "Registry HITL Interrupts (with/without registry items)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 138
+          },
+          "targets": [
+            {
+              "expr": "sum by (type, has_registry_items) (rate(registry_hitl_interrupts_total[$__rate_interval]))",
+              "legendFormat": "{{type}} ({{has_registry_items}})",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 131,
+          "type": "timeseries",
+          "title": "Registry Items per Interrupt P95",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 138
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (type, le) (rate(registry_hitl_registry_items_per_interrupt_bucket[$__rate_interval])))",
+              "legendFormat": "P95 {{type}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
             "legend": {
               "displayMode": "list",
               "placement": "bottom"

@@ -569,7 +569,17 @@ class EnhancedPlanEditor(PlanEditor):
             >>> result = editor.apply_with_validation(plan, modifications)
             >>> previous_plan = editor.undo()  # Restore original
         """
-        return self._pop_history()
+        previous = self._pop_history()
+        if previous is not None:
+            try:
+                from src.infrastructure.observability.metrics_agents import (
+                    plan_edit_undo_operations_total,
+                )
+
+                plan_edit_undo_operations_total.inc()
+            except Exception:
+                pass
+        return previous
 
     def _push_history(self, plan: ExecutionPlan) -> None:
         """Push plan to history stack with size limit."""

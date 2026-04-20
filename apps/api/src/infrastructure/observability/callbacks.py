@@ -140,6 +140,15 @@ class MetricsCallbackHandler(AsyncCallbackHandler):
             llm_tokens_consumed_total.labels(
                 model=model_name, node_name=node_name, token_type="prompt_tokens"
             ).inc(prompt_tokens)
+            # Dashboard 07 "Context Tokens by Node" — current context size
+            try:
+                from src.infrastructure.observability.metrics_agents import (
+                    agent_context_tokens_gauge,
+                )
+
+                agent_context_tokens_gauge.labels(node_name=node_name).set(prompt_tokens)
+            except Exception:
+                pass
 
         if completion_tokens > 0:
             llm_tokens_consumed_total.labels(

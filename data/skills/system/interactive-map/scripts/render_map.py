@@ -5,8 +5,12 @@ SkillScriptOutput JSON on stdout with a `frame.url` pointing to the Google
 Maps embed for the requested location. Logs go to stderr so they do not
 interfere with the JSON contract parser.
 
-No API key is required: `https://maps.google.com/maps?q=...&output=embed`
-is a public embed endpoint.
+No API key is required: the embed endpoint below is the redirect target of
+the legacy `maps.google.com/maps?q=...&output=embed` URL. The redirect
+itself carries `X-Frame-Options: SAMEORIGIN`, which Chrome enforces on
+every hop of an iframe navigation — so we skip the 301 and hit the final
+URL directly. The `pb` payload is a minimal protobuf string (`!1m2!2m1!1s`
+= one string field containing the query).
 """
 
 from __future__ import annotations
@@ -37,7 +41,7 @@ def main() -> None:
         }))
         return
 
-    url = f"https://maps.google.com/maps?q={quote(location)}&output=embed"
+    url = f"https://www.google.com/maps/embed?origin=mfe&pb=!1m2!2m1!1s{quote(location)}"
     print(json.dumps({
         "text": f"Here is {location} on the map.",
         "frame": {

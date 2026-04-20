@@ -6,7 +6,7 @@
 
 **Version**: 2.3
 **Date**: 2026-04-20
-**Application**: LIA v1.16.9
+**Application**: LIA v1.16.10
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -76,7 +76,7 @@ Every technical decision in LIA addresses a concrete constraint. The project aim
 | Documentation documents | 190+ |
 | ADRs (Architecture Decision Records) | 59 |
 | Prometheus metrics | 400+ definitions |
-| Grafana dashboards | 18 |
+| Grafana dashboards | 20 |
 | Supported languages (i18n) | 6 (fr, en, de, es, it, zh) |
 
 ---
@@ -729,7 +729,7 @@ Autonomous ReAct agent (headless Playwright Chromium). Redis-backed session pool
 | Technology | Role |
 |------------|------|
 | Prometheus | 400+ custom metrics (RED pattern) |
-| Grafana | 18 production-ready dashboards |
+| Grafana | 20 production-ready dashboards |
 | Loki | Aggregated structured JSON logs |
 | Tempo | Cross-service distributed traces (OTLP gRPC) |
 | Langfuse | LLM-specific tracing (prompt versions, token usage) |
@@ -901,6 +901,19 @@ Two fixes make the backend i18n coherent end-to-end:
 
 - **Weather tools**: `_("Unable to find location: {location}")` calls received `DEFAULT_LANGUAGE` (fr) instead of the user's locale because the override `if not language: language = user_lang` never fired (kwargs always returned a truthy value). Fixed with `if user_lang: language = user_lang` and propagation of `language` to `gettext.gettext(text, language)` on all 6 call-sites.
 - **Hue tools**: the 6 tools (`list_lights`, `control_light`, `list_rooms`, `control_room`, `list_scenes`, `activate_scene`) were `ConnectorTool` classes with hardcoded English messages. Refactored to a **thread-safe Option C**: two helpers `_fetch_language()` (async, used in `execute_api_call`) and `_language_from_result(result)` (sync, used in `format_registry_response`) added to `ConnectorTool`, with a `_LANGUAGE_RESULT_KEY = "_language"` class constant acting as the internal contract for passing language between phases without relying on shared instance state (tool instances are concurrent singletons). 21 strings added to the 6 `.po`/`.mo` files (126 gettext entries).
+
+### 23.11. Observability overhaul (v1.16.10)
+
+An observability audit revealed that a significant share of Prometheus metrics declared in the code were never actually emitted in production, and that two execution pans (sub-agents/skills and ReAct/browser) had no dashboard coverage. Delivered as a single additive commit with no API contract changes.
+
+- **90+ dead metrics revived** — 40 backend files touched (router, planner, HITL, OAuth, connectors, voice, drafts, initiative, data-registry, conversations, sub-agents, browser, proactive). Systematic defensive pattern: every emission block is wrapped in `try/except Exception: pass` so Prometheus failures never propagate onto the critical path. Imports are lazy (`from ... import foo` inside the try) to avoid any load-time cost.
+- **Two new Grafana dashboards**: **19 — Sub-agents & Skills** (20 panels) covering sub-agent activity, token budget (`subagent_token_budget_exceeded_total`), skills execution, rich outputs (frames/images), clarifications and query patterns; **20 — ReAct & Browser** (22 panels) covering ReAct invocations, iterations (`mcp_react_iterations_histogram`), browser tool errors, MCP React and trajectory analysis. Total: 20 dashboards / 354+ panels.
+- **DB indexes for periodic gauges** — Alembic migration `obs_indexes_001` adding `ix_conversations_updated_at` (DAU/WAU), `ix_conversations_created_at` (daily-conversations histogram), `ix_connectors_status` (connector_activation_rate). The gauge-updating background task drops from ~500ms (full scan) to <50ms on a populated DB.
+- **FastAPI `RequestValidationError` handler** — counts 422s by `field` + `error_type` on `validation_errors_total` (dashboard 16), with a 10-errors-per-request cap and 40-char truncation to bound cardinality. The default FastAPI behavior (422 response with `detail`) is strictly preserved.
+- **SQLAlchemy event listeners** `before_insert` / `after_insert` on `Connector` to measure true activation duration (SQL flush → completion) without intruding on service code. Dual metric: `oauth_connector_activation_total` (counter) + `oauth_connector_activation_duration_seconds` (histogram).
+- **DB-backed gauges**: DAU (`user_active_daily_gauge`), WAU (`user_active_weekly_gauge`), Redis pool (`redis_connection_pool_size_current`, `redis_connection_pool_available_current`), `checkpoints_table_size_bytes`, `connector_activation_rate{connector_type}`.
+- **Segment-by-segment URL sanitization** to eliminate the cardinality bomb on `connector_api_*{operation}` — regex UUID/id/hex_id/token → placeholders (`{uuid}`, `{id}`, `{hex_id}`, `{token}`), 12/12 test cases passing. Without this protection, every API request to Google/Apple/Microsoft carrying a resource ID would spawn a new Prometheus series, inflating scrape memory over time.
+- **Related fixes**: `planner_plans_created_total` declared with `[execution_mode]` but called with `(execution_mode, agents_count)` → silent `ValueError` fixed; `hitl_question_ttft_seconds.observe()` missing `.labels()` (pre-existing bug) fixed by adding `.labels(type="tool_confirmation")`; dashboards 19/20 completely empty fixed (Grafana requires a flat structure when `row.collapsed: false`); `Connector.is_active` → `Connector.status == ConnectorStatus.ACTIVE`; label `ConnectorType.BRAVE_SEARCH` → `ctype.value`; `metrics_business` imports corrected (were pointing to `metrics`); magic number `0.5` replaced by `get_confidence_bucket() == "low"` for semantic alignment with `router_decisions_total{confidence_bucket}`; proactive runner helpers (`track_proactive_task_execution`, `track_proactive_notification`, `track_proactive_tokens`, `track_proactive_feedback`) wired into the production path.
 
 ---
 

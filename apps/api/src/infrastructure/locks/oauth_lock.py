@@ -77,6 +77,7 @@ class OAuthLock:
         """
         start_time = asyncio.get_event_loop().time()
         max_wait_time = self.timeout_seconds
+        connector_type_value = self.connector_type.value
 
         retry_count = 0
         while True:
@@ -90,10 +91,29 @@ class OAuthLock:
 
             if acquired:
                 self.lock_acquired = True
+                # Prometheus: track acquisition latency + contention if we waited.
+                # Wrapped defensively — lock acquisition must never fail due to metrics.
+                try:
+                    from src.infrastructure.observability.metrics import (
+                        oauth_lock_acquired_total,
+                        oauth_lock_contention_total,
+                        oauth_lock_wait_duration_seconds,
+                    )
+
+                    oauth_lock_acquired_total.labels(connector_type=connector_type_value).inc()
+                    oauth_lock_wait_duration_seconds.labels(
+                        connector_type=connector_type_value
+                    ).observe(asyncio.get_event_loop().time() - start_time)
+                    if retry_count > 0:
+                        oauth_lock_contention_total.labels(
+                            connector_type=connector_type_value
+                        ).inc()
+                except Exception:
+                    pass
                 logger.debug(
                     "oauth_lock_acquired",
                     user_id=str(self.user_id),
-                    connector_type=self.connector_type.value,
+                    connector_type=connector_type_value,
                     retry_count=retry_count,
                 )
                 return self
@@ -101,15 +121,27 @@ class OAuthLock:
             # Lock is busy - check if we should retry
             elapsed = asyncio.get_event_loop().time() - start_time
             if elapsed >= max_wait_time:
+                try:
+                    from src.infrastructure.observability.metrics import (
+                        oauth_lock_timeout_total,
+                        oauth_lock_wait_duration_seconds,
+                    )
+
+                    oauth_lock_timeout_total.labels(connector_type=connector_type_value).inc()
+                    oauth_lock_wait_duration_seconds.labels(
+                        connector_type=connector_type_value
+                    ).observe(elapsed)
+                except Exception:
+                    pass
                 logger.error(
                     "oauth_lock_timeout",
                     user_id=str(self.user_id),
-                    connector_type=self.connector_type.value,
+                    connector_type=connector_type_value,
                     elapsed_seconds=elapsed,
                     retry_count=retry_count,
                 )
                 raise TimeoutError(
-                    f"Could not acquire OAuth lock for {self.connector_type.value} "
+                    f"Could not acquire OAuth lock for {connector_type_value} "
                     f"after {elapsed:.2f}s"
                 )
 
@@ -125,7 +157,7 @@ class OAuthLock:
             logger.debug(
                 "oauth_lock_busy_retrying",
                 user_id=str(self.user_id),
-                connector_type=self.connector_type.value,
+                connector_type=connector_type_value,
                 retry_count=retry_count,
                 wait_time_ms=int(wait_time * 1000),
             )
@@ -144,6 +176,14 @@ class OAuthLock:
         if self.lock_acquired:
             try:
                 await self.redis.delete(self.lock_key)
+                try:
+                    from src.infrastructure.observability.metrics import (
+                        oauth_lock_released_total,
+                    )
+
+                    oauth_lock_released_total.labels(connector_type=self.connector_type.value).inc()
+                except Exception:
+                    pass
                 logger.debug(
                     "oauth_lock_released",
                     user_id=str(self.user_id),

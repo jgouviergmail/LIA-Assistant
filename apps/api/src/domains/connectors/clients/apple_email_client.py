@@ -224,6 +224,10 @@ class AppleEmailClient(BaseAppleClient):
         use_cache: bool,
     ) -> dict[str, Any]:
         """Search emails via IMAP and cache results in Redis."""
+        import time as _time
+
+        _email_start = _time.perf_counter()
+        _email_status = "success"
         criteria, target_folder = convert_imap_query(query)
         folder = target_folder or "INBOX"
 
@@ -263,6 +267,22 @@ class AppleEmailClient(BaseAppleClient):
             except Exception as e:
                 logger.debug("apple_email_cache_write_error", error=str(e))
 
+        # Prometheus (dashboard 10 Email)
+        try:
+            from src.infrastructure.observability.metrics_agents import (
+                email_api_calls,
+                email_api_latency,
+                email_results_count,
+            )
+
+            email_api_calls.labels(operation="search", status=_email_status).inc()
+            email_api_latency.labels(operation="search").observe(
+                _time.perf_counter() - _email_start
+            )
+            email_results_count.labels(operation="search").observe(len(messages))
+        except Exception:
+            pass
+
         return {
             "messages": [{"id": msg["id"]} for msg in messages],
             "resultSizeEstimate": len(messages),
@@ -285,9 +305,25 @@ class AppleEmailClient(BaseAppleClient):
                 cache_key = f"apple_email:{self.user_id}:msg:{message_id}"
                 cached = await redis.get(cache_key)
                 if cached:
+                    try:
+                        from src.infrastructure.observability.metrics_agents import (
+                            email_cache_hits,
+                        )
+
+                        email_cache_hits.labels(cache_type="redis_message").inc()
+                    except Exception:
+                        pass
                     result = json.loads(cached)
                     result["from_cache"] = True
                     return result
+                try:
+                    from src.infrastructure.observability.metrics_agents import (
+                        email_cache_misses,
+                    )
+
+                    email_cache_misses.labels(cache_type="redis_message").inc()
+                except Exception:
+                    pass
             except Exception as e:
                 logger.debug("apple_email_cache_read_error", error=str(e))
 

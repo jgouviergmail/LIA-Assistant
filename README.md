@@ -76,7 +76,7 @@
 | **Unpredictable LLM costs** | Real-time token tracking, budget alerts, 93% optimization |
 | **Uncontrolled hallucinations** | Human-in-the-Loop (HITL) with 6 approval levels |
 | **Fragmented integrations** | Unified multi-domain orchestration (18 agents + MCP + sub-agents) |
-| **Limited observability** | 500+ Prometheus metrics, 18 Grafana dashboards, GeoIP analytics |
+| **Limited observability** | 500+ Prometheus metrics, 20 Grafana dashboards, GeoIP analytics |
 | **Inconsistent performance** | Gemini embedding-001 with asymmetric task types, semantic routing with hybrid scoring |
 
 ### Primary Use Cases
@@ -272,7 +272,7 @@ ExecutionStep(
 ### Enterprise Observability
 
 - **Prometheus**: 500+ custom metrics (agents, LLM, infrastructure)
-- **Grafana**: 18 production-ready dashboards
+- **Grafana**: 20 production-ready dashboards
 - **Langfuse**: LLM-specific tracing with prompt versions
 - **Loki**: Structured JSON logs with PII filtering
 - **Tempo**: Distributed cross-service tracing
@@ -737,7 +737,7 @@ apps/api/src/
 | Technology | Role |
 |------------|------|
 | Prometheus | 500+ metrics |
-| Grafana | 18 dashboards |
+| Grafana | 20 dashboards |
 | Loki | Aggregated logs |
 | Tempo | Distributed tracing |
 | Langfuse | LLM observability |

@@ -2753,6 +2753,18 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_16_10": {
+          "title": "v1.16.10 — Observability-Überarbeitung: 20 Dashboards, vollständige Metriken, schnellere DB",
+          "date": "April 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>Zwei neue Grafana-Dashboards für Observability</b> — Ein Dashboard speziell für Sub-Agents und Skills (Aktivität, Token-Budget, Rich Outputs) sowie eines für den ReAct-Modus und Browser (Aufrufe, Iterationen, Tool-Fehler). Administratoren verfügen jetzt über 20 Dashboards mit 354+ Panels, ohne blinde Flecken.",
+            "i2": "<b>90+ Prometheus-Metriken wiederbelebt</b> — Ein Audit zeigte, dass ein erheblicher Anteil der im Code deklarierten Metriken in Produktion nie emittiert wurde (Router, Planner, HITL, OAuth, Konnektoren, Voice, Drafts, Initiative, Data-Registry, Conversations). Instrumentierung überall ergänzt, mit defensiven Guards, damit Metrikfehler niemals den kritischen Pfad brechen.",
+            "i3": "<b>Schnellere DAU/WAU- und Konnektor-Aktivierungsqueries</b> — Drei DB-Indizes via Migration (<code>obs_indexes_001</code>) hinzugefügt: <code>ix_conversations_updated_at</code>, <code>ix_conversations_created_at</code>, <code>ix_connectors_status</code>. Der Hintergrund-Updater der Gauges sinkt von ~500ms (Full Scan) auf <50ms auf einer gefüllten DB.",
+            "i4": "<b>Keine Prometheus-Cardinality-Bombe mehr bei Konnektoren</b> — Das <code>operation</code>-Label von <code>connector_api_*</code>-Metriken erhielt zuvor rohe URL-Pfade (mit UUIDs, Tokens, numerischen IDs), was den Prometheus-Speicher langsam aufblähte. Ein Segment-für-Segment-Sanitizer (UUID/id/hex_id/token → Platzhalter) wird nun vorgeschaltet.",
+            "i5": "<b>FastAPI-Validierungsfehler (422) werden erfasst</b> — Pydantic-Validierungsfehler bei eingehenden Payloads werden nun pro Feld + Error-Typ gezählt (max. 10 pro Request, um die Kardinalität zu begrenzen), sichtbar auf Dashboard 16, um Muster fehlerhafter Payloads aufzudecken."
+          }
+        },
         "v1_16_8": {
           "title": "v1.16.8 — Angereicherte Skills: Karten, Bilder, Mini-Apps im Chat",
           "date": "April 2026",

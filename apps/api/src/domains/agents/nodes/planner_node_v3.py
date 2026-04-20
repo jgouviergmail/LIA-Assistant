@@ -473,6 +473,30 @@ async def planner_node_v3(
 
         agent_node_executions_total.labels(node_name="planner_v3", status="success").inc()
 
+        # Track planner retries. PANIC MODE is the one-shot catalogue-expansion retry
+        # triggered by SmartPlannerService after an initial failure. The ContextVar
+        # `panic_mode_attempted` is True whenever a retry was attempted (regardless of
+        # outcome), whereas `used_panic_mode` is True only on retry success.
+        try:
+            from src.core.context import panic_mode_attempted
+            from src.infrastructure.observability.metrics_agents import (
+                planner_plans_created_total,
+                planner_retries_total,
+                planner_retry_success_total,
+            )
+
+            execution_mode = configurable.get("user_execution_mode", "pipeline")
+            planner_plans_created_total.labels(execution_mode=execution_mode).inc()
+            if panic_mode_attempted.get():
+                planner_retries_total.labels(
+                    retry_attempt="1",
+                    validation_error_type="catalogue_expansion",
+                ).inc()
+                if planning_result.used_panic_mode:
+                    planner_retry_success_total.labels(retry_attempt="1").inc()
+        except Exception:
+            pass
+
         # Validate plan to determine HITL requirements
         from src.domains.agents.orchestration.validator import (
             PlanValidator,
@@ -498,6 +522,41 @@ async def planner_node_v3(
             requires_hitl=validation_result.requires_hitl,
             errors_count=len(validation_result.errors),
         )
+
+        # Track validation rejections (dashboard 07 Plans Rejected panel)
+        if not validation_result.is_valid:
+            try:
+                from src.infrastructure.observability.metrics_agents import (
+                    planner_plans_rejected_total,
+                )
+
+                reason = validation_result.errors[0].code if validation_result.errors else "unknown"
+                planner_plans_rejected_total.labels(reason=str(reason)).inc()
+            except Exception:
+                pass
+
+        # Domain filtering status + confidence (dashboard 07 domain filtering row)
+        try:
+            from src.core.config import settings as _settings
+            from src.infrastructure.observability.metrics_agents import (
+                planner_domain_confidence_score,
+                planner_domain_filtering_active,
+            )
+
+            planner_domain_filtering_active.set(
+                1 if getattr(_settings, "planner_domain_filtering_enabled", True) else 0
+            )
+            domain_confidence = float(
+                getattr(intelligence, "primary_domain_confidence", 0.0) or 0.0
+            )
+            fallback_triggered = str(
+                bool(getattr(intelligence, "primary_domain_fallback", False))
+            ).lower()
+            planner_domain_confidence_score.labels(fallback_triggered=fallback_triggered).observe(
+                domain_confidence
+            )
+        except Exception:
+            pass
 
         result = {
             STATE_KEY_EXECUTION_PLAN: planning_result.plan,
@@ -540,6 +599,24 @@ async def planner_node_v3(
             error_type="planning_failed",
         ).inc()
         agent_node_executions_total.labels(node_name="planner_v3", status="error").inc()
+
+        # If panic mode was attempted (retry) and we still failed → exhausted.
+        # Emit both planner_retries_total (the attempt) and retry_exhausted (the outcome).
+        try:
+            from src.core.context import panic_mode_attempted
+            from src.infrastructure.observability.metrics_agents import (
+                planner_retries_total,
+                planner_retry_exhausted_total,
+            )
+
+            if panic_mode_attempted.get():
+                planner_retries_total.labels(
+                    retry_attempt="1",
+                    validation_error_type="catalogue_expansion",
+                ).inc()
+                planner_retry_exhausted_total.labels(final_error_type="planning_failed").inc()
+        except Exception:
+            pass
 
         result = {
             STATE_KEY_EXECUTION_PLAN: None,

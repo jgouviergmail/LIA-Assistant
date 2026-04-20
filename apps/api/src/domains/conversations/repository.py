@@ -251,6 +251,16 @@ class ConversationRepository(BaseRepository[Conversation]):
             result = await self.db.execute(stmt)
             messages = result.scalars().all()
 
+            # Prometheus: repository query counter (dashboard 09)
+            try:
+                from src.infrastructure.observability.metrics_agents import (
+                    conversation_repository_queries_total,
+                )
+
+                conversation_repository_queries_total.labels(version="v1").inc()
+            except Exception:
+                pass
+
             logger.debug(
                 "messages_retrieved",
                 conversation_id=str(conversation_id),
@@ -261,6 +271,16 @@ class ConversationRepository(BaseRepository[Conversation]):
             return messages
 
         except (SQLAlchemyError, IntegrityError, OperationalError) as e:
+            try:
+                from src.infrastructure.observability.metrics_agents import (
+                    conversation_repository_errors_total,
+                )
+
+                conversation_repository_errors_total.labels(
+                    version="v1", error_type=type(e).__name__
+                ).inc()
+            except Exception:
+                pass
             logger.error(
                 "get_messages_failed",
                 conversation_id=str(conversation_id),

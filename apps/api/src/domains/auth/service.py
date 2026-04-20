@@ -456,13 +456,36 @@ class AuthService:
         Raises:
             HTTPException: If API call fails
         """
+        import time as _time
+
+        _start = _time.perf_counter()
         async with httpx.AsyncClient(follow_redirects=False) as client:
             userinfo_response = await client.get(
                 "https://www.googleapis.com/oauth2/v2/userinfo",
                 headers={"Authorization": f"Bearer {access_token}"},
             )
 
+            # Dashboard 10 OAuth user-info fetch duration
+            try:
+                from src.infrastructure.observability.metrics_oauth import (
+                    oauth_user_info_fetch_duration_seconds,
+                )
+
+                oauth_user_info_fetch_duration_seconds.labels(provider="google").observe(
+                    _time.perf_counter() - _start
+                )
+            except Exception:
+                pass
+
             if userinfo_response.status_code != 200:
+                try:
+                    from src.infrastructure.observability.metrics_oauth import (
+                        oauth_provider_errors_total,
+                    )
+
+                    oauth_provider_errors_total.labels(provider="google", endpoint="userinfo").inc()
+                except Exception:
+                    pass
                 logger.error(
                     "google_userinfo_api_failed",
                     status_code=userinfo_response.status_code,

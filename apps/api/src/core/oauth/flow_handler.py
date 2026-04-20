@@ -313,6 +313,10 @@ class OAuthFlowHandler:
         Raises:
             OAuthTokenExchangeError: If token exchange fails (HTTP errors or network issues)
         """
+        import time as _time
+
+        _start = _time.perf_counter()
+        provider_name = self.provider.provider_name
         async with httpx.AsyncClient(
             timeout=settings.http_timeout_oauth, follow_redirects=False
         ) as client:
@@ -330,13 +334,34 @@ class OAuthFlowHandler:
                     headers={"Accept": "application/json"},
                 )
                 response.raise_for_status()
+                # Dashboard 10 OAuth token exchange duration
+                try:
+                    from src.infrastructure.observability.metrics_oauth import (
+                        oauth_token_exchange_duration_seconds,
+                    )
+
+                    oauth_token_exchange_duration_seconds.labels(provider=provider_name).observe(
+                        _time.perf_counter() - _start
+                    )
+                except Exception:
+                    pass
                 return response.json()  # type: ignore[no-any-return]
 
             except httpx.HTTPStatusError as e:
                 error_detail = e.response.text if e.response else str(e)
+                try:
+                    from src.infrastructure.observability.metrics_oauth import (
+                        oauth_provider_errors_total,
+                    )
+
+                    oauth_provider_errors_total.labels(
+                        provider=provider_name, endpoint="token_exchange"
+                    ).inc()
+                except Exception:
+                    pass
                 logger.error(
                     "oauth_token_exchange_failed",
-                    provider=self.provider.provider_name,
+                    provider=provider_name,
                     status_code=e.response.status_code if e.response else None,
                     error_detail=error_detail,
                 )
@@ -346,9 +371,19 @@ class OAuthFlowHandler:
                 ) from e
 
             except httpx.RequestError as e:
+                try:
+                    from src.infrastructure.observability.metrics_oauth import (
+                        oauth_provider_errors_total,
+                    )
+
+                    oauth_provider_errors_total.labels(
+                        provider=provider_name, endpoint="token_exchange"
+                    ).inc()
+                except Exception:
+                    pass
                 logger.error(
                     "oauth_token_exchange_network_error",
-                    provider=self.provider.provider_name,
+                    provider=provider_name,
                     error=str(e),
                 )
                 raise OAuthTokenExchangeError(

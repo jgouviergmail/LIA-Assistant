@@ -725,6 +725,27 @@ def _check_plan_completion(
     skipped_steps = _identify_skipped_steps(execution_plan, completed_steps)
     required_steps = all_step_ids - skipped_steps
 
+    # Dashboard 15 LangGraph plan execution metrics
+    try:
+        from src.infrastructure.observability.metrics_agents import (
+            langgraph_plan_execution_efficiency,
+            langgraph_plan_steps_skipped_total,
+        )
+
+        plan_type = getattr(execution_plan, "execution_mode", "pipeline") or "pipeline"
+        executed = len(set(completed_steps.keys()) & required_steps)
+        total = len(all_step_ids)
+        if total > 0:
+            langgraph_plan_execution_efficiency.labels(plan_type=plan_type).observe(
+                executed / total
+            )
+        for _skipped_id in skipped_steps:
+            langgraph_plan_steps_skipped_total.labels(
+                plan_type=plan_type, skip_reason="conditional_branch"
+            ).inc()
+    except Exception:
+        pass
+
     if set(completed_steps.keys()) >= required_steps:
         # Plan complete: all required steps executed
         return True, False
@@ -1344,9 +1365,27 @@ async def execute_plan_parallel(
         # Calculate next wave based on completed steps AND excluded steps
         # This is dynamic to handle CONDITIONAL branching
         # CRITICAL: excluded_steps prevents skipped branches from executing
+        _unfiltered_wave = dep_graph.get_next_wave(
+            completed=set(completed_steps.keys()), excluded=set()
+        )
         next_wave = dep_graph.get_next_wave(
             completed=set(completed_steps.keys()), excluded=excluded_steps
         )
+
+        # Dashboard 15: wave filtered counter (skipped-branch exclusion)
+        try:
+            from src.infrastructure.observability.metrics_agents import (
+                langgraph_plan_wave_filtered_total,
+            )
+
+            filtered_count = len(_unfiltered_wave) - len(next_wave)
+            if filtered_count > 0:
+                _plan_type = getattr(execution_plan, "execution_mode", "pipeline") or "pipeline"
+                langgraph_plan_wave_filtered_total.labels(
+                    plan_type=_plan_type, filter_type="excluded_steps"
+                ).inc(filtered_count)
+        except Exception:
+            pass
 
         if not next_wave:
             # No more steps can execute - check if plan complete or deadlocked

@@ -6,7 +6,7 @@
 
 **Versión**: 2.3
 **Fecha**: 2026-04-20
-**Aplicación**: LIA v1.16.9
+**Aplicación**: LIA v1.16.10
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -76,7 +76,7 @@ Cada decisión técnica de LIA responde a una restricción concreta. El proyecto
 | Documentos de documentación | 190+ |
 | ADRs (Architecture Decision Records) | 59 |
 | Métricas Prometheus | 400+ definiciones |
-| Dashboards Grafana | 18 |
+| Dashboards Grafana | 20 |
 | Idiomas soportados (i18n) | 6 (fr, en, de, es, it, zh) |
 
 ---
@@ -729,7 +729,7 @@ Diseño **fail-open**: los fallos de infraestructura no bloquean a los usuarios.
 | Tecnología | Rol |
 |-------------|------|
 | Prometheus | 400+ métricas custom (RED pattern) |
-| Grafana | 18 dashboards production-ready |
+| Grafana | 20 dashboards production-ready |
 | Loki | Logs estructurados JSON agregados |
 | Tempo | Trazas distribuidas cross-service (OTLP gRPC) |
 | Langfuse | LLM-specific tracing (prompt versions, token usage) |

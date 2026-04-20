@@ -2,9 +2,9 @@
 
 > **Catalogue complet des métriques Prometheus pour observabilité multi-couches**
 >
-> Version: 1.3
-> Date: 2026-03-09
-> Architecture: Prometheus + Grafana (18 dashboards, 312+ panels)
+> Version: 1.4
+> Date: 2026-04-20
+> Architecture: Prometheus + Grafana (20 dashboards, 354+ panels)
 > Total métriques: 545+ métriques (149 instrumentées + 390 recording rules)
 > Compliance: OpenTelemetry conventions, Google SRE best practices
 

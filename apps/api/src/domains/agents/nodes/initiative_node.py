@@ -485,7 +485,10 @@ async def initiative_node(
     if not settings.initiative_enabled:
         return {}
 
+    import time as _time
+
     run_id = _extract_run_id(config)
+    _initiative_start = _time.perf_counter()
 
     # ── 1b. Skip after HITL resolution (accept/refuse) ──────────────
     # When the user just approved or refused a draft, disambiguation, or tool
@@ -613,6 +616,18 @@ async def initiative_node(
         run_id=run_id,
     )
 
+    # Prometheus: evaluation decision (dashboard 13) — non-critical
+    try:
+        from src.infrastructure.observability.metrics_agents import (
+            initiative_duration_seconds,
+            initiative_evaluations_total,
+        )
+
+        initiative_evaluations_total.labels(decision="act" if decision.should_act else "skip").inc()
+        initiative_duration_seconds.observe(_time.perf_counter() - _initiative_start)
+    except Exception:
+        pass
+
     # ── 7. Collect suggestion (even if should_act=False) ─────────────
     state_update: dict[str, Any] = {
         STATE_KEY_INITIATIVE_ITERATION: iteration + 1,
@@ -624,6 +639,17 @@ async def initiative_node(
     if not decision.should_act or not decision.actions:
         state_update[STATE_KEY_INITIATIVE_SKIPPED_REASON] = decision.reasoning
         return state_update
+
+    # Emit one initiative_actions_executed_total per validated action (done below)
+    try:
+        from src.infrastructure.observability.metrics_agents import (
+            initiative_actions_executed_total,
+        )
+
+        for _action in decision.actions:
+            initiative_actions_executed_total.labels(tool_name=_action.tool_name).inc()
+    except Exception:
+        pass
 
     # ── 9. Validate read-only (defense in depth) ─────────────────────
     validated_actions = _validate_read_only(decision.actions, adjacent_manifests)

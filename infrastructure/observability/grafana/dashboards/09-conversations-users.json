@@ -886,14 +886,14 @@
         },
         {
           "id": 22,
-          "title": "Agent Error Rate by Type",
+          "title": "Graph Exceptions Rate (by node/type)",
           "type": "timeseries",
           "datasource": "$datasource",
           "gridPos": { "h": 8, "w": 8, "x": 8, "y": 60 },
           "targets": [
             {
-              "expr": "sum by (agent_type, error_type) (agent_error_rate)",
-              "legendFormat": "{{agent_type}} - {{error_type}}",
+              "expr": "sum by (node_name, exception_type) (rate(graph_exceptions_total[$__rate_interval]))",
+              "legendFormat": "{{node_name}} - {{exception_type}}",
               "refId": "A"
             }
           ],
@@ -926,14 +926,14 @@
         },
         {
           "id": 23,
-          "title": "Routing Accuracy",
+          "title": "Router High-Confidence Rate (proxy for accuracy)",
           "type": "bargauge",
           "datasource": "$datasource",
           "gridPos": { "h": 8, "w": 8, "x": 16, "y": 60 },
           "targets": [
             {
-              "expr": "agent_routing_accuracy * 100",
-              "legendFormat": "{{agent_type}}",
+              "expr": "sum by (intention) (rate(router_decisions_total{confidence_bucket=~\"high|very_high\"}[$__rate_interval])) / sum by (intention) (rate(router_decisions_total[$__rate_interval])) * 100",
+              "legendFormat": "{{intention}}",
               "refId": "A"
             }
           ],
@@ -998,14 +998,14 @@
         },
         {
           "id": 25,
-          "title": "Agent Latency P95",
+          "title": "Agent Latency P95 (per intention)",
           "type": "bargauge",
           "datasource": "$datasource",
           "gridPos": { "h": 8, "w": 8, "x": 8, "y": 68 },
           "targets": [
             {
-              "expr": "agent_latency_p95_seconds",
-              "legendFormat": "{{agent_type}}",
+              "expr": "agent:latency:p95_5m",
+              "legendFormat": "{{intention}}",
               "refId": "A"
             }
           ],

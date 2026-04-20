@@ -6,7 +6,7 @@
 
 **Version** : 2.3
 **Date** : 2026-04-20
-**Application** : LIA v1.16.9
+**Application** : LIA v1.16.10
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -76,7 +76,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Documents de documentation | 190+ |
 | ADRs (Architecture Decision Records) | 59 |
 | Métriques Prometheus | 400+ définitions |
-| Dashboards Grafana | 18 |
+| Dashboards Grafana | 20 |
 | Langues supportées (i18n) | 6 (fr, en, de, es, it, zh) |
 
 ---
@@ -728,7 +728,7 @@ Design **fail-open** : les échecs d'infrastructure ne bloquent pas les utilisat
 | Technologie | Rôle |
 |-------------|------|
 | Prometheus | 400+ métriques custom (RED pattern) |
-| Grafana | 18 dashboards production-ready |
+| Grafana | 20 dashboards production-ready |
 | Loki | Logs structurés JSON agrégés |
 | Tempo | Traces distribuées cross-service (OTLP gRPC) |
 | Langfuse | LLM-specific tracing (prompt versions, token usage) |
@@ -901,6 +901,19 @@ Deux corrections rendent le backend i18n cohérent de bout en bout :
 
 - **Weather tools** : les appels `_("Unable to find location: {location}")` recevaient `DEFAULT_LANGUAGE` (fr) au lieu de la locale utilisateur, parce que la condition d'override `if not language: language = user_lang` ne se déclenchait jamais (kwargs retournait toujours une valeur truthy). Corrigé par `if user_lang: language = user_lang` et propagation de `language` à `gettext.gettext(text, language)` sur les 6 sites concernés.
 - **Hue tools** : les 6 tools (`list_lights`, `control_light`, `list_rooms`, `control_room`, `list_scenes`, `activate_scene`) étaient des classes `ConnectorTool` avec messages hardcodés anglais. Refactor vers une Option C **thread-safe** : deux helpers `_fetch_language()` (async, utilisé dans `execute_api_call`) et `_language_from_result(result)` (sync, utilisé dans `format_registry_response`) ajoutés à `ConnectorTool`, avec une constante `_LANGUAGE_RESULT_KEY = "_language"` qui sert de contrat interne pour passer la langue entre les deux phases sans s'appuyer sur un état d'instance partagé (les tool instances sont des singletons concurrents). 21 chaînes ajoutées aux 6 fichiers `.po`/`.mo` (126 entrées gettext).
+
+### 23.11. Refonte de l'observabilité (v1.16.10)
+
+Un audit de l'observabilité a révélé qu'une part significative des métriques Prometheus déclarées dans le code n'étaient jamais émises en production, et que deux pans de l'exécution (sub-agents/skills et ReAct/browser) n'étaient couverts par aucun dashboard. Livraison en un seul commit additif, sans changement de contrat API.
+
+- **Instrumentation de 90+ métriques mortes** — 40 fichiers backend touchés (router, planner, HITL, OAuth, connecteurs, voice, drafts, initiative, data-registry, conversations, sub-agents, browser, proactive). Pattern défensif systématique : chaque bloc d'émission est wrappé dans `try/except Exception: pass` pour que les failures Prometheus ne propagent jamais sur le chemin critique. Les imports sont lazy (`from ... import foo` à l'intérieur du try) pour éviter tout coût au chargement.
+- **Deux nouveaux dashboards Grafana** : **19 — Sub-agents & Skills** (20 panels) couvrant activité sub-agents, token budget (`subagent_token_budget_exceeded_total`), skills execution, rich outputs (frames/images), clarifications et query patterns ; **20 — ReAct & Browser** (22 panels) couvrant invocations ReAct, iterations (`mcp_react_iterations_histogram`), browser tool errors, MCP React et trajectory analysis. Total : 20 dashboards / 354+ panels.
+- **DB indexes pour les gauges périodiques** — migration Alembic `obs_indexes_001` ajoutant `ix_conversations_updated_at` (DAU/WAU), `ix_conversations_created_at` (daily-conversations histogram), `ix_connectors_status` (connector_activation_rate). Le background updater des gauges passe de ~500ms (full scan) à <50ms sur base peuplée.
+- **Handler FastAPI `RequestValidationError`** — comptabilise les 422 par `field` + `error_type` sur `validation_errors_total` (dashboard 16), avec cap à 10 erreurs/requête et truncation 40 chars pour borner la cardinalité. Le comportement FastAPI par défaut (réponse 422 avec `detail`) est strictement préservé.
+- **SQLAlchemy event listeners** `before_insert` / `after_insert` sur `Connector` pour mesurer la durée d'activation réelle (flush SQL → completion) sans intrusion dans les services métier. Double métrique : `oauth_connector_activation_total` (counter) + `oauth_connector_activation_duration_seconds` (histogram).
+- **Gauges DB-backed** : DAU (`user_active_daily_gauge`), WAU (`user_active_weekly_gauge`), Redis pool (`redis_connection_pool_size_current`, `redis_connection_pool_available_current`), `checkpoints_table_size_bytes`, `connector_activation_rate{connector_type}`.
+- **URL sanitization segment-par-segment** pour éliminer la cardinality bomb sur `connector_api_*{operation}` — regex UUID/id/hex_id/token → placeholders (`{uuid}`, `{id}`, `{hex_id}`, `{token}`), 12/12 cas de test passants. Sans cette protection, chaque requête API Google/Apple/Microsoft portant un ID de ressource créait une nouvelle série Prometheus, inflant la mémoire du scrape au fil du temps.
+- **Fixes associés** : `planner_plans_created_total` déclaré avec `[execution_mode]` seul mais appelé avec `(execution_mode, agents_count)` → `ValueError` silencieux corrigé ; `hitl_question_ttft_seconds.observe()` sans `.labels()` (bug pré-existant) corrigé par ajout de `.labels(type="tool_confirmation")` ; dashboards 19/20 complètement vides corrigés (Grafana exige une structure flat quand `row.collapsed: false`) ; `Connector.is_active` → `Connector.status == ConnectorStatus.ACTIVE` ; label `ConnectorType.BRAVE_SEARCH` → `ctype.value` ; imports `metrics_business` corrigés (étaient pointés vers `metrics`) ; magic number `0.5` remplacé par `get_confidence_bucket() == "low"` pour alignement sémantique avec `router_decisions_total{confidence_bucket}` ; proactive runner helpers (`track_proactive_task_execution`, `track_proactive_notification`, `track_proactive_tokens`, `track_proactive_feedback`) rebranchés sur le code de production.
 
 ---
 

@@ -15,13 +15,19 @@
  * expected reading order (visual artifact first, interactive widget last).
  *
  * Security:
- * - iframe `sandbox="allow-scripts allow-popups"` — never `allow-same-origin`.
- *   Parent cookies/storage are unreachable regardless of frame source.
- * - User skills have a CSP meta tag injected backend-side into `html_content`
- *   to block outbound fetch/XHR and nested iframes.
- * - External `frame_url` is used only for trusted URLs emitted by system
- *   skills (sandbox + SOP provide isolation). User skills can also emit
- *   `frame_url` — sandbox defends the parent in both cases.
+ * - Base sandbox: `allow-scripts allow-popups`. Parent LIA cookies/storage
+ *   stay unreachable regardless of iframe source — the parent is always
+ *   cross-origin to the iframe, so SOP protects it even if the iframe runs
+ *   under its real origin.
+ * - `allow-same-origin` is added ONLY for `frame_url` coming from a trusted
+ *   `is_system_skill`. This lets the embedded page (e.g. Google Maps) talk
+ *   to its own backend over XHR/fetch with credentials — required for
+ *   tiles/data to load. Granting it does NOT give the iframe access to
+ *   parent data, because the parent origin differs.
+ * - User-skill `html_content` keeps the strict sandbox AND receives a CSP
+ *   meta tag injected backend-side (blocks outbound fetch, nested iframes).
+ * - User-owned `frame_url` (if any) also keeps the strict sandbox — we do
+ *   not extend trust to arbitrary URLs emitted by user skills.
  */
 
 import { lazy, Suspense, useRef, useState } from 'react';
@@ -119,10 +125,17 @@ function SkillFrameCard({ payload }: { payload: SkillAppRegistryPayload }) {
 
   const aspect = payload.aspect_ratio && payload.aspect_ratio > 0 ? payload.aspect_ratio : 1.333;
   const title = payload.title || payload.skill_name;
+  // Trusted external embeds (system-skill frame_url) need `allow-same-origin`
+  // so the embedded page can load its own XHR/tile data under its real origin.
+  // The parent LIA is still cross-origin to the iframe, so SOP protects it.
+  const isTrustedExternalFrame = Boolean(payload.frame_url) && payload.is_system_skill === true;
+  const sandbox = isTrustedExternalFrame
+    ? 'allow-scripts allow-popups allow-same-origin'
+    : 'allow-scripts allow-popups';
   const commonProps = {
     className: 'lia-skill-app-widget__iframe',
     title: `Skill: ${title}`,
-    sandbox: 'allow-scripts allow-popups',
+    sandbox,
     // background: transparent so the parent (LIA) page shows through the
     // iframe when the skill's own <body> is transparent. Without this the
     // browser default (white) leaks through in dark mode.

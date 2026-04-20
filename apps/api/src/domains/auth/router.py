@@ -650,6 +650,17 @@ async def update_voice_preference(
     await db.commit()
     await db.refresh(user)
 
+    try:
+        from src.infrastructure.observability.metrics_voice import (
+            voice_preference_toggles_total,
+        )
+
+        voice_preference_toggles_total.labels(
+            action="enabled" if data.voice_enabled else "disabled"
+        ).inc()
+    except Exception:
+        pass
+
     logger.info(
         "user_voice_preference_updated",
         user_id=str(user.id),

@@ -340,6 +340,17 @@ async def browser_task_tool(
         return UnifiedToolOutput.failure(message=str(e), error_code=error_code)
 
     except Exception as e:
+        # Dashboard 20 browser errors metric (non-critical)
+        try:
+            from src.infrastructure.observability.metrics_browser import (
+                browser_errors_total,
+            )
+
+            browser_errors_total.labels(
+                error_type="timeout" if "Timeout" in type(e).__name__ else type(e).__name__
+            ).inc()
+        except Exception:
+            pass
         if "Timeout" in type(e).__name__:
             logger.error("browser_task_timeout", task=task[:100])
             return UnifiedToolOutput.failure(

@@ -36,7 +36,7 @@
 
 ### Architecture en Tiers
 
-Les 18 dashboards sont organises en 5 tiers selon l'audience cible :
+Les 20 dashboards sont organises en 5 tiers selon l'audience cible :
 
 | Tier | Audience | Dashboards | Objectif |
 |------|----------|------------|----------|
@@ -244,7 +244,7 @@ Application (FastAPI)
 | **Loki** | Agrgation des logs | Labels: service, level, user_id |
 | **Tempo** | Stockage des traces distribuees | Integration OpenTelemetry |
 | **Promtail** | Agent de collecte de logs | Pipeline JSON, extraction de labels |
-| **Grafana 11.3** | Visualisation et alerting | 18 dashboards, schemaVersion 38 |
+| **Grafana 11.3** | Visualisation et alerting | 20 dashboards, schemaVersion 38 |
 
 ### Recording Rules
 
@@ -332,4 +332,4 @@ task restart
 
 ---
 
-*Document genere pour LIA v4.0 - 18 dashboards, 409 panels, 3 datasources.*
+*Document genere pour LIA v4.1 - 20 dashboards, 451+ panels, 3 datasources.*

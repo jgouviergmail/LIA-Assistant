@@ -244,6 +244,21 @@ async def _run_mcp_react_task(
         display_name=f"MCP Iterative: {server_name}",
     )
 
+    # Prometheus: MCP ReAct invocations + iteration distribution (dashboard 10)
+    try:
+        from src.infrastructure.observability.metrics_agents import (
+            mcp_react_invocations_total,
+            mcp_react_iterations_histogram,
+        )
+
+        status = "success" if react_result.final_message else "error"
+        mcp_react_invocations_total.labels(server_name=server_name, status=status).inc()
+        mcp_react_iterations_histogram.labels(server_name=server_name).observe(
+            react_result.iteration_count
+        )
+    except Exception:
+        pass
+
     structured_data: dict[str, Any] = {
         "server_name": server_name,
         "task": task,

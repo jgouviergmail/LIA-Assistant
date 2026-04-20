@@ -10,6 +10,7 @@ from contextlib import asynccontextmanager
 import structlog
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
@@ -1175,6 +1176,45 @@ app.add_middleware(PrometheusMiddleware)
 # Add rate limiter with custom error handler
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, custom_rate_limit_handler)
+
+
+# Pydantic / FastAPI request validation error metric (dashboard 16).
+# Counts 422 validation errors by field + error_type to surface bad-payload patterns.
+@app.exception_handler(RequestValidationError)
+async def _validation_exception_handler(
+    request: Request,
+    exc: RequestValidationError,
+) -> JSONResponse:
+    """Count validation errors then return FastAPI's default 422 response.
+
+    Args:
+        request: Incoming request (unused — kept for signature compliance).
+        exc: The validation error raised by FastAPI/Pydantic.
+
+    Returns:
+        422 JSONResponse with the standard `detail` error structure.
+    """
+    del request  # unused
+    try:
+        from src.infrastructure.observability.metrics_errors import (
+            validation_errors_total,
+        )
+
+        # Cap at 10 errors per request to avoid cardinality blow-up on huge bodies.
+        for err in exc.errors()[:10]:
+            field = ".".join(str(p) for p in err.get("loc", ())) or "unknown"
+            # Keep only the leaf field name and truncate to bound cardinality.
+            field_leaf = field.rsplit(".", 1)[-1][:40]
+            error_type = err.get("type", "unknown")[:40]
+            validation_errors_total.labels(field=field_leaf, error_type=error_type).inc()
+    except Exception:  # noqa: BLE001 — metrics must never break the handler
+        pass
+
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors()},
+    )
+
 
 # Include API routes
 app.include_router(api_router, prefix=settings.api_prefix)

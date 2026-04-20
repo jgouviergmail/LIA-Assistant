@@ -1,7 +1,11 @@
 {
   "title": "13 - Proactive & Heartbeat",
   "uid": "13-proactive-heartbeat",
-  "tags": ["lia", "proactive", "heartbeat"],
+  "tags": [
+    "lia",
+    "proactive",
+    "heartbeat"
+  ],
   "timezone": "browser",
   "schemaVersion": 38,
   "version": 1,
@@ -14,7 +18,9 @@
     {
       "title": "LIA",
       "type": "dashboards",
-      "tags": ["lia"],
+      "tags": [
+        "lia"
+      ],
       "targetBlank": false
     }
   ],
@@ -24,17 +30,26 @@
         "name": "datasource",
         "type": "datasource",
         "query": "prometheus",
-        "current": { "text": "Prometheus", "value": "Prometheus" }
+        "current": {
+          "text": "Prometheus",
+          "value": "Prometheus"
+        }
       },
       {
         "name": "task_type",
         "type": "query",
-        "datasource": { "type": "prometheus", "uid": "$datasource" },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$datasource"
+        },
         "query": "label_values(proactive_task_processed_total, task_type)",
         "multi": true,
         "includeAll": true,
         "refresh": 1,
-        "current": { "text": "All", "value": "$__all" }
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
       }
     ]
   },
@@ -44,15 +59,28 @@
       "type": "row",
       "title": "Task Overview",
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "panels": []
     },
     {
       "id": 2,
       "type": "stat",
       "title": "Tasks Processed (24h)",
-      "datasource": { "type": "prometheus", "uid": "$datasource" },
-      "gridPos": { "h": 8, "w": 5, "x": 0, "y": 1 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 5,
+        "x": 0,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "sum by (task_type) (increase(proactive_task_processed_total{task_type=~\"$task_type\"}[24h]))",
@@ -66,7 +94,10 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "value": null, "color": "green" }
+              {
+                "value": null,
+                "color": "green"
+              }
             ]
           }
         },
@@ -78,7 +109,9 @@
         "textMode": "auto",
         "justifyMode": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         }
@@ -88,8 +121,16 @@
       "id": 3,
       "type": "stat",
       "title": "Success Rate",
-      "datasource": { "type": "prometheus", "uid": "$datasource" },
-      "gridPos": { "h": 8, "w": 5, "x": 5, "y": 1 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 5,
+        "x": 5,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "sum(increase(proactive_task_success_total{task_type=~\"$task_type\"}[24h])) / sum(increase(proactive_task_processed_total{task_type=~\"$task_type\"}[24h])) * 100",
@@ -103,9 +144,18 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "value": null, "color": "red" },
-              { "value": 70, "color": "yellow" },
-              { "value": 90, "color": "green" }
+              {
+                "value": null,
+                "color": "red"
+              },
+              {
+                "value": 70,
+                "color": "yellow"
+              },
+              {
+                "value": 90,
+                "color": "green"
+              }
             ]
           }
         },
@@ -117,7 +167,9 @@
         "textMode": "auto",
         "justifyMode": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         }
@@ -127,8 +179,16 @@
       "id": 4,
       "type": "stat",
       "title": "Skipped Tasks (24h)",
-      "datasource": { "type": "prometheus", "uid": "$datasource" },
-      "gridPos": { "h": 8, "w": 5, "x": 10, "y": 1 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 5,
+        "x": 10,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "sum(increase(proactive_task_skipped_total{task_type=~\"$task_type\"}[24h]))",
@@ -142,7 +202,10 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "value": null, "color": "green" }
+              {
+                "value": null,
+                "color": "green"
+              }
             ]
           }
         },
@@ -154,7 +217,9 @@
         "textMode": "auto",
         "justifyMode": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         }
@@ -164,8 +229,16 @@
       "id": 5,
       "type": "stat",
       "title": "Failed Tasks (24h)",
-      "datasource": { "type": "prometheus", "uid": "$datasource" },
-      "gridPos": { "h": 8, "w": 5, "x": 15, "y": 1 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 5,
+        "x": 15,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "sum(increase(proactive_task_failed_total{task_type=~\"$task_type\"}[24h]))",
@@ -179,8 +252,14 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "value": null, "color": "green" },
-              { "value": 1, "color": "red" }
+              {
+                "value": null,
+                "color": "green"
+              },
+              {
+                "value": 1,
+                "color": "red"
+              }
             ]
           }
         },
@@ -192,7 +271,9 @@
         "textMode": "auto",
         "justifyMode": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         }
@@ -202,8 +283,16 @@
       "id": 6,
       "type": "stat",
       "title": "Batch Duration P95",
-      "datasource": { "type": "prometheus", "uid": "$datasource" },
-      "gridPos": { "h": 8, "w": 4, "x": 20, "y": 1 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 4,
+        "x": 20,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "histogram_quantile(0.95, sum by (le) (rate(proactive_task_duration_seconds_bucket{task_type=~\"$task_type\"}[$__rate_interval])))",
@@ -217,7 +306,10 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "value": null, "color": "green" }
+              {
+                "value": null,
+                "color": "green"
+              }
             ]
           }
         },
@@ -229,7 +321,9 @@
         "textMode": "auto",
         "justifyMode": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         }
@@ -240,14 +334,27 @@
       "type": "row",
       "title": "Notifications & Cost",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 9 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 9
+      },
       "panels": [
         {
           "id": 8,
           "type": "timeseries",
           "title": "Notifications by Channel",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 6, "x": 0, "y": 10 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 0,
+            "y": 10
+          },
           "targets": [
             {
               "expr": "sum by (channel) (rate(proactive_notification_channel_total{task_type=~\"$task_type\"}[$__rate_interval]))",
@@ -259,28 +366,46 @@
             "defaults": {
               "unit": "ops",
               "custom": {
-                "stacking": { "mode": "normal" }
+                "stacking": {
+                  "mode": "normal"
+                }
               },
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "green" }
+                  {
+                    "value": null,
+                    "color": "green"
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 9,
           "type": "timeseries",
           "title": "Token Usage",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 6, "x": 6, "y": 10 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 6,
+            "y": 10
+          },
           "targets": [
             {
               "expr": "sum by (token_type) (rate(proactive_tokens_total{task_type=~\"$task_type\"}[$__rate_interval]))",
@@ -292,28 +417,46 @@
             "defaults": {
               "unit": "ops",
               "custom": {
-                "stacking": { "mode": "normal" }
+                "stacking": {
+                  "mode": "normal"
+                }
               },
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "green" }
+                  {
+                    "value": null,
+                    "color": "green"
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 10,
           "type": "timeseries",
           "title": "Cost (EUR)",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 6, "x": 12, "y": 10 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 12,
+            "y": 10
+          },
           "targets": [
             {
               "expr": "sum by (task_type) (rate(proactive_cost_eur_total{task_type=~\"$task_type\"}[$__rate_interval]))",
@@ -327,23 +470,39 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "green" }
+                  {
+                    "value": null,
+                    "color": "green"
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 11,
           "type": "piechart",
           "title": "Content Sources",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 6, "x": 18, "y": 10 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 18,
+            "y": 10
+          },
           "targets": [
             {
               "expr": "sum by (source) (increase(proactive_content_source_total{task_type=~\"$task_type\"}[24h]))",
@@ -356,7 +515,10 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "green" }
+                  {
+                    "value": null,
+                    "color": "green"
+                  }
                 ]
               }
             },
@@ -364,8 +526,13 @@
           },
           "options": {
             "pieType": "donut",
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         }
       ]
@@ -375,14 +542,27 @@
       "type": "row",
       "title": "Eligibility & Feedback",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 18 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 18
+      },
       "panels": [
         {
           "id": 13,
           "type": "timeseries",
           "title": "Eligibility Check Results",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 6, "x": 0, "y": 19 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 0,
+            "y": 19
+          },
           "targets": [
             {
               "expr": "sum by (result) (rate(proactive_eligibility_check_total{task_type=~\"$task_type\"}[$__rate_interval]))",
@@ -396,23 +576,39 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "green" }
+                  {
+                    "value": null,
+                    "color": "green"
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 14,
           "type": "piechart",
           "title": "User Feedback",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 6, "x": 6, "y": 19 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 6,
+            "y": 19
+          },
           "targets": [
             {
               "expr": "sum by (feedback_type) (increase(proactive_feedback_total{task_type=~\"$task_type\"}[24h]))",
@@ -425,7 +621,10 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "green" }
+                  {
+                    "value": null,
+                    "color": "green"
+                  }
                 ]
               }
             },
@@ -433,16 +632,29 @@
           },
           "options": {
             "pieType": "donut",
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 15,
           "type": "timeseries",
           "title": "Tasks Processed Trend",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 6, "x": 12, "y": 19 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 12,
+            "y": 19
+          },
           "targets": [
             {
               "expr": "sum by (task_type) (rate(proactive_task_processed_total[$__rate_interval]))",
@@ -456,23 +668,39 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "green" }
+                  {
+                    "value": null,
+                    "color": "green"
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 16,
           "type": "timeseries",
           "title": "Success/Failure Trend",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 6, "x": 18, "y": 19 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 18,
+            "y": 19
+          },
           "targets": [
             {
               "expr": "sum(rate(proactive_task_success_total[$__rate_interval]))",
@@ -491,15 +719,377 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "value": null, "color": "green" }
+                  {
+                    "value": null,
+                    "color": "green"
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "type": "row",
+      "title": "Initiative Phase",
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 27
+      },
+      "panels": [
+        {
+          "id": 18,
+          "type": "piechart",
+          "title": "Initiative Evaluation Decisions (1h)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 0,
+            "y": 28
+          },
+          "targets": [
+            {
+              "expr": "sum by (decision) (increase(initiative_evaluations_total[1h]))",
+              "legendFormat": "{{decision}}",
+              "refId": "A",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "pieType": "donut",
+            "displayLabels": [
+              "percent"
+            ],
+            "legend": {
+              "displayMode": "list",
+              "placement": "right"
+            }
+          }
+        },
+        {
+          "id": 19,
+          "type": "timeseries",
+          "title": "Initiative Actions Executed (by tool)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 6,
+            "y": 28
+          },
+          "targets": [
+            {
+              "expr": "sum by (tool_name) (rate(initiative_actions_executed_total[$__rate_interval]))",
+              "legendFormat": "{{tool_name}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 20,
+          "type": "timeseries",
+          "title": "Initiative Duration P95",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 12,
+            "y": 28
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(initiative_duration_seconds_bucket[$__rate_interval])))",
+              "legendFormat": "P95",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 21,
+          "type": "timeseries",
+          "title": "Initiative Evaluations Rate",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 18,
+            "y": 28
+          },
+          "targets": [
+            {
+              "expr": "sum(rate(initiative_evaluations_total[$__rate_interval]))",
+              "legendFormat": "evals/s",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "type": "row",
+      "title": "Heartbeat — Location & Weather",
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 36
+      },
+      "panels": [
+        {
+          "id": 23,
+          "type": "piechart",
+          "title": "Weather Location Source (24h)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 37
+          },
+          "targets": [
+            {
+              "expr": "sum by (source) (increase(heartbeat_weather_location_source_total[24h]))",
+              "legendFormat": "{{source}}",
+              "refId": "A",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "pieType": "donut",
+            "displayLabels": [
+              "percent"
+            ],
+            "legend": {
+              "displayMode": "list",
+              "placement": "right"
+            }
+          }
+        },
+        {
+          "id": 24,
+          "type": "piechart",
+          "title": "User Location PUT Outcomes (24h)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 37
+          },
+          "targets": [
+            {
+              "expr": "sum by (result) (increase(user_location_put_total[24h]))",
+              "legendFormat": "{{result}}",
+              "refId": "A",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "pieType": "donut",
+            "displayLabels": [
+              "percent"
+            ],
+            "legend": {
+              "displayMode": "list",
+              "placement": "right"
+            }
+          }
+        },
+        {
+          "id": 25,
+          "type": "piechart",
+          "title": "Reverse-Geocode Outcomes (24h)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 37
+          },
+          "targets": [
+            {
+              "expr": "sum by (result) (increase(user_location_geocode_total[24h]))",
+              "legendFormat": "{{result}}",
+              "refId": "A",
+              "instant": true
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short"
+            },
+            "overrides": []
+          },
+          "options": {
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            },
+            "pieType": "donut",
+            "displayLabels": [
+              "percent"
+            ],
+            "legend": {
+              "displayMode": "list",
+              "placement": "right"
+            }
           }
         }
       ]

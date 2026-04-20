@@ -673,6 +673,36 @@ class DraftService:
             current_status=draft.status.value,
         )
 
+        # Dashboard 14 Registry Drafts row - action counter
+        try:
+            from src.infrastructure.observability.metrics_agents import (
+                registry_draft_actions_total,
+                registry_draft_edit_iterations_total,
+                registry_draft_lifecycle_duration_seconds,
+            )
+
+            registry_draft_actions_total.labels(
+                draft_type=draft.type.value, action=request.action.value
+            ).inc()
+            if request.action == DraftAction.EDIT:
+                registry_draft_edit_iterations_total.labels(draft_type=draft.type.value).inc()
+            # Lifecycle duration for terminal actions (CONFIRM / CANCEL)
+            if request.action in (DraftAction.CONFIRM, DraftAction.CANCEL):
+                try:
+                    created_at = getattr(draft, "created_at", None)
+                    if created_at is not None:
+                        from datetime import UTC, datetime
+
+                        duration = (datetime.now(UTC) - created_at).total_seconds()
+                        registry_draft_lifecycle_duration_seconds.labels(
+                            draft_type=draft.type.value,
+                            final_action=request.action.value,
+                        ).observe(duration)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
         if request.action == DraftAction.CONFIRM:
             return await self._execute_draft(draft, user_id, execute_fn)
 

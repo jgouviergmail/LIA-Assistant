@@ -260,6 +260,40 @@ class ConversationService:
 
         conversation_created_total.inc()
 
+        # Detect returning user — single DB roundtrip returns (last_prior_ts) and we
+        # classify client-side. A "returning user" is one who already had a
+        # conversation older than 1 hour at the time of creating this one.
+        try:
+            from datetime import UTC, datetime, timedelta
+
+            from sqlalchemy import func as _sql_func
+            from sqlalchemy import select as _sql_select
+
+            from src.domains.conversations.models import Conversation
+            from src.infrastructure.observability.metrics_business import (
+                user_return_rate_total,
+            )
+
+            now_utc = datetime.now(UTC)
+            last_prior = await db.scalar(
+                _sql_select(_sql_func.max(Conversation.created_at))
+                .where(Conversation.user_id == user_id)
+                .where(Conversation.created_at < now_utc - timedelta(hours=1))
+            )
+            if last_prior is not None:
+                # Classify into a single exclusive bucket. Using .inc() on a Counter
+                # with stable label values = rate()-friendly event counting.
+                age = now_utc - last_prior
+                if age < timedelta(days=1):
+                    window = "24h"
+                elif age < timedelta(days=7):
+                    window = "7d"
+                else:
+                    window = "30d"
+                user_return_rate_total.labels(time_window=window).inc()
+        except Exception:
+            pass
+
         logger.info(
             "conversation_created",
             user_id=str(user_id),
@@ -747,6 +781,16 @@ class ConversationService:
             content=content,
             metadata=metadata,
         )
+
+        # Prometheus metric: dashboard 09 "Messages by Role"
+        try:
+            from src.infrastructure.observability.metrics_agents import (
+                conversation_message_archived_total,
+            )
+
+            conversation_message_archived_total.labels(role=role).inc()
+        except Exception:
+            pass
 
         # Note: Caller is responsible for commit to allow batching
 

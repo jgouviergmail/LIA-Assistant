@@ -426,6 +426,22 @@ class AdaptiveRePlanner:
         adaptive_replanner_triggers_total.labels(trigger=trigger.value).inc()
         adaptive_replanner_decisions_total.labels(decision=decision.value).inc()
 
+        # Dashboard 07: track attempts + recovery success — non-critical
+        try:
+            from src.infrastructure.observability.metrics_agents import (
+                adaptive_replanner_attempts_total,
+                adaptive_replanner_recovery_success_total,
+            )
+
+            adaptive_replanner_attempts_total.labels(
+                attempt_number=str(context.replan_attempt)
+            ).inc()
+            # Recovery success = non-GIVE_UP decision leading to continued execution
+            if decision.value not in ("give_up", "abort", "fail"):
+                adaptive_replanner_recovery_success_total.labels(strategy=strategy.value).inc()
+        except Exception:
+            pass
+
         return self._create_result(
             decision=decision,
             trigger=trigger,

@@ -1,12 +1,12 @@
 # Observability Infrastructure - LIA
 
-**As of 2026-03-14**: Metrics and dashboards have been significantly expanded. There are now 514+ metrics, 93 recording rules, and 18 dashboards (312 panels). Dashboard 18 adds RAG Spaces observability (document processing, retrieval, space lifecycle). The Prometheus metrics server runs on a dedicated HTTP-only port (9091) separate from the main HTTPS API (8000).
+**As of 2026-04-20**: Metrics and dashboards have been significantly expanded. There are now 514+ metrics, 93 recording rules, and 20 dashboards (354+ panels). Dashboards 19 (Sub-agents & Skills) and 20 (ReAct & Browser) were added to close remaining observability gaps. The Prometheus metrics server runs on a dedicated HTTP-only port (9091) separate from the main HTTPS API (8000).
 
 **Version**: 4.0 (2025-11-23) - Phase 4 Complete
 **Status**: Production-Ready
 **Architecture**: Prometheus + Grafana + Loki + Tempo + AlertManager
 **Total Metrics**: 500+ across 12 categories
-**Dashboards**: 18 comprehensive dashboards (312 panels)
+**Dashboards**: 20 comprehensive dashboards (354+ panels)
 **Alert Rules**: 100+ alerts across 15 groups
 **Recording Rules**: 93 optimized rules
 **Runbooks**: 22 incident response runbooks
@@ -48,7 +48,7 @@ Observability is the ability to measure the internal states of a system by exami
 | Component | Purpose | Metrics | Retention | Port |
 |-----------|---------|---------|-----------|------|
 | **Prometheus** | Metrics collection & storage | 139 custom metrics (scraped from :9091) | 15 days | 9090 |
-| **Grafana** | Visualization & dashboards | 18 dashboards, 312+ panels | N/A (queries only) | 3000 |
+| **Grafana** | Visualization & dashboards | 20 dashboards, 354+ panels | N/A (queries only) | 3000 |
 | **Loki** | Log aggregation & storage | N/A (logs, not metrics) | 7 days | 3100 |
 | **Tempo** | Distributed tracing | Trace spans | 7 days | 3200 |
 | **AlertManager** | Alert routing & notifications | 57 alert rules | N/A (stateful) | 9093 |
@@ -125,7 +125,7 @@ Observability is the ability to measure the internal states of a system by exami
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
 │  │  Datasources │  │  Dashboards  │  │    Alerts    │     │
 │  │              │  │              │  │              │     │
-│  │ - Prometheus │  │ 18 dashboards│  │ Email/Slack  │     │
+│  │ - Prometheus │  │ 20 dashboards│  │ Email/Slack  │     │
 │  │ - Loki       │  │ 312+ panels  │  │ integration  │     │
 │  │ - Tempo      │  │              │  │              │     │
 │  └──────────────┘  └──────────────┘  └──────────────┘     │

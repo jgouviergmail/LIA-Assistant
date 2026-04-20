@@ -6,7 +6,7 @@
 
 **Version**: 2.3
 **Datum**: 2026-04-20
-**Application**: LIA v1.16.9
+**Application**: LIA v1.16.10
 **Lizenz**: AGPL-3.0 (Open Source)
 
 ---
@@ -76,7 +76,7 @@ Jede technische Entscheidung in LIA antwortet auf eine konkrete Anforderung. Das
 | Dokumentationsdokumente | 190+ |
 | ADRs (Architecture Decision Records) | 59 |
 | Prometheus-Metriken | 400+ Definitionen |
-| Grafana-Dashboards | 18 |
+| Grafana-Dashboards | 20 |
 | Unterstützte Sprachen (i18n) | 6 (fr, en, de, es, it, zh) |
 
 ---
@@ -729,7 +729,7 @@ Autonomer ReAct-Agent (Playwright Chromium Headless). Redis-gesicherter Session 
 | Technologie | Rolle |
 |-------------|------|
 | Prometheus | 400+ benutzerdefinierte Metriken (RED Pattern) |
-| Grafana | 18 produktionsreife Dashboards |
+| Grafana | 20 produktionsreife Dashboards |
 | Loki | Aggregierte strukturierte JSON-Logs |
 | Tempo | Verteiltes Cross-Service-Tracing (OTLP gRPC) |
 | Langfuse | LLM-spezifisches Tracing (Prompt-Versionen, Token-Nutzung) |

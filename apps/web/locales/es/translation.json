@@ -2753,6 +2753,18 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_16_10": {
+          "title": "v1.16.10 — Observabilidad reforzada: 20 dashboards, métricas completas, BD más rápida",
+          "date": "Abril 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>Dos nuevos dashboards de observabilidad en Grafana</b> — Un dashboard dedicado a los sub-agentes y skills (actividad, presupuesto de tokens, rich outputs) y otro al modo ReAct y al navegador (invocaciones, iteraciones, errores de herramientas). El administrador dispone ahora de 20 dashboards que cubren 354+ paneles, sin zonas ciegas.",
+            "i2": "<b>90+ métricas Prometheus reactivadas</b> — Una auditoría reveló que una parte significativa de las métricas declaradas en el código no se emitían en producción (router, planner, HITL, OAuth, conectores, voz, borradores, iniciativa, data-registry, conversaciones). Instrumentación añadida en todas partes, con guardias defensivas para que los fallos de métricas nunca rompan la ruta crítica.",
+            "i3": "<b>Consultas DAU/WAU y activación de conectores más rápidas</b> — Se añaden tres índices en BD mediante migración (<code>obs_indexes_001</code>): <code>ix_conversations_updated_at</code>, <code>ix_conversations_created_at</code>, <code>ix_connectors_status</code>. El actualizador en segundo plano de los gauges pasa de ~500ms (full scan) a <50ms en una BD poblada.",
+            "i4": "<b>Fin de la explosión de cardinalidad Prometheus en conectores</b> — La etiqueta <code>operation</code> de las métricas <code>connector_api_*</code> recibía rutas URL sin procesar (con UUIDs, tokens, IDs numéricos), inflando la memoria de Prometheus con el tiempo. Ahora se aplica un saneador segmento por segmento (UUID/id/hex_id/token → marcadores) en origen.",
+            "i5": "<b>Errores de validación FastAPI (422) monitorizados</b> — Los fallos de validación de Pydantic en los payloads entrantes se cuentan ahora por campo + tipo de error (máximo 10 por petición para acotar la cardinalidad), visibles en el dashboard 16 para detectar patrones de payloads incorrectos."
+          }
+        },
         "v1_16_8": {
           "title": "v1.16.8 — Skills enriquecidas: tarjetas, imágenes y mini-apps en el chat",
           "date": "Abril 2026",

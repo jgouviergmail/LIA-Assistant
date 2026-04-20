@@ -146,6 +146,23 @@ async def clarification_node(
         user_language=user_language,
     )
 
+    # Track clarification request (dashboard 08 HITL Clarification Requests panel)
+    try:
+        from src.infrastructure.observability.metrics_agents import (
+            hitl_clarification_requests_total,
+        )
+
+        reason = "semantic_validation"
+        if issues:
+            first_issue = issues[0]
+            if isinstance(first_issue, dict):
+                reason = first_issue.get("issue_type", reason)
+            elif hasattr(first_issue, "issue_type"):
+                reason = first_issue.issue_type
+        hitl_clarification_requests_total.labels(reason=str(reason)).inc()
+    except Exception:
+        pass
+
     # Prepare interrupt payload
     # Format compatible with HITL streaming infrastructure
     # StreamingService will use ClarificationInteraction for streaming

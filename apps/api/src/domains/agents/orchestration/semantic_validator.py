@@ -1477,6 +1477,20 @@ class PlanSemanticValidator:
             semantic_validation_duration_seconds.observe(duration)
             semantic_validation_total.labels(result="valid" if result.is_valid else "invalid").inc()
 
+            # Dashboard 16 "Semantic Validation Issues" panel — non-critical
+            try:
+                from src.infrastructure.observability.metrics_agents import (
+                    semantic_validation_issues_detected,
+                )
+
+                for _issue in result.issues:
+                    _issue_type = getattr(_issue, "issue_type", None) or (
+                        _issue.get("issue_type") if isinstance(_issue, dict) else "unknown"
+                    )
+                    semantic_validation_issues_detected.labels(issue_type=str(_issue_type)).inc()
+            except Exception:
+                pass
+
             logger.info(
                 "semantic_validation_complete",
                 is_valid=result.is_valid,

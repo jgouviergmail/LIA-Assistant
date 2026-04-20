@@ -74,6 +74,7 @@ class RejectionDecisionBuilder:
         """
         from src.domains.agents.api.error_messages import SSEErrorMessages, SupportedLanguage
         from src.infrastructure.observability.metrics_agents import (
+            hitl_rejection_total,
             hitl_rejection_type_total,
             hitl_tool_rejections_by_reason,
         )
@@ -96,6 +97,9 @@ class RejectionDecisionBuilder:
             agent_type=self.agent_type,
         ).inc()
 
+        # Dashboard 08 "Rejection Total" panel
+        hitl_rejection_total.labels(reason_category=rejection_type).inc()
+
         logger.debug(
             "hitl_tool_rejection_tracked",
             tool_name=tool_name,
@@ -114,6 +118,20 @@ class RejectionDecisionBuilder:
             reasoning=reasoning,
             language=lang,
         )
+
+        # Token count for rejection response (dashboard 08). Uses tiktoken
+        # (already a runtime dependency via token_counter_service) for accuracy
+        # rather than a word-count proxy. Falls back to char/4 if tiktoken fails.
+        try:
+            from src.domains.agents.utils.token_utils import count_tokens
+            from src.infrastructure.observability.metrics_agents import (
+                hitl_rejection_response_tokens_total,
+            )
+
+            tokens = count_tokens(rejection_msg) or max(1, len(rejection_msg) // 4)
+            hitl_rejection_response_tokens_total.inc(tokens)
+        except Exception:
+            pass
 
         return {
             "type": "reject",

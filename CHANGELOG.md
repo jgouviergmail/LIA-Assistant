@@ -5,6 +5,116 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.16.10] - 2026-04-20
+
+### Observability Overhaul — 90+ dead metrics revived, 2 new dashboards, DB index optimizations
+
+Cette itération cible la dette d'observabilité du stack : une partie significative
+des métriques Prometheus déclarées n'étaient pas émises, deux pans de l'exécution
+(sub-agents/skills et ReAct/browser) n'étaient couverts par aucun dashboard, et
+les gauges DB-backed (DAU/WAU) n'avaient pas d'index dédié. Livraison en un seul
+commit additif sans changement de contrat API.
+
+#### Added
+
+- **Instrumentation de 90+ métriques mortes** — 40 fichiers backend touchés,
+  instrumentation défensive (`try/except Exception: pass`) pour que les failures
+  Prometheus ne cassent jamais les chemins critiques. Exemples notables :
+  router (`router_latency_seconds`, `router_confidence_score`,
+  `router_fallback_total`, `router_data_presumption_total`),
+  planner (`planner_plans_created_total`, `planner_plans_rejected_total`,
+  `planner_domain_confidence_score`, `planner_retries_total`,
+  `planner_retry_success_total`, `planner_retry_exhausted_total`),
+  sub-agents (`subagent_token_budget_exceeded_total`),
+  HITL (`hitl_clarification_requests_total`,
+  `hitl_question_generation_duration_seconds`, `hitl_question_ttft_seconds`,
+  `rejection_total`, `rejection_response_tokens`), OAuth
+  (`oauth_token_exchange_duration_seconds`, `oauth_provider_errors_total`,
+  `oauth_connector_activation_total`, `oauth_connector_activation_duration_seconds`,
+  `oauth_lock_acquired/released/wait/contention/timeout_total`), connecteurs
+  (`connector_api_requests_total`, `connector_api_duration_seconds`,
+  `connector_api_errors_total` avec sanitization de paths URL pour borner la
+  cardinalité), voice (`voice_comment_tokens_total`,
+  `voice_interruptions_total`, `voice_preference_toggles_total`), browser
+  (`browser_errors_total`, `mcp_react_invocations_total`,
+  `mcp_react_iterations_histogram`), drafts (`registry_draft_actions_total`,
+  `draft_edit_iterations_total`), initiative (`initiative_evaluations_total`,
+  `initiative_duration_seconds`, `initiative_actions_total`), data-registry
+  (`registry_size`, `registry_expired_total`), conversations
+  (`conversation_message_archived_total`, `conversation_repository_queries_total`,
+  `conversation_repository_errors_total`, `user_return_rate_total`,
+  `user_daily_conversations_total`).
+- **Dashboard 19 — Sub-agents & Skills** (20 panels, 5 rows) : activité
+  sub-agents, token budget, skills execution, rich outputs (frames/images),
+  clarifications, query patterns.
+- **Dashboard 20 — ReAct & Browser** (22 panels, 5 rows) : invocations ReAct,
+  iterations, browser tool errors, MCP React, trajectory analysis.
+- **DB indexes** (migration `obs_indexes_001`) : `ix_conversations_updated_at`
+  (DAU/WAU), `ix_conversations_created_at` (daily-conversations histogram),
+  `ix_connectors_status` (connector_activation_rate gauge). Objectif : passer
+  les queries du background updater de ~500ms (full scan) à <50ms.
+- **FastAPI `RequestValidationError` handler** (`validation_errors_total`
+  dashboard 16) : comptabilise les 422 par field + error_type, cap à 10
+  erreurs/requête pour borner la cardinalité.
+- **SQLAlchemy event listeners** sur `Connector` (`before_insert` / `after_insert`)
+  pour mesurer la durée d'activation réelle (flush SQL → completion) sans
+  intrusion dans les services.
+- **Gauges DB-backed** : DAU (`user_active_daily_gauge`), WAU
+  (`user_active_weekly_gauge`), Redis pool
+  (`redis_connection_pool_size_current`,
+  `redis_connection_pool_available_current`), taille table checkpoints
+  (`checkpoints_table_size_bytes`), taux d'activation connecteur
+  (`connector_activation_rate`).
+
+#### Fixed
+
+- **`planner_plans_created_total` labels mismatch** — la metric était déclarée
+  avec `[execution_mode]` seul mais appelée avec `(execution_mode, agents_count)`,
+  provoquant un `ValueError` silencieux dans le try/except. Argument
+  `agents_count` retiré.
+- **`hitl_question_ttft_seconds.observe()` sans `.labels()`** — bug pré-existant
+  dans [question_generator.py:337](apps/api/src/domains/agents/services/hitl/question_generator.py#L337)
+  corrigé par ajout de `.labels(type="tool_confirmation")`.
+- **Cardinality bomb sur `connector_api_*{operation}`** — les labels recevaient
+  des paths URL bruts (avec UUIDs, tokens, IDs numériques), explosant la mémoire
+  Prometheus. Sanitizer segment-par-segment (regex UUID/id/hex_id/token, 12/12
+  cas de test passants) en amont du `.labels()`.
+- **Dashboards 19 et 20 complètement vides** — utilisation fautive de
+  `collapsed: false` avec des panels imbriqués dans `row.panels[]` : Grafana
+  exige une structure flat quand le row n'est pas collapsé. Script de flatten
+  `flatten_dashboards_19_20.py` appliqué.
+- **`Connector.is_active` inexistant** — la colonne DB est `status`, pas
+  `is_active`. Requête `connector_activation_rate` corrigée pour utiliser
+  `Connector.status == ConnectorStatus.ACTIVE`.
+- **Label `ConnectorType.BRAVE_SEARCH`** dans `connector_activation_rate` au
+  lieu de `brave_search` : `ctype.value` (au lieu de `str(ctype)`) pour exposer
+  uniquement la valeur snake_case.
+- **Imports erronés** : `user_daily_conversations_total` et
+  `user_return_rate_total` étaient importés depuis
+  `infrastructure.observability.metrics` mais déclarés dans `metrics_business`.
+  Corrigés.
+- **Double import** dans `proactive/runner.py` (`track_proactive_notification`
+  et `track_proactive_tokens`) fusionnés en un seul bloc `from ... import (a, b)`.
+- **Magic number `0.5`** pour le seuil de fallback router remplacé par
+  `get_confidence_bucket(confidence) == "low"` pour rester aligné sur les
+  buckets existants de `router_decisions_total{confidence_bucket}`.
+- **Proactive runner** : les helpers `track_proactive_task_execution`,
+  `track_proactive_notification`, `track_proactive_tokens`,
+  `track_proactive_feedback` étaient définis dans `metrics_registry.py` mais
+  jamais appelés — le runner utilisait `background_job_duration_seconds`
+  comme proxy. Rebranchés.
+
+#### Changed
+
+- **README, docs/INDEX.md, docs/technical/GRAFANA_DASHBOARDS.md,
+  docs/technical/METRICS_REFERENCE.md, docs/readme/README_OBSERVABILITY.md,
+  docs/readme/README_GRAFANA_DASHBOARD.md** — passent à **20 dashboards /
+  354+ panels** (contre 18/312) avec versions bumpées (4.0 → 4.1) et dates
+  mises à jour.
+- **MyPy strict** — event listeners `Connector` typés
+  (`_SAMapper`, `_SAConnection`, `target: "Connector"`), plus d'`untyped-def`.
+- **Ruff + Black** — 809 fichiers conformes, 0 erreur.
+
 ## [1.16.9] - 2026-04-20
 
 ### Chat UX Polish — LaTeX, syntax highlighting, history search, copy buttons, a11y

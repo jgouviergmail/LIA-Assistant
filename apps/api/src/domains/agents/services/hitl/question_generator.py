@@ -234,7 +234,18 @@ class HitlQuestionGenerator:
         config = enrich_config_with_node_metadata(config, "hitl_question_generator")
 
         # Invoke LLM with instrumented config (Langfuse + TokenTracking + node_name)
+        _gen_start = time.time()
         response = await self.tool_question_llm.ainvoke(prompt, config=config)
+        try:
+            from src.infrastructure.observability.metrics_agents import (
+                hitl_question_generation_duration_seconds,
+            )
+
+            hitl_question_generation_duration_seconds.labels(streaming="false").observe(
+                time.time() - _gen_start
+            )
+        except Exception:
+            pass
 
         # Ensure we return a string (content can be str or list in some cases)
         content = response.content
@@ -334,7 +345,9 @@ class HitlQuestionGenerator:
                 # Track TTFT (Time To First Token) - critical UX metric
                 if first_token:
                     ttft = time.time() - start_time
-                    hitl_question_ttft_seconds.observe(ttft)
+                    # type="tool_confirmation" matches generate_confirmation_question usage
+                    # (distinct from "plan_approval" used in generate_plan_approval_question_stream)
+                    hitl_question_ttft_seconds.labels(type="tool_confirmation").observe(ttft)
                     first_token = False
                     logger.info(
                         "hitl_question_first_token",
@@ -356,6 +369,16 @@ class HitlQuestionGenerator:
 
             # Log completion metrics
             total_duration = time.time() - start_time
+            try:
+                from src.infrastructure.observability.metrics_agents import (
+                    hitl_question_generation_duration_seconds,
+                )
+
+                hitl_question_generation_duration_seconds.labels(streaming="true").observe(
+                    total_duration
+                )
+            except Exception:
+                pass
             logger.info(
                 "hitl_question_generated_stream",
                 tool_name=tool_name,

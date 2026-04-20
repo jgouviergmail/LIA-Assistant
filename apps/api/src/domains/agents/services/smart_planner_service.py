@@ -1248,7 +1248,10 @@ class SmartPlannerService:
         journal_context: str = "",
     ) -> str:
         """Build prompt for multi-domain planning (delegates to unified _build_prompt)."""
-        return await self._build_prompt(
+        import time as _time
+
+        _fmt_start = _time.perf_counter()
+        result = await self._build_prompt(
             intelligence=intelligence,
             catalogue=catalogue,
             config=config,
@@ -1259,6 +1262,18 @@ class SmartPlannerService:
             journal_context=journal_context,
             is_multi_domain=True,
         )
+        # Dashboard 15: multi-domain prompt formatting duration
+        try:
+            from src.infrastructure.observability.metrics_agents import (
+                multi_domain_formatting_duration_seconds,
+            )
+
+            multi_domain_formatting_duration_seconds.labels(
+                domain_count=str(len(intelligence.domains) if intelligence.domains else 0)
+            ).observe(_time.perf_counter() - _fmt_start)
+        except Exception:
+            pass
+        return result
 
     def _build_plan(
         self,

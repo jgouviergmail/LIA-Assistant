@@ -323,6 +323,20 @@ class PlanValidator:
                 context={"allow_hitl": context.allow_hitl},
             )
 
+        # Dashboard 15: LangGraph plan validation warnings (soft, non-blocking)
+        try:
+            from src.infrastructure.observability.metrics_agents import (
+                langgraph_plan_validation_warnings_total,
+            )
+
+            for _warning in result.warnings:
+                _warning_type = str(getattr(_warning, "code", None) or "unknown")[:40]
+                langgraph_plan_validation_warnings_total.labels(
+                    warning_type=_warning_type, plan_type="execution_plan"
+                ).inc()
+        except Exception:
+            pass
+
         logger.info(
             "plan_validated",
             user_id=context.user_id,

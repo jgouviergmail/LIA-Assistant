@@ -59,6 +59,17 @@ class SubAgentTokenGuard:
         """
         self.tokens_consumed = self.tracker.get_cumulative_tokens()
         if self.tokens_consumed > self.max_tokens:
+            # Dashboard 19 token budget exceeded metric
+            try:
+                from src.infrastructure.observability.metrics_subagent import (
+                    subagent_token_budget_exceeded_total,
+                )
+
+                subagent_token_budget_exceeded_total.labels(
+                    agent_name=getattr(self, "agent_name", "unknown")
+                ).inc()
+            except Exception:
+                pass
             logger.warning(
                 "subagent_token_budget_exceeded",
                 tokens_consumed=self.tokens_consumed,

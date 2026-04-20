@@ -399,6 +399,72 @@ class Connector(BaseModel):
         return f"<Connector(id={self.id}, user_id={self.user_id}, type={self.connector_type}, status={self.status})>"
 
 
+# SQLAlchemy event listeners: track new connector activations (dashboard 10).
+# Fire automatically on any INSERT, regardless of which service method
+# created the Connector. The duration covers the time from SQL flush to
+# persistence completion — effectively the INSERT latency.
+from sqlalchemy import event as _sa_event  # noqa: E402
+from sqlalchemy.engine import Connection as _SAConnection  # noqa: E402
+from sqlalchemy.orm import Mapper as _SAMapper  # noqa: E402
+
+
+@_sa_event.listens_for(Connector, "before_insert")
+def _mark_connector_activation_start(
+    mapper: _SAMapper, connection: _SAConnection, target: "Connector"
+) -> None:
+    """Stamp the activation start timestamp before INSERT.
+
+    Args:
+        mapper: SQLAlchemy mapper (unused).
+        connection: Active SQL connection (unused).
+        target: Connector instance about to be inserted.
+    """
+    del mapper, connection  # unused
+    try:
+        import time as _time
+
+        # Per-instance attribute avoids interfering with the SQLAlchemy session.
+        target.__dict__["_obs_activation_start"] = _time.perf_counter()
+    except Exception:  # noqa: BLE001 — metrics must never break the INSERT
+        pass
+
+
+@_sa_event.listens_for(Connector, "after_insert")
+def _track_connector_activation(
+    mapper: _SAMapper, connection: _SAConnection, target: "Connector"
+) -> None:
+    """Emit activation counter + duration histogram after INSERT.
+
+    Args:
+        mapper: SQLAlchemy mapper (unused).
+        connection: Active SQL connection (unused).
+        target: Connector instance that was just inserted.
+    """
+    del mapper, connection  # unused
+    try:
+        import time as _time
+
+        from src.infrastructure.observability.metrics_oauth import (
+            oauth_connector_activation_duration_seconds,
+            oauth_connector_activation_total,
+        )
+
+        connector_type_value = target.connector_type.value
+        status = "success" if target.status == ConnectorStatus.ACTIVE else "pending"
+        oauth_connector_activation_total.labels(
+            connector_type=connector_type_value,
+            status=status,
+        ).inc()
+
+        _start = target.__dict__.get("_obs_activation_start")
+        if _start is not None:
+            oauth_connector_activation_duration_seconds.labels(
+                connector_type=connector_type_value
+            ).observe(_time.perf_counter() - _start)
+    except Exception:  # noqa: BLE001 — metrics must never break the INSERT
+        pass
+
+
 class ConnectorGlobalConfig(BaseModel):
     """
     Global configuration for connector types.

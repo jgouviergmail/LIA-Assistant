@@ -2767,6 +2767,18 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_16_10": {
+          "title": "v1.16.10 — Observabilité renforcée : 20 dashboards, métriques complètes, DB plus rapide",
+          "date": "Avril 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>Deux nouveaux dashboards d'observabilité (Grafana)</b> — Un dashboard dédié aux sub-agents et skills (activité, token budget, rich outputs), un autre au mode ReAct et au browser (invocations, itérations, erreurs outils). L'administrateur dispose maintenant de 20 dashboards couvrant 354+ panels, sans zone aveugle.",
+            "i2": "<b>90+ métriques Prometheus réveillées</b> — Un audit a révélé qu'une partie importante des métriques déclarées dans le code n'étaient pas émises en production (router, planner, HITL, OAuth, connecteurs, voice, drafts, initiative, data-registry, conversations). Instrumentation ajoutée partout, avec garde défensive pour ne jamais casser le chemin critique.",
+            "i3": "<b>Queries DAU/WAU et activation connecteurs plus rapides</b> — Trois index DB ajoutés via migration (<code>obs_indexes_001</code>) : <code>ix_conversations_updated_at</code>, <code>ix_conversations_created_at</code>, <code>ix_connectors_status</code>. Le background updater des gauges passe de ~500ms (full scan) à <50ms sur base peuplée.",
+            "i4": "<b>Plus de cardinality bomb Prometheus sur les connecteurs</b> — Les labels <code>operation</code> des métriques <code>connector_api_*</code> recevaient des paths URL bruts (avec UUIDs, tokens, IDs), explosant la mémoire Prometheus au fil du temps. Sanitizer segment-par-segment (UUID/id/hex_id/token → placeholders) appliqué en amont.",
+            "i5": "<b>Erreurs de validation FastAPI (422) tracées</b> — Les échecs de validation Pydantic sur les payloads entrants sont maintenant comptabilisés par champ + type d'erreur (cap à 10 par requête pour borner la cardinalité), visibles sur le dashboard 16 pour surfacer les patterns de mauvais payloads."
+          }
+        },
         "v1_16_8": {
           "title": "v1.16.8 — Skills enrichis : cartes, images, mini-apps dans le chat",
           "date": "Avril 2026",

@@ -17,6 +17,7 @@ Updated: 2026-01-16 - Standard/HD mode architecture with admin-controlled voice 
 Updated: 2026-01-16 - Fix: ellipsis "..." no longer breaks TTS (normalized to "…")
 """
 
+import asyncio
 import re
 import time
 from collections.abc import AsyncGenerator
@@ -405,7 +406,32 @@ class VoiceCommentService:
         response = await llm.ainvoke(prompt, config=config)
         content = response.content if hasattr(response, "content") else str(response)
         # Ensure we return a string (content can be list for some models)
-        return content if isinstance(content, str) else str(content)
+        result = content if isinstance(content, str) else str(content)
+
+        # Prometheus: voice comment tokens (dashboard 11).
+        # token_type values follow the codebase convention used by llm_tokens_consumed_total
+        # (prompt_tokens / completion_tokens / cached_tokens) so aggregations stay consistent.
+        try:
+            from src.infrastructure.observability.metrics_voice import (
+                voice_comment_tokens_total,
+            )
+
+            usage = getattr(response, "usage_metadata", None) or {}
+            prompt_t = int(usage.get("input_tokens", 0) or 0)
+            completion_t = int(usage.get("output_tokens", 0) or 0)
+            model_name = getattr(llm, "model_name", "unknown") or "unknown"
+            if prompt_t:
+                voice_comment_tokens_total.labels(model=model_name, token_type="prompt_tokens").inc(
+                    prompt_t
+                )
+            if completion_t:
+                voice_comment_tokens_total.labels(
+                    model=model_name, token_type="completion_tokens"
+                ).inc(completion_t)
+        except Exception:
+            pass
+
+        return result
 
     async def stream_voice_comment(
         self,
@@ -510,6 +536,17 @@ class VoiceCommentService:
                 voice_name=await self._get_voice_for_language(user_language),
             )
 
+        except asyncio.CancelledError:
+            # Client disconnected or user interrupted audio playback
+            try:
+                from src.infrastructure.observability.metrics_voice import (
+                    voice_interruptions_total,
+                )
+
+                voice_interruptions_total.labels(trigger="client_cancelled").inc()
+            except Exception:
+                pass
+            raise
         except Exception as e:
             logger.error(
                 "voice_comment_generation_error",

@@ -2762,6 +2762,18 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_16_10": {
+          "title": "v1.16.10 — Observability overhaul: 20 dashboards, full metric coverage, faster DB",
+          "date": "April 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>Two new Grafana observability dashboards</b> — A dashboard dedicated to sub-agents and skills (activity, token budget, rich outputs) plus another for ReAct mode and the browser (invocations, iterations, tool errors). Admins now have 20 dashboards covering 354+ panels, with no blind spots.",
+            "i2": "<b>90+ Prometheus metrics revived</b> — An audit surfaced that a significant share of metrics declared in code were never actually emitted in production (router, planner, HITL, OAuth, connectors, voice, drafts, initiative, data-registry, conversations). Instrumentation added everywhere, with defensive guards so metric failures never break the critical path.",
+            "i3": "<b>Faster DAU/WAU and connector activation queries</b> — Three DB indexes added via migration (<code>obs_indexes_001</code>): <code>ix_conversations_updated_at</code>, <code>ix_conversations_created_at</code>, <code>ix_connectors_status</code>. The gauge-updating background task drops from ~500ms (full scan) to <50ms on a populated DB.",
+            "i4": "<b>No more Prometheus cardinality bomb on connectors</b> — The <code>operation</code> label on <code>connector_api_*</code> metrics used to receive raw URL paths (with UUIDs, tokens, numeric IDs), blowing up Prometheus memory over time. A segment-by-segment sanitizer (UUID/id/hex_id/token → placeholders) is now applied upstream.",
+            "i5": "<b>FastAPI validation errors (422) are tracked</b> — Pydantic validation failures on incoming payloads are now counted per field + error_type (capped at 10 per request to bound cardinality), visible on dashboard 16 to surface bad-payload patterns."
+          }
+        },
         "v1_16_8": {
           "title": "v1.16.8 — Rich skills: cards, images, mini-apps right in the chat",
           "date": "April 2026",

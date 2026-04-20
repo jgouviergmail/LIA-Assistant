@@ -12,8 +12,11 @@
  * Security:
  * - User-skill frame.html is served with a CSP meta injected backend-side
  *   (blocks outbound fetch, nested iframes).
- * - The iframe sandbox (see SkillAppWidget) omits `allow-same-origin`, so
- *   parent cookies/storage are unreachable regardless of CSP.
+ * - The iframe sandbox (see SkillAppWidget) is strict by default; it grants
+ *   `allow-same-origin` only for trusted system-skill `frame_url` embeds
+ *   that need credentialed requests to their own origin (e.g. Google Maps).
+ *   The parent LIA remains cross-origin to the iframe, so parent
+ *   cookies/storage stay unreachable regardless.
  */
 
 /** Payload stored in the Data Registry for SKILL_APP items. */

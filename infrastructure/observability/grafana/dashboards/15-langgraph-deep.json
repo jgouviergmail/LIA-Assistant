@@ -1,7 +1,11 @@
 {
   "title": "15 - LangGraph Framework Deep Dive",
   "uid": "15-langgraph-deep",
-  "tags": ["lia", "langgraph", "framework"],
+  "tags": [
+    "lia",
+    "langgraph",
+    "framework"
+  ],
   "timezone": "browser",
   "schemaVersion": 38,
   "version": 1,
@@ -14,7 +18,9 @@
     {
       "title": "LIA",
       "type": "dashboards",
-      "tags": ["lia"],
+      "tags": [
+        "lia"
+      ],
       "targetBlank": false
     }
   ],
@@ -24,27 +30,42 @@
         "name": "datasource",
         "type": "datasource",
         "query": "prometheus",
-        "current": { "text": "Prometheus", "value": "Prometheus" }
+        "current": {
+          "text": "Prometheus",
+          "value": "Prometheus"
+        }
       },
       {
         "name": "node_name",
         "type": "query",
-        "datasource": { "type": "prometheus", "uid": "$datasource" },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$datasource"
+        },
         "query": "label_values(agent_node_executions_total, node_name)",
         "multi": true,
         "includeAll": true,
         "refresh": 1,
-        "current": { "text": "All", "value": "$__all" }
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
       },
       {
         "name": "agent_name",
         "type": "query",
-        "datasource": { "type": "prometheus", "uid": "$datasource" },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$datasource"
+        },
         "query": "label_values(langgraph_subgraph_invocations_total, agent_name)",
         "multi": true,
         "includeAll": true,
         "refresh": 1,
-        "current": { "text": "All", "value": "$__all" }
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
       }
     ]
   },
@@ -54,15 +75,28 @@
       "type": "row",
       "title": "Graph Execution",
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "panels": []
     },
     {
       "id": 2,
       "type": "timeseries",
       "title": "Graph Duration P95",
-      "datasource": { "type": "prometheus", "uid": "$datasource" },
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 1 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "job:langgraph_graph_duration:p95_rate5m",
@@ -76,23 +110,39 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null }
+              {
+                "color": "green",
+                "value": null
+              }
             ]
           }
         },
         "overrides": []
       },
       "options": {
-        "tooltip": { "mode": "multi" },
-        "legend": { "displayMode": "list", "placement": "bottom" }
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
       }
     },
     {
       "id": 3,
       "type": "timeseries",
       "title": "Graph Executions Rate",
-      "datasource": { "type": "prometheus", "uid": "$datasource" },
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 1 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "rate(langgraph_graph_executions_total[$__rate_interval])",
@@ -106,23 +156,39 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null }
+              {
+                "color": "green",
+                "value": null
+              }
             ]
           }
         },
         "overrides": []
       },
       "options": {
-        "tooltip": { "mode": "multi" },
-        "legend": { "displayMode": "list", "placement": "bottom" }
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
       }
     },
     {
       "id": 4,
       "type": "timeseries",
       "title": "SubGraph Duration P95 by Agent",
-      "datasource": { "type": "prometheus", "uid": "$datasource" },
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 1 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "agent_name:langgraph_subgraph_duration:p95_rate5m",
@@ -136,23 +202,39 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null }
+              {
+                "color": "green",
+                "value": null
+              }
             ]
           }
         },
         "overrides": []
       },
       "options": {
-        "tooltip": { "mode": "multi" },
-        "legend": { "displayMode": "list", "placement": "bottom" }
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
       }
     },
     {
       "id": 5,
       "type": "timeseries",
       "title": "SubGraph Invocations",
-      "datasource": { "type": "prometheus", "uid": "$datasource" },
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 9 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 9
+      },
       "targets": [
         {
           "expr": "sum by (agent_name, status) (rate(langgraph_subgraph_invocations_total{agent_name=~\"$agent_name\"}[$__rate_interval]))",
@@ -166,23 +248,39 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null }
+              {
+                "color": "green",
+                "value": null
+              }
             ]
           }
         },
         "overrides": []
       },
       "options": {
-        "tooltip": { "mode": "multi" },
-        "legend": { "displayMode": "list", "placement": "bottom" }
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
       }
     },
     {
       "id": 6,
       "type": "timeseries",
       "title": "Node Transitions Rate",
-      "datasource": { "type": "prometheus", "uid": "$datasource" },
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 9 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 9
+      },
       "targets": [
         {
           "expr": "sum by (from_node, to_node) (rate(langgraph_node_transitions_total{from_node=~\"$node_name\"}[$__rate_interval]))",
@@ -196,23 +294,39 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null }
+              {
+                "color": "green",
+                "value": null
+              }
             ]
           }
         },
         "overrides": []
       },
       "options": {
-        "tooltip": { "mode": "multi" },
-        "legend": { "displayMode": "list", "placement": "bottom" }
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
       }
     },
     {
       "id": 7,
       "type": "timeseries",
       "title": "Streaming Chunks Rate",
-      "datasource": { "type": "prometheus", "uid": "$datasource" },
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 9 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 9
+      },
       "targets": [
         {
           "expr": "rate(langgraph_streaming_chunks_total[$__rate_interval])",
@@ -226,15 +340,23 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null }
+              {
+                "color": "green",
+                "value": null
+              }
             ]
           }
         },
         "overrides": []
       },
       "options": {
-        "tooltip": { "mode": "multi" },
-        "legend": { "displayMode": "list", "placement": "bottom" }
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
       }
     },
     {
@@ -242,14 +364,27 @@
       "type": "row",
       "title": "State Management",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 17 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 17
+      },
       "panels": [
         {
           "id": 9,
           "type": "timeseries",
           "title": "State Size by Node P95 (KB)",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 18 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 18
+          },
           "targets": [
             {
               "expr": "node_name:langgraph_state_size_kb:p95_rate5m",
@@ -263,23 +398,39 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null }
+                  {
+                    "color": "green",
+                    "value": null
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 10,
           "type": "timeseries",
           "title": "State Updates Rate",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 18 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 18
+          },
           "targets": [
             {
               "expr": "rate(langgraph_state_updates_total[$__rate_interval])",
@@ -293,23 +444,39 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null }
+                  {
+                    "color": "green",
+                    "value": null
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 11,
           "type": "timeseries",
           "title": "Multi-Domain Composition",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 18 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 18
+          },
           "targets": [
             {
               "expr": "sum by (composition_mode) (rate(multi_domain_composition_total[$__rate_interval]))",
@@ -323,23 +490,39 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null }
+                  {
+                    "color": "green",
+                    "value": null
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 12,
           "type": "timeseries",
           "title": "Formatting Duration P95",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 26 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 26
+          },
           "targets": [
             {
               "expr": "histogram_quantile(0.95, sum by (le) (rate(multi_domain_formatting_duration_seconds_bucket[$__rate_interval])))",
@@ -353,23 +536,39 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null }
+                  {
+                    "color": "green",
+                    "value": null
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 13,
           "type": "stat",
           "title": "Domain Handlers Registered",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 4, "x": 8, "y": 26 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 4,
+            "x": 8,
+            "y": 26
+          },
           "targets": [
             {
               "expr": "sum(domain_handlers_registered_total)",
@@ -383,7 +582,10 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null }
+                  {
+                    "color": "green",
+                    "value": null
+                  }
                 ]
               }
             },
@@ -393,7 +595,9 @@
             "graphMode": "none",
             "colorMode": "value",
             "reduceOptions": {
-              "calcs": ["lastNotNull"]
+              "calcs": [
+                "lastNotNull"
+              ]
             }
           }
         },
@@ -401,8 +605,16 @@
           "id": 14,
           "type": "timeseries",
           "title": "Domain Detection",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 26 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 26
+          },
           "targets": [
             {
               "expr": "sum by (domain, detected) (rate(domain_detection_total[$__rate_interval]))",
@@ -416,23 +628,39 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null }
+                  {
+                    "color": "green",
+                    "value": null
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 15,
           "type": "timeseries",
           "title": "Domain Normalization Errors",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 34 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 34
+          },
           "targets": [
             {
               "expr": "sum by (domain, error_type) (rate(domain_normalization_errors_total[$__rate_interval]))",
@@ -446,15 +674,23 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null }
+                  {
+                    "color": "green",
+                    "value": null
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         }
       ]
@@ -464,14 +700,27 @@
       "type": "row",
       "title": "Langfuse Integration",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 42 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 42
+      },
       "panels": [
         {
           "id": 17,
           "type": "timeseries",
           "title": "Prompt Version Usage",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 43 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 43
+          },
           "targets": [
             {
               "expr": "sum by (prompt_id, version) (rate(langfuse_prompt_version_usage_total[$__rate_interval]))",
@@ -485,23 +734,39 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null }
+                  {
+                    "color": "green",
+                    "value": null
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 18,
           "type": "timeseries",
           "title": "Evaluation Scores",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 43 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 43
+          },
           "targets": [
             {
               "expr": "histogram_quantile(0.5, sum by (metric_name, le) (rate(langfuse_evaluation_score_bucket[$__rate_interval])))",
@@ -515,26 +780,42 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null }
+                  {
+                    "color": "green",
+                    "value": null
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 19,
           "type": "timeseries",
           "title": "A/B Test Variants",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 43 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 43
+          },
           "targets": [
             {
-              "expr": "sum by (experiment, variant) (rate(langfuse_ab_test_variant[$__rate_interval]))",
+              "expr": "sum by (experiment, variant) (rate(langfuse_ab_test_variant_total[$__rate_interval]))",
               "legendFormat": "{{experiment}} - {{variant}}",
               "refId": "A"
             }
@@ -545,26 +826,42 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null }
+                  {
+                    "color": "green",
+                    "value": null
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 20,
           "type": "timeseries",
           "title": "Tool Calls",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 6, "x": 0, "y": 51 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 0,
+            "y": 51
+          },
           "targets": [
             {
-              "expr": "sum by (tool_name, success) (rate(langfuse_tool_calls[$__rate_interval]))",
+              "expr": "sum by (tool_name, success) (rate(langfuse_tool_calls_total[$__rate_interval]))",
               "legendFormat": "{{tool_name}} ({{success}})",
               "refId": "A"
             }
@@ -575,27 +872,43 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null }
+                  {
+                    "color": "green",
+                    "value": null
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 21,
           "type": "timeseries",
           "title": "Agent Handoffs",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 6, "x": 6, "y": 51 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 6,
+            "y": 51
+          },
           "targets": [
             {
               "expr": "sum by (source_agent, target_agent) (rate(langfuse_agent_handoffs_total[$__rate_interval]))",
-              "legendFormat": "{{source_agent}} \u2192 {{target_agent}}",
+              "legendFormat": "{{source_agent}} → {{target_agent}}",
               "refId": "A"
             }
           ],
@@ -605,23 +918,39 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null }
+                  {
+                    "color": "green",
+                    "value": null
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 22,
           "type": "timeseries",
           "title": "Handoff Duration P95",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 6, "x": 12, "y": 51 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 12,
+            "y": 51
+          },
           "targets": [
             {
               "expr": "histogram_quantile(0.95, sum by (le) (rate(langfuse_handoff_duration_seconds_bucket[$__rate_interval])))",
@@ -635,23 +964,39 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null }
+                  {
+                    "color": "green",
+                    "value": null
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 23,
           "type": "timeseries",
           "title": "Trace Depth",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 3, "x": 18, "y": 51 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 3,
+            "x": 18,
+            "y": 51
+          },
           "targets": [
             {
               "expr": "histogram_quantile(0.95, sum by (le) (rate(langfuse_trace_depth_bucket[$__rate_interval])))",
@@ -665,23 +1010,39 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null }
+                  {
+                    "color": "green",
+                    "value": null
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 24,
           "type": "timeseries",
           "title": "Subgraph Invocations (Langfuse)",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 3, "x": 21, "y": 51 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 3,
+            "x": 21,
+            "y": 51
+          },
           "targets": [
             {
               "expr": "sum by (subgraph_name, status) (rate(langfuse_subgraph_invocations_total[$__rate_interval]))",
@@ -695,15 +1056,556 @@
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
-                  { "color": "green", "value": null }
+                  {
+                    "color": "green",
+                    "value": null
+                  }
                 ]
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "type": "row",
+      "title": "LangGraph — Plan Execution",
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 59
+      },
+      "panels": [
+        {
+          "id": 26,
+          "type": "timeseries",
+          "title": "Plan Steps Skipped (by reason)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 0,
+            "y": 60
+          },
+          "targets": [
+            {
+              "expr": "sum by (plan_type, skip_reason) (rate(langgraph_plan_steps_skipped_total[$__rate_interval]))",
+              "legendFormat": "{{plan_type}} ({{skip_reason}})",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 27,
+          "type": "timeseries",
+          "title": "Waves Filtered (by filter type)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 6,
+            "y": 60
+          },
+          "targets": [
+            {
+              "expr": "sum by (plan_type, filter_type) (rate(langgraph_plan_wave_filtered_total[$__rate_interval]))",
+              "legendFormat": "{{plan_type}} ({{filter_type}})",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 28,
+          "type": "timeseries",
+          "title": "Plan Execution Efficiency Ratio P50/P95",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 12,
+            "y": 60
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.5, sum by (plan_type, le) (rate(langgraph_plan_execution_efficiency_ratio_bucket[$__rate_interval])))",
+              "legendFormat": "P50 {{plan_type}}",
+              "refId": "A"
+            },
+            {
+              "expr": "histogram_quantile(0.95, sum by (plan_type, le) (rate(langgraph_plan_execution_efficiency_ratio_bucket[$__rate_interval])))",
+              "legendFormat": "P95 {{plan_type}}",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 29,
+          "type": "timeseries",
+          "title": "Validation Warnings (by type)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 18,
+            "y": 60
+          },
+          "targets": [
+            {
+              "expr": "sum by (warning_type, plan_type) (rate(langgraph_plan_validation_warnings_total[$__rate_interval]))",
+              "legendFormat": "{{warning_type}} ({{plan_type}})",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 30,
+      "type": "row",
+      "title": "LangGraph — Safeguards / Interrupts / Streaming",
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 68
+      },
+      "panels": [
+        {
+          "id": 31,
+          "type": "timeseries",
+          "title": "Tool Safeguards Applied",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 0,
+            "y": 69
+          },
+          "targets": [
+            {
+              "expr": "sum by (tool_name, safeguard_type) (rate(langgraph_tool_safeguard_applied_total[$__rate_interval]))",
+              "legendFormat": "{{tool_name}} ({{safeguard_type}})",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 32,
+          "type": "timeseries",
+          "title": "Conditional Edges (by decision)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 6,
+            "y": 69
+          },
+          "targets": [
+            {
+              "expr": "sum by (edge_name, decision) (rate(langgraph_conditional_edges_total[$__rate_interval]))",
+              "legendFormat": "{{edge_name}} -> {{decision}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 33,
+          "type": "timeseries",
+          "title": "Graph Recursion Limit Exceeded",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 12,
+            "y": 69
+          },
+          "targets": [
+            {
+              "expr": "sum by (max_recursion_limit) (rate(langgraph_graph_recursion_limit_exceeded_total[$__rate_interval]))",
+              "legendFormat": "max={{max_recursion_limit}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 34,
+          "type": "timeseries",
+          "title": "Graph Interrupts (by type)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 18,
+            "y": 69
+          },
+          "targets": [
+            {
+              "expr": "sum by (interrupt_type) (rate(langgraph_graph_interrupts_total[$__rate_interval]))",
+              "legendFormat": "{{interrupt_type}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 35,
+          "type": "timeseries",
+          "title": "Streaming Events (by name)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 77
+          },
+          "targets": [
+            {
+              "expr": "sum by (event_name) (rate(langgraph_streaming_events_total[$__rate_interval]))",
+              "legendFormat": "{{event_name}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 36,
+          "type": "timeseries",
+          "title": "Streaming Chunks (by event_type)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 77
+          },
+          "targets": [
+            {
+              "expr": "sum by (event_type) (rate(langgraph_streaming_chunks_total[$__rate_interval]))",
+              "legendFormat": "{{event_type}}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         }
       ]

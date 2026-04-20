@@ -2371,6 +2371,25 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         result_domains = _detect_result_domains_from_registry(current_turn_registry)
         is_mono_domain = len(result_domains) == 1 and "other" not in result_domains
 
+        # Prometheus: domain detection + multi-domain composition (dashboard 15)
+        try:
+            from src.infrastructure.observability.metrics_agents import (
+                domain_detection_total,
+                multi_domain_composition_total,
+            )
+
+            for _d in result_domains:
+                domain_detection_total.labels(
+                    domain=_d, detected=str(not is_mono_domain).lower()
+                ).inc()
+            if len(result_domains) >= 2:
+                multi_domain_composition_total.labels(
+                    composition_mode="sequential",
+                    domain_count=str(len(result_domains)),
+                ).inc()
+        except Exception:
+            pass
+
         logger.info(
             "response_node_domain_detection",
             run_id=run_id,

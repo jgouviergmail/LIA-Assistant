@@ -1,7 +1,12 @@
 {
   "title": "10 - OAuth, Connectors & MCP",
   "uid": "10-oauth-connectors-mcp",
-  "tags": ["lia", "oauth", "connectors", "mcp"],
+  "tags": [
+    "lia",
+    "oauth",
+    "connectors",
+    "mcp"
+  ],
   "timezone": "browser",
   "schemaVersion": 38,
   "version": 1,
@@ -14,7 +19,9 @@
     {
       "title": "LIA",
       "type": "dashboards",
-      "tags": ["lia"],
+      "tags": [
+        "lia"
+      ],
       "targetBlank": false
     }
   ],
@@ -24,37 +31,58 @@
         "name": "datasource",
         "type": "datasource",
         "query": "prometheus",
-        "current": { "text": "Prometheus", "value": "Prometheus" }
+        "current": {
+          "text": "Prometheus",
+          "value": "Prometheus"
+        }
       },
       {
         "name": "provider",
         "type": "query",
-        "datasource": { "type": "prometheus", "uid": "$datasource" },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$datasource"
+        },
         "query": "label_values(oauth_callback_total, provider)",
         "multi": true,
         "includeAll": true,
         "refresh": 1,
-        "current": { "text": "All", "value": "$__all" }
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
       },
       {
         "name": "connector_type",
         "type": "query",
-        "datasource": { "type": "prometheus", "uid": "$datasource" },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$datasource"
+        },
         "query": "label_values(connector_api_requests_total, connector_type)",
         "multi": true,
         "includeAll": true,
         "refresh": 1,
-        "current": { "text": "All", "value": "$__all" }
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
       },
       {
         "name": "mcp_server",
         "type": "query",
-        "datasource": { "type": "prometheus", "uid": "$datasource" },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$datasource"
+        },
         "query": "label_values(mcp_tool_invocations_total, server_name)",
         "multi": true,
         "includeAll": true,
         "refresh": 1,
-        "current": { "text": "All", "value": "$__all" }
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
       }
     ]
   },
@@ -64,15 +92,28 @@
       "type": "row",
       "title": "OAuth Flow",
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
       "panels": []
     },
     {
       "id": 2,
       "type": "timeseries",
       "title": "Callbacks (success/failure)",
-      "datasource": { "type": "prometheus", "uid": "$datasource" },
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 1 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "sum by (provider, status) (rate(oauth_callback_total{provider=~\"$provider\"}[$__rate_interval]))",
@@ -84,23 +125,38 @@
         "defaults": {
           "unit": "ops",
           "custom": {
-            "stacking": { "mode": "normal" },
+            "stacking": {
+              "mode": "normal"
+            },
             "fillOpacity": 30
           }
         },
         "overrides": []
       },
       "options": {
-        "tooltip": { "mode": "multi" },
-        "legend": { "displayMode": "list", "placement": "bottom" }
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
       }
     },
     {
       "id": 3,
       "type": "timeseries",
       "title": "Callback Latency P50/P95/P99",
-      "datasource": { "type": "prometheus", "uid": "$datasource" },
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 1 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "provider:oauth_callback_duration:p50_rate5m",
@@ -128,16 +184,29 @@
         "overrides": []
       },
       "options": {
-        "tooltip": { "mode": "multi" },
-        "legend": { "displayMode": "list", "placement": "bottom" }
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
       }
     },
     {
       "id": 4,
       "type": "timeseries",
       "title": "OAuth Initiate by Flow Type",
-      "datasource": { "type": "prometheus", "uid": "$datasource" },
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 1 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 1
+      },
       "targets": [
         {
           "expr": "sum by (flow_type) (rate(oauth_initiate_total[$__rate_interval]))",
@@ -155,16 +224,29 @@
         "overrides": []
       },
       "options": {
-        "tooltip": { "mode": "multi" },
-        "legend": { "displayMode": "list", "placement": "bottom" }
+        "tooltip": {
+          "mode": "multi"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
       }
     },
     {
       "id": 5,
       "type": "stat",
       "title": "PKCE Validation Success Rate",
-      "datasource": { "type": "prometheus", "uid": "$datasource" },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 9 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 9
+      },
       "targets": [
         {
           "expr": "sum(rate(oauth_pkce_validation_total{result=\"success\"}[$__rate_interval])) / sum(rate(oauth_pkce_validation_total[$__rate_interval])) * 100",
@@ -177,9 +259,18 @@
           "unit": "percent",
           "thresholds": {
             "steps": [
-              { "color": "red", "value": null },
-              { "color": "yellow", "value": 90 },
-              { "color": "green", "value": 99 }
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 90
+              },
+              {
+                "color": "green",
+                "value": 99
+              }
             ]
           }
         },
@@ -195,8 +286,16 @@
       "id": 6,
       "type": "stat",
       "title": "State Validation Success Rate",
-      "datasource": { "type": "prometheus", "uid": "$datasource" },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 9 },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$datasource"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 9
+      },
       "targets": [
         {
           "expr": "sum(rate(oauth_state_validation_total{result=\"success\"}[$__rate_interval])) / sum(rate(oauth_state_validation_total[$__rate_interval])) * 100",
@@ -209,9 +308,18 @@
           "unit": "percent",
           "thresholds": {
             "steps": [
-              { "color": "red", "value": null },
-              { "color": "yellow", "value": 90 },
-              { "color": "green", "value": 99 }
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 90
+              },
+              {
+                "color": "green",
+                "value": 99
+              }
             ]
           }
         },
@@ -228,14 +336,27 @@
       "type": "row",
       "title": "OAuth Performance",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 17 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 17
+      },
       "panels": [
         {
           "id": 8,
           "type": "timeseries",
           "title": "Token Exchange Duration P95",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 18 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 18
+          },
           "targets": [
             {
               "expr": "histogram_quantile(0.95, sum by (provider, le) (rate(oauth_token_exchange_duration_seconds_bucket[$__rate_interval])))",
@@ -253,16 +374,29 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 9,
           "type": "timeseries",
           "title": "User Info Fetch Duration P95",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 18 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 18
+          },
           "targets": [
             {
               "expr": "histogram_quantile(0.95, sum by (provider, le) (rate(oauth_user_info_fetch_duration_seconds_bucket[$__rate_interval])))",
@@ -280,16 +414,29 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 10,
           "type": "timeseries",
           "title": "Provider Errors",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 18 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 18
+          },
           "targets": [
             {
               "expr": "sum by (provider, endpoint) (rate(oauth_provider_errors_total[$__rate_interval]))",
@@ -307,16 +454,29 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 11,
           "type": "timeseries",
           "title": "Lock Wait Duration P95",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 26 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 26
+          },
           "targets": [
             {
               "expr": "histogram_quantile(0.95, sum by (le) (rate(oauth_lock_wait_duration_seconds_bucket[$__rate_interval])))",
@@ -334,16 +494,29 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 12,
           "type": "timeseries",
           "title": "Lock Contention/Timeout",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 26 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 26
+          },
           "targets": [
             {
               "expr": "rate(oauth_lock_contention_total[$__rate_interval])",
@@ -366,16 +539,29 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 13,
           "type": "timeseries",
           "title": "User Creation vs Login",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 26 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 26
+          },
           "targets": [
             {
               "expr": "sum by (provider) (rate(oauth_user_creation_total[$__rate_interval]))",
@@ -392,15 +578,22 @@
             "defaults": {
               "unit": "ops",
               "custom": {
-                "stacking": { "mode": "normal" },
+                "stacking": {
+                  "mode": "normal"
+                },
                 "fillOpacity": 30
               }
             },
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         }
       ]
@@ -410,14 +603,27 @@
       "type": "row",
       "title": "Connector Health",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 34 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 34
+      },
       "panels": [
         {
           "id": 15,
           "type": "bargauge",
           "title": "API Success Rate",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 35 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 35
+          },
           "targets": [
             {
               "expr": "connector_api_success_rate:5m * 100",
@@ -430,9 +636,18 @@
               "unit": "percent",
               "thresholds": {
                 "steps": [
-                  { "color": "red", "value": null },
-                  { "color": "yellow", "value": 95 },
-                  { "color": "green", "value": 99 }
+                  {
+                    "color": "red",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 95
+                  },
+                  {
+                    "color": "green",
+                    "value": 99
+                  }
                 ]
               }
             },
@@ -442,7 +657,9 @@
             "orientation": "horizontal",
             "displayMode": "gradient",
             "reduceOptions": {
-              "calcs": ["lastNotNull"]
+              "calcs": [
+                "lastNotNull"
+              ]
             }
           }
         },
@@ -450,8 +667,16 @@
           "id": 16,
           "type": "timeseries",
           "title": "API Duration P95",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 35 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 35
+          },
           "targets": [
             {
               "expr": "histogram_quantile(0.95, sum by (connector_type, le) (rate(connector_api_duration_seconds_bucket{connector_type=~\"$connector_type\"}[$__rate_interval])))",
@@ -469,16 +694,29 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 17,
           "type": "timeseries",
           "title": "API Errors by Type",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 35 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 35
+          },
           "targets": [
             {
               "expr": "sum by (connector_type, error_type) (rate(connector_api_errors_total[$__rate_interval]))",
@@ -496,16 +734,29 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 18,
           "type": "timeseries",
           "title": "Token Refresh",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 43 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 43
+          },
           "targets": [
             {
               "expr": "sum by (connector_type, status) (rate(connector_token_refresh_total[$__rate_interval]))",
@@ -523,16 +774,29 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 19,
           "type": "timeseries",
           "title": "Connector Activation",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 43 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 43
+          },
           "targets": [
             {
               "expr": "sum by (connector_type, status) (rate(oauth_connector_activation_total[$__rate_interval]))",
@@ -550,8 +814,13 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         }
       ]
@@ -561,17 +830,30 @@
       "type": "row",
       "title": "Google APIs",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 51 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 51
+      },
       "panels": [
         {
           "id": 21,
           "type": "timeseries",
           "title": "Contacts API Calls",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 52 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 52
+          },
           "targets": [
             {
-              "expr": "sum by (operation, status) (rate(contacts_api_calls[$__rate_interval]))",
+              "expr": "sum by (operation, status) (rate(contacts_api_calls_total[$__rate_interval]))",
               "legendFormat": "{{operation}} ({{status}})",
               "refId": "A"
             }
@@ -586,19 +868,32 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 22,
           "type": "timeseries",
           "title": "Contacts API Latency P95",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 52 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 52
+          },
           "targets": [
             {
-              "expr": "histogram_quantile(0.95, sum by (operation, le) (rate(contacts_api_latency_bucket[$__rate_interval])))",
+              "expr": "histogram_quantile(0.95, sum by (operation, le) (rate(contacts_api_latency_seconds_bucket[$__rate_interval])))",
               "legendFormat": "{{operation}}",
               "refId": "A"
             }
@@ -613,19 +908,32 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 23,
           "type": "stat",
           "title": "Contacts Cache Hit Rate",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 52 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 52
+          },
           "targets": [
             {
-              "expr": "sum(rate(contacts_cache_hits[$__rate_interval])) / (sum(rate(contacts_cache_hits[$__rate_interval])) + sum(rate(contacts_cache_misses[$__rate_interval]))) * 100",
+              "expr": "sum(rate(contacts_cache_hits_total[$__rate_interval])) / (sum(rate(contacts_cache_hits_total[$__rate_interval])) + sum(rate(contacts_cache_misses_total[$__rate_interval]))) * 100",
               "legendFormat": " ",
               "refId": "A"
             }
@@ -635,9 +943,18 @@
               "unit": "percent",
               "thresholds": {
                 "steps": [
-                  { "color": "red", "value": null },
-                  { "color": "yellow", "value": 50 },
-                  { "color": "green", "value": 80 }
+                  {
+                    "color": "red",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 50
+                  },
+                  {
+                    "color": "green",
+                    "value": 80
+                  }
                 ]
               }
             },
@@ -653,11 +970,19 @@
           "id": 24,
           "type": "timeseries",
           "title": "Email API Calls",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 60 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 60
+          },
           "targets": [
             {
-              "expr": "sum by (operation, status) (rate(email_api_calls[$__rate_interval]))",
+              "expr": "sum by (operation, status) (rate(email_api_calls_total[$__rate_interval]))",
               "legendFormat": "{{operation}} ({{status}})",
               "refId": "A"
             }
@@ -672,19 +997,32 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 25,
           "type": "timeseries",
           "title": "Email API Latency P95",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 60 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 60
+          },
           "targets": [
             {
-              "expr": "histogram_quantile(0.95, sum by (operation, le) (rate(email_api_latency_bucket[$__rate_interval])))",
+              "expr": "histogram_quantile(0.95, sum by (operation, le) (rate(email_api_latency_seconds_bucket[$__rate_interval])))",
               "legendFormat": "{{operation}}",
               "refId": "A"
             }
@@ -699,19 +1037,32 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 26,
           "type": "stat",
           "title": "Email Cache Hit Rate",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 60 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 16,
+            "y": 60
+          },
           "targets": [
             {
-              "expr": "sum(rate(email_cache_hits[$__rate_interval])) / (sum(rate(email_cache_hits[$__rate_interval])) + sum(rate(email_cache_misses[$__rate_interval]))) * 100",
+              "expr": "sum(rate(email_cache_hits_total[$__rate_interval])) / (sum(rate(email_cache_hits_total[$__rate_interval])) + sum(rate(email_cache_misses_total[$__rate_interval]))) * 100",
               "legendFormat": " ",
               "refId": "A"
             }
@@ -721,9 +1072,18 @@
               "unit": "percent",
               "thresholds": {
                 "steps": [
-                  { "color": "red", "value": null },
-                  { "color": "yellow", "value": 50 },
-                  { "color": "green", "value": 80 }
+                  {
+                    "color": "red",
+                    "value": null
+                  },
+                  {
+                    "color": "yellow",
+                    "value": 50
+                  },
+                  {
+                    "color": "green",
+                    "value": 80
+                  }
                 ]
               }
             },
@@ -739,8 +1099,16 @@
           "id": 27,
           "type": "timeseries",
           "title": "External Service Errors",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 68 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 68
+          },
           "targets": [
             {
               "expr": "sum by (connector_type, error_type) (rate(connector_api_errors_total{connector_type=~\"$connector_type\"}[$__rate_interval]))",
@@ -758,16 +1126,29 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 28,
           "type": "timeseries",
           "title": "External Service Timeouts",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 68 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 68
+          },
           "targets": [
             {
               "expr": "sum by (connector_type) (rate(connector_api_errors_total{error_type=\"timeout\", connector_type=~\"$connector_type\"}[$__rate_interval]))",
@@ -785,8 +1166,13 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         }
       ]
@@ -796,14 +1182,27 @@
       "type": "row",
       "title": "MCP Servers",
       "collapsed": true,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 76 },
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 76
+      },
       "panels": [
         {
           "id": 30,
           "type": "stat",
           "title": "Server Health Status",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 6, "x": 0, "y": 77 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 0,
+            "y": 77
+          },
           "targets": [
             {
               "expr": "mcp_server_health",
@@ -814,12 +1213,30 @@
           "fieldConfig": {
             "defaults": {
               "mappings": [
-                { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+                {
+                  "type": "value",
+                  "options": {
+                    "0": {
+                      "text": "DOWN",
+                      "color": "red"
+                    },
+                    "1": {
+                      "text": "UP",
+                      "color": "green"
+                    }
+                  }
+                }
               ],
               "thresholds": {
                 "steps": [
-                  { "color": "red", "value": null },
-                  { "color": "green", "value": 1 }
+                  {
+                    "color": "red",
+                    "value": null
+                  },
+                  {
+                    "color": "green",
+                    "value": 1
+                  }
                 ]
               }
             },
@@ -835,8 +1252,16 @@
           "id": 31,
           "type": "timeseries",
           "title": "Tool Invocations Rate",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 6, "x": 6, "y": 77 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 6,
+            "y": 77
+          },
           "targets": [
             {
               "expr": "sum by (tool_name, status) (rate(mcp_tool_invocations_total{server_name=~\"$mcp_server\"}[$__rate_interval]))",
@@ -854,16 +1279,29 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 32,
           "type": "timeseries",
           "title": "Tool Duration P95",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 6, "x": 12, "y": 77 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 12,
+            "y": 77
+          },
           "targets": [
             {
               "expr": "histogram_quantile(0.95, sum by (server_name, le) (rate(mcp_tool_duration_seconds_bucket{server_name=~\"$mcp_server\"}[$__rate_interval])))",
@@ -881,16 +1319,29 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
           }
         },
         {
           "id": 33,
           "type": "timeseries",
           "title": "Connection Errors",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 6, "x": 18, "y": 77 },
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 6,
+            "x": 18,
+            "y": 77
+          },
           "targets": [
             {
               "expr": "sum by (server_name, error_type) (rate(mcp_connection_errors_total{server_name=~\"$mcp_server\"}[$__rate_interval]))",
@@ -908,8 +1359,179 @@
             "overrides": []
           },
           "options": {
-            "tooltip": { "mode": "multi" },
-            "legend": { "displayMode": "list", "placement": "bottom" }
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": 34,
+      "type": "row",
+      "title": "MCP ReAct Sub-Agent",
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 85
+      },
+      "panels": [
+        {
+          "id": 35,
+          "type": "timeseries",
+          "title": "MCP ReAct Invocations (success/error)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 0,
+            "y": 86
+          },
+          "targets": [
+            {
+              "expr": "sum by (server_name, status) (rate(mcp_react_invocations_total[$__rate_interval]))",
+              "legendFormat": "{{server_name}} ({{status}})",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "ops",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 36,
+          "type": "timeseries",
+          "title": "MCP ReAct Iterations P50/P95",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 8,
+            "x": 8,
+            "y": 86
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.5, sum by (server_name, le) (rate(mcp_react_iterations_histogram_bucket[$__rate_interval])))",
+              "legendFormat": "P50 {{server_name}}",
+              "refId": "A"
+            },
+            {
+              "expr": "histogram_quantile(0.95, sum by (server_name, le) (rate(mcp_react_iterations_histogram_bucket[$__rate_interval])))",
+              "legendFormat": "P95 {{server_name}}",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "tooltip": {
+              "mode": "multi"
+            },
+            "legend": {
+              "displayMode": "list",
+              "placement": "bottom"
+            }
+          }
+        },
+        {
+          "id": 37,
+          "type": "stat",
+          "title": "MCP ReAct Total Invocations (24h)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$datasource"
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 8,
+            "x": 16,
+            "y": 86
+          },
+          "targets": [
+            {
+              "expr": "sum(increase(mcp_react_invocations_total[24h]))",
+              "legendFormat": " ",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "graphMode": "area",
+            "textMode": "auto",
+            "colorMode": "value",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ]
+            }
           }
         }
       ]

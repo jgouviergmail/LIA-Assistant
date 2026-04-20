@@ -2755,6 +2755,18 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_16_10": {
+          "title": "v1.16.10 — Osservabilità rafforzata: 20 dashboard, metriche complete, DB più veloce",
+          "date": "Aprile 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>Due nuovi dashboard di osservabilità Grafana</b> — Un dashboard dedicato ai sub-agent e agli skill (attività, budget dei token, rich output) e un altro alla modalità ReAct e al browser (invocazioni, iterazioni, errori degli strumenti). L'amministratore dispone ora di 20 dashboard che coprono 354+ pannelli, senza zone cieche.",
+            "i2": "<b>90+ metriche Prometheus riattivate</b> — Un audit ha rivelato che una parte significativa delle metriche dichiarate nel codice non veniva mai emessa in produzione (router, planner, HITL, OAuth, connettori, voce, bozze, initiative, data-registry, conversazioni). Strumentazione aggiunta ovunque, con protezioni difensive affinché i fallimenti delle metriche non interrompano mai il percorso critico.",
+            "i3": "<b>Query DAU/WAU e attivazione dei connettori più veloci</b> — Tre indici DB aggiunti tramite migrazione (<code>obs_indexes_001</code>): <code>ix_conversations_updated_at</code>, <code>ix_conversations_created_at</code>, <code>ix_connectors_status</code>. L'updater in background dei gauge passa da ~500ms (full scan) a <50ms su un DB popolato.",
+            "i4": "<b>Niente più cardinality bomb Prometheus sui connettori</b> — L'etichetta <code>operation</code> delle metriche <code>connector_api_*</code> riceveva percorsi URL grezzi (con UUID, token, ID numerici), facendo esplodere la memoria Prometheus nel tempo. Ora viene applicato un sanitizer segmento per segmento (UUID/id/hex_id/token → segnaposto).",
+            "i5": "<b>Errori di validazione FastAPI (422) tracciati</b> — I fallimenti di validazione Pydantic sui payload in ingresso sono ora contati per campo + tipo di errore (limite di 10 per richiesta per limitare la cardinalità), visibili sul dashboard 16 per evidenziare pattern di payload errati."
+          }
+        },
         "v1_16_8": {
           "title": "v1.16.8 — Skill arricchiti: schede, immagini e mini-app nella chat",
           "date": "Aprile 2026",

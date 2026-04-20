@@ -2,7 +2,7 @@
 
 **Document de reference technique - Observabilite Production avec Grafana**
 
-> **Version 4.0** | 2026-03-09 | 18 dashboards, 312+ panels
+> **Version 4.1** | 2026-04-20 | 20 dashboards, 354+ panels
 
 ---
 
@@ -23,7 +23,7 @@
 
 ### Objectifs
 
-Les **18 dashboards Grafana** fournissent une observabilite complete pour :
+Les **20 dashboards Grafana** fournissent une observabilite complete pour :
 
 1. **Monitoring production** : Sante applicative, SLOs, performance HTTP, ressources infrastructure
 2. **Agent debugging** : Pipeline d'orchestration LangGraph, router, planner, outils, HITL
@@ -36,8 +36,8 @@ Les **18 dashboards Grafana** fournissent une observabilite complete pour :
 
 | Indicateur | Valeur |
 |------------|--------|
-| Dashboards | 18 |
-| Panels total | 312+ |
+| Dashboards | 20 |
+| Panels total | 354+ |
 | Recording rules | 70+ |
 | Schema version | 38 (Grafana 11.3) |
 | graphTooltip | 1 (shared crosshair) sur tous les dashboards |
@@ -406,7 +406,7 @@ docker compose restart grafana
 
 ---
 
-**Version** : 4.0
-**Date** : 2026-03-09
+**Version** : 4.1
+**Date** : 2026-04-20
 **Auteur** : Equipe LIA
-**Statut** : Production (18 dashboards, 312+ panels)
+**Statut** : Production (20 dashboards, 354+ panels)

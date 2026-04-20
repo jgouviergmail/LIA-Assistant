@@ -732,6 +732,17 @@ def get_result_key(domain_name: str) -> str | None:
     # Fallback for dynamic per-server MCP domains
     if is_mcp_domain(domain_name):
         return "mcps"
+    # Unknown domain → log normalization failure for dashboard 15
+    try:
+        from src.infrastructure.observability.metrics_agents import (
+            domain_normalization_errors_total,
+        )
+
+        domain_normalization_errors_total.labels(
+            domain=domain_name[:40], error_type="unknown_result_key"
+        ).inc()
+    except Exception:
+        pass
     return None
 
 

@@ -2748,6 +2748,18 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_16_10": {
+          "title": "v1.16.10 — 可观测性升级:20个仪表板、完整指标覆盖、更快的数据库",
+          "date": "2026年4月",
+          "count": "5",
+          "items": {
+            "i1": "<b>两个新的 Grafana 可观测性仪表板</b> — 一个专门用于子代理和技能的仪表板(活动、令牌预算、富输出),另一个用于 ReAct 模式和浏览器(调用、迭代、工具错误)。管理员现在拥有 20 个仪表板,覆盖 354+ 面板,无盲区。",
+            "i2": "<b>复活 90+ 个 Prometheus 指标</b> — 审计发现,代码中声明的很大一部分指标在生产中从未真正发出(路由器、规划器、HITL、OAuth、连接器、语音、草稿、主动性、数据注册表、会话)。已在各处添加检测,并采用防御性保护措施,确保指标失败永不破坏关键路径。",
+            "i3": "<b>更快的 DAU/WAU 和连接器激活查询</b> — 通过迁移 (<code>obs_indexes_001</code>) 添加了三个数据库索引:<code>ix_conversations_updated_at</code>、<code>ix_conversations_created_at</code>、<code>ix_connectors_status</code>。Gauge 后台更新器在已填充数据库上从 ~500ms(全表扫描)降至 <50ms。",
+            "i4": "<b>连接器不再出现 Prometheus 基数爆炸</b> — <code>connector_api_*</code> 指标上的 <code>operation</code> 标签过去接收原始 URL 路径(含 UUID、令牌、数字 ID),随着时间推移会导致 Prometheus 内存膨胀。现已在上游应用逐段清理器(UUID/id/hex_id/token → 占位符)。",
+            "i5": "<b>跟踪 FastAPI 验证错误 (422)</b> — 传入载荷的 Pydantic 验证失败现按字段 + 错误类型计数(每次请求上限 10 个以限制基数),可在仪表板 16 中查看,以揭示异常载荷模式。"
+          }
+        },
         "v1_16_8": {
           "title": "v1.16.8 — 丰富的技能:在聊天中显示卡片、图像和迷你应用",
           "date": "2026 年 4 月",

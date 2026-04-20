@@ -118,6 +118,18 @@ def merge_registry(
         # Keep only registry_max_items most recent items
         merged = dict(sorted_items[:registry_max_items])
 
+    # Dashboard 14: track per-thread registry size via the LangGraph reducer.
+    # The reducer has no access to thread_id, so we aggregate with a single
+    # "aggregated" label value to avoid cardinality explosion. The existing
+    # metric declaration uses `[thread_id]`, which is a cardinality risk we
+    # mitigate by always passing "aggregated".
+    try:
+        from src.infrastructure.observability.metrics_registry import registry_size
+
+        registry_size.labels(thread_id="aggregated").set(len(merged))
+    except Exception:
+        pass
+
     return merged
 
 
@@ -151,6 +163,7 @@ def clear_registry_expired(
 
     now = datetime.now(UTC)
     result = {}
+    expired_by_type: dict[str, int] = {}
 
     for item_id, item in registry.items():
         # Items may be RegistryItem objects or serialized dicts
@@ -178,16 +191,40 @@ def clear_registry_expired(
             result[item_id] = item
             continue
 
+        # Helper to extract type for the expired counter (bounded: CONTACT, EMAIL, etc.)
+        if hasattr(item, "type"):
+            _item_type = str(getattr(item, "type", "unknown"))
+        elif isinstance(item, dict):
+            _item_type = str(item.get("type", "unknown"))
+        else:
+            _item_type = "unknown"
+
         # Check explicit TTL first
         if ttl is not None:
             age = (now - timestamp).total_seconds()
             if age < ttl:
                 result[item_id] = item
+            else:
+                expired_by_type[_item_type] = expired_by_type.get(_item_type, 0) + 1
         # Check max age for items without TTL
         else:
             age = (now - timestamp).total_seconds()
             if age < max_age_seconds:
                 result[item_id] = item
+            else:
+                expired_by_type[_item_type] = expired_by_type.get(_item_type, 0) + 1
+
+    # Dashboard 14 "Expired Items" panel
+    if expired_by_type:
+        try:
+            from src.infrastructure.observability.metrics_registry import (
+                registry_expired_total,
+            )
+
+            for _type, _count in expired_by_type.items():
+                registry_expired_total.labels(type=_type).inc(_count)
+        except Exception:
+            pass
 
     return result
 

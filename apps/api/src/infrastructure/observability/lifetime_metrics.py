@@ -451,6 +451,143 @@ async def _sync_period_metrics_from_db(db: AsyncSession) -> None:
     )
     users_registered_last_24h.set(user_count or 0)
 
+    # -----------------------------------------------------------------
+    # Activity gauges (DAU/WAU) — dashboard 01, 09, 17
+    # -----------------------------------------------------------------
+    from src.infrastructure.observability.metrics import (
+        user_active_daily_gauge,
+        user_active_weekly_gauge,
+    )
+
+    dau = await db.scalar(
+        select(func.count(func.distinct(Conversation.user_id)))
+        .select_from(Conversation)
+        .where(Conversation.updated_at >= cutoff_24h)
+    )
+    user_active_daily_gauge.set(dau or 0)
+
+    cutoff_7d = now - timedelta(days=7)
+    wau = await db.scalar(
+        select(func.count(func.distinct(Conversation.user_id)))
+        .select_from(Conversation)
+        .where(Conversation.updated_at >= cutoff_7d)
+    )
+    user_active_weekly_gauge.set(wau or 0)
+
+    # -----------------------------------------------------------------
+    # Redis pool gauges (dashboards 03, 04) — uses public redis-py API
+    # -----------------------------------------------------------------
+    try:
+        from src.infrastructure.cache.redis import get_redis_cache
+        from src.infrastructure.observability.metrics_redis import (
+            redis_connection_pool_available_current,
+            redis_connection_pool_size_current,
+        )
+
+        _redis = await get_redis_cache()
+        _pool = _redis.connection_pool
+        # Public API:
+        # - max_connections: configured upper bound
+        # - get_connection_count(): currently in-use connections
+        _max = getattr(_pool, "max_connections", 0) or 0
+        _in_use = 0
+        _getter = getattr(_pool, "get_connection_count", None)
+        if callable(_getter):
+            try:
+                _in_use = int(_getter())
+            except Exception:
+                _in_use = 0
+        redis_connection_pool_size_current.set(_max)
+        redis_connection_pool_available_current.set(max(0, _max - _in_use))
+    except Exception:
+        # Redis may not be reachable; keep gauges unchanged
+        pass
+
+    # -----------------------------------------------------------------
+    # Checkpoints table size (dashboard 14) — Postgres storage
+    # -----------------------------------------------------------------
+    try:
+        from sqlalchemy import text as _sql_text
+
+        from src.infrastructure.observability.metrics_registry import (
+            checkpoints_table_size_bytes,
+        )
+
+        _row = (
+            await db.execute(_sql_text("SELECT pg_total_relation_size('public.checkpoints') AS s"))
+        ).first()
+        if _row is not None and _row.s is not None:
+            checkpoints_table_size_bytes.set(int(_row.s))
+    except Exception:
+        pass
+
+    # -----------------------------------------------------------------
+    # Connector activation rate Gauge (dashboard 09) — % of users with ≥ 1 active connector
+    # -----------------------------------------------------------------
+    try:
+        from src.domains.connectors.models import Connector, ConnectorStatus
+        from src.infrastructure.observability.metrics_business import (
+            connector_activation_rate,
+        )
+
+        total_users = (
+            await db.scalar(select(func.count()).select_from(User).where(User.is_active.is_(True)))
+            or 0
+        )
+        if total_users > 0:
+            active_connectors_by_type = await db.execute(
+                select(
+                    Connector.connector_type,
+                    func.count(func.distinct(Connector.user_id)),
+                )
+                .where(Connector.status == ConnectorStatus.ACTIVE)
+                .group_by(Connector.connector_type)
+            )
+            for ctype, ucount in active_connectors_by_type.all():
+                # ctype is a ConnectorType enum from SQLAlchemy column — use .value
+                # so the label matches the dashboard convention (e.g., "brave_search").
+                ctype_value = ctype.value if hasattr(ctype, "value") else str(ctype)
+                connector_activation_rate.labels(connector_type=ctype_value).set(
+                    (ucount or 0) * 100.0 / total_users
+                )
+    except Exception:
+        pass
+
+    # NOTE: `user_return_rate_total` and `user_daily_conversations_total` are
+    # intentionally NOT set from a polling job — they are semantic "event" metrics
+    # that should be incremented from the user-login / conversation-created path
+    # to avoid unbounded Counter drift. They are instrumented at their event site
+    # below (in lifetime_metrics they cannot be meaningfully derived in a
+    # rate-safe way).
+
+    # -----------------------------------------------------------------
+    # User daily-conversation histogram (dashboards 09, 17).
+    # Observes the per-user conversation count for the last 24h as a histogram
+    # sample. Called once per updater cycle, so cardinality stays bounded.
+    # -----------------------------------------------------------------
+    try:
+        from src.infrastructure.observability.metrics_business import (
+            user_daily_conversations_total,
+        )
+
+        _rows = (
+            await db.execute(
+                select(Conversation.user_id, func.count(Conversation.id))
+                .where(Conversation.created_at >= cutoff_24h)
+                .group_by(Conversation.user_id)
+            )
+        ).all()
+        for _user_id, _count in _rows:
+            user_daily_conversations_total.observe(_count or 0)
+    except Exception:
+        pass
+
+    # NOTE: `agent_routing_accuracy`, `agent_error_rate`, `agent_latency_p95_seconds`
+    # are NOT emitted here — they require feedback loops / ground-truth labels
+    # that do not yet exist. Dashboards that reference them have been rewired to
+    # use the existing recording rules (`agent:latency:p95_5m`, `agent:slo:success_rate:1h`)
+    # and `graph_exceptions_total`, which ARE emitting real data.
+
 
 # ============================================================================
 # Manual Refresh (for testing/debugging)

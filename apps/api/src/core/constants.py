@@ -590,7 +590,7 @@ TOKEN_SUMMARY_CACHE_TTL = 3600  # 1 hour - streaming token summaries
 REDIS_KEY_PRICING_CACHE = "pricing:callback_cache"
 
 # Fallback USD/EUR exchange rate when DB/API unavailable
-# Updated manually - check https://api.frankfurter.app/latest?from=USD&to=EUR
+# Updated manually - check https://api.frankfurter.dev/latest?from=USD&to=EUR
 DEFAULT_USD_EUR_RATE = 0.93
 
 # ============================================================================
@@ -1916,7 +1916,7 @@ APPLE_EMAIL_MESSAGE_CACHE_TTL_DEFAULT = 60
 LLM_CACHE_TTL_SECONDS_DEFAULT = 60  # Aligned from .env.prod (was 300)
 
 # --- Advanced config defaults ---
-CURRENCY_API_URL_DEFAULT = "https://api.frankfurter.app"
+CURRENCY_API_URL_DEFAULT = "https://api.frankfurter.dev"
 CURRENCY_API_TIMEOUT_SECONDS_DEFAULT = 5.0
 DEFAULT_LANGUAGE_DEFAULT = "fr"
 ENTITY_RESOLUTION_AUTO_THRESHOLD_DEFAULT = 0.9

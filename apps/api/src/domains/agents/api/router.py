@@ -452,14 +452,23 @@ async def stream_chat(
                             conversation_id=conversation_id,
                         )
 
-                        # Track security event
-                        from src.infrastructure.observability.metrics_agents import (
-                            hitl_security_events_total,
-                        )
+                        # Track security events (dashboards 08 / 16)
+                        try:
+                            from src.infrastructure.observability.metrics_agents import (
+                                hitl_security_events_total,
+                            )
+                            from src.infrastructure.observability.metrics_errors import (
+                                security_violations_total,
+                            )
 
-                        hitl_security_events_total.labels(
-                            event_type="rate_limit_exceeded", severity="medium"
-                        ).inc()
+                            hitl_security_events_total.labels(
+                                event_type="rate_limit_exceeded", severity="medium"
+                            ).inc()
+                            security_violations_total.labels(
+                                violation_type="hitl_rate_limit_exceeded"
+                            ).inc()
+                        except Exception:
+                            pass
 
                         # Raise HTTP 429 with Retry-After header
                         raise HTTPException(

@@ -116,6 +116,18 @@ class OrchestrationService:
                 event_type = event.get("event")
                 data = event.get("data", {})
 
+                # Dashboard 15 langgraph_streaming_events metric (non-critical)
+                try:
+                    from src.infrastructure.observability.metrics_langgraph import (
+                        langgraph_streaming_events_total,
+                    )
+
+                    langgraph_streaming_events_total.labels(
+                        event_name=str(event_type or "unknown")
+                    ).inc()
+                except Exception:
+                    pass
+
                 # Yield graph event
                 yield GraphChunk(event_type=event_type, data=data)
 
