@@ -32,6 +32,7 @@ from .channels import ChannelsSettings
 from .connectors import ConnectorsSettings
 from .database import DatabaseSettings
 from .devops import DevOpsSettings
+from .health_metrics import HealthMetricsSettings
 from .image_generation import ImageGenerationSettings
 from .journals import JournalsSettings
 from .llm import (
@@ -96,6 +97,7 @@ class Settings(
     UsageLimitsSettings,
     ImageGenerationSettings,
     DevOpsSettings,
+    HealthMetricsSettings,
     BaseSettings,
 ):
     """
@@ -123,7 +125,8 @@ class Settings(
         17. UsageLimitsSettings (Per-user usage limits: tokens, messages, cost)
         18. ImageGenerationSettings (AI image generation: gpt-image-1, multi-provider)
         19. DevOpsSettings (Claude CLI remote server management via SSH)
-        20. BaseSettings (Pydantic base class)
+        20. HealthMetricsSettings (iPhone Shortcuts health metrics ingestion + visualization)
+        21. BaseSettings (Pydantic base class)
 
     All settings can be overridden via .env file or environment variables.
     """
@@ -360,4 +363,5 @@ __all__ = [
     "UsageLimitsSettings",
     "ImageGenerationSettings",
     "DevOpsSettings",
+    "HealthMetricsSettings",
 ]

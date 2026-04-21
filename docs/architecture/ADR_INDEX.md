@@ -2480,6 +2480,33 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 
 ---
 
+### ADR-076: Health Metrics Ingestion via Per-User Tokens
+
+**Status**: ✅ ACCEPTED (2026-04-20)
+**Fichier**: `docs/architecture/ADR-076-Health-Metrics-Ingestion.md`
+
+**Décision**: Créer un domaine DDD `health_metrics` exposant un endpoint authentifié par token (`POST /api/v1/ingest/health`) qu'une automatisation iPhone Shortcuts peut appeler toutes les heures pour pousser fréquence cardiaque et pas cumulés, stockés en PostgreSQL puis visualisés côté Settings (graphiques heure/jour/semaine/mois/année).
+
+**Problème résolu**:
+- ❌ Exposer `user_id` en paramètre rendrait trivialement falsifiable n'importe quelle ingestion (un ID est public par design — URLs, JWT, logs)
+- ❌ La chaîne cookie-auth n'est pas utilisable depuis un Raccourci iOS
+- ❌ Données santé = catégorie spéciale RGPD (art. 9), besoin d'un droit d'effacement granulaire
+
+**Solution**:
+- ✅ Tokens hashés (SHA-256) avec préfixe d'affichage `hm_xxxxxxxx`, valeur brute révélée une seule fois à la création, révocables individuellement
+- ✅ Validation mixte par champ : valeur hors plage physiologique → colonne NULL + log warn, mais on préserve les autres champs valides de la même requête
+- ✅ Agrégation serveur (aggregator.py) avec détection des resets minuit sur le compteur cumulatif, gaps préservés dans les graphiques (`has_data=False`)
+- ✅ Suppression granulaire : par champ (UPDATE NULL) ou globale (DELETE), CASCADE sur `users` couvre l'erasure RGPD
+- ✅ 8 métriques Prometheus + dashboard Grafana 21 (ingestion rate, latence, rejects, auth failures, rate limit, tokens lifecycle)
+- ✅ Feature flag `HEALTH_METRICS_ENABLED` (default `false`)
+
+**Trade-offs**:
+- 1 échantillon FC/heure = résolution grossière pour une courbe physiologique (product-accepted, fréquence augmentable sans migration)
+- Pas de batch/retry côté iPhone → trous d'envoi = trous dans les graphiques (documenté comme limite produit)
+- Pas d'encryption applicative sur FC/pas (encryption at rest PostgreSQL jugée suffisante pour des scalaires numériques non-PII)
+
+---
+
 ## ADRs Archivés
 
 ### ADR-005 (Version Originale): Workflow-Based HITL

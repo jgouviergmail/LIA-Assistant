@@ -134,6 +134,12 @@ FIELD_IMAGE_GENERATION_REQUESTS = "image_generation_requests"
 FIELD_IMAGE_GENERATION_COST_EUR = "image_generation_cost_eur"
 
 # ============================================================
+# HEALTH METRICS (iPhone Shortcuts ingestion)
+# ============================================================
+FIELD_HEART_RATE = "heart_rate"
+FIELD_STEPS = "steps"
+
+# ============================================================
 # FIELD GROUPS (for validation, serialization)
 # ============================================================
 
@@ -300,6 +306,9 @@ __all__ = [
     # Image Generation
     "FIELD_IMAGE_GENERATION_REQUESTS",
     "FIELD_IMAGE_GENERATION_COST_EUR",
+    # Health Metrics
+    "FIELD_HEART_RATE",
+    "FIELD_STEPS",
     # Helpers
     "is_identity_field",
     "is_token_field",

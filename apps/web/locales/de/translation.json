@@ -2753,6 +2753,17 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_17_0": {
+          "title": "v1.17.0 — Gesundheitsdaten: iPhone-Shortcuts-Ingestion + Diagramme",
+          "date": "April 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>Neuer Bereich „Gesundheitsdaten“ in Einstellungen → Funktionen</b> — LIA kann nun Herzfrequenz und Schrittzahlen empfangen, die von einer iPhone-Kurzbefehl-Automatisierung gesendet werden. Alles wird als Liniendiagramm (HF) und Balkendiagramm (Schritte) visualisiert, mit Zeitraumwahl (Stunde / Tag / Woche / Monat / Jahr) und gestrichelten Linien für den Mittelwert über den Zeitraum.",
+            "i2": "<b>Dedizierte, widerrufbare Token-Authentifizierung</b> — Generieren Sie ein Token (beginnt mit <code>hm_…</code>) in der App, kopieren Sie es einmal (wird danach nicht mehr angezeigt, nur ein Präfix bleibt sichtbar) und fügen Sie es in Ihren Kurzbefehl ein. Das Token erlaubt nur das Senden von Gesundheitsdaten — sonst nichts. Sie können mehrere Tokens erzeugen und jedes einzeln widerrufen.",
+            "i3": "<b>Granulares Löschen</b> — Drei Aktionen im Unterbereich „Datenverwaltung“: alle Herzfrequenzen löschen (Schritte bleiben), alle Schritte löschen (HF bleibt) oder alles vollständig löschen. DSGVO-konform: rohe HF- und Schrittwerte werden nie in Server-Logs geschrieben.",
+            "i4": "<b>Schritt-für-Schritt-Anleitung für die iPhone-Konfiguration</b> — Vollständige Dokumentation (Schritte A-E + stündliche Planung) in <code>docs/guides/GUIDE_IPHONE_SHORTCUTS_HEALTH.md</code> mit Beispiel-Payload, Troubleshooting und Sicherheitshinweisen. Physiologische Standardgrenzen: HF ∈ [20, 250] bpm, Schritte ∈ [0, 15 000] pro Sample (konfigurierbar)."
+          }
+        },
         "v1_16_10": {
           "title": "v1.16.10 — Observability-Überarbeitung: 20 Dashboards, vollständige Metriken, schnellere DB",
           "date": "April 2026",
@@ -3929,6 +3940,33 @@
             "answer": "<p>Drei Möglichkeiten: <strong>(1)</strong> Klicken Sie auf den Download-Button (Pfeil-Symbol), der beim Überfahren des Bildes erscheint — auf dem Smartphone ist der Button immer sichtbar. <strong>(2)</strong> Klicken Sie auf das Bild, um es im Vollbild zu öffnen, und verwenden Sie den Download-Button oben rechts. <strong>(3)</strong> Auf dem Smartphone: Drücken Sie lange auf das Bild, um das native Menü «Bild speichern» zu nutzen.</p>"
           }
         }
+      },
+      "health_metrics": {
+        "title": "Gesundheitsdaten (iPhone)",
+        "description": "Herzfrequenz und Schritte von Apple Health über Kurzbefehle senden",
+        "count": "5",
+        "questions": {
+          "q1": {
+            "question": "Was ist der Bereich „Gesundheitsdaten“?",
+            "answer": "<p>Eine neue Funktion (v1.17.0), mit der Ihr iPhone Ihre Apple-Health-Messungen (Herzfrequenz, Schrittzahl) automatisch über eine <strong>Kurzbefehl-Automatisierung</strong> an LIA sendet. Ihre Daten werden unter <strong>Einstellungen → Funktionen → Gesundheitsdaten</strong> als Liniendiagramm (HF) und Balkendiagramm (Schritte) visualisiert, mit Zeitraumauswahl (Stunde / Tag / Woche / Monat / Jahr) und einer gestrichelten Linie für den Mittelwert.</p>"
+          },
+          "q2": {
+            "question": "Wie konfiguriere ich mein iPhone für den Datenversand?",
+            "answer": "<p>Drei Schritte:</p><ol><li><strong>Token generieren</strong> in <strong>Einstellungen → Funktionen → Gesundheitsdaten → Ingestion-API</strong>. Das Token beginnt mit <code>hm_</code> und wird nur einmal angezeigt — sofort kopieren.</li><li><strong>iOS-Kurzbefehl erstellen</strong>, der Ihre Herzfrequenz (letzte Messung) und Schritte (letzte Stunde) abruft und per POST an <code>https://lia.jeyswork.com/api/v1/ingest/health</code> mit dem Header <code>Authorization: Bearer hm_…</code> sendet.</li><li><strong>Stündliche Automatisierung planen</strong> in der Kurzbefehle-App.</li></ol><p>👉 Schritt-für-Schritt: <code>docs/guides/GUIDE_IPHONE_SHORTCUTS_HEALTH.md</code>.</p>"
+          },
+          "q3": {
+            "question": "Welche Daten werden gesendet und gespeichert?",
+            "answer": "<p>Nur zwei Zahlenwerte pro Anfrage:</p><ul><li><strong>c</strong>: Ihre letzte Herzfrequenz (bpm)</li><li><strong>p</strong>: Anzahl der Schritte seit der vorherigen Anfrage (KEIN täglicher Zähler)</li></ul><p>Der Server zeitstempelt den Wert bei Empfang (UTC) und wendet eine <strong>physiologische Validierung</strong> an: HF außerhalb von [20, 250] bpm oder Schritte außerhalb von [0, 15 000] werden als NULL gespeichert (Rohwert wird nie geloggt — DSGVO-konform). Andere gültige Felder bleiben erhalten.</p>"
+          },
+          "q4": {
+            "question": "Wie lösche ich meine Gesundheitsdaten?",
+            "answer": "<p>In <strong>Einstellungen → Funktionen → Gesundheitsdaten → Datenverwaltung</strong> sind drei Aktionen verfügbar:</p><ul><li><strong>Herzfrequenzen löschen</strong>: setzt alle HF-Werte auf NULL (Schritte bleiben).</li><li><strong>Schritte löschen</strong>: setzt alle Schritt-Werte auf NULL (HF bleibt).</li><li><strong>Alles löschen</strong>: löscht alle Zeilen endgültig (Ihre Ingestion-Tokens bleiben aktiv).</li></ul><p>Beim Löschen Ihres LIA-Kontos werden alle Gesundheitsdaten automatisch entfernt (SQL-Kaskade).</p>"
+          },
+          "q5": {
+            "question": "Ist mein Token bei Abfangen sicher?",
+            "answer": "<p>Ja. Das Token wird wie ein Passwort behandelt:</p><ul><li><strong>SHA-256-Hash gespeichert</strong> — der Rohwert wird nie persistiert. Niemand (auch kein LIA-Admin) kann es nach der Erstellung wiederherstellen.</li><li><strong>Nur einmal angezeigt</strong>: nur ein 8-Zeichen-Präfix (<code>hm_xxxxxxxx…</code>) bleibt sichtbar.</li><li><strong>Einzeln widerrufbar</strong> jederzeit in der UI. Sie können mehrere ausstellen (eines pro Gerät) und unabhängig verwalten.</li><li><strong>Auf einen Endpoint beschränkt</strong>: ein Token erlaubt nur den Versand von Gesundheitsdaten.</li><li><strong>Rate-Limit</strong>: 5 Anfragen pro Stunde pro Token (Redis Sliding Window).</li></ul>"
+          }
+        }
       }
     },
     "contact": {
@@ -4817,6 +4855,10 @@
         "title": "Skills mit Karten & Mini-Apps",
         "description": "Erweitern Sie LIA mit maßgeschneiderten Experten-Skills. Skills können nun interaktive Karten, Dashboards, Kalender, QR-Codes und Mini-Apps direkt im Chat anzeigen — mit automatischer Theme- und Sprachsynchronisation. Erstellen Sie eigene Skills in natürlicher Sprache mit dem integrierten Skill Generator, oder importieren Sie von agentskills.io-kompatiblen Marktplätzen. Kompatibel mit 30+ Tools wie Claude Code, Cursor und VS Code."
       },
+      "health_metrics": {
+        "title": "iPhone-Gesundheitsdaten",
+        "description": "Übermitteln Sie automatisch Ihre Herzfrequenz und Schrittzahl aus Apple Health per Kurzbefehl-Automatisierung. Visualisierung nach Stunde / Tag / Woche / Monat / Jahr mit Zeitraummittel. Dedizierte, widerrufbare Token-Authentifizierung. Verschlüsselt gespeichert, nie im Klartext geloggt."
+      },
       "sub_agents": {
         "title": "Sub-Agenten",
         "description": "Delegieren Sie komplexe Aufgaben an spezialisierte kurzlebige Experten, die parallel für tiefgehende Recherche, Mehrquellen-Analyse und Expertensynthese arbeiten."
@@ -5479,6 +5521,74 @@
       "patterns": "Querschnittsmuster",
       "adr": "Architekturentscheidungen",
       "extensibility": "Erweiterbarkeit"
+    }
+  },
+  "healthMetrics": {
+    "title": "Gesundheitsdaten",
+    "description": "iPhone-Ingestion + Visualisierung von Herzfrequenz und Schritten",
+    "ingestion": {
+      "title": "Ingestion-API",
+      "description": "Konfigurieren Sie Ihre iPhone-Automatisierung, um Gesundheitsdaten stündlich zu senden.",
+      "urlLabel": "Aufzurufende URL (POST)",
+      "urlCopied": "URL kopiert.",
+      "payloadHint": "Erwartetes JSON: {\"data\": {\"c\": 72, \"p\": 4521, \"o\": \"iphone\"}}. Header Authorization: Bearer <Ihr_Token>."
+    },
+    "tokens": {
+      "newLabel": "Neues Token (optionale Bezeichnung)",
+      "labelPlaceholder": "Persönliches iPhone",
+      "generate": "Erzeugen",
+      "existing": "Vorhandene Tokens",
+      "none": "Noch kein Token.",
+      "createdOn": "Erstellt am",
+      "lastUsed": "Zuletzt verwendet",
+      "revoke": "Widerrufen",
+      "revokedBadge": "widerrufen",
+      "justCreated": "Kopieren Sie dieses Token jetzt — es wird nie wieder angezeigt.",
+      "created": "Token erstellt. Bitte jetzt kopieren.",
+      "createError": "Token konnte nicht erstellt werden.",
+      "revoked": "Token widerrufen.",
+      "copied": "Token kopiert."
+    },
+    "charts": {
+      "title": "Diagramme",
+      "description": "Ansicht nach Stunde, Tag, Woche, Monat oder Jahr.",
+      "periodLabel": "Zeitraum",
+      "heartRate": "Herzfrequenz (bpm)",
+      "steps": "Schritte je Zeitraum",
+      "stepsPerDay": "/ Tag",
+      "averageLabel": "Durchschnitt",
+      "empty": "Keine Daten in diesem Zeitraum.",
+      "period": {
+        "hour": "Stunde",
+        "day": "Tag",
+        "week": "Woche",
+        "month": "Monat",
+        "year": "Jahr"
+      }
+    },
+    "stats": {
+      "title": "Statistiken",
+      "description": "Indikatoren über den ausgewählten Zeitraum.",
+      "hrAvg": "HF-Durchschnitt",
+      "hrMin": "HF Min.",
+      "hrMax": "HF Max.",
+      "stepsAvg": "Ø Schritte / Tag",
+      "stepsTotal": "Schritte gesamt (Zeitraum)"
+    },
+    "management": {
+      "title": "Datenverwaltung",
+      "description": "Einen Datentyp oder alle Gesundheitsdaten löschen.",
+      "deleteHr": "Herzfrequenzen löschen",
+      "deleteHrTitle": "Alle Herzfrequenz-Werte löschen?",
+      "deleteHrDescription": "Herzfrequenz-Werte werden in allen Zeilen auf NULL gesetzt. Schritte und andere Daten bleiben erhalten.",
+      "deleteSteps": "Schritte löschen",
+      "deleteStepsTitle": "Alle Schrittzähler löschen?",
+      "deleteStepsDescription": "Schritt-Werte werden in allen Zeilen auf NULL gesetzt. Herzfrequenzen und andere Daten bleiben erhalten.",
+      "deleteAll": "Alles löschen",
+      "deleteAllTitle": "Alle Gesundheitsdaten endgültig löschen?",
+      "deleteAllDescription": "Alle Zeilen werden endgültig gelöscht. Ihre Ingestion-Tokens bleiben aktiv.",
+      "deleted": "Daten gelöscht.",
+      "deletedAll": "Alle Daten gelöscht."
     }
   },
   "psyche": {

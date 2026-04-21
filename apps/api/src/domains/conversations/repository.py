@@ -701,7 +701,7 @@ class ConversationRepository(BaseRepository[Conversation]):
             SQLAlchemyError: On database failure.
         """
         from sqlalchemy import cast, update
-        from sqlalchemy.dialects.postgresql import JSONB
+        from sqlalchemy.dialects.postgresql import JSONB, array
 
         try:
             conv_ids_subq = select(Conversation.id).where(Conversation.user_id == user_id)
@@ -721,10 +721,10 @@ class ConversationRepository(BaseRepository[Conversation]):
                                 ConversationMessage.message_metadata,
                                 empty_jsonb,
                             ),
-                            "{" + FIELD_FEEDBACK_SUBMITTED + "}",
+                            array([FIELD_FEEDBACK_SUBMITTED]),
                             func.to_jsonb(True),
                         ),
-                        "{" + FIELD_FEEDBACK_VALUE + "}",
+                        array([FIELD_FEEDBACK_VALUE]),
                         func.to_jsonb(feedback_value),
                     )
                 )

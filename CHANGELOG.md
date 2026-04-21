@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.17.0] - 2026-04-21
+
+### Added — Health Metrics ingestion (iPhone Shortcuts) + settings visualization
+
+Nouveau domaine `health_metrics` derrière feature flag `HEALTH_METRICS_ENABLED=false`.
+
+- **Endpoint d'ingestion authentifié par token** `POST /api/v1/ingest/health`
+  (Bearer `hm_xxx`). Body : `{"data": {"c": heart_rate, "p": steps_since_previous, "o": source}}`.
+  `p` est le nombre de pas enregistrés depuis le précédent envoi (PAS un compteur
+  cumulatif quotidien). Horodatage server-side à réception, rate-limit Redis
+  (5 req/h/token par défaut), validation mixte par champ (valeur hors plage →
+  NULL + log warn sans bloquer les autres champs valides).
+- **Tokens hashés (SHA-256) avec préfixe d'affichage** — valeur brute révélée
+  une seule fois à la génération, révocables individuellement. Plusieurs tokens
+  peuvent cohabiter (rotation). Table `health_metric_tokens` + migration
+  `health_metrics_001`.
+- **Table `health_metrics` (une ligne par POST)** avec colonnes nullables pour
+  `heart_rate` / `steps` (mixed validation), `source` slugifié,
+  `recorded_at` UTC, index `(user_id, recorded_at)`.
+- **Endpoints utilisateur (session-auth)** : listing, agrégation
+  (`period=hour|day|week|month|year`), suppression par champ (`UPDATE NULL`)
+  ou globale (`DELETE`), gestion tokens (list/create/revoke).
+- **Agrégation server-side** (`aggregator.py`) : SUM des `steps` par bucket
+  (heure/jour/semaine/mois/année), AVG/MIN/MAX pour la fréquence cardiaque,
+  gaps préservés (`has_data=False`) pour affichage honnête des trous d'envoi.
+- **UI Réglages → Fonctionnalités → Données santé** : 4 blocs accordéon
+  (ingestion API + tokens, graphiques, statistiques, gestion) avec charts
+  `recharts` — courbe FC + barres pas + lignes pointillées moyenne période.
+- **i18n 6 langues** (fr/en/de/es/it/zh) — namespace `healthMetrics.*`.
+- **Observabilité** : 8 métriques Prometheus (ingested/rejected/auth/rate-limit/
+  tokens/deletions + latency histogram) + dashboard Grafana 21 dédié.
+- **Documentation** : ADR-076, `docs/technical/HEALTH_METRICS.md`, guide
+  iPhone `docs/guides/GUIDE_IPHONE_SHORTCUTS_HEALTH.md`.
+
 ## [1.16.10] - 2026-04-20
 
 ### Observability Overhaul — 90+ dead metrics revived, 2 new dashboards, DB index optimizations

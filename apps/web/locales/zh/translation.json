@@ -2748,6 +2748,17 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_17_0": {
+          "title": "v1.17.0 — 健康数据:iPhone Shortcuts 上传 + 图表",
+          "date": "2026 年 4 月",
+          "count": "4",
+          "items": {
+            "i1": "<b>设置 → 功能中新增「健康数据」板块</b> — LIA 现在可以接收 iPhone 自动化(Apple 快捷指令)发送的心率和步数。所有数据均以折线图(心率)和柱状图(步数)的形式可视化,带有时间段选择器(小时 / 日 / 周 / 月 / 年)以及表示该时段平均值的虚线。",
+            "i2": "<b>专用、可撤销的令牌认证</b> — 在应用中生成令牌(以 <code>hm_…</code> 开头),只需复制一次(之后不再显示完整值,仅保留可见前缀),粘贴到您的快捷指令中。令牌仅授权健康数据上传 — 不涉及账户其他权限。您可以生成多个令牌,并独立撤销其中任何一个。",
+            "i3": "<b>细粒度删除</b> — 在「数据管理」子板块中提供三种操作:删除所有心率(保留步数)、删除所有步数(保留心率)、或全部清除。符合 GDPR 要求:服务器日志中从不写入心率和步数的原始数值。",
+            "i4": "<b>iPhone 快捷指令配置分步指南</b> — 在 <code>docs/guides/GUIDE_IPHONE_SHORTCUTS_HEALTH.md</code> 中提供完整文档(步骤 A-E + 每小时调度),包括 payload 示例、故障排查和安全说明。默认生理范围:心率 ∈ [20, 250] bpm,步数 ∈ [0, 15 000] 每次采样(可配置)。"
+          }
+        },
         "v1_16_10": {
           "title": "v1.16.10 — 可观测性升级:20个仪表板、完整指标覆盖、更快的数据库",
           "date": "2026年4月",
@@ -3924,6 +3935,33 @@
             "answer": "<p>三种方式：<strong>(1)</strong> 点击图像悬停时出现的下载按钮（箭头图标）——在移动端，按钮始终可见。<strong>(2)</strong> 点击图像全屏查看，然后使用右上角的下载按钮。<strong>(3)</strong> 在移动端，长按图像使用原生「存储图像」菜单。</p>"
           }
         }
+      },
+      "health_metrics": {
+        "title": "健康数据（iPhone）",
+        "description": "通过《快捷指令》从 Apple 健康推送心率和步数",
+        "count": "5",
+        "questions": {
+          "q1": {
+            "question": "什么是「健康数据」板块？",
+            "answer": "<p>v1.17.0 新增功能：您的 iPhone 可以通过<strong>快捷指令自动化</strong>将 Apple 健康的心率和步数自动发送到 LIA。数据在<strong>设置 → 功能 → 健康数据</strong>中以折线图（心率）和柱状图（步数）呈现，含时间段选择器（小时 / 日 / 周 / 月 / 年）及该时段平均值虚线。</p>"
+          },
+          "q2": {
+            "question": "如何设置 iPhone 以推送数据？",
+            "answer": "<p>三个步骤：</p><ol><li><strong>生成令牌</strong>：<strong>设置 → 功能 → 健康数据 → 上传接口</strong>。令牌以 <code>hm_</code> 开头，仅显示一次 — 请立即复制。</li><li><strong>创建 iOS 快捷指令</strong>：获取心率（最后一个样本）与步数（过去一小时），然后 POST 到 <code>https://lia.jeyswork.com/api/v1/ingest/health</code>，请求头 <code>Authorization: Bearer hm_…</code>。</li><li><strong>在快捷指令中安排每小时运行一次</strong>。</li></ol><p>👉 完整指南：<code>docs/guides/GUIDE_IPHONE_SHORTCUTS_HEALTH.md</code>。</p>"
+          },
+          "q3": {
+            "question": "会发送和存储哪些数据？",
+            "answer": "<p>每次仅发送两个数值：</p><ul><li><strong>c</strong>：您的最近心率（bpm）</li><li><strong>p</strong>：上次上传以来记录的步数（不是每日累计）</li></ul><p>服务器在接收时打上时间戳（UTC），并进行<strong>生理验证</strong>：心率超出 [20, 250] bpm 或步数超出 [0, 15 000] 均存为 NULL 并记录警告（从不记录原始值 — 遵守 GDPR）。同一请求中有效的其他字段会被保留。</p>"
+          },
+          "q4": {
+            "question": "如何删除我的健康数据？",
+            "answer": "<p>在<strong>设置 → 功能 → 健康数据 → 数据管理</strong>中提供三项操作：</p><ul><li><strong>删除心率</strong>：将所有 FC 值设为 NULL（步数保留）。</li><li><strong>删除步数</strong>：将步数设为 NULL（FC 保留）。</li><li><strong>全部删除</strong>：永久清除所有行（上传令牌仍然有效）。</li></ul><p>如果您删除 LIA 账号，所有健康数据会自动清除（SQL 级联）。</p>"
+          },
+          "q5": {
+            "question": "我的令牌被拦截后是否安全？",
+            "answer": "<p>是。令牌被视为密码处理：</p><ul><li><strong>仅存储 SHA-256 哈希</strong> — 原始值从不保留。任何人（包括 LIA 管理员）都无法在创建后恢复。</li><li><strong>仅显示一次</strong>：后续仅保留 8 字符前缀供识别。</li><li><strong>可独立撤销</strong>：随时可以从 UI 撤销。可以生成多个（每个设备一个）并独立管理。</li><li><strong>范围限制于单个接口</strong>：令牌仅授权上传健康数据。</li><li><strong>限流</strong>：每令牌每小时 5 次请求（Redis 滑动窗口）。</li></ul>"
+          }
+        }
       }
     },
     "contact": {
@@ -4812,6 +4850,10 @@
         "title": "带地图和迷你应用的 Skills",
         "description": "用定制专家技能增强LIA。技能现在可以在聊天中直接渲染交互式地图、仪表板、日历、QR 码和迷你应用 — 主题和语言自动同步。通过内置技能生成器用自然语言创建自己的技能，或从agentskills.io兼容的市场导入。兼容30+工具，包括Claude Code、Cursor和VS Code。"
       },
+      "health_metrics": {
+        "title": "iPhone 健康数据",
+        "description": "通过《快捷指令》自动化将 Apple 健康的心率和步数自动推送到 LIA。按小时 / 日 / 周 / 月 / 年可视化,含时段平均值。专用且可撤销的令牌认证。静态加密,从不以明文记录日志。"
+      },
       "sub_agents": {
         "title": "子代理",
         "description": "将复杂任务委派给并行工作的专业临时专家，进行深入研究、多源分析和专家综合。"
@@ -5474,6 +5516,74 @@
       "patterns": "横切模式",
       "adr": "架构决策",
       "extensibility": "可扩展性"
+    }
+  },
+  "healthMetrics": {
+    "title": "健康数据",
+    "description": "iPhone 数据上传 + 心率和步数可视化",
+    "ingestion": {
+      "title": "数据上传接口",
+      "description": "配置您的 iPhone 自动化，每小时上传一次健康数据。",
+      "urlLabel": "请求地址 (POST)",
+      "urlCopied": "地址已复制。",
+      "payloadHint": "期望的 JSON 正文：{\"data\": {\"c\": 72, \"p\": 4521, \"o\": \"iphone\"}}。请求头 Authorization: Bearer <您的令牌>。"
+    },
+    "tokens": {
+      "newLabel": "新令牌（可选备注）",
+      "labelPlaceholder": "个人 iPhone",
+      "generate": "生成",
+      "existing": "已有令牌",
+      "none": "暂无令牌。",
+      "createdOn": "创建于",
+      "lastUsed": "最近使用",
+      "revoke": "撤销",
+      "revokedBadge": "已撤销",
+      "justCreated": "请立即复制此令牌——它不会再显示。",
+      "created": "令牌已创建，请立即复制。",
+      "createError": "无法创建令牌。",
+      "revoked": "令牌已撤销。",
+      "copied": "令牌已复制。"
+    },
+    "charts": {
+      "title": "图表",
+      "description": "按小时、日、周、月或年查看。",
+      "periodLabel": "周期",
+      "heartRate": "心率 (bpm)",
+      "steps": "步数（分桶）",
+      "stepsPerDay": "/ 天",
+      "averageLabel": "平均值",
+      "empty": "该时间段内无数据。",
+      "period": {
+        "hour": "小时",
+        "day": "日",
+        "week": "周",
+        "month": "月",
+        "year": "年"
+      }
+    },
+    "stats": {
+      "title": "统计",
+      "description": "所选时间段的指标。",
+      "hrAvg": "平均心率",
+      "hrMin": "心率最小值",
+      "hrMax": "心率最大值",
+      "stepsAvg": "平均步数 / 天",
+      "stepsTotal": "总步数（时段）"
+    },
+    "management": {
+      "title": "数据管理",
+      "description": "删除某一类数据，或删除全部健康数据。",
+      "deleteHr": "删除心率",
+      "deleteHrTitle": "删除所有心率数据？",
+      "deleteHrDescription": "所有行中的心率值将被置为 NULL。步数等其他数据会保留。",
+      "deleteSteps": "删除步数",
+      "deleteStepsTitle": "删除所有步数计数器？",
+      "deleteStepsDescription": "所有行中的步数值将被置为 NULL。心率等其他数据会保留。",
+      "deleteAll": "全部删除",
+      "deleteAllTitle": "永久删除所有健康数据？",
+      "deleteAllDescription": "所有行将被永久删除。您的上传令牌仍然有效。",
+      "deleted": "数据已删除。",
+      "deletedAll": "所有数据已删除。"
     }
   },
   "psyche": {

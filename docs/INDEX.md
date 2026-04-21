@@ -111,6 +111,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [ATTACHMENTS_INTEGRATION.md](./technical/ATTACHMENTS_INTEGRATION.md) | Pièces jointes (images, PDF) avec analyse vision LLM — evolution F4 | ✅ |
 | [IMAGE_GENERATION.md](./technical/IMAGE_GENERATION.md) | AI Image Generation — multi-provider, cost tracking, attachment storage | ✅ |
 | [HEARTBEAT_AUTONOME.md](./technical/HEARTBEAT_AUTONOME.md) | Notifications proactives LLM-driven (Heartbeat) — evolution F5 | ✅ |
+| [HEALTH_METRICS.md](./technical/HEALTH_METRICS.md) | Health Metrics — iPhone Shortcuts ingestion, per-user tokens, charts, aggregation | ✅ |
 | [LANDING_PAGE.md](./technical/LANDING_PAGE.md) | Architecture Landing Page — composants React, SEO, OpenGraph | ✅ |
 | [LLM_CONFIG_ADMIN.md](./technical/LLM_CONFIG_ADMIN.md) | Administration dynamique des configurations LLM (34 types, 8 providers) | ✅ |
 | [SKILLS_INTEGRATION.md](./technical/SKILLS_INTEGRATION.md) | Skills system (agentskills.io standard) — SKILL.md files, activation, scripts, rich outputs (frames + images), runtime conventions (v1.16.8) | ✅ |
@@ -218,6 +219,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [GUIDE_MCP_INTEGRATION.md](./guides/GUIDE_MCP_INTEGRATION.md) | Guide pratique MCP (admin + per-user + MCP Apps + Excalidraw) | ✅ |
 | [GUIDE_TELEGRAM_INTEGRATION.md](./guides/GUIDE_TELEGRAM_INTEGRATION.md) | Guide pratique Telegram (bot, webhook, OTP, HITL) | ✅ |
 | [GUIDE_HEARTBEAT_PROACTIVE_NOTIFICATIONS.md](./guides/GUIDE_HEARTBEAT_PROACTIVE_NOTIFICATIONS.md) | Guide pratique Heartbeat (ProactiveTask, ContextAggregator) | ✅ |
+| [GUIDE_IPHONE_SHORTCUTS_HEALTH.md](./guides/GUIDE_IPHONE_SHORTCUTS_HEALTH.md) | Guide pas-à-pas — configurer l'automatisation iPhone pour pousser FC + pas vers LIA | ✅ |
 | [GUIDE_SCHEDULED_ACTIONS.md](./guides/GUIDE_SCHEDULED_ACTIONS.md) | Guide pratique Actions Planifiees (recurrentes, timezone, retry) | ✅ |
 | [GUIDE_RAG_SPACES.md](./guides/GUIDE_RAG_SPACES.md) | Guide RAG Spaces (espaces de connaissances, upload, hybrid search) | ✅ |
 | [GUIDE_DEVOPS_CLAUDE_CLI.md](./guides/GUIDE_DEVOPS_CLAUDE_CLI.md) | Guide DevOps Claude CLI (remote server management, setup, security) | ✅ |

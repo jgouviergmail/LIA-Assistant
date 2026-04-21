@@ -3534,3 +3534,63 @@ REACT_AGENT_MAX_ITERATIONS_DEFAULT: int = 15
 REACT_AGENT_TIMEOUT_SECONDS_DEFAULT: int = 120
 REACT_AGENT_MAX_TOOLS_DEFAULT: int = 25
 REACT_AGENT_HISTORY_WINDOW_TURNS_DEFAULT: int = 5
+
+# ============================================================================
+# HEALTH METRICS (iPhone Shortcuts ingestion — heart rate, steps, …)
+# ============================================================================
+# Feature flag default
+HEALTH_METRICS_ENABLED_DEFAULT: bool = False
+
+# Token format
+HEALTH_METRICS_TOKEN_PREFIX: str = "hm_"
+HEALTH_METRICS_TOKEN_RANDOM_BYTES: int = 24  # => 32 chars base64url
+HEALTH_METRICS_TOKEN_DISPLAY_PREFIX_CHARS: int = 11  # "hm_" + 8 chars shown in UI
+HEALTH_METRICS_TOKEN_HASH_ALGO: str = "sha256"
+
+# Ingestion payload keys (stable contract for iPhone Shortcut)
+HEALTH_METRICS_PAYLOAD_KEY_HEART_RATE: str = "c"
+HEALTH_METRICS_PAYLOAD_KEY_STEPS: str = "p"
+HEALTH_METRICS_PAYLOAD_KEY_SOURCE: str = "o"
+HEALTH_METRICS_PAYLOAD_WRAPPER: str = "data"
+
+# Physiological validation bounds (mixed validation: out-of-range field → NULL)
+# `steps` is the count over the inter-sample period (NOT a daily cumulative),
+# so the upper bound represents the largest plausible activity in one window.
+HEALTH_METRICS_HEART_RATE_MIN: int = 20
+HEALTH_METRICS_HEART_RATE_MAX: int = 250
+HEALTH_METRICS_STEPS_MIN: int = 0
+HEALTH_METRICS_STEPS_MAX: int = 15000
+
+# Source metadata
+HEALTH_METRICS_SOURCE_DEFAULT: str = "unknown"
+HEALTH_METRICS_SOURCE_MAX_LENGTH: int = 32
+
+# Rate limiting (per token, Redis bucket)
+HEALTH_METRICS_RATE_LIMIT_PER_HOUR_DEFAULT: int = 5
+HEALTH_METRICS_RATE_LIMIT_KEY_PREFIX: str = "health_metrics_ingest"
+HEALTH_METRICS_RATE_LIMIT_WINDOW_SECONDS: int = 3600  # 1-hour sliding window
+
+# Aggregation periods (frontend → backend contract)
+HEALTH_METRICS_PERIOD_HOUR: str = "hour"
+HEALTH_METRICS_PERIOD_DAY: str = "day"
+HEALTH_METRICS_PERIOD_WEEK: str = "week"
+HEALTH_METRICS_PERIOD_MONTH: str = "month"
+HEALTH_METRICS_PERIOD_YEAR: str = "year"
+HEALTH_METRICS_PERIODS: tuple[str, ...] = (
+    HEALTH_METRICS_PERIOD_HOUR,
+    HEALTH_METRICS_PERIOD_DAY,
+    HEALTH_METRICS_PERIOD_WEEK,
+    HEALTH_METRICS_PERIOD_MONTH,
+    HEALTH_METRICS_PERIOD_YEAR,
+)
+
+# Deletion field scope (UPDATE field = NULL vs DELETE row)
+# The actual column-name string constants live in src.core.field_names
+# (FIELD_HEART_RATE, FIELD_STEPS) — referenced here only to build the
+# deletion allowlist without duplicating the literals.
+from src.core.field_names import FIELD_HEART_RATE, FIELD_STEPS  # noqa: E402
+
+HEALTH_METRICS_DELETABLE_FIELDS: tuple[str, ...] = (
+    FIELD_HEART_RATE,
+    FIELD_STEPS,
+)

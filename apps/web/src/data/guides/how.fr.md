@@ -6,7 +6,7 @@
 
 **Version** : 2.3
 **Date** : 2026-04-20
-**Application** : LIA v1.16.10
+**Application** : LIA v1.17.0
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -914,6 +914,21 @@ Un audit de l'observabilité a révélé qu'une part significative des métrique
 - **Gauges DB-backed** : DAU (`user_active_daily_gauge`), WAU (`user_active_weekly_gauge`), Redis pool (`redis_connection_pool_size_current`, `redis_connection_pool_available_current`), `checkpoints_table_size_bytes`, `connector_activation_rate{connector_type}`.
 - **URL sanitization segment-par-segment** pour éliminer la cardinality bomb sur `connector_api_*{operation}` — regex UUID/id/hex_id/token → placeholders (`{uuid}`, `{id}`, `{hex_id}`, `{token}`), 12/12 cas de test passants. Sans cette protection, chaque requête API Google/Apple/Microsoft portant un ID de ressource créait une nouvelle série Prometheus, inflant la mémoire du scrape au fil du temps.
 - **Fixes associés** : `planner_plans_created_total` déclaré avec `[execution_mode]` seul mais appelé avec `(execution_mode, agents_count)` → `ValueError` silencieux corrigé ; `hitl_question_ttft_seconds.observe()` sans `.labels()` (bug pré-existant) corrigé par ajout de `.labels(type="tool_confirmation")` ; dashboards 19/20 complètement vides corrigés (Grafana exige une structure flat quand `row.collapsed: false`) ; `Connector.is_active` → `Connector.status == ConnectorStatus.ACTIVE` ; label `ConnectorType.BRAVE_SEARCH` → `ctype.value` ; imports `metrics_business` corrigés (étaient pointés vers `metrics`) ; magic number `0.5` remplacé par `get_confidence_bucket() == "low"` pour alignement sémantique avec `router_decisions_total{confidence_bucket}` ; proactive runner helpers (`track_proactive_task_execution`, `track_proactive_notification`, `track_proactive_tokens`, `track_proactive_feedback`) rebranchés sur le code de production.
+
+### 23.12. Données santé via iPhone Shortcuts (v1.17.0)
+
+Nouveau domaine DDD `health_metrics` (cf. [ADR-076](../docs/architecture/ADR-076-Health-Metrics-Ingestion.md)) introduisant un endpoint d'ingestion REST authentifié par token, pour qu'une automatisation iPhone (Apple Raccourcis) puisse pousser fréquence cardiaque et nombre de pas toutes les heures, visualisés ensuite dans une nouvelle section Réglages.
+
+- **Endpoint** : `POST /api/v1/ingest/health` avec `Authorization: Bearer hm_xxx` et corps `{"data": {"c": <bpm>, "p": <pas>, "o": <source>}}`. `p` est l'incrément depuis la précédente mesure (PAS un compteur cumulatif). Le serveur horodate l'échantillon à réception (UTC).
+- **Tokens hashés** : table `health_metric_tokens` ne stocke que le digest SHA-256 ; la valeur brute (préfixe `hm_` + 32 chars `secrets.token_urlsafe`) est révélée une seule fois à la création. Préfixe d'affichage 8 caractères pour identification dans la liste. Plusieurs tokens actifs en parallèle, révocation individuelle.
+- **Validation mixte par champ** : valeurs hors plages physiologiques (`[20, 250]` bpm pour HR, `[0, 15 000]` pas/sample) → colonne NULL + log warn (jamais la valeur brute, conformité RGPD), les autres champs valides du même payload sont préservés. Bornes configurables via `.env`.
+- **Migration `health_metrics_001`** : tables `health_metrics` (id, user_id, recorded_at, heart_rate, steps_cumulative, source) + `health_metric_tokens` (id, user_id, token_hash, token_prefix, label, last_used_at, revoked_at). Index `(user_id, recorded_at)`. Migration `health_metrics_002` rename `steps_cumulative` → `steps` après le pivot sémantique « increment, pas cumul ».
+- **Aggregator Python** (`SUM` par bucket horaire/jour/semaine/mois/année + `AVG/MIN/MAX` HR), gaps préservés (`has_data=False`) — pas d'interpolation, le frontend (`recharts`) rend les trous via `connectNulls={false}`.
+- **Rate limit Redis** (sliding window) : 5 req/h/token par défaut. Constante `HEALTH_METRICS_RATE_LIMIT_WINDOW_SECONDS = 3600`. Fail-open sur erreur Redis.
+- **Frontend** : section unique `SettingsSection value="health_metrics"` (pattern Psyche) avec sélecteur de période partagé + 4 sous-accordéons (API + tokens, Graphiques, Statistiques, Gestion des données). Hook `useHealthMetrics(period)` consommant `useApiQuery`/`useApiMutation`.
+- **Observabilité** : 8 métriques Prometheus (`health_metrics_ingested_total{status}`, `_ingest_duration_seconds`, `_validation_rejected_total{field, reason}`, `_rate_limit_hits_total`, `_auth_failures_total{reason}`, `_tokens_generated_total`, `_tokens_revoked_total`, `_deleted_total{scope}`) + dashboard Grafana 21 dédié.
+- **Sécurité** : `WWW-Authenticate: Bearer` (RFC 7235) sur les 401, `Retry-After` sur les 429. Logs structurés sans PII. Constante `FIELD_HEART_RATE`/`FIELD_STEPS` dans `field_names.py`. Cascade SQL `ON DELETE CASCADE` sur la FK `users` couvre l'erasure de compte.
+- **Feature flag** : `HEALTH_METRICS_ENABLED=false` par défaut. Active dans `.env` pour bénéficier du domaine.
 
 ---
 

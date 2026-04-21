@@ -2755,6 +2755,17 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_17_0": {
+          "title": "v1.17.0 — Dati sanitari: ingestione iPhone Shortcuts + grafici",
+          "date": "Aprile 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>Nuova sezione «Dati sanitari» in Impostazioni → Funzionalità</b> — LIA può ora ricevere la frequenza cardiaca e il conteggio dei passi inviati da un'automazione iPhone (Comandi rapidi). Tutto è visualizzato come grafico a linea (FC) e a barre (passi) con selettore di periodo (ora / giorno / settimana / mese / anno) e linee tratteggiate per la media del periodo.",
+            "i2": "<b>Autenticazione tramite token dedicato, revocabile</b> — Generi un token (inizia con <code>hm_…</code>) dall'app, lo copi una volta (non viene più mostrato, resta solo un prefisso visibile) e lo incolli nel tuo Comando rapido. Il token autorizza solo l'invio di dati sanitari — nient'altro dell'account. Puoi generarne molti e revocarli singolarmente.",
+            "i3": "<b>Eliminazione granulare</b> — Tre azioni nella sotto-sezione «Gestione dei dati»: eliminare tutte le frequenze cardiache (i passi vengono conservati), eliminare tutti i passi (la FC viene conservata), o cancellare tutto. Conforme al GDPR: i valori grezzi di FC e passi non vengono mai scritti nei log del server.",
+            "i4": "<b>Guida passo-passo per configurare il Comando rapido iPhone</b> — Documentazione completa (passi A-E + pianificazione oraria) in <code>docs/guides/GUIDE_IPHONE_SHORTCUTS_HEALTH.md</code> con esempio di payload, troubleshooting e note di sicurezza. Limiti fisiologici predefiniti: FC ∈ [20, 250] bpm, passi ∈ [0, 15 000] per campione (configurabile)."
+          }
+        },
         "v1_16_10": {
           "title": "v1.16.10 — Osservabilità rafforzata: 20 dashboard, metriche complete, DB più veloce",
           "date": "Aprile 2026",
@@ -3931,6 +3942,33 @@
             "answer": "<p>Tre opzioni: <strong>(1)</strong> Clicca sul pulsante di download (icona freccia) che appare al passaggio del mouse sull'immagine — su mobile, il pulsante è sempre visibile. <strong>(2)</strong> Clicca sull'immagine per aprirla a schermo intero, poi usa il pulsante di download in alto a destra. <strong>(3)</strong> Su mobile, tieni premuto sull'immagine per usare il menu nativo «Salva immagine».</p>"
           }
         }
+      },
+      "health_metrics": {
+        "title": "Dati sanitari (iPhone)",
+        "description": "Invia frequenza cardiaca e passi da Apple Salute tramite Comandi rapidi",
+        "count": "5",
+        "questions": {
+          "q1": {
+            "question": "Cos'è la sezione «Dati sanitari»?",
+            "answer": "<p>Una nuova funzionalità (v1.17.0) che consente al tuo iPhone di inviare automaticamente le misurazioni di Apple Salute (frequenza cardiaca, passi) a LIA tramite un'<strong>automazione Comandi rapidi</strong>. I dati sono visualizzati in <strong>Impostazioni → Funzionalità → Dati sanitari</strong> come grafico a linee (FC) e a barre (passi), con selettore di periodo e linea tratteggiata per la media del periodo.</p>"
+          },
+          "q2": {
+            "question": "Come configuro il mio iPhone per inviare dati?",
+            "answer": "<p>Tre passi:</p><ol><li><strong>Genera un token</strong> in <strong>Impostazioni → Funzionalità → Dati sanitari → API di ingestione</strong>. Il token inizia con <code>hm_</code> e viene mostrato una sola volta — copialo subito.</li><li><strong>Crea un Comando rapido iOS</strong> che ottiene la tua FC (ultimo campione) e i passi (ultima ora), e invia un POST a <code>https://lia.jeyswork.com/api/v1/ingest/health</code> con header <code>Authorization: Bearer hm_…</code>.</li><li><strong>Pianifica un'automazione oraria</strong> nell'app Comandi rapidi.</li></ol><p>👉 Guida passo passo: <code>docs/guides/GUIDE_IPHONE_SHORTCUTS_HEALTH.md</code>.</p>"
+          },
+          "q3": {
+            "question": "Quali dati vengono inviati e memorizzati?",
+            "answer": "<p>Solo due valori numerici per invio:</p><ul><li><strong>c</strong>: la tua ultima frequenza cardiaca (bpm)</li><li><strong>p</strong>: passi registrati dal precedente invio (NON un contatore giornaliero)</li></ul><p>Il server marca l'orario alla ricezione (UTC) e applica <strong>validazione fisiologica</strong>: FC fuori [20, 250] bpm o passi fuori [0, 15 000] sono memorizzati come NULL con avvertimento (valore grezzo mai loggato — conforme GDPR). Gli altri campi validi del payload sono preservati.</p>"
+          },
+          "q4": {
+            "question": "Come elimino i miei dati sanitari?",
+            "answer": "<p>In <strong>Impostazioni → Funzionalità → Dati sanitari → Gestione dei dati</strong> sono disponibili tre azioni:</p><ul><li><strong>Elimina FC</strong>: imposta tutti i valori FC a NULL (i passi sono conservati).</li><li><strong>Elimina passi</strong>: imposta i valori dei passi a NULL (la FC è conservata).</li><li><strong>Elimina tutto</strong>: cancella tutte le righe definitivamente (i tuoi token restano attivi).</li></ul><p>Eliminando il tuo account LIA, tutti i dati sanitari vengono rimossi automaticamente (cascata SQL).</p>"
+          },
+          "q5": {
+            "question": "Il mio token è sicuro se intercettato?",
+            "answer": "<p>Sì. Il token è trattato come una password:</p><ul><li><strong>Hash SHA-256 memorizzato</strong> — il valore grezzo non è mai persistito. Nessuno (nemmeno un admin LIA) può recuperarlo dopo la creazione.</li><li><strong>Mostrato solo una volta</strong>: resta visibile solo un prefisso di 8 caratteri.</li><li><strong>Revocabile singolarmente</strong> in qualsiasi momento. Puoi emetterne diversi (uno per dispositivo) e gestirli indipendentemente.</li><li><strong>Limitato a un endpoint</strong>: un token autorizza solo l'invio di dati sanitari.</li><li><strong>Rate limit</strong>: 5 richieste/h/token (Redis sliding window).</li></ul>"
+          }
+        }
       }
     },
     "contact": {
@@ -4819,6 +4857,10 @@
         "title": "Skills con mappe e mini-app",
         "description": "Specializza LIA con competenze esperte personalizzate. Le skill possono ora mostrare mappe interattive, dashboard, calendari, QR code e mini-applicazioni direttamente nella chat — con tema e lingua sincronizzati. Crea le tue in linguaggio naturale con lo Skill Generator integrato, o importa dai marketplace compatibili agentskills.io. Compatibile con 30+ strumenti tra cui Claude Code, Cursor e VS Code."
       },
+      "health_metrics": {
+        "title": "Dati sanitari iPhone",
+        "description": "Invia automaticamente la tua frequenza cardiaca e il conteggio dei passi da Apple Salute tramite un'automazione Comandi rapidi. Visualizzazione per ora / giorno / settimana / mese / anno con media del periodo. Autenticazione tramite token dedicato, revocabile. Cifrato a riposo, mai loggato in chiaro."
+      },
       "sub_agents": {
         "title": "Sub-agenti",
         "description": "Delegare compiti complessi a esperti effimeri specializzati che lavorano in parallelo per ricerca approfondita, analisi multi-fonte e sintesi esperta."
@@ -5481,6 +5523,74 @@
       "patterns": "Pattern trasversali",
       "adr": "Decisioni architetturali",
       "extensibility": "Estensibilità"
+    }
+  },
+  "healthMetrics": {
+    "title": "Dati sanitari",
+    "description": "Ingestione iPhone + visualizzazione frequenza cardiaca e passi",
+    "ingestion": {
+      "title": "API di ingestione",
+      "description": "Configura l'automazione iPhone per inviare i dati ogni ora.",
+      "urlLabel": "URL da chiamare (POST)",
+      "urlCopied": "URL copiato.",
+      "payloadHint": "Corpo JSON atteso: {\"data\": {\"c\": 72, \"p\": 4521, \"o\": \"iphone\"}}. Header Authorization: Bearer <il_tuo_token>."
+    },
+    "tokens": {
+      "newLabel": "Nuovo token (etichetta opzionale)",
+      "labelPlaceholder": "iPhone personale",
+      "generate": "Genera",
+      "existing": "Token esistenti",
+      "none": "Nessun token per il momento.",
+      "createdOn": "Creato il",
+      "lastUsed": "Ultimo utilizzo",
+      "revoke": "Revoca",
+      "revokedBadge": "revocato",
+      "justCreated": "Copia subito questo token — non verrà più mostrato.",
+      "created": "Token creato. Copialo ora.",
+      "createError": "Impossibile creare il token.",
+      "revoked": "Token revocato.",
+      "copied": "Token copiato."
+    },
+    "charts": {
+      "title": "Grafici",
+      "description": "Visualizzazione per ora, giorno, settimana, mese o anno.",
+      "periodLabel": "Periodo",
+      "heartRate": "Frequenza cardiaca (bpm)",
+      "steps": "Passi per intervallo",
+      "stepsPerDay": "/ giorno",
+      "averageLabel": "Media",
+      "empty": "Nessun dato per questo periodo.",
+      "period": {
+        "hour": "Ora",
+        "day": "Giorno",
+        "week": "Settimana",
+        "month": "Mese",
+        "year": "Anno"
+      }
+    },
+    "stats": {
+      "title": "Statistiche",
+      "description": "Indicatori sul periodo selezionato.",
+      "hrAvg": "FC media",
+      "hrMin": "FC min",
+      "hrMax": "FC max",
+      "stepsAvg": "Passi medi / giorno",
+      "stepsTotal": "Passi totali (periodo)"
+    },
+    "management": {
+      "title": "Gestione dei dati",
+      "description": "Elimina un tipo di dato o tutti i dati sanitari.",
+      "deleteHr": "Elimina FC",
+      "deleteHrTitle": "Eliminare tutte le frequenze cardiache?",
+      "deleteHrDescription": "I valori FC saranno impostati a NULL su tutte le righe. I passi e gli altri dati vengono conservati.",
+      "deleteSteps": "Elimina passi",
+      "deleteStepsTitle": "Eliminare tutti i contatori dei passi?",
+      "deleteStepsDescription": "I valori dei passi saranno impostati a NULL su tutte le righe. FC e altri dati vengono conservati.",
+      "deleteAll": "Elimina tutto",
+      "deleteAllTitle": "Cancellare tutti i dati sanitari?",
+      "deleteAllDescription": "Tutte le righe saranno eliminate definitivamente. I token di ingestione restano attivi.",
+      "deleted": "Dati eliminati.",
+      "deletedAll": "Tutti i dati eliminati."
     }
   },
   "psyche": {

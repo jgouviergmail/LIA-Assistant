@@ -78,6 +78,12 @@ if getattr(settings, "journals_enabled", False):
     from src.domains.journals.router import router as journals_router
 
     api_router.include_router(journals_router)
+if getattr(settings, "health_metrics_enabled", False):
+    from src.domains.health_metrics.ingest_router import ingest_router as health_ingest_router
+    from src.domains.health_metrics.router import router as health_metrics_router
+
+    api_router.include_router(health_metrics_router)
+    api_router.include_router(health_ingest_router)
 if getattr(settings, "psyche_enabled", False):
     from src.domains.psyche.router import router as psyche_router
 

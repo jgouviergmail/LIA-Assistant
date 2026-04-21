@@ -6,7 +6,7 @@
 
 **Version**: 2.3
 **Date**: 2026-04-20
-**Application**: LIA v1.16.10
+**Application**: LIA v1.17.0
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -914,6 +914,20 @@ An observability audit revealed that a significant share of Prometheus metrics d
 - **DB-backed gauges**: DAU (`user_active_daily_gauge`), WAU (`user_active_weekly_gauge`), Redis pool (`redis_connection_pool_size_current`, `redis_connection_pool_available_current`), `checkpoints_table_size_bytes`, `connector_activation_rate{connector_type}`.
 - **Segment-by-segment URL sanitization** to eliminate the cardinality bomb on `connector_api_*{operation}` — regex UUID/id/hex_id/token → placeholders (`{uuid}`, `{id}`, `{hex_id}`, `{token}`), 12/12 test cases passing. Without this protection, every API request to Google/Apple/Microsoft carrying a resource ID would spawn a new Prometheus series, inflating scrape memory over time.
 - **Related fixes**: `planner_plans_created_total` declared with `[execution_mode]` but called with `(execution_mode, agents_count)` → silent `ValueError` fixed; `hitl_question_ttft_seconds.observe()` missing `.labels()` (pre-existing bug) fixed by adding `.labels(type="tool_confirmation")`; dashboards 19/20 completely empty fixed (Grafana requires a flat structure when `row.collapsed: false`); `Connector.is_active` → `Connector.status == ConnectorStatus.ACTIVE`; label `ConnectorType.BRAVE_SEARCH` → `ctype.value`; `metrics_business` imports corrected (were pointing to `metrics`); magic number `0.5` replaced by `get_confidence_bucket() == "low"` for semantic alignment with `router_decisions_total{confidence_bucket}`; proactive runner helpers (`track_proactive_task_execution`, `track_proactive_notification`, `track_proactive_tokens`, `track_proactive_feedback`) wired into the production path.
+
+### 23.12. Health data via iPhone Shortcuts (v1.17.0)
+
+New DDD domain `health_metrics` (see [ADR-076](../docs/architecture/ADR-076-Health-Metrics-Ingestion.md)) introducing a token-authenticated REST ingestion endpoint, so an iPhone Shortcuts automation can push heart rate and step counts every hour, then visualized in a new Settings section.
+
+- **Endpoint**: `POST /api/v1/ingest/health` with `Authorization: Bearer hm_xxx` and body `{"data": {"c": <bpm>, "p": <steps>, "o": <source>}}`. `p` is the increment since the previous sample (NOT a daily cumulative). The server timestamps the sample at reception (UTC).
+- **Hashed tokens**: table `health_metric_tokens` stores only the SHA-256 digest; the raw value (prefix `hm_` + 32 chars `secrets.token_urlsafe`) is shown once at creation. 8-char display prefix for identification. Multiple active tokens supported, individually revocable.
+- **Mixed per-field validation**: values outside physiological bounds (`[20, 250]` bpm for HR, `[0, 15 000]` steps/sample) → column NULL + warn log (raw value never logged — GDPR-aware), other valid fields of the same payload preserved.
+- **Aggregator**: SUM per hour/day/week/month/year bucket + HR avg/min/max, gaps preserved (`has_data=False`); frontend (`recharts`) renders gaps via `connectNulls={false}`.
+- **Redis rate limit** (sliding window): 5 req/h/token by default. Fail-open on Redis errors.
+- **Frontend**: single `SettingsSection value="health_metrics"` (Psyche pattern) with shared period selector + 4 sub-accordions (API + tokens, Charts, Statistics, Data management).
+- **Observability**: 8 Prometheus metrics + dedicated Grafana dashboard 21.
+- **Security**: `WWW-Authenticate: Bearer` (RFC 7235) on 401, `Retry-After` on 429. SQL `ON DELETE CASCADE` covers account erasure.
+- **Feature flag**: `HEALTH_METRICS_ENABLED=false` by default.
 
 ---
 

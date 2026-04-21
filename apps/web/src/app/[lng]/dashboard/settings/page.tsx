@@ -52,6 +52,7 @@ import { MCPServersSettings } from '@/components/settings/MCPServersSettings';
 import { ChannelSettings } from '@/components/settings/ChannelSettings';
 import { HeartbeatSettings } from '@/components/settings/HeartbeatSettings';
 import { JournalsSettings } from '@/components/settings/JournalsSettings';
+import { HealthMetricsSettings } from '@/components/settings/HealthMetricsSettings';
 import { PsycheSettings } from '@/components/settings/PsycheSettings';
 import { SkillsSettings } from '@/components/settings/SkillsSettings';
 import { AdminSkillsSection } from '@/components/settings/AdminSkillsSection';
@@ -293,6 +294,9 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               <FeatureErrorBoundary feature="journals">
                 <JournalsSettings lng={lng} />
               </FeatureErrorBoundary>
+              <FeatureErrorBoundary feature="health-metrics">
+                <HealthMetricsSettings lng={lng} />
+              </FeatureErrorBoundary>
 
               {/* Group: Extensions & Data */}
               <SettingsGroupLabel label={t('settings.groups.extensions_data')} icon={Blocks} />
@@ -446,6 +450,9 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               </FeatureErrorBoundary>
               <FeatureErrorBoundary feature="journals">
                 <JournalsSettings lng={lng} />
+              </FeatureErrorBoundary>
+              <FeatureErrorBoundary feature="health-metrics">
+                <HealthMetricsSettings lng={lng} />
               </FeatureErrorBoundary>
 
               {/* Group: Extensions & Data */}

@@ -2762,6 +2762,17 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_17_0": {
+          "title": "v1.17.0 — Health data: iPhone Shortcuts ingestion + charts",
+          "date": "April 2026",
+          "count": "4",
+          "items": {
+            "i1": "<b>New \"Health data\" section in Settings → Features</b> — LIA can now receive heart rate and step counts from an iPhone Shortcut automation. Everything is visualized as a line chart (HR) and a bar chart (steps) with a period selector (hour / day / week / month / year) and dashed lines for the period average.",
+            "i2": "<b>Dedicated, revocable token auth</b> — Generate a token (starts with <code>hm_…</code>) from the app, copy it once (never shown again, only a display prefix remains) and paste it into your Shortcut. The token only authorizes health data ingestion — nothing else of your account. You can issue multiple tokens and revoke any of them independently.",
+            "i3": "<b>Granular deletion</b> — Three actions in the \"Data management\" sub-section: delete all heart rates (steps preserved), delete all steps (HR preserved), or wipe everything. GDPR-aware: raw HR and step values are never written to server logs.",
+            "i4": "<b>Step-by-step iPhone Shortcut setup guide</b> — End-to-end documentation (steps A-E + hourly schedule) in <code>docs/guides/GUIDE_IPHONE_SHORTCUTS_HEALTH.md</code> with payload example, troubleshooting and security notes. Default physiological bounds: HR ∈ [20, 250] bpm, steps ∈ [0, 15 000] per sample (configurable)."
+          }
+        },
         "v1_16_10": {
           "title": "v1.16.10 — Observability overhaul: 20 dashboards, full metric coverage, faster DB",
           "date": "April 2026",
@@ -3938,12 +3949,107 @@
             "answer": "<p>Three options: <strong>(1)</strong> Click the download button (arrow icon) that appears when hovering over the image — on mobile, the button is always visible. <strong>(2)</strong> Click the image to open full-screen, then use the download button in the top-right corner. <strong>(3)</strong> On mobile, long-press the image to use the native \"Save Image\" menu.</p>"
           }
         }
+      },
+      "health_metrics": {
+        "title": "Health data (iPhone)",
+        "description": "Push heart rate and steps from Apple Health via Shortcuts",
+        "count": "5",
+        "questions": {
+          "q1": {
+            "question": "What is the “Health data” section?",
+            "answer": "<p>A new feature (v1.17.0) that lets your iPhone automatically push your Apple Health measurements (heart rate, step count) to LIA via a <strong>Shortcuts automation</strong>. Your data is visualized in <strong>Settings → Features → Health data</strong> as a line chart (HR) and bar chart (steps), with a period selector (hour / day / week / month / year) and a dashed line for the period average.</p>"
+          },
+          "q2": {
+            "question": "How do I set up my iPhone to push data?",
+            "answer": "<p>Three steps:</p><ol><li><strong>Generate a token</strong> from <strong>Settings → Features → Health data → Ingestion API</strong>. The token starts with <code>hm_</code> and is shown <em>once</em> only — copy it immediately.</li><li><strong>Create an iOS Shortcut</strong> that fetches your heart rate (last sample) and steps (last hour), then POSTs to <code>https://lia.jeyswork.com/api/v1/ingest/health</code> with the header <code>Authorization: Bearer hm_…</code>.</li><li><strong>Schedule an hourly automation</strong> in the Shortcuts app.</li></ol><p>👉 Step-by-step guide: <code>docs/guides/GUIDE_IPHONE_SHORTCUTS_HEALTH.md</code>.</p>"
+          },
+          "q3": {
+            "question": "What data is sent and stored?",
+            "answer": "<p>Only two numeric values per request:</p><ul><li><strong>c</strong>: your last heart rate measurement (bpm)</li><li><strong>p</strong>: the number of steps recorded since the previous request (NOT a daily cumulative)</li></ul><p>The server timestamps the sample at reception (UTC) and applies <strong>physiological validation</strong>: HR outside [20, 250] bpm or steps outside [0, 15,000] are stored as NULL with a warning (raw value never logged — GDPR-aware). Other valid fields of the same payload are preserved.</p>"
+          },
+          "q4": {
+            "question": "How do I delete my health data?",
+            "answer": "<p>In <strong>Settings → Features → Health data → Data management</strong> three actions are available:</p><ul><li><strong>Delete heart rates</strong>: nullifies every HR value (steps preserved).</li><li><strong>Delete steps</strong>: nullifies every step value (HR preserved).</li><li><strong>Delete everything</strong>: erases every row permanently (your ingestion tokens remain active).</li></ul><p>If you delete your LIA account, all health data is wiped automatically (SQL cascade).</p>"
+          },
+          "q5": {
+            "question": "Is my token safe if intercepted?",
+            "answer": "<p>Yes. The token is treated like a password:</p><ul><li><strong>SHA-256 hash stored</strong> — the raw value is never persisted. Nobody (not even a LIA admin) can recover it after creation.</li><li><strong>Shown only once</strong>: only an 8-char prefix (<code>hm_xxxxxxxx…</code>) remains visible for identification.</li><li><strong>Revocable individually</strong> at any time from the UI. You can issue several (one per device) and manage them independently.</li><li><strong>Scoped to a single endpoint</strong>: a token only authorizes health-data ingestion, never account reads or other actions.</li><li><strong>Rate limit</strong>: 5 requests per hour per token (Redis sliding window) to block spam.</li></ul>"
+          }
+        }
       }
     },
     "contact": {
       "title": "Can't find an answer?",
       "description": "If your question isn't listed above, contact your administrator for assistance.",
       "info": "Administrators can manage users and global application settings."
+    }
+  },
+  "healthMetrics": {
+    "title": "Health data",
+    "description": "iPhone ingestion + visualization of heart rate and steps",
+    "ingestion": {
+      "title": "Ingestion API",
+      "description": "Configure your iPhone automation to push health data every hour.",
+      "urlLabel": "URL to call (POST)",
+      "urlCopied": "URL copied.",
+      "payloadHint": "Expected JSON body: {\"data\": {\"c\": 72, \"p\": 4521, \"o\": \"iphone\"}}. Header Authorization: Bearer <your_token>."
+    },
+    "tokens": {
+      "newLabel": "New token (optional label)",
+      "labelPlaceholder": "personal iPhone",
+      "generate": "Generate",
+      "existing": "Existing tokens",
+      "none": "No token yet.",
+      "createdOn": "Created on",
+      "lastUsed": "Last used",
+      "revoke": "Revoke",
+      "revokedBadge": "revoked",
+      "justCreated": "Copy this token now — it will never be shown again.",
+      "created": "Token created. Copy it now.",
+      "createError": "Failed to create token.",
+      "revoked": "Token revoked.",
+      "copied": "Token copied."
+    },
+    "charts": {
+      "title": "Charts",
+      "description": "Visualization by hour, day, week, month or year.",
+      "periodLabel": "Period",
+      "heartRate": "Heart rate (bpm)",
+      "steps": "Steps per bucket",
+      "stepsPerDay": "/ day",
+      "averageLabel": "Average",
+      "empty": "No data for this period.",
+      "period": {
+        "hour": "Hour",
+        "day": "Day",
+        "week": "Week",
+        "month": "Month",
+        "year": "Year"
+      }
+    },
+    "stats": {
+      "title": "Statistics",
+      "description": "Indicators over the selected period.",
+      "hrAvg": "Average HR",
+      "hrMin": "Min HR",
+      "hrMax": "Max HR",
+      "stepsAvg": "Avg steps / day",
+      "stepsTotal": "Total steps (period)"
+    },
+    "management": {
+      "title": "Data management",
+      "description": "Delete one metric type or all of your health data.",
+      "deleteHr": "Delete heart rates",
+      "deleteHrTitle": "Delete all heart rate samples?",
+      "deleteHrDescription": "Heart rate values will be set to NULL on every row. Steps and other data will be kept.",
+      "deleteSteps": "Delete step counts",
+      "deleteStepsTitle": "Delete all step counters?",
+      "deleteStepsDescription": "Step values will be set to NULL on every row. Heart rates and other data will be kept.",
+      "deleteAll": "Delete everything",
+      "deleteAllTitle": "Erase all health data?",
+      "deleteAllDescription": "All rows will be permanently deleted. Your ingestion tokens remain active.",
+      "deleted": "Data deleted.",
+      "deletedAll": "All data deleted."
     }
   },
   "lars": {
@@ -4817,6 +4923,10 @@
       "skills": {
         "title": "Skills with maps & mini-apps",
         "description": "Supercharge LIA with custom expert skills. Skills can now render interactive maps, dashboards, calendars, QR codes, and mini-applications directly in the chat — with automatic theme and locale sync. Create your own in natural language with the built-in Skill Generator, or import from agentskills.io-compatible marketplaces. Compatible with 30+ tools including Claude Code, Cursor, and VS Code."
+      },
+      "health_metrics": {
+        "title": "iPhone health data",
+        "description": "Automatically push your heart rate and step count from Apple Health via a Shortcuts automation. Visualization per hour / day / week / month / year with period averages. Dedicated, revocable token auth. Encrypted at rest, never logged in clear."
       },
       "sub_agents": {
         "title": "Sub-Agents",
