@@ -6,7 +6,7 @@
 
 **Version** : 2.3
 **Date** : 2026-04-20
-**Application** : LIA v1.17.0
+**Application** : LIA v1.17.1
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -919,17 +919,23 @@ Pour prévenir l'**explosion de cardinalité Prometheus** sur `connector_api_*{o
 
 ### 23.12. Ingestion d'événements externes via tokens scopés
 
-LIA accepte les ingestions d'événements externes (mesures iPhone Apple Health, payloads de tiers, futurs canaux IoT) via un pattern unifié : un endpoint REST authentifié par **token Bearer scopé**, indépendant du système de session cookie. C'est le mécanisme retenu pour le domaine [`health_metrics`](../docs/architecture/ADR-076-Health-Metrics-Ingestion.md) (fréquence cardiaque + nombre de pas envoyés par une automatisation Raccourcis iOS), et il sert de gabarit pour tout futur connecteur entrant.
+LIA accepte les ingestions d'événements externes (mesures iPhone Apple Health, payloads de tiers, futurs canaux IoT) via un pattern unifié : des endpoints REST authentifiés par **token Bearer scopé**, indépendants du système de session cookie. C'est le mécanisme retenu pour le domaine [`health_metrics`](../docs/architecture/ADR-076-Health-Metrics-Ingestion.md) (fréquence cardiaque + pas envoyés par une automatisation Raccourcis iOS), et il sert de gabarit pour tout futur connecteur entrant.
 
 **Pourquoi un token et non l'ID utilisateur** : un identifiant d'utilisateur fuite naturellement (URLs, payload JWT, logs, screenshots, exports). Un token est un **secret rotatif et révocable** scopé à un endpoint. Le préfixe (`hm_` pour les health metrics) permet de typer le scope.
 
-**Persistance** : la table de tokens stocke **uniquement le digest SHA-256** de la valeur brute. La valeur en clair (préfixe + 32 chars `secrets.token_urlsafe`) est révélée une seule fois à la création. Un préfixe d'affichage de 8 caractères reste visible pour identification dans la liste. Plusieurs tokens actifs en parallèle, révocation individuelle.
+**Persistance** : la table de tokens stocke **uniquement le digest SHA-256** de la valeur brute. La valeur en clair (préfixe + ~32 chars `secrets.token_urlsafe`) est révélée une seule fois à la création. Un préfixe d'affichage de 8 caractères reste visible pour identification dans la liste. Plusieurs tokens actifs en parallèle, révocation individuelle.
 
-**Validation mixte par champ** à l'ingestion : chaque payload est validé colonne par colonne contre des bornes plausibles. Une valeur hors plage est stockée à NULL avec un log warn (la valeur brute n'est jamais loggée — RGPD compatible), tandis que les autres champs valides du même payload sont préservés. Le serveur horodate l'échantillon à réception (UTC) — le client n'envoie pas de timestamp.
+**Batch upsert idempotent** : chaque requête porte un tableau de samples auto-horodatés (`date_start`/`date_end` ISO 8601 avec offset). Le serveur normalise en UTC, tronque à la seconde, puis applique un UPSERT PostgreSQL `ON CONFLICT (user_id, kind, date_start, date_end) DO UPDATE` avec `RETURNING (xmax = 0)` pour discriminer inserts vs updates en un aller-retour. Conséquence pratique : le client iOS peut repousser la journée entière à chaque déverrouillage sans risque de doublons — les lignes existantes sont simplement écrasées.
 
-**Sécurité** : rate limit Redis sliding window scopé par token (`HEALTH_METRICS_RATE_LIMIT_WINDOW_SECONDS = 3600`), header `WWW-Authenticate: Bearer` (RFC 7235) sur les 401, `Retry-After` sur les 429. La cascade SQL `ON DELETE CASCADE` sur la FK `users` couvre l'erasure de compte.
+**Parser flexible** : les Raccourcis iOS émettent les payloads sous quatre formes selon l'auteur (tableau JSON canonique, NDJSON, enveloppe `{"data":[…]}`, ou wrapping « Dictionnaire » `{"<ndjson_blob>":{}}` où le NDJSON est encodé comme unique clé d'un dict externe à valeur vide). Un parser en amont du service aplanit les quatre formes vers un `list[dict]` standard avant validation — pas de contrainte sur la forme du Raccourci côté utilisateur.
 
-**Visualisation** : un aggregator Python (`SUM` par bucket horaire/jour/semaine/mois/année pour les compteurs, `AVG/MIN/MAX` pour les valeurs continues) construit la série temporelle ; les buckets sans donnée sont émis avec `has_data=False` pour que le frontend (`recharts`, `connectNulls={false}`) affiche des trous honnêtes plutôt qu'une interpolation. Le composant Settings réutilise le pattern `SettingsSection` + Accordion (4 sous-sections : API + tokens, Graphiques, Statistiques, Gestion).
+**Dedupe intra-batch avec arbitrage per-kind** : PostgreSQL refuse qu'un `ON CONFLICT DO UPDATE` touche la même ligne cible deux fois (`CardinalityViolationError`). Or iOS émet légitimement des samples qui se chevauchent (Apple Watch + iPhone reportant le même intervalle). Un helper fusionne les doublons **avant** l'UPSERT avec une stratégie choisie par kind : **MAX** pour les pas (Watch et iPhone comptent des sous-ensembles complémentaires — MAX approche mieux la vérité terrain que SUM double-compte ou AVG sous-compte), **AVG** arrondi pour la fréquence cardiaque (fusion de deux capteurs visant le même signal). Les doublons collapsés sont comptabilisés comme `updated` dans la réponse et tracés via `health_samples_batch_duplicates_total{kind}`.
+
+**Validation mixte par sample** : chaque échantillon est accepté ou rejeté individuellement avec son index 0-based et une raison bornée (`out_of_range | malformed | missing_field | invalid_date`). Les voisins valides du même lot sont persistés — une glitch ponctuelle de capteur ne fait pas perdre la journée. Les valeurs brutes ne sont jamais loggées (RGPD compatible), seulement des compteurs par raison.
+
+**Sécurité** : rate limit Redis sliding window scopé par token (60 req/h par défaut, paramétrable), header `WWW-Authenticate: Bearer` (RFC 7235) sur les 401, `Retry-After` sur les 429, plafond de samples par requête avec `HTTP 413` au-delà. La cascade SQL `ON DELETE CASCADE` sur la FK `users` couvre l'erasure de compte.
+
+**Visualisation** : un aggregator polymorphe Python parcourt les samples ordonnés par `date_start` dans une fenêtre et émet un point par bucket (heure/jour/semaine/mois/année), `AVG/MIN/MAX` sur les samples `heart_rate` et `SUM` sur les samples `steps`. Les buckets sans donnée sont émis avec `has_data=False` pour que le frontend (`recharts`, `connectNulls={false}`) affiche des trous honnêtes plutôt qu'une interpolation. Le composant Settings réutilise le pattern `SettingsSection` + Accordion (4 sous-sections : API + tokens, Graphiques, Statistiques, Gestion) et affiche la **fenêtre temporelle réellement agrégée** pour lever l'ambiguïté « les stats bougent pas quand je change de période » (HR invariant si toutes les données tiennent dans la plus petite fenêtre).
 
 ---
 

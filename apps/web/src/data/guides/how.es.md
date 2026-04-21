@@ -6,7 +6,7 @@
 
 **Versión**: 2.3
 **Fecha**: 2026-04-20
-**Aplicación**: LIA v1.17.0
+**Aplicación**: LIA v1.17.1
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -745,7 +745,7 @@ Las métricas debug persisten en `sessionStorage` (50 entradas máx.).
 
 ---
 
-### 20.3. DevOps Claude CLI (v1.13.0 — solo admin)
+### 20.3. DevOps Claude CLI (solo admin)
 
 Los administradores pueden interactuar con Claude Code CLI directamente desde la conversación de LIA para diagnosticar problemas del servidor en lenguaje natural. Claude CLI está instalado dentro del contenedor Docker de la API y se ejecuta localmente via subprocess, con acceso al Docker socket para inspeccionar todos los contenedores. Los permisos son configurables por entorno y el acceso está restringido a superusuarios.
 ## 21. Rendimiento: optimizaciones y métricas
@@ -852,15 +852,90 @@ Sistema de 3 capas que resuelve un problema de duplicación: antes del ADR-061, 
 
 Cada subsistema opcional está controlado por un flag `{FEATURE}_ENABLED`, verificado al inicio (registro del scheduler), al cableado de rutas y a la entrada de nodos (cortocircuito instantáneo). Esto permite desplegar el codebase completo mientras se activan los subsistemas progresivamente.
 
-### 23.7. Mejoras UX del chat (v1.16.9)
+### 23.7. Skills enriquecidos: frames HTML e imágenes
 
-Varias mejoras transversales con la misma filosofía: **feedback inmediato, cero coste servidor cuando no es necesario**.
+Los Skills (estándar agentskills.io) pueden devolver, además de texto, **frames HTML interactivos** e **imágenes** mediante un contrato JSON tipado `SkillScriptOutput`. El script Python escribe en stdout:
 
-- **Búsqueda en el historial** — nuevo parámetro `?search=` en `GET /conversations/me/messages` (PostgreSQL `ILIKE`, case-insensitive, MVP sensible a acentos). Frontend filtra los mensajes cargados instantáneamente vía `useMemo`.
-- **Renderizado LaTeX** — `remark-math` + `rehype-katex` conectados en `MarkdownContent.tsx`. Sintaxis `$inline$` / `$$block$$`. Orden de plugins `rehypeRaw → rehypeKatex`, KaTeX produce su propio HTML sanitizado.
-- **Resaltado de sintaxis** — `react-syntax-highlighter` (PrismAsyncLight) lazy-loaded, 25 lenguajes on-demand, temas `one-dark` / `one-light` via `next-themes`.
-- **Fix de persistencia del feedback proactivo** — los botones 👍/👎/🚫 desaparecen ahora de forma persistente cross-session/cross-device. Feedback persistido en `conversation_messages.message_metadata` JSONB (`jsonb_set`, user-scoped vía subquery `conversations.user_id`). Claves de metadata centralizadas en `src/core/field_names.py`.
-- **Coherencia i18n de los tools** — Weather y Hue tools propagan ahora correctamente la locale del usuario (`if user_lang: language = user_lang`). Hue refactorizado a una Option C thread-safe vía `ConnectorTool._fetch_language()` / `_language_from_result()` con constante `_LANGUAGE_RESULT_KEY`. 126 entradas gettext añadidas a los 6 archivos `.po`/`.mo`.
+```json
+{ "text": "required", "frame": { "html" | "url", "title", "aspect_ratio" }, "image": { "url", "alt" } }
+```
+
+Los tres canales son independientes y combinables (text solo, text+frame, text+image, o los tres). La pipeline completa reutiliza la infraestructura Data Registry existente:
+
+```
+run_skill_script → parse_skill_stdout() → SkillScriptOutput
+                 → build_skill_app_output() → RegistryItem(type=SKILL_APP)
+                 → ReactToolWrapper._accumulated_registry
+                 → response_node → SkillAppSentinel.render() → <div class="lia-skill-app">
+                 → SSE registry_update + sentinel HTML
+                 → MarkdownContent.tsx → SkillAppWidget (iframe sandbox + image card)
+```
+
+**Seguridad en profundidad**: iframe sandbox `allow-scripts allow-popups` (nunca `allow-same-origin`), CSP estricta auto-inyectada en `frame.html` para los skills importados por el usuario (`connect-src 'none'`, `frame-src 'none'`), límite `SKILLS_FRAME_MAX_HTML_BYTES = 200 KB`, bridge `postMessage` minimalista sin `tools/call` ni `resources/read`.
+
+**Convenciones en runtime**: `_lang` y `_tz` auto-inyectados en `parameters` (los locales POSIX no están instalados en el contenedor, por lo que los scripts recurren a tablas de traducción inline en lugar de `strftime`+`setlocale`). Tema y locale sincronizados en vivo vía `postMessage` + `MutationObserver` sobre `<html class>` y `<html lang>`. Auto-resize del iframe vía `getBoundingClientRect().bottom` (patrón iframe-resizer). Interactividad client-side únicamente vía `addEventListener` (nada de `onclick` inline bajo CSP) y `crypto.getRandomValues` para el azar.
+
+**Primacy effect**: `skills_context` se inyecta como un 2º mensaje de sistema dedicado, prefijado con `"SKILL INSTRUCTIONS CONTRACT (PRIORITY: HIGHEST)"`, lo que garantiza que los `references/*.md` de un skill activo prevalezcan sobre las `<ResponseGuidelines>` genéricas.
+
+**Renderizado condicional**: `INTERACTIVE_WIDGET_TYPES = {SKILL_APP, MCP_APP, DRAFT}` — estos widgets se inyectan como HTML independientemente del `user_display_mode` (Rich HTML / Markdown / Cards), mientras que los demás RegistryItems permanecen condicionados al modo Cards.
+
+Una biblioteca de skills integrados demuestra el contrato: `interactive-map`, `weather-dashboard`, `calendar-month`, `qr-code`, `pomodoro-timer`, `unit-converter`, `dice-roller` — cada uno ilustrando una combinación distinta de los tres canales.
+
+### 23.8. Búsqueda de conversaciones y renderizado enriquecido del chat
+
+Tres capacidades transversales comparten la misma filosofía de producto: **feedback inmediato, cero coste servidor cuando no es necesario**.
+
+- **Búsqueda en el historial de conversaciones** — query parameter `?search=` sobre `GET /conversations/me/messages`. El filtrado se apoya en PostgreSQL `ILIKE` (case-insensitive, accent-sensitive — contrato bloqueado por test). El frontend usa un `useMemo` sobre `messages` para filtrar instantáneamente los mensajes cargados; el endpoint backend queda como capacidad latente para una futura UI de búsqueda profunda.
+- **Renderizado LaTeX** — `remark-math` + `rehype-katex` conectados en `MarkdownContent.tsx`. Sintaxis `$inline$` / `$$block$$`. Los plugins están ordenados `rehypeRaw → rehypeKatex` para evitar una doble ejecución sobre HTML bruto. KaTeX produce su propio HTML sanitizado (spans tipados), sin nueva superficie de ataque más allá de lo que `rehypeRaw` ya permite.
+- **Resaltado de sintaxis** — `react-syntax-highlighter` (PrismAsyncLight) lazy-loaded. 25 lenguajes registrados bajo demanda vía `SyntaxHighlighter.registerLanguage(...)` para mantener el bundle inicial ligero (los lenguajes se cargan en el primer code block). Tema automático `one-dark` / `one-light` pilotado por `next-themes`.
+
+### 23.9. Persistencia del feedback proactivo
+
+El feedback del usuario sobre las notificaciones proactivas (👍/👎/🚫 sobre intereses, heartbeat) se persiste directamente en `conversation_messages.message_metadata` JSONB vía `jsonb_set(jsonb_set(coalesce(metadata, '{}'::jsonb), '{feedback_submitted}', 'true'), '{feedback_value}', '"thumbs_up"')`. El update está **scoped por `user_id`** mediante subquery sobre `conversations.user_id` para prevenir cualquier fuga cross-tenant.
+
+El frontend lee el estado inicial desde `message.metadata?.feedback_submitted` (los botones permanecen ocultos al recargar para los mensajes ya votados) y aplica el feedback **de forma optimista** (botones ocultos + toast proactivo antes de la mutación de red). Las claves de metadata están centralizadas en `src/core/field_names.py` (`FIELD_TARGET_ID`, `FIELD_FEEDBACK_ENABLED`, `FIELD_FEEDBACK_SUBMITTED`, `FIELD_FEEDBACK_VALUE`).
+
+### 23.10. Tools listos para i18n: patrón thread-safe
+
+La i18n de los tools se apoya en un contrato claro entre la invocación asíncrona (`execute_api_call`) y el formateo síncrono del resultado (`format_registry_response`). Como las instancias de tool son **singletons concurrentes** compartidos entre todas las peticiones, el estado de idioma no puede vivir en la instancia.
+
+`ConnectorTool` expone por tanto dos helpers: `_fetch_language()` (async, lee la locale del usuario desde el contexto) y `_language_from_result(result)` (sync, lee la lengua desde el propio resultado), ligados por una constante `_LANGUAGE_RESULT_KEY = "_language"` que actúa como contrato interno. Ninguna mutación de instancia, ningún ContextVar necesario para este flujo, y cada resultado transporta la lengua utilizada para formatearlo. Los archivos `.po`/`.mo` se compilan en la imagen Docker.
+
+La aplicación completa al tiempo (`gettext.gettext(text, language)` propagado explícitamente en los 6 call-sites) y a los 6 tools Hue (`list_lights`, `control_light`, `list_rooms`, `control_room`, `list_scenes`, `activate_scene`) garantiza que las salidas se rendericen en el idioma del usuario, nunca en el idioma por defecto del servicio.
+
+### 23.11. Arquitectura de observabilidad
+
+La observabilidad descansa en tres pilares: **emisión defensiva** en la ruta crítica, **dashboards Grafana** pre-cableados (20 dashboards / 354+ paneles cubriendo aplicación, infra y cada subsistema de negocio), y **gauges DB-backed** mantenidos por un updater periódico.
+
+La instrumentación Prometheus se envuelve sistemáticamente en `try/except Exception: pass` con imports lazy (`from ... import foo` dentro del try) para que ningún problema de métrica propague en la cadena de ejecución. Tres índices Postgres dedicados (`ix_conversations_updated_at` para DAU/WAU, `ix_conversations_created_at` para el histograma de conversaciones, `ix_connectors_status` para la tasa de activación) reducen las queries del updater de ~500 ms a <50 ms en una BD poblada.
+
+En validación, un handler FastAPI `RequestValidationError` contabiliza los 422 por `field` + `error_type` en `validation_errors_total`, con tope de 10 errores por petición y truncado a 40 caracteres para acotar la cardinalidad. El contrato 422 (respuesta FastAPI estándar con `detail`) se preserva estrictamente.
+
+Para medir la duración real de activación de los conectores sin intrusión en el código de servicio, **SQLAlchemy event listeners** `before_insert` / `after_insert` sobre `Connector` capturan el intervalo flush SQL → completion. Doble métrica: `oauth_connector_activation_total` (counter) + `oauth_connector_activation_duration_seconds` (histogram).
+
+**Gauges DB-backed** refrescadas cada 30 s: DAU (`user_active_daily_gauge`), WAU (`user_active_weekly_gauge`), pool Redis (`redis_connection_pool_size_current`, `redis_connection_pool_available_current`), `checkpoints_table_size_bytes`, `connector_activation_rate{connector_type}`.
+
+Para prevenir la **bomba de cardinalidad Prometheus** sobre `connector_api_*{operation}`, los paths de API se sanitizan segmento a segmento antes de la emisión: UUID/id/hex_id/token se reemplazan por placeholders `{uuid}`, `{id}`, `{hex_id}`, `{token}`. Sin esta protección, cada petición API de Google/Apple/Microsoft que llevase un ID de recurso generaría una nueva serie Prometheus.
+
+### 23.12. Ingesta de eventos externos mediante tokens con alcance
+
+LIA acepta ingestas de eventos externos (mediciones iPhone Apple Health, payloads de terceros, futuros canales IoT) mediante un patrón unificado: endpoints REST autenticados por un **token Bearer con alcance**, independientes del sistema de session cookie. Este es el mecanismo que alimenta el dominio [`health_metrics`](../docs/architecture/ADR-076-Health-Metrics-Ingestion.md) (frecuencia cardíaca + pasos enviados por una automatización Atajos de iOS), y sirve de plantilla para cualquier futuro conector entrante.
+
+**Por qué un token y no el ID de usuario**: un identificador de usuario se filtra de forma natural (URLs, payloads JWT, logs, capturas de pantalla, exportaciones). Un token es un **secreto rotable y revocable** con alcance a un único endpoint. El prefijo (`hm_` para health metrics) tipa el alcance.
+
+**Persistencia**: la tabla de tokens almacena **únicamente el digest SHA-256** del valor bruto. El valor en claro (prefijo + ~32 chars `secrets.token_urlsafe`) se revela una sola vez en la creación. Un prefijo de visualización de 8 caracteres permanece visible para identificación. Pueden coexistir varios tokens activos, con revocación individual.
+
+**Upsert idempotente por lotes**: cada solicitud lleva una lista de muestras auto-timestampadas (`date_start` / `date_end` en ISO 8601 con offset). El servidor normaliza a UTC, trunca al segundo, y aplica un UPSERT PostgreSQL `ON CONFLICT (user_id, kind, date_start, date_end) DO UPDATE ... RETURNING (xmax = 0)` para separar los contadores de insert y update en una sola ida y vuelta. Consecuencia práctica: el cliente iOS puede volver a enviar el día entero en cada desbloqueo sin riesgo de duplicados — las filas existentes simplemente se sobrescriben.
+
+**Parser flexible**: los Atajos de iOS emiten payloads en cuatro formas según el autor (array JSON canónico, NDJSON, envoltorio `{"data":[…]}`, o wrapping «Diccionario» `{"<ndjson_blob>":{}}` donde el NDJSON está codificado como única clave de un dict externo con valor vacío). Un parser aguas arriba del servicio aplana las cuatro formas a una `list[dict]` estándar antes de la validación — sin restricciones sobre cómo se haya autorizado el Atajo por parte del usuario.
+
+**Dedupe intra-lote con arbitraje por kind**: PostgreSQL rechaza que un `ON CONFLICT DO UPDATE` toque la misma fila objetivo dos veces (`CardinalityViolationError`). Sin embargo, iOS emite legítimamente muestras solapadas (Apple Watch + iPhone reportando el mismo intervalo). Un helper fusiona los duplicados **antes** del UPSERT con una estrategia elegida por kind: **MAX** para pasos (el Watch y el iPhone cuentan subconjuntos complementarios del movimiento — MAX aproxima la verdad de campo mejor que SUM doble-conteo o AVG subconteo), **AVG** redondeado para la frecuencia cardíaca (fusión de dos sensores que apuntan a la misma señal). Los duplicados colapsados se contabilizan como `updated` en la respuesta y se rastrean mediante `health_samples_batch_duplicates_total{kind}`.
+
+**Validación mixta por muestra**: cada muestra se acepta o rechaza individualmente con su índice 0-based y una razón acotada (`out_of_range | malformed | missing_field | invalid_date`). Los vecinos válidos del mismo lote se persisten — un fallo puntual de sensor no hace perder el día. Los valores brutos nunca se loguean (compatible con RGPD), solo contadores por razón.
+
+**Seguridad**: rate limit Redis sliding-window por token (60 req/h por defecto, configurable), header `WWW-Authenticate: Bearer` (RFC 7235) en los 401, `Retry-After` en los 429, tope de muestras por solicitud con `HTTP 413` por encima. El `ON DELETE CASCADE` SQL sobre la FK `users` cubre la erasure de cuenta.
+
+**Visualización**: un aggregator polimórfico Python recorre las muestras ordenadas por `date_start` en una ventana y emite un punto por bucket (hora/día/semana/mes/año), con `AVG/MIN/MAX` sobre las muestras `heart_rate` y `SUM` sobre las muestras `steps`. Los buckets sin datos se emiten con `has_data=False` para que el frontend (`recharts`, `connectNulls={false}`) muestre huecos honestos en lugar de interpolación. El componente Settings reutiliza el patrón `SettingsSection` + Accordion (4 sub-secciones: API + tokens, Gráficos, Estadísticas, Gestión de datos) y muestra la **ventana de agregación real** para deshacer la confusión «las estadísticas no se mueven cuando cambio de período» (la FC es invariante cuando todos los datos caben en la ventana más pequeña).
 
 ---
 

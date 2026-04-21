@@ -373,15 +373,19 @@ ExecutionStep(
 - **Cost transparency**: Real token costs tracked via TrackingContext, visible in Settings and dashboard
 - **Feature flags**: `JOURNALS_ENABLED=false` (system), user-level toggle in Settings > Features. [ADR-057](./docs/architecture/ADR-057-Personal-Journals.md)
 
-### Health Metrics — iPhone Shortcuts Ingestion
+### Health Metrics — iPhone Shortcuts Batch Ingestion
 
-- **Token-authenticated REST endpoint** (`POST /api/v1/ingest/health`): an iPhone Shortcut automation pushes heart rate + steps recorded since the previous sample, every hour. Body `{"data": {"c": <bpm>, "p": <steps_since_previous>, "o": <origin>}}`; server timestamps the sample at reception (UTC).
+- **Two token-authenticated endpoints** (`POST /api/v1/ingest/health/steps` and `/api/v1/ingest/health/heart_rate`): an iPhone Shortcut automation pushes daily batches of samples. Each sample carries its own ISO 8601 `date_start` / `date_end` — UTC-normalized server-side and second-truncated to keep uniqueness stable.
+- **Polymorphic single-table storage** (`health_samples`): one row per sample with a `kind` discriminator (`heart_rate` | `steps`). Extending to `spo2` / `sleep` / `calories` reduces to a new `kind` value — no new table, no new endpoint.
+- **Idempotent UPSERT** (`ON CONFLICT (user_id, kind, date_start, date_end) DO UPDATE`) using PostgreSQL's `RETURNING (xmax = 0)` trick to split insert vs update counts in a single round-trip. Re-sending the same batch is free — last value wins.
+- **Flexible body parser**: accepts JSON array, NDJSON, `{"data": [...]}` envelope, and the iOS Shortcuts "Dictionnaire" wrapping (`{"<ndjson_blob>": {}}`) — no contract pressure on the user's Raccourci authoring.
 - **Per-user hashed tokens**: SHA-256 digest stored, raw value (`hm_xxx`) returned once at generation, display prefix shown in Settings, individually revocable. Multiple tokens may coexist for rotation.
-- **Mixed per-field validation**: values outside plausible bounds (HR ∈ [20, 250] bpm, steps ∈ [0, 15 000] per sample) are stored as NULL with a warning log, while valid sibling fields of the same request are preserved.
-- **Bucketed aggregation** (`hour / day / week / month / year`): heart rate averaged, steps SUM-ed per bucket (each sample is already a per-period increment); gaps kept (`has_data=False`) so the UI displays honest curves.
-- **Settings visualization**: four-section panel (ingestion API + tokens, recharts line/bar charts with period average overlays, statistics, selective + full deletion).
-- **GDPR-aware**: selective deletion (`DELETE ?field=...`), full erasure (`DELETE /all`), `ON DELETE CASCADE` on the user FK.
-- **Observability**: 8 Prometheus metrics (ingestion rate + status, latency histogram, rejections per field, auth failures, rate-limit hits, token lifecycle, deletions) + Grafana dashboard 21.
+- **Mixed per-sample validation**: out-of-range / malformed / missing-field / invalid-date samples are individually rejected with their 0-based index + reason, while valid siblings in the same batch persist.
+- **Bucketed aggregation** (`hour / day / week / month / year`): heart rate averaged (plus min / max), steps SUM-ed per bucket; gaps kept (`has_data=False`) so the UI displays honest curves.
+- **Settings visualization**: four-section panel (ingestion API + tokens, recharts line/bar charts with period average overlays, statistics, deletion by kind or full wipe).
+- **GDPR-aware**: deletion by kind (`DELETE ?kind=...`), full erasure (`DELETE /all`), `ON DELETE CASCADE` on the user FK.
+- **Observability**: bounded-cardinality Prometheus metrics (`health_samples_upserted_total{kind, operation}`, validation rejections, rate-limit hits, auth failures, token lifecycle, deletions, latency histogram) + Grafana dashboard 21.
+- **Guards**: 60 req/h/token sliding-window rate limit (configurable), 1000 samples/batch cap (`413` beyond).
 - **Feature flag**: `HEALTH_METRICS_ENABLED=false` (system). [ADR-076](./docs/architecture/ADR-076-Health-Metrics-Ingestion.md) · [Guide iPhone](./docs/guides/GUIDE_IPHONE_SHORTCUTS_HEALTH.md) · [Technical doc](./docs/technical/HEALTH_METRICS.md)
 
 ### MCP Apps — Interactive Widgets

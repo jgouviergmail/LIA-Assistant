@@ -1,18 +1,24 @@
 """Prometheus metrics for the Health Metrics domain.
 
-Covers the ingestion endpoint (outcome + latency), per-field validation
-rejections, token lifecycle, and deletion operations.
+Covers the batch ingestion pipeline (outcome + latency), per-sample
+validation rejections, token lifecycle, and deletion operations. All label
+cardinalities are bounded on purpose:
 
-All label cardinalities are bounded on purpose:
-- ``status``: accepted | partial
-- ``field``: heart_rate | steps
-- ``reason``: out_of_range | invalid_type | missing
-- ``scope``: all | field
-- ``source`` is NOT a label to keep cardinality low — use DB queries if you
-  need per-client breakdowns.
+- ``kind``: heart_rate | steps
+- ``operation``: insert | update (for upsert result breakdown)
+- ``field``: heart_rate | steps (per-sample validation target)
+- ``reason``: out_of_range | malformed | missing_field | invalid_date
+- ``scope``: all | kind
+- ``status``: accepted | partial (legacy ingest result — still emitted as
+  an aggregated counter derived from inserted + updated vs rejected)
+
+``source`` is NOT a label to keep cardinality low — use DB queries if you
+need per-client breakdowns.
 
 Phase: evolution — Health Metrics (iPhone Shortcuts integration)
 Created: 2026-04-20
+Revised: 2026-04-21 — replaced ``ingested_total`` with
+``health_samples_upserted_total{kind, operation}``.
 """
 
 from __future__ import annotations
@@ -20,25 +26,35 @@ from __future__ import annotations
 from prometheus_client import Counter, Histogram
 
 # =============================================================================
-# Ingestion
+# Batch ingestion
 # =============================================================================
 
-health_metrics_ingested_total = Counter(
-    "health_metrics_ingested_total",
-    "Total successful health-metric ingestions, labeled by outcome.",
-    ["status"],
-    # status: accepted | partial
+health_samples_upserted_total = Counter(
+    "health_samples_upserted_total",
+    "Per-sample upsert outcomes, labeled by kind (heart_rate|steps) and "
+    "operation (insert|update). Insert = new row, update = idempotent "
+    "re-ingestion of an existing (user_id, kind, date_start, date_end) tuple.",
+    ["kind", "operation"],
+)
+
+health_samples_batch_duplicates_total = Counter(
+    "health_samples_batch_duplicates_total",
+    "Intra-batch duplicate samples collapsed before UPSERT (two samples "
+    "in the same request carrying the same (date_start, date_end) tuple). "
+    "Common when iOS emits overlapping Apple Watch + iPhone measurements. "
+    "Collapsed with last-wins semantics; reported as updates in the response.",
+    ["kind"],
 )
 
 health_metrics_ingest_duration_seconds = Histogram(
     "health_metrics_ingest_duration_seconds",
-    "Ingestion endpoint latency (seconds).",
+    "Batch ingestion endpoint latency (seconds).",
     buckets=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0),
 )
 
 health_metrics_validation_rejected_total = Counter(
     "health_metrics_validation_rejected_total",
-    "Per-field validation rejections that nullified an individual metric.",
+    "Per-sample validation rejections.",
     ["field", "reason"],
 )
 
@@ -70,8 +86,7 @@ health_metrics_tokens_revoked_total = Counter(
 # Active token count is derivable in PromQL as
 #   (sum(health_metrics_tokens_generated_total)
 #    - sum(health_metrics_tokens_revoked_total))
-# so no dedicated Gauge is exposed — keeping cardinality and scheduler
-# responsibilities out of the domain.
+# so no dedicated Gauge is exposed.
 
 # =============================================================================
 # Deletion
@@ -79,7 +94,6 @@ health_metrics_tokens_revoked_total = Counter(
 
 health_metrics_deleted_total = Counter(
     "health_metrics_deleted_total",
-    "User-initiated deletions, labeled by scope.",
+    "User-initiated deletions, labeled by scope (all | kind).",
     ["scope"],
-    # scope: all | field
 )

@@ -4,7 +4,7 @@
 
 **Versione** : 3.2
 **Data** : 2026-04-20
-**Applicazione** : LIA v1.17.0
+**Applicazione** : LIA v1.17.1
 **Licenza** : AGPL-3.0 (Open Source)
 
 ---
@@ -162,6 +162,16 @@ Un agente di navigazione (Playwright/Chromium headless) può navigare su siti we
 ### 3.8. Amministrazione server (DevOps)
 
 Installando Claude CLI (Claude Code) direttamente sul server, gli amministratori possono diagnosticare la propria infrastruttura in linguaggio naturale dalla chat di LIA: consultare i log Docker, verificare lo stato dei container, monitorare lo spazio su disco, analizzare gli errori. Questa funzionalità è riservata agli account amministratore.
+
+### 3.9. Dati di salute personali (iPhone)
+
+LIA accoglie le misurazioni di Apple Salute che il tuo iPhone invia tramite un'automazione Comandi: frequenza cardiaca e numero di passi. Poiché iOS richiede che l'iPhone sia sbloccato affinché un'automazione temporizzata si attivi in modo affidabile, il protocollo accetta **batch giornalieri** invece di imporre una cadenza oraria — ogni volta che il Comando si attiva (allo sblocco, a un orario fisso, o entrambi), invia i campioni della giornata e il server deduplica sull'intervallo di misurazione. Rinviare lo stesso giorno è quindi senza conseguenze.
+
+I dati restano all'interno della tua istanza LIA — nessun servizio di terzi vi ha accesso — e sono visualizzati in una sezione dedicata delle Impostazioni, sotto forma di grafico a linee (FC) e a barre (passi), con un selettore di periodo (ora, giorno, settimana, mese, anno) e una linea tratteggiata per la media del periodo.
+
+L'invio è autenticato da un **token dedicato** (che inizia con `hm_…`) che generi dall'applicazione e che puoi revocare in qualsiasi momento. Il token autorizza esclusivamente l'invio di dati di salute — mai il resto del tuo account. Puoi generarne diversi (uno per dispositivo) e gestirli in modo indipendente.
+
+Tre azioni di gestione ti danno il pieno controllo: eliminare tutte le misurazioni di frequenza cardiaca, eliminare tutte le misurazioni dei passi, o cancellare tutto. Nessun valore fisiologico grezzo viene mai conservato nei log del server — la conformità GDPR è integrata fin dalla progettazione.
 
 ---
 

@@ -6,6 +6,7 @@ router layers.
 
 Phase: evolution — Health Metrics (iPhone Shortcuts integration)
 Created: 2026-04-20
+Revised: 2026-04-21 — polymorphic samples + batch upsert events.
 """
 
 from __future__ import annotations
@@ -14,33 +15,35 @@ from __future__ import annotations
 # Structured log event names (structlog event= field)
 # =============================================================================
 
-LOG_EVENT_METRIC_INGESTED: str = "health_metric_ingested"
-LOG_EVENT_METRIC_REJECTED: str = "health_metric_rejected"
-LOG_EVENT_METRIC_FIELD_INVALID: str = "health_metric_field_invalid"
-LOG_EVENT_METRIC_DELETED: str = "health_metric_deleted"
+LOG_EVENT_SAMPLES_INGESTED: str = "health_samples_ingested"
+LOG_EVENT_SAMPLE_REJECTED: str = "health_sample_rejected"
+LOG_EVENT_BATCH_DUPLICATES_COLLAPSED: str = "health_batch_duplicates_collapsed"
+LOG_EVENT_SAMPLES_DELETED: str = "health_samples_deleted"
 LOG_EVENT_TOKEN_GENERATED: str = "health_metric_token_generated"
 LOG_EVENT_TOKEN_REVOKED: str = "health_metric_token_revoked"
 LOG_EVENT_TOKEN_REJECTED: str = "health_metric_token_rejected"
 LOG_EVENT_RATE_LIMIT_HIT: str = "health_metric_rate_limit_hit"
+LOG_EVENT_PARSER_ERROR: str = "health_metric_parser_error"
 
 # =============================================================================
 # Validation rejection reasons (used in logs + Prometheus labels — low cardinality)
 # =============================================================================
 
 REJECTION_REASON_OUT_OF_RANGE: str = "out_of_range"
-REJECTION_REASON_INVALID_TYPE: str = "invalid_type"
-REJECTION_REASON_MISSING: str = "missing"
+REJECTION_REASON_MALFORMED: str = "malformed"
+REJECTION_REASON_MISSING_FIELD: str = "missing_field"
+REJECTION_REASON_INVALID_DATE: str = "invalid_date"
 
 # =============================================================================
 # Deletion scopes
 # =============================================================================
 
 DELETION_SCOPE_ALL: str = "all"
-DELETION_SCOPE_FIELD: str = "field"
+DELETION_SCOPE_KIND: str = "kind"
 
 # =============================================================================
-# Ingest response status values
+# Upsert operation labels (Prometheus)
 # =============================================================================
 
-INGEST_STATUS_ACCEPTED: str = "accepted"
-INGEST_STATUS_PARTIAL: str = "partial"  # Accepted but some fields nullified
+UPSERT_OPERATION_INSERT: str = "insert"
+UPSERT_OPERATION_UPDATE: str = "update"

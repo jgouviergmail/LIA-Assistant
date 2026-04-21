@@ -44,6 +44,26 @@ type ChartRow = {
   steps_total: number | null;
 };
 
+/**
+ * Recharts tooltip styling pinned to shadcn's popover CSS variables so the
+ * tooltip respects the active theme (light / dark). Without this override
+ * recharts renders a white card with light-grey labels — unreadable in dark
+ * mode and low-contrast in light mode.
+ */
+const TOOLTIP_CONTENT_STYLE: React.CSSProperties = {
+  backgroundColor: 'hsl(var(--popover))',
+  borderColor: 'hsl(var(--border))',
+  borderRadius: '6px',
+  color: 'hsl(var(--popover-foreground))',
+};
+const TOOLTIP_LABEL_STYLE: React.CSSProperties = {
+  color: 'hsl(var(--popover-foreground))',
+  fontWeight: 500,
+};
+const TOOLTIP_ITEM_STYLE: React.CSSProperties = {
+  color: 'hsl(var(--popover-foreground))',
+};
+
 function formatBucket(iso: string, period: HealthMetricsPeriod, lng: Language): string {
   const d = new Date(iso);
   const locale = lng || 'fr';
@@ -103,6 +123,10 @@ export function HealthMetricsCharts({ lng, aggregate, period }: HealthMetricsCha
               <XAxis dataKey="label" tick={{ fontSize: 11 }} minTickGap={16} />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip
+                contentStyle={TOOLTIP_CONTENT_STYLE}
+                labelStyle={TOOLTIP_LABEL_STYLE}
+                itemStyle={TOOLTIP_ITEM_STYLE}
+                cursor={{ stroke: 'hsl(var(--muted-foreground))', strokeOpacity: 0.3 }}
                 formatter={value =>
                   value == null
                     ? '—'
@@ -161,6 +185,10 @@ export function HealthMetricsCharts({ lng, aggregate, period }: HealthMetricsCha
               <XAxis dataKey="label" tick={{ fontSize: 11 }} minTickGap={16} />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip
+                contentStyle={TOOLTIP_CONTENT_STYLE}
+                labelStyle={TOOLTIP_LABEL_STYLE}
+                itemStyle={TOOLTIP_ITEM_STYLE}
+                cursor={{ fill: 'hsl(var(--muted-foreground))', fillOpacity: 0.1 }}
                 formatter={value =>
                   value == null
                     ? '—'

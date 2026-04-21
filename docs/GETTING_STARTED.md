@@ -2,9 +2,9 @@
 
 > Complete guide to install, configure, and get started with LIA - Multi-Agent AI Assistant v6.4
 
-**Version**: 3.5
-**Last Updated**: 2026-04-20
-**Compatibility**: LIA v1.17.0 (+ evolution Features: Web Fetch, MCP Per-User, Multi-Channel Telegram, Heartbeat Autonome, RAG Spaces, Sub-Agents, Browser Control, Personal Journals, Philips Hue Smart Home, Rich Skill Outputs — ADR-075, Chat UX polish — LaTeX, syntax highlighting, history search, copy buttons — v1.16.9, Observability overhaul — 90+ metrics revived, 2 new dashboards, DB indexes — v1.16.10, Health Metrics — iPhone Shortcuts ingestion + token auth + chart visualization — ADR-076 — v1.17.0)
+**Version**: 3.6
+**Last Updated**: 2026-04-21
+**Compatibility**: LIA v1.17.1 (+ evolution Features: Web Fetch, MCP Per-User, Multi-Channel Telegram, Heartbeat Autonome, RAG Spaces, Sub-Agents, Browser Control, Personal Journals, Philips Hue Smart Home, Rich Skill Outputs — ADR-075, Chat UX polish — LaTeX, syntax highlighting, history search, copy buttons — v1.16.9, Observability overhaul — 90+ metrics revived, 2 new dashboards, DB indexes — v1.16.10, Health Metrics — iPhone Shortcuts ingestion + token auth + chart visualization — ADR-076 — v1.17.0, Health Metrics polymorphic batch upsert refactor — v1.17.1)
 
 ## Table of Contents
 

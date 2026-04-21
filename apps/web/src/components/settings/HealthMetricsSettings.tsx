@@ -70,7 +70,8 @@ interface HealthMetricsSettingsProps {
 }
 
 const PERIOD_VALUES: HealthMetricsPeriod[] = ['hour', 'day', 'week', 'month', 'year'];
-const INGEST_PATH = '/api/v1/ingest/health';
+const INGEST_STEPS_PATH = '/api/v1/ingest/health/steps';
+const INGEST_HEART_RATE_PATH = '/api/v1/ingest/health/heart_rate';
 
 export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
   const { t } = useTranslation(lng, 'translation');
@@ -88,14 +89,16 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
     isDeleting,
     createToken,
     revokeToken,
-    deleteField,
+    deleteKind,
     deleteAll,
   } = useHealthMetrics(period);
 
-  const [ingestUrl, setIngestUrl] = useState<string>(INGEST_PATH);
+  const [ingestStepsUrl, setIngestStepsUrl] = useState<string>(INGEST_STEPS_PATH);
+  const [ingestHeartRateUrl, setIngestHeartRateUrl] = useState<string>(INGEST_HEART_RATE_PATH);
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      setIngestUrl(`${window.location.origin}${INGEST_PATH}`);
+      setIngestStepsUrl(`${window.location.origin}${INGEST_STEPS_PATH}`);
+      setIngestHeartRateUrl(`${window.location.origin}${INGEST_HEART_RATE_PATH}`);
     }
   }, []);
 
@@ -131,12 +134,12 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
     [revokeToken, t]
   );
 
-  const handleDeleteField = useCallback(
-    async (field: 'heart_rate' | 'steps') => {
-      await deleteField(field);
+  const handleDeleteKind = useCallback(
+    async (kind: 'heart_rate' | 'steps') => {
+      await deleteKind(kind);
       toast.success(t('healthMetrics.management.deleted', 'Données supprimées.'));
     },
-    [deleteField, t]
+    [deleteKind, t]
   );
 
   const handleDeleteAll = useCallback(async () => {
@@ -159,6 +162,25 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
     (sum, p) => sum + (p.steps_total ?? 0),
     0
   );
+
+  // Window range disclosure — HR aggregates (avg/min/max) are invariant
+  // under window expansion when all data fits in the smallest window, so
+  // showing the actual from/to bounds prevents the "stats seem stuck" UX
+  // confusion when the user flips the period selector.
+  const windowLabel =
+    aggregate?.from_ts && aggregate.to_ts
+      ? `${new Date(aggregate.from_ts).toLocaleString(lng, {
+          day: '2-digit',
+          month: 'short',
+          hour: '2-digit',
+          minute: '2-digit',
+        })} → ${new Date(aggregate.to_ts).toLocaleString(lng, {
+          day: '2-digit',
+          month: 'short',
+          hour: '2-digit',
+          minute: '2-digit',
+        })}`
+      : null;
 
   return (
     <SettingsSection
@@ -216,20 +238,49 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
             </AccordionTrigger>
             <AccordionContent>
               <div className="space-y-6 pb-2">
-                {/* URL */}
+                {/* URLs — one per kind */}
                 <div className="space-y-2">
                   <Label className="text-xs uppercase tracking-wide text-muted-foreground">
-                    {t('healthMetrics.ingestion.urlLabel', 'URL à appeler (POST)')}
+                    {t('healthMetrics.ingestion.stepsUrlLabel', 'URL pas (POST)')}
                   </Label>
                   <div className="flex gap-2">
-                    <Input value={ingestUrl} readOnly className="font-mono text-xs" />
+                    <Input value={ingestStepsUrl} readOnly className="font-mono text-xs" />
                     <Button
                       type="button"
                       variant="outline"
                       size="icon"
                       onClick={() =>
                         handleCopy(
-                          ingestUrl,
+                          ingestStepsUrl,
+                          'healthMetrics.ingestion.urlCopied',
+                          'URL copiée.'
+                        )
+                      }
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+                    {t(
+                      'healthMetrics.ingestion.heartRateUrlLabel',
+                      'URL fréquence cardiaque (POST)'
+                    )}
+                  </Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={ingestHeartRateUrl}
+                      readOnly
+                      className="font-mono text-xs"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() =>
+                        handleCopy(
+                          ingestHeartRateUrl,
                           'healthMetrics.ingestion.urlCopied',
                           'URL copiée.'
                         )
@@ -241,7 +292,7 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
                   <p className="text-xs text-muted-foreground">
                     {t(
                       'healthMetrics.ingestion.payloadHint',
-                      'Corps JSON attendu : {"data": {"c": 72, "p": 4521, "o": "iphone"}}. En-tête Authorization: Bearer <votre_jeton>.'
+                      'Corps JSON : tableau de mesures [{"date_start":"…","date_end":"…","steps":1234,"o":"iphone"}]. En-tête Authorization: Bearer <votre_jeton>.'
                     )}
                   </p>
                 </div>
@@ -428,6 +479,12 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
               </span>
             </AccordionTrigger>
             <AccordionContent>
+              {windowLabel && (
+                <p className="text-xs text-muted-foreground mb-3">
+                  {t('healthMetrics.stats.windowLabel', 'Fenêtre agrégée')}&nbsp;:{' '}
+                  <span className="font-mono">{windowLabel}</span>
+                </p>
+              )}
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 pb-2">
                 <StatTile
                   label={t('healthMetrics.stats.hrAvg', 'FC moyenne')}
@@ -479,9 +536,9 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
                   )}
                   alertDescription={t(
                     'healthMetrics.management.deleteHrDescription',
-                    'Les valeurs FC seront mises à NULL pour toutes les lignes. Les pas et autres données seront conservés.'
+                    'Toutes les mesures de fréquence cardiaque seront supprimées. Les pas seront conservés.'
                   )}
-                  onConfirm={() => handleDeleteField('heart_rate')}
+                  onConfirm={() => handleDeleteKind('heart_rate')}
                 />
                 <DeleteTile
                   lng={lng}
@@ -493,9 +550,9 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
                   )}
                   alertDescription={t(
                     'healthMetrics.management.deleteStepsDescription',
-                    'Les valeurs de pas seront mises à NULL pour toutes les lignes. Les FC et autres données seront conservées.'
+                    'Toutes les mesures de pas seront supprimées. Les fréquences cardiaques seront conservées.'
                   )}
-                  onConfirm={() => handleDeleteField('steps')}
+                  onConfirm={() => handleDeleteKind('steps')}
                 />
                 <DeleteTile
                   lng={lng}

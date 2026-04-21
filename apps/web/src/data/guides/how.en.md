@@ -6,7 +6,7 @@
 
 **Version**: 2.3
 **Date**: 2026-04-20
-**Application**: LIA v1.17.0
+**Application**: LIA v1.17.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -919,17 +919,23 @@ To prevent the **Prometheus cardinality bomb** on `connector_api_*{operation}`, 
 
 ### 23.12. External event ingestion via scoped tokens
 
-LIA accepts external event ingestions (iPhone Apple Health samples, third-party payloads, future IoT channels) through a unified pattern: a REST endpoint authenticated by a **scoped Bearer token**, independent of the session cookie system. This is the mechanism powering the [`health_metrics`](../docs/architecture/ADR-076-Health-Metrics-Ingestion.md) domain (heart rate + steps pushed by an iOS Shortcuts automation), and it serves as the template for any future inbound connector.
+LIA accepts external event ingestions (iPhone Apple Health samples, third-party payloads, future IoT channels) through a unified pattern: REST endpoints authenticated by a **scoped Bearer token**, independent of the session cookie system. This is the mechanism powering the [`health_metrics`](../docs/architecture/ADR-076-Health-Metrics-Ingestion.md) domain (heart rate + steps pushed by an iOS Shortcuts automation), and it serves as the template for any future inbound connector.
 
 **Why a token rather than the user ID**: a user identifier naturally leaks (URLs, JWT payloads, logs, screenshots, exports). A token is a **rotatable, revocable secret** scoped to a single endpoint. The prefix (`hm_` for health metrics) types the scope.
 
-**Persistence**: the token table stores **only the SHA-256 digest** of the raw value. The plaintext value (prefix + 32 chars `secrets.token_urlsafe`) is revealed exactly once at creation. An 8-char display prefix remains visible for identification. Multiple active tokens may coexist, with individual revocation.
+**Persistence**: the token table stores **only the SHA-256 digest** of the raw value. The plaintext value (prefix + ~32 chars `secrets.token_urlsafe`) is revealed exactly once at creation. An 8-char display prefix remains visible for identification. Multiple active tokens may coexist, with individual revocation.
 
-**Mixed per-field validation** at ingestion: each payload is validated column by column against plausible bounds. An out-of-range value is stored as NULL with a warn log (the raw value is never logged — GDPR-friendly), while the other valid fields of the same payload are preserved. The server timestamps the sample at reception (UTC) — clients do not supply a timestamp.
+**Idempotent batch upsert**: each request carries a list of self-timestamped samples (`date_start` / `date_end` ISO 8601 with offset). The server UTC-normalizes and second-truncates, then applies a PostgreSQL UPSERT `ON CONFLICT (user_id, kind, date_start, date_end) DO UPDATE ... RETURNING (xmax = 0)` to split insert vs update counts in a single round-trip. Practical consequence: the iOS client can re-push the whole day at every unlock without risk of duplicates — existing rows are simply overwritten.
 
-**Security**: per-token Redis sliding-window rate limit (`HEALTH_METRICS_RATE_LIMIT_WINDOW_SECONDS = 3600`), `WWW-Authenticate: Bearer` header (RFC 7235) on 401, `Retry-After` on 429. SQL `ON DELETE CASCADE` on the `users` FK covers account erasure.
+**Flexible parser**: iOS Shortcuts emits payloads in four shapes depending on the author (canonical JSON array, NDJSON, `{"data":[…]}` envelope, or "Dictionnaire" wrapping `{"<ndjson_blob>":{}}` where the NDJSON is encoded as the sole key of an outer dict with an empty value). A parser upstream of the service flattens all four shapes to a standard `list[dict]` before validation — no constraint on how the Shortcut is authored.
 
-**Visualization**: a Python aggregator (`SUM` per hour/day/week/month/year bucket for counters, `AVG/MIN/MAX` for continuous values) builds the time series; buckets without data are emitted with `has_data=False` so the frontend (`recharts`, `connectNulls={false}`) shows honest gaps rather than interpolation. The Settings component reuses the `SettingsSection` + Accordion pattern (4 sub-sections: API + tokens, Charts, Statistics, Data management).
+**Intra-batch dedupe with per-kind arbitrage**: PostgreSQL refuses to let an `ON CONFLICT DO UPDATE` touch the same target row twice (`CardinalityViolationError`). Yet iOS legitimately emits overlapping samples (Apple Watch + iPhone reporting the same interval). A helper merges duplicates **before** the UPSERT with a per-kind strategy: **MAX** for steps (Watch and iPhone count complementary subsets of movement — MAX approximates ground truth better than SUM double-count or AVG under-count), **AVG** (rounded) for heart rate (fusion of two sensors aimed at the same signal). Collapsed duplicates are reported as `updated` in the response and tracked via `health_samples_batch_duplicates_total{kind}`.
+
+**Mixed per-sample validation**: each sample is individually accepted or rejected with its 0-based index and a bounded reason (`out_of_range | malformed | missing_field | invalid_date`). Valid siblings in the same batch persist — a transient sensor glitch does not kill the day. Raw values are never logged (GDPR-compliant), only counters per reason.
+
+**Security**: per-token Redis sliding-window rate limit (60 req/h default, configurable), `WWW-Authenticate: Bearer` header (RFC 7235) on 401, `Retry-After` on 429, per-request sample cap with `HTTP 413` beyond. SQL `ON DELETE CASCADE` on the `users` FK covers account erasure.
+
+**Visualization**: a polymorphic Python aggregator walks samples ordered by `date_start` in a window and emits one point per bucket (hour/day/week/month/year), with `AVG/MIN/MAX` over `heart_rate` samples and `SUM` over `steps` samples. Empty buckets are emitted with `has_data=False` so the frontend (`recharts`, `connectNulls={false}`) shows honest gaps rather than interpolation. The Settings component reuses the `SettingsSection` + Accordion pattern (4 sub-sections: API + tokens, Charts, Statistics, Data management) and displays the **actual aggregation window** to defuse the "stats don't move when I change period" confusion (HR is invariant when all data fits in the smallest window).
 
 ---
 

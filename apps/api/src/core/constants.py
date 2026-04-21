@@ -3547,28 +3547,35 @@ HEALTH_METRICS_TOKEN_RANDOM_BYTES: int = 24  # => 32 chars base64url
 HEALTH_METRICS_TOKEN_DISPLAY_PREFIX_CHARS: int = 11  # "hm_" + 8 chars shown in UI
 HEALTH_METRICS_TOKEN_HASH_ALGO: str = "sha256"
 
-# Ingestion payload keys (stable contract for iPhone Shortcut)
-HEALTH_METRICS_PAYLOAD_KEY_HEART_RATE: str = "c"
-HEALTH_METRICS_PAYLOAD_KEY_STEPS: str = "p"
-HEALTH_METRICS_PAYLOAD_KEY_SOURCE: str = "o"
-HEALTH_METRICS_PAYLOAD_WRAPPER: str = "data"
+# Sample kinds (polymorphic discriminator on health_samples.kind).
+# The string values are ALSO the measurement field names in the incoming
+# client payload (iPhone Shortcut sends {..., "heart_rate": 72} or
+# {..., "steps": 1234}) — keeping a single identifier across DB + wire
+# contract avoids a spurious key-translation layer.
+HEALTH_METRICS_KIND_HEART_RATE: str = "heart_rate"
+HEALTH_METRICS_KIND_STEPS: str = "steps"
+HEALTH_METRICS_KINDS: tuple[str, ...] = (
+    HEALTH_METRICS_KIND_HEART_RATE,
+    HEALTH_METRICS_KIND_STEPS,
+)
 
-# Physiological validation bounds (mixed validation: out-of-range field → NULL)
-# `steps` is the count over the inter-sample period (NOT a daily cumulative),
-# so the upper bound represents the largest plausible activity in one window.
+# Physiological validation bounds (per-sample, mixed validation)
 HEALTH_METRICS_HEART_RATE_MIN: int = 20
 HEALTH_METRICS_HEART_RATE_MAX: int = 250
 HEALTH_METRICS_STEPS_MIN: int = 0
 HEALTH_METRICS_STEPS_MAX: int = 15000
 
 # Source metadata
-HEALTH_METRICS_SOURCE_DEFAULT: str = "unknown"
+HEALTH_METRICS_SOURCE_DEFAULT: str = "iphone"
 HEALTH_METRICS_SOURCE_MAX_LENGTH: int = 32
 
 # Rate limiting (per token, Redis bucket)
-HEALTH_METRICS_RATE_LIMIT_PER_HOUR_DEFAULT: int = 5
+HEALTH_METRICS_RATE_LIMIT_PER_HOUR_DEFAULT: int = 60
 HEALTH_METRICS_RATE_LIMIT_KEY_PREFIX: str = "health_metrics_ingest"
 HEALTH_METRICS_RATE_LIMIT_WINDOW_SECONDS: int = 3600  # 1-hour sliding window
+
+# Batch payload size
+HEALTH_METRICS_MAX_SAMPLES_PER_REQUEST_DEFAULT: int = 1000
 
 # Aggregation periods (frontend → backend contract)
 HEALTH_METRICS_PERIOD_HOUR: str = "hour"
@@ -3582,15 +3589,4 @@ HEALTH_METRICS_PERIODS: tuple[str, ...] = (
     HEALTH_METRICS_PERIOD_WEEK,
     HEALTH_METRICS_PERIOD_MONTH,
     HEALTH_METRICS_PERIOD_YEAR,
-)
-
-# Deletion field scope (UPDATE field = NULL vs DELETE row)
-# The actual column-name string constants live in src.core.field_names
-# (FIELD_HEART_RATE, FIELD_STEPS) — referenced here only to build the
-# deletion allowlist without duplicating the literals.
-from src.core.field_names import FIELD_HEART_RATE, FIELD_STEPS  # noqa: E402
-
-HEALTH_METRICS_DELETABLE_FIELDS: tuple[str, ...] = (
-    FIELD_HEART_RATE,
-    FIELD_STEPS,
 )

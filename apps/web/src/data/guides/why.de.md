@@ -4,7 +4,7 @@
 
 **Version** : 3.2
 **Datum** : 2026-04-20
-**Anwendung** : LIA v1.17.0
+**Anwendung** : LIA v1.17.1
 **Lizenz** : AGPL-3.0 (Open Source)
 
 ---
@@ -162,6 +162,16 @@ Ein Browser-Agent (Playwright/Chromium headless) kann Webseiten besuchen, klicke
 ### 3.8. Server-Administration (DevOps)
 
 Durch die Installation von Claude CLI (Claude Code) direkt auf dem Server können Administratoren ihre Infrastruktur in natürlicher Sprache über den LIA-Chat diagnostizieren: Docker-Logs einsehen, Container-Gesundheit prüfen, Festplattenspeicher überwachen, Fehler analysieren. Diese Funktion ist auf Administratorkonten beschränkt.
+
+### 3.9. Persönliche Gesundheitsdaten (iPhone)
+
+LIA empfängt die Apple-Health-Messwerte, die Ihr iPhone über eine Kurzbefehle-Automatisierung pusht: Herzfrequenz und Schrittzahl. Da iOS verlangt, dass das iPhone entsperrt ist, damit eine zeitgesteuerte Automatisierung zuverlässig ausgelöst wird, akzeptiert das Protokoll **tägliche Batches** statt einer erzwungenen stündlichen Taktung — bei jedem Auslösen des Kurzbefehls (beim Entsperren, zu einer festen Uhrzeit oder beides) werden die Messwerte des Tages übertragen, und der Server dedupliziert auf dem Mess-Intervall. Denselben Tag erneut zu senden ist daher folgenlos.
+
+Die Daten verbleiben in Ihrer LIA-Instanz — kein Drittanbieterdienst hat Zugriff — und werden in einem eigenen Bereich der Einstellungen visualisiert, als Liniendiagramm (HF) und Balkendiagramm (Schritte), mit einem Periodenselektor (Stunde, Tag, Woche, Monat, Jahr) und einer gestrichelten Linie für den Durchschnitt über die Periode.
+
+Die Übertragung wird durch ein **dediziertes Token** authentifiziert (beginnend mit `hm_…`), das Sie in der App erzeugen und jederzeit widerrufen können. Das Token autorisiert ausschließlich das Einsenden von Gesundheitsdaten — niemals den Rest Ihres Kontos. Sie können mehrere davon erzeugen (eines pro Gerät) und sie unabhängig voneinander verwalten.
+
+Drei Verwaltungsaktionen geben Ihnen die volle Kontrolle: alle Herzfrequenz-Messungen löschen, alle Schrittmessungen löschen oder alles entfernen. Kein physiologischer Rohwert wird jemals in den Server-Logs festgehalten — DSGVO-Konformität ist von Grund auf integriert.
 
 ---
 

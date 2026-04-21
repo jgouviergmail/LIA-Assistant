@@ -40,12 +40,12 @@
     {
       "id": 2,
       "type": "stat",
-      "title": "Ingested samples (5 min)",
+      "title": "Upserted samples (5 min)",
       "datasource": { "type": "prometheus", "uid": "$datasource" },
       "gridPos": { "h": 6, "w": 6, "x": 0, "y": 1 },
       "targets": [
         {
-          "expr": "sum(increase(health_metrics_ingested_total[5m]))",
+          "expr": "sum(increase(health_samples_upserted_total[5m]))",
           "refId": "A"
         }
       ],
@@ -55,14 +55,14 @@
     {
       "id": 3,
       "type": "timeseries",
-      "title": "Ingestion rate (per minute)",
+      "title": "Upsert rate by kind / operation (per minute)",
       "datasource": { "type": "prometheus", "uid": "$datasource" },
       "gridPos": { "h": 8, "w": 12, "x": 6, "y": 1 },
       "targets": [
         {
-          "expr": "sum by (status) (rate(health_metrics_ingested_total[5m])) * 60",
+          "expr": "sum by (kind, operation) (rate(health_samples_upserted_total[5m])) * 60",
           "refId": "A",
-          "legendFormat": "{{status}}"
+          "legendFormat": "{{kind}} / {{operation}}"
         }
       ],
       "fieldConfig": { "defaults": { "unit": "ops" } }

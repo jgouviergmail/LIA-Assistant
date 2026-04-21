@@ -1,14 +1,17 @@
 """Pydantic v2 schemas for the Health Metrics domain.
 
-Defines request and response models for:
-- Ingestion (external POST authenticated by token)
-- Raw metric listing
-- Aggregated visualizations (hour/day/week/month/year buckets)
-- Deletion (by field or all)
-- Token management (list, create, revoke)
+Covers:
+- Batch ingestion (per-kind: steps or heart_rate) with mixed client payload
+  shapes (iOS Shortcuts wrapping, NDJSON, JSON array, `{"data": [...]}`) —
+  the parsing happens at the router layer; this module only types the
+  *validated* sample after parsing.
+- Raw sample listing and aggregated visualization.
+- Deletion by kind or full wipe.
+- Token management (list / create / revoke).
 
 Phase: evolution — Health Metrics (iPhone Shortcuts integration)
 Created: 2026-04-20
+Revised: 2026-04-21 — polymorphic samples + batch upsert contract.
 """
 
 from __future__ import annotations
@@ -19,87 +22,83 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.core.constants import (
-    HEALTH_METRICS_SOURCE_MAX_LENGTH,
-)
-from src.domains.health_metrics.constants import (
-    INGEST_STATUS_ACCEPTED,
-    INGEST_STATUS_PARTIAL,
-)
+from src.core.constants import HEALTH_METRICS_SOURCE_MAX_LENGTH
 
 # =============================================================================
-# Ingestion
+# Ingestion — incoming sample types
 # =============================================================================
 
 
-class HealthMetricPayload(BaseModel):
-    """Inner payload sent by the iPhone Shortcut.
+class HealthStepsSampleIn(BaseModel):
+    """One steps sample as received in a batch.
 
-    Short keys are used on purpose: the Shortcut editor on iOS is much easier
-    to maintain with terse parameter names.
+    The ``date_start`` / ``date_end`` fields accept any ISO 8601 string with
+    timezone (e.g. ``"2026-04-21T14:30:00+02:00"``). Pydantic v2 parses these
+    into tz-aware datetimes; the service layer then normalizes to UTC.
     """
 
-    c: int | None = Field(
-        default=None,
-        description="Last heart rate sample (bpm).",
-    )
-    p: int | None = Field(
-        default=None,
-        description="Steps recorded since the previous sample (NOT a daily cumulative).",
-    )
+    date_start: datetime = Field(description="Start of the measurement interval (ISO 8601).")
+    date_end: datetime = Field(description="End of the measurement interval (ISO 8601).")
+    steps: int = Field(description="Number of steps recorded in the interval.")
     o: str | None = Field(
         default=None,
         max_length=HEALTH_METRICS_SOURCE_MAX_LENGTH,
-        description="Origin label (e.g. 'iphone'). Slugified server-side.",
+        description="Origin label for this specific sample (e.g. 'iphone').",
     )
 
 
-class HealthMetricIngestRequest(BaseModel):
-    """Root ingestion request body.
+class HealthHeartRateSampleIn(BaseModel):
+    """One heart-rate sample as received in a batch."""
 
-    Wrapped in a `data` object per product contract: keeps room for future
-    envelope metadata without breaking the inner payload.
-    """
-
-    data: HealthMetricPayload = Field(description="Metric values supplied by the client.")
-
-
-class HealthMetricIngestResponse(BaseModel):
-    """Response returned to the ingestion client.
-
-    Status is `accepted` if every provided field was stored as-is, or
-    `partial` if at least one field was out of range and persisted as NULL.
-    """
-
-    status: Literal["accepted", "partial"] = Field(
-        description="Ingestion outcome.",
-        examples=[INGEST_STATUS_ACCEPTED, INGEST_STATUS_PARTIAL],
-    )
-    recorded_at: datetime = Field(description="Server-side reception timestamp (UTC).")
-    stored_fields: list[str] = Field(
-        default_factory=list,
-        description="Names of fields that were successfully stored.",
-    )
-    nullified_fields: list[str] = Field(
-        default_factory=list,
-        description="Names of fields that were provided but stored as NULL (out of range).",
+    date_start: datetime = Field(description="Start of the measurement interval (ISO 8601).")
+    date_end: datetime = Field(description="End of the measurement interval (ISO 8601).")
+    heart_rate: int = Field(description="Heart rate (bpm) recorded in the interval.")
+    o: str | None = Field(
+        default=None,
+        max_length=HEALTH_METRICS_SOURCE_MAX_LENGTH,
+        description="Origin label for this specific sample (e.g. 'iphone').",
     )
 
 
 # =============================================================================
-# Raw metric rows
+# Ingestion — response
 # =============================================================================
 
 
-class HealthMetricRow(BaseModel):
-    """Single health metric row as returned by the listing endpoint."""
+class HealthIngestRejectedItem(BaseModel):
+    """A single sample that was not persisted, with its index and reason."""
+
+    index: int = Field(description="0-based index of the rejected sample in the batch.")
+    reason: str = Field(description="Human-readable rejection reason.")
+
+
+class HealthIngestResponse(BaseModel):
+    """Response returned by the batch ingestion endpoints."""
+
+    received: int = Field(description="Total samples parsed from the request.")
+    inserted: int = Field(description="New samples written to the database.")
+    updated: int = Field(description="Existing samples whose value was overwritten (upsert).")
+    rejected: list[HealthIngestRejectedItem] = Field(
+        default_factory=list,
+        description="Samples that failed validation (out of range, malformed date, …).",
+    )
+
+
+# =============================================================================
+# Raw sample rows (listing endpoint)
+# =============================================================================
+
+
+class HealthSampleRow(BaseModel):
+    """Single persisted sample as returned by the listing endpoint."""
 
     model_config = ConfigDict(from_attributes=True)
 
-    id: UUID = Field(description="Metric row ID.")
-    recorded_at: datetime = Field(description="Server-side reception timestamp (UTC).")
-    heart_rate: int | None = Field(description="Heart rate (bpm) or None.")
-    steps: int | None = Field(description="Steps over the inter-sample period, or None.")
+    id: UUID = Field(description="Row UUID.")
+    kind: Literal["heart_rate", "steps"] = Field(description="Sample kind.")
+    date_start: datetime = Field(description="Start of the measurement interval (UTC).")
+    date_end: datetime = Field(description="End of the measurement interval (UTC).")
+    value: int = Field(description="Numeric value (bpm for HR, count for steps).")
     source: str = Field(description="Origin label.")
 
 
@@ -112,9 +111,7 @@ class HealthMetricAggregatePoint(BaseModel):
     """One aggregated point on the chart.
 
     Heart-rate fields aggregate by average / min / max across the bucket's
-    samples. ``steps_total`` is the simple sum of the per-sample step counts
-    (each sample already represents the increment over its inter-sample
-    period).
+    samples. ``steps_total`` is the simple sum of the per-sample step counts.
     """
 
     bucket: datetime = Field(description="Start of the bucket window (UTC).")
@@ -122,7 +119,7 @@ class HealthMetricAggregatePoint(BaseModel):
     heart_rate_min: int | None = Field(description="Min heart rate in the bucket.")
     heart_rate_max: int | None = Field(description="Max heart rate in the bucket.")
     steps_total: int | None = Field(
-        description=("Total steps recorded during the bucket " "(sum of per-sample increments)."),
+        description="Total steps recorded during the bucket (sum of samples).",
     )
     has_data: bool = Field(description="False if the bucket contains no sample at all.")
 
@@ -152,9 +149,12 @@ class HealthMetricAggregateResponse(BaseModel):
 class HealthMetricDeleteResponse(BaseModel):
     """Response returned after a delete operation."""
 
-    scope: Literal["all", "field"] = Field(description="Deletion scope.")
-    field: str | None = Field(default=None, description="Field name (only for scope='field').")
-    affected_rows: int = Field(description="Number of rows affected.")
+    scope: Literal["all", "kind"] = Field(description="Deletion scope.")
+    kind: Literal["heart_rate", "steps"] | None = Field(
+        default=None,
+        description="Sample kind (only for scope='kind').",
+    )
+    affected_rows: int = Field(description="Number of rows deleted.")
 
 
 # =============================================================================
@@ -200,6 +200,6 @@ class HealthMetricTokenRow(BaseModel):
 
 
 class HealthMetricTokenListResponse(BaseModel):
-    """Paginated-free listing of tokens owned by the current user."""
+    """Listing of tokens owned by the current user."""
 
     tokens: list[HealthMetricTokenRow] = Field(default_factory=list, description="Tokens.")

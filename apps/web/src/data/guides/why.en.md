@@ -4,7 +4,7 @@
 
 **Version**: 3.2
 **Date**: 2026-04-20
-**Application**: LIA v1.17.0
+**Application**: LIA v1.17.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -165,11 +165,13 @@ By installing Claude CLI (Claude Code) directly on the server, administrators ca
 
 ### 3.9. Personal health data (iPhone)
 
-LIA welcomes the Apple Health measurements your iPhone pushes via a Shortcuts automation: heart rate and step count, sent every hour. The data stays inside your LIA instance — no third-party service has access — and is visualized in a dedicated Settings section, as a line chart (HR) and bar chart (steps), with a period selector (hour, day, week, month, year) and a dashed line for the period average.
+LIA welcomes the Apple Health measurements your iPhone pushes via a Shortcuts automation: heart rate and step count. Because iOS requires the iPhone to be unlocked for a timed automation to fire reliably, the protocol accepts **daily batches** rather than enforcing an hourly cadence — each time the Shortcut runs (on unlock, at a fixed hour, or both), it pushes the day's samples and the server deduplicates on the measurement interval. Re-sending the same day is therefore free.
+
+The data stays inside your LIA instance — no third-party service has access — and is visualized in a dedicated Settings section, as a line chart (HR) and bar chart (steps), with a period selector (hour, day, week, month, year) and a dashed line for the period average.
 
 Ingestion is authenticated by a **dedicated token** (starting with `hm_…`) that you generate from the app and can revoke at any time. The token only authorizes health-data ingestion — never the rest of your account. You can generate several (one per device) and manage them independently.
 
-Three management actions give you full control: erase all heart rates (keeping steps), erase all steps (keeping HR), or wipe everything. No raw heart rate or step value is ever kept in server logs — GDPR-compliance is built in by design.
+Three management actions give you full control: delete all heart-rate samples, delete all step samples, or wipe everything. No raw physiological value is ever kept in server logs — GDPR compliance is built in by design.
 
 ---
 

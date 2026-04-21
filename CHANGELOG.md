@@ -5,6 +5,112 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.17.1] - 2026-04-21
+
+### Changed — Health Metrics : refonte en batch upsert polymorphe (BREAKING)
+
+L'iPhone ne peut pas déclencher de manière fiable un automatisme horaire
+(iOS exige que le téléphone soit déverrouillé), rendant le modèle v1.17.0
+(un POST par heure avec `{data: {c, p, o}}`) structurellement fragile.
+Refonte complète vers un modèle **batch quotidien avec upsert idempotent**
+côté serveur.
+
+#### BREAKING — Contrat d'API modifié
+
+- Les endpoints `/api/v1/ingest/health` → **supprimés**, remplacés par
+  deux endpoints par kind :
+  - `POST /api/v1/ingest/health/steps`
+  - `POST /api/v1/ingest/health/heart_rate`
+- Le body `{"data": {"c": bpm, "p": steps, "o": source}}` → **remplacé**
+  par un **tableau de samples auto-horodatés**
+  `[{date_start, date_end, steps|heart_rate, o}, ...]` (ISO 8601 avec
+  offset, normalisés UTC + tronqués à la seconde).
+- L'ancien endpoint `DELETE /health-metrics?field=heart_rate|steps` (qui
+  NULL-ait la colonne) → **remplacé** par `DELETE /health-metrics?kind=…`
+  qui supprime les lignes de ce kind.
+- L'ancienne table `health_metrics` (une ligne par POST) → **supprimée**
+  et remplacée par la table polymorphe `health_samples(kind, date_start,
+  date_end, value, source)` avec `UniqueConstraint(user_id, kind,
+  date_start, date_end)` comme ancre d'idempotence. Migration `health_metrics_003`
+  (DROP + CREATE, feature flag off en prod au moment de la coupure).
+
+#### Added
+
+- **Parser flexible** (`parser.py`) acceptant quatre formes d'enveloppe :
+  tableau JSON canonique, NDJSON, `{"data": [...]}`, et le wrapping
+  « Dictionnaire » iOS `{"<ndjson_blob>": {}}` (détecté par heuristique —
+  clé unique avec `\n` + valeur vide). Aucune contrainte sur la forme du
+  Raccourci côté utilisateur.
+- **UPSERT PostgreSQL** via `INSERT ... ON CONFLICT ... DO UPDATE ...
+  RETURNING (xmax = 0)` qui discrimine inserts vs updates en un aller-retour.
+  Re-sending le même batch n'insère aucune ligne en double.
+- **Dedupe intra-batch avec arbitrage per-kind** — résout le bug
+  `CardinalityViolationError` survenant quand iOS émet des samples overlap
+  (Apple Watch + iPhone) pour la même période. Stratégies :
+  - `steps` → **MAX** (Watch et iPhone comptent des sous-ensembles
+    complémentaires du mouvement ; MAX approche la vérité terrain mieux
+    que SUM double-compte ou AVG sous-compte).
+  - `heart_rate` → **AVG** arrondi (fusion de deux capteurs visant le
+    même signal physiologique).
+  - Duplicats collapsés comptabilisés comme `updated` dans la réponse,
+    warning log `health_batch_duplicates_collapsed`, counter Prometheus
+    `health_samples_batch_duplicates_total{kind}`.
+- **Validation mixte par échantillon** — chaque sample est accepté ou
+  rejeté individuellement avec son index 0-based, les siblings valides
+  sont persistés. La réponse liste `rejected[{index, reason}]` avec des
+  motifs bornés (`out_of_range | malformed | missing_field | invalid_date`).
+- **Aggregator polymorphe server-side** (`aggregator.aggregate_samples`) —
+  SUM sur les samples `steps`, AVG/MIN/MAX sur les samples `heart_rate`,
+  gaps préservés (`has_data=False`).
+- **UI Réglages — fenêtre temporelle agrégée affichée** dans la section
+  Statistiques pour lever l'ambiguïté UX « les stats ne bougent pas quand
+  je change de période » (les stats HR sont invariantes quand toutes les
+  données tiennent dans la plus petite fenêtre — affichage explicite des
+  bornes from/to).
+
+#### Fixed
+
+- **Bug prod : 500 `CardinalityViolationError`** sur les ingestions de
+  heart_rate/steps couvrant plusieurs heures (Apple Watch + iPhone
+  émettent des samples avec le même `(date_start, date_end)`). Résolu par
+  le dedupe intra-batch avec arbitrage per-kind décrit ci-dessus.
+- **Tooltips recharts illisibles en mode sombre** — les tooltips par
+  défaut utilisaient un fond blanc avec label gris hardcodés, rendant le
+  label invisible en dark mode. Correction : branchement sur les variables
+  CSS shadcn (`--popover`, `--popover-foreground`, `--border`,
+  `--muted-foreground`) pour respecter le thème actif.
+
+#### Config
+
+- Rate limit par token relevé **5 → 60 req/h** par défaut (bursts au
+  déverrouillage de l'iPhone), paramétrable via `HEALTH_METRICS_RATE_LIMIT_PER_HOUR`.
+- Nouveau `HEALTH_METRICS_MAX_SAMPLES_PER_REQUEST=1000` — plafond de taille
+  de batch avec `HTTP 413` au-delà.
+- Source par défaut `unknown` → **`iphone`**.
+- Nouvelle métrique `health_samples_batch_duplicates_total{kind}`.
+- Métrique `health_metrics_ingested_total` → **remplacée** par
+  `health_samples_upserted_total{kind, operation}` (insert | update).
+
+#### Tests
+
+- 65 tests unit (aggregator polymorphe, parser 4 formes, validation
+  per-kind, `_normalize_datetime`, `_merge_duplicate_samples` arbitrage).
+- Tests d'intégration : upsert idempotent, mixed validation, dedupe
+  intra-batch avec assertions sur les valeurs attendues par kind (MAX=1200
+  pour steps, AVG=78 pour HR).
+
+#### Documentation
+
+- ADR-076 (révisé) — décisions de refonte documentées.
+- `docs/technical/HEALTH_METRICS.md` réécrit — nouveau contrat, dedupe,
+  schéma polymorphe.
+- `docs/guides/GUIDE_IPHONE_SHORTCUTS_HEALTH.md` réécrit — deux Shortcuts
+  (steps + HR), format ISO 8601 obligatoire, failure modes.
+- `docs/ARCHITECTURE.md` + `docs/architecture/ADR_INDEX.md` corrigés.
+- `apps/web/src/data/guides/how.{6 langues}.md §23.12` + `why.{6
+  langues}.md §3.9` réécrits (vitrine technique + fonctionnelle).
+- `README.md`, `CHANGELOG.md` (cette entrée), FAQ applicative 6 langues.
+
 ## [1.17.0] - 2026-04-21
 
 ### Added — Health Metrics ingestion (iPhone Shortcuts) + settings visualization

@@ -3,25 +3,37 @@
 Covers the pure helpers that do not require a DB session:
 - Token hashing (stable SHA-256)
 - Token generation (prefix + raw value)
-- Source slugification (accents, case, invalid chars)
-- Field validators (mixed validation, out-of-range → NULL)
+- Source slugification (accents, case, invalid chars, length cap)
+- Datetime normalization (ISO 8601 parsing, UTC conversion, second truncation,
+  naive-rejection)
+- Polymorphic sample validation (``_validate_sample`` for heart_rate + steps)
 """
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta, timezone
+
 import pytest
 
 from src.core.constants import (
+    HEALTH_METRICS_KIND_HEART_RATE,
+    HEALTH_METRICS_KIND_STEPS,
     HEALTH_METRICS_SOURCE_DEFAULT,
     HEALTH_METRICS_TOKEN_DISPLAY_PREFIX_CHARS,
     HEALTH_METRICS_TOKEN_PREFIX,
 )
+from src.domains.health_metrics.constants import (
+    REJECTION_REASON_INVALID_DATE,
+    REJECTION_REASON_MALFORMED,
+    REJECTION_REASON_MISSING_FIELD,
+    REJECTION_REASON_OUT_OF_RANGE,
+)
 from src.domains.health_metrics.service import (
     _generate_raw_token,
     _hash_token,
+    _normalize_datetime,
     _normalize_source,
-    _validate_heart_rate,
-    _validate_steps,
+    _validate_sample,
 )
 
 pytestmark = pytest.mark.unit
@@ -58,7 +70,7 @@ class TestTokenGeneration:
         assert len(raw) > HEALTH_METRICS_TOKEN_DISPLAY_PREFIX_CHARS
 
     def test_entropy(self) -> None:
-        """Two consecutive generations yield distinct values (sanity on randomness)."""
+        """Two consecutive generations yield distinct values."""
         first, _ = _generate_raw_token()
         second, _ = _generate_raw_token()
         assert first != second
@@ -96,48 +108,153 @@ class TestSourceNormalization:
 
 
 # =============================================================================
-# Mixed per-field validation
+# Datetime normalization
 # =============================================================================
 
 
-class TestHeartRateValidation:
-    """Out-of-range heart rates nullify the field without blocking siblings."""
+class TestDatetimeNormalization:
+    """Incoming timestamps must be aware, UTC-converted, and second-truncated."""
 
-    def test_valid_value_stored(self) -> None:
-        """A plausible heart rate passes through unchanged."""
-        outcome = _validate_heart_rate(72)
-        assert outcome.stored_value == 72
-        assert outcome.was_stored is True
-        assert outcome.was_nullified is False
+    def test_parses_iso_with_offset(self) -> None:
+        """An ISO 8601 string with ``+02:00`` is shifted to UTC."""
+        parsed = _normalize_datetime("2026-04-21T14:30:00+02:00")
+        assert parsed == datetime(2026, 4, 21, 12, 30, 0, tzinfo=UTC)
 
-    def test_none_is_noop(self) -> None:
-        """Absent heart rate is neither stored nor nullified."""
-        outcome = _validate_heart_rate(None)
-        assert outcome.stored_value is None
-        assert outcome.was_stored is False
-        assert outcome.was_nullified is False
+    def test_parses_iso_with_z_suffix(self) -> None:
+        """The shorthand ``Z`` suffix is treated as UTC."""
+        parsed = _normalize_datetime("2026-04-21T12:30:00Z")
+        assert parsed == datetime(2026, 4, 21, 12, 30, 0, tzinfo=UTC)
+
+    def test_accepts_aware_datetime_object(self) -> None:
+        """An existing aware datetime is normalized to UTC."""
+        aware = datetime(2026, 4, 21, 14, 30, 0, tzinfo=timezone(timedelta(hours=2)))
+        parsed = _normalize_datetime(aware)
+        assert parsed.tzinfo is UTC
+        assert parsed.hour == 12
+
+    def test_truncates_microseconds(self) -> None:
+        """Sub-second precision is dropped for stable unique-key matching."""
+        parsed = _normalize_datetime("2026-04-21T12:30:00.123456+00:00")
+        assert parsed.microsecond == 0
+
+    def test_rejects_naive_datetime_string(self) -> None:
+        """An ISO string without timezone is rejected."""
+        with pytest.raises(ValueError, match="Timezone-naive"):
+            _normalize_datetime("2026-04-21T12:30:00")
+
+    def test_rejects_naive_datetime_object(self) -> None:
+        """A naive datetime object is also rejected."""
+        naive = datetime(2026, 4, 21, 12, 30, 0)
+        with pytest.raises(ValueError, match="Timezone-naive"):
+            _normalize_datetime(naive)
+
+    def test_rejects_unsupported_type(self) -> None:
+        """Non-string / non-datetime inputs raise explicitly."""
+        with pytest.raises(ValueError, match="Unsupported datetime type"):
+            _normalize_datetime(12345)  # type: ignore[arg-type]
+
+
+# =============================================================================
+# Polymorphic sample validation
+# =============================================================================
+
+
+_BASE_DATES = {
+    "date_start": "2026-04-21T12:00:00+00:00",
+    "date_end": "2026-04-21T12:30:00+00:00",
+}
+
+
+class TestValidateSampleHeartRate:
+    """Heart-rate samples must carry a plausible bpm value."""
+
+    def test_valid_hr_sample(self) -> None:
+        """A valid HR sample yields a normalized payload."""
+        raw = {**_BASE_DATES, "heart_rate": 72, "o": "iPhone"}
+        outcome = _validate_sample(raw, HEALTH_METRICS_KIND_HEART_RATE)
+        assert outcome.valid is True
+        assert outcome.payload is not None
+        assert outcome.payload["value"] == 72
+        assert outcome.payload["source"] == "iphone"
+        assert outcome.payload["date_start"].tzinfo is UTC
+
+    def test_missing_hr_field_rejected(self) -> None:
+        """Missing the measurement field yields a missing_field rejection."""
+        raw = {**_BASE_DATES, "o": "iphone"}
+        outcome = _validate_sample(raw, HEALTH_METRICS_KIND_HEART_RATE)
+        assert outcome.valid is False
+        assert outcome.reason is not None
+        assert outcome.reason.startswith(REJECTION_REASON_MISSING_FIELD)
 
     @pytest.mark.parametrize("bad_value", [-10, 0, 5, 251, 999])
-    def test_out_of_range_nullifies(self, bad_value: int) -> None:
-        """Extreme values are converted to NULL with the nullified flag raised."""
-        outcome = _validate_heart_rate(bad_value)
-        assert outcome.stored_value is None
-        assert outcome.was_stored is False
-        assert outcome.was_nullified is True
+    def test_out_of_range_hr_rejected(self, bad_value: int) -> None:
+        """Extreme HR values are rejected, not clamped."""
+        raw = {**_BASE_DATES, "heart_rate": bad_value}
+        outcome = _validate_sample(raw, HEALTH_METRICS_KIND_HEART_RATE)
+        assert outcome.valid is False
+        assert outcome.reason is not None
+        assert outcome.reason.startswith(REJECTION_REASON_OUT_OF_RANGE)
 
 
-class TestStepsValidation:
-    """Out-of-range per-sample step counts nullify the field."""
+class TestValidateSampleSteps:
+    """Steps samples must carry a non-negative int."""
 
-    def test_valid_value_stored(self) -> None:
-        """A normal per-sample count passes through unchanged."""
-        outcome = _validate_steps(4521)
-        assert outcome.stored_value == 4521
-        assert outcome.was_stored is True
+    def test_valid_steps_sample(self) -> None:
+        """A valid steps sample yields a normalized payload."""
+        raw = {**_BASE_DATES, "steps": 4521, "o": "iphone"}
+        outcome = _validate_sample(raw, HEALTH_METRICS_KIND_STEPS)
+        assert outcome.valid is True
+        assert outcome.payload is not None
+        assert outcome.payload["value"] == 4521
 
-    @pytest.mark.parametrize("bad_value", [-1, 15_001])
-    def test_out_of_range_nullifies(self, bad_value: int) -> None:
-        """Negative and implausibly large per-sample step counts are nullified."""
-        outcome = _validate_steps(bad_value)
-        assert outcome.stored_value is None
-        assert outcome.was_nullified is True
+    def test_zero_steps_accepted(self) -> None:
+        """``steps=0`` is explicitly supported (inactive interval)."""
+        raw = {**_BASE_DATES, "steps": 0}
+        outcome = _validate_sample(raw, HEALTH_METRICS_KIND_STEPS)
+        assert outcome.valid is True
+        assert outcome.payload is not None
+        assert outcome.payload["value"] == 0
+
+    def test_missing_source_falls_back_to_default(self) -> None:
+        """Omitting ``o`` substitutes the default source label."""
+        raw = {**_BASE_DATES, "steps": 100}
+        outcome = _validate_sample(raw, HEALTH_METRICS_KIND_STEPS)
+        assert outcome.valid is True
+        assert outcome.payload is not None
+        assert outcome.payload["source"] == HEALTH_METRICS_SOURCE_DEFAULT
+
+
+class TestValidateSampleCommon:
+    """Common rejection paths regardless of kind."""
+
+    def test_invalid_date_rejected(self) -> None:
+        """A malformed date string yields an invalid_date rejection."""
+        raw = {
+            "date_start": "not-a-date",
+            "date_end": "2026-04-21T12:30:00+00:00",
+            "steps": 100,
+        }
+        outcome = _validate_sample(raw, HEALTH_METRICS_KIND_STEPS)
+        assert outcome.valid is False
+        assert outcome.reason is not None
+        assert outcome.reason.startswith(REJECTION_REASON_INVALID_DATE)
+
+    def test_naive_date_rejected(self) -> None:
+        """An ISO date without TZ is rejected as invalid_date."""
+        raw = {
+            "date_start": "2026-04-21T12:00:00",
+            "date_end": "2026-04-21T12:30:00",
+            "steps": 100,
+        }
+        outcome = _validate_sample(raw, HEALTH_METRICS_KIND_STEPS)
+        assert outcome.valid is False
+        assert outcome.reason is not None
+        assert outcome.reason.startswith(REJECTION_REASON_INVALID_DATE)
+
+    def test_non_integer_value_rejected(self) -> None:
+        """A non-coercible value yields a malformed rejection."""
+        raw = {**_BASE_DATES, "steps": "not-a-number"}
+        outcome = _validate_sample(raw, HEALTH_METRICS_KIND_STEPS)
+        assert outcome.valid is False
+        assert outcome.reason is not None
+        assert outcome.reason.startswith(REJECTION_REASON_MALFORMED)

@@ -2482,27 +2482,31 @@ scheduler.add_job(process_interest_notifications, trigger="interval", minutes=15
 
 ### ADR-076: Health Metrics Ingestion via Per-User Tokens
 
-**Status**: ✅ ACCEPTED (2026-04-20)
+**Status**: ✅ ACCEPTED (2026-04-20, revisé 2026-04-21 — batch upsert polymorphe)
 **Fichier**: `docs/architecture/ADR-076-Health-Metrics-Ingestion.md`
 
-**Décision**: Créer un domaine DDD `health_metrics` exposant un endpoint authentifié par token (`POST /api/v1/ingest/health`) qu'une automatisation iPhone Shortcuts peut appeler toutes les heures pour pousser fréquence cardiaque et pas cumulés, stockés en PostgreSQL puis visualisés côté Settings (graphiques heure/jour/semaine/mois/année).
+**Décision**: Créer un domaine DDD `health_metrics` exposant deux endpoints par-kind authentifiés par token (`POST /api/v1/ingest/health/steps`, `POST /api/v1/ingest/health/heart_rate`) qu'une automatisation iPhone Shortcuts peut appeler en **batches quotidiens** avec samples auto-horodatés. Stockage polymorphe en table unique `health_samples(kind, date_start, date_end, value, source)` avec UPSERT idempotent, visualisation côté Settings (graphiques heure/jour/semaine/mois/année).
 
 **Problème résolu**:
 - ❌ Exposer `user_id` en paramètre rendrait trivialement falsifiable n'importe quelle ingestion (un ID est public par design — URLs, JWT, logs)
 - ❌ La chaîne cookie-auth n'est pas utilisable depuis un Raccourci iOS
+- ❌ iOS n'exécute pas fiablement un automatisme horaire (iPhone doit être déverrouillé), le design initial « one POST per hour » n'était pas tenable
 - ❌ Données santé = catégorie spéciale RGPD (art. 9), besoin d'un droit d'effacement granulaire
 
 **Solution**:
 - ✅ Tokens hashés (SHA-256) avec préfixe d'affichage `hm_xxxxxxxx`, valeur brute révélée une seule fois à la création, révocables individuellement
-- ✅ Validation mixte par champ : valeur hors plage physiologique → colonne NULL + log warn, mais on préserve les autres champs valides de la même requête
-- ✅ Agrégation serveur (aggregator.py) avec détection des resets minuit sur le compteur cumulatif, gaps préservés dans les graphiques (`has_data=False`)
-- ✅ Suppression granulaire : par champ (UPDATE NULL) ou globale (DELETE), CASCADE sur `users` couvre l'erasure RGPD
-- ✅ 8 métriques Prometheus + dashboard Grafana 21 (ingestion rate, latence, rejects, auth failures, rate limit, tokens lifecycle)
-- ✅ Feature flag `HEALTH_METRICS_ENABLED` (default `false`)
+- ✅ **Batch upsert client-timestamped** : samples `[{date_start, date_end, value, o}, …]`, UPSERT PostgreSQL `ON CONFLICT (user_id, kind, date_start, date_end) DO UPDATE … RETURNING (xmax = 0)` pour split inserts/updates en un round-trip. Re-sender la même journée = idempotent
+- ✅ **Parser flexible** acceptant 4 enveloppes (tableau, NDJSON, `{"data":[…]}`, wrapping iOS « Dictionnaire » `{"<ndjson>":{}}`) — pas de contrainte sur le Raccourci utilisateur
+- ✅ **Dedupe intra-batch avec arbitrage per-kind** : MAX pour `steps` (Watch+iPhone comptent sous-ensembles complémentaires), AVG arrondi pour `heart_rate` (fusion deux capteurs même signal) — prévient `CardinalityViolationError` sur samples overlap Apple Watch+iPhone
+- ✅ Validation mixte par sample : hors plage → rejeté individuellement avec index + reason, voisins valides préservés (plus de NULL-ing)
+- ✅ Aggregator polymorphe : AVG/MIN/MAX sur HR, SUM sur steps, par bucket, gaps préservés (`has_data=False`)
+- ✅ Suppression par kind (DELETE WHERE kind=?) ou globale, CASCADE sur `users` couvre l'erasure RGPD
+- ✅ Métriques Prometheus bornées (`health_samples_upserted_total{kind, operation}`, `health_samples_batch_duplicates_total{kind}`, `health_metrics_validation_rejected_total{field, reason}`, auth/rate-limit/tokens/deletions) + dashboard Grafana 21
+- ✅ Feature flag `HEALTH_METRICS_ENABLED` (default `false`), rate limit 60 req/h/token, plafond 1000 samples/batch
 
 **Trade-offs**:
-- 1 échantillon FC/heure = résolution grossière pour une courbe physiologique (product-accepted, fréquence augmentable sans migration)
-- Pas de batch/retry côté iPhone → trous d'envoi = trous dans les graphiques (documenté comme limite produit)
+- Modèle polymorphe single-table `value INT` → limite aux mesures scalaires (un futur `workout` carrying multiple scalars demanderait JSON ou seconde table — non prioritaire)
+- Dedupe iOS wrapping via heuristique (clé unique avec newline + valeur vide) → fragile si iOS change le format ; mitigé par fallback NDJSON
 - Pas d'encryption applicative sur FC/pas (encryption at rest PostgreSQL jugée suffisante pour des scalaires numériques non-PII)
 
 ---

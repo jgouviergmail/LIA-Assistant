@@ -4,7 +4,7 @@
 
 **Versión** : 3.2
 **Fecha** : 2026-04-20
-**Aplicación** : LIA v1.17.0
+**Aplicación** : LIA v1.17.1
 **Licencia** : AGPL-3.0 (Open Source)
 
 ---
@@ -162,6 +162,16 @@ Un agente de navegación (Playwright/Chromium headless) puede navegar por sitios
 ### 3.8. Administración del servidor (DevOps)
 
 Al instalar Claude CLI (Claude Code) directamente en el servidor, los administradores pueden diagnosticar su infraestructura en lenguaje natural desde el chat de LIA: consultar logs de Docker, verificar el estado de los contenedores, monitorizar el espacio en disco, analizar errores. Esta funcionalidad está reservada a las cuentas de administrador.
+
+### 3.9. Datos de salud personales (iPhone)
+
+LIA acoge las mediciones de Apple Salud que tu iPhone envía a través de una automatización de Atajos: frecuencia cardíaca y número de pasos. Como iOS exige que el iPhone esté desbloqueado para que una automatización temporal se dispare de forma fiable, el protocolo acepta **lotes diarios** en lugar de forzar una cadencia horaria — cada vez que el Atajo se ejecuta (al desbloquear, a una hora fija, o ambas), envía las mediciones del día y el servidor deduplica según el intervalo de medición. Reenviar el mismo día es, por tanto, sin consecuencias.
+
+Los datos permanecen dentro de tu instancia de LIA — ningún servicio de terceros tiene acceso — y se visualizan en una sección dedicada de los Ajustes, en forma de gráfico de líneas (FC) y de barras (pasos), con un selector de período (hora, día, semana, mes, año) y una línea discontinua con la media del período.
+
+El envío se autentica mediante un **token dedicado** (que empieza por `hm_…`) que generas desde la aplicación y que puedes revocar en cualquier momento. El token solo autoriza el envío de datos de salud — nunca el resto de tu cuenta. Puedes generar varios (uno por dispositivo) y gestionarlos de forma independiente.
+
+Tres acciones de gestión te dan un control total: eliminar todas las mediciones de frecuencia cardíaca, eliminar todas las mediciones de pasos, o borrarlo todo. Ningún valor fisiológico bruto se conserva jamás en los logs del servidor — la conformidad con el RGPD está integrada por diseño.
 
 ---
 

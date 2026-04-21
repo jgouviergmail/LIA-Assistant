@@ -2748,6 +2748,10 @@
           "title": "📓 Carnets de Bord Personnels",
           "description": "LIA tient ses propres réflexions dans des journaux personnels : auto-réflexion, observations sur l'utilisateur, idées, apprentissages. Ces notes, rédigées à la première personne et colorées par la personnalité active, influencent organiquement les réponses futures. Consolidation automatique périodique. L'utilisateur garde le contrôle total : lecture, édition, suppression."
         },
+        "healthMetrics": {
+          "title": "🩺 Données santé iPhone (batch upsert polymorphe)",
+          "description": "Ingestion authentifiée par token Bearer (hash SHA-256 en base, valeur brute révélée une seule fois, préfixe d'affichage <code>hm_</code>) sur deux endpoints par kind (<code>/ingest/health/steps</code>, <code>.../heart_rate</code>). Contrat client : tableau de samples auto-horodatés <code>[{date_start, date_end, value, o}, …]</code>, normalisés UTC + tronqués à la seconde. Parser flexible acceptant 4 formes d'enveloppe (tableau, NDJSON, <code>{data:[…]}</code>, wrapping « Dictionnaire » iOS). Stockage polymorphe en table unique <code>health_samples(kind, date_start, date_end, value)</code> avec UPSERT PostgreSQL <code>ON CONFLICT … RETURNING (xmax = 0)</code> discriminant inserts/updates en un aller-retour. Dedupe intra-batch avec arbitrage per-kind : MAX pour <code>steps</code>, AVG arrondi pour <code>heart_rate</code> — absorbe les samples overlap Apple Watch + iPhone sans erreur SQL. Validation mixte par sample (hors plage → rejet individuel avec index + raison bornée), aggregator polymorphe (AVG/MIN/MAX HR + SUM steps par bucket), gaps préservés pour graphique honnête. Rate limit 60 req/h/token, plafond 1000 samples/batch."
+        },
         "imageGeneration": {
           "title": "🎨 Génération & Édition d'Images",
           "description": "Génération d'images à partir de descriptions textuelles et édition d'images existantes avec des instructions en langage naturel. Architecture factory multi-provider, préférences utilisateur (qualité, taille, format), suivi des coûts avec pricing en base de données, stockage via le système de pièces jointes avec nettoyage en cascade."
@@ -2767,6 +2771,18 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_17_1": {
+          "title": "v1.17.1 — Données santé : ingestion en lots quotidiens, gestion des mesures simultanées",
+          "date": "Avril 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>Envoi en lots quotidiens plutôt qu'horaire</b> — Pour que votre Raccourci iPhone se déclenche de manière fiable, plus besoin que l'iPhone soit déverrouillé toutes les heures. Au déverrouillage ou à une heure fixe, le Raccourci envoie tous les échantillons de la journée. Renvoyer plusieurs fois la même journée est sans conséquence : le serveur déduplique automatiquement.",
+            "i2": "<b>Deux Raccourcis distincts (pas + fréquence cardiaque)</b> — La configuration de v1.17.0 (un unique POST horaire) est remplacée par deux URLs dédiées : <code>/api/v1/ingest/health/steps</code> et <code>/api/v1/ingest/health/heart_rate</code>. Chaque mesure porte sa propre plage temporelle (ISO 8601 avec fuseau). <b>Action requise</b> : reconfigurer votre Raccourci iPhone selon le <a href=\"https://github.com/jgouviergmail/LIA/blob/main/docs/guides/GUIDE_IPHONE_SHORTCUTS_HEALTH.md\">guide mis à jour</a>.",
+            "i3": "<b>Gestion des mesures simultanées Watch + iPhone</b> — Quand votre Apple Watch et votre iPhone mesurent la même période, LIA fusionne intelligemment : MAX pour les pas (chaque appareil compte des sous-ensembles complémentaires du mouvement), moyenne arrondie pour la fréquence cardiaque (deux capteurs visent le même signal). Corrige un bug 500 qui empêchait l'envoi de longues périodes.",
+            "i4": "<b>Suppression par type de mesure</b> — Les actions de gestion dans Réglages → Données santé → Gestion sont remaniées : supprimer toutes les mesures de fréquence cardiaque (les pas sont conservés), supprimer toutes les mesures de pas (la FC est conservée), ou tout effacer. Chaque action supprime réellement les lignes concernées plutôt que de les mettre à NULL.",
+            "i5": "<b>Améliorations UX des graphiques</b> — Les tooltips sont maintenant lisibles en mode sombre (fond et texte respectent le thème). La section Statistiques affiche désormais la <b>fenêtre temporelle réellement agrégée</b> (ex. « 21 avr. 18:00 → 22 avr. 18:00 ») pour lever l'ambiguïté « les stats FC ne bougent pas quand je change de période » — elles sont invariantes quand toutes les mesures tiennent déjà dans la plus petite fenêtre."
+          }
+        },
         "v1_17_0": {
           "title": "v1.17.0 — Données santé : ingestion iPhone Shortcuts + graphiques",
           "date": "Avril 2026",
@@ -3962,23 +3978,23 @@
         "questions": {
           "q1": {
             "question": "Qu'est-ce que la section « Données santé » ?",
-            "answer": "<p>Une nouvelle fonctionnalité (v1.17.0) qui permet à votre iPhone d'envoyer automatiquement vos mesures Apple Santé (fréquence cardiaque, nombre de pas) à LIA via une <strong>automatisation Raccourcis</strong>. Vos données sont visualisées dans <strong>Réglages → Fonctionnalités → Données santé</strong> sous forme de courbes (FC) et barres (pas), avec un sélecteur de période (heure / jour / semaine / mois / année) et la moyenne sur la période en pointillés.</p>"
+            "answer": "<p>Une fonctionnalité qui permet à votre iPhone d'envoyer automatiquement vos mesures Apple Santé (fréquence cardiaque, nombre de pas) à LIA via une <strong>automatisation Raccourcis</strong>. Depuis v1.17.1, l'envoi fonctionne par <strong>lots quotidiens</strong> plutôt que par push horaire : à chaque déverrouillage de l'iPhone (ou à une heure fixe), le Raccourci pousse les mesures de la journée. Vos données sont visualisées dans <strong>Réglages → Fonctionnalités → Données santé</strong> sous forme de courbes (FC) et barres (pas), avec un sélecteur de période (heure / jour / semaine / mois / année), la moyenne sur la période en pointillés, et la fenêtre temporelle agrégée affichée dans les statistiques.</p>"
           },
           "q2": {
             "question": "Comment configurer mon iPhone pour envoyer mes données ?",
-            "answer": "<p>Trois étapes :</p><ol><li><strong>Générer un jeton</strong> dans <strong>Réglages → Fonctionnalités → Données santé → API d'ingestion</strong>. Le jeton commence par <code>hm_</code> et n'est affiché qu'une seule fois — copiez-le immédiatement.</li><li><strong>Créer un Raccourci iOS</strong> qui récupère votre fréquence cardiaque (dernière mesure) et vos pas (sur la dernière heure), puis envoie une requête POST à <code>https://lia.jeyswork.com/api/v1/ingest/health</code> avec le jeton en en-tête <code>Authorization: Bearer hm_…</code>.</li><li><strong>Programmer une automatisation horaire</strong> dans l'application Raccourcis qui exécute ce Raccourci toutes les heures.</li></ol><p>👉 Le guide pas-à-pas complet est disponible dans <code>docs/guides/GUIDE_IPHONE_SHORTCUTS_HEALTH.md</code>.</p>"
+            "answer": "<p>Trois étapes :</p><ol><li><strong>Générer un jeton</strong> dans <strong>Réglages → Fonctionnalités → Données santé → API d'ingestion</strong>. Le jeton commence par <code>hm_</code> et n'est affiché qu'une seule fois — copiez-le immédiatement. Le même jeton authentifie les deux endpoints (pas + fréquence cardiaque).</li><li><strong>Créer deux Raccourcis iOS</strong> (un par type de mesure) qui récupèrent les échantillons Apple Santé de la journée et les envoient en tableau JSON (chaque mesure portant <code>date_start</code> / <code>date_end</code> au format ISO 8601 avec fuseau) à <code>https://lia.jeyswork.com/api/v1/ingest/health/steps</code> et <code>.../heart_rate</code>, avec le jeton en en-tête <code>Authorization: Bearer hm_…</code>.</li><li><strong>Programmer une automatisation</strong> — au déverrouillage de l'iPhone ou à une heure fixe — qui exécute les deux Raccourcis. Renvoyer la même journée plusieurs fois est sans conséquence : le serveur déduplique automatiquement.</li></ol><p>👉 Le guide pas-à-pas complet est disponible dans <code>docs/guides/GUIDE_IPHONE_SHORTCUTS_HEALTH.md</code>.</p>"
           },
           "q3": {
             "question": "Quelles données sont envoyées et stockées ?",
-            "answer": "<p>Uniquement deux valeurs numériques par envoi :</p><ul><li><strong>c</strong> : votre dernière fréquence cardiaque mesurée (en bpm)</li><li><strong>p</strong> : le nombre de pas enregistrés depuis le précédent envoi (PAS un compteur cumulatif)</li></ul><p>Le serveur horodate la mesure à réception (UTC) et applique une <strong>validation physiologique</strong> : FC hors [20, 250] bpm ou pas hors [0, 15 000] sont stockés à NULL avec un avertissement (sans la valeur brute, conformité RGPD). Les autres champs valides du même envoi sont préservés.</p>"
+            "answer": "<p>Chaque envoi est un <strong>tableau d'échantillons auto-horodatés</strong> :</p><ul><li>Pour les pas : <code>{date_start, date_end, steps, o}</code> — l'intervalle de mesure et le nombre de pas comptés sur cet intervalle.</li><li>Pour la fréquence cardiaque : <code>{date_start, date_end, heart_rate, o}</code> — l'intervalle et la valeur en bpm.</li></ul><p>Le serveur normalise les dates en UTC et applique une <strong>validation physiologique par échantillon</strong> : FC hors [20, 250] bpm ou pas hors [0, 15 000] sont rejetés individuellement avec leur index et un motif explicite (les voisins valides du même lot sont préservés). Quand l'Apple Watch et l'iPhone mesurent la même période, LIA fusionne intelligemment : <strong>MAX</strong> pour les pas, <strong>moyenne arrondie</strong> pour la fréquence cardiaque. Aucune valeur brute n'est jamais loggée par le serveur (conformité RGPD).</p>"
           },
           "q4": {
             "question": "Comment supprimer mes données santé ?",
-            "answer": "<p>Dans <strong>Réglages → Fonctionnalités → Données santé → Gestion des données</strong>, trois actions sont disponibles :</p><ul><li><strong>Supprimer les FC</strong> : remet à NULL toutes les valeurs de fréquence cardiaque (les pas sont préservés).</li><li><strong>Supprimer les pas</strong> : remet à NULL toutes les valeurs de pas (la FC est préservée).</li><li><strong>Tout supprimer</strong> : efface définitivement toutes les lignes (vos jetons d'ingestion restent actifs pour continuer à pousser).</li></ul><p>Si vous supprimez votre compte LIA, toutes vos données santé sont automatiquement effacées (cascade SQL).</p>"
+            "answer": "<p>Dans <strong>Réglages → Fonctionnalités → Données santé → Gestion des données</strong>, trois actions sont disponibles :</p><ul><li><strong>Supprimer les FC</strong> : supprime toutes les mesures de fréquence cardiaque (les pas sont conservés).</li><li><strong>Supprimer les pas</strong> : supprime toutes les mesures de pas (la FC est conservée).</li><li><strong>Tout supprimer</strong> : efface définitivement toutes les mesures (vos jetons d'ingestion restent actifs pour continuer à pousser).</li></ul><p>Si vous supprimez votre compte LIA, toutes vos données santé sont automatiquement effacées (cascade SQL).</p>"
           },
           "q5": {
             "question": "Mon jeton est-il sécurisé si quelqu'un l'intercepte ?",
-            "answer": "<p>Oui. Le jeton est traité comme un mot de passe :</p><ul><li><strong>Hash SHA-256 stocké</strong> en base — la valeur brute n'est jamais persistée. Personne (pas même un administrateur LIA) ne peut le récupérer après création.</li><li><strong>Affichage unique</strong> : seul un préfixe à 8 caractères (<code>hm_xxxxxxxx…</code>) reste visible dans la liste pour identification.</li><li><strong>Révocable individuellement</strong> à tout moment depuis l'UI (bouton « Révoquer »). Vous pouvez en générer plusieurs (un par appareil) et les gérer indépendamment.</li><li><strong>Scopé à un seul endpoint</strong> : un jeton n'autorise QUE l'envoi de données santé, jamais la lecture du compte ou d'autres actions.</li><li><strong>Rate limit</strong> : 5 requêtes par heure par jeton (Redis sliding window) pour bloquer le spam.</li></ul>"
+            "answer": "<p>Oui. Le jeton est traité comme un mot de passe :</p><ul><li><strong>Hash SHA-256 stocké</strong> en base — la valeur brute n'est jamais persistée. Personne (pas même un administrateur LIA) ne peut le récupérer après création.</li><li><strong>Affichage unique</strong> : seul un préfixe à 8 caractères (<code>hm_xxxxxxxx…</code>) reste visible dans la liste pour identification.</li><li><strong>Révocable individuellement</strong> à tout moment depuis l'UI (bouton « Révoquer »). Vous pouvez en générer plusieurs (un par appareil) et les gérer indépendamment.</li><li><strong>Scopé à un seul endpoint</strong> : un jeton n'autorise QUE l'envoi de données santé, jamais la lecture du compte ou d'autres actions.</li><li><strong>Rate limit</strong> : 60 requêtes par heure par jeton (Redis sliding window, paramétrable) pour bloquer le spam tout en absorbant les bursts au déverrouillage de l'iPhone. Taille max d'un lot : 1000 échantillons par requête (HTTP 413 au-delà).</li></ul>"
           }
         }
       }
@@ -4863,7 +4879,7 @@
       },
       "health_metrics": {
         "title": "Données santé iPhone",
-        "description": "Pousse automatiquement ta fréquence cardiaque et ton nombre de pas depuis Apple Santé via une automatisation Raccourcis. Visualisation par heure / jour / semaine / mois / année avec moyenne sur la période. Authentification par jeton dédié, révocable. Données chiffrées au repos, jamais loggées en clair."
+        "description": "Pousse automatiquement ta fréquence cardiaque et ton nombre de pas depuis Apple Santé via une automatisation Raccourcis. Envoi en lots quotidiens (déverrouillage iPhone ou horaire fixe), dédoublonnage serveur automatique avec fusion intelligente Watch + iPhone (MAX pour les pas, moyenne pour la FC). Visualisation par heure / jour / semaine / mois / année avec moyenne sur la période. Authentification par jeton dédié, révocable. Données chiffrées au repos, jamais loggées en clair."
       },
       "sub_agents": {
         "title": "Sous-agents",
@@ -5534,10 +5550,11 @@
     "description": "Ingestion iPhone + visualisation des fréquences cardiaques et pas",
     "ingestion": {
       "title": "API d'ingestion",
-      "description": "Configurez votre automatisation iPhone pour envoyer vos données toutes les heures.",
-      "urlLabel": "URL à appeler (POST)",
+      "description": "Configurez votre automatisation iPhone pour envoyer vos données par lots quotidiens.",
+      "stepsUrlLabel": "URL pas (POST)",
+      "heartRateUrlLabel": "URL fréquence cardiaque (POST)",
       "urlCopied": "URL copiée.",
-      "payloadHint": "Corps JSON attendu : {\"data\": {\"c\": 72, \"p\": 4521, \"o\": \"iphone\"}}. En-tête Authorization: Bearer <votre_jeton>."
+      "payloadHint": "Corps JSON : tableau de mesures [{\"date_start\":\"…\",\"date_end\":\"…\",\"steps\":1234,\"o\":\"iphone\"}]. En-tête Authorization: Bearer <votre_jeton>."
     },
     "tokens": {
       "newLabel": "Nouveau jeton (libellé optionnel)",
@@ -5579,17 +5596,18 @@
       "hrMin": "FC min",
       "hrMax": "FC max",
       "stepsAvg": "Pas moyens / jour",
-      "stepsTotal": "Pas totaux (période)"
+      "stepsTotal": "Pas totaux (période)",
+      "windowLabel": "Fenêtre agrégée"
     },
     "management": {
       "title": "Gestion des données",
       "description": "Supprimez un type de données ou toutes vos données santé.",
       "deleteHr": "Supprimer les FC",
       "deleteHrTitle": "Supprimer toutes les fréquences cardiaques ?",
-      "deleteHrDescription": "Les valeurs FC seront mises à NULL pour toutes les lignes. Les pas et autres données seront conservés.",
+      "deleteHrDescription": "Toutes les mesures de fréquence cardiaque seront supprimées. Les pas seront conservés.",
       "deleteSteps": "Supprimer les pas",
       "deleteStepsTitle": "Supprimer tous les compteurs de pas ?",
-      "deleteStepsDescription": "Les valeurs de pas seront mises à NULL pour toutes les lignes. Les FC et autres données seront conservées.",
+      "deleteStepsDescription": "Toutes les mesures de pas seront supprimées. Les fréquences cardiaques seront conservées.",
       "deleteAll": "Tout supprimer",
       "deleteAllTitle": "Effacer toutes les données santé ?",
       "deleteAllDescription": "Toutes les lignes seront supprimées définitivement. Vos jetons d'ingestion restent actifs.",

@@ -2734,6 +2734,10 @@
           "title": "📓 Diarios Personales",
           "description": "LIA mantiene sus propias reflexiones en diarios personales: autorreflexión, observaciones sobre el usuario, ideas, aprendizajes. Estas notas, escritas en primera persona y coloreadas por la personalidad activa, influyen orgánicamente en las respuestas futuras. Consolidación automática periódica. El usuario mantiene el control total."
         },
+        "healthMetrics": {
+          "title": "🩺 Datos de salud iPhone (upsert por lotes polimórfico)",
+          "description": "Ingesta autenticada por token (hash SHA-256 en base, valor bruto mostrado una vez, prefijo de visualización <code>hm_</code>) sobre dos endpoints por kind (<code>/ingest/health/steps</code>, <code>.../heart_rate</code>). Contrato cliente: array de muestras auto-timestampadas <code>[{date_start, date_end, value, o}, …]</code>, normalizadas a UTC y truncadas al segundo. Parser flexible que acepta 4 formas de envoltura (array, NDJSON, <code>{data:[…]}</code>, wrapping «Diccionario» de iOS). Almacenamiento polimórfico en tabla única <code>health_samples(kind, date_start, date_end, value)</code> con UPSERT PostgreSQL <code>ON CONFLICT … RETURNING (xmax = 0)</code> que separa los contadores de insert/update en una sola ida y vuelta. Deduplicación intra-lote con arbitraje por kind: MAX para <code>steps</code>, AVG redondeado para <code>heart_rate</code> — absorbe las muestras solapadas Apple Watch + iPhone sin error SQL. Validación mixta por muestra (fuera de rango → rechazo individual con índice + razón acotada), agregador polimórfico (AVG/MIN/MAX FC + SUM pasos por bucket), huecos preservados para gráficos honestos. Rate limit 60 req/h/token, tope de 1000 muestras por lote."
+        },
         "imageGeneration": {
           "title": "🎨 Generación y Edición de Imágenes",
           "description": "Genera imágenes a partir de descripciones textuales y edita imágenes existentes con instrucciones en lenguaje natural. Arquitectura factory multi-proveedor, preferencias de calidad/tamaño/formato por usuario, seguimiento de costos con precios en base de datos."
@@ -2753,6 +2757,18 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_17_1": {
+          "title": "v1.17.1 — Datos de salud: ingesta por lotes diarios, gestión Watch+iPhone simultáneos",
+          "date": "Abril 2026",
+          "count": "5",
+          "items": {
+            "i1": "<b>Ingesta por lotes diarios en lugar de envío horario</b> — Para que tu Atajo de iPhone se active de forma fiable, ya no necesitas que el iPhone esté desbloqueado cada hora. Al desbloquear o a una hora fija, el Atajo envía todos los datos del día. Reenviar el mismo día es gratis: el servidor deduplica automáticamente según el intervalo de medición.",
+            "i2": "<b>Dos Atajos separados (pasos + frecuencia cardíaca)</b> — El único POST horario de v1.17.0 se reemplaza por dos URLs dedicadas: <code>/api/v1/ingest/health/steps</code> y <code>/api/v1/ingest/health/heart_rate</code>. Cada medición lleva su propio rango temporal (ISO 8601 con zona horaria). <b>Acción requerida</b>: reconfigura tu Atajo de iPhone según la <a href=\"https://github.com/jgouviergmail/LIA/blob/main/docs/guides/GUIDE_IPHONE_SHORTCUTS_HEALTH.md\">guía actualizada</a>.",
+            "i3": "<b>Fusión inteligente de mediciones simultáneas Watch + iPhone</b> — Cuando tu Apple Watch y tu iPhone miden el mismo intervalo, LIA las fusiona de forma inteligente: MAX para los pasos (cada dispositivo cuenta un subconjunto complementario del movimiento), promedio redondeado para la frecuencia cardíaca (dos sensores apuntan a la misma señal). Corrige un error 500 que antes bloqueaba los envíos de rangos más largos.",
+            "i4": "<b>Eliminación por tipo de medición</b> — Las acciones de gestión en Ajustes → Datos de salud → Gestión se rediseñan: eliminar todas las mediciones de frecuencia cardíaca (los pasos se conservan), eliminar todas las mediciones de pasos (la FC se conserva), o borrarlo todo. Cada acción elimina realmente las filas afectadas en lugar de poner columnas a NULL.",
+            "i5": "<b>Mejoras UX de los gráficos</b> — Los tooltips ahora son legibles en modo oscuro (fondo y texto siguen el tema activo). La sección Estadísticas muestra ahora la <b>ventana de agregación real</b> (p. ej. «21 abr. 18:00 → 22 abr. 18:00») para deshacer la confusión «las estadísticas de FC no se mueven cuando cambio de período» — son invariantes cuando todas las mediciones ya caben en la ventana más pequeña."
+          }
+        },
         "v1_17_0": {
           "title": "v1.17.0 — Datos de salud: ingesta iPhone Shortcuts + gráficos",
           "date": "Abril 2026",
@@ -3948,23 +3964,23 @@
         "questions": {
           "q1": {
             "question": "¿Qué es la sección «Datos de salud»?",
-            "answer": "<p>Una nueva funcionalidad (v1.17.0) que permite a tu iPhone enviar automáticamente tus mediciones de Apple Salud (frecuencia cardíaca, pasos) a LIA mediante una <strong>automatización de Atajos</strong>. Tus datos se visualizan en <strong>Ajustes → Funcionalidades → Datos de salud</strong> como gráficos de líneas (FC) y barras (pasos), con selector de periodo y línea punteada para la media del periodo.</p>"
+            "answer": "<p>Una funcionalidad que permite a tu iPhone enviar automáticamente tus mediciones de Apple Salud (frecuencia cardíaca, pasos) a LIA mediante una <strong>automatización de Atajos</strong>. Desde v1.17.1, el envío funciona por <strong>lotes diarios</strong> en lugar de push horario: al desbloquear el iPhone (o a una hora fija), el Atajo envía las mediciones del día. Tus datos se visualizan en <strong>Ajustes → Funcionalidades → Datos de salud</strong> como gráficos de líneas (FC) y barras (pasos), con selector de periodo (hora / día / semana / mes / año), línea punteada para la media del periodo y la ventana de agregación real mostrada en las estadísticas.</p>"
           },
           "q2": {
             "question": "¿Cómo configuro mi iPhone para enviar datos?",
-            "answer": "<p>Tres pasos:</p><ol><li><strong>Generar un token</strong> en <strong>Ajustes → Funcionalidades → Datos de salud → API de ingesta</strong>. El token empieza con <code>hm_</code> y solo se muestra una vez — cópialo de inmediato.</li><li><strong>Crear un Atajo iOS</strong> que obtenga tu FC (última muestra) y pasos (última hora), y envíe un POST a <code>https://lia.jeyswork.com/api/v1/ingest/health</code> con la cabecera <code>Authorization: Bearer hm_…</code>.</li><li><strong>Programar una automatización horaria</strong> en la app Atajos.</li></ol><p>👉 Guía paso a paso: <code>docs/guides/GUIDE_IPHONE_SHORTCUTS_HEALTH.md</code>.</p>"
+            "answer": "<p>Tres pasos:</p><ol><li><strong>Generar un token</strong> en <strong>Ajustes → Funcionalidades → Datos de salud → API de ingesta</strong>. El token empieza con <code>hm_</code> y solo se muestra una vez — cópialo de inmediato. El mismo token autentica ambos endpoints (pasos + frecuencia cardíaca).</li><li><strong>Crear dos Atajos iOS</strong> (uno por tipo) que recuperen las mediciones de Apple Salud del día y las envíen como un array JSON (cada medición lleva <code>date_start</code> / <code>date_end</code> en ISO 8601 con zona horaria) a <code>https://lia.jeyswork.com/api/v1/ingest/health/steps</code> y <code>.../heart_rate</code>, con el encabezado <code>Authorization: Bearer hm_…</code>.</li><li><strong>Programar una automatización</strong> — al desbloquear el iPhone o a una hora fija — que ejecute ambos Atajos. Reenviar el mismo día es gratis: el servidor deduplica automáticamente.</li></ol><p>👉 Guía paso a paso: <code>docs/guides/GUIDE_IPHONE_SHORTCUTS_HEALTH.md</code>.</p>"
           },
           "q3": {
             "question": "¿Qué datos se envían y almacenan?",
-            "answer": "<p>Solo dos valores numéricos por envío:</p><ul><li><strong>c</strong>: tu última frecuencia cardíaca (bpm)</li><li><strong>p</strong>: pasos registrados desde el envío anterior (NO un contador acumulativo diario)</li></ul><p>El servidor marca la hora al recibir (UTC) y aplica <strong>validación fisiológica</strong>: FC fuera de [20, 250] bpm o pasos fuera de [0, 15 000] se almacenan como NULL con advertencia (valor bruto nunca registrado — conforme RGPD). Otros campos válidos del mismo payload se preservan.</p>"
+            "answer": "<p>Cada solicitud es un <strong>array de muestras auto-timestampadas</strong>:</p><ul><li>Para pasos: <code>{date_start, date_end, steps, o}</code> — el intervalo de medición y los pasos contados en él.</li><li>Para frecuencia cardíaca: <code>{date_start, date_end, heart_rate, o}</code> — el intervalo y el valor en bpm.</li></ul><p>El servidor normaliza las fechas a UTC y aplica <strong>validación fisiológica por muestra</strong>: FC fuera de [20, 250] bpm o pasos fuera de [0, 15 000] se rechazan individualmente con su índice y una razón acotada (los vecinos válidos del mismo lote se conservan). Cuando el Apple Watch y el iPhone miden el mismo periodo, LIA los fusiona de forma inteligente: <strong>MAX</strong> para los pasos, <strong>promedio redondeado</strong> para la frecuencia cardíaca. Los valores brutos nunca se registran en los logs del servidor (compatible con RGPD).</p>"
           },
           "q4": {
             "question": "¿Cómo elimino mis datos de salud?",
-            "answer": "<p>En <strong>Ajustes → Funcionalidades → Datos de salud → Gestión de datos</strong> hay tres acciones:</p><ul><li><strong>Eliminar FC</strong>: pone todos los valores de FC a NULL (los pasos se conservan).</li><li><strong>Eliminar pasos</strong>: pone los valores de pasos a NULL (la FC se conserva).</li><li><strong>Eliminar todo</strong>: borra todas las filas definitivamente (tus tokens siguen activos).</li></ul><p>Al eliminar tu cuenta LIA, todos los datos de salud se borran automáticamente (cascada SQL).</p>"
+            "answer": "<p>En <strong>Ajustes → Funcionalidades → Datos de salud → Gestión de datos</strong> hay tres acciones:</p><ul><li><strong>Eliminar FC</strong>: elimina todas las mediciones de frecuencia cardíaca (los pasos se conservan).</li><li><strong>Eliminar pasos</strong>: elimina todas las mediciones de pasos (la FC se conserva).</li><li><strong>Eliminar todo</strong>: borra permanentemente todas las mediciones (tus tokens de ingesta permanecen activos).</li></ul><p>Si eliminas tu cuenta LIA, todos los datos de salud se borran automáticamente (cascada SQL).</p>"
           },
           "q5": {
             "question": "¿Mi token es seguro si lo interceptan?",
-            "answer": "<p>Sí. El token se trata como una contraseña:</p><ul><li><strong>Hash SHA-256 almacenado</strong> — el valor bruto nunca se persiste. Nadie (ni un admin LIA) puede recuperarlo después de la creación.</li><li><strong>Mostrado solo una vez</strong>: solo queda visible un prefijo de 8 caracteres.</li><li><strong>Revocable individualmente</strong> en cualquier momento. Puedes emitir varios (uno por dispositivo) y gestionarlos por separado.</li><li><strong>Limitado a un endpoint</strong>: un token solo autoriza el envío de datos de salud.</li><li><strong>Rate limit</strong>: 5 solicitudes por hora por token (Redis sliding window).</li></ul>"
+            "answer": "<p>Sí. El token se trata como una contraseña:</p><ul><li><strong>Hash SHA-256 almacenado</strong> — el valor bruto nunca se persiste. Nadie (ni un admin LIA) puede recuperarlo después de la creación.</li><li><strong>Mostrado una sola vez</strong>: solo un prefijo de 8 caracteres (<code>hm_xxxxxxxx…</code>) permanece visible para identificación.</li><li><strong>Revocable individualmente</strong> en cualquier momento desde la UI. Puedes emitir varios (uno por dispositivo) y gestionarlos de forma independiente.</li><li><strong>Con alcance a un único endpoint</strong>: un token solo autoriza el envío de datos de salud, nunca lecturas de la cuenta u otras acciones.</li><li><strong>Rate limit</strong>: 60 solicitudes por hora por token (Redis sliding window, configurable) para bloquear spam y a la vez absorber los bursts al desbloquear el iPhone. Tamaño máximo de lote: 1000 mediciones por solicitud (HTTP 413 por encima).</li></ul>"
           }
         }
       }
@@ -4857,7 +4873,7 @@
       },
       "health_metrics": {
         "title": "Datos de salud iPhone",
-        "description": "Envía automáticamente tu frecuencia cardiaca y conteo de pasos desde Apple Salud mediante una automatización de Atajos. Visualización por hora / día / semana / mes / año con la media del periodo. Autenticación por token dedicado, revocable. Cifrado en reposo, nunca registrado en claro."
+        "description": "Envía automáticamente tu frecuencia cardíaca y número de pasos desde Apple Salud mediante una automatización de Atajos. Ingesta en lotes diarios (al desbloquear el iPhone o a una hora fija), deduplicación automática en el servidor con fusión inteligente Watch + iPhone (MAX para los pasos, media para la FC). Visualización por hora / día / semana / mes / año con media del periodo. Autenticación mediante un token dedicado y revocable. Datos cifrados en reposo, nunca registrados en texto claro."
       },
       "sub_agents": {
         "title": "Sub-agentes",
@@ -5528,10 +5544,11 @@
     "description": "Ingesta iPhone + visualización de frecuencia cardiaca y pasos",
     "ingestion": {
       "title": "API de ingesta",
-      "description": "Configura tu automatización de iPhone para enviar tus datos cada hora.",
-      "urlLabel": "URL a invocar (POST)",
+      "description": "Configura tu automatización de iPhone para enviar lotes diarios de mediciones.",
+      "stepsUrlLabel": "URL pasos (POST)",
+      "heartRateUrlLabel": "URL frecuencia cardiaca (POST)",
       "urlCopied": "URL copiada.",
-      "payloadHint": "Cuerpo JSON esperado: {\"data\": {\"c\": 72, \"p\": 4521, \"o\": \"iphone\"}}. Cabecera Authorization: Bearer <tu_token>."
+      "payloadHint": "Cuerpo JSON: array de mediciones [{\"date_start\":\"…\",\"date_end\":\"…\",\"steps\":1234,\"o\":\"iphone\"}]. Cabecera Authorization: Bearer <tu_token>."
     },
     "tokens": {
       "newLabel": "Nuevo token (etiqueta opcional)",
@@ -5573,17 +5590,18 @@
       "hrMin": "FC mín.",
       "hrMax": "FC máx.",
       "stepsAvg": "Pasos medios / día",
-      "stepsTotal": "Pasos totales (periodo)"
+      "stepsTotal": "Pasos totales (periodo)",
+      "windowLabel": "Ventana de agregación"
     },
     "management": {
       "title": "Gestión de datos",
       "description": "Elimina un tipo de datos o todos tus datos de salud.",
       "deleteHr": "Eliminar FC",
       "deleteHrTitle": "¿Eliminar todas las frecuencias cardiacas?",
-      "deleteHrDescription": "Los valores de FC se pondrán a NULL en todas las filas. Los pasos y el resto se conservan.",
+      "deleteHrDescription": "Se eliminarán todas las mediciones de frecuencia cardiaca. Los pasos se conservarán.",
       "deleteSteps": "Eliminar pasos",
       "deleteStepsTitle": "¿Eliminar todos los contadores de pasos?",
-      "deleteStepsDescription": "Los valores de pasos se pondrán a NULL en todas las filas. La FC y el resto se conservan.",
+      "deleteStepsDescription": "Se eliminarán todas las mediciones de pasos. Las frecuencias cardiacas se conservarán.",
       "deleteAll": "Eliminar todo",
       "deleteAllTitle": "¿Borrar todos los datos de salud?",
       "deleteAllDescription": "Todas las filas se eliminarán definitivamente. Tus tokens de ingesta permanecen activos.",

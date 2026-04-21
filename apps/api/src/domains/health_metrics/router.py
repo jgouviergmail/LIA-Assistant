@@ -1,16 +1,18 @@
 """FastAPI router for authenticated (user-session) Health Metrics endpoints.
 
 Covers:
-- Metric listing (raw rows)
-- Aggregation (bucketed points + period-wide averages)
-- Deletion (by field / all)
+
+- Sample listing (raw rows, optionally filtered by kind)
+- Aggregation (bucketed points + period averages for the charts)
+- Deletion (per kind or full wipe)
 - Token management (list / create / revoke)
 
-The external ingestion endpoint lives in ``ingest_router.py`` — it is
-authenticated by a per-user Bearer token rather than the session cookie.
+The external ingestion endpoints live in ``ingest_router.py`` (authenticated
+by a Bearer token, not the session cookie).
 
 Phase: evolution — Health Metrics (iPhone Shortcuts integration)
 Created: 2026-04-20
+Revised: 2026-04-21 — polymorphic samples + delete by kind.
 """
 
 from __future__ import annotations
@@ -22,7 +24,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.constants import HEALTH_METRICS_DELETABLE_FIELDS
+from src.core.constants import HEALTH_METRICS_KINDS
 from src.core.dependencies import get_db
 from src.core.exceptions import raise_invalid_input
 from src.core.session_dependencies import get_current_active_session
@@ -30,11 +32,11 @@ from src.domains.auth.models import User
 from src.domains.health_metrics.schemas import (
     HealthMetricAggregateResponse,
     HealthMetricDeleteResponse,
-    HealthMetricRow,
     HealthMetricTokenCreateRequest,
     HealthMetricTokenCreateResponse,
     HealthMetricTokenListResponse,
     HealthMetricTokenRow,
+    HealthSampleRow,
 )
 from src.domains.health_metrics.service import HealthMetricsService
 from src.infrastructure.observability.logging import get_logger
@@ -45,29 +47,34 @@ router = APIRouter(prefix="/health-metrics", tags=["Health Metrics"])
 
 
 # =============================================================================
-# Metrics listing & aggregation
+# Sample listing & aggregation
 # =============================================================================
 
 
-@router.get("", response_model=list[HealthMetricRow])
-async def list_metrics(
+@router.get("", response_model=list[HealthSampleRow])
+async def list_samples(
+    kind: Literal["heart_rate", "steps"] | None = Query(
+        default=None,
+        description="Filter by sample kind (omit to list all kinds).",
+    ),
     from_ts: datetime | None = Query(default=None, description="Inclusive window start (UTC)."),
     to_ts: datetime | None = Query(default=None, description="Exclusive window end (UTC)."),
     limit: int = Query(default=500, ge=1, le=2000),
     offset: int = Query(default=0, ge=0),
     current_user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
-) -> list[HealthMetricRow]:
-    """Return raw metrics for the authenticated user (most recent first)."""
+) -> list[HealthSampleRow]:
+    """Return raw samples for the authenticated user (most recent first)."""
     service = HealthMetricsService(db)
-    rows = await service.repo.list_metrics(
+    rows = await service.repo.list_samples(
         current_user.id,
+        kind=kind,
         from_ts=from_ts,
         to_ts=to_ts,
         limit=limit,
         offset=offset,
     )
-    return [HealthMetricRow.model_validate(row) for row in rows]
+    return [HealthSampleRow.model_validate(row) for row in rows]
 
 
 @router.get("/aggregate", response_model=HealthMetricAggregateResponse)
@@ -94,33 +101,37 @@ async def aggregate_metrics_endpoint(
 
 
 @router.delete("/all", response_model=HealthMetricDeleteResponse)
-async def delete_all_metrics(
+async def delete_all_samples(
     current_user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
 ) -> HealthMetricDeleteResponse:
-    """Delete every metric row for the authenticated user."""
+    """Delete every sample (all kinds) for the authenticated user."""
     service = HealthMetricsService(db)
     count = await service.delete_all(current_user.id)
     await db.commit()
-    return HealthMetricDeleteResponse(scope="all", field=None, affected_rows=count)
+    return HealthMetricDeleteResponse(scope="all", kind=None, affected_rows=count)
 
 
 @router.delete("", response_model=HealthMetricDeleteResponse)
-async def delete_metric_field(
-    field: str = Query(..., description="Column name to nullify across all rows."),
+async def delete_samples_by_kind(
+    kind: str = Query(..., description="Sample kind to delete."),
     current_user: User = Depends(get_current_active_session),
     db: AsyncSession = Depends(get_db),
 ) -> HealthMetricDeleteResponse:
-    """Nullify one column for every metric row of the authenticated user."""
-    if field not in HEALTH_METRICS_DELETABLE_FIELDS:
+    """Delete every sample of a given kind for the authenticated user."""
+    if kind not in HEALTH_METRICS_KINDS:
         raise_invalid_input(
-            f"Unsupported field: {field}",
-            allowed=list(HEALTH_METRICS_DELETABLE_FIELDS),
+            f"Unsupported kind: {kind}",
+            allowed=list(HEALTH_METRICS_KINDS),
         )
     service = HealthMetricsService(db)
-    count = await service.delete_field(current_user.id, field)
+    count = await service.delete_by_kind(current_user.id, kind)
     await db.commit()
-    return HealthMetricDeleteResponse(scope="field", field=field, affected_rows=count)
+    return HealthMetricDeleteResponse(
+        scope="kind",
+        kind=kind,
+        affected_rows=count,
+    )
 
 
 # =============================================================================

@@ -8,9 +8,9 @@ import { useApiMutation } from './useApiMutation';
 export type HealthMetricsPeriod = 'hour' | 'day' | 'week' | 'month' | 'year';
 
 /**
- * Deletable field name matching backend HEALTH_METRICS_DELETABLE_FIELDS.
+ * Sample kind discriminator matching backend HEALTH_METRICS_KINDS.
  */
-export type HealthMetricsDeletableField = 'heart_rate' | 'steps';
+export type HealthMetricsKind = 'heart_rate' | 'steps';
 
 /**
  * One aggregated bucket as returned by /health-metrics/aggregate.
@@ -66,8 +66,8 @@ export interface HealthMetricsTokenCreateResponse {
 }
 
 export interface HealthMetricsDeleteResponse {
-  scope: 'all' | 'field';
-  field: string | null;
+  scope: 'all' | 'kind';
+  kind: HealthMetricsKind | null;
   affected_rows: number;
 }
 
@@ -118,7 +118,7 @@ export function useHealthMetrics(period: HealthMetricsPeriod = 'day') {
     componentName: 'useHealthMetrics',
   });
 
-  const { mutate: deleteFieldMutate, loading: deletingField } = useApiMutation<
+  const { mutate: deleteKindMutate, loading: deletingKind } = useApiMutation<
     undefined,
     HealthMetricsDeleteResponse
   >({
@@ -153,13 +153,13 @@ export function useHealthMetrics(period: HealthMetricsPeriod = 'day') {
     [revokeTokenMutate, refetchTokens]
   );
 
-  const deleteField = useCallback(
-    async (field: HealthMetricsDeletableField) => {
-      const result = await deleteFieldMutate(`/health-metrics?field=${field}`);
+  const deleteKind = useCallback(
+    async (kind: HealthMetricsKind) => {
+      const result = await deleteKindMutate(`/health-metrics?kind=${kind}`);
       await refetchAggregate();
       return result;
     },
-    [deleteFieldMutate, refetchAggregate]
+    [deleteKindMutate, refetchAggregate]
   );
 
   const deleteAll = useCallback(async () => {
@@ -177,12 +177,12 @@ export function useHealthMetrics(period: HealthMetricsPeriod = 'day') {
     isLoading: aggregateLoading || tokensLoading,
     error: aggregateError,
     isCreatingToken: creatingToken,
-    isDeleting: deletingField || deletingAll,
+    isDeleting: deletingKind || deletingAll,
 
     // Actions
     createToken,
     revokeToken,
-    deleteField,
+    deleteKind,
     deleteAll,
 
     // Refetch

@@ -1,11 +1,12 @@
-"""Unit tests for the Health Metrics aggregator.
+"""Unit tests for the polymorphic Health Metrics aggregator.
 
 Covers:
 - Bucket flooring and advancement for every supported period
 - Empty-bucket gap preservation (``has_data=False``)
-- Per-bucket step total derivation (simple SUM)
-- Heart rate aggregation (avg/min/max)
-- Period-wide averages across multi-day windows
+- Heart-rate aggregation (avg/min/max) restricted to ``kind="heart_rate"``
+- Steps aggregation (simple sum) restricted to ``kind="steps"``
+- Period-wide averages (HR avg, steps-per-day avg)
+- Cross-kind interleaving within a bucket
 """
 
 from __future__ import annotations
@@ -15,8 +16,12 @@ from uuid import uuid4
 
 import pytest
 
-from src.domains.health_metrics.aggregator import aggregate_metrics
-from src.domains.health_metrics.models import HealthMetric
+from src.core.constants import (
+    HEALTH_METRICS_KIND_HEART_RATE,
+    HEALTH_METRICS_KIND_STEPS,
+)
+from src.domains.health_metrics.aggregator import aggregate_samples
+from src.domains.health_metrics.models import HealthSample
 
 pytestmark = pytest.mark.unit
 
@@ -26,20 +31,25 @@ pytestmark = pytest.mark.unit
 # =============================================================================
 
 
-def _make_metric(
-    recorded_at: datetime,
-    heart_rate: int | None = None,
-    steps: int | None = None,
-) -> HealthMetric:
-    """Build a HealthMetric instance for tests (no DB persistence)."""
-    return HealthMetric(
+def _make_sample(kind: str, date_start: datetime, value: int) -> HealthSample:
+    """Build an in-memory HealthSample for tests (no DB persistence)."""
+    return HealthSample(
         id=uuid4(),
         user_id=uuid4(),
-        recorded_at=recorded_at,
-        heart_rate=heart_rate,
-        steps=steps,
+        kind=kind,
+        date_start=date_start,
+        date_end=date_start + timedelta(minutes=5),
+        value=value,
         source="test",
     )
+
+
+def _hr(date_start: datetime, bpm: int) -> HealthSample:
+    return _make_sample(HEALTH_METRICS_KIND_HEART_RATE, date_start, bpm)
+
+
+def _steps(date_start: datetime, count: int) -> HealthSample:
+    return _make_sample(HEALTH_METRICS_KIND_STEPS, date_start, count)
 
 
 # =============================================================================
@@ -54,7 +64,7 @@ class TestGapPreservation:
         """A window with no samples still yields one point per bucket slot."""
         start = datetime(2026, 1, 1, 0, 0, tzinfo=UTC)
         end = datetime(2026, 1, 1, 3, 0, tzinfo=UTC)
-        points, averages = aggregate_metrics([], period="hour", from_ts=start, to_ts=end)
+        points, averages = aggregate_samples([], period="hour", from_ts=start, to_ts=end)
         assert len(points) == 3
         assert all(not p.has_data for p in points)
         assert averages.heart_rate_avg is None
@@ -64,76 +74,72 @@ class TestGapPreservation:
         """Only buckets that contain a sample have has_data=True."""
         start = datetime(2026, 1, 1, 0, 0, tzinfo=UTC)
         end = datetime(2026, 1, 1, 4, 0, tzinfo=UTC)
-        metrics = [
-            _make_metric(datetime(2026, 1, 1, 0, 30, tzinfo=UTC), heart_rate=70, steps=100),
-            # 01:00 bucket missing
-            _make_metric(datetime(2026, 1, 1, 2, 15, tzinfo=UTC), heart_rate=80, steps=200),
-            # 03:00 bucket missing
+        samples = [
+            _hr(datetime(2026, 1, 1, 0, 30, tzinfo=UTC), 70),
+            _hr(datetime(2026, 1, 1, 2, 15, tzinfo=UTC), 80),
         ]
-        points, _ = aggregate_metrics(metrics, period="hour", from_ts=start, to_ts=end)
+        points, _ = aggregate_samples(samples, period="hour", from_ts=start, to_ts=end)
         assert len(points) == 4
         assert [p.has_data for p in points] == [True, False, True, False]
 
 
 # =============================================================================
-# Heart rate aggregation
+# Heart-rate aggregation
 # =============================================================================
 
 
 class TestHeartRateAggregation:
-    """Heart rate aggregates over a bucket (avg, min, max)."""
+    """Heart-rate samples aggregate over a bucket (avg / min / max)."""
 
     def test_single_bucket_multiple_samples(self) -> None:
-        """Multiple HR samples within the same bucket average correctly.
-
-        Also asserts steps_total = sum to confirm both HR and steps
-        aggregations behave consistently on shared rows.
-        """
+        """Multiple HR samples within the same bucket average correctly."""
         start = datetime(2026, 1, 1, 0, 0, tzinfo=UTC)
         end = datetime(2026, 1, 2, 0, 0, tzinfo=UTC)
-        metrics = [
-            _make_metric(datetime(2026, 1, 1, 6, 0, tzinfo=UTC), heart_rate=60, steps=100),
-            _make_metric(datetime(2026, 1, 1, 12, 0, tzinfo=UTC), heart_rate=80, steps=200),
-            _make_metric(datetime(2026, 1, 1, 18, 0, tzinfo=UTC), heart_rate=100, steps=300),
+        samples = [
+            _hr(datetime(2026, 1, 1, 6, 0, tzinfo=UTC), 60),
+            _hr(datetime(2026, 1, 1, 12, 0, tzinfo=UTC), 80),
+            _hr(datetime(2026, 1, 1, 18, 0, tzinfo=UTC), 100),
         ]
-        points, averages = aggregate_metrics(metrics, period="day", from_ts=start, to_ts=end)
+        points, averages = aggregate_samples(samples, period="day", from_ts=start, to_ts=end)
         assert len(points) == 1
         assert points[0].heart_rate_avg == 80
         assert points[0].heart_rate_min == 60
         assert points[0].heart_rate_max == 100
-        assert points[0].steps_total == 600
+        assert points[0].steps_total is None  # no steps samples
         assert averages.heart_rate_avg == 80
 
-    def test_null_heart_rate_ignored(self) -> None:
-        """Samples with heart_rate=None do not pollute the average."""
+    def test_steps_samples_do_not_pollute_hr_average(self) -> None:
+        """Steps samples in the same bucket must not leak into HR aggregates."""
         start = datetime(2026, 1, 1, 0, 0, tzinfo=UTC)
         end = datetime(2026, 1, 2, 0, 0, tzinfo=UTC)
-        metrics = [
-            _make_metric(datetime(2026, 1, 1, 6, 0, tzinfo=UTC), heart_rate=None, steps=100),
-            _make_metric(datetime(2026, 1, 1, 12, 0, tzinfo=UTC), heart_rate=70, steps=200),
+        samples = [
+            _steps(datetime(2026, 1, 1, 6, 0, tzinfo=UTC), 500),
+            _hr(datetime(2026, 1, 1, 12, 0, tzinfo=UTC), 70),
         ]
-        points, _ = aggregate_metrics(metrics, period="day", from_ts=start, to_ts=end)
+        points, _ = aggregate_samples(samples, period="day", from_ts=start, to_ts=end)
         assert points[0].heart_rate_avg == 70
+        assert points[0].heart_rate_min == 70
+        assert points[0].heart_rate_max == 70
 
 
 # =============================================================================
-# Step aggregation (simple SUM, since values are already per-period)
+# Steps aggregation (simple SUM)
 # =============================================================================
 
 
-class TestStepAggregation:
-    """Steps are per-sample increments — bucketing is a simple SUM."""
+class TestStepsAggregation:
+    """Steps are summed per bucket; values represent per-interval counts."""
 
     def test_single_bucket_sum(self) -> None:
-        """All samples in one bucket sum into steps_total."""
+        """All steps samples in one bucket sum into steps_total."""
         start = datetime(2026, 1, 1, 0, 0, tzinfo=UTC)
         end = datetime(2026, 1, 2, 0, 0, tzinfo=UTC)
-        metrics = [
-            _make_metric(datetime(2026, 1, 1, 6, 0, tzinfo=UTC), steps=500),
-            _make_metric(datetime(2026, 1, 1, 12, 0, tzinfo=UTC), steps=1500),
-            _make_metric(datetime(2026, 1, 1, 18, 0, tzinfo=UTC), steps=2000),
+        samples = [
+            _steps(datetime(2026, 1, 1, 6, 0, tzinfo=UTC), 500),
+            _steps(datetime(2026, 1, 1, 12, 0, tzinfo=UTC), 1500),
+            _steps(datetime(2026, 1, 1, 18, 0, tzinfo=UTC), 2000),
         ]
-        points, averages = aggregate_metrics(metrics, period="day", from_ts=start, to_ts=end)
+        points, averages = aggregate_samples(samples, period="day", from_ts=start, to_ts=end)
         assert len(points) == 1
         assert points[0].steps_total == 4000
         assert averages.steps_per_day_avg == pytest.approx(4000.0)
@@ -142,44 +148,51 @@ class TestStepAggregation:
         """Each day bucket sums its own samples; period avg = total / days."""
         start = datetime(2026, 1, 1, 0, 0, tzinfo=UTC)
         end = datetime(2026, 1, 3, 0, 0, tzinfo=UTC)
-        metrics = [
-            # Day 1: 3000 + 4000 = 7000
-            _make_metric(datetime(2026, 1, 1, 8, 0, tzinfo=UTC), steps=3000),
-            _make_metric(datetime(2026, 1, 1, 20, 0, tzinfo=UTC), steps=4000),
-            # Day 2: 2500 + 2500 = 5000
-            _make_metric(datetime(2026, 1, 2, 8, 0, tzinfo=UTC), steps=2500),
-            _make_metric(datetime(2026, 1, 2, 20, 0, tzinfo=UTC), steps=2500),
+        samples = [
+            _steps(datetime(2026, 1, 1, 8, 0, tzinfo=UTC), 3000),
+            _steps(datetime(2026, 1, 1, 20, 0, tzinfo=UTC), 4000),
+            _steps(datetime(2026, 1, 2, 8, 0, tzinfo=UTC), 2500),
+            _steps(datetime(2026, 1, 2, 20, 0, tzinfo=UTC), 2500),
         ]
-        points, averages = aggregate_metrics(metrics, period="day", from_ts=start, to_ts=end)
+        points, averages = aggregate_samples(samples, period="day", from_ts=start, to_ts=end)
         assert len(points) == 2
         assert points[0].steps_total == 7000
         assert points[1].steps_total == 5000
-        # 12000 steps over 2 days = 6000 / day
+        # 12000 steps / 2 days = 6000 / day.
         assert averages.steps_per_day_avg == pytest.approx(6000.0)
 
-    def test_null_steps_yield_none_total(self) -> None:
-        """A bucket whose samples all carry steps=None gets steps_total=None."""
+    def test_hr_only_bucket_has_no_steps_total(self) -> None:
+        """A bucket with only HR samples reports steps_total=None."""
         start = datetime(2026, 1, 1, 0, 0, tzinfo=UTC)
         end = datetime(2026, 1, 2, 0, 0, tzinfo=UTC)
-        metrics = [
-            _make_metric(datetime(2026, 1, 1, 8, 0, tzinfo=UTC), heart_rate=70, steps=None),
-            _make_metric(datetime(2026, 1, 1, 12, 0, tzinfo=UTC), heart_rate=72, steps=None),
-        ]
-        points, averages = aggregate_metrics(metrics, period="day", from_ts=start, to_ts=end)
+        samples = [_hr(datetime(2026, 1, 1, 8, 0, tzinfo=UTC), 70)]
+        points, averages = aggregate_samples(samples, period="day", from_ts=start, to_ts=end)
         assert points[0].steps_total is None
         assert averages.steps_per_day_avg is None
 
-    def test_partial_null_steps(self) -> None:
-        """Mixed null/non-null steps in a bucket sum the valid ones only."""
+
+# =============================================================================
+# Mixed-kind interleaving inside a single bucket
+# =============================================================================
+
+
+class TestMixedKinds:
+    """A bucket can hold both HR and steps samples simultaneously."""
+
+    def test_mixed_bucket_reports_both_aggregates(self) -> None:
+        """HR avg and steps_total coexist in the same day bucket."""
         start = datetime(2026, 1, 1, 0, 0, tzinfo=UTC)
         end = datetime(2026, 1, 2, 0, 0, tzinfo=UTC)
-        metrics = [
-            _make_metric(datetime(2026, 1, 1, 8, 0, tzinfo=UTC), steps=1000),
-            _make_metric(datetime(2026, 1, 1, 12, 0, tzinfo=UTC), steps=None, heart_rate=70),
-            _make_metric(datetime(2026, 1, 1, 18, 0, tzinfo=UTC), steps=2000),
+        samples = [
+            _hr(datetime(2026, 1, 1, 6, 0, tzinfo=UTC), 60),
+            _steps(datetime(2026, 1, 1, 6, 30, tzinfo=UTC), 1000),
+            _hr(datetime(2026, 1, 1, 18, 0, tzinfo=UTC), 80),
+            _steps(datetime(2026, 1, 1, 19, 0, tzinfo=UTC), 2500),
         ]
-        points, _ = aggregate_metrics(metrics, period="day", from_ts=start, to_ts=end)
-        assert points[0].steps_total == 3000
+        points, _ = aggregate_samples(samples, period="day", from_ts=start, to_ts=end)
+        assert points[0].heart_rate_avg == 70
+        assert points[0].steps_total == 3500
+        assert points[0].has_data is True
 
 
 # =============================================================================
@@ -201,7 +214,12 @@ class TestPeriodBuckets:
         """A 24h window produces the expected number of buckets per period."""
         start = datetime(2026, 1, 1, 0, 0, tzinfo=UTC)
         end = start + timedelta(hours=24)
-        points, _ = aggregate_metrics([], period=period, from_ts=start, to_ts=end)  # type: ignore[arg-type]
+        points, _ = aggregate_samples(
+            [],
+            period=period,  # type: ignore[arg-type]
+            from_ts=start,
+            to_ts=end,
+        )
         assert len(points) == expected_buckets
 
     def test_week_bucket_starts_monday(self) -> None:
@@ -209,7 +227,15 @@ class TestPeriodBuckets:
         # Wednesday Jan 7, 2026 is ISO day-of-week 3.
         start = datetime(2026, 1, 7, 12, 0, tzinfo=UTC)
         end = datetime(2026, 1, 21, 12, 0, tzinfo=UTC)
-        points, _ = aggregate_metrics([], period="week", from_ts=start, to_ts=end)
+        points, _ = aggregate_samples([], period="week", from_ts=start, to_ts=end)
         # Expect buckets starting on Mondays: Jan 5, 12, 19.
         assert all(p.bucket.weekday() == 0 for p in points)
         assert points[0].bucket.date() == datetime(2026, 1, 5).date()
+
+    def test_month_bucket_starts_on_first(self) -> None:
+        """Monthly aggregation anchors buckets on the 1st of each month."""
+        start = datetime(2026, 1, 15, 12, 0, tzinfo=UTC)
+        end = datetime(2026, 4, 2, 0, 0, tzinfo=UTC)
+        points, _ = aggregate_samples([], period="month", from_ts=start, to_ts=end)
+        assert [p.bucket.month for p in points] == [1, 2, 3, 4]
+        assert all(p.bucket.day == 1 for p in points)

@@ -1,18 +1,22 @@
 """Health Metrics domain database models.
 
-Defines the persistence layer for:
-- HealthMetric: one row per received ingestion payload, per-field nullable
-  columns (a row can carry heart_rate only, steps only, or both) plus a
-  free-form `source` label. Rows are immutable after insertion; deletions
-  are performed as column-level UPDATE (field=NULL) or full row DELETE
-  depending on the user-requested deletion scope.
-- HealthMetricToken: per-user ingestion tokens. Only the SHA-256 hash is
-  stored; the raw token value is returned once at creation time and never
-  recoverable afterward. A user may hold several active tokens concurrently
-  (rotation use case) and revoke any of them independently.
+Two tables:
+
+- ``health_samples`` — polymorphic measurement samples. One row per unique
+  `(user_id, kind, date_start, date_end)`. Supports two kinds initially —
+  `"heart_rate"` (bpm) and `"steps"` (count) — with a CHECK constraint for
+  forward compatibility. Client-supplied timestamps (date_start / date_end)
+  are normalized to UTC before insertion so equal instants stored under
+  different TZ offsets resolve to the same row via UPSERT.
+
+- ``health_metric_tokens`` — per-user ingestion tokens. Only the SHA-256
+  hash of the raw value is stored; the raw value is returned exactly once
+  at creation time and never recoverable afterward. Multiple tokens may
+  coexist per user and be revoked individually.
 
 Phase: evolution — Health Metrics (iPhone Shortcuts integration)
 Created: 2026-04-20
+Revised: 2026-04-21 — migration to the polymorphic samples model.
 """
 
 from __future__ import annotations
@@ -21,12 +25,13 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import (
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Index,
     Integer,
-    SmallInteger,
     String,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -35,15 +40,15 @@ from src.core.constants import HEALTH_METRICS_SOURCE_DEFAULT
 from src.infrastructure.database.models import BaseModel
 
 
-class HealthMetric(BaseModel):
-    """A single health metric sample ingested from an external client.
+class HealthSample(BaseModel):
+    """A single health measurement sample ingested from an external client.
 
-    One row per POST /api/v1/ingest/health. Columns are nullable so that a
-    row can carry a subset of metrics (mixed per-field validation may NULL
-    out an invalid field while preserving valid siblings in the same row).
+    One row per unique ``(user_id, kind, date_start, date_end)`` tuple.
+    Re-ingesting the same sample updates ``value`` and ``source`` in place
+    (last-write-wins) via ON CONFLICT DO UPDATE.
     """
 
-    __tablename__ = "health_metrics"
+    __tablename__ = "health_samples"
 
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -51,50 +56,66 @@ class HealthMetric(BaseModel):
         nullable=False,
     )
 
-    recorded_at: Mapped[datetime] = mapped_column(
+    kind: Mapped[str] = mapped_column(
+        String(16),
+        nullable=False,
+        comment="Discriminator: 'heart_rate' | 'steps'.",
+    )
+
+    date_start: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        comment="Server-side reception timestamp (UTC). Authoritative horodatage.",
+        comment="Start of the measurement interval (client-supplied, UTC-normalized).",
     )
 
-    heart_rate: Mapped[int | None] = mapped_column(
-        SmallInteger,
-        nullable=True,
-        comment="Last heart rate sample (bpm). NULL if not provided or out of range.",
+    date_end: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        comment="End of the measurement interval (client-supplied, UTC-normalized).",
     )
 
-    steps: Mapped[int | None] = mapped_column(
+    value: Mapped[int] = mapped_column(
         Integer,
-        nullable=True,
-        comment=(
-            "Steps recorded during the inter-sample period "
-            "(NOT a daily cumulative counter). NULL if not provided or out of range."
-        ),
+        nullable=False,
+        comment="Numeric value for the kind (bpm for heart_rate, count for steps).",
     )
 
     source: Mapped[str] = mapped_column(
         String(32),
         nullable=False,
         default=HEALTH_METRICS_SOURCE_DEFAULT,
-        comment="Origin label supplied by client (slugified, <= 32 chars).",
+        comment="Origin label supplied per-sample (slugified, <= 32 chars).",
     )
 
-    __table_args__ = (Index("ix_health_metrics_user_recorded", "user_id", "recorded_at"),)
+    __table_args__ = (
+        CheckConstraint(
+            "kind IN ('heart_rate', 'steps')",
+            name="ck_health_samples_kind",
+        ),
+        UniqueConstraint(
+            "user_id",
+            "kind",
+            "date_start",
+            "date_end",
+            name="uq_health_samples_user_kind_range",
+        ),
+        Index("ix_health_samples_user_kind_start", "user_id", "kind", "date_start"),
+    )
 
     def __repr__(self) -> str:
         """Concise representation for logging."""
         return (
-            f"<HealthMetric(user_id={self.user_id}, "
-            f"recorded_at={self.recorded_at.isoformat() if self.recorded_at else None}, "
-            f"hr={self.heart_rate}, steps={self.steps})>"
+            f"<HealthSample(user_id={self.user_id}, kind={self.kind}, "
+            f"start={self.date_start.isoformat() if self.date_start else None}, "
+            f"value={self.value})>"
         )
 
 
 class HealthMetricToken(BaseModel):
-    """API token authorizing a client to POST to the ingestion endpoint.
+    """API token authorizing a client to POST to the ingestion endpoints.
 
     Only the SHA-256 hash of the token is persisted — the raw value is
-    returned to the user exactly once at generation time. `token_prefix`
+    returned to the user exactly once at generation time. ``token_prefix``
     stores the first N characters for UI display ("hm_abcdef…"), letting
     the user identify the token without exposing the secret material.
     """

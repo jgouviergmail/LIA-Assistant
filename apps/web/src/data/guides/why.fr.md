@@ -4,7 +4,7 @@
 
 **Version** : 3.2
 **Date** : 2026-04-20
-**Application** : LIA v1.17.0
+**Application** : LIA v1.17.1
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -165,11 +165,13 @@ En installant Claude CLI (Claude Code) directement sur le serveur, les administr
 
 ### 3.9. Données santé personnelles (iPhone)
 
-LIA accueille les mesures Apple Santé que votre iPhone pousse via une automatisation Raccourcis : fréquence cardiaque et nombre de pas, envoyés toutes les heures. Les données restent dans votre instance LIA — aucun service tiers n'y a accès — et sont visualisées dans une section dédiée des Réglages, sous forme de courbe (FC) et de barres (pas), avec un sélecteur de période (heure, jour, semaine, mois, année) et la moyenne sur la période en pointillés.
+LIA accueille les mesures Apple Santé que votre iPhone pousse via une automatisation Raccourcis : fréquence cardiaque et nombre de pas. Parce que l'iPhone doit être déverrouillé pour qu'un automatisme iOS se déclenche de manière fiable, le protocole accepte des **lots quotidiens** plutôt qu'un envoi horaire forcé — à chaque déclenchement du Raccourci (au déverrouillage, à une heure fixe, ou les deux), il pousse les échantillons de la journée, et le serveur déduplique naturellement sur l'intervalle de mesure. Renvoyer la même journée plusieurs fois est donc sans conséquence.
+
+Les données restent dans votre instance LIA — aucun service tiers n'y a accès — et sont visualisées dans une section dédiée des Réglages, sous forme de courbe (FC) et de barres (pas), avec un sélecteur de période (heure, jour, semaine, mois, année) et la moyenne sur la période en pointillés.
 
 L'envoi est authentifié par un **jeton dédié** (commençant par `hm_…`) que vous générez depuis l'application et que vous pouvez révoquer à tout moment. Le jeton ne donne accès qu'à l'envoi de données santé — jamais au reste de votre compte. Vous pouvez en générer plusieurs (un par appareil) et les gérer séparément.
 
-Trois actions de gestion vous donnent un contrôle total : effacer toutes vos fréquences cardiaques (en gardant les pas), effacer tous vos pas (en gardant la FC), ou tout supprimer. Aucune valeur de fréquence ou de pas n'est jamais conservée dans les journaux du serveur — la conformité RGPD est intégrée par construction.
+Trois actions de gestion vous donnent un contrôle total : supprimer toutes les mesures de fréquence cardiaque, supprimer toutes les mesures de pas, ou tout effacer. Aucune valeur physiologique brute n'est jamais conservée dans les journaux du serveur — la conformité RGPD est intégrée par construction.
 
 ---
 
