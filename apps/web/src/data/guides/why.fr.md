@@ -163,6 +163,14 @@ Un agent de navigation (Playwright/Chromium headless) peut naviguer sur des site
 
 En installant Claude CLI (Claude Code) directement sur le serveur, les administrateurs peuvent diagnostiquer leur infrastructure en langage naturel depuis le chat de LIA : consulter les logs Docker, vérifier la santé des conteneurs, surveiller l'espace disque, analyser les erreurs. Cette fonctionnalité est réservée aux comptes administrateurs.
 
+### 3.9. Données santé personnelles (iPhone)
+
+LIA accueille les mesures Apple Santé que votre iPhone pousse via une automatisation Raccourcis : fréquence cardiaque et nombre de pas, envoyés toutes les heures. Les données restent dans votre instance LIA — aucun service tiers n'y a accès — et sont visualisées dans une section dédiée des Réglages, sous forme de courbe (FC) et de barres (pas), avec un sélecteur de période (heure, jour, semaine, mois, année) et la moyenne sur la période en pointillés.
+
+L'envoi est authentifié par un **jeton dédié** (commençant par `hm_…`) que vous générez depuis l'application et que vous pouvez révoquer à tout moment. Le jeton ne donne accès qu'à l'envoi de données santé — jamais au reste de votre compte. Vous pouvez en générer plusieurs (un par appareil) et les gérer séparément.
+
+Trois actions de gestion vous donnent un contrôle total : effacer toutes vos fréquences cardiaques (en gardant les pas), effacer tous vos pas (en gardant la FC), ou tout supprimer. Aucune valeur de fréquence ou de pas n'est jamais conservée dans les journaux du serveur — la conformité RGPD est intégrée par construction.
+
 ---
 
 ## 4. Un serveur pour vos proches

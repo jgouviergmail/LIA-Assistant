@@ -163,6 +163,14 @@ A browsing agent (Playwright/Chromium headless) can navigate websites, click, fi
 
 By installing Claude CLI (Claude Code) directly on the server, administrators can diagnose their infrastructure in natural language from LIA's chat: check Docker logs, verify container health, monitor disk space, analyze errors. This feature is restricted to administrator accounts.
 
+### 3.9. Personal health data (iPhone)
+
+LIA welcomes the Apple Health measurements your iPhone pushes via a Shortcuts automation: heart rate and step count, sent every hour. The data stays inside your LIA instance — no third-party service has access — and is visualized in a dedicated Settings section, as a line chart (HR) and bar chart (steps), with a period selector (hour, day, week, month, year) and a dashed line for the period average.
+
+Ingestion is authenticated by a **dedicated token** (starting with `hm_…`) that you generate from the app and can revoke at any time. The token only authorizes health-data ingestion — never the rest of your account. You can generate several (one per device) and manage them independently.
+
+Three management actions give you full control: erase all heart rates (keeping steps), erase all steps (keeping HR), or wipe everything. No raw heart rate or step value is ever kept in server logs — GDPR-compliance is built in by design.
+
 ---
 
 ## 4. A server for your loved ones

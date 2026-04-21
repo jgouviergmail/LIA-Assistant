@@ -742,7 +742,7 @@ Les métriques debug persistent dans `sessionStorage` (50 entrées max).
 
 **Pourquoi un debug panel dans l'UI ?** Dans un écosystème où les agents IA sont notoirement difficiles à debugger (comportement non déterministe, chaînes d'appels opaques), rendre les métriques accessibles directement dans l'interface élimine la friction de devoir ouvrir Grafana ou lire des logs. L'opérateur voit immédiatement pourquoi une requête a coûté cher ou pourquoi le routeur a choisi tel domaine.
 
-### 20.3. DevOps Claude CLI (v1.13.0 — admin uniquement)
+### 20.3. DevOps Claude CLI (admin uniquement)
 
 Les administrateurs peuvent interagir avec Claude Code CLI directement depuis la conversation LIA pour diagnostiquer les problèmes serveur en langage naturel : *"Regarde les logs pour voir si tout fonctionne"*, *"Vérifie l'espace disque"*, *"Quel container utilise le plus de RAM ?"*. Claude CLI est installé dans le container Docker API et exécuté localement via subprocess, avec accès au Docker socket pour inspecter tous les containers. Les permissions sont configurables par environnement (`--allowedTools`/`--disallowedTools`) et l'accès est restreint aux superusers via un check DB direct. Les sessions sont persistantes pour permettre des investigations multi-tours.
 
@@ -852,9 +852,9 @@ Système en 3 couches résolvant un problème de duplication : avant l'ADR-061, 
 
 Chaque sous-système optionnel est contrôlé par un flag `{FEATURE}_ENABLED`, vérifié au démarrage (enregistrement scheduler), au câblage des routes et à l'entrée des nœuds (court-circuit instantané). Cela permet de déployer le codebase complet tout en activant les sous-systèmes progressivement.
 
-### 23.7. Skills enrichis : frames HTML et images (v1.16.8)
+### 23.7. Skills enrichis : frames HTML et images
 
-Les Skills (standard agentskills.io) peuvent désormais retourner, en plus du texte, des **frames HTML interactives** et des **images** via un contrat JSON typé `SkillScriptOutput`. Le script Python écrit sur stdout :
+Les Skills (standard agentskills.io) peuvent retourner, en plus du texte, des **frames HTML interactives** et des **images** via un contrat JSON typé `SkillScriptOutput`. Le script Python écrit sur stdout :
 
 ```json
 { "text": "required", "frame": { "html" | "url", "title", "aspect_ratio" }, "image": { "url", "alt" } }
@@ -879,56 +879,57 @@ run_skill_script → parse_skill_stdout() → SkillScriptOutput
 
 **Rendu conditionnel** : `INTERACTIVE_WIDGET_TYPES = {SKILL_APP, MCP_APP, DRAFT}` — ces widgets sont injectés en HTML indépendamment du `user_display_mode` (Rich HTML / Markdown / Cards), alors que les autres RegistryItems restent conditionnels au mode Cards.
 
-Sept skills système livrés en v1.16.8 démontrent le contrat : `interactive-map`, `weather-dashboard`, `calendar-month`, `qr-code`, `pomodoro-timer`, `unit-converter`, `dice-roller`.
+Une bibliothèque de skills système démontre le contrat : `interactive-map`, `weather-dashboard`, `calendar-month`, `qr-code`, `pomodoro-timer`, `unit-converter`, `dice-roller` — chacun illustrant une combinaison différente des trois canaux.
 
-### 23.8. Recherche d'historique et rendu riche du chat (v1.16.9)
+### 23.8. Recherche d'historique et rendu riche du chat
 
-Trois améliorations transverses se partagent la même philosophie : **feedback immédiat, zéro surcoût serveur quand ce n'est pas nécessaire**.
+Trois capacités transverses partagent la même philosophie produit : **feedback immédiat, zéro surcoût serveur quand ce n'est pas nécessaire**.
 
-- **Recherche d'historique conversation** — nouveau query parameter `?search=` sur `GET /conversations/me/messages`. Le filtrage passe par PostgreSQL `ILIKE` (case-insensitive, accent-sensitive en MVP — contrat verrouillé par test). Côté frontend, un `useMemo` sur `messages` filtre instantanément les 50 messages chargés ; l'endpoint backend reste disponible comme capacité latente pour un futur UI de recherche profonde.
+- **Recherche d'historique conversation** — query parameter `?search=` sur `GET /conversations/me/messages`. Le filtrage passe par PostgreSQL `ILIKE` (case-insensitive, accent-sensitive — contrat verrouillé par test). Côté frontend, un `useMemo` sur `messages` filtre instantanément les messages chargés ; l'endpoint backend reste disponible comme capacité latente pour un futur UI de recherche profonde.
 - **Rendu LaTeX** — `remark-math` + `rehype-katex` branchés dans `MarkdownContent.tsx`. Syntaxe `$inline$` / `$$block$$`. Les plugins sont ordonnés `rehypeRaw → rehypeKatex` pour éviter toute double-exécution sur le HTML brut. KaTeX produit son propre HTML sanitisé (spans typés), sans surface d'attaque nouvelle au-delà de ce que `rehypeRaw` autorise déjà.
-- **Coloration syntaxique** — `react-syntax-highlighter` (PrismAsyncLight) lazy-loaded. 25 langages enregistrés à la demande via `SyntaxHighlighter.registerLanguage(...)` pour garder le bundle initial léger (+50 KB, langages chargés au premier code block). Thème automatique `one-dark` / `one-light` piloté par `next-themes`.
+- **Coloration syntaxique** — `react-syntax-highlighter` (PrismAsyncLight) lazy-loaded. 25 langages enregistrés à la demande via `SyntaxHighlighter.registerLanguage(...)` pour garder le bundle initial léger (langages chargés au premier code block). Thème automatique `one-dark` / `one-light` piloté par `next-themes`.
 
-### 23.9. Persistance du feedback proactif (v1.16.9)
+### 23.9. Persistance du feedback proactif
 
-**Bug fix à impact UX** : les boutons 👍/👎/🚫 des notifications proactives (intérêts, heartbeat) réapparaissaient au reload parce que l'état `feedbackSubmitted` n'était qu'un `useState` local. La correction persiste le feedback directement dans `conversation_messages.message_metadata` JSONB via `jsonb_set(jsonb_set(coalesce(metadata, '{}'::jsonb), '{feedback_submitted}', 'true'), '{feedback_value}', '"thumbs_up"')`. L'update est **scoped par `user_id`** via subquery sur `conversations.user_id` pour prévenir toute fuite cross-tenant.
+Le feedback utilisateur sur les notifications proactives (👍/👎/🚫 sur intérêts, heartbeat) est persisté directement dans `conversation_messages.message_metadata` JSONB via `jsonb_set(jsonb_set(coalesce(metadata, '{}'::jsonb), '{feedback_submitted}', 'true'), '{feedback_value}', '"thumbs_up"')`. L'update est **scoped par `user_id`** via subquery sur `conversations.user_id` pour prévenir toute fuite cross-tenant.
 
-Côté frontend, l'état initial lit `message.metadata?.feedback_submitted` et le feedback est appliqué **de manière optimiste** (boutons cachés + toast proactif avant la mutation réseau). Les clés de metadata sont centralisées dans `src/core/field_names.py` (`FIELD_TARGET_ID`, `FIELD_FEEDBACK_ENABLED`, `FIELD_FEEDBACK_SUBMITTED`, `FIELD_FEEDBACK_VALUE`).
+Côté frontend, l'état initial lit `message.metadata?.feedback_submitted` (les boutons restent cachés au reload pour les messages déjà votés) et le feedback est appliqué **de manière optimiste** (boutons cachés + toast proactif avant la mutation réseau). Les clés de metadata sont centralisées dans `src/core/field_names.py` (`FIELD_TARGET_ID`, `FIELD_FEEDBACK_ENABLED`, `FIELD_FEEDBACK_SUBMITTED`, `FIELD_FEEDBACK_VALUE`).
 
-### 23.10. Internationalisation des tools i18n-ready (v1.16.9)
+### 23.10. Internationalisation des tools : pattern thread-safe
 
-Deux corrections rendent le backend i18n cohérent de bout en bout :
+L'i18n des tools utilisateur repose sur un contrat clair entre l'invocation asynchrone (`execute_api_call`) et le formatage synchrone du résultat (`format_registry_response`). Comme les instances de tools sont des **singletons concurrents** partagés entre toutes les requêtes, l'état de langue ne peut pas vivre sur l'instance.
 
-- **Weather tools** : les appels `_("Unable to find location: {location}")` recevaient `DEFAULT_LANGUAGE` (fr) au lieu de la locale utilisateur, parce que la condition d'override `if not language: language = user_lang` ne se déclenchait jamais (kwargs retournait toujours une valeur truthy). Corrigé par `if user_lang: language = user_lang` et propagation de `language` à `gettext.gettext(text, language)` sur les 6 sites concernés.
-- **Hue tools** : les 6 tools (`list_lights`, `control_light`, `list_rooms`, `control_room`, `list_scenes`, `activate_scene`) étaient des classes `ConnectorTool` avec messages hardcodés anglais. Refactor vers une Option C **thread-safe** : deux helpers `_fetch_language()` (async, utilisé dans `execute_api_call`) et `_language_from_result(result)` (sync, utilisé dans `format_registry_response`) ajoutés à `ConnectorTool`, avec une constante `_LANGUAGE_RESULT_KEY = "_language"` qui sert de contrat interne pour passer la langue entre les deux phases sans s'appuyer sur un état d'instance partagé (les tool instances sont des singletons concurrents). 21 chaînes ajoutées aux 6 fichiers `.po`/`.mo` (126 entrées gettext).
+`ConnectorTool` expose donc deux helpers : `_fetch_language()` (async, lit la locale utilisateur depuis le contexte) et `_language_from_result(result)` (sync, lit la langue depuis le résultat lui-même), reliés par une constante `_LANGUAGE_RESULT_KEY = "_language"` qui sert de contrat interne. Aucune mutation d'instance, pas de ContextVar nécessaire pour ce flux, et chaque résultat embarque la langue qui a servi à son formatage. Les fichiers `.po`/`.mo` sont compilés à l'image Docker.
 
-### 23.11. Refonte de l'observabilité (v1.16.10)
+L'application complète à la météo (`gettext.gettext(text, language)` avec propagation explicite sur les 6 sites concernés) et aux 6 tools Hue (`list_lights`, `control_light`, `list_rooms`, `control_room`, `list_scenes`, `activate_scene`) garantit que les sorties sont rendues dans la langue de l'utilisateur, jamais dans la langue de service par défaut.
 
-Un audit de l'observabilité a révélé qu'une part significative des métriques Prometheus déclarées dans le code n'étaient jamais émises en production, et que deux pans de l'exécution (sub-agents/skills et ReAct/browser) n'étaient couverts par aucun dashboard. Livraison en un seul commit additif, sans changement de contrat API.
+### 23.11. Architecture observabilité
 
-- **Instrumentation de 90+ métriques mortes** — 40 fichiers backend touchés (router, planner, HITL, OAuth, connecteurs, voice, drafts, initiative, data-registry, conversations, sub-agents, browser, proactive). Pattern défensif systématique : chaque bloc d'émission est wrappé dans `try/except Exception: pass` pour que les failures Prometheus ne propagent jamais sur le chemin critique. Les imports sont lazy (`from ... import foo` à l'intérieur du try) pour éviter tout coût au chargement.
-- **Deux nouveaux dashboards Grafana** : **19 — Sub-agents & Skills** (20 panels) couvrant activité sub-agents, token budget (`subagent_token_budget_exceeded_total`), skills execution, rich outputs (frames/images), clarifications et query patterns ; **20 — ReAct & Browser** (22 panels) couvrant invocations ReAct, iterations (`mcp_react_iterations_histogram`), browser tool errors, MCP React et trajectory analysis. Total : 20 dashboards / 354+ panels.
-- **DB indexes pour les gauges périodiques** — migration Alembic `obs_indexes_001` ajoutant `ix_conversations_updated_at` (DAU/WAU), `ix_conversations_created_at` (daily-conversations histogram), `ix_connectors_status` (connector_activation_rate). Le background updater des gauges passe de ~500ms (full scan) à <50ms sur base peuplée.
-- **Handler FastAPI `RequestValidationError`** — comptabilise les 422 par `field` + `error_type` sur `validation_errors_total` (dashboard 16), avec cap à 10 erreurs/requête et truncation 40 chars pour borner la cardinalité. Le comportement FastAPI par défaut (réponse 422 avec `detail`) est strictement préservé.
-- **SQLAlchemy event listeners** `before_insert` / `after_insert` sur `Connector` pour mesurer la durée d'activation réelle (flush SQL → completion) sans intrusion dans les services métier. Double métrique : `oauth_connector_activation_total` (counter) + `oauth_connector_activation_duration_seconds` (histogram).
-- **Gauges DB-backed** : DAU (`user_active_daily_gauge`), WAU (`user_active_weekly_gauge`), Redis pool (`redis_connection_pool_size_current`, `redis_connection_pool_available_current`), `checkpoints_table_size_bytes`, `connector_activation_rate{connector_type}`.
-- **URL sanitization segment-par-segment** pour éliminer la cardinality bomb sur `connector_api_*{operation}` — regex UUID/id/hex_id/token → placeholders (`{uuid}`, `{id}`, `{hex_id}`, `{token}`), 12/12 cas de test passants. Sans cette protection, chaque requête API Google/Apple/Microsoft portant un ID de ressource créait une nouvelle série Prometheus, inflant la mémoire du scrape au fil du temps.
-- **Fixes associés** : `planner_plans_created_total` déclaré avec `[execution_mode]` seul mais appelé avec `(execution_mode, agents_count)` → `ValueError` silencieux corrigé ; `hitl_question_ttft_seconds.observe()` sans `.labels()` (bug pré-existant) corrigé par ajout de `.labels(type="tool_confirmation")` ; dashboards 19/20 complètement vides corrigés (Grafana exige une structure flat quand `row.collapsed: false`) ; `Connector.is_active` → `Connector.status == ConnectorStatus.ACTIVE` ; label `ConnectorType.BRAVE_SEARCH` → `ctype.value` ; imports `metrics_business` corrigés (étaient pointés vers `metrics`) ; magic number `0.5` remplacé par `get_confidence_bucket() == "low"` pour alignement sémantique avec `router_decisions_total{confidence_bucket}` ; proactive runner helpers (`track_proactive_task_execution`, `track_proactive_notification`, `track_proactive_tokens`, `track_proactive_feedback`) rebranchés sur le code de production.
+L'observabilité repose sur trois piliers : **émission défensive** sur le chemin critique, **dashboards Grafana** pré-câblés (20 dashboards / 354+ panels couvrant l'application, l'infra et chaque sous-système métier), et **gauges DB-backed** entretenues par un updater périodique.
 
-### 23.12. Données santé via iPhone Shortcuts (v1.17.0)
+L'instrumentation Prometheus est systématiquement wrappée dans `try/except Exception: pass` avec imports lazy (`from ... import foo` à l'intérieur du try) pour qu'aucun problème de métrique ne propage sur la chaîne d'exécution. Trois index Postgres dédiés (`ix_conversations_updated_at` pour DAU/WAU, `ix_conversations_created_at` pour l'histogramme conversations, `ix_connectors_status` pour le taux d'activation) ramènent les queries du updater de ~500 ms à <50 ms sur base peuplée.
 
-Nouveau domaine DDD `health_metrics` (cf. [ADR-076](../docs/architecture/ADR-076-Health-Metrics-Ingestion.md)) introduisant un endpoint d'ingestion REST authentifié par token, pour qu'une automatisation iPhone (Apple Raccourcis) puisse pousser fréquence cardiaque et nombre de pas toutes les heures, visualisés ensuite dans une nouvelle section Réglages.
+Côté validation, un handler FastAPI `RequestValidationError` comptabilise les 422 par `field` + `error_type` sur `validation_errors_total`, avec cap à 10 erreurs/requête et truncation 40 chars pour borner la cardinalité. Le contrat 422 (réponse FastAPI standard avec `detail`) est strictement préservé.
 
-- **Endpoint** : `POST /api/v1/ingest/health` avec `Authorization: Bearer hm_xxx` et corps `{"data": {"c": <bpm>, "p": <pas>, "o": <source>}}`. `p` est l'incrément depuis la précédente mesure (PAS un compteur cumulatif). Le serveur horodate l'échantillon à réception (UTC).
-- **Tokens hashés** : table `health_metric_tokens` ne stocke que le digest SHA-256 ; la valeur brute (préfixe `hm_` + 32 chars `secrets.token_urlsafe`) est révélée une seule fois à la création. Préfixe d'affichage 8 caractères pour identification dans la liste. Plusieurs tokens actifs en parallèle, révocation individuelle.
-- **Validation mixte par champ** : valeurs hors plages physiologiques (`[20, 250]` bpm pour HR, `[0, 15 000]` pas/sample) → colonne NULL + log warn (jamais la valeur brute, conformité RGPD), les autres champs valides du même payload sont préservés. Bornes configurables via `.env`.
-- **Migration `health_metrics_001`** : tables `health_metrics` (id, user_id, recorded_at, heart_rate, steps_cumulative, source) + `health_metric_tokens` (id, user_id, token_hash, token_prefix, label, last_used_at, revoked_at). Index `(user_id, recorded_at)`. Migration `health_metrics_002` rename `steps_cumulative` → `steps` après le pivot sémantique « increment, pas cumul ».
-- **Aggregator Python** (`SUM` par bucket horaire/jour/semaine/mois/année + `AVG/MIN/MAX` HR), gaps préservés (`has_data=False`) — pas d'interpolation, le frontend (`recharts`) rend les trous via `connectNulls={false}`.
-- **Rate limit Redis** (sliding window) : 5 req/h/token par défaut. Constante `HEALTH_METRICS_RATE_LIMIT_WINDOW_SECONDS = 3600`. Fail-open sur erreur Redis.
-- **Frontend** : section unique `SettingsSection value="health_metrics"` (pattern Psyche) avec sélecteur de période partagé + 4 sous-accordéons (API + tokens, Graphiques, Statistiques, Gestion des données). Hook `useHealthMetrics(period)` consommant `useApiQuery`/`useApiMutation`.
-- **Observabilité** : 8 métriques Prometheus (`health_metrics_ingested_total{status}`, `_ingest_duration_seconds`, `_validation_rejected_total{field, reason}`, `_rate_limit_hits_total`, `_auth_failures_total{reason}`, `_tokens_generated_total`, `_tokens_revoked_total`, `_deleted_total{scope}`) + dashboard Grafana 21 dédié.
-- **Sécurité** : `WWW-Authenticate: Bearer` (RFC 7235) sur les 401, `Retry-After` sur les 429. Logs structurés sans PII. Constante `FIELD_HEART_RATE`/`FIELD_STEPS` dans `field_names.py`. Cascade SQL `ON DELETE CASCADE` sur la FK `users` couvre l'erasure de compte.
-- **Feature flag** : `HEALTH_METRICS_ENABLED=false` par défaut. Active dans `.env` pour bénéficier du domaine.
+Pour mesurer la durée réelle d'activation des connecteurs sans intrusion dans les services métier, des **SQLAlchemy event listeners** `before_insert` / `after_insert` sur `Connector` capturent l'intervalle flush SQL → completion. Double métrique : `oauth_connector_activation_total` (counter) + `oauth_connector_activation_duration_seconds` (histogram).
+
+Les **gauges DB-backed** alimentées toutes les 30 s : DAU (`user_active_daily_gauge`), WAU (`user_active_weekly_gauge`), pool Redis (`redis_connection_pool_size_current`, `redis_connection_pool_available_current`), `checkpoints_table_size_bytes`, `connector_activation_rate{connector_type}`.
+
+Pour prévenir l'**explosion de cardinalité Prometheus** sur `connector_api_*{operation}`, les paths d'API sont sanitisés segment-par-segment avant émission : UUID/id/hex_id/token sont remplacés par des placeholders `{uuid}`, `{id}`, `{hex_id}`, `{token}`. Sans cette protection, chaque requête API Google/Apple/Microsoft portant un ID de ressource créerait une nouvelle série Prometheus.
+
+### 23.12. Ingestion d'événements externes via tokens scopés
+
+LIA accepte les ingestions d'événements externes (mesures iPhone Apple Health, payloads de tiers, futurs canaux IoT) via un pattern unifié : un endpoint REST authentifié par **token Bearer scopé**, indépendant du système de session cookie. C'est le mécanisme retenu pour le domaine [`health_metrics`](../docs/architecture/ADR-076-Health-Metrics-Ingestion.md) (fréquence cardiaque + nombre de pas envoyés par une automatisation Raccourcis iOS), et il sert de gabarit pour tout futur connecteur entrant.
+
+**Pourquoi un token et non l'ID utilisateur** : un identifiant d'utilisateur fuite naturellement (URLs, payload JWT, logs, screenshots, exports). Un token est un **secret rotatif et révocable** scopé à un endpoint. Le préfixe (`hm_` pour les health metrics) permet de typer le scope.
+
+**Persistance** : la table de tokens stocke **uniquement le digest SHA-256** de la valeur brute. La valeur en clair (préfixe + 32 chars `secrets.token_urlsafe`) est révélée une seule fois à la création. Un préfixe d'affichage de 8 caractères reste visible pour identification dans la liste. Plusieurs tokens actifs en parallèle, révocation individuelle.
+
+**Validation mixte par champ** à l'ingestion : chaque payload est validé colonne par colonne contre des bornes plausibles. Une valeur hors plage est stockée à NULL avec un log warn (la valeur brute n'est jamais loggée — RGPD compatible), tandis que les autres champs valides du même payload sont préservés. Le serveur horodate l'échantillon à réception (UTC) — le client n'envoie pas de timestamp.
+
+**Sécurité** : rate limit Redis sliding window scopé par token (`HEALTH_METRICS_RATE_LIMIT_WINDOW_SECONDS = 3600`), header `WWW-Authenticate: Bearer` (RFC 7235) sur les 401, `Retry-After` sur les 429. La cascade SQL `ON DELETE CASCADE` sur la FK `users` couvre l'erasure de compte.
+
+**Visualisation** : un aggregator Python (`SUM` par bucket horaire/jour/semaine/mois/année pour les compteurs, `AVG/MIN/MAX` pour les valeurs continues) construit la série temporelle ; les buckets sans donnée sont émis avec `has_data=False` pour que le frontend (`recharts`, `connectNulls={false}`) affiche des trous honnêtes plutôt qu'une interpolation. Le composant Settings réutilise le pattern `SettingsSection` + Accordion (4 sous-sections : API + tokens, Graphiques, Statistiques, Gestion).
 
 ---
 
