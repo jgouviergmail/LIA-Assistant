@@ -118,6 +118,41 @@ def _get_analyst_persona_prompt() -> str:
     return str(load_prompt("journal_analyst_persona"))
 
 
+async def _maybe_build_health_context(user_id: str) -> str:
+    """Return the Health Metrics context block for the journal prompt.
+
+    Mirror of the memory extractor helper — empty string when the global
+    feature flag is off, the user has not opted in, or health data is
+    unavailable. The prompt template includes a ``{health_context}``
+    placeholder flagged ``(optional)``.
+    """
+    from src.core.config import settings as global_settings
+    from src.core.constants import HEALTH_METRICS_USER_TOGGLE_ATTR
+
+    if not getattr(global_settings, "health_metrics_enabled", False):
+        return ""
+
+    try:
+        from src.infrastructure.database.session import get_db_context
+
+        async with get_db_context() as db:
+            from src.domains.health_metrics.service import HealthMetricsService
+            from src.domains.users.repository import UserRepository
+
+            user = await UserRepository(db).get_by_id(UUID(user_id))
+            if user is None or not getattr(user, HEALTH_METRICS_USER_TOGGLE_ATTR, False):
+                return ""
+            service = HealthMetricsService(db)
+            return await service.build_health_context_for_prompt(UUID(user_id))
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning(
+            "journal_extraction_health_context_failed",
+            user_id=user_id,
+            error=str(exc),
+        )
+        return ""
+
+
 def _format_messages_for_extraction(messages: list[BaseMessage]) -> str:
     """Format messages for the extraction prompt context.
 
@@ -639,6 +674,9 @@ async def extract_journal_entry_background(
                 "Consider summarizing or deleting older entries to make room."
             )
 
+        # Health Metrics context — empty string unless the user opted in.
+        health_context = await _maybe_build_health_context(user_id)
+
         # Build prompt
         prompt = _get_introspection_prompt().format(
             conversation=conversation,
@@ -648,6 +686,7 @@ async def extract_journal_entry_background(
             size_warning=size_warning,
             user_language=user_language,
             max_entry_chars=max_entry_chars,
+            health_context=health_context,
         )
 
         # Add analyst persona (always injected, independent of conversational personality)

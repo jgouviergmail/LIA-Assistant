@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Version**: 3.2
-**Date**: 2026-04-20
-**Application**: LIA v1.17.1
+**Date**: 2026-04-22
+**Application**: LIA v1.17.2
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -163,13 +163,15 @@ A browsing agent (Playwright/Chromium headless) can navigate websites, click, fi
 
 By installing Claude CLI (Claude Code) directly on the server, administrators can diagnose their infrastructure in natural language from LIA's chat: check Docker logs, verify container health, monitor disk space, analyze errors. This feature is restricted to administrator accounts.
 
-### 3.9. Personal health data (iPhone)
+### 3.9. Personal health data
 
-LIA welcomes the Apple Health measurements your iPhone pushes via a Shortcuts automation: heart rate and step count. Because iOS requires the iPhone to be unlocked for a timed automation to fire reliably, the protocol accepts **daily batches** rather than enforcing an hourly cadence — each time the Shortcut runs (on unlock, at a fixed hour, or both), it pushes the day's samples and the server deduplicates on the measurement interval. Re-sending the same day is therefore free.
+LIA welcomes your heart-rate and step-count measurements from **any source** — the documented, simplest path is an iPhone Shortcuts automation pushing Apple Health, but any system capable of signing an HTTP call (Android automation, personal scripts, compatible IoT) can feed the ingestion API. The protocol accepts **batches** rather than a continuous push: each sample carries its own measurement interval, and the server deduplicates naturally on those intervals — re-sending the same data multiple times is harmless. When two sensors (Apple Watch + iPhone, for example) cover the same period, LIA merges them automatically: maximum for steps (each sensor captures a complementary slice of movement), rounded average for heart rate.
 
 The data stays inside your LIA instance — no third-party service has access — and is visualized in a dedicated Settings section, as a line chart (HR) and bar chart (steps), with a period selector (hour, day, week, month, year) and a dashed line for the period average.
 
 Ingestion is authenticated by a **dedicated token** (starting with `hm_…`) that you generate from the app and can revoke at any time. The token only authorizes health-data ingestion — never the rest of your account. You can generate several (one per device) and manage them independently.
+
+An **"Assistant" toggle** (off by default, *opt-in*) lets you, if you wish, authorize the assistant to read these measurements and answer factual questions ("How many steps this week?", "My average heart rate today?", "Am I walking less than usual?"), enrich proactive notifications that combine health + weather + calendar, and attach a non-raw biometric context (deltas, trends) to its memories and internal journals. A single switch governs these four integrations. Never diagnostic — only factual figures, with a baseline that qualifies itself honestly ("based on only N days" while history is under 7 days).
 
 Three management actions give you full control: delete all heart-rate samples, delete all step samples, or wipe everything. No raw physiological value is ever kept in server logs — GDPR compliance is built in by design.
 

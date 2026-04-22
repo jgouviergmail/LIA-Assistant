@@ -37,8 +37,8 @@ class TestLLMDefaults:
             ), f"LLM_DEFAULTS['{llm_type}'] is {type(config)}, expected LLMAgentConfig"
 
     def test_default_count(self) -> None:
-        """Should have 49 LLM types (including react_agent — ADR-070)."""
-        assert len(LLM_DEFAULTS) == 49
+        """Should have 50 LLM types (+1 Health Metrics agent in v1.17.2)."""
+        assert len(LLM_DEFAULTS) == 50
 
     @pytest.mark.parametrize(
         "llm_type,expected_provider,expected_model",

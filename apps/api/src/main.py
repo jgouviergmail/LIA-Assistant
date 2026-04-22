@@ -423,6 +423,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         # Internal agents (no external API - operate on Registry data)
         registry.register_agent("query_agent", build_query_agent)
 
+        # Health Metrics agent (v1.17.2) — gated on feature flag
+        if getattr(settings, "health_metrics_enabled", False):
+            from src.domains.agents.graphs import build_health_agent
+
+            registry.register_agent("health_agent", build_health_agent)
+            logger.info("health_agent_registered")
+
         # Browser agent (F7 - lazy-initialized, Chromium only starts on first browser tool call)
         # Pool.initialize() deferred to first acquire_session() to save ~1.5 GB RAM at boot.
         # Cleanup job is registered on ALL workers (leader election requires it) but is

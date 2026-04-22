@@ -1,17 +1,26 @@
-"""Repository for the Health Metrics domain.
+"""Repositories for the Health Metrics domain.
 
-Data access methods for ``HealthSample`` and ``HealthMetricToken``.
-Uses the project convention: ``flush`` (never commit), structured logging,
-async session, and type-safe queries.
+Two repositories, both inheriting :class:`BaseRepository` for standard
+CRUD / pagination / DB error classification / Prometheus instrumentation
+(mirrors ``ConnectorRepository``, ``AttachmentRepository``, etc.):
+
+- :class:`HealthSampleRepository` — polymorphic sample ingestion and
+  window queries (bulk UPSERT, range fetches, bulk deletes).
+- :class:`HealthMetricTokenRepository` — per-user ingestion token
+  lifecycle (create, list, authenticate-by-hash, touch, revoke).
 
 The batch upsert relies on PostgreSQL's ``INSERT ... ON CONFLICT ... DO
 UPDATE ... RETURNING (xmax = 0)`` trick to discriminate new rows from
 updated rows in a single round-trip (``xmax = 0`` means "no prior version"
 == insert, otherwise update).
 
+Project convention: flush (never commit), structured logging, async
+session, type-safe queries.
+
 Phase: evolution — Health Metrics (iPhone Shortcuts integration)
 Created: 2026-04-20
 Revised: 2026-04-21 — polymorphic samples + batch upsert.
+Revised: 2026-04-22 — split into two ``BaseRepository`` subclasses (v1.17.2).
 """
 
 from __future__ import annotations
@@ -25,26 +34,38 @@ from sqlalchemy import delete, func, literal_column, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.constants import HEALTH_METRICS_KIND_HEART_RATE, HEALTH_METRICS_KIND_STEPS
+from src.core.repository import BaseRepository
 from src.domains.health_metrics.models import HealthMetricToken, HealthSample
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
 
 
-class HealthMetricsRepository:
-    """Data access layer for health samples and ingestion tokens."""
+# =============================================================================
+# HealthSample repository
+# =============================================================================
+
+
+class HealthSampleRepository(BaseRepository[HealthSample]):
+    """Data access layer for :class:`HealthSample`.
+
+    Extends :class:`BaseRepository` for common CRUD / pagination and
+    automatic Prometheus instrumentation. Domain-specific methods below
+    cover the batch ingestion pipeline (bulk UPSERT with ``ON CONFLICT
+    DO UPDATE``) and the window queries consumed by the aggregator,
+    baseline computation, and agent summaries.
+    """
 
     def __init__(self, db: AsyncSession) -> None:
-        """Initialize repository with an async DB session.
+        """Initialize with an async DB session.
 
         Args:
             db: SQLAlchemy async session (caller manages commit/rollback).
         """
-        self.db = db
+        super().__init__(db, HealthSample)
 
     # =========================================================================
-    # HealthSample — batch upsert
+    # Batch upsert
     # =========================================================================
 
     async def upsert_samples(
@@ -123,7 +144,7 @@ class HealthMetricsRepository:
         return inserted, updated, duplicates_collapsed
 
     # =========================================================================
-    # HealthSample — read
+    # Window queries
     # =========================================================================
 
     async def list_samples(
@@ -189,8 +210,43 @@ class HealthMetricsRepository:
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
+    async def fetch_samples_kind(
+        self,
+        user_id: UUID,
+        *,
+        kind: str,
+        from_ts: datetime,
+        to_ts: datetime,
+    ) -> list[HealthSample]:
+        """Return samples of a single kind in ascending order over a window.
+
+        Used by assistant-facing services that need to reason about a single
+        kind at a time (baseline deltas, variations, agent summaries).
+
+        Args:
+            user_id: Owner user UUID.
+            kind: Kind discriminator (must be a registered kind).
+            from_ts: Inclusive lower bound on ``date_start``.
+            to_ts: Exclusive upper bound on ``date_start``.
+
+        Returns:
+            List of HealthSample ordered by ``date_start`` ascending.
+        """
+        stmt = (
+            select(HealthSample)
+            .where(
+                HealthSample.user_id == user_id,
+                HealthSample.kind == kind,
+                HealthSample.date_start >= from_ts,
+                HealthSample.date_start < to_ts,
+            )
+            .order_by(HealthSample.date_start.asc())
+        )
+        result = await self.db.execute(stmt)
+        return list(result.scalars().all())
+
     # =========================================================================
-    # HealthSample — delete
+    # Bulk deletes (per-kind / per-user)
     # =========================================================================
 
     async def delete_samples_by_kind(self, user_id: UUID, kind: str) -> int:
@@ -227,12 +283,37 @@ class HealthMetricsRepository:
         await self.db.flush()
         return count
 
-    # =========================================================================
-    # HealthMetricToken CRUD
-    # =========================================================================
+
+# =============================================================================
+# HealthMetricToken repository
+# =============================================================================
+
+
+class HealthMetricTokenRepository(BaseRepository[HealthMetricToken]):
+    """Data access layer for :class:`HealthMetricToken`.
+
+    Extends :class:`BaseRepository` for standard CRUD and automatic
+    Prometheus instrumentation. Domain-specific methods below cover the
+    token authentication lifecycle (create a pre-hashed record,
+    authenticate by hash, touch ``last_used_at``, revoke scoped by owner).
+    """
+
+    def __init__(self, db: AsyncSession) -> None:
+        """Initialize with an async DB session.
+
+        Args:
+            db: SQLAlchemy async session (caller manages commit/rollback).
+        """
+        super().__init__(db, HealthMetricToken)
 
     async def create_token(self, token: HealthMetricToken) -> HealthMetricToken:
         """Persist a new ingestion token record.
+
+        Unlike :meth:`BaseRepository.create` which takes a dict of field
+        values, this method accepts a fully-constructed
+        :class:`HealthMetricToken` because the caller (service layer)
+        generates the raw value, SHA-256 hash, and display prefix in a
+        single flow before handing over the ORM instance.
 
         Args:
             token: HealthMetricToken instance (with hash + prefix already set).
@@ -329,20 +410,19 @@ def _merge_duplicate_samples(
 ) -> list[dict[str, Any]]:
     """Collapse samples sharing the same ``(date_start, date_end)`` tuple.
 
-    Merge strategy is chosen per kind:
+    The merge strategy is read from the central kind registry (see
+    :mod:`src.domains.health_metrics.kinds`). Current strategies:
 
-    - ``"steps"`` → MAX of ``value`` across the duplicate group. The Apple
-      Watch and iPhone count complementary subsets of movement (worn on the
-      wrist vs. carried in a pocket); neither is a superset of the other,
-      so MAX approximates ground truth better than SUM (double-count) or
-      AVG (under-count).
+    - :attr:`MergeStrategy.MAX` → keep the largest value (steps: Watch and
+      iPhone count complementary subsets of movement).
+    - :attr:`MergeStrategy.AVG_ROUNDED` → arithmetic mean rounded to int
+      (heart_rate: sensor fusion of two devices targeting the same signal).
+    - :attr:`MergeStrategy.MIN` / :attr:`MergeStrategy.SUM` / :attr:`MergeStrategy.LAST_WINS`
+      supported for future kinds.
 
-    - ``"heart_rate"`` → AVG (arithmetic mean, rounded to the nearest int)
-      across the duplicate group. Both sensors aim at the same
-      physiological signal; averaging is the most honest fusion.
-
-    - Any other kind → last-wins (defensive forward-compat fallback;
-      application-level validation already rejects unknown kinds upstream).
+    Unknown kinds (not registered) fall back to last-wins for defensive
+    forward-compat — application-level validation already rejects unknown
+    kinds upstream.
 
     Args:
         samples: Post-validation normalized samples, in arrival order.
@@ -352,6 +432,12 @@ def _merge_duplicate_samples(
         A list of samples with at most one entry per ``(date_start,
         date_end)`` tuple, preserving first-seen insertion order.
     """
+    from src.domains.health_metrics.kinds import HEALTH_KINDS, MergeStrategy
+
+    strategy = (
+        HEALTH_KINDS[kind].merge_strategy if kind in HEALTH_KINDS else MergeStrategy.LAST_WINS
+    )
+
     groups: dict[tuple[datetime, datetime], list[dict[str, Any]]] = {}
     for s in samples:
         groups.setdefault((s["date_start"], s["date_end"]), []).append(s)
@@ -361,14 +447,21 @@ def _merge_duplicate_samples(
         if len(group) == 1:
             merged.append(group[0])
             continue
-        if kind == HEALTH_METRICS_KIND_STEPS:
-            winner = max(group, key=lambda s: int(s["value"]))
-            merged.append(winner)
-        elif kind == HEALTH_METRICS_KIND_HEART_RATE:
-            avg_value = round(sum(int(s["value"]) for s in group) / len(group))
-            representative = dict(group[-1])
-            representative["value"] = avg_value
-            merged.append(representative)
-        else:
-            merged.append(group[-1])
+        match strategy:
+            case MergeStrategy.MAX:
+                merged.append(max(group, key=lambda s: int(s["value"])))
+            case MergeStrategy.MIN:
+                merged.append(min(group, key=lambda s: int(s["value"])))
+            case MergeStrategy.AVG_ROUNDED:
+                avg_value = round(sum(int(s["value"]) for s in group) / len(group))
+                representative = dict(group[-1])
+                representative["value"] = avg_value
+                merged.append(representative)
+            case MergeStrategy.SUM:
+                total = sum(int(s["value"]) for s in group)
+                representative = dict(group[-1])
+                representative["value"] = total
+                merged.append(representative)
+            case MergeStrategy.LAST_WINS:
+                merged.append(group[-1])
     return merged

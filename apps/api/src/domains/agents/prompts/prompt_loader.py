@@ -137,6 +137,8 @@ PromptName = Literal[
     "psyche_usage_directive_light",
     # HTML response formatting (when cards are disabled)
     "html_response_directive",
+    # Health Metrics — assistant agent (v1.17.2)
+    "health_agent_prompt",
     # Future prompts:
     # "emails_agent_prompt",
     # "calendar_agent_prompt",

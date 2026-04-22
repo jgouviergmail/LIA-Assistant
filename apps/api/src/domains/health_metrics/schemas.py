@@ -112,14 +112,31 @@ class HealthMetricAggregatePoint(BaseModel):
 
     Heart-rate fields aggregate by average / min / max across the bucket's
     samples. ``steps_total`` is the simple sum of the per-sample step counts.
+
+    The typed legacy fields (``heart_rate_*``, ``steps_total``) are kept for
+    backward compatibility with the existing frontend charts. The polymorphic
+    ``metrics_by_kind`` field exposes the same data keyed by kind so new
+    kinds (sleep, SpO2, ...) can be added without schema extensions.
     """
 
     bucket: datetime = Field(description="Start of the bucket window (UTC).")
-    heart_rate_avg: float | None = Field(description="Average heart rate in the bucket.")
-    heart_rate_min: int | None = Field(description="Min heart rate in the bucket.")
-    heart_rate_max: int | None = Field(description="Max heart rate in the bucket.")
+    heart_rate_avg: float | None = Field(
+        default=None, description="Average heart rate in the bucket."
+    )
+    heart_rate_min: int | None = Field(default=None, description="Min heart rate in the bucket.")
+    heart_rate_max: int | None = Field(default=None, description="Max heart rate in the bucket.")
     steps_total: int | None = Field(
+        default=None,
         description="Total steps recorded during the bucket (sum of samples).",
+    )
+    metrics_by_kind: dict[str, dict[str, int | float]] | None = Field(
+        default=None,
+        description=(
+            "Polymorphic per-kind metrics, mirroring the legacy fields and "
+            "future-proof for additional kinds. Keys are kind discriminators; "
+            "inner dicts carry method-specific values (e.g. ``avg``/``min``/"
+            "``max`` for AVG_MIN_MAX aggregation, ``sum`` for SUM aggregation)."
+        ),
     )
     has_data: bool = Field(description="False if the bucket contains no sample at all.")
 

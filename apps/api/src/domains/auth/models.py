@@ -140,6 +140,17 @@ class User(BaseModel):
         comment="User preference for long-term memory (extraction + injection). True = enabled by default.",
     )
 
+    # Health Metrics — assistant integrations opt-in (v1.17.2)
+    health_metrics_agents_enabled: Mapped[bool] = mapped_column(
+        default=False,
+        nullable=False,
+        server_default="false",
+        comment=(
+            "Opt-in for Health Metrics integrations with the assistant "
+            "(agents, Heartbeat source, journal/memory context)."
+        ),
+    )
+
     # Execution mode preference (pipeline vs react)
     execution_mode: Mapped[str] = mapped_column(
         String(20),

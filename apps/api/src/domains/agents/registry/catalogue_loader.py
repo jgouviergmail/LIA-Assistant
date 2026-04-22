@@ -643,6 +643,20 @@ def initialize_catalogue(registry: AgentRegistry) -> None:
     # Register agent manifests - Internal tools (No OAuth)
     registry.register_agent_manifest(REMINDER_AGENT_MANIFEST)
 
+    # Register Health Metrics agents + tools (v1.17.2, feature-flag gated)
+    from src.core.config import settings as _app_settings
+
+    if getattr(_app_settings, "health_metrics_enabled", False):
+        from src.domains.agents.health.catalogue_manifests import (
+            HEALTH_AGENT_MANIFESTS,
+            HEALTH_TOOL_MANIFESTS,
+        )
+
+        for manifest in HEALTH_AGENT_MANIFESTS:
+            registry.register_agent_manifest(manifest)
+        for tool_manifest in HEALTH_TOOL_MANIFESTS:
+            registry.register_tool_manifest(tool_manifest)
+
     # Register Google Contacts tool manifests (Unified v2.0)
     registry.register_tool_manifest(get_contacts_catalogue_manifest)  # Unified
     registry.register_tool_manifest(create_contact_catalogue_manifest)

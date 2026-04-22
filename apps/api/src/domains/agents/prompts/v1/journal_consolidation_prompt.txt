@@ -14,6 +14,8 @@ Current: {current_chars} / {max_chars} characters used.
 
 {conversation_history_section}
 
+{health_signals_section}
+
 ## LANGUAGE
 Write in {user_language}. This is the user's configured language.
 

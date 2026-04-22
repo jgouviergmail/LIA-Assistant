@@ -3,8 +3,8 @@
 > **Your Life. Your AI. Your Rules.**
 
 **Versión** : 3.2
-**Fecha** : 2026-04-20
-**Aplicación** : LIA v1.17.1
+**Fecha** : 2026-04-22
+**Aplicación** : LIA v1.17.2
 **Licencia** : AGPL-3.0 (Open Source)
 
 ---
@@ -163,13 +163,15 @@ Un agente de navegación (Playwright/Chromium headless) puede navegar por sitios
 
 Al instalar Claude CLI (Claude Code) directamente en el servidor, los administradores pueden diagnosticar su infraestructura en lenguaje natural desde el chat de LIA: consultar logs de Docker, verificar el estado de los contenedores, monitorizar el espacio en disco, analizar errores. Esta funcionalidad está reservada a las cuentas de administrador.
 
-### 3.9. Datos de salud personales (iPhone)
+### 3.9. Datos de salud personales
 
-LIA acoge las mediciones de Apple Salud que tu iPhone envía a través de una automatización de Atajos: frecuencia cardíaca y número de pasos. Como iOS exige que el iPhone esté desbloqueado para que una automatización temporal se dispare de forma fiable, el protocolo acepta **lotes diarios** en lugar de forzar una cadencia horaria — cada vez que el Atajo se ejecuta (al desbloquear, a una hora fija, o ambas), envía las mediciones del día y el servidor deduplica según el intervalo de medición. Reenviar el mismo día es, por tanto, sin consecuencias.
+LIA acoge tus mediciones de frecuencia cardíaca y número de pasos desde **cualquier fuente** — la integración documentada y más sencilla es una automatización de Atajos iPhone que empuja Apple Salud, pero cualquier sistema capaz de firmar una llamada HTTP (automatización Android, scripts personales, IoT compatibles) puede alimentar la API de ingesta. El protocolo acepta **lotes** en lugar de un envío continuo: cada medición lleva su propio intervalo de medición, y el servidor deduplica de forma natural sobre esos intervalos — reenviar los mismos datos varias veces es inofensivo. Cuando dos sensores (Apple Watch + iPhone, por ejemplo) cubren el mismo período, LIA los fusiona automáticamente: máximo para los pasos (cada sensor capta una parte complementaria del movimiento), media redondeada para la frecuencia cardíaca.
 
 Los datos permanecen dentro de tu instancia de LIA — ningún servicio de terceros tiene acceso — y se visualizan en una sección dedicada de los Ajustes, en forma de gráfico de líneas (FC) y de barras (pasos), con un selector de período (hora, día, semana, mes, año) y una línea discontinua con la media del período.
 
 El envío se autentica mediante un **token dedicado** (que empieza por `hm_…`) que generas desde la aplicación y que puedes revocar en cualquier momento. El token solo autoriza el envío de datos de salud — nunca el resto de tu cuenta. Puedes generar varios (uno por dispositivo) y gestionarlos de forma independiente.
+
+Un **interruptor «Asistente»** (desactivado por defecto, *opt-in*) te permite, si lo deseas, autorizar al asistente a leer estas mediciones para responder factualmente a tus preguntas («¿Cuántos pasos esta semana?», «¿Mi frecuencia cardíaca media hoy?», «¿Camino menos de lo habitual?»), enriquecer las notificaciones proactivas que combinan salud + meteo + calendario, y adjuntar un contexto biométrico no bruto (deltas, tendencias) a sus memorias y diarios internos. Un único interruptor gobierna estas cuatro integraciones. Nunca diagnóstico — solo cifras factuales, con la línea base cualificada honestamente («basada en solo N días» mientras el historial sea inferior a 7 días).
 
 Tres acciones de gestión te dan un control total: eliminar todas las mediciones de frecuencia cardíaca, eliminar todas las mediciones de pasos, o borrarlo todo. Ningún valor fisiológico bruto se conserva jamás en los logs del servidor — la conformidad con el RGPD está integrada por diseño.
 

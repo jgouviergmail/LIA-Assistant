@@ -2,9 +2,9 @@
 
 > **Your Life. Your AI. Your Rules.**
 
-**Version** : 3.2
-**Date** : 2026-04-20
-**Application** : LIA v1.17.1
+**Version** : 3.3
+**Date** : 2026-04-22
+**Application** : LIA v1.17.2
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -163,13 +163,15 @@ Un agent de navigation (Playwright/Chromium headless) peut naviguer sur des site
 
 En installant Claude CLI (Claude Code) directement sur le serveur, les administrateurs peuvent diagnostiquer leur infrastructure en langage naturel depuis le chat de LIA : consulter les logs Docker, vérifier la santé des conteneurs, surveiller l'espace disque, analyser les erreurs. Cette fonctionnalité est réservée aux comptes administrateurs.
 
-### 3.9. Données santé personnelles (iPhone)
+### 3.9. Données santé personnelles
 
-LIA accueille les mesures Apple Santé que votre iPhone pousse via une automatisation Raccourcis : fréquence cardiaque et nombre de pas. Parce que l'iPhone doit être déverrouillé pour qu'un automatisme iOS se déclenche de manière fiable, le protocole accepte des **lots quotidiens** plutôt qu'un envoi horaire forcé — à chaque déclenchement du Raccourci (au déverrouillage, à une heure fixe, ou les deux), il pousse les échantillons de la journée, et le serveur déduplique naturellement sur l'intervalle de mesure. Renvoyer la même journée plusieurs fois est donc sans conséquence.
+LIA accueille vos mesures de fréquence cardiaque et de nombre de pas depuis **n'importe quelle source** — l'intégration documentée et la plus simple est une automatisation iPhone Raccourcis qui pousse Apple Santé, mais tout système capable de signer un appel HTTP (automatisation Android, scripts personnels, IoT compatibles) peut alimenter l'API d'ingestion. Le protocole accepte des **lots** plutôt qu'un envoi continu : chaque échantillon porte son propre intervalle de mesure, et le serveur déduplique naturellement sur ces intervalles — renvoyer les mêmes données plusieurs fois est sans conséquence. Quand deux capteurs (Apple Watch + iPhone par exemple) couvrent la même période, LIA fusionne automatiquement : maximum pour les pas (chaque capteur voit une partie complémentaire du mouvement), moyenne arrondie pour la fréquence cardiaque.
 
 Les données restent dans votre instance LIA — aucun service tiers n'y a accès — et sont visualisées dans une section dédiée des Réglages, sous forme de courbe (FC) et de barres (pas), avec un sélecteur de période (heure, jour, semaine, mois, année) et la moyenne sur la période en pointillés.
 
 L'envoi est authentifié par un **jeton dédié** (commençant par `hm_…`) que vous générez depuis l'application et que vous pouvez révoquer à tout moment. Le jeton ne donne accès qu'à l'envoi de données santé — jamais au reste de votre compte. Vous pouvez en générer plusieurs (un par appareil) et les gérer séparément.
+
+Un **interrupteur « Assistant »** (désactivé par défaut, *opt-in*) permet, si vous le souhaitez, d'autoriser l'assistant à lire ces mesures pour répondre factuellement à vos questions (« Combien de pas cette semaine ? », « Ma fréquence cardiaque moyenne aujourd'hui ? », « Ai-je marché moins que d'habitude ? »), enrichir les notifications proactives qui croisent santé + météo + agenda, et ajouter un contexte biométrique non-brut (deltas, tendances) à ses mémoires et journaux internes. Un seul interrupteur gouverne ces quatre intégrations. Jamais de diagnostic — uniquement des chiffres factuels, avec la baseline qualifiée honnêtement (« basée sur seulement N jours » tant qu'on a moins de 7 jours d'historique).
 
 Trois actions de gestion vous donnent un contrôle total : supprimer toutes les mesures de fréquence cardiaque, supprimer toutes les mesures de pas, ou tout effacer. Aucune valeur physiologique brute n'est jamais conservée dans les journaux du serveur — la conformité RGPD est intégrée par construction.
 

@@ -134,6 +134,18 @@ export function useHealthMetrics(period: HealthMetricsPeriod = 'day') {
     componentName: 'useHealthMetrics',
   });
 
+  // v1.17.2 — assistant toggle
+  const {
+    mutate: updateAgentsPreferenceMutate,
+    loading: updatingAgentsPreference,
+  } = useApiMutation<
+    { health_metrics_agents_enabled: boolean },
+    { health_metrics_agents_enabled: boolean; message: string }
+  >({
+    method: 'PATCH',
+    componentName: 'useHealthMetrics',
+  });
+
   const createToken = useCallback(
     async (label?: string): Promise<HealthMetricsTokenCreateResponse | null> => {
       const result = await createTokenMutate('/health-metrics/tokens', { label });
@@ -168,6 +180,15 @@ export function useHealthMetrics(period: HealthMetricsPeriod = 'day') {
     return result;
   }, [deleteAllMutate, refetchAggregate]);
 
+  const updateAgentsEnabled = useCallback(
+    async (enabled: boolean) => {
+      return updateAgentsPreferenceMutate('/auth/me/health-metrics-agents-preference', {
+        health_metrics_agents_enabled: enabled,
+      });
+    },
+    [updateAgentsPreferenceMutate]
+  );
+
   return {
     // Data
     aggregate,
@@ -178,12 +199,14 @@ export function useHealthMetrics(period: HealthMetricsPeriod = 'day') {
     error: aggregateError,
     isCreatingToken: creatingToken,
     isDeleting: deletingKind || deletingAll,
+    isUpdatingAgentsPreference: updatingAgentsPreference,
 
     // Actions
     createToken,
     revokeToken,
     deleteKind,
     deleteAll,
+    updateAgentsEnabled,
 
     // Refetch
     refetchAggregate,

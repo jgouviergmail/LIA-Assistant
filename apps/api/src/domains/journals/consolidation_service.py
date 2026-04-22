@@ -49,6 +49,56 @@ def _get_analyst_persona_prompt() -> str:
     return str(load_prompt("journal_analyst_persona"))
 
 
+async def _maybe_build_health_signals_section(user_id: UUID) -> str:
+    """Return the Health Metrics block for the consolidation prompt.
+
+    Returns an empty string when the global feature flag is off, the user
+    has not opted into Health Metrics assistant integrations, or their
+    history is empty. The prompt template uses ``{health_signals_section}``
+    as an optional placeholder.
+
+    Args:
+        user_id: Owner user UUID.
+
+    Returns:
+        A "## HEALTH SIGNALS" section or an empty string.
+    """
+    from src.core.config import settings as global_settings
+    from src.core.constants import HEALTH_METRICS_USER_TOGGLE_ATTR
+
+    if not getattr(global_settings, "health_metrics_enabled", False):
+        return ""
+
+    try:
+        from src.infrastructure.database.session import get_db_context
+
+        async with get_db_context() as db:
+            from src.domains.health_metrics.service import HealthMetricsService
+            from src.domains.users.repository import UserRepository
+
+            user = await UserRepository(db).get_by_id(user_id)
+            if user is None or not getattr(user, HEALTH_METRICS_USER_TOGGLE_ATTR, False):
+                return ""
+            service = HealthMetricsService(db)
+            block = await service.build_health_context_for_prompt(user_id)
+            if not block:
+                return ""
+            return (
+                "## HEALTH SIGNALS (factual, not medical)\n"
+                f"{block}\n"
+                "Use these signals to enrich your consolidation — e.g. to "
+                "notice a pattern the user may not have articulated. Never "
+                "reproduce raw sensor values in entries."
+            )
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning(
+            "journal_consolidation_health_context_failed",
+            user_id=str(user_id),
+            error=str(exc),
+        )
+        return ""
+
+
 def _format_all_entries(entries: list[JournalEntry]) -> str:
     """Format all active entries for the consolidation prompt.
 
@@ -249,6 +299,9 @@ async def consolidate_journals_for_user(
         # Current datetime
         current_datetime = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
 
+        # Health Metrics signals — empty string when disabled / no data.
+        health_signals_section = await _maybe_build_health_signals_section(user_id)
+
         # Build prompt
         prompt = _get_consolidation_prompt().format(
             all_entries=all_entries_text,
@@ -260,6 +313,7 @@ async def consolidate_journals_for_user(
             user_language=user_language,
             max_entry_chars=max_entry_chars,
             size_management_instruction=size_management_instruction,
+            health_signals_section=health_signals_section,
         )
 
         # Add analyst persona (always injected, independent of conversational personality)

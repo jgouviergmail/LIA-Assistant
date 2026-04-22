@@ -4,9 +4,9 @@
 >
 > Documentation de présentation technique destinée aux architectes, ingénieurs et experts techniques.
 
-**Version** : 2.3
-**Date** : 2026-04-20
-**Application** : LIA v1.17.1
+**Version** : 2.4
+**Date** : 2026-04-22
+**Application** : LIA v1.17.2
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -935,7 +935,13 @@ LIA accepte les ingestions d'événements externes (mesures iPhone Apple Health,
 
 **Sécurité** : rate limit Redis sliding window scopé par token (60 req/h par défaut, paramétrable), header `WWW-Authenticate: Bearer` (RFC 7235) sur les 401, `Retry-After` sur les 429, plafond de samples par requête avec `HTTP 413` au-delà. La cascade SQL `ON DELETE CASCADE` sur la FK `users` couvre l'erasure de compte.
 
-**Visualisation** : un aggregator polymorphe Python parcourt les samples ordonnés par `date_start` dans une fenêtre et émet un point par bucket (heure/jour/semaine/mois/année), `AVG/MIN/MAX` sur les samples `heart_rate` et `SUM` sur les samples `steps`. Les buckets sans donnée sont émis avec `has_data=False` pour que le frontend (`recharts`, `connectNulls={false}`) affiche des trous honnêtes plutôt qu'une interpolation. Le composant Settings réutilise le pattern `SettingsSection` + Accordion (4 sous-sections : API + tokens, Graphiques, Statistiques, Gestion) et affiche la **fenêtre temporelle réellement agrégée** pour lever l'ambiguïté « les stats bougent pas quand je change de période » (HR invariant si toutes les données tiennent dans la plus petite fenêtre).
+**Visualisation** : un aggregator polymorphe Python parcourt les samples ordonnés par `date_start` dans une fenêtre et émet un point par bucket (heure/jour/semaine/mois/année), `AVG/MIN/MAX` sur les samples `heart_rate` et `SUM` sur les samples `steps`. Les buckets sans donnée sont émis avec `has_data=False` pour que le frontend (`recharts`, `connectNulls={false}`) affiche des trous honnêtes plutôt qu'une interpolation. Le composant Settings réutilise le pattern `SettingsSection` + Accordion (5 sous-sections : API + tokens, Assistant, Graphiques, Statistiques, Gestion) et affiche la **fenêtre temporelle réellement agrégée** pour lever l'ambiguïté « les stats bougent pas quand je change de période » (HR invariant si toutes les données tiennent dans la plus petite fenêtre).
+
+**Registre central + extensibilité** : un registre `HEALTH_KINDS: dict[str, HealthKindSpec]` (`src/domains/health_metrics/kinds.py`) porte pour chaque kind ses bornes physiologiques, sa stratégie de merge intra-batch (`MAX`/`AVG_ROUNDED`/…), sa méthode d'agrégation bucket (`SUM`/`AVG_MIN_MAX`/…), son type de baseline (`daily_sum`/`daily_avg`/`resting`), son agent associé, sa clé i18n d'affichage, et ses legacy fields backward-compat. Ingestion/repository/aggregator/baseline/heartbeat/memory/journal itèrent ce registre — ajouter un kind (sleep, SpO2, calories…) = une entrée dans `kinds.py` + un pack de tools, zéro modification des pipelines.
+
+**Baseline adaptive + signaux factuels** : `baseline.compute_baseline()` choisit automatiquement entre `bootstrap` (médiane de toutes les données, exposée tant qu'on a moins de 7 jours) et `rolling` (médiane mobile 28 j) ; le mode est remonté au LLM pour qu'il qualifie ses affirmations. `signals.detect_recent_variations()` + `detect_notable_events()` produisent des **faits** (streaks directionnels ≥ 3 j au-dessus de 10 % delta quotidien, événements structurels comme les streaks d'inactivité) — jamais de diagnostic.
+
+**Exposition aux boucles centrales** : un **toggle utilisateur unique** (opt-in) gouverne d'un seul coup quatre consommateurs — conversation (tools assistant), Heartbeat (source `health_signals`), extraction de mémoire (placeholder `{health_context}` + blob `context_biometric` JSONB en contexte d'émotion forte), et journal (extraction + consolidation). Tous reçoivent la même projection **factuelle et non-brute** : deltas vs baseline, tendances, événements structurels (streaks d'inactivité…) — jamais les valeurs brutes. La baseline mobile 28 j sélectionne automatiquement `bootstrap` (médiane simple tant qu'on a moins de 7 j d'historique, remonté au LLM pour qu'il qualifie ses affirmations) puis bascule en `rolling`. L'erasure RGPD n'a qu'une cible : la table `health_samples`.
 
 ---
 

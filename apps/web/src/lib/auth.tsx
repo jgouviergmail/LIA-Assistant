@@ -31,6 +31,7 @@ export interface User {
   image_generation_default_size?: string;
   image_generation_output_format?: string;
   weather_use_last_known_location?: boolean;
+  health_metrics_agents_enabled?: boolean;
 }
 
 interface AuthContextType {

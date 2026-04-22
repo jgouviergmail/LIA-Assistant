@@ -98,6 +98,12 @@ async def _compute_available_sources(
     if getattr(user, "journals_enabled", settings.journals_enabled):
         sources.append("journals")
 
+    # Health signals (v1.17.2): feature flag + per-user opt-in
+    if getattr(settings, "health_metrics_enabled", False) and getattr(
+        user, "health_metrics_agents_enabled", False
+    ):
+        sources.append("health_signals")
+
     return sources
 
 

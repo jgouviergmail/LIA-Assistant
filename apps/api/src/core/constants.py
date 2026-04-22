@@ -2346,6 +2346,7 @@ V3_CATALOGUE_DOMAIN_FULL_TOKENS = {
     "reminder": 2000,
     "route": 3000,
     "mcp": 2000,  # MCP tools — conservative estimate for external tools
+    "health": 2500,  # 3 agents × ~500-900 tokens (v1.17.2)
 }
 
 # -----------------------------------------------------------------------------
@@ -2370,6 +2371,7 @@ V3_PLANNER_DOMAIN_FULL_TOKENS = {
     "reminder": 400,
     "route": 500,
     "mcp": 500,  # MCP tools — conservative estimate for external tools
+    "health": 600,  # 7 filtered tools across 3 health agents (v1.17.2)
 }
 
 # Complexity markers that trigger escape hatch (generative planning)
@@ -3576,6 +3578,24 @@ HEALTH_METRICS_RATE_LIMIT_WINDOW_SECONDS: int = 3600  # 1-hour sliding window
 
 # Batch payload size
 HEALTH_METRICS_MAX_SAMPLES_PER_REQUEST_DEFAULT: int = 1000
+
+# Baseline + recent-variations detection (assistant agents)
+HEALTH_METRICS_BASELINE_MIN_DAYS_DEFAULT: int = 7
+HEALTH_METRICS_BASELINE_ROLLING_WINDOW_DAYS: int = 28
+HEALTH_METRICS_VARIATION_MIN_DAYS_DEFAULT: int = 3
+HEALTH_METRICS_VARIATION_MIN_DELTA_PCT_DEFAULT: float = 20.0
+HEALTH_METRICS_VARIATION_DAILY_DELTA_PCT_DEFAULT: float = 10.0
+
+# Agent / Heartbeat / prompt-injection defaults
+HEALTH_METRICS_AGENT_CONTEXT_MAX_CHARS: int = 800
+HEALTH_METRICS_AGENT_SUMMARY_WINDOW_DAYS: int = 7
+HEALTH_METRICS_HEARTBEAT_FRESHNESS_MINUTES: int = 24 * 60  # 24 hours
+HEALTH_METRICS_USER_TOGGLE_ATTR: str = "health_metrics_agents_enabled"
+HEALTH_METRICS_HEARTBEAT_FETCH_TIMEOUT_SECONDS: float = 2.0  # Safety timeout on health fetch
+
+# Tool argument clamps (guard against LLM sending extreme values)
+HEALTH_METRICS_BREAKDOWN_MAX_DAYS: int = 30  # get_*_daily_breakdown_tool
+HEALTH_METRICS_BASELINE_WINDOW_MAX_DAYS: int = 14  # compare_*_to_baseline_tool
 
 # Aggregation periods (frontend → backend contract)
 HEALTH_METRICS_PERIOD_HOUR: str = "hour"

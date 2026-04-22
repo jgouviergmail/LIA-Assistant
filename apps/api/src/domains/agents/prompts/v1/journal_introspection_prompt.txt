@@ -17,6 +17,14 @@ Pick the theme matching the NATURE of the insight. Aim for thematic diversity.
 ## CONVERSATION
 {conversation}
 
+## HEALTH CONTEXT (optional — ignore if absent)
+{health_context}
+
+When health context is present, you MAY reference it to write a more
+situated reflection (e.g. "the user has been less active this week —
+revisit my assumptions about their routine"). Stay factual; never
+diagnose, never reproduce raw sensor values.
+
 ## EXISTING ENTRIES (update/delete these only — other entries handled by consolidation)
 {existing_entries}
 

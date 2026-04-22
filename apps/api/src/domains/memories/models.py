@@ -19,11 +19,11 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.infrastructure.database.models import BaseModel
@@ -167,6 +167,16 @@ class Memory(BaseModel):
         nullable=False,
         default=0,
         server_default="0",
+    )
+
+    # Health Metrics biometric context (v1.17.2) — optional JSONB blob
+    # attached at extraction time when the user has opted into Health
+    # Metrics assistant integrations AND the extracted memory carries a
+    # significant emotional weight. Only stores deltas/trends/events —
+    # never raw sensor values (privacy + right-to-be-forgotten friendly).
+    context_biometric: Mapped[dict[str, Any] | None] = mapped_column(
+        JSONB(none_as_null=True),
+        nullable=True,
     )
 
     # Relationships

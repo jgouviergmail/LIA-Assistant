@@ -16,6 +16,7 @@ from pydantic import Field
 from pydantic_settings import BaseSettings
 
 from src.core.constants import (
+    HEALTH_METRICS_BASELINE_MIN_DAYS_DEFAULT,
     HEALTH_METRICS_ENABLED_DEFAULT,
     HEALTH_METRICS_HEART_RATE_MAX,
     HEALTH_METRICS_HEART_RATE_MIN,
@@ -23,6 +24,9 @@ from src.core.constants import (
     HEALTH_METRICS_RATE_LIMIT_PER_HOUR_DEFAULT,
     HEALTH_METRICS_STEPS_MAX,
     HEALTH_METRICS_STEPS_MIN,
+    HEALTH_METRICS_VARIATION_DAILY_DELTA_PCT_DEFAULT,
+    HEALTH_METRICS_VARIATION_MIN_DAYS_DEFAULT,
+    HEALTH_METRICS_VARIATION_MIN_DELTA_PCT_DEFAULT,
 )
 
 
@@ -100,5 +104,52 @@ class HealthMetricsSettings(BaseSettings):
             "Maximum plausible per-sample step count "
             "(NOT a daily cap — it bounds one inter-sample interval). "
             "Samples above are rejected."
+        ),
+    )
+
+    # ========================================================================
+    # Baseline + recent-variations detection (used by assistant agents)
+    # ========================================================================
+
+    health_metrics_baseline_min_days: int = Field(
+        default=HEALTH_METRICS_BASELINE_MIN_DAYS_DEFAULT,
+        ge=1,
+        le=90,
+        description=(
+            "Minimum number of distinct days of data before switching the "
+            "baseline mode from ``bootstrap`` (median of all available data) "
+            "to ``rolling`` (28-day rolling median). Below this threshold, "
+            "deltas are still computed but labeled as bootstrap in the tool "
+            "response so the LLM can qualify its statements accordingly."
+        ),
+    )
+
+    health_metrics_variation_min_days: int = Field(
+        default=HEALTH_METRICS_VARIATION_MIN_DAYS_DEFAULT,
+        ge=1,
+        le=14,
+        description=(
+            "Minimum consecutive-day streak length for a variation to be "
+            "flagged as notable by ``detect_recent_variations``."
+        ),
+    )
+
+    health_metrics_variation_min_delta_pct: float = Field(
+        default=HEALTH_METRICS_VARIATION_MIN_DELTA_PCT_DEFAULT,
+        ge=1.0,
+        le=100.0,
+        description=(
+            "Minimum absolute average delta (percent vs baseline) across the "
+            "streak for a variation to be flagged as notable."
+        ),
+    )
+
+    health_metrics_variation_daily_delta_pct: float = Field(
+        default=HEALTH_METRICS_VARIATION_DAILY_DELTA_PCT_DEFAULT,
+        ge=1.0,
+        le=100.0,
+        description=(
+            "Per-day delta threshold (percent vs baseline) for a day to be "
+            "counted as part of a directional streak."
         ),
     )

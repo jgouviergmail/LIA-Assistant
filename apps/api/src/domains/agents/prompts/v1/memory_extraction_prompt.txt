@@ -84,6 +84,25 @@ JSON array only. No markdown, no comments. Use ONLY UUIDs from EXISTING MEMORIES
 ## KNOWN RELATIONSHIPS
 {known_relationships}
 
+## HEALTH CONTEXT (optional — ignore if absent)
+{health_context}
+
+When health context is present AND a memory you create carries a significant
+emotional weight (|emotional_weight| >= 3), you MAY emit a
+``context_biometric`` field on the memory. Its value must be a compact JSON
+object summarizing the relevant biometric signals ONLY (baseline deltas,
+trends, events). NEVER copy raw sensor values. Example::
+
+    {{
+      "captured_at": "{current_datetime}",
+      "window_days": 7,
+      "source": "health_metrics",
+      "signals": {{"steps": {{"baseline_delta_pct": -42.0, "trend": "falling", "days_observed": 4}}}},
+      "notable_events": ["inactivity_streak (steps, 4 days)"]
+    }}
+
+Leave ``context_biometric`` omitted otherwise.
+
 ## EXCHANGE TO ANALYZE
 {conversation}
 

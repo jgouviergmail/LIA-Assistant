@@ -2757,6 +2757,20 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_17_2": {
+          "title": "v1.17.2 — Gesundheitsdaten: der Assistent dialogisiert mit Ihren Messungen, generische Ingestion-API",
+          "date": "April 2026",
+          "count": "7",
+          "items": {
+            "i1": "<b>Neuer 'Assistent'-Schalter in Einstellungen → Gesundheitsdaten</b> — Ein einziger Opt-in-Schalter (standardmäßig aus) erlaubt dem Assistenten, Ihre Gesundheitsdaten für 4 Integrationen auf einmal zu lesen: Konversation, proaktive Benachrichtigungen, Gedächtnis, interne Tagebücher. Solange er aus ist, erreichen keine Gesundheitsdaten das LLM.",
+            "i2": "<b>Der Assistent beantwortet Ihre Gesundheitsfragen</b> — Fragen Sie im Chat: 'Wie viele Schritte heute?', 'Meine Herzfrequenz diese Woche?', 'Etwas Ungewöhnliches in meiner Gesundheit?'. LIA antwortet sachlich mit Summen, Durchschnitten und Baseline-Vergleichen. Nie Diagnose — nur Zahlen.",
+            "i3": "<b>Verlässliche Antworten über natürliche Zeiträume</b> — 'Diese Woche', 'dieser Monat', 'die letzten 7 Tage' werden korrekt interpretiert und der Assistent liefert die Werte direkt in seiner Antwort (Summen, tägliches Detail) statt sich hinter 'keine Daten' zu verstecken.",
+            "i4": "<b>Adaptive Baseline (Bootstrap → Rolling)</b> — LIA qualifiziert seine Vergleiche ehrlich: die ersten 7 Tage als 'basierend auf nur N Tagen', danach gleitender 28-Tage-Median. Faktische Variationserkennung und strukturelle Ereignisse (Inaktivität ≥ 3 Tage bei Schritten).",
+            "i5": "<b>Proaktive Heartbeat-Integration</b> — Bei aktivem Schalter können proaktive Benachrichtigungen Wetter + Kalender + Gesundheit kombinieren. Injizierte Signale enthalten nur Deltas / Trends / Ereignisse — nie Rohwerte.",
+            "i6": "<b>Generische Ingestion-API</b> — Die Gesundheits-API akzeptiert Messungen aus beliebigen Quellen (iOS Kurzbefehle, Android-Automatisierung, Drittanbieter-Integration, IoT). Wenn mehrere Quellen denselben Zeitraum abdecken, fusioniert der Server sie intelligent (MAX für Schritte, Mittelwert für Herzfrequenz). Landing und FAQ um dieses generische Messaging neu positioniert.",
+            "i7": "<b>Erweiterbarkeit für zukünftige Messtypen</b> — Architektur darauf ausgelegt, neue Kinds (Schlaf, SpO2, Kalorien…) reibungslos aufzunehmen: Ingestion, Aggregation, Baseline, Heartbeat, Gedächtnis und Tagebuch-Dienste passen sich automatisch an."
+          }
+        },
         "v1_17_1": {
           "title": "v1.17.1 — Gesundheitsdaten: tägliche Batch-Übertragung, gleichzeitige Watch+iPhone-Messungen",
           "date": "April 2026",
@@ -3958,13 +3972,13 @@
         }
       },
       "health_metrics": {
-        "title": "Gesundheitsdaten (iPhone)",
-        "description": "Herzfrequenz und Schritte von Apple Health über Kurzbefehle senden",
-        "count": "5",
+        "title": "Gesundheitsdaten",
+        "description": "Ingestion-API zum Senden von Herzfrequenz und Schritten aus beliebigen Quellen",
+        "count": "6",
         "questions": {
           "q1": {
             "question": "Was ist der Bereich „Gesundheitsdaten“?",
-            "answer": "<p>Eine Funktion, mit der Ihr iPhone Ihre Apple-Health-Messungen (Herzfrequenz, Schrittzahl) automatisch über eine <strong>Kurzbefehl-Automatisierung</strong> an LIA sendet. Seit v1.17.1 funktioniert die Übertragung als <strong>tägliche Batches</strong> statt stündlicher Pushes: Bei jedem Entsperren des iPhones (oder zu einer festen Uhrzeit) sendet der Kurzbefehl die Messungen des Tages. Ihre Daten werden unter <strong>Einstellungen → Funktionen → Gesundheitsdaten</strong> als Liniendiagramm (HF) und Balkendiagramm (Schritte) visualisiert, mit Zeitraumauswahl (Stunde / Tag / Woche / Monat / Jahr), einer gestrichelten Linie für den Mittelwert und dem tatsächlichen Aggregationsfenster im Statistikbereich.</p>"
+            "answer": "<p>Eine dedizierte Ingestion-API, die Herzfrequenz- und Schrittzahl-Messungen aus <strong>beliebigen Quellen</strong> akzeptiert: iPhone Kurzbefehl-Automatisierung (dokumentierter Hauptanwendungsfall), Android-Skripte, Drittanbieter-Integrationen oder kompatible IoT-Geräte. Seit v1.17.1 funktioniert die Übertragung als <strong>Batches</strong> (bis zu 1000 Messungen pro Anfrage), jede Messung trägt ihr eigenes <code>date_start</code> / <code>date_end</code>-Intervall. Ihre Daten werden unter <strong>Einstellungen → Funktionen → Gesundheitsdaten</strong> als Liniendiagramm (HF) und Balkendiagramm (Schritte) visualisiert, mit Zeitraumauswahl (Stunde / Tag / Woche / Monat / Jahr), einer gestrichelten Linie für den Mittelwert und dem tatsächlichen Aggregationsfenster im Statistikbereich.</p>"
           },
           "q2": {
             "question": "Wie konfiguriere ich mein iPhone für den Datenversand?",
@@ -3981,6 +3995,10 @@
           "q5": {
             "question": "Ist mein Token bei Abfangen sicher?",
             "answer": "<p>Ja. Das Token wird wie ein Passwort behandelt:</p><ul><li><strong>SHA-256-Hash gespeichert</strong> — der Rohwert wird nie persistiert. Niemand (auch kein LIA-Admin) kann es nach der Erstellung wiederherstellen.</li><li><strong>Nur einmal angezeigt</strong>: nur ein 8-Zeichen-Präfix (<code>hm_xxxxxxxx…</code>) bleibt sichtbar.</li><li><strong>Einzeln widerrufbar</strong> jederzeit in der UI. Sie können mehrere ausstellen (eines pro Gerät) und unabhängig verwalten.</li><li><strong>Auf einen Endpoint beschränkt</strong>: ein Token erlaubt nur den Versand von Gesundheitsdaten.</li><li><strong>Rate-Limit</strong>: 60 Anfragen pro Stunde pro Token (Redis Sliding Window, konfigurierbar), um Spam zu blockieren und gleichzeitig Bursts beim iPhone-Entsperren aufzunehmen. Max. Batch-Größe: 1000 Messungen pro Anfrage (HTTP 413 darüber).</li></ul>"
+          },
+          "q6": {
+            "question": "Wie frage ich LIA zu meinen Gesundheitsdaten?",
+            "answer": "<p>Aktivieren Sie den Schalter <strong>Einstellungen → Gesundheitsdaten → Assistent</strong> (standardmäßig aus, <em>Opt-in</em>). Solange er aus ist, erreichen keine Gesundheitsdaten das LLM. Einmal aktiviert, können Sie:</p><ul><li><strong>Sachliche Fragen im Chat stellen</strong>: „Wie viele Schritte heute?\", „Meine Herzfrequenz diese Woche?\", „Schritte Tag für Tag über die letzten 7 Tage?\", „Laufe ich weniger als üblich?\", „Etwas Ungewöhnliches in meiner Gesundheit?\". LIA antwortet mit sachlichen Zahlen (Summen, Durchschnitte, Deltas gegenüber der Baseline) — niemals medizinische Diagnose.</li><li><strong>Proaktive Benachrichtigungen erhalten</strong>, die Gesundheit + Wetter + Kalender kombinieren („Sonnig heute und 4 Tage Inaktivität → kurzer Spaziergang?\").</li><li><strong>Ihre Memories und internen Journale anreichern</strong> mit biometrischem Kontext zum Erfassungszeitpunkt (nur Deltas und Trends — niemals Rohwerte).</li></ul><p>Ein einziger Schalter steuert diese 4 Integrationen. Die rollierende 28-Tage-Baseline qualifiziert Vergleiche ehrlich („basierend auf nur N Tagen Daten\", solange die Historie unter 7 Tagen liegt).</p>"
           }
         }
       }
@@ -4872,8 +4890,8 @@
         "description": "Erweitern Sie LIA mit maßgeschneiderten Experten-Skills. Skills können nun interaktive Karten, Dashboards, Kalender, QR-Codes und Mini-Apps direkt im Chat anzeigen — mit automatischer Theme- und Sprachsynchronisation. Erstellen Sie eigene Skills in natürlicher Sprache mit dem integrierten Skill Generator, oder importieren Sie von agentskills.io-kompatiblen Marktplätzen. Kompatibel mit 30+ Tools wie Claude Code, Cursor und VS Code."
       },
       "health_metrics": {
-        "title": "iPhone-Gesundheitsdaten",
-        "description": "Sendet automatisch Ihre Herzfrequenz und Schrittzahl aus Apple Health über eine Kurzbefehle-Automatisierung. Tägliche Batch-Übertragung (beim iPhone-Entsperren oder zu einer festen Uhrzeit), automatische serverseitige Deduplikation mit intelligenter Watch + iPhone-Fusion (MAX für Schritte, Mittelwert für die Herzfrequenz). Visualisierung nach Stunde / Tag / Woche / Monat / Jahr mit Periodendurchschnitt. Authentifizierung per dediziertem, widerrufbarem Token. Daten verschlüsselt ruhend, nie im Klartext geloggt."
+        "title": "Gesundheitsdaten",
+        "description": "Dedizierte Ingestion-API zum Senden von Herzfrequenz und Schrittzahl aus beliebigen Quellen (iOS Kurzbefehle, Android-Automatisierung, Drittanbieter-Integration, IoT). Automatische serverseitige Deduplikation mit intelligenter Fusion, wenn mehrere Quellen denselben Zeitraum abdecken (MAX für Schritte, Mittelwert für die Herzfrequenz). Visualisierung nach Stunde / Tag / Woche / Monat / Jahr mit Periodendurchschnitt. Authentifizierung per dediziertem, widerrufbarem Token. Daten verschlüsselt ruhend, nie im Klartext geloggt."
       },
       "sub_agents": {
         "title": "Sub-Agenten",
@@ -5565,6 +5583,15 @@
       "createError": "Token konnte nicht erstellt werden.",
       "revoked": "Token widerrufen.",
       "copied": "Token kopiert."
+    },
+    "agents": {
+      "title": "Assistent",
+      "description": "Erlauben Sie dem Assistenten, Ihre Gesundheitsdaten zu lesen, um Fragen zu beantworten, proaktive Benachrichtigungen zu unterstützen und Tagebuch und Speicher zu bereichern.",
+      "toggle": "Assistentenzugriff",
+      "enabled_hint": "Der Assistent kann Ihre Gesundheitsdaten einsehen (Schritte, Herzfrequenz).",
+      "disabled_hint": "Der Assistent hat keinen Zugriff auf Ihre Gesundheitsdaten (standardmäßig deaktiviert).",
+      "enabled_toast": "Gesundheitsassistent aktiviert.",
+      "disabled_toast": "Gesundheitsassistent deaktiviert."
     },
     "charts": {
       "title": "Diagramme",

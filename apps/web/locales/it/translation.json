@@ -2759,6 +2759,20 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_17_2": {
+          "title": "v1.17.2 — Dati salute: l'assistente dialoga con le tue misurazioni, API di ingestione generica",
+          "date": "Aprile 2026",
+          "count": "7",
+          "items": {
+            "i1": "<b>Nuovo interruttore 'Assistente' in Impostazioni → Dati salute</b> — Un unico interruttore opt-in (disattivato per default) autorizza l'assistente a leggere i tuoi dati salute per 4 integrazioni: conversazione, notifiche proattive, memorie, diari interni. Finché è disattivato, nessun dato salute raggiunge l'LLM.",
+            "i2": "<b>L'assistente risponde alle tue domande di salute</b> — Chiedi in chat: 'Quanti passi oggi?', 'La mia frequenza cardiaca questa settimana?', 'Qualcosa di insolito nella mia salute?'. LIA risponde fattualmente con totali, medie e confronti con la baseline. Mai diagnosi — solo cifre.",
+            "i3": "<b>Risposte affidabili su intervalli temporali naturali</b> — 'Questa settimana', 'questo mese', 'gli ultimi 7 giorni' sono interpretati correttamente e l'assistente fornisce i valori direttamente nella risposta (totali, dettaglio per giorno) senza ripararsi dietro 'nessun dato'.",
+            "i4": "<b>Baseline adattiva (bootstrap → rolling)</b> — LIA qualifica onestamente i suoi confronti: i primi 7 giorni annunciati come 'basati su soli N giorni', poi mediana mobile di 28 giorni. Rilevamento di variazioni ed eventi strutturali.",
+            "i5": "<b>Integrazione Heartbeat proattiva</b> — Quando l'interruttore è attivo, le notifiche possono combinare meteo + calendario + salute. I segnali iniettati contengono solo delta / tendenze / eventi — mai valori grezzi.",
+            "i6": "<b>API di ingestione generica</b> — L'API salute accetta misurazioni da qualsiasi fonte (Comandi rapidi iOS, automazione Android, integrazione di terze parti, IoT). Quando più fonti coprono lo stesso periodo, il server le fonde intelligentemente (MAX per i passi, media per la frequenza cardiaca). Landing e FAQ riposizionati attorno a questo messaging generico.",
+            "i7": "<b>Estendibilità per futuri tipi di misurazione</b> — Architettura progettata per accogliere nuovi kind (sonno, SpO2, calorie…) senza attrito: i servizi di ingestione, aggregazione, baseline, Heartbeat, memoria e diario si adattano automaticamente."
+          }
+        },
         "v1_17_1": {
           "title": "v1.17.1 — Dati sanitari: ingestione a batch giornalieri, gestione Watch+iPhone simultanei",
           "date": "Aprile 2026",
@@ -3960,13 +3974,13 @@
         }
       },
       "health_metrics": {
-        "title": "Dati sanitari (iPhone)",
-        "description": "Invia frequenza cardiaca e passi da Apple Salute tramite Comandi rapidi",
-        "count": "5",
+        "title": "Dati sanitari",
+        "description": "API di ingestione per inviare frequenza cardiaca e passi da qualsiasi fonte",
+        "count": "6",
         "questions": {
           "q1": {
             "question": "Cos'è la sezione «Dati sanitari»?",
-            "answer": "<p>Una funzionalità che consente al tuo iPhone di inviare automaticamente le misurazioni di Apple Salute (frequenza cardiaca, passi) a LIA tramite un'<strong>automazione Comandi rapidi</strong>. Da v1.17.1, l'invio funziona a <strong>batch giornalieri</strong> invece che push orario: allo sblocco dell'iPhone (o a un orario fisso), il Comando invia le misurazioni del giorno. I tuoi dati sono visualizzati in <strong>Impostazioni → Funzionalità → Dati sanitari</strong> come grafico a linee (FC) e a barre (passi), con selettore di periodo (ora / giorno / settimana / mese / anno), linea tratteggiata per la media del periodo e la finestra di aggregazione effettiva mostrata nelle statistiche.</p>"
+            "answer": "<p>Un'API di ingestione dedicata che accetta misurazioni di frequenza cardiaca e passi da <strong>qualsiasi fonte</strong>: automazione Comandi rapidi iPhone (caso d'uso principale documentato), script Android, integrazioni di terze parti o dispositivi IoT compatibili. Da v1.17.1, l'invio funziona a <strong>batch</strong> (fino a 1000 misurazioni per richiesta), ciascuna misurazione portando il proprio intervallo <code>date_start</code> / <code>date_end</code>. I tuoi dati sono visualizzati in <strong>Impostazioni → Funzionalità → Dati sanitari</strong> come grafico a linee (FC) e a barre (passi), con selettore di periodo (ora / giorno / settimana / mese / anno), linea tratteggiata per la media del periodo e la finestra di aggregazione effettiva mostrata nelle statistiche.</p>"
           },
           "q2": {
             "question": "Come configuro il mio iPhone per inviare dati?",
@@ -3983,6 +3997,10 @@
           "q5": {
             "question": "Il mio token è sicuro se intercettato?",
             "answer": "<p>Sì. Il token è trattato come una password:</p><ul><li><strong>Hash SHA-256 memorizzato</strong> — il valore grezzo non è mai persistito. Nessuno (nemmeno un admin LIA) può recuperarlo dopo la creazione.</li><li><strong>Mostrato una sola volta</strong>: solo un prefisso di 8 caratteri (<code>hm_xxxxxxxx…</code>) resta visibile per l'identificazione.</li><li><strong>Revocabile individualmente</strong> in qualsiasi momento dall'UI. Puoi emetterne diversi (uno per dispositivo) e gestirli in modo indipendente.</li><li><strong>Scoped a un singolo endpoint</strong>: un token autorizza solo l'invio di dati sanitari, mai la lettura dell'account o altre azioni.</li><li><strong>Rate limit</strong>: 60 richieste all'ora per token (Redis sliding window, configurabile) per bloccare lo spam assorbendo al contempo i burst allo sblocco dell'iPhone. Dimensione massima del lotto: 1000 misurazioni per richiesta (HTTP 413 oltre).</li></ul>"
+          },
+          "q6": {
+            "question": "Come chiedo a LIA riguardo ai miei dati sanitari?",
+            "answer": "<p>Attiva l'interruttore <strong>Impostazioni → Dati sanitari → Assistente</strong> (disattivato per default, <em>opt-in</em>). Finché è disattivato, nessun dato sanitario raggiunge l'LLM. Una volta attivo, puoi:</p><ul><li><strong>Porre domande fattuali in chat</strong>: «Quanti passi oggi?», «La mia frequenza cardiaca questa settimana?», «Passi giorno per giorno negli ultimi 7 giorni?», «Cammino meno del solito?», «Qualcosa di insolito nella mia salute ultimamente?». LIA risponde con cifre fattuali (totali, medie, delta vs baseline) — mai diagnosi mediche.</li><li><strong>Ricevere notifiche proattive</strong> che combinano salute + meteo + calendario («Sole oggi e 4 giorni di inattività → una breve passeggiata?»).</li><li><strong>Arricchire le tue memorie e diari interni</strong> con contesto biometrico al momento della cattura (solo delta e tendenze — mai valori grezzi).</li></ul><p>Un unico interruttore governa queste 4 integrazioni. La baseline mobile di 28 giorni qualifica i confronti onestamente («basata su soli N giorni di dati» finché lo storico è sotto i 7 giorni).</p>"
           }
         }
       }
@@ -4874,8 +4892,8 @@
         "description": "Specializza LIA con competenze esperte personalizzate. Le skill possono ora mostrare mappe interattive, dashboard, calendari, QR code e mini-applicazioni direttamente nella chat — con tema e lingua sincronizzati. Crea le tue in linguaggio naturale con lo Skill Generator integrato, o importa dai marketplace compatibili agentskills.io. Compatibile con 30+ strumenti tra cui Claude Code, Cursor e VS Code."
       },
       "health_metrics": {
-        "title": "Dati sanitari iPhone",
-        "description": "Invia automaticamente la tua frequenza cardiaca e i tuoi passi da Apple Salute tramite un'automazione Comandi rapidi. Ingestione a batch giornalieri (allo sblocco dell'iPhone o a un orario fisso), deduplicazione automatica lato server con fusione intelligente Watch + iPhone (MAX per i passi, media per la FC). Visualizzazione per ora / giorno / settimana / mese / anno con media sul periodo. Autenticazione tramite token dedicato e revocabile. Dati cifrati a riposo, mai registrati in chiaro."
+        "title": "Dati sanitari",
+        "description": "API di ingestione dedicata per inviare frequenza cardiaca e numero di passi da qualsiasi fonte (Comandi rapidi iOS, automazione Android, integrazione di terze parti, IoT). Deduplicazione automatica lato server con fusione intelligente quando più fonti coprono lo stesso periodo (MAX per i passi, media per la FC). Visualizzazione per ora / giorno / settimana / mese / anno con media sul periodo. Autenticazione tramite token dedicato e revocabile. Dati cifrati a riposo, mai registrati in chiaro."
       },
       "sub_agents": {
         "title": "Sub-agenti",
@@ -5567,6 +5585,15 @@
       "createError": "Impossibile creare il token.",
       "revoked": "Token revocato.",
       "copied": "Token copiato."
+    },
+    "agents": {
+      "title": "Assistente",
+      "description": "Autorizza l'assistente a leggere i tuoi dati sanitari per rispondere alle domande, alimentare le notifiche proattive e arricchire i diari e la memoria.",
+      "toggle": "Accesso dell'assistente",
+      "enabled_hint": "L'assistente può consultare i tuoi dati sanitari (passi, frequenza cardiaca).",
+      "disabled_hint": "L'assistente non ha accesso ai tuoi dati sanitari (disattivato per impostazione predefinita).",
+      "enabled_toast": "Assistente salute attivato.",
+      "disabled_toast": "Assistente salute disattivato."
     },
     "charts": {
       "title": "Grafici",

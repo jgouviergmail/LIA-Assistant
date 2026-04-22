@@ -190,6 +190,7 @@ class ContextAggregator:
             self._fetch_activity(user_id),
             self._fetch_recent_heartbeats(user_id, user),
             self._fetch_recent_interest_notifications(user_id, user),
+            self._fetch_health_signals(user_id, user, settings),
             return_exceptions=True,
         )
 
@@ -204,6 +205,7 @@ class ContextAggregator:
             "activity",
             "recent_heartbeats",
             "recent_interests",
+            "health_signals",
         ]
 
         for name, result in zip(source_names, results, strict=True):
@@ -294,6 +296,10 @@ class ContextAggregator:
         elif name == "journals" and result:
             context.journal_entries = result
             context.available_sources.append("journals")
+
+        elif name == "health_signals" and result:
+            context.health_signals = result
+            context.available_sources.append("health_signals")
 
     # ------------------------------------------------------------------
     # Time context (synchronous, always succeeds)
@@ -981,6 +987,62 @@ class ContextAggregator:
                 memories.append(content[:200])  # Truncate to save tokens
 
         return memories if memories else None
+
+    # ------------------------------------------------------------------
+    # Health signals source (v1.17.2)
+    # ------------------------------------------------------------------
+
+    async def _fetch_health_signals(
+        self,
+        user_id: UUID,
+        user: Any,
+        settings: Any,
+    ) -> dict[str, Any] | None:
+        """Fetch the Health Metrics signals block when the user has opted in.
+
+        Gated by two flags:
+        - ``settings.health_metrics_enabled`` (global feature).
+        - ``user.health_metrics_agents_enabled`` (per-user opt-in).
+
+        Uses a short-circuit timeout so a slow DB does not block the
+        heartbeat aggregate. Returns ``None`` on any failure — the
+        heartbeat context stays usable without health signals.
+
+        Returns:
+            A dict ready to attach to ``HeartbeatContext.health_signals``,
+            or ``None`` when disabled / empty / failed.
+        """
+        from src.core.constants import (
+            HEALTH_METRICS_HEARTBEAT_FETCH_TIMEOUT_SECONDS,
+            HEALTH_METRICS_USER_TOGGLE_ATTR,
+        )
+
+        if not getattr(settings, "health_metrics_enabled", False):
+            return None
+        if not getattr(user, HEALTH_METRICS_USER_TOGGLE_ATTR, False):
+            return None
+
+        from src.domains.health_metrics.service import HealthMetricsService
+        from src.infrastructure.database.session import get_db_context
+
+        try:
+            async with asyncio.timeout(HEALTH_METRICS_HEARTBEAT_FETCH_TIMEOUT_SECONDS):
+                async with get_db_context() as db:
+                    service = HealthMetricsService(db)
+                    return await service.build_heartbeat_health_signals(user_id)
+        except TimeoutError:
+            logger.warning(
+                "heartbeat_health_signals_timeout",
+                user_id=str(user_id),
+            )
+            return None
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning(
+                "heartbeat_health_signals_failed",
+                user_id=str(user_id),
+                error=str(exc),
+            )
+            return None
 
     # ------------------------------------------------------------------
     # Activity source

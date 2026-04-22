@@ -3,7 +3,8 @@
 **Date**: 2026-04-20
 **Status**: Accepted
 **Revised**: 2026-04-21 — polymorphic samples + batch upsert (iPhone Shortcuts constraint)
-**Context**: Expose authenticated REST endpoints so an iPhone Shortcut can POST **daily batches** of heart-rate and step samples, persist them per-user in PostgreSQL, and surface them in the Settings UI as hour/day/week/month/year charts. Set the foundation for a later LLM tool that lets the assistant reason over this data.
+**Revised**: 2026-04-22 — assistant integrations (agents + Heartbeat + journal + memory) + central `HEALTH_KINDS` registry for extensibility (v1.17.2)
+**Context**: Expose authenticated REST endpoints so an iPhone Shortcut can POST **daily batches** of heart-rate and step samples, persist them per-user in PostgreSQL, surface them in the Settings UI as hour/day/week/month/year charts, and (v1.17.2) expose them to LIA's three central loops — conversation (LangGraph agents), proactivity (Heartbeat), and introspection (journal + memory) — behind a per-user opt-in.
 
 ## Context
 
@@ -130,7 +131,116 @@ Health data is a "special category" under GDPR article 9. Mitigations baked into
 - ADR-073: Last-known location persistence (similar sensitivity framing).
 - Config pattern: `src/core/config/health_metrics.py` follows the module-split convention established by ADR-009.
 
+## v1.17.2 revision — Assistant integrations + extensibility
+
+The v1.17.1 decisions (polymorphic samples, batch upsert, mixed validation,
+gap-preserving charts) are preserved unchanged. The 2026-04-22 revision
+adds four downstream integrations and a central registry making future
+kinds (sleep, SpO2, calories) cheap to onboard.
+
+### 11. Central `HEALTH_KINDS` registry
+
+`src/domains/health_metrics/kinds.py` is now the **single source of
+truth** for per-kind semantics: physiological bounds, intra-batch merge
+strategy, bucket aggregation method, baseline kind (`daily_sum` /
+`daily_avg` / `resting`), owning agent name, UI i18n key, and the legacy
+response fields consumed by `HealthMetricAggregatePoint`. Ingestion
+validation, repository merge, aggregator, baseline, signal detection,
+heartbeat, memory, and journal pipelines all consume this registry —
+adding a new kind is a single-file edit plus a per-kind tool pack (see
+[`docs/technical/HEALTH_METRICS.md`](../technical/HEALTH_METRICS.md)).
+
+### 12. Adaptive baseline (`bootstrap` → `rolling`)
+
+`baseline.compute_baseline()` selects between a bootstrap median (< 7
+days of history, surfaced with `mode="bootstrap"` so the LLM qualifies
+its statements) and a rolling 28-day median (`mode="rolling"`). Backing
+settings: `HEALTH_METRICS_BASELINE_MIN_DAYS`,
+`HEALTH_METRICS_BASELINE_ROLLING_WINDOW_DAYS`.
+
+### 13. Factual signal detection
+
+`signals.detect_recent_variations()` + `signals.detect_notable_events()`
+emit **facts, not diagnoses**: directional streaks above the configured
+daily delta threshold for `HEALTH_METRICS_VARIATION_MIN_DAYS`
+consecutive days, and structural events (inactivity streaks on steps).
+Thresholds are parameterized.
+
+### 14. Single `health_agent` with seven hand-crafted tools
+
+One agent ↔ one domain, matching the convention used across the codebase
+(`email_agent`, `event_agent`, `weather_agent`…). Seven tools grouped
+under `health_agent` — steps summary / breakdown / baseline delta, heart
+rate summary / baseline delta, cross-kind overview / change detection —
+registered in the planner catalogue behind the `HEALTH_METRICS_ENABLED`
+flag. Each tool gates on `User.health_metrics_agents_enabled` at entry
+via `_check_user_toggle_or_error`, returning
+`UnifiedToolOutput.failure(error_code="PERMISSION_DENIED")` when the
+user has not opted in.
+
+**Time-windowed queries** (`time_min` / `time_max` ISO 8601) — same
+pattern as `calendar_tools.search_events_tool` and
+`emails_tools.search_emails_tool`. The QueryAnalyzer pre-resolves
+temporal references ("this week" → "2026-04-20 to 2026-04-26") in its
+`resolved_references` mapping, and the planner splits the two dates
+across the two tool parameters. Defaults on omission: `time_min` →
+today 00:00 UTC, `time_max` → `datetime.now(UTC)`. Tools for
+trend-over-days (`get_steps_daily_breakdown_tool`,
+`compare_*_to_baseline_tool`, `detect_health_changes_tool`) use a
+simpler integer `days` / `window_days` parameter.
+
+**Factual figures inlined in the `message` field** — all numeric values
+(totals, averages, per-day entries) are rendered into the
+`UnifiedToolOutput.message` text so the Response LLM surfaces them
+without reaching for `structured_data` (pattern from `weather_tools`).
+This avoids the "data details lost to the LLM" failure mode where only
+a summary sentence like "8 days with data" would reach the response
+node.
+
+### 15. Heartbeat source `health_signals`
+
+`context_aggregator._fetch_health_signals()` injects a compact payload
+(summary-today + baseline deltas + recent variations + notable events)
+into the Heartbeat `CURRENT CONTEXT`. Capped by a 2-second
+`asyncio.wait_for` — timeout / error → silent `None` so the heartbeat
+never blocks on health data.
+
+### 16. Memory biometric enrichment (`context_biometric` JSONB)
+
+New optional `memories.context_biometric` column (migration
+`health_metrics_005`). The memory extractor injects a
+`{health_context}` block into the prompt and asks the LLM to emit a
+compact `context_biometric` blob when the memory carries a significant
+emotional weight. Stored blob = deltas / trends / events only — never
+raw sensor values.
+
+### 17. Journal context injection
+
+Both `{health_context}` (extraction) and `{health_signals_section}`
+(consolidation) are injected only when the user has opted in. The
+consolidation's analyst persona is instructed to enrich its reflections
+factually without reproducing raw values.
+
+### 18. Single per-user toggle
+
+`User.health_metrics_agents_enabled` (migration `health_metrics_004`,
+default `false`, opt-in) gates all four integrations at once. One
+interrupt for the user, mirrored in the pattern of `memory_enabled`
+and `journals_enabled`. Endpoint
+`PATCH /auth/me/health-metrics-agents-preference`.
+
+### Privacy framing reinforced
+
+- **Never raw values in downstream artifacts**: `context_biometric`,
+  heartbeat `health_signals`, and prompt-injected `health_context` all
+  carry deltas / trends / events only. Raw integers stay in
+  `health_samples` where GDPR erasure applies.
+- **Opt-in by default**: the 4-integration toggle defaults to `false`.
+- **Feature flag gates DB migration side-effects**: `health_metrics_004`
+  adds a NOT NULL boolean with `server_default=false` so existing rows
+  keep the safe default.
+
 ## Open items
 
-- LLM tool exposure (assistant reasoning over the data) is out of scope for this ADR; it will be addressed separately once the data volume and usage patterns are visible.
 - A lightweight export-to-CSV action may be added to the Settings UI if the data-portability requirement is raised.
+- Resting-HR baseline (currently `BaselineKind.RESTING` = placeholder min-per-day) becomes meaningful once a future `sleep_duration` kind lands and unlocks sleep-aware filtering.

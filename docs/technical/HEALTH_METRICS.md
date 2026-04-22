@@ -194,17 +194,100 @@ Logs carry `user_id`, `kind`, `source`, counts, and validation metadata — neve
 - Charts: [apps/web/src/components/health_metrics/HealthMetricsCharts.tsx](../../apps/web/src/components/health_metrics/HealthMetricsCharts.tsx)
 - i18n namespace: `healthMetrics.*` in all 6 locale files (`en/fr/de/es/it/zh`).
 
+## Assistant tool surface
+
+A single `health_agent` owns seven hand-crafted tools under
+`src/domains/agents/tools/health_tools.py` — one agent ↔ one domain
+pattern (mirrors `email_agent`, `event_agent`, `weather_agent`…).
+Manifests live in
+`src/domains/agents/health/catalogue_manifests.py`.
+
+| Tool                                 | Kind        | Params                    | Purpose                                   |
+|--------------------------------------|-------------|---------------------------|-------------------------------------------|
+| `get_steps_summary_tool`             | steps       | `time_min`, `time_max`    | Total steps over a time window            |
+| `get_steps_daily_breakdown_tool`     | steps       | `days` (1-30)             | Per-day breakdown over N days             |
+| `compare_steps_to_baseline_tool`     | steps       | `window_days` (1-14)      | Recent window vs 28-day baseline          |
+| `get_heart_rate_summary_tool`        | heart_rate  | `time_min`, `time_max`    | Avg / min / max bpm over a time window    |
+| `compare_heart_rate_to_baseline_tool`| heart_rate  | `window_days` (1-14)      | Recent window vs 28-day baseline          |
+| `get_health_overview_tool`           | cross-kind  | `time_min`, `time_max`    | Per-kind summary over a time window       |
+| `detect_health_changes_tool`         | cross-kind  | `window_days` (1-14)      | Directional streaks + structural events   |
+
+### Time window pattern (`time_min` / `time_max`)
+
+Summary + overview tools use ISO 8601 bounds exactly like
+`calendar_tools.search_events_tool`. The **QueryAnalyzer** in
+`query_analyzer_service.py` pre-resolves temporal expressions into
+`resolved_references` (e.g. `{"this week": "2026-04-20 to 2026-04-26"}`)
+which the planner injects in its prompt. The planner then splits the
+two dates across the tool's two parameters. Defaults when omitted:
+
+- `time_min` → today 00:00 UTC (service: `compute_kind_summary`).
+- `time_max` → `datetime.now(UTC)`.
+
+The tool-side helper `_parse_iso_ts(value, *, param)` accepts bare
+dates (`"2026-04-20"` → midnight UTC), datetimes with Z suffix, and
+datetimes with explicit offset. Malformed inputs → `None` + warning
+log → service falls back to defaults.
+
+### Message-embedded figures
+
+All factual figures (totals, averages, per-day values) are inlined in
+`UnifiedToolOutput.message` so the Response LLM surfaces them directly.
+The `structured_data` payload remains the canonical source for the
+frontend and for `data_for_filtering`, but the Response LLM never
+reads it — it only sees the `message` text. Pattern borrowed from
+`weather_tools.get_current_weather_tool`.
+
+### Toggle gating
+
+Every tool short-circuits through `_check_user_toggle_or_error` which
+returns `UnifiedToolOutput.failure(error_code="PERMISSION_DENIED")`
+when `User.health_metrics_agents_enabled` is false. The toggle is
+exposed via `PATCH /api/v1/auth/me/health-metrics-agents-preference`
+and governs four integrations at once (tools, Heartbeat source,
+memory extractor, journal consolidation) — one interrupt for the
+user.
+
 ## Extending the kind taxonomy
 
-Adding a new kind (e.g. `spo2`):
+Adding a new kind (e.g. `spo2`, `sleep_duration`, `calories_burned`) is
+a single-file edit in the central registry plus adding a handful of
+hand-crafted tools — the service, repository, aggregator, heartbeat,
+memory, and journal pipelines iterate `HEALTH_KINDS` and pick up the
+new kind transparently.
 
-1. `constants.py` — add `HEALTH_METRICS_KIND_SPO2` and append to `HEALTH_METRICS_KINDS`.
-2. `config/health_metrics.py` — add bound settings + `.env.example`.
-3. Alembic migration — update the `ck_health_samples_kind` check constraint.
-4. `service._validate_sample()` — add a branch computing `(lo, hi)` for the new kind.
-5. `aggregator.aggregate_samples()` — add aggregation logic for the new kind (simple addition or bucket-reduced stats).
-6. `schemas.HealthMetricAggregatePoint` — add the new aggregate field(s).
-7. Frontend — extend `HealthMetricsAggregatePoint` + charts + i18n keys (6 languages).
-8. Tests — mirror the existing per-kind validation and aggregator tests.
+1. **`src/domains/health_metrics/kinds.py`** — add a new
+   `HealthKindSpec(...)` entry to `HEALTH_KINDS`. Pick the correct
+   `MergeStrategy` (MAX / AVG_ROUNDED / MIN / SUM / LAST_WINS),
+   `AggregationMethod` (SUM / AVG_MIN_MAX / LAST_VALUE), and
+   `BaselineKind` (DAILY_SUM / DAILY_AVG / RESTING). Declare the
+   `legacy_response_fields` tuple only if you need backward-compat on
+   `HealthMetricAggregatePoint` (new kinds can rely on `metrics_by_kind`
+   instead).
+2. **Alembic migration** — update the `ck_health_samples_kind` CHECK
+   constraint to allow the new value.
+3. **`config/health_metrics.py` + `.env.example`** — add per-kind bound
+   fields (`health_metrics_<kind>_min` / `_max`). `get_active_bounds(spec)`
+   reads them automatically.
+4. **Add tools to `health_tools.py`** — two or three new hand-crafted
+   `@tool` functions (typically a summary tool using `time_min` /
+   `time_max` and a baseline-compare tool using `window_days`). Reuse
+   `_check_user_toggle_or_error`, `_parse_iso_ts`, and
+   `_format_delta_pct`. Inline factual figures in the `message`.
+5. **Register the manifests** — declare
+   `<kind>_summary_catalogue_manifest` in
+   `src/domains/agents/health/catalogue_manifests.py` with
+   `parameters=[_TIME_MIN_PARAM, _TIME_MAX_PARAM]` for a summary tool
+   (or `[_WINDOW_DAYS_PARAM]` for a baseline tool). Add the manifest
+   to `HEALTH_TOOL_MANIFESTS` and the tool name to
+   `HEALTH_AGENT_MANIFEST.tools`.
+6. **Prompt update** — extend `health_agent_prompt.txt` `<Logic>` with
+   selection rules for the new tools and a `<Strategies>` example.
+7. **i18n** — add the kind's display name in the 6 locale files
+   (`healthMetrics.kinds.<kind>`) and the tool i18n keys
+   (`healthMetrics.tools.<tool_name>`).
 
-The key insight: the polymorphic single-table design means extending the taxonomy never requires new tables or new endpoints — only a new `kind` discriminator value and its validation/aggregation branches.
+The key insight: the polymorphic single-table design + central registry
++ single-agent pattern means extending the taxonomy never requires new
+tables, new endpoints, nor a new agent — only a registry entry and a
+few tool wrappers.

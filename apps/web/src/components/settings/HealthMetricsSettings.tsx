@@ -21,6 +21,7 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   Activity,
   BarChart3,
+  Bot,
   Copy,
   Eye,
   EyeOff,
@@ -32,11 +33,13 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { useAuth } from '@/hooks/useAuth';
 import { useHealthMetrics, type HealthMetricsPeriod } from '@/hooks/useHealthMetrics';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { HealthMetricsCharts } from '@/components/health_metrics/HealthMetricsCharts';
+import { Switch } from '@/components/ui/switch';
 import {
   Accordion,
   AccordionContent,
@@ -81,17 +84,37 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
   const [justCreatedToken, setJustCreatedToken] = useState<string | null>(null);
   const [showJustCreated, setShowJustCreated] = useState(true);
 
+  const { user, refreshUser } = useAuth();
   const {
     aggregate,
     tokens,
     isLoading,
     isCreatingToken,
     isDeleting,
+    isUpdatingAgentsPreference,
     createToken,
     revokeToken,
     deleteKind,
     deleteAll,
+    updateAgentsEnabled,
   } = useHealthMetrics(period);
+
+  const handleAgentsToggle = useCallback(
+    async (enabled: boolean) => {
+      const result = await updateAgentsEnabled(enabled);
+      if (result) {
+        await refreshUser();
+        toast.success(
+          enabled
+            ? t('healthMetrics.agents.enabled_toast', 'Assistant santé activé.')
+            : t('healthMetrics.agents.disabled_toast', 'Assistant santé désactivé.'),
+        );
+      } else {
+        toast.error(t('common.error', 'Une erreur est survenue.'));
+      }
+    },
+    [updateAgentsEnabled, refreshUser, t],
+  );
 
   const [ingestStepsUrl, setIngestStepsUrl] = useState<string>(INGEST_STEPS_PATH);
   const [ingestHeartRateUrl, setIngestHeartRateUrl] = useState<string>(INGEST_HEART_RATE_PATH);
@@ -446,6 +469,52 @@ export function HealthMetricsSettings({ lng }: HealthMetricsSettingsProps) {
                       ))}
                     </ul>
                   )}
+                </div>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* =================================================================== */}
+          {/* 1b. Assistant toggle (v1.17.2) */}
+          {/* =================================================================== */}
+          <AccordionItem value="assistant" className="border rounded-lg px-3">
+            <AccordionTrigger className="py-3 text-sm font-medium hover:no-underline">
+              <span className="flex items-center gap-2">
+                <Bot className="h-4 w-4 text-muted-foreground" />
+                {t('healthMetrics.agents.title', 'Assistant')}
+              </span>
+            </AccordionTrigger>
+            <AccordionContent>
+              <div className="space-y-3 pb-2">
+                <p className="text-sm text-muted-foreground">
+                  {t(
+                    'healthMetrics.agents.description',
+                    'Autorisez l’assistant à lire vos données de santé pour répondre à vos questions, les intégrer aux notifications proactives, et enrichir ses journaux et mémoires.',
+                  )}
+                </p>
+                <div className="flex items-center justify-between gap-3 rounded-md border bg-muted/30 p-3">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="health-metrics-agents-toggle" className="text-sm font-medium">
+                      {t('healthMetrics.agents.toggle', 'Accès de l’assistant')}
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      {user?.health_metrics_agents_enabled
+                        ? t(
+                            'healthMetrics.agents.enabled_hint',
+                            'L’assistant peut consulter vos données de santé (pas, rythme cardiaque).',
+                          )
+                        : t(
+                            'healthMetrics.agents.disabled_hint',
+                            'L’assistant n’a pas accès à vos données de santé (désactivé par défaut).',
+                          )}
+                    </p>
+                  </div>
+                  <Switch
+                    id="health-metrics-agents-toggle"
+                    checked={!!user?.health_metrics_agents_enabled}
+                    disabled={isUpdatingAgentsPreference}
+                    onCheckedChange={handleAgentsToggle}
+                  />
                 </div>
               </div>
             </AccordionContent>

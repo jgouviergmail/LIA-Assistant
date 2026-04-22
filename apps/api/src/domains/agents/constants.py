@@ -66,6 +66,7 @@ AGENT_BROWSER = "browser_agent"  # Interactive web browsing (evolution F7)
 AGENT_HUE = "hue_agent"  # Philips Hue smart lighting (Smart Home)
 AGENT_IMAGE = "image_generation_agent"  # AI image generation (evolution)
 AGENT_REMINDER = "reminder_agent"  # Internal reminders (no OAuth)
+AGENT_HEALTH = "health_agent"  # Health Metrics — unified agent (v1.17.2)
 
 # Per-server MCP domain prefix (evolution F2.2)
 # Each user MCP server gets its own domain: mcp_<slugified_server_name>
@@ -208,6 +209,7 @@ CONTEXT_DOMAIN_SKILL_APPS = "skill_apps"  # Skill rich outputs (frame/image widg
 CONTEXT_DOMAIN_BROWSERS = "browsers"  # Interactive web browsing (evolution F7)
 CONTEXT_DOMAIN_HUE = "hues"  # Philips Hue smart lights (Smart Home)
 CONTEXT_DOMAIN_REMINDERS = "reminders"  # Personal push notification reminders
+CONTEXT_DOMAIN_HEALTH_SIGNALS = "health_signals"  # v1.17.2 Health Metrics
 
 # Web Search sources (used by unified_web_search_tool)
 WEB_SEARCH_SOURCE_PERPLEXITY = "perplexity"

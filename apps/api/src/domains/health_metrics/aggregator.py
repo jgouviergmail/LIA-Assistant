@@ -21,18 +21,21 @@ Revised: 2026-04-21 — polymorphic samples, kind-discriminated aggregation.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Literal
 
 from src.core.constants import (
-    HEALTH_METRICS_KIND_HEART_RATE,
-    HEALTH_METRICS_KIND_STEPS,
     HEALTH_METRICS_PERIOD_DAY,
     HEALTH_METRICS_PERIOD_HOUR,
     HEALTH_METRICS_PERIOD_MONTH,
     HEALTH_METRICS_PERIOD_WEEK,
     HEALTH_METRICS_PERIOD_YEAR,
+)
+from src.domains.health_metrics.kinds import (
+    HEALTH_KINDS,
+    AggregationMethod,
+    HealthKindSpec,
 )
 from src.domains.health_metrics.models import HealthSample
 from src.domains.health_metrics.schemas import (
@@ -45,47 +48,132 @@ PeriodLiteral = Literal["hour", "day", "week", "month", "year"]
 
 @dataclass(slots=True)
 class _BucketAccumulator:
-    """Running aggregate for one bucket (mutable during traversal)."""
+    """Running aggregate for one bucket (mutable during traversal).
+
+    Internals are polymorphic: ``values_by_kind`` holds the raw samples
+    observed in the bucket keyed by kind discriminator. The finalizer
+    :meth:`to_point` uses the central registry to compute the correct
+    aggregate per kind (SUM, AVG_MIN_MAX, LAST_VALUE) and also populates
+    the legacy typed fields on the response schema for backward compat.
+    """
 
     bucket_start: datetime
-    hr_values: list[int]
-    steps_total: int
-    has_steps_sample: bool
-    has_any_sample: bool
+    values_by_kind: dict[str, list[int]] = field(default_factory=dict)
+    has_any_sample: bool = False
 
     @classmethod
     def empty(cls, bucket_start: datetime) -> _BucketAccumulator:
         """Create an empty bucket anchored at ``bucket_start``."""
-        return cls(
-            bucket_start=bucket_start,
-            hr_values=[],
-            steps_total=0,
-            has_steps_sample=False,
-            has_any_sample=False,
-        )
+        return cls(bucket_start=bucket_start)
+
+    def add(self, kind: str, value: int) -> None:
+        """Record a sample into the bucket under its kind."""
+        self.values_by_kind.setdefault(kind, []).append(value)
+        self.has_any_sample = True
 
     def to_point(self) -> HealthMetricAggregatePoint:
-        """Finalize this bucket to the public response schema."""
+        """Finalize this bucket to the public response schema.
+
+        Produces:
+        - the legacy typed fields (``heart_rate_avg``, ``heart_rate_min``,
+          ``heart_rate_max``, ``steps_total``) so the existing frontend keeps
+          working unchanged;
+        - the new polymorphic ``metrics_by_kind`` dict for future-proof
+          per-kind consumption.
+        """
         if not self.has_any_sample:
-            return HealthMetricAggregatePoint(
-                bucket=self.bucket_start,
-                heart_rate_avg=None,
-                heart_rate_min=None,
-                heart_rate_max=None,
-                steps_total=None,
-                has_data=False,
-            )
-        hr_avg = (sum(self.hr_values) / len(self.hr_values)) if self.hr_values else None
-        hr_min = min(self.hr_values) if self.hr_values else None
-        hr_max = max(self.hr_values) if self.hr_values else None
+            return HealthMetricAggregatePoint(bucket=self.bucket_start, has_data=False)
+
+        # Legacy fields populated via spec-driven dispatch.
+        legacy_fields: dict[str, int | float | None] = {}
+        metrics_by_kind: dict[str, dict[str, int | float]] = {}
+
+        for kind, values in self.values_by_kind.items():
+            if not values:
+                continue
+            spec = HEALTH_KINDS.get(kind)
+            if spec is None:
+                # Forward-compat: a kind in DB but not in registry → skip
+                # (should never happen in practice since ingestion gates on
+                # registry membership + DB CheckConstraint).
+                continue
+            kind_metrics = _aggregate_values(spec, values)
+            metrics_by_kind[kind] = kind_metrics
+            _populate_legacy_fields(legacy_fields, spec, kind_metrics)
+
+        # mypy hints: legacy_fields values are narrowed by Pydantic at field assignment.
+        hr_avg_raw = legacy_fields.get("heart_rate_avg")
+        hr_min_raw = legacy_fields.get("heart_rate_min")
+        hr_max_raw = legacy_fields.get("heart_rate_max")
+        steps_raw = legacy_fields.get("steps_total")
         return HealthMetricAggregatePoint(
             bucket=self.bucket_start,
-            heart_rate_avg=hr_avg,
-            heart_rate_min=hr_min,
-            heart_rate_max=hr_max,
-            steps_total=self.steps_total if self.has_steps_sample else None,
+            heart_rate_avg=float(hr_avg_raw) if hr_avg_raw is not None else None,
+            heart_rate_min=int(hr_min_raw) if hr_min_raw is not None else None,
+            heart_rate_max=int(hr_max_raw) if hr_max_raw is not None else None,
+            steps_total=int(steps_raw) if steps_raw is not None else None,
+            metrics_by_kind=metrics_by_kind or None,
             has_data=True,
         )
+
+
+def _aggregate_values(spec: HealthKindSpec, values: list[int]) -> dict[str, int | float]:
+    """Produce per-kind metrics dict according to the spec's aggregation method.
+
+    Args:
+        spec: The kind spec determining the aggregation semantics.
+        values: Raw integer values observed in the bucket (non-empty).
+
+    Returns:
+        A dict with keys depending on the aggregation method:
+        - ``AVG_MIN_MAX`` → ``{"avg", "min", "max"}``
+        - ``SUM`` → ``{"sum"}``
+        - ``LAST_VALUE`` → ``{"last"}``
+    """
+    match spec.aggregation_method:
+        case AggregationMethod.AVG_MIN_MAX:
+            return {
+                "avg": sum(values) / len(values),
+                "min": min(values),
+                "max": max(values),
+            }
+        case AggregationMethod.SUM:
+            return {"sum": sum(values)}
+        case AggregationMethod.LAST_VALUE:
+            return {"last": values[-1]}
+
+
+def _populate_legacy_fields(
+    legacy_fields: dict[str, int | float | None],
+    spec: HealthKindSpec,
+    kind_metrics: dict[str, int | float],
+) -> None:
+    """Map per-kind metrics to the legacy typed fields on the response.
+
+    The mapping uses naming conventions tied to the spec's
+    ``legacy_response_fields`` tuple:
+    - Fields ending in ``_avg`` / ``_min`` / ``_max`` map to the
+      corresponding keys in ``kind_metrics``.
+    - Fields ending in ``_total`` map to ``sum``.
+    - Fields ending in ``_last`` map to ``last``.
+
+    Args:
+        legacy_fields: Mutable dict accumulating the legacy field values.
+        spec: The kind spec.
+        kind_metrics: The aggregated metrics dict produced by
+            :func:`_aggregate_values`.
+    """
+    for field_name in spec.legacy_response_fields:
+        if field_name.endswith("_avg"):
+            legacy_fields[field_name] = kind_metrics.get("avg")
+        elif field_name.endswith("_min"):
+            legacy_fields[field_name] = kind_metrics.get("min")
+        elif field_name.endswith("_max"):
+            legacy_fields[field_name] = kind_metrics.get("max")
+        elif field_name.endswith("_total"):
+            legacy_fields[field_name] = kind_metrics.get("sum")
+        elif field_name.endswith("_last"):
+            legacy_fields[field_name] = kind_metrics.get("last")
 
 
 # =============================================================================
@@ -186,8 +274,10 @@ def aggregate_samples(
         buckets[cursor] = _BucketAccumulator.empty(cursor)
         cursor = _advance_bucket(cursor, period)
 
-    hr_all: list[int] = []
-    steps_total_global: int = 0
+    # Global period-wide accumulation (for the averages section of the response).
+    # Kept polymorphic via per-kind lists; the legacy ``heart_rate_avg`` and
+    # ``steps_per_day_avg`` fields are derived below from these lists.
+    global_values_by_kind: dict[str, list[int]] = {}
 
     for sample in samples:
         bucket_start = _floor_to_bucket(sample.date_start, period)
@@ -195,19 +285,17 @@ def aggregate_samples(
         if bucket is None:
             # Defensive — DB query should respect the window.
             continue
-        bucket.has_any_sample = True
         value = int(sample.value)
-        if sample.kind == HEALTH_METRICS_KIND_HEART_RATE:
-            bucket.hr_values.append(value)
-            hr_all.append(value)
-        elif sample.kind == HEALTH_METRICS_KIND_STEPS:
-            bucket.steps_total += value
-            bucket.has_steps_sample = True
-            steps_total_global += value
+        bucket.add(sample.kind, value)
+        global_values_by_kind.setdefault(sample.kind, []).append(value)
 
     points = [buckets[k].to_point() for k in sorted(buckets.keys())]
 
+    # Period-wide averages (legacy typed fields).
+    hr_all = global_values_by_kind.get("heart_rate", [])
     hr_avg = (sum(hr_all) / len(hr_all)) if hr_all else None
+    steps_all = global_values_by_kind.get("steps", [])
+    steps_total_global = sum(steps_all) if steps_all else 0
     total_seconds = (to_ts - from_ts).total_seconds()
     total_days = total_seconds / 86400.0
     steps_per_day_avg = (

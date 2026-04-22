@@ -5,8 +5,8 @@
 > Documentazione di presentazione tecnica destinata ad architetti, ingegneri ed esperti tecnici.
 
 **Versione**: 2.3
-**Data**: 2026-04-20
-**Applicazione**: LIA v1.17.1
+**Data**: 2026-04-22
+**Applicazione**: LIA v1.17.2
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -936,6 +936,8 @@ LIA accetta ingestioni di eventi esterni (misurazioni iPhone Apple Health, paylo
 **Sicurezza**: rate limit Redis sliding window per token (60 req/h di default, configurabile), header `WWW-Authenticate: Bearer` (RFC 7235) sui 401, `Retry-After` sui 429, tetto di campioni per richiesta con `HTTP 413` oltre. La cascade SQL `ON DELETE CASCADE` sulla FK `users` copre l'erasure dell'account.
 
 **Visualizzazione**: un aggregator polimorfico Python percorre i campioni ordinati per `date_start` in una finestra e emette un punto per bucket (ora/giorno/settimana/mese/anno), con `AVG/MIN/MAX` sui campioni `heart_rate` e `SUM` sui campioni `steps`. I bucket vuoti sono emessi con `has_data=False` affinché il frontend (`recharts`, `connectNulls={false}`) mostri lacune oneste invece di interpolazione. Il componente Settings riutilizza il pattern `SettingsSection` + Accordion (4 sotto-sezioni: API + token, Grafici, Statistiche, Gestione dati) e mostra la **finestra di aggregazione effettiva** per disinnescare la confusione «le stat non si muovono quando cambio periodo» (la FC è invariante quando tutti i dati entrano nella finestra più piccola).
+
+**Esposizione ai loop centrali**: un **unico toggle utente opt-in** governa quattro consumatori in un colpo solo — conversazione (tool assistant), Heartbeat (sorgente `health_signals`), estrazione memoria (placeholder `{health_context}` + blob opzionale `context_biometric` JSONB su memorie con alta emotività) e diario (estrazione + consolidazione). Tutti e quattro ricevono la stessa **proiezione fattuale non grezza**: delta vs baseline, trend direzionali, eventi strutturali (streak di inattività, ecc.) — mai valori grezzi. La baseline mobile a 28 giorni seleziona automaticamente `bootstrap` (mediana semplice finché meno di 7 giorni di storico sono disponibili — trasmesso all'LLM per qualificare le sue affermazioni) e poi passa a `rolling`. L'erasure GDPR ha un unico bersaglio: la tabella `health_samples`.
 
 ---
 

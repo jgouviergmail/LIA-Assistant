@@ -508,6 +508,29 @@ DOMAIN_REGISTRY: dict[str, DomainConfig] = {
             "requires_api_key": False,
         },
     ),
+    # Health Metrics domain (v1.17.2) — steps, heart_rate, and any future
+    # kind registered in HEALTH_KINDS. Per-user opt-in gated at tool entry.
+    "health": DomainConfig(
+        name="health",
+        display_name="Health Metrics",
+        description=(
+            "Answer factual questions about the user's health data (steps, "
+            "heart rate, etc.) ingested from their iPhone. Summaries, per-day "
+            "breakdowns, comparison to a rolling 28-day baseline, and "
+            "detection of notable recent variations. Never provides medical "
+            "diagnosis or advice — reports figures only."
+        ),
+        agent_names=["health_agent"],
+        result_key="health_signals",
+        related_domains=[],
+        is_routable=True,
+        metadata={
+            "provider": "internal",
+            "requires_oauth": False,
+            "requires_api_key": False,
+            "per_user_opt_in": True,
+        },
+    ),
     "devops": DomainConfig(
         name="devops",
         display_name="DevOps (Claude CLI)",

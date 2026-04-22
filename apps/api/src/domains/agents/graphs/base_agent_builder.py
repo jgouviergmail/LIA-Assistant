@@ -242,6 +242,8 @@ def build_generic_agent(config: AgentConfig) -> Any:
         "tasks_agent": "task_agent",
         "places_agent": "place_agent",
         "routes_agent": "route_agent",
+        # Health Metrics agent (v1.17.2)
+        "health_agent": "health_agent",
     }
     llm_type = llm_type_map.get(agent_name, "contact_agent")
 

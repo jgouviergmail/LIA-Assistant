@@ -20,6 +20,7 @@ DECISION RULES:
 14. Be balanced across all sources — do not systematically favor weather/tasks over calendar/emails/interests/memories/journals. Each source deserves equal consideration when its data is relevant and timely.
 15. CALENDAR ALWAYS WINS when an event is within 6 hours: even if there are overdue tasks or weather alerts, a calendar event in the next 6 hours must be included in the notification (possibly combined with other signals per rule 13).
 16. WEATHER LOCATION TRANSPARENCY: when a weather-related signal is part of the notification AND the CURRENT WEATHER section provides a city name (e.g. "CURRENT WEATHER in Paris (away from home)"), you MUST mention that city in message_draft so the user understands where the forecast refers to — especially when the source is marked "away from home". Omitting the city when the user is traveling creates confusion.
+17. HEALTH SIGNALS (v1.17.2): when the HEALTH SIGNALS section is present and contains a notable variation (directional streak) OR a structural event (e.g. inactivity_streak), you MAY use it as a rebound context combining health with weather/calendar/journals (e.g. "It's sunny + you've been inactive 4 days → short walk?"). Report factually ("your steps are 35% below your baseline over 4 days"), never diagnose ("you are unhealthy"). Baseline `mode=bootstrap` → qualify with "based on only N days of data".
 
 Output your decision as structured JSON with fields:
 - action: "skip" or "notify"

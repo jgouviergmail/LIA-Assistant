@@ -1,10 +1,10 @@
-# Health Metrics — iPhone Shortcuts ingestion
+# Health Metrics — ingestion + assistant integrations
 
 ## What are Health Metrics?
 
-A feature (introduced in v1.17.0, refactored in v1.17.1) that lets your iPhone automatically push your Apple Health measurements (heart rate, step count) to LIA via a Shortcuts automation, then visualizes them in a dedicated Settings section.
+A feature that lets you push heart-rate and step-count measurements to LIA from any source — the documented, simplest path is an iPhone Shortcuts automation pushing Apple Health, but any system that can issue a signed HTTP call (Android automation, personal script, compatible IoT) can feed the ingestion API. A unified per-user toggle exposes those measurements to the assistant's three central loops — conversation, proactivity, and introspection.
 
-**Design principle**: LIA acts as the storage and visualization layer; the iPhone Shortcut is the producer. The endpoints are authenticated by a per-user token (never a session cookie) so a Shortcut can run unattended. Since v1.17.1, ingestion is **daily-batch** rather than hourly-push — iOS cannot reliably trigger hourly automations unless the iPhone is constantly unlocked, so the Shortcut now ships the day's samples in one payload whenever it fires (on unlock or at a fixed time).
+**Design principle**: LIA acts as the storage and visualization layer; the producer is whatever you wire in. The endpoints are authenticated by a per-user token (never a session cookie) so automations can run unattended. Ingestion is **batch-based** rather than continuous push — each sample carries its own `date_start` / `date_end`, and the Shortcut (or equivalent) ships the day's samples in one payload whenever it fires (on unlock or at a fixed time).
 
 ## What gets sent
 
@@ -38,12 +38,13 @@ The parser accepts four envelope shapes to absorb iOS Shortcut authoring variati
 
 ## Where to find it
 
-**Settings → Features → Health data**. Four sub-sections behind one collapsible card:
+**Settings → Features → Health data**. Five sub-sections behind one collapsible card:
 
 1. **Ingestion API** — two URLs (steps + heart_rate) to paste into your iPhone Shortcuts, list of your tokens, button to generate a new one or revoke an existing one.
-2. **Charts** — heart-rate line chart + steps bar chart. A period selector at the top (hour / day / week / month / year) drives both. A dashed reference line shows the period average.
-3. **Statistics** — period-wide aggregates: HR avg / min / max, average steps per day, total steps over the period. The actual aggregation window (from/to) is displayed so you can tell which data is being summarized.
-4. **Data management** — three deletion buttons: delete all heart rates, delete all steps, or wipe everything. Tokens are not affected by data deletion.
+2. **Assistant** — a single toggle that opts your health data into the assistant's agents, proactive notifications, memory extractor, and journal consolidation. **Default: off**. No health data ever reaches the LLM when this is off.
+3. **Charts** — heart-rate line chart + steps bar chart. A period selector at the top (hour / day / week / month / year) drives both. A dashed reference line shows the period average.
+4. **Statistics** — period-wide aggregates: HR avg / min / max, average steps per day, total steps over the period. The actual aggregation window (from/to) is displayed so you can tell which data is being summarized.
+5. **Data management** — three deletion buttons: delete all heart rates, delete all steps, or wipe everything. Tokens are not affected by data deletion.
 
 ## Token security
 
@@ -105,6 +106,28 @@ The end-to-end procedure is documented in [`docs/guides/GUIDE_IPHONE_SHORTCUTS_H
 - Encryption at rest is handled by PostgreSQL standard volume encryption.
 - Right to erasure: per-kind delete + full delete from the UI. Account deletion cascades to all rows automatically.
 - No data is shared with third parties — everything stays in the LIA database.
+- **Opt-in gated downstream**: the **Assistant** toggle defaults to *off*. Until enabled, the assistant's agents, Heartbeat, memory extractor, and journal consolidation never touch your health samples.
+- **No raw values in downstream artifacts**: when assistant integrations are on, memories, journals, and Heartbeat signals carry **deltas / trends / events only** — never raw bpm / step counts. Raw integers remain in `health_samples` where GDPR erasure applies.
+
+## What the assistant can do with your health data
+
+When the **Assistant** toggle is on:
+
+1. **Ask it questions in chat**. A single `health_agent` owns seven hand-crafted tools covering steps (summary / breakdown / baseline), heart rate (summary / baseline), and cross-kind overview + change-detection. Typical questions:
+   - Steps — "How many steps today?", "Steps cette semaine ?", "Show my last 10 days", "Am I walking less than usual?"
+   - Heart rate — "What's my avg heart rate this week?", "Is my HR higher than usual?"
+   - Overview — "How's my health today?", "Anything unusual this week?"
+
+   Responses are factual (numbers + trends). The assistant never diagnoses. Summary + overview tools take ISO 8601 `time_min` / `time_max` bounds (same pattern as `calendar_tools.search_events_tool`): LIA resolves temporal phrases like "this week" or "last month" into concrete date ranges before the planner runs, so the tool receives exact start/end dates. Defaults when omitted: today 00:00 UTC → now.
+2. **Proactive notifications (Heartbeat)**. LIA injects a compact health signals block into its proactive-messaging context — baseline deltas, recent variations, inactivity streaks — so it can time a reminder when you've been inactive for 4 days, or frame a rebond combining weather + health.
+3. **Memory introspection**. When LIA extracts a durable memory from a conversation with significant emotional charge, it may attach a compact `context_biometric` blob to the memory (baseline deltas at that moment). Future recalls carry the biometric frame as context — never the raw values.
+4. **Journal consolidation**. LIA's internal operational journal can factor health signals into reflections ("the user has been less active this week — revisit my assumptions about their routine"). Never diagnostic.
+
+**Adaptive baseline**. The first ~7 days of data use a `bootstrap` mode (median of all available days) — LIA always qualifies statements with "based on only N days of data". Past 7 days, it switches to a `rolling` 28-day median.
+
+## Adding a new kind (developer reference)
+
+Adding a new kind (e.g. `sleep_duration`, `spo2`, `calories_burned`) is a single-file edit in the central `HEALTH_KINDS` registry plus a per-kind tool pack. See `docs/technical/HEALTH_METRICS.md` for the checklist. The service, repository, aggregator, heartbeat, memory, and journal pipelines iterate the registry — no code change needed in those modules.
 
 ## Known limitations
 

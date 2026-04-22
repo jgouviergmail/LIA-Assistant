@@ -129,6 +129,35 @@ class MemoryPreferenceResponse(BaseModel):
     )
 
 
+class HealthMetricsAgentsPreferenceRequest(BaseModel):
+    """Schema for updating the Health Metrics assistant toggle (v1.17.2).
+
+    When enabled, the assistant is allowed to read the user's health
+    samples and to feed the four gated integrations (agents, Heartbeat,
+    journal extractor, memory extractor).
+    """
+
+    health_metrics_agents_enabled: bool = Field(
+        ...,
+        description=(
+            "Enable or disable assistant-level access to Health Metrics data "
+            "(agents, Heartbeat source, memory/journal context)."
+        ),
+    )
+
+
+class HealthMetricsAgentsPreferenceResponse(BaseModel):
+    """Schema for Health Metrics assistant toggle update response."""
+
+    health_metrics_agents_enabled: bool = Field(
+        ..., description="Current Health Metrics assistant preference state."
+    )
+    message: str = Field(
+        default="Health Metrics assistant preference updated",
+        description="Confirmation message",
+    )
+
+
 class ExecutionModePreferenceRequest(BaseModel):
     """Schema for updating user execution mode preference (pipeline vs react)."""
 

@@ -2766,6 +2766,20 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_17_2": {
+          "title": "v1.17.2 — Health data: the assistant dialogues with your measurements, generic ingestion API",
+          "date": "April 2026",
+          "count": "7",
+          "items": {
+            "i1": "<b>New 'Assistant' toggle in Settings → Health data</b> — A single opt-in switch (off by default) authorizes the assistant to read your health data for 4 integrations at once: conversation, proactive notifications, memories, internal journals. While off, no health data ever reaches the LLM.",
+            "i2": "<b>The assistant answers your health questions</b> — Ask in chat: 'How many steps today?', 'My heart rate this week?', 'Anything unusual in my health recently?'. LIA answers factually with totals, averages, and baseline comparisons. Never diagnoses — only reports numbers.",
+            "i3": "<b>Reliable answers over natural time ranges</b> — 'This week', 'this month', 'the last 7 days' are interpreted correctly and the assistant surfaces the values directly in its reply (totals, per-day detail) without retreating behind 'no data'.",
+            "i4": "<b>Adaptive baseline (bootstrap → rolling)</b> — LIA honestly qualifies its comparisons: the first 7 days are announced as 'based on N days of data only', then switches to a 28-day rolling median. Factual variation detection (streaks ≥ 3 days above 20% delta) and structural events (inactivity ≥ 3 days on steps).",
+            "i5": "<b>Proactive Heartbeat integration</b> — When the toggle is on, proactive notifications can combine weather + calendar + health ('sunny + 4 days inactive → short walk?'). Injected signals only carry deltas / trends / events — never raw values.",
+            "i6": "<b>Generic ingestion API</b> — The health API accepts measurements from any source (iOS Shortcuts, Android automation, third-party integration, IoT). When several sources cover the same period, the server merges them smartly (MAX for steps, average for heart rate). Landing and FAQ repositioned around this generic messaging.",
+            "i7": "<b>Extensibility for future measurement types</b> — Architecture designed to accommodate new kinds (sleep, SpO2, calories…) without friction: ingestion, aggregation, baseline, Heartbeat, memory, and journal services adapt automatically."
+          }
+        },
         "v1_17_1": {
           "title": "v1.17.1 — Health data: daily batch ingestion, simultaneous Watch+iPhone handling",
           "date": "April 2026",
@@ -3967,13 +3981,13 @@
         }
       },
       "health_metrics": {
-        "title": "Health data (iPhone)",
-        "description": "Push heart rate and steps from Apple Health via Shortcuts",
-        "count": "5",
+        "title": "Health data",
+        "description": "Ingestion API to push heart rate and steps from any source",
+        "count": "6",
         "questions": {
           "q1": {
             "question": "What is the “Health data” section?",
-            "answer": "<p>A feature that lets your iPhone automatically push your Apple Health measurements (heart rate, step count) to LIA via a <strong>Shortcuts automation</strong>. Since v1.17.1, ingestion works as <strong>daily batches</strong> rather than hourly pushes: on each iPhone unlock (or at a fixed time), the Shortcut pushes the day's samples. Your data is visualized in <strong>Settings → Features → Health data</strong> as a line chart (HR) and bar chart (steps), with a period selector (hour / day / week / month / year), a dashed line for the period average, and the actual aggregation window displayed in the statistics.</p>"
+            "answer": "<p>A dedicated ingestion API that accepts heart-rate and step measurements from <strong>any source</strong>: iPhone Shortcuts automation (the documented primary use case), Android scripts, third-party integrations, or compatible IoT devices. Since v1.17.1, ingestion works in <strong>batches</strong> (up to 1000 samples per request), each measurement carrying its own <code>date_start</code> / <code>date_end</code> interval. Your data is visualized in <strong>Settings → Features → Health data</strong> as a line chart (HR) and bar chart (steps), with a period selector (hour / day / week / month / year), a dashed line for the period average, and the actual aggregation window displayed in the statistics.</p>"
           },
           "q2": {
             "question": "How do I set up my iPhone to push data?",
@@ -3990,6 +4004,10 @@
           "q5": {
             "question": "Is my token safe if intercepted?",
             "answer": "<p>Yes. The token is treated like a password:</p><ul><li><strong>SHA-256 hash stored</strong> — the raw value is never persisted. Nobody (not even a LIA admin) can recover it after creation.</li><li><strong>Shown only once</strong>: only an 8-char prefix (<code>hm_xxxxxxxx…</code>) remains visible for identification.</li><li><strong>Revocable individually</strong> at any time from the UI. You can issue several (one per device) and manage them independently.</li><li><strong>Scoped to a single endpoint</strong>: a token only authorizes health-data ingestion, never account reads or other actions.</li><li><strong>Rate limit</strong>: 60 requests per hour per token (Redis sliding window, configurable) to block spam while accommodating bursts when the iPhone unlocks. Max batch size: 1000 samples per request (HTTP 413 beyond).</li></ul>"
+          },
+          "q6": {
+            "question": "How do I ask LIA about my health data?",
+            "answer": "<p>Enable the <strong>Settings → Health data → Assistant</strong> toggle (off by default, <em>opt-in</em>). While off, no health data ever reaches the LLM. Once on, you can:</p><ul><li><strong>Ask factual questions in chat</strong>: “How many steps today?”, “My heart rate this week?”, “Steps day by day over the last 7 days?”, “Am I walking less than usual?”, “Anything unusual in my health lately?”. LIA answers with factual figures (totals, averages, deltas vs baseline) — never medical diagnosis.</li><li><strong>Receive proactive notifications</strong> that combine health + weather + calendar (“Sunny today and 4 days of inactivity → short walk?”).</li><li><strong>Enrich your memories and internal journals</strong> with biometric context at capture time (only deltas and trends — never raw values).</li></ul><p>A single switch governs these 4 integrations. The 28-day rolling baseline qualifies comparisons honestly (“based on only N days of data” while history is under 7 days).</p>"
           }
         }
       }
@@ -4026,6 +4044,15 @@
       "createError": "Failed to create token.",
       "revoked": "Token revoked.",
       "copied": "Token copied."
+    },
+    "agents": {
+      "title": "Assistant",
+      "description": "Let the assistant read your health data to answer your questions, power proactive notifications, and enrich its journal and memory.",
+      "toggle": "Assistant access",
+      "enabled_hint": "The assistant can read your health data (steps, heart rate).",
+      "disabled_hint": "The assistant has no access to your health data (off by default).",
+      "enabled_toast": "Health assistant enabled.",
+      "disabled_toast": "Health assistant disabled."
     },
     "charts": {
       "title": "Charts",
@@ -4943,8 +4970,8 @@
         "description": "Supercharge LIA with custom expert skills. Skills can now render interactive maps, dashboards, calendars, QR codes, and mini-applications directly in the chat — with automatic theme and locale sync. Create your own in natural language with the built-in Skill Generator, or import from agentskills.io-compatible marketplaces. Compatible with 30+ tools including Claude Code, Cursor, and VS Code."
       },
       "health_metrics": {
-        "title": "iPhone health data",
-        "description": "Automatically pushes your heart rate and step count from Apple Health via a Shortcuts automation. Daily batch ingestion (on iPhone unlock or at a fixed time), automatic server-side deduplication with smart Watch + iPhone fusion (MAX for steps, average for heart rate). Visualization by hour / day / week / month / year with period average. Authenticated by a dedicated, revocable token. Data encrypted at rest, never logged in plain text."
+        "title": "Health data",
+        "description": "Dedicated ingestion API to push heart rate and step counts from any source (iOS Shortcuts, Android automation, third-party integration, IoT). Automatic server-side deduplication with smart fusion when several sources cover the same period (MAX for steps, average for heart rate). Visualization by hour / day / week / month / year with period average. Authenticated by a dedicated, revocable token. Data encrypted at rest, never logged in plain text."
       },
       "sub_agents": {
         "title": "Sub-Agents",

@@ -40,7 +40,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.16.9</strong> — Chat UX polish: LaTeX math rendering (`$E=mc^2$`), syntax highlighting on code blocks (25 languages, Prism one-dark/one-light, lazy-loaded), copy buttons on messages and code blocks, relative dates ("Yesterday 14:30" / "Monday 14:30"), conversation history search (PostgreSQL ILIKE + client-side instant filter), Tooltip primitive (Radix) migrated across chat. A11y: TypingIndicator with role/aria-live, textarea mobile attrs (autoCapitalize/autoCorrect/enterKeyHint). Bug fixes: proactive feedback persisted in `message_metadata` JSONB (cross-session/cross-device), Weather & Philips Hue tools now localized to user language (Option C thread-safe via `ConnectorTool._fetch_language()` + `_language_from_result()`), skill-generator delivers all files — April 2026
+  <strong>Version 1.17.2</strong> — Health Metrics : agents + Heartbeat + Journal + Mémoire + extensibilité. Les données santé ingérées en v1.17.1 alimentent maintenant les trois boucles centrales de LIA — conversation (3 agents LangGraph : steps, heart_rate, health_overview), proactivité (Heartbeat injecte `health_signals` avec deltas baseline et variations notables), introspection (mémoire avec `context_biometric` JSONB à émotion élevée, journaux d'extraction et consolidation enrichis) — derrière un toggle utilisateur unique `health_metrics_agents_enabled` (opt-in, gate sur 4 intégrations). Nouveau registre central `HEALTH_KINDS` : ajouter un kind (sommeil, SpO2, calories…) = une entrée + un pack de tools, zéro modification des services/repositories/heartbeat. Baseline adaptive `bootstrap` (< 7 jours) → `rolling` (médiane mobile 28 j). Backward-compat `HealthMetricAggregatePoint` préservée — April 2026
 </p>
 
 ---
@@ -387,6 +387,16 @@ ExecutionStep(
 - **Observability**: bounded-cardinality Prometheus metrics (`health_samples_upserted_total{kind, operation}`, validation rejections, rate-limit hits, auth failures, token lifecycle, deletions, latency histogram) + Grafana dashboard 21.
 - **Guards**: 60 req/h/token sliding-window rate limit (configurable), 1000 samples/batch cap (`413` beyond).
 - **Feature flag**: `HEALTH_METRICS_ENABLED=false` (system). [ADR-076](./docs/architecture/ADR-076-Health-Metrics-Ingestion.md) · [Guide iPhone](./docs/guides/GUIDE_IPHONE_SHORTCUTS_HEALTH.md) · [Technical doc](./docs/technical/HEALTH_METRICS.md)
+
+### Health Metrics — Assistant Agent
+
+- **Single `health_agent` with 7 hand-crafted tools**: steps (summary, daily breakdown, baseline delta), heart rate (summary, baseline delta), cross-kind (overview, change detection). One agent ↔ one domain pattern, mirroring `email_agent` / `event_agent`.
+- **`time_min` / `time_max` windowed queries**: aggregation tools accept ISO 8601 bounds exactly like `calendar_tools.search_events_tool`. The QueryAnalyzer resolves "this week" / "last month" into concrete date ranges, and the planner splits them across the two parameters.
+- **Inlined figures in the LLM message**: all factual data (totals, averages, per-day values) ship in the `UnifiedToolOutput.message` so the Response LLM surfaces them without reaching into `structured_data` (pattern from `weather_tools`).
+- **Extensible registry** (`HEALTH_KINDS`): adding sleep / SpO2 / calories = one entry in `kinds.py` — bounds, merge strategy, aggregation method, baseline kind. Service helpers iterate the registry so cross-kind logic stays generic.
+- **Baseline & variation detection**: rolling 28-day median with `bootstrap` → `rolling` mode switch after 7 days of data, tunable thresholds (`HEALTH_METRICS_VARIATION_*` env vars).
+- **Heartbeat / Memory / Journal integration**: `health_signals` source injected for proactive context; `context_biometric` JSONB persists deltas and trends in memories (never raw values) when emotional weight crosses a threshold.
+- **Per-user opt-in**: single `health_metrics_agents_enabled` toggle governs the four integrations (tool access, Heartbeat, memory extraction, journal injection). `PATCH /auth/me/health-metrics-agents-preference`.
 
 ### MCP Apps — Interactive Widgets
 

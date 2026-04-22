@@ -231,6 +231,14 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         required_capabilities=["tools"],
         power_tier=POWER_TIER_LOW,
     ),
+    "health_agent": LLMTypeMetadata(
+        llm_type="health_agent",
+        display_name="Health Metrics Agent",
+        category=CATEGORY_DOMAIN_AGENTS,
+        description_key="settings.admin.llmConfig.types.health_agent",
+        required_capabilities=["tools"],
+        power_tier=POWER_TIER_LOW,
+    ),
     # --- Query & Response ---
     "query_agent": LLMTypeMetadata(
         llm_type="query_agent",
@@ -725,6 +733,16 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=1000,
+        timeout_seconds=30.0,
+    ),
+    "health_agent": LLMAgentConfig(
+        provider="openai",
+        model="gpt-4.1-nano",
+        temperature=0.0,
+        top_p=1.0,
+        frequency_penalty=0.0,
+        presence_penalty=0.0,
+        max_tokens=1500,
         timeout_seconds=30.0,
     ),
     "web_fetch_agent": LLMAgentConfig(

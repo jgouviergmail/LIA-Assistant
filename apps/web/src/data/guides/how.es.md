@@ -5,8 +5,8 @@
 > Documentación de presentación técnica destinada a arquitectos, ingenieros y expertos técnicos.
 
 **Versión**: 2.3
-**Fecha**: 2026-04-20
-**Aplicación**: LIA v1.17.1
+**Fecha**: 2026-04-22
+**Aplicación**: LIA v1.17.2
 **Licencia**: AGPL-3.0 (Open Source)
 
 ---
@@ -936,6 +936,8 @@ LIA acepta ingestas de eventos externos (mediciones iPhone Apple Health, payload
 **Seguridad**: rate limit Redis sliding-window por token (60 req/h por defecto, configurable), header `WWW-Authenticate: Bearer` (RFC 7235) en los 401, `Retry-After` en los 429, tope de muestras por solicitud con `HTTP 413` por encima. El `ON DELETE CASCADE` SQL sobre la FK `users` cubre la erasure de cuenta.
 
 **Visualización**: un aggregator polimórfico Python recorre las muestras ordenadas por `date_start` en una ventana y emite un punto por bucket (hora/día/semana/mes/año), con `AVG/MIN/MAX` sobre las muestras `heart_rate` y `SUM` sobre las muestras `steps`. Los buckets sin datos se emiten con `has_data=False` para que el frontend (`recharts`, `connectNulls={false}`) muestre huecos honestos en lugar de interpolación. El componente Settings reutiliza el patrón `SettingsSection` + Accordion (4 sub-secciones: API + tokens, Gráficos, Estadísticas, Gestión de datos) y muestra la **ventana de agregación real** para deshacer la confusión «las estadísticas no se mueven cuando cambio de período» (la FC es invariante cuando todos los datos caben en la ventana más pequeña).
+
+**Exposición a los bucles centrales**: un **único toggle opt-in de usuario** gobierna cuatro consumidores de una sola vez — conversación (tools del asistente), Heartbeat (fuente `health_signals`), extracción de memoria (placeholder `{health_context}` + blob opcional `context_biometric` JSONB en memorias con alta carga emocional) y diario (extracción + consolidación). Los cuatro reciben la misma **proyección factual no bruta**: deltas vs baseline, tendencias direccionales, eventos estructurales (rachas de inactividad, etc.) — nunca valores brutos. La baseline móvil de 28 días selecciona automáticamente `bootstrap` (mediana simple mientras haya menos de 7 días de historial — transmitido al LLM para que cualifique sus afirmaciones) y luego cambia a `rolling`. La erasure RGPD tiene un único objetivo: la tabla `health_samples`.
 
 ---
 

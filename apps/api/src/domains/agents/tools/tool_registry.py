@@ -372,6 +372,12 @@ def _import_tool_modules() -> None:
     if getattr(get_settings(), "devops_enabled", False):
         tool_modules.append(("src.domains.agents.tools.devops_tools", "devops_tools"))
 
+    # Health Metrics tools (v1.17.2): only register when feature is enabled.
+    # Seven tools owned by the unified ``health_agent``.
+    # See docs/technical/HEALTH_METRICS.md.
+    if getattr(get_settings(), "health_metrics_enabled", False):
+        tool_modules.append(("src.domains.agents.tools.health_tools", "health_tools"))
+
     # MCP ReAct tools (ADR-062): loaded by _register_iterative_task_tool()
     # in registration.py at MCP startup, NOT here. The generic mcp_server_task_tool
     # is registered under per-server names (e.g., mcp_excalidraw_task) via model_copy.

@@ -36,6 +36,8 @@ from src.domains.auth.schemas import (
     DisplayModePreferenceResponse,
     ExecutionModePreferenceRequest,
     ExecutionModePreferenceResponse,
+    HealthMetricsAgentsPreferenceRequest,
+    HealthMetricsAgentsPreferenceResponse,
     LastLocationUpdateRequest,
     LastLocationUpdateResponse,
     LastLocationViewResponse,
@@ -442,6 +444,56 @@ async def update_memory_preference(
     return MemoryPreferenceResponse(
         memory_enabled=user.memory_enabled,
         message=APIMessages.memory_preference_updated(enabled=data.memory_enabled),
+    )
+
+
+@router.patch(
+    "/me/health-metrics-agents-preference",
+    response_model=HealthMetricsAgentsPreferenceResponse,
+    summary="Update Health Metrics assistant preference",
+    description=(
+        "Enable or disable assistant-level access to Health Metrics data. "
+        "When enabled, the assistant agents, Heartbeat source, journal extractor, "
+        "and memory extractor can read the user's health samples."
+    ),
+)
+async def update_health_metrics_agents_preference(
+    data: HealthMetricsAgentsPreferenceRequest,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> HealthMetricsAgentsPreferenceResponse:
+    """Update the Health Metrics assistant toggle for the current user.
+
+    The toggle gates four integrations at once:
+    - steps / heart_rate / health_overview agents (tool-level check).
+    - Heartbeat ``health_signals`` source.
+    - Journal extraction health-context injection.
+    - Memory extraction biometric-context enrichment.
+
+    Args:
+        data: Request body with the desired state.
+        user: Current authenticated user.
+        db: DB session.
+
+    Returns:
+        HealthMetricsAgentsPreferenceResponse with the updated state.
+    """
+    user.health_metrics_agents_enabled = data.health_metrics_agents_enabled
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+
+    logger.info(
+        "user_health_metrics_agents_preference_updated",
+        user_id=str(user.id),
+        health_metrics_agents_enabled=data.health_metrics_agents_enabled,
+    )
+
+    return HealthMetricsAgentsPreferenceResponse(
+        health_metrics_agents_enabled=user.health_metrics_agents_enabled,
+        message=APIMessages.health_metrics_agents_preference_updated(
+            enabled=data.health_metrics_agents_enabled
+        ),
     )
 
 

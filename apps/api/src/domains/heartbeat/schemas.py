@@ -112,6 +112,12 @@ class HeartbeatContext:
     # Journals — relevant assistant journal entries (semantic search)
     journal_entries: list[dict[str, str]] | None = None
 
+    # Health signals — per-kind summary + baseline deltas + recent variations.
+    # Populated by the Health Metrics aggregator source when the user has
+    # opted into assistant integrations. Never contains raw sensor values —
+    # only deltas, trends, and freshness metadata.
+    health_signals: dict[str, Any] | None = None
+
     # Activity
     last_interaction_at: datetime | None = None
     hours_since_last_interaction: float | None = None
@@ -141,6 +147,7 @@ class HeartbeatContext:
                 self.trending_interests,
                 self.user_memories,
                 self.journal_entries,
+                self.health_signals,
             )
         )
 
@@ -220,6 +227,36 @@ class HeartbeatContext:
                 for e in self.journal_entries
             )
             sections.append(f"ASSISTANT JOURNAL ENTRIES (your own reflections):\n{journal_text}")
+
+        if self.health_signals:
+            lines: list[str] = []
+            summary_today = self.health_signals.get("summary_today", {})
+            for kind, payload in summary_today.items():
+                lines.append(
+                    f"  - today {kind}: {payload.get('value')} {payload.get('unit', '')} "
+                    f"(updated {payload.get('last_update_minutes_ago', '?')} min ago)"
+                )
+            for kind, payload in self.health_signals.get("baseline_deltas_7d", {}).items():
+                pct = payload.get("pct")
+                mode = payload.get("mode")
+                if pct is not None:
+                    lines.append(
+                        f"  - 7d {kind} vs baseline: {pct:+.1f}% (mode={mode}, "
+                        f"baseline={payload.get('baseline_value')})"
+                    )
+            for variation in self.health_signals.get("recent_variations", []):
+                lines.append(
+                    f"  - {variation.get('kind')} trend: {variation.get('trend')} "
+                    f"over {variation.get('days')} days "
+                    f"(avg {variation.get('delta_pct')}%)"
+                )
+            for event in self.health_signals.get("notable_events", []):
+                lines.append(
+                    f"  - event: {event.get('event')} on {event.get('kind')} "
+                    f"({event.get('days')} days)"
+                )
+            if lines:
+                sections.append("HEALTH SIGNALS (factual, not medical):\n" + "\n".join(lines))
 
         if self.hours_since_last_interaction is not None:
             sections.append(f"LAST INTERACTION: {self.hours_since_last_interaction:.1f} hours ago")

@@ -142,11 +142,24 @@ function SkillFrameCard({ payload }: { payload: SkillAppRegistryPayload }) {
     style: { aspectRatio: String(aspect), background: 'transparent' },
   } as const;
 
+  // `credentialless` opts the iframe out of the parent page's
+  // Cross-Origin-Embedder-Policy: require-corp. LIA emits that header globally
+  // for the voice-mode WASM SharedArrayBuffer, but it also blocks cross-origin
+  // embeds (Google Maps, etc.) that don't return CORP headers. Making the
+  // iframe credentialless isolates it in a cookie-less context and lifts the
+  // COEP constraint. Only applied to trusted system-skill URLs.
+  // React doesn't type `credentialless` yet — spread via loose record.
+  const extraFrameAttrs: Record<string, string> = isTrustedExternalFrame
+    ? { credentialless: '' }
+    : {};
+
   if (payload.html_content) {
     return <iframe ref={iframeRef} srcDoc={payload.html_content} {...commonProps} />;
   }
   if (payload.frame_url) {
-    return <iframe ref={iframeRef} src={payload.frame_url} {...commonProps} />;
+    return (
+      <iframe ref={iframeRef} src={payload.frame_url} {...commonProps} {...extraFrameAttrs} />
+    );
   }
   return null;
 }

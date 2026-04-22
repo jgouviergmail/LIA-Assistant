@@ -18,6 +18,7 @@ Created: 2026-03-30
 
 from __future__ import annotations
 
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -130,6 +131,7 @@ class MemoryService:
         trigger_topic: str = "",
         usage_nuance: str = "",
         importance: float = 0.7,
+        context_biometric: dict[str, Any] | None = None,
     ) -> Memory:
         """Create a new memory with auto-generated embedding.
 
@@ -141,6 +143,10 @@ class MemoryService:
             trigger_topic: Keyword trigger for search.
             usage_nuance: How the assistant should use this info.
             importance: Importance score (0.0 to 1.0).
+            context_biometric: Optional Health Metrics snapshot (v1.17.2).
+                Only supplied by the memory extractor when the user has
+                opted into Health Metrics assistant integrations AND the
+                memory carries a significant emotional weight.
 
         Returns:
             Created Memory with embedding.
@@ -161,6 +167,7 @@ class MemoryService:
             embedding=embedding,
             keyword_embedding=keyword_embedding,
             char_count=char_count,
+            context_biometric=context_biometric,
         )
 
         created = await self.repo.create(memory)

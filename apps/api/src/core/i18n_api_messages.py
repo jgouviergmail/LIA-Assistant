@@ -339,6 +339,31 @@ class APIMessages:
         return messages.get(language, messages["en"])
 
     @staticmethod
+    def health_metrics_agents_preference_updated(
+        enabled: bool, language: SupportedLanguage = "fr"
+    ) -> str:
+        """Success - Health Metrics assistant preference updated."""
+        if enabled:
+            messages = {
+                "fr": "Préférence santé — assistant activée",
+                "en": "Health Metrics assistant enabled",
+                "es": "Asistente de métricas de salud activado",
+                "de": "Assistent für Gesundheitsmetriken aktiviert",
+                "it": "Assistente metriche salute attivato",
+                "zh-CN": "健康指标助手已启用",
+            }
+        else:
+            messages = {
+                "fr": "Préférence santé — assistant désactivée",
+                "en": "Health Metrics assistant disabled",
+                "es": "Asistente de métricas de salud desactivado",
+                "de": "Assistent für Gesundheitsmetriken deaktiviert",
+                "it": "Assistente metriche salute disattivato",
+                "zh-CN": "健康指标助手已禁用",
+            }
+        return messages.get(language, messages["en"])
+
+    @staticmethod
     def voice_preference_updated(enabled: bool, language: SupportedLanguage = "fr") -> str:
         """Success - voice preference updated."""
         if enabled:

@@ -5,6 +5,139 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.17.2] - 2026-04-22
+
+### Added — Health Metrics : agents + Heartbeat + Journal + Mémoire + extensibilité
+
+La v1.17.1 a livré l'ingestion batch-upsert polymorphe, mais les données
+santé restaient inertes pour la logique conversationnelle. La v1.17.2
+les expose aux trois boucles centrales de LIA et pose les fondations
+pour en ajouter facilement de nouvelles (sommeil, SpO2, calories…).
+
+#### Registre central des kinds (`kinds.py`)
+
+- Nouveau `HEALTH_KINDS: dict[str, HealthKindSpec]` — source unique de
+  vérité pour les bornes physiologiques, la stratégie de merge intra-batch,
+  la méthode d'agrégation, le type de baseline, et l'agent associé.
+- Ingestion (`_validate_sample`), repository (`_merge_duplicate_samples`),
+  aggregator (`_BucketAccumulator`) refactorisés pour lire ce registre —
+  zéro branche `if kind ==` restante.
+- Ajouter un kind = une entrée dans `kinds.py` + un nouveau pack de tools.
+
+#### Baseline adaptive + détection de variations
+
+- `baseline.py` — `compute_baseline()` avec sélection automatique
+  `bootstrap` (médiane simple) jusqu'à 7 jours de données, puis `rolling`
+  (médiane mobile 28 jours).
+- `signals.py` — `detect_recent_variations()` (streaks directionnels) et
+  `detect_notable_events()` (événements structurels, ex. inactivité).
+- Seuils configurables via `.env` (`HEALTH_METRICS_BASELINE_MIN_DAYS`,
+  `HEALTH_METRICS_VARIATION_MIN_DAYS`, `HEALTH_METRICS_VARIATION_MIN_DELTA_PCT`,
+  `HEALTH_METRICS_VARIATION_DAILY_DELTA_PCT`).
+
+#### Un agent `health_agent` avec 7 tools hand-crafted
+
+Conforme au pattern 1 agent ↔ 1 domaine du codebase (cf. `email_agent`,
+`event_agent`, `weather_agent`…). Sept tools sous un même
+`health_agent`, tous construits via `build_generic_agent()` avec un
+prompt unique versionné (`health_agent_prompt.txt` v1) et gatés par
+`_check_user_toggle_or_error` qui retourne
+`UnifiedToolOutput.failure(error_code="PERMISSION_DENIED")` si le toggle
+utilisateur est désactivé :
+
+- **Steps** — `get_steps_summary_tool`, `get_steps_daily_breakdown_tool`,
+  `compare_steps_to_baseline_tool`.
+- **Heart rate** — `get_heart_rate_summary_tool`,
+  `compare_heart_rate_to_baseline_tool`.
+- **Cross-kind** — `get_health_overview_tool`, `detect_health_changes_tool`.
+
+Les tools de summary + overview utilisent **`time_min` / `time_max` ISO
+8601** (même pattern que `calendar_tools.search_events_tool`) : le
+planner extrait les deux bornes depuis les `resolved_references` du
+QueryAnalyzer (« cette semaine » → `2026-04-20 to 2026-04-26` →
+`time_min=2026-04-20`, `time_max=2026-04-26`) et les passe au tool.
+Défaut côté service : `time_min` → aujourd'hui 00:00 UTC,
+`time_max` → `datetime.now(UTC)`. Les valeurs factuelles (totaux,
+moyennes, entrées par jour) sont inlinées dans le champ `message` de
+l'`UnifiedToolOutput` pour être lues par le LLM Response (pattern
+`weather_tools`).
+
+#### Heartbeat — source `health_signals`
+
+- `HeartbeatContext.health_signals` injecté dans `CURRENT CONTEXT` pour
+  décisions proactives contextuelles. Fetch avec timeout 2 s + fallback
+  silencieux pour ne jamais bloquer le gather.
+
+#### Mémoire — `context_biometric` JSONB
+
+- Nouvelle colonne optionnelle sur `memories` (migration `health_metrics_005`).
+- Le memory_extractor injecte un `{health_context}` dans le prompt et
+  persiste un blob `context_biometric` (deltas, tendances, événements
+  uniquement — jamais de valeurs brutes) quand l'émotion dépasse un seuil.
+
+#### Journal — extraction + consolidation
+
+- Placeholders `{health_context}` (extraction) et `{health_signals_section}`
+  (consolidation) injectés uniquement pour les utilisateurs opt-in.
+
+#### Toggle utilisateur unique
+
+- `User.health_metrics_agents_enabled` (migration `health_metrics_004`,
+  default `false`). Un seul interrupteur gouverne les 4 intégrations :
+  agents, Heartbeat, mémoire, journal.
+- Nouvel endpoint `PATCH /auth/me/health-metrics-agents-preference`.
+- Section « Assistant » dans **Réglages → Données santé** (6 langues).
+
+#### Backward compatibility
+
+- `HealthMetricAggregatePoint` conserve ses champs typés
+  (`heart_rate_avg/min/max`, `steps_total`) et ajoute un
+  `metrics_by_kind: dict[str, dict[str, int | float]] | None` additif —
+  les kinds futurs apparaissent automatiquement dans cette clé sans
+  casser le front existant.
+
+### Fixed — Assistant santé : réponses fiables sur des plages temporelles naturelles
+
+Quatre itérations de debug sur la même requête (« Combien de pas cette
+semaine ? ») ont mis en évidence plusieurs défauts d'intégration, tous
+corrigés en s'alignant sur les patterns existants du codebase plutôt
+qu'en inventant du spécifique :
+
+- **LLM Response ne voyait plus les données** — les tools retournaient
+  des messages pauvres (« Steps breakdown over 7 days (8 days with
+  data). ») sans inliner les valeurs, ce qui produisait la réponse
+  trompeuse « Pas de données ». Les messages incluent désormais les
+  chiffres factuels (totaux, moyennes, entrées par jour) dans le champ
+  `UnifiedToolOutput.message`, pattern issu de `weather_tools`.
+- **Paramètres temporels** — remplacement d'un enum `period` rigide
+  par `time_min` / `time_max` ISO 8601 sur les tools summary +
+  overview. Le `QueryAnalyzer` résolvait déjà « cette semaine » en
+  plage de dates calendaire ; le tool ingère désormais directement
+  ces bornes (pattern identique à `calendar_tools.search_events_tool`).
+- **Sémantique de semaine** — la logique de fenêtre par défaut
+  passait d'un rolling de 7 jours à une borne calendaire
+  (aujourd'hui 00:00 UTC → maintenant) quand aucune borne n'est
+  fournie, cohérent avec l'expérience frontend (`/aggregate`).
+- **Pattern 1 agent ↔ 1 domaine** — consolidation de trois agents
+  (`steps_agent`, `heart_rate_agent`, `health_overview_agent`) en un
+  unique `health_agent` owning les 7 tools, conforme au reste du
+  codebase (`email_agent`, `event_agent`, `weather_agent`…). Zéro
+  modification des fichiers cœur (`agent_registry`, `router_node_v3`,
+  `smart_catalogue_service`, `domain_taxonomy`).
+- **Refactor `HealthMetricsRepository`** — split en deux classes
+  héritant de `BaseRepository[T]` (`HealthSampleRepository`,
+  `HealthMetricTokenRepository`), conforme au standard.
+- **Parallélisation `compute_overview`** — passage de séquentiel à
+  `asyncio.gather` pour les kinds enregistrés.
+
+### Changed — Landing et FAQ : messaging générique plutôt qu'iPhone-centric
+
+- Landing section « Données santé » repositionnée comme **API
+  d'ingestion dédiée** (Raccourcis iOS, automatisation Android,
+  intégration tierce, IoT) plutôt qu'exclusivement iPhone/Apple Santé.
+  Titre, description et FAQ synchronisés dans les 6 langues
+  (en/fr/de/es/it/zh).
+
 ## [1.17.1] - 2026-04-21
 
 ### Changed — Health Metrics : refonte en batch upsert polymorphe (BREAKING)

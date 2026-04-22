@@ -2771,6 +2771,20 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_17_2": {
+          "title": "v1.17.2 — Données santé : l'assistant dialogue avec vos mesures, API d'ingestion générique",
+          "date": "Avril 2026",
+          "count": "7",
+          "items": {
+            "i1": "<b>Nouveau toggle « Assistant » dans Réglages → Données santé</b> — Un seul interrupteur (opt-in, désactivé par défaut) autorise l'assistant à lire vos données santé pour les 4 intégrations : conversation, notifications proactives, mémoires, journaux internes. Tant qu'il est désactivé, aucune donnée santé n'atteint le LLM.",
+            "i2": "<b>L'assistant répond à vos questions santé</b> — Demandez dans le chat : « Combien de pas aujourd'hui ? », « Ma fréquence cardiaque cette semaine ? », « Quelque chose d'inhabituel dans ma santé récemment ? ». LIA répond factuellement avec totaux, moyennes, et comparaisons à votre baseline. Jamais de diagnostic — uniquement les chiffres.",
+            "i3": "<b>Réponses fiables sur des plages temporelles naturelles</b> — « Cette semaine », « ce mois », « les 7 derniers jours » sont interprétés correctement et l'assistant restitue directement les valeurs dans sa réponse (totaux, détail par jour) sans se retrancher derrière « pas de données ».",
+            "i4": "<b>Baseline adaptive (bootstrap → rolling)</b> — LIA qualifie honnêtement ses comparaisons : les 7 premiers jours sont annoncés comme « basés sur N jours de données seulement », puis bascule sur la médiane mobile de 28 jours. Détection de variations factuelles (streaks ≥ 3 jours au-dessus de 20 % delta) et d'événements structurels (inactivité ≥ 3 jours sur les pas).",
+            "i5": "<b>Intégration Heartbeat proactive</b> — Quand le toggle est activé, les notifications proactives peuvent combiner météo + calendrier + santé (« soleil + 4 jours d'inactivité → petite promenade ? »). Les signaux injectés ne contiennent que des deltas / tendances / événements — jamais les valeurs brutes.",
+            "i6": "<b>API d'ingestion générique</b> — L'API santé accepte les mesures depuis n'importe quelle source (Raccourcis iOS, automatisation Android, intégration tierce, IoT). Quand plusieurs sources couvrent la même période, le serveur fusionne intelligemment (MAX pour les pas, moyenne pour la fréquence cardiaque). Landing et FAQ repositionnées autour de ce messaging générique.",
+            "i7": "<b>Extensibilité pour les futurs types de mesure</b> — Architecture pensée pour accueillir sans friction de nouveaux kinds (sommeil, SpO2, calories…) : les services d'ingestion, d'agrégation, de baseline, de Heartbeat, de mémoire et de journal s'y adaptent automatiquement."
+          }
+        },
         "v1_17_1": {
           "title": "v1.17.1 — Données santé : ingestion en lots quotidiens, gestion des mesures simultanées",
           "date": "Avril 2026",
@@ -3972,13 +3986,13 @@
         }
       },
       "health_metrics": {
-        "title": "Données santé (iPhone)",
-        "description": "Pousser fréquence cardiaque et pas depuis Apple Santé via Raccourcis",
-        "count": "5",
+        "title": "Données santé",
+        "description": "API d'ingestion pour pousser fréquence cardiaque et pas depuis n'importe quelle source",
+        "count": "6",
         "questions": {
           "q1": {
             "question": "Qu'est-ce que la section « Données santé » ?",
-            "answer": "<p>Une fonctionnalité qui permet à votre iPhone d'envoyer automatiquement vos mesures Apple Santé (fréquence cardiaque, nombre de pas) à LIA via une <strong>automatisation Raccourcis</strong>. Depuis v1.17.1, l'envoi fonctionne par <strong>lots quotidiens</strong> plutôt que par push horaire : à chaque déverrouillage de l'iPhone (ou à une heure fixe), le Raccourci pousse les mesures de la journée. Vos données sont visualisées dans <strong>Réglages → Fonctionnalités → Données santé</strong> sous forme de courbes (FC) et barres (pas), avec un sélecteur de période (heure / jour / semaine / mois / année), la moyenne sur la période en pointillés, et la fenêtre temporelle agrégée affichée dans les statistiques.</p>"
+            "answer": "<p>Une API d'ingestion dédiée qui accepte vos mesures de fréquence cardiaque et de nombre de pas depuis <strong>n'importe quelle source</strong> : automatisation iPhone Raccourcis (cas d'usage principal documenté), scripts Android, intégrations tierces ou appareils IoT compatibles. Depuis v1.17.1, l'envoi fonctionne par <strong>lots</strong> (jusqu'à 1000 mesures par requête), chaque mesure portant son propre intervalle <code>date_start</code> / <code>date_end</code>. Vos données sont visualisées dans <strong>Réglages → Fonctionnalités → Données santé</strong> sous forme de courbes (FC) et barres (pas), avec un sélecteur de période (heure / jour / semaine / mois / année), la moyenne sur la période en pointillés, et la fenêtre temporelle agrégée affichée dans les statistiques.</p>"
           },
           "q2": {
             "question": "Comment configurer mon iPhone pour envoyer mes données ?",
@@ -3995,6 +4009,10 @@
           "q5": {
             "question": "Mon jeton est-il sécurisé si quelqu'un l'intercepte ?",
             "answer": "<p>Oui. Le jeton est traité comme un mot de passe :</p><ul><li><strong>Hash SHA-256 stocké</strong> en base — la valeur brute n'est jamais persistée. Personne (pas même un administrateur LIA) ne peut le récupérer après création.</li><li><strong>Affichage unique</strong> : seul un préfixe à 8 caractères (<code>hm_xxxxxxxx…</code>) reste visible dans la liste pour identification.</li><li><strong>Révocable individuellement</strong> à tout moment depuis l'UI (bouton « Révoquer »). Vous pouvez en générer plusieurs (un par appareil) et les gérer indépendamment.</li><li><strong>Scopé à un seul endpoint</strong> : un jeton n'autorise QUE l'envoi de données santé, jamais la lecture du compte ou d'autres actions.</li><li><strong>Rate limit</strong> : 60 requêtes par heure par jeton (Redis sliding window, paramétrable) pour bloquer le spam tout en absorbant les bursts au déverrouillage de l'iPhone. Taille max d'un lot : 1000 échantillons par requête (HTTP 413 au-delà).</li></ul>"
+          },
+          "q6": {
+            "question": "Comment demander à LIA de répondre sur mes données santé ?",
+            "answer": "<p>Activez le toggle <strong>Réglages → Données santé → Assistant</strong> (désactivé par défaut, <em>opt-in</em>). Tant qu'il est off, aucune donnée santé n'atteint le LLM. Une fois activé, vous pouvez :</p><ul><li><strong>Poser des questions factuelles dans le chat</strong> : « Combien de pas aujourd'hui ? », « Ma fréquence cardiaque cette semaine ? », « Combien de pas chaque jour des 7 derniers jours ? », « Je marche moins que d'habitude ? », « Quelque chose d'inhabituel dans ma santé récemment ? ». LIA répond avec des chiffres factuels (totaux, moyennes, deltas vs baseline) — jamais de diagnostic médical.</li><li><strong>Recevoir des notifications proactives</strong> qui croisent santé + météo + agenda (« Soleil aujourd'hui et 4 jours d'inactivité → une petite marche ? »).</li><li><strong>Enrichir vos mémoires</strong> et <strong>journaux internes</strong> d'un contexte biométrique au moment de la capture (uniquement deltas et tendances — jamais les valeurs brutes).</li></ul><p>Un seul interrupteur gouverne ces 4 intégrations. La baseline mobile 28 jours qualifie honnêtement les comparaisons (« basée sur seulement N jours de données » tant qu'on a moins de 7 jours d'historique).</p>"
           }
         }
       }
@@ -4878,8 +4896,8 @@
         "description": "Spécialisez LIA avec des compétences expertes sur mesure. Les skills peuvent désormais afficher des cartes interactives, des dashboards, des calendriers, des QR codes et des mini-applications directement dans le chat — avec thème et langue synchronisés. Créez les vôtres en langage naturel grâce au Skill Generator intégré, ou importez depuis les marketplaces compatibles agentskills.io. Compatible avec 30+ outils dont Claude Code, Cursor et VS Code."
       },
       "health_metrics": {
-        "title": "Données santé iPhone",
-        "description": "Pousse automatiquement ta fréquence cardiaque et ton nombre de pas depuis Apple Santé via une automatisation Raccourcis. Envoi en lots quotidiens (déverrouillage iPhone ou horaire fixe), dédoublonnage serveur automatique avec fusion intelligente Watch + iPhone (MAX pour les pas, moyenne pour la FC). Visualisation par heure / jour / semaine / mois / année avec moyenne sur la période. Authentification par jeton dédié, révocable. Données chiffrées au repos, jamais loggées en clair."
+        "title": "Données santé",
+        "description": "API d'ingestion dédiée pour pousser fréquence cardiaque et nombre de pas depuis n'importe quelle source (Raccourcis iOS, automatisation Android, intégration tierce, IoT). Dédoublonnage serveur automatique avec fusion intelligente quand plusieurs sources couvrent la même période (MAX pour les pas, moyenne pour la FC). Visualisation par heure / jour / semaine / mois / année avec moyenne sur la période. Authentification par jeton dédié, révocable. Données chiffrées au repos, jamais loggées en clair."
       },
       "sub_agents": {
         "title": "Sous-agents",
@@ -5571,6 +5589,15 @@
       "createError": "Impossible de créer le jeton.",
       "revoked": "Jeton révoqué.",
       "copied": "Jeton copié."
+    },
+    "agents": {
+      "title": "Assistant",
+      "description": "Autorisez l'assistant à lire vos données de santé pour répondre à vos questions, alimenter ses notifications proactives, et enrichir journaux et mémoires.",
+      "toggle": "Accès de l'assistant",
+      "enabled_hint": "L'assistant peut consulter vos données de santé (pas, rythme cardiaque).",
+      "disabled_hint": "L'assistant n'a pas accès à vos données de santé (désactivé par défaut).",
+      "enabled_toast": "Assistant santé activé.",
+      "disabled_toast": "Assistant santé désactivé."
     },
     "charts": {
       "title": "Graphiques",

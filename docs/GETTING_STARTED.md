@@ -4,7 +4,7 @@
 
 **Version**: 3.6
 **Last Updated**: 2026-04-21
-**Compatibility**: LIA v1.17.1 (+ evolution Features: Web Fetch, MCP Per-User, Multi-Channel Telegram, Heartbeat Autonome, RAG Spaces, Sub-Agents, Browser Control, Personal Journals, Philips Hue Smart Home, Rich Skill Outputs — ADR-075, Chat UX polish — LaTeX, syntax highlighting, history search, copy buttons — v1.16.9, Observability overhaul — 90+ metrics revived, 2 new dashboards, DB indexes — v1.16.10, Health Metrics — iPhone Shortcuts ingestion + token auth + chart visualization — ADR-076 — v1.17.0, Health Metrics polymorphic batch upsert refactor — v1.17.1)
+**Compatibility**: LIA v1.17.2 (+ evolution Features: Web Fetch, MCP Per-User, Multi-Channel Telegram, Heartbeat Autonome, RAG Spaces, Sub-Agents, Browser Control, Personal Journals, Philips Hue Smart Home, Rich Skill Outputs — ADR-075, Chat UX polish — LaTeX, syntax highlighting, history search, copy buttons — v1.16.9, Observability overhaul — 90+ metrics revived, 2 new dashboards, DB indexes — v1.16.10, Health Metrics — iPhone Shortcuts ingestion + token auth + chart visualization — ADR-076 — v1.17.0, Health Metrics polymorphic batch upsert refactor — v1.17.1, Health Metrics assistant integrations — agents + Heartbeat + journal + memory via central HEALTH_KINDS registry — v1.17.2)
 
 ## Table of Contents
 
@@ -32,7 +32,7 @@
 |---------|-------------|
 | **Philips Hue Smart Home** | Control smart lights via natural language — local press-link or remote OAuth2 (v1.8.0) |
 | **Personal Journals** | Assistant's introspective logbooks with semantic context injection (v1.7.1) |
-| **Health Metrics** | iPhone Shortcuts hourly ingestion (heart rate, steps) with token auth + chart visualization (ADR-076) |
+| **Health Metrics** | iPhone Shortcuts batch ingestion + conversational agents + proactive Heartbeat + journal/memory enrichment; single per-user opt-in toggle; extensible `HEALTH_KINDS` registry (ADR-076) |
 | **System Knowledge Spaces** | Built-in FAQ knowledge base — LIA answers questions about itself (v1.6.1) |
 | **Browser Control** | Interactive web browsing via Playwright with autonomous ReAct agent (v1.6.0) |
 | **Sub-Agents** | Persistent specialized sub-agents for delegation (research, analysis, synthesis) (v1.5.0) |

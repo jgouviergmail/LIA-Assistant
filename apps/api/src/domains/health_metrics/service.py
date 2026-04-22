@@ -21,6 +21,7 @@ Revised: 2026-04-21 — polymorphic samples + batch upsert pipeline.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import secrets
 import unicodedata
@@ -31,9 +32,10 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.core.config import settings
 from src.core.constants import (
-    HEALTH_METRICS_KIND_HEART_RATE,
+    HEALTH_METRICS_AGENT_CONTEXT_MAX_CHARS,
+    HEALTH_METRICS_AGENT_SUMMARY_WINDOW_DAYS,
+    HEALTH_METRICS_HEARTBEAT_FRESHNESS_MINUTES,
     HEALTH_METRICS_KINDS,
     HEALTH_METRICS_PERIOD_DAY,
     HEALTH_METRICS_PERIOD_HOUR,
@@ -49,6 +51,10 @@ from src.core.constants import (
 )
 from src.core.exceptions import raise_invalid_input
 from src.domains.health_metrics.aggregator import PeriodLiteral, aggregate_samples
+from src.domains.health_metrics.baseline import (
+    baseline_window_start,
+    compute_baseline,
+)
 from src.domains.health_metrics.constants import (
     LOG_EVENT_BATCH_DUPLICATES_COLLAPSED,
     LOG_EVENT_SAMPLE_REJECTED,
@@ -63,13 +69,27 @@ from src.domains.health_metrics.constants import (
     UPSERT_OPERATION_INSERT,
     UPSERT_OPERATION_UPDATE,
 )
-from src.domains.health_metrics.models import HealthMetricToken
-from src.domains.health_metrics.repository import HealthMetricsRepository
+from src.domains.health_metrics.kinds import (
+    HEALTH_KINDS,
+    AggregationMethod,
+    HealthKindSpec,
+    get_active_bounds,
+    get_spec,
+)
+from src.domains.health_metrics.models import HealthMetricToken, HealthSample
+from src.domains.health_metrics.repository import (
+    HealthMetricTokenRepository,
+    HealthSampleRepository,
+)
 from src.domains.health_metrics.schemas import (
     HealthIngestRejectedItem,
     HealthIngestResponse,
     HealthMetricAggregateResponse,
     HealthMetricTokenCreateResponse,
+)
+from src.domains.health_metrics.signals import (
+    detect_notable_events,
+    detect_recent_variations,
 )
 from src.infrastructure.observability.logging import get_logger
 from src.infrastructure.observability.metrics_health_metrics import (
@@ -196,20 +216,32 @@ class _SampleValidation:
 def _validate_sample(raw: dict[str, Any], kind: str) -> _SampleValidation:
     """Validate a single raw sample for a given kind.
 
+    Consumes the central :data:`HEALTH_KINDS` registry for all kind-specific
+    semantics (payload key, bounds). Adding a new kind requires no change
+    to this function — only a new entry in ``kinds.py``.
+
     Args:
         raw: Raw sample dict (parsed from the request body).
-        kind: One of ``HEALTH_METRICS_KINDS``.
+        kind: One of the keys of :data:`HEALTH_KINDS`.
 
     Returns:
         A :class:`_SampleValidation` — on success the ``payload`` dict
         holds the normalized columns ready for UPSERT; on failure, only
         the ``reason`` is populated.
     """
-    value_key = "heart_rate" if kind == HEALTH_METRICS_KIND_HEART_RATE else "steps"
+    try:
+        spec = get_spec(kind)
+    except KeyError:
+        return _SampleValidation(
+            valid=False,
+            payload=None,
+            reason=f"{REJECTION_REASON_MALFORMED}:unknown_kind",
+        )
+
     try:
         date_start_raw = raw["date_start"]
         date_end_raw = raw["date_end"]
-        value_raw = raw[value_key]
+        value_raw = raw[spec.payload_value_key]
     except KeyError as exc:
         return _SampleValidation(
             valid=False,
@@ -236,12 +268,7 @@ def _validate_sample(raw: dict[str, Any], kind: str) -> _SampleValidation:
             reason=f"{REJECTION_REASON_MALFORMED}:value",
         )
 
-    if kind == HEALTH_METRICS_KIND_HEART_RATE:
-        lo = settings.health_metrics_heart_rate_min
-        hi = settings.health_metrics_heart_rate_max
-    else:
-        lo = settings.health_metrics_steps_min
-        hi = settings.health_metrics_steps_max
+    lo, hi = get_active_bounds(spec)
     if value < lo or value > hi:
         return _SampleValidation(
             valid=False,
@@ -272,11 +299,18 @@ class HealthMetricsService:
     def __init__(self, db: AsyncSession) -> None:
         """Initialize service with a DB session.
 
+        Instantiates two repositories (one per model) — mirrors the
+        ``BaseRepository`` convention used by every other domain:
+        :class:`HealthSampleRepository` for polymorphic sample
+        ingestion and window queries, :class:`HealthMetricTokenRepository`
+        for ingestion-token lifecycle.
+
         Args:
             db: SQLAlchemy async session (caller manages commit/rollback).
         """
         self.db = db
-        self.repo = HealthMetricsRepository(db)
+        self.sample_repo = HealthSampleRepository(db)
+        self.token_repo = HealthMetricTokenRepository(db)
 
     # =========================================================================
     # Batch ingestion
@@ -343,11 +377,11 @@ class HealthMetricsService:
                     reason=reason,
                 )
 
-        inserted, updated, duplicates = await self.repo.upsert_samples(
+        inserted, updated, duplicates = await self.sample_repo.upsert_samples(
             token_record.user_id, kind, valid_payloads
         )
         now = datetime.now(UTC)
-        await self.repo.touch_token_last_used(token_record.id, now)
+        await self.token_repo.touch_token_last_used(token_record.id, now)
 
         if inserted:
             health_samples_upserted_total.labels(kind=kind, operation=UPSERT_OPERATION_INSERT).inc(
@@ -420,7 +454,7 @@ class HealthMetricsService:
         resolved_to = to_ts or datetime.now(UTC)
         resolved_from = from_ts or (resolved_to - _default_window_for(period))
 
-        samples = await self.repo.fetch_samples_asc(
+        samples = await self.sample_repo.fetch_samples_asc(
             user_id, from_ts=resolved_from, to_ts=resolved_to
         )
         points, averages = aggregate_samples(
@@ -450,7 +484,7 @@ class HealthMetricsService:
         Returns:
             Number of rows deleted.
         """
-        count = await self.repo.delete_all_samples_for_user(user_id)
+        count = await self.sample_repo.delete_all_samples_for_user(user_id)
         logger.info(
             LOG_EVENT_SAMPLES_DELETED,
             user_id=str(user_id),
@@ -475,7 +509,7 @@ class HealthMetricsService:
                 f"Unsupported kind: {kind}",
                 allowed=list(HEALTH_METRICS_KINDS),
             )
-        count = await self.repo.delete_samples_by_kind(user_id, kind)
+        count = await self.sample_repo.delete_samples_by_kind(user_id, kind)
         logger.info(
             LOG_EVENT_SAMPLES_DELETED,
             user_id=str(user_id),
@@ -509,7 +543,7 @@ class HealthMetricsService:
             token_prefix=prefix,
             label=label,
         )
-        await self.repo.create_token(record)
+        await self.token_repo.create_token(record)
 
         logger.info(
             LOG_EVENT_TOKEN_GENERATED,
@@ -536,7 +570,7 @@ class HealthMetricsService:
         Returns:
             All ingestion tokens for the user, including revoked ones.
         """
-        return await self.repo.list_tokens_for_user(user_id)
+        return await self.token_repo.list_tokens_for_user(user_id)
 
     async def revoke_token(self, user_id: UUID, token_id: UUID) -> bool:
         """Revoke one of the user's tokens.
@@ -548,7 +582,7 @@ class HealthMetricsService:
         Returns:
             True if the token was revoked, False if already revoked or missing.
         """
-        ok = await self.repo.revoke_token(token_id, user_id, datetime.now(UTC))
+        ok = await self.token_repo.revoke_token(token_id, user_id, datetime.now(UTC))
         if ok:
             logger.info(
                 LOG_EVENT_TOKEN_REVOKED,
@@ -570,7 +604,402 @@ class HealthMetricsService:
         if not raw_token:
             return None
         token_hash = _hash_token(raw_token)
-        return await self.repo.get_active_token_by_hash(token_hash)
+        return await self.token_repo.get_active_token_by_hash(token_hash)
+
+    # =========================================================================
+    # Agent-facing read helpers (assistant agents v1.17.2)
+    # =========================================================================
+
+    async def compute_kind_summary(
+        self,
+        user_id: UUID,
+        kind: str,
+        *,
+        time_min: datetime | None = None,
+        time_max: datetime | None = None,
+    ) -> dict[str, Any]:
+        """Summarize samples of a kind for an ISO 8601 time window.
+
+        Mirrors the calendar-tools pattern (``time_min`` / ``time_max``):
+        the planner receives the pre-resolved temporal range from the
+        QueryAnalyzer's ``resolved_references`` (e.g. "this week" ->
+        "2026-04-20 to 2026-04-26") and splits it across the two params.
+
+        When both bounds are omitted the window defaults to "since
+        midnight UTC of the current day" — what the user means by "today".
+
+        Args:
+            user_id: Owner user UUID.
+            kind: Registered kind discriminator.
+            time_min: Inclusive window start (UTC-aware). Defaults to
+                today's midnight UTC when omitted.
+            time_max: Exclusive window end (UTC-aware). Defaults to
+                ``datetime.now(UTC)`` when omitted.
+
+        Returns:
+            A dict with keys ``kind``, ``unit``, ``from_ts``, ``to_ts``,
+            ``total`` (or ``avg``/``min``/``max`` for AVG kinds),
+            ``samples_count``, ``last_sample_at``, ``last_value``.
+            When no samples are found, ``samples_count`` is 0 and the
+            aggregate fields are ``None``.
+        """
+        spec = get_spec(kind)
+        now = datetime.now(UTC)
+        resolved_to = time_max or now
+        resolved_from = time_min or now.replace(hour=0, minute=0, second=0, microsecond=0)
+        samples = await self.sample_repo.fetch_samples_kind(
+            user_id, kind=kind, from_ts=resolved_from, to_ts=resolved_to
+        )
+
+        last_sample_at: datetime | None = samples[-1].date_start if samples else None
+        last_value: int | None = int(samples[-1].value) if samples else None
+
+        result: dict[str, Any] = {
+            "kind": spec.kind,
+            "unit": spec.unit,
+            "from_ts": resolved_from.isoformat(),
+            "to_ts": resolved_to.isoformat(),
+            "samples_count": len(samples),
+            "last_sample_at": last_sample_at.isoformat() if last_sample_at else None,
+            "last_value": last_value,
+        }
+
+        if not samples:
+            return {**result, "total": None, "avg": None, "min": None, "max": None}
+
+        values = [int(s.value) for s in samples]
+        match spec.aggregation_method:
+            case AggregationMethod.SUM:
+                result["total"] = sum(values)
+            case AggregationMethod.AVG_MIN_MAX:
+                result["avg"] = round(sum(values) / len(values), 1)
+                result["min"] = min(values)
+                result["max"] = max(values)
+            case AggregationMethod.LAST_VALUE:
+                result["last"] = values[-1]
+        return result
+
+    async def compute_kind_daily_breakdown(
+        self,
+        user_id: UUID,
+        kind: str,
+        days: int = 7,
+    ) -> list[dict[str, Any]]:
+        """Per-day aggregated values for a kind over the last ``days`` days.
+
+        Args:
+            user_id: Owner user UUID.
+            kind: Registered kind discriminator.
+            days: Window length; defaults to 7.
+
+        Returns:
+            A list of ``{"date": "YYYY-MM-DD", "value": float}`` dicts, one
+            per day that has at least one sample, sorted ascending.
+            Missing days are not emitted (let the LLM phrase the gap).
+        """
+        spec = get_spec(kind)
+        now = datetime.now(UTC)
+        resolved_from = (now - timedelta(days=days)).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+        samples = await self.sample_repo.fetch_samples_kind(
+            user_id, kind=kind, from_ts=resolved_from, to_ts=now
+        )
+
+        from src.domains.health_metrics.baseline import _daily_aggregate, _group_samples_by_day
+
+        by_day = _group_samples_by_day(samples)
+        sorted_days = sorted(by_day.keys())
+        values = _daily_aggregate(samples, spec.baseline_kind)
+        return [
+            {"date": day.isoformat(), "value": round(val, 1)}
+            for day, val in zip(sorted_days, values, strict=True)
+        ]
+
+    async def compute_kind_baseline_delta(
+        self,
+        user_id: UUID,
+        kind: str,
+        window_days: int = HEALTH_METRICS_AGENT_SUMMARY_WINDOW_DAYS,
+    ) -> dict[str, Any]:
+        """Compare the last ``window_days`` to the user's baseline for a kind.
+
+        Returns a dict with the baseline mode (``empty``/``bootstrap``/
+        ``rolling``), the median baseline value, the per-window aggregate,
+        and the percent delta.
+
+        Args:
+            user_id: Owner user UUID.
+            kind: Registered kind discriminator.
+            window_days: Recent window length; defaults to 7.
+
+        Returns:
+            A dict shaped for LLM consumption. When no data exists, returns
+            ``{"kind": ..., "mode": "empty", ...}`` with nulls.
+        """
+        spec = get_spec(kind)
+        now = datetime.now(UTC)
+        # Fetch a window wide enough to split into:
+        #   - last ``window_days`` (the "recent" slice compared against baseline)
+        #   - the full rolling baseline window (28 days by default) before that
+        # so the rolling median sees the full 28-day span, not 28 - window_days.
+        from_ts = baseline_window_start(now) - timedelta(days=window_days)
+        samples = await self.sample_repo.fetch_samples_kind(
+            user_id, kind=kind, from_ts=from_ts, to_ts=now
+        )
+
+        from src.domains.health_metrics.baseline import _daily_aggregate, _group_samples_by_day
+
+        by_day = _group_samples_by_day(samples)
+        sorted_days = sorted(by_day.keys())
+        if not sorted_days:
+            return {
+                "kind": spec.kind,
+                "unit": spec.unit,
+                "mode": "empty",
+                "baseline_value": None,
+                "window_value": None,
+                "delta_pct": None,
+                "window_days": window_days,
+            }
+
+        window_cutoff = sorted_days[-min(window_days, len(sorted_days))]
+        baseline_samples = [
+            s for s in samples if s.date_start.astimezone(UTC).date() < window_cutoff
+        ]
+        window_samples = [
+            s for s in samples if s.date_start.astimezone(UTC).date() >= window_cutoff
+        ]
+
+        baseline = compute_baseline(baseline_samples, spec)
+        window_vals = _daily_aggregate(window_samples, spec.baseline_kind)
+        window_value = sum(window_vals) / len(window_vals) if window_vals else None
+
+        delta_pct: float | None = None
+        if baseline.median_value and window_value is not None and baseline.median_value != 0:
+            delta_pct = round(
+                (window_value - baseline.median_value) / baseline.median_value * 100.0, 1
+            )
+
+        return {
+            "kind": spec.kind,
+            "unit": spec.unit,
+            "mode": baseline.mode,
+            "baseline_value": (
+                round(baseline.median_value, 1) if baseline.median_value is not None else None
+            ),
+            "window_value": round(window_value, 1) if window_value is not None else None,
+            "delta_pct": delta_pct,
+            "window_days": window_days,
+            "days_available": baseline.days_available,
+        }
+
+    async def compute_overview(
+        self,
+        user_id: UUID,
+        *,
+        time_min: datetime | None = None,
+        time_max: datetime | None = None,
+    ) -> dict[str, dict[str, Any]]:
+        """Cross-kind summary for the ``get_health_overview`` tool.
+
+        Iterates :data:`HEALTH_KINDS` so adding a new kind is transparent.
+        Delegates to :meth:`compute_kind_summary` per kind — the same
+        ``time_min`` / ``time_max`` semantics apply.
+
+        Args:
+            user_id: Owner user UUID.
+            time_min: Inclusive window start (UTC-aware). Defaults to
+                today's midnight UTC when omitted.
+            time_max: Exclusive window end (UTC-aware). Defaults to
+                ``datetime.now(UTC)`` when omitted.
+
+        Returns:
+            A dict keyed by kind, each value being the ``compute_kind_summary``
+            result for that kind.
+        """
+        specs = list(HEALTH_KINDS.values())
+        summaries = await asyncio.gather(
+            *(
+                self.compute_kind_summary(user_id, spec.kind, time_min=time_min, time_max=time_max)
+                for spec in specs
+            )
+        )
+        return {spec.kind: summary for spec, summary in zip(specs, summaries, strict=True)}
+
+    async def detect_all_variations(
+        self,
+        user_id: UUID,
+        window_days: int = HEALTH_METRICS_AGENT_SUMMARY_WINDOW_DAYS,
+    ) -> list[dict[str, Any]]:
+        """Detect notable recent variations across every registered kind.
+
+        Combines :func:`detect_recent_variations` (directional streaks) with
+        :func:`detect_notable_events` (structural events like inactivity).
+
+        Args:
+            user_id: Owner user UUID.
+            window_days: Recent window length; defaults to 7.
+
+        Returns:
+            A list of event dicts (may be empty). Each dict has at least a
+            ``kind`` key and an ``event`` or ``trend`` label.
+        """
+        now = datetime.now(UTC)
+        # Extend the fetch by ``window_days`` so the baseline split inside
+        # ``detect_recent_variations`` sees the full 28-day rolling history
+        # *plus* the recent window on top of it (see ``compute_kind_baseline_delta``).
+        from_ts = baseline_window_start(now) - timedelta(days=window_days)
+
+        variations: list[dict[str, Any]] = []
+        for spec in HEALTH_KINDS.values():
+            samples = await self.sample_repo.fetch_samples_kind(
+                user_id, kind=spec.kind, from_ts=from_ts, to_ts=now
+            )
+            if not samples:
+                continue
+            variation = detect_recent_variations(samples, spec, window_days=window_days)
+            if variation is not None:
+                variations.append(variation)
+            for event in detect_notable_events(samples, spec, window_days=window_days):
+                variations.append(event)
+        return variations
+
+    async def build_health_context_for_prompt(
+        self,
+        user_id: UUID,
+        max_chars: int = HEALTH_METRICS_AGENT_CONTEXT_MAX_CHARS,
+    ) -> str:
+        """Build a short textual context block for prompt injection.
+
+        Used by memory/journal/consolidation prompts when the user has
+        opted into health-aware assistant integrations. Produces a compact
+        string the LLM can reason about without exposing raw sensor values.
+
+        Args:
+            user_id: Owner user UUID.
+            max_chars: Upper bound on the returned string length.
+
+        Returns:
+            A plain-text block (never None). Returns an empty string if no
+            kind has data.
+        """
+        lines: list[str] = []
+        variations = await self.detect_all_variations(user_id)
+        for variation in variations:
+            if "trend" in variation:
+                lines.append(
+                    f"- {variation['kind']}: {variation['trend']} "
+                    f"over {variation.get('days', 0)} days "
+                    f"(avg delta {variation.get('delta_pct', 0)}% vs baseline, "
+                    f"mode={variation.get('baseline_mode', 'unknown')})"
+                )
+            elif "event" in variation:
+                lines.append(
+                    f"- {variation['kind']}: event={variation['event']} "
+                    f"over {variation.get('days', 0)} days"
+                )
+
+        if not lines:
+            return ""
+
+        block = "Recent health signals (factual, not medical):\n" + "\n".join(lines)
+        if len(block) > max_chars:
+            block = block[: max_chars - 1] + "…"
+        return block
+
+    async def build_heartbeat_health_signals(
+        self,
+        user_id: UUID,
+    ) -> dict[str, Any] | None:
+        """Return the structured health-signals payload for the Heartbeat source.
+
+        Combines:
+
+        - ``summary_today`` — last-value + freshness per kind.
+        - ``baseline_deltas`` — ``compute_kind_baseline_delta`` per kind.
+        - ``recent_variations`` / ``notable_events`` from
+          :meth:`detect_all_variations`.
+
+        Args:
+            user_id: Owner user UUID.
+
+        Returns:
+            A dict ready to attach to ``HeartbeatContext.health_signals``.
+            Returns ``None`` if the user has zero samples across every kind
+            (nothing meaningful to inject).
+        """
+        now = datetime.now(UTC)
+        freshness_cutoff = now - timedelta(minutes=HEALTH_METRICS_HEARTBEAT_FRESHNESS_MINUTES)
+
+        summary_today: dict[str, dict[str, Any]] = {}
+        baseline_deltas: dict[str, dict[str, Any]] = {}
+        any_data = False
+
+        for spec in HEALTH_KINDS.values():
+            samples_today = await self.sample_repo.fetch_samples_kind(
+                user_id, kind=spec.kind, from_ts=freshness_cutoff, to_ts=now
+            )
+            if samples_today:
+                any_data = True
+                last_sample = samples_today[-1]
+                minutes_ago = int((now - last_sample.date_start).total_seconds() / 60)
+                summary_today[spec.kind] = {
+                    "value": _summary_value(spec, samples_today),
+                    "unit": spec.unit,
+                    "last_update_minutes_ago": minutes_ago,
+                }
+
+            delta = await self.compute_kind_baseline_delta(user_id, spec.kind)
+            if delta["mode"] != "empty":
+                baseline_deltas[spec.kind] = {
+                    "pct": delta["delta_pct"],
+                    "mode": delta["mode"],
+                    "baseline_value": delta["baseline_value"],
+                }
+
+        if not any_data and not baseline_deltas:
+            return None
+
+        variations_all = await self.detect_all_variations(user_id)
+        recent_variations = [v for v in variations_all if "trend" in v]
+        notable_events = [v for v in variations_all if "event" in v]
+
+        return {
+            "summary_today": summary_today,
+            "baseline_deltas_7d": baseline_deltas,
+            "recent_variations": recent_variations,
+            "notable_events": notable_events,
+        }
+
+
+# =============================================================================
+# Internal helpers
+# =============================================================================
+
+
+def _summary_value(spec: HealthKindSpec, samples: list[HealthSample]) -> int | float:
+    """Single-scalar representation of today's samples for the Heartbeat card.
+
+    - ``SUM`` aggregation → total across the window (e.g. steps).
+    - ``AVG_MIN_MAX`` aggregation → rounded average (e.g. heart rate).
+    - ``LAST_VALUE`` aggregation → last recorded value.
+
+    Args:
+        spec: Kind spec.
+        samples: Non-empty list of samples.
+
+    Returns:
+        A scalar summarizing today's data for the kind.
+    """
+    values = [int(s.value) for s in samples]
+    match spec.aggregation_method:
+        case AggregationMethod.SUM:
+            return sum(values)
+        case AggregationMethod.AVG_MIN_MAX:
+            return round(sum(values) / len(values), 1)
+        case AggregationMethod.LAST_VALUE:
+            return values[-1]
 
 
 # =============================================================================

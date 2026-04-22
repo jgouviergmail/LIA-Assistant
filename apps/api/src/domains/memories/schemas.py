@@ -6,7 +6,7 @@ Supports GDPR compliance (export, delete all) and emotional profiling.
 """
 
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -118,6 +118,13 @@ class MemoryResponse(MemoryBase):
     last_accessed_at: datetime | None = Field(
         default=None,
         description="When the memory was last accessed with high relevance",
+    )
+    context_biometric: dict[str, Any] | None = Field(
+        default=None,
+        description=(
+            "Optional Health Metrics snapshot captured at extraction time "
+            "(baseline deltas, trends, events — never raw values)."
+        ),
     )
 
 
@@ -243,4 +250,14 @@ class ExtractedMemory(BaseModel):
         ge=0.0,
         le=1.0,
         description="Importance score from 0.0 to 1.0.",
+    )
+    context_biometric: dict[str, Any] | None = Field(
+        default=None,
+        description=(
+            "Optional Health Metrics snapshot captured at extraction time "
+            "(baseline deltas, trends, events — never raw values). "
+            "Only populated when the user has opted into Health Metrics "
+            "assistant integrations AND the memory carries a significant "
+            "emotional weight."
+        ),
     )

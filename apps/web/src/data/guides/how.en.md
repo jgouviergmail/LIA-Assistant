@@ -5,8 +5,8 @@
 > Technical presentation documentation for architects, engineers and technical experts.
 
 **Version**: 2.3
-**Date**: 2026-04-20
-**Application**: LIA v1.17.1
+**Date**: 2026-04-22
+**Application**: LIA v1.17.2
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -936,6 +936,8 @@ LIA accepts external event ingestions (iPhone Apple Health samples, third-party 
 **Security**: per-token Redis sliding-window rate limit (60 req/h default, configurable), `WWW-Authenticate: Bearer` header (RFC 7235) on 401, `Retry-After` on 429, per-request sample cap with `HTTP 413` beyond. SQL `ON DELETE CASCADE` on the `users` FK covers account erasure.
 
 **Visualization**: a polymorphic Python aggregator walks samples ordered by `date_start` in a window and emits one point per bucket (hour/day/week/month/year), with `AVG/MIN/MAX` over `heart_rate` samples and `SUM` over `steps` samples. Empty buckets are emitted with `has_data=False` so the frontend (`recharts`, `connectNulls={false}`) shows honest gaps rather than interpolation. The Settings component reuses the `SettingsSection` + Accordion pattern (4 sub-sections: API + tokens, Charts, Statistics, Data management) and displays the **actual aggregation window** to defuse the "stats don't move when I change period" confusion (HR is invariant when all data fits in the smallest window).
+
+**Exposure to the central loops**: a **single per-user opt-in toggle** governs four consumers at once — conversation (assistant tools), Heartbeat (a `health_signals` source), memory extraction (a `{health_context}` prompt placeholder + an optional `context_biometric` JSONB blob attached to high-emotional-weight memories), and journal (extraction + consolidation). All four receive the same **factual non-raw projection**: deltas vs baseline, directional trends, structural events (inactivity streaks, etc.) — never raw values. The rolling 28-day baseline auto-selects `bootstrap` (simple median while less than 7 days of history are available — surfaced to the LLM so it qualifies its claims) then flips to `rolling`. GDPR erasure has a single target: the `health_samples` table.
 
 ---
 

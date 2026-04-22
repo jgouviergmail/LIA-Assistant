@@ -320,6 +320,13 @@ class UserBase(BaseModel, TimezoneValidatorMixin, ThemeValidatorMixin, FontFamil
             "weather notifications when the user is away from home."
         ),
     )
+    health_metrics_agents_enabled: bool = Field(
+        default=False,
+        description=(
+            "Opt-in for Health Metrics integrations with the assistant "
+            "(agents, Heartbeat source, journal/memory context)."
+        ),
+    )
 
     created_at: datetime = Field(..., description="Account creation timestamp")
     updated_at: datetime = Field(..., description="Last update timestamp")
@@ -366,6 +373,12 @@ class UserBase(BaseModel, TimezoneValidatorMixin, ThemeValidatorMixin, FontFamil
     @classmethod
     def set_weather_use_last_known_location_default(cls, v: bool | None) -> bool:
         """Ensure weather_use_last_known_location defaults to False if None."""
+        return v if v is not None else False
+
+    @field_validator("health_metrics_agents_enabled", mode="before")
+    @classmethod
+    def set_health_metrics_agents_enabled_default(cls, v: bool | None) -> bool:
+        """Ensure health_metrics_agents_enabled defaults to False if None."""
         return v if v is not None else False
 
     @field_validator("response_display_mode", mode="before")

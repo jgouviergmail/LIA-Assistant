@@ -164,6 +164,48 @@ def _get_personality_addon_prompt() -> str:
     return str(load_prompt("memory_extraction_personality_addon"))
 
 
+async def _maybe_build_health_context(user_id: str) -> str:
+    """Return the Health Metrics context block for the extraction prompt.
+
+    Returns an empty string when the global feature flag is off, the user
+    has not opted into Health Metrics assistant integrations, or when
+    their health history is empty. The prompt template includes a
+    ``{health_context}`` placeholder flagged ``(optional)`` so the LLM
+    handles the empty case transparently.
+
+    Args:
+        user_id: Owner user ID (string form from the extractor plumbing).
+
+    Returns:
+        A short textual block (``""`` if none).
+    """
+    from src.core.config import settings as global_settings
+    from src.core.constants import HEALTH_METRICS_USER_TOGGLE_ATTR
+
+    if not getattr(global_settings, "health_metrics_enabled", False):
+        return ""
+
+    try:
+        from src.infrastructure.database.session import get_db_context
+
+        async with get_db_context() as db:
+            from src.domains.health_metrics.service import HealthMetricsService
+            from src.domains.users.repository import UserRepository
+
+            user = await UserRepository(db).get_by_id(UUID(user_id))
+            if user is None or not getattr(user, HEALTH_METRICS_USER_TOGGLE_ATTR, False):
+                return ""
+            service = HealthMetricsService(db)
+            return await service.build_health_context_for_prompt(UUID(user_id))
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning(
+            "memory_extractor_health_context_failed",
+            user_id=user_id,
+            error=str(exc),
+        )
+        return ""
+
+
 def _format_messages_for_extraction(messages: list[BaseMessage]) -> str:
     """Format messages for extraction prompt context.
 
@@ -541,6 +583,11 @@ async def extract_memories_background(
                 for m, score in existing_results
             ]
 
+        # Health Metrics context — only injected when user has opted in AND
+        # the feature flag is on. Falls back to "" so the prompt placeholder
+        # is always safe to format.
+        health_context = await _maybe_build_health_context(user_id)
+
         # Build prompt
         current_datetime = datetime.now(tz=UTC).strftime("%d/%m/%Y %H:%M")
         prompt = _get_psychoanalysis_prompt().format(
@@ -552,6 +599,7 @@ async def extract_memories_background(
                 if known_relationships
                 else "No known relationships"
             ),
+            health_context=health_context,
         )
 
         if personality_instruction:
@@ -671,6 +719,7 @@ async def extract_memories_background(
                                 trigger_topic=action.trigger_topic or "",
                                 usage_nuance=action.usage_nuance or "",
                                 importance=action.importance or 0.7,
+                                context_biometric=action.context_biometric,
                             )
                             applied_count += 1
                             logger.info(

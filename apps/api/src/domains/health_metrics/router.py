@@ -66,7 +66,7 @@ async def list_samples(
 ) -> list[HealthSampleRow]:
     """Return raw samples for the authenticated user (most recent first)."""
     service = HealthMetricsService(db)
-    rows = await service.repo.list_samples(
+    rows = await service.sample_repo.list_samples(
         current_user.id,
         kind=kind,
         from_ts=from_ts,
