@@ -141,7 +141,8 @@
         "total": "All time",
         "badge": "Maps & Places"
       },
-      "cycle_dates": "Period from {{start}} to {{end}}"
+      "cycle_dates": "Period from {{start}} to {{end}}",
+      "since": "since {{date}}"
     },
     "actions": {
       "open_chat": "Open Chat",
@@ -2845,6 +2846,19 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_18_1": {
+          "title": "v1.18.1 — Today Briefing polish, fresh screenshots, enriched statistics",
+          "date": "April 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>LIA greeting now overlays the welcome image</b> — The personalized AI-generated greeting now sits directly on top of the LIA avatar, replacing the random marketing taglines. More personal, with the tokens + EUR cost of the call still discreetly shown underneath.",
+            "i2": "<b>Refresh button always visible on mobile</b> — On smartphones, the small sync icon on each dashboard card is now always shown (no need to hover — which doesn't exist on touch screens). On desktop, behavior is unchanged: visible on card hover with the +12° rotation affordance.",
+            "i3": "<b>Usage statistics: start date for the lifetime totals</b> — Under each total counter (messages, tokens, Google API requests, cost), a small 'since DD/MM/YYYY' label shows your account creation date — the reference start of the lifetime totals is now explicit.",
+            "i4": "<b>Illustrative icons on dashboard sections</b> — 'Mon dashboard' now sports a sunrise icon 🌅 (consistent with the daily-ritual nature of the briefing); 'Statistiques d'utilisation' gets a bar chart icon 📊. Both titles also share the exact same typography so the two main sections look like siblings.",
+            "i5": "<b>12 fresh dashboard screenshots on the landing page</b> — The landing carousel and README images are refreshed with the v1.18.x captures, and 4 new ones are added: chat debug panel, interactive skills, long-term memory, Psyche Engine. Cache is invalidated automatically so no browser stays on the old images.",
+            "i6": "<b>'Skills' and 'Health data' descriptions trimmed on the home page</b> — Both descriptions were 4× longer than the rest; rewritten to the same length as their neighbors in 6 languages, no information lost (the long-form details live in the FAQ and the docs)."
+          }
+        },
         "v1_18_0": {
           "title": "v1.18.0 — Today Briefing: the home becomes a daily ritual",
           "date": "April 2026",
@@ -5239,8 +5253,12 @@
       "items": {
         "homepage": "Dashboard — Homepage with usage statistics and personalized greeting",
         "chat": "Chat — Multi-agent conversation with real-time debug panel",
+        "chat_debug_panel": "Chat — Debug panel: routing, tool calls, token cost and reasoning timeline",
+        "chat_interactive_skills": "Chat — Interactive skills: maps, dashboards, calendars and mini-apps rendered inline",
         "settings_preferences": "Settings — Preferences: connectors, MCP, language, themes",
         "settings_features": "Settings — Features: memory, interests, notifications, sub-agents",
+        "settings_features_memory": "Settings — Long-term memory: pinned facts, automatic extraction, per-memory edits",
+        "settings_features_psyche": "Settings — Psyche Engine: Big Five personality traits modulating emotional responsiveness",
         "settings_administration": "Administration — Full control panel for operators",
         "settings_administration_oneclick": "Administration — One-click simplicity: every action accessible instantly",
         "settings_administration_llm": "Administration — LLM Configuration: 8 providers, per-node model selection",

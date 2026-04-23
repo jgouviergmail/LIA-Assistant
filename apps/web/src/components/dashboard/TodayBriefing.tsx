@@ -1,9 +1,9 @@
 'use client';
 
+import { Sunrise } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useBriefing } from '@/hooks/useBriefing';
 import { BriefingError } from './BriefingError';
-import { BriefingGreeting } from './BriefingGreeting';
 import { BriefingSynthesis } from './BriefingSynthesis';
 import { HeroLiaCard } from './HeroLiaCard';
 import { QuickAccessCompact } from './QuickAccessCompact';
@@ -14,21 +14,20 @@ import { HealthCard } from './cards/HealthCard';
 import { MailsCard } from './cards/MailsCard';
 import { RemindersCard } from './cards/RemindersCard';
 import { WeatherCard } from './cards/WeatherCard';
-import { CardsGridSkeleton, GreetingSkeleton, SynthesisSkeleton } from './BriefingSkeleton';
+import { CardsGridSkeleton, SynthesisSkeleton } from './BriefingSkeleton';
 
 /**
  * Today briefing — orchestrates the full home page flow with NON-BLOCKING rendering.
  *
  * Two independent network queries (see useBriefing) — the page renders progressively:
  *  1. Cards arrive first (fast, no LLM) → grid + Quick Access + Hero shown immediately
- *  2. Greeting + synthesis arrive later (LLM-bound) → swap from skeleton to text
+ *  2. Greeting + synthesis arrive later (LLM-bound) → swap from fallback to LLM text
  *
  * Layout (top → bottom):
- *   1. Greeting (LLM, sober single sentence)
- *   2. Synthesis (LLM, glass card with primary accent)
- *   3. Hero LIA (preserved marketing card)
- *   4. Quick Access (Help + Settings — ABOVE the dashboard cards)
- *   5. "Mon dashboard" 6-card grid
+ *   1. Hero LIA (marketing card — its headline is the LLM greeting once it arrives,
+ *      a static localized tagline as fallback while the LLM call is in flight)
+ *   2. Quick Access (Help + Settings)
+ *   3. "Mon dashboard" 6-card grid (with the synthesis above the cards)
  */
 export function TodayBriefing() {
   const { t } = useTranslation();
@@ -49,10 +48,11 @@ export function TodayBriefing() {
 
   return (
     <div className="space-y-8 sm:space-y-10">
-      {/* Greeting: skeleton during LLM call → real text once arrived */}
-      {text ? <BriefingGreeting greeting={text.greeting} /> : <GreetingSkeleton />}
-
-      <HeroLiaCard />
+      {/* Hero — headline swaps from fallback tagline to LLM greeting once ready */}
+      <HeroLiaCard
+        greeting={text?.greeting ?? null}
+        isLoadingGreeting={textLoading}
+      />
 
       {/* Quick Access — placed ABOVE the cards grid as requested */}
       <QuickAccessCompact />
@@ -61,8 +61,9 @@ export function TodayBriefing() {
         <div className="flex items-center justify-between">
           <h2
             id="briefing-section-heading"
-            className="text-base sm:text-lg font-semibold tracking-tight text-foreground"
+            className="flex items-center gap-2 text-base sm:text-lg font-semibold tracking-tight text-foreground"
           >
+            <Sunrise className="h-5 w-5 text-primary shrink-0" aria-hidden="true" />
             {t('dashboard.briefing.section_title')}
           </h2>
           <RefreshAllButton

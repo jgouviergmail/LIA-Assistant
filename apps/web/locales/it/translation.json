@@ -133,7 +133,8 @@
         "total": "Totale",
         "badge": "Maps & Places"
       },
-      "cycle_dates": "Periodo dal {{start}} al {{end}}"
+      "cycle_dates": "Periodo dal {{start}} al {{end}}",
+      "since": "dal {{date}}"
     },
     "actions": {
       "open_chat": "Apri Chat",
@@ -2838,6 +2839,19 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_18_1": {
+          "title": "v1.18.1 — Today Briefing rifinito, screenshot rinnovati, statistiche arricchite",
+          "date": "Aprile 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>Saluto di LIA direttamente sull'immagine di benvenuto</b> — Il saluto personalizzato generato dall'IA viene ora visualizzato in sovrimpressione sull'avatar di LIA, al posto delle frasi marketing casuali. Più personale, con il consumo di token + costo in € della chiamata mostrato discretamente sotto.",
+            "i2": "<b>Pulsante di aggiornamento sempre visibile su mobile</b> — Sui smartphone, la piccola icona di sincronizzazione di ogni card della dashboard è ora sempre presente (non serve passare il cursore — non esiste su schermi touch). Su desktop, il comportamento è invariato: visibile al passaggio del cursore con la rotazione di +12°.",
+            "i3": "<b>Statistiche d'uso: data di inizio del totale cumulativo</b> — Sotto ogni totale (messaggi, token, richieste Google, costo), una piccola dicitura «dal GG/MM/AAAA» indica la data di creazione del tuo account — il riferimento del cumulativo è ora esplicito.",
+            "i4": "<b>Icone illustrative sulle sezioni della dashboard</b> — «La mia dashboard» è preceduta da un'icona alba 🌅 (in linea con la natura di rituale quotidiano del briefing); «Statistiche d'uso» riceve un'icona istogramma 📊. Entrambi i titoli condividono ora la stessa tipografia per apparire come sezioni sorelle.",
+            "i5": "<b>12 nuovi screenshot della dashboard sulla landing page</b> — Il carosello della landing e le immagini del README sono aggiornati con gli screenshot della v1.18.x, e 4 nuovi vengono aggiunti: pannello debug della chat, skill interattive, memoria a lungo termine, Psyche Engine. La cache viene invalidata automaticamente in modo che nessun browser resti sui vecchi screenshot.",
+            "i6": "<b>Descrizioni «Skills» e «Dati sanitari» più concise sulla home page</b> — Entrambe le descrizioni erano 4× più lunghe delle altre; riscritte in 6 lingue alla stessa lunghezza delle vicine, senza perdita di informazioni (i dettagli restano nella FAQ e nella documentazione)."
+          }
+        },
         "v1_18_0": {
           "title": "v1.18.0 — Today Briefing: la home diventa un rituale quotidiano",
           "date": "Aprile 2026",
@@ -5161,8 +5175,12 @@
       "items": {
         "homepage": "Dashboard — Homepage con statistiche d'uso e saluto personalizzato",
         "chat": "Chat — Conversazione multi-agente con pannello debug in tempo reale",
+        "chat_debug_panel": "Chat — Pannello debug: routing, chiamate a strumenti, costo in token e timeline del ragionamento",
+        "chat_interactive_skills": "Chat — Skill interattive: mappe, dashboard, calendari e mini-app renderizzate in linea",
         "settings_preferences": "Impostazioni — Preferenze: connettori, MCP, lingua, temi",
         "settings_features": "Impostazioni — Funzionalità: memoria, interessi, notifiche, sub-agenti",
+        "settings_features_memory": "Impostazioni — Memoria a lungo termine: fatti fissati, estrazione automatica, modifica per ricordo",
+        "settings_features_psyche": "Impostazioni — Psyche Engine: tratti di personalità Big Five che modulano la reattività emotiva",
         "settings_administration": "Amministrazione — Pannello di controllo completo per gli operatori",
         "settings_administration_oneclick": "Amministrazione — Semplicità in un clic: ogni azione accessibile istantaneamente",
         "settings_administration_llm": "Amministrazione — Configurazione LLM: 8 provider, selezione modello per nodo",

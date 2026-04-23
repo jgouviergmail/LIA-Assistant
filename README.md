@@ -40,7 +40,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.18.0</strong> — Today Briefing: the dashboard home becomes a daily ritual. Contextual LLM greeting + 2-3 sentence synthesis above a 6-card operational grid (enriched weather with 5-day forecast, agenda, unread mails, upcoming birthdays, active reminders, health metrics). Pure architecture: no LangGraph chain, parallel `asyncio.gather`, per-section Redis cache with TTL adapted to each source's change rate (weather 1h, agenda 10min, mails 5min…). Split endpoints (`/briefing/cards` fast + `/briefing/synthesis` LLM-bound) for non-blocking progressive rendering. Tokens and EUR cost of every LLM call surfaced in the UI next to the timestamp (discreet badge with detailed tooltip) and tracked in `user_statistics` via `track_proactive_tokens` (with cached tokens subtracted to avoid double-counting). Health card vertically aligned (today/average separators in a fixed column via `display:contents`). Weather forecast localized in 6 languages client-side via `Intl.DateTimeFormat`. — April 2026
+  <strong>Version 1.18.1</strong> — Today Briefing polish: the LLM greeting now sits directly on the Hero image (replacing the rotating marketing taglines for a more personal feel), the per-card refresh icon is always visible on mobile (no hover needed on touch devices), the lifetime totals in usage statistics now display the account creation date ("since DD/MM/YYYY"), section titles "Mon dashboard" and "Statistiques d'utilisation" gain illustrative icons (sunrise + bar chart), 12 fresh dashboard screenshots replace v1 across README + landing with automatic cache-busting (`?v=APP_VERSION`) so browsers, the Next.js Image optimizer and any CDN re-fetch immediately at every release, plus 4 new screenshots (chat debug panel, interactive skills, long-term memory, Psyche Engine) added to the carousel and README. — April 2026
 </p>
 
 ---
@@ -118,6 +118,16 @@ LIA is available as a hosted service at **https://lia.jeyswork.com/** — no ins
 <summary><strong>More screenshots</strong></summary>
 
 <p align="center">
+  <img src="docs/assets/screenshot-chat-debug-panel.png" alt="Chat — Debug panel detail" width="800" />
+  <br /><em>Chat — Debug panel: per-message routing, tool calls, token cost and reasoning timeline</em>
+</p>
+
+<p align="center">
+  <img src="docs/assets/screenshot-chat-interactive-skills.png" alt="Chat — Interactive skill widgets" width="800" />
+  <br /><em>Chat — Interactive skill widgets: maps, dashboards, calendars and mini-apps rendered inline</em>
+</p>
+
+<p align="center">
   <img src="docs/assets/screenshot-settings-preferences.png" alt="Settings — Preferences (connectors, MCP, themes)" width="800" />
   <br /><em>Settings — Preferences: connectors, MCP servers, language, timezone, and themes</em>
 </p>
@@ -125,6 +135,16 @@ LIA is available as a hosted service at **https://lia.jeyswork.com/** — no ins
 <p align="center">
   <img src="docs/assets/screenshot-settings-features.png" alt="Settings — Features (memory, interests, notifications)" width="800" />
   <br /><em>Settings — Features: LIA Style, long-term memory, interests, proactive notifications, scheduled actions, sub-agents, channels</em>
+</p>
+
+<p align="center">
+  <img src="docs/assets/screenshot-settings-features-memory.png" alt="Settings — Long-term memory" width="800" />
+  <br /><em>Settings — Long-term memory: pinned facts, automatic extraction, edit / delete / pin per memory</em>
+</p>
+
+<p align="center">
+  <img src="docs/assets/screenshot-settings-features-psyche.png" alt="Settings — Psyche Engine" width="800" />
+  <br /><em>Settings — Psyche Engine: Big Five personality traits modulating the assistant's emotional responsiveness</em>
 </p>
 
 <p align="center">

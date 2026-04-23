@@ -151,7 +151,9 @@ export function BriefingCard<T extends SectionData>({
               'text-muted-foreground/50 hover:text-foreground hover:bg-muted/60',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30',
               'disabled:opacity-50 disabled:cursor-not-allowed',
-              'opacity-0 group-hover:opacity-100 motion-safe:group-hover:rotate-12',
+              // Mobile: always visible (no hover on touch devices).
+              // Desktop (sm+): hidden until card hover, with a subtle rotate.
+              'opacity-100 sm:opacity-0 sm:group-hover:opacity-100 motion-safe:sm:group-hover:rotate-12',
               isRefreshing && 'opacity-100',
             )}
           >

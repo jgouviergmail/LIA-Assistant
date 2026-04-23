@@ -8,6 +8,8 @@ import { useLoggingContext } from '@/lib/logging-context';
  */
 export interface UserStatistics {
   // Lifetime totals
+  /** ISO datetime — start of the lifetime totals (user's account creation date) */
+  total_since: string;
   total_prompt_tokens: number;
   total_completion_tokens: number;
   total_cached_tokens: number;

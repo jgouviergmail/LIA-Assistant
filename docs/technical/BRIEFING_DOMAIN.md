@@ -138,27 +138,35 @@ Or `["all"]` to bypass every cache.
 ```
 apps/web/src/
 ├── components/dashboard/
-│   ├── TodayBriefing.tsx      Orchestrator — greeting + synthesis + hero + 6-card grid
-│   ├── BriefingGreeting.tsx   Top-of-page greeting
-│   ├── BriefingSynthesis.tsx  AI synthesis banner with sparkles avatar
-│   ├── BriefingCard.tsx       Generic 4-state card (status + refresh + skeleton overlay)
-│   ├── BriefingSkeleton.tsx   Initial load skeleton mirroring final layout
+│   ├── TodayBriefing.tsx      Orchestrator — Hero (greeting overlay) + synthesis + 6-card grid
+│   ├── HeroLiaCard.tsx        Marketing hero — accepts `greeting` prop and renders the LLM
+│   │                          greeting on top of the LIA avatar (replaces the rotating
+│   │                          random taglines as of v1.18.1). Falls back to a static localized
+│   │                          tagline while the LLM call is in flight; LLMUsageBadge below.
+│   ├── BriefingGreeting.tsx   (legacy — exported but no longer mounted by TodayBriefing
+│   │                          since v1.18.1; kept as a non-breaking deprecation cushion)
+│   ├── BriefingSynthesis.tsx  AI synthesis banner — primary accent + LLMUsageBadge
+│   ├── LLMUsageBadge.tsx      Inline tokens + EUR cost badge (used in Hero + Synthesis)
+│   ├── BriefingCard.tsx       Generic 4-state card. Per-card refresh icon visible by
+│   │                          default on mobile, hover-revealed on `sm+` (touch devices
+│   │                          have no hover, so the previous opacity-0 default was
+│   │                          invisible there — fixed in v1.18.1).
+│   ├── BriefingSkeleton.tsx   Initial load skeleton (CardsGridSkeleton, SynthesisSkeleton)
 │   ├── BriefingError.tsx      Page-level fallback (full payload error)
-│   ├── HeroLiaCard.tsx        Marketing hero (preserved from old dashboard)
-│   ├── QuickAccessCompact.tsx Help + Settings, 2 compact cards
-│   ├── UsageStatistics.tsx    Stats block (preserved verbatim)
+│   ├── QuickAccessCompact.tsx Help + Settings, 2 compact cards (above the dashboard grid)
+│   ├── UsageStatistics.tsx    Stats block — title typography matches "Mon dashboard"
+│   │                          (BarChart3 icon prefix), each StatCard shows the cycle
+│   │                          dates AND the lifetime "since DD/MM/YYYY" anchor below
+│   │                          the total (from `total_since` on the stats payload).
 │   ├── RefreshAllButton.tsx   "Tout rafraîchir" header button
-│   ├── UpdatedAtBadge.tsx     Relative timestamp + "updated ✨" badge
-│   └── cards/
-│       ├── WeatherCard.tsx
-│       ├── AgendaCard.tsx
-│       ├── MailsCard.tsx
-│       ├── BirthdaysCard.tsx
-│       ├── RemindersCard.tsx
-│       └── HealthCard.tsx
-├── hooks/useBriefing.ts        Initial GET + per-section refresh + refreshing state
-├── types/briefing.ts           Mirror of Pydantic schemas
-└── lib/briefing-utils.ts       computeTimeAgo, resolveErrorCtaKey, parseBirthdayIso
+│   └── UpdatedAtBadge.tsx     Relative timestamp + "updated ✨" badge
+│   └── cards/                 6 specific cards (Weather, Agenda, Mails, Birthdays,
+│                              Reminders, Health) — Health uses display:contents so the
+│                              today/average separators line up vertically across metrics.
+├── hooks/useBriefing.ts       Two parallel useApiQuery calls (cards + synthesis) for
+│                              non-blocking progressive rendering
+├── types/briefing.ts          Mirror of Pydantic schemas (LLMUsage, TextSection.usage)
+└── lib/briefing-utils.ts      computeTimeAgo, resolveErrorCtaKey, parseBirthdayIso
 ```
 
 ### UX behaviour

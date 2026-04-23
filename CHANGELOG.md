@@ -5,6 +5,91 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.18.1] - 2026-04-23
+
+### Changed — Today Briefing polish + screenshots refresh
+
+- **Greeting now lives on the Hero card** — The LLM-generated greeting that
+  used to sit as a standalone block above the Hero now overlays the LIA
+  avatar, replacing the rotating random marketing taglines. The `<HeroLiaCard>`
+  accepts an optional `greeting` prop (with `LLMUsageBadge` underneath
+  showing tokens + EUR cost) and falls back to a static localized tagline
+  while the LLM call is in flight, so the area is never empty.
+  `BriefingGreeting` and `GreetingSkeleton` are no longer mounted by
+  `<TodayBriefing>` (left in the codebase as exported components).
+- **Per-card refresh button always visible on mobile** — `<BriefingCard>`
+  used to hide its refresh icon until card hover (`opacity-0`
+  `group-hover:opacity-100`), which is invisible on touch devices. Now
+  visible by default on mobile and hover-revealed (with the +12° rotation
+  affordance) only on `sm+` viewports.
+- **Usage statistics show the lifetime starting date** — `UserStatistics`
+  schema gains a `total_since: datetime` field, populated from
+  `User.created_at` in the service layer (default factory keeps
+  `model_validate` working when constructing from the ORM row). Frontend
+  formats it via `Intl.DateTimeFormat` with the active locale and renders
+  "since DD/MM/YYYY" under each StatCard total. New i18n key
+  `dashboard.statistics.since` in 6 languages.
+- **Section headings get illustrative icons** — `<TodayBriefing>` "Mon
+  dashboard" gains a `Sunrise` icon (consistent with the Today Briefing
+  feature card in the FAQ); `<UsageStatistics>` "Statistiques d'utilisation"
+  gains a `BarChart3` icon. Both in `text-primary`, `aria-hidden="true"`,
+  matching the existing typography (`text-base sm:text-lg font-semibold`).
+- **Title typography parity** — `<UsageStatistics>` title now uses the
+  same Tailwind typography as `<TodayBriefing>` "Mon dashboard" so the
+  two main sections of the home page look like siblings rather than
+  unrelated blocks.
+
+### Changed — Screenshots refresh + cache-busting
+
+- **12 dashboard screenshots refreshed** — README (`docs/assets/`) and
+  landing (`apps/web/public/screenshots/`) now ship the v1.18.x captures
+  from `LIA Pics/v2/` and `apps/web/public/screenshots/v2/` respectively.
+  8 existing screenshots replaced (homepage, chat, settings-preferences,
+  settings-features, settings-administration,
+  settings-administration-oneclick, settings-administration-llm, faq) and
+  4 new ones added: `chat-debug-panel`, `chat-interactive-skills`,
+  `settings-features-memory`, `settings-features-psyche`.
+- **Automatic cache-busting on landing screenshots** — `<ScreenshotsSection>`
+  appends `?v={APP_VERSION}` to every `<Image src>` so the browser, the
+  Next.js Image optimizer (`.next/cache/images`) and any upstream CDN
+  re-fetch the new PNG at every release. No manual cache invalidation
+  required. The README, served by GitHub directly, refreshes via the
+  commit-driven CDN.
+- **README v1.18.0 release paragraph translated to English** — the v1.18.0
+  description was accidentally drafted in French; aligned with the rest
+  of the README, no content change.
+
+### Changed — Landing page descriptions condensed
+
+- **"Skills with maps & mini-apps"** and **"Health data"** descriptions
+  on the landing features grid were 4× longer than adjacent descriptions.
+  Both rewritten to ~150 chars in 6 languages to match the typography of
+  the rest of the grid (no information loss — the long-form details live
+  in the FAQ and dedicated docs).
+
+### Fixed
+
+- The optional `greeting` / `isLoadingGreeting` props on `<HeroLiaCard>`
+  are typed and default to `null`/`false` — calling `<HeroLiaCard />`
+  without them keeps the previous random-tagline behavior, so any other
+  caller that may instantiate the Hero outside the briefing flow is
+  unaffected.
+
+### i18n (6 languages)
+
+- New key `dashboard.statistics.since` in fr/en/de/es/it/zh.
+- 4 new caption keys `landing.screenshots.items.{chat_debug_panel,
+  chat_interactive_skills, settings_features_memory,
+  settings_features_psyche}` for the new screenshots in the carousel.
+- v1_18_1 changelog entry added to `faq.changelog.versions.*` (6 items,
+  user-facing only).
+
+### Tests + tooling
+
+- All 7401 unit tests pass.
+- `BriefingGreeting` and `GreetingSkeleton` are no longer used by the
+  layout but still exported (kept as a non-breaking deprecation cushion).
+
 ## [1.18.0] - 2026-04-23
 
 ### Added — Today Briefing : the home page becomes a daily ritual

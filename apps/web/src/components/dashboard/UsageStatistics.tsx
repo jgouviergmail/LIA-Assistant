@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslation } from 'react-i18next';
-import { Coins, Database, Globe, MessageSquare } from 'lucide-react';
+import { BarChart3, Coins, Database, Globe, MessageSquare } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import { useUsageLimits } from '@/hooks/useUsageLimits';
 import { useUserStatistics } from '@/hooks/useUserStatistics';
@@ -21,10 +21,12 @@ export function UsageStatistics() {
 
   const cycleDates =
     !statsLoading && statistics ? getCycleDates(statistics.current_cycle_start) : null;
+  const totalSinceIso = !statsLoading && statistics ? statistics.total_since : null;
 
   return (
     <div>
-      <h2 className="text-base sm:text-lg font-semibold tracking-tight text-foreground mb-4">
+      <h2 className="flex items-center gap-2 text-base sm:text-lg font-semibold tracking-tight text-foreground mb-4">
+        <BarChart3 className="h-5 w-5 text-primary shrink-0" aria-hidden="true" />
         {t('dashboard.statistics.title')}
       </h2>
       <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
@@ -37,6 +39,7 @@ export function UsageStatistics() {
           totalValue={
             !statsLoading && statistics ? formatNumber(statistics.total_messages) : null
           }
+          totalSinceIso={totalSinceIso}
         />
 
         <StatCard
@@ -62,6 +65,7 @@ export function UsageStatistics() {
                 )
               : null
           }
+          totalSinceIso={totalSinceIso}
         />
 
         <StatCard
@@ -75,6 +79,7 @@ export function UsageStatistics() {
               ? formatNumber(statistics.total_google_api_requests)
               : null
           }
+          totalSinceIso={totalSinceIso}
         />
 
         <StatCard
@@ -86,6 +91,7 @@ export function UsageStatistics() {
           totalValue={
             !statsLoading && statistics ? formatEuro(statistics.total_cost_eur, 2) : null
           }
+          totalSinceIso={totalSinceIso}
         />
 
         <UsageLimitsTile limits={usageLimits} isLoading={limitsLoading} />
@@ -101,10 +107,27 @@ interface StatCardProps {
   value: string;
   totalLabel: string;
   totalValue: string | null;
+  /** ISO datetime — start of the lifetime totals (account creation date). */
+  totalSinceIso: string | null;
 }
 
-function StatCard({ title, icon, cycleDates, value, totalLabel, totalValue }: StatCardProps) {
-  const { t } = useTranslation();
+function StatCard({
+  title,
+  icon,
+  cycleDates,
+  value,
+  totalLabel,
+  totalValue,
+  totalSinceIso,
+}: StatCardProps) {
+  const { t, i18n } = useTranslation();
+  const totalSinceLabel = totalSinceIso
+    ? new Intl.DateTimeFormat(i18n.language || 'fr', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      }).format(new Date(totalSinceIso))
+    : null;
   return (
     <Card
       variant="elevated"
@@ -126,9 +149,16 @@ function StatCard({ title, icon, cycleDates, value, totalLabel, totalValue }: St
       <CardContent className="space-y-3">
         <div className="text-4xl font-bold text-primary">{value}</div>
         {totalValue !== null && (
-          <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t border-border/50">
-            <span>{totalLabel}</span>
-            <span className="font-medium text-foreground/70">{totalValue}</span>
+          <div className="pt-2 border-t border-border/50 space-y-0.5">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>{totalLabel}</span>
+              <span className="font-medium text-foreground/70">{totalValue}</span>
+            </div>
+            {totalSinceLabel && (
+              <div className="text-[10px] text-muted-foreground/70 text-right tabular-nums">
+                {t('dashboard.statistics.since', { date: totalSinceLabel })}
+              </div>
+            )}
           </div>
         )}
       </CardContent>

@@ -2,9 +2,9 @@
 
 > Complete guide to install, configure, and get started with LIA - Multi-Agent AI Assistant v6.4
 
-**Version**: 3.7
+**Version**: 3.8
 **Last Updated**: 2026-04-23
-**Compatibility**: LIA v1.18.0 (+ evolution Features: Web Fetch, MCP Per-User, Multi-Channel Telegram, Heartbeat Autonome, RAG Spaces, Sub-Agents, Browser Control, Personal Journals, Philips Hue Smart Home, Rich Skill Outputs — ADR-075, Chat UX polish — LaTeX, syntax highlighting, history search, copy buttons — v1.16.9, Observability overhaul — 90+ metrics revived, 2 new dashboards, DB indexes — v1.16.10, Health Metrics — iPhone Shortcuts ingestion + token auth + chart visualization — ADR-076 — v1.17.0, Health Metrics polymorphic batch upsert refactor — v1.17.1, Health Metrics assistant integrations — agents + Heartbeat + journal + memory via central HEALTH_KINDS registry — v1.17.2, Today Briefing — daily ritual home page with greeting LLM + synthesis + 6 cards + per-section cache + tokens/cost UI — v1.18.0)
+**Compatibility**: LIA v1.18.1 (+ evolution Features: Web Fetch, MCP Per-User, Multi-Channel Telegram, Heartbeat Autonome, RAG Spaces, Sub-Agents, Browser Control, Personal Journals, Philips Hue Smart Home, Rich Skill Outputs — ADR-075, Chat UX polish — LaTeX, syntax highlighting, history search, copy buttons — v1.16.9, Observability overhaul — 90+ metrics revived, 2 new dashboards, DB indexes — v1.16.10, Health Metrics — iPhone Shortcuts ingestion + token auth + chart visualization — ADR-076 — v1.17.0, Health Metrics polymorphic batch upsert refactor — v1.17.1, Health Metrics assistant integrations — agents + Heartbeat + journal + memory via central HEALTH_KINDS registry — v1.17.2, Today Briefing — daily ritual home page with greeting LLM + synthesis + 6 cards + per-section cache + tokens/cost UI — v1.18.0, Today Briefing polish — greeting integrated into Hero + mobile-visible refresh icon + lifetime totals "since" anchor + section icons + 12 fresh screenshots with cache-busting — v1.18.1)
 
 ## Table of Contents
 

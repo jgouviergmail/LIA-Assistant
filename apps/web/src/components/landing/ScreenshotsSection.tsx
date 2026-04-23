@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useTranslation } from 'react-i18next';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { APP_VERSION } from '@/lib/version';
 import { FadeInOnScroll } from './FadeInOnScroll';
 
 interface ScreenshotItem {
@@ -12,18 +13,39 @@ interface ScreenshotItem {
   src: string;
 }
 
+// Cache-busting query string: bumped with every release so the browser, the
+// Next.js Image optimizer and any upstream CDN immediately re-fetch the new
+// PNG instead of serving a stale optimized variant.
+const CACHE_BUST = `?v=${APP_VERSION}`;
+
 const SCREENSHOTS: ScreenshotItem[] = [
-  { key: 'homepage', src: '/screenshots/homepage.png' },
-  { key: 'chat', src: '/screenshots/chat.png' },
-  { key: 'settings_preferences', src: '/screenshots/settings-preferences.png' },
-  { key: 'settings_features', src: '/screenshots/settings-features.png' },
-  { key: 'settings_administration', src: '/screenshots/settings-administration.png' },
+  { key: 'homepage', src: `/screenshots/homepage.png${CACHE_BUST}` },
+  { key: 'chat', src: `/screenshots/chat.png${CACHE_BUST}` },
+  { key: 'chat_debug_panel', src: `/screenshots/chat-debug-panel.png${CACHE_BUST}` },
+  {
+    key: 'chat_interactive_skills',
+    src: `/screenshots/chat-interactive-skills.png${CACHE_BUST}`,
+  },
+  { key: 'settings_preferences', src: `/screenshots/settings-preferences.png${CACHE_BUST}` },
+  { key: 'settings_features', src: `/screenshots/settings-features.png${CACHE_BUST}` },
+  {
+    key: 'settings_features_memory',
+    src: `/screenshots/settings-features-memory.png${CACHE_BUST}`,
+  },
+  {
+    key: 'settings_features_psyche',
+    src: `/screenshots/settings-features-psyche.png${CACHE_BUST}`,
+  },
+  { key: 'settings_administration', src: `/screenshots/settings-administration.png${CACHE_BUST}` },
   {
     key: 'settings_administration_oneclick',
-    src: '/screenshots/settings-administration-oneclick.png',
+    src: `/screenshots/settings-administration-oneclick.png${CACHE_BUST}`,
   },
-  { key: 'settings_administration_llm', src: '/screenshots/settings-administration-llm.png' },
-  { key: 'faq', src: '/screenshots/faq.png' },
+  {
+    key: 'settings_administration_llm',
+    src: `/screenshots/settings-administration-llm.png${CACHE_BUST}`,
+  },
+  { key: 'faq', src: `/screenshots/faq.png${CACHE_BUST}` },
 ];
 
 export function ScreenshotsSection() {

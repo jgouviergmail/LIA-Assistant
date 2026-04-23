@@ -3,7 +3,7 @@ Pydantic schemas for chat domain API contracts.
 """
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 from uuid import UUID
@@ -37,6 +37,13 @@ class UserStatisticsResponse(BaseModel):
     user_id: UUID
 
     # Lifetime totals
+    # total_since is populated by the service layer from ``user.created_at``
+    # (the ORM statistics row does not carry it). A default keeps model_validate
+    # working when constructing the response from ``UserStatistic``.
+    total_since: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        description="Start of the lifetime totals (the user's account creation date).",
+    )
     total_prompt_tokens: int = Field(description="All-time prompt tokens")
     total_completion_tokens: int = Field(description="All-time completion tokens")
     total_cached_tokens: int = Field(description="All-time cached tokens")

@@ -136,7 +136,7 @@ def extract_text_csv(file_path: Path) -> str:
 
 def extract_text_rtf(file_path: Path) -> str:
     """Extract text from RTF using striprtf."""
-    from striprtf.striprtf import rtf_to_text  # type: ignore[import-untyped]
+    from striprtf.striprtf import rtf_to_text
 
     raw = file_path.read_text(encoding="utf-8", errors="replace")
     return str(rtf_to_text(raw))

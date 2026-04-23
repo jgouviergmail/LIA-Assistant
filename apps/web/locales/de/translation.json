@@ -133,7 +133,8 @@
         "total": "Gesamt",
         "badge": "Maps & Places"
       },
-      "cycle_dates": "Zeitraum vom {{start}} bis {{end}}"
+      "cycle_dates": "Zeitraum vom {{start}} bis {{end}}",
+      "since": "seit {{date}}"
     },
     "actions": {
       "open_chat": "Chat öffnen",
@@ -2836,6 +2837,19 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_18_1": {
+          "title": "v1.18.1 — Today Briefing-Verfeinerung, frische Screenshots, erweiterte Statistiken",
+          "date": "April 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>LIA-Begrüßung direkt auf dem Begrüßungsbild</b> — Die personalisierte KI-Begrüßung wird jetzt direkt über dem LIA-Avatar angezeigt und ersetzt die zufälligen Marketing-Slogans. Persönlicher, mit der Token-Anzahl und den EUR-Kosten des Aufrufs dezent darunter.",
+            "i2": "<b>Aktualisieren-Button auf dem Smartphone immer sichtbar</b> — Auf Smartphones wird das kleine Sync-Symbol jeder Dashboard-Karte jetzt dauerhaft angezeigt (kein Hover nötig — gibt es auf Touchscreens nicht). Auf dem Desktop bleibt das Verhalten unverändert: sichtbar beim Hover über die Karte mit der +12°-Rotation.",
+            "i3": "<b>Nutzungsstatistiken: Startdatum der Gesamtsummen</b> — Unter jeder Gesamtsumme (Nachrichten, Tokens, Google-API-Anfragen, Kosten) zeigt ein kleines «seit TT/MM/JJJJ» Ihr Kontoerstellungsdatum — die Referenzbasis der Gesamtsummen ist jetzt eindeutig.",
+            "i4": "<b>Illustrative Symbole an den Dashboard-Sektionen</b> — «Mein Dashboard» wird mit einem Sonnenaufgang-Symbol 🌅 versehen (passend zum täglichen Ritual des Briefings); «Nutzungsstatistiken» erhält ein Balkendiagramm-Symbol 📊. Beide Titel teilen außerdem dieselbe Typografie und wirken so wie Geschwister-Sektionen.",
+            "i5": "<b>12 frische Dashboard-Screenshots auf der Landingpage</b> — Das Landing-Karussell und die README-Bilder werden mit den v1.18.x-Aufnahmen aufgefrischt, und 4 neue kommen hinzu: Chat-Debug-Panel, interaktive Skills, Langzeitgedächtnis, Psyche Engine. Der Cache wird automatisch invalidiert, sodass kein Browser auf den alten Bildern hängenbleibt.",
+            "i6": "<b>Beschreibungen «Skills» und «Gesundheitsdaten» auf der Startseite gekürzt</b> — Beide Beschreibungen waren 4× länger als die übrigen; neu geschrieben in 6 Sprachen auf dieselbe Länge wie die Nachbarn, ohne Informationsverlust (die Details verbleiben in der FAQ und der Dokumentation)."
+          }
+        },
         "v1_18_0": {
           "title": "v1.18.0 — Today Briefing: Die Startseite wird zum täglichen Ritual",
           "date": "April 2026",
@@ -5159,8 +5173,12 @@
       "items": {
         "homepage": "Dashboard — Startseite mit Nutzungsstatistiken und personalisierter Begrüßung",
         "chat": "Chat — Multi-Agenten-Konversation mit Echtzeit-Debug-Panel",
+        "chat_debug_panel": "Chat — Debug-Panel: Routing, Tool-Aufrufe, Token-Kosten und Reasoning-Zeitleiste",
+        "chat_interactive_skills": "Chat — Interaktive Skills: Karten, Dashboards, Kalender und Mini-Apps inline gerendert",
         "settings_preferences": "Einstellungen — Präferenzen: Konnektoren, MCP, Sprache, Themes",
         "settings_features": "Einstellungen — Funktionen: Gedächtnis, Interessen, Benachrichtigungen, Sub-Agenten",
+        "settings_features_memory": "Einstellungen — Langzeitgedächtnis: angeheftete Fakten, automatische Extraktion, Bearbeitung pro Erinnerung",
+        "settings_features_psyche": "Einstellungen — Psyche Engine: Big-Five-Persönlichkeitsmerkmale modulieren die emotionale Reaktivität",
         "settings_administration": "Administration — Vollständiges Kontrollpanel für Betreiber",
         "settings_administration_oneclick": "Administration — Ein-Klick-Einfachheit: jede Aktion sofort zugänglich",
         "settings_administration_llm": "Administration — LLM-Konfiguration: 8 Anbieter, Modellauswahl pro Knoten",

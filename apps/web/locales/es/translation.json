@@ -133,7 +133,8 @@
         "total": "Total",
         "badge": "Maps & Places"
       },
-      "cycle_dates": "Período del {{start}} al {{end}}"
+      "cycle_dates": "Período del {{start}} al {{end}}",
+      "since": "desde el {{date}}"
     },
     "actions": {
       "open_chat": "Abrir Chat",
@@ -2836,6 +2837,19 @@
       "title": "Historial de versiones",
       "description": "Novedades funcionales de LIA versión a versión",
       "versions": {
+        "v1_18_1": {
+          "title": "v1.18.1 — Today Briefing pulido, capturas renovadas, estadísticas enriquecidas",
+          "date": "Abril 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>Saludo de LIA directamente sobre la imagen de bienvenida</b> — El saludo personalizado generado por IA aparece ahora superpuesto al avatar de LIA, en lugar de las frases de marketing aleatorias. Más personal, con el consumo de tokens + coste en € de la llamada mostrado discretamente debajo.",
+            "i2": "<b>Botón de actualización siempre visible en móvil</b> — En smartphones, el pequeño icono de sincronización de cada tarjeta del panel está ahora siempre visible (no hace falta pasar el cursor — no existe en pantallas táctiles). En ordenador, el comportamiento no cambia: visible al pasar el cursor con la rotación de +12°.",
+            "i3": "<b>Estadísticas de uso: fecha de inicio del total acumulado</b> — Debajo de cada total acumulado (mensajes, tokens, peticiones Google, coste), una pequeña mención «desde el DD/MM/AAAA» indica la fecha de creación de tu cuenta — la base de referencia del acumulado ya es explícita.",
+            "i4": "<b>Iconos ilustrativos en las secciones del panel</b> — «Mi panel» va precedido de un icono de amanecer 🌅 (acorde al ritual diario del briefing); «Estadísticas de uso» recibe un icono de gráfico de barras 📊. Ambos títulos comparten ahora la misma tipografía para parecer secciones hermanas.",
+            "i5": "<b>12 capturas renovadas del panel en la página de presentación</b> — El carrusel de la landing y las imágenes del README se actualizan con las capturas de v1.18.x, y se añaden 4 nuevas: panel debug del chat, skills interactivas, memoria a largo plazo, Psyche Engine. La caché se invalida automáticamente para que ningún navegador conserve las imágenes antiguas.",
+            "i6": "<b>Descripciones de «Skills» y «Datos de salud» más concisas en la página de inicio</b> — Ambas descripciones eran 4× más largas que el resto; reescritas en 6 idiomas con la misma longitud que sus vecinas, sin perder información (los detalles permanecen en la FAQ y la documentación)."
+          }
+        },
         "v1_18_0": {
           "title": "v1.18.0 — Today Briefing: la página de inicio se convierte en un ritual diario",
           "date": "Abril 2026",
@@ -5159,8 +5173,12 @@
       "items": {
         "homepage": "Panel — Inicio con estadísticas de uso y saludo personalizado",
         "chat": "Chat — Conversación multi-agente con panel de depuración en tiempo real",
+        "chat_debug_panel": "Chat — Panel de depuración: enrutamiento, llamadas a herramientas, coste en tokens y línea de tiempo del razonamiento",
+        "chat_interactive_skills": "Chat — Skills interactivas: mapas, paneles, calendarios y mini-apps mostrados en línea",
         "settings_preferences": "Configuración — Preferencias: conectores, MCP, idioma, temas",
         "settings_features": "Configuración — Funciones: memoria, intereses, notificaciones, sub-agentes",
+        "settings_features_memory": "Configuración — Memoria a largo plazo: hechos fijados, extracción automática, edición por recuerdo",
+        "settings_features_psyche": "Configuración — Psyche Engine: rasgos de personalidad Big Five que modulan la reactividad emocional",
         "settings_administration": "Administración — Panel de control completo para operadores",
         "settings_administration_oneclick": "Administración — Simplicidad en un clic: cada acción accesible al instante",
         "settings_administration_llm": "Administración — Configuración LLM: 8 proveedores, selección de modelo por nodo",

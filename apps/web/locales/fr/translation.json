@@ -141,7 +141,8 @@
         "total": "Cumul total",
         "badge": "Maps & Places"
       },
-      "cycle_dates": "Période du {{start}} au {{end}}"
+      "cycle_dates": "Période du {{start}} au {{end}}",
+      "since": "depuis le {{date}}"
     },
     "actions": {
       "open_chat": "Ouvrir le Chat",
@@ -2850,6 +2851,19 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_18_1": {
+          "title": "v1.18.1 — Today Briefing peaufiné, captures rafraîchies, statistiques enrichies",
+          "date": "Avril 2026",
+          "count": "6",
+          "items": {
+            "i1": "<b>Greeting LIA directement sur l'image d'accueil</b> — Le mot d'accueil personnalisé généré par l'IA s'affiche désormais en surimpression sur l'avatar de LIA, à la place des phrases marketing aléatoires. C'est plus personnel, et la consommation tokens + coût € de l'appel reste affichée discrètement en dessous.",
+            "i2": "<b>Bouton de rafraîchissement toujours visible sur mobile</b> — Sur smartphone, le petit symbole de synchronisation de chaque card du dashboard est désormais toujours présent (pas besoin de survoler — ce qui n'existait pas sur écran tactile). Sur ordinateur, le comportement reste inchangé : visible au survol avec la rotation +12°.",
+            "i3": "<b>Statistiques d'utilisation : date de début du cumul total</b> — Sous chaque cumul total (messages, tokens, requêtes Google, coût), une mention « depuis le JJ/MM/AAAA » indique la date de création de votre compte — la borne de référence du cumul est désormais explicite.",
+            "i4": "<b>Icônes illustratives sur les sections du dashboard</b> — « Mon dashboard » est précédé d'un icône lever de soleil 🌅 (cohérent avec la nature « rituel quotidien » du briefing) ; « Statistiques d'utilisation » est précédé d'un icône histogramme 📊. Les deux titres sont aussi alignés en taille pour visuellement former une paire.",
+            "i5": "<b>12 nouvelles captures d'écran sur la page de présentation</b> — Le carrousel de la landing et les images du README sont rafraîchis avec les captures de la v1.18.x, et 4 nouvelles captures sont ajoutées : panneau debug du chat, skills interactives, mémoire long terme, Psyche Engine. Cache invalidé automatiquement pour qu'aucun navigateur ne reste sur les anciennes images.",
+            "i6": "<b>Descriptions « Skills » et « Données santé » plus concises sur la page d'accueil</b> — Ces deux descriptions étaient 4× plus longues que les autres ; elles sont réécrites à la même longueur que leurs voisines dans les 6 langues, sans perte d'information (les détails restent dans la FAQ et la documentation)."
+          }
+        },
         "v1_18_0": {
           "title": "v1.18.0 — Today Briefing : la home devient un rituel quotidien",
           "date": "Avril 2026",
@@ -5165,8 +5179,12 @@
       "items": {
         "homepage": "Tableau de bord — Accueil avec statistiques d'utilisation et accueil personnalisé",
         "chat": "Chat — Conversation multi-agents avec panneau debug en temps réel",
+        "chat_debug_panel": "Chat — Panneau debug : routage, appels d'outils, coût en tokens et timeline du raisonnement",
+        "chat_interactive_skills": "Chat — Skills interactives : cartes, dashboards, calendriers et mini-applications affichés en ligne",
         "settings_preferences": "Paramètres — Préférences : connecteurs, MCP, langue, thèmes",
         "settings_features": "Paramètres — Fonctionnalités : mémoire, centres d'intérêt, notifications, sous-agents",
+        "settings_features_memory": "Paramètres — Mémoire long terme : faits épinglés, extraction automatique, édition par souvenir",
+        "settings_features_psyche": "Paramètres — Psyche Engine : traits de personnalité Big Five modulant la réactivité émotionnelle",
         "settings_administration": "Administration — Panneau de contrôle complet pour les opérateurs",
         "settings_administration_oneclick": "Administration — Simplicité en un clic : chaque action accessible instantanément",
         "settings_administration_llm": "Administration — Configuration LLM : 8 fournisseurs, sélection de modèle par nœud",

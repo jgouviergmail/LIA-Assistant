@@ -1204,6 +1204,10 @@ class StatisticsService:
 
         response = UserStatisticsResponse.model_validate(stats)
 
+        # The lifetime totals start on the day the account was created — exposed
+        # to the UI so "total" figures can be shown with their origin date.
+        response.total_since = user.created_at
+
         # Include Google API costs in total cost fields for accurate billing display.
         # DB stores LLM and Google API costs separately for traceability.
         # We combine them here (service layer) so the frontend shows the real total.
