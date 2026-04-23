@@ -123,6 +123,7 @@ export const LLM_CATEGORY_LABELS: Record<string, string> = {
   hitl: 'HITL',
   memory: 'Memory',
   background: 'Background',
+  briefing: 'Briefing',
   specialized: 'Specialized',
 };
 
@@ -133,5 +134,6 @@ export const LLM_CATEGORIES_ORDER = [
   'hitl',
   'memory',
   'background',
+  'briefing',
   'specialized',
 ];

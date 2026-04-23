@@ -127,6 +127,8 @@ LLMType = Literal[
     "psyche_summary",  # Psyche: LLM-generated natural language state summary
     # 3-Phase Memory Reference Resolution
     "memory_reference_extraction",  # Memory: extract personal references from query for targeted search
+    # Today Briefing (v1.18.0) — greeting + synthesis on the dashboard home page
+    "briefing",
 ]
 
 

@@ -150,7 +150,17 @@ class TestBuildMcpReference:
         token = user_mcp_tools_ctx.set(ctx)
         try:
             with patch("src.infrastructure.mcp.client_manager.get_mcp_client_manager") as mock_mgr:
-                admin = type("M", (), {"reference_content": {"excalidraw": "ADMIN content"}})()
+                # ADR-062: the admin manager is also asked for server_configs to
+                # detect iterative_mode servers (skipped from reference content).
+                # An empty mapping keeps the iterative-skip branch a no-op.
+                admin = type(
+                    "M",
+                    (),
+                    {
+                        "reference_content": {"excalidraw": "ADMIN content"},
+                        "server_configs": {},
+                    },
+                )()
                 mock_mgr.return_value = admin
                 result = SmartPlannerService._build_mcp_reference(["mcp_excalidraw"])
 

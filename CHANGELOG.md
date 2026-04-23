@@ -5,6 +5,108 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.18.0] - 2026-04-23
+
+### Added — Today Briefing : the home page becomes a daily ritual
+
+The dashboard home page was a static stats display. It is now a **Today
+briefing** — an LLM-generated greeting + contextual synthesis above a
+6-card grid of operational data (weather, calendar, unread mails, upcoming
+birthdays, active reminders, health metrics).
+
+#### New bounded context `apps/api/src/domains/briefing/`
+
+- **No LangGraph chain** — direct orchestration via `asyncio.gather` of the
+  existing services (OpenWeatherMap, multi-provider calendar/email,
+  GooglePeople, ReminderService, HealthMetricsService).
+- **No DB model, no migration, no scheduler** — pure read orchestration.
+- **Per-section Redis cache** with TTL aligned to each source's natural
+  change rate: weather 1 h, agenda 10 min, mails 5 min, birthdays 24 h,
+  reminders live, health 15 min.
+- **6 source fetchers** — pure async functions, each independently failable.
+  `ConnectorNotConfiguredError` → `NOT_CONFIGURED` (card hidden in UI).
+  `ConnectorAccessError` → `ERROR` (CTA mapped via stable `error_code`).
+- **2 LLM calls** (greeting + synthesis) on a single `briefing` slot in
+  `LLM_TYPES_REGISTRY` (default `gpt-4.1-nano`, T=0.7, 500 tokens), with
+  two distinct versioned prompts. Tokens tracked via existing
+  `track_proactive_tokens(task_type="briefing")` (cached tokens correctly
+  subtracted from `input_tokens` to avoid double-counting cost). Synthesis
+  is skipped when fewer than 2 cards have OK data. Fallback localized
+  greeting guarantees the page always renders if the LLM is down. Each
+  `TextSection` payload carries an optional `LLMUsage` block
+  (`tokens_in`, `tokens_out`, `tokens_cache`, `cost_eur`, `model_name`)
+  computed via the in-memory pricing cache so the UI can surface real
+  consumption next to the timestamp.
+
+#### Endpoints
+
+- `GET /api/v1/briefing/today` — assemble + return briefing (cache-aware).
+- `POST /api/v1/briefing/refresh` — force-refresh selected sections (or
+  `"all"`); LLM always regenerated for consistency.
+
+#### Frontend (`apps/web/src/components/dashboard/`)
+
+- **Generic `<BriefingCard>`** with 4 status states (OK / EMPTY / ERROR /
+  NOT_CONFIGURED). Refresh button per card with overlay spinner. Optional
+  `centerContent` prop vertically + horizontally centers OK content (used
+  by Weather + Health).
+- **`<BriefingSkeleton>`** mirrors the final layout for a seamless first paint.
+- **`<BriefingSynthesis>` + `<BriefingGreeting>`** display a discreet
+  `<LLMUsageBadge>` next to the timestamp — total tokens + EUR cost, with
+  a tooltip detailing model + IN / OUT / CACHE breakdown. Synthesis also
+  flashes a "mis à jour ✨" badge for 1.5 s after a refresh.
+- **6 specific cards** : Weather, Agenda, Mails, Birthdays, Reminders, Health.
+  - Weather forecast strip — weekday label derived client-side from
+    `date_iso` via `Intl.DateTimeFormat` (locale-aware, replaces the
+    C-locale `weekday_short` field that no longer ships in the API).
+  - Health card — single CSS grid with `display: contents` on list items
+    so the today / average separators line up vertically across metrics
+    regardless of label widths. List semantics preserved.
+- **`<HeroLiaCard>`** preserved verbatim (kept the marketing tagline).
+- **`<QuickAccessCompact>`** — 2 compact cards (Help + Settings) replacing
+  the previous 3 large cards. The "Security" card (no actionable purpose)
+  has been removed.
+- **`<UsageStatistics>`** — preserved verbatim (extracted to its own component).
+- **Animations** : `animate-in fade-in slide-in-from-bottom-1` on cards with
+  50 ms stagger; bouton refresh `animate-spin` during fetch, +12° rotation
+  on hover. All wrapped in `motion-safe:` for `prefers-reduced-motion`.
+- **Strict black/white per theme** — no decorative gradient. The chromatic
+  warmth comes from the content (greeting/synthesis), not the decor.
+
+#### Observability
+
+- 4 new Prometheus metrics in `metrics_briefing.py`:
+  `briefing_build_duration_seconds`, `briefing_section_status_total`,
+  `briefing_refresh_requests_total`, `briefing_llm_invocations_total`.
+- Single structured `briefing_built` log line per build with
+  duration_ms + cache_state + sections_status.
+
+#### i18n (6 languages)
+
+- 16 new keys per locale under `dashboard.briefing.*` (en, fr, de, es, it, zh).
+- 6 card-specific subsections with empty states, error CTAs, units.
+- `usage_tokens` key uses i18next pluralization (`_one` / `_other`) so the
+  inline LLM usage badge stays grammatically correct at any token count.
+
+#### Tests + docs
+
+- `tests/unit/domains/briefing/` — 30+ unit tests on formatters + service
+  orchestration with mocked fetchers + LLM, including a happy-path test
+  asserting that `LLMUsage` returned by the LLM helpers lands on
+  `TextSection.usage` for both greeting and synthesis.
+- `docs/technical/BRIEFING_DOMAIN.md` — full architecture + API + recipe
+  to add a new card.
+- `docs/architecture/ADR-077-Today-Briefing-Domain.md` — rationale for the
+  separate bounded context + LangGraph bypass.
+
+#### Cost & performance
+
+- Latency: < 1 s on warm cache, < 2 s on cold cache (P95 target).
+- LLM cost: ~ 0.005 cent per build, < 1 €/month total at 100 active users.
+- Cache footprint: ~ 60 MB Redis at 1000 users.
+
+---
+
 ## [1.17.2] - 2026-04-22
 
 ### Added — Health Metrics : agents + Heartbeat + Journal + Mémoire + extensibilité

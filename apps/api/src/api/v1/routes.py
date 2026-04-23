@@ -10,6 +10,7 @@ from src.core.config import settings
 from src.core.field_names import FIELD_STATUS
 from src.domains.agents.api.router import router as agents_router
 from src.domains.auth.router import router as auth_router
+from src.domains.briefing.router import router as briefing_router
 from src.domains.chat.router import router as chat_router
 from src.domains.connectors.router import router as connectors_router
 from src.domains.conversations.router import router as conversations_router
@@ -42,6 +43,7 @@ api_router.include_router(memories_router)
 api_router.include_router(interests_router)
 api_router.include_router(notifications_router)
 api_router.include_router(scheduled_actions_router)
+api_router.include_router(briefing_router)  # Today dashboard
 if getattr(settings, "sub_agents_enabled", False):
     from src.domains.sub_agents.router import router as sub_agents_router
 

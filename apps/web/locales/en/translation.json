@@ -174,6 +174,79 @@
         "badge": "Active",
         "button": "Active protection"
       }
+    },
+    "loading": "Loading your Today…",
+    "quick_access_compact": {
+      "help": "Help",
+      "settings": "Settings",
+      "help_sub": "FAQ and support",
+      "settings_sub": "Connectors and preferences"
+    },
+    "briefing": {
+      "section_title": "My dashboard",
+      "skeleton_loading": "Preparing your briefing…",
+      "refresh_all": "Refresh all",
+      "refresh_all_tooltip": "Force-refresh every card and regenerate the greeting + synthesis",
+      "refresh_section": "Refresh {{section}}",
+      "refreshing": "Updating…",
+      "updated_just_now": "just now",
+      "updated_minutes_ago": "{{minutes}} min ago",
+      "synthesis_updated_badge": "updated ✨",
+      "usage_tokens_one": "{{formatted}} token",
+      "usage_tokens_other": "{{formatted}} tokens",
+      "usage_tooltip": "Model: {{model}}\nIN: {{tokens_in}} · OUT: {{tokens_out}} · CACHE: {{tokens_cache}}\nCost: {{cost}}",
+      "errors": {
+        "generic": "Something went wrong",
+        "page_title": "Briefing unavailable",
+        "page_description": "Couldn't load your Today right now. Please try again in a moment.",
+        "retry": "Retry"
+      },
+      "actions": {
+        "reconnect": "Reconnect",
+        "retry": "Retry",
+        "retry_later": "Try again later",
+        "configure": "Configure"
+      },
+      "cards": {
+        "weather": {
+          "title": "Weather",
+          "empty": "No weather data available",
+          "temp": "{{value}}°C"
+        },
+        "agenda": {
+          "title": "Agenda",
+          "empty": "No meetings today 🎈"
+        },
+        "mails": {
+          "title": "Unread mail",
+          "empty": "Inbox zero 🎉",
+          "unread_label_one": "unread today",
+          "unread_label_other": "unread today"
+        },
+        "birthdays": {
+          "title": "Birthdays",
+          "empty": "Nothing in the next 14 days",
+          "today": "today",
+          "in_days_one": "{{count}} day",
+          "in_days_other": "{{count}} days"
+        },
+        "reminders": {
+          "title": "Active reminders",
+          "empty": "No active reminders"
+        },
+        "health": {
+          "title": "Health",
+          "empty": "No recent health data",
+          "kind_steps": "Step count",
+          "kind_heart_rate": "Heart rate",
+          "today": "Today",
+          "avg_window": "Avg {{window}} d",
+          "unit_steps": "steps",
+          "unit_heart_rate": "bpm"
+        }
+      },
+      "updated_hours_ago": "{{hours}} h ago",
+      "updated_days_ago": "{{days}} d ago"
     }
   },
   "auth": {
@@ -1600,7 +1673,8 @@
           "initiative": "Post-execution proactive enrichment (read-only checks)",
           "mcp_react_agent": "MCP iterative mode: reads server documentation, then executes tools step by step",
           "image_generation": "AI image generation from text descriptions (gpt-image-1, etc.)",
-          "psyche_summary": "Psyche Summary"
+          "psyche_summary": "Psyche Summary",
+          "briefing": "Generates the home dashboard greeting and synthesis (Today)"
         },
         "no_compatible_model": "No model from this provider supports this feature",
         "ollama": {
@@ -1615,6 +1689,7 @@
           "hitl": "HITL (Human-in-the-Loop)",
           "memory": "Memory",
           "background": "Background Tasks",
+          "briefing": "Briefing",
           "specialized": "Specialized"
         },
         "fields": {
@@ -2758,6 +2833,10 @@
         "proactiveInitiative": {
           "title": "🎯 Proactive Initiative",
           "description": "After completing the main request, the assistant evaluates whether results reveal cross-domain connections relevant to the user. Example: weather shows rain Saturday → checks calendar for outdoor activities. In Pipeline mode, a dedicated node with LLM evaluation. In ReAct mode, integrated directly into the agent's reasoning via the CROSS-CHECK prompt step."
+        },
+        "todayBriefing": {
+          "title": "🌅 Today Briefing",
+          "description": "The dashboard home page is a daily briefing: personalized LLM greeting + 2-3 sentence synthesis above a 6-card grid (enriched weather, agenda, unread mails, birthdays, reminders, health). Pure architecture: no LangGraph chain, parallel asyncio.gather, per-section Redis cache with adapted TTL (weather 1 h, agenda 10 min, mails 5 min…). Split endpoints (/briefing/cards fast + /briefing/synthesis LLM-bound) for progressive rendering. Tokens and EUR cost of each LLM call surfaced in the UI next to the timestamp and tracked in user usage statistics via track_proactive_tokens (cached tokens correctly subtracted)."
         }
       },
       "diagram_alt": "LIA architecture diagram"
@@ -2766,6 +2845,20 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_18_0": {
+          "title": "v1.18.0 — Today Briefing: the home becomes a daily ritual",
+          "date": "April 2026",
+          "count": "7",
+          "items": {
+            "i1": "<b>New 'Today' home page</b> — The dashboard replaces static stats with a daily briefing: a personalized AI-generated greeting, a 2-3 sentence synthesis as a teleprompter, then a grid of 6 operational cards: enriched weather (with 5-day forecast, wind, rain probability), today's agenda, unread mails, upcoming birthdays, active reminders, health metrics.",
+            "i2": "<b>Non-blocking progressive rendering</b> — The 6 cards appear as soon as the sources respond (≈ 1 s) without waiting for the AI. The synthesis arrives once the LLM has finished (≈ 1-3 s) with a discreet 'updated ✨' badge for 1.5 s. If a card temporarily fails (expired Google token, etc.), only that card shows its CTA — the others stay visible.",
+            "i3": "<b>Per-section cache with on-demand refresh</b> — Each card has its own TTL adapted to its change rate (weather 1 h, agenda 10 min, mails 5 min, birthdays 24 h, reminders live, health 15 min). Per-card 'refresh' button visible on hover, 'refresh all' button at the top of the grid to re-fetch every source and regenerate the synthesis.",
+            "i4": "<b>Tokens and cost visible at a glance</b> — Greeting and synthesis LLM calls display their actual consumption (token count + EUR cost) next to the timestamp, with a tooltip detailing the model used and the IN / OUT / CACHE breakdown. This consumption is also aggregated into your usual usage statistics, with no double-counting of cached tokens.",
+            "i5": "<b>Weather localized in 6 languages</b> — Day abbreviations in the 5-day forecast strip now use the browser's date format (Mon, lun., Mo., lun, lun, 周一) instead of a fixed English label.",
+            "i6": "<b>Health card with aligned columns</b> — The 'today' and '14-day average' values for each metric (step count, heart rate) are now laid out in a fixed grid: the vertical separators between today/average line up horizontally across both metrics, regardless of label length.",
+            "i7": "<b>Compact Quick Access</b> — The previous 3 quick-access cards are replaced by 2 cards (Help + Settings) with refined icons and hover states. The 'Security' card with no actionable purpose was removed."
+          }
+        },
         "v1_17_2": {
           "title": "v1.17.2 — Health data: the assistant dialogues with your measurements, generic ingestion API",
           "date": "April 2026",
@@ -4967,11 +5060,11 @@
       },
       "skills": {
         "title": "Skills with maps & mini-apps",
-        "description": "Supercharge LIA with custom expert skills. Skills can now render interactive maps, dashboards, calendars, QR codes, and mini-applications directly in the chat — with automatic theme and locale sync. Create your own in natural language with the built-in Skill Generator, or import from agentskills.io-compatible marketplaces. Compatible with 30+ tools including Claude Code, Cursor, and VS Code."
+        "description": "Supercharge LIA with custom expert skills that render maps, dashboards and mini-apps right in the chat. Create them in natural language or import."
       },
       "health_metrics": {
         "title": "Health data",
-        "description": "Dedicated ingestion API to push heart rate and step counts from any source (iOS Shortcuts, Android automation, third-party integration, IoT). Automatic server-side deduplication with smart fusion when several sources cover the same period (MAX for steps, average for heart rate). Visualization by hour / day / week / month / year with period average. Authenticated by a dedicated, revocable token. Data encrypted at rest, never logged in plain text."
+        "description": "Push heart rate and step counts from any source. Visualization by period, automatic deduplication, dedicated revocable token."
       },
       "sub_agents": {
         "title": "Sub-Agents",

@@ -1667,6 +1667,10 @@ HITL_PLAN_APPROVAL_QUESTION_PROMPT_VERSION_DEFAULT = "v1"
 #    Planner and Validator instead of harassing user with clarification questions
 SEMANTIC_VALIDATOR_PROMPT_VERSION_DEFAULT = "v1"
 
+# Briefing prompt versions (Today dashboard — greeting + synthesis)
+BRIEFING_GREETING_PROMPT_VERSION_DEFAULT = "v1"
+BRIEFING_SYNTHESIS_PROMPT_VERSION_DEFAULT = "v1"
+
 # HITL rejection inference threshold (Issue #60)
 # When inferring rejection type, if classifier confidence < this threshold
 # the rejection is categorized as "low_confidence" (requires clarification)

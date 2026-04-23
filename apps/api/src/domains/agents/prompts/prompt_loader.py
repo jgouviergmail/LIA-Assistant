@@ -139,6 +139,9 @@ PromptName = Literal[
     "html_response_directive",
     # Health Metrics — assistant agent (v1.17.2)
     "health_agent_prompt",
+    # Today Dashboard — Briefing (greeting + synthesis)
+    "briefing_greeting_prompt",
+    "briefing_synthesis_prompt",
     # Future prompts:
     # "emails_agent_prompt",
     # "calendar_agent_prompt",

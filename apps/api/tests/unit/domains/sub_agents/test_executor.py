@@ -85,10 +85,16 @@ class TestDailyBudget:
     @patch("src.infrastructure.cache.redis.get_redis_cache", new_callable=AsyncMock)
     async def test_budget_exceeded(self, mock_get_redis):
         """Raise ValidationError when budget exceeded."""
+        from src.core.config import settings
         from src.core.exceptions import ValidationError
 
+        # Pick a value strictly above the configured daily cap so the assertion
+        # remains correct regardless of the env-driven default.
+        max_daily = getattr(settings, "subagent_max_total_tokens_per_day", 500000)
+        over_budget = str(max_daily + 1).encode()
+
         mock_redis = AsyncMock()
-        mock_redis.get.return_value = b"999999"
+        mock_redis.get.return_value = over_budget
         mock_get_redis.return_value = mock_redis
 
         with pytest.raises(ValidationError, match="budget exceeded"):

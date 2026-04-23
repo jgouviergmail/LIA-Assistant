@@ -46,6 +46,7 @@ CATEGORY_QUERY_RESPONSE = "query_response"
 CATEGORY_HITL = "hitl"
 CATEGORY_MEMORY = "memory"
 CATEGORY_BACKGROUND = "background"
+CATEGORY_BRIEFING = "briefing"
 CATEGORY_SPECIALIZED = "specialized"
 
 # Ordered category list for UI display
@@ -56,6 +57,7 @@ LLM_CATEGORIES_ORDER = [
     CATEGORY_HITL,
     CATEGORY_MEMORY,
     CATEGORY_BACKGROUND,
+    CATEGORY_BRIEFING,
     CATEGORY_SPECIALIZED,
 ]
 
@@ -346,6 +348,15 @@ LLM_TYPES_REGISTRY: dict[str, LLMTypeMetadata] = {
         description_key="settings.admin.llmConfig.types.broadcast_translator",
         required_capabilities=[],
         power_tier=POWER_TIER_MEDIUM,
+    ),
+    # --- Briefing (Today dashboard) ---
+    "briefing": LLMTypeMetadata(
+        llm_type="briefing",
+        display_name="Briefing (Greeting + Synthesis)",
+        category=CATEGORY_BRIEFING,
+        description_key="settings.admin.llmConfig.types.briefing",
+        required_capabilities=[],
+        power_tier=POWER_TIER_LOW,
     ),
     # --- Specialized ---
     "voice_comment": LLMTypeMetadata(
@@ -866,6 +877,16 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
         reasoning_effort="minimal",
     ),
     # --- Background ---
+    "briefing": LLMAgentConfig(
+        provider="openai",
+        model="gpt-4.1-nano",
+        temperature=0.7,
+        top_p=1.0,
+        frequency_penalty=0.0,
+        presence_penalty=0.0,
+        max_tokens=500,
+        timeout_seconds=20.0,
+    ),
     "broadcast_translator": LLMAgentConfig(
         provider="openai",
         model="gpt-5-mini",

@@ -144,8 +144,13 @@ class TestCreateServer:
     @pytest.mark.asyncio
     async def test_create_exceeds_limit(self, service) -> None:
         """Should reject creation when user has reached the max limit."""
-        service.repository.count_for_user = AsyncMock(return_value=5)
+        from src.core.config import settings
         from src.core.exceptions import ValidationError
+
+        # Mock the user count strictly above the configured per-user cap so the
+        # assertion stays correct regardless of the env-driven default.
+        max_servers = settings.mcp_user_max_servers_per_user
+        service.repository.count_for_user = AsyncMock(return_value=max_servers)
 
         with pytest.raises(ValidationError, match="Maximum of"):
             await service.create_server(

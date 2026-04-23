@@ -60,6 +60,7 @@ import {
   Monitor,
   ImageIcon,
   History,
+  Sunrise,
 } from 'lucide-react';
 
 interface FAQContentProps {
@@ -233,6 +234,7 @@ function highlightTextContent(text: string, normalizedQuery: string): string {
 }
 
 const changelogVersionKeys = [
+  'v1_18_0',
   'v1_17_2',
   'v1_17_1',
   'v1_17_0',
@@ -301,6 +303,7 @@ const featureIcons = {
   imageGeneration: ImageIcon,
   reactMode: Zap,
   proactiveInitiative: Compass,
+  todayBriefing: Sunrise,
 };
 
 const featureKeys = [
@@ -339,6 +342,7 @@ const featureKeys = [
   'imageGeneration',
   'reactMode',
   'proactiveInitiative',
+  'todayBriefing',
 ];
 
 export function FAQContent({ lng, onShowWelcome, showWelcomeButton = false }: FAQContentProps) {

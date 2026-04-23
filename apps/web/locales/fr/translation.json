@@ -174,6 +174,79 @@
         "badge": "Actif",
         "button": "Protection active"
       }
+    },
+    "loading": "Chargement de ton Today…",
+    "quick_access_compact": {
+      "help": "Aide",
+      "settings": "Paramètres",
+      "help_sub": "FAQ et support",
+      "settings_sub": "Connecteurs et préférences"
+    },
+    "briefing": {
+      "section_title": "Mon dashboard",
+      "skeleton_loading": "Préparation de ton briefing…",
+      "refresh_all": "Tout rafraîchir",
+      "refresh_all_tooltip": "Force le rafraîchissement de toutes les cards et régénère le greeting + la synthèse",
+      "refresh_section": "Rafraîchir {{section}}",
+      "refreshing": "Mise à jour…",
+      "updated_just_now": "à l'instant",
+      "updated_minutes_ago": "il y a {{minutes}} min",
+      "synthesis_updated_badge": "mis à jour ✨",
+      "usage_tokens_one": "{{formatted}} token",
+      "usage_tokens_other": "{{formatted}} tokens",
+      "usage_tooltip": "Modèle : {{model}}\nIN : {{tokens_in}} · OUT : {{tokens_out}} · CACHE : {{tokens_cache}}\nCoût : {{cost}}",
+      "errors": {
+        "generic": "Une erreur est survenue",
+        "page_title": "Briefing indisponible",
+        "page_description": "Impossible de charger ton Today pour le moment. Réessaie dans quelques instants.",
+        "retry": "Réessayer"
+      },
+      "actions": {
+        "reconnect": "Reconnecter",
+        "retry": "Réessayer",
+        "retry_later": "Réessayer plus tard",
+        "configure": "Configurer"
+      },
+      "cards": {
+        "weather": {
+          "title": "Météo",
+          "empty": "Pas de données météo disponibles",
+          "temp": "{{value}}°C"
+        },
+        "agenda": {
+          "title": "Agenda",
+          "empty": "Aucun rdv aujourd'hui 🎈"
+        },
+        "mails": {
+          "title": "Mails non lus",
+          "empty": "Inbox propre 🎉",
+          "unread_label_one": "non lu aujourd'hui",
+          "unread_label_other": "non lus aujourd'hui"
+        },
+        "birthdays": {
+          "title": "Anniversaires",
+          "empty": "Rien dans les 14 prochains jours",
+          "today": "aujourd'hui",
+          "in_days_one": "{{count}} jour",
+          "in_days_other": "{{count}} jours"
+        },
+        "reminders": {
+          "title": "Rappels actifs",
+          "empty": "Aucun rappel actif"
+        },
+        "health": {
+          "title": "Santé",
+          "empty": "Pas de données santé récentes",
+          "kind_steps": "Nombre de pas",
+          "kind_heart_rate": "Fréquence cardiaque",
+          "today": "Aujourd'hui",
+          "avg_window": "Moy. {{window}} j",
+          "unit_steps": "pas",
+          "unit_heart_rate": "bpm"
+        }
+      },
+      "updated_hours_ago": "il y a {{hours}} h",
+      "updated_days_ago": "il y a {{days}} j"
     }
   },
   "auth": {
@@ -1787,7 +1860,8 @@
           "initiative": "Enrichissement proactif post-exécution (vérifications en lecture seule)",
           "mcp_react_agent": "MCP mode itératif : lit la documentation du serveur, puis exécute les outils étape par étape",
           "image_generation": "Génération d'images par IA à partir de descriptions textuelles (gpt-image-1, etc.)",
-          "psyche_summary": "Psyche Summary"
+          "psyche_summary": "Psyche Summary",
+          "briefing": "Génère le greeting et la synthèse du dashboard d'accueil (Today)"
         },
         "no_compatible_model": "Aucun modèle de ce provider ne supporte cette fonctionnalité",
         "ollama": {
@@ -1802,6 +1876,7 @@
           "hitl": "HITL (Human-in-the-Loop)",
           "memory": "Mémoire",
           "background": "Tâches de fond",
+          "briefing": "Briefing",
           "specialized": "Spécialisés"
         },
         "fields": {
@@ -2763,6 +2838,10 @@
         "proactiveInitiative": {
           "title": "🎯 Initiative Proactive",
           "description": "Après l'exécution de la demande principale, l'assistant évalue si les résultats révèlent des connexions cross-domaines pertinentes pour l'utilisateur. Exemple : météo annonce pluie samedi → vérifie le calendrier pour signaler des activités en extérieur. En mode Pipeline, un node dédié avec évaluation LLM. En mode ReAct, intégré directement dans le raisonnement de l'agent via le step CROSS-CHECK du prompt."
+        },
+        "todayBriefing": {
+          "title": "🌅 Today Briefing",
+          "description": "La home du dashboard est un briefing quotidien : greeting LLM personnalisé + synthèse 2-3 phrases au-dessus d'une grille de 6 cards (météo enrichie, agenda, mails non lus, anniversaires, rappels, santé). Architecture pure : aucun graphe LangGraph, asyncio.gather parallèle, cache Redis par section avec TTL adapté (météo 1 h, agenda 10 min, mails 5 min…). Endpoints split (/briefing/cards rapide + /briefing/synthesis LLM-bound) pour un rendu progressif. Tokens et coût EUR de chaque appel LLM exposés dans l'UI à côté du timestamp et trackés dans les statistiques d'usage utilisateur via track_proactive_tokens (cached tokens correctement soustraits)."
         }
       },
       "diagram_alt": "Schéma d'architecture de LIA"
@@ -2771,6 +2850,20 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_18_0": {
+          "title": "v1.18.0 — Today Briefing : la home devient un rituel quotidien",
+          "date": "Avril 2026",
+          "count": "7",
+          "items": {
+            "i1": "<b>Nouvelle home « Today »</b> — Le tableau de bord remplace les statistiques statiques par un briefing du jour : un mot d'accueil personnalisé généré par l'IA, une synthèse en 2-3 phrases sous forme de prompteur, puis une grille de 6 cards opérationnelles : météo enrichie (avec prévisions 5 jours, vent, probabilité de pluie), agenda du jour, mails non lus, anniversaires à venir, rappels actifs, métriques santé.",
+            "i2": "<b>Rendu progressif non-bloquant</b> — Les 6 cards apparaissent dès que les sources répondent (≈ 1 s) sans attendre l'IA. La synthèse arrive ensuite quand le LLM a fini (≈ 1-3 s) avec un badge « mis à jour ✨ » discret pendant 1,5 s. Si une carte refuse temporairement (token Google expiré, etc.), seule cette carte affiche son CTA — les autres restent visibles.",
+            "i3": "<b>Cache par section avec rafraîchissement à la demande</b> — Chaque card a son propre TTL adapté à sa fréquence de changement (météo 1h, agenda 10 min, mails 5 min, anniversaires 24h, rappels en direct, santé 15 min). Bouton « rafraîchir » par card visible au survol, bouton « tout rafraîchir » en haut de la grille pour relancer toutes les sources et régénérer la synthèse.",
+            "i4": "<b>Tokens et coût visibles à l'usage</b> — Les appels LLM du greeting et de la synthèse affichent leur consommation réelle (nombre de tokens + coût en EUR) à côté du timestamp, avec un tooltip détaillant le modèle utilisé et la répartition IN / OUT / CACHE. Cette consommation est aussi agrégée dans vos statistiques d'usage habituelles, sans double comptage des tokens en cache.",
+            "i5": "<b>Météo localisée dans les 6 langues</b> — Les abréviations des jours dans la bande de prévisions 5 jours utilisent désormais le format de date du navigateur (lun., Mon, Mo., lun, lun, 周一) au lieu d'un format figé en anglais.",
+            "i6": "<b>Carte santé avec colonnes alignées</b> — Les valeurs « aujourd'hui » et « moyenne 14 jours » de chaque mesure (nombre de pas, fréquence cardiaque) sont maintenant disposées dans une grille fixe : les séparateurs verticaux entre aujourd'hui/moyenne sont alignés horizontalement entre les deux mesures, peu importe la longueur des libellés.",
+            "i7": "<b>Quick Access compact</b> — Les anciennes 3 cards d'accès rapide sont remplacées par 2 cards (Aide + Réglages) avec icônes et survols soignés. La card « Sécurité » sans utilité actionnable a été retirée."
+          }
+        },
         "v1_17_2": {
           "title": "v1.17.2 — Données santé : l'assistant dialogue avec vos mesures, API d'ingestion générique",
           "date": "Avril 2026",
@@ -4893,11 +4986,11 @@
       },
       "skills": {
         "title": "Skills avec cartes et mini-apps",
-        "description": "Spécialisez LIA avec des compétences expertes sur mesure. Les skills peuvent désormais afficher des cartes interactives, des dashboards, des calendriers, des QR codes et des mini-applications directement dans le chat — avec thème et langue synchronisés. Créez les vôtres en langage naturel grâce au Skill Generator intégré, ou importez depuis les marketplaces compatibles agentskills.io. Compatible avec 30+ outils dont Claude Code, Cursor et VS Code."
+        "description": "Spécialisez LIA avec des compétences sur mesure capables d'afficher cartes, dashboards et mini-apps directement dans le chat. Créez en langage naturel ou importez."
       },
       "health_metrics": {
         "title": "Données santé",
-        "description": "API d'ingestion dédiée pour pousser fréquence cardiaque et nombre de pas depuis n'importe quelle source (Raccourcis iOS, automatisation Android, intégration tierce, IoT). Dédoublonnage serveur automatique avec fusion intelligente quand plusieurs sources couvrent la même période (MAX pour les pas, moyenne pour la FC). Visualisation par heure / jour / semaine / mois / année avec moyenne sur la période. Authentification par jeton dédié, révocable. Données chiffrées au repos, jamais loggées en clair."
+        "description": "Poussez fréquence cardiaque et nombre de pas depuis n'importe quelle source. Visualisation par période, dédoublonnage automatique, jeton dédié révocable."
       },
       "sub_agents": {
         "title": "Sous-agents",

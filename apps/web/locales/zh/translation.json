@@ -166,6 +166,79 @@
         "badge": "活跃",
         "button": "主动保护"
       }
+    },
+    "loading": "正在加载您的 Today…",
+    "quick_access_compact": {
+      "help": "帮助",
+      "settings": "设置",
+      "help_sub": "常见问题与支持",
+      "settings_sub": "连接器和首选项"
+    },
+    "briefing": {
+      "section_title": "我的仪表盘",
+      "skeleton_loading": "正在准备您的简报…",
+      "refresh_all": "全部刷新",
+      "refresh_all_tooltip": "强制刷新所有卡片并重新生成问候语和概要",
+      "refresh_section": "刷新 {{section}}",
+      "refreshing": "更新中…",
+      "updated_just_now": "刚刚",
+      "updated_minutes_ago": "{{minutes}} 分钟前",
+      "synthesis_updated_badge": "已更新 ✨",
+      "usage_tokens_one": "{{formatted}} tokens",
+      "usage_tokens_other": "{{formatted}} tokens",
+      "usage_tooltip": "模型：{{model}}\nIN：{{tokens_in}} · OUT：{{tokens_out}} · CACHE：{{tokens_cache}}\n费用：{{cost}}",
+      "errors": {
+        "generic": "发生错误",
+        "page_title": "简报不可用",
+        "page_description": "暂时无法加载您的 Today，请稍后再试。",
+        "retry": "重试"
+      },
+      "actions": {
+        "reconnect": "重新连接",
+        "retry": "重试",
+        "retry_later": "稍后再试",
+        "configure": "配置"
+      },
+      "cards": {
+        "weather": {
+          "title": "天气",
+          "empty": "暂无天气数据",
+          "temp": "{{value}}°C"
+        },
+        "agenda": {
+          "title": "日程",
+          "empty": "今天没有约会 🎈"
+        },
+        "mails": {
+          "title": "未读邮件",
+          "empty": "收件箱已清空 🎉",
+          "unread_label_one": "今天未读",
+          "unread_label_other": "今天未读"
+        },
+        "birthdays": {
+          "title": "生日",
+          "empty": "未来 14 天内无生日",
+          "today": "今天",
+          "in_days_one": "{{count}} 天",
+          "in_days_other": "{{count}} 天"
+        },
+        "reminders": {
+          "title": "活动提醒",
+          "empty": "无活动提醒"
+        },
+        "health": {
+          "title": "健康",
+          "empty": "暂无最近健康数据",
+          "kind_steps": "步数总计",
+          "kind_heart_rate": "心率",
+          "today": "今天",
+          "avg_window": "{{window}} 天平均",
+          "unit_steps": "步",
+          "unit_heart_rate": "bpm"
+        }
+      },
+      "updated_hours_ago": "{{hours}} 小时前",
+      "updated_days_ago": "{{days}} 天前"
     }
   },
   "auth": {
@@ -1437,7 +1510,8 @@
           "initiative": "执行后主动丰富（只读检查）",
           "mcp_react_agent": "MCP迭代模式：先读取服务器文档，然后逐步执行工具",
           "image_generation": "从文本描述生成AI图像（gpt-image-1等）",
-          "psyche_summary": "Psyche Summary"
+          "psyche_summary": "Psyche Summary",
+          "briefing": "生成主页仪表盘的问候和概要 (Today)"
         },
         "no_compatible_model": "该提供商没有支持此功能的模型",
         "ollama": {
@@ -1452,6 +1526,7 @@
           "hitl": "HITL（人机协作）",
           "memory": "记忆",
           "background": "后台任务",
+          "briefing": "简报",
           "specialized": "专用"
         },
         "fields": {
@@ -2744,6 +2819,10 @@
         "proactiveInitiative": {
           "title": "🎯 主动倡议",
           "description": "完成主要请求后，助手评估结果是否揭示了与用户相关的跨域连接。例如：天气预报周六有雨→检查日历是否有户外活动。在Pipeline模式中，专用节点进行LLM评估。在ReAct模式中，直接集成在代理的推理中。"
+        },
+        "todayBriefing": {
+          "title": "🌅 Today Briefing",
+          "description": "仪表盘主页是一份每日简报：个性化 LLM 问候语 + 2-3 句综述，置于 6 张卡片网格之上（增强天气、日程、未读邮件、生日、提醒、健康）。纯净架构：无 LangGraph 链，并行 asyncio.gather，按板块的 Redis 缓存配合自适应 TTL（天气 1 小时、日程 10 分钟、邮件 5 分钟…）。拆分端点（/briefing/cards 快速 + /briefing/synthesis LLM 绑定）实现渐进式渲染。每次 LLM 调用的 token 与 EUR 费用在时间戳旁的 UI 中展示，并通过 track_proactive_tokens 计入用户使用统计（缓存 token 已正确扣除）。"
         }
       },
       "diagram_alt": "LIA架构图"
@@ -2752,6 +2831,20 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_18_0": {
+          "title": "v1.18.0 — Today Briefing：主页变成每日仪式",
+          "date": "2026年4月",
+          "count": "7",
+          "items": {
+            "i1": "<b>全新 'Today' 主页</b> — 仪表盘以每日简报取代静态统计：由 AI 生成的个性化问候语、提词器风格的 2-3 句综述，然后是 6 张操作卡片的网格：增强的天气（含 5 天预报、风、降雨概率）、当日日程、未读邮件、即将到来的生日、活跃的提醒、健康指标。",
+            "i2": "<b>非阻塞渐进式渲染</b> — 6 张卡片在数据源响应后立即出现（≈ 1 秒），无需等待 AI。综述随后在 LLM 完成时到达（≈ 1-3 秒），并显示一个低调的 '已更新 ✨' 徽章 1.5 秒。如果某张卡片暂时失败（Google 令牌过期等），只有该卡片显示其 CTA — 其他卡片保持可见。",
+            "i3": "<b>按板块缓存，按需刷新</b> — 每张卡片都有自己的 TTL，根据其变化频率调整（天气 1 小时、日程 10 分钟、邮件 5 分钟、生日 24 小时、提醒实时、健康 15 分钟）。每张卡片的 '刷新' 按钮在悬停时可见，网格顶部有 '全部刷新' 按钮可重新获取所有数据源并重新生成综述。",
+            "i4": "<b>token 与费用一目了然</b> — 问候语和综述的 LLM 调用在时间戳旁显示其实际消耗（token 数 + EUR 费用），并提供一个工具提示，详细说明所用模型以及 IN / OUT / CACHE 的细分。这一消耗也汇总到您常规的使用统计中，且不会重复计算缓存 token。",
+            "i5": "<b>天气在 6 种语言中本地化</b> — 5 天预报条中的星期缩写现在使用浏览器的日期格式（周一、Mon、Mo.、lun、lun、lun）替代固定的英文标签。",
+            "i6": "<b>健康卡片栏列对齐</b> — 每项指标（步数、心率）的 '今日' 与 '14 天平均' 数值现在按固定网格布局：今日/平均之间的垂直分隔线在两项指标间水平对齐，无论标签长度如何。",
+            "i7": "<b>紧凑的快速访问</b> — 之前的 3 张快速访问卡片被替换为 2 张卡片（帮助 + 设置），图标与悬停状态更加精致。无可操作目的的 '安全' 卡片被移除。"
+          }
+        },
         "v1_17_2": {
           "title": "v1.17.2 — 健康数据：助手与您的测量对话，通用的数据摄入 API",
           "date": "2026年4月",
@@ -4882,11 +4975,11 @@
       },
       "skills": {
         "title": "带地图和迷你应用的 Skills",
-        "description": "用定制专家技能增强LIA。技能现在可以在聊天中直接渲染交互式地图、仪表板、日历、QR 码和迷你应用 — 主题和语言自动同步。通过内置技能生成器用自然语言创建自己的技能，或从agentskills.io兼容的市场导入。兼容30+工具，包括Claude Code、Cursor和VS Code。"
+        "description": "用定制专家技能增强 LIA，可在聊天中直接渲染地图、仪表板和迷你应用。用自然语言创建或导入。"
       },
       "health_metrics": {
         "title": "健康数据",
-        "description": "专用的数据摄入 API，可从任意来源（iOS 快捷指令、Android 自动化、第三方集成、IoT）推送心率与步数。当多个来源覆盖同一时段时，服务器自动去重并智能融合（步数取 MAX，心率取均值）。支持按小时 / 日 / 周 / 月 / 年查看，配合该时段的平均值。使用专用、可撤销的令牌进行鉴权。数据静态加密，永不以明文写入日志。"
+        "description": "从任意来源推送心率与步数。按时段可视化、自动去重、专用可撤销令牌。"
       },
       "sub_agents": {
         "title": "子代理",

@@ -30,6 +30,8 @@ from src.core.constants import (
     APPROVAL_AUTO_APPROVE_ROLES_DEFAULT,
     APPROVAL_COST_THRESHOLD_USD_DEFAULT,
     APPROVAL_SENSITIVE_CLASSIFICATIONS_DEFAULT,
+    BRIEFING_GREETING_PROMPT_VERSION_DEFAULT,
+    BRIEFING_SYNTHESIS_PROMPT_VERSION_DEFAULT,
     BROADCAST_TRANSLATOR_LLM_FREQUENCY_PENALTY_DEFAULT,
     BROADCAST_TRANSLATOR_LLM_MAX_TOKENS_DEFAULT,
     BROADCAST_TRANSLATOR_LLM_MODEL_DEFAULT,
@@ -1857,6 +1859,14 @@ class AgentsSettings(BaseSettings):
     semantic_validator_prompt_version: str = Field(
         default=SEMANTIC_VALIDATOR_PROMPT_VERSION_DEFAULT,
         description="Semantic validator prompt version (plan validation, for A/B testing)",
+    )
+    briefing_greeting_prompt_version: str = Field(
+        default=BRIEFING_GREETING_PROMPT_VERSION_DEFAULT,
+        description="Today dashboard greeting prompt version (for A/B testing and rollbacks)",
+    )
+    briefing_synthesis_prompt_version: str = Field(
+        default=BRIEFING_SYNTHESIS_PROMPT_VERSION_DEFAULT,
+        description="Today dashboard synthesis prompt version (for A/B testing and rollbacks)",
     )
 
     # ========================================================================
