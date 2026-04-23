@@ -9,6 +9,7 @@ from datetime import UTC, date, datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
+from src.core.time_utils import format_time_with_date_context
 from src.domains.briefing.constants import BRIEFING_WEATHER_DAILY_FORECAST_DAYS
 from src.domains.briefing.schemas import (
     AgendaEventItem,
@@ -539,37 +540,60 @@ def _format_email_internal_date(internal_date: str | int | None, user_tz: ZoneIn
 # =============================================================================
 
 
-def format_reminder_item(reminder: Reminder, user_tz: ZoneInfo) -> ReminderItem:
-    """Convert a Reminder ORM model to a UI item with localized time."""
-    trigger_local = _format_trigger_at_local(reminder.trigger_at, user_tz)
+def format_reminder_item(
+    reminder: Reminder, user_tz: ZoneInfo, language: str | None = None
+) -> ReminderItem:
+    """Convert a Reminder ORM model to a UI item with localized time + date format."""
+    trigger_local = _format_trigger_at_local(reminder.trigger_at, user_tz, language)
     return ReminderItem(
         content=reminder.content,
         trigger_at_local=trigger_local,
     )
 
 
-def _format_trigger_at_local(trigger_at_utc: datetime, user_tz: ZoneInfo) -> str:
+def _format_trigger_at_local(
+    trigger_at_utc: datetime, user_tz: ZoneInfo, language: str | None = None
+) -> str:
     """Convert a UTC reminder trigger time to a friendly local string.
 
-    Format: time first, date second (validated UX preference).
+    Delegates to ``format_time_with_date_context`` (the canonical
+    today/tomorrow/date helper in ``core.time_utils``) so the briefing card
+    shares the same locale-aware pattern as the rest of the app and stays
+    in sync with future i18n additions. The two flags fixed here encode the
+    briefing-specific UX preferences:
+
+    * ``time_first=True`` — time before the relative day / date prefix,
+      validated UX choice (e.g. ``08:00 demain`` / ``08:00 24/04/2026``).
+    * ``include_year=True`` — reminders can land months ahead, so the
+      year disambiguates the date.
 
     Returns:
         - 'HH:MM' if today (date implicit)
-        - 'HH:MM tomorrow' if tomorrow
-        - 'HH:MM YYYY-MM-DD' otherwise
+        - 'HH:MM <tomorrow_word>' if tomorrow (locale-aware)
+        - 'HH:MM <DD/MM/YYYY|MM/DD/YYYY|YYYY/MM/DD>' otherwise (locale-aware)
+        - '?' on parsing error
     """
     try:
         if trigger_at_utc.tzinfo is None:
             trigger_at_utc = trigger_at_utc.replace(tzinfo=UTC)
         local_dt = trigger_at_utc.astimezone(user_tz)
-        now_local = datetime.now(user_tz)
-        delta_days = (local_dt.date() - now_local.date()).days
-        time_str = local_dt.strftime("%H:%M")
-        if delta_days == 0:
-            return time_str
-        if delta_days == 1:
-            return f"{time_str} tomorrow"
-        return f"{time_str} {local_dt.strftime('%Y-%m-%d')}"
+        formatted = format_time_with_date_context(
+            local_dt,
+            reference_dt=datetime.now(user_tz),
+            locale=language or "en",
+            include_year=True,
+            time_first=True,
+        )
+        # The canonical V3Messages.get_tomorrow registry returns a
+        # capital-cased word (designed for sentence heads). Inside our
+        # "HH:MM <word>" pattern, the word sits mid-string, so we lower
+        # it for natural flow ("08:00 demain" / "08:00 tomorrow" rather
+        # than "08:00 Demain" / "08:00 Tomorrow").
+        # Note on German: this also yields "06:00 morgen" instead of the
+        # noun-cased "Morgen" — acceptable in this UX context (timestamp
+        # mid-line, not a sentence). Adjust here if a per-locale rule is
+        # ever required.
+        return formatted.lower()
     except (ValueError, TypeError, AttributeError):
         return "?"
 

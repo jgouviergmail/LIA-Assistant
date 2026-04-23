@@ -13,7 +13,7 @@ from __future__ import annotations
 import asyncio
 import time
 from collections.abc import Awaitable, Callable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -79,6 +79,22 @@ def _resolve_user_tz(user: User) -> ZoneInfo:
         return ZoneInfo(user.timezone)
     except (KeyError, ValueError, AttributeError, TypeError):
         return ZoneInfo(DEFAULT_USER_DISPLAY_TIMEZONE)
+
+
+def _seconds_to_next_local_midnight(user_tz: ZoneInfo, *, cap_seconds: int = 86400) -> int:
+    """Return the seconds remaining until the next 00:00 in `user_tz`.
+
+    Used for caches that pre-compute relative-day fields (e.g. `days_until` on
+    birthday cards): expiring at local midnight guarantees the value is
+    recomputed at the right moment rather than carrying stale arithmetic
+    until the next manual refresh. Capped at 24 h as a safety net.
+    """
+    now_local = datetime.now(user_tz)
+    next_midnight = (now_local + timedelta(days=1)).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    seconds = int((next_midnight - now_local).total_seconds())
+    return max(1, min(seconds, cap_seconds))
 
 
 def _has_content(data: Any) -> bool:
@@ -160,13 +176,21 @@ class BriefingService:
             ),
             self._section(
                 SECTION_BIRTHDAYS,
-                lambda: fetch_birthdays(user=self.user),
-                ttl=SECTION_BIRTHDAYS_TTL_SECONDS,
+                lambda: fetch_birthdays(user=self.user, user_tz=self.user_tz),
+                # Birthday cards pre-compute `days_until`, so the cache MUST
+                # expire at local midnight — otherwise a value cached on day N
+                # still advertises the same "N days" on day N+1 until the next
+                # manual refresh. Cap hard at 24 h as a belt-and-braces safety.
+                ttl=_seconds_to_next_local_midnight(self.user_tz),
                 force=force_all or SECTION_BIRTHDAYS in force,
             ),
             self._section(
                 SECTION_REMINDERS,
-                lambda: fetch_reminders(user_id=self.user.id, user_tz=self.user_tz),
+                lambda: fetch_reminders(
+                    user_id=self.user.id,
+                    user_tz=self.user_tz,
+                    language=self.language,
+                ),
                 ttl=SECTION_REMINDERS_TTL_SECONDS,
                 force=True,  # always live — local DB lookup is < 10 ms
             ),

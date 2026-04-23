@@ -335,7 +335,7 @@ async def fetch_mails(
 # =============================================================================
 
 
-async def fetch_birthdays(*, user: User) -> BirthdaysData:
+async def fetch_birthdays(*, user: User, user_tz: ZoneInfo) -> BirthdaysData:
     """Fetch upcoming birthdays from Google Contacts (full-scan, bypassed cap).
 
     Bypasses the global ``apply_max_items_limit`` (= ``api_max_items_per_request``,
@@ -343,8 +343,12 @@ async def fetch_birthdays(*, user: User) -> BirthdaysData:
     critical for users with > 50 contacts — without bypass, contacts beyond
     the first page wouldn't be inspected.
 
-    Cache TTL = 7 days (see SECTION_BIRTHDAYS_TTL_SECONDS): birthdays are
-    quasi-static and a full-scan is costly. Force-refresh rebuilds the cache.
+    Cache TTL = seconds until next local midnight (computed by the service
+    layer). The contact list is quasi-static, but `days_until` on each
+    BirthdayItem is pre-computed against `today` — caching it for several
+    days would freeze yesterday's "1 day" into today's display. Expiring at
+    local midnight keeps the relative-day arithmetic correct without any
+    manual refresh. Force-refresh rebuilds the cache immediately.
 
     The bypass is implemented by calling ``client._make_request`` directly
     (skips the public ``list_connections`` wrapper and its security limit).
@@ -399,10 +403,15 @@ async def fetch_birthdays(*, user: User) -> BirthdaysData:
             total_contacts=len(all_connections),
         )
 
+    # `today` MUST be the user's local date (not the server's UTC date) — at
+    # 01:00 in Paris (= 23:00 UTC the previous day), date.today() would still
+    # return yesterday and an upcoming-birthday computed against it would mark
+    # yesterday's birthday as "today" with days_until=0.
     items = upcoming_birthdays_from_connections(
         all_connections,
         horizon_days=BRIEFING_MAX_BIRTHDAYS_HORIZON_DAYS,
         max_items=BRIEFING_MAX_BIRTHDAYS_ITEMS,
+        today=datetime.now(user_tz).date(),
     )
     return BirthdaysData(items=items)
 
@@ -416,16 +425,23 @@ async def fetch_reminders(
     *,
     user_id: UUID,
     user_tz: ZoneInfo,
+    language: str | None = None,
 ) -> RemindersData:
     """Fetch active (pending) reminders for the user.
 
     Always succeeds — this fetcher does not raise ConnectorNotConfiguredError.
     The card is always visible (empty state when no reminder).
+
+    The user's `language` drives the date / "tomorrow" formatting in
+    `format_reminder_item` so a French user sees ``08:00 24/04/2026`` /
+    ``08:00 demain`` rather than the English defaults.
     """
     async with get_db_context() as db:
         service = ReminderService(db)
         pending = await service.list_pending_for_user(user_id)
-    items = [format_reminder_item(r, user_tz) for r in pending[:BRIEFING_MAX_REMINDERS_ITEMS]]
+    items = [
+        format_reminder_item(r, user_tz, language) for r in pending[:BRIEFING_MAX_REMINDERS_ITEMS]
+    ]
     return RemindersData(items=items)
 
 

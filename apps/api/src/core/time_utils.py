@@ -840,6 +840,9 @@ def format_time_with_date_context(
     target_dt: datetime,
     reference_dt: datetime | None = None,
     locale: str = "fr",
+    *,
+    include_year: bool = False,
+    time_first: bool = False,
 ) -> str:
     """
     Format a datetime as time with contextual date prefix.
@@ -847,16 +850,26 @@ def format_time_with_date_context(
     Returns time in HH:MM format with optional date context:
     - Same day as reference: "14:30"
     - Tomorrow relative to reference: "demain 14:30" / "tomorrow 14:30"
-    - Other dates: "20/01 14:30" (locale-aware: dd/mm for EU, mm/dd for US)
+    - Other dates: locale-aware date prefix
+        - default (include_year=False): "20/01 14:30" (dd/mm for EU, mm/dd for US)
+        - include_year=True:           "20/01/2026 14:30" (dd/mm/yyyy / mm/dd/yyyy / yyyy/mm/dd for zh)
 
     This helper centralizes the "today/tomorrow/date" formatting pattern
-    used in routes, calendar, and other time-sensitive displays.
+    used in routes, calendar, briefing reminders, and other time-sensitive
+    displays.
 
     Args:
         target_dt: The datetime to format (must be timezone-aware)
         reference_dt: Reference datetime for "today/tomorrow" comparison.
                      If None, uses current time in target_dt's timezone.
         locale: Language code for "tomorrow" translation (fr, en, es, de, it, zh-CN)
+        include_year: When True, include the 4-digit year in the date prefix
+                     for non-today/non-tomorrow dates (UI that displays dates
+                     far enough into the future to need disambiguation).
+        time_first: When True, swap the order so the time comes before the
+                    "tomorrow" word or date prefix (e.g. "14:30 demain",
+                    "14:30 24/04/2026"). Default keeps the legacy ordering
+                    used by routes_tools and others.
 
     Returns:
         Formatted time string with optional date context
@@ -872,9 +885,13 @@ def format_time_with_date_context(
         >>> target = datetime(2026, 1, 21, 14, 30, tzinfo=tz)
         >>> format_time_with_date_context(target, now, "fr")
         "demain 14:30"
+        >>> format_time_with_date_context(target, now, "fr", time_first=True)
+        "14:30 demain"
         >>> target = datetime(2026, 1, 25, 14, 30, tzinfo=tz)
         >>> format_time_with_date_context(target, now, "fr")
         "25/01 14:30"
+        >>> format_time_with_date_context(target, now, "fr", include_year=True, time_first=True)
+        "14:30 25/01/2026"
     """
     from src.core.i18n_v3 import V3Messages
 
@@ -897,17 +914,26 @@ def format_time_with_date_context(
     elif target_date == tomorrow_date:
         # Tomorrow - add "tomorrow" prefix
         tomorrow_word = V3Messages.get_tomorrow(locale)
-        return f"{tomorrow_word} {time_str}"
+        return f"{time_str} {tomorrow_word}" if time_first else f"{tomorrow_word} {time_str}"
     else:
         # Other date - add date prefix (locale-aware format)
         lang = _extract_language(locale)
-        if lang == "en":
-            # US format: mm/dd
-            date_str = target_dt.strftime("%m/%d")
+        if include_year:
+            # With year: idiomatic per locale.
+            #   zh-CN: yyyy/mm/dd, en: mm/dd/yyyy, others (fr/es/de/it): dd/mm/yyyy.
+            if lang == "zh-CN":
+                fmt = "%Y/%m/%d"
+            elif lang == "en":
+                fmt = "%m/%d/%Y"
+            else:
+                fmt = "%d/%m/%Y"
         else:
-            # EU format: dd/mm (default for fr, es, de, it, zh-CN)
-            date_str = target_dt.strftime("%d/%m")
-        return f"{date_str} {time_str}"
+            # Without year (legacy behavior): EU `dd/mm` for everything except
+            # US `mm/dd`. zh-CN historically also used `dd/mm` here — kept as-is
+            # to preserve backward compatibility with existing callers.
+            fmt = "%m/%d" if lang == "en" else "%d/%m"
+        date_str = target_dt.strftime(fmt)
+        return f"{time_str} {date_str}" if time_first else f"{date_str} {time_str}"
 
 
 # =============================================================================
