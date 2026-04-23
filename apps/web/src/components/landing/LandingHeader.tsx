@@ -18,9 +18,7 @@ interface LandingHeaderProps {
 
 /** Anchor links to landing page sections */
 const SECTION_ANCHORS = [
-  { id: 'features', key: 'landing.nav.features' },
-  { id: 'security', key: 'landing.nav.security' },
-  { id: 'technology', key: 'landing.nav.technology' },
+  { id: 'how-it-works', key: 'landing.nav.features' },
 ] as const;
 
 /** Links to separate pages */
@@ -39,6 +37,12 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
 
   const loginHref = buildLocalizedPath('/login', lng as Language);
   const registerHref = buildLocalizedPath('/register', lng as Language);
+  // Section anchors live on the landing root. Build absolute URLs (always
+  // including the home path) so they work from secondary pages (Blog, FAQ,
+  // Why, How) where the section IDs don't exist on the current document.
+  // On the home itself, "/#id" still scrolls to the section without a reload.
+  const homeHref = buildLocalizedPath('/', lng as Language);
+  const buildAnchorHref = (id: string) => `${homeHref}#${id}`;
 
   // Scroll spy
   useEffect(() => {
@@ -110,7 +114,7 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
             {SECTION_ANCHORS.map(({ id, key }) => (
               <a
                 key={id}
-                href={`#${id}`}
+                href={buildAnchorHref(id)}
                 className={cn(
                   'px-2.5 py-2 text-sm font-medium rounded-md transition-colors',
                   activeSection === id
@@ -168,7 +172,7 @@ export function LandingHeader({ lng }: LandingHeaderProps) {
             {SECTION_ANCHORS.map(({ id, key }) => (
               <a
                 key={id}
-                href={`#${id}`}
+                href={buildAnchorHref(id)}
                 onClick={handleNavClick}
                 className={cn(
                   'block px-4 py-2.5 text-sm font-medium rounded-md transition-colors',

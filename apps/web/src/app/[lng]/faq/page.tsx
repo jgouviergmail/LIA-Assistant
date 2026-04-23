@@ -4,6 +4,7 @@ import { initI18next, validateLanguage } from '@/i18n';
 import { languages, fallbackLng, LOCALE_MAP } from '@/i18n/settings';
 import type { Language } from '@/i18n/settings';
 import { FAQPageJsonLd, BreadcrumbJsonLd } from '@/components/seo/JsonLd';
+import { LandingHeader } from '@/components/landing/LandingHeader';
 import { PublicFooter } from '@/components/layout/PublicFooter';
 
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://lia.jeyswork.com';
@@ -83,9 +84,7 @@ export default async function PublicFAQPage({ params }: FAQPageProps) {
     };
   });
 
-  const loginPath = lng === fallbackLng ? '/login' : `/${lng}/login`;
   const registerPath = lng === fallbackLng ? '/register' : `/${lng}/register`;
-  const homePath = lng === fallbackLng ? '/' : `/${lng}`;
 
   return (
     <>
@@ -98,33 +97,11 @@ export default async function PublicFAQPage({ params }: FAQPageProps) {
       />
 
       <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-        {/* Header */}
-        <header className="border-b border-border/40 bg-background/80 backdrop-blur-xl">
-          <div className="max-w-4xl mx-auto flex items-center justify-between px-4 sm:px-6 py-4">
-            <Link href={homePath} className="flex items-center gap-2 group">
-              <div className="flex h-9 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/80 shadow-md group-hover:shadow-lg transition-all">
-                <span className="text-sm font-bold text-primary-foreground">LIA</span>
-              </div>
-            </Link>
-            <div className="flex items-center gap-3">
-              <Link
-                href={loginPath}
-                className="text-sm font-medium text-foreground/60 hover:text-foreground transition-colors"
-              >
-                {t('landing.nav.login')}
-              </Link>
-              <Link
-                href={registerPath}
-                className="text-sm font-medium px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-              >
-                {t('landing.hero.cta_primary')}
-              </Link>
-            </div>
-          </div>
-        </header>
+        {/* Header — same as landing page (fixed top, transparent until scroll) */}
+        <LandingHeader lng={lng} />
 
-        {/* Content */}
-        <main className="max-w-4xl mx-auto px-4 sm:px-6 py-12">
+        {/* Content — pt-16 offsets the fixed header height (h-16 = 64 px) */}
+        <main className="max-w-4xl mx-auto px-4 sm:px-6 pt-24 pb-12">
           <div className="text-center mb-12">
             <h1 className="text-4xl font-bold tracking-tight mb-3">{t('faq.title')}</h1>
             <p className="text-lg text-muted-foreground">{t('faq.subtitle')}</p>

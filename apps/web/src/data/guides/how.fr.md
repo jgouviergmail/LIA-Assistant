@@ -53,7 +53,7 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 | Souveraineté des données | PostgreSQL local (pas de SaaS DB), chiffrement Fernet au repos, sessions Redis locales |
 | Multi-fournisseur LLM | Factory pattern avec 7 adaptateurs, configuration par nœud, pas de couplage fort à un provider |
 | Transparence totale | 400+ métriques Prometheus, debug panel embarqué, suivi token par token |
-| Fiabilité en production | 59 ADRs, 2 300+ tests, observabilité native, HITL à 6 niveaux |
+| Fiabilité en production | 70 ADRs, 2 300+ tests, observabilité native, HITL à 6 niveaux |
 | Coûts maîtrisés | Smart Services (89 % d'économie tokens), embeddings sémantiques, prompt caching, filtrage de catalogue |
 
 ### 1.2. Principes architecturaux
@@ -73,10 +73,10 @@ Chaque décision technique de LIA répond à une contrainte concrète. Le projet
 |----------|--------|
 | Tests | 2 300+ (unit, integration, agents, benchmark) |
 | Fixtures réutilisables | 170+ |
-| Documents de documentation | 190+ |
-| ADRs (Architecture Decision Records) | 59 |
+| Documents de documentation | 260+ |
+| ADRs (Architecture Decision Records) | 70 |
 | Métriques Prometheus | 400+ définitions |
-| Dashboards Grafana | 20 |
+| Dashboards Grafana | 21 |
 | Langues supportées (i18n) | 6 (fr, en, de, es, it, zh) |
 
 ---
@@ -947,7 +947,7 @@ LIA accepte les ingestions d'événements externes (mesures iPhone Apple Health,
 
 ## 24. Architecture des décisions (ADR)
 
-59 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
+70 ADRs au format MADR documentent les décisions architecturales majeures. Quelques exemples représentatifs :
 
 | ADR | Décision | Problème résolu | Impact mesuré |
 |-----|----------|----------------|---------------|
@@ -1037,10 +1037,10 @@ Le contexte psyché est injecté dans **tous** les points de génération utilis
 
 LIA est un exercice d'ingénierie logicielle qui tente de résoudre un problème concret : construire un assistant IA multi-agent de qualité production, transparent, sécurisé et extensible, capable de tourner sur un Raspberry Pi.
 
-Les 59 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les 2 300+ tests, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
+Les 70 ADRs documentent non seulement les décisions prises mais aussi les alternatives rejetées et les compromis acceptés. Les 2 300+ tests, le CI/CD complet, et le MyPy strict ne sont pas des métriques de vanité — ce sont les mécanismes qui permettent de faire évoluer un système de cette complexité sans régression.
 
 L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayésien, routage sémantique, HITL systématique, proactivité LLM-driven, journaux introspectifs — crée un système où chaque composant renforce les autres. Le HITL alimente le pattern learning, qui réduit les coûts, qui permettent plus de fonctionnalités, qui génèrent plus de données pour la mémoire, qui améliore les réponses. C'est un cercle vertueux par conception, pas par accident.
 
 ---
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (190+ documents), des 63 ADRs, et du changelog (v1.0 à v1.13.0). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (260+ documents), des 70 ADRs, et du changelog (v1.0 à v1.18.1). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

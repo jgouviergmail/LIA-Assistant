@@ -1,13 +1,9 @@
 import { type Metadata } from 'next';
-import Link from 'next/link';
-import Image from 'next/image';
 import { initI18next, validateLanguage } from '@/i18n';
 import { languages, fallbackLng, LOCALE_MAP } from '@/i18n/settings';
 import type { Language } from '@/i18n/settings';
 import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
-import { ThemeToggle } from '@/components/theme-toggle';
-import { LanguageSelector } from '@/components/LanguageSelector';
-import { buildLocalizedPath } from '@/utils/i18n-path-utils';
+import { LandingHeader } from '@/components/landing/LandingHeader';
 import { HowContent } from '@/components/guides/HowContent';
 import { PublicFooter } from '@/components/layout/PublicFooter';
 
@@ -66,10 +62,6 @@ export default async function HowPage({ params }: HowPageProps) {
   const lng = validateLanguage(lngParam);
   const { t } = await initI18next(lng);
 
-  const homePath = buildLocalizedPath('/', lng);
-  const loginPath = buildLocalizedPath('/login', lng);
-  const registerPath = buildLocalizedPath('/register', lng);
-
   return (
     <>
       <BreadcrumbJsonLd
@@ -80,39 +72,11 @@ export default async function HowPage({ params }: HowPageProps) {
       />
 
       <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-        {/* Header */}
-        <header className="border-b border-border/40 bg-background/80 backdrop-blur-xl sticky top-0 z-50">
-          <div className="max-w-7xl mx-auto flex items-center justify-between px-4 sm:px-6 lg:px-8 py-3">
-            <Link href={homePath} className="flex items-center gap-2 font-bold text-lg">
-              <Image
-                src="/v4-lia-brain.svg"
-                alt="LIA"
-                width={28}
-                height={28}
-                className="rounded-md"
-              />
-              <span>LIA</span>
-            </Link>
-            <div className="flex items-center gap-2">
-              <LanguageSelector currentLocale={lng} />
-              <ThemeToggle />
-              <Link
-                href={loginPath}
-                className="hidden sm:inline-flex text-sm font-medium text-muted-foreground hover:text-foreground transition-colors px-3 py-2"
-              >
-                {t('landing.nav.login')}
-              </Link>
-              <Link
-                href={registerPath}
-                className="text-sm font-medium px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-              >
-                {t('landing.nav.get_started')}
-              </Link>
-            </div>
-          </div>
-        </header>
+        {/* Header — same as landing page (fixed top, transparent until scroll) */}
+        <LandingHeader lng={lng} />
 
-        <main className="px-4 sm:px-6 lg:px-8 py-12">
+        {/* pt-24 offsets the fixed header height (h-16 = 64 px) */}
+        <main className="px-4 sm:px-6 lg:px-8 pt-24 pb-12">
           {/* Hero */}
           <div className="max-w-3xl mx-auto mb-12 text-center">
             <h1 className="text-3xl sm:text-4xl font-bold tracking-tight mb-4">
