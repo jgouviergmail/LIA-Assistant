@@ -1,8 +1,10 @@
+import { Children, isValidElement } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import type { Components } from 'react-markdown';
 import type { LucideIcon } from 'lucide-react';
+import { MermaidDiagram } from './MermaidDiagram';
 
 interface GuideMarkdownProps {
   content: string;
@@ -35,6 +37,20 @@ export function GuideMarkdown({ content, sectionIds = [], sectionIcons = [] }: G
         </h2>
       );
     },
+    // Intercept ```mermaid fenced blocks and render them via MermaidDiagram
+    // (client-only). Other code blocks fall through to the default <pre><code>.
+    pre({ children, ...rest }) {
+      const codeChild = Children.toArray(children).find(
+        (c): c is React.ReactElement<{ className?: string; children?: React.ReactNode }> =>
+          isValidElement(c) && c.type === 'code'
+      );
+      const className = codeChild?.props.className ?? '';
+      if (/\blanguage-mermaid\b/.test(className)) {
+        const source = String(codeChild?.props.children ?? '');
+        return <MermaidDiagram chart={source} />;
+      }
+      return <pre {...rest}>{children}</pre>;
+    },
   };
 
   return (
@@ -61,7 +77,7 @@ export function GuideMarkdown({ content, sectionIds = [], sectionIcons = [] }: G
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeRaw]}
-        components={ids.length > 0 ? components : undefined}
+        components={components}
       >
         {body}
       </ReactMarkdown>

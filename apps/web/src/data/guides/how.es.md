@@ -215,44 +215,27 @@ CrewAI y AutoGen eran más simples de adoptar, pero ninguno de los dos soportaba
 
 ### 4.2. El grafo principal
 
-```
-                    ┌──────────────────────────────────┐
-                    │        Router Node (v3)            │
-                    │  Binario : conversation|actionable  │
-                    │  Confianza : high > 0.85            │
-                    └──────┬──────────┬─────────────────┘
-                           │          │
-              conversation │          │ actionable
-                           │          │
-                    ┌──────▼──┐  ┌───▼───────────────────┐
-                    │ Response │  │  QueryAnalyzer          │
-                    │  Node    │  │  + SmartPlanner          │
-                    └──────────┘  └───┬───────────────────┘
-                                      │
-                                ┌─────▼───────────────────┐
-                                │  Semantic Validator       │
-                                └─────┬───────────────────┘
-                                      │
-                                ┌─────▼───────────────────┐
-                                │   Approval Gate           │
-                                │   (HITL interrupt)        │
-                                └─────┬───────────────────┘
-                                      │
-                                ┌─────▼───────────────────┐
-                                │  Task Orchestrator        │
-                                │  (parallel executor)      │
-                                └─────┬───────────────────┘
-                                      │
-                    ┌─────────────────▼────────────────────┐
-                    │      15 Domain Agents                  │
-                    │  + MCP dynamic agents                  │
-                    │  + Sub-agent delegation                │
-                    └─────────────────┬────────────────────┘
-                                      │
-                                ┌─────▼───────────────────┐
-                                │   Response Node           │
-                                │  (anti-hallucination)     │
-                                └───────────────────────────┘
+LIA ofrece dos modos de ejecución (conmutables por usuario mediante un toggle en el encabezado del chat): **Pipeline** (por defecto, determinista y económico en tokens) y **ReAct** (autónomo e iterativo). El Router clasifica primero la petición (conversación directa o accionable) y luego la despacha al modo activo.
+
+```mermaid
+graph TD
+    A[User Message] --> B[Router Node]
+    B -->|conversation| C[Response Node]
+    B -->|pipeline mode| D[Planner Node]
+    B -->|react mode| R1[ReAct Setup]
+    D --> E[Semantic Validator]
+    E --> F{Approval Gate}
+    F -->|approved| G[Task Orchestrator]
+    F -->|rejected| C
+    G --> H[Domain Agents + Tools]
+    H --> G
+    G --> C
+    R1 --> R2[ReAct Call Model]
+    R2 -->|tool_calls| R3[ReAct Execute Tools]
+    R2 -->|done| R4[ReAct Finalize]
+    R3 --> R2
+    R4 --> C
+    C --> J[SSE Stream]
 ```
 
 ### 4.3. Nodos del grafo

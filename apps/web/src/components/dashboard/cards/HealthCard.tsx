@@ -69,7 +69,7 @@ function HealthMetricRow({ item }: { item: HealthSummaryItem }) {
   // [&:not(:first-child)>*:first-child] adds top spacing on the header of
   // every metric except the first, without an isFirst prop.
   return (
-    <li className="contents [&:not(:first-child)>*:first-child]:mt-2">
+    <li className="contents [&:not(:first-child)>*:first-child]:mt-7">
       {/* Header row — spans the 3 columns, centered */}
       <div className="col-span-3 flex items-center justify-center gap-2">
         <Icon className="h-4 w-4 text-red-600 dark:text-red-300 shrink-0" />
