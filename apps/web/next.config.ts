@@ -38,19 +38,6 @@ const nextConfig: NextConfig = {
   // Turbopack configuration (default in Next.js 16)
   turbopack: {},
 
-  // Image optimization — allowlist for query strings on local images.
-  // The landing screenshots use ?v={APP_VERSION} as a cache-busting suffix
-  // (see src/components/landing/ScreenshotsSection.tsx); Next.js 16 prerender
-  // refuses unknown query strings on /_next/image without an explicit pattern.
-  images: {
-    localPatterns: [
-      {
-        pathname: '/screenshots/**',
-        search: 'v=*',
-      },
-    ],
-  },
-
   experimental: {
     // Increase proxy body size limit for RAG document uploads (default: 10MB)
     // Must match RAG_SPACES_MAX_FILE_SIZE_MB (20MB) + overhead for multipart encoding
