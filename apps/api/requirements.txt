@@ -1,6 +1,6 @@
 # Core Framework
-fastapi==0.135.3
-uvicorn[standard]==0.44.0
+fastapi==0.136.1
+uvicorn[standard]==0.46.0
 
 # Database
 sqlalchemy[asyncio]==2.0.49
@@ -14,29 +14,29 @@ redis==7.4.0
 
 # Configuration
 python-dotenv==1.2.2
-pydantic==2.13.0
+pydantic==2.13.3
 jinja2==3.1.6  # Template engine for orchestration queries
-pydantic-settings==2.13.1
+pydantic-settings==2.14.0
 pyyaml>=6.0  # YAML parsing for SKILL.md files (agentskills.io standard)
 email-validator==2.3.0
 python-dateutil==2.9.0.post0  # Date utilities for billing cycle calculations
-tzdata==2026.1  # IANA timezone database for Windows/Python 3.9+
+tzdata==2026.2  # IANA timezone database for Windows/Python 3.9+
 
 # Authentication & Security
 python-jose[cryptography]==3.5.0  # CVE-2024-33663 fix (algorithm confusion)
 passlib[bcrypt]==1.7.4
-python-multipart==0.0.26  # CVE-2024-53981, CVE-2026-24486 fixes (DoS)
+python-multipart==0.0.27  # CVE-2024-53981, CVE-2026-24486 fixes (DoS)
 cryptography==46.0.7  # CVE-2024-12797, CVE-2026-26007 fixes
 
 # Observability
 structlog==25.5.0
 geoip2==5.2.0  # IP geolocation (DB-IP Lite MMDB — free, CC-BY-4.0)
-opentelemetry-api==1.41.0
-opentelemetry-sdk==1.41.0
+opentelemetry-api==1.41.1
+opentelemetry-sdk==1.41.1
 opentelemetry-instrumentation-fastapi==0.62b0
-opentelemetry-exporter-otlp==1.41.0
+opentelemetry-exporter-otlp==1.41.1
 prometheus-client==0.25.0
-langfuse==4.2.0  # Phase 6 - LLM Observability
+langfuse==4.5.1  # Phase 6 - LLM Observability
 
 # Rate Limiting
 slowapi==0.1.9
@@ -61,14 +61,14 @@ sherpa-onnx>=1.10.0
 apscheduler==3.11.2
 
 # AI/ML Stack - LangChain/LangGraph 1.0.x ecosystem
-langchain-core==1.2.31
+langchain-core==1.3.2
 langchain==1.2.15  # Updated 2026-03-09 for ecosystem upgrade (merge_lists fix, SummarizationMiddleware, ContextOverflowError)
 langchain-text-splitters==1.1.2  # RecursiveCharacterTextSplitter for RAG Spaces document chunking
-langchain-openai==1.1.14
-openai==2.31.0  # Requis par langchain-openai 1.1.10 (pin 2.14.0 levé — gardes adapter L229-239 protègent input_items)
-langgraph==1.1.6
-langgraph-checkpoint==4.0.1  # Pinné explicitement (transitif de langgraph, reproductibilité builds)
-langgraph-prebuilt==1.0.9  # Pinné explicitement (requis par langgraph 1.0.10)
+langchain-openai==1.2.1
+openai==2.32.0  # Requis par langchain-openai 1.1.10 (pin 2.14.0 levé — gardes adapter L229-239 protègent input_items)
+langgraph==1.1.9
+langgraph-checkpoint==4.0.3  # Pinné explicitement (transitif de langgraph, reproductibilité builds)
+langgraph-prebuilt==1.0.11  # Pinné explicitement (requis par langgraph 1.0.10)
 langgraph-checkpoint-postgres==3.0.5
 tiktoken==0.12.0
 
@@ -80,9 +80,9 @@ networkx==3.6.1  # Dependency graph for semantic type expansion
 
 # LLM Provider Integrations
 langchain-deepseek==1.0.1  # DeepSeek V3/R1 models
-langchain-anthropic==1.4.0  # Claude models (auto-compaction, effort="max" sans beta, cache_control fix)
-langchain-google-genai==4.2.1  # Gemini models
-anthropic==0.94.0  # Anthropic SDK (Claude Opus 4.6, structured outputs natifs, cache control GA)
+langchain-anthropic==1.4.1  # Claude models (auto-compaction, effort="max" sans beta, cache_control fix)
+langchain-google-genai==4.2.2  # Gemini models
+anthropic==0.97.0  # Anthropic SDK (Claude Opus 4.6, structured outputs natifs, cache control GA)
 
 # MCP (Model Context Protocol) — evolution F2
 mcp>=1.20.0,<2.0.0  # MCP 1.20+ adds list_resources/read_resource (MCP Apps support). Requires starlette>=0.27
