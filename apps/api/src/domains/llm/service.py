@@ -88,11 +88,15 @@ class LLMModelService:
         )
         # Pre-populate the relationship so callers reading pricing.model.model_name
         # don't trigger a lazy-load (LLMModelPricing.model uses lazy="raise").
+        # Do NOT call db.refresh() afterwards: refresh re-reads ALL attributes
+        # from the DB and clears the manually-set relationship, which would
+        # then fail with InvalidRequestError when read by the router. All
+        # column defaults on LLMModelPricing are Python-side (id via uuid4,
+        # effective_from via datetime.now), so flush() is sufficient.
         pricing.model = model
 
         self.db.add(pricing)
         await self.db.flush()
-        await self.db.refresh(pricing)
         return model, pricing
 
     async def update(
@@ -161,10 +165,13 @@ class LLMModelService:
                 ),
                 is_active=True,
             )
+            # Pre-populate relationship; do NOT refresh (would clear it and
+            # crash on the lazy="raise" attribute when the router builds the
+            # response). flush() alone is sufficient — all defaults are
+            # Python-side. See create() for the same reasoning.
             new_pricing.model = model
             self.db.add(new_pricing)
             await self.db.flush()
-            await self.db.refresh(new_pricing)
 
         logger.info(
             "llm_model_updated",

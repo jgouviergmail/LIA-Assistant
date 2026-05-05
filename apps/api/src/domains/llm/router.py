@@ -263,7 +263,9 @@ async def create_pricing(
     )
     db.add(audit_entry)
     await db.commit()
-    await db.refresh(pricing)
+    # Do NOT call db.refresh(pricing) here: refresh re-reads ALL attributes
+    # from the DB and clears the manually-set pricing.model relationship,
+    # which would crash _pricing_to_response() against lazy="raise".
 
     # Cross-worker invalidation so Configuration LLM + runtime see the new model.
     await _invalidate_caches(db)
