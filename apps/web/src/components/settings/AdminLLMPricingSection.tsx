@@ -21,6 +21,7 @@ import {
   type LLMProviderName,
   type LLMPricingUpdateData,
 } from '@/lib/actions/settings-actions';
+import { useCatalogueInvalidator } from '@/lib/catalogue-invalidation-context';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
@@ -93,6 +94,7 @@ interface ModelPricingFormData {
 
 export default function AdminLLMPricingSection({ lng, collapsible = true }: BaseSettingsProps) {
   const { t } = useTranslation(lng, 'translation');
+  const invalidateCatalogue = useCatalogueInvalidator();
 
   const [models, setModels] = useState<LLMModelPricing[]>([]);
   const [loading, setLoading] = useState(true);
@@ -205,6 +207,7 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
     try {
       const result = await reloadLLMPricingCache();
       if (result.success) {
+        invalidateCatalogue('model_capabilities');
         toast.success(result.message!);
       } else {
         toast.error(result.error!);
@@ -231,6 +234,7 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
         if (result.success) {
           setShowAddModal(false);
           await fetchModels();
+          invalidateCatalogue('model_capabilities');
           toast.success(result.message!);
         } else {
           toast.error(result.error!);
@@ -276,6 +280,7 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
         if (result.success) {
           setEditingModel(null);
           await fetchModels();
+          invalidateCatalogue('model_capabilities');
           toast.success(result.message!);
         } else {
           toast.error(result.error!);
@@ -301,6 +306,7 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
         if (result.success) {
           setModels(prev => deleteListItem(prev, pricing_id));
           setTotal(prev => prev - 1);
+          invalidateCatalogue('model_capabilities');
           toast.success(result.message!);
         } else {
           toast.error(result.error!);

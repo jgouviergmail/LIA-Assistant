@@ -67,6 +67,7 @@ import ConsumptionExportSection from '@/components/settings/ConsumptionExportSec
 import { useDebugPanelEnabled } from '@/hooks/useDebugPanelEnabled';
 import { useTranslation } from '@/i18n/client';
 import { FeatureErrorBoundary } from '@/components/errors';
+import { CatalogueInvalidationProvider } from '@/lib/catalogue-invalidation-context';
 
 interface SettingsPageProps {
   params: Promise<{ lng: string }>;
@@ -332,12 +333,17 @@ export default function SettingsPage({ params }: SettingsPageProps) {
               {/* Group: AI & Connectors */}
               <SettingsGroupLabel label={t('settings.groups.ai_connectors')} icon={Cpu} />
               <AdminConnectorsSection lng={lng} />
-              <AdminLLMPricingSection lng={lng} />
-              <AdminGoogleApiPricingSection lng={lng} />
-              <AdminImagePricingSection lng={lng} />
-              <FeatureErrorBoundary feature="llm-config">
-                <AdminLLMConfigSection lng={lng} />
-              </FeatureErrorBoundary>
+              {/* Tarification (Texte/Image) emit catalogue invalidation events
+                  that Configuration LLM listens to, so dropdowns refresh
+                  immediately after an admin mutation without a page reload. */}
+              <CatalogueInvalidationProvider>
+                <AdminLLMPricingSection lng={lng} />
+                <AdminGoogleApiPricingSection lng={lng} />
+                <AdminImagePricingSection lng={lng} />
+                <FeatureErrorBoundary feature="llm-config">
+                  <AdminLLMConfigSection lng={lng} />
+                </FeatureErrorBoundary>
+              </CatalogueInvalidationProvider>
 
               {/* Group: Content & Extensions */}
               <SettingsGroupLabel label={t('settings.groups.content_extensions')} icon={Sparkles} />

@@ -5,6 +5,7 @@
 
 import { useApiMutation } from '@/hooks/useApiMutation';
 import { useApiQuery } from '@/hooks/useApiQuery';
+import { useCatalogueInvalidationListener } from '@/lib/catalogue-invalidation-context';
 import type {
   LLMConfigListResponse,
   LLMTypeConfig,
@@ -34,13 +35,20 @@ export function useLLMConfig() {
     initialData: { providers: [] },
   });
 
-  const { data: metadata, loading: metadataLoading } = useApiQuery<ProviderModelsMetadata>(
-    '/admin/llm-config/metadata/models',
-    {
-      componentName: COMPONENT_NAME,
-      initialData: { providers: {} },
-    }
-  );
+  const {
+    data: metadata,
+    loading: metadataLoading,
+    refetch: refetchMetadata,
+  } = useApiQuery<ProviderModelsMetadata>('/admin/llm-config/metadata/models', {
+    componentName: COMPONENT_NAME,
+    initialData: { providers: {} },
+  });
+
+  // Refetch metadata when a sibling Tarification pane mutates the catalogue
+  // (chat models or image-generation models). Mirrors the backend's ADR-063
+  // cache-name based invalidation, but cross-component instead of cross-worker.
+  useCatalogueInvalidationListener('model_capabilities', refetchMetadata);
+  useCatalogueInvalidationListener('image_generation_options', refetchMetadata);
 
   const { mutate: updateConfigMutate, loading: updatingConfig } = useApiMutation<
     LLMTypeConfigUpdate,

@@ -20,6 +20,7 @@ import {
   type LLMProviderName,
   type ImagePricingUpdateData,
 } from '@/lib/actions/settings-actions';
+import { useCatalogueInvalidator } from '@/lib/catalogue-invalidation-context';
 
 const PROVIDER_OPTIONS: readonly LLMProviderName[] = [
   'openai',
@@ -56,6 +57,7 @@ interface ImagePricingListResponse {
 
 export default function AdminImagePricingSection({ lng, collapsible = true }: BaseSettingsProps) {
   const { t } = useTranslation(lng, 'translation');
+  const invalidateCatalogue = useCatalogueInvalidator();
 
   const [entries, setEntries] = useState<ImagePricing[]>([]);
   const [loading, setLoading] = useState(true);
@@ -159,6 +161,7 @@ export default function AdminImagePricingSection({ lng, collapsible = true }: Ba
     try {
       const result = await reloadImagePricingCache();
       if (result.success) {
+        invalidateCatalogue('image_generation_options');
         toast.success(result.message!);
       } else {
         toast.error(result.error!);
@@ -184,6 +187,7 @@ export default function AdminImagePricingSection({ lng, collapsible = true }: Ba
         if (result.success) {
           setShowAddModal(false);
           await fetchEntries();
+          invalidateCatalogue('image_generation_options');
           toast.success(result.message!);
         } else {
           toast.error(result.error!);
@@ -212,6 +216,7 @@ export default function AdminImagePricingSection({ lng, collapsible = true }: Ba
         if (result.success) {
           setEditingEntry(null);
           await fetchEntries();
+          invalidateCatalogue('image_generation_options');
           toast.success(result.message!);
         } else {
           toast.error(result.error!);
@@ -235,6 +240,7 @@ export default function AdminImagePricingSection({ lng, collapsible = true }: Ba
         if (result.success) {
           setEntries(prev => deleteListItem(prev, pricingId));
           setTotal(prev => prev - 1);
+          invalidateCatalogue('image_generation_options');
           toast.success(result.message!);
         } else {
           toast.error(result.error!);
