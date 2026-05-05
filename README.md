@@ -40,7 +40,7 @@
 </p>
 
 <p align="center">
-  <strong>Version 1.18.1</strong> — Today Briefing polish: the LLM greeting now sits directly on the Hero image (replacing the rotating marketing taglines for a more personal feel), the per-card refresh icon is always visible on mobile (no hover needed on touch devices), the lifetime totals in usage statistics now display the account creation date ("since DD/MM/YYYY"), section titles "Mon dashboard" and "Statistiques d'utilisation" gain illustrative icons (sunrise + bar chart), 12 fresh dashboard screenshots replace v1 across README + landing with automatic cache-busting (`?v=APP_VERSION`) so browsers, the Next.js Image optimizer and any CDN re-fetch immediately at every release, plus 4 new screenshots (chat debug panel, interactive skills, long-term memory, Psyche Engine) added to the carousel and README. — April 2026
+  <strong>Version 1.19.0</strong> — The LLM model catalogue (chat + image) becomes the source of truth in the database: administrators declare new models and tune their full capability + pricing profile from the admin UI, with no code change, no release, and no redeploy. Three new tables (`llm_models`, refactored `llm_model_pricing`, `image_generation_pricing` with a `provider` column) replace ~750 lines of frozen Python constants; two singleton in-memory caches (`ModelCapabilitiesCache`, `ImageOptionsCache`) are loaded at boot and invalidated cross-worker via Redis Pub/Sub (ADR-063) so every API worker sees admin writes immediately. Frontend gets a 14-field admin form (provider + 8 capabilities + tarification), live cross-sibling refresh via a React Context (LLM Configuration + Image Generation Settings refetch automatically — no page reload), and the reasoning-model toggle now correctly tracks the catalogue's `is_reasoning_model` flag instead of a hardcoded regex. Migrations follow the 3-step pattern (schema → backfill 47 models → constraints), seeds insert 119 chat models + 27 image rows. — May 2026
 </p>
 
 ---
@@ -306,7 +306,7 @@ ExecutionStep(
 | **Aggregated** | Per user, per period | CSV summary |
 
 - **Google Maps Platform**: Places, Routes, Geocoding, Static Maps
-- **Dynamic Pricing**: Admin UI for pricing CRUD
+- **Dynamic Pricing**: Admin UI for full LLM catalogue CRUD — provider, 8 capability flags (max input/output tokens, tools, structured output, strict mode, streaming, vision, reasoning) and pricing per model, all stored in the database. Same surface for image generation models (provider + quality/size/pricing). Cross-worker cache invalidation via Redis Pub/Sub (ADR-063), live cross-sibling refresh in the frontend — no code change, no redeploy
 - **ContextVar Pattern**: Implicit tracking without explicit parameter passing
 - **Admin CSV Exports**: Token usage, Google API usage, Consumption summary (all users or filtered by user)
 - **User CSV Exports** (v1.9.1): Personal consumption export in Settings > Features — users export their own data only (`user_id` forced server-side, IDOR-safe)
@@ -463,7 +463,8 @@ A web-based administration panel covering every operational aspect:
 | **Connector Management** | Google/Apple/Microsoft OAuth status, token health, per-user provider activation |
 | **Skills Management** | Enable/disable skills, edit descriptions, translate in 6 languages, delete |
 | **MCP Servers** | Admin-level MCP server configuration, tool discovery, domain descriptions |
-| **LLM Pricing** | CRUD for per-model pricing (input/output/cache tokens), used for cost tracking |
+| **LLM Pricing** | CRUD for the full LLM catalogue — provider, 8 capability flags (max input/output tokens, tools, structured output, strict mode, streaming, vision, reasoning) and pricing (input/output/cache tokens) per model. Source of truth for the LangChain factory and the agent constraints. Live cross-worker invalidation, no redeploy |
+| **Image Generation Pricing** | CRUD for image models — provider, quality, size and pricing. Drives the user preferences dropdowns directly |
 | **Google API Pricing** | Per-endpoint pricing configuration for Google Maps Platform services |
 | **Voice Settings** | TTS mode selection (Standard/HD), provider configuration |
 | **Broadcasting** | Send system-wide notifications to all users or targeted groups |

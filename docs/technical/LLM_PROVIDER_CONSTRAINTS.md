@@ -44,7 +44,7 @@ All sampling parameters are fully supported. No restrictions.
 
 **Models**: `gpt-5`, `gpt-5-mini`, `gpt-5-nano`, `gpt-5.4`, `gpt-5.4-mini`, `o1`, `o1-mini`, `o3`, `o3-mini`, `o4-mini`
 
-Detected by: `REASONING_MODELS_PATTERN = r"^(o[0-9](-.*)?|gpt-5([.-].*)?)$"`
+Detected by: `ModelCapabilitiesCache.is_reasoning_model(model_name)` — reads the `is_reasoning_model` flag from the `llm_models` catalogue (DB-source-of-truth, [ADR-078](../architecture/ADR-078-LLM-Catalogue-DB-Source-Of-Truth.md)). Falls back to `REASONING_MODELS_PATTERN = r"^(o[0-9](-.*)?|gpt-5([.-].*)?)$"` only when the model is not in the cache (e.g. brand-new model added after the worker booted, before the next Pub/Sub tick).
 
 | Parameter | Behavior |
 |-----------|----------|
@@ -68,7 +68,7 @@ Detected by: `REASONING_MODELS_PATTERN = r"^(o[0-9](-.*)?|gpt-5([.-].*)?)$"`
 | `gpt-5.4`, `gpt-5.4-mini` | `low`, `medium`, `high` (omitted when tools are present — see §gpt-5.4 constraint below) |
 
 **Backend enforcement** (`responses_adapter.py`):
-- `_is_reasoning_model()` — detects model family via `REASONING_MODELS_PATTERN` regex
+- `_is_reasoning_model()` — consults `ModelCapabilitiesCache.is_reasoning_model(model_name)` first (DB authoritative since v1.19.0); falls back to `REASONING_MODELS_PATTERN` regex when the model is not in the cache
 - `_supports_sampling_params()` — returns `False` for reasoning models, **except** gpt-5.1/5.2+ with `reasoning_effort="none"`
 - `is_responses_api_eligible()` — pattern-based check using `_RESPONSES_API_PATTERN = r"^(gpt-4\.1|gpt-5|o[1-9])"` (not a hardcoded list). All GPT-4.1+, GPT-5.x (including gpt-5.4), and o-series models are eligible; legacy models (gpt-4o, gpt-4-turbo, gpt-3.5) are not.
 - Responses API path: temperature/top_p conditionally included via `_supports_sampling_params()`
@@ -101,7 +101,7 @@ Detected by: `REASONING_MODELS_PATTERN = r"^(o[0-9](-.*)?|gpt-5([.-].*)?)$"`
 
 **Models**: `gpt-5.4`, `gpt-5.4-mini`
 
-These are reasoning models with **vision support** (image inputs accepted). They fall under `REASONING_MODELS_PATTERN` and behave like other gpt-5.x reasoning models, with one additional API-level constraint:
+These are reasoning models with **vision support** (image inputs accepted). The catalogue (`llm_models.is_reasoning_model = TRUE`) declares them as reasoning models — the `REASONING_MODELS_PATTERN` regex still matches their name and remains as a fallback. They behave like other gpt-5.x reasoning models, with one additional API-level constraint:
 
 #### reasoning_effort + tools incompatibility
 
@@ -227,7 +227,8 @@ Uses OpenAI-compatible API (custom `base_url`).
 |------|------|
 | [`adapter.py`](../../apps/api/src/infrastructure/llm/providers/adapter.py) | Main LLM factory — provider detection, constraint enforcement, Chat Completions |
 | [`responses_adapter.py`](../../apps/api/src/infrastructure/llm/providers/responses_adapter.py) | OpenAI Responses API wrapper — `_is_reasoning_model()`, `_supports_sampling_params()` |
-| [`constants.py`](../../apps/api/src/domains/llm_config/constants.py) | `LLM_DEFAULTS`, `REASONING_MODELS_PATTERN` |
+| [`constants.py`](../../apps/api/src/domains/llm_config/constants.py) | `LLM_DEFAULTS`, `REASONING_MODELS_PATTERN` (regex fallback only since v1.19.0 — primary detection lives in `ModelCapabilitiesCache`) |
+| [`model_capabilities_cache.py`](../../apps/api/src/infrastructure/llm/model_capabilities_cache.py) | `ModelCapabilitiesCache` singleton — reads `llm_models` table at boot, exposes `is_reasoning_model()` and `get(model_name)` in O(1). DB-authoritative source of all 8 capability flags. |
 | [`schemas.py`](../../apps/api/src/domains/llm_config/schemas.py) | Pydantic validation — `temperature: 0-2.0`, `reasoning_effort` Literal |
 | [`AdminLLMConfigSection.tsx`](../../apps/web/src/components/settings/AdminLLMConfigSection.tsx) | Frontend constraints — `getModelConstraints()` |
 
@@ -242,7 +243,7 @@ Uses OpenAI-compatible API (custom `base_url`).
 
 ### Adding a New Model Family
 
-1. Check if it matches `REASONING_MODELS_PATTERN` — update regex if needed
+1. (Preferred, v1.19.0+) Open *Administration → Tarification LLM Texte → Ajouter*, set `is_reasoning_model = TRUE` on the new catalogue row. The cache invalidates cross-worker via Pub/Sub and `_is_reasoning_model()` will resolve correctly without any code change. (Legacy fallback) If the model is not yet in the catalogue, check that its name matches `REASONING_MODELS_PATTERN` — update the regex if needed.
 2. If reasoning model with special modes (like gpt-5.1 effort=none), update:
    - `_supports_sampling_params()` in `responses_adapter.py`
    - `is_gpt51_plus_none` in `adapter.py`

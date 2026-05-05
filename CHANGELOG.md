@@ -5,6 +5,194 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.19.0] - 2026-05-05
+
+### Added — LLM model catalogue becomes the source of truth in the database
+
+The chat + image LLM catalogue used to live as frozen Python constants
+(`MODEL_PROFILES`, `IMAGE_GENERATION_MODELS`, `REASONING_MODELS_PATTERN`).
+Adding or tuning a model required a code change, a release, and a redeploy.
+**The catalogue is now persisted in the database** — administrators can
+declare new models and edit their full capability + pricing profile from
+the admin UI, and every consumer (LangChain factory, agent constraints,
+image options dropdowns) reads from the DB live, with no page refresh and
+no worker restart.
+
+#### New schema (`apps/api/src/domains/llm/models.py`)
+
+- `llm_models` — catalogue table. One row per distinct `model_name`.
+  - `provider` — `LLMProviderEnum` (openai, anthropic, deepseek, perplexity,
+    ollama, gemini, qwen) — replaces the regex-based provider inference.
+  - 8 capability columns: `max_input_tokens`, `max_output_tokens`,
+    `supports_tools`, `supports_structured_output`, `supports_strict_mode`,
+    `supports_streaming`, `supports_vision`, `is_reasoning_model`.
+  - `is_active` for temporal versioning (deactivated rows preserve history).
+- `llm_model_pricing` — pricing rows now FK to `llm_models.id` with
+  `ondelete=RESTRICT`. The legacy `model_name` column is dropped — pricing
+  joins through the catalogue. Composite uniqueness on
+  `(model_id, effective_from)` enforces one rate per model per date.
+- `image_generation_pricing` — gains a NOT NULL `provider` column
+  (`LLMProviderEnum`) so image options can be grouped by provider and
+  filtered by the same provider list as text models.
+
+#### Migrations (3-step pattern, ADR-040)
+
+- `2026_05_05_0001-llm_models_schema.py` — creates the new tables and
+  adds nullable columns, no data movement.
+- `2026_05_05_0002-llm_models_backfill.py` — backfills 47 known models
+  from a frozen `MODELS_DATA` list (preserves capability profiles from
+  the deleted `FALLBACK_PROFILES` dict).
+- `2026_05_05_0003-llm_models_constraints.py` — flips backfilled columns
+  to NOT NULL, drops legacy `llm_model_pricing.model_name`, adds the
+  composite unique constraint.
+
+All three are reversible with full `downgrade()` paths.
+
+#### In-memory caches with cross-worker invalidation
+
+- `ModelCapabilitiesCache` (singleton) — loads the active catalogue at
+  boot from `llm_models` and exposes `get(model_name)` + `is_reasoning_model()`
+  in O(1). Replaces the static `FALLBACK_PROFILES` dict (~750 lines deleted).
+- `ImageOptionsCache` (singleton) — loads active rows from
+  `image_generation_pricing`, groups them by provider, and exposes
+  `QualityOption`, `SizeOption`, `ModelOptions` dataclasses for the
+  preferences UI and the agent constraints.
+- Both caches register reload handlers via the existing Pub/Sub
+  invalidation bus (ADR-063). Any admin write triggers a Redis publish
+  on `cache:invalidate:{model_capabilities,image_generation_options}`,
+  every API worker reloads, every consumer (factory, options endpoint,
+  responses adapter, reasoning detector) sees the new data immediately.
+
+#### Backend service + admin endpoints
+
+- `LLMModelService` (transactional create/update/deactivate) with three
+  update modes: capabilities-only (no pricing change), pricing-only
+  (capabilities frozen), and mixed (transactional). The pre-populated
+  `pricing.model` relationship is preserved through `flush()` (no
+  `db.refresh()` calls — defaults are all Python-side).
+- `LLMModelRepository` extends `BaseRepository[LLMModel]`.
+- `POST/PUT/DELETE /admin/llm/pricing` and `/admin/image/pricing`
+  refactored to use the service + a `_invalidate_caches()` helper that
+  emits the Pub/Sub message after every successful write.
+- New endpoint `GET /api/v1/image-generation/options` — returns the
+  current `ImageOptionsCache` content for the preferences screen.
+
+#### Frontend admin form
+
+- **Tarification LLM Texte** — full rewrite of `AdminLLMPricingSection`
+  with a 3-section modal (Modèle / Capacités / Tarification) and 14
+  fields. Provider is a `<Select>` driven by `LLMProviderEnum`. Each
+  capability is a `<Switch>`.
+- **Tarification LLM Image** — `AdminImagePricingSection` gains a
+  `provider` field on the create/edit form and a `Provider` column in
+  the table.
+- **Configuration LLM (agents)** — `AdminLLMConfigSection.getModelConstraints`
+  now consults the DB capabilities first (live from the cache) and falls
+  back to the legacy regex only for unknown models. The
+  `is_reasoning_model` toggle correctly disappears when an admin
+  disables it on the catalogue, even on models where the regex still
+  matched the name.
+- **Préférences → Génération d'images** — `ImageGenerationSettings` is
+  now driven by the new `useImageGenerationOptions` hook. Quality and
+  size dropdowns rebuild themselves from the live catalogue, with price
+  ranges shown next to each option.
+- **Live invalidation across siblings** — new
+  `apps/web/src/lib/catalogue-invalidation-context.tsx` Provider +
+  hooks. After an admin write, the form emits a `model_capabilities`
+  or `image_generation_options` event; the LLM Configuration section
+  and the Image Generation Settings page (mounted as siblings under
+  the dashboard) refetch automatically. **No page reload, no worker
+  restart.**
+
+#### Reasoning-model detection consolidated
+
+Three call sites used to hardcode the same regex
+(`REASONING_MODELS_PATTERN`) to decide whether a model was a reasoning
+model. With the DB catalogue authoritative, `is_reasoning_model()`
+short-circuits via the cache; the regex is kept as a fallback only for
+brand-new models not yet in the catalogue. Affected files:
+`AdminLLMConfigSection.getModelConstraints`,
+`responses_adapter._is_reasoning_model`,
+`adapter._prepare_provider_config`.
+
+#### Seeds
+
+- `infrastructure/database/seeds/llm_pricing_seed.sql` — rewritten to
+  insert into `llm_models` (119 catalogue rows with conservative
+  default capabilities) **then** into `llm_model_pricing` via
+  `INSERT … SELECT … JOIN llm_models ON model_name`. Capabilities are
+  refinable post-seed via the 14-field admin form.
+- `infrastructure/database/seeds/image_generation_pricing_seed.sql` —
+  every row gains `provider='openai'::llm_provider_enum` (today only
+  OpenAI image models exist; the column is provider-ready for the
+  future).
+
+### Changed
+
+- `model_profiles.py` — the static `FALLBACK_PROFILES` dict is removed
+  (~750 lines). `get_model_profile()` now reads from the
+  `ModelCapabilitiesCache` singleton.
+- `LLMConfigService.get_provider_models()` reads from both caches
+  (chat + image) for the admin metadata endpoint, replacing the
+  hardcoded provider→models map.
+- `main.py` lifespan registers the two new caches and their reload
+  handlers in deterministic order.
+
+### Fixed
+
+- **Pricing PUT toast error on existing models** — the
+  `lazy="raise"` relationship on `LLMModelPricing.model` was being
+  invalidated by a `db.refresh(pricing)` call in the service layer
+  after `flush()`. Removed the 3 unnecessary refreshes; defaults
+  (`uuid4`, `datetime.now`) are all Python-side and the pre-populated
+  `pricing.model` relationship survives `flush()`.
+- **`is_reasoning_model` admin toggle ignored at runtime** — the
+  reasoning-model detection had two extra hardcoded regex usages
+  (`responses_adapter._is_reasoning_model`,
+  `adapter._prepare_provider_config`) that bypassed the admin's
+  intent. Both now consult the cache first and fall back to the
+  regex only for unknown models.
+- **`UserSkillState` mapper init failure at boot** —
+  `sa_inspect(LLMModel).mapper.column_attrs` was triggering eager
+  mapper configuration at module import time (before all domain
+  models were loaded). Replaced with table-level introspection
+  (`LLMModel.__table__.columns.keys()`) which has no side effect.
+- **Pricing seed `id NOT NULL` violation** — `llm_model_pricing.id`
+  has no DB default; the rewritten seed now provides
+  `gen_random_uuid()` explicitly in the `INSERT … SELECT`.
+
+### i18n (6 languages)
+
+- 14 new keys for the admin LLM pricing form (provider label, 8
+  capability labels, 4 pricing labels) + 5 keys for the section
+  headers (Modèle / Capacités / Tarification + buttons), in
+  fr/en/de/es/it/zh.
+- 2 new keys for the image options metadata (`provider` column
+  header + price range tooltip) in 6 languages.
+
+### Tests + tooling
+
+- All migrations are revertible and tested via the standard
+  `alembic upgrade head` / `alembic downgrade -1` cycle.
+- Pre-commit hook (host MyPy + Ruff + Black, host ESLint + tsc, i18n
+  parity check across 4315 keys × 6 languages) green on the full
+  branch.
+
+### Documentation
+
+- New ADR-078 — *LLM Catalogue DB-Source-of-Truth* — documents the
+  DB-as-source-of-truth pattern, the three-step migration strategy,
+  the dual cache + Pub/Sub invalidation contract, and the React
+  Context for cross-sibling invalidation.
+- ADR-026 (LLM Model Selection Strategy) — section added on the
+  catalogue source change.
+- ADR-063 (Cross-Worker Cache Invalidation) — `model_capabilities`
+  and `image_generation_options` added to the documented consumer
+  list.
+- `docs/knowledge/03_settings.md` and
+  `docs/knowledge/21_image_generation.md` reflect the new admin
+  surface and the live propagation behavior.
+
 ## [1.18.1] - 2026-04-23
 
 ### Changed — Today Briefing polish + screenshots refresh

@@ -549,5 +549,6 @@ ProviderAdapter.create_llm()
 | `apps/api/src/core/llm_agent_config.py` | `LLMAgentConfig` : Pydantic model de config par agent |
 | `apps/api/src/infrastructure/llm/factory.py` | `get_llm()` : factory avec merge settings + override |
 | `apps/api/src/infrastructure/llm/providers/adapter.py` | `ProviderAdapter` : creation instances, filtrage params |
-| `apps/api/src/infrastructure/llm/model_profiles.py` | `FALLBACK_PROFILES` : capabilities par modele/provider |
-| `apps/api/src/core/constants.py` | `REASONING_MODELS_PATTERN` : regex detection reasoning |
+| `apps/api/src/infrastructure/llm/model_profiles.py` | `get_model_profile()` lit depuis `ModelCapabilitiesCache`. La constante `FALLBACK_PROFILES` (~750 lignes) a été supprimée en v1.19.0 ([ADR-078](../architecture/ADR-078-LLM-Catalogue-DB-Source-Of-Truth.md)) au profit du catalogue DB. |
+| `apps/api/src/infrastructure/llm/model_capabilities_cache.py` | `ModelCapabilitiesCache` : singleton chargé au boot depuis la table `llm_models`, invalidé cross-worker via Pub/Sub (ADR-063). Source de vérité pour `is_reasoning_model`, capabilities, provider. |
+| `apps/api/src/core/constants.py` | `REASONING_MODELS_PATTERN` : regex de fallback (utilisée uniquement pour les modèles absents du cache). En v1.19.0, le flag `is_reasoning_model` du catalogue est désormais authoritative. |

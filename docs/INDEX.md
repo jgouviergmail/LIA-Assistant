@@ -2,8 +2,8 @@
 
 > Carte complète de toute la documentation du projet LIA - Assistant IA multi-agent avec LangGraph
 
-**Version**: 7.3
-**Dernière mise à jour**: 2026-04-20
+**Version**: 7.4
+**Dernière mise à jour**: 2026-05-05
 **Statut**: Complète (190+ documents)
 
 ---
@@ -18,7 +18,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | Documents techniques | 50+ |
 | Guides pratiques | 15+ |
 | Runbooks | 34+ |
-| ADRs | 75 |
+| ADRs | 71 |
 | Skills Claude | 10 |
 
 ---
@@ -42,7 +42,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Architecture globale |
 | [GRAPH_AND_AGENTS_ARCHITECTURE.md](./technical/GRAPH_AND_AGENTS_ARCHITECTURE.md) | Système multi-agents LangGraph |
 | [STATE_AND_CHECKPOINT.md](./technical/STATE_AND_CHECKPOINT.md) | State management et persistence |
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (75) |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Architecture Decision Records (71) |
 
 ### Pour les Product Managers
 
@@ -248,12 +248,15 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Description | Statut |
 |-----|-------------|--------|
-| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des 73 ADRs | ✅ |
+| [ADR_INDEX.md](./architecture/ADR_INDEX.md) | Index complet des 71 ADRs | ✅ |
 
 ### ADRs Récents (2026)
 
 | ADR | Titre | Date |
 |-----|-------|------|
+| ADR-078 | LLM Catalogue DB-Source-of-Truth | 2026-05 |
+| ADR-077 | Today Briefing as a Standalone Bounded Context | 2026-04 |
+| ADR-076 | Health Metrics Ingestion via Per-User Tokens | 2026-04 |
 | ADR-075 | Rich Skill Outputs — Interactive Frames and Images | 2026-04 |
 | ADR-074 | `structured_data` Contract for Tool Outputs | 2026-04 |
 | ADR-073 | Last-Known Location Persistence for Proactive Weather | 2026-04 |

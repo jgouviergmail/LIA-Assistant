@@ -4,6 +4,13 @@
 **Deciders**: Équipe architecture LIA
 **Technical Story**: Multi-provider LLM architecture with cost optimization
 **Related Documentation**: `docs/technical/LLM_PROVIDERS.md`
+**Evolution**: ADR-078 (LLM Catalogue DB-Source-of-Truth, 2026-05-05) — the
+static `FALLBACK_PROFILES` and `MODEL_PROFILES` Python constants referenced
+below are replaced by the DB-driven `llm_models` table and the
+`ModelCapabilitiesCache` singleton. The factory pattern, provider adapter,
+middleware stack and per-component model selection described here are
+unchanged; only the source of the model **profiles** moves from frozen
+Python code to an admin-editable database row.
 
 ---
 

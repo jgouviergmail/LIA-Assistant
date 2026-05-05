@@ -2,10 +2,12 @@
 
 > **Documentation complète du système de pricing et token tracking multi-provider**
 >
-> **Version**: 2.0
-> **Date**: 2026-02-04
-> **Dernière mise à jour**: Intégration Google API tracking, exports consommation
+> **Version**: 2.1
+> **Date**: 2026-05-05
+> **Dernière mise à jour**: v1.19.0 — Catalogue DB-source-of-truth ([ADR-078](../architecture/ADR-078-LLM-Catalogue-DB-Source-Of-Truth.md))
 > **Statut**: ✅ Complète
+
+> **🆕 v1.19.0 — Catalogue DB-driven** : la table `llm_model_pricing` n'est plus indexée par une colonne `model_name` libre, mais par une **FK `model_id` sur la nouvelle table `llm_models`** qui porte les capacités (provider + 8 flags : tools, structured output, strict mode, streaming, vision, reasoning, max input/output tokens). `AsyncPricingService._query_model_pricing` joint via `LLMModel.model_name == normalized` puis `selectinload(LLMModelPricing.model)` pour exposer `pricing.model.model_name` à l'appelant. Les capacités sont consommées via le singleton `ModelCapabilitiesCache` (`infrastructure/llm/model_capabilities_cache.py`), invalidé cross-worker via Redis Pub/Sub (ADR-063). Les exemples ci-dessous montrent la structure logique du système ; pour le code de référence à jour, voir [`apps/api/src/domains/llm/pricing_service.py`](../../apps/api/src/domains/llm/pricing_service.py).
 
 ---
 
@@ -43,7 +45,7 @@ Le système de pricing LLM permet de:
 graph TB
     Node[LangGraph Node] -->|Usage metadata| Extractor[TokenExtractor]
     Extractor -->|Token counts| Service[AsyncPricingService]
-    Service -->|Query pricing| DB[(PostgreSQL<br/>llm_pricing)]
+    Service -->|Query pricing| DB[(PostgreSQL<br/>llm_models + llm_model_pricing)]
     Service -->|Get rates| Currency[(currency_rates)]
     Service -->|Calculate| Cost[CostCalculation]
     Cost -->|Emit| Metrics[Prometheus Metrics]
@@ -259,24 +261,45 @@ class AsyncPricingService:
 
 ## 🗄️ Database Schema
 
-### Table: llm_pricing
+### Tables : llm_models + llm_model_pricing (v1.19.0+)
+
+> Le schéma complet vit dans [`DATABASE_SCHEMA.md`](./DATABASE_SCHEMA.md#9-llm_models). Vue résumée ici pour le contexte pricing.
 
 ```sql
-CREATE TABLE llm_pricing (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    model_name VARCHAR(100) NOT NULL,  -- 'gpt-4.1-mini', 'claude-sonnet-4', etc.
-    input_price_per_million DECIMAL(10, 6) NOT NULL,  -- USD per 1M input tokens
-    cached_input_price_per_million DECIMAL(10, 6),  -- USD per 1M cached tokens (Anthropic)
-    output_price_per_million DECIMAL(10, 6) NOT NULL,  -- USD per 1M output tokens
-    effective_from TIMESTAMP NOT NULL DEFAULT NOW(),
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW(),
-    UNIQUE(model_name, is_active)
+-- Catalogue (1 row per model, capabilities + provider)
+CREATE TABLE llm_models (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    model_name VARCHAR(100) NOT NULL UNIQUE,
+    provider llm_provider_enum NOT NULL,
+    max_input_tokens INTEGER NOT NULL,
+    max_output_tokens INTEGER NOT NULL,
+    supports_tools BOOLEAN NOT NULL DEFAULT TRUE,
+    supports_structured_output BOOLEAN NOT NULL DEFAULT TRUE,
+    supports_strict_mode BOOLEAN NOT NULL DEFAULT FALSE,
+    supports_streaming BOOLEAN NOT NULL DEFAULT TRUE,
+    supports_vision BOOLEAN NOT NULL DEFAULT FALSE,
+    is_reasoning_model BOOLEAN NOT NULL DEFAULT FALSE,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_llm_pricing_active ON llm_pricing(model_name) WHERE is_active = TRUE;
+-- Pricing (N rows per model, FK + temporal versioning)
+CREATE TABLE llm_model_pricing (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    model_id UUID NOT NULL REFERENCES llm_models(id) ON DELETE RESTRICT,
+    input_price_per_1m_tokens NUMERIC(10, 6) NOT NULL,
+    cached_input_price_per_1m_tokens NUMERIC(10, 6),
+    output_price_per_1m_tokens NUMERIC(10, 6) NOT NULL,
+    effective_from TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT uq_pricing_model_effective UNIQUE (model_id, effective_from)
+);
 ```
+
+**Pre-v1.19.0** : la table `llm_model_pricing` portait directement une colonne `model_name` (libre, sans FK). La migration `2026_05_05_0001/2/3` introduit la FK et supprime `model_name` après backfill.
 
 ### Seed Data (Exemples)
 

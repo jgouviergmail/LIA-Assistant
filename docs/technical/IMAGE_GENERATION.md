@@ -4,7 +4,10 @@
 
 **Phase**: evolution — AI Image Generation
 **Created**: 2026-03-25
+**Last Updated**: 2026-05-05 (v1.19.0 — DB-driven catalogue, [ADR-078](../architecture/ADR-078-LLM-Catalogue-DB-Source-Of-Truth.md))
 **Status**: Implemented
+
+> **🆕 v1.19.0** : the `IMAGE_GENERATION_MODELS` Python constant is removed. The list of available models, qualities, sizes and prices comes from the `image_generation_pricing` table (which gained a NOT NULL `provider` column) and is loaded into the singleton `ImageOptionsCache` at boot. The user preferences screen is driven by `useImageGenerationOptions` (frontend hook) calling `GET /api/v1/image-generation/options` (backend endpoint backed by the cache). Adding a model is now an admin operation (Tarification LLM Image), not a code change.
 
 ---
 
@@ -16,11 +19,11 @@ LIA can generate images from text descriptions using AI models (OpenAI gpt-image
 
 | Feature | Description |
 |---------|-------------|
-| Multi-model | gpt-image-1, gpt-image-1.5, gpt-image-1-mini (admin-configurable) |
-| Multi-provider | Extensible factory (OpenAI today, add Gemini/Stability later) |
-| User preferences | Quality (low/medium/high), size (square/landscape/portrait), format (PNG) |
+| Multi-model | gpt-image-1, gpt-image-1.5, gpt-image-1-mini (admin-configurable; full CRUD via admin DB-driven catalogue v1.19.0+) |
+| Multi-provider | Extensible factory (OpenAI today, add Gemini/Stability later); `provider` column on every pricing row, surfaced in admin UI |
+| User preferences | Quality (low/medium/high), size (square/landscape/portrait), format (PNG); options dropdowns rebuilt from the DB catalogue live |
 | Admin LLM Config | Model/provider selection via admin UI (LLM_TYPES_REGISTRY) |
-| Admin Pricing | Full CRUD admin panel for image pricing (model, quality, size → cost/image) |
+| Admin Pricing | Full CRUD admin panel for image pricing (provider + model + quality + size → cost/image), live cross-worker invalidation via Pub/Sub |
 | Cost tracking | Per-image pricing (DB-cached), consolidated into TrackingContext |
 | Attachment storage | Disk + DB with TTL-based cleanup via existing attachment system |
 | Usage limits | Image costs included in per-user usage limit enforcement |
@@ -127,7 +130,9 @@ Task Orchestrator → parallel_executor invokes edit_image tool
 | `src/domains/chat/schemas.py` | `TokenSummaryDTO` includes image costs in consolidated `cost_eur` |
 | `src/domains/chat/repository.py` | UPSERT + statistics with image fields |
 | `src/domains/usage_limits/repository.py` | Image costs in SQL sums |
-| `src/domains/llm_config/constants.py` | `image_generation` LLM type + `IMAGE_GENERATION_MODELS` |
+| `src/domains/llm_config/constants.py` | `image_generation` LLM type. Note: the legacy `IMAGE_GENERATION_MODELS` constant was removed in v1.19.0 — the model list is now driven by `ImageOptionsCache` reading the DB catalogue. |
+| `src/domains/image_generation/options_cache.py` | `ImageOptionsCache` singleton: loads `image_generation_pricing` rows at boot, exposes `QualityOption`/`SizeOption`/`ModelOptions` grouped by provider, invalidated cross-worker (ADR-063). |
+| `src/domains/image_generation/options_router.py` | `GET /api/v1/image-generation/options` — exposes the live catalogue to the user preferences screen. |
 | `src/domains/agents/api/service.py` | Done metadata + message archiving with images |
 | `src/domains/agents/nodes/response_node.py` | `/api/v1/attachments/` in allowed prefixes |
 | `src/domains/agents/orchestration/adaptive_replanner.py` | Detect `result` key for action tools |
@@ -185,16 +190,15 @@ Image generation costs are consolidated into the single `cost_eur` value shown t
 
 ## Extensibility
 
-### Adding a New Provider
+### Adding a New Provider (v1.19.0+)
 
 1. Create `XxxImageClient(ImageGenerationClient)` in `client.py`
 2. Add `"xxx": XxxImageClient` to `_IMAGE_CLIENT_REGISTRY`
-3. Add `"xxx": [model_ids]` to `IMAGE_GENERATION_MODELS` in `llm_config/constants.py`
-4. Insert pricing rows in `image_generation_pricing` table
-5. Admin selects provider + model via LLM Config UI
+3. Add the provider to `LLMProviderEnum` if not already present
+4. Through the admin UI (Administration → Tarification LLM Image), insert pricing rows for the new provider + models. The cache invalidates cross-worker via Pub/Sub and the user preferences dropdowns update live.
 
-### Adding a New Model
+### Adding a New Model (v1.19.0+)
 
-1. Insert pricing rows in `image_generation_pricing` table (9 entries: 3 qualities x 3 sizes)
-2. Add model ID to `IMAGE_GENERATION_MODELS[provider]` in constants
-3. Reload pricing cache (`POST /api/v1/google-api/pricing/reload-cache` pattern — admin endpoint TBD)
+1. Open *Administration → Tarification LLM Image → Ajouter*. Pick the provider, fill in model name, quality, size, cost per image. Save.
+2. The write triggers `publish_cache_invalidation(CACHE_NAME_IMAGE_GENERATION_OPTIONS)`; every API worker reloads `ImageOptionsCache` in milliseconds. The frontend consumer `useImageGenerationOptions` listens to the cross-sibling React Context (`catalogue-invalidation-context.tsx`) and refetches.
+3. **No code change, no redeploy.** For seeds (initial environment setup), `infrastructure/database/seeds/image_generation_pricing_seed.sql` provides 27 OpenAI rows.

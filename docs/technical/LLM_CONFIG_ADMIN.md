@@ -82,7 +82,7 @@ BaseChatModel
 |----------|:-----------:|:-----:|:-----------------:|:----------------:|:----------------:|-------|
 | **OpenAI** (standard) | 0-2.0 | 0-1.0 | -2 à 2 | -2 à 2 | — | Tous paramètres supportés |
 | **OpenAI** (standard: gpt-4o, gpt-4.1, etc.) | 0-2.0 | 0-1.0 | -2 à 2 | -2 à 2 | — | Tous paramètres supportés |
-| **OpenAI** (reasoning: o-series, gpt-5, gpt-5-mini/nano) | **omis** | **omis** | **omis** | **omis** | varies¹ | `REASONING_MODELS_PATTERN` |
+| **OpenAI** (reasoning: o-series, gpt-5, gpt-5-mini/nano) | **omis** | **omis** | **omis** | **omis** | varies¹ | `is_reasoning_model` flag from `llm_models` catalogue (DB-source-of-truth, [ADR-078](../architecture/ADR-078-LLM-Catalogue-DB-Source-Of-Truth.md)); `REASONING_MODELS_PATTERN` regex used as fallback |
 | **OpenAI** (gpt-5.1/5.2 + effort=none) | 0-2.0 | 0-1.0 | **omis** | **omis** | incl. `none` | Sampling params réactivés |
 | **Anthropic** (claude-3-7+, claude-4.x) | 0-**1.0** (cappé) | **omis** (conflit temp+top_p) | **omis** | **omis** | low/medium/high (→ `effort`) | |
 | **Anthropic** (claude-3-5-sonnet) | 0-**1.0** (cappé) | **omis** | **omis** | **omis** | — | Pas de thinking |
@@ -151,7 +151,7 @@ L'endpoint `/providers/ollama/models` utilise une discovery en deux phases :
 
 Le champ `source` dans la réponse indique la provenance :
 - `"live"` — modèles et capabilities récupérés en temps réel depuis le serveur Ollama
-- `"fallback"` — profils statiques de `FALLBACK_PROFILES` (Ollama injoignable)
+- `"fallback"` — profils par défaut conservateurs (Ollama injoignable). Note v1.19.0+ : la constante `FALLBACK_PROFILES` (~750 lignes) a été supprimée ([ADR-078](../architecture/ADR-078-LLM-Catalogue-DB-Source-Of-Truth.md)) ; les profils servis viennent désormais soit du `ModelCapabilitiesCache` (catalogue DB) si le modèle y est connu, soit de défauts conservateurs Python définis localement dans `model_profiles._get_fallback_profile()`.
 
 Les résultats sont cachés en mémoire pendant 60 secondes (`OLLAMA_MODEL_CACHE_TTL_SECONDS`). Le timeout HTTP est de 5 secondes par requête (`OLLAMA_DISCOVERY_TIMEOUT_SECONDS`). Si `/api/show` échoue pour un modèle spécifique, ses capabilities sont vides (isolation par modèle). Si `/api/tags` échoue, l'endpoint retourne les profils statiques connus (dégradation gracieuse).
 

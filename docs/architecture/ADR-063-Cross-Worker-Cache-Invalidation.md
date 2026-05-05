@@ -21,6 +21,8 @@ via the admin UI was only effective for ~25% of requests (1 worker out of 4).
 | `SkillsCache` | `domains/skills/cache.py` | Admin skill CRUD endpoints |
 | `GoogleApiPricingService` | `domains/google_api/pricing_service.py` | Admin pricing reload |
 | `PricingCacheService` | `infrastructure/cache/pricing_cache.py` | Startup only (prepared for future) |
+| `ModelCapabilitiesCache` | `infrastructure/llm/model_capabilities_cache.py` | Admin LLM pricing/capabilities CRUD (ADR-078) |
+| `ImageOptionsCache` | `domains/image_generation/options_cache.py` | Admin image pricing CRUD (ADR-078) |
 
 ## Decision
 

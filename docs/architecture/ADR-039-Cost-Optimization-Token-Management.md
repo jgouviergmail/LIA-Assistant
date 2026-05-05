@@ -4,11 +4,13 @@
 **Deciders**: Équipe architecture LIA
 **Technical Story**: LLM cost tracking, token management, and budget optimization
 **Related Documentation**: `docs/technical/COST_MANAGEMENT.md`
-**Related ADRs**: ADR-048 (Semantic Router)
+**Related ADRs**: ADR-048 (Semantic Router), ADR-078 (LLM Catalogue DB-Source-of-Truth)
 
 > **Note Architecture v3 (2026-01)**: Les references a `router_node.py` et `planner_node.py` dans cet ADR concernent les fichiers v3 (`router_node_v3.py`, `planner_node_v3.py`).
 > L'optimisation des tokens a ete poussee plus loin avec le `SmartCatalogueService` (89% token savings).
 > Voir [SMART_SERVICES.md](../technical/SMART_SERVICES.md) pour la documentation actuelle.
+
+> **Evolution v1.19.0 ([ADR-078](./ADR-078-LLM-Catalogue-DB-Source-Of-Truth.md))** : Le `MODEL_PROFILES` dict figé en Python documenté ci-dessous (lignes ~590-740) est supprimé. Les capacités et le pricing des modèles vivent désormais en base de données dans les tables `llm_models` (catalogue + capacités) et `llm_model_pricing` (FK + temporal versioning). Le calcul de coût lui-même reste inchangé : `AsyncPricingService` lit la pricing row active, applique le taux de change, retourne le coût USD/EUR. Seul le **stockage** des profils a bougé — la stratégie d'optimisation (LRU cache, currency conversion, exhaustive tracking) décrite dans cet ADR reste valide.
 
 ---
 

@@ -60,7 +60,7 @@ Le schéma suit l'architecture Domain-Driven Design avec **13 domaines** (11 ave
 ├── connectors/     → connectors, connector_global_config (2 tables)
 ├── conversations/  → conversations, conversation_messages, conversation_audit_log (3 tables)
 ├── chat/           → token_usage_logs, message_token_summary, user_statistics (3 tables)
-├── llm/            → llm_model_pricing, currency_exchange_rates (2 tables)
+├── llm/            → llm_models, llm_model_pricing, currency_exchange_rates (3 tables) [llm_models added in v1.19.0]
 ├── google_api/     → google_api_pricing, google_api_usage_logs (2 tables) [NEW v1.9]
 ├── agents/         → plan_approvals (1 table HITL Phase 8)
 ├── users/          → admin_audit_log (1 table)
@@ -1074,17 +1074,63 @@ await session.execute(
 
 ## Tables LLM Pricing
 
-### 9. llm_model_pricing
+### 9. llm_models
 
-**Pricing LLM avec temporal versioning (effective_from + is_active).**
+**Catalogue LLM (chat) — source de vérité unique pour les capacités et le provider de chaque modèle.** Ajoutée en v1.19.0 ([ADR-078](../architecture/ADR-078-LLM-Catalogue-DB-Source-Of-Truth.md)) pour remplacer les constantes Python figées (`FALLBACK_PROFILES` ~750 lignes, `REASONING_MODELS_PATTERN`).
+
+```sql
+CREATE TABLE llm_models (
+    -- Primary Key
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    -- Identity
+    model_name VARCHAR(100) NOT NULL UNIQUE,  -- 'gpt-4.1-mini', 'claude-sonnet-4-5', …
+    provider llm_provider_enum NOT NULL,      -- openai|anthropic|deepseek|perplexity|ollama|gemini|qwen
+
+    -- Capabilities (8 columns)
+    max_input_tokens INTEGER NOT NULL,
+    max_output_tokens INTEGER NOT NULL,
+    supports_tools BOOLEAN NOT NULL DEFAULT TRUE,
+    supports_structured_output BOOLEAN NOT NULL DEFAULT TRUE,
+    supports_strict_mode BOOLEAN NOT NULL DEFAULT FALSE,
+    supports_streaming BOOLEAN NOT NULL DEFAULT TRUE,
+    supports_vision BOOLEAN NOT NULL DEFAULT FALSE,
+    is_reasoning_model BOOLEAN NOT NULL DEFAULT FALSE,
+
+    -- Lifecycle
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,  -- temporal versioning (deactivated = historical)
+
+    -- Timestamps
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX ix_llm_models_provider ON llm_models(provider);
+CREATE INDEX ix_llm_models_is_active ON llm_models(is_active);
+```
+
+**Modèle SQLAlchemy** : `LLMModel` (`apps/api/src/domains/llm/models.py`) hérite de `UUIDMixin` + `TimestampMixin`, expose une relation `pricings: Mapped[list[LLMModelPricing]]` (`lazy="raise"`, `cascade="all, delete-orphan"` désactivé pour respecter le `RESTRICT` côté FK pricing).
+
+**Cache en mémoire** : `ModelCapabilitiesCache` (singleton, `apps/api/src/infrastructure/llm/model_capabilities_cache.py`) charge la table au boot, expose `get(model_name)` et `is_reasoning_model(model_name)` en O(1). Invalidé cross-worker via Redis Pub/Sub (ADR-063).
+
+**Migration Clé** :
+- **2026_05_05_0001** (`llm_models_schema`) : crée la table, ajoute les colonnes nullables sur `llm_model_pricing`/`image_generation_pricing`
+- **2026_05_05_0002** (`llm_models_backfill`) : insère 47 modèles depuis `MODELS_DATA` figé, backfill `model_id` via JOIN sur `model_name`
+- **2026_05_05_0003** (`llm_models_constraints`) : flip NOT NULL, drop legacy `llm_model_pricing.model_name`, contrainte unique composite
+
+---
+
+### 9-bis. llm_model_pricing
+
+**Pricing LLM avec temporal versioning (effective_from + is_active).** Refactorée en v1.19.0 : la colonne `model_name` est supprimée au profit d'une FK `model_id` sur `llm_models`. Cela garantit qu'un prix ne peut pas référencer un modèle inexistant et permet aux capacités d'évoluer indépendamment des prix.
 
 ```sql
 CREATE TABLE llm_model_pricing (
     -- Primary Key
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
-    -- Model Configuration
-    model_name VARCHAR(100) NOT NULL,  -- 'gpt-4.1-mini', 'o1-mini', 'gpt-4-turbo'
+    -- FK to catalogue (replaces the legacy model_name column dropped in v1.19.0)
+    model_id UUID NOT NULL REFERENCES llm_models(id) ON DELETE RESTRICT,
 
     -- Pricing (USD per 1 million tokens, 6 decimals precision)
     input_price_per_1m_tokens NUMERIC(10, 6) NOT NULL,
@@ -1100,119 +1146,36 @@ CREATE TABLE llm_model_pricing (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     -- Constraints
-    CONSTRAINT uq_model_effective_from UNIQUE (model_name, effective_from)
+    CONSTRAINT uq_pricing_model_effective UNIQUE (model_id, effective_from)
 );
 
 -- Indexes
-CREATE INDEX ix_llm_model_pricing_model_name ON llm_model_pricing(model_name);
+CREATE INDEX ix_llm_model_pricing_model_id ON llm_model_pricing(model_id);
 CREATE INDEX ix_llm_model_pricing_is_active ON llm_model_pricing(is_active);
-CREATE INDEX ix_llm_model_pricing_active_lookup ON llm_model_pricing(model_name, is_active);
 ```
 
-**Modèle SQLAlchemy:**
+**Modèle SQLAlchemy** : `LLMModelPricing` (`apps/api/src/domains/llm/models.py`) avec `model: Mapped[LLMModel]` (relation back-populated, `lazy="raise"`).
 
-```python
-# apps/api/src/domains/llm/models.py
-class LLMModelPricing(Base, TimestampMixin):
-    """
-    LLM model pricing configuration with temporal versioning.
-
-    Stores pricing per million tokens for input, cached input, and output.
-    Supports versioning through effective_from and is_active flags.
-
-    Example:
-        gpt-4.1-mini:
-            input_price_per_1m_tokens = 2.50 ($/1M tokens)
-            cached_input_price_per_1m_tokens = 1.25 ($/1M tokens)
-            output_price_per_1m_tokens = 10.00 ($/1M tokens)
-    """
-    __tablename__ = "llm_model_pricing"
-
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4,
-        nullable=False,
-    )
-
-    model_name: Mapped[str] = mapped_column(
-        String(100),
-        nullable=False,
-        index=True,
-        comment="LLM model identifier (e.g., 'gpt-4.1-mini', 'o1-mini')",
-    )
-
-    input_price_per_1m_tokens: Mapped[Decimal] = mapped_column(
-        DECIMAL(10, 6),
-        nullable=False,
-        comment="Price in USD per 1 million input tokens",
-    )
-
-    cached_input_price_per_1m_tokens: Mapped[Decimal | None] = mapped_column(
-        DECIMAL(10, 6),
-        nullable=True,
-        comment="Price in USD per 1M cached input tokens (NULL if not supported)",
-    )
-
-    output_price_per_1m_tokens: Mapped[Decimal] = mapped_column(
-        DECIMAL(10, 6),
-        nullable=False,
-        comment="Price in USD per 1 million output tokens",
-    )
-
-    effective_from: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        nullable=False,
-        default=lambda: datetime.now(UTC),
-        comment="Date from which this pricing is effective",
-    )
-
-    is_active: Mapped[bool] = mapped_column(
-        Boolean,
-        nullable=False,
-        default=True,
-        index=True,
-        comment="Whether this pricing entry is currently active",
-    )
-
-    __table_args__ = (
-        UniqueConstraint(
-            "model_name",
-            "effective_from",
-            name="uq_model_effective_from",
-        ),
-        Index(
-            "ix_llm_model_pricing_active_lookup",
-            "model_name",
-            "is_active",
-        ),
-    )
-```
-
-**Temporal Versioning Pattern:**
+**Temporal Versioning Pattern :**
 
 ```sql
--- Get current active pricing for gpt-4.1-mini
-SELECT * FROM llm_model_pricing
-WHERE model_name = 'gpt-4.1-mini'
-  AND is_active = TRUE
-  AND effective_from <= CURRENT_TIMESTAMP
-ORDER BY effective_from DESC
-LIMIT 1;
-
--- Historical pricing at specific date
-SELECT * FROM llm_model_pricing
-WHERE model_name = 'gpt-4.1-mini'
-  AND effective_from <= '2025-10-01'
-ORDER BY effective_from DESC
+-- Get current active pricing for gpt-4.1-mini (joining through the catalogue)
+SELECT p.*
+FROM llm_model_pricing p
+JOIN llm_models m ON m.id = p.model_id
+WHERE m.model_name = 'gpt-4.1-mini'
+  AND p.is_active = TRUE
+  AND p.effective_from <= CURRENT_TIMESTAMP
+ORDER BY p.effective_from DESC
 LIMIT 1;
 ```
 
 **Migration Clé:**
 
-- **2025_10_20_1808**: Création table `llm_model_pricing`
-- **2025_11_04_0001**: Multi-provider support (ajout models Anthropic, etc.)
-- **2025_11_05_1500**: Seed OpenAI pricing (gpt-4.1-mini, gpt-4-turbo, o1-mini, etc.)
+- **2025_10_20_1808**: Création table `llm_model_pricing` (legacy schema with model_name column)
+- **2025_11_04_0001**: Multi-provider support
+- **2025_11_05_1500**: Seed OpenAI pricing
+- **2026_05_05_0001/2/3** (v1.19.0, [ADR-078](../architecture/ADR-078-LLM-Catalogue-DB-Source-Of-Truth.md)): refactor en FK `model_id`, drop `model_name`, contrainte unique composite `(model_id, effective_from)`
 
 ---
 
@@ -2736,7 +2699,8 @@ Per-user usage quota configuration. One record per user (1:1 relationship with `
 | **token_usage_logs** | B-Tree | run_id | JOIN with message_token_summary |
 | **message_token_summary** | B-Tree UNIQUE | run_id | Natural key |
 | **user_statistics** | B-Tree UNIQUE | user_id | Cache lookup |
-| **llm_model_pricing** | B-Tree Composite | model_name, is_active | Active pricing lookup |
+| **llm_model_pricing** | B-Tree FK + Composite Unique | model_id, effective_from | Pricing rows joined to `llm_models` (post v1.19.0) |
+| **llm_models** | B-Tree | provider, is_active | LLM catalogue lookups (added in v1.19.0) |
 | **currency_exchange_rates** | B-Tree Composite | from_currency, to_currency, is_active | Active rate lookup |
 | **google_api_pricing** | B-Tree Composite | api_name, endpoint, is_active | Active pricing lookup |
 | **google_api_usage_logs** | B-Tree Composite | user_id, created_at | User cost analytics |
@@ -2788,21 +2752,24 @@ ORDER BY day DESC;
 -- EXPLAIN result: Index Scan on ix_token_usage_logs_user_created
 ```
 
-#### 3. Active Pricing Lookup (Multi-Column Index)
+#### 3. Active Pricing Lookup (FK + Composite, refactored in v1.19.0)
 
 ```sql
--- Index definition
-CREATE INDEX ix_llm_model_pricing_active_lookup
-    ON llm_model_pricing(model_name, is_active);
+-- Index definitions (post v1.19.0 — model_name column dropped)
+CREATE INDEX ix_llm_model_pricing_model_id ON llm_model_pricing(model_id);
+CREATE INDEX ix_llm_model_pricing_is_active ON llm_model_pricing(is_active);
+-- The unique constraint (model_id, effective_from) provides an implicit btree index too.
 
--- Query optimized
-SELECT * FROM llm_model_pricing
-WHERE model_name = 'gpt-4.1-mini'
-  AND is_active = TRUE
-ORDER BY effective_from DESC
+-- Query optimized (joining through the catalogue)
+SELECT p.*
+FROM llm_model_pricing p
+JOIN llm_models m ON m.id = p.model_id
+WHERE m.model_name = 'gpt-4.1-mini'
+  AND p.is_active = TRUE
+ORDER BY p.effective_from DESC
 LIMIT 1;
 
--- EXPLAIN result: Index Scan on ix_llm_model_pricing_active_lookup
+-- EXPLAIN result: Nested Loop with Index Scan on llm_models(model_name) + Index Scan on ix_llm_model_pricing_model_id
 ```
 
 ### Index Maintenance Best Practices
