@@ -24,7 +24,6 @@ from src.domains.llm.models import (
     CurrencyExchangeRate,
     LLMModel,
     LLMModelPricing,
-    LLMProviderEnum,
 )
 from src.domains.llm.schemas import (
     CurrencyRateCreate,
@@ -35,46 +34,56 @@ from src.domains.llm.schemas import (
     ModelPriceResponse,
     ModelPriceUpdate,
 )
+from src.domains.llm.service import LLMModelService
 from src.domains.users.models import AdminAuditLog
+from src.infrastructure.cache.pricing_cache import PricingCacheService
+from src.infrastructure.cache.redis import get_redis_cache
+from src.infrastructure.llm.model_capabilities_cache import ModelCapabilitiesCache
 
 
 def _pricing_to_response(pricing: LLMModelPricing) -> ModelPriceResponse:
     """Build a ModelPriceResponse from a pricing row whose ``model`` is loaded.
 
-    The legacy ``LLMModelPricing.model_name`` column was dropped; the model
-    name now lives on the related ``LLMModel`` row. Callers must have used
+    Flattens the llm_models row (provider + 8 capabilities + model_name) and
+    the llm_model_pricing row (id + 3 prices + effective_from + is_active)
+    into a single payload. Callers must have used
     ``selectinload(LLMModelPricing.model)`` (lazy="raise" enforces this).
     """
+    model = pricing.model
     return ModelPriceResponse.model_validate(
         {
+            # Pricing
             "id": pricing.id,
-            "model_name": pricing.model.model_name,
             "input_price_per_1m_tokens": pricing.input_price_per_1m_tokens,
             "cached_input_price_per_1m_tokens": pricing.cached_input_price_per_1m_tokens,
             "output_price_per_1m_tokens": pricing.output_price_per_1m_tokens,
             "effective_from": pricing.effective_from,
             "is_active": pricing.is_active,
+            # Catalogue
+            "provider": model.provider.value,
+            "model_name": model.model_name,
+            "max_input_tokens": model.max_input_tokens,
+            "max_output_tokens": model.max_output_tokens,
+            "supports_tools": model.supports_tools,
+            "supports_structured_output": model.supports_structured_output,
+            "supports_strict_mode": model.supports_strict_mode,
+            "supports_streaming": model.supports_streaming,
+            "supports_vision": model.supports_vision,
+            "is_reasoning_model": model.is_reasoning_model,
         }
     )
 
 
-async def _ensure_llm_model(
-    db: AsyncSession, model_name: str, provider: LLMProviderEnum = LLMProviderEnum.openai
-) -> LLMModel:
-    """Look up a model by name, creating a conservative-defaults row if missing.
+async def _invalidate_caches(db: AsyncSession) -> None:
+    """Invalidate both pricing and model_capabilities caches cross-worker.
 
-    Used by the legacy admin POST endpoint which only carries ``model_name``.
-    Task 10 refactors the endpoint to take all 14 catalogue fields explicitly;
-    until then, new models are created with safe default capabilities and the
-    admin can refine them via Task 13's enriched form.
+    Called after every llm_models / llm_model_pricing mutation so the new
+    state propagates to the runtime hot path (pricing_cache,
+    ModelCapabilitiesCache) and to all uvicorn workers via Redis Pub/Sub.
     """
-    existing = await db.scalar(select(LLMModel).where(LLMModel.model_name == model_name))
-    if existing is not None:
-        return existing
-    model = LLMModel(model_name=model_name, provider=provider)
-    db.add(model)
-    await db.flush()
-    return model
+    await ModelCapabilitiesCache.invalidate_and_reload(db)
+    redis = await get_redis_cache()
+    await PricingCacheService(redis).refresh_from_database()
 
 
 logger = structlog.get_logger(__name__)
@@ -217,58 +226,36 @@ async def create_pricing(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_superuser_session),
 ) -> ModelPriceResponse:
+    """Create a new LLM model + initial pricing in a single transaction.
+
+    **Requires**: Superuser privileges.
+
+    The payload carries the full 14-field catalogue:
+    - provider (Literal[7])
+    - model_name (globally unique)
+    - 8 capability fields (max_input_tokens, max_output_tokens,
+      supports_tools, supports_structured_output, supports_strict_mode,
+      supports_streaming, supports_vision, is_reasoning_model)
+    - 3 pricing fields (input/cached_input/output per 1M tokens)
+
+    Inserts both an ``llm_models`` row and an active ``llm_model_pricing``
+    row pointing to it. Rejects if the ``model_name`` already exists.
     """
-    Create new LLM model pricing entry.
-
-    **Requires**: Superuser privileges
-
-    Creates a new active pricing entry. If model already has active pricing,
-    this endpoint will fail. Use PUT /{id} to update existing pricing.
-    """
-    # Resolve (or create) the LLMModel for this name. The legacy POST contract
-    # only carries model_name; Task 10 will introduce a richer schema with all
-    # 14 catalogue fields. For now, _ensure_llm_model creates a row with safe
-    # defaults if needed.
-    model = await _ensure_llm_model(db, data.model_name)
-
-    # Reject if an active pricing row already exists for this model.
-    existing = await db.scalar(
-        select(LLMModelPricing).where(
-            LLMModelPricing.model_id == model.id,
-            LLMModelPricing.is_active,
-        )
-    )
-    if existing is not None:
+    service = LLMModelService(db)
+    try:
+        model, pricing = await service.create(data)
+    except ValueError:
         raise_pricing_already_exists(data.model_name)
 
-    # Create new pricing entry
-    pricing = LLMModelPricing(
-        model_id=model.id,
-        input_price_per_1m_tokens=data.input_price_per_1m_tokens,
-        cached_input_price_per_1m_tokens=data.cached_input_price_per_1m_tokens,
-        output_price_per_1m_tokens=data.output_price_per_1m_tokens,
-        is_active=True,
-    )
-    pricing.model = model  # avoid lazy-load when reading model.model_name later
-
-    db.add(pricing)
-    await db.commit()
-    await db.refresh(pricing)
-
-    # Create audit log entry
     audit_entry = AdminAuditLog(
         admin_user_id=str(current_user.id),
-        action="llm_pricing_created",
-        resource_type="llm_model_pricing",
-        resource_id=pricing.id,
+        action="llm_model_created",
+        resource_type="llm_models",
+        resource_id=model.id,
         details={
             FIELD_MODEL_NAME: model.model_name,
+            "provider": model.provider.value,
             "input_price_per_1m_tokens": float(pricing.input_price_per_1m_tokens),
-            "cached_input_price_per_1m_tokens": (
-                float(pricing.cached_input_price_per_1m_tokens)
-                if pricing.cached_input_price_per_1m_tokens
-                else None
-            ),
             "output_price_per_1m_tokens": float(pricing.output_price_per_1m_tokens),
         },
         ip_address=request.client.host if request.client else None,
@@ -276,14 +263,18 @@ async def create_pricing(
     )
     db.add(audit_entry)
     await db.commit()
+    await db.refresh(pricing)
+
+    # Cross-worker invalidation so Configuration LLM + runtime see the new model.
+    await _invalidate_caches(db)
 
     logger.info(
-        "llm_pricing_created",
-        model_name=data.model_name,
+        "llm_model_created",
+        model_name=model.model_name,
+        provider=model.provider.value,
         admin_user_id=str(current_user.id),
         pricing_id=str(pricing.id),
     )
-
     return _pricing_to_response(pricing)
 
 
@@ -295,104 +286,64 @@ async def update_pricing(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_superuser_session),
 ) -> ModelPriceResponse:
+    """Partial update of capabilities and/or pricing for an LLM model.
+
+    **Requires**: Superuser privileges.
+
+    The service layer differentiates three cases:
+    - capabilities only → mutate ``llm_models`` in place
+    - pricing only → temporal versioning on ``llm_model_pricing``
+      (deactivate old active row, insert new active row)
+    - mixed → both, in one transaction
+
+    The optional ``model_name`` body field renames the model (in place on
+    ``llm_models``). Conflicts return 409.
     """
-    Update LLM model pricing (creates new version, deactivates old).
-
-    **Requires**: Superuser privileges
-
-    **Path Parameters**:
-    - `model_name`: Current model identifier
-
-    **Body Parameters** (optional for renaming):
-    - `model_name`: New model identifier (if renaming)
-
-    Deactivates the current active pricing and creates a new active entry
-    with updated prices. This maintains pricing history.
-    If model_name is provided in body, validates uniqueness before renaming.
-    """
-    # Find the current active pricing via JOIN on llm_models (model_name lives there).
-    stmt = (
-        select(LLMModelPricing)
-        .join(LLMModelPricing.model)
-        .options(selectinload(LLMModelPricing.model))
-        .where(
-            LLMModel.model_name == model_name,
-            LLMModelPricing.is_active,
-        )
-    )
-    current_pricing = await db.scalar(stmt)
-
-    if current_pricing is None:
+    service = LLMModelService(db)
+    try:
+        model, new_pricing = await service.update(model_name, data)
+    except LookupError:
         raise_pricing_not_found(model_name)
+    except ValueError:
+        # Rename target conflicts with an existing model.
+        target = data.model_name or model_name
+        raise_pricing_already_exists(target)
 
-    model = current_pricing.model
-
-    # Determine new model_name (use provided or keep original).
-    new_model_name = data.model_name if data.model_name is not None else model_name
-
-    # If renaming, check uniqueness against the llm_models catalogue.
-    is_renaming = new_model_name != model_name
-    if is_renaming:
-        conflict = await db.scalar(select(LLMModel).where(LLMModel.model_name == new_model_name))
-        if conflict is not None:
-            raise_pricing_already_exists(new_model_name)
-        # Rename in place on llm_models — the FK on the new pricing row stays valid.
-        model.model_name = new_model_name
-
-    # Deactivate current pricing (temporal versioning).
-    current_pricing.is_active = False
-
-    # Create new pricing entry pointing to the same model.
-    new_pricing = LLMModelPricing(
-        model_id=model.id,
-        input_price_per_1m_tokens=data.input_price_per_1m_tokens,
-        cached_input_price_per_1m_tokens=data.cached_input_price_per_1m_tokens,
-        output_price_per_1m_tokens=data.output_price_per_1m_tokens,
-        is_active=True,
-    )
-    new_pricing.model = model  # avoid lazy-load when reading model.model_name later
-
-    db.add(new_pricing)
-    await db.commit()
-    await db.refresh(new_pricing)
-
-    # Create audit log entry
-    audit_details = {
-        "old_model_name": model_name,
-        "new_model_name": new_model_name,
-        "old_pricing_id": str(current_pricing.id),
-        "new_pricing_id": str(new_pricing.id),
-        "old_input_price": float(current_pricing.input_price_per_1m_tokens),
-        "new_input_price": float(new_pricing.input_price_per_1m_tokens),
-        "old_output_price": float(current_pricing.output_price_per_1m_tokens),
-        "new_output_price": float(new_pricing.output_price_per_1m_tokens),
-    }
-    if is_renaming:
-        audit_details["renamed"] = True
+    # Resolve the active pricing for the response (may be the existing row
+    # if the update only touched capabilities or only renamed the model).
+    response_pricing = new_pricing or await service.get_active_pricing_for(model.id)
+    if response_pricing is None:
+        # Defensive: a model with no active pricing should not happen post-update,
+        # but signal it explicitly rather than 500'ing on _pricing_to_response.
+        raise_pricing_not_found(model.model_name)
 
     audit_entry = AdminAuditLog(
         admin_user_id=str(current_user.id),
-        action="llm_pricing_updated",
-        resource_type="llm_model_pricing",
-        resource_id=new_pricing.id,
-        details=audit_details,
+        action="llm_model_updated",
+        resource_type="llm_models",
+        resource_id=model.id,
+        details={
+            "model_name": model.model_name,
+            "renamed_from": model_name if model.model_name != model_name else None,
+            "changed_fields": sorted(data.model_dump(exclude_unset=True, exclude_none=True).keys()),
+            "new_pricing_id": str(new_pricing.id) if new_pricing else None,
+        },
         ip_address=request.client.host if request.client else None,
         user_agent=request.headers.get("user-agent"),
     )
     db.add(audit_entry)
     await db.commit()
 
+    await _invalidate_caches(db)
+
     logger.info(
-        "llm_pricing_updated",
+        "llm_model_updated",
         old_model_name=model_name,
-        new_model_name=new_model_name,
-        renamed=is_renaming,
-        old_pricing_id=str(current_pricing.id),
-        new_pricing_id=str(new_pricing.id),
+        new_model_name=model.model_name,
+        new_pricing_id=str(new_pricing.id) if new_pricing else None,
         admin_user_id=str(current_user.id),
     )
-
-    return _pricing_to_response(new_pricing)
+    return _pricing_to_response(response_pricing)
 
 
 @router.delete("/pricing/{pricing_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -402,35 +353,41 @@ async def deactivate_pricing(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_superuser_session),
 ) -> None:
-    """
-    Deactivate LLM model pricing (soft delete).
+    """Soft-delete a model and its active pricing row (atomically).
 
-    **Requires**: Superuser privileges
+    **Requires**: Superuser privileges.
 
-    Sets is_active=False. Does not delete from database to maintain history.
+    The path parameter is a ``pricing_id`` for backward compatibility with the
+    existing frontend; the service layer resolves it to the parent model and
+    deactivates BOTH (model + active pricing). Past conversations keep their
+    cost history because the deactivated pricing row is preserved.
     """
-    # Eager-load the catalogue row so we can read model.model_name for the audit log.
+    # Resolve pricing → model_name so we can call service.deactivate(name).
     stmt = (
         select(LLMModelPricing)
         .options(selectinload(LLMModelPricing.model))
         .where(LLMModelPricing.id == pricing_id)
     )
     pricing = await db.scalar(stmt)
-
-    if pricing is None:
+    if pricing is None or pricing.model is None:
         raise_pricing_not_found(str(pricing_id))
 
-    pricing.is_active = False
-    await db.commit()
+    model_name = pricing.model.model_name
+    model_id = pricing.model.id
 
-    # Create audit log entry
+    service = LLMModelService(db)
+    try:
+        await service.deactivate(model_name)
+    except LookupError:
+        raise_pricing_not_found(model_name)
+
     audit_entry = AdminAuditLog(
         admin_user_id=str(current_user.id),
-        action="llm_pricing_deactivated",
-        resource_type="llm_model_pricing",
-        resource_id=pricing.id,
+        action="llm_model_deactivated",
+        resource_type="llm_models",
+        resource_id=model_id,
         details={
-            FIELD_MODEL_NAME: pricing.model.model_name,
+            FIELD_MODEL_NAME: model_name,
             "pricing_id": str(pricing_id),
         },
         ip_address=request.client.host if request.client else None,
@@ -439,10 +396,12 @@ async def deactivate_pricing(
     db.add(audit_entry)
     await db.commit()
 
+    await _invalidate_caches(db)
+
     logger.info(
-        "llm_pricing_deactivated",
+        "llm_model_deactivated",
         pricing_id=str(pricing_id),
-        model_name=pricing.model.model_name,
+        model_name=model_name,
         admin_user_id=str(current_user.id),
     )
 
@@ -453,14 +412,16 @@ async def reload_pricing_cache(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_superuser_session),
 ) -> dict:
-    """
-    Reload the LLM pricing cache.
+    """Reload BOTH the LLM pricing cache and the model capabilities cache.
 
-    **Requires**: Superuser privileges
+    **Requires**: Superuser privileges.
 
-    Reloads the in-memory and Redis pricing cache from the database.
-    Use after creating/updating pricing to apply changes immediately
-    without waiting for TTL expiration.
+    Reloads the in-memory + Redis pricing cache and the in-memory model
+    capabilities cache from the database, then publishes a cross-worker
+    invalidation so all uvicorn workers refresh.
+
+    Use after manual DB edits, or to recover from a stale cache without
+    waiting for TTL expiration.
     """
     from src.infrastructure.cache.pricing_cache import (
         PricingCacheService,
@@ -469,14 +430,16 @@ async def reload_pricing_cache(
     from src.infrastructure.cache.redis import get_redis_cache
 
     redis = await get_redis_cache()
-    service = PricingCacheService(redis)
+    pricing_service = PricingCacheService(redis)
 
-    # Invalidate existing cache and refresh from database
-    await service.invalidate()
-    success = await service.refresh_from_database()
-
+    # Invalidate + refresh the pricing cache (Redis-backed)
+    await pricing_service.invalidate()
+    success = await pricing_service.refresh_from_database()
     if not success:
         raise_invalid_input("Failed to refresh pricing cache from database")
+
+    # Invalidate + refresh the model_capabilities cache (in-memory + Pub/Sub)
+    await ModelCapabilitiesCache.invalidate_and_reload(db)
 
     stats = get_cache_stats()
 

@@ -10,7 +10,6 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from sqlalchemy import inspect as sa_inspect
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,12 +26,16 @@ _IMMUTABLE_FIELDS: frozenset[str] = frozenset(
     {"provider", "model_name", "id", "created_at", "updated_at"}
 )
 
-# Computed once at import time: the set of column names actually present on
-# LLMModel. Used to fail loud on typos in update_capabilities() rather than
-# silently no-op via setattr() on a non-instrumented attribute.
-_LLM_MODEL_COLUMNS: frozenset[str] = frozenset(
-    c.key for c in sa_inspect(LLMModel).mapper.column_attrs
-)
+# Set of column names actually present on LLMModel. Used to fail loud on
+# typos in update_capabilities() rather than silently no-op via setattr()
+# on a non-instrumented attribute.
+#
+# IMPORTANT: read from __table__.columns rather than mapper.column_attrs.
+# The latter triggers eager mapper configuration on import, which fires
+# before all domain models are loaded — leading to "expression 'X' failed
+# to locate a name" errors for cross-domain relationships (e.g. User →
+# UserSkillState). Table-level introspection has no such side effect.
+_LLM_MODEL_COLUMNS: frozenset[str] = frozenset(LLMModel.__table__.columns.keys())
 
 
 class LLMModelRepository(BaseRepository[LLMModel]):
