@@ -5,6 +5,134 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.19.1] - 2026-05-05
+
+### Added — DeepSeek V4 family + parameterizable provider base URLs
+
+DeepSeek released the V4 model family (`deepseek-v4-flash`, `deepseek-v4-pro`)
+with first-class thinking-mode toggle: same model invoked with or without
+chain-of-thought reasoning per request. This release wires V4 into the
+admin-facing catalogue introduced in v1.19.0, with the necessary adapter
+plumbing, a frontend constraints update, and a workaround for an
+upstream `langchain-deepseek` bug.
+
+#### Catalogue (admin-facing)
+
+- **2 new entries** in the seed for fresh installs: `deepseek-v4-flash` and
+  `deepseek-v4-pro` — both with `provider=deepseek`,
+  `max_input_tokens=1_000_000`, `max_output_tokens=384_000`,
+  `supports_tools=true`, `supports_structured_output=true`,
+  `supports_streaming=true`, `is_reasoning_model=true`. Pricing seeded
+  with the official DeepSeek tariffs (cache hit rate is unusually high:
+  ~50× cheaper for flash, ~120× cheaper for pro).
+- The seed now ships **121 chat models** (was 119); the trailing
+  `RAISE WARNING` guard updated.
+- Existing `deepseek-chat` (V3) and `deepseek-reasoner` (R1) entries
+  preserved for backward compat — DeepSeek transparently routes those
+  legacy names to V4 on their backend per upstream community
+  confirmation, but admins are encouraged to deactivate them via the
+  catalogue (`is_active=false`) once migrated to V4.
+
+#### Adapter (`apps/api/src/infrastructure/llm/providers/adapter.py`)
+
+- New branch in `_create_deepseek_llm` for V4: maps
+  `reasoning_effort` from LIA's 6-level UI scale to DeepSeek's
+  `extra_body.thinking.type` + `reasoning_effort` API fields.
+  - `none` → `{"thinking": {"type": "disabled"}}`
+  - `minimal`, `low`, `medium` → `{"thinking": {"type": "enabled"},
+    "reasoning_effort": "high"}`
+  - `high`, `xhigh` → `{"thinking": {"type": "enabled"},
+    "reasoning_effort": "max"}`
+- Sampling parameters (`temperature`, `top_p`, `frequency_penalty`,
+  `presence_penalty`) are stripped locally when thinking is on — the
+  V4 API silently ignores them otherwise; stripping makes the request
+  log faithful to what the model actually consumes.
+- `max_tokens` cap raised to 64 000 for V4 (matches the API
+  documentation for the family).
+
+#### Frontend (`apps/web/src/components/settings/AdminLLMConfigSection.tsx`)
+
+- `getModelConstraints` deepseek case extended: V4 models gated on
+  the catalogue's `is_reasoning_model` flag expose the
+  `reasoning_effort` dropdown with `['none', 'low', 'medium', 'high']`.
+- V3 deepseek-chat/deepseek-reasoner unchanged.
+
+#### Provider base URLs are now per-deployment configurable
+
+- New env vars `PERPLEXITY_BASE_URL` and `QWEN_BASE_URL` (consistent
+  with the existing `OLLAMA_BASE_URL` convention).
+- New helper `_get_base_url(provider)` in the adapter: env-first
+  resolution with documented vendor defaults as fallback.
+- Documented use cases: regional endpoints (e.g. Qwen US ↔ CN
+  DashScope), self-hosted OpenAI-compatible gateways, mock servers
+  for tests — all with no code change required.
+- Templates updated: `.env.example`, `.env.prod.example`,
+  `.env`, `.env.prod`. `.env.min.prod` deliberately skipped (its
+  philosophy delegates provider configuration to the admin UI).
+
+### Fixed
+
+- **Structured output via forced `tool_choice` rejected by V4 with
+  thinking on.** The DeepSeek API returns
+  `400 - 'deepseek-reasoner does not support this tool_choice'` even
+  for requests targeting `deepseek-v4-flash` / `deepseek-v4-pro`,
+  because thinking-mode requests are routed to a reasoner-style
+  backend that rejects forced tool selection. New helper
+  `_is_v4_thinking_enabled(llm)` in `structured_output.py` detects
+  this combination and **transparently downgrades to the JSON-mode
+  fallback** (which uses `response_format={"type": "json_object"}`
+  and does not use `tool_choice`). Schema conformance is enforced by
+  Pydantic on our side. The fix is fully automatic — nodes that need
+  structured output (`query_analyzer`, `semantic_validator`,
+  `planner`, `hitl_classifier`...) now work with V4 thinking on.
+- **`reasoning_content` round-trip in tool flows on V4.** The pinned
+  `langchain-deepseek==1.0.1` (and current upstream master) does NOT
+  inject prior `AIMessage.additional_kwargs["reasoning_content"]`
+  back into the request payload's assistant messages. The DeepSeek
+  V4 API rejects multi-turn tool flows that omit it with
+  `400 invalid_request_error: 'The reasoning_content in the thinking
+  mode must be passed back to the API.'`. Six upstream PRs over six
+  months attempting this fix have not been merged. Local subclass
+  `ChatDeepSeekPatched`
+  ([`apps/api/src/infrastructure/llm/providers/_deepseek_patched.py`](apps/api/src/infrastructure/llm/providers/_deepseek_patched.py))
+  overrides `_get_request_payload` with the round-trip logic. The
+  patch is unconditional (no-op when `additional_kwargs` is empty),
+  so it has zero effect on V3 or thinking-disabled V4 calls. To be
+  removed once `langchain-deepseek` ships the round-trip natively
+  (tracking [issue #37178](https://github.com/langchain-ai/langchain/issues/37178)).
+- **Misleading `reasoning_effort_unsupported_provider` warning for
+  DeepSeek.** `LLMAgentConfig.validate_reasoning_effort` whitelisted
+  only `{openai, anthropic, gemini, qwen}` and logged a misleading
+  warning whenever `reasoning_effort` was set on a DeepSeek node.
+  V4 supports `reasoning_effort` natively at the adapter level, so
+  `deepseek` is now in the supported set and the warning message is
+  reformulated to reflect the 5 thinking-capable providers.
+
+### Tests + tooling
+
+- 18 new unit tests in
+  [`apps/api/tests/unit/infrastructure/llm/providers/test_deepseek_patched.py`](apps/api/tests/unit/infrastructure/llm/providers/test_deepseek_patched.py)
+  covering the round-trip patch (7 tests), the V4 thinking mapping in
+  the adapter (5 tests), and the `_is_v4_thinking_enabled` detector (6
+  tests). All pass.
+- Pre-commit hook still green.
+
+### Documentation
+
+- ADR-078 — *LLM Catalogue DB-Source-of-Truth* — extended with a
+  concrete *Adding a new provider* worked example using DeepSeek V4
+  to illustrate the catalogue extension pattern.
+- New section in `docs/technical/LLM_PROVIDERS.md` —
+  *DeepSeek V4 — `reasoning_content` round-trip patch* — explains
+  the upstream bug, the local fix, the criteria for removal, and
+  cross-references issue #37178 / PR #37179.
+- `docs/technical/LLM_PROVIDER_CONSTRAINTS.md` — new V4 row in the
+  parameter compatibility table with footnote ⁶, plus a dedicated
+  V4 subsection explaining the thinking-mode mapping, the
+  `tool_choice` constraint and the JSON-mode fallback.
+- README.md — *Supported LLM Providers* table updated to list V4 as
+  the recommended DeepSeek tier.
+
 ## [1.19.0] - 2026-05-05
 
 ### Added — LLM model catalogue becomes the source of truth in the database

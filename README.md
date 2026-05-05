@@ -40,6 +40,10 @@
 </p>
 
 <p align="center">
+  <strong>Version 1.19.1</strong> — DeepSeek V4 family lands in the DB-driven catalogue from <a href="#">v1.19.0</a>. The two new entries (<code>deepseek-v4-flash</code>, <code>deepseek-v4-pro</code>) ship with thinking-mode toggle: same model invoked with or without chain-of-thought reasoning, controlled per-node via the existing <code>reasoning_effort</code> field (mapped at the adapter to DeepSeek's <code>extra_body.thinking.type</code> + <code>reasoning_effort</code>). Two transparent fallbacks ride along: structured-output requests on V4 with thinking on automatically downgrade to JSON-mode (the API rejects forced <code>tool_choice</code> in that combination), and a local <code>ChatDeepSeekPatched</code> subclass round-trips <code>reasoning_content</code> between turns to satisfy the API's multi-turn requirement (workaround for an unfixed <code>langchain-deepseek</code> bug — six upstream PRs, none merged). Provider base URLs for Perplexity and Qwen are now configurable per deployment via <code>PERPLEXITY_BASE_URL</code> / <code>QWEN_BASE_URL</code> env vars (matches the existing <code>OLLAMA_BASE_URL</code> convention) — useful for regional endpoints, self-hosted compatible gateways, or test mocks without a code change. Catalogue seed grows from 119 → 121 chat models. — May 2026
+</p>
+
+<p align="center">
   <strong>Version 1.19.0</strong> — The LLM model catalogue (chat + image) becomes the source of truth in the database: administrators declare new models and tune their full capability + pricing profile from the admin UI, with no code change, no release, and no redeploy. Three new tables (`llm_models`, refactored `llm_model_pricing`, `image_generation_pricing` with a `provider` column) replace ~750 lines of frozen Python constants; two singleton in-memory caches (`ModelCapabilitiesCache`, `ImageOptionsCache`) are loaded at boot and invalidated cross-worker via Redis Pub/Sub (ADR-063) so every API worker sees admin writes immediately. Frontend gets a 14-field admin form (provider + 8 capabilities + tarification), live cross-sibling refresh via a React Context (LLM Configuration + Image Generation Settings refetch automatically — no page reload), and the reasoning-model toggle now correctly tracks the catalogue's `is_reasoning_model` flag instead of a hardcoded regex. Migrations follow the 3-step pattern (schema → backfill 47 models → constraints), seeds insert 119 chat models + 27 image rows. — May 2026
 </p>
 
@@ -774,10 +778,10 @@ apps/api/src/
 | OpenAI | GPT-5.4, GPT-5.4-mini, GPT-5.2, GPT-5.1, GPT-5, GPT-5-mini/nano, GPT-4.1, GPT-4.1-mini/nano, GPT-4o, o1, o3-mini | Primary (prompt caching, reasoning) |
 | Anthropic | Claude Opus 4.6/4.5/4, Claude Sonnet 4.6/4.5/4, Claude Haiku 4.5 | Alternative (extended thinking) |
 | Google | Gemini 3.1/3/2.5 Pro, Gemini 3/2.5/2.0 Flash | Multimodal |
-| DeepSeek | deepseek-chat (V3), deepseek-reasoner (R1) | Cost-effective reasoning |
-| Perplexity | sonar-small/large-128k-online | Web-augmented responses |
-| Qwen | qwen3-max, qwen3.5-plus, qwen3.5-flash | Thinking + tools + vision (Alibaba Cloud) |
-| Ollama | Any local model (dynamic discovery) | Zero API cost, self-hosted |
+| DeepSeek | **deepseek-v4-flash, deepseek-v4-pro** (V4 family — thinking-mode toggle, v1.19.1+), deepseek-chat (V3, legacy), deepseek-reasoner (R1, legacy) | Cost-effective reasoning. V4 supports tools + structured output via JSON-mode fallback when thinking is on. |
+| Perplexity | sonar-small/large-128k-online | Web-augmented responses. Base URL configurable via `PERPLEXITY_BASE_URL` env var (v1.19.1+). |
+| Qwen | qwen3-max, qwen3.5-plus, qwen3.5-flash | Thinking + tools + vision (Alibaba Cloud DashScope). Base URL configurable via `QWEN_BASE_URL` (regional US/CN swap, v1.19.1+). |
+| Ollama | Any local model (dynamic discovery) | Zero API cost, self-hosted. Base URL configurable via `OLLAMA_BASE_URL`. |
 
 ### Observability
 

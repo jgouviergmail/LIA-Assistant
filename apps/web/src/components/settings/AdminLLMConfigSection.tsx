@@ -395,9 +395,29 @@ function getModelConstraints(
     }
 
     case 'deepseek': {
-      // deepseek-reasoner (R1): no sampling parameters supported — API rejects them
-      const isReasoner = /^deepseek-reasoner/i.test(model);
-      if (isReasoner) {
+      // V4 family (deepseek-v4-flash, deepseek-v4-pro): same model invoked with or
+      // without thinking via reasoning_effort. Sampling params silently ignored by
+      // the API when thinking is on — backend strips them for transparency.
+      const isV4 = /^deepseek-v4-/i.test(model);
+      const isReasonerV3 = /^deepseek-reasoner/i.test(model);
+
+      // The early return at the top of getModelConstraints already exits when
+      // dbCapabilities?.is_reasoning_model === false, so reaching this branch
+      // means V4 thinking is admin-allowed (true or undefined → assume yes).
+      if (isV4) {
+        // 6-level UI compressed to 2-level API at the backend (none/disabled,
+        // minimal+low+medium → high, high+xhigh → max). All 6 levels are kept
+        // here for cross-provider UI consistency.
+        return {
+          ...defaults,
+          supportsReasoningEffort: true,
+          isReasoningModel: true,
+          reasoningEffortOptions: ['none', 'low', 'medium', 'high'],
+        };
+      }
+
+      // V3 deepseek-reasoner (R1): no sampling parameters supported — API rejects them
+      if (isReasonerV3) {
         return {
           ...defaults,
           supportsTemperature: false,
@@ -408,7 +428,7 @@ function getModelConstraints(
           temperatureWarning: 'settings.admin.llmConfig.constraints.reasoningTemp',
         };
       }
-      // deepseek-chat (V3): all standard params supported
+      // deepseek-chat (V3) and V4 with is_reasoning_model=false: all standard params supported
       return defaults;
     }
 

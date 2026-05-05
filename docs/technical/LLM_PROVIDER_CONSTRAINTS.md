@@ -13,8 +13,9 @@
 | **OpenAI gpt-5.4, gpt-5.4-mini** (reasoning + vision) | ❌ | ❌ | ❌ | ❌ | ✅⁵ | `max_completion_tokens` |
 | **Anthropic** (Claude 3.5+, 4.x) | 0-1.0 | ❌¹ | ❌ | ❌ | ✅ → `effort` | `max_tokens` |
 | **Gemini** (2.0-flash, 2.5-flash/pro) | 0-2.0 | ✅ | ❌ | ❌ | ✅ → `thinking_level`² | `max_output_tokens` |
-| **DeepSeek chat** (V3) | 0-2.0 | ✅ | ✅ | ✅ | — | `max_tokens` (cap 8192) |
-| **DeepSeek reasoner** (R1) | ❌ | ❌ | ❌ | ❌ | — | `max_tokens` (cap 64000) |
+| **DeepSeek chat** (V3, legacy) | 0-2.0 | ✅ | ✅ | ✅ | — | `max_tokens` (cap 8192) |
+| **DeepSeek reasoner** (R1, legacy) | ❌ | ❌ | ❌ | ❌ | — | `max_tokens` (cap 64000) |
+| **DeepSeek V4** (`deepseek-v4-flash`, `deepseek-v4-pro`) | 0-2.0⁶ | ✅⁶ | ✅⁶ | ✅⁶ | ✅ → `thinking.type` + `reasoning_effort` | `max_tokens` (cap 64000) |
 | **Perplexity** (sonar, sonar-pro) | 0-2.0 | ✅ | 1.0-2.0³ | -2 to 2 | — | `max_tokens` |
 | **Ollama** | 0-2.0 | ✅ | ~⁴ | ~⁴ | — | `max_tokens` |
 
@@ -27,6 +28,8 @@
 ³ Perplexity: `frequency_penalty` uses multiplicative range (1.0 = no penalty, 2.0 = maximum). Different semantics from OpenAI's additive range.
 
 ⁴ Ollama: `frequency_penalty`/`presence_penalty` mapped internally to `repeat_penalty`. Behavior is model-dependent.
+
+⁶ DeepSeek V4: temperature/top_p/penalties are **silently ignored by the API** when thinking is enabled (`reasoning_effort != none`). Our adapter strips them locally for honesty so the request log matches what the model actually consumes.
 
 ---
 
@@ -181,17 +184,58 @@ Anthropic also supports `budget_tokens` in the `thinking` block (separate from `
 
 ### DeepSeek
 
-**deepseek-chat (V3)**:
+**deepseek-chat (V3, legacy — slated for deprecation)**:
 - All standard parameters supported
 - `reasoning_effort` not applicable — removed
 - `max_tokens` capped at 8192
+- Per upstream community confirmation in [issue #37178](https://github.com/langchain-ai/langchain/issues/37178), DeepSeek already routes `deepseek-chat` to `deepseek-v4-flash` on the backend; the legacy name is preserved for backward compatibility but should be deactivated in our catalogue once the V4 entries are seeded.
 
-**deepseek-reasoner (R1)**:
+**deepseek-reasoner (R1, legacy — slated for deprecation)**:
 - Deterministic model — no sampling parameters
 - `temperature`, `top_p`, `frequency_penalty`, `presence_penalty` all removed
 - `reasoning_effort` not applicable — removed
 - `max_tokens` capped at 64000
 - Does NOT support tools or structured output
+
+**deepseek-v4-flash, deepseek-v4-pro (V4 family)**:
+
+The V4 models are **the same model invoked with or without thinking mode** (toggle per-request). Thinking is enabled by default. Configuration is driven by `reasoning_effort` from LIA's 6-level UI scale, mapped at the adapter level to DeepSeek's `extra_body.thinking` + `reasoning_effort` API fields:
+
+| LIA `reasoning_effort` | API mapping |
+|------------------------|-------------|
+| `none` | `extra_body = {"thinking": {"type": "disabled"}}` |
+| `minimal`, `low`, `medium` | `extra_body = {"thinking": {"type": "enabled"}, "reasoning_effort": "high"}` |
+| `high`, `xhigh` | `extra_body = {"thinking": {"type": "enabled"}, "reasoning_effort": "max"}` |
+
+**`is_reasoning_model` in the catalogue**: set to `true` for both V4 models — they CAN think when asked. The toggle in Configuration LLM (effort=none vs anything else) controls per-node behavior.
+
+**Sampling params silently ignored when thinking ON**: `temperature`, `top_p`, `frequency_penalty`, `presence_penalty` are accepted by the API but ignored. The adapter strips them locally for transparency.
+
+**`max_tokens` cap**: 64000 (large output budgets supported).
+
+**Critical: `reasoning_content` round-trip in tool flows.** The DeepSeek V4 API rejects multi-turn requests with a `400 invalid_request_error` if a prior assistant message's `reasoning_content` is not echoed back in the next request:
+
+```
+The reasoning_content in the thinking mode must be passed back to the API.
+```
+
+The pinned `langchain-deepseek==1.0.1` (and current upstream master at the time of writing) does NOT do this round-trip — its `_get_request_payload` delegates to `BaseChatOpenAI`, which serializes messages via `_convert_message_to_dict` and drops `additional_kwargs`. Six upstream PRs over six months have attempted to fix this; none has been merged.
+
+We work around this with a **local subclass** `ChatDeepSeekPatched` ([`apps/api/src/infrastructure/llm/providers/_deepseek_patched.py`](../../apps/api/src/infrastructure/llm/providers/_deepseek_patched.py)) that overrides `_get_request_payload` to re-inject `reasoning_content` from `AIMessage.additional_kwargs` into the outgoing payload's assistant messages. The patch is unconditional (applies to all DeepSeek invocations) and is a no-op when `additional_kwargs` is empty.
+
+**Tracking upstream**: [issue #37178](https://github.com/langchain-ai/langchain/issues/37178), [PR #37179](https://github.com/langchain-ai/langchain/pull/37179) (auto-closed by bot for procedural reasons, not technical). When a release of `langchain-deepseek` ships the round-trip natively, our `_deepseek_patched.py` module can be deleted and the adapter switched back to bare `ChatDeepSeek`.
+
+**Forced `tool_choice` not supported with thinking ON.** The DeepSeek API rejects requests that combine `thinking.type=enabled` with a forced `tool_choice` (the form `{"type": "function", "function": {"name": "..."}}` used internally by LangChain's `with_structured_output(method="function_calling")`). The error message paradoxically references `deepseek-reasoner` even when the request targets `deepseek-v4-flash` / `deepseek-v4-pro`:
+
+```
+Error code: 400 - 'deepseek-reasoner does not support this tool_choice'
+```
+
+…because thinking-mode requests are routed to a reasoner-style backend internally. Tools-with-`tool_choice="auto"` is fine; only the forced form is rejected.
+
+**Our resolution**: `get_structured_output()` ([`apps/api/src/infrastructure/llm/structured_output.py`](../../apps/api/src/infrastructure/llm/structured_output.py)) detects this combination via `_is_v4_thinking_enabled(llm)` and downgrades to the JSON-mode fallback path (`response_format={"type": "json_object"}`), which does not use `tool_choice`. The fallback parses the JSON output via Pydantic on our side. Schema conformance is enforced by the prompt + Pydantic validation rather than by the API.
+
+**Implication for admins**: a node that needs strict structured output (`query_analyzer`, `semantic_validator`, `planner`, etc.) on a V4 model will go through the JSON-mode fallback whenever `reasoning_effort != "none"`. If you want the more reliable native function-calling path, set `reasoning_effort="none"` for that node (V4 with thinking off behaves like V3 `deepseek-chat`).
 
 ### Perplexity
 

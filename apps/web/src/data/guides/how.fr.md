@@ -6,7 +6,7 @@
 
 **Version** : 2.4
 **Date** : 2026-05-05
-**Application** : LIA v1.19.0
+**Application** : LIA v1.19.1
 **Licence** : AGPL-3.0 (Open Source)
 
 ---
@@ -1026,4 +1026,4 @@ L'intrication des sous-systèmes — mémoire psychologique, apprentissage bayé
 
 ---
 
-*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (260+ documents), des 71 ADRs, et du changelog (v1.0 à v1.19.0). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*
+*Document rédigé sur la base de l'analyse du code source (`apps/api/src/`, `apps/web/src/`), de la documentation technique (260+ documents), des 71 ADRs, et du changelog (v1.0 à v1.19.1). Toutes les métriques, versions et patterns cités sont vérifiables dans le codebase.*

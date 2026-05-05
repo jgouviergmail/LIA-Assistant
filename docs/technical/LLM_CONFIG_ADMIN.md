@@ -88,14 +88,17 @@ BaseChatModel
 | **Anthropic** (claude-3-5-sonnet) | 0-**1.0** (cappé) | **omis** | **omis** | **omis** | — | Pas de thinking |
 | **Gemini** (2.5-flash, 2.5-pro, 3+) | 0-2.0 | 0-1.0 | **omis** | **omis** | low/high (→ `thinking_level`) | medium→low |
 | **Gemini** (2.0-flash, *-lite) | 0-2.0 | 0-1.0 | **omis** | **omis** | — | Pas de thinking |
-| **DeepSeek** (chat V3) | 0-2.0 | 0-1.0 | 0-2.0 | 0-2.0 | — | max_tokens cap 8192 |
-| **DeepSeek** (reasoner R1) | **omis** | **omis** | **omis** | **omis** | — | Pas de tools, cap 64000 |
-| **Perplexity** | 0-2.0 | 0-1.0 | 1.0-2.0³ | -2 à 2 | — | freq_penalty multiplicatif |
-| **Ollama** | 0-2.0 | 0-1.0 | ~² | ~² | — | Model-dependent |
+| **DeepSeek** (chat V3, legacy) | 0-2.0 | 0-1.0 | 0-2.0 | 0-2.0 | — | max_tokens cap 8192 |
+| **DeepSeek** (reasoner R1, legacy) | **omis** | **omis** | **omis** | **omis** | — | Pas de tools, cap 64000 |
+| **DeepSeek V4** (`deepseek-v4-flash`, `deepseek-v4-pro`) | 0-2.0⁷ | ✅⁷ | ✅⁷ | ✅⁷ | none/low/medium/high (→ `thinking.type` + `reasoning_effort`) | max_tokens cap 64000. Voir [LLM_PROVIDER_CONSTRAINTS.md §DeepSeek V4](./LLM_PROVIDER_CONSTRAINTS.md) pour le mapping complet et les contraintes structured output |
+| **Perplexity** | 0-2.0 | 0-1.0 | 1.0-2.0³ | -2 à 2 | — | freq_penalty multiplicatif. Base URL paramétrable via `PERPLEXITY_BASE_URL` (v1.19.1+) |
+| **Ollama** | 0-2.0 | 0-1.0 | ~² | ~² | — | Model-dependent. Base URL paramétrable via `OLLAMA_BASE_URL` |
 
 ¹ reasoning_effort par modèle : o1-mini (non supporté), o1/o3/o4-mini (low/medium/high), gpt-5/5-mini (minimal/low/medium/high), gpt-5.1 (none/low/medium/high), gpt-5.2 (none/minimal/low/medium/high/xhigh)
 ² Ollama: freq/pres penalty mappés en interne vers `repeat_penalty`
 ³ Perplexity: `frequency_penalty` utilise une plage multiplicative (1.0=pas de pénalité, 2.0=maximum), différent de l'additive OpenAI
+
+⁷ DeepSeek V4: temperature/top_p/penalties sont **silencieusement ignorés par l'API** quand thinking est activé (`reasoning_effort != none`). L'adapter les strip localement pour fidélité du log. Avec thinking activé + structured output forcé via `tool_choice` (ce que LangChain `with_structured_output(method="function_calling")` produit), l'API retourne 400 — le dispatch automatique vers JSON-mode fallback dans `structured_output.py` rend cela transparent. Base URL hardcodée via `langchain-deepseek`.
 
 > Les paramètres **omis** sont automatiquement filtrés par `ProviderAdapter` avant l'appel API. L'Admin UI cache également les champs non supportés via `getModelConstraints()`.
 >

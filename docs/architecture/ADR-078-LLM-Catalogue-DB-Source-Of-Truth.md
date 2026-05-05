@@ -199,6 +199,137 @@ a parallel source of truth.
    `ModelCapabilitiesCache.invalidate_and_reload()` (or restart the
    workers) to pick up the new row.
 
+## Adding a New Provider (Worked Example: DeepSeek V4 in v1.19.1)
+
+The catalogue absorbs new models from existing providers without code
+changes (steps above). New providers — or new model **families** that
+need provider-side parameter mapping (thinking mode, custom
+``extra_body`` fields, regional endpoints) — require a small adapter
+patch. The DeepSeek V4 family added in v1.19.1 is the reference
+example.
+
+### Step 1 — Catalogue rows (admin or seed)
+
+Two rows in ``llm_models`` declaring the model identity + capabilities:
+
+```sql
+INSERT INTO llm_models (
+    provider, model_name,
+    max_input_tokens, max_output_tokens,
+    supports_tools, supports_structured_output, supports_strict_mode,
+    supports_streaming, supports_vision, is_reasoning_model,
+    is_active
+) VALUES
+    ('deepseek', 'deepseek-v4-flash', 1000000, 384000,
+     true, true, false, true, false, true, true),
+    ('deepseek', 'deepseek-v4-pro', 1000000, 384000,
+     true, true, false, true, false, true, true);
+```
+
+Pricing rows joined via FK on ``model_name`` (see seed
+``infrastructure/database/seeds/llm_pricing_seed.sql``).
+
+The ``is_reasoning_model=true`` flag is the **single switch** that
+gates the ``reasoning_effort`` UI in the admin form. No regex update
+needed; the cache becomes authoritative the moment the row is
+inserted.
+
+### Step 2 — Adapter mapping (if the provider has API quirks)
+
+For DeepSeek V4, ``reasoning_effort`` from LIA's 6-level UI scale must
+be translated to DeepSeek's ``extra_body.thinking.type`` +
+``reasoning_effort`` API fields (V4 only knows ``high`` / ``max``).
+The branch added to ``_create_deepseek_llm`` is ~25 lines and stays
+**inside the existing provider switch** — no new branch in the
+factory, no new module:
+
+```python
+is_v4 = model.startswith("deepseek-v4-")
+if is_v4:
+    reasoning_effort = kwargs.pop("reasoning_effort", None)
+    extra_body: dict = dict(kwargs.pop("extra_body", {}))
+    if reasoning_effort == "none":
+        extra_body["thinking"] = {"type": "disabled"}
+    elif reasoning_effort:
+        extra_body["thinking"] = {"type": "enabled"}
+        extra_body["reasoning_effort"] = (
+            "max" if reasoning_effort in ("high", "xhigh") else "high"
+        )
+        for param in ("top_p", "frequency_penalty", "presence_penalty"):
+            kwargs.pop(param, None)  # silently ignored by API
+    if extra_body:
+        kwargs["extra_body"] = extra_body
+```
+
+### Step 3 — Frontend constraint translation
+
+The frontend ``getModelConstraints`` ([
+``apps/web/src/components/settings/AdminLLMConfigSection.tsx``](
+../../apps/web/src/components/settings/AdminLLMConfigSection.tsx))
+translates the catalogue ``is_reasoning_model`` flag into the
+parameter-visibility map for the admin form. For DeepSeek V4:
+
+```typescript
+// Note: an early-return guard at the top of getModelConstraints already exits
+// when dbCapabilities?.is_reasoning_model === false. So reaching this branch
+// means V4 thinking is admin-allowed.
+case 'deepseek': {
+  const isV4 = /^deepseek-v4-/i.test(model);
+  if (isV4) {
+    return {
+      ...defaults,
+      supportsReasoningEffort: true,
+      isReasoningModel: true,
+      reasoningEffortOptions: ['none', 'low', 'medium', 'high'],
+    };
+  }
+  // … V3 fall-through unchanged
+}
+```
+
+### Step 4 — Cross-cutting incompatibilities (if any)
+
+V4 thinking + forced ``tool_choice`` (used by LangChain
+``with_structured_output(method="function_calling")``) is rejected
+by the DeepSeek API. The v1.19.1 release ships an **automatic
+fallback** in ``infrastructure/llm/structured_output.py``:
+``_is_v4_thinking_enabled(llm)`` detects the combination at dispatch
+time and downgrades to the JSON-mode path (which does not use
+``tool_choice``). Schema conformance stays enforced via Pydantic
+validation. Adding similar guards for future providers follows the
+same pattern: a single helper at the dispatch boundary, no node
+needs to know.
+
+### Step 5 — Provider-specific bug workaround (when upstream lags)
+
+The pinned ``langchain-deepseek==1.0.1`` does not round-trip
+``reasoning_content`` between turns, which the V4 API requires for
+multi-turn tool flows. Six upstream PRs over six months attempting
+this fix have not been merged. v1.19.1 adds a local subclass
+``ChatDeepSeekPatched`` ([
+``apps/api/src/infrastructure/llm/providers/_deepseek_patched.py``](
+../../apps/api/src/infrastructure/llm/providers/_deepseek_patched.py))
+that overrides ``_get_request_payload`` to inject the field from
+``additional_kwargs``. The override is a no-op when no
+``reasoning_content`` is present, so it is safe to apply
+unconditionally to all DeepSeek calls. This pattern — a small,
+well-isolated subclass, documented with a removal criterion linked
+to upstream — is the recommended approach for any LangChain partner
+package that needs a stop-gap.
+
+### What this example shows
+
+- A new model family (V4) needed **zero schema migration** — the
+  capabilities are already columns in ``llm_models``.
+- The factory and the agent-constraints UI extend through narrow,
+  provider-specific branches (not a new factory or a new context).
+- Cross-cutting concerns (structured output incompatibility,
+  upstream package bugs) are absorbed by helpers at well-known
+  boundaries (``structured_output.py``, ``_deepseek_patched.py``).
+- The whole change ships in v1.19.1 with no migration, no DB
+  downtime, and no rollback risk: it adds rows + branches, never
+  modifies existing ones.
+
 ## References
 
 - `apps/api/src/domains/llm/models.py` — SQLAlchemy models

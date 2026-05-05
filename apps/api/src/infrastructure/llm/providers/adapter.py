@@ -43,6 +43,44 @@ _ENV_FALLBACK: dict[str, str] = {
     "qwen": "QWEN_API_KEY",
 }
 
+# Base URLs for OpenAI-compatible providers. Resolution order:
+# 1. ``{PROVIDER}_BASE_URL`` environment variable (per-deployment override)
+# 2. Hardcoded default below (vendor's official endpoint)
+# Used by the Perplexity and Qwen branches in ``create_llm`` so an admin can
+# repoint to a regional endpoint, a self-hosted compatible gateway, or a mock
+# server for tests without a code change.
+_BASE_URL_DEFAULTS: dict[str, str] = {
+    "perplexity": "https://api.perplexity.ai",
+    "qwen": "https://dashscope-us.aliyuncs.com/compatible-mode/v1",
+}
+
+
+def _get_base_url(provider: str) -> str:
+    """Resolve the OpenAI-compatible base URL for ``provider``.
+
+    Reads ``{PROVIDER}_BASE_URL`` from the environment, falling back to the
+    vendor's documented endpoint if unset or empty. Logs a debug record so
+    deployments using a custom URL leave a trail.
+    """
+    import os
+
+    env_var = f"{provider.upper()}_BASE_URL"
+    env_value = os.environ.get(env_var, "").strip()
+    if env_value:
+        logger.debug(
+            "provider_base_url_from_env",
+            provider=provider,
+            env_var=env_var,
+            base_url=env_value,
+        )
+        return env_value
+
+    default = _BASE_URL_DEFAULTS.get(provider)
+    if default is None:
+        msg = f"No default base_url registered for provider={provider}"
+        raise ValueError(msg)
+    return default
+
 
 def _require_api_key(provider: str) -> str:
     """Get API key: DB cache first, then .env fallback.
@@ -338,25 +376,44 @@ class ProviderAdapter:
 
         Prompt caching: DeepSeek uses automatic server-side FP8 KV cache (no API flag needed).
 
-        DeepSeek has two models:
-        - deepseek-chat (V3): Supports tools, structured output, fast inference
-        - deepseek-reasoner (R1): Reasoning model, no tools/structured output support
+        DeepSeek model families:
+        - V3 ``deepseek-chat`` / ``deepseek-reasoner`` (legacy, slated for
+          deprecation; ``deepseek-chat`` already routes to V4-flash on the
+          backend per upstream community confirmation).
+        - V4 ``deepseek-v4-flash`` / ``deepseek-v4-pro``: same model invoked
+          with or without thinking mode via the ``thinking.type`` extra-body
+          field. Thinking is enabled by default. Sampling parameters
+          (``temperature``, ``top_p``, ``frequency_penalty``,
+          ``presence_penalty``) are silently ignored when thinking is on.
+
+        Reasoning effort mapping for V4 (LIA's 6-level scale → DeepSeek API):
+        - ``none`` → ``thinking.type=disabled`` (no thinking)
+        - ``minimal`` / ``low`` / ``medium`` → ``thinking.type=enabled, reasoning_effort=high``
+        - ``high`` / ``xhigh`` → ``thinking.type=enabled, reasoning_effort=max``
+
+        We use a local ``ChatDeepSeekPatched`` subclass that round-trips
+        ``reasoning_content`` between turns — required by the V4 API
+        whenever tools are bound (otherwise: ``400 invalid_request_error``).
+        See ``_deepseek_patched.py`` for the full rationale.
 
         Args:
-            model: DeepSeek model name ("deepseek-chat" or "deepseek-reasoner")
+            model: DeepSeek model name (``deepseek-chat``, ``deepseek-reasoner``,
+                ``deepseek-v4-flash``, ``deepseek-v4-pro``)
             temperature: Temperature parameter
             max_tokens: Maximum tokens to generate
             streaming: Enable streaming
             **kwargs: Additional parameters
 
         Returns:
-            ChatDeepSeek: Configured DeepSeek LLM instance
+            ChatDeepSeekPatched: Configured DeepSeek LLM instance
 
         Raises:
             ImportError: If langchain-deepseek is not installed
         """
         try:
-            from langchain_deepseek import ChatDeepSeek  # type: ignore[import-not-found]
+            from src.infrastructure.llm.providers._deepseek_patched import (
+                ChatDeepSeekPatched,
+            )
         except ImportError as e:
             logger.error(
                 "deepseek_import_failed",
@@ -368,12 +425,37 @@ class ProviderAdapter:
                 "Install it with: pip install langchain-deepseek"
             ) from e
 
-        # Remove parameters not supported by DeepSeek
-        kwargs.pop("reasoning_effort", None)  # OpenAI-specific
+        is_v4 = model.startswith("deepseek-v4-")
+        is_reasoner_v3 = "reasoner" in model and not is_v4
+        reasoning_effort = kwargs.pop("reasoning_effort", None)
 
-        # deepseek-reasoner (R1): no sampling parameters supported by the API
-        is_reasoner = "reasoner" in model
-        if is_reasoner:
+        # V4 thinking mode: map reasoning_effort → extra_body.thinking + reasoning_effort.
+        # Sampling params silently ignored by the API when thinking is enabled — strip
+        # them locally for honesty (request log matches what the model actually consumes).
+        if is_v4:
+            extra_body: dict[str, Any] = dict(kwargs.pop("extra_body", {}))
+            if reasoning_effort == "none":
+                extra_body["thinking"] = {"type": "disabled"}
+            elif reasoning_effort:
+                extra_body["thinking"] = {"type": "enabled"}
+                extra_body["reasoning_effort"] = (
+                    "max" if reasoning_effort in ("high", "xhigh") else "high"
+                )
+                for param in ("top_p", "frequency_penalty", "presence_penalty"):
+                    kwargs.pop(param, None)
+                logger.info(
+                    "deepseek_v4_thinking_configured",
+                    model=model,
+                    reasoning_effort=reasoning_effort,
+                    api_effort=extra_body["reasoning_effort"],
+                    msg="V4 thinking enabled — sampling params stripped (silently ignored by API)",
+                )
+            # else: no reasoning_effort set → use API default (thinking enabled by default for V4)
+            if extra_body:
+                kwargs["extra_body"] = extra_body
+
+        # V3 deepseek-reasoner (R1): no sampling parameters supported by the API
+        if is_reasoner_v3:
             for param in ("top_p", "frequency_penalty", "presence_penalty"):
                 kwargs.pop(param, None)
             logger.info(
@@ -382,8 +464,11 @@ class ProviderAdapter:
                 msg="deepseek-reasoner does not support sampling parameters (temperature, top_p, penalties): omitted",
             )
 
-        # DeepSeek V3.2 max_tokens limit: 8192 for deepseek-chat, 64000 for deepseek-reasoner
-        deepseek_max_tokens_limit = 64000 if is_reasoner else 8192
+        # max_tokens limits per model family
+        if is_v4:
+            deepseek_max_tokens_limit = 64000  # V4 family supports large output budgets
+        else:
+            deepseek_max_tokens_limit = 64000 if is_reasoner_v3 else 8192
         if max_tokens > deepseek_max_tokens_limit:
             logger.warning(
                 "deepseek_max_tokens_capped",
@@ -394,9 +479,9 @@ class ProviderAdapter:
             )
             max_tokens = deepseek_max_tokens_limit
 
-        if is_reasoner:
-            # Temperature not supported for deepseek-reasoner — omit entirely
-            return ChatDeepSeek(
+        if is_reasoner_v3:
+            # Temperature not supported for deepseek-reasoner V3 — omit entirely
+            return ChatDeepSeekPatched(
                 model=model,
                 max_tokens=max_tokens,
                 streaming=streaming,
@@ -404,7 +489,7 @@ class ProviderAdapter:
                 **kwargs,
             )
 
-        return ChatDeepSeek(
+        return ChatDeepSeekPatched(
             model=model,
             temperature=temperature,
             max_tokens=max_tokens,
@@ -567,16 +652,18 @@ class ProviderAdapter:
 
         # Perplexity: OpenAI-compatible API with custom base_url
         # Prompt caching: N/A (Perplexity does not expose a caching API)
+        # base_url is overridable via PERPLEXITY_BASE_URL env var.
         elif provider == "perplexity":
-            additional_kwargs["base_url"] = "https://api.perplexity.ai"
+            additional_kwargs["base_url"] = _get_base_url("perplexity")
             additional_kwargs["openai_api_key"] = _require_api_key("perplexity")
             provider_for_init = "openai"
 
         # Qwen (Alibaba Cloud): OpenAI-compatible API via DashScope
         # Prompt caching: Implicit cache is automatic (≥256 tokens, no flag needed).
         # Explicit cache (follow-up): cache_control in content blocks, ≥1024 tokens.
+        # base_url is overridable via QWEN_BASE_URL env var (e.g. swap us → cn region).
         elif provider == "qwen":
-            additional_kwargs["base_url"] = "https://dashscope-us.aliyuncs.com/compatible-mode/v1"
+            additional_kwargs["base_url"] = _get_base_url("qwen")
             additional_kwargs["openai_api_key"] = _require_api_key("qwen")
             provider_for_init = "openai"
 

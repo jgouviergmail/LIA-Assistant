@@ -276,6 +276,29 @@ def _get_max_nesting_depth(schema: dict[str, Any], current_depth: int = 0) -> in
     return max_depth
 
 
+def _is_v4_thinking_enabled(llm: BaseChatModel) -> bool:
+    """Detect whether ``llm`` is a DeepSeek V4 instance with thinking ON.
+
+    Inspects the model name and the ``extra_body`` attribute populated by
+    our ``_create_deepseek_llm`` adapter. Used to route around the V4
+    ``tool_choice`` restriction in ``get_structured_output``.
+
+    Returns False (safe default) for any non-DeepSeek instance, any V3
+    model, or any V4 instance with ``reasoning_effort=none`` (thinking
+    explicitly disabled by the admin).
+    """
+    model_name = getattr(llm, "model_name", "") or ""
+    if not model_name.startswith("deepseek-v4-"):
+        return False
+
+    extra_body = getattr(llm, "extra_body", None) or {}
+    thinking_cfg = extra_body.get("thinking") if isinstance(extra_body, dict) else None
+    if not isinstance(thinking_cfg, dict):
+        # No explicit thinking config: V4 default is enabled.
+        return True
+    return thinking_cfg.get("type") == "enabled"
+
+
 class StructuredOutputError(Exception):
     """Raised when structured output generation or parsing fails."""
 
@@ -419,6 +442,26 @@ async def get_structured_output[T: BaseModel](
 
     # Check provider capabilities
     supports_native = settings.provider_supports_structured_output.get(provider, False)
+
+    # DeepSeek V4 with thinking enabled rejects forced ``tool_choice`` (the
+    # mechanism used by LangChain's ``with_structured_output(method="function_calling")``).
+    # The DeepSeek API surfaces this as ``400 - 'deepseek-reasoner does not support
+    # this tool_choice'`` even when the request targets ``deepseek-v4-flash`` /
+    # ``deepseek-v4-pro``, because thinking-mode requests are routed to a
+    # reasoner-style backend internally. JSON mode (``response_format={"type":
+    # "json_object"}``) does not use ``tool_choice`` and is accepted, so we
+    # downgrade to the JSON-mode fallback path for this specific combination.
+    # When thinking is OFF (``reasoning_effort=none``), V4 behaves like V3
+    # ``deepseek-chat`` and the native ``function_calling`` path works.
+    if supports_native and provider == "deepseek" and _is_v4_thinking_enabled(llm):
+        logger.info(
+            "deepseek_v4_thinking_structured_output_json_fallback",
+            provider=provider,
+            schema=schema_name,
+            msg="DeepSeek V4 with thinking ON rejects forced tool_choice — "
+            "downgrading to JSON-mode fallback for structured output",
+        )
+        supports_native = False
 
     try:
         if supports_native:

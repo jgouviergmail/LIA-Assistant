@@ -1,8 +1,8 @@
 # LLM Providers - Guide de Configuration
 
 **Statut** : Actif
-**Derniere mise a jour** : 2026-03-07
-**Fichiers sources** : `apps/api/src/core/config/llm.py`, `apps/api/src/core/config/agents.py`, `apps/api/src/infrastructure/llm/providers/adapter.py`
+**Derniere mise a jour** : 2026-05-05 (v1.19.1 — DeepSeek V4 + base URLs paramétrables)
+**Fichiers sources** : `apps/api/src/core/config/llm.py`, `apps/api/src/core/config/agents.py`, `apps/api/src/infrastructure/llm/providers/adapter.py`, `apps/api/src/infrastructure/llm/providers/_deepseek_patched.py`
 
 ---
 
@@ -548,7 +548,105 @@ ProviderAdapter.create_llm()
 | `apps/api/src/core/config/mcp.py` | `MCPSettings` : config LLM MCP (description, Excalidraw) |
 | `apps/api/src/core/llm_agent_config.py` | `LLMAgentConfig` : Pydantic model de config par agent |
 | `apps/api/src/infrastructure/llm/factory.py` | `get_llm()` : factory avec merge settings + override |
-| `apps/api/src/infrastructure/llm/providers/adapter.py` | `ProviderAdapter` : creation instances, filtrage params |
+| `apps/api/src/infrastructure/llm/providers/adapter.py` | `ProviderAdapter` : creation instances, filtrage params, helper `_get_base_url(provider)` (env-first resolution) |
+| `apps/api/src/infrastructure/llm/providers/_deepseek_patched.py` | `ChatDeepSeekPatched` : sous-classe locale qui round-trip `reasoning_content` entre tours (workaround de l'upstream `langchain-deepseek==1.0.1`, v1.19.1+). Voir section dédiée plus bas. |
 | `apps/api/src/infrastructure/llm/model_profiles.py` | `get_model_profile()` lit depuis `ModelCapabilitiesCache`. La constante `FALLBACK_PROFILES` (~750 lignes) a été supprimée en v1.19.0 ([ADR-078](../architecture/ADR-078-LLM-Catalogue-DB-Source-Of-Truth.md)) au profit du catalogue DB. |
 | `apps/api/src/infrastructure/llm/model_capabilities_cache.py` | `ModelCapabilitiesCache` : singleton chargé au boot depuis la table `llm_models`, invalidé cross-worker via Pub/Sub (ADR-063). Source de vérité pour `is_reasoning_model`, capabilities, provider. |
 | `apps/api/src/core/constants.py` | `REASONING_MODELS_PATTERN` : regex de fallback (utilisée uniquement pour les modèles absents du cache). En v1.19.0, le flag `is_reasoning_model` du catalogue est désormais authoritative. |
+
+---
+
+## Provider base URLs paramétrables (v1.19.1+)
+
+Trois providers exposent un **endpoint OpenAI-compatible** qui peut nécessiter d'être surchargé selon le déploiement (région différente, gateway compatible auto-hébergé, mock de test, redirection à travers un proxy d'entreprise). Le pattern est uniforme : variable d'environnement ``{PROVIDER}_BASE_URL``, fallback sur l'endpoint officiel documenté du fournisseur.
+
+| Provider | Variable d'env | Default fallback | Cas d'usage |
+|----------|----------------|------------------|-------------|
+| Ollama | `OLLAMA_BASE_URL` | `http://host.docker.internal:11434/v1` | Self-hosted local, déploiement Docker, gateway centralisé |
+| Perplexity | `PERPLEXITY_BASE_URL` | `https://api.perplexity.ai` | Proxy d'entreprise, mock de test |
+| Qwen | `QWEN_BASE_URL` | `https://dashscope-us.aliyuncs.com/compatible-mode/v1` | Bascule régionale us → cn (`https://dashscope.aliyuncs.com/compatible-mode/v1`), gateway compatible |
+
+La résolution se fait via le helper ``_get_base_url(provider)`` dans ``providers/adapter.py`` : la variable d'env vide ou non définie retombe silencieusement sur le default ; une URL non-vide est utilisée telle quelle et un log structuré ``provider_base_url_from_env`` est émis pour la traçabilité.
+
+DeepSeek, OpenAI, Anthropic, Gemini : URL gérées par leurs SDK respectifs (LangChain partner packages). Pas d'override LIA-side, mais les SDK exposent eux-mêmes ``base_url`` / ``api_base`` paramétrables si besoin (voir leur documentation respective).
+
+---
+
+## DeepSeek V4 — patch local du round-trip `reasoning_content` (v1.19.1+)
+
+### Le bug
+
+Avec l'arrivée de la famille DeepSeek V4 en mai 2026, l'API DeepSeek impose une nouvelle contrainte sur le mode thinking : **le champ ``reasoning_content`` produit par le modèle au tour N doit être renvoyé tel quel dans le payload du tour N+1** lorsqu'il s'agit d'un flow multi-tours avec tools. À défaut, l'API rejette la seconde requête :
+
+```
+openai.BadRequestError: Error code: 400 - {
+    'error': {
+        'message': 'The reasoning_content in the thinking mode must be passed back to the API.',
+        'type': 'invalid_request_error',
+    }
+}
+```
+
+### Pourquoi `langchain-deepseek==1.0.1` ne le fait pas
+
+Le ``ChatDeepSeek`` upstream (version 1.0.1, sortie le 2025-11-13, latest sur PyPI au 2026-05-05) hérite de ``BaseChatOpenAI``. Le path ``_get_request_payload`` y délègue à ``_convert_message_to_dict`` qui **drop** silencieusement les ``additional_kwargs`` lors de la sérialisation. Côté lecture (réponse → AIMessage) le package extrait correctement ``reasoning_content`` dans ``additional_kwargs``, mais côté écriture (AIMessage → payload du tour suivant), rien ne le ré-injecte.
+
+Six PRs upstream tentent ce fix sur six mois ; aucune n'a été mergée :
+
+- [PR #37179](https://github.com/langchain-ai/langchain/pull/37179) — fermée par bot pour assignment manquant (mai 2026)
+- [PR #37065](https://github.com/langchain-ai/langchain/pull/37065) — closed (avril 2026)
+- [PR #34199](https://github.com/langchain-ai/langchain/pull/34199) — closed pour V3.2 thinking (déc. 2025)
+- [PR #35094](https://github.com/langchain-ai/langchain/pull/35094), [#34516](https://github.com/langchain-ai/langchain/pull/34516), [#34177](https://github.com/langchain-ai/langchain/pull/34177) — open, sans review depuis février 2026
+
+Issue de référence côté communauté : [#37178](https://github.com/langchain-ai/langchain/issues/37178) (ouverte le 2026-05-04, encore sans réponse de mainteneur au moment de la v1.19.1).
+
+### Notre fix
+
+Module ``apps/api/src/infrastructure/llm/providers/_deepseek_patched.py`` — sous-classe ``ChatDeepSeekPatched(ChatDeepSeek)`` qui override ``_get_request_payload`` :
+
+```python
+class ChatDeepSeekPatched(ChatDeepSeek):
+    def _get_request_payload(self, input_, *, stop=None, **kwargs):
+        payload = super()._get_request_payload(input_, stop=stop, **kwargs)
+
+        # Re-resolve original messages: the parent's _convert_message_to_dict
+        # drops additional_kwargs, so we still need access to them.
+        original_messages = self._convert_input(input_).to_messages()
+        reasoning_contents = [
+            msg.additional_kwargs.get("reasoning_content")
+            for msg in original_messages
+            if isinstance(msg, AIMessage)
+        ]
+
+        # Walk the payload's assistant messages in order; inject the matching
+        # reasoning_content if it exists.
+        ai_idx = 0
+        for message in payload["messages"]:
+            if message["role"] == "assistant":
+                if (
+                    ai_idx < len(reasoning_contents)
+                    and reasoning_contents[ai_idx] is not None
+                ):
+                    message["reasoning_content"] = reasoning_contents[ai_idx]
+                ai_idx += 1
+
+        return payload
+```
+
+L'override est ported directement de PR #37179 (28 lignes ajoutées / 11 supprimées dans la PR upstream candidate ; on en garde l'essence sans la partie Azure-specific qui n'est pas pertinente pour LIA).
+
+### Application unconditionnelle
+
+``_create_deepseek_llm`` instancie ``ChatDeepSeekPatched`` pour **tous** les modèles DeepSeek (V3 et V4, thinking on et off). Pour les modèles qui ne produisent jamais de ``reasoning_content`` (V3 ``deepseek-chat`` sans thinking), le tableau ``reasoning_contents`` reste vide et l'override est un no-op total. Aucune régression, aucune branche conditionnelle nécessaire.
+
+### Critères de suppression
+
+Quand `langchain-deepseek` (ou la nouvelle stack `langchain-openai` qui pourrait absorber le fix) ship une release avec round-trip natif :
+
+1. Bumper `requirements.txt` vers la version qui contient le fix.
+2. Vérifier que les 7 tests `TestChatDeepSeekPatchedRoundTrip` (et les 6 tests `TestIsV4ThinkingEnabledDetection` qui dépendent de `ChatDeepSeekPatched.extra_body`) passent encore avec ``ChatDeepSeek`` directement (suppression de l'instanciation patched).
+3. Supprimer ``_deepseek_patched.py``, le replace par ``from langchain_deepseek import ChatDeepSeek`` direct dans ``adapter.py``.
+4. Adapter les tests pour viser ``ChatDeepSeek`` natif.
+5. Cette section de docs peut alors être archivée — laisser un pointer "Patch removed in vX.Y, see CHANGELOG".
+
+Pas urgent — le patch est petit (~50 lignes), bien testé (13 tests dédiés), et n'impacte ni les performances ni les autres providers.

@@ -6,7 +6,7 @@
 
 **Versione**: 2.3
 **Data**: 2026-05-05
-**Applicazione**: LIA v1.19.0
+**Applicazione**: LIA v1.19.1
 **Licenza**: AGPL-3.0 (Open Source)
 
 ---
@@ -986,4 +986,4 @@ L'intreccio dei sottosistemi — memoria psicologica, apprendimento bayesiano, r
 
 ---
 
-*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (260+ documenti), dei 71 ADR e del changelog (v1.0 a v1.19.0). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*
+*Documento redatto sulla base dell'analisi del codice sorgente (`apps/api/src/`, `apps/web/src/`), della documentazione tecnica (260+ documenti), dei 71 ADR e del changelog (v1.0 a v1.19.1). Tutte le metriche, versioni e pattern citati sono verificabili nel codebase.*

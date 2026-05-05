@@ -113,19 +113,28 @@ class LLMAgentConfig(BaseModel):
     @classmethod
     def validate_reasoning_effort(cls, v: str | None, info: Any) -> str | None:
         """
-        Validate reasoning_effort is only used with compatible OpenAI models.
+        Validate reasoning_effort is only used with thinking-capable providers.
 
         This validator ensures:
-        1. reasoning_effort is only set for OpenAI provider
-        2. Warning is logged if used with non-reasoning models
+        1. reasoning_effort is only set for providers that support thinking modes
+        2. For OpenAI, the value is auto-cleared on non-reasoning models (via regex)
         3. No blocking errors (graceful degradation)
+
+        Supported providers (per their adapter mapping):
+        - OpenAI: o-series, GPT-5 reasoning models (native ``reasoning_effort``)
+        - Anthropic: Claude 3.7+, 4.x extended thinking (mapped to ``effort``)
+        - Gemini: 2.5+ models (mapped to ``thinking_level``)
+        - Qwen: qwen3.x family (mapped to ``enable_thinking`` + ``thinking_budget``)
+        - DeepSeek: V4 family (mapped to ``extra_body.thinking.type`` + ``reasoning_effort``);
+          V3 ``deepseek-reasoner`` ignores it natively.
 
         Args:
             v: reasoning_effort value (low/medium/high or None)
             info: Pydantic validation context with access to other fields
 
         Returns:
-            The validated reasoning_effort value (unchanged)
+            The validated reasoning_effort value (unchanged for thinking-capable
+            providers; cleared to None for OpenAI non-reasoning models).
 
         Note:
             This is a non-blocking validator. It logs warnings but allows
@@ -139,24 +148,25 @@ class LLMAgentConfig(BaseModel):
         provider = info.data.get("provider")
         model = info.data.get("model", "")
 
-        # Validation 1: Check provider supports reasoning_effort
-        # OpenAI (o-series, GPT-5), Anthropic (effort param), Gemini (thinking_level),
-        # Qwen (enable_thinking + thinking_budget)
-        supported_providers = {"openai", "anthropic", "gemini", "qwen"}
+        # Validation 1: provider supports reasoning_effort at all.
+        # Note: ``perplexity`` and ``ollama`` are intentionally excluded here —
+        # they pass reasoning_effort through to OpenAI-compatible APIs which
+        # silently ignore it.
+        supported_providers = {"openai", "anthropic", "gemini", "qwen", "deepseek"}
         if provider not in supported_providers:
             logger.warning(
                 "reasoning_effort_unsupported_provider",
                 provider=provider,
                 reasoning_effort=v,
-                msg=f"reasoning_effort parameter is only supported for OpenAI, Anthropic, "
-                f"and Gemini providers, got provider={provider}. "
-                f"This parameter will be ignored.",
+                msg=f"reasoning_effort is only honored by thinking-capable providers "
+                f"(openai, anthropic, gemini, qwen, deepseek); got provider={provider}. "
+                f"This parameter will be ignored downstream.",
             )
             return v
 
-        # Validation 2: For OpenAI only, check if model is a reasoning model
-        # Other providers (Anthropic, Gemini, Qwen) handle reasoning_effort natively
-        # via their own mapping in the adapter — no model-name validation needed.
+        # Validation 2: For OpenAI only, check if model is a reasoning model.
+        # Other providers (Anthropic, Gemini, Qwen, DeepSeek) handle the
+        # parameter at the adapter level — model-name validation lives there.
         if provider == "openai":
             import re
 

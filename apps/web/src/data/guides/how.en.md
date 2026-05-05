@@ -6,7 +6,7 @@
 
 **Version**: 2.3
 **Date**: 2026-05-05
-**Application**: LIA v1.19.0
+**Application**: LIA v1.19.1
 **License**: AGPL-3.0 (Open Source)
 
 ---
@@ -1015,4 +1015,4 @@ The interweaving of subsystems — psychological memory, Bayesian learning, sema
 
 ---
 
-*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (260+ documents), 71 ADRs, and the changelog (v1.0 to v1.19.0). All metrics, versions, and patterns cited are verifiable in the codebase.*
+*Document written based on analysis of the source code (`apps/api/src/`, `apps/web/src/`), technical documentation (260+ documents), 71 ADRs, and the changelog (v1.0 to v1.19.1). All metrics, versions, and patterns cited are verifiable in the codebase.*

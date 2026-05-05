@@ -6,7 +6,7 @@
 -- Disable triggers for faster bulk insert
 SET session_replication_role = replica;
 
--- Insert LLM Models catalogue (capabilities) + LLM Model Pricing (119 models)
+-- Insert LLM Models catalogue (capabilities) + LLM Model Pricing (121 models)
 
 -- ==========================================================================
 -- 1) llm_models — catalogue (capabilities). One row per distinct model_name.
@@ -128,6 +128,12 @@ INSERT INTO llm_models (
     ('gemini', 'gemini-3.1-pro-preview', 8192, 4096, true, true, false, true, false, false, true),
     ('deepseek', 'deepseek-chat', 8192, 4096, true, true, false, true, false, false, true),
     ('deepseek', 'deepseek-reasoner', 8192, 4096, true, true, false, true, false, false, true),
+    -- DeepSeek V4 family (v1.19.0): 1M input / 384k output, thinking-capable.
+    -- See ADR-078 + LLM_PROVIDER_CONSTRAINTS.md (DeepSeek V4 section). Sampling
+    -- params silently ignored when thinking is on; reasoning_effort drives
+    -- extra_body.thinking.type at adapter level. is_reasoning_model=true.
+    ('deepseek', 'deepseek-v4-flash', 1000000, 384000, true, true, false, true, false, true, true),
+    ('deepseek', 'deepseek-v4-pro', 1000000, 384000, true, true, false, true, false, true, true),
     ('perplexity', 'sonar', 8192, 4096, true, true, false, true, false, false, true),
     ('perplexity', 'sonar-deep-research', 8192, 4096, true, true, false, true, false, false, true),
     ('perplexity', 'sonar-pro', 8192, 4096, true, true, false, true, false, false, true),
@@ -266,6 +272,10 @@ FROM (VALUES
     ('gemini-3.1-pro-preview', 2.000000::numeric, 0.200000, 12.000000::numeric, '2026-01-01T00:00:00Z', true),
     ('deepseek-chat', 0.280000::numeric, 0.028000, 0.420000::numeric, '2026-01-01T00:00:00Z', true),
     ('deepseek-reasoner', 0.280000::numeric, 0.028000, 0.420000::numeric, '2026-01-01T00:00:00Z', true),
+    -- DeepSeek V4 pricing (USD per 1M tokens, official tariffs). Cache hit rate
+    -- is unusually high (~50× cheaper for flash, ~120× cheaper for pro).
+    ('deepseek-v4-flash', 0.140000::numeric, 0.002800, 0.280000::numeric, '2026-05-05T00:00:00Z', true),
+    ('deepseek-v4-pro', 0.435000::numeric, 0.003625, 0.870000::numeric, '2026-05-05T00:00:00Z', true),
     ('sonar', 1.000000::numeric, NULL::numeric, 1.000000::numeric, '2026-01-01T00:00:00Z', true),
     ('sonar-deep-research', 2.000000::numeric, NULL::numeric, 8.000000::numeric, '2026-01-01T00:00:00Z', true),
     ('sonar-pro', 3.000000::numeric, NULL::numeric, 15.000000::numeric, '2026-01-01T00:00:00Z', true),
@@ -325,7 +335,7 @@ BEGIN
     RAISE NOTICE '  - % active LLM model catalogue entries (with pricing)', model_count;
     RAISE NOTICE '  - % active currency exchange rates', rate_count;
 
-    IF model_count < 119 THEN
-        RAISE WARNING 'Expected at least 119 models, but found %', model_count;
+    IF model_count < 121 THEN
+        RAISE WARNING 'Expected at least 121 models, but found %', model_count;
     END IF;
 END $$;
