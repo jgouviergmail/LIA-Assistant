@@ -326,6 +326,41 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     register_cache(CACHE_NAME_LLM_CONFIG, _reload_llm_config_cache)
 
+    # Initialize LLM model capabilities cache from llm_models table.
+    # Sits on the LLM hot path: get_model_profile() reads from this cache
+    # synchronously without DB I/O.
+    try:
+        from src.infrastructure.database.session import get_db_context
+        from src.infrastructure.llm.model_capabilities_cache import (
+            ModelCapabilitiesCache,
+        )
+
+        async with get_db_context() as db:
+            await ModelCapabilitiesCache.load_from_db(db)
+        logger.info("model_capabilities_cache_initialized")
+    except Exception as exc:
+        # Boot continues; get_model_profile() will fall back to a conservative
+        # default for any model not in the (possibly empty) cache.
+        logger.critical(
+            "model_capabilities_cache_initialization_failed",
+            error=str(exc),
+            exc_info=True,
+        )
+
+    # Register model capabilities cache for cross-worker invalidation (ADR-063)
+    from src.core.constants import CACHE_NAME_MODEL_CAPABILITIES
+
+    async def _reload_model_capabilities_cache() -> None:
+        from src.infrastructure.database.session import get_db_context
+        from src.infrastructure.llm.model_capabilities_cache import (
+            ModelCapabilitiesCache,
+        )
+
+        async with get_db_context() as db:
+            await ModelCapabilitiesCache.load_from_db(db)
+
+    register_cache(CACHE_NAME_MODEL_CAPABILITIES, _reload_model_capabilities_cache)
+
     # Initialize Skills cache (agentskills.io standard — SKILL.md files on disk)
     # Then sync DB (skills + user_skill_states) with disk state.
     if getattr(settings, "skills_enabled", False):
