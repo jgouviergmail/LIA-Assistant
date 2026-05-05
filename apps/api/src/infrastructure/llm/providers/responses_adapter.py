@@ -145,7 +145,22 @@ class ResponsesLLM(BaseChatModel):
         return params
 
     def _is_reasoning_model(self) -> bool:
-        """Check if model is a reasoning model (o-series, gpt-5) that doesn't support sampling params."""
+        """Check if model is a reasoning model.
+
+        DB-authoritative: if the model is in ``ModelCapabilitiesCache``
+        (populated from ``llm_models``), trust the admin-edited
+        ``is_reasoning_model`` flag. Otherwise fall back to the legacy
+        regex (covers unknown / not-yet-seeded models).
+
+        This means the admin can disable reasoning treatment for a model
+        whose name still matches the regex (e.g. ``gpt-5-mini`` with
+        ``is_reasoning_model=False``).
+        """
+        from src.infrastructure.llm.model_capabilities_cache import ModelCapabilitiesCache
+
+        cached = ModelCapabilitiesCache.get(self.model)
+        if cached is not None:
+            return cached.is_reasoning_model
         return bool(re.match(REASONING_MODELS_PATTERN, self.model, re.IGNORECASE))
 
     def _supports_sampling_params(self) -> bool:

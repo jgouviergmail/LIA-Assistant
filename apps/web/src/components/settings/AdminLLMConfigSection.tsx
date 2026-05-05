@@ -178,16 +178,22 @@ const POWER_TIER_STYLES: Record<string, string> = {
 function LLMTypeCard({
   config,
   onEdit,
+  modelCapabilities,
   t,
 }: {
   config: LLMTypeConfig;
   onEdit: (config: LLMTypeConfig) => void;
+  /** DB-sourced capabilities for the currently configured model.
+   * Lets the tile honor admin overrides (e.g. is_reasoning_model=false on a
+   * model whose name still matches the OpenAI reasoning regex). */
+  modelCapabilities?: { is_reasoning_model?: boolean };
   t: (key: string) => string;
 }) {
   const tileConstraints = getModelConstraints(
     config.effective.provider,
     config.effective.model,
-    config.effective.reasoning_effort
+    config.effective.reasoning_effort,
+    modelCapabilities,
   );
   const tierClass = config.info.power_tier ? (POWER_TIER_STYLES[config.info.power_tier] ?? '') : '';
   return (
@@ -253,10 +259,18 @@ interface ModelConstraints {
 const OPENAI_REASONING_PATTERN = /^(o[0-9](-.*)?|gpt-5([.-].*)?)$/i;
 const OPENAI_O1_MINI_PATTERN = /^o1-mini/i;
 
+/** Subset of ModelCapabilities fields that override the legacy regex-based
+ * reasoning detection. Source of truth = the ``llm_models`` DB row, exposed
+ * through ``GET /llm-config/metadata`` as ``ModelCapabilities``. */
+interface DbCapabilitiesOverride {
+  is_reasoning_model?: boolean;
+}
+
 function getModelConstraints(
   provider: string,
   model: string,
-  reasoningEffort?: string | null
+  reasoningEffort?: string | null,
+  dbCapabilities?: DbCapabilitiesOverride
 ): ModelConstraints {
   const defaults: ModelConstraints = {
     supportsTemperature: true,
@@ -271,6 +285,16 @@ function getModelConstraints(
   };
 
   if (!provider || !model) return defaults;
+
+  // DB-authoritative override: when an admin disables ``is_reasoning_model``
+  // in Tarification LLM Texte for this model, Configuration LLM must drop
+  // the reasoning_effort UI even if the regex would otherwise match (e.g.
+  // a model named "gpt-5-mini" with is_reasoning_model=false).
+  // The regex remains the source for which specific effort values are valid
+  // (an API-quirk that is NOT carried in the DB capability flag).
+  if (dbCapabilities?.is_reasoning_model === false) {
+    return defaults;
+  }
 
   switch (provider) {
     case 'openai': {
@@ -447,6 +471,7 @@ function LLMConfigDialog({
         supports_vision?: boolean;
         supports_tools?: boolean;
         supports_structured_output?: boolean;
+        is_reasoning_model?: boolean;
         is_image_model?: boolean;
       }[]
     >;
@@ -550,10 +575,14 @@ function LLMConfigDialog({
         .map(m => m.model_id)
     : [];
 
+  const selectedModelCapabilities = (
+    metadata.providers[form.provider ?? ''] ?? []
+  ).find(m => m.model_id === form.model);
   const constraints = getModelConstraints(
     form.provider ?? '',
     form.model ?? '',
-    form.reasoning_effort
+    form.reasoning_effort,
+    selectedModelCapabilities,
   );
 
   const isModified = (field: keyof LLMTypeConfigUpdate) => {
@@ -968,9 +997,20 @@ export default function AdminLLMConfigSection({ lng, collapsible = true }: BaseS
                   {t(`settings.admin.llmConfig.categories.${cat}`)}
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                  {catConfigs.map(c => (
-                    <LLMTypeCard key={c.llm_type} config={c} onEdit={setEditingConfig} t={t} />
-                  ))}
+                  {catConfigs.map(c => {
+                    const modelCapabilities = (
+                      metadata.providers[c.effective.provider] ?? []
+                    ).find(m => m.model_id === c.effective.model);
+                    return (
+                      <LLMTypeCard
+                        key={c.llm_type}
+                        config={c}
+                        onEdit={setEditingConfig}
+                        modelCapabilities={modelCapabilities}
+                        t={t}
+                      />
+                    );
+                  })}
                 </div>
               </div>
             );

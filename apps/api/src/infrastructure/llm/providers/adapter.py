@@ -644,9 +644,19 @@ class ProviderAdapter:
                 additional_kwargs["model_kwargs"] = {"stream_options": {"include_usage": True}}
 
             # Reasoning Models Filter: Remove unsupported parameters
-            # GPT-5, o1, o3, o4-mini models do NOT support sampling parameters
-            # Case-insensitive match for model names
-            is_reasoning_model = bool(re.match(REASONING_MODELS_PATTERN, model, re.IGNORECASE))
+            # GPT-5, o1, o3, o4-mini models do NOT support sampling parameters.
+            # DB-authoritative when known: a model whose name matches the
+            # legacy regex but whose ``is_reasoning_model`` was disabled by
+            # an admin in Tarification LLM Texte must be treated as a
+            # standard model. The regex remains the fallback for unknown /
+            # not-yet-seeded models.
+            from src.infrastructure.llm.model_capabilities_cache import ModelCapabilitiesCache
+
+            cached_profile = ModelCapabilitiesCache.get(model)
+            if cached_profile is not None:
+                is_reasoning_model = cached_profile.is_reasoning_model
+            else:
+                is_reasoning_model = bool(re.match(REASONING_MODELS_PATTERN, model, re.IGNORECASE))
 
             # gpt-5.1/5.2+ with effort=none behave as standard models (sampling params allowed)
             reasoning_effort_val = additional_kwargs.get("reasoning_effort")
