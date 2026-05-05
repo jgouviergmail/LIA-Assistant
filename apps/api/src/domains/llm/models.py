@@ -2,16 +2,111 @@
 Database models for LLM pricing and configuration.
 """
 
+import enum
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from sqlalchemy import DECIMAL, Boolean, DateTime, Index, String, UniqueConstraint
+from sqlalchemy import (
+    DECIMAL,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+)
+from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from src.infrastructure.database.models import TimestampMixin
+from src.infrastructure.database.models import TimestampMixin, UUIDMixin
 from src.infrastructure.database.session import Base
+
+
+class LLMProviderEnum(str, enum.Enum):
+    """Supported LLM providers.
+
+    Must stay in sync with ``LLM_PROVIDERS`` in
+    :mod:`src.domains.llm_config.constants`.
+    """
+
+    openai = "openai"
+    anthropic = "anthropic"
+    deepseek = "deepseek"
+    perplexity = "perplexity"
+    ollama = "ollama"
+    gemini = "gemini"
+    qwen = "qwen"
+
+
+class LLMModel(Base, UUIDMixin, TimestampMixin):
+    """LLM model catalogue with capability metadata.
+
+    Mutated in place (no temporal versioning at this layer). Pricing lives in
+    :class:`LLMModelPricing` (FK below) and remains temporally versioned.
+
+    Example:
+        gpt-4.1-mini, openai, max_output=16384, supports_tools=True, ...
+    """
+
+    __tablename__ = "llm_models"
+
+    provider: Mapped[LLMProviderEnum] = mapped_column(
+        SQLEnum(
+            LLMProviderEnum,
+            name="llm_provider_enum",
+            create_constraint=True,
+            create_type=True,
+            values_callable=lambda enum_cls: [m.value for m in enum_cls],
+        ),
+        nullable=False,
+        index=True,
+        comment="Provider that hosts this model",
+    )
+
+    model_name: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+        unique=True,
+        index=True,
+        comment="Globally unique model identifier (e.g., 'gpt-4.1-mini')",
+    )
+
+    max_input_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=8192)
+    max_output_tokens: Mapped[int] = mapped_column(Integer, nullable=False, default=4096)
+    supports_tools: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    supports_structured_output: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    supports_strict_mode: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    supports_streaming: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    supports_vision: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_reasoning_model: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+        index=True,
+        comment="Whether this model is currently selectable",
+    )
+
+    # cascade kept narrow on purpose: the FK uses ON DELETE RESTRICT, so we
+    # never want the ORM to attempt cascading deletes (would race with the DB
+    # constraint and emit IntegrityError). Use lazy="raise" to make any N+1
+    # access fail loud — callers must use selectinload(LLMModel.pricings).
+    pricings: Mapped[list["LLMModelPricing"]] = relationship(
+        "LLMModelPricing",
+        back_populates="model",
+        cascade="save-update, merge",
+        lazy="raise",
+    )
+
+    def __repr__(self) -> str:
+        return (
+            f"<LLMModel(name={self.model_name}, "
+            f"provider={self.provider.value}, active={self.is_active})>"
+        )
 
 
 class LLMModelPricing(Base, TimestampMixin):
@@ -37,11 +132,27 @@ class LLMModelPricing(Base, TimestampMixin):
         nullable=False,
     )
 
+    # Legacy column kept during migration window. Dropped in migration #3.
     model_name: Mapped[str] = mapped_column(
         String(100),
         nullable=False,
         index=True,
         comment="LLM model identifier (e.g., 'gpt-5', 'o1-mini')",
+    )
+
+    # NEW — FK to llm_models. Nullable during migration window; NOT NULL after migration #3.
+    model_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("llm_models.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+        comment="FK to llm_models.id (NOT NULL after migration #3)",
+    )
+
+    model: Mapped["LLMModel | None"] = relationship(
+        "LLMModel",
+        back_populates="pricings",
+        lazy="raise",
     )
 
     input_price_per_1m_tokens: Mapped[Decimal] = mapped_column(
