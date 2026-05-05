@@ -1586,7 +1586,8 @@
           "quality": "Qualità",
           "size": "Dimensioni",
           "cost_usd": "Costo/immagine (USD)",
-          "actions": "Azioni"
+          "actions": "Azioni",
+          "provider": "Provider"
         },
         "modal": {
           "title_add": "Aggiungi prezzo immagine",
@@ -1597,7 +1598,9 @@
           "cost_label": "Costo per immagine (USD)",
           "cancel": "Annulla",
           "submit_create": "Crea",
-          "submit_edit": "Salva"
+          "submit_edit": "Salva",
+          "provider_label": "Provider",
+          "provider_immutable_hint": "Il provider è intrinseco al modello e non può essere modificato dopo la creazione."
         },
         "confirm": {
           "edit_message": "Aggiornare questo prezzo?",
@@ -1655,7 +1658,9 @@
       "size_square": "Quadrato",
       "size_landscape": "Orizzontale",
       "size_portrait": "Verticale",
-      "format": "Formato di output"
+      "format": "Formato di output",
+      "options_unavailable": "La generazione di immagini non è disponibile — nessuna riga di prezzo configurata per il modello attivo. Chiedi all'amministratore di aggiungere almeno una riga (modello, qualità, dimensione) in Tarification LLM Image.",
+      "size_custom": "Personalizzato"
     },
     "admin_mcp": {
       "title": "MCP Applicativi",

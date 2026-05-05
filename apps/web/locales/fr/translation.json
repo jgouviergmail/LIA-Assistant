@@ -772,7 +772,9 @@
       "size_square": "Carre",
       "size_landscape": "Paysage",
       "size_portrait": "Portrait",
-      "format": "Format de sortie"
+      "format": "Format de sortie",
+      "options_unavailable": "La génération d'images n'est pas disponible — aucune tarification configurée pour le modèle actif. Demande à ton admin d'ajouter au moins une ligne (modèle, qualité, taille) dans Tarification LLM Image.",
+      "size_custom": "Personnalisé"
     },
     "admin_mcp": {
       "title": "MCP Applicatifs",
@@ -1942,7 +1944,8 @@
           "quality": "Qualité",
           "size": "Taille",
           "cost_usd": "Coût/image (USD)",
-          "actions": "Actions"
+          "actions": "Actions",
+          "provider": "Fournisseur"
         },
         "modal": {
           "title_add": "Ajouter un tarif image",
@@ -1953,7 +1956,9 @@
           "cost_label": "Coût par image (USD)",
           "cancel": "Annuler",
           "submit_create": "Créer",
-          "submit_edit": "Enregistrer"
+          "submit_edit": "Enregistrer",
+          "provider_label": "Fournisseur",
+          "provider_immutable_hint": "Le fournisseur est intrinsèque à un modèle et ne peut pas être changé après création."
         },
         "confirm": {
           "edit_message": "Mettre à jour ce tarif ? Une nouvelle version sera créée.",

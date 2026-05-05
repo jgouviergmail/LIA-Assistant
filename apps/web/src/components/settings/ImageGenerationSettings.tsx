@@ -5,11 +5,14 @@
  *
  * Provides controls for:
  * - Enable/disable image generation (per-user opt-in)
- * - Default quality selection (low/medium/high with pricing)
- * - Default size selection (square/landscape/portrait)
- * - Default output format (PNG/JPEG/WebP)
+ * - Default quality selection (driven by /image-generation/options)
+ * - Default size selection (driven by /image-generation/options)
+ * - Default output format (PNG/JPEG/WebP — purely client-side, unrelated to pricing)
  *
- * Phase: evolution — AI Image Generation
+ * The qualities and sizes are NOT hardcoded anymore — they come from the
+ * ``image_generation_pricing`` table via the ``/image-generation/options``
+ * endpoint, so adding a new pricing row in admin Tarification LLM Image
+ * makes the new options available immediately.
  */
 
 import { useState } from 'react';
@@ -22,9 +25,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { useTranslation } from '@/i18n/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useImageGenerationOptions } from '@/hooks/useImageGenerationOptions';
 import apiClient from '@/lib/api-client';
 import { toast } from 'sonner';
 import type { BaseSettingsProps } from '@/types/settings';
@@ -33,6 +38,8 @@ export function ImageGenerationSettings({ lng, collapsible = true }: BaseSetting
   const { t } = useTranslation(lng);
   const { user, refreshUser } = useAuth();
   const [updating, setUpdating] = useState(false);
+
+  const { data: options, loading, error } = useImageGenerationOptions();
 
   const updatePreference = async (field: string, value: string | boolean) => {
     if (!user || updating) return;
@@ -47,6 +54,29 @@ export function ImageGenerationSettings({ lng, collapsible = true }: BaseSetting
     } finally {
       setUpdating(false);
     }
+  };
+
+  // Resolve the user's saved defaults against the currently-available options.
+  // If a stored value is no longer available (e.g. admin removed the pricing
+  // row for that quality/size combination), silently fall back to the first
+  // available option. The next user change will persist the new value.
+  const userQuality = user?.image_generation_default_quality ?? null;
+  const validQuality =
+    options?.qualities.find(q => q.value === userQuality)?.value ??
+    options?.qualities[0]?.value ??
+    'medium';
+
+  const userSize = user?.image_generation_default_size ?? null;
+  const validSize =
+    options?.sizes.find(s => s.value === userSize)?.value ??
+    options?.sizes[0]?.value ??
+    '1024x1024';
+
+  const formatPrice = (q: { min_cost_usd: number; max_cost_usd: number }) => {
+    if (q.min_cost_usd === q.max_cost_usd) {
+      return `~$${q.min_cost_usd.toFixed(2)}`;
+    }
+    return `~$${q.min_cost_usd.toFixed(2)}-${q.max_cost_usd.toFixed(2)}`;
   };
 
   const content = (
@@ -66,57 +96,75 @@ export function ImageGenerationSettings({ lng, collapsible = true }: BaseSetting
         />
       </div>
 
-      {/* Quality selector */}
-      <div className="p-3 rounded-lg border bg-card space-y-2">
-        <p className="text-sm font-medium">{t('settings.image_generation.quality')}</p>
-        <Select
-          value={user?.image_generation_default_quality ?? 'medium'}
-          onValueChange={value => updatePreference('image_generation_default_quality', value)}
-          disabled={updating}
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="low">
-              {t('settings.image_generation.quality_low')} (~$0.01-0.02)
-            </SelectItem>
-            <SelectItem value="medium">
-              {t('settings.image_generation.quality_medium')} (~$0.04-0.06)
-            </SelectItem>
-            <SelectItem value="high">
-              {t('settings.image_generation.quality_high')} (~$0.17-0.25)
-            </SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      {/* Loading state for pricing-driven dropdowns */}
+      {loading && (
+        <>
+          <div className="p-3 rounded-lg border bg-card space-y-2">
+            <p className="text-sm font-medium">{t('settings.image_generation.quality')}</p>
+            <Skeleton className="h-10 w-full" />
+          </div>
+          <div className="p-3 rounded-lg border bg-card space-y-2">
+            <p className="text-sm font-medium">{t('settings.image_generation.size')}</p>
+            <Skeleton className="h-10 w-full" />
+          </div>
+        </>
+      )}
 
-      {/* Size selector */}
-      <div className="p-3 rounded-lg border bg-card space-y-2">
-        <p className="text-sm font-medium">{t('settings.image_generation.size')}</p>
-        <Select
-          value={user?.image_generation_default_size ?? '1024x1024'}
-          onValueChange={value => updatePreference('image_generation_default_size', value)}
-          disabled={updating}
-        >
-          <SelectTrigger className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="1024x1024">
-              {t('settings.image_generation.size_square')} (1024x1024)
-            </SelectItem>
-            <SelectItem value="1536x1024">
-              {t('settings.image_generation.size_landscape')} (1536x1024)
-            </SelectItem>
-            <SelectItem value="1024x1536">
-              {t('settings.image_generation.size_portrait')} (1024x1536)
-            </SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      {/* Error state — no active pricing for the configured model */}
+      {!loading && error && (
+        <div className="p-3 rounded-lg border border-destructive/40 bg-destructive/10 text-sm text-destructive">
+          {t('settings.image_generation.options_unavailable')}
+        </div>
+      )}
 
-      {/* Format selector */}
+      {/* Quality selector — driven by /image-generation/options */}
+      {!loading && !error && options && options.qualities.length > 0 && (
+        <div className="p-3 rounded-lg border bg-card space-y-2">
+          <p className="text-sm font-medium">{t('settings.image_generation.quality')}</p>
+          <Select
+            value={validQuality}
+            onValueChange={value => updatePreference('image_generation_default_quality', value)}
+            disabled={updating}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {options.qualities.map(q => (
+                <SelectItem key={q.value} value={q.value}>
+                  {t(`settings.image_generation.quality_${q.value}`, { defaultValue: q.value })} (
+                  {formatPrice(q)})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {/* Size selector — driven by /image-generation/options */}
+      {!loading && !error && options && options.sizes.length > 0 && (
+        <div className="p-3 rounded-lg border bg-card space-y-2">
+          <p className="text-sm font-medium">{t('settings.image_generation.size')}</p>
+          <Select
+            value={validSize}
+            onValueChange={value => updatePreference('image_generation_default_size', value)}
+            disabled={updating}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {options.sizes.map(s => (
+                <SelectItem key={s.value} value={s.value}>
+                  {t(s.label_key, { defaultValue: s.value })} ({s.value})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {/* Format selector — purely client-side, unrelated to pricing */}
       <div className="p-3 rounded-lg border bg-card space-y-2">
         <p className="text-sm font-medium">{t('settings.image_generation.format')}</p>
         <Select

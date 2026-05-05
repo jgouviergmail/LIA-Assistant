@@ -1592,7 +1592,8 @@
           "quality": "质量",
           "size": "尺寸",
           "cost_usd": "每张费用 (USD)",
-          "actions": "操作"
+          "actions": "操作",
+          "provider": "提供方"
         },
         "modal": {
           "title_add": "添加图像价格",
@@ -1603,7 +1604,9 @@
           "cost_label": "每张图像费用 (USD)",
           "cancel": "取消",
           "submit_create": "创建",
-          "submit_edit": "保存"
+          "submit_edit": "保存",
+          "provider_label": "提供方",
+          "provider_immutable_hint": "提供方是模型固有属性，创建后无法修改。"
         },
         "confirm": {
           "edit_message": "更新此价格？",
@@ -1661,7 +1664,9 @@
       "size_square": "正方形",
       "size_landscape": "横向",
       "size_portrait": "纵向",
-      "format": "输出格式"
+      "format": "输出格式",
+      "options_unavailable": "图像生成不可用 — 当前模型未配置任何定价。请管理员在 Tarification LLM Image 中添加至少一行（模型、质量、尺寸）。",
+      "size_custom": "自定义"
     },
     "admin_mcp": {
       "title": "应用MCP",

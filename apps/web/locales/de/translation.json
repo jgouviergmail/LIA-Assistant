@@ -1584,7 +1584,8 @@
           "quality": "Qualität",
           "size": "Größe",
           "cost_usd": "Kosten/Bild (USD)",
-          "actions": "Aktionen"
+          "actions": "Aktionen",
+          "provider": "Anbieter"
         },
         "modal": {
           "title_add": "Bildpreis hinzufügen",
@@ -1595,7 +1596,9 @@
           "cost_label": "Kosten pro Bild (USD)",
           "cancel": "Abbrechen",
           "submit_create": "Erstellen",
-          "submit_edit": "Speichern"
+          "submit_edit": "Speichern",
+          "provider_label": "Anbieter",
+          "provider_immutable_hint": "Der Anbieter ist Teil der Modellidentität und kann nach der Erstellung nicht geändert werden."
         },
         "confirm": {
           "edit_message": "Diesen Preis aktualisieren?",
@@ -1653,7 +1656,9 @@
       "size_square": "Quadrat",
       "size_landscape": "Querformat",
       "size_portrait": "Hochformat",
-      "format": "Ausgabeformat"
+      "format": "Ausgabeformat",
+      "options_unavailable": "Bildgenerierung ist nicht verfügbar — für das aktive Modell sind keine Preise konfiguriert. Bitte den Admin, mindestens eine (Modell, Qualität, Größe)-Zeile in Tarification LLM Image hinzuzufügen.",
+      "size_custom": "Benutzerdefiniert"
     },
     "admin_mcp": {
       "title": "Anwendungs-MCP",

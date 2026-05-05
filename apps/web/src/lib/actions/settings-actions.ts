@@ -472,11 +472,22 @@ export async function reloadGoogleApiPricingCache(): Promise<ActionResponse> {
 // ============================================================================
 
 interface ImagePricingData {
+  /** Provider that hosts the image-generation model (required on create). */
+  provider: LLMProviderName;
   model: string;
   quality: string;
   size: string;
   cost_per_image_usd: string;
 }
+
+/** Partial update payload for image pricing. ``provider`` is intrinsic and
+ * never sent on update (the backend rejects it on PUT). */
+export type ImagePricingUpdateData = {
+  model?: string;
+  quality?: string;
+  size?: string;
+  cost_per_image_usd: string;
+};
 
 /**
  * Create new image generation pricing entry.
@@ -507,7 +518,7 @@ export async function createImagePricing(data: ImagePricingData): Promise<Action
  */
 export async function updateImagePricing(
   pricingId: string,
-  data: Partial<ImagePricingData> & { cost_per_image_usd: string }
+  data: ImagePricingUpdateData
 ): Promise<ActionResponse> {
   try {
     const apiServer = await createServerApiClient();

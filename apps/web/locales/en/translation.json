@@ -767,7 +767,9 @@
       "size_square": "Square",
       "size_landscape": "Landscape",
       "size_portrait": "Portrait",
-      "format": "Output format"
+      "format": "Output format",
+      "options_unavailable": "Image generation is not available — no pricing rows configured for the active model. Ask your admin to add at least one (model, quality, size) row in Tarification LLM Image.",
+      "size_custom": "Custom"
     },
     "admin_mcp": {
       "title": "Application MCP",
@@ -1755,7 +1757,8 @@
           "quality": "Quality",
           "size": "Size",
           "cost_usd": "Cost/image (USD)",
-          "actions": "Actions"
+          "actions": "Actions",
+          "provider": "Provider"
         },
         "modal": {
           "title_add": "Add Image Pricing",
@@ -1766,7 +1769,9 @@
           "cost_label": "Cost per image (USD)",
           "cancel": "Cancel",
           "submit_create": "Create",
-          "submit_edit": "Save"
+          "submit_edit": "Save",
+          "provider_label": "Provider",
+          "provider_immutable_hint": "Provider is intrinsic to a model and cannot be changed after creation."
         },
         "confirm": {
           "edit_message": "Update this pricing entry? A new version will be created.",

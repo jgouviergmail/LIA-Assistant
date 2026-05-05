@@ -17,7 +17,19 @@ import {
   updateImagePricing,
   deactivateImagePricing,
   reloadImagePricingCache,
+  type LLMProviderName,
+  type ImagePricingUpdateData,
 } from '@/lib/actions/settings-actions';
+
+const PROVIDER_OPTIONS: readonly LLMProviderName[] = [
+  'openai',
+  'anthropic',
+  'deepseek',
+  'perplexity',
+  'ollama',
+  'gemini',
+  'qwen',
+] as const;
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
@@ -25,6 +37,7 @@ import type { BaseSettingsProps } from '@/types/settings';
 
 interface ImagePricing {
   id: string;
+  provider: LLMProviderName;
   model: string;
   quality: string;
   size: string;
@@ -161,10 +174,7 @@ export default function AdminImagePricingSection({ lng, collapsible = true }: Ba
     startTransition(async () => {
       const tempEntry: ImagePricing = {
         id: `temp-${Date.now()}`,
-        model: formData.model,
-        quality: formData.quality,
-        size: formData.size,
-        cost_per_image_usd: formData.cost_per_image_usd,
+        ...formData,
         effective_from: new Date().toISOString(),
         is_active: true,
       };
@@ -191,7 +201,14 @@ export default function AdminImagePricingSection({ lng, collapsible = true }: Ba
     startTransition(async () => {
       updateOptimisticEntries({ id: editingEntry!.id, updates: formData });
       try {
-        const result = await updateImagePricing(pricingId, formData);
+        // provider is intrinsic — never sent on update (backend rejects it).
+        const updatePayload: ImagePricingUpdateData = {
+          model: formData.model,
+          quality: formData.quality,
+          size: formData.size,
+          cost_per_image_usd: formData.cost_per_image_usd,
+        };
+        const result = await updateImagePricing(pricingId, updatePayload);
         if (result.success) {
           setEditingEntry(null);
           await fetchEntries();
@@ -284,6 +301,12 @@ export default function AdminImagePricingSection({ lng, collapsible = true }: Ba
                 sortOrder={sortOrder}
                 onSort={handleSort}
               />
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                role="columnheader"
+              >
+                {t('settings.admin.image_pricing.table.provider')}
+              </th>
               <SortableHeader
                 label={t('settings.admin.image_pricing.table.quality')}
                 column="quality"
@@ -318,6 +341,9 @@ export default function AdminImagePricingSection({ lng, collapsible = true }: Ba
               >
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
                   {entry.model}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+                  {entry.provider}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
                   {entry.quality}
@@ -442,6 +468,7 @@ function SortableHeader({
 // ============================================================================
 
 interface ImagePricingFormData {
+  provider: LLMProviderName;
   model: string;
   quality: string;
   size: string;
@@ -457,17 +484,19 @@ interface ImagePricingModalProps {
 
 function ImagePricingModal({ lng, entry, onClose, onSubmit }: ImagePricingModalProps) {
   const { t } = useTranslation(lng, 'translation');
+  const isEdit = entry !== null;
 
   const [formData, setFormData] = useState<ImagePricingFormData>({
-    model: entry?.model || '',
-    quality: entry?.quality || '',
-    size: entry?.size || '',
-    cost_per_image_usd: entry?.cost_per_image_usd || '',
+    provider: entry?.provider ?? 'openai',
+    model: entry?.model ?? '',
+    quality: entry?.quality ?? '',
+    size: entry?.size ?? '',
+    cost_per_image_usd: entry?.cost_per_image_usd ?? '',
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    await onSubmit(formData);
+    onSubmit(formData);
   };
 
   return (
@@ -479,12 +508,42 @@ function ImagePricingModal({ lng, entry, onClose, onSubmit }: ImagePricingModalP
     >
       <div className="bg-card rounded-xl border border-border shadow-xl p-6 max-w-md w-full mx-4">
         <h3 id="modal-title" className="text-lg font-bold mb-4 text-foreground">
-          {entry
+          {isEdit
             ? t('settings.admin.image_pricing.modal.title_edit')
             : t('settings.admin.image_pricing.modal.title_add')}
         </h3>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label
+              htmlFor="img-provider"
+              className="block text-sm font-medium text-foreground mb-1"
+            >
+              {t('settings.admin.image_pricing.modal.provider_label')}
+            </label>
+            <select
+              id="img-provider"
+              value={formData.provider}
+              onChange={e =>
+                setFormData({ ...formData, provider: e.target.value as LLMProviderName })
+              }
+              disabled={isEdit}
+              required
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {PROVIDER_OPTIONS.map(p => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+            {isEdit && (
+              <p className="text-xs text-muted-foreground mt-1">
+                {t('settings.admin.image_pricing.modal.provider_immutable_hint')}
+              </p>
+            )}
+          </div>
+
           <div>
             <label htmlFor="img-model" className="block text-sm font-medium text-foreground mb-1">
               {t('settings.admin.image_pricing.modal.model_label')}
