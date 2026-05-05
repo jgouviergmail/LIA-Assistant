@@ -14,8 +14,10 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 from sqlalchemy import Boolean, DateTime, Index, Numeric, String, UniqueConstraint
+from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
+from src.domains.llm.models import LLMProviderEnum
 from src.infrastructure.database.models import BaseModel
 
 
@@ -25,7 +27,11 @@ class ImageGenerationPricing(BaseModel):
     Stores cost per image for each (model, quality, size) combination.
     Supports temporal versioning via effective_from and is_active flags.
 
+    Application-level invariant (enforced at the service layer): all rows
+    sharing the same ``model`` must carry the same ``provider``.
+
     Attributes:
+        provider: Provider that hosts this image-generation model.
         model: Image generation model identifier (e.g., "gpt-image-1").
         quality: Quality level (e.g., "low", "medium", "high").
         size: Image dimensions (e.g., "1024x1024", "1536x1024").
@@ -34,10 +40,26 @@ class ImageGenerationPricing(BaseModel):
         is_active: Whether this pricing entry is currently active.
 
     Example:
-        gpt-image-1, medium, 1024x1024 → $0.042 per image
+        openai, gpt-image-1, medium, 1024x1024 → $0.042 per image
     """
 
     __tablename__ = "image_generation_pricing"
+
+    # Provider — added in the v1.x DB-source-of-truth release. Reuses the
+    # llm_provider_enum PG type defined for llm_models. NOT NULL since
+    # migration #3.
+    provider: Mapped[LLMProviderEnum] = mapped_column(
+        SQLEnum(
+            LLMProviderEnum,
+            name="llm_provider_enum",
+            create_constraint=True,
+            create_type=False,  # type already created by llm_models migration
+            values_callable=lambda enum_cls: [m.value for m in enum_cls],
+        ),
+        nullable=False,
+        index=True,
+        comment="Provider that hosts this image-generation model",
+    )
 
     # Pricing key: (model, quality, size)
     model: Mapped[str] = mapped_column(

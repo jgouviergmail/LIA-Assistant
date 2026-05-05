@@ -11,8 +11,22 @@ Created: 2026-03-26
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
+
+# Enum-like literal type for the provider field. Must stay in sync with
+# LLMProviderEnum (apps/api/src/domains/llm/models.py) AND LLM_PROVIDERS
+# (apps/api/src/domains/llm_config/constants.py).
+ProviderLiteral = Literal[
+    "openai",
+    "anthropic",
+    "deepseek",
+    "perplexity",
+    "ollama",
+    "gemini",
+    "qwen",
+]
 
 
 class ImagePricingResponse(BaseModel):
@@ -24,6 +38,7 @@ class ImagePricingResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
+    provider: ProviderLiteral
     model: str
     quality: str
     size: str
@@ -36,8 +51,14 @@ class ImagePricingCreate(BaseModel):
     """Request model for creating a new image pricing entry.
 
     Composite key: (model, quality, size). Must be unique among active entries.
+    Application-level invariant: all rows for a given ``model`` must share
+    the same ``provider`` (validated at the service layer).
     """
 
+    provider: ProviderLiteral = Field(
+        ...,
+        description="Provider that hosts this image-generation model",
+    )
     model: str = Field(
         ...,
         min_length=1,
@@ -66,8 +87,9 @@ class ImagePricingCreate(BaseModel):
 class ImagePricingUpdate(BaseModel):
     """Request model for updating image pricing (creates new version, deactivates old).
 
-    All fields optional for partial update. model/quality/size can be changed
-    to rename a pricing entry (uniqueness validated server-side).
+    ``provider`` is intentionally NOT updatable — it is intrinsic to a model.
+    model/quality/size can be changed to rename a pricing entry (uniqueness
+    validated server-side).
     """
 
     model: str | None = Field(

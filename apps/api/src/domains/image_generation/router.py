@@ -26,6 +26,7 @@ from src.domains.image_generation.schemas import (
     ImagePricingResponse,
     ImagePricingUpdate,
 )
+from src.domains.llm.models import LLMProviderEnum
 from src.domains.users.models import AdminAuditLog
 
 logger = structlog.get_logger(__name__)
@@ -167,7 +168,23 @@ async def create_pricing(
             "Use PUT to update.",
         )
 
+    # Application-level invariant: all rows for the same model must share the
+    # same provider. If other rows exist for this model_name with a different
+    # provider, reject the create.
+    same_model_stmt = (
+        select(ImageGenerationPricing.provider)
+        .where(ImageGenerationPricing.model == data.model)
+        .limit(1)
+    )
+    existing_provider = (await db.execute(same_model_stmt)).scalar_one_or_none()
+    if existing_provider is not None and existing_provider.value != data.provider:
+        raise_invalid_input(
+            f"Model {data.model!r} is already registered with provider "
+            f"{existing_provider.value!r}; cannot mix providers for the same model.",
+        )
+
     pricing = ImageGenerationPricing(
+        provider=LLMProviderEnum(data.provider),
         model=data.model,
         quality=data.quality,
         size=data.size,
@@ -185,6 +202,7 @@ async def create_pricing(
         resource_type="image_generation_pricing",
         resource_id=pricing.id,
         details={
+            "provider": pricing.provider.value,
             "model": pricing.model,
             "quality": pricing.quality,
             "size": pricing.size,
@@ -198,6 +216,7 @@ async def create_pricing(
 
     logger.info(
         "image_pricing_created",
+        provider=data.provider,
         model=data.model,
         quality=data.quality,
         size=data.size,
