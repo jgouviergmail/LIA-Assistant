@@ -332,21 +332,36 @@ class LLMConfigService:
 
     @staticmethod
     def get_provider_models() -> ProviderModelsMetadata:
-        """Get available models grouped by provider (from FALLBACK_PROFILES).
+        """Get available models grouped by provider.
 
-        Includes both chat models (from FALLBACK_PROFILES) and image generation
-        models (from IMAGE_GENERATION_MODELS) so the admin UI can list all
-        available models for every LLM type.
+        Sources:
+        - Chat models → :class:`ModelCapabilitiesCache` (DB-backed,
+          populated at boot from the ``llm_models`` table).
+        - Image-generation models → static ``IMAGE_GENERATION_MODELS``
+          (will move to DB in Task 18).
+
+        The cost fields are intentionally None: the cache only carries
+        capabilities, not pricing. Pricing comes from a separate cache
+        consumed by ``AsyncPricingService`` and is not surfaced on the
+        Configuration LLM dropdown payload (which only needs the model
+        list + a few capability flags).
         """
         from src.domains.llm_config.constants import IMAGE_GENERATION_MODELS
-        from src.infrastructure.llm.model_profiles import FALLBACK_PROFILES
+        from src.infrastructure.llm.model_capabilities_cache import ModelCapabilitiesCache
 
         providers: dict[str, list[ModelCapabilities]] = {}
-        for provider, models in FALLBACK_PROFILES.items():
-            caps = []
-            for model_id, profile in models.items():
-                # Skip internal "default" fallback entry — not a real model
-                if model_id == "default":
+
+        # Chat models from the in-memory cache.
+        for (
+            provider,
+            model_names,
+        ) in ModelCapabilitiesCache.get_models_grouped_by_provider().items():
+            caps: list[ModelCapabilities] = []
+            for model_id in model_names:
+                profile = ModelCapabilitiesCache.get(model_id)
+                if profile is None:
+                    # Race condition guard: provider list changed between
+                    # get_models_grouped_by_provider() and get(). Skip.
                     continue
                 caps.append(
                     ModelCapabilities(
@@ -356,21 +371,13 @@ class LLMConfigService:
                         supports_structured_output=profile.supports_structured_output,
                         supports_vision=profile.supports_vision,
                         is_reasoning_model=profile.is_reasoning_model,
-                        cost_input=(
-                            profile.cost_per_1m_input
-                            if profile.cost_per_1m_input is not None
-                            else None
-                        ),
-                        cost_output=(
-                            profile.cost_per_1m_output
-                            if profile.cost_per_1m_output is not None
-                            else None
-                        ),
+                        cost_input=None,
+                        cost_output=None,
                     )
                 )
             providers[provider] = caps
 
-        # Append image generation models (they don't have chat model capabilities)
+        # Append image-generation models (Task 18 will migrate these to DB).
         for provider, model_ids in IMAGE_GENERATION_MODELS.items():
             existing = providers.get(provider, [])
             existing_ids = {m.model_id for m in existing}
@@ -393,12 +400,14 @@ class LLMConfigService:
 
     @staticmethod
     async def get_ollama_models() -> OllamaModelsResponse:
-        """Get Ollama models via dynamic discovery with fallback to static profiles.
+        """Get Ollama models via dynamic discovery with fallback to the cache.
 
         When Ollama is reachable, capabilities come from the server itself
-        (via ``/api/show``), not from static profile guesses.
+        (via ``/api/show``), not from cached profile guesses. When Ollama
+        is unreachable, fall back to the DB-backed
+        :class:`ModelCapabilitiesCache` filtered to ``provider=ollama``.
         """
-        from src.infrastructure.llm.model_profiles import FALLBACK_PROFILES
+        from src.infrastructure.llm.model_capabilities_cache import ModelCapabilitiesCache
         from src.infrastructure.llm.providers.ollama_discovery import discover_ollama_models
 
         discovered = await discover_ollama_models()
@@ -425,11 +434,15 @@ class LLMConfigService:
                 )
             return OllamaModelsResponse(models=models, source="live")
 
-        # Fallback: Ollama unreachable, return static profiles (without "default")
-        ollama_profiles = FALLBACK_PROFILES.get("ollama", {})
+        # Fallback: Ollama unreachable — list whatever Ollama models the cache
+        # knows about (populated from llm_models at boot).
+        ollama_model_names = ModelCapabilitiesCache.get_models_grouped_by_provider().get(
+            "ollama", []
+        )
         models = []
-        for model_id, profile in ollama_profiles.items():
-            if model_id == "default":
+        for model_id in ollama_model_names:
+            profile = ModelCapabilitiesCache.get(model_id)
+            if profile is None:
                 continue
             models.append(
                 OllamaModelCapabilities(
@@ -439,8 +452,8 @@ class LLMConfigService:
                     supports_structured_output=profile.supports_structured_output,
                     supports_vision=profile.supports_vision,
                     is_reasoning_model=profile.is_reasoning_model,
-                    cost_input=profile.cost_per_1m_input,
-                    cost_output=profile.cost_per_1m_output,
+                    cost_input=0.0,  # Ollama is local — free
+                    cost_output=0.0,
                     size=None,
                     family=None,
                 )
