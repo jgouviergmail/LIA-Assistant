@@ -12,6 +12,7 @@ DELETE FROM image_generation_pricing;
 -- Insert Image Generation Pricing
 INSERT INTO image_generation_pricing (
     id,
+    provider,
     model,
     quality,
     size,
@@ -24,41 +25,41 @@ INSERT INTO image_generation_pricing (
     -- ========================================================================
     -- GPT-IMAGE-1 (OpenAI)
     -- ========================================================================
-    (gen_random_uuid(), 'gpt-image-1', 'low', '1024x1024', 0.011000, NOW(), true, NOW(), NOW()),
-    (gen_random_uuid(), 'gpt-image-1', 'low', '1536x1024', 0.016000, NOW(), true, NOW(), NOW()),
-    (gen_random_uuid(), 'gpt-image-1', 'low', '1024x1536', 0.016000, NOW(), true, NOW(), NOW()),
-    (gen_random_uuid(), 'gpt-image-1', 'medium', '1024x1024', 0.042000, NOW(), true, NOW(), NOW()),
-    (gen_random_uuid(), 'gpt-image-1', 'medium', '1536x1024', 0.063000, NOW(), true, NOW(), NOW()),
-    (gen_random_uuid(), 'gpt-image-1', 'medium', '1024x1536', 0.063000, NOW(), true, NOW(), NOW()),
-    (gen_random_uuid(), 'gpt-image-1', 'high', '1024x1024', 0.167000, NOW(), true, NOW(), NOW()),
-    (gen_random_uuid(), 'gpt-image-1', 'high', '1536x1024', 0.250000, NOW(), true, NOW(), NOW()),
-    (gen_random_uuid(), 'gpt-image-1', 'high', '1024x1536', 0.250000, NOW(), true, NOW(), NOW()),
+    (gen_random_uuid(), 'openai'::llm_provider_enum, 'gpt-image-1', 'low', '1024x1024', 0.011000, NOW(), true, NOW(), NOW()),
+    (gen_random_uuid(), 'openai'::llm_provider_enum, 'gpt-image-1', 'low', '1536x1024', 0.016000, NOW(), true, NOW(), NOW()),
+    (gen_random_uuid(), 'openai'::llm_provider_enum, 'gpt-image-1', 'low', '1024x1536', 0.016000, NOW(), true, NOW(), NOW()),
+    (gen_random_uuid(), 'openai'::llm_provider_enum, 'gpt-image-1', 'medium', '1024x1024', 0.042000, NOW(), true, NOW(), NOW()),
+    (gen_random_uuid(), 'openai'::llm_provider_enum, 'gpt-image-1', 'medium', '1536x1024', 0.063000, NOW(), true, NOW(), NOW()),
+    (gen_random_uuid(), 'openai'::llm_provider_enum, 'gpt-image-1', 'medium', '1024x1536', 0.063000, NOW(), true, NOW(), NOW()),
+    (gen_random_uuid(), 'openai'::llm_provider_enum, 'gpt-image-1', 'high', '1024x1024', 0.167000, NOW(), true, NOW(), NOW()),
+    (gen_random_uuid(), 'openai'::llm_provider_enum, 'gpt-image-1', 'high', '1536x1024', 0.250000, NOW(), true, NOW(), NOW()),
+    (gen_random_uuid(), 'openai'::llm_provider_enum, 'gpt-image-1', 'high', '1024x1536', 0.250000, NOW(), true, NOW(), NOW()),
 
     -- ========================================================================
     -- GPT-IMAGE-1.5 (OpenAI) — alias: gpt-image-latest
     -- ========================================================================
-    (gen_random_uuid(), 'gpt-image-1.5', 'low', '1024x1024', 0.009000, NOW(), true, NOW(), NOW()),
-    (gen_random_uuid(), 'gpt-image-1.5', 'low', '1536x1024', 0.013000, NOW(), true, NOW(), NOW()),
-    (gen_random_uuid(), 'gpt-image-1.5', 'low', '1024x1536', 0.013000, NOW(), true, NOW(), NOW()),
-    (gen_random_uuid(), 'gpt-image-1.5', 'medium', '1024x1024', 0.034000, NOW(), true, NOW(), NOW()),
-    (gen_random_uuid(), 'gpt-image-1.5', 'medium', '1536x1024', 0.050000, NOW(), true, NOW(), NOW()),
-    (gen_random_uuid(), 'gpt-image-1.5', 'medium', '1024x1536', 0.050000, NOW(), true, NOW(), NOW()),
-    (gen_random_uuid(), 'gpt-image-1.5', 'high', '1024x1024', 0.133000, NOW(), true, NOW(), NOW()),
-    (gen_random_uuid(), 'gpt-image-1.5', 'high', '1536x1024', 0.200000, NOW(), true, NOW(), NOW()),
-    (gen_random_uuid(), 'gpt-image-1.5', 'high', '1024x1536', 0.200000, NOW(), true, NOW(), NOW()),
+    (gen_random_uuid(), 'openai'::llm_provider_enum, 'gpt-image-1.5', 'low', '1024x1024', 0.009000, NOW(), true, NOW(), NOW()),
+    (gen_random_uuid(), 'openai'::llm_provider_enum, 'gpt-image-1.5', 'low', '1536x1024', 0.013000, NOW(), true, NOW(), NOW()),
+    (gen_random_uuid(), 'openai'::llm_provider_enum, 'gpt-image-1.5', 'low', '1024x1536', 0.013000, NOW(), true, NOW(), NOW()),
+    (gen_random_uuid(), 'openai'::llm_provider_enum, 'gpt-image-1.5', 'medium', '1024x1024', 0.034000, NOW(), true, NOW(), NOW()),
+    (gen_random_uuid(), 'openai'::llm_provider_enum, 'gpt-image-1.5', 'medium', '1536x1024', 0.050000, NOW(), true, NOW(), NOW()),
+    (gen_random_uuid(), 'openai'::llm_provider_enum, 'gpt-image-1.5', 'medium', '1024x1536', 0.050000, NOW(), true, NOW(), NOW()),
+    (gen_random_uuid(), 'openai'::llm_provider_enum, 'gpt-image-1.5', 'high', '1024x1024', 0.133000, NOW(), true, NOW(), NOW()),
+    (gen_random_uuid(), 'openai'::llm_provider_enum, 'gpt-image-1.5', 'high', '1536x1024', 0.200000, NOW(), true, NOW(), NOW()),
+    (gen_random_uuid(), 'openai'::llm_provider_enum, 'gpt-image-1.5', 'high', '1024x1536', 0.200000, NOW(), true, NOW(), NOW()),
 
     -- ========================================================================
     -- GPT-IMAGE-1-MINI (OpenAI)
     -- ========================================================================
-    (gen_random_uuid(), 'gpt-image-1-mini', 'low', '1024x1024', 0.005000, NOW(), true, NOW(), NOW()),
-    (gen_random_uuid(), 'gpt-image-1-mini', 'low', '1536x1024', 0.006000, NOW(), true, NOW(), NOW()),
-    (gen_random_uuid(), 'gpt-image-1-mini', 'low', '1024x1536', 0.006000, NOW(), true, NOW(), NOW()),
-    (gen_random_uuid(), 'gpt-image-1-mini', 'medium', '1024x1024', 0.011000, NOW(), true, NOW(), NOW()),
-    (gen_random_uuid(), 'gpt-image-1-mini', 'medium', '1536x1024', 0.015000, NOW(), true, NOW(), NOW()),
-    (gen_random_uuid(), 'gpt-image-1-mini', 'medium', '1024x1536', 0.015000, NOW(), true, NOW(), NOW()),
-    (gen_random_uuid(), 'gpt-image-1-mini', 'high', '1024x1024', 0.036000, NOW(), true, NOW(), NOW()),
-    (gen_random_uuid(), 'gpt-image-1-mini', 'high', '1536x1024', 0.052000, NOW(), true, NOW(), NOW()),
-    (gen_random_uuid(), 'gpt-image-1-mini', 'high', '1024x1536', 0.052000, NOW(), true, NOW(), NOW())
+    (gen_random_uuid(), 'openai'::llm_provider_enum, 'gpt-image-1-mini', 'low', '1024x1024', 0.005000, NOW(), true, NOW(), NOW()),
+    (gen_random_uuid(), 'openai'::llm_provider_enum, 'gpt-image-1-mini', 'low', '1536x1024', 0.006000, NOW(), true, NOW(), NOW()),
+    (gen_random_uuid(), 'openai'::llm_provider_enum, 'gpt-image-1-mini', 'low', '1024x1536', 0.006000, NOW(), true, NOW(), NOW()),
+    (gen_random_uuid(), 'openai'::llm_provider_enum, 'gpt-image-1-mini', 'medium', '1024x1024', 0.011000, NOW(), true, NOW(), NOW()),
+    (gen_random_uuid(), 'openai'::llm_provider_enum, 'gpt-image-1-mini', 'medium', '1536x1024', 0.015000, NOW(), true, NOW(), NOW()),
+    (gen_random_uuid(), 'openai'::llm_provider_enum, 'gpt-image-1-mini', 'medium', '1024x1536', 0.015000, NOW(), true, NOW(), NOW()),
+    (gen_random_uuid(), 'openai'::llm_provider_enum, 'gpt-image-1-mini', 'high', '1024x1024', 0.036000, NOW(), true, NOW(), NOW()),
+    (gen_random_uuid(), 'openai'::llm_provider_enum, 'gpt-image-1-mini', 'high', '1536x1024', 0.052000, NOW(), true, NOW(), NOW()),
+    (gen_random_uuid(), 'openai'::llm_provider_enum, 'gpt-image-1-mini', 'high', '1024x1536', 0.052000, NOW(), true, NOW(), NOW())
 
 ON CONFLICT (model, quality, size, effective_from) DO NOTHING;
 
