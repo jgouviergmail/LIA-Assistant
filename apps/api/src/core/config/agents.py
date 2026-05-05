@@ -693,7 +693,7 @@ class AgentsSettings(BaseSettings):
     # ========================================================================
     # Learns from planner outcomes to improve future plans and skip validation
     plan_pattern_training_enabled: bool = Field(
-        default=True,
+        default=False,
         description=(
             "Enable pattern training (recording). When enabled, the system records "
             "plan successes/failures to Redis (fire-and-forget). "
@@ -934,7 +934,7 @@ class AgentsSettings(BaseSettings):
     # Combines keyword-based (BM25) and semantic (pgvector) search for improved recall.
     # Reference: infrastructure/store/bm25_index.py, infrastructure/store/semantic_store.py
     memory_hybrid_enabled: bool = Field(
-        default=True,
+        default=False,
         description=(
             "Enable hybrid BM25+semantic search for memories. "
             "When disabled, falls back to semantic-only search."
@@ -2588,7 +2588,7 @@ class AgentsSettings(BaseSettings):
     # Pattern identical to CHANNELS_ENABLED, MCP_ENABLED.
     # ========================================================================
     heartbeat_enabled: bool = Field(
-        default=False,
+        default=True,
         description="Global feature flag for heartbeat proactive notifications.",
     )
 

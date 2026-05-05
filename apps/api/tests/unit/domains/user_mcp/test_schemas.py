@@ -5,6 +5,7 @@ from datetime import UTC
 import pytest
 from pydantic import ValidationError
 
+from src.core.constants import MCP_DEFAULT_TIMEOUT_SECONDS
 from src.domains.user_mcp.models import UserMCPAuthType, UserMCPServerStatus
 from src.domains.user_mcp.schemas import (
     MCPDiscoveredToolResponse,
@@ -27,7 +28,7 @@ class TestUserMCPServerCreate:
         )
         assert data.name == "Test Server"
         assert data.auth_type == UserMCPAuthType.NONE
-        assert data.timeout_seconds == 30
+        assert data.timeout_seconds == MCP_DEFAULT_TIMEOUT_SECONDS
         assert data.hitl_required is None
 
     def test_valid_api_key(self) -> None:

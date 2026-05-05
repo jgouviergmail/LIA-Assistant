@@ -44,7 +44,7 @@ class JournalsSettings(BaseSettings):
     # ========================================================================
 
     journals_enabled: bool = Field(
-        default=False,
+        default=True,
         description=(
             "Global feature flag for Personal Journals. "
             "When false, the entire domain is disabled (no router, no extraction, no consolidation)."

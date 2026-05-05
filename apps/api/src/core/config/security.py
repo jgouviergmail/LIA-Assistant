@@ -52,19 +52,19 @@ class SecuritySettings(BaseSettings):
 
     # Third-party library log levels
     log_level_httpx: str = Field(
-        default="WARNING",
+        default="ERROR",
         description="Log level for httpx library (OpenAI API calls). Use DEBUG to see all HTTP requests.",
     )
     log_level_sqlalchemy: str = Field(
-        default="WARNING",
+        default="ERROR",
         description="Log level for SQLAlchemy engine. Use INFO to see SQL queries.",
     )
     log_level_uvicorn: str = Field(
-        default="WARNING",
+        default="ERROR",
         description="Log level for Uvicorn server.",
     )
     log_level_uvicorn_access: str = Field(
-        default="WARNING",
+        default="ERROR",
         description="Log level for Uvicorn access logs.",
     )
 
@@ -118,7 +118,7 @@ class SecuritySettings(BaseSettings):
         description="Session cookie max age in seconds (remember me enabled)",
     )
     session_cookie_secure: bool = Field(
-        default=False,  # Set to True in production with HTTPS
+        default=True,
         description="Require HTTPS for session cookie",
     )
     session_cookie_httponly: bool = Field(

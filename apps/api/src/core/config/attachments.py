@@ -38,7 +38,7 @@ class AttachmentsSettings(BaseSettings):
     # ========================================================================
 
     attachments_enabled: bool = Field(
-        default=False,
+        default=True,
         description=(
             "Enable file attachment support in chat. When true, users can "
             "upload images and PDF documents for vision LLM analysis."

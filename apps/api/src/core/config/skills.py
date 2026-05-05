@@ -34,7 +34,7 @@ class SkillsSettings(BaseSettings):
     # ========================================================================
 
     skills_enabled: bool = Field(
-        default=False,
+        default=True,
         description=(
             "Enable Agent Skills system. When true, SKILL.md files are loaded "
             "from disk and injected into the LLM pipeline (catalogue + activation)."
@@ -71,7 +71,7 @@ class SkillsSettings(BaseSettings):
     # ========================================================================
 
     skills_scripts_enabled: bool = Field(
-        default=False,
+        default=True,
         description=(
             "Enable skill script execution via run_skill_script tool. "
             "Scripts run in sandboxed subprocess with filtered environment."

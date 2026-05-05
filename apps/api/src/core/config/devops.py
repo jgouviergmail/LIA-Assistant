@@ -34,7 +34,7 @@ class DevOpsSettings(BaseSettings):
     """Settings for DevOps Claude CLI remote server management."""
 
     devops_enabled: bool = Field(
-        default=False,
+        default=True,
         description="Enable DevOps Claude CLI remote management feature.",
     )
     devops_servers: str = Field(

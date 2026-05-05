@@ -148,7 +148,7 @@ TOOL_CONTEXT_CONFIDENCE_THRESHOLD = 0.7
 
 # Maximum number of items to store per context list
 # Prevents memory bloat with very large result sets
-TOOL_CONTEXT_MAX_ITEMS = 100
+TOOL_CONTEXT_MAX_ITEMS = 10
 
 # ============================================================================
 # GOOGLE PEOPLE API - FIELD PROJECTION
@@ -252,7 +252,7 @@ GOOGLE_CONTACTS_ALL_FIELDS = (
 # Emails body truncation (for LLM consumption optimization)
 # Body is limited to prevent token bloat with very long email bodies
 # Long emails get truncated with "... [lire la suite sur <provider>](url)" link
-EMAILS_BODY_MAX_LENGTH_DEFAULT = 1500  # Characters
+EMAILS_BODY_MAX_LENGTH_DEFAULT = 500  # Characters
 
 # Emails URL shortening threshold (for readability in email body)
 # URLs longer than this threshold are replaced with [lien](url) markdown format
@@ -463,7 +463,7 @@ JTI_BLACKLIST_TTL_SECONDS = 25 * 60 * 60  # 25 hours (24h token + 1h buffer)
 #   router → planner → validator → (auto-replans x2) → approval_gate (interrupt)
 #   → task_orchestrator → draft_critique (interrupt) → response → END
 # A single request with auto-replans + 2 HITL interrupts can require 15+ nodes
-AGENT_MAX_ITERATIONS_DEFAULT = 10
+AGENT_MAX_ITERATIONS_DEFAULT = 20
 AGENT_MAX_ITERATIONS_MAX = 50  # Hard limit (doubled for safety margin)
 
 # HITL (Human-in-the-Loop) security limits (PHASE 3.2.1 - Centralized from duplicates)
@@ -504,13 +504,13 @@ HITL_RATE_LIMIT_WINDOW_SECONDS = 60
 # ============================================================================
 
 # Aligned with .env (was 50/100000, now 1000/10000000 per .env.example)
-MAX_MESSAGES_HISTORY_DEFAULT = 1000  # Maximum messages to keep in state (persistence)
-MAX_TOKENS_HISTORY_DEFAULT = 10000000  # Maximum tokens before truncation
+MAX_MESSAGES_HISTORY_DEFAULT = 150  # Maximum messages to keep in state (persistence)
+MAX_TOKENS_HISTORY_DEFAULT = 200000  # Maximum tokens before truncation
 
 # Data Registry LRU eviction (prevents unbounded memory growth)
 # When registry exceeds this limit, oldest items (by timestamp) are evicted
 # This is a DEFAULT value - actual value comes from config/agents.py (overridable via .env)
-REGISTRY_MAX_ITEMS_DEFAULT = 100  # Maximum items in data registry per conversation
+REGISTRY_MAX_ITEMS_DEFAULT = 75  # Maximum items in data registry per conversation
 
 # ReAct Agent Context (for contacts_agent, emails_agent, etc.)
 # OPTIMIZED 2025-12-24: Reduced from 50 → 30 (-40% tokens)
@@ -899,7 +899,7 @@ SSE_CONNECTION_KEY_PREFIX = "sse:connection"
 
 # Default configuration values (overridable via .env → ConnectorsSettings)
 OAUTH_HEALTH_CHECK_INTERVAL_MINUTES_DEFAULT = 5
-OAUTH_HEALTH_CRITICAL_COOLDOWN_HOURS_DEFAULT = 24
+OAUTH_HEALTH_CRITICAL_COOLDOWN_HOURS_DEFAULT = 12
 SSE_CONNECTION_TTL_SECONDS_DEFAULT = 120
 
 # ============================================================================
@@ -979,7 +979,7 @@ REDIS_KEY_CURRENCY_RATE_PREFIX = "async_currency_rate_"
 
 # Conversation cache keys
 REDIS_KEY_CONVERSATION_ID_PREFIX = "conv:user:"
-REDIS_CONVERSATION_ID_TTL_SECONDS_DEFAULT = 300  # 5 minutes (configurable via .env)
+REDIS_CONVERSATION_ID_TTL_SECONDS_DEFAULT = 60  # 1 minute (configurable via .env)
 
 # Conversation message history search (GET /conversations/me/messages?search=)
 # Case-insensitive ILIKE substring match on ConversationMessage.content.
@@ -1173,22 +1173,22 @@ PLANNER_LLM_PRESENCE_PENALTY_DEFAULT = 0.0
 PLANNER_LLM_MAX_TOKENS_DEFAULT = 4000  # Enough for detailed ExecutionPlan JSON
 
 # Plan limits (security & cost control)
-PLANNER_MAX_STEPS_DEFAULT = 10  # Maximum steps allowed in a plan
+PLANNER_MAX_STEPS_DEFAULT = 20  # Maximum steps allowed in a plan
 PLANNER_MAX_STEPS_HARD_LIMIT = 25  # Hard limit (cannot be exceeded)
-PLANNER_MAX_COST_USD_DEFAULT = 1.0  # Default budget limit per plan
+PLANNER_MAX_COST_USD_DEFAULT = 2.0  # Default budget limit per plan
 PLANNER_MAX_REPLANS_DEFAULT = 2  # Maximum replanning attempts (future Phase 2)
 
 # Planner timeout
-PLANNER_TIMEOUT_SECONDS = 60  # Timeout for planner LLM response
+PLANNER_TIMEOUT_SECONDS = 30  # Timeout for planner LLM response
 
 # Token Overflow Fallback Thresholds (Phase B)
 # Progressive thresholds for catalogue reduction when token count exceeds limits.
 # GPT-4.1-mini supports 128k context - thresholds set to preserve quality.
 # Quality degradation is NOT acceptable - only trigger fallback in extreme cases.
-TOKEN_THRESHOLD_SAFE_DEFAULT = 80000  # Safe zone - full catalogue (62% of 128k)
-TOKEN_THRESHOLD_WARNING_DEFAULT = 100000  # Warning - filter to detected domains (78%)
-TOKEN_THRESHOLD_CRITICAL_DEFAULT = 110000  # Critical - reduce descriptions (86%)
-TOKEN_THRESHOLD_MAX_DEFAULT = 120000  # Maximum - emergency fallback only (94%)
+TOKEN_THRESHOLD_SAFE_DEFAULT = 20000  # Safe zone (Aligned from .env.prod)
+TOKEN_THRESHOLD_WARNING_DEFAULT = 30000  # Warning (Aligned from .env.prod)
+TOKEN_THRESHOLD_CRITICAL_DEFAULT = 40000  # Critical (Aligned from .env.prod)
+TOKEN_THRESHOLD_MAX_DEFAULT = 50000  # Maximum (Aligned from .env.prod)
 
 # Planner prompt version
 PLANNER_PROMPT_VERSION_DEFAULT = "v1"
@@ -1395,22 +1395,22 @@ HEARTBEAT_NOTIFY_START_HOUR_DEFAULT = 9  # 9 AM
 HEARTBEAT_NOTIFY_END_HOUR_DEFAULT = 22  # 10 PM
 
 # Cooldowns
-HEARTBEAT_GLOBAL_COOLDOWN_HOURS_DEFAULT = 2
+HEARTBEAT_GLOBAL_COOLDOWN_HOURS_DEFAULT = 1
 HEARTBEAT_ACTIVITY_COOLDOWN_MINUTES_DEFAULT = 15
 
 # Cross-type proactive notification cooldown (shared between interest + heartbeat)
 # Prevents two different proactive notification types from firing in quick succession
-PROACTIVE_CROSS_TYPE_COOLDOWN_MINUTES_DEFAULT = 30
+PROACTIVE_CROSS_TYPE_COOLDOWN_MINUTES_DEFAULT = 10
 
 # Context aggregation
-HEARTBEAT_CONTEXT_CALENDAR_HOURS_DEFAULT = 6
+HEARTBEAT_CONTEXT_CALENDAR_HOURS_DEFAULT = 4
 HEARTBEAT_CONTEXT_TASKS_DAYS_DEFAULT = 2
 HEARTBEAT_CONTEXT_MEMORY_LIMIT_DEFAULT = 5
 HEARTBEAT_CONTEXT_EMAILS_MAX_DEFAULT = 5
 
 # Weather change detection thresholds
 HEARTBEAT_WEATHER_RAIN_THRESHOLD_HIGH_DEFAULT = 0.6
-HEARTBEAT_WEATHER_RAIN_THRESHOLD_LOW_DEFAULT = 0.3
+HEARTBEAT_WEATHER_RAIN_THRESHOLD_LOW_DEFAULT = 0.4
 HEARTBEAT_WEATHER_TEMP_CHANGE_THRESHOLD_DEFAULT = 5.0
 HEARTBEAT_WEATHER_WIND_THRESHOLD_DEFAULT = 14.0
 
@@ -1458,7 +1458,7 @@ INTEREST_NOTIFY_MAX_PER_DAY_DEFAULT = 5
 
 # Proactive notification scheduler interval
 # How often the scheduler checks for eligible users and sends notifications
-INTEREST_NOTIFY_INTERVAL_MINUTES_DEFAULT = 15
+INTEREST_NOTIFY_INTERVAL_MINUTES_DEFAULT = 5
 
 # Maximum length for proactive notification preview (characters)
 # Used when truncating notification content for push notifications
@@ -1695,7 +1695,7 @@ DEFAULT_ITEM_CONFIDENCE = 0.5
 CONTEXT_DEMONSTRATIVE_CONFIDENCE_DEFAULT = 0.8
 CONTEXT_CURRENT_ITEM_CONFIDENCE_DEFAULT = 0.95
 CONTEXT_ACTIVE_WINDOW_TURNS_DEFAULT = 3
-CONTEXT_RESOLUTION_TIMEOUT_MS_DEFAULT = 30000
+CONTEXT_RESOLUTION_TIMEOUT_MS_DEFAULT = 500
 
 # Retry middleware defaults
 RETRY_INITIAL_DELAY_DEFAULT = 1.0
@@ -1727,7 +1727,7 @@ MODEL_CALL_THREAD_LIMIT_DEFAULT = 100
 MODEL_CALL_RUN_LIMIT_DEFAULT = 20
 CONTEXT_EDIT_MAX_TOOL_RESULT_TOKENS_DEFAULT = 5000  # Aligned from .env.prod (was 2000)
 TOOL_APPROVAL_CLEANUP_DAYS_DEFAULT = 1  # Aligned from .env.prod (was 7)
-SEMANTIC_VALIDATION_TIMEOUT_SECONDS_DEFAULT = 30.0  # Aligned from .env.prod (was 10.0)
+SEMANTIC_VALIDATION_TIMEOUT_SECONDS_DEFAULT = 20.0  # Aligned from .env.prod
 SEMANTIC_VALIDATION_CONFIDENCE_THRESHOLD_DEFAULT = 0.70  # Aligned from .env.prod (was 0.7)
 PLAN_PATTERN_PRIOR_ALPHA_DEFAULT = 2
 PLAN_PATTERN_PRIOR_BETA_DEFAULT = 1
@@ -1736,7 +1736,7 @@ PLAN_PATTERN_MIN_CONF_SUGGEST_DEFAULT = 0.75
 PLAN_PATTERN_MIN_OBS_BYPASS_DEFAULT = 10
 PLAN_PATTERN_MIN_CONF_BYPASS_DEFAULT = 0.90
 PLAN_PATTERN_MAX_SUGGESTIONS_DEFAULT = 3
-PLAN_PATTERN_SUGGESTION_TIMEOUT_MS_DEFAULT = 30000  # Aligned from .env.prod (was 5)
+PLAN_PATTERN_SUGGESTION_TIMEOUT_MS_DEFAULT = 100  # Aligned from .env.prod
 PLAN_PATTERN_LOCAL_CACHE_TTL_S_DEFAULT = 1.0
 PLAN_PATTERN_REDIS_TTL_DAYS_DEFAULT = 30
 SEMANTIC_EXPANSION_THRESHOLD_DEFAULT = 0.7
@@ -1779,8 +1779,8 @@ PLANNER_LLM_MODEL_DEFAULT = ""
 PLANNER_LLM_TEMPERATURE_DEFAULT = 0.0
 FOR_EACH_MUTATION_THRESHOLD_DEFAULT = 1
 MAX_CONTEXT_BATCH_SIZE_DEFAULT = 10
-MEMORY_MAX_RESULTS_DEFAULT = 50  # Aligned from .env.prod (was 10)
-MEMORY_MIN_SEARCH_SCORE_DEFAULT = 0.65  # Calibrated for Gemini embedding-001 (2026-04-09)
+MEMORY_MAX_RESULTS_DEFAULT = 25  # Aligned from .env.prod
+MEMORY_MIN_SEARCH_SCORE_DEFAULT = 0.70  # Calibrated for Gemini embedding-001 (2026-04-09)
 MEMORY_EXTRACTION_LLM_MODEL_DEFAULT = "qwen3.5-plus"
 MEMORY_EXTRACTION_LLM_TEMPERATURE_DEFAULT = 0.3
 MEMORY_EXTRACTION_MAX_TOKENS_DEFAULT = 1000
@@ -1795,7 +1795,7 @@ INTEREST_EMBEDDING_DIMENSIONS_DEFAULT = 1536
 MEMORY_PURGE_THRESHOLD_DEFAULT = 0.5  # Score below this triggers purge
 MEMORY_CLEANUP_HOUR_DEFAULT = 4
 MEMORY_CLEANUP_MINUTE_DEFAULT = 0
-MEMORY_RELEVANCE_THRESHOLD_DEFAULT = 0.72  # Calibrated for Gemini embedding-001 (2026-04-09)
+MEMORY_RELEVANCE_THRESHOLD_DEFAULT = 0.76  # Calibrated for Gemini embedding-001 (2026-04-09)
 # Retention score = weight_importance * importance + weight_recency * recency_factor
 # usage_count is NOT a positive signal (eligibility at 0.72 != actual use in response).
 # It is kept as a negative penalty only: if usage_count==0 beyond usage_penalty_age_days,
@@ -1817,7 +1817,7 @@ MEMORY_CONSOLIDATION_HOUR_DEFAULT = 5  # UTC, right after memory_cleanup (4 AM U
 MEMORY_CONSOLIDATION_SIMILARITY_THRESHOLD_DEFAULT = 0.9  # Cosine similarity threshold
 MEMORY_CONSOLIDATION_MAX_PAIRS_PER_USER_DEFAULT = 50  # Cap per user per run
 MEMORY_CONSOLIDATION_EMOTIONAL_DIFF_SKIP_DEFAULT = 5  # Skip pair if |weight_a - weight_b| > this
-MEMORY_REFERENCE_RESOLUTION_TIMEOUT_MS_DEFAULT = 30000  # Aligned from .env.prod (was 2000)
+MEMORY_REFERENCE_RESOLUTION_TIMEOUT_MS_DEFAULT = 5000  # Aligned from .env.prod
 MEMORY_REFERENCE_RESOLUTION_LLM_PROVIDER_CONFIG_DEFAULT = "{}"
 MEMORY_REFERENCE_RESOLUTION_LLM_MODEL_DEFAULT = "qwen3.5-plus"
 MEMORY_REFERENCE_RESOLUTION_LLM_TEMPERATURE_DEFAULT = 0.0
@@ -1897,7 +1897,7 @@ PLACES_TOOL_DEFAULT_RADIUS_METERS_DEFAULT = 500
 DRIVE_TOOL_DEFAULT_MAX_RESULTS_DEFAULT = 10
 EMAILS_TOOL_DEFAULT_MAX_RESULTS_DEFAULT = 10
 EMAILS_TOOL_DEFAULT_LIMIT_DEFAULT = 10
-API_MAX_ITEMS_PER_REQUEST_DEFAULT = 20  # Aligned from .env.prod (was 50)
+API_MAX_ITEMS_PER_REQUEST_DEFAULT = 10  # Aligned from .env.prod
 CIRCUIT_BREAKER_FAILURE_THRESHOLD_DEFAULT = 3  # Aligned from .env.prod (was 5)
 CIRCUIT_BREAKER_SUCCESS_THRESHOLD_DEFAULT = 3
 CIRCUIT_BREAKER_TIMEOUT_SECONDS_DEFAULT = 10  # Aligned from .env.prod (was 60)
@@ -2166,11 +2166,11 @@ REASONING_MODELS_PATTERN = r"^(o[0-9](-.*)?|gpt-5([.-].*)?)"
 # Reference: infrastructure/mcp/, docs/technical/MCP_INTEGRATION.md
 
 MCP_TOOL_NAME_PREFIX = "mcp"
-MCP_DEFAULT_TIMEOUT_SECONDS = 30
+MCP_DEFAULT_TIMEOUT_SECONDS = 120
 MCP_DEFAULT_RATE_LIMIT_CALLS = 60
 MCP_DEFAULT_RATE_LIMIT_WINDOW = 60
 MCP_MAX_SERVERS_DEFAULT = 10
-MCP_MAX_TOOLS_PER_SERVER_DEFAULT = 20
+MCP_MAX_TOOLS_PER_SERVER_DEFAULT = 40
 MCP_HEALTH_CHECK_INTERVAL_DEFAULT = 300
 MCP_CONNECTION_RETRY_MAX_DEFAULT = 3
 MCP_MAX_STRUCTURED_ITEMS_PER_CALL = 25  # Cap structured items parsed from a single MCP call
@@ -2211,7 +2211,7 @@ MCP_DESCRIPTION_MAX_TOTAL_LENGTH = 400  # Max chars for algorithmic fallback des
 # MCP ReAct Sub-Agent (ADR-062)
 # Iterative multi-step interaction with MCP servers via ReAct agent loop.
 # Reference: tools/mcp_react_tools.py, tools/react_runner.py
-MCP_REACT_ENABLED_DEFAULT = False
+MCP_REACT_ENABLED_DEFAULT = True
 MCP_REACT_MAX_ITERATIONS_DEFAULT = 10  # create_react_agent recursion_limit
 
 # ============================================================================
@@ -2224,7 +2224,7 @@ STATE_KEY_INITIATIVE_ITERATION = "initiative_iteration"
 STATE_KEY_INITIATIVE_RESULTS = "initiative_results"
 STATE_KEY_INITIATIVE_SKIPPED_REASON = "initiative_skipped_reason"
 STATE_KEY_INITIATIVE_SUGGESTION = "initiative_suggestion"
-INITIATIVE_ENABLED_DEFAULT = False
+INITIATIVE_ENABLED_DEFAULT = True
 INITIATIVE_MAX_ITERATIONS_DEFAULT = 1  # Conservative: one evaluation pass
 INITIATIVE_MAX_ACTIONS_PER_ITERATION_DEFAULT = 3
 INITIATIVE_LLM_TIMEOUT_SECONDS = 30  # Structured output needs parsing time
@@ -2273,19 +2273,19 @@ DEFAULT_LOCALE = "en-US"
 
 # Max recovery attempts per individual step
 # Higher = more resilient, but risks longer execution
-V3_EXECUTOR_MAX_RECOVERY_PER_STEP = 3
+V3_EXECUTOR_MAX_RECOVERY_PER_STEP = 2
 
 # Max total recoveries for entire plan execution
 # Hard limit across all steps combined
-V3_EXECUTOR_MAX_TOTAL_RECOVERIES = 5
+V3_EXECUTOR_MAX_TOTAL_RECOVERIES = 6
 
 # Global timeout for recovery operations (milliseconds)
 # Prevents runaway recovery attempts
-V3_EXECUTOR_RECOVERY_TIMEOUT_MS = 30000
+V3_EXECUTOR_RECOVERY_TIMEOUT_MS = 15000
 
 # Circuit breaker threshold: after N consecutive failures, stop trying
 # Prevents cascading failures
-V3_EXECUTOR_CIRCUIT_BREAKER_THRESHOLD = 3
+V3_EXECUTOR_CIRCUIT_BREAKER_THRESHOLD = 2
 
 # -----------------------------------------------------------------------------
 # V3 RELEVANCE ENGINE - Smart result ranking
@@ -2426,13 +2426,13 @@ V3_DISPLAY_SHOW_ACTION_BUTTONS = True
 # Routing decision thresholds for intelligent query routing
 
 # Semantic score below this => chat route (simple conversation)
-V3_ROUTING_CHAT_SEMANTIC_THRESHOLD = 0.4
+V3_ROUTING_CHAT_SEMANTIC_THRESHOLD = 0.7
 
 # Semantic score above this => planner route with high confidence
-V3_ROUTING_HIGH_SEMANTIC_THRESHOLD = 0.7
+V3_ROUTING_HIGH_SEMANTIC_THRESHOLD = 0.8
 
 # Minimum confidence for planner route
-V3_ROUTING_MIN_CONFIDENCE = 0.6
+V3_ROUTING_MIN_CONFIDENCE = 0.75
 
 # Chat intent confidence threshold for domain override
 # When intent is "chat" with confidence >= this threshold, domain detection is ignored
@@ -2491,7 +2491,7 @@ V3_DOMAIN_SECONDARY_THRESHOLD = 0.80
 #   T=0.1: Strong discrimination (recommended with stretching)
 #   T=0.05: Very aggressive (winner takes most)
 
-V3_DOMAIN_SOFTMAX_TEMPERATURE = 0.1  # Strong discrimination with stretching
+V3_DOMAIN_SOFTMAX_TEMPERATURE = 0.8  # Aligned from .env.prod
 
 # Minimum raw score range for meaningful discrimination
 # If all scores are within this range, they're considered "equally relevant"
@@ -2506,7 +2506,7 @@ V3_DOMAIN_MIN_RANGE_FOR_DISCRIMINATION = 0.03
 
 # Primary domain minimum probability (accept if >= this)
 # With T=0.05, a clearly dominant domain typically gets 0.40-0.70
-V3_DOMAIN_CALIBRATED_PRIMARY_MIN = 0.15
+V3_DOMAIN_CALIBRATED_PRIMARY_MIN = 0.75
 
 # -----------------------------------------------------------------------------
 # V3 TOOL SOFTMAX TEMPERATURE CALIBRATION - Same as Domain Calibration
@@ -2518,7 +2518,7 @@ V3_DOMAIN_CALIBRATED_PRIMARY_MIN = 0.15
 V3_TOOL_SOFTMAX_TEMPERATURE = 0.1  # Strong discrimination with stretching
 
 # Calibrated score thresholds for tools (applied AFTER softmax transformation)
-V3_TOOL_CALIBRATED_PRIMARY_MIN = 0.15  # Min probability for primary tool
+V3_TOOL_CALIBRATED_PRIMARY_MIN = 0.07  # Min probability for primary tool (Aligned from .env.prod)
 
 # -----------------------------------------------------------------------------
 # V3 PROMPT VERSIONS - DEPRECATED (2025-12-30)
@@ -2570,7 +2570,7 @@ TEXT_COMPACTION_PARAMS: frozenset[str] = frozenset(
 TEXT_COMPACTION_MIN_SIZE_DEFAULT = 200
 
 # Maximum items to show in compacted list format (from payload_to_text)
-TEXT_COMPACTION_MAX_ITEMS_DEFAULT = 3
+TEXT_COMPACTION_MAX_ITEMS_DEFAULT = 5
 
 # Maximum field value length in compacted format (from payload_to_text)
 TEXT_COMPACTION_MAX_FIELD_LENGTH_DEFAULT = 40
@@ -3087,7 +3087,7 @@ ATTACHMENTS_MAX_PDF_TEXT_CHARS_DEFAULT = 50000
 RAG_SPACES_STORAGE_PATH_DEFAULT = "/app/data/rag_uploads"
 RAG_SPACES_MAX_FILE_SIZE_MB_DEFAULT = 20
 RAG_SPACES_MAX_SPACES_PER_USER_DEFAULT = 10
-RAG_SPACES_MAX_DOCS_PER_SPACE_DEFAULT = 50
+RAG_SPACES_MAX_DOCS_PER_SPACE_DEFAULT = 100
 
 # Chunking
 RAG_SPACES_CHUNK_SIZE_DEFAULT = 1000
@@ -3182,8 +3182,8 @@ RAG_DRIVE_REGULAR_FILE_MAP: dict[str, tuple[str, str]] = {
 # Phase: evolution — Agent Skills (agentskills.io open standard)
 
 # Paths
-SKILLS_SYSTEM_PATH_DEFAULT = "/data/skills/system"
-SKILLS_USERS_PATH_DEFAULT = "/data/skills/users"
+SKILLS_SYSTEM_PATH_DEFAULT = "data/skills/system"
+SKILLS_USERS_PATH_DEFAULT = "data/skills/users"
 
 # Validation limits (per agentskills.io spec)
 SKILLS_NAME_MAX_LENGTH = 64
@@ -3253,8 +3253,8 @@ SCHEDULER_JOB_ATTACHMENT_CLEANUP = "attachment_cleanup"
 # Tool name (canonical — used in catalogue, validator, approval gate, planner)
 TOOL_NAME_DELEGATE_SUB_AGENT = "delegate_to_sub_agent_tool"
 
-# Feature flag (default: disabled)
-SUB_AGENTS_ENABLED_DEFAULT = False
+# Feature flag
+SUB_AGENTS_ENABLED_DEFAULT = True
 
 # Per-user limits
 SUBAGENT_MAX_PER_USER_DEFAULT = 10
@@ -3361,11 +3361,11 @@ JOURNAL_CONSOLIDATION_HISTORY_MAX_DAYS_DEFAULT = 7
 
 # Size defaults (user-configurable)
 JOURNAL_MAX_TOTAL_CHARS_DEFAULT = 40000  # ~10k tokens total budget
-JOURNAL_MAX_ENTRY_CHARS_DEFAULT = 800  # per entry (directive format is compact)
-JOURNAL_CONTEXT_MAX_CHARS_DEFAULT = 2000  # ~500 tokens injection budget
+JOURNAL_MAX_ENTRY_CHARS_DEFAULT = 300  # per entry (directive format is compact)
+JOURNAL_CONTEXT_MAX_CHARS_DEFAULT = 3000  # injection budget
 JOURNAL_CONTEXT_MAX_RESULTS_DEFAULT = 5  # max semantic search results
 JOURNAL_CONTEXT_MIN_SCORE_DEFAULT = 0.63  # Calibrated for Gemini embedding-001 (2026-04-09 v2)
-JOURNAL_CONTEXT_RECENT_ENTRIES_DEFAULT = 2  # recent entries injected regardless of score
+JOURNAL_CONTEXT_RECENT_ENTRIES_DEFAULT = 0  # recent entries injected regardless of score
 
 # --- Semantic dedup guard (extraction) ---
 JOURNAL_DEDUP_SIMILARITY_THRESHOLD_DEFAULT = (
@@ -3394,7 +3394,7 @@ USER_MESSAGE_TRIVIAL_MAX_LENGTH: int = 15  # Max chars for triviality check
 # Reference: docs/architecture/ADR-XXX-Psyche-Engine.md
 
 # System-level feature default
-PSYCHE_ENABLED_DEFAULT: bool = False
+PSYCHE_ENABLED_DEFAULT: bool = True
 
 # Mood dynamics
 PSYCHE_MOOD_DECAY_RATE_DEFAULT: float = 0.1  # Per hour, exponential
@@ -3447,7 +3447,7 @@ HUE_REMOTE_REFRESH_EXPIRY_DAYS: int = 112
 # USAGE LIMITS (Per-User Quotas)
 # ============================================================================
 # Feature flag
-USAGE_LIMITS_ENABLED_DEFAULT: bool = False
+USAGE_LIMITS_ENABLED_DEFAULT: bool = True
 
 # Default limits applied when a new UserUsageLimit record is created (None = unlimited)
 DEFAULT_TOKEN_LIMIT_PER_CYCLE: int | None = None
@@ -3538,14 +3538,14 @@ EXECUTION_MODE_PIPELINE: str = "pipeline"
 EXECUTION_MODE_REACT: str = "react"
 REACT_AGENT_MAX_ITERATIONS_DEFAULT: int = 15
 REACT_AGENT_TIMEOUT_SECONDS_DEFAULT: int = 120
-REACT_AGENT_MAX_TOOLS_DEFAULT: int = 25
+REACT_AGENT_MAX_TOOLS_DEFAULT: int = 100
 REACT_AGENT_HISTORY_WINDOW_TURNS_DEFAULT: int = 5
 
 # ============================================================================
 # HEALTH METRICS (iPhone Shortcuts ingestion — heart rate, steps, …)
 # ============================================================================
 # Feature flag default
-HEALTH_METRICS_ENABLED_DEFAULT: bool = False
+HEALTH_METRICS_ENABLED_DEFAULT: bool = True
 
 # Token format
 HEALTH_METRICS_TOKEN_PREFIX: str = "hm_"

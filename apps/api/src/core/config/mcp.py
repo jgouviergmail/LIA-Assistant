@@ -54,7 +54,7 @@ class MCPSettings(BaseSettings):
     # ========================================================================
 
     mcp_enabled: bool = Field(
-        default=False,
+        default=True,
         description=(
             "Enable MCP support. When true, connects to configured MCP servers "
             "at startup and registers discovered tools in the catalogue."
@@ -150,7 +150,7 @@ class MCPSettings(BaseSettings):
     # ========================================================================
 
     mcp_hitl_required: bool = Field(
-        default=True,
+        default=False,
         description=(
             "Global HITL requirement for MCP tools. "
             "Per-server hitl_required overrides this. "
@@ -231,7 +231,7 @@ class MCPSettings(BaseSettings):
     # Reference: domains/user_mcp/, infrastructure/mcp/user_pool.py
 
     mcp_user_enabled: bool = Field(
-        default=False,
+        default=True,
         description=(
             "Enable per-user MCP support. When true, users can declare "
             "their own MCP servers and use discovered tools in chat."

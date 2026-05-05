@@ -38,7 +38,7 @@ class ChannelsSettings(BaseSettings):
     # ========================================================================
 
     channels_enabled: bool = Field(
-        default=False,
+        default=True,
         description=(
             "Enable multi-channel messaging support. When true, users can "
             "link external messaging accounts (Telegram, etc.) and chat with LIA."

@@ -49,7 +49,7 @@ class ObservabilitySettings(BaseSettings):
 
     # Langfuse - LLM Observability (Phase 6)
     langfuse_enabled: bool = Field(
-        default=True,
+        default=False,
         description="Enable Langfuse tracing for LLM observability",
     )
     langfuse_host: str = Field(
@@ -122,7 +122,7 @@ class ObservabilitySettings(BaseSettings):
         description="Latency threshold for slow score (0.45)",
     )
     evaluator_pipeline_send_to_langfuse: bool = Field(
-        default=True,
+        default=False,
         description="Send evaluation scores to Langfuse",
     )
     evaluator_hallucination_require_ground_truth: bool = Field(
