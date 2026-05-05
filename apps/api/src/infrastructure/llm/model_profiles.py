@@ -32,6 +32,7 @@ from typing import Any
 
 from langchain_core.language_models.chat_models import BaseChatModel
 
+from src.core.llm_utils import normalize_model_name
 from src.infrastructure.observability.logging import get_logger
 
 logger = get_logger(__name__)
@@ -851,80 +852,68 @@ def get_model_profile(llm: BaseChatModel | None, provider: str, model: str) -> M
     """
     Get capability profile for an LLM model.
 
-    Priority order:
-    1. Native .profile attribute from LLM (LangChain 1.1+)
-    2. Specific model profile from FALLBACK_PROFILES
-    3. Provider default profile from FALLBACK_PROFILES
-    4. CONSERVATIVE_DEFAULT (safest defaults)
+    Priority order (after the v1.x DB-source-of-truth refactor):
+    1. Native ``.profile`` attribute from the LLM instance (LangChain 1.1+)
+    2. :class:`ModelCapabilitiesCache` lookup by ``model_name``
+       (DB-sourced, populated at boot from ``llm_models``)
+    3. Same lookup with ``normalize_model_name()`` to strip date suffixes
+       (e.g. ``gpt-4.1-mini-2025-04-14`` → ``gpt-4.1-mini``)
+    4. :data:`CONSERVATIVE_DEFAULT` (safest defaults — logs a warning)
+
+    The legacy ``FALLBACK_PROFILES`` dict is kept in this module only as the
+    seed reference for migration #2 and the ``llm_config.service`` metadata
+    branch (deleted in Task 11). It is no longer consulted at runtime.
 
     Args:
-        llm: LangChain BaseChatModel instance (optional, for native profile detection)
-        provider: Provider name (openai, anthropic, deepseek, gemini, ollama, perplexity)
+        llm: LangChain BaseChatModel instance (optional, for native detection)
+        provider: Provider name (kept for native-profile metadata; ignored by
+            the cache lookup since ``model_name`` is globally unique)
         model: Model identifier (e.g., "gpt-4.1-mini", "claude-sonnet-4-5")
 
     Returns:
-        ModelProfile: Capability profile for the model
-
-    Examples:
-        >>> # With LLM instance
-        >>> profile = get_model_profile(llm, "openai", "gpt-4.1-mini")
-        >>> if profile.supports_strict_mode:
-        ...     use_strict = True
-
-        >>> # Without LLM instance (fallback only)
-        >>> profile = get_model_profile(None, "deepseek", "deepseek-reasoner")
-        >>> if not profile.supports_tool_calling:
-        ...     raise ValueError("Model doesn't support tools")
+        :class:`ModelProfile`: Capability profile for the model.
     """
     # Priority 1: Check native .profile attribute (LangChain 1.1+)
-    if llm is not None and hasattr(llm, "profile") and llm.profile is not None:
-        native_profile = llm.profile
+    if llm is not None and getattr(llm, "profile", None) is not None:
         logger.debug(
             "model_profile_from_native",
             provider=provider,
             model=model,
             source="native",
         )
-        # Convert native profile to our ModelProfile format
-        # LangChain's profile may have different attribute names
-        return _convert_native_profile(native_profile, provider, model)
+        return _convert_native_profile(llm.profile, provider, model)
 
-    # Priority 2: Look up in FALLBACK_PROFILES
-    provider_profiles = FALLBACK_PROFILES.get(provider.lower(), {})
+    # Priority 2: ModelCapabilitiesCache exact match (hot path, O(1))
+    # Imported lazily to avoid an import cycle at module load time
+    # (model_capabilities_cache imports ModelProfile from this file).
+    from src.infrastructure.llm.model_capabilities_cache import ModelCapabilitiesCache
 
-    # Try exact model match
-    if model in provider_profiles:
+    cached = ModelCapabilitiesCache.get(model)
+    if cached is not None:
         logger.debug(
-            "model_profile_from_fallback",
+            "model_profile_from_cache",
             provider=provider,
             model=model,
-            source="exact_match",
+            source="cache_exact",
         )
-        return provider_profiles[model]
+        return cached
 
-    # Try partial model match (e.g., "gpt-4.1-mini-2024-07-18" -> "gpt-4.1-mini")
-    for profile_model, profile in provider_profiles.items():
-        if profile_model != "default" and model.startswith(profile_model):
+    # Priority 3: Same lookup after normalizing the model name (date suffixes).
+    # Avoid a second hit when the name is already normalized.
+    normalized = normalize_model_name(model)
+    if normalized != model:
+        cached = ModelCapabilitiesCache.get(normalized)
+        if cached is not None:
             logger.debug(
-                "model_profile_from_fallback",
+                "model_profile_from_cache",
                 provider=provider,
                 model=model,
-                matched_model=profile_model,
-                source="partial_match",
+                normalized=normalized,
+                source="cache_normalized",
             )
-            return profile
+            return cached
 
-    # Priority 3: Provider default
-    if "default" in provider_profiles:
-        logger.debug(
-            "model_profile_from_fallback",
-            provider=provider,
-            model=model,
-            source="provider_default",
-        )
-        return provider_profiles["default"]
-
-    # Priority 4: Conservative default
+    # Priority 4: Conservative default (warning so ops can spot misconfigured models).
     logger.warning(
         "model_profile_using_conservative_default",
         provider=provider,
