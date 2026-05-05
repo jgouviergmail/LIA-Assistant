@@ -172,7 +172,12 @@ async def reset_type(
 async def get_models_metadata(
     current_user: User = Depends(get_current_superuser_session),
 ) -> ProviderModelsMetadata:
-    """Get available models grouped by provider (from FALLBACK_PROFILES)."""
+    """Get available models grouped by provider.
+
+    Sources: ``ModelCapabilitiesCache`` (chat) +
+    ``ImageOptionsCache.get_models_grouped_by_provider`` (image), both
+    DB-backed and populated at boot.
+    """
     return LLMConfigService.get_provider_models()
 
 
