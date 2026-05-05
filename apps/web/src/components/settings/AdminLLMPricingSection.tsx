@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { DollarSign, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import { SearchInput } from '@/components/ui/search-input';
 import { Pagination } from '@/components/ui/pagination';
 import { Skeleton, TableSkeleton } from '@/components/ui/skeleton';
@@ -17,16 +18,48 @@ import {
   updateLLMPricing,
   deactivateLLMPricing,
   reloadLLMPricingCache,
+  type LLMProviderName,
+  type LLMPricingUpdateData,
 } from '@/lib/actions/settings-actions';
 import { useTranslation } from '@/i18n/client';
 import type { Language } from '@/i18n/settings';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import type { BaseSettingsProps } from '@/types/settings';
 
+const PROVIDER_OPTIONS: readonly LLMProviderName[] = [
+  'openai',
+  'anthropic',
+  'deepseek',
+  'perplexity',
+  'ollama',
+  'gemini',
+  'qwen',
+] as const;
+
+const CAPABILITY_BOOL_FIELDS = [
+  'supports_tools',
+  'supports_structured_output',
+  'supports_strict_mode',
+  'supports_streaming',
+  'supports_vision',
+  'is_reasoning_model',
+] as const;
+
 interface LLMModelPricing {
   id: string;
+  // Catalogue (from llm_models via JOIN)
+  provider: LLMProviderName;
   model_name: string;
-  input_price_per_1m_tokens: string; // Decimal as string
+  max_input_tokens: number;
+  max_output_tokens: number;
+  supports_tools: boolean;
+  supports_structured_output: boolean;
+  supports_strict_mode: boolean;
+  supports_streaming: boolean;
+  supports_vision: boolean;
+  is_reasoning_model: boolean;
+  // Pricing
+  input_price_per_1m_tokens: string;
   cached_input_price_per_1m_tokens: string | null;
   output_price_per_1m_tokens: string;
   effective_from: string;
@@ -41,6 +74,23 @@ interface LLMPricingListResponse {
   models: LLMModelPricing[];
 }
 
+/** Form data captured by the modal — same shape as the create payload. */
+interface ModelPricingFormData {
+  provider: LLMProviderName;
+  model_name: string;
+  max_input_tokens: number;
+  max_output_tokens: number;
+  supports_tools: boolean;
+  supports_structured_output: boolean;
+  supports_strict_mode: boolean;
+  supports_streaming: boolean;
+  supports_vision: boolean;
+  is_reasoning_model: boolean;
+  input_price_per_1m_tokens: string;
+  cached_input_price_per_1m_tokens: string | null;
+  output_price_per_1m_tokens: string;
+}
+
 export default function AdminLLMPricingSection({ lng, collapsible = true }: BaseSettingsProps) {
   const { t } = useTranslation(lng, 'translation');
 
@@ -50,7 +100,6 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
   const [editingModel, setEditingModel] = useState<LLMModelPricing | null>(null);
   const [reloadingCache, setReloadingCache] = useState(false);
 
-  // ✅ React 19 useOptimistic for instant UI updates without full page refresh
   const [optimisticModels, updateOptimisticModels] = useOptimistic(
     models,
     (
@@ -75,13 +124,9 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
     }
   );
 
-  // ✅ useTransition for pending state during mutations
   const [isPending, startTransition] = useTransition();
 
-  // Search state (managed by SearchInput)
   const [searchQuery, setSearchQuery] = useState('');
-
-  // Pagination and sorting state
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(ADMIN_LLM_PRICING_PAGE_SIZE);
   const [totalPages, setTotalPages] = useState(1);
@@ -91,7 +136,6 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
   >('model_name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
-  // ✅ FIXED: Proper fetchModels with AbortController to prevent race conditions
   const fetchModels = useCallback(
     async (signal?: AbortSignal) => {
       setLoading(true);
@@ -116,7 +160,6 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
         setTotalPages(response.total_pages);
       } catch (error) {
         const err = error as { name?: string };
-        // ✅ Don't show error if request was aborted (normal behavior)
         if (err.name === 'AbortError' || err.name === 'CanceledError') {
           return;
         }
@@ -135,20 +178,17 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
     [page, pageSize, sortBy, sortOrder, searchQuery, t]
   );
 
-  // ✅ FIXED: useEffect with cleanup for AbortController
   useEffect(() => {
     const controller = new AbortController();
     fetchModels(controller.signal);
-
     return () => {
       controller.abort();
     };
   }, [fetchModels]);
 
-  // ✅ FIXED: Proper TypeScript typing (no 'any')
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
-    setPage(1); // Reset to page 1 when searching
+    setPage(1);
   };
 
   const handleSort = (column: typeof sortBy) => {
@@ -160,7 +200,6 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
     }
   };
 
-  // Handle cache reload
   const handleReloadCache = async () => {
     setReloadingCache(true);
     try {
@@ -177,125 +216,101 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
     }
   };
 
-  // ✅ React 19 useOptimistic pattern: instant model creation with automatic rollback on error
-  const handleAddModel = (formData: {
-    model_name: string;
-    input_price_per_1m_tokens: string;
-    cached_input_price_per_1m_tokens: string | null;
-    output_price_per_1m_tokens: string;
-  }) => {
+  const handleAddModel = (formData: ModelPricingFormData) => {
     startTransition(async () => {
-      // 1. Create temporary optimistic model
       const tempModel: LLMModelPricing = {
         id: `temp-${Date.now()}`,
-        model_name: formData.model_name,
-        input_price_per_1m_tokens: formData.input_price_per_1m_tokens,
-        cached_input_price_per_1m_tokens: formData.cached_input_price_per_1m_tokens,
-        output_price_per_1m_tokens: formData.output_price_per_1m_tokens,
+        ...formData,
         effective_from: new Date().toISOString(),
         is_active: true,
       };
-
-      // 2. Optimistic UI update (instant)
       updateOptimisticModels({ newModel: tempModel });
 
       try {
-        // 3. Server Action call
         const result = await createLLMPricing(formData);
-
         if (result.success) {
-          // 4. Close modal and refetch to get real server data
           setShowAddModal(false);
           await fetchModels();
           toast.success(result.message!);
         } else {
-          // 5. Rollback on error (React reverts optimistic update)
           toast.error(result.error!);
         }
       } catch {
-        // 6. Rollback on exception (React reverts optimistic update)
         toast.error(t('settings.admin.llm.errors.create'));
       }
     });
   };
 
-  // ✅ React 19 useOptimistic pattern: instant model edit with automatic rollback on error
-  const handleEditModel = (
-    originalModelName: string,
-    formData: {
-      model_name: string;
-      input_price_per_1m_tokens: string;
-      cached_input_price_per_1m_tokens: string | null;
-      output_price_per_1m_tokens: string;
-    }
-  ) => {
+  const handleEditModel = (originalModelName: string, formData: ModelPricingFormData) => {
     const confirmed = confirm(
       `${t('settings.admin.llm.confirm.edit_title')}\n\n` +
         `${t('settings.admin.llm.confirm.edit_message', { name: originalModelName })}\n\n` +
         `${t('settings.admin.llm.confirm.edit_confirm')}`
     );
-
     if (!confirmed) return;
 
     startTransition(async () => {
-      // 1. Optimistic UI update (instant)
-      updateOptimisticModels({ id: editingModel!.id, updates: formData });
+      // Build the partial update payload — provider is intrinsic and never sent on update.
+      const updatePayload: LLMPricingUpdateData = {
+        model_name: formData.model_name,
+        max_input_tokens: formData.max_input_tokens,
+        max_output_tokens: formData.max_output_tokens,
+        supports_tools: formData.supports_tools,
+        supports_structured_output: formData.supports_structured_output,
+        supports_strict_mode: formData.supports_strict_mode,
+        supports_streaming: formData.supports_streaming,
+        supports_vision: formData.supports_vision,
+        is_reasoning_model: formData.is_reasoning_model,
+        input_price_per_1m_tokens: formData.input_price_per_1m_tokens,
+        cached_input_price_per_1m_tokens: formData.cached_input_price_per_1m_tokens,
+        output_price_per_1m_tokens: formData.output_price_per_1m_tokens,
+      };
+
+      updateOptimisticModels({
+        id: editingModel!.id,
+        updates: { ...formData },
+      });
 
       try {
-        // 2. Server Action call
-        const result = await updateLLMPricing(originalModelName, formData);
-
+        const result = await updateLLMPricing(originalModelName, updatePayload);
         if (result.success) {
-          // 3. Close modal and refetch to get real server data
           setEditingModel(null);
           await fetchModels();
           toast.success(result.message!);
         } else {
-          // 4. Rollback on error (React reverts optimistic update)
           toast.error(result.error!);
         }
       } catch {
-        // 5. Rollback on exception (React reverts optimistic update)
         toast.error(t('settings.admin.llm.errors.update'));
       }
     });
   };
 
-  // ✅ React 19 useOptimistic pattern: instant deactivation with automatic rollback on error
   const handleDeactivate = (pricing_id: string, model_name: string) => {
     const confirmed = confirm(
       `${t('settings.admin.llm.confirm.deactivate_title', { name: model_name })}\n\n` +
         `${t('settings.admin.llm.confirm.deactivate_message')}\n\n` +
         `${t('settings.admin.llm.confirm.deactivate_confirm')}`
     );
-
     if (!confirmed) return;
 
     startTransition(async () => {
-      // 1. Optimistic UI update (instant removal)
       updateOptimisticModels({ id: pricing_id, deleted: true });
-
       try {
-        // 2. Server Action call
         const result = await deactivateLLMPricing(pricing_id);
-
         if (result.success) {
-          // 3. Update confirmed state (React reconciles automatically)
-          setModels(prevModels => deleteListItem(prevModels, pricing_id));
-          setTotal(prevTotal => prevTotal - 1);
+          setModels(prev => deleteListItem(prev, pricing_id));
+          setTotal(prev => prev - 1);
           toast.success(result.message!);
         } else {
-          // 4. Rollback on error (React reverts optimistic update)
           toast.error(result.error!);
         }
       } catch {
-        // 5. Rollback on exception (React reverts optimistic update)
         toast.error(t('settings.admin.llm.errors.disable'));
       }
     });
   };
 
-  // Loading state
   if (loading && models.length === 0) {
     return (
       <SettingsSection
@@ -311,10 +326,8 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
     );
   }
 
-  // Main content
   const content = (
     <>
-      {/* Search and Add Controls */}
       <div className="flex flex-col sm:flex-row gap-4 mb-4">
         <div className="flex-1">
           <SearchInput
@@ -344,7 +357,6 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
         </div>
       </div>
 
-      {/* Results count */}
       {!loading && (
         <p className="text-sm text-muted-foreground mb-2" aria-live="polite">
           {total > 1
@@ -353,12 +365,10 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
         </p>
       )}
 
-      {/* Models Table */}
       <div className="overflow-x-auto rounded-lg border border-border">
         <table className="min-w-full divide-y divide-border" role="table">
           <thead className="bg-muted/50">
             <tr>
-              {/* ✅ ACCESSIBILITY: aria-sort for sortable columns */}
               <th
                 className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted transition-colors"
                 onClick={() => handleSort('model_name')}
@@ -377,6 +387,12 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
                     <span aria-hidden="true">{sortOrder === 'asc' ? '↑' : '↓'}</span>
                   )}
                 </div>
+              </th>
+              <th
+                className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                role="columnheader"
+              >
+                {t('settings.admin.llm.table.provider')}
               </th>
               <th
                 className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider cursor-pointer hover:bg-muted transition-colors"
@@ -439,6 +455,9 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
                   {model.model_name}
                 </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+                  {model.provider}
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
                   ${parseFloat(model.input_price_per_1m_tokens).toFixed(6)}
                 </td>
@@ -451,7 +470,6 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
                   ${parseFloat(model.output_price_per_1m_tokens).toFixed(6)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm">
-                  {/* ✅ FIXED: Button alignment with fixed width */}
                   <div className="flex gap-2">
                     <Button
                       variant="outline"
@@ -481,7 +499,6 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
         </table>
       </div>
 
-      {/* Pagination Controls */}
       <Pagination
         currentPage={page}
         totalPages={totalPages}
@@ -500,7 +517,6 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
         className="mt-4 px-4"
       />
 
-      {/* Add/Edit Modal */}
       {(showAddModal || editingModel) && (
         <ModelPricingModal
           lng={lng}
@@ -530,14 +546,6 @@ export default function AdminLLMPricingSection({ lng, collapsible = true }: Base
   );
 }
 
-// Modal Component
-interface ModelPricingFormData {
-  model_name: string;
-  input_price_per_1m_tokens: string;
-  cached_input_price_per_1m_tokens: string | null;
-  output_price_per_1m_tokens: string;
-}
-
 interface ModelPricingModalProps {
   lng: Language;
   model: LLMModelPricing | null;
@@ -547,126 +555,248 @@ interface ModelPricingModalProps {
 
 function ModelPricingModal({ lng, model, onClose, onSubmit }: ModelPricingModalProps) {
   const { t } = useTranslation(lng, 'translation');
+  const isEdit = model !== null;
 
-  const [formData, setFormData] = useState({
-    model_name: model?.model_name || '',
-    input_price_per_1m_tokens: model?.input_price_per_1m_tokens || '',
-    cached_input_price_per_1m_tokens: model?.cached_input_price_per_1m_tokens || '',
-    output_price_per_1m_tokens: model?.output_price_per_1m_tokens || '',
+  const [formData, setFormData] = useState<ModelPricingFormData>({
+    provider: model?.provider ?? 'openai',
+    model_name: model?.model_name ?? '',
+    max_input_tokens: model?.max_input_tokens ?? 8192,
+    max_output_tokens: model?.max_output_tokens ?? 4096,
+    supports_tools: model?.supports_tools ?? true,
+    supports_structured_output: model?.supports_structured_output ?? true,
+    supports_strict_mode: model?.supports_strict_mode ?? false,
+    supports_streaming: model?.supports_streaming ?? true,
+    supports_vision: model?.supports_vision ?? false,
+    is_reasoning_model: model?.is_reasoning_model ?? false,
+    input_price_per_1m_tokens: model?.input_price_per_1m_tokens ?? '',
+    cached_input_price_per_1m_tokens: model?.cached_input_price_per_1m_tokens ?? '',
+    output_price_per_1m_tokens: model?.output_price_per_1m_tokens ?? '',
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Convert empty string to null for cached_input_price
-    const data = {
+    onSubmit({
       ...formData,
       cached_input_price_per_1m_tokens: formData.cached_input_price_per_1m_tokens || null,
-    };
-
-    await onSubmit(data);
+    });
   };
 
   return (
     <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50"
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto"
       role="dialog"
       aria-modal="true"
       aria-labelledby="modal-title"
     >
-      <div className="bg-card rounded-xl border border-border shadow-xl p-6 max-w-md w-full mx-4">
+      <div className="bg-card rounded-xl border border-border shadow-xl p-6 max-w-lg w-full my-8">
         <h3 id="modal-title" className="text-lg font-bold mb-4 text-foreground">
-          {model
+          {isEdit
             ? t('settings.admin.llm.modal.title_edit', { name: model.model_name })
             : t('settings.admin.llm.modal.title_add')}
         </h3>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Model Name - editable even in edit mode */}
-          <div>
-            <label htmlFor="model-name" className="block text-sm font-medium text-foreground mb-1">
-              {t('settings.admin.llm.modal.model_name_label')}
-            </label>
-            <Input
-              id="model-name"
-              type="text"
-              value={formData.model_name}
-              onChange={e => setFormData({ ...formData, model_name: e.target.value })}
-              placeholder={t('settings.admin.llm.modal.model_name_placeholder')}
-              pattern="^[a-zA-Z0-9._-]{1,100}$"
-              title="Alphanumeric, dots, underscores, hyphens (1-100 chars)"
-              required
-            />
-          </div>
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Section 1 — Modèle */}
+          <fieldset className="border border-border rounded-lg p-4 space-y-3">
+            <legend className="px-2 text-sm font-semibold text-foreground">
+              {t('settings.admin.llm.modal.section_model')}
+            </legend>
 
-          {/* Input Price */}
-          <div>
-            <label htmlFor="input-price" className="block text-sm font-medium text-foreground mb-1">
-              {t('settings.admin.llm.modal.input_price_label')}
-            </label>
-            <Input
-              id="input-price"
-              type="number"
-              step="0.000001"
-              min="0"
-              value={formData.input_price_per_1m_tokens}
-              onChange={e =>
-                setFormData({ ...formData, input_price_per_1m_tokens: e.target.value })
-              }
-              placeholder={t('settings.admin.llm.modal.input_price_placeholder')}
-              required
-            />
-          </div>
+            <div>
+              <label
+                htmlFor="provider"
+                className="block text-sm font-medium text-foreground mb-1"
+              >
+                {t('settings.admin.llm.modal.provider_label')}
+              </label>
+              <select
+                id="provider"
+                value={formData.provider}
+                onChange={e =>
+                  setFormData({ ...formData, provider: e.target.value as LLMProviderName })
+                }
+                disabled={isEdit}
+                required
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {PROVIDER_OPTIONS.map(p => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+              {isEdit && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {t('settings.admin.llm.modal.provider_immutable_hint')}
+                </p>
+              )}
+            </div>
 
-          {/* Cached Input Price - OPTIONAL */}
-          <div>
-            <label
-              htmlFor="cached-input-price"
-              className="block text-sm font-medium text-foreground mb-1"
-            >
-              {t('settings.admin.llm.modal.cached_input_label')}
-            </label>
-            <Input
-              id="cached-input-price"
-              type="number"
-              step="0.000001"
-              min="0"
-              value={formData.cached_input_price_per_1m_tokens}
-              onChange={e =>
-                setFormData({ ...formData, cached_input_price_per_1m_tokens: e.target.value })
-              }
-              placeholder={t('settings.admin.llm.modal.cached_input_placeholder')}
-            />
-          </div>
+            <div>
+              <label
+                htmlFor="model-name"
+                className="block text-sm font-medium text-foreground mb-1"
+              >
+                {t('settings.admin.llm.modal.model_name_label')}
+              </label>
+              <Input
+                id="model-name"
+                type="text"
+                value={formData.model_name}
+                onChange={e => setFormData({ ...formData, model_name: e.target.value })}
+                placeholder={t('settings.admin.llm.modal.model_name_placeholder')}
+                pattern="^[A-Za-z0-9._\-/:]+$"
+                title={t('settings.admin.llm.modal.model_name_pattern_hint')}
+                required
+              />
+            </div>
+          </fieldset>
 
-          {/* Output Price */}
-          <div>
-            <label
-              htmlFor="output-price"
-              className="block text-sm font-medium text-foreground mb-1"
-            >
-              {t('settings.admin.llm.modal.output_price_label')}
-            </label>
-            <Input
-              id="output-price"
-              type="number"
-              step="0.000001"
-              min="0"
-              value={formData.output_price_per_1m_tokens}
-              onChange={e =>
-                setFormData({ ...formData, output_price_per_1m_tokens: e.target.value })
-              }
-              placeholder={t('settings.admin.llm.modal.output_price_placeholder')}
-              required
-            />
-          </div>
+          {/* Section 2 — Capacités */}
+          <fieldset className="border border-border rounded-lg p-4 space-y-3">
+            <legend className="px-2 text-sm font-semibold text-foreground">
+              {t('settings.admin.llm.modal.section_capabilities')}
+            </legend>
 
-          <div className="flex space-x-2 pt-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label
+                  htmlFor="max-input"
+                  className="block text-sm font-medium text-foreground mb-1"
+                >
+                  {t('settings.admin.llm.modal.max_input_tokens_label')}
+                </label>
+                <Input
+                  id="max-input"
+                  type="number"
+                  min="1"
+                  required
+                  value={formData.max_input_tokens}
+                  onChange={e =>
+                    setFormData({
+                      ...formData,
+                      max_input_tokens: parseInt(e.target.value, 10) || 0,
+                    })
+                  }
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="max-output"
+                  className="block text-sm font-medium text-foreground mb-1"
+                >
+                  {t('settings.admin.llm.modal.max_output_tokens_label')}
+                </label>
+                <Input
+                  id="max-output"
+                  type="number"
+                  min="0"
+                  required
+                  value={formData.max_output_tokens}
+                  onChange={e =>
+                    setFormData({
+                      ...formData,
+                      max_output_tokens: parseInt(e.target.value, 10) || 0,
+                    })
+                  }
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2 pt-1">
+              {CAPABILITY_BOOL_FIELDS.map(field => (
+                <div key={field} className="flex items-center justify-between gap-3">
+                  <label htmlFor={field} className="text-sm text-foreground cursor-pointer">
+                    {t(`settings.admin.llm.modal.${field}_label`)}
+                  </label>
+                  <Switch
+                    id={field}
+                    checked={formData[field]}
+                    onCheckedChange={v => setFormData({ ...formData, [field]: v })}
+                  />
+                </div>
+              ))}
+            </div>
+          </fieldset>
+
+          {/* Section 3 — Tarification */}
+          <fieldset className="border border-border rounded-lg p-4 space-y-3">
+            <legend className="px-2 text-sm font-semibold text-foreground">
+              {t('settings.admin.llm.modal.section_pricing')}
+            </legend>
+
+            <div>
+              <label
+                htmlFor="input-price"
+                className="block text-sm font-medium text-foreground mb-1"
+              >
+                {t('settings.admin.llm.modal.input_price_label')}
+              </label>
+              <Input
+                id="input-price"
+                type="number"
+                step="0.000001"
+                min="0"
+                required
+                value={formData.input_price_per_1m_tokens}
+                onChange={e =>
+                  setFormData({ ...formData, input_price_per_1m_tokens: e.target.value })
+                }
+                placeholder={t('settings.admin.llm.modal.input_price_placeholder')}
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="cached-input-price"
+                className="block text-sm font-medium text-foreground mb-1"
+              >
+                {t('settings.admin.llm.modal.cached_input_label')}
+              </label>
+              <Input
+                id="cached-input-price"
+                type="number"
+                step="0.000001"
+                min="0"
+                value={formData.cached_input_price_per_1m_tokens ?? ''}
+                onChange={e =>
+                  setFormData({
+                    ...formData,
+                    cached_input_price_per_1m_tokens: e.target.value,
+                  })
+                }
+                placeholder={t('settings.admin.llm.modal.cached_input_placeholder')}
+              />
+            </div>
+
+            <div>
+              <label
+                htmlFor="output-price"
+                className="block text-sm font-medium text-foreground mb-1"
+              >
+                {t('settings.admin.llm.modal.output_price_label')}
+              </label>
+              <Input
+                id="output-price"
+                type="number"
+                step="0.000001"
+                min="0"
+                required
+                value={formData.output_price_per_1m_tokens}
+                onChange={e =>
+                  setFormData({ ...formData, output_price_per_1m_tokens: e.target.value })
+                }
+                placeholder={t('settings.admin.llm.modal.output_price_placeholder')}
+              />
+            </div>
+          </fieldset>
+
+          <div className="flex space-x-2 pt-2">
             <Button type="button" variant="outline" onClick={onClose} className="flex-1">
               {t('settings.admin.llm.modal.cancel')}
             </Button>
             <Button type="submit" variant="default" className="flex-1">
-              {model
+              {isEdit
                 ? t('settings.admin.llm.modal.submit_edit')
                 : t('settings.admin.llm.modal.submit_create')}
             </Button>

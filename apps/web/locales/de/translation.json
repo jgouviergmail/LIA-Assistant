@@ -1087,7 +1087,8 @@
           "input_price": "Eingabepreis ($/1M)",
           "cached_input_price": "Zwischengespeicherter Eingabepreis ($/1M)",
           "output_price": "Ausgabepreis ($/1M)",
-          "actions": "Aktionen"
+          "actions": "Aktionen",
+          "provider": "Anbieter"
         },
         "edit": "Bearbeiten",
         "disable": "Deaktivieren",
@@ -1105,7 +1106,21 @@
           "output_price_placeholder": "10.000000",
           "cancel": "Abbrechen",
           "submit_edit": "Aktualisieren",
-          "submit_create": "Erstellen"
+          "submit_create": "Erstellen",
+          "section_model": "Modell",
+          "section_capabilities": "Fähigkeiten",
+          "section_pricing": "Preise",
+          "provider_label": "Anbieter",
+          "provider_immutable_hint": "Der Anbieter ist Teil der Modellidentität und kann nach der Erstellung nicht geändert werden.",
+          "model_name_pattern_hint": "Alphanumerisch, Punkte, Unterstriche, Bindestriche, Schrägstriche, Doppelpunkte (1–100 Zeichen)",
+          "max_input_tokens_label": "Max. Eingabe-Tokens",
+          "max_output_tokens_label": "Max. Ausgabe-Tokens",
+          "supports_tools_label": "Unterstützt Tool-Aufrufe",
+          "supports_structured_output_label": "Unterstützt strukturierte Ausgabe",
+          "supports_strict_mode_label": "Unterstützt strikten Modus (nur OpenAI)",
+          "supports_streaming_label": "Unterstützt Streaming",
+          "supports_vision_label": "Unterstützt Vision (Bildeingabe)",
+          "is_reasoning_model_label": "Ist ein Reasoning-Modell"
         },
         "errors": {
           "loading": "Fehler beim Laden der Modelle",

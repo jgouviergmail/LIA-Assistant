@@ -44,11 +44,47 @@ interface UserActivationResponse {
   email_notification_error: string | null;
 }
 
+export type LLMProviderName =
+  | 'openai'
+  | 'anthropic'
+  | 'deepseek'
+  | 'perplexity'
+  | 'ollama'
+  | 'gemini'
+  | 'qwen';
+
 interface LLMPricingData {
+  // Catalogue
+  provider: LLMProviderName;
   model_name: string;
+  max_input_tokens: number;
+  max_output_tokens: number;
+  supports_tools: boolean;
+  supports_structured_output: boolean;
+  supports_strict_mode: boolean;
+  supports_streaming: boolean;
+  supports_vision: boolean;
+  is_reasoning_model: boolean;
+  // Pricing
   input_price_per_1m_tokens: string;
   cached_input_price_per_1m_tokens: string | null;
   output_price_per_1m_tokens: string;
+}
+
+/** Partial update payload — every field is optional. */
+export interface LLMPricingUpdateData {
+  model_name?: string;
+  max_input_tokens?: number;
+  max_output_tokens?: number;
+  supports_tools?: boolean;
+  supports_structured_output?: boolean;
+  supports_strict_mode?: boolean;
+  supports_streaming?: boolean;
+  supports_vision?: boolean;
+  is_reasoning_model?: boolean;
+  input_price_per_1m_tokens?: string;
+  cached_input_price_per_1m_tokens?: string | null;
+  output_price_per_1m_tokens?: string;
 }
 
 /**
@@ -213,12 +249,7 @@ export async function createLLMPricing(data: LLMPricingData): Promise<ActionResp
  */
 export async function updateLLMPricing(
   originalModelName: string,
-  data: {
-    model_name?: string;
-    input_price_per_1m_tokens: string;
-    cached_input_price_per_1m_tokens: string | null;
-    output_price_per_1m_tokens: string;
-  }
+  data: LLMPricingUpdateData
 ): Promise<ActionResponse> {
   try {
     const apiServer = await createServerApiClient();

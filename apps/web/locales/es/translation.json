@@ -1087,7 +1087,8 @@
           "input_price": "Precio entrada ($/1M)",
           "cached_input_price": "Precio entrada en caché ($/1M)",
           "output_price": "Precio salida ($/1M)",
-          "actions": "Acciones"
+          "actions": "Acciones",
+          "provider": "Proveedor"
         },
         "edit": "Editar",
         "disable": "Desactivar",
@@ -1105,7 +1106,21 @@
           "output_price_placeholder": "10.000000",
           "cancel": "Cancelar",
           "submit_edit": "Actualizar",
-          "submit_create": "Crear"
+          "submit_create": "Crear",
+          "section_model": "Modelo",
+          "section_capabilities": "Capacidades",
+          "section_pricing": "Tarificación",
+          "provider_label": "Proveedor",
+          "provider_immutable_hint": "El proveedor es intrínseco al modelo y no se puede cambiar después de la creación.",
+          "model_name_pattern_hint": "Alfanumérico, puntos, guiones bajos, guiones, barras, dos puntos (1–100 car.)",
+          "max_input_tokens_label": "Tokens máx. de entrada",
+          "max_output_tokens_label": "Tokens máx. de salida",
+          "supports_tools_label": "Compatible con llamadas a herramientas",
+          "supports_structured_output_label": "Compatible con salida estructurada",
+          "supports_strict_mode_label": "Compatible con modo estricto (solo OpenAI)",
+          "supports_streaming_label": "Compatible con streaming",
+          "supports_vision_label": "Compatible con visión (entrada de imagen)",
+          "is_reasoning_model_label": "Es un modelo de razonamiento"
         },
         "errors": {
           "loading": "Error al cargar modelos",

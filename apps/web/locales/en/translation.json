@@ -1258,7 +1258,8 @@
           "input_price": "Input Price ($/1M)",
           "cached_input_price": "Cached Input Price ($/1M)",
           "output_price": "Output Price ($/1M)",
-          "actions": "Actions"
+          "actions": "Actions",
+          "provider": "Provider"
         },
         "edit": "Edit",
         "disable": "Disable",
@@ -1276,7 +1277,21 @@
           "output_price_placeholder": "10.000000",
           "cancel": "Cancel",
           "submit_edit": "Update",
-          "submit_create": "Create"
+          "submit_create": "Create",
+          "section_model": "Model",
+          "section_capabilities": "Capabilities",
+          "section_pricing": "Pricing",
+          "provider_label": "Provider",
+          "provider_immutable_hint": "Provider is intrinsic to a model and cannot be changed after creation.",
+          "model_name_pattern_hint": "Alphanumeric, dots, underscores, hyphens, slashes, colons (1-100 chars)",
+          "max_input_tokens_label": "Max input tokens",
+          "max_output_tokens_label": "Max output tokens",
+          "supports_tools_label": "Supports tool calling",
+          "supports_structured_output_label": "Supports structured output",
+          "supports_strict_mode_label": "Supports strict mode (OpenAI only)",
+          "supports_streaming_label": "Supports streaming",
+          "supports_vision_label": "Supports vision (image input)",
+          "is_reasoning_model_label": "Is a reasoning model"
         },
         "errors": {
           "loading": "Error loading models",

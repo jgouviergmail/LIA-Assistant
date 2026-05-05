@@ -1089,7 +1089,8 @@
           "input_price": "Prezzo input ($/1M)",
           "cached_input_price": "Prezzo input cache ($/1M)",
           "output_price": "Prezzo output ($/1M)",
-          "actions": "Azioni"
+          "actions": "Azioni",
+          "provider": "Provider"
         },
         "edit": "Modifica",
         "disable": "Disattiva",
@@ -1107,7 +1108,21 @@
           "output_price_placeholder": "10.000000",
           "cancel": "Annulla",
           "submit_edit": "Aggiorna",
-          "submit_create": "Crea"
+          "submit_create": "Crea",
+          "section_model": "Modello",
+          "section_capabilities": "Capacità",
+          "section_pricing": "Tariffe",
+          "provider_label": "Provider",
+          "provider_immutable_hint": "Il provider è intrinseco al modello e non può essere modificato dopo la creazione.",
+          "model_name_pattern_hint": "Alfanumerico, punti, underscore, trattini, barre, due punti (1-100 car.)",
+          "max_input_tokens_label": "Token max in ingresso",
+          "max_output_tokens_label": "Token max in uscita",
+          "supports_tools_label": "Supporta chiamate a strumenti",
+          "supports_structured_output_label": "Supporta output strutturato",
+          "supports_strict_mode_label": "Supporta modalità strict (solo OpenAI)",
+          "supports_streaming_label": "Supporta streaming",
+          "supports_vision_label": "Supporta visione (input immagine)",
+          "is_reasoning_model_label": "È un modello di ragionamento"
         },
         "errors": {
           "loading": "Errore nel caricamento dei modelli",

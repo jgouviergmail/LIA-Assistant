@@ -1095,7 +1095,8 @@
           "input_price": "输入价格（$/100万）",
           "cached_input_price": "缓存输入价格（$/100万）",
           "output_price": "输出价格（$/100万）",
-          "actions": "操作"
+          "actions": "操作",
+          "provider": "提供方"
         },
         "edit": "编辑",
         "disable": "停用",
@@ -1113,7 +1114,21 @@
           "output_price_placeholder": "10.000000",
           "cancel": "取消",
           "submit_edit": "更新",
-          "submit_create": "创建"
+          "submit_create": "创建",
+          "section_model": "模型",
+          "section_capabilities": "能力",
+          "section_pricing": "定价",
+          "provider_label": "提供方",
+          "provider_immutable_hint": "提供方是模型固有属性，创建后无法修改。",
+          "model_name_pattern_hint": "字母数字、点、下划线、连字符、斜杠、冒号（1-100个字符）",
+          "max_input_tokens_label": "最大输入 tokens",
+          "max_output_tokens_label": "最大输出 tokens",
+          "supports_tools_label": "支持工具调用",
+          "supports_structured_output_label": "支持结构化输出",
+          "supports_strict_mode_label": "支持严格模式（仅 OpenAI）",
+          "supports_streaming_label": "支持流式输出",
+          "supports_vision_label": "支持视觉（图像输入）",
+          "is_reasoning_model_label": "是推理模型"
         },
         "errors": {
           "loading": "加载模型时出错",
