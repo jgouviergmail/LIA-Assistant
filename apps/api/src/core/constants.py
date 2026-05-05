@@ -1009,6 +1009,7 @@ CACHE_NAME_SKILLS = "skills"
 CACHE_NAME_PRICING = "pricing"
 CACHE_NAME_GOOGLE_API_PRICING = "google_api_pricing"
 CACHE_NAME_MODEL_CAPABILITIES = "model_capabilities"
+CACHE_NAME_IMAGE_GENERATION_OPTIONS = "image_generation_options"
 
 # ============================================================================
 # GOOGLE API SCOPES

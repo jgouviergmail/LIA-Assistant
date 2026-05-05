@@ -108,6 +108,7 @@ def verify_registry_completeness() -> None:
     from src.core.config import settings
     from src.core.constants import (
         CACHE_NAME_GOOGLE_API_PRICING,
+        CACHE_NAME_IMAGE_GENERATION_OPTIONS,
         CACHE_NAME_LLM_CONFIG,
         CACHE_NAME_MODEL_CAPABILITIES,
         CACHE_NAME_PRICING,
@@ -119,6 +120,7 @@ def verify_registry_completeness() -> None:
         CACHE_NAME_PRICING,
         CACHE_NAME_GOOGLE_API_PRICING,
         CACHE_NAME_MODEL_CAPABILITIES,
+        CACHE_NAME_IMAGE_GENERATION_OPTIONS,
     }
     if getattr(settings, "skills_enabled", False):
         expected.add(CACHE_NAME_SKILLS)

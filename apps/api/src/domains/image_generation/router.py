@@ -38,6 +38,23 @@ router = APIRouter(
 )
 
 
+async def _invalidate_image_caches(db: AsyncSession) -> None:
+    """Invalidate the cost-pricing cache and the options cache cross-worker.
+
+    Called after every image_generation_pricing mutation so:
+    - The runtime cost calculation cache (ImageGenerationPricingService)
+      reflects the new pricing immediately.
+    - The ImageOptionsCache (Configuration LLM dropdown +
+      /image-generation/options endpoint) reflects the new model /
+      quality / size availability immediately.
+    """
+    from src.domains.image_generation.options_cache import ImageOptionsCache
+    from src.domains.image_generation.pricing_service import ImageGenerationPricingService
+
+    await ImageGenerationPricingService.invalidate_and_reload(db)
+    await ImageOptionsCache.invalidate_and_reload(db)
+
+
 @router.get("/pricing", response_model=ImagePricingListResponse)
 async def list_active_pricing(
     search: str | None = None,
@@ -214,6 +231,8 @@ async def create_pricing(
     db.add(audit_entry)
     await db.commit()
 
+    await _invalidate_image_caches(db)
+
     logger.info(
         "image_pricing_created",
         provider=data.provider,
@@ -287,8 +306,11 @@ async def update_pricing(
     # Deactivate old
     current_pricing.is_active = False
 
-    # Create new version
+    # Create new version. Carry provider from the old row — it is intrinsic
+    # to the model_name and never updated via this endpoint (the schema
+    # rejects it).
     new_pricing = ImageGenerationPricing(
+        provider=current_pricing.provider,
         model=new_model,
         quality=new_quality,
         size=new_size,
@@ -319,6 +341,8 @@ async def update_pricing(
     )
     db.add(audit_entry)
     await db.commit()
+
+    await _invalidate_image_caches(db)
 
     logger.info(
         "image_pricing_updated",
@@ -375,6 +399,8 @@ async def deactivate_pricing(
     db.add(audit_entry)
     await db.commit()
 
+    await _invalidate_image_caches(db)
+
     logger.info(
         "image_pricing_deactivated",
         pricing_id=str(pricing_id),
@@ -389,7 +415,7 @@ async def reload_pricing_cache(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_superuser_session),
 ) -> dict:
-    """Reload the image generation pricing in-memory cache.
+    """Reload the image generation pricing AND options caches.
 
     Args:
         request: HTTP request (for audit IP).
@@ -401,7 +427,7 @@ async def reload_pricing_cache(
     """
     from src.domains.image_generation.pricing_service import ImageGenerationPricingService
 
-    await ImageGenerationPricingService.invalidate_and_reload(db)
+    await _invalidate_image_caches(db)
 
     cache_size = len(ImageGenerationPricingService._pricing_cache)
 

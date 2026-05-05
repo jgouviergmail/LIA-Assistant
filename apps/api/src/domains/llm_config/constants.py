@@ -1052,17 +1052,13 @@ LLM_DEFAULTS: dict[str, LLMAgentConfig] = {
     ),
 }
 
-# --- Image Generation Models ---
-# These are NOT chat models — they use the provider's Images API.
-# Listed separately from FALLBACK_PROFILES (which only contains chat models).
-# Used by the admin LLM Config UI to populate the model dropdown for image_generation.
-IMAGE_GENERATION_MODELS: dict[str, list[str]] = {
-    "openai": [
-        "gpt-image-1.5",
-        "gpt-image-1",
-        "gpt-image-1-mini",
-    ],
-}
+# NOTE: The legacy ``IMAGE_GENERATION_MODELS`` constant was removed in the
+# v1.x DB-source-of-truth release. The list of image-generation models now
+# comes from ``ImageOptionsCache.get_models_grouped_by_provider()`` (DISTINCT
+# on ``image_generation_pricing``). To declare a new image model an admin
+# adds its 9 (model, quality, size) pricing rows in Tarification LLM Image —
+# the model becomes immediately selectable in Configuration LLM and in the
+# user-facing Préférences via ``GET /image-generation/options``.
 
 
 # Validate that REGISTRY and DEFAULTS are synchronized

@@ -361,6 +361,36 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     register_cache(CACHE_NAME_MODEL_CAPABILITIES, _reload_model_capabilities_cache)
 
+    # Initialize image generation options cache from image_generation_pricing.
+    # Powers Configuration LLM (image_generation type dropdown) and the
+    # /image-generation/options endpoint consumed by the user-facing
+    # ImageGenerationSettings component.
+    try:
+        from src.domains.image_generation.options_cache import ImageOptionsCache
+        from src.infrastructure.database.session import get_db_context
+
+        async with get_db_context() as db:
+            await ImageOptionsCache.load_from_db(db)
+        logger.info("image_options_cache_initialized")
+    except Exception as exc:
+        logger.critical(
+            "image_options_cache_initialization_failed",
+            error=str(exc),
+            exc_info=True,
+        )
+
+    # Register image options cache for cross-worker invalidation (ADR-063)
+    from src.core.constants import CACHE_NAME_IMAGE_GENERATION_OPTIONS
+
+    async def _reload_image_options_cache() -> None:
+        from src.domains.image_generation.options_cache import ImageOptionsCache
+        from src.infrastructure.database.session import get_db_context
+
+        async with get_db_context() as db:
+            await ImageOptionsCache.load_from_db(db)
+
+    register_cache(CACHE_NAME_IMAGE_GENERATION_OPTIONS, _reload_image_options_cache)
+
     # Initialize Skills cache (agentskills.io standard — SKILL.md files on disk)
     # Then sync DB (skills + user_skill_states) with disk state.
     if getattr(settings, "skills_enabled", False):

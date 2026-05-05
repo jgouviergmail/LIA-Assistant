@@ -16,6 +16,7 @@ from src.domains.connectors.router import router as connectors_router
 from src.domains.conversations.router import router as conversations_router
 from src.domains.google_api.router import router as google_api_admin_router
 from src.domains.google_api.user_export_router import router as user_export_router
+from src.domains.image_generation.options_router import router as image_options_router
 from src.domains.image_generation.router import router as image_pricing_admin_router
 from src.domains.interests.router import router as interests_router
 from src.domains.llm.router import router as llm_admin_router
@@ -103,6 +104,7 @@ api_router.include_router(system_settings_public_router)
 # Include admin routers
 api_router.include_router(google_api_admin_router)
 api_router.include_router(image_pricing_admin_router)
+api_router.include_router(image_options_router)
 api_router.include_router(llm_admin_router)
 api_router.include_router(personalities_router)
 api_router.include_router(system_settings_router)

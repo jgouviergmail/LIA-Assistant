@@ -334,19 +334,19 @@ class LLMConfigService:
     def get_provider_models() -> ProviderModelsMetadata:
         """Get available models grouped by provider.
 
-        Sources:
-        - Chat models → :class:`ModelCapabilitiesCache` (DB-backed,
-          populated at boot from the ``llm_models`` table).
-        - Image-generation models → static ``IMAGE_GENERATION_MODELS``
-          (will move to DB in Task 18).
+        Both chat and image-generation models are sourced from DB-backed
+        in-memory caches:
+        - Chat models → :class:`ModelCapabilitiesCache` (from
+          ``llm_models``, populated at boot).
+        - Image-generation models →
+          :class:`ImageOptionsCache.get_models_grouped_by_provider`
+          (DISTINCT on ``image_generation_pricing``).
 
-        The cost fields are intentionally None: the cache only carries
-        capabilities, not pricing. Pricing comes from a separate cache
-        consumed by ``AsyncPricingService`` and is not surfaced on the
-        Configuration LLM dropdown payload (which only needs the model
-        list + a few capability flags).
+        Cost fields are intentionally None: pricing lives in separate
+        caches consumed by ``AsyncPricingService`` and
+        ``ImageGenerationPricingService``, not surfaced here.
         """
-        from src.domains.llm_config.constants import IMAGE_GENERATION_MODELS
+        from src.domains.image_generation.options_cache import ImageOptionsCache
         from src.infrastructure.llm.model_capabilities_cache import ModelCapabilitiesCache
 
         providers: dict[str, list[ModelCapabilities]] = {}
@@ -377,11 +377,17 @@ class LLMConfigService:
                 )
             providers[provider] = caps
 
-        # Append image-generation models (Task 18 will migrate these to DB).
-        for provider, model_ids in IMAGE_GENERATION_MODELS.items():
+        # Image-generation models from ImageOptionsCache. The model list is
+        # the DISTINCT of model_name across active image_generation_pricing
+        # rows, grouped by provider. Capability flags are False/0 — image
+        # models don't expose chat capabilities.
+        for (
+            provider,
+            image_model_ids,
+        ) in ImageOptionsCache.get_models_grouped_by_provider().items():
             existing = providers.get(provider, [])
             existing_ids = {m.model_id for m in existing}
-            for model_id in model_ids:
+            for model_id in image_model_ids:
                 if model_id not in existing_ids:
                     existing.append(
                         ModelCapabilities(
