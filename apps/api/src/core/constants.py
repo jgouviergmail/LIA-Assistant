@@ -1008,6 +1008,7 @@ CACHE_NAME_LLM_CONFIG = "llm_config"
 CACHE_NAME_SKILLS = "skills"
 CACHE_NAME_PRICING = "pricing"
 CACHE_NAME_GOOGLE_API_PRICING = "google_api_pricing"
+CACHE_NAME_MODEL_CAPABILITIES = "model_capabilities"
 
 # ============================================================================
 # GOOGLE API SCOPES

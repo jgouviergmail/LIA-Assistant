@@ -109,11 +109,17 @@ def verify_registry_completeness() -> None:
     from src.core.constants import (
         CACHE_NAME_GOOGLE_API_PRICING,
         CACHE_NAME_LLM_CONFIG,
+        CACHE_NAME_MODEL_CAPABILITIES,
         CACHE_NAME_PRICING,
         CACHE_NAME_SKILLS,
     )
 
-    expected: set[str] = {CACHE_NAME_LLM_CONFIG, CACHE_NAME_PRICING, CACHE_NAME_GOOGLE_API_PRICING}
+    expected: set[str] = {
+        CACHE_NAME_LLM_CONFIG,
+        CACHE_NAME_PRICING,
+        CACHE_NAME_GOOGLE_API_PRICING,
+        CACHE_NAME_MODEL_CAPABILITIES,
+    }
     if getattr(settings, "skills_enabled", False):
         expected.add(CACHE_NAME_SKILLS)
 
