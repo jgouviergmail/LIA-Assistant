@@ -17,6 +17,7 @@ from src.infrastructure.observability.metrics_agents import (
     estimate_cost_usd,
     get_confidence_bucket,
 )
+from tests.helpers.llm_helpers import create_llm_pricing_async
 
 # Skip in pre-commit - some tests use testcontainers/real DB, too slow
 # Run manually with: pytest tests/unit/test_metrics_agents.py -v
@@ -101,35 +102,25 @@ def test_get_confidence_bucket_high():
 @pytest_asyncio.fixture
 async def pricing_gpt4o_with_cache(async_session: AsyncSession) -> LLMModelPricing:
     """Create gpt-4.1-mini pricing with cached input support."""
-    pricing = LLMModelPricing(
+    return await create_llm_pricing_async(
+        async_session,
         model_name="gpt-4.1-mini",
-        input_price_per_1m_tokens=Decimal("2.50"),
-        cached_input_price_per_1m_tokens=Decimal("1.25"),
-        output_price_per_1m_tokens=Decimal("10.00"),
-        effective_from=datetime.now(UTC),
-        is_active=True,
+        input_price=Decimal("2.50"),
+        cached_input_price=Decimal("1.25"),
+        output_price=Decimal("10.00"),
     )
-    async_session.add(pricing)
-    await async_session.commit()
-    await async_session.refresh(pricing)
-    return pricing
 
 
 @pytest_asyncio.fixture
 async def pricing_o1_mini_no_cache(async_session: AsyncSession) -> LLMModelPricing:
     """Create o1-mini pricing without cached input support."""
-    pricing = LLMModelPricing(
+    return await create_llm_pricing_async(
+        async_session,
         model_name="o1-mini",
-        input_price_per_1m_tokens=Decimal("3.00"),
-        cached_input_price_per_1m_tokens=None,  # No cached input
-        output_price_per_1m_tokens=Decimal("12.00"),
-        effective_from=datetime.now(UTC),
-        is_active=True,
+        input_price=Decimal("3.00"),
+        cached_input_price=None,
+        output_price=Decimal("12.00"),
     )
-    async_session.add(pricing)
-    await async_session.commit()
-    await async_session.refresh(pricing)
-    return pricing
 
 
 @pytest_asyncio.fixture

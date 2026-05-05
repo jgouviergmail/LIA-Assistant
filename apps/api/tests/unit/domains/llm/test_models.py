@@ -52,14 +52,17 @@ def test_llm_model_pricing_has_model_id_fk() -> None:
 
 
 @pytest.mark.unit
-def test_llm_model_pricing_model_id_is_nullable_during_migration_window() -> None:
-    """model_id is nullable until migration #3 enforces NOT NULL.
-
-    This invariant prevents a future migration from accidentally making the
-    column NOT NULL before the data backfill (migration #2) has run.
-    """
+def test_llm_model_pricing_model_id_is_not_null() -> None:
+    """model_id is NOT NULL after migration #3 (every pricing row points to a model)."""
     col = LLMModelPricing.__table__.columns["model_id"]
-    assert col.nullable is True
+    assert col.nullable is False
+
+
+@pytest.mark.unit
+def test_llm_model_pricing_no_longer_has_model_name_column() -> None:
+    """The legacy model_name column is dropped — recover it via JOIN on llm_models."""
+    cols = {c.name for c in LLMModelPricing.__table__.columns}
+    assert "model_name" not in cols
 
 
 @pytest.mark.unit

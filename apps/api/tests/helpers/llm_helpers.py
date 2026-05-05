@@ -9,11 +9,77 @@ from decimal import Decimal
 
 import structlog
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session, selectinload
 
-from src.domains.llm.models import LLMModelPricing
+from src.domains.llm.models import LLMModel, LLMModelPricing, LLMProviderEnum
 
 logger = structlog.get_logger(__name__)
+
+
+def _ensure_llm_model_sync(
+    db: Session,
+    model_name: str,
+    provider: LLMProviderEnum = LLMProviderEnum.openai,
+) -> LLMModel:
+    """Look up an LLMModel by name; create it with safe defaults if missing."""
+    existing = db.scalar(select(LLMModel).where(LLMModel.model_name == model_name))
+    if existing is not None:
+        return existing
+    model = LLMModel(model_name=model_name, provider=provider)
+    db.add(model)
+    db.flush()
+    return model
+
+
+async def ensure_llm_model_async(
+    db: AsyncSession,
+    model_name: str,
+    provider: LLMProviderEnum = LLMProviderEnum.openai,
+) -> LLMModel:
+    """Async variant: look up an LLMModel by name; create it with safe defaults if missing.
+
+    Tests that build a ``LLMModelPricing`` directly should call this first
+    to obtain a valid ``model_id`` (``LLMModelPricing.model_id`` is NOT NULL).
+    """
+    existing = await db.scalar(select(LLMModel).where(LLMModel.model_name == model_name))
+    if existing is not None:
+        return existing
+    model = LLMModel(model_name=model_name, provider=provider)
+    db.add(model)
+    await db.flush()
+    return model
+
+
+async def create_llm_pricing_async(
+    db: AsyncSession,
+    model_name: str,
+    input_price: Decimal,
+    output_price: Decimal,
+    cached_input_price: Decimal | None = None,
+    is_active: bool = True,
+    provider: LLMProviderEnum = LLMProviderEnum.openai,
+) -> LLMModelPricing:
+    """Async TEST HELPER: create both an LLMModel (if missing) and a pricing row.
+
+    Returns the pricing row with ``model`` relationship populated so
+    ``pricing.model.model_name`` is safe to read without lazy-loading
+    (LLMModelPricing.model uses lazy="raise").
+    """
+    model = await ensure_llm_model_async(db, model_name, provider)
+    pricing = LLMModelPricing(
+        model_id=model.id,
+        input_price_per_1m_tokens=input_price,
+        cached_input_price_per_1m_tokens=cached_input_price,
+        output_price_per_1m_tokens=output_price,
+        effective_from=datetime.now(UTC),
+        is_active=is_active,
+    )
+    pricing.model = model
+    db.add(pricing)
+    await db.commit()
+    await db.refresh(pricing)
+    return pricing
 
 
 def create_llm_pricing_entry(
@@ -22,28 +88,36 @@ def create_llm_pricing_entry(
     input_price: Decimal,
     cached_input_price: Decimal | None,
     output_price: Decimal,
+    provider: LLMProviderEnum = LLMProviderEnum.openai,
 ) -> LLMModelPricing:
     """
     Create a new LLM pricing entry in the database (TEST HELPER).
 
+    Also ensures an ``LLMModel`` row exists for ``model_name`` (creates one
+    with conservative defaults if missing) so the FK is satisfied.
+
     Args:
         db: Database session
-        model_name: LLM model identifier
+        model_name: LLM model identifier (resolved to llm_models.id via FK)
         input_price: Price per 1M input tokens (USD)
         cached_input_price: Price per 1M cached input tokens (USD), None if not supported
         output_price: Price per 1M output tokens (USD)
+        provider: Provider enum value (used only when creating the LLMModel row)
 
     Returns:
-        Created LLMModelPricing instance
+        Created LLMModelPricing instance with ``model`` relationship loaded.
     """
+    model = _ensure_llm_model_sync(db, model_name, provider)
+
     pricing = LLMModelPricing(
-        model_name=model_name,
+        model_id=model.id,
         input_price_per_1m_tokens=input_price,
         cached_input_price_per_1m_tokens=cached_input_price,
         output_price_per_1m_tokens=output_price,
         effective_from=datetime.now(UTC),
         is_active=True,
     )
+    pricing.model = model  # avoid lazy-load when the caller accesses pricing.model
 
     db.add(pricing)
     db.commit()
@@ -70,7 +144,11 @@ def deactivate_llm_pricing(db: Session, pricing_id: str) -> None:
     Raises:
         ValueError: If pricing entry not found
     """
-    stmt = select(LLMModelPricing).where(LLMModelPricing.id == pricing_id)
+    stmt = (
+        select(LLMModelPricing)
+        .options(selectinload(LLMModelPricing.model))
+        .where(LLMModelPricing.id == pricing_id)
+    )
     pricing = db.scalars(stmt).first()
 
     if not pricing:
@@ -81,6 +159,6 @@ def deactivate_llm_pricing(db: Session, pricing_id: str) -> None:
 
     logger.debug(
         "test_llm_pricing_deactivated",
-        model_name=pricing.model_name,
+        model_name=pricing.model.model_name,
         pricing_id=str(pricing_id),
     )

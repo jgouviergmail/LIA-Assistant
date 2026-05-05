@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domains.llm.models import CurrencyExchangeRate, LLMModelPricing
 from src.domains.llm.pricing_service import AsyncPricingService, ModelPrice
+from tests.helpers.llm_helpers import create_llm_pricing_async
 
 # Skip in pre-commit - uses testcontainers/real DB, too slow
 # Run manually with: pytest tests/unit/test_pricing_service.py -v
@@ -27,18 +28,13 @@ pytestmark = pytest.mark.integration
 @pytest_asyncio.fixture
 async def sample_pricing_gpt4o(async_session: AsyncSession) -> LLMModelPricing:
     """Create sample gpt-4.1-mini pricing entry (async)."""
-    pricing = LLMModelPricing(
+    return await create_llm_pricing_async(
+        async_session,
         model_name="gpt-4.1-mini",
-        input_price_per_1m_tokens=Decimal("2.50"),
-        cached_input_price_per_1m_tokens=Decimal("1.25"),
-        output_price_per_1m_tokens=Decimal("10.00"),
-        effective_from=datetime.now(UTC),
-        is_active=True,
+        input_price=Decimal("2.50"),
+        cached_input_price=Decimal("1.25"),
+        output_price=Decimal("10.00"),
     )
-    async_session.add(pricing)
-    await async_session.commit()
-    await async_session.refresh(pricing)
-    return pricing
 
 
 @pytest_asyncio.fixture

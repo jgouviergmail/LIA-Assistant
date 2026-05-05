@@ -130,24 +130,18 @@ class LLMModelPricing(Base, TimestampMixin):
         nullable=False,
     )
 
-    # Legacy column kept during migration window. Dropped in migration #3.
-    model_name: Mapped[str] = mapped_column(
-        String(100),
-        nullable=False,
-        index=True,
-        comment="LLM model identifier (e.g., 'gpt-5', 'o1-mini')",
-    )
-
-    # NEW — FK to llm_models. Nullable during migration window; NOT NULL after migration #3.
-    model_id: Mapped[uuid.UUID | None] = mapped_column(
+    # FK to the model catalogue. Use `pricing.model.model_name` to recover
+    # the model identifier (callers must add selectinload(LLMModelPricing.model)
+    # to their queries — lazy="raise" enforces this at runtime).
+    model_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("llm_models.id", ondelete="RESTRICT"),
-        nullable=True,
+        nullable=False,
         index=True,
-        comment="FK to llm_models.id (NOT NULL after migration #3)",
+        comment="FK to llm_models.id",
     )
 
-    model: Mapped["LLMModel | None"] = relationship(
+    model: Mapped["LLMModel"] = relationship(
         "LLMModel",
         back_populates="pricings",
         lazy="raise",
@@ -188,20 +182,21 @@ class LLMModelPricing(Base, TimestampMixin):
 
     __table_args__ = (
         UniqueConstraint(
-            "model_name",
+            "model_id",
             "effective_from",
-            name="uq_model_effective_from",
+            name="uq_pricing_model_effective",
         ),
         Index(
             "ix_llm_model_pricing_active_lookup",
-            "model_name",
+            "model_id",
             "is_active",
         ),
     )
 
     def __repr__(self) -> str:
+        # Avoid touching self.model (lazy="raise" would crash without selectinload).
         return (
-            f"<LLMModelPricing(model={self.model_name}, "
+            f"<LLMModelPricing(model_id={self.model_id}, "
             f"input=${self.input_price_per_1m_tokens}/1M, "
             f"output=${self.output_price_per_1m_tokens}/1M, "
             f"active={self.is_active})>"

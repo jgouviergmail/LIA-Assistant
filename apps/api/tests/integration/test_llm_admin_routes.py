@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domains.auth.models import User
 from src.domains.llm.models import CurrencyExchangeRate, LLMModelPricing
+from tests.helpers.llm_helpers import create_llm_pricing_async
 
 # ============================================================================
 # FIXTURES
@@ -24,18 +25,13 @@ from src.domains.llm.models import CurrencyExchangeRate, LLMModelPricing
 @pytest_asyncio.fixture
 async def sample_pricing(async_session: AsyncSession) -> LLMModelPricing:
     """Create sample pricing for testing."""
-    pricing = LLMModelPricing(
+    return await create_llm_pricing_async(
+        async_session,
         model_name="gpt-4.1-mini",
-        input_price_per_1m_tokens=Decimal("2.50"),
-        cached_input_price_per_1m_tokens=Decimal("1.25"),
-        output_price_per_1m_tokens=Decimal("10.00"),
-        effective_from=datetime.now(UTC),
-        is_active=True,
+        input_price=Decimal("2.50"),
+        cached_input_price=Decimal("1.25"),
+        output_price=Decimal("10.00"),
     )
-    async_session.add(pricing)
-    await async_session.commit()
-    await async_session.refresh(pricing)
-    return pricing
 
 
 @pytest_asyncio.fixture
@@ -524,25 +520,20 @@ async def test_list_pricing_shows_only_active(
     client, _ = admin_client
 
     # Create active and inactive pricing
-    active = LLMModelPricing(
+    await create_llm_pricing_async(
+        async_session,
         model_name="active-model",
-        input_price_per_1m_tokens=Decimal("1.00"),
-        cached_input_price_per_1m_tokens=None,
-        output_price_per_1m_tokens=Decimal("5.00"),
-        effective_from=datetime.now(UTC),
+        input_price=Decimal("1.00"),
+        output_price=Decimal("5.00"),
         is_active=True,
     )
-    inactive = LLMModelPricing(
+    await create_llm_pricing_async(
+        async_session,
         model_name="inactive-model",
-        input_price_per_1m_tokens=Decimal("2.00"),
-        cached_input_price_per_1m_tokens=None,
-        output_price_per_1m_tokens=Decimal("10.00"),
-        effective_from=datetime.now(UTC),
+        input_price=Decimal("2.00"),
+        output_price=Decimal("10.00"),
         is_active=False,
     )
-    async_session.add(active)
-    async_session.add(inactive)
-    await async_session.commit()
 
     response = await client.get("/api/v1/admin/llm/pricing")
 
@@ -566,19 +557,13 @@ async def test_list_pricing_with_pagination(
     client, _ = admin_client
 
     # Create 15 models to test pagination
-    models = []
     for i in range(15):
-        model = LLMModelPricing(
+        await create_llm_pricing_async(
+            async_session,
             model_name=f"model-{i:02d}",
-            input_price_per_1m_tokens=Decimal(f"{i}.50"),
-            cached_input_price_per_1m_tokens=None,
-            output_price_per_1m_tokens=Decimal(f"{i * 2}.00"),
-            effective_from=datetime.now(UTC),
-            is_active=True,
+            input_price=Decimal(f"{i}.50"),
+            output_price=Decimal(f"{i * 2}.00"),
         )
-        models.append(model)
-        async_session.add(model)
-    await async_session.commit()
 
     # Test first page (default page_size=10)
     response = await client.get("/api/v1/admin/llm/pricing?page=1&page_size=10")
@@ -607,32 +592,24 @@ async def test_list_pricing_with_search(
     client, _ = admin_client
 
     # Create models with different names
-    gpt_model = LLMModelPricing(
+    await create_llm_pricing_async(
+        async_session,
         model_name="gpt-4.1-mini",
-        input_price_per_1m_tokens=Decimal("2.50"),
-        cached_input_price_per_1m_tokens=None,
-        output_price_per_1m_tokens=Decimal("10.00"),
-        effective_from=datetime.now(UTC),
-        is_active=True,
+        input_price=Decimal("2.50"),
+        output_price=Decimal("10.00"),
     )
-    claude_model = LLMModelPricing(
+    await create_llm_pricing_async(
+        async_session,
         model_name="claude-3.5-sonnet",
-        input_price_per_1m_tokens=Decimal("3.00"),
-        cached_input_price_per_1m_tokens=None,
-        output_price_per_1m_tokens=Decimal("15.00"),
-        effective_from=datetime.now(UTC),
-        is_active=True,
+        input_price=Decimal("3.00"),
+        output_price=Decimal("15.00"),
     )
-    o1_model = LLMModelPricing(
+    await create_llm_pricing_async(
+        async_session,
         model_name="o1-mini",
-        input_price_per_1m_tokens=Decimal("3.00"),
-        cached_input_price_per_1m_tokens=None,
-        output_price_per_1m_tokens=Decimal("12.00"),
-        effective_from=datetime.now(UTC),
-        is_active=True,
+        input_price=Decimal("3.00"),
+        output_price=Decimal("12.00"),
     )
-    async_session.add_all([gpt_model, claude_model, o1_model])
-    await async_session.commit()
 
     # Search for "gpt"
     response = await client.get("/api/v1/admin/llm/pricing?search=gpt")
@@ -665,32 +642,24 @@ async def test_list_pricing_with_sorting(
     client, _ = admin_client
 
     # Create models with different prices
-    model_a = LLMModelPricing(
+    await create_llm_pricing_async(
+        async_session,
         model_name="model-a",
-        input_price_per_1m_tokens=Decimal("3.00"),
-        cached_input_price_per_1m_tokens=None,
-        output_price_per_1m_tokens=Decimal("15.00"),
-        effective_from=datetime.now(UTC),
-        is_active=True,
+        input_price=Decimal("3.00"),
+        output_price=Decimal("15.00"),
     )
-    model_b = LLMModelPricing(
+    await create_llm_pricing_async(
+        async_session,
         model_name="model-b",
-        input_price_per_1m_tokens=Decimal("1.00"),
-        cached_input_price_per_1m_tokens=None,
-        output_price_per_1m_tokens=Decimal("5.00"),
-        effective_from=datetime.now(UTC),
-        is_active=True,
+        input_price=Decimal("1.00"),
+        output_price=Decimal("5.00"),
     )
-    model_c = LLMModelPricing(
+    await create_llm_pricing_async(
+        async_session,
         model_name="model-c",
-        input_price_per_1m_tokens=Decimal("2.00"),
-        cached_input_price_per_1m_tokens=None,
-        output_price_per_1m_tokens=Decimal("10.00"),
-        effective_from=datetime.now(UTC),
-        is_active=True,
+        input_price=Decimal("2.00"),
+        output_price=Decimal("10.00"),
     )
-    async_session.add_all([model_a, model_b, model_c])
-    await async_session.commit()
 
     # Sort by model_name ascending
     response = await client.get("/api/v1/admin/llm/pricing?sort_by=model_name&sort_order=asc")
@@ -739,29 +708,21 @@ async def test_list_pricing_with_combined_filters(
 
     # Create multiple GPT models
     for i in range(5):
-        model = LLMModelPricing(
+        await create_llm_pricing_async(
+            async_session,
             model_name=f"gpt-{i}",
-            input_price_per_1m_tokens=Decimal(f"{i}.00"),
-            cached_input_price_per_1m_tokens=None,
-            output_price_per_1m_tokens=Decimal(f"{i * 5}.00"),
-            effective_from=datetime.now(UTC),
-            is_active=True,
+            input_price=Decimal(f"{i}.00"),
+            output_price=Decimal(f"{i * 5}.00"),
         )
-        async_session.add(model)
 
     # Create Claude models
     for i in range(3):
-        model = LLMModelPricing(
+        await create_llm_pricing_async(
+            async_session,
             model_name=f"claude-{i}",
-            input_price_per_1m_tokens=Decimal(f"{i + 10}.00"),
-            cached_input_price_per_1m_tokens=None,
-            output_price_per_1m_tokens=Decimal(f"{i * 10}.00"),
-            effective_from=datetime.now(UTC),
-            is_active=True,
+            input_price=Decimal(f"{i + 10}.00"),
+            output_price=Decimal(f"{i * 10}.00"),
         )
-        async_session.add(model)
-
-    await async_session.commit()
 
     # Search for "gpt", sort by input_price descending, paginate with page_size=3
     response = await client.get(

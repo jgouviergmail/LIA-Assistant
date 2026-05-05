@@ -176,6 +176,7 @@ class PricingCacheService:
         import time
 
         from sqlalchemy import select
+        from sqlalchemy.orm import selectinload
 
         from src.domains.llm.models import LLMModelPricing
         from src.domains.llm.pricing_service import AsyncPricingService
@@ -183,13 +184,19 @@ class PricingCacheService:
 
         try:
             async with get_db_context() as session:
-                # Load all active model prices
-                stmt = select(LLMModelPricing).where(LLMModelPricing.is_active)
+                # Load all active model prices, eagerly fetching the model row
+                # so pricing.model.model_name does not trigger a lazy-load
+                # (LLMModelPricing.model uses lazy="raise").
+                stmt = (
+                    select(LLMModelPricing)
+                    .options(selectinload(LLMModelPricing.model))
+                    .where(LLMModelPricing.is_active)
+                )
                 result = await session.scalars(stmt)
 
                 models: dict[str, CachedModelPrice] = {}
                 for pricing in result.all():
-                    models[pricing.model_name] = CachedModelPrice(
+                    models[pricing.model.model_name] = CachedModelPrice(
                         input_price_per_1m=float(pricing.input_price_per_1m_tokens),
                         output_price_per_1m=float(pricing.output_price_per_1m_tokens),
                         cached_input_price_per_1m=float(

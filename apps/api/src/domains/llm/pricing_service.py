@@ -134,12 +134,21 @@ class AsyncPricingService:
         Do not call directly, use get_active_model_price() instead.
         Cache is managed by the public method.
         """
+        from sqlalchemy.orm import selectinload
+
+        from src.domains.llm.models import LLMModel
+
         # Normalize model name to remove date suffix (e.g., gpt-4.1-mini-2025-04-14 -> gpt-4.1-mini)
         normalized_model = normalize_model_name(model_name)
 
-        stmt = select(LLMModelPricing).where(
-            LLMModelPricing.model_name == normalized_model,
-            LLMModelPricing.is_active,
+        stmt = (
+            select(LLMModelPricing)
+            .join(LLMModelPricing.model)
+            .where(
+                LLMModel.model_name == normalized_model,
+                LLMModelPricing.is_active,
+            )
+            .options(selectinload(LLMModelPricing.model))
         )
 
         result = await self.db.scalars(stmt)
@@ -162,7 +171,7 @@ class AsyncPricingService:
         )
 
         return ModelPrice(
-            model_name=pricing.model_name,
+            model_name=pricing.model.model_name,
             input_price=pricing.input_price_per_1m_tokens,
             cached_input_price=pricing.cached_input_price_per_1m_tokens,
             output_price=pricing.output_price_per_1m_tokens,
@@ -267,8 +276,9 @@ class AsyncPricingService:
             ...     print(f"${price.input_price}/1M tokens (effective {price.effective_from})")
         """
         from sqlalchemy import select
+        from sqlalchemy.orm import selectinload
 
-        from src.domains.llm.models import LLMModelPricing
+        from src.domains.llm.models import LLMModel, LLMModelPricing
 
         # Normalize model name to remove date suffix (e.g., gpt-4.1-mini-2025-04-14 -> gpt-4.1-mini)
         normalized_model = normalize_model_name(model_name)
@@ -277,10 +287,12 @@ class AsyncPricingService:
         # Order by effective_from DESC to get the most recent applicable price
         stmt = (
             select(LLMModelPricing)
+            .join(LLMModelPricing.model)
             .where(
-                LLMModelPricing.model_name == normalized_model,
+                LLMModel.model_name == normalized_model,
                 LLMModelPricing.effective_from <= at_date,
             )
+            .options(selectinload(LLMModelPricing.model))
             .order_by(LLMModelPricing.effective_from.desc())
             .limit(1)
         )
@@ -304,7 +316,7 @@ class AsyncPricingService:
         )
 
         return ModelPrice(
-            model_name=pricing.model_name,
+            model_name=pricing.model.model_name,
             input_price=pricing.input_price_per_1m_tokens,
             cached_input_price=pricing.cached_input_price_per_1m_tokens,
             output_price=pricing.output_price_per_1m_tokens,
