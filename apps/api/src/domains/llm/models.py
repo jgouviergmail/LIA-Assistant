@@ -69,8 +69,7 @@ class LLMModel(Base, UUIDMixin, TimestampMixin):
     model_name: Mapped[str] = mapped_column(
         String(100),
         nullable=False,
-        unique=True,
-        index=True,
+        unique=True,  # creates a unique index, no separate index= needed
         comment="Globally unique model identifier (e.g., 'gpt-4.1-mini')",
     )
 
@@ -87,8 +86,7 @@ class LLMModel(Base, UUIDMixin, TimestampMixin):
         Boolean,
         nullable=False,
         default=True,
-        index=True,
-        comment="Whether this model is currently selectable",
+        comment="Whether this model is currently selectable (no index: low cardinality)",
     )
 
     # cascade kept narrow on purpose: the FK uses ON DELETE RESTRICT, so we
