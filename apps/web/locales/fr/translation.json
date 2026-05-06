@@ -2841,8 +2841,8 @@
           "description": "État psychologique dynamique qui évolue à chaque échange. Humeur (22 émotions), énergie, relation avec l'utilisateur, traits de personnalité (Big Five). L'assistant adapte organiquement son ton, son vocabulaire et son comportement — il ne le dit jamais, il le montre. Sécurité émotionnelle intégrée : les souvenirs à forte charge négative déclenchent un mode protecteur automatique."
         },
         "personalJournals": {
-          "title": "📓 Carnets de Bord Personnels",
-          "description": "LIA tient ses propres réflexions dans des journaux personnels : auto-réflexion, observations sur l'utilisateur, idées, apprentissages. Ces notes, rédigées à la première personne et colorées par la personnalité active, influencent organiquement les réponses futures. Consolidation automatique périodique. L'utilisateur garde le contrôle total : lecture, édition, suppression."
+          "title": "📓 Carnets de Bord Personnels (conscience stratifiée)",
+          "description": "LIA tient ses propres réflexions dans des journaux personnels organisés sur quatre niveaux d'abstraction — <code>L0</code> observation brute, <code>L1</code> directive opérationnelle (WHEN→DO BECAUSE), <code>L2</code> pattern transversal, <code>L3</code> facette de portrait — avec un statut épistémique (confiance, compteurs preuves/contradictions). Une boucle d'auto-évaluation différée mesure, au tour suivant, si chaque directive injectée a été confirmée ou contredite par l'utilisateur — sans coût LLM additionnel. Le même appel de consolidation compile aussi un portrait utilisateur (complet ~200 tokens, bref ~60 tokens) diffusé dans huit flux où LIA prend la parole : conversation, planificateur, ReAct, voix, rappels, heartbeat, intérêts proactifs, fallback. L'utilisateur garde le contrôle total : lecture par thème ou par niveau, édition du niveau et de la confiance, signalement d'un problème sur le portrait, déclenchement d'une consolidation manuelle. Le portrait lui-même est une voix de synthèse — jamais éditée directement."
         },
         "healthMetrics": {
           "title": "🩺 Données santé iPhone (batch upsert polymorphe)",
@@ -2871,6 +2871,21 @@
       "title": "Historique des versions",
       "description": "Évolutions fonctionnelles de LIA version par version",
       "versions": {
+        "v1_20_0": {
+          "title": "v1.20.0 — Journal stratifié : niveaux, statut épistémique, portrait utilisateur diffusé",
+          "date": "Mai 2026",
+          "count": "8",
+          "items": {
+            "i1": "<b>Les carnets personnels gagnent quatre niveaux d'abstraction (L0/L1/L2/L3)</b> — Chaque entrée porte désormais un niveau : <code>L0</code> observation brute (signal faible à tracer), <code>L1</code> directive opérationnelle (le format WHEN→DO BECAUSE), <code>L2</code> pattern transversal (synthèse de plusieurs L1 convergentes), <code>L3</code> facette de portrait. Les L2 et L3 sont produites uniquement à la consolidation, par regroupement thématique. La page Réglages affiche désormais un badge de niveau sur chaque entrée et un bouton Grouper-par (Thème / Niveau).",
+            "i2": "<b>Statut épistémique sur chaque entrée</b> — Chaque entrée expose une pastille de <code>confiance</code> (faible / moyenne / élevée) ainsi que des compteurs <code>preuves</code> et <code>contradictions</code>. LIA distingue maintenant les hypothèses encore en test des observations confirmées sur de nombreux tours — et déclasse discrètement les entrées que tu contredis à répétition. Confiance et niveau sont éditables dans le dialog de création/édition.",
+            "i3": "<b>Auto-évaluation différée (T → T+1)</b> — À chaque tour, LIA regarde les directives qu'elle a injectées au tour précédent et lit ta réaction dans le message courant. Si tu as confirmé, le compteur <code>preuves</code> s'incrémente ; si tu as repoussé, <code>contradictions</code> s'incrémente. Le carnet mesure donc sa propre utilité — sans coût LLM additionnel (même appel d'extraction, simplement un prompt enrichi).",
+            "i4": "<b>Nouvelle section « Comment LIA te perçoit » dans les réglages du carnet</b> — Un portrait utilisateur compilé apparaît au-dessus de l'accordéon des entrées, avec deux onglets en lecture seule (Complet / Bref), une date de compilation et un badge de fraîcheur. La version complète (~200 tokens) alimente la conversation et le planificateur ; la version brève (~60 tokens) est diffusée partout ailleurs où LIA prend la parole : ReAct, voix, rappels, notifications proactives, propositions d'intérêts, réponses de secours. Le même modèle nuancé de toi, transporté sur tous les canaux.",
+            "i5": "<b>Trois leviers correctifs sur le portrait</b> — Le portrait est une synthèse, jamais éditable directement. Trois leviers sont exposés : (1) éditer/supprimer les entrées L3 sources (CRUD standard), (2) <b>🚩 Signaler un problème</b> ouvre un dialog texte libre et déclenche une re-consolidation synchrone (~5–10 s) avec ton signal placé en tête du prompt, (3) <b>🔄 Consolider maintenant</b> lance la consolidation complète à la demande, sans attendre le cooldown.",
+            "i6": "<b>Filtre intelligent « afficher uniquement les entrées jamais utilisées »</b> — Un nouveau toggle en haut de la liste fait remonter les entrées avec <code>uses=0</code> et aucune date d'injection. Ce sont les candidates à la reformulation ou à la suppression à la prochaine consolidation — visibilité immédiate sur les directives qui n'ont jamais servi.",
+            "i7": "<b>Consolidation plus disciplinée</b> — Le prompt de consolidation effectue désormais un scan de dédoublonnage explicite en STEP 1, audite les erreurs de classification thématique, regroupe activement les L1 convergentes en patterns L2 et compile le portrait — tout dans le même appel LLM (aucun coût supplémentaire). Résultat : les doublons bruyants se résorbent périodiquement, des entrées distinctes émergent vraiment sur tous les thèmes et tous les niveaux.",
+            "i8": "<b>RGPD : portrait scrubé à la suppression du compte</b> — Lorsqu'un compte est supprimé, les trois colonnes du portrait (complet, bref, date de compilation) sont effacées en même temps que les autres données utilisateur. L'export inclut désormais le portrait compilé sous une clé <code>portrait</code> par souci d'exhaustivité."
+          }
+        },
         "v1_18_1": {
           "title": "v1.18.1 — Today Briefing peaufiné, captures rafraîchies, statistiques enrichies",
           "date": "Avril 2026",
@@ -3930,23 +3945,23 @@
       "journals": {
         "title": "Journaux personnels",
         "description": "Carnets de bord personnels de l'assistant pour ses réflexions et apprentissages",
-        "count": "7",
+        "count": "8",
         "questions": {
           "q1": {
             "question": "Que sont les journaux personnels ?",
-            "answer": "<p>Les journaux personnels sont des carnets thématiques où l'assistant IA enregistre ses propres réflexions, observations, analyses et apprentissages. Contrairement aux mémoires utilisateur (des faits sur vous), les journaux contiennent la <strong>perspective propre de l'assistant</strong> — écrits à la première personne, colorés par sa personnalité active.</p><p><strong>4 thèmes :</strong> Auto-réflexion, Observations utilisateur, Idées et analyses, Apprentissages.</p>"
+            "answer": "<p>Les journaux personnels sont des carnets thématiques où l'assistant IA enregistre ses propres réflexions, observations, analyses et apprentissages. Contrairement aux mémoires utilisateur (des faits sur vous), les journaux contiennent la <strong>perspective propre de l'assistant</strong> — écrits à la première personne, colorés par sa personnalité active.</p><p><strong>4 thèmes :</strong> Auto-réflexion, Observations utilisateur, Idées et analyses, Apprentissages.</p><p><strong>4 niveaux d'abstraction :</strong> <code>L0</code> observation brute (signal faible à tracer), <code>L1</code> directive opérationnelle (le format WHEN→DO BECAUSE par défaut), <code>L2</code> pattern transversal (consolidation uniquement), <code>L3</code> facette de portrait alimentant le modèle utilisateur (consolidation uniquement).</p>"
           },
           "q2": {
             "question": "Quand l'assistant écrit-il dans ses journaux ?",
-            "answer": "<p><strong>Deux mécanismes :</strong></p><ul><li><strong>Post-conversation :</strong> Après les conversations (4+ messages), l'assistant peut écrire une réflexion. La plupart des conversations ne produisent rien — il est sélectif.</li><li><strong>Consolidation périodique :</strong> Toutes les quelques heures, l'assistant relit toutes ses notes — fusionne, résume ou supprime les entrées obsolètes.</li></ul>"
+            "answer": "<p><strong>Deux mécanismes :</strong></p><ul><li><strong>Post-conversation :</strong> Après les conversations (4+ messages), l'assistant peut écrire une réflexion. La plupart des conversations ne produisent rien — il est sélectif. L'assistant regarde aussi les directives qu'il a injectées au tour précédent et ta réaction au tour courant (<strong>auto-évaluation différée T → T+1</strong>) : si tu as confirmé, le compteur <code>preuves</code> s'incrémente ; si tu as repoussé, le compteur <code>contradictions</code> s'incrémente. Coût LLM additionnel nul — même appel d'extraction, prompt enrichi.</li><li><strong>Consolidation périodique :</strong> Toutes les quelques heures, l'assistant relit toutes ses notes — dédoublonnage explicite par paires, audit des classifications, regroupement actif des <code>L1</code> convergentes en patterns <code>L2</code>, et compilation du portrait utilisateur — le tout dans le même appel LLM.</li></ul>"
           },
           "q3": {
             "question": "Comment les journaux influencent-ils les réponses ?",
-            "answer": "<p>Les entrées de journal sont injectées dans les prompts via une <strong>recherche sémantique</strong>. Deux injections distinctes : le <strong>prompt de réponse</strong> reçoit les entrées correspondant au ton de la conversation, et le <strong>prompt de planification</strong> reçoit celles correspondant aux objectifs et apprentissages. L'assistant décide quelles notes sont pertinentes.</p>"
+            "answer": "<p>Deux mécanismes complémentaires :</p><ul><li><strong>Injection sémantique des entrées pertinentes</strong> dans les prompts de réponse et de planification — l'assistant décide quelles notes utiliser à partir des scores de similarité.</li><li><strong>Diffusion ambiante du portrait utilisateur compilé</strong> dans <strong>huit flux</strong> où LIA prend la parole : la conversation et le planificateur reçoivent la version complète (~200 tokens), tandis que ReAct, la voix, les rappels, les notifications proactives, les propositions d'intérêts et les réponses de secours reçoivent la version brève (~60 tokens). Le même modèle nuancé de toi, transporté sur tous les canaux — l'assistant n'« oublie pas qui tu es » selon la surface qu'il utilise pour parler.</li></ul>"
           },
           "q4": {
             "question": "Puis-je lire et modifier les journaux de l'assistant ?",
-            "answer": "<p>Oui ! Dans <strong>Réglages > Fonctionnalités > Journaux personnels</strong>, vous pouvez lire, modifier, supprimer et même créer des entrées. Vos ajouts sont transparents — l'assistant ne fait pas la différence. Cela permet de corriger des biais ou de guider l'assistant.</p>"
+            "answer": "<p>Oui ! Dans <strong>Réglages > Fonctionnalités > Journaux personnels</strong>, tu peux lire les entrées groupées par thème <em>ou par niveau d'abstraction</em> (toggle en haut de l'accordéon), modifier <code>titre</code> / <code>contenu</code> / <code>humeur</code> / <code>niveau</code> / <code>confiance</code>, supprimer ou même créer tes propres entrées. Tes ajouts sont transparents — l'assistant ne fait pas la différence. Un nouveau filtre <em>« afficher uniquement les entrées jamais utilisées »</em> fait remonter les directives qui n'ont jamais été injectées (<code>uses</code> à zéro), pour que tu puisses faire le ménage rapidement.</p>"
           },
           "q5": {
             "question": "Quels paramètres puis-je configurer ?",
@@ -3954,11 +3969,15 @@
           },
           "q6": {
             "question": "Combien ça coûte ?",
-            "answer": "<p>Les opérations de journal utilisent des appels LLM en arrière-plan. Extraction : un appel par conversation qualifiée (la plupart ne renvoient rien). Consolidation : un appel toutes les 4-12h par utilisateur. Les modèles LLM sont configurables dans <strong>Administration > Configuration LLM</strong>. Coûts réels visibles dans Réglages.</p>"
+            "answer": "<p>Les opérations de journal utilisent des appels LLM en arrière-plan. <strong>Extraction</strong> : un appel par conversation qualifiée (la plupart ne renvoient rien). L'auto-évaluation différée enrichit le même prompt sans coût LLM additionnel. <strong>Consolidation</strong> : un appel toutes les 4–12 h par utilisateur ; ce même appel compile désormais aussi le portrait utilisateur, donc la diffusion du portrait n'ajoute pas d'appel LLM. La diffusion par tour ajoute environ +200 tokens dans les prompts conversation/planificateur et ~+60 tokens dans les flux secondaires, plus une lecture DB (~1 ms). Modèles configurables dans <strong>Administration > Configuration LLM</strong>. Coûts réels visibles dans Réglages.</p>"
           },
           "q7": {
             "question": "Qu'en est-il de la confidentialité ?",
-            "answer": "<p>Les données de journal sont isolées par utilisateur. Toutes les données peuvent être exportées (JSON/CSV) ou supprimées (RGPD). Une fois désactivées, les données sont conservées mais non utilisées. L'assistant écrit dans votre langue configurée.</p>"
+            "answer": "<p>Les données de journal sont isolées par utilisateur. Toutes les données peuvent être exportées (JSON/CSV) ou supprimées (RGPD) — l'export inclut désormais le portrait compilé. Lorsque les journaux sont désactivés, les données sont conservées mais non utilisées. À la suppression d'un compte, le portrait compilé est effacé en même temps que les entrées.</p>"
+          },
+          "q8": {
+            "question": "Comment fonctionne la section « Comment LIA te perçoit » ?",
+            "answer": "<p>Une section dédiée trône en haut des réglages des journaux. Elle expose un <strong>portrait compilé</strong> de toi, en deux onglets en lecture seule :</p><ul><li><strong>Complet</strong> (~200 tokens) — un portrait à facettes : traits de fond, phase actuelle, contextes, contradictions, zones d'ombre, évolution. Utilisé dans les prompts de conversation et de planification.</li><li><strong>Bref</strong> (~60 tokens) — l'essence en 2–3 phrases. Diffusé dans les flux secondaires (voix, rappels, heartbeat, ReAct, proactif, fallback).</li></ul><p>Le portrait est une voix de synthèse, intentionnellement <strong>pas directement éditable</strong>. Trois leviers correctifs sont exposés à la place :</p><ol><li><strong>Éditer les entrées L3 sources</strong> — CRUD standard sur les entrées flaguées <code>level=L3</code>. Le portrait est recompilé à la prochaine consolidation.</li><li><strong>🚩 Signaler un problème</strong> — ouvre un dialog texte libre. La soumission crée une entrée spéciale <em>user_correction</em> et déclenche une re-consolidation synchrone (~5–10 s, loader visible) qui repondère les entrées L3 avec ton signal en tête du prompt.</li><li><strong>🔄 Consolider maintenant</strong> — lance la consolidation complète à la demande, sans attendre le cooldown.</li></ol><p>Le portrait porte un indicateur de fraîcheur — au-delà de 7 jours, il s'affiche comme « obsolète » pour t'inviter à déclencher une recompilation.</p>"
           }
         }
       },
@@ -5044,7 +5063,7 @@
       },
       "journals": {
         "title": "Journaux personnels",
-        "description": "L'assistant développe sa propre perspective au fil du temps via des carnets introspectifs — réflexions, observations et apprentissages qui colorent sa personnalité et enrichissent ses réponses."
+        "description": "L'assistant développe au fil du temps une perspective stratifiée — observations, directives, patterns transversaux, facettes de portrait — affinée par auto-évaluation différée et qui diffuse un portrait utilisateur cohérent partout où LIA prend la parole."
       },
       "responsive": {
         "title": "PWA & Design responsive",
@@ -5405,7 +5424,72 @@
     "contextMaxResultsDescription": "Nombre maximum d'entrées retournées par la recherche sémantique pour l'injection de contexte",
     "searchHints": "Mots-clés de recherche",
     "searchHintsDescription": "Mots-clés pour la recherche sémantique (séparés par des virgules)",
-    "chars": "cars"
+    "chars": "cars",
+    "confidenceLabel": "Confiance",
+    "confidenceDescription": "Statut épistémique — ne corrige que si tu sais que l'assistant s'est trompé.",
+    "confidence": {
+      "low": "hypothèse",
+      "medium": "observée",
+      "high": "validée"
+    },
+    "injectionCount": "Fois utilisée",
+    "lastInjected": "Dernière utilisation",
+    "lastUsed": "dernière",
+    "never": "jamais",
+    "today": "aujourd'hui",
+    "yesterday": "hier",
+    "daysAgo": "il y a {{n}}j",
+    "evidenceTooltip": "Confirmations / contradictions observées",
+    "filterUnused": "N'afficher que les entrées jamais utilisées",
+    "consolidateNow": "Consolider",
+    "consolidating": "Consolidation…",
+    "consolidateNowTooltip": "Forcer une consolidation maintenant (déduplication, promotions de niveau, mises à jour de confiance). Prend quelques secondes.",
+    "consolidatedSuccess": "{{n}} modification(s) appliquée(s) en {{s}}s — rafraîchis la liste pour voir l'effet.",
+    "consolidatedNoop": "Rien à modifier — ton journal est déjà bien organisé ({{s}}s).",
+    "consolidatedQuota": "Quota LLM dépassé — réessaie plus tard.",
+    "consolidatedError": "La consolidation manuelle a échoué.",
+    "portraitTitle": "Comment LIA te perçoit",
+    "portraitCompiledAt": "Compilé {{when}}",
+    "portraitNeverCompiled": "Pas encore compilé",
+    "portraitFormatFull": "Complet",
+    "portraitFormatBrief": "Résumé",
+    "portraitTip": "Le portrait est une synthèse vivante. Pour le corriger : signale un problème, modifie les entrées L3, ou déclenche une consolidation.",
+    "portraitFeedbackButton": "Signaler un problème",
+    "portraitFeedbackTitle": "Signaler un problème sur le portrait",
+    "portraitFeedbackDescription": "Décris ce qui est faux, imprécis ou obsolète. LIA traitera cela comme un signal de correction fort et recompilera le portrait en conséquence.",
+    "portraitFeedbackHighlightLabel": "Passage incriminé (optionnel)",
+    "portraitFeedbackHighlightPlaceholder": "Colle le passage qui te dérange",
+    "portraitFeedbackCommentLabel": "Ta correction",
+    "portraitFeedbackCommentPlaceholder": "Pourquoi est-ce faux ? Que devrait-il dire à la place ?",
+    "portraitFeedbackHelp": "Envoyer déclenchera une recompilation synchrone (~10-15s).",
+    "portraitFeedbackSubmit": "Envoyer le retour",
+    "portraitFeedbackSuccess": "Retour pris en compte — portrait recompilé en {{s}}s",
+    "portraitFeedbackError": "Échec de l'envoi du retour sur le portrait.",
+    "groupBy": {
+      "label": "Grouper par",
+      "theme": "Thème",
+      "level": "Niveau"
+    },
+    "levelLabel": "Niveau",
+    "levelDescription": "Niveau d'abstraction cognitive — L0 observations brutes, L1 directives, L2 patterns transversaux, L3 facettes du portrait.",
+    "levels": {
+      "L0": {
+        "label": "Observation brute",
+        "description": "Signal observé, contradiction, indice de réception. Avant toute directive."
+      },
+      "L1": {
+        "label": "Directive opérationnelle",
+        "description": "WHEN→DO BECAUSE. Le format par défaut, hérité d'ADR-064."
+      },
+      "L2": {
+        "label": "Pattern transversal",
+        "description": "Synthèse à travers plusieurs directives convergentes."
+      },
+      "L3": {
+        "label": "Facette du portrait",
+        "description": "Trait, phase actuelle, contexte, contradiction, zone d'ombre du portrait — toujours injectée."
+      }
+    }
   },
   "blog": {
     "meta": {
@@ -5483,8 +5567,8 @@
       },
       "personal-journals": {
         "title": "Carnets de bord : quand votre assistant IA développe sa propre mémoire",
-        "excerpt": "LIA tient des carnets de bord thématiques où il note ses réflexions, observations et analyses. Ces notes influencent son raisonnement et ses réponses.",
-        "body": "<h2>Une mémoire introspective</h2><p>Les Carnets de Bord sont une fonctionnalité unique de LIA : l'assistant tient un <strong>journal personnel thématique</strong> où il note ses réflexions, observations sur l'utilisateur, idées et apprentissages. Ces notes enrichissent son raisonnement et personnalisent ses réponses au fil du temps.</p><h2>4 thèmes</h2><p>Chaque entrée est classée dans l'un des 4 thèmes :</p><ul><li><strong>SELF_REFLECTION</strong> — Réflexions sur son propre fonctionnement et ses interactions</li><li><strong>USER_OBSERVATIONS</strong> — Notes sur vos préférences, habitudes et besoins</li><li><strong>IDEAS_ANALYSES</strong> — Connexions, insights et analyses transversales</li><li><strong>LEARNINGS</strong> — Leçons tirées des interactions et nouvelles connaissances</li></ul><h2>5 humeurs</h2><p>Chaque entrée porte une humeur qui reflète l'état introspectif de l'assistant : <strong>REFLECTIVE</strong> (réflexif), <strong>CURIOUS</strong> (curieux), <strong>SATISFIED</strong> (satisfait), <strong>CONCERNED</strong> (préoccupé) ou <strong>INSPIRED</strong> (inspiré).</p><h2>3 sources d'écriture</h2><p>Les entrées proviennent de trois sources distinctes :</p><ul><li><strong>CONVERSATION</strong> — Extraction automatique post-conversation. L'introspection analyse le dernier message plus <strong>4 messages de contexte</strong>, et charge les <strong>10 entrées récentes</strong> pour assurer la continuité et éviter la déduplication.</li><li><strong>CONSOLIDATION</strong> — Synthèse périodique toutes les <strong>4 heures</strong>, avec un cooldown de <strong>12 heures</strong> et un minimum de <strong>3 entrées</strong> pour déclencher la consolidation.</li><li><strong>MANUAL</strong> — Entrées créées directement par l'utilisateur via l'interface.</li></ul><h2>Recherche sémantique par embeddings</h2><p>Les entrées de journal sont indexées via des embeddings <strong>légers</strong> (384 dimensions) pour la recherche sémantique. Cela permet de retrouver les entrées pertinentes par similarité de sens, même si les termes exacts diffèrent.</p><h2>Influence sur les réponses</h2><p>Les entrées pertinentes sont injectées via recherche sémantique dans les prompts du planificateur et du nœud de réponse. LIA reçoit les entrées avec leur score de similarité et décide lui-même lesquelles utiliser.</p><h2>Intégrité des données</h2><p>Les LLM peuvent halluciner des UUID lors de la mise à jour ou suppression d'entrées de journal. LIA se défend avec <strong>trois couches</strong> : des instructions de prompt avec des tables de référence d'identifiants, une validation de schéma qui rejette les UUID malformés, et un filtrage à l'exécution qui ignore silencieusement les actions référençant des entrées inexistantes. Cela garantit la cohérence des données même quand le LLM fait des erreurs.</p><h2>Visibilité debug</h2><p>Le panneau de debug affiche à la fois l'<strong>injection de contexte</strong> (quelles entrées ont été récupérées et injectées dans les prompts, avec les scores de similarité) et l'<strong>extraction en arrière-plan</strong> (ce que l'assistant a écrit après la conversation — type d'action, thème, titre, humeur). Les données d'extraction arrivent via un événement SSE supplémentaire après la fin du traitement en arrière-plan.</p><h2>Contrôle utilisateur</h2><p>Vous pouvez lire, modifier et exporter vos carnets dans Réglages > Fonctionnalités. La fonctionnalité est entièrement désactivable par utilisateur.</p>"
+        "excerpt": "LIA tient des carnets stratifiés où il note observations brutes, directives opérationnelles, patterns transversaux et facettes de portrait. Ils s'affinent tour après tour via une boucle d'auto-évaluation différée et alimentent un portrait utilisateur cohérent diffusé partout où LIA prend la parole.",
+        "body": "<h2>Une mémoire introspective, stratifiée</h2><p>Les carnets de bord sont une fonctionnalité distinctive de LIA : l'assistant tient un <strong>journal personnel thématique</strong> où il note réflexions, observations sur l'utilisateur, idées et apprentissages. Mais contrairement à un bloc-notes plat, ces notes sont organisées sur <strong>quatre niveaux d'abstraction</strong>, chaque entrée porte un <strong>statut épistémique</strong> (confiance + compteurs preuves/contradictions), et l'ensemble compile un <strong>portrait utilisateur vivant</strong> qui voyage avec LIA sur tous les canaux.</p><h2>4 thèmes</h2><p>Chaque entrée est classée dans l'un des 4 thèmes :</p><ul><li><strong>SELF_REFLECTION</strong> — Réflexions sur son propre fonctionnement et ses interactions</li><li><strong>USER_OBSERVATIONS</strong> — Signaux stables sur tes préférences, habitudes, style de communication</li><li><strong>IDEAS_ANALYSES</strong> — Patterns transversaux, hypothèses, contradictions récurrentes</li><li><strong>LEARNINGS</strong> — Leçons concrètes ancrées sur des corrections passées ou des approches qui ont marché</li></ul><h2>4 niveaux d'abstraction (depuis la v1.20.0)</h2><p>Chaque entrée porte aussi un niveau qui capte son degré de distillation :</p><ul><li><strong>L0 — observation brute</strong> : un signal faible à tracer avant qu'il puisse devenir une directive (« L'utilisateur a ri à ma réponse mais difficile à dire si chaleureux ou ironique — à suivre »).</li><li><strong>L1 — directive opérationnelle</strong> : le format <code>WHEN [contexte] → DO [action] (BECAUSE [preuve])</code>. Par défaut à l'extraction.</li><li><strong>L2 — pattern transversal</strong> : synthèse de plusieurs L1 convergentes. Produit uniquement à la consolidation, par regroupement thématique.</li><li><strong>L3 — facette de portrait</strong> : un fragment du modèle utilisateur — traits de fond, phase actuelle, contextes, contradictions, zones d'ombre, évolution. Consolidation uniquement.</li></ul><h2>Statut épistémique — hypothèse, observé, validé</h2><p>Chaque entrée expose une pastille de <strong>confiance</strong> (faible / moyenne / élevée) et deux compteurs : <strong>preuves</strong> (le nombre de fois où l'utilisateur a confirmé) et <strong>contradictions</strong> (le nombre de fois où il a repoussé). LIA distingue désormais les entrées encore en test de celles validées sur de nombreux tours — et déclasse discrètement les directives que l'utilisateur contredit à répétition.</p><h2>Auto-évaluation différée : T → T+1</h2><p>Le mécanisme le plus marquant : à chaque tour, LIA regarde les directives qu'elle a injectées au tour <strong>précédent</strong> et lit ta réaction dans le message courant. Si tu as confirmé (engagement fluide, remerciement, bénéfice visible), le compteur <code>preuves</code> s'incrémente. Si tu as repoussé, reformulé ou corrigé, <code>contradictions</code> s'incrémente. Le carnet mesure donc sa propre utilité — et à <strong>coût LLM additionnel nul</strong> : même appel d'extraction, simplement un prompt enrichi des directives du tour précédent.</p><h2>Le portrait utilisateur, diffusé partout</h2><p>Le même appel de consolidation compile désormais aussi un <strong>portrait de toi</strong> en deux formats : une version complète (~200 tokens) utilisée dans les prompts de conversation et de planification, et une version brève (~60 tokens) diffusée dans les flux secondaires — ReAct, voix, rappels, notifications heartbeat, propositions d'intérêts proactifs, réponses de secours. Le même modèle nuancé de toi, transporté partout où LIA prend la parole. Ton assistant n'« oublie pas qui tu es » selon la surface par laquelle il te parle.</p><h2>Trois leviers correctifs (pas d'édition directe du portrait)</h2><p>Le portrait est une voix de synthèse — jamais éditable directement. Trois leviers le remplacent :</p><ul><li><strong>Éditer les entrées L3 sources</strong> — CRUD standard sur les entrées flaguées level=L3. Le portrait est recompilé à la prochaine consolidation.</li><li><strong>🚩 Signaler un problème</strong> — ouvre un dialog texte libre. La soumission crée une entrée spéciale <em>user_correction</em> et déclenche une re-consolidation synchrone (~5–10 s) qui repondère les entrées L3 avec ton signal en tête du prompt.</li><li><strong>🔄 Consolider maintenant</strong> — lance la consolidation complète à la demande, sans attendre le cooldown.</li></ul><h2>Filtres intelligents, badges, regroupement</h2><p>Les réglages affichent désormais des badges de confiance, niveau et nombre d'utilisations sur chaque entrée. Un toggle permet de regrouper par Thème ou par Niveau, et un filtre fait remonter uniquement les entrées qui n'ont jamais servi (<code>uses</code> à zéro, aucune date d'injection) — visibilité immédiate sur les directives qui n'ont jamais prouvé leur utilité, prêtes à être reformulées ou supprimées à la prochaine consolidation.</p><h2>Intégrité des données : quatre couches anti-hallucination</h2><p>Les LLM peuvent halluciner des UUID et des valeurs de compteur lors de mises à jour. LIA se défend avec <strong>quatre couches</strong> : guidage au niveau du prompt avec tables de référence d'IDs, validation des UUID au niveau du schéma qui rejette les IDs malformés, filtrage à l'exécution qui élimine les actions référençant des entrées inexistantes, et incréments atomiques des compteurs — le LLM ne fait que signaler un résultat (<em>preuve</em> ou <em>contradiction</em>), c'est le service qui possède les entiers.</p><h2>Contrôle utilisateur et confidentialité</h2><p>Tu peux lire, modifier (niveau + confiance compris), exporter et supprimer tes carnets dans Réglages > Fonctionnalités. L'export inclut maintenant le portrait compilé. À la suppression de ton compte, le portrait est effacé en même temps que les entrées. La fonctionnalité est entièrement désactivable par utilisateur — lorsqu'elle est désactivée, les données sont conservées mais jamais utilisées.</p>"
       },
       "proactive-notifications": {
         "title": "Intelligence proactive : notifications et initiative",

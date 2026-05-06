@@ -16,9 +16,6 @@ JOURNAL_ENTRY_CONTENT_MAX_LENGTH = 800
 # Extraction defaults
 # =========================================================================
 
-# Number of recent entries loaded in full for extraction context (continuity + dedup)
-JOURNAL_EXTRACTION_RECENT_ENTRIES_FULL = 10
-
 # Number of context messages around last user message (same pattern as memory_extractor)
 JOURNAL_EXTRACTION_CONTEXT_MESSAGES = 4
 

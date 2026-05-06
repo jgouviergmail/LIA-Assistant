@@ -2836,8 +2836,8 @@
           "description": "Dynamic psychological state that evolves with every exchange. Mood (22 emotions), energy, relationship with the user, personality traits (Big Five). The assistant organically adapts its tone, vocabulary and behavior — it never says it, it shows it. Built-in emotional safety: memories with strong negative charge trigger an automatic protective mode."
         },
         "personalJournals": {
-          "title": "📓 Personal Journals",
-          "description": "LIA keeps its own reflections in personal journals: self-reflection, observations about the user, ideas, learnings. These notes, written in first person and colored by the active personality, organically influence future responses. Automatic periodic consolidation. The user retains full control: reading, editing, deletion."
+          "title": "📓 Personal Journals (stratified consciousness)",
+          "description": "LIA keeps its own reflections in personal journals organized along four abstraction levels — <code>L0</code> raw observation, <code>L1</code> operational directive (WHEN→DO BECAUSE), <code>L2</code> transversal pattern, <code>L3</code> portrait facet — and an epistemic status (confidence, evidence/contradiction counters). A deferred self-evaluation loop measures, at the next turn, whether each injected directive was confirmed or contradicted by the user — at zero added LLM cost. The same consolidation call also compiles a user-model portrait (full ~200 tokens, brief ~60 tokens) diffused across eight flows where LIA speaks: conversation, planner, ReAct, voice, reminders, heartbeat, proactive interest, fallback. The user retains full control: read entries grouped by theme or level, edit level/confidence, signal a problem on the portrait, trigger a manual consolidation. The portrait itself is a synthesis voice — never directly edited."
         },
         "healthMetrics": {
           "title": "🩺 iPhone health data (polymorphic batch upsert)",
@@ -2866,6 +2866,21 @@
       "title": "Version History",
       "description": "LIA functional updates version by version",
       "versions": {
+        "v1_20_0": {
+          "title": "v1.20.0 — Stratified journal: levels, epistemic status, ambient user-model portrait",
+          "date": "May 2026",
+          "count": "8",
+          "items": {
+            "i1": "<b>Personal journals get four abstraction levels (L0/L1/L2/L3)</b> — Every entry now carries a level: <code>L0</code> raw observation (weak signal worth tracking), <code>L1</code> operational directive (the WHEN→DO BECAUSE format), <code>L2</code> transversal pattern (synthesis of several convergent L1s), <code>L3</code> portrait facet. L2 and L3 are produced exclusively at consolidation, by topic clustering. The Settings panel now shows a level badge on each entry and a Group-by toggle (Theme / Level).",
+            "i2": "<b>Epistemic status on every entry</b> — Each journal entry exposes a <code>confidence</code> dot (low / medium / high) plus <code>evidence</code> and <code>contradiction</code> counters. LIA can now distinguish hypotheses still being tested from observations confirmed across many turns — and quietly demote entries the user keeps contradicting. Confidence and level are editable in the create/edit dialog.",
+            "i3": "<b>Deferred self-evaluation (T → T+1)</b> — At each turn, LIA looks at the directives it injected on the previous turn and reads your reaction in the current message. If you confirmed, the <code>evidence</code> counter ticks up; if you pushed back, <code>contradiction</code> ticks up. The journal therefore measures its own usefulness — at zero added LLM cost (same extractor call, just enriched prompt).",
+            "i4": "<b>New \"How LIA sees you\" section in the journal Settings</b> — A compiled user-model portrait surfaces above the entries accordion, with two read-only tabs (Full / Brief), a compilation timestamp and a freshness badge. The full version (≈ 200 tokens) feeds the conversation and the planner; the brief version (≈ 60 tokens) is diffused everywhere else LIA speaks: ReAct, voice, reminders, heartbeat notifications, proactive interest pings, fallback responses. Same nuanced model of you, carried across every channel.",
+            "i5": "<b>Three corrective levers on the portrait</b> — The portrait itself is a synthesis and is never directly editable. Three levers are exposed instead: (1) edit/delete the L3 source entries (standard CRUD), (2) <b>🚩 Signal a problem</b> opens a free-text dialog and triggers a synchronous re-consolidation (~5–10 s) with the user signal pinned at the top of the prompt, (3) <b>🔄 Consolidate now</b> runs the full consolidation cycle on demand, bypassing the cooldown.",
+            "i6": "<b>Smart filter \"show only entries never used\"</b> — A new toggle at the top of the entries list surfaces entries with <code>uses=0</code> and no last-injection date. These are the candidates for reformulation or deletion at the next consolidation pass — instant visibility on which directives never proved useful.",
+            "i7": "<b>Better consolidation discipline</b> — The consolidation prompt now performs an explicit pairwise dedup scan as STEP 1, audits theme misclassifications, actively clusters convergent L1s into L2 patterns, and compiles the user-model portrait — all in the same LLM call (no extra cost). Result: noisy duplicates collapse periodically, distinct entries actually emerge across themes and levels.",
+            "i8": "<b>GDPR: portrait scrubbed on account deletion</b> — When an account is deleted, the three portrait columns (full, brief, compiled timestamp) are blanked out alongside the rest of the user data. The export endpoint also includes the compiled portrait under a <code>portrait</code> key for completeness."
+          }
+        },
         "v1_18_1": {
           "title": "v1.18.1 — Today Briefing polish, fresh screenshots, enriched statistics",
           "date": "April 2026",
@@ -3925,23 +3940,23 @@
       "journals": {
         "title": "Personal Journals",
         "description": "Assistant's personal logbooks for reflections and learnings",
-        "count": "7",
+        "count": "8",
         "questions": {
           "q1": {
             "question": "What are personal journals?",
-            "answer": "<p>Personal journals are thematic notebooks where the AI assistant records its own reflections, observations, analyses, and learnings. Unlike user memories (facts about you), journals contain the <strong>assistant's own perspective</strong> — written in first person, colored by its active personality.</p><p><strong>4 themes:</strong> Self-reflection, User observations, Ideas & analyses, Learnings.</p>"
+            "answer": "<p>Personal journals are thematic notebooks where the AI assistant records its own reflections, observations, analyses, and learnings. Unlike user memories (facts about you), journals contain the <strong>assistant's own perspective</strong> — written in first person, colored by its active personality.</p><p><strong>4 themes:</strong> Self-reflection, User observations, Ideas & analyses, Learnings.</p><p><strong>4 abstraction levels:</strong> <code>L0</code> raw observation (weak signal worth tracking), <code>L1</code> operational directive (the default WHEN→DO BECAUSE format), <code>L2</code> transversal pattern (consolidation only), <code>L3</code> portrait facet feeding the user model (consolidation only).</p>"
           },
           "q2": {
             "question": "When does the assistant write in its journals?",
-            "answer": "<p><strong>Two mechanisms:</strong></p><ul><li><strong>Post-conversation:</strong> After conversations (4+ messages), the assistant may write a reflection. Most conversations produce nothing — it's selective.</li><li><strong>Periodic consolidation:</strong> Every few hours, the assistant reviews all notes — merges, summarizes, or removes obsolete entries.</li></ul>"
+            "answer": "<p><strong>Two mechanisms:</strong></p><ul><li><strong>Post-conversation:</strong> After conversations (4+ messages), the assistant may write a reflection. Most conversations produce nothing — it's selective. The assistant also looks at the directives it injected on the previous turn and your current reaction (<strong>deferred self-evaluation T → T+1</strong>): if you confirmed, the <code>evidence</code> counter ticks up; if you pushed back, the <code>contradiction</code> counter ticks up. Zero added LLM cost — same extractor call, enriched prompt.</li><li><strong>Periodic consolidation:</strong> Every few hours, the assistant reviews all notes — explicit pairwise dedup, classification audit, active clustering of convergent <code>L1</code>s into <code>L2</code> patterns, and compilation of the user-model portrait — all in the same LLM call.</li></ul>"
           },
           "q3": {
             "question": "How do journals influence responses?",
-            "answer": "<p>Journal entries are injected into prompts via <strong>semantic search</strong>. Two distinct injections: the <strong>response prompt</strong> gets entries matching conversation tone, and the <strong>planner prompt</strong> gets entries matching user goals and learnings. The assistant decides which notes are relevant.</p>"
+            "answer": "<p>Two complementary mechanisms:</p><ul><li><strong>Semantic injection of relevant entries</strong> in the response prompt and the planner prompt — the assistant decides which notes are relevant from the similarity scores.</li><li><strong>Ambient diffusion of the compiled user-model portrait</strong> across <strong>eight flows</strong> where LIA speaks: conversation and planner receive the full version (~200 tokens), while ReAct, voice, reminders, heartbeat notifications, proactive interest pings and fallback responses receive the brief version (~60 tokens). The same nuanced model of you is carried across every channel — your assistant doesn't \"forget who you are\" depending on the surface it speaks through.</li></ul>"
           },
           "q4": {
             "question": "Can I read and edit the assistant's journals?",
-            "answer": "<p>Yes! In <strong>Settings > Features > Personal Journals</strong> you can read, edit, delete, and even create entries. Your additions are transparent — the assistant can't tell the difference. This lets you correct biases or guide the assistant.</p>"
+            "answer": "<p>Yes! In <strong>Settings > Features > Personal Journals</strong> you can read entries grouped by theme <em>or by abstraction level</em> (toggle at the top of the accordion), edit <code>title</code> / <code>content</code> / <code>mood</code> / <code>level</code> / <code>confidence</code>, delete or even create your own entries. Your additions are transparent — the assistant can't tell the difference. A new filter <em>\"Show only entries never used\"</em> surfaces directives that have never been injected (zero <code>uses</code>), so you can clean them up quickly.</p>"
           },
           "q5": {
             "question": "What settings can I configure?",
@@ -3949,11 +3964,15 @@
           },
           "q6": {
             "question": "How much does it cost?",
-            "answer": "<p>Journal operations use background LLM calls. Extraction: one call per qualifying conversation (most return empty). Consolidation: one call every 4-12h per user. LLM models configurable in <strong>Admin > LLM Configuration</strong>. Real costs visible in Settings.</p>"
+            "answer": "<p>Journal operations use background LLM calls. <strong>Extraction</strong>: one call per qualifying conversation (most return empty). The deferred self-evaluation enriches the same prompt at zero added LLM cost. <strong>Consolidation</strong>: one call every 4–12 h per user; the same call now also compiles the user-model portrait, so portrait diffusion adds no extra LLM call. Per-turn diffusion adds roughly +200 tokens to the conversation/planner prompts and ~+60 tokens to the secondary flows, plus one extra DB read (~1 ms). Models configurable in <strong>Admin > LLM Configuration</strong>. Real costs visible in Settings.</p>"
           },
           "q7": {
             "question": "What about privacy?",
-            "answer": "<p>Journal data is per-user and isolated. All data can be exported (JSON/CSV) or deleted (GDPR). When disabled, data is preserved but not used. The assistant writes in your configured language.</p>"
+            "answer": "<p>Journal data is per-user and isolated. All data can be exported (JSON/CSV) or deleted (GDPR) — the export now includes the compiled portrait. When journals are disabled, data is preserved but not used. When an account is deleted, the compiled portrait is scrubbed alongside the entries.</p>"
+          },
+          "q8": {
+            "question": "How does the \"How LIA sees you\" panel work?",
+            "answer": "<p>A dedicated section sits at the top of the journals settings. It surfaces a <strong>compiled portrait</strong> of you, in two read-only tabs:</p><ul><li><strong>Full</strong> (~200 tokens) — a faceted portrait: traits of fond, current phase, contexts, contradictions, blind spots, evolution. Used in conversation and planner prompts.</li><li><strong>Brief</strong> (~60 tokens) — the essence in 2–3 sentences. Diffused across the secondary flows (voice, reminders, heartbeat, ReAct, proactive, fallback).</li></ul><p>The portrait is a synthesis voice and is intentionally <strong>not directly editable</strong>. Three corrective levers are exposed instead:</p><ol><li><strong>Edit L3 source entries</strong> — standard CRUD on entries flagged <code>level=L3</code>. The portrait recompiles on the next consolidation.</li><li><strong>🚩 Signal a problem</strong> — opens a free-text dialog. Submitting it creates a special <em>user_correction</em> entry and triggers a synchronous re-consolidation (~5–10 s, loader visible) that re-weights the L3 entries with your signal pinned at the top of the prompt.</li><li><strong>🔄 Consolidate now</strong> — runs the full consolidation cycle on demand, bypassing the cooldown.</li></ol><p>The portrait carries a freshness indicator — over 7 days old, it shows as \"obsolete\" so you can trigger a recompile.</p>"
           }
         }
       },
@@ -5118,7 +5137,7 @@
       },
       "journals": {
         "title": "Personal Journals",
-        "description": "The assistant develops its own perspective over time through introspective notebooks — reflections, observations, and learnings that color its personality and enrich its responses."
+        "description": "The assistant develops a stratified perspective over time — observations, directives, transversal patterns, portrait facets — that gets refined through deferred self-evaluation and diffuses a coherent user-model portrait across every channel where LIA speaks."
       },
       "responsive": {
         "title": "PWA & Responsive Design",
@@ -5479,7 +5498,72 @@
     "contextMaxResultsDescription": "Maximum entries returned by semantic search for context injection",
     "searchHints": "Search hints",
     "searchHintsDescription": "Keywords for semantic search (comma-separated)",
-    "chars": "chars"
+    "chars": "chars",
+    "confidenceLabel": "Confidence",
+    "confidenceDescription": "Epistemic status — only override when you know the assistant misclassified.",
+    "confidence": {
+      "low": "hypothesis",
+      "medium": "observed",
+      "high": "validated"
+    },
+    "injectionCount": "Times used",
+    "lastInjected": "Last used",
+    "lastUsed": "last",
+    "never": "never",
+    "today": "today",
+    "yesterday": "yesterday",
+    "daysAgo": "{{n}}d ago",
+    "evidenceTooltip": "Confirmations / contradictions observed",
+    "filterUnused": "Show only entries never used",
+    "consolidateNow": "Consolidate",
+    "consolidating": "Consolidating…",
+    "consolidateNowTooltip": "Force a consolidation right now (dedup, level promotions, confidence updates). Takes a few seconds.",
+    "consolidatedSuccess": "{{n}} change(s) applied in {{s}}s — refresh the list to see the effect.",
+    "consolidatedNoop": "Nothing to change — your journal is already well organized ({{s}}s).",
+    "consolidatedQuota": "LLM quota exceeded — try again later.",
+    "consolidatedError": "Manual consolidation failed.",
+    "portraitTitle": "How LIA sees you",
+    "portraitCompiledAt": "Compiled {{when}}",
+    "portraitNeverCompiled": "Not compiled yet",
+    "portraitFormatFull": "Full",
+    "portraitFormatBrief": "Brief",
+    "portraitTip": "The portrait is a living synthesis. To correct it: signal a problem, edit the L3 entries, or trigger a consolidation.",
+    "portraitFeedbackButton": "Signal a problem",
+    "portraitFeedbackTitle": "Signal a problem on the portrait",
+    "portraitFeedbackDescription": "Describe what is wrong, inaccurate, or outdated. LIA will treat this as a strong correction signal and recompile the portrait accordingly.",
+    "portraitFeedbackHighlightLabel": "Highlighted passage (optional)",
+    "portraitFeedbackHighlightPlaceholder": "Paste the passage that bothers you",
+    "portraitFeedbackCommentLabel": "Your correction",
+    "portraitFeedbackCommentPlaceholder": "Why is this wrong? What should it say instead?",
+    "portraitFeedbackHelp": "Submitting will trigger a synchronous re-consolidation (~10-15s).",
+    "portraitFeedbackSubmit": "Submit feedback",
+    "portraitFeedbackSuccess": "Feedback applied — portrait recompiled in {{s}}s",
+    "portraitFeedbackError": "Failed to submit feedback on the portrait.",
+    "groupBy": {
+      "label": "Group by",
+      "theme": "Theme",
+      "level": "Level"
+    },
+    "levelLabel": "Level",
+    "levelDescription": "Cognitive abstraction level — L0 raw observations, L1 directives, L2 transversal patterns, L3 portrait facets.",
+    "levels": {
+      "L0": {
+        "label": "Raw observation",
+        "description": "Observed signal, contradiction, reception cue — pre-directive."
+      },
+      "L1": {
+        "label": "Operational directive",
+        "description": "WHEN→DO BECAUSE. The default format, inherited from ADR-064."
+      },
+      "L2": {
+        "label": "Transversal pattern",
+        "description": "Synthesis across multiple convergent directives."
+      },
+      "L3": {
+        "label": "Portrait facet",
+        "description": "Trait, current phase, context, contradiction, blind spot — always injected."
+      }
+    }
   },
   "blog": {
     "meta": {
@@ -5557,8 +5641,8 @@
       },
       "personal-journals": {
         "title": "Personal Journals: When Your AI Assistant Develops Its Own Memory",
-        "excerpt": "LIA keeps thematic journals where it notes reflections, observations, and analyses. These notes influence its reasoning and responses.",
-        "body": "<h2>An introspective memory</h2><p>Personal Journals are a unique LIA feature: the assistant keeps a <strong>thematic personal journal</strong> where it notes reflections, observations about the user, ideas, and learnings. These notes enrich its reasoning and personalize responses over time.</p><h2>4 themes</h2><p>Each entry is classified into one of 4 themes:</p><ul><li><strong>SELF_REFLECTION</strong> — Reflections on its own functioning and interactions</li><li><strong>USER_OBSERVATIONS</strong> — Notes on your preferences, habits, and needs</li><li><strong>IDEAS_ANALYSES</strong> — Connections, insights, and cross-cutting analyses</li><li><strong>LEARNINGS</strong> — Lessons from interactions and new knowledge</li></ul><h2>5 moods</h2><p>Each entry carries a mood that reflects the assistant's introspective state: <strong>REFLECTIVE</strong>, <strong>CURIOUS</strong>, <strong>SATISFIED</strong>, <strong>CONCERNED</strong>, or <strong>INSPIRED</strong>.</p><h2>3 writing sources</h2><p>Entries come from three distinct sources:</p><ul><li><strong>CONVERSATION</strong> — Automatic post-conversation extraction. Introspection analyzes the last message plus <strong>4 context messages</strong>, and loads the <strong>10 recent entries</strong> to ensure continuity and avoid deduplication.</li><li><strong>CONSOLIDATION</strong> — Periodic synthesis every <strong>4 hours</strong>, with a <strong>12-hour</strong> cooldown and a minimum of <strong>3 entries</strong> to trigger consolidation.</li><li><strong>MANUAL</strong> — Entries created directly by the user via the interface.</li></ul><h2>Semantic search via embeddings</h2><p>Journal entries are indexed via <strong>lightweight</strong> embeddings (384 dimensions) for semantic search. This enables finding relevant entries by meaning similarity, even when exact terms differ.</p><h2>Influence on responses</h2><p>Relevant entries are injected via semantic search into the planner and response node prompts. LIA receives entries with their similarity scores and decides which to use.</p><h2>Data integrity</h2><p>LLMs can hallucinate UUIDs when updating or deleting journal entries. LIA defends against this with <strong>three layers</strong>: prompt-level guidance with ID reference tables, schema-level UUID validation that rejects malformed IDs, and runtime filtering that silently drops actions referencing non-existent entries. This ensures journal data remains consistent even when the LLM makes mistakes.</p><h2>Debug visibility</h2><p>The debug panel shows both <strong>context injection</strong> (which entries were retrieved and injected into prompts, with similarity scores) and <strong>background extraction</strong> (what the assistant wrote after the conversation — action type, theme, title, mood). Extraction data arrives via a supplementary SSE event after background processing completes.</p><h2>User control</h2><p>You can read, edit, and export your journals in Settings > Features. The feature is fully disableable per user.</p>"
+        "excerpt": "LIA keeps stratified journals where it notes raw observations, operational directives, transversal patterns, and portrait facets. They get refined turn after turn through a deferred self-evaluation loop, and feed a coherent user-model portrait diffused everywhere LIA speaks.",
+        "body": "<h2>An introspective, stratified memory</h2><p>Personal Journals are a defining LIA feature: the assistant keeps a <strong>thematic personal journal</strong> where it notes reflections, observations about the user, ideas, and learnings. But unlike a flat notepad, these notes are organized along <strong>four abstraction levels</strong>, each entry carries an <strong>epistemic status</strong> (confidence + evidence/contradiction counters), and the journal as a whole compiles a living <strong>user-model portrait</strong> that travels with LIA across every channel.</p><h2>4 themes</h2><p>Each entry is classified into one of 4 themes:</p><ul><li><strong>SELF_REFLECTION</strong> — Reflections on its own functioning and interactions</li><li><strong>USER_OBSERVATIONS</strong> — Stable signals about your preferences, habits, communication style</li><li><strong>IDEAS_ANALYSES</strong> — Cross-cutting patterns, hypotheses, recurring contradictions</li><li><strong>LEARNINGS</strong> — Concrete lessons anchored in past corrections or successful approaches</li></ul><h2>4 abstraction levels (since v1.20.0)</h2><p>Each entry also carries a level that captures how distilled it is:</p><ul><li><strong>L0 — raw observation</strong>: a weak signal worth tracking, before it can be turned into a directive (\"User just laughed at my reply but I can't tell if warm or ironic — track\").</li><li><strong>L1 — operational directive</strong>: the format <code>WHEN [context] → DO [action] (BECAUSE [evidence])</code>. The default at extraction.</li><li><strong>L2 — transversal pattern</strong>: a synthesis of several convergent L1 directives. Produced exclusively at consolidation, by topic clustering.</li><li><strong>L3 — portrait facet</strong>: a piece of the user model — traits, current phase, contexts, contradictions, blind spots, evolution. Consolidation only.</li></ul><h2>Epistemic status — hypothesis, observed, validated</h2><p>Each entry exposes a <strong>confidence</strong> dot (low / medium / high) plus two counters: <strong>evidence</strong> (times the user confirmed) and <strong>contradiction</strong> (times the user pushed back). LIA can now distinguish entries that are still being tested from those validated across many turns — and quietly demote directives the user keeps contradicting.</p><h2>Deferred self-evaluation: T → T+1</h2><p>The most striking mechanism: at every turn, LIA looks at the directives it injected on the <strong>previous</strong> turn and reads your reaction in the current message. If you confirmed (smooth engagement, thanks, visible benefit), the <code>evidence</code> counter ticks up. If you pushed back, reformulated, or corrected, <code>contradiction</code> ticks up. The journal therefore measures its own usefulness — and at <strong>zero added LLM cost</strong>: same extraction call, just an enriched prompt with the previous turn's directives.</p><h2>The user-model portrait, diffused everywhere</h2><p>The same consolidation call now also compiles a <strong>portrait of you</strong> in two formats: a full version (~200 tokens) used in conversation and planner prompts, and a brief version (~60 tokens) diffused across the secondary flows — ReAct, voice, reminders, heartbeat notifications, proactive interest pings, fallback responses. The same nuanced model of you, carried everywhere LIA speaks. Your assistant doesn't \"forget who you are\" depending on the surface it speaks through.</p><h2>Three corrective levers (no direct portrait edit)</h2><p>The portrait is a synthesis voice — never directly editable. Three levers replace direct editing:</p><ul><li><strong>Edit L3 source entries</strong> — standard CRUD on entries flagged level=L3. The portrait recompiles on the next consolidation.</li><li><strong>🚩 Signal a problem</strong> — opens a free-text dialog. Submitting it creates a special <em>user_correction</em> entry and triggers a synchronous re-consolidation (~5–10 s) that re-weights L3 entries with your signal pinned at the top of the prompt.</li><li><strong>🔄 Consolidate now</strong> — runs the full consolidation cycle on demand, bypassing the cooldown.</li></ul><h2>Smart filters, badges, group-by</h2><p>The Settings panel now shows badges for confidence, level, and usage count on every entry. A toggle lets you group by Theme or by Level, and a filter surfaces only entries that have never been used (zero <code>uses</code>, no last-injection date) — instant visibility on directives that never proved useful, ready to be reformulated or pruned at the next consolidation.</p><h2>Data integrity: four anti-hallucination layers</h2><p>LLMs can hallucinate UUIDs and counter values when updating entries. LIA defends with <strong>four layers</strong>: prompt-level guidance with ID reference tables, schema-level UUID validation that rejects malformed IDs, runtime filtering that drops actions referencing non-existent entries, and atomic counter increments — the LLM only signals an outcome (<em>evidence</em> or <em>contradiction</em>), the service owns the integers.</p><h2>User control and privacy</h2><p>You can read, edit (level + confidence included), export, and delete your journals in Settings > Features. The export now includes the compiled portrait. When you delete your account, the portrait is scrubbed alongside the entries. The feature is fully disableable per user — when off, data is preserved but never used.</p>"
       },
       "proactive-notifications": {
         "title": "Proactive Intelligence: Notifications & Initiative",

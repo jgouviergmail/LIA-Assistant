@@ -2,9 +2,9 @@
 
 > Complete guide to install, configure, and get started with LIA - Multi-Agent AI Assistant v6.4
 
-**Version**: 3.8
-**Last Updated**: 2026-05-05
-**Compatibility**: LIA v1.19.1 (+ evolution Features: Web Fetch, MCP Per-User, Multi-Channel Telegram, Heartbeat Autonome, RAG Spaces, Sub-Agents, Browser Control, Personal Journals, Philips Hue Smart Home, Rich Skill Outputs — ADR-075, Chat UX polish — LaTeX, syntax highlighting, history search, copy buttons — v1.16.9, Observability overhaul — 90+ metrics revived, 2 new dashboards, DB indexes — v1.16.10, Health Metrics — iPhone Shortcuts ingestion + token auth + chart visualization — ADR-076 — v1.17.0, Health Metrics polymorphic batch upsert refactor — v1.17.1, Health Metrics assistant integrations — agents + Heartbeat + journal + memory via central HEALTH_KINDS registry — v1.17.2, Today Briefing — daily ritual home page with greeting LLM + synthesis + 6 cards + per-section cache + tokens/cost UI — v1.18.0, Today Briefing polish — greeting integrated into Hero + mobile-visible refresh icon + lifetime totals "since" anchor + section icons + 12 fresh screenshots with cache-busting — v1.18.1, LLM Catalogue DB-Source-of-Truth — chat + image catalogue persisted in DB, admin form with 14 fields, cross-worker Pub/Sub invalidation, cross-sibling React Context — ADR-078 — v1.19.0, DeepSeek V4 family + parameterizable Perplexity/Qwen base URLs — V4 thinking-mode toggle, JSON-mode fallback for V4+thinking structured output, local ChatDeepSeekPatched subclass for reasoning_content round-trip — v1.19.1)
+**Version**: 3.9
+**Last Updated**: 2026-05-06
+**Compatibility**: LIA v1.20.0 (+ evolution Features: Web Fetch, MCP Per-User, Multi-Channel Telegram, Heartbeat Autonome, RAG Spaces, Sub-Agents, Browser Control, Personal Journals, Philips Hue Smart Home, Rich Skill Outputs — ADR-075, Chat UX polish — LaTeX, syntax highlighting, history search, copy buttons — v1.16.9, Observability overhaul — 90+ metrics revived, 2 new dashboards, DB indexes — v1.16.10, Health Metrics — iPhone Shortcuts ingestion + token auth + chart visualization — ADR-076 — v1.17.0, Health Metrics polymorphic batch upsert refactor — v1.17.1, Health Metrics assistant integrations — agents + Heartbeat + journal + memory via central HEALTH_KINDS registry — v1.17.2, Today Briefing — daily ritual home page with greeting LLM + synthesis + 6 cards + per-section cache + tokens/cost UI — v1.18.0, Today Briefing polish — greeting integrated into Hero + mobile-visible refresh icon + lifetime totals "since" anchor + section icons + 12 fresh screenshots with cache-busting — v1.18.1, LLM Catalogue DB-Source-of-Truth — chat + image catalogue persisted in DB, admin form with 14 fields, cross-worker Pub/Sub invalidation, cross-sibling React Context — ADR-078 — v1.19.0, DeepSeek V4 family + parameterizable Perplexity/Qwen base URLs — V4 thinking-mode toggle, JSON-mode fallback for V4+thinking structured output, local ChatDeepSeekPatched subclass for reasoning_content round-trip — v1.19.1, Stratified Journal Consciousness — 4 abstraction levels (L0-L3), epistemic status, deferred T→T+1 self-evaluation, ambient user-model portrait diffused across 8 flows, 3 corrective levers, 11 Prometheus metrics — ADR-079 — v1.20.0)
 
 ## Table of Contents
 
@@ -31,7 +31,7 @@
 | Feature | Description |
 |---------|-------------|
 | **Philips Hue Smart Home** | Control smart lights via natural language — local press-link or remote OAuth2 (v1.8.0) |
-| **Personal Journals** | Assistant's introspective logbooks with semantic context injection (v1.7.1) |
+| **Personal Journals** | Assistant's stratified introspective logbooks (4 abstraction levels L0–L3, epistemic status, deferred self-evaluation T→T+1) with a compiled user-model portrait diffused across 8 flows and 3 corrective levers (v1.7.1, refactored in v1.20.0 — ADR-079) |
 | **Health Metrics** | iPhone Shortcuts batch ingestion + conversational agents + proactive Heartbeat + journal/memory enrichment; single per-user opt-in toggle; extensible `HEALTH_KINDS` registry (ADR-076) |
 | **System Knowledge Spaces** | Built-in FAQ knowledge base — LIA answers questions about itself (v1.6.1) |
 | **Browser Control** | Interactive web browsing via Playwright with autonomous ReAct agent (v1.6.0) |

@@ -531,13 +531,25 @@ AsyncPostgresStore + Semantic Index (pgvector)
 
 以可配置的 alpha 进行组合（默认 0.6 语义 / 0.4 BM25）。当两个信号都很强时（> 0.5）提升 10%。BM25 失败时优雅降级为纯语义搜索。性能：有缓存时 40-90 ms。
 
-### 11.5. 日志（Journals）
+### 11.5. 分层日志（Journals）
 
-助手以四个均衡的主题（自我反思、用户观察、想法/分析、学习）撰写内省反思。两个触发器：对话后提取 + 定期整合（4 小时）。OpenAI 1536d 嵌入配合 `search_hints`（用户词汇中的 LLM 关键词）。注入到 **Response Node 和 Planner Node** 的提示中 — 后者使用 `intelligence.original_query` 作为语义查询。
+助手撰写内省反思，按四个主题（自我反思、用户观察、想法/分析、学习）和四个抽象层级（`L0` 原始观察、`L1` `WHEN→DO BECAUSE` 指令、`L2` 横向模式、`L3` 肖像维度——见 [ADR-079](https://github.com/jgouviergmail/LIA/blob/main/docs/architecture/ADR-079-Stratified-Journal-Consciousness.md)）组织。每个条目都带有认识论状态（`confidence` ∈ {low, medium, high}）和两个计数器（`evidence_count`、`contradiction_count`）。
 
-**语义去重守卫**（v1.12.1）：在创建新条目之前，系统会检查与现有条目的语义相似度。如果匹配超过可配置的阈值（`JOURNAL_DEDUP_SIMILARITY_THRESHOLD`，默认 0.72），融合 LLM 会将所有匹配条目合并为一个丰富的指令——N→1 合并并删除次要条目。失败时优雅降级。
+**双触发器**：对话后提取（fire-and-forget，频繁，轻量）+ 定期巩固（每用户 4–12 小时，复杂）。
 
-反幻觉 UUID：`field_validator`、ID 引用表、在提取和整合中按已知 ID 过滤。
+**Gemini 双向量嵌入**（`gemini-embedding-001`，1536d，ADR-069）：一个向量在 `title + content` 上，一个在 `search_hints` 上。搜索按行使用 `LEAST(dist_content, dist_keyword)` 来桥接助手的内省词汇和用户词汇。
+
+**延迟自评估 T → T+1**：`MessagesState.injected_journal_ids`（与 `injected_memories` 对称）跨轮次携带 ID。`response_node` 在开始时读取上一轮的 ID，将它们传递给对话后提取器，然后在结束时写入当前轮次的 ID。提取器在同一个提示词中看到应用的指令 + 用户的反应，并在 update 操作上信号 `evidence_outcome="evidence" | "contradiction"` — 服务原子地递增计数器（反幻觉第 4 层：LLM 仅信号结果，服务拥有整数）。**零额外 LLM 成本**（同一次提取调用，丰富的提示词）。
+
+**用户模型肖像的环境扩散**：巩固在**同一次 LLM 调用**中产生（无额外调用）一个 `portrait_full`（约 200 个 token，对话/规划器）和一个 `portrait_brief`（约 60 个 token，次要流），持久化到 `users` 表。构建器 `build_journal_user_model_block(user_id, format, flow)`（`src/domains/journals/portrait_builder.py`，`build_psyche_prompt_block` 的镜像）返回一个 `<UserModelContext>...</UserModelContext>` 块，带优雅降级。扩散到 **8 个流**：2 个主要流以完整格式（`response_node`、`planner_node_v3`），6 个次要流以简要格式（`react_setup_node`、`interests/proactive_task`、`scheduler/reminder_notification`、`voice/service`、`heartbeat/prompts`、`agents/services/fallback_response` sync + async）。
+
+**肖像上的三个用户修正杠杆**（从不直接编辑）：（1）L3 源条目的 CRUD 编辑，（2）`POST /journals/portrait/feedback`（自由文本 → L0 条目 `source=user_correction` + 同步重新巩固，重新加权 L3 条目），（3）`POST /journals/consolidate`（手动巩固，绕过冷却）。
+
+**去重纪律**：无写入时守卫（在 v1.14.0 中移除）。在巩固时，`STEP 1` 执行明确的成对扫描以融合语义重复，`STEP 5` 主动将收敛的 L1 聚类成 L2 模式。
+
+**4 层反幻觉**：UUID 上的 Pydantic `field_validator`、提示词中的 ID 参考表、在提取和巩固时按已知 ID 筛选操作，以及计数器的原子递增（LLM 仅信号 `evidence_outcome`）。
+
+**专用可观察性**：`src/infrastructure/observability/metrics_journals.py` 中的 11 个 Prometheus 指标——`journal_entries_total{action,theme,source}`、`journal_evidence_total{outcome}`、`journal_consolidation_promotions_total{from_level,to_level}`、`journal_level_distribution{level}`、`journal_portrait_present_total{flow,format}`、`journal_portrait_age_hours`、`journal_portrait_feedback_total{outcome}` 等。
 
 ### 11.6. 兴趣系统
 

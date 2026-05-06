@@ -1,7 +1,18 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { BookOpen, Trash2, Plus, Pencil, Download, AlertTriangle, Settings2 } from 'lucide-react';
+import {
+  BookOpen,
+  Trash2,
+  Plus,
+  Pencil,
+  Download,
+  AlertTriangle,
+  Settings2,
+  RefreshCw,
+  Flag,
+  UserSquare2,
+} from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -49,6 +60,8 @@ import {
   type JournalEntry,
   type JournalEntryCreate,
   type JournalEntryUpdate,
+  type JournalEntryConfidence,
+  type JournalEntryLevel,
   type JournalTheme,
   type JournalEntryMood,
 } from '@/hooks/useJournals';
@@ -68,7 +81,25 @@ const SOURCE_EMOJI: Record<string, string> = {
   conversation: '\u{1F4AC}',
   consolidation: '\u{1F504}',
   manual: '\u270F\uFE0F',
+  user_correction: '\u{1F6A9}', // \uD83D\uDEA9
 };
+
+/** Confidence visual style \u2014 distinguishes hypothesis from validated directive */
+const CONFIDENCE_DOT: Record<JournalEntryConfidence, string> = {
+  low: 'bg-amber-500',
+  medium: 'bg-blue-500',
+  high: 'bg-emerald-500',
+};
+
+/** Level visual style \u2014 cognitive stratification (L0 raw \u2192 L3 portrait) */
+const LEVEL_BADGE: Record<JournalEntryLevel, string> = {
+  L0: 'bg-slate-100 text-slate-700 border-slate-300',
+  L1: 'bg-indigo-50 text-indigo-700 border-indigo-300',
+  L2: 'bg-violet-50 text-violet-700 border-violet-300',
+  L3: 'bg-amber-50 text-amber-700 border-amber-300',
+};
+
+const ALL_LEVELS: JournalEntryLevel[] = ['L0', 'L1', 'L2', 'L3'];
 
 /** Theme display info */
 const THEME_INFO: Record<JournalTheme, { icon: string; color: string }> = {
@@ -89,14 +120,19 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
     entries,
     settings: journalSettings,
     isLoading,
+    portrait,
     createEntry,
     updateEntry,
     deleteEntry,
     deleteAllEntries,
     updateSettings,
+    consolidateNow,
+    submitPortraitFeedback,
     isCreating,
     isUpdating,
     isUpdatingSettings,
+    isConsolidating,
+    isSubmittingFeedback,
   } = useJournals();
 
   // Controlled numeric inputs — initialized to 0, then synced with server settings
@@ -126,6 +162,12 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
     mood: 'reflective',
   });
   const [editForm, setEditForm] = useState<JournalEntryUpdate>({});
+  const [showOnlyUnused, setShowOnlyUnused] = useState(false);
+  const [groupBy, setGroupBy] = useState<'theme' | 'level'>('theme');
+  const [portraitFormat, setPortraitFormat] = useState<'full' | 'brief'>('full');
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [feedbackComment, setFeedbackComment] = useState('');
+  const [feedbackHighlight, setFeedbackHighlight] = useState('');
 
   if (isLoading) {
     return (
@@ -224,6 +266,70 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
     window.open(`/api/v1/journals/export?format=${format}`, '_blank');
   };
 
+  const handleSubmitFeedback = async () => {
+    const trimmed = feedbackComment.trim();
+    if (!trimmed) return;
+    try {
+      const result = await submitPortraitFeedback({
+        comment: trimmed,
+        highlighted_section: feedbackHighlight.trim() || undefined,
+      });
+      if (result) {
+        const seconds = Math.max(1, Math.round(result.duration_ms / 1000));
+        toast.success(
+          t('journals.portraitFeedbackSuccess', 'Feedback applied — portrait recompiled in {{s}}s', {
+            s: seconds,
+          })
+        );
+        setFeedbackOpen(false);
+        setFeedbackComment('');
+        setFeedbackHighlight('');
+      }
+    } catch (err) {
+      const status = (err as { status?: number } | undefined)?.status;
+      if (status === 429) {
+        toast.error(t('journals.consolidatedQuota', 'LLM quota exceeded — try again later.'));
+      } else {
+        toast.error(
+          t('journals.portraitFeedbackError', 'Failed to submit feedback on the portrait.')
+        );
+      }
+    }
+  };
+
+  const handleConsolidateNow = async () => {
+    try {
+      const result = await consolidateNow();
+      if (result) {
+        const seconds = Math.max(1, Math.round(result.duration_ms / 1000));
+        if (result.actions_applied === 0) {
+          toast.success(
+            t(
+              'journals.consolidatedNoop',
+              'Nothing to change — your journal is already well organized ({{s}}s).',
+              { s: seconds }
+            )
+          );
+        } else {
+          toast.success(
+            t(
+              'journals.consolidatedSuccess',
+              '{{n}} change(s) applied in {{s}}s — refresh the list to see the effect.',
+              { n: result.actions_applied, s: seconds }
+            )
+          );
+        }
+      }
+    } catch (err) {
+      const status = (err as { status?: number } | undefined)?.status;
+      if (status === 429) {
+        toast.error(t('journals.consolidatedQuota', 'LLM quota exceeded — try again later.'));
+      } else {
+        toast.error(t('journals.consolidatedError', 'Manual consolidation failed.'));
+      }
+    }
+  };
+
   const openEdit = (entry: JournalEntry) => {
     setEditingEntry(entry);
     setEditForm({
@@ -231,7 +337,20 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
       content: entry.content,
       mood: entry.mood,
       search_hints: entry.search_hints ?? [],
+      confidence: entry.confidence,
+      level: entry.level,
     });
+  };
+
+  const formatRelativeDate = (iso: string | null): string => {
+    if (!iso) return t('journals.never', 'never');
+    const date = new Date(iso);
+    const now = new Date();
+    const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) return t('journals.today', 'today');
+    if (diffDays === 1) return t('journals.yesterday', 'yesterday');
+    if (diffDays < 7) return t('journals.daysAgo', '{{n}}d ago', { n: diffDays });
+    return date.toLocaleDateString();
   };
 
   return (
@@ -269,6 +388,75 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
         {/* Conditional settings — only shown when enabled */}
         {journalSettings?.journals_enabled && (
           <div className="space-y-5 pl-1">
+            {/* Portrait section (read-only — three levers for correction) */}
+            {(portrait?.full || portrait?.brief) && (
+              <div className="rounded-lg border bg-card p-3 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <UserSquare2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium">
+                        {t('journals.portraitTitle', 'How LIA sees you')}
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">
+                        {portrait?.compiled_at
+                          ? t('journals.portraitCompiledAt', 'Compiled {{when}}', {
+                              when: formatRelativeDate(portrait.compiled_at),
+                            })
+                          : t('journals.portraitNeverCompiled', 'Not compiled yet')}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    <Button
+                      size="sm"
+                      variant={portraitFormat === 'full' ? 'default' : 'outline'}
+                      className="h-7 text-xs"
+                      onClick={() => setPortraitFormat('full')}
+                      disabled={!portrait?.full}
+                    >
+                      {t('journals.portraitFormatFull', 'Full')}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={portraitFormat === 'brief' ? 'default' : 'outline'}
+                      className="h-7 text-xs"
+                      onClick={() => setPortraitFormat('brief')}
+                      disabled={!portrait?.brief}
+                    >
+                      {t('journals.portraitFormatBrief', 'Brief')}
+                    </Button>
+                  </div>
+                </div>
+
+                <p className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                  {portraitFormat === 'full'
+                    ? portrait?.full ?? ''
+                    : portrait?.brief ?? ''}
+                </p>
+
+                <p className="text-[10px] text-muted-foreground italic">
+                  {t(
+                    'journals.portraitTip',
+                    'The portrait is a living synthesis. To correct it: signal a problem, edit the L3 entries, or trigger a consolidation.'
+                  )}
+                </p>
+
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 text-xs"
+                    onClick={() => setFeedbackOpen(true)}
+                    disabled={isSubmittingFeedback}
+                  >
+                    <Flag className="h-3.5 w-3.5 mr-1" />
+                    {t('journals.portraitFeedbackButton', 'Signal a problem')}
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {/* Consolidation Toggle */}
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
@@ -526,6 +714,22 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                 <Download className="h-4 w-4 mr-1" />
                 {t('journals.export', 'Export')}
               </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-9"
+                onClick={handleConsolidateNow}
+                disabled={isConsolidating}
+                title={t(
+                  'journals.consolidateNowTooltip',
+                  'Force a consolidation right now (dedup, level promotions, confidence updates). Takes a few seconds.'
+                )}
+              >
+                <RefreshCw className={`h-4 w-4 mr-1 ${isConsolidating ? 'animate-spin' : ''}`} />
+                {isConsolidating
+                  ? t('journals.consolidating', 'Consolidating…')
+                  : t('journals.consolidateNow', 'Consolidate now')}
+              </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button
@@ -560,40 +764,114 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
               </AlertDialog>
             </div>
 
-            {/* Entries Accordion by Theme */}
-            {entryList.length > 0 ? (
-              <Accordion type="multiple" className="w-full">
-                {(
-                  [
-                    'self_reflection',
-                    'user_observations',
-                    'ideas_analyses',
-                    'learnings',
-                  ] as JournalTheme[]
-                ).map(theme => {
-                  const themeEntries = entryList.filter(e => e.theme === theme);
-                  const info = THEME_INFO[theme];
-                  const count = themeGroups[theme] ?? 0;
+            {/* Filter + Group toggles */}
+            {entryList.length > 0 && (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="filter-unused" className="text-xs text-muted-foreground">
+                    {t('journals.filterUnused', 'Show only entries never used')}
+                  </Label>
+                  <Switch
+                    id="filter-unused"
+                    checked={showOnlyUnused}
+                    onCheckedChange={setShowOnlyUnused}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs text-muted-foreground">
+                    {t('journals.groupBy.label', 'Group by')}
+                  </Label>
+                  <div className="flex gap-1">
+                    <Button
+                      size="sm"
+                      variant={groupBy === 'theme' ? 'default' : 'outline'}
+                      className="h-7 text-xs"
+                      onClick={() => setGroupBy('theme')}
+                    >
+                      {t('journals.groupBy.theme', 'Theme')}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={groupBy === 'level' ? 'default' : 'outline'}
+                      className="h-7 text-xs"
+                      onClick={() => setGroupBy('level')}
+                    >
+                      {t('journals.groupBy.level', 'Level')}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
 
-                  return (
-                    <AccordionItem key={theme} value={theme}>
-                      <AccordionTrigger className="text-sm">
-                        <span className="flex items-center gap-2">
-                          <span>{info.icon}</span>
-                          <span>{t(`journals.themes.${theme}`, theme.replace('_', ' '))}</span>
-                          <Badge variant="secondary" className="ml-1">
-                            {count}
-                          </Badge>
-                        </span>
-                      </AccordionTrigger>
-                      <AccordionContent>
-                        {themeEntries.length === 0 ? (
-                          <p className="text-sm text-muted-foreground py-2">
-                            {t('journals.noEntries', 'No entries in this theme')}
-                          </p>
-                        ) : (
-                          <div className="space-y-2">
-                            {themeEntries.map(entry => (
+            {/* Entries Accordion (by Theme or by Level) */}
+            {entryList.length > 0 ? (
+              (() => {
+                const themeKeys: JournalTheme[] = [
+                  'self_reflection',
+                  'user_observations',
+                  'ideas_analyses',
+                  'learnings',
+                ];
+                type Group = {
+                  key: string;
+                  label: string;
+                  icon: string;
+                  filter: (e: JournalEntry) => boolean;
+                  count: number;
+                };
+                const groups: Group[] =
+                  groupBy === 'theme'
+                    ? themeKeys.map(theme => ({
+                        key: theme,
+                        label: t(`journals.themes.${theme}`, theme.replace('_', ' ')),
+                        icon: THEME_INFO[theme].icon,
+                        filter: (e: JournalEntry) => e.theme === theme,
+                        count: themeGroups[theme] ?? 0,
+                      }))
+                    : ALL_LEVELS.map(level => ({
+                        key: level,
+                        label: t(`journals.levels.${level}.label`, level),
+                        icon: level,
+                        filter: (e: JournalEntry) => e.level === level,
+                        count: entryList.filter(e => e.level === level).length,
+                      }));
+                return (
+                  <Accordion type="multiple" className="w-full">
+                    {groups.map(g => {
+                      const baseEntries = entryList.filter(g.filter);
+                      const groupEntries = showOnlyUnused
+                        ? baseEntries.filter(e => e.injection_count === 0)
+                        : baseEntries;
+                      return (
+                        <AccordionItem key={g.key} value={g.key}>
+                          <AccordionTrigger className="text-sm">
+                            <span className="flex items-center gap-2">
+                              {groupBy === 'level' ? (
+                                <Badge
+                                  variant="outline"
+                                  className={`text-[10px] px-1.5 py-0 font-mono ${
+                                    LEVEL_BADGE[g.key as JournalEntryLevel]
+                                  }`}
+                                >
+                                  {g.icon}
+                                </Badge>
+                              ) : (
+                                <span>{g.icon}</span>
+                              )}
+                              <span>{g.label}</span>
+                              <Badge variant="secondary" className="ml-1">
+                                {g.count}
+                              </Badge>
+                            </span>
+                          </AccordionTrigger>
+                          <AccordionContent>
+                            {groupEntries.length === 0 ? (
+                              <p className="text-sm text-muted-foreground py-2">
+                                {t('journals.noEntries', 'No entries in this group')}
+                              </p>
+                            ) : (
+                              <div className="space-y-2">
+                                {groupEntries.map(entry => (
                               <div
                                 key={entry.id}
                                 className="flex items-start justify-between p-3 rounded-lg border bg-card"
@@ -628,9 +906,51 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                                       ))}
                                     </div>
                                   )}
-                                  <span className="text-xs text-muted-foreground">
-                                    {new Date(entry.created_at).toLocaleDateString()}
-                                  </span>
+                                  {/* Epistemic + lifecycle metrics row (commit 1) */}
+                                  <div className="flex flex-wrap items-center gap-2 mt-1 text-[10px] text-muted-foreground">
+                                    <span
+                                      className="flex items-center gap-1"
+                                      title={t(
+                                        `journals.confidence.${entry.confidence}`,
+                                        entry.confidence
+                                      )}
+                                    >
+                                      <span
+                                        className={`inline-block h-2 w-2 rounded-full ${CONFIDENCE_DOT[entry.confidence]}`}
+                                      />
+                                      {t(`journals.confidence.${entry.confidence}`, entry.confidence)}
+                                    </span>
+                                    <Badge
+                                      variant="outline"
+                                      className={`text-[10px] px-1.5 py-0 font-mono ${LEVEL_BADGE[entry.level]}`}
+                                      title={t(
+                                        `journals.levels.${entry.level}.description`,
+                                        entry.level
+                                      )}
+                                    >
+                                      {entry.level}
+                                    </Badge>
+                                    <span title={t('journals.injectionCount', 'Times used')}>
+                                      ✨ {entry.injection_count}
+                                    </span>
+                                    <span title={t('journals.lastInjected', 'Last used')}>
+                                      {t('journals.lastUsed', 'last')}: {formatRelativeDate(entry.last_injected_at)}
+                                    </span>
+                                    {(entry.evidence_count > 0 ||
+                                      entry.contradiction_count > 0) && (
+                                      <span
+                                        title={t(
+                                          'journals.evidenceTooltip',
+                                          'Confirmations / contradictions'
+                                        )}
+                                      >
+                                        ✓{entry.evidence_count} / ✗{entry.contradiction_count}
+                                      </span>
+                                    )}
+                                    <span>
+                                      · {new Date(entry.created_at).toLocaleDateString()}
+                                    </span>
+                                  </div>
                                 </div>
                                 <div className="flex gap-1 ml-2">
                                   <Button
@@ -675,14 +995,16 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                                   </AlertDialog>
                                 </div>
                               </div>
-                            ))}
-                          </div>
-                        )}
-                      </AccordionContent>
-                    </AccordionItem>
-                  );
-                })}
-              </Accordion>
+                                ))}
+                              </div>
+                            )}
+                          </AccordionContent>
+                        </AccordionItem>
+                      );
+                    })}
+                  </Accordion>
+                );
+              })()
             ) : (
               <p className="text-sm text-muted-foreground text-center py-4">
                 {t(
@@ -694,6 +1016,78 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
           </div>
         )}
       </div>
+
+      {/* Portrait feedback dialog (lever 2 of ADR-079) */}
+      <Dialog open={feedbackOpen} onOpenChange={setFeedbackOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {t('journals.portraitFeedbackTitle', 'Signal a problem on the portrait')}
+            </DialogTitle>
+            <DialogDescription>
+              {t(
+                'journals.portraitFeedbackDescription',
+                'Describe what is wrong, inaccurate, or outdated. LIA will treat this as a strong correction signal and recompile the portrait accordingly.'
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>
+                {t('journals.portraitFeedbackHighlightLabel', 'Highlighted passage (optional)')}
+              </Label>
+              <Input
+                value={feedbackHighlight}
+                onChange={e => setFeedbackHighlight(e.target.value)}
+                placeholder={t(
+                  'journals.portraitFeedbackHighlightPlaceholder',
+                  'Paste the passage that bothers you'
+                )}
+                maxLength={500}
+              />
+            </div>
+            <div>
+              <Label>
+                {t('journals.portraitFeedbackCommentLabel', 'Your correction')}
+              </Label>
+              <Textarea
+                value={feedbackComment}
+                onChange={e => setFeedbackComment(e.target.value)}
+                placeholder={t(
+                  'journals.portraitFeedbackCommentPlaceholder',
+                  'Why is this wrong? What should it say instead?'
+                )}
+                maxLength={2000}
+                rows={5}
+              />
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              {t(
+                'journals.portraitFeedbackHelp',
+                'Submitting will trigger a synchronous re-consolidation (~10-15s).'
+              )}
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFeedbackOpen(false)}>
+              {t('common.cancel', 'Cancel')}
+            </Button>
+            <Button
+              onClick={handleSubmitFeedback}
+              disabled={isSubmittingFeedback || !feedbackComment.trim()}
+            >
+              {isSubmittingFeedback ? (
+                <LoadingSpinner />
+              ) : (
+                <>
+                  <Flag className="h-3.5 w-3.5 mr-1" />
+                  {t('journals.portraitFeedbackSubmit', 'Submit feedback')}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Create Dialog */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
@@ -861,6 +1255,71 @@ export function JournalsSettings({ lng }: JournalsSettingsProps) {
                 placeholder="keyword1, keyword2, keyword3"
                 maxLength={500}
               />
+            </div>
+            <div>
+              <Label>{t('journals.confidenceLabel', 'Confidence')}</Label>
+              <p className="text-[11px] text-muted-foreground mb-1">
+                {t(
+                  'journals.confidenceDescription',
+                  'Epistemic status — override only when you know the assistant misclassified.'
+                )}
+              </p>
+              <Select
+                value={editForm.confidence}
+                onValueChange={v =>
+                  setEditForm({ ...editForm, confidence: v as JournalEntryConfidence })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(['low', 'medium', 'high'] as JournalEntryConfidence[]).map(c => (
+                    <SelectItem key={c} value={c}>
+                      <span className="flex items-center gap-2">
+                        <span
+                          className={`inline-block h-2 w-2 rounded-full ${CONFIDENCE_DOT[c]}`}
+                        />
+                        {t(`journals.confidence.${c}`, c)}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>{t('journals.levelLabel', 'Level')}</Label>
+              <p className="text-[11px] text-muted-foreground mb-1">
+                {t(
+                  'journals.levelDescription',
+                  'Cognitive abstraction level — L0 raw observations, L1 directives, L2 patterns, L3 portrait facets.'
+                )}
+              </p>
+              <Select
+                value={editForm.level}
+                onValueChange={v =>
+                  setEditForm({ ...editForm, level: v as JournalEntryLevel })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ALL_LEVELS.map(l => (
+                    <SelectItem key={l} value={l}>
+                      <span className="flex items-center gap-2">
+                        <Badge
+                          variant="outline"
+                          className={`text-[10px] px-1.5 py-0 font-mono ${LEVEL_BADGE[l]}`}
+                        >
+                          {l}
+                        </Badge>
+                        {t(`journals.levels.${l}.label`, l)}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>

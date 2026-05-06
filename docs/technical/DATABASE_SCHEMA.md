@@ -2884,6 +2884,7 @@ class User(BaseModel):
 | 2026-03-19 | journals_001 | Add journals system (journal_entries table) |
 | 2026-03-20 | hue_global_config_001 | Add Philips Hue to connector_global_config |
 | 2026-03-21 | usage_limits_001 | Add user_usage_limits table (per-user quotas) |
+| 2026-05-05 | journals_stratified_001 | ADR-079: add `level`, `confidence`, `evidence_count`, `contradiction_count` to journal_entries; add `journal_portrait_full`, `journal_portrait_brief`, `journal_portrait_compiled_at` to users (all nullable / server_default — fully reversible) |
 
 ### Alembic Commands
 

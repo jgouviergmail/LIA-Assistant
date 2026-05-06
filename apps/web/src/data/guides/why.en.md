@@ -280,9 +280,15 @@ You're not talking to a tool — you're interacting with an entity whose vocabul
 
 ### 7.3. Personal journals
 
-LIA keeps its own reflections in **personal journals**: self-reflection, observations about the user, ideas, learnings. These notes, written in the first person and colored by the active personality, organically influence future responses.
+LIA keeps its own reflections in **stratified personal journals**: self-reflection, observations about the user, ideas, learnings. These notes, written in the first person and colored by the active personality, organically influence future responses.
 
-This is a form of artificial introspection — the assistant reflecting on its interactions and developing its own perspectives. The user retains full control: reading, editing, deleting.
+The journal is organized along **four levels of depth** — from raw observation (a weak signal noted to see if it confirms) up to portrait facet (a stable trait that says something about who you are), through operational directives and transversal patterns. Each entry carries an **epistemic status**: hypothesis in test, observation confirmed, or directive validated by the evidence accumulated over conversations.
+
+Beyond writing, the journal **measures itself**. At every turn, LIA looks at the directives it applied on the previous turn and reads your reaction on the current turn: if you confirmed, the evidence counter rises; if you pushed back, the contradiction counter rises. Over time, false hypotheses get demoted silently, good intuitions get promoted, transversal patterns emerge through active clustering.
+
+From this stratification emerges a **compiled user-model portrait**: your voice, your rhythm, your contexts, your contradictions, your blind spots. It travels with LIA wherever it speaks — conversation, voice, reminders, proactive notifications, ReAct, fallback — so the assistant doesn't "forget who you are" depending on the surface it's using.
+
+This is a form of artificial introspection — the assistant reflecting on its interactions, measuring its own usefulness, and developing a nuanced understanding of you. You retain full control: reading by theme or by level, editing, signaling a problem on the portrait, triggering a consolidation on demand. The portrait itself is never directly edited — it's a synthesis voice, corrected through indirect levers to preserve its coherence.
 
 ### 7.4. Emotional safety
 

@@ -4,6 +4,8 @@ import pytest
 
 from src.domains.journals.models import (
     JournalEntry,
+    JournalEntryConfidence,
+    JournalEntryLevel,
     JournalEntryMood,
     JournalEntrySource,
     JournalEntryStatus,
@@ -64,10 +66,56 @@ class TestJournalEntrySource:
     """Tests for JournalEntrySource enum."""
 
     def test_source_values(self) -> None:
-        """All 3 sources have expected values."""
+        """All 4 sources have expected values (incl. user_correction added in ADR-079)."""
         assert JournalEntrySource.CONVERSATION.value == "conversation"
         assert JournalEntrySource.CONSOLIDATION.value == "consolidation"
         assert JournalEntrySource.MANUAL.value == "manual"
+        assert JournalEntrySource.USER_CORRECTION.value == "user_correction"
+
+    def test_source_count(self) -> None:
+        """Exactly 4 sources defined."""
+        assert len(JournalEntrySource) == 4
+
+
+@pytest.mark.unit
+class TestJournalEntryConfidence:
+    """Tests for JournalEntryConfidence enum (ADR-079)."""
+
+    def test_confidence_values(self) -> None:
+        """Three epistemic statuses with stable string values."""
+        assert JournalEntryConfidence.LOW.value == "low"
+        assert JournalEntryConfidence.MEDIUM.value == "medium"
+        assert JournalEntryConfidence.HIGH.value == "high"
+
+    def test_confidence_count(self) -> None:
+        """Exactly 3 confidence levels defined."""
+        assert len(JournalEntryConfidence) == 3
+
+    def test_confidence_is_str_enum(self) -> None:
+        """Confidence values are strings (DB-ready)."""
+        for level in JournalEntryConfidence:
+            assert isinstance(level.value, str)
+
+
+@pytest.mark.unit
+class TestJournalEntryLevel:
+    """Tests for JournalEntryLevel enum (ADR-079)."""
+
+    def test_level_values(self) -> None:
+        """Four abstraction levels with L0/L1/L2/L3 string values."""
+        assert JournalEntryLevel.L0.value == "L0"
+        assert JournalEntryLevel.L1.value == "L1"
+        assert JournalEntryLevel.L2.value == "L2"
+        assert JournalEntryLevel.L3.value == "L3"
+
+    def test_level_count(self) -> None:
+        """Exactly 4 levels defined."""
+        assert len(JournalEntryLevel) == 4
+
+    def test_level_string_length_fits_column(self) -> None:
+        """Each level value fits the String(2) column on the model."""
+        for level in JournalEntryLevel:
+            assert len(level.value) <= 2
 
 
 @pytest.mark.unit
@@ -83,3 +131,39 @@ class TestJournalEntryModel:
         assert hasattr(JournalEntry, "__repr__")
         # Verify it's not the default object repr
         assert JournalEntry.__repr__ is not object.__repr__
+
+    def test_stratification_columns_exposed(self) -> None:
+        """ADR-079 columns (level, confidence, evidence_count, contradiction_count) are mapped."""
+        for column_name in (
+            "level",
+            "confidence",
+            "evidence_count",
+            "contradiction_count",
+        ):
+            assert hasattr(JournalEntry, column_name), f"missing column {column_name}"
+
+    def test_dual_vector_columns_exposed(self) -> None:
+        """ADR-069 dual-vector columns (embedding + keyword_embedding) are mapped."""
+        assert hasattr(JournalEntry, "embedding")
+        assert hasattr(JournalEntry, "keyword_embedding")
+
+    def test_default_level_is_l1(self) -> None:
+        """Legacy entries (no explicit level) default to L1 — preserves ADR-064 semantics."""
+        column = JournalEntry.__table__.c.level
+        # SQLAlchemy stores Python default and server default separately
+        assert column.default is not None
+        assert column.default.arg == JournalEntryLevel.L1.value
+
+    def test_default_confidence_is_medium(self) -> None:
+        """Default confidence is medium — neither over- nor under-confident."""
+        column = JournalEntry.__table__.c.confidence
+        assert column.default is not None
+        assert column.default.arg == JournalEntryConfidence.MEDIUM.value
+
+    def test_counters_default_to_zero(self) -> None:
+        """Evidence and contradiction counters start at 0 with server defaults."""
+        for col_name in ("evidence_count", "contradiction_count"):
+            column = JournalEntry.__table__.c[col_name]
+            assert column.default is not None
+            assert column.default.arg == 0
+            assert column.server_default is not None  # so DDL can backfill

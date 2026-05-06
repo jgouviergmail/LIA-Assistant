@@ -3369,11 +3369,6 @@ JOURNAL_CONTEXT_MAX_RESULTS_DEFAULT = 5  # max semantic search results
 JOURNAL_CONTEXT_MIN_SCORE_DEFAULT = 0.63  # Calibrated for Gemini embedding-001 (2026-04-09 v2)
 JOURNAL_CONTEXT_RECENT_ENTRIES_DEFAULT = 0  # recent entries injected regardless of score
 
-# --- Semantic dedup guard (extraction) ---
-JOURNAL_DEDUP_SIMILARITY_THRESHOLD_DEFAULT = (
-    0.87  # Calibrated for Gemini embedding-001 (2026-04-09 v2)
-)
-
 # --- Embedding ---
 JOURNAL_EMBEDDING_MODEL_DEFAULT = "models/gemini-embedding-001"  # Gemini embedding model
 JOURNAL_EMBEDDING_DIMENSIONS_DEFAULT = 1536  # Gemini embedding dimensions

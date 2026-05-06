@@ -2829,8 +2829,8 @@
           "description": "Stato psicologico dinamico che evolve con ogni scambio. Umore (22 emozioni), energia, relazione con l'utente, tratti di personalità (Big Five). L'assistente adatta organicamente tono, vocabolario e comportamento — non lo dice mai, lo mostra. Sicurezza emotiva integrata: i ricordi con forte carica negativa attivano un modo protettivo automatico."
         },
         "personalJournals": {
-          "title": "📓 Diari Personali",
-          "description": "LIA tiene le proprie riflessioni in diari personali: autoriflessione, osservazioni sull'utente, idee, apprendimenti. Queste note, scritte in prima persona e colorate dalla personalità attiva, influenzano organicamente le risposte future. Consolidamento automatico periodico. L'utente mantiene il controllo completo."
+          "title": "📓 Diari Personali (coscienza stratificata)",
+          "description": "LIA tiene le proprie riflessioni in diari personali organizzati su quattro livelli di astrazione — <code>L0</code> osservazione grezza, <code>L1</code> direttiva operativa (QUANDO→FARE PERCHÉ), <code>L2</code> pattern trasversale, <code>L3</code> faccia del ritratto — con uno stato epistemico (confidenza, contatori prove/contraddizioni). Un ciclo di auto-valutazione differita misura, al turno successivo, se ogni direttiva iniettata è stata confermata o contraddetta dall'utente — senza costo LLM aggiuntivo. La stessa chiamata di consolidazione compila anche un ritratto utente (completo ~200 token, breve ~60 token) diffuso in otto flussi dove LIA parla: conversazione, pianificatore, ReAct, voce, promemoria, heartbeat, interessi proattivi, fallback. L'utente mantiene il pieno controllo: lettura per tema o livello, modifica di livello e confidenza, segnalazione di un problema sul ritratto, attivazione di una consolidazione manuale. Il ritratto stesso è una voce di sintesi — mai modificato direttamente."
         },
         "healthMetrics": {
           "title": "🩺 Dati sanitari iPhone (upsert batch polimorfico)",
@@ -2859,6 +2859,21 @@
       "title": "Cronologia delle versioni",
       "description": "Novità funzionali di LIA versione per versione",
       "versions": {
+        "v1_20_0": {
+          "title": "v1.20.0 — Diario stratificato: livelli, stato epistemico, ritratto utente diffuso",
+          "date": "Maggio 2026",
+          "count": "8",
+          "items": {
+            "i1": "<b>I diari personali ottengono quattro livelli di astrazione (L0/L1/L2/L3)</b> — Ogni voce ha ora un livello: <code>L0</code> osservazione grezza (segnale debole da tracciare), <code>L1</code> direttiva operativa (formato QUANDO→FARE PERCHÉ), <code>L2</code> pattern trasversale (sintesi di più L1 convergenti), <code>L3</code> faccia del ritratto. L2 e L3 sono prodotti esclusivamente alla consolidazione, tramite raggruppamento tematico. La pagina Impostazioni mostra ora un badge di livello su ogni voce e un selettore Raggruppa-per (Tema / Livello).",
+            "i2": "<b>Stato epistemico su ogni voce</b> — Ogni voce espone un pallino di <code>confidenza</code> (bassa / media / alta) più contatori di <code>prove</code> e <code>contraddizioni</code>. LIA distingue ora le ipotesi ancora in test dalle osservazioni confermate in molti turni — e declassa silenziosamente le voci che contraddici ripetutamente. Confidenza e livello sono modificabili nel dialog di creazione/modifica.",
+            "i3": "<b>Auto-valutazione differita (T → T+1)</b> — A ogni turno, LIA guarda le direttive iniettate al turno precedente e legge la tua reazione nel messaggio corrente. Se hai confermato, il contatore <code>prove</code> sale; se hai respinto, sale <code>contraddizioni</code>. Il diario misura quindi la propria utilità — senza costo LLM aggiuntivo (stessa chiamata di estrazione, prompt arricchito).",
+            "i4": "<b>Nuova sezione «Come LIA ti vede» nelle impostazioni del diario</b> — Un ritratto utente compilato appare sopra la fisarmonica delle voci, con due tab in sola lettura (Completo / Breve), un timestamp di compilazione e un badge di freschezza. La versione completa (~200 token) alimenta conversazione e pianificatore; la versione breve (~60 token) è diffusa ovunque LIA parli: ReAct, voce, promemoria, notifiche heartbeat, suggerimenti proattivi, risposte di fallback. Lo stesso modello sfumato di te, portato su tutti i canali.",
+            "i5": "<b>Tre leve correttive sul ritratto</b> — Il ritratto è una sintesi e non è mai modificabile direttamente. Tre leve invece: (1) modificare/eliminare le voci L3 sorgente (CRUD standard), (2) <b>🚩 Segnala un problema</b> apre un dialog testo libero e attiva una ri-consolidazione sincrona (~5–10 s) con il tuo segnale fissato in cima al prompt, (3) <b>🔄 Consolida adesso</b> esegue il ciclo completo di consolidazione su richiesta, saltando il cooldown.",
+            "i6": "<b>Filtro intelligente «mostra solo voci mai usate»</b> — Un nuovo interruttore in cima alla lista fa emergere le voci con <code>uses=0</code> e senza data di iniezione. Sono le candidate alla riformulazione o eliminazione alla prossima consolidazione — visibilità immediata su quali direttive non hanno mai servito.",
+            "i7": "<b>Consolidazione più disciplinata</b> — Il prompt di consolidazione esegue ora una scansione di deduplica a coppie esplicita come STEP 1, audita gli errori di classificazione tematica, raggruppa attivamente le L1 convergenti in pattern L2 e compila il ritratto — tutto nella stessa chiamata LLM (nessun costo extra). Risultato: i duplicati rumorosi si riducono periodicamente, voci distinte emergono realmente su tutti i temi e i livelli.",
+            "i8": "<b>GDPR: ritratto cancellato all'eliminazione dell'account</b> — All'eliminazione di un account, le tre colonne del ritratto (completo, breve, data di compilazione) sono cancellate insieme agli altri dati utente. L'endpoint di export include ora il ritratto compilato sotto una chiave <code>portrait</code> per completezza."
+          }
+        },
         "v1_18_1": {
           "title": "v1.18.1 — Today Briefing rifinito, screenshot rinnovati, statistiche arricchite",
           "date": "Aprile 2026",
@@ -3917,36 +3932,40 @@
       },
       "journals": {
         "title": "Diari personali",
-        "description": "Quaderni di bordo dell'assistente per riflessioni e apprendimenti",
-        "count": "7",
+        "description": "Diari di bordo personali dell'assistente per le sue riflessioni e i suoi apprendimenti",
+        "count": "8",
         "questions": {
           "q1": {
             "question": "Cosa sono i diari personali?",
-            "answer": "<p>I diari personali sono quaderni tematici in cui l'assistente IA registra le proprie riflessioni, osservazioni, analisi e apprendimenti. A differenza delle memorie utente (fatti su di te), i diari contengono la <strong>prospettiva personale dell'assistente</strong> — scritti in prima persona, influenzati dalla sua personalità attiva.</p><p><strong>4 temi:</strong> Auto-riflessione, Osservazioni sull'utente, Idee e analisi, Apprendimenti.</p>"
+            "answer": "<p>I diari personali sono quaderni tematici dove l'assistente IA registra le proprie riflessioni, osservazioni, analisi e apprendimenti. A differenza delle memorie utente (fatti su di te), i diari contengono la <strong>prospettiva propria dell'assistente</strong> — scritti in prima persona, colorati dalla sua personalità attiva.</p><p><strong>4 temi:</strong> Auto-riflessione, Osservazioni utente, Idee e analisi, Apprendimenti.</p><p><strong>4 livelli di astrazione:</strong> <code>L0</code> osservazione grezza (segnale debole da tracciare), <code>L1</code> direttiva operativa (formato QUANDO→FARE PERCHÉ predefinito), <code>L2</code> pattern trasversale (solo consolidazione), <code>L3</code> faccia del ritratto che alimenta il modello utente (solo consolidazione).</p>"
           },
           "q2": {
             "question": "Quando l'assistente scrive nei suoi diari?",
-            "answer": "<p><strong>Due meccanismi:</strong></p><ul><li><strong>Post-conversazione:</strong> Dopo le conversazioni (4+ messaggi), l'assistente può scrivere una riflessione. La maggior parte delle conversazioni non produce nulla — è selettivo.</li><li><strong>Consolidamento periodico:</strong> Ogni poche ore, l'assistente rivede tutte le sue note — unisce, riassume o rimuove le voci obsolete.</li></ul>"
+            "answer": "<p><strong>Due meccanismi:</strong></p><ul><li><strong>Post-conversazione:</strong> Dopo le conversazioni (4+ messaggi), l'assistente può scrivere una riflessione. La maggior parte delle conversazioni non produce nulla — è selettivo. L'assistente guarda anche le direttive che ha iniettato al turno precedente e la tua reazione al turno corrente (<strong>auto-valutazione differita T → T+1</strong>): se hai confermato, il contatore <code>prove</code> sale; se hai respinto, il contatore <code>contraddizioni</code> sale. Costo LLM aggiuntivo zero — stessa chiamata di estrazione, prompt arricchito.</li><li><strong>Consolidazione periodica:</strong> Ogni poche ore, l'assistente rivede tutte le note — deduplica a coppie esplicita, audit di classificazione, raggruppamento attivo delle <code>L1</code> convergenti in pattern <code>L2</code>, e compilazione del ritratto utente — tutto nella stessa chiamata LLM.</li></ul>"
           },
           "q3": {
-            "question": "Come influenzano i diari le risposte?",
-            "answer": "<p>Le voci del diario vengono iniettate nei prompt tramite <strong>ricerca semantica</strong>. Due iniezioni distinte: il <strong>prompt di risposta</strong> riceve le voci corrispondenti al tono della conversazione, e il <strong>prompt di pianificazione</strong> riceve quelle corrispondenti agli obiettivi e agli apprendimenti dell'utente. L'assistente decide quali note sono rilevanti.</p>"
+            "question": "Come i diari influenzano le risposte?",
+            "answer": "<p>Due meccanismi complementari:</p><ul><li><strong>Iniezione semantica delle voci pertinenti</strong> nei prompt di risposta e pianificazione — l'assistente decide quali note utilizzare in base ai punteggi di similarità.</li><li><strong>Diffusione ambientale del ritratto utente compilato</strong> in <strong>otto flussi</strong> dove LIA prende la parola: la conversazione e il pianificatore ricevono la versione completa (~200 token), mentre ReAct, voce, promemoria, notifiche heartbeat, suggerimenti proattivi e risposte fallback ricevono la versione breve (~60 token). Lo stesso modello sfumato di te, portato su tutti i canali — il tuo assistente non «dimentica chi sei» a seconda della superficie con cui parla.</li></ul>"
           },
           "q4": {
             "question": "Posso leggere e modificare i diari dell'assistente?",
-            "answer": "<p>Sì! In <strong>Impostazioni > Funzionalità > Diari personali</strong> puoi leggere, modificare, eliminare e persino creare voci. Le tue aggiunte sono trasparenti — l'assistente non nota la differenza. Questo ti permette di correggere pregiudizi o guidare l'assistente.</p>"
+            "answer": "<p>Sì! In <strong>Impostazioni > Funzionalità > Diari personali</strong>, puoi leggere le voci raggruppate per tema <em>o per livello di astrazione</em> (toggle in cima alla fisarmonica), modificare <code>titolo</code> / <code>contenuto</code> / <code>umore</code> / <code>livello</code> / <code>confidenza</code>, eliminare o anche creare le tue voci. Le tue aggiunte sono trasparenti — l'assistente non nota la differenza. Un nuovo filtro <em>«mostra solo voci mai usate»</em> fa emergere le direttive mai iniettate (<code>uses</code> a zero), così puoi fare pulizia rapidamente.</p>"
           },
           "q5": {
             "question": "Quali impostazioni posso configurare?",
-            "answer": "<p><strong>Interruttori:</strong> Attiva/disattiva diari, consolidamento, analisi della cronologia conversazioni (con avviso di costo).</p><p><strong>Impostazioni numeriche:</strong> Dimensione massima del diario (40.000 caratteri predefiniti), budget di iniezione prompt (1.500 caratteri), dimensione massima per voce (2.000 caratteri), risultati di ricerca massimi (10).</p>"
+            "answer": "<p><strong>Interruttori:</strong> Attivare/disattivare diari, consolidazione, analisi della cronologia delle conversazioni (con avviso di costo).</p><p><strong>Impostazioni numeriche:</strong> Dimensione massima dei diari (40.000 caratteri predefiniti), budget di iniezione prompt (1.500 caratteri), dimensione massima per voce (2.000 caratteri), risultati di ricerca massimi (10).</p>"
           },
           "q6": {
             "question": "Quanto costa?",
-            "answer": "<p>Le operazioni del diario utilizzano chiamate LLM in background. Estrazione: una chiamata per conversazione qualificante (la maggior parte non restituisce nulla). Consolidamento: una chiamata ogni 4-12 ore per utente. Modelli LLM configurabili in <strong>Amministrazione > Configurazione LLM</strong>. Costi reali visibili nelle Impostazioni.</p>"
+            "answer": "<p>Le operazioni di diario usano chiamate LLM in background. <strong>Estrazione</strong>: una chiamata per conversazione qualificata (la maggior parte non restituisce nulla). L'auto-valutazione differita arricchisce lo stesso prompt senza costo LLM aggiuntivo. <strong>Consolidazione</strong>: una chiamata ogni 4–12 h per utente; questa stessa chiamata compila ora anche il ritratto utente, quindi la diffusione del ritratto non aggiunge chiamata LLM. La diffusione per turno aggiunge circa +200 token nei prompt conversazione/pianificatore e ~+60 token nei flussi secondari, più una lettura DB (~1 ms). Modelli configurabili in <strong>Amministrazione > Configurazione LLM</strong>. Costi reali visibili in Impostazioni.</p>"
           },
           "q7": {
             "question": "E la privacy?",
-            "answer": "<p>I dati del diario sono per utente e isolati. Tutti i dati possono essere esportati (JSON/CSV) o eliminati (GDPR). Quando disattivati, i dati vengono conservati ma non utilizzati. L'assistente scrive nella lingua configurata.</p>"
+            "answer": "<p>I dati dei diari sono isolati per utente. Tutti i dati possono essere esportati (JSON/CSV) o eliminati (GDPR) — l'export include ora il ritratto compilato. Quando i diari sono disattivati, i dati vengono conservati ma non utilizzati. All'eliminazione di un account, il ritratto compilato viene cancellato insieme alle voci.</p>"
+          },
+          "q8": {
+            "question": "Come funziona la sezione «Come LIA ti vede»?",
+            "answer": "<p>Una sezione dedicata si trova in cima alle impostazioni dei diari. Espone un <strong>ritratto compilato</strong> di te, in due tab in sola lettura:</p><ul><li><strong>Completo</strong> (~200 token) — un ritratto a sfaccettature: tratti di fondo, fase corrente, contesti, contraddizioni, zone d'ombra, evoluzione. Usato nei prompt di conversazione e pianificazione.</li><li><strong>Breve</strong> (~60 token) — l'essenza in 2–3 frasi. Diffuso nei flussi secondari (voce, promemoria, heartbeat, ReAct, proattivo, fallback).</li></ul><p>Il ritratto è una voce di sintesi, intenzionalmente <strong>non direttamente modificabile</strong>. Tre leve correttive sono esposte invece:</p><ol><li><strong>Modificare le voci L3 sorgente</strong> — CRUD standard sulle voci segnate <code>level=L3</code>. Il ritratto si ricompila alla prossima consolidazione.</li><li><strong>🚩 Segnala un problema</strong> — apre un dialog di testo libero. L'invio crea una voce speciale <em>user_correction</em> e attiva una ri-consolidazione sincrona (~5–10 s, loader visibile) che ripondera le voci L3 con il tuo segnale fissato in cima al prompt.</li><li><strong>🔄 Consolida adesso</strong> — esegue il ciclo completo di consolidazione su richiesta, saltando il cooldown.</li></ol><p>Il ritratto porta un indicatore di freschezza — oltre i 7 giorni viene visualizzato come «obsoleto» per invitarti a innescare una ricompilazione.</p>"
           }
         }
       },
@@ -5040,7 +5059,7 @@
       },
       "journals": {
         "title": "Diari personali",
-        "description": "L'assistente sviluppa la propria prospettiva nel tempo attraverso quaderni introspettivi — riflessioni, osservazioni e apprendimenti che colorano la sua personalità e arricchiscono le risposte."
+        "description": "L'assistente sviluppa nel tempo una prospettiva stratificata — osservazioni, direttive, pattern trasversali, facce di ritratto — affinata dall'auto-valutazione differita e che diffonde un ritratto utente coerente ovunque LIA parli."
       },
       "responsive": {
         "title": "PWA & Design responsive",
@@ -5401,7 +5420,72 @@
     "contextMaxResultsDescription": "Numero massimo di voci restituite dalla ricerca semantica per l'iniezione di contesto",
     "searchHints": "Suggerimenti di ricerca",
     "searchHintsDescription": "Parole chiave per la ricerca semantica (separate da virgole)",
-    "chars": "car"
+    "chars": "car",
+    "confidenceLabel": "Confidenza",
+    "confidenceDescription": "Stato epistemico — sostituisci solo quando sai che l'assistente ha classificato in modo errato.",
+    "confidence": {
+      "low": "ipotesi",
+      "medium": "osservata",
+      "high": "validata"
+    },
+    "injectionCount": "Volte usata",
+    "lastInjected": "Ultimo uso",
+    "lastUsed": "ultimo",
+    "never": "mai",
+    "today": "oggi",
+    "yesterday": "ieri",
+    "daysAgo": "{{n}}g fa",
+    "evidenceTooltip": "Conferme / contraddizioni osservate",
+    "filterUnused": "Mostra solo voci mai usate",
+    "consolidateNow": "Consolida",
+    "consolidating": "Consolidamento…",
+    "consolidateNowTooltip": "Forza una consolidazione ora (deduplicazione, promozioni di livello, aggiornamenti di confidenza). Richiede qualche secondo.",
+    "consolidatedSuccess": "{{n}} modifica/he applicata/e in {{s}}s — aggiorna la lista per vedere l'effetto.",
+    "consolidatedNoop": "Nulla da modificare — il tuo diario è già ben organizzato ({{s}}s).",
+    "consolidatedQuota": "Quota LLM superata — riprova più tardi.",
+    "consolidatedError": "Consolidazione manuale fallita.",
+    "portraitTitle": "Come LIA ti vede",
+    "portraitCompiledAt": "Compilato {{when}}",
+    "portraitNeverCompiled": "Non ancora compilato",
+    "portraitFormatFull": "Completo",
+    "portraitFormatBrief": "Sintesi",
+    "portraitTip": "Il ritratto è una sintesi viva. Per correggerlo: segnala un problema, modifica le voci L3 o avvia una consolidazione.",
+    "portraitFeedbackButton": "Segnala un problema",
+    "portraitFeedbackTitle": "Segnala un problema sul ritratto",
+    "portraitFeedbackDescription": "Descrivi cosa è sbagliato, impreciso o obsoleto. LIA lo tratterà come un forte segnale di correzione e ricompilerà il ritratto di conseguenza.",
+    "portraitFeedbackHighlightLabel": "Brano evidenziato (facoltativo)",
+    "portraitFeedbackHighlightPlaceholder": "Incolla il brano che ti disturba",
+    "portraitFeedbackCommentLabel": "La tua correzione",
+    "portraitFeedbackCommentPlaceholder": "Perché è sbagliato? Cosa dovrebbe dire invece?",
+    "portraitFeedbackHelp": "L'invio attiverà una ricompilazione sincrona (~10-15s).",
+    "portraitFeedbackSubmit": "Invia il feedback",
+    "portraitFeedbackSuccess": "Feedback applicato — ritratto ricompilato in {{s}}s",
+    "portraitFeedbackError": "Invio del feedback sul ritratto fallito.",
+    "groupBy": {
+      "label": "Raggruppa per",
+      "theme": "Tema",
+      "level": "Livello"
+    },
+    "levelLabel": "Livello",
+    "levelDescription": "Livello di astrazione cognitiva — L0 osservazioni grezze, L1 direttive, L2 pattern trasversali, L3 sfaccettature del ritratto.",
+    "levels": {
+      "L0": {
+        "label": "Osservazione grezza",
+        "description": "Segnale osservato, contraddizione, indizio di ricezione — prima di ogni direttiva."
+      },
+      "L1": {
+        "label": "Direttiva operativa",
+        "description": "WHEN→DO BECAUSE. Il formato predefinito, ereditato da ADR-064."
+      },
+      "L2": {
+        "label": "Pattern trasversale",
+        "description": "Sintesi attraverso più direttive convergenti."
+      },
+      "L3": {
+        "label": "Sfaccettatura del ritratto",
+        "description": "Tratto, fase attuale, contesto, contraddizione, zona d'ombra — sempre iniettata."
+      }
+    }
   },
   "blog": {
     "meta": {
@@ -5478,9 +5562,9 @@
         "body": "<h2>15+ formati supportati</h2><p>I Knowledge Spaces di LIA accettano oltre <strong>15 formati di file</strong> con parser dedicati:</p><ul><li><strong>PDF</strong> tramite PyMuPDF (estrazione rapida e precisa)</li><li><strong>Documenti</strong> — DOCX, RTF, ODT</li><li><strong>Fogli di calcolo</strong> — XLSX, CSV, ODS</li><li><strong>Presentazioni</strong> — PPTX, ODP</li><li><strong>Web e testo</strong> — HTML, Markdown, JSON, XML, EPUB</li></ul><h2>Chunking intelligente</h2><p>I documenti vengono suddivisi da un <strong>RecursiveCharacterTextSplitter</strong> con parametri ottimizzati: <strong>1000 caratteri</strong> per chunk, <strong>200 caratteri</strong> di sovrapposizione (overlap) per preservare il contesto tra i segmenti. Limite di sicurezza: <strong>500 chunk massimi per documento</strong>, dimensione massima <strong>20 MB per file</strong>.</p><h2>Ricerca ibrida: il meglio dei due mondi</h2><p>LIA combina due approcci di ricerca:</p><ul><li><strong>Ricerca semantica</strong> — Embedding tramite pgvector. Trova i risultati per similarità di significato, anche se le parole differiscono.</li><li><strong>Ricerca BM25</strong> — Corrispondenza per parole chiave. Ideale per termini tecnici, nomi propri e identificativi.</li></ul><p>Il punteggio finale è ponderato con <strong>alpha = 0.7</strong> (70% semantica, 30% BM25). Il punteggio minimo di pertinenza è di <strong>0.5</strong> — i risultati inferiori vengono filtrati. Per impostazione predefinita, <strong>5 chunk</strong> vengono recuperati per query (massimo configurabile: 20).</p><h2>Limiti e quote</h2><p>Ogni utente dispone di: <strong>10 spazi</strong> massimi, <strong>50 documenti per spazio</strong>, <strong>20 MB per file</strong>. Questi limiti garantiscono prestazioni di ricerca ottimali offrendo al contempo una capacità sufficiente per la maggior parte degli utilizzi.</p><h2>Sincronizzazione Google Drive</h2><p>Puoi connettere una <strong>cartella Google Drive</strong> a un Knowledge Space. I documenti vengono automaticamente sincronizzati e re-indicizzati quando cambiano. La sincronizzazione rileva aggiunte, modifiche ed eliminazioni.</p><h2>FAQ integrata</h2><p>LIA possiede un Knowledge Space di sistema contenente la propria documentazione (18 file di FAQ). Questo gli permette di rispondere alle domande sulle proprie funzionalità con precisione.</p>"
       },
       "personal-journals": {
-        "title": "Diari personali: Quando il tuo assistente IA sviluppa la propria memoria",
-        "excerpt": "LIA tiene diari tematici dove annota riflessioni, osservazioni e analisi che influenzano il suo ragionamento.",
-        "body": "<h2>Una memoria introspettiva</h2><p>I Diari Personali sono una funzionalità unica di LIA: l'assistente tiene un <strong>diario personale tematico</strong> dove annota le sue riflessioni, osservazioni sull'utente, idee e apprendimenti. Queste note arricchiscono il suo ragionamento e personalizzano le sue risposte nel tempo.</p><h2>4 temi</h2><p>Ogni voce è classificata in uno dei 4 temi:</p><ul><li><strong>SELF_REFLECTION</strong> — Riflessioni sul proprio funzionamento e le proprie interazioni</li><li><strong>USER_OBSERVATIONS</strong> — Note sulle tue preferenze, abitudini e bisogni</li><li><strong>IDEAS_ANALYSES</strong> — Connessioni, insight e analisi trasversali</li><li><strong>LEARNINGS</strong> — Lezioni tratte dalle interazioni e nuove conoscenze</li></ul><h2>5 umori</h2><p>Ogni voce porta un umore che riflette lo stato introspettivo dell'assistente: <strong>REFLECTIVE</strong> (riflessivo), <strong>CURIOUS</strong> (curioso), <strong>SATISFIED</strong> (soddisfatto), <strong>CONCERNED</strong> (preoccupato) o <strong>INSPIRED</strong> (ispirato).</p><h2>3 fonti di scrittura</h2><p>Le voci provengono da tre fonti distinte:</p><ul><li><strong>CONVERSATION</strong> — Estrazione automatica post-conversazione. L'introspezione analizza l'ultimo messaggio più <strong>4 messaggi di contesto</strong>, e carica le <strong>10 voci recenti</strong> per garantire la continuità ed evitare la deduplicazione.</li><li><strong>CONSOLIDATION</strong> — Sintesi periodica ogni <strong>4 ore</strong>, con un cooldown di <strong>12 ore</strong> e un minimo di <strong>3 voci</strong> per attivare il consolidamento.</li><li><strong>MANUAL</strong> — Voci create direttamente dall'utente tramite l'interfaccia.</li></ul><h2>Ricerca semantica tramite embedding</h2><p>Le voci del diario sono indicizzate tramite embedding <strong>leggeri</strong> (384 dimensioni) per la ricerca semantica. Questo permette di ritrovare le voci pertinenti per similarità di significato, anche se i termini esatti differiscono.</p><h2>Influenza sulle risposte</h2><p>Le voci pertinenti vengono iniettate tramite ricerca semantica nei prompt del pianificatore e del nodo di risposta. LIA riceve le voci con il loro punteggio di similarità e decide autonomamente quali utilizzare.</p><h2>Integrità dei dati</h2><p>Gli LLM possono allucinare UUID durante l'aggiornamento o l'eliminazione di voci del diario. LIA si difende con <strong>tre livelli</strong>: guida nel prompt con tabelle di riferimento degli identificatori, validazione dello schema che rifiuta UUID malformati e filtraggio a runtime che scarta silenziosamente le azioni che fanno riferimento a voci inesistenti. Questo garantisce la coerenza dei dati anche quando il LLM commette errori.</p><h2>Visibilità debug</h2><p>Il pannello di debug mostra sia l'<strong>iniezione di contesto</strong> (quali voci sono state recuperate e iniettate nei prompt, con punteggi di similarità) sia l'<strong>estrazione in background</strong> (cosa l'assistente ha scritto dopo la conversazione — tipo di azione, tema, titolo, umore). I dati di estrazione arrivano tramite un evento SSE supplementare al termine dell'elaborazione in background.</p><h2>Controllo utente</h2><p>Puoi leggere, modificare ed esportare i tuoi diari in Impostazioni > Funzionalità. La funzionalità è interamente disattivabile per utente.</p>"
+        "title": "Diari personali: quando il tuo assistente IA sviluppa la propria memoria",
+        "excerpt": "LIA tiene diari stratificati dove annota osservazioni grezze, direttive operative, pattern trasversali e facce di ritratto. Si affinano turno dopo turno tramite un ciclo di auto-valutazione differita e alimentano un ritratto utente coerente diffuso ovunque LIA parli.",
+        "body": "<h2>Una memoria introspettiva, stratificata</h2><p>I diari personali sono una caratteristica distintiva di LIA: l'assistente tiene un <strong>diario personale tematico</strong> dove annota riflessioni, osservazioni sull'utente, idee e apprendimenti. Ma a differenza di un blocco piatto, queste note sono organizzate su <strong>quattro livelli di astrazione</strong>, ogni voce porta uno <strong>stato epistemico</strong> (confidenza + contatori prove/contraddizioni), e l'insieme compila un <strong>ritratto utente vivente</strong> che viaggia con LIA su tutti i canali.</p><h2>4 temi</h2><p>Ogni voce è classificata in uno dei 4 temi:</p><ul><li><strong>SELF_REFLECTION</strong> — Riflessioni sul proprio funzionamento e sulle interazioni</li><li><strong>USER_OBSERVATIONS</strong> — Segnali stabili sulle tue preferenze, abitudini, stile di comunicazione</li><li><strong>IDEAS_ANALYSES</strong> — Pattern trasversali, ipotesi, contraddizioni ricorrenti</li><li><strong>LEARNINGS</strong> — Lezioni concrete ancorate a correzioni passate o approcci riusciti</li></ul><h2>4 livelli di astrazione (dalla v1.20.0)</h2><p>Ogni voce porta anche un livello che cattura il suo grado di distillazione:</p><ul><li><strong>L0 — osservazione grezza</strong>: un segnale debole da tracciare, prima che possa diventare una direttiva («L'utente ha riso della mia risposta ma non posso dire se caldo o ironico — tracciare»).</li><li><strong>L1 — direttiva operativa</strong>: il formato <code>QUANDO [contesto] → FA [azione] (PERCHÉ [prova])</code>. Predefinito all'estrazione.</li><li><strong>L2 — pattern trasversale</strong>: una sintesi di più L1 convergenti. Prodotto esclusivamente alla consolidazione, per raggruppamento tematico.</li><li><strong>L3 — faccia del ritratto</strong>: un frammento del modello utente — tratti di fondo, fase attuale, contesti, contraddizioni, zone d'ombra, evoluzione. Solo consolidazione.</li></ul><h2>Stato epistemico — ipotesi, osservato, validato</h2><p>Ogni voce espone un pallino di <strong>confidenza</strong> (bassa / media / alta) e due contatori: <strong>prove</strong> (le volte che l'utente ha confermato) e <strong>contraddizioni</strong> (le volte che ha respinto). LIA distingue ora le voci ancora in test da quelle validate in molti turni — e declassa silenziosamente le direttive che l'utente contraddice ripetutamente.</p><h2>Auto-valutazione differita: T → T+1</h2><p>Il meccanismo più sorprendente: a ogni turno, LIA guarda le direttive che ha iniettato al turno <strong>precedente</strong> e legge la tua reazione nel messaggio corrente. Se hai confermato (impegno fluido, ringraziamento, beneficio visibile), il contatore <code>prove</code> sale. Se hai respinto, riformulato o corretto, sale <code>contraddizioni</code>. Il diario misura quindi la propria utilità — a <strong>costo LLM aggiuntivo zero</strong>: stessa chiamata di estrazione, semplicemente un prompt arricchito con le direttive del turno precedente.</p><h2>Il ritratto utente, diffuso ovunque</h2><p>La stessa chiamata di consolidazione compila ora anche un <strong>ritratto di te</strong> in due formati: una versione completa (~200 token) usata nei prompt di conversazione e pianificazione, e una versione breve (~60 token) diffusa nei flussi secondari — ReAct, voce, promemoria, notifiche heartbeat, suggerimenti di interessi proattivi, risposte fallback. Lo stesso modello sfumato di te, portato in ogni canale dove LIA parla. Il tuo assistente non «dimentica chi sei» a seconda della superficie con cui parla.</p><h2>Tre leve correttive (nessuna modifica diretta del ritratto)</h2><p>Il ritratto è una voce di sintesi — mai modificato direttamente. Tre leve sostituiscono la modifica diretta:</p><ul><li><strong>Modificare le voci L3 sorgente</strong> — CRUD standard sulle voci segnate level=L3. Il ritratto si ricompila alla prossima consolidazione.</li><li><strong>🚩 Segnala un problema</strong> — apre un dialog di testo libero. L'invio crea una voce speciale <em>user_correction</em> e attiva una ri-consolidazione sincrona (~5–10 s) che ripondera le voci L3 con il tuo segnale fissato in cima al prompt.</li><li><strong>🔄 Consolida adesso</strong> — esegue il ciclo completo di consolidazione su richiesta, saltando il cooldown.</li></ul><h2>Filtri intelligenti, badge, raggruppamento</h2><p>La pagina Impostazioni mostra ora badge di confidenza, livello e contatore di utilizzo su ogni voce. Un toggle permette di raggruppare per Tema o Livello, e un filtro fa emergere solo le voci mai usate (<code>uses</code> a zero, nessuna data di iniezione) — visibilità immediata sulle direttive che non hanno mai dimostrato la loro utilità, pronte per essere riformulate o rimosse alla prossima consolidazione.</p><h2>Integrità dei dati: quattro livelli anti-allucinazione</h2><p>Gli LLM possono allucinare UUID e valori di contatore aggiornando le voci. LIA si difende con <strong>quattro livelli</strong>: guida a livello di prompt con tabelle di riferimento ID, validazione UUID a livello di schema che rifiuta gli ID malformati, filtraggio runtime che scarta le azioni che referenziano voci inesistenti, e incrementi atomici dei contatori — il LLM segnala solo un esito (<em>prova</em> o <em>contraddizione</em>), il servizio possiede gli interi.</p><h2>Controllo utente e privacy</h2><p>Puoi leggere, modificare (livello + confidenza inclusi), esportare ed eliminare i tuoi diari in Impostazioni > Funzionalità. L'export include ora il ritratto compilato. All'eliminazione del tuo account, il ritratto viene cancellato insieme alle voci. La funzionalità è completamente disattivabile per utente — quando disattivata, i dati sono conservati ma mai utilizzati.</p>"
       },
       "proactive-notifications": {
         "title": "Intelligenza proattiva: notifiche e iniziativa",

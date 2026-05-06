@@ -61,6 +61,7 @@ LIA aggregates **10 data sources** in parallel to decide whether to notify you:
 **📓 Journals:**
 • Relevant entries from the assistant's personal journals (self-reflection, observations, learnings)
 • Journals are fetched in a **second pass** — LIA builds a dynamic query from the aggregated context (calendar, weather, emails, etc.) to find the most relevant journal entries
+• In addition to the dynamic-query entries, the **compiled user-model portrait brief** (~60 tokens) is injected so the notification voice is aligned with the same nuanced model of you that drives the conversation
 • Requires journals to be enabled (Settings > Features > Personal Journals)
 
 **📊 Indicators:**

@@ -280,9 +280,15 @@ Sie sprechen nicht mit einem Werkzeug — Sie interagieren mit einer Entität, d
 
 ### 7.3. Die Journale
 
-LIA führt eigene Gedanken in **persönlichen Journalen**: Selbstreflexion, Beobachtungen über den Benutzer, Ideen, Erkenntnisse. Diese in der Ich-Perspektive verfassten und von der aktiven Persönlichkeit gefärbten Notizen beeinflussen organisch die künftigen Antworten.
+LIA führt eigene Gedanken in **stratifizierten persönlichen Journalen**: Selbstreflexion, Beobachtungen über den Benutzer, Ideen, Erkenntnisse. Diese in der Ich-Perspektive verfassten und von der aktiven Persönlichkeit gefärbten Notizen beeinflussen organisch die künftigen Antworten.
 
-Das ist eine Form künstlicher Introspektion — der Assistent, der über seine Interaktionen nachdenkt und eigene Perspektiven entwickelt. Der Benutzer behält die volle Kontrolle: Lesen, Bearbeiten, Löschen.
+Das Journal ist auf **vier Ebenen der Tiefe** organisiert — von der Rohbeobachtung (ein schwaches Signal, das notiert wird, um zu sehen, ob es sich bestätigt) bis zur Porträt-Facette (ein stabiles Merkmal, das etwas darüber aussagt, wer Sie sind), über operative Direktiven und übergreifende Muster. Jeder Eintrag trägt einen **epistemischen Status**: Hypothese in Prüfung, bestätigte Beobachtung oder durch über Gespräche akkumulierte Beweise validierte Direktive.
+
+Über das Schreiben hinaus **misst sich das Journal selbst**. Bei jeder Runde betrachtet LIA die in der vorherigen Runde angewandten Direktiven und liest Ihre Reaktion in der aktuellen Runde: Haben Sie bestätigt, steigt der Beweise-Zähler; haben Sie widersprochen, steigt der Widersprüche-Zähler. Mit der Zeit werden falsche Hypothesen leise herabgestuft, gute Intuitionen befördert, übergreifende Muster durch aktives Clustering sichtbar.
+
+Aus dieser Stratifizierung ergibt sich ein **kompiliertes Nutzer-Porträt**: Ihre Stimme, Ihr Rhythmus, Ihre Kontexte, Ihre Widersprüche, Ihre blinden Flecken. Es reist mit LIA überall hin, wo sie spricht — Konversation, Stimme, Erinnerungen, proaktive Benachrichtigungen, ReAct, Fallback — damit der Assistent „nicht vergisst, wer Sie sind" je nach genutzter Oberfläche.
+
+Das ist eine Form künstlicher Introspektion — der Assistent, der über seine Interaktionen nachdenkt, seine eigene Nützlichkeit misst und ein nuanciertes Verständnis von Ihnen entwickelt. Sie behalten die volle Kontrolle: Lesen nach Thema oder Ebene, Bearbeiten, Problem-Meldung am Porträt, Auslösen einer Konsolidierung auf Anfrage. Das Porträt selbst wird nie direkt bearbeitet — es ist eine Synthese-Stimme, korrigiert über indirekte Hebel, um seine Kohärenz zu bewahren.
 
 ### 7.4. Emotionale Sicherheit
 

@@ -365,6 +365,7 @@ class VoiceCommentService:
         """
         # Resolve psyche context before template formatting
         psyche_block = ""
+        user_model_block = ""
         if self._user_id:
             try:
                 from src.domains.psyche.service import build_psyche_prompt_block
@@ -374,6 +375,16 @@ class VoiceCommentService:
                 )
             except Exception:
                 pass  # Psyche injection is best-effort
+            try:
+                from src.domains.journals.portrait_builder import (
+                    build_journal_user_model_block,
+                )
+
+                user_model_block = await build_journal_user_model_block(
+                    user_id=self._user_id, format="brief", flow="voice"
+                )
+            except Exception:
+                pass  # Journal portrait injection is best-effort
 
         prompt = self._build_prompt(
             context_summary=request.context_summary,
@@ -383,6 +394,8 @@ class VoiceCommentService:
             user_query=request.user_query,
             psyche_context=psyche_block,
         )
+        if user_model_block:
+            prompt = prompt + "\n\n" + user_model_block
 
         # Get LLM for voice comment generation (uses centralized config from settings)
         llm = get_llm("voice_comment")

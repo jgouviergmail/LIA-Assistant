@@ -27,8 +27,51 @@ from src.core.constants import SCHEDULER_JOB_JOURNAL_CONSOLIDATION
 from src.infrastructure.cache.redis import get_redis_cache
 from src.infrastructure.locks import SchedulerLock
 from src.infrastructure.observability.logging import get_logger
+from src.infrastructure.observability.metrics_journals import (
+    journal_level_distribution,
+    journal_zero_injection_age_days,
+)
 
 logger = get_logger(__name__)
+
+
+async def _refresh_effectiveness_gauge() -> None:
+    """Refresh the journal_zero_injection_age_days + journal_level_distribution gauges.
+
+    - ``journal_zero_injection_age_days``: average age (in days) of active entries
+      never injected into a prompt. Central effectiveness metric — high values
+      signal directives accumulating without value.
+    - ``journal_level_distribution{level}``: count of active entries per
+      abstraction level (L0/L1/L2/L3). Reveals the cognitive shape of the
+      journal — too many L0 means insufficient maturation, too many L1 with
+      no L2 means missing pattern synthesis.
+
+    Best-effort: never raises, never blocks the consolidation flow.
+    """
+    try:
+        from src.domains.journals.repository import JournalEntryRepository
+        from src.infrastructure.database import get_db_context
+
+        async with get_db_context() as db:
+            repo = JournalEntryRepository(db)
+            avg_days = await repo.compute_zero_injection_age_days_avg()
+            level_counts = await repo.count_by_level_global()
+        journal_zero_injection_age_days.set(avg_days)
+        # Reset all known level labels to 0 (so absent levels report 0, not stale)
+        for known_level in ("L0", "L1", "L2", "L3"):
+            journal_level_distribution.labels(level=known_level).set(
+                level_counts.get(known_level, 0)
+            )
+        logger.debug(
+            "journal_effectiveness_gauges_refreshed",
+            avg_days=round(avg_days, 2),
+            level_counts=level_counts,
+        )
+    except Exception as exc:
+        logger.warning(
+            "journal_effectiveness_gauges_refresh_failed",
+            error=str(exc),
+        )
 
 
 async def process_journal_consolidation() -> dict[str, Any]:
@@ -173,6 +216,10 @@ async def process_journal_consolidation() -> dict[str, Any]:
             )
         else:
             status = "completed"
+
+        # Refresh the effectiveness gauge after the batch (best-effort).
+        # Captures the post-consolidation state of "stale" entries.
+        await _refresh_effectiveness_gauge()
 
         duration_ms = (time.monotonic() - start_time) * 1000
 

@@ -20,6 +20,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.domains.journals.constants import JOURNAL_ENTRY_CONTENT_MAX_LENGTH
 from src.domains.journals.models import (
     JournalEntry,
+    JournalEntryConfidence,
+    JournalEntryLevel,
     JournalEntryMood,
     JournalEntrySource,
     JournalEntryStatus,
@@ -27,6 +29,10 @@ from src.domains.journals.models import (
 from src.domains.journals.repository import JournalEntryRepository
 from src.domains.journals.schemas import JournalCostInfo, JournalSizeInfo
 from src.infrastructure.observability.logging import get_logger
+from src.infrastructure.observability.metrics_journals import (
+    journal_consolidation_promotions_total,
+    journal_evidence_total,
+)
 
 logger = get_logger(__name__)
 
@@ -126,6 +132,8 @@ class JournalService:
         personality_code: str | None = None,
         max_entry_chars: int = JOURNAL_ENTRY_CONTENT_MAX_LENGTH,
         search_hints: list[str] | None = None,
+        confidence: str = JournalEntryConfidence.MEDIUM.value,
+        level: str = JournalEntryLevel.L1.value,
     ) -> JournalEntry:
         """
         Create a new journal entry with char_count and embedding.
@@ -141,6 +149,11 @@ class JournalService:
             personality_code: Active personality code when entry was written
             max_entry_chars: Max content length (safety net for LLM output)
             search_hints: LLM-generated keywords bridging user vocabulary to content
+            confidence: Epistemic status — defaults to "medium" for fresh entries.
+                The extractor LLM may set "low" for new hypotheses.
+            level: Abstraction level — defaults to "L1" (operational directive).
+                The LLM may set "L0" for raw observations, "L2" for patterns, or
+                "L3" for portrait facets.
 
         Returns:
             Created JournalEntry with ID, char_count, and embedding
@@ -175,6 +188,8 @@ class JournalService:
             embedding=embedding,
             keyword_embedding=keyword_embedding,
             search_hints=search_hints,
+            confidence=confidence,
+            level=level,
         )
 
         return await self.repo.create(entry)
@@ -191,6 +206,10 @@ class JournalService:
         mood: str | None = None,
         max_entry_chars: int = JOURNAL_ENTRY_CONTENT_MAX_LENGTH,
         search_hints: list[str] | None = None,
+        confidence: str | None = None,
+        evidence_outcome: str | None = None,
+        level: str | None = None,
+        theme: str | None = None,
     ) -> JournalEntry:
         """
         Update an existing journal entry.
@@ -204,6 +223,20 @@ class JournalService:
             mood: New mood (None = keep current)
             max_entry_chars: Max content length (safety net for LLM output)
             search_hints: New search hints (None = keep current)
+            confidence: New epistemic status (None = keep current). The LLM may
+                promote/demote based on evidence accumulation; the user may also
+                override manually via the API.
+            evidence_outcome: Deferred self-evaluation signal — "evidence" or
+                "contradiction". When set, atomically increments the corresponding
+                counter on the entry. The LLM only signals the outcome; the absolute
+                counts are system-managed to prevent hallucination.
+            level: New abstraction level (L0/L1/L2/L3). When the level differs
+                from the current one, the consolidation_promotions Prometheus
+                counter is incremented.
+            theme: New theme — used by the consolidation reclassification audit
+                to fix systematic misclassifications (e.g. moving a directive
+                from `user_observations` to `learnings` when its BECAUSE clause
+                cites a specific past correction event).
 
         Returns:
             Updated JournalEntry
@@ -224,9 +257,37 @@ class JournalService:
         if mood is not None:
             entry.mood = mood
 
+        if theme is not None:
+            entry.theme = theme
+
         if search_hints is not None:
             entry.search_hints = search_hints
             content_changed = True  # Hints affect embedding text
+
+        if confidence is not None:
+            entry.confidence = confidence
+
+        if level is not None and level != entry.level:
+            try:
+                journal_consolidation_promotions_total.labels(
+                    from_level=entry.level, to_level=level
+                ).inc()
+            except Exception:  # pragma: no cover — metrics never break writes
+                pass
+            entry.level = level
+
+        if evidence_outcome == "evidence":
+            entry.evidence_count = entry.evidence_count + 1
+            try:
+                journal_evidence_total.labels(outcome="evidence").inc()
+            except Exception:  # pragma: no cover
+                pass
+        elif evidence_outcome == "contradiction":
+            entry.contradiction_count = entry.contradiction_count + 1
+            try:
+                journal_evidence_total.labels(outcome="contradiction").inc()
+            except Exception:  # pragma: no cover
+                pass
 
         # Regenerate dual embeddings if title, content, or search_hints changed
         if content_changed:
@@ -321,12 +382,3 @@ class JournalService:
             timestamp=getattr(user, "journal_last_cost_at", None),
             source=getattr(user, "journal_last_cost_source", None),
         )
-
-    # =========================================================================
-    # Archive (used by extraction/consolidation via prompt-driven lifecycle)
-    # =========================================================================
-
-    async def archive_entry(self, entry: JournalEntry) -> JournalEntry:
-        """Archive an entry (soft status change, data preserved)."""
-        entry.status = JournalEntryStatus.ARCHIVED.value
-        return await self.repo.update(entry)

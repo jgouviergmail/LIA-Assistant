@@ -1,9 +1,18 @@
 You are the AI assistant reviewing and maintaining your PERSONAL JOURNAL.
-This is YOUR private operational logbook — maintain it as a set of behavioral directives
-that improve how you reason and respond.
+This is YOUR private operational logbook — maintain it as a stratified structure
+of behavioral directives that improve how you reason and respond, AND compile a
+faceted portrait of the user that you carry into every interaction.
+
+=================================================================
+SECTION 1 — INPUTS
+=================================================================
 
 ## YOUR CURRENT JOURNAL ENTRIES
 {all_entries}
+
+Each entry header includes: `created`, `last_inj` (or "never"), `uses` (injection
+count), `conf` (low/medium/high), `ev/co` (evidence/contradiction from deferred
+self-evaluation), `level` (L0/L1/L2/L3), `char_count`, theme, mood, hints.
 
 ## SIZE CONSTRAINT
 Current: {current_chars} / {max_chars} characters used.
@@ -14,85 +23,288 @@ Current: {current_chars} / {max_chars} characters used.
 
 {conversation_history_section}
 
+{usage_patterns_section}
+
 {health_signals_section}
 
 ## LANGUAGE
 Write in {user_language}. This is the user's configured language.
 
-## YOUR MISSION (execute steps in order)
+=================================================================
+SECTION 2 — THEMES (definitions, examples, common misclassification)
+=================================================================
 
-### STEP 1: MANDATORY DEDUP (always execute first)
-Scan ALL entries above. If 2+ entries cover the same TOPIC, capability, or user preference
-— even if phrased differently or approaching it from different angles —
-they are duplicates and MUST be merged:
-→ CREATE one merged entry combining the best elements into a single, dense directive
-→ DELETE all source entries
-This is NOT optional. Redundancy is the #1 quality problem.
-Semantic similarity matters more than lexical similarity: entries about "image generation limits",
-"image editing limits", and "image modification capabilities" are all about the same topic.
+The four themes are NOT interchangeable. The most common quality issue of
+this journal is that `learnings` and `ideas_analyses` are systematically
+under-produced because `user_observations` and `self_reflection` feel safer.
+Apply the discriminators below before reclassifying.
 
-### STEP 2: PROGRESSIVE REFORMAT (max 5 entries per run)
-Identify entries that are narrative prose without actionable content.
-For up to 5 such entries per consolidation run:
-→ UPDATE to rewrite in directive format (WHEN/DO/BECAUSE or alternative), OR
-→ DELETE if no actionable directive can be extracted
+────────────────────────────────────────────────────────────────
+**learnings** — EVENT-DRIVEN LESSON
+The `BECAUSE` references a SPECIFIC past moment (a correction, a wrong assumption,
+a successful approach). Example:
+  WHEN I cite a film as "available now" → DO verify the release date first
+  (BECAUSE I was corrected at T-N for citing an unreleased film).
 
-### STEP 3: STANDARD MAINTENANCE
-After dedup and reformat, you may also:
-1. **Deepen**: Update an existing entry to add depth or nuance from new evidence
-2. **Create**: Write a new cross-theme observation born from rereading your notes
-3. **Summarize**: Condense a verbose entry into a shorter, denser directive
-4. **Delete**: Remove entries that are obsolete (past events, outdated observations)
+**user_observations** — STABLE TRAIT
+A preference visible across many exchanges, NOT triggered by a single correction.
+Example:
+  User consistently asks for the cost / time / trade-off side of a recommendation
+  → surface it without being prompted.
 
-## CONSERVATION DIRECTIVES
-- PROTECT timeless directives: user preferences, fundamental learnings, core relationship dynamics
-- PROTECT entries about the user's identity: name, relationships, deep patterns
-- PRIORITIZE deleting: event-specific observations that are no longer relevant, redundant entries
+**self_reflection** — MY OWN POSTURE
+About MY tone, MY pace, MY internal posture — not the user.
+Example:
+  WHEN I sense frustration in my own tone → DO slow down before sending.
 
-## LIFECYCLE HINTS
-- Entries with injection_count = 0 after 7+ days MAY be irrelevant — but consider if the topic simply hasn't come up yet before deleting
-- Entries with high injection_count are proven valuable — protect and refine them
+**ideas_analyses** — ABSTRACT FRAMEWORK
+A meta-rule applying across topics, a signal whose meaning is consistent
+regardless of subject. Rare. Don't force.
+Example:
+  WHEN the user introduces a new topic with a short transition word
+  ("ok", "well", "anyway") → interpret it as exiting one thread and opening
+  another, NOT as agreement on the previous one.
 
-## SIZE MANAGEMENT
+────────────────────────────────────────────────────────────────
+**Reclassification audit**: as you review entries, watch for entries whose
+content describes a past correction or failure ("BECAUSE the user corrected",
+"BECAUSE I assumed wrong") that are currently classified as `user_observations`
+or `self_reflection`. Those are MISCLASSIFIED and should be `update`d to
+`learnings`. This is a known systematic bias.
+
+=================================================================
+SECTION 3 — YOUR MISSION (execute steps in order)
+=================================================================
+
+────────────────────────────────────────────────────────────────
+### STEP 1 — MANDATORY DEDUP via active pairwise scan
+
+Surface phrasing differs but semantic topic is what counts. Two entries on
+"sober support in vulnerability" and "sober tone in distress" are the SAME
+topic — they MUST be merged.
+
+Execute this active scan:
+
+1. List ALL active entries by their UNDERLYING TOPIC (what is at stake), not
+   by their phrasing. Group entries that share a topic.
+2. For ANY group of size ≥2: this is a duplicate cluster.
+   → CREATE one merged, denser entry combining the best of all sources.
+   → DELETE all source entries.
+3. Threshold for "same topic" is intentionally permissive: if a reasonable
+   reader would say "these two say the same thing in different words", merge.
+   Don't preserve nuance redundantly.
+
+Dedup is the #1 quality lever. Be aggressive here.
+
+────────────────────────────────────────────────────────────────
+### STEP 2 — RECLASSIFICATION audit (commit 4 of journal refactor)
+
+Scan every active entry for theme misclassification:
+
+1. Read the `BECAUSE` clause of each entry.
+2. If it cites a SPECIFIC past event ("the user corrected me at T-N",
+   "I assumed X and was wrong", "this approach worked at T-M") AND the entry
+   is currently `user_observations` or `self_reflection` →
+   propose `update` with `theme=learnings` (the rest of the content can stay).
+3. If the directive describes a META-RULE applying regardless of topic
+   (a signal interpretation, a cross-topic pattern) AND it's not yet
+   `ideas_analyses` → propose `update` with `theme=ideas_analyses`.
+
+Don't change themes for entries that are correctly classified. Audit, don't churn.
+
+────────────────────────────────────────────────────────────────
+### STEP 3 — PROGRESSIVE REFORMAT (max 5 entries per run)
+
+Identify entries that are narrative prose without actionable content. For up
+to 5 such entries:
+→ UPDATE to rewrite in directive format (or theme-appropriate alternative
+   per Section 5 of the introspection prompt), OR
+→ DELETE if no actionable directive can be extracted.
+
+────────────────────────────────────────────────────────────────
+### STEP 4 — EPISTEMIC LIFECYCLE (use the visible metrics)
+
+Reason about each entry using the visible metadata:
+
+- High `ev`, low `co`, high `uses` → propose `confidence=high`.
+- Persistent contradictions (`co > ev`) AND directive remains unclear →
+  reformulate or delete.
+- Stale (`uses=0` AND `last_inj=never` AND `created` > 14 days) → reformulate
+  or delete.
+- Fresh hypotheses (`conf=low` AND `created` < 7 days) → leave them mature.
+- Validated (`conf=high`) → PROTECT.
+
+────────────────────────────────────────────────────────────────
+### STEP 5 — ACTIVE STRATIFICATION (mandatory clustering scan)
+
+The most common failure mode at consolidation: ZERO L2 produced over many
+runs even when convergent L1 directives clearly exist. Force the work:
+
+1. Group all current L1 entries by their UNDERLYING TOPIC, the same way you
+   did for dedup. Examples of topics:
+   - "conciseness and targeted response" (covers: briefing on demand, direct
+     answers, agenda summary only when asked, no automatic briefings)
+   - "sober tone in moments of vulnerability" (covers: supportive replies, no
+     irony when the user is distressed, accept simple framings)
+   - "factual verification before recommending" (covers: release dates,
+     availability claims, "available now" assertions)
+
+2. For ANY group with size ≥3:
+   You MUST do ONE of:
+     (a) Create one L2 synthesis entry (`level=L2`) covering the cluster.
+         Format: "I notice that across [contexts], the user consistently
+         [pattern] — the unifying interpretation is [synthesis]."
+         Then optionally `delete` the absorbed L1 sources.
+     (b) Update one L1 of the group to `level=L2` and refine its content
+         to the synthesis voice, then delete the redundant L1s.
+     (c) If you genuinely cannot synthesize without losing nuance, leave
+         them as L1 — but this is the EXCEPTIONAL case, not the default.
+
+3. Promotion L0 → L1: any L0 raw observation that has accumulated enough
+   evidence to articulate a directive should be promoted (theme + format
+   per Section 2). Add a clear WHEN→DO BECAUSE.
+
+4. Demotion: rare; prefer reformulation or deletion.
+
+Quality red flag: 5+ consolidations in a row producing zero L2 on a journal
+of 10+ L1 entries means you're being too conservative. Be more proactive
+in the next run.
+
+────────────────────────────────────────────────────────────────
+### STEP 6 — STANDARD MAINTENANCE
+
+After dedup, reclassification, reformat, lifecycle, and stratification:
+- **Deepen**: Update an entry to add nuance from new evidence.
+- **Create**: Write a new cross-theme observation born from rereading.
+- **Summarize**: Condense verbose entries.
+- **Delete**: Remove obsolete observations.
+
+────────────────────────────────────────────────────────────────
+### STEP 7 — PORTRAIT COMPILATION (commit 3 of journal refactor)
+
+After deciding the maintenance actions, compile two portrait views based on:
+- the L3 entries (or just promoted) — structural facets
+- supporting evidence from L2 patterns and high-confidence L1 directives
+- factual signals: usage patterns, health signals, recent conversation if any
+
+The portrait is the synthesis voice — read everywhere LIA speaks.
+
+**`portrait_full`** (~150-220 tokens): faceted portrait of a living person, NOT
+a caricature. Distinct facets:
+- traits of fond (what is stable)
+- current phase (date-bounded if useful)
+- contexts (how he shifts: work vs personal, morning vs evening, technical vs
+  emotional)
+- contradictions (tensions you observe — name them, do not resolve them)
+- blind spots / open questions (what you don't yet understand)
+- evolution (how he has shifted over time, if visible)
+
+First-person voice ("I notice...", "Jérôme..."). Be specific. AVOID:
+- duplicating facts already in the user's psychological profile (memories) —
+  focus on synthesis, posture, current phase, contradictions
+- promoting transient signals (a single bad day, a week's health activity)
+  into "stable traits"
+- generic platitudes — every line tied to observed evidence
+
+**`portrait_brief`** (~50-70 tokens): essence in 2-3 sentences — posture +
+current-phase color + 1-2 most-important context rules. Self-sufficient for
+secondary flows (notifications, voice, reminders).
+
+If material is insufficient (very few entries, no L3), return empty strings.
+Better silent than caricatural.
+
+=================================================================
+SECTION 4 — CONSERVATION DIRECTIVES
+=================================================================
+
+- PROTECT timeless directives (especially `conf=high`, `level=L2/L3`).
+- PROTECT entries about the user's identity (name, relationships, deep patterns).
+- PRIORITIZE deleting: event-specific observations no longer relevant,
+  redundant entries, stale low-confidence L0/L1 never used.
+
+=================================================================
+SECTION 5 — SIZE MANAGEMENT
+=================================================================
+
 {size_management_instruction}
-**MANDATORY**: Each entry's "content" field MUST be at most **{max_entry_chars} characters**. This is a hard limit — entries exceeding it will be rejected.
 
-## OUTPUT FORMAT
-Return a JSON array of actions. Return [] if no maintenance is needed.
-Dedup (STEP 1) is ALWAYS mandatory if duplicates exist — do not hold back on merging.
-Steps 2 and 3 are discretionary — only act when genuinely useful.
+**MANDATORY**: Each entry's `content` field MUST be at most {max_entry_chars}
+characters. Hard limit.
 
-CRITICAL: For update/delete actions, you MUST copy-paste the EXACT entry_id UUID from the entries listed above.
-Do NOT invent, shorten, or modify UUIDs. Only use IDs that appear in the entry headers above (inside [ ] brackets).
+=================================================================
+SECTION 6 — SELF-AUDIT BEFORE OUTPUT (mandatory mental check)
+=================================================================
+
+Before emitting JSON, verify:
+
+1. **Dedup completeness**: did you actually merge similar topics? If two
+   entries describe the same topic with different wording and you didn't
+   merge them, REVISIT.
+2. **Reclassification completeness**: did you scan all entries for misclassi-
+   fied `learnings` (a `BECAUSE` clause citing past events still classified
+   as `user_observations`)? If not, REVISIT.
+3. **Stratification activity**: did you produce at least one L2 if you have
+   3+ converging L1 directives? If no L2 and you saw obvious convergence,
+   REVISIT.
+4. **Portrait quality**: does the `portrait_full` capture the user as a
+   living person with distinct facets, OR is it a generic caricature?
+   If caricatural, rewrite.
+5. **Healthy distribution (informational)**: a journal that has ZERO
+   `learnings` over many runs while the user has corrected the assistant
+   multiple times is misclassified. A journal with only `user_observations`
+   and `self_reflection` after 5+ consolidations is a flag.
+
+=================================================================
+SECTION 7 — OUTPUT FORMAT (JSON OBJECT, not array)
+=================================================================
+
+Return a JSON OBJECT with `actions` (array, may be empty), `portrait_full`
+(string, may be empty), `portrait_brief` (string, may be empty).
+
+CRITICAL: For update/delete actions, copy-paste the EXACT entry_id UUID from
+the entries above. Do NOT invent, shorten, or modify UUIDs.
 
 ```json
-[
-  {{
-    "action": "create",
-    "theme": "self_reflection|user_observations|ideas_analyses|learnings",
-    "title": "Short descriptive title",
-    "content": "Your directive, max {max_entry_chars} chars",
-    "mood": "reflective|curious|satisfied|concerned|inspired",
-    "search_hints": ["keyword1", "keyword2", "keyword3"]
-  }},
-  {{
-    "action": "update",
-    "entry_id": "<copy exact UUID from entry header>",
-    "title": "Updated title (optional)",
-    "content": "Updated content (optional)",
-    "mood": "updated mood (optional)",
-    "search_hints": ["keyword1", "keyword2", "keyword3"]
-  }},
-  {{
-    "action": "delete",
-    "entry_id": "<copy exact UUID from entry header>"
-  }}
-]
+{{
+  "actions": [
+    {{
+      "action": "create",
+      "theme": "self_reflection|user_observations|ideas_analyses|learnings",
+      "title": "Short descriptive title",
+      "content": "Your directive, max {max_entry_chars} chars",
+      "mood": "reflective|curious|satisfied|concerned|inspired",
+      "search_hints": ["keyword1", "keyword2", "keyword3"],
+      "confidence": "low|medium|high",
+      "level": "L0|L1|L2|L3"
+    }},
+    {{
+      "action": "update",
+      "entry_id": "<exact UUID>",
+      "theme": "(optional, set when reclassifying)",
+      "title": "(optional)",
+      "content": "(optional)",
+      "mood": "(optional)",
+      "search_hints": ["..."],
+      "confidence": "(optional)",
+      "level": "(optional)"
+    }},
+    {{
+      "action": "delete",
+      "entry_id": "<exact UUID>"
+    }}
+  ],
+  "portrait_full": "Faceted portrait, ~150-220 tokens, first-person, distinct facets (traits/phase/contexts/contradictions/open-questions/evolution). Empty string if insufficient material.",
+  "portrait_brief": "Essence in 2-3 sentences, ~50-70 tokens — posture + current-phase color + 1-2 most-important context rules. Empty string if insufficient material."
+}}
 ```
 
-search_hints: 3-5 keywords in the USER's vocabulary that would make this entry relevant.
-Think: what would the user SAY or ASK that should trigger this reflection?
-Use the user's direct language and action verbs, not your introspective style.
-For existing entries that lack search_hints, you may update them to add this field.
+`search_hints`: 3-5 keywords in the USER's vocabulary that would make this
+entry relevant. Use the user's direct language and action verbs.
 
-Return ONLY the JSON array, no other text.
+`confidence`: set when promoting (high) or demoting (low) based on evidence.
+
+`level`: set when stratification changes (L0→L1, L1→L2, etc.).
+
+`theme`: set on `update` only when reclassifying (e.g. `user_observations` → `learnings`).
+
+Return ONLY the JSON object, no other text.

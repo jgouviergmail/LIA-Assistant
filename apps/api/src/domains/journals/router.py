@@ -34,10 +34,13 @@ from src.core.session_dependencies import get_current_active_session
 from src.domains.auth.models import User
 from src.domains.journals.models import JournalEntry, JournalEntrySource, JournalTheme
 from src.domains.journals.schemas import (
+    JournalConsolidationResponse,
     JournalEntryCreate,
     JournalEntryListResponse,
     JournalEntryResponse,
     JournalEntryUpdate,
+    JournalPortraitFeedbackRequest,
+    JournalPortraitResponse,
     JournalSettingsResponse,
     JournalSettingsUpdate,
     JournalThemeInfo,
@@ -199,6 +202,7 @@ async def export_entries(
             [
                 "id",
                 "theme",
+                "level",
                 "title",
                 "content",
                 "mood",
@@ -206,6 +210,11 @@ async def export_entries(
                 "source",
                 "personality_code",
                 "char_count",
+                "confidence",
+                "evidence_count",
+                "contradiction_count",
+                "injection_count",
+                "last_injected_at",
                 "created_at",
                 "updated_at",
             ]
@@ -215,6 +224,7 @@ async def export_entries(
                 [
                     str(entry.id),
                     entry.theme,
+                    entry.level,
                     entry.title,
                     entry.content,
                     entry.mood,
@@ -222,6 +232,11 @@ async def export_entries(
                     entry.source,
                     entry.personality_code,
                     entry.char_count,
+                    entry.confidence,
+                    entry.evidence_count,
+                    entry.contradiction_count,
+                    entry.injection_count,
+                    entry.last_injected_at.isoformat() if entry.last_injected_at else "",
                     entry.created_at.isoformat(),
                     entry.updated_at.isoformat() if entry.updated_at else "",
                 ]
@@ -233,23 +248,42 @@ async def export_entries(
             headers={"Content-Disposition": "attachment; filename=journal_entries.csv"},
         )
 
-    # JSON format
-    data = [
-        {
-            "id": str(entry.id),
-            "theme": entry.theme,
-            "title": entry.title,
-            "content": entry.content,
-            "mood": entry.mood,
-            "status": entry.status,
-            "source": entry.source,
-            "personality_code": entry.personality_code,
-            "char_count": entry.char_count,
-            "created_at": entry.created_at.isoformat(),
-            "updated_at": entry.updated_at.isoformat() if entry.updated_at else None,
-        }
-        for entry in entries
-    ]
+    # JSON format — also includes the compiled portrait for full GDPR portability
+    data = {
+        "entries": [
+            {
+                "id": str(entry.id),
+                "theme": entry.theme,
+                "level": entry.level,
+                "title": entry.title,
+                "content": entry.content,
+                "mood": entry.mood,
+                "status": entry.status,
+                "source": entry.source,
+                "personality_code": entry.personality_code,
+                "char_count": entry.char_count,
+                "confidence": entry.confidence,
+                "evidence_count": entry.evidence_count,
+                "contradiction_count": entry.contradiction_count,
+                "injection_count": entry.injection_count,
+                "last_injected_at": (
+                    entry.last_injected_at.isoformat() if entry.last_injected_at else None
+                ),
+                "created_at": entry.created_at.isoformat(),
+                "updated_at": entry.updated_at.isoformat() if entry.updated_at else None,
+            }
+            for entry in entries
+        ],
+        "portrait": {
+            "full": getattr(user, "journal_portrait_full", None),
+            "brief": getattr(user, "journal_portrait_brief", None),
+            "compiled_at": (
+                _portrait_compiled_at.isoformat()
+                if (_portrait_compiled_at := getattr(user, "journal_portrait_compiled_at", None))
+                else None
+            ),
+        },
+    }
     json_str = json.dumps(data, ensure_ascii=False, indent=2)
     return StreamingResponse(
         iter([json_str]),
@@ -348,6 +382,8 @@ async def update_entry(
         content=data.content,
         mood=data.mood.value if data.mood else None,
         search_hints=data.search_hints,
+        confidence=data.confidence.value if data.confidence else None,
+        level=data.level.value if data.level else None,
     )
 
     await db.commit()
@@ -384,3 +420,224 @@ async def delete_all_entries(
     service = JournalService(db)
     await service.delete_all_for_user(user.id)
     await db.commit()
+
+
+@router.post("/consolidate", response_model=JournalConsolidationResponse)
+async def consolidate_now(
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> JournalConsolidationResponse:
+    """Trigger a synchronous manual consolidation of the user's journal.
+
+    Same logic as the periodic scheduler — dedup, reformat, level promotions,
+    confidence adjustments — but bypasses the cooldown so the user can see
+    the effect immediately. Respects per-user usage limits (returns 429 if
+    the user has exceeded their LLM quota).
+
+    The call is synchronous and may take 5-15 seconds depending on the size
+    of the journal and the LLM load. The frontend should display a loader.
+
+    Raises:
+        UsageLimitExceededError (429): Per-user LLM quota exceeded.
+    """
+    import time
+
+    from src.core.exceptions import raise_usage_limit_exceeded
+    from src.domains.journals.consolidation_service import consolidate_journals_for_user
+    from src.domains.usage_limits.service import UsageLimitService
+
+    # Pre-check usage limit (consistent with scheduler behaviour).
+    if await UsageLimitService.is_user_blocked_for_llm(user.id, layer="journal_consolidation"):
+        raise_usage_limit_exceeded(
+            limit_name="journal_consolidation",
+            reason="LLM quota exceeded — try again later.",
+        )
+
+    # Resolve personality (best-effort, defaults to None).
+    personality_instruction: str | None = None
+    personality_code: str | None = None
+    if user.personality_id:
+        try:
+            from src.domains.personalities.service import PersonalityService
+
+            personality = await PersonalityService(db).get_by_id(user.personality_id)
+            if personality:
+                personality_instruction = personality.prompt_instruction
+                personality_code = personality.code
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning(
+                "journal_consolidate_now_personality_load_failed",
+                user_id=str(user.id),
+                error=str(exc),
+            )
+
+    user_language = getattr(user, "language", settings.default_language)
+    max_total_chars = getattr(
+        user, "journal_max_total_chars", settings.journal_default_max_total_chars
+    )
+    max_entry_chars = getattr(user, "journal_max_entry_chars", settings.journal_max_entry_chars)
+    consolidation_with_history = bool(getattr(user, "journal_consolidation_with_history", False))
+
+    started = time.monotonic()
+    actions_applied = await consolidate_journals_for_user(
+        user_id=user.id,
+        personality_instruction=personality_instruction,
+        personality_code=personality_code,
+        user_language=user_language,
+        consolidation_with_history=consolidation_with_history,
+        max_total_chars=max_total_chars,
+        max_entry_chars=max_entry_chars,
+        last_consolidated_at=user.journal_last_consolidated_at,
+    )
+    duration_ms = int((time.monotonic() - started) * 1000)
+
+    logger.info(
+        "journal_consolidate_now_completed",
+        user_id=str(user.id),
+        actions_applied=actions_applied,
+        duration_ms=duration_ms,
+    )
+
+    return JournalConsolidationResponse(
+        actions_applied=actions_applied,
+        duration_ms=duration_ms,
+    )
+
+
+# =============================================================================
+# Portrait endpoints (ADR-079, commit 3)
+# =============================================================================
+
+
+@router.get("/portrait", response_model=JournalPortraitResponse)
+async def get_portrait(
+    user: User = Depends(get_current_active_session),
+) -> JournalPortraitResponse:
+    """Read the compiled user-model portrait (full + brief + compiled_at).
+
+    The portrait is produced by the consolidation. This endpoint exposes
+    it read-only — the user cannot edit the portrait directly. Three levers
+    are available instead (see ADR-079):
+    1. Edit/delete L3 source entries via the standard CRUD endpoints
+    2. POST a feedback signal via /journals/portrait/feedback (lever 2)
+    3. Trigger a full consolidation via /journals/consolidate (lever 3)
+    """
+    return JournalPortraitResponse(
+        full=getattr(user, "journal_portrait_full", None),
+        brief=getattr(user, "journal_portrait_brief", None),
+        compiled_at=getattr(user, "journal_portrait_compiled_at", None),
+    )
+
+
+@router.post("/portrait/feedback", response_model=JournalConsolidationResponse)
+async def portrait_feedback(
+    data: JournalPortraitFeedbackRequest,
+    user: User = Depends(get_current_active_session),
+    db: AsyncSession = Depends(get_db),
+) -> JournalConsolidationResponse:
+    """Lever 2 — user signals that the portrait is wrong / outdated / unfair.
+
+    The signal is persisted as a journal entry (level=L0,
+    source=user_correction) so the consolidation LLM picks it up in priority,
+    then a synchronous consolidation runs that adjusts the L3 sources and
+    recompiles the portrait. Same usage limit and personality resolution
+    pattern as ``POST /journals/consolidate``.
+
+    Raises:
+        UsageLimitExceededError (429): Per-user LLM quota exceeded.
+    """
+    import time
+
+    from src.core.exceptions import raise_usage_limit_exceeded
+    from src.domains.journals.consolidation_service import consolidate_journals_for_user
+    from src.domains.usage_limits.service import UsageLimitService
+
+    if await UsageLimitService.is_user_blocked_for_llm(user.id, layer="journal_consolidation"):
+        raise_usage_limit_exceeded(
+            limit_name="journal_consolidation",
+            reason="LLM quota exceeded — try again later.",
+        )
+
+    # 1. Persist the user's correction as a fresh L0 entry the consolidation
+    #    will see in its working set. Phrased so the LLM understands it is
+    #    feedback ON the portrait, not an observation about the user.
+    correction_title = "User feedback on portrait"
+    correction_body = data.comment.strip()
+    if data.highlighted_section:
+        correction_body = (
+            f"User highlighted: «{data.highlighted_section.strip()}»\n"
+            f"User feedback: {correction_body}"
+        )
+    service = JournalService(db)
+    await service.create_entry(
+        user_id=user.id,
+        theme="self_reflection",
+        title=correction_title,
+        content=correction_body[: settings.journal_max_entry_chars],
+        source="user_correction",
+        max_entry_chars=settings.journal_max_entry_chars,
+        confidence="high",
+        level="L0",
+    )
+    await db.commit()
+
+    # 2. Resolve personality (best-effort).
+    personality_instruction: str | None = None
+    personality_code: str | None = None
+    if user.personality_id:
+        try:
+            from src.domains.personalities.service import PersonalityService
+
+            personality = await PersonalityService(db).get_by_id(user.personality_id)
+            if personality:
+                personality_instruction = personality.prompt_instruction
+                personality_code = personality.code
+        except Exception as exc:  # pragma: no cover - defensive
+            logger.warning(
+                "journal_portrait_feedback_personality_load_failed",
+                user_id=str(user.id),
+                error=str(exc),
+            )
+
+    # 3. Run a synchronous consolidation. Like the manual /consolidate, it
+    #    respects the user's `journal_consolidation_with_history` setting.
+    user_language = getattr(user, "language", settings.default_language)
+    max_total_chars = getattr(
+        user, "journal_max_total_chars", settings.journal_default_max_total_chars
+    )
+    max_entry_chars = getattr(user, "journal_max_entry_chars", settings.journal_max_entry_chars)
+    consolidation_with_history = bool(getattr(user, "journal_consolidation_with_history", False))
+
+    started = time.monotonic()
+    actions_applied = await consolidate_journals_for_user(
+        user_id=user.id,
+        personality_instruction=personality_instruction,
+        personality_code=personality_code,
+        user_language=user_language,
+        consolidation_with_history=consolidation_with_history,
+        max_total_chars=max_total_chars,
+        max_entry_chars=max_entry_chars,
+        last_consolidated_at=user.journal_last_consolidated_at,
+    )
+    duration_ms = int((time.monotonic() - started) * 1000)
+
+    try:
+        from src.infrastructure.observability.metrics_journals import (
+            journal_portrait_feedback_total,
+        )
+
+        journal_portrait_feedback_total.labels(outcome="success").inc()
+    except Exception:  # pragma: no cover
+        pass
+
+    logger.info(
+        "journal_portrait_feedback_processed",
+        user_id=str(user.id),
+        actions_applied=actions_applied,
+        duration_ms=duration_ms,
+    )
+
+    return JournalConsolidationResponse(
+        actions_applied=actions_applied,
+        duration_ms=duration_ms,
+    )

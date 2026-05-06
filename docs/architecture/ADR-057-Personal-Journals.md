@@ -1,6 +1,6 @@
 # ADR-057: Personal Journals (Carnets de Bord)
 
-**Status**: ✅ IMPLEMENTED (2026-03-19)
+**Status**: ✅ IMPLEMENTED (2026-03-19) — superseded for the cognitive architecture by [ADR-079](ADR-079-Stratified-Journal-Consciousness.md) (2026-05-06)
 **Author**: Claude Opus 4.6
 
 ## Context
@@ -19,10 +19,12 @@ Implement **Personal Journals** (Carnets de Bord) — thematic notebooks where t
 
 ### Storage
 - PostgreSQL with SQLAlchemy (`journal_entries` table)
-- OpenAI `text-embedding-3-small` embeddings (1536 dims) with pgvector HNSW index (migrated from E5-small in v1.9.3)
+- Gemini `gemini-embedding-001` embeddings (1536 dims) with pgvector HNSW index — dual-vector since [ADR-069](ADR-069-Gemini-Embedding-Migration.md): one vector for content (title + content), one for `search_hints` keywords; search uses `LEAST(dist_content, dist_keyword)` for best match
 - `search_hints`: LLM-generated keywords in user vocabulary for semantic search bridging
 - `injection_count` + `last_injected_at`: Tracks injection frequency for consolidation optimization
 - 4 themes: `self_reflection`, `user_observations`, `ideas_analyses`, `learnings`
+- 4 abstraction levels (since [ADR-079](ADR-079-Stratified-Journal-Consciousness.md)): L0 raw observations, L1 directives, L2 transversal patterns, L3 portrait facets
+- Epistemic status (since [ADR-079](ADR-079-Stratified-Journal-Consciousness.md)): `confidence` (low/medium/high), `evidence_count`, `contradiction_count`
 
 ### Dual Trigger
 1. **Post-conversation extraction** (fire-and-forget): Analyzes last user message + context after each response. Pattern: `memory_extractor.py`.
@@ -37,13 +39,17 @@ Implement **Personal Journals** (Carnets de Bord) — thematic notebooks where t
 - Results include similarity scores — the LLM decides relevance autonomously
 - Injection tracking updated per injected entry (fire-and-forget, non-blocking)
 
+#### Ambient diffusion of the user-model portrait (since [ADR-079](ADR-079-Stratified-Journal-Consciousness.md))
+A compiled portrait (full ~200 tokens for conversation/planner, brief ~60 tokens for secondary flows) is now read by all flows that speak to the user: response, planner, ReAct setup, voice, reminders, heartbeat, fallback, interest notifications. The portrait is produced by consolidation in the same LLM call as the maintenance actions (zero additional cost), persisted on the `users` table, and read via the standalone `build_journal_user_model_block(user_id, format, flow)` builder — symmetric to `PsycheService.build_psyche_prompt_block`.
+
 ### User Control
 - All key parameters administered by the user (Settings > Features):
   - Enable/disable (data preserved when disabled)
   - Consolidation toggle + conversation history analysis (with cost warning)
   - Max total chars, context injection budget
-- Full CRUD: read, create, modify, delete entries
-- GDPR: export (JSON/CSV) + bulk delete
+- Full CRUD: read, create, modify, delete entries (with `confidence` and `level` editable since ADR-079)
+- GDPR: export (JSON/CSV including the compiled portrait) + bulk delete
+- Three corrective levers on the portrait (since [ADR-079](ADR-079-Stratified-Journal-Consciousness.md)): edit L3 source entries / submit feedback (lever 2) / trigger manual consolidation (lever 3)
 
 ### Size Management
 - Prompt-driven lifecycle: the assistant manages its own journals
@@ -58,11 +64,13 @@ Entries are prefiltered by a configurable minimum cosine similarity score (`JOUR
 ### Heartbeat Integration
 Journals are integrated as a context source for proactive notifications via a **second pass** pattern: after all other heartbeat context is aggregated (calendar, weather, emails, tasks, interests, memories), a dynamic query is built from the aggregated summary and used for semantic journal search. This ensures journal entries selected are specifically relevant to what the heartbeat is about to notify.
 
-### Anti-Hallucination Guards (v1.8.1)
+### Anti-Hallucination Guards (v1.8.1, extended in [ADR-079](ADR-079-Stratified-Journal-Consciousness.md))
 LLMs may hallucinate UUIDs when asked to update/delete entries. Three-layer defense:
 1. **Prompt guidance**: CRITICAL instruction to copy-paste exact UUIDs from `[id=UUID | ...]` entry headers, with a dedicated ID reference table
 2. **Schema validation**: `field_validator` on `ExtractedJournalEntry.entry_id` rejects malformed UUIDs
 3. **Known-ID filtering**: Both extraction and consolidation services filter out actions referencing unknown entry IDs before applying them
+
+ADR-079 extends this principle to the new counter fields: the LLM never writes absolute values for `evidence_count` / `contradiction_count`. It only signals an outcome (`evidence_outcome="evidence"` or `"contradiction"`) on update actions, and the service atomically increments the corresponding counter. Same pattern for the level-promotion Prometheus counter.
 
 ### Debug Panel
 A dedicated "Personal Journals" section in the debug panel shows two sub-sections:

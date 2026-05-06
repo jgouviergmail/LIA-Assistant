@@ -94,7 +94,8 @@ The `ContextAggregator` fetches all sources in parallel via `asyncio.gather(retu
 | Emails | Gmail / Apple Email / Microsoft Outlook | Active connector | None |
 | Interests | InterestRepository | Active interests | None |
 | Memories | LangGraph Store | memory_enabled | None |
-| Journals | JournalEntryRepository (semantic search) | journals_enabled | None |
+| Journals | JournalEntryRepository (semantic search, second-pass dynamic query) | journals_enabled | None |
+| User-model portrait | `build_journal_user_model_block(format='brief')` (compiled portrait, ADR-079) | journals_enabled | "" |
 | Activity | Last message query | Always available | None |
 | Recent heartbeats | HeartbeatNotification table | Always available | [] |
 | Recent interest notifications | InterestNotification JOIN | Always available | [] |

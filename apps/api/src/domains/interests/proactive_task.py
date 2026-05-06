@@ -341,6 +341,7 @@ class InterestProactiveTask:
 
             # Resolve psyche context before template formatting
             psyche_block = ""
+            user_model_block = ""
             if user_id:
                 try:
                     from src.domains.psyche.service import build_psyche_prompt_block
@@ -350,6 +351,16 @@ class InterestProactiveTask:
                     )
                 except Exception:
                     pass  # Psyche injection is best-effort
+                try:
+                    from src.domains.journals.portrait_builder import (
+                        build_journal_user_model_block,
+                    )
+
+                    user_model_block = await build_journal_user_model_block(
+                        user_id=user_id, format="brief", flow="interest"
+                    )
+                except Exception:
+                    pass  # Journal portrait injection is best-effort
 
             prompt = load_prompt("interest_content_prompt").format(
                 personality_instruction=personality_instruction or DEFAULT_PERSONALITY_PROMPT,
@@ -362,6 +373,8 @@ class InterestProactiveTask:
                 current_datetime=current_datetime,
                 psyche_context=psyche_block,
             )
+            if user_model_block:
+                prompt = prompt + "\n\n" + user_model_block
 
             llm = get_llm("interest_content")
 

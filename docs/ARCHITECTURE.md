@@ -1,7 +1,7 @@
 # Architecture LIA
 
 > Architecture complète du système multi-agents avec LangGraph, observabilité enterprise et sécurité GDPR
-> **Version**: 6.4 (Architecture v3.5 + evolution Features: Web Fetch, MCP Per-User, MCP Admin Per-Server, Multi-Channel Telegram, Heartbeat Autonome, RAG Spaces, Sub-Agents, Browser Control, Personal Journals, Philips Hue Smart Home) - 2026-03-21
+> **Version**: 6.5 (Architecture v3.5 + evolution Features: Web Fetch, MCP Per-User, MCP Admin Per-Server, Multi-Channel Telegram, Heartbeat Autonome, RAG Spaces, Sub-Agents, Browser Control, Personal Journals — Stratified Consciousness (ADR-079), Philips Hue Smart Home) - 2026-05-06
 
 ## 📋 Table des Matières
 
@@ -3879,18 +3879,25 @@ Connecteur browser autonome basé sur Playwright pour l'interaction web interact
 
 > Voir [BROWSER_CONTROL.md](./technical/BROWSER_CONTROL.md) et [ADR-059](./architecture/ADR-059-Browser-Control.md) pour la documentation complète.
 
-### Personal Journals — Carnets de Bord (F8)
+### Personal Journals — Carnets de Bord stratifiés (F8)
 
-Carnets de bord introspectifs donnant à l'assistant une personnalité vivante et évolutive.
+Carnets de bord introspectifs donnant à l'assistant une personnalité vivante et évolutive, structurés depuis v1.20.0 en organe de méta-cognition stratifiée ([ADR-079](./architecture/ADR-079-Stratified-Journal-Consciousness.md)).
 
 **Architecture** :
-- Domaine DDD complet `src/domains/journals/` (models, repository, service, router, schemas, extraction, consolidation, context_builder)
-- Double déclencheur : extraction post-conversation (fire-and-forget) + consolidation APScheduler (4h)
-- Injection sémantique OpenAI embeddings dans prompts response ET planner (deux requêtes distinctes)
-- Gestion autonome du cycle de vie via prompt engineering (pas de règles hardcodées)
-- Feature flag : `JOURNALS_ENABLED=false`
+- Domaine DDD complet `src/domains/journals/` (models, repository, service, router, schemas, extraction, consolidation, context_builder, **portrait_builder**)
+- **Quatre niveaux d'abstraction** par entrée : `L0` observation brute / `L1` directive opérationnelle (`WHEN→DO BECAUSE`) / `L2` pattern transversal / `L3` facette de portrait. L2 et L3 sont produits exclusivement à la consolidation par regroupement actif.
+- **Statut épistémique** par entrée : `confidence` ∈ {low, medium, high} + compteurs `evidence_count` / `contradiction_count`.
+- **Auto-évaluation différée T → T+1** : `MessagesState.injected_journal_ids` (symétrique de `injected_memories`) transporte les IDs entre tours ; l'extracteur post-conversation voit les directives appliquées + la réaction utilisateur dans le même prompt et signale `evidence_outcome="evidence" | "contradiction"` — le service incrémente atomiquement les compteurs (anti-hallucination niveau 4). **Coût LLM additionnel zéro**.
+- Double déclencheur : extraction post-conversation (fire-and-forget) + consolidation APScheduler (4–12 h) ; consolidation manuelle via `POST /journals/consolidate`.
+- **Embeddings dual-vector Gemini** (`gemini-embedding-001`, 1536d, ADR-069) : un vecteur sur title+content, un sur les `search_hints`. Recherche `LEAST(dist_content, dist_keyword)`.
+- **Diffusion ambiante du portrait utilisateur** : la consolidation compile dans le même appel LLM un `portrait_full` (~200 tokens) et un `portrait_brief` (~60 tokens) persistés sur `users`. Builder standalone `build_journal_user_model_block(user_id, format, flow)` symétrique de `build_psyche_prompt_block`. Diffusé dans **8 flux** : 2 primaires (`response_node`, `planner_node_v3` en full) + 6 secondaires (`react_setup_node`, `interests/proactive_task`, `scheduler/reminder_notification`, `voice/service`, `heartbeat/prompts`, `agents/services/fallback_response` sync+async, en brief).
+- **Trois leviers de correction utilisateur** sur le portrait (jamais directement éditable) : édition CRUD des entrées L3, `POST /journals/portrait/feedback` (texte libre → entrée L0 `user_correction` + consolidation synchrone), `POST /journals/consolidate` (manuelle, bypass cooldown).
+- **11 métriques Prometheus dédiées** dans `src/infrastructure/observability/metrics_journals.py` (lifecycle, niveau, evidence, promotions, portrait diffusion, feedback…).
+- Gestion autonome du cycle de vie via prompt engineering (pas de règles hardcodées) ; dédoublonnage explicite par paires à la consolidation STEP 1, audit de classification, regroupement actif L1→L2 à STEP 5.
+- **GDPR** : suppression de compte scrube les trois colonnes portrait sur `users` ; export inclut le portrait compilé.
+- Feature flag : `JOURNALS_ENABLED=false` (système) + toggle utilisateur dans Settings > Features.
 
-> Voir [JOURNALS.md](./technical/JOURNALS.md) et [ADR-057](./architecture/ADR-057-Personal-Journals.md) pour la documentation complète.
+> Voir [JOURNALS.md](./technical/JOURNALS.md) et la chaîne ADR : [ADR-057](./architecture/ADR-057-Personal-Journals.md) → [ADR-064](./architecture/ADR-064-Journal-Analyst-Persona.md) → [ADR-069](./architecture/ADR-069-Gemini-Embedding-Migration.md) → [ADR-079](./architecture/ADR-079-Stratified-Journal-Consciousness.md).
 
 ---
 

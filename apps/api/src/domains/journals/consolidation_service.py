@@ -27,7 +27,7 @@ from src.core.llm_config_helper import get_llm_config_for_agent
 from src.domains.agents.prompts.prompt_loader import load_prompt
 from src.domains.journals.constants import JOURNAL_ENTRY_CONTENT_MAX_LENGTH
 from src.domains.journals.extraction_service import (
-    _parse_journal_extraction_result,
+    _parse_consolidation_result,
     _persist_journal_tokens,
     _update_user_last_cost,
 )
@@ -35,8 +35,143 @@ from src.domains.journals.models import JournalEntryMood, JournalEntrySource
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.invoke_helpers import invoke_with_instrumentation
 from src.infrastructure.observability.logging import get_logger
+from src.infrastructure.observability.metrics_journals import (
+    journal_portrait_compile_duration_seconds,
+)
 
 logger = get_logger(__name__)
+
+
+async def _build_usage_patterns_section(user_id: UUID) -> str:
+    """Build a compact 'observed usage patterns' block for the consolidation prompt.
+
+    Aggregates lightweight signals over the past 7 days (no LLM, plain SQL):
+    - Total user messages count
+    - Dominant time-of-day buckets (morning / afternoon / evening / night)
+
+    These are factual, never PII, and meant to help the LLM situate the user's
+    current rhythm without ever reproducing message content. Returns an empty
+    string when there is no recent activity (degrades gracefully).
+
+    Args:
+        user_id: Owner user UUID.
+
+    Returns:
+        A "## OBSERVED USAGE PATTERNS" section or an empty string.
+    """
+    try:
+        from sqlalchemy import and_, case, func, select
+
+        from src.infrastructure.database.session import get_db_context
+
+        async with get_db_context() as db:
+            from src.domains.conversations.models import Conversation, ConversationMessage
+
+            conv_result = await db.execute(
+                select(Conversation.id).where(Conversation.user_id == user_id)
+            )
+            conversation_id = conv_result.scalar_one_or_none()
+            if not conversation_id:
+                return ""
+
+            since = datetime.now(UTC) - timedelta(days=7)
+            hour_local = func.extract("hour", ConversationMessage.created_at)
+            bucket = case(
+                (hour_local.between(5, 11), "morning"),
+                (hour_local.between(12, 17), "afternoon"),
+                (hour_local.between(18, 22), "evening"),
+                else_="night",
+            )
+
+            stmt = (
+                select(bucket.label("bucket"), func.count(ConversationMessage.id).label("n"))
+                .where(
+                    and_(
+                        ConversationMessage.conversation_id == conversation_id,
+                        ConversationMessage.role == "human",
+                        ConversationMessage.created_at > since,
+                    )
+                )
+                .group_by(bucket)
+            )
+            rows = (await db.execute(stmt)).all()
+
+        if not rows:
+            return ""
+
+        counts: dict[str, int] = {row[0]: int(row[1]) for row in rows}
+        total = sum(counts.values())
+        if total == 0:
+            return ""
+
+        # Format compactly — let the LLM interpret without fixed thresholds.
+        ordered = ("morning", "afternoon", "evening", "night")
+        details = ", ".join(
+            f"{label} {counts[label]}" for label in ordered if counts.get(label, 0) > 0
+        )
+
+        return (
+            "## OBSERVED USAGE PATTERNS (past 7 days)\n"
+            f"User messages: {total}. Distribution: {details}.\n"
+            "Use these factual signals to situate the user's current rhythm "
+            "in the portrait (phase, contexts) — never reference them explicitly "
+            "to the user."
+        )
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning(
+            "journal_usage_patterns_load_failed",
+            user_id=str(user_id),
+            error=str(exc),
+        )
+        return ""
+
+
+async def _persist_compiled_portrait(
+    user_id: UUID, portrait_full: str | None, portrait_brief: str | None
+) -> None:
+    """Persist the compiled portrait pair on the user record.
+
+    Both fields are optional. If only one is provided, the other is left
+    untouched. Updates ``journal_portrait_compiled_at`` to NOW() whenever at
+    least one portrait was supplied.
+
+    Args:
+        user_id: Owner user UUID.
+        portrait_full: Compiled full portrait (~200 tokens) or None.
+        portrait_brief: Compiled brief portrait (~60 tokens) or None.
+    """
+    if not portrait_full and not portrait_brief:
+        return
+    try:
+        from sqlalchemy import select
+
+        from src.domains.auth.models import User
+        from src.infrastructure.database import get_db_context
+
+        async with get_db_context() as db:
+            res = await db.execute(select(User).where(User.id == user_id))
+            user = res.scalar_one_or_none()
+            if not user:
+                return
+            if portrait_full:
+                user.journal_portrait_full = portrait_full
+            if portrait_brief:
+                user.journal_portrait_brief = portrait_brief
+            user.journal_portrait_compiled_at = datetime.now(UTC)
+            await db.commit()
+
+        logger.info(
+            "journal_portrait_persisted",
+            user_id=str(user_id),
+            full_chars=len(portrait_full or ""),
+            brief_chars=len(portrait_brief or ""),
+        )
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning(
+            "journal_portrait_persistence_failed",
+            user_id=str(user_id),
+            error=str(exc),
+        )
 
 
 def _get_consolidation_prompt() -> str:
@@ -102,8 +237,18 @@ async def _maybe_build_health_signals_section(user_id: UUID) -> str:
 def _format_all_entries(entries: list[JournalEntry]) -> str:
     """Format all active entries for the consolidation prompt.
 
-    Shows full content for every entry (unlike extraction which uses summaries).
-    Includes an ID reference table to help the LLM copy exact UUIDs.
+    Shows full content for every entry with the full epistemic metadata so the
+    LLM can reason about lifecycle (entries never injected, validated directives,
+    contradicted hypotheses) and act accordingly during maintenance.
+
+    The metadata exposed in each entry header:
+        - created: original creation date
+        - last_inj: last time the entry was injected into a prompt (or "never")
+        - uses: total injection count
+        - conf: epistemic status (low/medium/high)
+        - ev/co: evidence and contradiction counters from deferred self-evaluation
+        - char_count: content character count
+        - hints: search hints (or "MISSING")
 
     Args:
         entries: All active entries ordered by created_at desc
@@ -119,18 +264,24 @@ def _format_all_entries(entries: list[JournalEntry]) -> str:
     for entry in entries:
         id_lines.append(f"- {entry.id}  →  {entry.title}")
 
-    # Full entries
+    # Full entries with epistemic metadata
     entry_lines = []
     for entry in entries:
-        date_str = entry.created_at.strftime("%Y-%m-%d")
+        created_str = entry.created_at.strftime("%Y-%m-%d")
+        last_inj_str = (
+            entry.last_injected_at.strftime("%Y-%m-%d") if entry.last_injected_at else "never"
+        )
         hints_str = (
             f" | hints: {', '.join(entry.search_hints)}"
             if entry.search_hints
             else " | hints: MISSING"
         )
         entry_lines.append(
-            f"[id={entry.id} | {date_str} | {entry.theme} | {entry.mood} | "
-            f"{entry.char_count} chars{hints_str}]\n"
+            f"[id={entry.id} | created={created_str} | last_inj={last_inj_str} "
+            f"| uses={entry.injection_count} | conf={entry.confidence} "
+            f"| ev={entry.evidence_count}/co={entry.contradiction_count} "
+            f"| level={entry.level} "
+            f"| {entry.theme} | {entry.mood} | {entry.char_count} chars{hints_str}]\n"
             f"**{entry.title}**\n{entry.content}\n"
         )
 
@@ -280,6 +431,9 @@ async def consolidate_journals_for_user(
             else "You need to reduce total size. Summarize verbose entries or delete obsolete ones."
         )
 
+        # Observed usage patterns (factual, lightweight — no LLM, no PII reproduction)
+        usage_patterns_section = await _build_usage_patterns_section(user_id)
+
         # Optional conversation history
         conversation_history_section = ""
         if consolidation_with_history:
@@ -310,6 +464,7 @@ async def consolidate_journals_for_user(
             size_warning=size_warning,
             current_datetime=current_datetime,
             conversation_history_section=conversation_history_section,
+            usage_patterns_section=usage_patterns_section,
             user_language=user_language,
             max_entry_chars=max_entry_chars,
             size_management_instruction=size_management_instruction,
@@ -345,8 +500,25 @@ async def consolidate_journals_for_user(
         # Update user's last cost
         await _update_user_last_cost(str(user_id), result, model_name, source="consolidation")
 
-        # Parse result (reuse same parser as extraction)
-        actions = _parse_journal_extraction_result(result_content)
+        # Parse result — supports both legacy array format and the enriched
+        # object format with portrait_full + portrait_brief (commit 3+).
+        import time as _time
+
+        _portrait_compile_start = _time.time()
+        parsed = _parse_consolidation_result(result_content)
+        actions = parsed.actions
+
+        # Persist the compiled portraits if the LLM produced them. Done before
+        # applying the actions so a partial failure on actions still preserves
+        # the portrait — the two are independent products of the same call.
+        if parsed.portrait_full or parsed.portrait_brief:
+            await _persist_compiled_portrait(user_id, parsed.portrait_full, parsed.portrait_brief)
+            try:
+                journal_portrait_compile_duration_seconds.observe(
+                    _time.time() - _portrait_compile_start
+                )
+            except Exception:  # pragma: no cover
+                pass
 
         if not actions:
             logger.debug(
@@ -418,6 +590,10 @@ async def consolidate_journals_for_user(
                                 personality_code=personality_code,
                                 max_entry_chars=max_entry_chars,
                                 search_hints=action.search_hints,
+                                confidence=(
+                                    action.confidence.value if action.confidence else "medium"
+                                ),
+                                level=(action.level.value if action.level else "L1"),
                             )
                             applied_count += 1
 
@@ -431,6 +607,12 @@ async def consolidate_journals_for_user(
                                     mood=(action.mood.value if action.mood else None),
                                     max_entry_chars=max_entry_chars,
                                     search_hints=action.search_hints,
+                                    confidence=(
+                                        action.confidence.value if action.confidence else None
+                                    ),
+                                    evidence_outcome=action.evidence_outcome,
+                                    level=(action.level.value if action.level else None),
+                                    theme=(action.theme.value if action.theme else None),
                                 )
                                 applied_count += 1
 

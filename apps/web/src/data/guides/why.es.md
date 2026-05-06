@@ -280,9 +280,15 @@ No hablas con una herramienta — interactúas con una entidad cuyo vocabulario 
 
 ### 7.3. Los diarios personales
 
-LIA lleva sus propias reflexiones en **diarios personales**: auto-reflexión, observaciones sobre el usuario, ideas, aprendizajes. Estas notas, redactadas en primera persona y teñidas por la personalidad activa, influyen de forma orgánica en las respuestas futuras.
+LIA lleva sus propias reflexiones en **diarios personales estratificados**: auto-reflexión, observaciones sobre el usuario, ideas, aprendizajes. Estas notas, redactadas en primera persona y teñidas por la personalidad activa, influyen de forma orgánica en las respuestas futuras.
 
-Es una forma de introspección artificial — el asistente que reflexiona sobre sus interacciones y desarrolla sus propias perspectivas. El usuario mantiene el control total: lectura, edición, eliminación.
+El diario está organizado en **cuatro niveles de profundidad** — desde la observación bruta (una señal débil que se anota para ver si se confirma) hasta la faceta de retrato (un rasgo estable que dice algo sobre quién eres), pasando por las directivas operativas y los patrones transversales. Cada entrada lleva un **estado epistémico**: hipótesis en prueba, observación confirmada o directiva validada por las pruebas acumuladas a lo largo de las conversaciones.
+
+Más allá de la escritura, el diario **se mide a sí mismo**. En cada turno, LIA mira las directivas que aplicó en el turno anterior y lee tu reacción en el turno actual: si confirmaste, el contador de pruebas sube; si contestaste, el contador de contradicciones sube. Con el tiempo, las hipótesis falsas se rebajan silenciosamente, las buenas intuiciones se promueven, los patrones transversales emergen por agrupación activa.
+
+De esta estratificación emerge un **retrato de usuario compilado**: tu voz, tu ritmo, tus contextos, tus contradicciones, tus zonas de sombra. Viaja con LIA dondequiera que hable — conversación, voz, recordatorios, notificaciones proactivas, ReAct, fallback — para que el asistente no «olvide quién eres» según la superficie por la que habla.
+
+Es una forma de introspección artificial — el asistente que reflexiona sobre sus interacciones, mide su propia utilidad y desarrolla una comprensión matizada de ti. Mantienes el control total: lectura por tema o por nivel, edición, señalización de un problema en el retrato, activación de una consolidación bajo demanda. El retrato mismo nunca se edita directamente — es una voz de síntesis, corregida mediante palancas indirectas para preservar su coherencia.
 
 ### 7.4. La seguridad emocional
 

@@ -44,9 +44,14 @@ class TestJournalAnalystPersona:
         assert "journal_analyst_persona" in valid_names
 
     def test_extraction_prompt_loads(self) -> None:
-        """Extraction prompt loads with new theme definitions."""
+        """Extraction prompt loads with all four themes and quality gate."""
         prompt = load_prompt("journal_introspection_prompt")
-        assert "## THEMES" in prompt
+        # All four themes must be referenced
+        assert "learnings" in prompt
+        assert "user_observations" in prompt
+        assert "self_reflection" in prompt
+        assert "ideas_analyses" in prompt
+        # Quality gate must be present
         assert "QUALITY GATE" in prompt
 
     def test_consolidation_prompt_loads(self) -> None:

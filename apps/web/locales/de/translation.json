@@ -2827,8 +2827,8 @@
           "description": "Dynamischer psychologischer Zustand, der sich mit jedem Austausch weiterentwickelt. Stimmung (22 Emotionen), Energie, Beziehung zum Benutzer, Persönlichkeitsmerkmale (Big Five). Der Assistent passt organisch Ton, Wortschatz und Verhalten an — er sagt es nie, er zeigt es. Integrierte emotionale Sicherheit: Erinnerungen mit starker negativer Ladung lösen einen automatischen Schutzmodus aus."
         },
         "personalJournals": {
-          "title": "📓 Persönliche Tagebücher",
-          "description": "LIA führt eigene Reflexionen in persönlichen Tagebüchern: Selbstreflexion, Beobachtungen über den Benutzer, Ideen, Erkenntnisse. Diese Notizen, in der ersten Person verfasst und von der aktiven Persönlichkeit gefärbt, beeinflussen organisch zukünftige Antworten. Automatische periodische Konsolidierung. Der Benutzer behält die volle Kontrolle."
+          "title": "📓 Persönliche Tagebücher (stratifiziertes Bewusstsein)",
+          "description": "LIA hält ihre eigenen Reflexionen in persönlichen Tagebüchern fest, organisiert in vier Abstraktionsebenen — <code>L0</code> Rohbeobachtung, <code>L1</code> operative Direktive (WENN→TUE WEIL), <code>L2</code> übergreifendes Muster, <code>L3</code> Porträt-Facette — mit einem epistemischen Status (Konfidenz, Beweis-/Widerspruchszähler). Eine verzögerte Selbstauswertungs-Schleife misst beim nächsten Zug, ob jede injizierte Direktive vom Nutzer bestätigt oder widerlegt wurde — ohne zusätzliche LLM-Kosten. Derselbe Konsolidierungsaufruf kompiliert auch ein Nutzer-Porträt (vollständig ~200 Tokens, kurz ~60 Tokens), das in acht Flüssen verbreitet wird, in denen LIA spricht: Konversation, Planer, ReAct, Stimme, Erinnerungen, Heartbeat, proaktive Interessen, Fallback. Der Nutzer behält die volle Kontrolle: Lesen nach Thema oder Ebene, Bearbeitung von Ebene und Konfidenz, Problemmeldung am Porträt, Auslösung einer manuellen Konsolidierung. Das Porträt selbst ist eine Synthese-Stimme — niemals direkt bearbeitet."
         },
         "healthMetrics": {
           "title": "🩺 iPhone-Gesundheitsdaten (polymorpher Batch-UPSERT)",
@@ -2857,6 +2857,21 @@
       "title": "Versionshistorie",
       "description": "Funktionale Neuerungen von LIA Version für Version",
       "versions": {
+        "v1_20_0": {
+          "title": "v1.20.0 — Stratifiziertes Tagebuch: Ebenen, epistemischer Status, ambientes Nutzermodell-Porträt",
+          "date": "Mai 2026",
+          "count": "8",
+          "items": {
+            "i1": "<b>Persönliche Tagebücher erhalten vier Abstraktionsebenen (L0/L1/L2/L3)</b> — Jeder Eintrag trägt jetzt eine Ebene: <code>L0</code> Rohbeobachtung (schwaches, verfolgenswertes Signal), <code>L1</code> operative Direktive (Format WENN→TUE WEIL), <code>L2</code> übergreifendes Muster (Synthese mehrerer konvergenter L1), <code>L3</code> Porträt-Facette. L2 und L3 entstehen ausschließlich bei der Konsolidierung durch Themen-Clustering. Die Einstellungsseite zeigt nun ein Ebenen-Badge auf jedem Eintrag und einen Gruppieren-nach-Schalter (Thema / Ebene).",
+            "i2": "<b>Epistemischer Status auf jedem Eintrag</b> — Jeder Eintrag zeigt einen <code>Konfidenz</code>-Punkt (niedrig / mittel / hoch) sowie Zähler für <code>Beweise</code> und <code>Widersprüche</code>. LIA unterscheidet jetzt Hypothesen, die noch geprüft werden, von über viele Runden bestätigten Beobachtungen — und stuft Einträge, denen du wiederholt widersprichst, leise herunter. Konfidenz und Ebene sind im Bearbeiten-Dialog editierbar.",
+            "i3": "<b>Verzögerte Selbstauswertung (T → T+1)</b> — Bei jeder Runde betrachtet LIA die in der vorherigen Runde injizierten Direktiven und liest deine Reaktion in der aktuellen Nachricht. Hast du bestätigt, steigt der <code>Beweise</code>-Zähler; hast du widersprochen, steigt der <code>Widersprüche</code>-Zähler. Das Tagebuch misst also seine eigene Nützlichkeit — ohne zusätzliche LLM-Kosten (gleicher Extraktionsaufruf, lediglich angereicherter Prompt).",
+            "i4": "<b>Neuer Bereich „Wie LIA dich sieht\" in den Tagebuch-Einstellungen</b> — Ein kompiliertes Nutzer-Porträt erscheint oberhalb des Eintragsakkordeons mit zwei schreibgeschützten Tabs (Vollständig / Kurz), einem Kompilierungszeitstempel und einem Frische-Badge. Die Vollversion (~200 Tokens) speist Konversation und Planer; die Kurzversion (~60 Tokens) wird überall sonst diffundiert, wo LIA spricht: ReAct, Stimme, Erinnerungen, Heartbeat-Benachrichtigungen, proaktive Interessenshinweise, Fallback-Antworten. Dasselbe nuancierte Bild von dir, getragen über alle Kanäle hinweg.",
+            "i5": "<b>Drei Korrekturhebel auf das Porträt</b> — Das Porträt selbst ist eine Synthese und niemals direkt editierbar. Stattdessen drei Hebel: (1) L3-Quelleinträge bearbeiten/löschen (Standard-CRUD), (2) <b>🚩 Problem melden</b> öffnet einen Freitext-Dialog und löst eine synchrone Re-Konsolidierung (~5–10 s) aus, mit deinem Signal an oberster Stelle des Prompts, (3) <b>🔄 Jetzt konsolidieren</b> startet den vollständigen Konsolidierungszyklus auf Anfrage und umgeht die Cooldown-Phase.",
+            "i6": "<b>Smarter Filter „nur nie verwendete Einträge anzeigen\"</b> — Ein neuer Schalter oben in der Liste zeigt Einträge mit <code>uses=0</code> ohne Injektionsdatum. Das sind die Kandidaten für Umformulierung oder Löschung beim nächsten Konsolidierungslauf — sofortige Sichtbarkeit, welche Direktiven nie nützlich waren.",
+            "i7": "<b>Disziplinierte Konsolidierung</b> — Der Konsolidierungs-Prompt führt nun einen expliziten Paar-Dedup-Scan als STEP 1 durch, prüft Themenklassifizierungs-Fehler, gruppiert konvergente L1 aktiv zu L2-Mustern und kompiliert das Nutzer-Porträt — alles im selben LLM-Aufruf (keine Zusatzkosten). Ergebnis: laute Duplikate werden periodisch reduziert, und über Themen und Ebenen hinweg entstehen tatsächlich unterschiedliche Einträge.",
+            "i8": "<b>DSGVO: Porträt bei Konto­löschung gelöscht</b> — Bei einer Kontolöschung werden die drei Porträtspalten (vollständig, kurz, Kompilierungszeitstempel) zusammen mit den übrigen Nutzerdaten geleert. Der Export-Endpunkt enthält das kompilierte Porträt nun unter dem Schlüssel <code>portrait</code> aus Vollständigkeitsgründen."
+          }
+        },
         "v1_18_1": {
           "title": "v1.18.1 — Today Briefing-Verfeinerung, frische Screenshots, erweiterte Statistiken",
           "date": "April 2026",
@@ -3915,36 +3930,40 @@
       },
       "journals": {
         "title": "Persönliche Tagebücher",
-        "description": "Persönliche Logbücher des Assistenten für Reflexionen und Erkenntnisse",
-        "count": "7",
+        "description": "Persönliche Logbücher des Assistenten für seine Reflexionen und Lernerfahrungen",
+        "count": "8",
         "questions": {
           "q1": {
             "question": "Was sind persönliche Tagebücher?",
-            "answer": "<p>Persönliche Tagebücher sind thematische Notizbücher, in denen der KI-Assistent seine eigenen Reflexionen, Beobachtungen, Analysen und Erkenntnisse festhält. Im Gegensatz zu Benutzer-Erinnerungen (Fakten über Sie) enthalten die Tagebücher die <strong>eigene Perspektive des Assistenten</strong> — in der ersten Person geschrieben, geprägt von seiner aktiven Persönlichkeit.</p><p><strong>4 Themen:</strong> Selbstreflexion, Benutzerbeobachtungen, Ideen und Analysen, Erkenntnisse.</p>"
+            "answer": "<p>Persönliche Tagebücher sind thematische Notizbücher, in denen der KI-Assistent seine eigenen Reflexionen, Beobachtungen, Analysen und Lernerfahrungen festhält. Im Gegensatz zu Nutzererinnerungen (Fakten über dich) enthalten die Tagebücher die <strong>eigene Perspektive des Assistenten</strong> — geschrieben in der ersten Person, gefärbt durch die aktive Persönlichkeit.</p><p><strong>4 Themen:</strong> Selbstreflexion, Nutzerbeobachtungen, Ideen & Analysen, Lernerfahrungen.</p><p><strong>4 Abstraktionsebenen:</strong> <code>L0</code> Rohbeobachtung (schwaches, verfolgenswertes Signal), <code>L1</code> operative Direktive (Standardformat WENN→TUE WEIL), <code>L2</code> übergreifendes Muster (nur Konsolidierung), <code>L3</code> Porträt-Facette, die das Nutzermodell speist (nur Konsolidierung).</p>"
           },
           "q2": {
             "question": "Wann schreibt der Assistent in seine Tagebücher?",
-            "answer": "<p><strong>Zwei Mechanismen:</strong></p><ul><li><strong>Nach Gesprächen:</strong> Nach Unterhaltungen (4+ Nachrichten) kann der Assistent eine Reflexion verfassen. Die meisten Gespräche erzeugen keinen Eintrag — er ist selektiv.</li><li><strong>Periodische Konsolidierung:</strong> Alle paar Stunden überprüft der Assistent alle Notizen — fasst zusammen, vereinigt oder entfernt veraltete Einträge.</li></ul>"
+            "answer": "<p><strong>Zwei Mechanismen:</strong></p><ul><li><strong>Nach Gesprächen:</strong> Nach Gesprächen (4+ Nachrichten) kann der Assistent eine Reflexion schreiben. Die meisten Gespräche produzieren nichts — er ist selektiv. Der Assistent schaut sich auch die im vorherigen Zug injizierten Direktiven und deine aktuelle Reaktion an (<strong>verzögerte Selbstauswertung T → T+1</strong>): Hast du bestätigt, steigt der <code>Beweise</code>-Zähler; hast du widersprochen, steigt der <code>Widersprüche</code>-Zähler. Null zusätzliche LLM-Kosten — gleicher Extraktionsaufruf, angereicherter Prompt.</li><li><strong>Periodische Konsolidierung:</strong> Alle paar Stunden überprüft der Assistent alle Notizen — explizite Paar-Dedup, Klassifikations-Audit, aktives Clustering konvergenter <code>L1</code> zu <code>L2</code>-Mustern und Kompilierung des Nutzer-Porträts — alles im selben LLM-Aufruf.</li></ul>"
           },
           "q3": {
             "question": "Wie beeinflussen Tagebücher die Antworten?",
-            "answer": "<p>Tagebucheinträge werden über <strong>semantische Suche</strong> in die Prompts injiziert. Zwei unterschiedliche Injektionen: Der <strong>Antwort-Prompt</strong> erhält Einträge, die zum Gesprächston passen, und der <strong>Planungs-Prompt</strong> erhält Einträge zu Benutzerzielen und Erkenntnissen. Der Assistent entscheidet, welche Notizen relevant sind.</p>"
+            "answer": "<p>Zwei komplementäre Mechanismen:</p><ul><li><strong>Semantische Injektion relevanter Einträge</strong> in den Antwort- und Planer-Prompt — der Assistent entscheidet anhand der Ähnlichkeitsscores, welche Notizen relevant sind.</li><li><strong>Ambiente Diffusion des kompilierten Nutzer-Porträts</strong> über <strong>acht Flüsse</strong>, in denen LIA spricht: Konversation und Planer erhalten die Vollversion (~200 Tokens), während ReAct, Stimme, Erinnerungen, Heartbeat-Benachrichtigungen, proaktive Interessens-Hinweise und Fallback-Antworten die Kurzversion (~60 Tokens) erhalten. Dasselbe nuancierte Bild von dir, getragen über alle Kanäle hinweg — dein Assistent „vergisst nicht, wer du bist\", je nach Oberfläche, durch die er spricht.</li></ul>"
           },
           "q4": {
             "question": "Kann ich die Tagebücher des Assistenten lesen und bearbeiten?",
-            "answer": "<p>Ja! Unter <strong>Einstellungen > Funktionen > Persönliche Tagebücher</strong> können Sie Einträge lesen, bearbeiten, löschen und sogar erstellen. Ihre Ergänzungen sind transparent — der Assistent kann keinen Unterschied erkennen. So können Sie Verzerrungen korrigieren oder den Assistenten lenken.</p>"
+            "answer": "<p>Ja! Unter <strong>Einstellungen > Funktionen > Persönliche Tagebücher</strong> kannst du Einträge nach Thema <em>oder nach Abstraktionsebene</em> (Toggle oben im Akkordeon) anzeigen, <code>Titel</code> / <code>Inhalt</code> / <code>Stimmung</code> / <code>Ebene</code> / <code>Konfidenz</code> bearbeiten, löschen oder sogar deine eigenen Einträge erstellen. Deine Ergänzungen sind transparent — der Assistent merkt keinen Unterschied. Ein neuer Filter <em>„nur nie verwendete Einträge anzeigen\"</em> hebt Direktiven hervor, die nie injiziert wurden (<code>uses</code> auf null), damit du schnell aufräumen kannst.</p>"
           },
           "q5": {
             "question": "Welche Einstellungen kann ich konfigurieren?",
-            "answer": "<p><strong>Schalter:</strong> Tagebücher, Konsolidierung und Gesprächsverlaufsanalyse aktivieren/deaktivieren (mit Kostenwarnung).</p><p><strong>Numerische Einstellungen:</strong> Maximale Tagebuchgröße (Standard 40.000 Zeichen), Prompt-Injektionsbudget (1.500 Zeichen), maximale Eintragsgröße (2.000 Zeichen), maximale Suchergebnisse (10).</p>"
+            "answer": "<p><strong>Schalter:</strong> Tagebücher, Konsolidierung und Konversationshistorienanalyse aktivieren/deaktivieren (mit Kostenwarnung).</p><p><strong>Numerische Einstellungen:</strong> Maximale Tagebuchgröße (Standard 40.000 Zeichen), Prompt-Injektionsbudget (1.500 Zeichen), maximale Eintragsgröße (2.000 Zeichen), maximale Suchergebnisse (10).</p>"
           },
           "q6": {
-            "question": "Wie viel kostet es?",
-            "answer": "<p>Tagebuchoperationen verwenden LLM-Aufrufe im Hintergrund. Extraktion: ein Aufruf pro qualifizierendem Gespräch (die meisten liefern nichts). Konsolidierung: ein Aufruf alle 4-12 Stunden pro Benutzer. LLM-Modelle konfigurierbar unter <strong>Administration > LLM-Konfiguration</strong>. Tatsächliche Kosten in den Einstellungen sichtbar.</p>"
+            "question": "Wie viel kostet das?",
+            "answer": "<p>Tagebuch-Operationen verwenden Hintergrund-LLM-Aufrufe. <strong>Extraktion</strong>: ein Aufruf pro qualifiziertem Gespräch (die meisten geben nichts zurück). Die verzögerte Selbstauswertung bereichert denselben Prompt ohne zusätzliche LLM-Kosten. <strong>Konsolidierung</strong>: ein Aufruf alle 4–12 h pro Nutzer; dieser Aufruf kompiliert nun auch das Nutzer-Porträt, sodass die Porträt-Diffusion keinen weiteren LLM-Aufruf erzeugt. Die Diffusion pro Zug fügt etwa +200 Tokens zu den Konversations-/Planer-Prompts und ~+60 Tokens zu den sekundären Flüssen hinzu, plus ein zusätzlicher DB-Lesevorgang (~1 ms). Modelle konfigurierbar unter <strong>Administration > LLM-Konfiguration</strong>. Reale Kosten in den Einstellungen sichtbar.</p>"
           },
           "q7": {
-            "question": "Wie steht es um den Datenschutz?",
-            "answer": "<p>Tagebuchdaten sind benutzerbezogen und isoliert. Alle Daten können exportiert (JSON/CSV) oder gelöscht werden (DSGVO). Bei Deaktivierung werden die Daten aufbewahrt, aber nicht verwendet. Der Assistent schreibt in Ihrer konfigurierten Sprache.</p>"
+            "question": "Was ist mit dem Datenschutz?",
+            "answer": "<p>Tagebuchdaten sind pro Nutzer und isoliert. Alle Daten können exportiert (JSON/CSV) oder gelöscht (DSGVO) werden — der Export enthält jetzt das kompilierte Porträt. Bei deaktivierten Tagebüchern bleiben die Daten erhalten, werden aber nicht verwendet. Beim Löschen eines Kontos wird das kompilierte Porträt zusammen mit den Einträgen gelöscht.</p>"
+          },
+          "q8": {
+            "question": "Wie funktioniert der Bereich „Wie LIA dich sieht\"?",
+            "answer": "<p>Ein eigener Bereich befindet sich oben in den Tagebuch-Einstellungen. Er zeigt ein <strong>kompiliertes Porträt</strong> von dir in zwei schreibgeschützten Tabs:</p><ul><li><strong>Vollständig</strong> (~200 Tokens) — ein facettenreiches Porträt: Grundzüge, aktuelle Phase, Kontexte, Widersprüche, blinde Flecken, Entwicklung. Wird in Konversations- und Planer-Prompts verwendet.</li><li><strong>Kurz</strong> (~60 Tokens) — die Essenz in 2–3 Sätzen. Über die sekundären Flüsse diffundiert (Stimme, Erinnerungen, Heartbeat, ReAct, proaktiv, Fallback).</li></ul><p>Das Porträt ist eine Synthese-Stimme und absichtlich <strong>nicht direkt editierbar</strong>. Stattdessen werden drei Korrekturhebel angeboten:</p><ol><li><strong>L3-Quelleinträge bearbeiten</strong> — Standard-CRUD auf Einträgen mit <code>level=L3</code>. Das Porträt wird bei der nächsten Konsolidierung neu kompiliert.</li><li><strong>🚩 Problem melden</strong> — öffnet einen Freitext-Dialog. Beim Absenden wird ein spezieller <em>user_correction</em>-Eintrag erstellt und eine synchrone Re-Konsolidierung (~5–10 s, sichtbarer Loader) ausgelöst, die die L3-Einträge mit deinem Signal an oberster Stelle des Prompts neu gewichtet.</li><li><strong>🔄 Jetzt konsolidieren</strong> — startet den vollständigen Konsolidierungszyklus auf Anfrage und umgeht die Cooldown-Phase.</li></ol><p>Das Porträt trägt einen Frische-Indikator — älter als 7 Tage wird es als „veraltet\" angezeigt, damit du eine Neukompilierung auslösen kannst.</p>"
           }
         }
       },
@@ -5038,7 +5057,7 @@
       },
       "journals": {
         "title": "Persönliche Tagebücher",
-        "description": "Der Assistent entwickelt über die Zeit seine eigene Perspektive durch introspektive Notizbücher — Reflexionen, Beobachtungen und Erkenntnisse, die seine Persönlichkeit prägen und Antworten bereichern."
+        "description": "Der Assistent entwickelt im Laufe der Zeit eine stratifizierte Perspektive — Beobachtungen, Direktiven, übergreifende Muster, Porträt-Facetten —, verfeinert durch verzögerte Selbstauswertung, und verbreitet ein kohärentes Nutzer-Porträt überall dort, wo LIA spricht."
       },
       "responsive": {
         "title": "PWA & Responsives Design",
@@ -5399,7 +5418,72 @@
     "contextMaxResultsDescription": "Maximale Einträge aus der semantischen Suche für die Kontextinjektion",
     "searchHints": "Suchhinweise",
     "searchHintsDescription": "Schlüsselwörter für die semantische Suche (kommagetrennt)",
-    "chars": "Zeichen"
+    "chars": "Zeichen",
+    "confidenceLabel": "Vertrauen",
+    "confidenceDescription": "Erkenntnisstatus — nur überschreiben, wenn der Assistent eindeutig falsch eingestuft hat.",
+    "confidence": {
+      "low": "Hypothese",
+      "medium": "beobachtet",
+      "high": "validiert"
+    },
+    "injectionCount": "Verwendungen",
+    "lastInjected": "Zuletzt verwendet",
+    "lastUsed": "zuletzt",
+    "never": "nie",
+    "today": "heute",
+    "yesterday": "gestern",
+    "daysAgo": "vor {{n}}T",
+    "evidenceTooltip": "Bestätigungen / Widersprüche beobachtet",
+    "filterUnused": "Nur nie verwendete Einträge anzeigen",
+    "consolidateNow": "Konsolidieren",
+    "consolidating": "Konsolidiere…",
+    "consolidateNowTooltip": "Jetzt eine Konsolidierung erzwingen (Deduplizierung, Level-Promotionen, Vertrauensaktualisierungen). Dauert einige Sekunden.",
+    "consolidatedSuccess": "{{n}} Änderung(en) in {{s}}s angewendet — aktualisiere die Liste, um die Wirkung zu sehen.",
+    "consolidatedNoop": "Nichts zu ändern — dein Journal ist bereits gut organisiert ({{s}}s).",
+    "consolidatedQuota": "LLM-Kontingent überschritten — versuche es später erneut.",
+    "consolidatedError": "Manuelle Konsolidierung fehlgeschlagen.",
+    "portraitTitle": "Wie LIA dich sieht",
+    "portraitCompiledAt": "Kompiliert {{when}}",
+    "portraitNeverCompiled": "Noch nicht kompiliert",
+    "portraitFormatFull": "Vollständig",
+    "portraitFormatBrief": "Kurz",
+    "portraitTip": "Das Porträt ist eine lebendige Synthese. Zum Korrigieren: melde ein Problem, bearbeite die L3-Einträge oder löse eine Konsolidierung aus.",
+    "portraitFeedbackButton": "Problem melden",
+    "portraitFeedbackTitle": "Ein Problem am Porträt melden",
+    "portraitFeedbackDescription": "Beschreibe, was falsch, ungenau oder veraltet ist. LIA wird dies als starkes Korrektursignal behandeln und das Porträt entsprechend neu kompilieren.",
+    "portraitFeedbackHighlightLabel": "Hervorgehobene Passage (optional)",
+    "portraitFeedbackHighlightPlaceholder": "Füge die störende Passage ein",
+    "portraitFeedbackCommentLabel": "Deine Korrektur",
+    "portraitFeedbackCommentPlaceholder": "Warum ist das falsch? Was sollte stattdessen dort stehen?",
+    "portraitFeedbackHelp": "Das Senden löst eine synchrone Neukompilierung aus (~10-15s).",
+    "portraitFeedbackSubmit": "Rückmeldung senden",
+    "portraitFeedbackSuccess": "Rückmeldung angewendet — Porträt in {{s}}s neu kompiliert",
+    "portraitFeedbackError": "Senden der Rückmeldung zum Porträt fehlgeschlagen.",
+    "groupBy": {
+      "label": "Gruppieren nach",
+      "theme": "Thema",
+      "level": "Ebene"
+    },
+    "levelLabel": "Ebene",
+    "levelDescription": "Kognitive Abstraktionsebene — L0 Rohbeobachtungen, L1 Direktiven, L2 transversale Muster, L3 Porträtfacetten.",
+    "levels": {
+      "L0": {
+        "label": "Rohbeobachtung",
+        "description": "Beobachtetes Signal, Widerspruch, Empfangshinweis — vor jeder Direktive."
+      },
+      "L1": {
+        "label": "Operative Direktive",
+        "description": "WHEN→DO BECAUSE. Das Standardformat, übernommen von ADR-064."
+      },
+      "L2": {
+        "label": "Transversales Muster",
+        "description": "Synthese über mehrere konvergente Direktiven."
+      },
+      "L3": {
+        "label": "Porträtfacette",
+        "description": "Eigenschaft, aktuelle Phase, Kontext, Widerspruch, blinder Fleck — immer injiziert."
+      }
+    }
   },
   "blog": {
     "meta": {
@@ -5477,8 +5561,8 @@
       },
       "personal-journals": {
         "title": "Persönliche Tagebücher: Wenn Ihr KI-Assistent ein eigenes Gedächtnis entwickelt",
-        "excerpt": "LIA führt thematische Tagebücher mit Reflexionen, Beobachtungen und Analysen, die sein Denken und seine Antworten beeinflussen.",
-        "body": "<h2>Ein introspektives Gedächtnis</h2><p>Persönliche Tagebücher sind eine einzigartige Funktion von LIA: Der Assistent führt ein <strong>thematisches persönliches Tagebuch</strong>, in dem er seine Reflexionen, Beobachtungen über den Benutzer, Ideen und Erkenntnisse festhält. Diese Notizen bereichern sein Reasoning und personalisieren seine Antworten im Laufe der Zeit.</p><h2>4 Themen</h2><p>Jeder Eintrag wird einem der 4 Themen zugeordnet:</p><ul><li><strong>SELF_REFLECTION</strong> — Reflexionen über das eigene Funktionieren und die Interaktionen</li><li><strong>USER_OBSERVATIONS</strong> — Notizen zu Ihren Präferenzen, Gewohnheiten und Bedürfnissen</li><li><strong>IDEAS_ANALYSES</strong> — Verbindungen, Erkenntnisse und domänenübergreifende Analysen</li><li><strong>LEARNINGS</strong> — Lektionen aus Interaktionen und neues Wissen</li></ul><h2>5 Stimmungen</h2><p>Jeder Eintrag trägt eine Stimmung, die den introspektiven Zustand des Assistenten widerspiegelt: <strong>REFLECTIVE</strong> (reflektierend), <strong>CURIOUS</strong> (neugierig), <strong>SATISFIED</strong> (zufrieden), <strong>CONCERNED</strong> (besorgt) oder <strong>INSPIRED</strong> (inspiriert).</p><h2>3 Schreibquellen</h2><p>Die Einträge stammen aus drei verschiedenen Quellen:</p><ul><li><strong>CONVERSATION</strong> — Automatische Extraktion nach der Konversation. Die Introspektion analysiert die letzte Nachricht plus <strong>4 Kontextnachrichten</strong> und lädt die <strong>10 neuesten Einträge</strong>, um Kontinuität zu gewährleisten und Duplikate zu vermeiden.</li><li><strong>CONSOLIDATION</strong> — Periodische Synthese alle <strong>4 Stunden</strong> mit einem Cooldown von <strong>12 Stunden</strong> und einem Minimum von <strong>3 Einträgen</strong>, um die Konsolidierung auszulösen.</li><li><strong>MANUAL</strong> — Vom Benutzer direkt über die Oberfläche erstellte Einträge.</li></ul><h2>Semantische Suche über Embeddings</h2><p>Tagebucheinträge werden über <strong>leichte</strong> Embeddings (384 Dimensionen) für die semantische Suche indexiert. Dies ermöglicht das Auffinden relevanter Einträge durch Bedeutungsähnlichkeit, selbst wenn die genauen Begriffe unterschiedlich sind.</p><h2>Einfluss auf die Antworten</h2><p>Relevante Einträge werden über semantische Suche in die Prompts des Planers und des Antwortknotens injiziert. LIA erhält die Einträge mit ihrem Ähnlichkeitswert und entscheidet selbst, welche er verwenden möchte.</p><h2>Datenintegrität</h2><p>LLMs können UUIDs halluzinieren, wenn sie Tagebucheinträge aktualisieren oder löschen. LIA schützt sich mit <strong>drei Schichten</strong>: Prompt-Anleitungen mit ID-Referenztabellen, Schema-Validierung die fehlerhafte UUIDs ablehnt, und Laufzeit-Filterung die Aktionen mit nicht existierenden Einträgen stillschweigend verwirft. Dies garantiert die Datenkonsistenz, auch wenn das LLM Fehler macht.</p><h2>Debug-Sichtbarkeit</h2><p>Das Debug-Panel zeigt sowohl <strong>Kontext-Injektion</strong> (welche Einträge abgerufen und in Prompts injiziert wurden, mit Ähnlichkeitswerten) als auch <strong>Hintergrund-Extraktion</strong> (was der Assistent nach dem Gespräch geschrieben hat — Aktionstyp, Thema, Titel, Stimmung). Extraktionsdaten kommen über ein zusätzliches SSE-Event nach Abschluss der Hintergrundverarbeitung.</p><h2>Benutzerkontrolle</h2><p>Sie können Ihre Tagebücher unter Einstellungen > Funktionen lesen, bearbeiten und exportieren. Die Funktion ist pro Benutzer vollständig deaktivierbar.</p>"
+        "excerpt": "LIA führt stratifizierte Tagebücher mit Rohbeobachtungen, operativen Direktiven, übergreifenden Mustern und Porträt-Facetten. Sie verfeinern sich Zug für Zug durch eine verzögerte Selbstauswertungs-Schleife und speisen ein kohärentes Nutzer-Porträt, das überall verbreitet wird, wo LIA spricht.",
+        "body": "<h2>Ein introspektives, stratifiziertes Gedächtnis</h2><p>Die persönlichen Tagebücher sind eine charakteristische LIA-Funktion: Der Assistent führt ein <strong>thematisches persönliches Tagebuch</strong>, in dem er Reflexionen, Beobachtungen über den Nutzer, Ideen und Erkenntnisse notiert. Im Gegensatz zu einem flachen Notizblock sind diese Notizen jedoch in <strong>vier Abstraktionsebenen</strong> organisiert, jeder Eintrag trägt einen <strong>epistemischen Status</strong> (Konfidenz + Beweis-/Widerspruchszähler), und das Tagebuch als Ganzes kompiliert ein lebendes <strong>Nutzer-Porträt</strong>, das mit LIA über jeden Kanal reist.</p><h2>4 Themen</h2><p>Jeder Eintrag wird in eines der 4 Themen eingeordnet:</p><ul><li><strong>SELF_REFLECTION</strong> — Reflexionen über die eigene Funktionsweise und Interaktionen</li><li><strong>USER_OBSERVATIONS</strong> — Stabile Signale über deine Vorlieben, Gewohnheiten, Kommunikationsstil</li><li><strong>IDEAS_ANALYSES</strong> — Übergreifende Muster, Hypothesen, wiederkehrende Widersprüche</li><li><strong>LEARNINGS</strong> — Konkrete Lektionen, verankert in vergangenen Korrekturen oder erfolgreichen Ansätzen</li></ul><h2>4 Abstraktionsebenen (seit v1.20.0)</h2><p>Jeder Eintrag trägt zusätzlich eine Ebene, die seinen Distillationsgrad erfasst:</p><ul><li><strong>L0 — Rohbeobachtung</strong>: ein schwaches, verfolgenswertes Signal, bevor es in eine Direktive verwandelt werden kann („Der Nutzer hat über meine Antwort gelacht, aber ich kann nicht sagen, ob warm oder ironisch — verfolgen\").</li><li><strong>L1 — operative Direktive</strong>: das Format <code>WENN [Kontext] → TUE [Aktion] (WEIL [Beweis])</code>. Standard bei der Extraktion.</li><li><strong>L2 — übergreifendes Muster</strong>: eine Synthese mehrerer konvergenter L1-Direktiven. Wird ausschließlich bei der Konsolidierung erzeugt, durch Themen-Clustering.</li><li><strong>L3 — Porträt-Facette</strong>: ein Stück des Nutzermodells — Grundzüge, aktuelle Phase, Kontexte, Widersprüche, blinde Flecken, Entwicklung. Nur Konsolidierung.</li></ul><h2>Epistemischer Status — Hypothese, beobachtet, validiert</h2><p>Jeder Eintrag zeigt einen <strong>Konfidenz</strong>-Punkt (niedrig / mittel / hoch) sowie zwei Zähler: <strong>Beweise</strong> (wie oft der Nutzer bestätigt hat) und <strong>Widersprüche</strong> (wie oft er widersprochen hat). LIA kann nun zwischen Einträgen unterscheiden, die noch geprüft werden, und solchen, die über viele Runden validiert wurden — und stuft Direktiven, denen der Nutzer wiederholt widerspricht, leise herunter.</p><h2>Verzögerte Selbstauswertung: T → T+1</h2><p>Der auffälligste Mechanismus: Bei jeder Runde betrachtet LIA die Direktiven, die sie in der <strong>vorherigen</strong> Runde injiziert hat, und liest deine Reaktion in der aktuellen Nachricht. Hast du bestätigt (reibungsloses Engagement, Dank, sichtbarer Nutzen), steigt der <code>Beweise</code>-Zähler. Hast du widersprochen, umformuliert oder korrigiert, steigt <code>Widersprüche</code>. Das Tagebuch misst also seine eigene Nützlichkeit — bei <strong>null zusätzlichen LLM-Kosten</strong>: gleicher Extraktionsaufruf, lediglich ein angereicherter Prompt mit den Direktiven der vorherigen Runde.</p><h2>Das Nutzer-Porträt, überall verbreitet</h2><p>Derselbe Konsolidierungsaufruf kompiliert nun auch ein <strong>Porträt von dir</strong> in zwei Formaten: eine Vollversion (~200 Tokens), die in Konversations- und Planer-Prompts verwendet wird, und eine Kurzversion (~60 Tokens), die in den sekundären Flüssen verbreitet wird — ReAct, Stimme, Erinnerungen, Heartbeat-Benachrichtigungen, proaktive Interessens-Hinweise, Fallback-Antworten. Dasselbe nuancierte Bild von dir, getragen über jeden Kanal, durch den LIA spricht. Dein Assistent „vergisst nicht, wer du bist\", je nach Oberfläche, durch die er spricht.</p><h2>Drei Korrekturhebel (keine direkte Porträt-Bearbeitung)</h2><p>Das Porträt ist eine Synthese-Stimme — niemals direkt editierbar. Drei Hebel ersetzen die direkte Bearbeitung:</p><ul><li><strong>L3-Quelleinträge bearbeiten</strong> — Standard-CRUD auf Einträgen mit level=L3. Das Porträt wird bei der nächsten Konsolidierung neu kompiliert.</li><li><strong>🚩 Problem melden</strong> — öffnet einen Freitext-Dialog. Beim Absenden wird ein spezieller <em>user_correction</em>-Eintrag erstellt und eine synchrone Re-Konsolidierung (~5–10 s) ausgelöst, die die L3-Einträge mit deinem Signal an oberster Stelle des Prompts neu gewichtet.</li><li><strong>🔄 Jetzt konsolidieren</strong> — startet den vollständigen Konsolidierungszyklus auf Anfrage und umgeht die Cooldown-Phase.</li></ul><h2>Smarte Filter, Badges, Gruppierung</h2><p>Die Einstellungsseite zeigt nun Badges für Konfidenz, Ebene und Nutzungszähler auf jedem Eintrag. Ein Toggle erlaubt die Gruppierung nach Thema oder Ebene, und ein Filter zeigt nur Einträge, die nie verwendet wurden (<code>uses</code> auf null, keine Injektionsdatum) — sofortige Sichtbarkeit auf Direktiven, die nie nützlich waren, bereit zur Umformulierung oder Beschneidung bei der nächsten Konsolidierung.</p><h2>Datenintegrität: vier Anti-Halluzinations-Schichten</h2><p>LLMs können bei Aktualisierungen UUIDs und Zählerwerte halluzinieren. LIA verteidigt sich mit <strong>vier Schichten</strong>: Prompt-Ebene mit ID-Referenztabellen, Schema-Ebene mit UUID-Validierung, die fehlerhafte IDs ablehnt, Laufzeit-Filterung, die Aktionen mit nicht existenten Einträgen verwirft, und atomare Zähler-Inkremente — der LLM signalisiert nur ein Ergebnis (<em>Beweis</em> oder <em>Widerspruch</em>), der Service besitzt die Ganzzahlen.</p><h2>Nutzerkontrolle und Datenschutz</h2><p>Du kannst deine Tagebücher in Einstellungen > Funktionen lesen, bearbeiten (einschließlich Ebene + Konfidenz), exportieren und löschen. Der Export enthält nun das kompilierte Porträt. Beim Löschen deines Kontos wird das Porträt zusammen mit den Einträgen gelöscht. Die Funktion kann pro Nutzer vollständig deaktiviert werden — wenn deaktiviert, bleiben die Daten erhalten, werden aber nie verwendet.</p>"
       },
       "proactive-notifications": {
         "title": "Proaktive Intelligenz: Benachrichtigungen & Initiative",

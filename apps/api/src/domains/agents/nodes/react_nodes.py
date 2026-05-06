@@ -231,6 +231,27 @@ async def react_setup_node(
             )
         )
 
+    # User-model portrait — ambient diffusion (ADR-079, commit 3).
+    # Brief format (~60 tokens) injected once at react setup so the agent
+    # carries the same posture as the pipeline mode.
+    if getattr(settings, "journals_enabled", False):
+        try:
+            configurable = config.get("configurable", {})
+            user_journals_enabled = configurable.get("user_journals_enabled", False)
+            react_user_id = configurable.get("langgraph_user_id", "")
+            if user_journals_enabled and react_user_id:
+                from src.domains.journals.portrait_builder import (
+                    build_journal_user_model_block,
+                )
+
+                user_model_block = await build_journal_user_model_block(
+                    user_id=react_user_id, format="brief", flow="react"
+                )
+                if user_model_block:
+                    messages_to_add.append(SystemMessage(content=user_model_block))
+        except Exception as exc:  # pragma: no cover — best-effort
+            logger.warning("react_user_model_block_failed", error=str(exc))
+
     # Inject active skills catalogue (L1) so the ReAct agent can discover
     # and use skills via the existing skill tools (activate_skill_tool,
     # run_skill_script, read_skill_resource). Same filtered catalogue as

@@ -158,6 +158,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 | [ADR-068-Psyche-Engine.md](./architecture/ADR-068-Psyche-Engine.md) | Psyche Engine — architectural decision record | ✅ |
 | [ADR-069-Gemini-Embedding-Migration.md](./architecture/ADR-069-Gemini-Embedding-Migration.md) | Gemini embedding migration (OpenAI → Google) — ADR | ✅ |
 | [ADR-075-Rich-Skill-Outputs.md](./architecture/ADR-075-Rich-Skill-Outputs.md) | Rich Skill Outputs — SkillScriptOutput JSON contract, SKILL_APP registry type, sandboxed iframe widget, theme/locale sync (v1.16.8) | ✅ |
+| [ADR-079-Stratified-Journal-Consciousness.md](./architecture/ADR-079-Stratified-Journal-Consciousness.md) | Stratified Journal Consciousness — L0/L1/L2/L3 levels, epistemic status, deferred self-evaluation, ambient portrait diffusion | ✅ |
 
 ### Human-in-the-Loop (HITL)
 
@@ -254,6 +255,7 @@ Cette documentation couvre l'intégralité du projet **LIA** : un assistant IA c
 
 | ADR | Titre | Date |
 |-----|-------|------|
+| ADR-079 | Stratified Journal Consciousness | 2026-05 |
 | ADR-078 | LLM Catalogue DB-Source-of-Truth | 2026-05 |
 | ADR-077 | Today Briefing as a Standalone Bounded Context | 2026-04 |
 | ADR-076 | Health Metrics Ingestion via Per-User Tokens | 2026-04 |

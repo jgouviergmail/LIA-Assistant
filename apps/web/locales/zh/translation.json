@@ -2822,8 +2822,8 @@
           "description": "随每次交流动态演变的心理状态。情绪（22种情感）、能量、与用户的关系、人格特质（大五人格）。助手有机地调整其语调、词汇和行为——从不明说，而是展现。内置情感安全：强负面情感记忆自动触发保护模式。"
         },
         "personalJournals": {
-          "title": "📓 个人日志",
-          "description": "LIA在个人日志中保持自己的思考：自我反思、对用户的观察、想法、学习。这些以第一人称撰写并受活跃人格影响的笔记，有机地影响未来的回应。自动定期整合。用户保持完全控制：阅读、编辑、删除。"
+          "title": "📓 个人日记（分层意识）",
+          "description": "LIA 在个人日记中保留自己的反思，按四个抽象层级组织 — <code>L0</code> 原始观察、<code>L1</code> 操作指令（WHEN→DO BECAUSE）、<code>L2</code> 横向模式、<code>L3</code> 肖像维度 — 并具有认识论状态（置信度、证据/矛盾计数器）。延迟自评估循环在下一轮测量每个注入的指令是否被用户确认或反驳 — 没有额外的 LLM 成本。同一次巩固调用还编译用户肖像（完整约 200 个 token，简要约 60 个 token），扩散到 LIA 说话的八个流中：对话、规划器、ReAct、语音、提醒、heartbeat、主动兴趣、fallback。用户保持完全控制：按主题或层级阅读、编辑层级和置信度、报告肖像问题、触发手动巩固。肖像本身是综合声音 — 从不直接编辑。"
         },
         "healthMetrics": {
           "title": "🩺 iPhone 健康数据（多态批量 UPSERT）",
@@ -2852,6 +2852,21 @@
       "title": "版本历史",
       "description": "LIA各版本功能更新记录",
       "versions": {
+        "v1_20_0": {
+          "title": "v1.20.0 — 分层日记：层级、认识论状态、扩散的用户模型肖像",
+          "date": "2026年5月",
+          "count": "8",
+          "items": {
+            "i1": "<b>个人日记获得四个抽象层级（L0/L1/L2/L3）</b> — 每个条目现在都带有一个层级：<code>L0</code> 原始观察（值得追踪的弱信号）、<code>L1</code> 操作指令（WHEN→DO BECAUSE 格式）、<code>L2</code> 横向模式（多个收敛 L1 的综合）、<code>L3</code> 肖像维度。L2 和 L3 仅在巩固时通过主题聚类产生。设置面板现在在每个条目上显示层级徽章，并提供按主题/层级分组的切换。",
+            "i2": "<b>每个条目都有认识论状态</b> — 每个条目都有<code>置信度</code>圆点（低/中/高）以及<code>证据</code>和<code>矛盾</code>计数器。LIA 现在能够区分仍在测试的假设和经过多轮确认的观察 — 并悄悄降级用户反复反驳的条目。置信度和层级可在创建/编辑对话框中修改。",
+            "i3": "<b>延迟自评估（T → T+1）</b> — 每一轮，LIA 都会查看上一轮注入的指令并读取你在当前消息中的反应。如果你确认了，<code>证据</code>计数器递增；如果你反驳了，<code>矛盾</code>计数器递增。日记因此衡量自己的有用性 — 零额外 LLM 成本（同一次提取调用，仅是丰富了提示词）。",
+            "i4": "<b>日记设置中新增「LIA 如何看你」部分</b> — 编译的用户模型肖像出现在条目手风琴上方，有两个只读标签（完整 / 简要），编译时间戳和新鲜度徽章。完整版本（约 200 个 token）用于对话和规划器；简要版本（约 60 个 token）扩散到 LIA 说话的所有其他地方：ReAct、语音、提醒、heartbeat 通知、主动兴趣提示、fallback 回复。在所有渠道中携带相同的细致用户模型。",
+            "i5": "<b>肖像的三个修正杠杆</b> — 肖像本身是综合性的，从不直接编辑。三个杠杆代替：（1）编辑/删除 L3 源条目（标准 CRUD），（2）<b>🚩 报告问题</b>打开自由文本对话框并触发同步重新巩固（约 5–10 秒），将你的信号固定在提示词顶部，（3）<b>🔄 立即巩固</b>按需运行完整的巩固周期，跳过冷却时间。",
+            "i6": "<b>智能筛选「仅显示从未使用的条目」</b> — 列表顶部的新切换可显示 <code>uses=0</code> 且无注入日期的条目。这些是下次巩固时重新表述或删除的候选 — 即时可见哪些指令从未发挥作用。",
+            "i7": "<b>更有纪律的巩固</b> — 巩固提示词现在在 STEP 1 执行明确的成对去重扫描，审计主题分类错误，主动将收敛的 L1 聚类成 L2 模式，并编译用户肖像 — 全部在同一次 LLM 调用中（无额外成本）。结果：嘈杂的重复项会定期减少，跨所有主题和层级真正出现不同的条目。",
+            "i8": "<b>GDPR：账户删除时擦除肖像</b> — 删除账户时，肖像的三列（完整、简要、编译时间戳）与其他用户数据一起清除。导出端点现在还在 <code>portrait</code> 键下包含编译的肖像以完整。"
+          }
+        },
         "v1_18_1": {
           "title": "v1.18.1 — Today Briefing 优化，截图焕新，统计信息增强",
           "date": "2026年4月",
@@ -3909,37 +3924,41 @@
         }
       },
       "journals": {
-        "title": "个人日志",
-        "description": "助手的个人日志本，用于记录反思和学习",
-        "count": "7",
+        "title": "个人日记",
+        "description": "助手的个人日志，用于反思和学习",
+        "count": "8",
         "questions": {
           "q1": {
-            "question": "什么是个人日志？",
-            "answer": "<p>个人日志是主题笔记本，AI助手在其中记录自己的反思、观察、分析和学习。与用户记忆（关于您的事实）不同，日志包含<strong>助手自己的视角</strong>——以第一人称书写，受其活跃个性的影响。</p><p><strong>4个主题：</strong>自我反思、用户观察、想法与分析、学习心得。</p>"
+            "question": "什么是个人日记？",
+            "answer": "<p>个人日记是主题笔记本，AI 助手在其中记录自己的反思、观察、分析和学习。与用户记忆（关于你的事实）不同，日记包含<strong>助手自己的视角</strong> — 以第一人称写作，由活跃的人格着色。</p><p><strong>4 个主题：</strong>自我反思、用户观察、想法与分析、学习。</p><p><strong>4 个抽象层级：</strong><code>L0</code> 原始观察（值得追踪的弱信号）、<code>L1</code> 操作指令（默认 WHEN→DO BECAUSE 格式）、<code>L2</code> 横向模式（仅巩固）、<code>L3</code> 馈送用户模型的肖像维度（仅巩固）。</p>"
           },
           "q2": {
-            "question": "助手什么时候写日志？",
-            "answer": "<p><strong>两种机制：</strong></p><ul><li><strong>对话后：</strong>在对话结束后（4+条消息），助手可能会写一篇反思。大多数对话不会产生任何内容——它是有选择性的。</li><li><strong>定期整合：</strong>每隔几小时，助手会审查所有笔记——合并、总结或删除过时的条目。</li></ul>"
+            "question": "助手何时在日记中写作？",
+            "answer": "<p><strong>两种机制：</strong></p><ul><li><strong>对话后：</strong>对话（4+ 条消息）后，助手可能会写一个反思。大多数对话不会产生任何内容 — 它有选择性。助手还会查看上一轮注入的指令以及你在当前轮次中的反应（<strong>延迟自评估 T → T+1</strong>）：如果你确认了，<code>证据</code>计数器递增；如果你反驳了，<code>矛盾</code>计数器递增。零额外 LLM 成本 — 同一次提取调用，丰富的提示词。</li><li><strong>定期巩固：</strong>每隔几个小时，助手会回顾所有笔记 — 明确的成对去重、分类审计、主动将收敛的 <code>L1</code> 聚集到 <code>L2</code> 模式中，以及编译用户肖像 — 全部在同一次 LLM 调用中。</li></ul>"
           },
           "q3": {
-            "question": "日志如何影响回答？",
-            "answer": "<p>日志条目通过<strong>语义搜索</strong>注入到提示词中。两个不同的注入：<strong>回答提示词</strong>获取与对话语气匹配的条目，<strong>规划提示词</strong>获取与用户目标和学习相关的条目。助手决定哪些笔记是相关的。</p>"
+            "question": "日记如何影响响应？",
+            "answer": "<p>两种互补机制：</p><ul><li><strong>相关条目的语义注入</strong>到响应和规划提示词中 — 助手根据相似度分数决定使用哪些笔记。</li><li><strong>编译的用户模型肖像的环境扩散</strong>到 LIA 说话的<strong>八个流</strong>中：对话和规划器接收完整版本（约 200 个 token），而 ReAct、语音、提醒、heartbeat 通知、主动兴趣提示和 fallback 回复接收简要版本（约 60 个 token）。在所有渠道中携带相同的细致用户模型 — 你的助手不会根据它说话的界面「忘记你是谁」。</li></ul>"
           },
           "q4": {
-            "question": "我可以阅读和编辑助手的日志吗？",
-            "answer": "<p>可以！在<strong>设置 > 功能 > 个人日志</strong>中，您可以阅读、编辑、删除甚至创建条目。您的添加是透明的——助手无法区分。这让您可以纠正偏见或引导助手。</p>"
+            "question": "我可以阅读和编辑助手的日记吗？",
+            "answer": "<p>可以！在<strong>设置 > 功能 > 个人日记</strong>中，你可以按主题<em>或抽象层级</em>查看条目（手风琴顶部的切换），修改<code>标题</code>/<code>内容</code>/<code>情绪</code>/<code>层级</code>/<code>置信度</code>，删除或甚至创建你自己的条目。你的添加是透明的 — 助手注意不到差异。新的<em>「仅显示从未使用的条目」</em>筛选可显示从未注入的指令（<code>uses</code> 为零），以便你快速清理。</p>"
           },
           "q5": {
             "question": "我可以配置哪些设置？",
-            "answer": "<p><strong>开关：</strong>启用/禁用日志、整合、对话历史分析（附费用警告）。</p><p><strong>数值设置：</strong>最大日志大小（默认40,000字符）、提示词注入预算（1,500字符）、最大条目大小（2,000字符）、最大搜索结果数（10）。</p>"
+            "answer": "<p><strong>切换：</strong>启用/禁用日记、巩固、对话历史分析（带成本警告）。</p><p><strong>数值设置：</strong>最大日记大小（默认 40,000 字符）、提示词注入预算（1,500 字符）、每个条目的最大大小（2,000 字符）、最大搜索结果（10）。</p>"
           },
           "q6": {
-            "question": "费用是多少？",
-            "answer": "<p>日志操作使用后台LLM调用。提取：每次符合条件的对话一次调用（大多数返回空）。整合：每个用户每4-12小时一次调用。LLM模型可在<strong>管理 > LLM配置</strong>中配置。实际费用在设置中可见。</p>"
+            "question": "成本是多少？",
+            "answer": "<p>日记操作使用后台 LLM 调用。<strong>提取</strong>：每个合格对话一次调用（大多数不返回任何内容）。延迟自评估丰富了同一个提示词，没有额外的 LLM 成本。<strong>巩固</strong>：每个用户每 4–12 小时一次调用；该调用现在还编译用户肖像，因此肖像扩散不会增加 LLM 调用。每轮扩散在对话/规划器提示词中添加约 +200 个 token，在次要流中添加约 +60 个 token，加上一次 DB 读取（约 1 毫秒）。模型可在<strong>管理 > LLM 配置</strong>中配置。实际成本在设置中可见。</p>"
           },
           "q7": {
-            "question": "隐私方面如何？",
-            "answer": "<p>日志数据按用户隔离。所有数据可导出（JSON/CSV）或删除（GDPR）。禁用时，数据被保留但不使用。助手使用您配置的语言书写。</p>"
+            "question": "隐私如何？",
+            "answer": "<p>日记数据按用户隔离。所有数据都可以导出（JSON/CSV）或删除（GDPR）— 导出现在包含编译的肖像。日记禁用时，数据保留但不使用。删除账户时，编译的肖像与条目一起被擦除。</p>"
+          },
+          "q8": {
+            "question": "「LIA 如何看你」部分如何工作？",
+            "answer": "<p>日记设置顶部有一个专用部分。它以两个只读标签呈现你的<strong>编译肖像</strong>：</p><ul><li><strong>完整</strong>（约 200 个 token）— 一个多面肖像：基础特质、当前阶段、上下文、矛盾、盲点、演化。用于对话和规划提示词。</li><li><strong>简要</strong>（约 60 个 token）— 2–3 句话的本质。扩散到次要流（语音、提醒、heartbeat、ReAct、主动、fallback）。</li></ul><p>肖像是综合声音，<strong>故意不直接编辑</strong>。提供三个修正杠杆：</p><ol><li><strong>编辑 L3 源条目</strong> — 在标记为 <code>level=L3</code> 的条目上进行标准 CRUD。下一次巩固时重新编译肖像。</li><li><strong>🚩 报告问题</strong> — 打开自由文本对话框。提交会创建一个特殊的 <em>user_correction</em> 条目并触发同步重新巩固（约 5–10 秒，loader 可见），将 L3 条目重新加权，把你的信号固定在提示词的顶部。</li><li><strong>🔄 立即巩固</strong> — 按需运行完整的巩固周期，跳过冷却时间。</li></ol><p>肖像带有新鲜度指示器 — 超过 7 天将显示为「过时」，邀请你触发重新编译。</p>"
           }
         }
       },
@@ -5033,7 +5052,7 @@
       },
       "journals": {
         "title": "个人日志",
-        "description": "助手通过内省笔记随时间发展自己的视角——反思、观察和学习，丰富其个性并提升回答质量。"
+        "description": "助手随着时间发展出分层视角——观察、指令、横向模式、肖像维度——通过延迟自评估精炼，并在 LIA 说话的每个渠道中扩散一个连贯的用户模型肖像。"
       },
       "responsive": {
         "title": "PWA & 响应式设计",
@@ -5394,7 +5413,72 @@
     "contextMaxResultsDescription": "语义搜索返回用于上下文注入的最大条目数",
     "searchHints": "搜索提示",
     "searchHintsDescription": "语义搜索关键词（逗号分隔）",
-    "chars": "字符"
+    "chars": "字符",
+    "confidenceLabel": "置信度",
+    "confidenceDescription": "认知状态——仅当你知道助手分类错误时才覆盖。",
+    "confidence": {
+      "low": "假设",
+      "medium": "已观察",
+      "high": "已验证"
+    },
+    "injectionCount": "使用次数",
+    "lastInjected": "最近使用",
+    "lastUsed": "最近",
+    "never": "从未",
+    "today": "今天",
+    "yesterday": "昨天",
+    "daysAgo": "{{n}}天前",
+    "evidenceTooltip": "观察到的确认 / 反驳",
+    "filterUnused": "仅显示从未使用的条目",
+    "consolidateNow": "整理",
+    "consolidating": "整理中…",
+    "consolidateNowTooltip": "立即强制整理（去重、层级晋升、置信度更新）。需要几秒钟。",
+    "consolidatedSuccess": "{{s}}秒内应用 {{n}} 个更改——刷新列表查看效果。",
+    "consolidatedNoop": "无需更改——你的日志已经井井有条（{{s}}秒）。",
+    "consolidatedQuota": "LLM 配额已超出——请稍后再试。",
+    "consolidatedError": "手动整理失败。",
+    "portraitTitle": "LIA 如何看待你",
+    "portraitCompiledAt": "{{when}}编译",
+    "portraitNeverCompiled": "尚未编译",
+    "portraitFormatFull": "完整版",
+    "portraitFormatBrief": "简洁版",
+    "portraitTip": "画像是一个活的综合体。要更正它：标记问题、编辑 L3 条目，或触发整理。",
+    "portraitFeedbackButton": "标记问题",
+    "portraitFeedbackTitle": "标记画像中的问题",
+    "portraitFeedbackDescription": "描述哪里有误、不准确或过时。LIA 会将此视为强烈的更正信号，并据此重新编译画像。",
+    "portraitFeedbackHighlightLabel": "高亮段落（可选）",
+    "portraitFeedbackHighlightPlaceholder": "粘贴困扰你的段落",
+    "portraitFeedbackCommentLabel": "你的更正",
+    "portraitFeedbackCommentPlaceholder": "为什么这是错的？应该说什么？",
+    "portraitFeedbackHelp": "提交将触发同步重新编译（约 10-15 秒）。",
+    "portraitFeedbackSubmit": "提交反馈",
+    "portraitFeedbackSuccess": "反馈已应用——画像在 {{s}} 秒内重新编译完成",
+    "portraitFeedbackError": "提交画像反馈失败。",
+    "groupBy": {
+      "label": "分组方式",
+      "theme": "主题",
+      "level": "层级"
+    },
+    "levelLabel": "层级",
+    "levelDescription": "认知抽象层级——L0 原始观察、L1 指令、L2 横向模式、L3 画像层面。",
+    "levels": {
+      "L0": {
+        "label": "原始观察",
+        "description": "观察到的信号、矛盾、接收线索——指令之前。"
+      },
+      "L1": {
+        "label": "操作指令",
+        "description": "WHEN→DO BECAUSE。源自 ADR-064 的默认格式。"
+      },
+      "L2": {
+        "label": "横向模式",
+        "description": "跨多个收敛指令的综合。"
+      },
+      "L3": {
+        "label": "画像层面",
+        "description": "特征、当前阶段、情境、矛盾、盲点——始终注入。"
+      }
+    }
   },
   "blog": {
     "meta": {
@@ -5471,9 +5555,9 @@
         "body": "<h2>支持15+种格式</h2><p>LIA的知识空间接受超过<strong>15种文件格式</strong>，配备专用解析器：</p><ul><li><strong>PDF</strong> 通过PyMuPDF（快速精准提取）</li><li><strong>文档</strong> — DOCX、RTF、ODT</li><li><strong>表格</strong> — XLSX、CSV、ODS</li><li><strong>演示文稿</strong> — PPTX、ODP</li><li><strong>Web和文本</strong> — HTML、Markdown、JSON、XML、EPUB</li></ul><h2>智能分块</h2><p>文档通过<strong>RecursiveCharacterTextSplitter</strong>进行切分，参数经过优化：每块<strong>1000字符</strong>，<strong>200字符</strong>重叠（overlap）以保留段落间的上下文。安全限制：每文档最多<strong>500个块</strong>，每文件最大<strong>20 MB</strong>。</p><h2>混合搜索：两全其美</h2><p>LIA结合两种搜索方法：</p><ul><li><strong>语义搜索</strong> — 通过pgvector的Embeddings。即使用词不同，也能通过语义相似度找到结果。</li><li><strong>BM25搜索</strong> — 关键词匹配。适用于技术术语、专有名词和标识符。</li></ul><p>最终分数加权为<strong>alpha = 0.7</strong>（70%语义，30% BM25）。最低相关性分数为<strong>0.5</strong>——低于此值的结果将被过滤。默认每次查询检索<strong>5个块</strong>（最大可配置：20）。</p><h2>限制和配额</h2><p>每个用户拥有：最多<strong>10个空间</strong>、每空间<strong>50个文档</strong>、每文件<strong>20 MB</strong>。这些限制确保了最佳的搜索性能，同时为大多数使用场景提供了充足的容量。</p><h2>Google Drive同步</h2><p>您可以将<strong>Google Drive文件夹</strong>连接到知识空间。文档会自动同步，并在更改时重新索引。同步可检测新增、修改和删除操作。</p><h2>内置FAQ</h2><p>LIA拥有一个包含自身文档（18个FAQ文件）的系统知识空间。这使它能够精确回答关于自身功能的问题。</p>"
       },
       "personal-journals": {
-        "title": "个人日志：当您的AI助手发展自己的记忆",
-        "excerpt": "LIA保持主题日志，记录反思、观察和分析，影响其推理和回应。",
-        "body": "<h2>内省记忆</h2><p>个人日志是LIA的独特功能：助手维护<strong>主题个人日志</strong>，记录关于用户的反思、观察、想法和学习。这些笔记随时间推移丰富其推理并个性化其回复。</p><h2>4个主题</h2><p>每个条目归入4个主题之一：</p><ul><li><strong>SELF_REFLECTION</strong> — 对自身运作和交互的反思</li><li><strong>USER_OBSERVATIONS</strong> — 关于您的偏好、习惯和需求的记录</li><li><strong>IDEAS_ANALYSES</strong> — 联系、洞察和跨领域分析</li><li><strong>LEARNINGS</strong> — 从交互中获得的经验教训和新知识</li></ul><h2>5种心情</h2><p>每个条目带有反映助手内省状态的心情：<strong>REFLECTIVE</strong>（反思）、<strong>CURIOUS</strong>（好奇）、<strong>SATISFIED</strong>（满意）、<strong>CONCERNED</strong>（担忧）或<strong>INSPIRED</strong>（受启发）。</p><h2>3种写作来源</h2><p>条目来自三个不同的来源：</p><ul><li><strong>CONVERSATION</strong> — 对话后自动提取。内省分析最后一条消息加<strong>4条上下文消息</strong>，并加载<strong>10条近期条目</strong>以确保连续性并避免重复。</li><li><strong>CONSOLIDATION</strong> — 每<strong>4小时</strong>的定期综合，冷却期为<strong>12小时</strong>，最少<strong>3条条目</strong>才触发整合。</li><li><strong>MANUAL</strong> — 用户通过界面直接创建的条目。</li></ul><h2>基于Embeddings的语义搜索</h2><p>日志条目通过<strong>轻量级</strong>（384维）Embeddings索引，用于语义搜索。这允许通过语义相似性找到相关条目，即使确切用词不同。</p><h2>对回复的影响</h2><p>相关条目通过语义搜索注入到规划器和响应节点的提示中。LIA接收带有相似度分数的条目，自行决定使用哪些。</p><h2>数据完整性</h2><p>LLM在更新或删除日志条目时可能会产生UUID幻觉。LIA通过<strong>三层防护</strong>进行保护：带有ID参考表的提示指导、拒绝格式错误UUID的架构验证，以及静默丢弃引用不存在条目操作的运行时过滤。这确保了即使LLM出错，日志数据也能保持一致。</p><h2>调试可见性</h2><p>调试面板同时显示<strong>上下文注入</strong>（哪些条目被检索并注入到提示中，带有相似度分数）和<strong>后台提取</strong>（助手在对话后写了什么——操作类型、主题、标题、心情）。提取数据通过后台处理完成后的补充SSE事件到达。</p><h2>用户控制</h2><p>您可以在设置 > 功能中阅读、编辑和导出日志。该功能可按用户完全禁用。</p>"
+        "title": "个人日记：当你的 AI 助手发展出自己的记忆",
+        "excerpt": "LIA 维护分层日记，记录原始观察、操作指令、横向模式和肖像维度。它们通过延迟自评估循环逐轮精炼，并在 LIA 说话的所有地方扩散一个连贯的用户模型肖像。",
+        "body": "<h2>内省的、分层的记忆</h2><p>个人日记是 LIA 的标志性功能：助手维护一个<strong>主题个人日记</strong>，记录反思、对用户的观察、想法和学习。但与扁平笔记本不同，这些笔记被组织在<strong>四个抽象层级</strong>中，每个条目都带有<strong>认识论状态</strong>（置信度 + 证据/矛盾计数器），整体编译成一个活的<strong>用户肖像</strong>，与 LIA 一起在每个渠道中传播。</p><h2>4 个主题</h2><p>每个条目被分类到 4 个主题之一：</p><ul><li><strong>SELF_REFLECTION</strong> — 对自身功能和交互的反思</li><li><strong>USER_OBSERVATIONS</strong> — 关于你的偏好、习惯、沟通风格的稳定信号</li><li><strong>IDEAS_ANALYSES</strong> — 横向模式、假设、反复出现的矛盾</li><li><strong>LEARNINGS</strong> — 锚定在过去纠正或成功方法上的具体经验</li></ul><h2>4 个抽象层级（自 v1.20.0 起）</h2><p>每个条目还带有一个层级，表示其精炼程度：</p><ul><li><strong>L0 — 原始观察</strong>：值得追踪的弱信号，在它能转变为指令之前（「用户对我的回复笑了，但我不知道是温暖还是讽刺——追踪」）。</li><li><strong>L1 — 操作指令</strong>：格式 <code>WHEN [上下文] → DO [动作] (BECAUSE [证据])</code>。提取时的默认值。</li><li><strong>L2 — 横向模式</strong>：多个收敛的 L1 指令的综合。仅在巩固时通过主题聚类产生。</li><li><strong>L3 — 肖像维度</strong>：用户模型的一部分——基础特质、当前阶段、上下文、矛盾、盲点、演化。仅巩固。</li></ul><h2>认识论状态 — 假设、观察、验证</h2><p>每个条目都有一个<strong>置信度</strong>圆点（低/中/高）以及两个计数器：<strong>证据</strong>（用户确认的次数）和<strong>矛盾</strong>（用户反驳的次数）。LIA 现在能区分仍在测试的条目和经过多轮验证的条目——并悄悄降级用户反复反驳的指令。</p><h2>延迟自评估：T → T+1</h2><p>最显著的机制：每一轮，LIA 都会查看它在<strong>上一</strong>轮注入的指令，并读取你在当前消息中的反应。如果你确认了（顺畅参与、感谢、可见的好处），<code>证据</code>计数器递增。如果你反驳、重新表述或纠正了，<code>矛盾</code>递增。日记因此衡量自己的有用性——并且<strong>零额外 LLM 成本</strong>：同一次提取调用，仅用上一轮的指令丰富了提示词。</p><h2>用户模型肖像，无处不在</h2><p>同一次巩固调用现在还编译你的<strong>肖像</strong>，有两种格式：完整版本（约 200 个 token）用于对话和规划提示词，简要版本（约 60 个 token）扩散到次要流——ReAct、语音、提醒、heartbeat 通知、主动兴趣提示、fallback 回复。在 LIA 说话的每个渠道中携带相同的细致用户模型。你的助手不会根据它说话的界面「忘记你是谁」。</p><h2>三个修正杠杆（无直接肖像编辑）</h2><p>肖像是综合性的声音——从不直接编辑。三个杠杆代替直接编辑：</p><ul><li><strong>编辑 L3 源条目</strong> — 在 level=L3 的条目上的标准 CRUD。下一次巩固时重新编译肖像。</li><li><strong>🚩 报告问题</strong> — 打开自由文本对话框。提交会创建一个特殊的 <em>user_correction</em> 条目，并触发同步重新巩固（约 5–10 秒），将 L3 条目重新加权，把你的信号固定在提示词的顶部。</li><li><strong>🔄 立即巩固</strong> — 按需运行完整的巩固周期，跳过冷却时间。</li></ul><h2>智能筛选、徽章、分组</h2><p>设置面板现在在每个条目上显示置信度、层级和使用计数徽章。切换允许按主题或层级分组，筛选可显示从未使用的条目（<code>uses</code> 为零，无注入日期）——立即可见哪些指令从未证明其用处，准备在下次巩固时重新表述或修剪。</p><h2>数据完整性：四层反幻觉</h2><p>LLM 在更新条目时可能会幻觉 UUID 和计数器值。LIA 通过<strong>四层</strong>来防御：带有 ID 引用表的提示词级指引、模式级 UUID 验证以拒绝格式错误的 ID、运行时筛选以丢弃引用不存在条目的操作，以及原子计数器递增——LLM 仅信号结果（<em>证据</em>或<em>矛盾</em>），服务拥有整数。</p><h2>用户控制和隐私</h2><p>你可以在「设置 > 功能」中阅读、编辑（包括层级和置信度）、导出和删除你的日记。导出现在包含编译的肖像。删除账户时，肖像与条目一起被擦除。该功能可按用户完全禁用——禁用时，数据保留但从未使用。</p>"
       },
       "proactive-notifications": {
         "title": "主动智能：通知与主动行动",

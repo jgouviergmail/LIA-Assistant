@@ -2043,8 +2043,14 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         # ===================================================================
         # JOURNAL CONTEXT INJECTION (semantic relevance search)
         # ===================================================================
+        # Read previous-turn injected IDs (= IDs from turn T-1) BEFORE we
+        # overwrite them at end of node — used for deferred self-evaluation
+        # by the next extraction (ADR-079).
+        previous_journal_injected_ids: list[str] = list(state.get("injected_journal_ids") or [])
+
         journal_context = ""
         journal_injection_debug: dict | None = None
+        current_journal_injected_ids: list[str] = []
         user_journals_enabled = config.get("configurable", {}).get("user_journals_enabled", False)
         if settings.journals_enabled and user_journals_enabled:
             try:
@@ -2057,7 +2063,11 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
 
                     thread_id_for_journal = config.get("configurable", {}).get("thread_id")
                     async with get_db_context() as journal_db:
-                        journal_context_result, journal_debug = await build_journal_context(
+                        (
+                            journal_context_result,
+                            journal_debug,
+                            injected_ids,
+                        ) = await build_journal_context(
                             user_id=user_id_for_journal,
                             query=last_user_message,
                             db=journal_db,
@@ -2068,12 +2078,39 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                         )
                         journal_context = journal_context_result or ""
                         journal_injection_debug = journal_debug
+                        current_journal_injected_ids = injected_ids
             except Exception as e:
                 logger.warning(
                     "journal_context_injection_failed",
                     run_id=run_id,
                     error=str(e),
                     error_type=type(e).__name__,
+                )
+
+        # User-model portrait — ambient diffusion of the compiled portrait
+        # (ADR-079, commit 3). Always injected when journals are enabled.
+        # Format depends on the turn: trivial → brief (~60 tokens),
+        # otherwise → full (~200 tokens).
+        user_model_block = ""
+        if settings.journals_enabled and user_journals_enabled:
+            try:
+                _uid_for_portrait = config.get("configurable", {}).get("langgraph_user_id")
+                if _uid_for_portrait:
+                    from src.domains.journals.portrait_builder import (
+                        build_journal_user_model_block,
+                    )
+
+                    portrait_format = "brief" if user_msg_is_trivial else "full"
+                    user_model_block = await build_journal_user_model_block(
+                        user_id=_uid_for_portrait,
+                        format=portrait_format,
+                        flow="response",
+                    )
+            except Exception as e:
+                logger.warning(
+                    "journal_user_model_block_failed_response",
+                    run_id=run_id,
+                    error=str(e),
                 )
 
         # ===================================================================
@@ -2129,6 +2166,12 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
             journal_context=journal_context,  # Personal journal context
             psyche_context=psyche_context,  # Psyche Engine expression profile
         )
+
+        # ADR-079 commit 3: ambient diffusion of the user-model portrait.
+        # Appended after the base prompt so it is read alongside (not in place
+        # of) the factual psychological profile.
+        if user_model_block:
+            base_system_prompt += "\n\n" + user_model_block
 
         # ADR-062: Inject initiative suggestion into prompt if available
         from src.core.constants import STATE_KEY_INITIATIVE_SUGGESTION
@@ -3006,6 +3049,11 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
         state_update["rag_injection_debug"] = rag_injection_debug
         # Journals: Store debug details for debug panel
         state_update["journal_injection_debug"] = journal_injection_debug
+        # Personal Journals — propagate the injected entry IDs of the CURRENT turn
+        # so the next turn's extraction can perform deferred self-evaluation
+        # (T → T+1, ADR-079). Reset on conversation reset is gracefully handled:
+        # absent ids → extraction skips the deferred-eval section silently.
+        state_update["injected_journal_ids"] = current_journal_injected_ids
 
         # ===================================================================
         # PHASE 3.2 - BUSINESS METRICS INSTRUMENTATION
@@ -3331,6 +3379,7 @@ async def response_node(state: MessagesState, config: RunnableConfig) -> dict[st
                         parent_run_id=run_id,
                         assistant_response=final_content,
                         query_embedding=user_message_embedding,
+                        previous_turn_injected_ids=previous_journal_injected_ids,
                     ),
                     name=f"journal_extraction_{user_id}_{thread_id[:8]}",
                     run_id=run_id,

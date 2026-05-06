@@ -76,6 +76,7 @@ async def generate_fallback_response(
 
     # Resolve psyche context before template formatting
     psyche_block = ""
+    user_model_block = ""
     if user_id:
         try:
             from src.domains.psyche.service import build_psyche_prompt_block
@@ -83,12 +84,24 @@ async def generate_fallback_response(
             psyche_block = await build_psyche_prompt_block(user_id=user_id, user_timezone=None)
         except Exception:
             pass  # Psyche injection is best-effort
+        try:
+            from src.domains.journals.portrait_builder import (
+                build_journal_user_model_block,
+            )
+
+            user_model_block = await build_journal_user_model_block(
+                user_id=user_id, format="brief", flow="fallback"
+            )
+        except Exception:
+            pass  # Journal portrait injection is best-effort
 
     # Build the prompt
     prompt = load_prompt("fallback_response_prompt").format(
         user_query=user_query or "unavailable query",
         psyche_context=psyche_block,
     )
+    if user_model_block:
+        prompt += "\n\n" + user_model_block
 
     try:
         # Use response LLM for consistency with main response generation
@@ -152,6 +165,7 @@ async def generate_fallback_response_sync(
 
     # Resolve psyche context before template formatting
     psyche_block = ""
+    user_model_block = ""
     if user_id:
         try:
             from src.domains.psyche.service import build_psyche_prompt_block
@@ -159,11 +173,23 @@ async def generate_fallback_response_sync(
             psyche_block = await build_psyche_prompt_block(user_id=user_id, user_timezone=None)
         except Exception:
             pass  # Psyche injection is best-effort
+        try:
+            from src.domains.journals.portrait_builder import (
+                build_journal_user_model_block,
+            )
+
+            user_model_block = await build_journal_user_model_block(
+                user_id=user_id, format="brief", flow="fallback"
+            )
+        except Exception:
+            pass  # Journal portrait injection is best-effort
 
     prompt = load_prompt("fallback_response_prompt").format(
         user_query=user_query or "unavailable query",
         psyche_context=psyche_block,
     )
+    if user_model_block:
+        prompt += "\n\n" + user_model_block
 
     try:
         llm = get_llm("response")

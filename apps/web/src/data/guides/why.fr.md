@@ -280,9 +280,15 @@ Vous ne parlez pas à un outil — vous interagissez avec une entité dont le vo
 
 ### 7.3. Les carnets de bord
 
-LIA tient ses propres réflexions dans des **journaux personnels** : auto-réflexion, observations sur l'utilisateur, idées, apprentissages. Ces notes, rédigées à la première personne et colorées par la personnalité active, influencent organiquement les réponses futures.
+LIA tient ses propres réflexions dans des **journaux personnels stratifiés** : auto-réflexion, observations sur l'utilisateur, idées, apprentissages. Ces notes, rédigées à la première personne et colorées par la personnalité active, influencent organiquement les réponses futures.
 
-C'est une forme d'introspection artificielle — l'assistant qui réfléchit sur ses interactions et développe ses propres perspectives. L'utilisateur garde le contrôle total : lecture, édition, suppression.
+Le carnet est organisé sur **quatre niveaux de profondeur** — de l'observation brute (un signal faible qu'on note pour voir s'il se confirme) jusqu'à la facette de portrait (un trait stable qui dit quelque chose de qui vous êtes), en passant par les directives opérationnelles et les patterns transversaux. Chaque entrée porte un **statut épistémique** : hypothèse en test, observation confirmée, ou directive validée par les preuves accumulées au fil des échanges.
+
+Au-delà de l'écriture, le carnet **se mesure lui-même**. À chaque tour, LIA regarde les directives qu'elle a appliquées au tour précédent et lit votre réaction au tour courant : si vous avez confirmé, le compteur de preuves monte ; si vous avez repoussé, le compteur de contradictions monte. Avec le temps, les hypothèses fausses se déclassent silencieusement, les bonnes intuitions se promeuvent, les patterns transversaux émergent par regroupement actif.
+
+De cette stratification émerge un **portrait utilisateur compilé** : votre voix, votre rythme, vos contextes, vos contradictions, vos zones d'ombre. Il voyage avec LIA partout où elle prend la parole — conversation, voix, rappels, notifications proactives, ReAct, fallback — pour que l'assistant n'« oublie pas qui vous êtes » selon la surface qu'il utilise.
+
+C'est une forme d'introspection artificielle — l'assistant qui réfléchit sur ses interactions, mesure sa propre utilité, et développe une compréhension nuancée de vous. Vous gardez le contrôle total : lecture par thème ou par niveau, édition, signalement d'une erreur sur le portrait, déclenchement d'une consolidation à la demande. Le portrait lui-même n'est jamais édité directement — c'est une voix de synthèse, qu'on corrige par les leviers indirects pour préserver sa cohérence.
 
 ### 7.4. La sécurité émotionnelle
 

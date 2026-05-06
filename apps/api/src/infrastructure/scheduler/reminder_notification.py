@@ -222,6 +222,7 @@ Generate a short, natural message in {language}.
 
     # Resolve psyche context before template formatting
     psyche_block = ""
+    user_model_block = ""
     if user_id:
         try:
             from src.domains.psyche.service import build_psyche_prompt_block
@@ -231,6 +232,16 @@ Generate a short, natural message in {language}.
             )
         except Exception:
             pass  # Psyche injection is best-effort
+        try:
+            from src.domains.journals.portrait_builder import (
+                build_journal_user_model_block,
+            )
+
+            user_model_block = await build_journal_user_model_block(
+                user_id=user_id, format="brief", flow="reminder"
+            )
+        except Exception:
+            pass  # Journal portrait injection is best-effort
 
     system_prompt = template.format(
         persona_prompt=persona_prompt,
@@ -243,6 +254,8 @@ Generate a short, natural message in {language}.
         user_language=language,
         psyche_context=psyche_block,
     )
+    if user_model_block:
+        system_prompt += "\n\n" + user_model_block
 
     try:
         # Use the response LLM with custom settings for short message generation

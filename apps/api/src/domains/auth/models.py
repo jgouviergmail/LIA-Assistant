@@ -397,6 +397,27 @@ class User(BaseModel):
         comment="Source of last journal intervention: 'extraction' or 'consolidation'.",
     )
 
+    # Compiled user-model portrait (ADR-079, commit 3 of journal-conscience-operationnelle).
+    # Two formats produced by the consolidation LLM in the same call:
+    # - full (~200 tokens): conversation/planner — rich faceted portrait
+    # - brief (~60 tokens): secondary flows (notifications, voice, reminders, react)
+    # Read everywhere LIA speaks via build_journal_user_model_block().
+    journal_portrait_full: Mapped[str | None] = mapped_column(
+        Text(),
+        nullable=True,
+        comment="Compiled portrait full format (~200 tokens) — used by response/planner.",
+    )
+    journal_portrait_brief: Mapped[str | None] = mapped_column(
+        Text(),
+        nullable=True,
+        comment="Compiled portrait brief format (~60 tokens) — used by secondary flows.",
+    )
+    journal_portrait_compiled_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="UTC timestamp of the last portrait compilation by the consolidation service.",
+    )
+
     # Psyche Engine preferences
     psyche_enabled: Mapped[bool] = mapped_column(
         default=True,

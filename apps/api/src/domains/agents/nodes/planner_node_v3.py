@@ -422,19 +422,35 @@ async def planner_node_v3(
                 )
 
                 async with get_db_context() as journal_db:
-                    journal_context_result, planner_journal_debug_data = (
-                        await build_journal_context(
-                            user_id=user_id_for_journal,
-                            query=planner_query,
-                            db=journal_db,
-                            query_embedding=planner_embedding,
-                            include_debug=True,
-                            run_id=run_id,
-                            session_id=thread_id_for_journal,
-                        )
+                    (
+                        journal_context_result,
+                        planner_journal_debug_data,
+                        _planner_injected_ids,
+                    ) = await build_journal_context(
+                        user_id=user_id_for_journal,
+                        query=planner_query,
+                        db=journal_db,
+                        query_embedding=planner_embedding,
+                        include_debug=True,
+                        run_id=run_id,
+                        session_id=thread_id_for_journal,
                     )
                     journal_context = journal_context_result or ""
                     journal_planner_debug = planner_journal_debug_data
+
+                # User-model portrait — ambient diffusion (ADR-079 commit 3).
+                # Always full format for the planner since it informs reasoning.
+                from src.domains.journals.portrait_builder import (
+                    build_journal_user_model_block,
+                )
+
+                _portrait = await build_journal_user_model_block(
+                    user_id=user_id_for_journal,
+                    format="full",
+                    flow="planner",
+                )
+                if _portrait:
+                    journal_context = (journal_context + "\n\n" + _portrait).strip()
         except Exception as e:
             logger.warning(
                 "planner_journal_context_failed",

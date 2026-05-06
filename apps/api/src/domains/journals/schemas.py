@@ -24,6 +24,8 @@ from src.domains.journals.constants import (
     JOURNAL_ENTRY_TITLE_MAX_LENGTH,
 )
 from src.domains.journals.models import (
+    JournalEntryConfidence,
+    JournalEntryLevel,
     JournalEntryMood,
     JournalEntrySource,
     JournalEntryStatus,
@@ -63,6 +65,21 @@ class JournalEntryResponse(BaseModel):
     last_injected_at: datetime | None = Field(
         None,
         description="Last time this entry was injected into a prompt (UTC)",
+    )
+    confidence: JournalEntryConfidence = Field(
+        description="Epistemic status: low (hypothesis), medium (default), high (validated)",
+    )
+    evidence_count: int = Field(
+        description="Times this entry was confirmed by deferred self-evaluation",
+    )
+    contradiction_count: int = Field(
+        description="Times this entry was contradicted by deferred self-evaluation",
+    )
+    level: JournalEntryLevel = Field(
+        description=(
+            "Abstraction level: L0 raw observations, L1 operational directives, "
+            "L2 transversal patterns, L3 portrait facets"
+        ),
     )
     created_at: datetime = Field(description="Creation timestamp (UTC)")
     updated_at: datetime = Field(description="Last modification timestamp (UTC)")
@@ -116,6 +133,20 @@ class JournalEntryUpdate(BaseModel):
     search_hints: list[str] | None = Field(
         None,
         description="3-5 keywords in user vocabulary for semantic search bridging",
+    )
+    confidence: JournalEntryConfidence | None = Field(
+        None,
+        description=(
+            "Epistemic status — user may override the LLM's classification. "
+            "Counters (evidence_count, contradiction_count) remain system-managed."
+        ),
+    )
+    level: JournalEntryLevel | None = Field(
+        None,
+        description=(
+            "Abstraction level — user may promote/demote between L0/L1/L2/L3. "
+            "L3 entries form the portrait that LIA carries everywhere it speaks."
+        ),
     )
 
 
@@ -239,6 +270,61 @@ class JournalThemeInfo(BaseModel):
     label: str
 
 
+class JournalConsolidationResponse(BaseModel):
+    """Result of a manual consolidation triggered by the user."""
+
+    actions_applied: int = Field(
+        description="Number of actions (create/update/delete) applied during the consolidation",
+    )
+    duration_ms: int = Field(
+        description="Total duration of the consolidation run in milliseconds",
+    )
+
+
+class JournalPortraitResponse(BaseModel):
+    """User-model portrait compiled by the journal consolidation.
+
+    The portrait is a synthesis derived from the L3 portrait facets and the
+    other signals (memories, interests, health, usage patterns). It is never
+    user-editable directly — users act via the three levers:
+    1. Editing/deleting L3 source entries
+    2. POSTing feedback that triggers a synchronous re-consolidation
+    3. Triggering a fresh consolidation
+    """
+
+    full: str | None = Field(
+        None,
+        description="Compiled portrait in full format (~200 tokens) for response/planner",
+    )
+    brief: str | None = Field(
+        None,
+        description="Compiled portrait in brief format (~60 tokens) for secondary flows",
+    )
+    compiled_at: datetime | None = Field(
+        None,
+        description="UTC timestamp of the last portrait compilation",
+    )
+
+
+class JournalPortraitFeedbackRequest(BaseModel):
+    """User-initiated feedback signal on the compiled portrait (lever 2)."""
+
+    comment: str = Field(
+        min_length=1,
+        max_length=2000,
+        description=(
+            "Free-text correction signal — what is wrong / inaccurate / outdated. "
+            "Will be persisted as a journal entry (level=L0, source=user_correction) "
+            "and trigger a synchronous re-consolidation that prioritizes this signal."
+        ),
+    )
+    highlighted_section: str | None = Field(
+        None,
+        max_length=500,
+        description="Optional excerpt from the portrait the user highlighted as problematic",
+    )
+
+
 class JournalThemesResponse(BaseModel):
     """Available journal themes."""
 
@@ -302,3 +388,47 @@ class ExtractedJournalEntry(BaseModel):
             "Optional — LLM may omit for backward compatibility."
         ),
     )
+    confidence: JournalEntryConfidence | None = Field(
+        None,
+        description=(
+            "Epistemic status: low (single observation, untested hypothesis), "
+            "medium (default for new entries), high (confirmed by repeated evidence). "
+            "Optional on create (defaults to medium). On update, the LLM can promote "
+            "to high after evidence accumulates, or downgrade after contradictions."
+        ),
+    )
+    evidence_outcome: Literal["evidence", "contradiction"] | None = Field(
+        None,
+        description=(
+            "Deferred self-evaluation signal — set on update actions only when the LLM "
+            "observes that an injected directive from the previous turn was either confirmed "
+            "(evidence) or contradicted (contradiction) by the user's reaction. "
+            "The service atomically increments the corresponding counter on the entry. "
+            "Never set the absolute counts directly — the LLM only signals the outcome."
+        ),
+    )
+    level: JournalEntryLevel | None = Field(
+        None,
+        description=(
+            "Abstraction level. L0 raw observations (transient), L1 directives "
+            "(WHEN→DO BECAUSE — the legacy default), L2 transversal patterns synthesizing "
+            "multiple convergent L1, L3 portrait facets (always-injected). On create, "
+            "default is L1. On update, you may promote (L0→L1, L1→L2, L2→L3) when the "
+            "evidence supports it, or demote when a synthesis loses its grounding."
+        ),
+    )
+
+
+class ConsolidationParseResult(BaseModel):
+    """Internal: parsed result of a consolidation LLM call.
+
+    The consolidation prompt may return either:
+    - A bare JSON array of actions (legacy format, before commit 3) — backwards
+      compatible.
+    - A JSON object ``{actions, portrait_full, portrait_brief}`` (commit 3+) —
+      enriches the response with the compiled portraits.
+    """
+
+    actions: list[ExtractedJournalEntry] = Field(default_factory=list)
+    portrait_full: str | None = None
+    portrait_brief: str | None = None

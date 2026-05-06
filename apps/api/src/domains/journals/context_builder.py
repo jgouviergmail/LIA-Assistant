@@ -69,7 +69,7 @@ async def build_journal_context(
     include_debug: bool = False,
     run_id: str | None = None,
     session_id: str | None = None,
-) -> tuple[str | None, dict[str, Any] | None]:
+) -> tuple[str | None, dict[str, Any] | None, list[str]]:
     """
     Build journal context block for prompt injection.
 
@@ -90,8 +90,12 @@ async def build_journal_context(
         session_id: Session ID for embedding cost logging
 
     Returns:
-        Tuple of (formatted context string, debug data dict).
-        Either or both may be None.
+        Tuple of (formatted context string, debug data dict, injected entry IDs).
+        - The formatted context and debug data may be None.
+        - The injected entry IDs (strings) are always returned (empty list if
+          nothing was injected). They are used by the deferred self-evaluation
+          mechanism (T → T+1) to let the next turn's extractor observe whether
+          the directives were confirmed or contradicted by the user's reaction.
     """
     if isinstance(user_id, str):
         user_id = UUID(user_id)
@@ -99,7 +103,7 @@ async def build_journal_context(
     try:
         # Check system-level feature flag FIRST (before any DB query)
         if not settings.journals_enabled:
-            return None, None
+            return None, None, []
 
         # Load user settings from DB (not available in node scope)
         from sqlalchemy import select
@@ -110,11 +114,11 @@ async def build_journal_context(
         user = user_result.scalar_one_or_none()
 
         if not user:
-            return None, None
+            return None, None, []
 
         # Check user-level feature flag
         if not getattr(user, "journals_enabled", settings.journals_enabled):
-            return None, None
+            return None, None, []
 
         max_chars = getattr(
             user, "journal_context_max_chars", settings.journal_default_context_max_chars
@@ -189,7 +193,7 @@ async def build_journal_context(
         all_entries = all_entries[:max_results]
 
         if not all_entries:
-            return None, None
+            return None, None, []
 
         # Format entries with scores, respecting max_chars budget
         lines = [
@@ -299,7 +303,7 @@ async def build_journal_context(
         if injected_ids:
             _fire_and_forget_injection_tracking(injected_ids)
 
-        return result, debug_data
+        return result, debug_data, [str(_id) for _id in injected_ids]
 
     except Exception as e:
         # Graceful degradation — context injection failure must not break the prompt
@@ -309,4 +313,4 @@ async def build_journal_context(
             error=str(e),
             error_type=type(e).__name__,
         )
-        return None, None
+        return None, None, []

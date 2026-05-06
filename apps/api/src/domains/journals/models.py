@@ -60,6 +60,45 @@ class JournalEntrySource(str, Enum):
     CONVERSATION = "conversation"
     CONSOLIDATION = "consolidation"
     MANUAL = "manual"
+    USER_CORRECTION = "user_correction"
+
+
+class JournalEntryConfidence(str, Enum):
+    """Epistemic status of a journal entry.
+
+    Distinguishes hypotheses from validated directives so the assistant
+    can avoid auto-reinforcing confirmation loops. Confidence transitions
+    are LLM-driven during consolidation, based on the visible
+    ``evidence_count`` and ``contradiction_count`` metrics.
+    """
+
+    LOW = "low"  # Hypothesis — single observation, not yet verified
+    MEDIUM = "medium"  # Default — observed but not strongly validated
+    HIGH = "high"  # Validated — confirmed by repeated evidence
+
+
+class JournalEntryLevel(str, Enum):
+    """Abstraction level of a journal entry — the cognitive stratification.
+
+    The four levels form a hierarchy of increasing abstraction. Each level
+    has its own role and lifecycle. Lower levels feed the upper ones via
+    LLM-driven promotion during consolidation.
+
+    - L0 (observations): raw signals, contradictions, reception cues. Open text,
+      ephemeral. Promoted to L1 if recurrent, else pruned.
+    - L1 (directives): WHEN→DO BECAUSE — the operational format inherited from
+      ADR-064. Validated/invalidated by deferred self-evaluation. Promoted to L2
+      when convergent with siblings.
+    - L2 (patterns): transversal syntheses across multiple L1 directives. Stable,
+      narrative. Refunded at consolidation.
+    - L3 (portrait): facets of the user model — traits, current phase, contexts,
+      contradictions, blind spots, evolution. Always-injected (compiled in commit 3).
+    """
+
+    L0 = "L0"  # Raw observations
+    L1 = "L1"  # Operational directives (the legacy format)
+    L2 = "L2"  # Transversal patterns
+    L3 = "L3"  # User model facets
 
 
 class JournalEntry(BaseModel):
@@ -78,7 +117,7 @@ class JournalEntry(BaseModel):
         content: Full entry content (assistant's writing)
         mood: Emotional tone when writing
         status: Lifecycle status (active/archived)
-        source: Origin (conversation extraction / periodic consolidation / manual)
+        source: Origin (conversation extraction / periodic consolidation / manual / user_correction)
         session_id: Conversation session that triggered extraction (nullable)
         personality_code: Personality code active when entry was written (nullable)
         char_count: Content character count (for size tracking)
@@ -86,6 +125,13 @@ class JournalEntry(BaseModel):
         search_hints: LLM-generated keywords bridging user vocabulary to entry content
         injection_count: Number of times this entry was injected into prompts
         last_injected_at: Last time this entry was injected into a prompt (UTC)
+        confidence: Epistemic status (low/medium/high) — distinguishes hypothesis from
+            validated directive. Defaults to medium for backward compatibility.
+        evidence_count: Counter incremented when deferred self-evaluation confirms the
+            entry by observing the user's reaction at the next turn.
+        contradiction_count: Counter incremented when deferred self-evaluation invalidates
+            the entry by observing reformulation, pushback or correction at the next turn.
+        level: Abstraction level (L0/L1/L2/L3) — defaults to L1 for legacy entries.
     """
 
     __tablename__ = "journal_entries"
@@ -174,6 +220,37 @@ class JournalEntry(BaseModel):
     last_injected_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
+    )
+
+    # Epistemic status — distinguishes hypotheses from validated directives.
+    # Updated by deferred self-evaluation (T → T+1) via LLM-driven actions.
+    confidence: Mapped[str] = mapped_column(
+        String(10),
+        nullable=False,
+        default=JournalEntryConfidence.MEDIUM.value,
+        server_default=JournalEntryConfidence.MEDIUM.value,
+    )
+    evidence_count: Mapped[int] = mapped_column(
+        Integer(),
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+    contradiction_count: Mapped[int] = mapped_column(
+        Integer(),
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+
+    # Cognitive stratification (commit 2 of journal-conscience-operationnelle)
+    # L0 raw observations / L1 directives / L2 patterns / L3 portrait facets.
+    # Defaults to L1 — preserves the semantics of legacy entries without backfill.
+    level: Mapped[str] = mapped_column(
+        String(2),
+        nullable=False,
+        default=JournalEntryLevel.L1.value,
+        server_default=JournalEntryLevel.L1.value,
     )
 
     # Relationships

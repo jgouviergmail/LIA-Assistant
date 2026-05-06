@@ -16,6 +16,14 @@ Personal journals are **thematic notebooks** where the AI assistant records its 
 • ⚠️ **Concerned** — Cautious, attentive tone
 • 💡 **Inspired** — Energized, creative tone
 
+**🪜 4 abstraction levels** — every entry now carries a `level` showing how distilled it is:
+• **L0** — Raw observation (rare; ambiguous material that isn't yet a directive)
+• **L1** — Operational directive (default — the WHEN→DO BECAUSE format)
+• **L2** — Transversal pattern, synthesis of several convergent L1 directives (consolidation only)
+• **L3** — Portrait facet feeding the user model (consolidation only)
+
+**📊 Epistemic status** — each entry exposes a `confidence` (low / medium / high) plus `evidence_count` and `contradiction_count` counters. The assistant can now distinguish hypotheses still being tested from observations confirmed across many turns — and demote entries that the user keeps contradicting.
+
 ## When does the assistant write in its journals?
 The assistant writes through **two mechanisms**:
 
@@ -23,11 +31,13 @@ The assistant writes through **two mechanisms**:
 • After each conversation (4+ messages), the assistant may write a reflection
 • Analyzes only the last message + context (lightweight, non-blocking)
 • Most conversations produce nothing — the assistant is selective
-• **Smart dedup**: If the new insight is too similar to an existing entry, the assistant enriches the existing entry instead of creating a duplicate — information is never lost, just refined
+• **Smart dedup at write-time**: if a new insight overlaps an existing entry, the assistant updates that entry instead of creating a duplicate — information is enriched, never accumulated as noise
+• **Deferred self-evaluation**: the assistant looks at the directives it injected on the previous turn and reads the user's reaction; if the user confirmed, `evidence_count` ticks up; if they pushed back, `contradiction_count` ticks up. The journal therefore measures its own usefulness (no extra LLM call required).
 
 **🔄 Periodic consolidation:**
 • Every few hours, the assistant reviews all its notes
-• Merges similar entries (mandatory first step), summarizes verbose ones, removes obsolete observations
+• Merges similar entries (mandatory first step), audits classifications, promotes patterns that emerge across many entries from L1 to L2, and feeds the user model with L3 facets
+• In the same call, it compiles a **user-model portrait** in two formats: a full version (~200 tokens) used in conversation and planner prompts, and a brief version (~60 tokens) injected into proactive notifications, voice, reminders, and the ReAct loop
 • Can optionally analyze recent conversation history (configurable, higher cost)
 
 ## How do journals influence responses?
@@ -39,8 +49,10 @@ Journal entries are **injected into prompts** via semantic search:
 
 The assistant receives its most **relevant** notes (with similarity scores) and decides autonomously which to use. Recent entries are also prioritized for **temporal continuity**, ensuring the assistant always has access to its latest reflections. Each entry includes **search hints** (keywords in your vocabulary) that improve matching accuracy.
 
-**📓 Proactive notifications:**
-When journals are enabled, they are also integrated as a **context source** for proactive heartbeat notifications. The heartbeat system builds a dynamic query from the aggregated context (upcoming events, weather, emails, etc.) to find the most relevant journal entries, allowing the assistant to personalize notification tone and content based on its own observations.
+**📓 Proactive notifications and ambient diffusion:**
+When journals are enabled, they are integrated as a **context source** for proactive heartbeat notifications. The heartbeat system builds a dynamic query from the aggregated context (upcoming events, weather, emails, etc.) to find the most relevant journal entries.
+
+In addition, the **compiled user-model portrait** is now diffused across every flow where the assistant speaks: conversation, planner, ReAct mode, voice, reminders, heartbeat notifications, proactive interest pings, and fallback responses. The same nuanced model of you is carried everywhere — your assistant doesn't "forget who you are" depending on which surface it speaks through.
 
 **🐛 Debug visibility:**
 In the debug panel (if enabled in Settings > Debug), a "Personal Journals" section shows two types of metrics:
@@ -50,11 +62,21 @@ In the debug panel (if enabled in Settings > Debug), a "Personal Journals" secti
 ## Can I read and edit the assistant's journals?
 Yes! In **Settings > Features > Personal Journals**, you can:
 
-**👁️ Read:** Browse entries organized by theme in accordion sections
-**✏️ Edit:** Modify title, content, or mood of any entry
+**👁️ Read:** Browse entries organized by theme **or by abstraction level** (toggle at the top of the accordion)
+**✏️ Edit:** Modify title, content, mood, **level**, and **confidence** of any entry
 **🗑️ Delete:** Remove individual entries or delete all (GDPR)
 **➕ Create:** Add your own notes to guide the assistant (transparent — it can't tell the difference)
-**📥 Export:** Download all entries in JSON or CSV format
+**📥 Export:** Download all entries in JSON or CSV format (now includes the compiled portrait)
+**🔍 Filter:** Show only entries that have never been used (helps spot stale or low-value notes)
+
+## How LIA sees you — the user-model portrait
+A dedicated **"Comment LIA te perçoit"** section sits at the top of the journals settings. It surfaces the compiled portrait (full + brief tabs, read-only) and three corrective levers:
+
+1. **Edit L3 entries** — entries flagged as `level=L3` are the source of the portrait. Modify or delete them and the portrait will be recompiled on the next consolidation.
+2. **🚩 Signaler un problème** — a free-text feedback box. Submitting it creates a special L0 entry tagged "user correction" and triggers a synchronous re-consolidation that re-weights L3 entries and recompiles the portrait with your signal pinned at top of the prompt. Loader visible (~5–10 s).
+3. **🔄 Consolider maintenant** — runs the full consolidation cycle on demand, bypassing the cooldown.
+
+The portrait itself is intentionally **not directly editable**. It is a synthesis — you act through these three levers and the synthesis stays coherent.
 
 ## What settings can I configure?
 
@@ -75,14 +97,16 @@ The assistant manages its own journals autonomously via prompt engineering. A gl
 ## How much does it cost?
 Journal operations use **background LLM calls**:
 
-• **Extraction**: One call per qualifying conversation (most return empty — selective). An additional lightweight merge call may occur when deduplication is triggered
-• **Consolidation**: One call per consolidation cycle (every 4-12h per user)
+• **Extraction**: One call per qualifying conversation (most return empty — selective). The deferred self-evaluation enriches the same prompt at zero added LLM cost.
+• **Consolidation**: One call per cycle (every 4–12 h per user) — the same call now also produces the compiled portrait, so portrait diffusion costs nothing extra in LLM dollars.
+• Per-turn diffusion adds roughly +200 tokens on the conversation/planner prompts and ~+60 tokens on secondary flows (voice, reminders, heartbeat, proactive, ReAct, fallback). One extra DB read (~1 ms) per flow.
 • LLM models are configurable in **Admin > LLM Configuration** (category: Background)
 • Real costs visible in Settings > Features > Personal Journals (tokens in/out + EUR)
 • Costs integrated into the global dashboard consumption
 
 ## What about privacy?
 • Journal data is **per-user** and isolated
-• All data can be exported (JSON/CSV) or deleted (GDPR compliance)
+• All data can be exported (JSON/CSV) or deleted (GDPR compliance) — the export now includes the compiled portrait
 • When you disable journals, data is preserved but not used until re-enabled
+• When an account is deleted, the compiled portrait is scrubbed alongside the entries
 • The assistant writes in your configured language

@@ -530,13 +530,25 @@ Chaque souvenir est un document structuré avec :
 
 Combinaison avec alpha configurable (défaut 0.6 sémantique / 0.4 BM25). Boost de 10 % quand les deux signaux sont forts (> 0.5). Fallback gracieux vers sémantique seul si BM25 échoue. Performance : 40-90 ms avec cache.
 
-### 11.5. Carnets de bord (Journals)
+### 11.5. Carnets de bord stratifiés (Journals)
 
-L'assistant tient des réflexions introspectives en quatre thèmes équilibrés (auto-réflexion, observations utilisateur, idées/analyses, apprentissages) avec un guide de classification neutre qui évite la surconcentration dans un seul thème. Deux déclencheurs : extraction post-conversation + consolidation périodique (4h). Embeddings OpenAI 1536d avec `search_hints` (mots-clés LLM dans le vocabulaire utilisateur). Injection dans le prompt du **Response Node et du Planner Node** — ce dernier utilise `intelligence.original_query` comme requête sémantique.
+L'assistant tient des réflexions introspectives organisées sur quatre thèmes (auto-réflexion, observations utilisateur, idées/analyses, apprentissages) ET quatre niveaux d'abstraction (`L0` observation brute, `L1` directive `WHEN→DO BECAUSE`, `L2` pattern transversal, `L3` facette de portrait — voir [ADR-079](https://github.com/jgouviergmail/LIA/blob/main/docs/architecture/ADR-079-Stratified-Journal-Consciousness.md)). Chaque entrée porte un statut épistémique (`confidence` ∈ {low, medium, high}) et deux compteurs (`evidence_count`, `contradiction_count`).
 
-**Garde-fou sémantique de dédup** (v1.12.1) : Avant de créer une nouvelle entrée, le système vérifie la similarité sémantique avec les entrées existantes. Si un match dépasse le seuil configurable (`JOURNAL_DEDUP_SIMILARITY_THRESHOLD`, défaut 0.72), un LLM de fusion combine toutes les entrées correspondantes en une seule directive enrichie — consolidation N→1 avec suppression des entrées secondaires. Dégradation gracieuse en cas d'échec.
+**Double déclencheur** : extraction post-conversation (fire-and-forget, fréquente, lightweight) + consolidation périodique (4-12 h par utilisateur, complexe).
 
-Anti-hallucination UUID : `field_validator`, table de référence d'IDs, filtrage par IDs connus dans extraction et consolidation.
+**Embeddings dual-vector Gemini** (`gemini-embedding-001`, 1536d, ADR-069) : un vecteur sur `title + content`, un sur les `search_hints`. La recherche prend `LEAST(dist_content, dist_keyword)` par ligne pour ponter le vocabulaire introspectif et le vocabulaire utilisateur.
+
+**Auto-évaluation différée T → T+1** : `MessagesState.injected_journal_ids` (symétrique de `injected_memories`) transporte les IDs entre tours. Le `response_node` lit les IDs du tour précédent au début, les passe à l'extracteur post-conversation, puis écrit les IDs du tour courant à la fin. L'extracteur voit les directives appliquées + la réaction utilisateur dans le même prompt et signale `evidence_outcome="evidence" | "contradiction"` sur des actions update — le service incrémente atomiquement les compteurs (anti-hallucination niveau 4 : le LLM ne fait que signaler, le service possède les entiers). Coût LLM additionnel **zéro** (même appel d'extraction, prompt enrichi).
+
+**Diffusion ambiante du portrait utilisateur** : la consolidation produit dans le **même appel LLM** (zéro appel additionnel) un `portrait_full` (~200 tokens, conversation/planner) et un `portrait_brief` (~60 tokens, flux secondaires) persistés sur la table `users`. Le builder `build_journal_user_model_block(user_id, format, flow)` (`src/domains/journals/portrait_builder.py`, symétrique de `build_psyche_prompt_block`) retourne un bloc `<UserModelContext>...</UserModelContext>` avec dégradation gracieuse. Diffusé dans **8 flux** : 2 primaires en format full (`response_node`, `planner_node_v3`) et 6 secondaires en format brief (`react_setup_node`, `interests/proactive_task`, `scheduler/reminder_notification`, `voice/service`, `heartbeat/prompts`, `agents/services/fallback_response` sync + async).
+
+**Trois leviers de correction utilisateur** sur le portrait (jamais directement éditable) : (1) édition CRUD des entrées L3 sources, (2) `POST /journals/portrait/feedback` (texte libre → entrée L0 `source=user_correction` + consolidation synchrone qui repondère les L3), (3) `POST /journals/consolidate` (consolidation manuelle, bypass cooldown).
+
+**Discipline de dédoublonnage** : pas de garde-fou write-time (retiré v1.14.0). À la consolidation, `STEP 1` impose un scan pairwise explicite qui fusionne les doublons sémantiques, et `STEP 5` regroupe activement les L1 convergentes en patterns L2.
+
+**Anti-hallucination en 4 couches** : `field_validator` Pydantic sur les UUIDs, table de référence d'IDs dans le prompt, filtrage des actions par IDs connus à l'extraction et à la consolidation, et incréments atomiques des compteurs (le LLM ne signale que `evidence_outcome`).
+
+**Observabilité dédiée** : 11 métriques Prometheus dans `src/infrastructure/observability/metrics_journals.py` — `journal_entries_total{action,theme,source}`, `journal_evidence_total{outcome}`, `journal_consolidation_promotions_total{from_level,to_level}`, `journal_level_distribution{level}`, `journal_portrait_present_total{flow,format}`, `journal_portrait_age_hours`, `journal_portrait_feedback_total{outcome}`, etc.
 
 ### 11.6. Système d'intérêts
 

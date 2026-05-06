@@ -643,6 +643,12 @@ class AccountDeletionService:
         user.oauth_provider_id = None
         user.picture_url = None
         user.home_location_encrypted = None
+        # ADR-079 commit 3 — Personal Journals portrait (synthesis of user
+        # description, PII by content). Source entries in `journal_entries`
+        # are already purged by `_purge_user_data_tables` via FK CASCADE.
+        user.journal_portrait_full = None
+        user.journal_portrait_brief = None
+        user.journal_portrait_compiled_at = None
         user.deleted_at = datetime.now(UTC)
         user.deleted_reason = reason
 

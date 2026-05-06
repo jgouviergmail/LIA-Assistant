@@ -179,6 +179,7 @@ async def generate_heartbeat_message(
 
     # Resolve psyche context before template formatting
     psyche_block = ""
+    user_model_block = ""
     if user_id:
         try:
             from src.domains.psyche.service import build_psyche_prompt_block
@@ -186,6 +187,16 @@ async def generate_heartbeat_message(
             psyche_block = await build_psyche_prompt_block(user_id=user_id, user_timezone=None)
         except Exception:
             pass  # Psyche injection is best-effort
+        try:
+            from src.domains.journals.portrait_builder import (
+                build_journal_user_model_block,
+            )
+
+            user_model_block = await build_journal_user_model_block(
+                user_id=user_id, format="brief", flow="heartbeat"
+            )
+        except Exception:
+            pass  # Journal portrait injection is best-effort
 
     system_prompt = load_prompt("heartbeat_message_prompt").format(
         personality_instruction=personality_instruction or DEFAULT_PERSONALITY_PROMPT,
@@ -194,6 +205,8 @@ async def generate_heartbeat_message(
         message_draft=message_draft,
         psyche_context=psyche_block,
     )
+    if user_model_block:
+        system_prompt += "\n\n" + user_model_block
 
     llm = get_llm("heartbeat_message")
 

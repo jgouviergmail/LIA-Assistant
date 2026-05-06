@@ -5,6 +5,101 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.20.0] - 2026-05-06
+
+### Added — Stratified Journal Consciousness ([ADR-079](docs/architecture/ADR-079-Stratified-Journal-Consciousness.md))
+
+The personal journal (introduced in [ADR-057](docs/architecture/ADR-057-Personal-Journals.md), refined by [ADR-064](docs/architecture/ADR-064-Journal-Analyst-Persona.md) and [ADR-069](docs/architecture/ADR-069-Gemini-Embedding-Migration.md)) becomes a stratified meta-cognition organ. Four abstraction levels, deferred self-evaluation, ambient diffusion of a compiled user-model portrait across eight flows where LIA speaks.
+
+#### Schema
+
+- New columns on `journal_entries` (all nullable / server_default — fully reversible): `level VARCHAR(2) DEFAULT 'L1'`, `confidence VARCHAR(10) DEFAULT 'medium'`, `evidence_count INT DEFAULT 0`, `contradiction_count INT DEFAULT 0`.
+- New columns on `users` (nullable): `journal_portrait_full TEXT`, `journal_portrait_brief TEXT`, `journal_portrait_compiled_at TIMESTAMPTZ`.
+- New `JournalEntrySource` value: `user_correction` (created by lever 2 feedback).
+- New enums: `JournalEntryLevel` (L0/L1/L2/L3), `JournalEntryConfidence` (low/medium/high).
+- Migration: `2026_05_05_journals_stratified.py` — single file, 3 logical steps, reversible.
+
+#### Stratification
+
+- **L0** — raw observation, pre-directive. Rare, ephemeral, ~200c.
+- **L1** — operational directive `WHEN [context] → DO [action] (BECAUSE [evidence])`. Default at extraction, ~500c.
+- **L2** — transversal pattern, synthesis of convergent L1 directives. Consolidation only, ~700c.
+- **L3** — portrait facet (traits, current phase, contexts, contradictions, blind spots, evolution). Consolidation only, feeds the user-model portrait.
+- L2/L3 are produced exclusively by consolidation through active topic clustering (STEP 5 of `journal_consolidation_prompt.txt`).
+
+#### Deferred self-evaluation T → T+1
+
+- `MessagesState` carries `injected_journal_ids` between turns (symmetric to `injected_memories`).
+- `response_node` reads the previous turn's IDs at start, passes them to the post-conversation extractor, then writes the current turn's IDs to state.
+- Extractor sees the directives that were just applied and the user's reaction in the same prompt; the LLM signals `evidence_outcome="evidence" | "contradiction"` on update actions.
+- Service atomically increments `evidence_count` / `contradiction_count` (anti-hallucination layer 4: LLM never writes absolute counter values).
+- Zero additional LLM calls — same extractor, just enriched prompt.
+
+#### User-model portrait (ambient diffusion)
+
+- Consolidation now produces, in the same LLM call (zero additional cost), a `portrait_full` (~200 tokens, conversation/planner) and `portrait_brief` (~60 tokens, secondary flows) persisted on the `users` table.
+- New standalone builder `journals/portrait_builder.py:build_journal_user_model_block(user_id, format, flow)` — symmetric to `psyche/service.py:build_psyche_prompt_block`. Returns a `<UserModelContext>...</UserModelContext>` block or empty string with graceful degradation.
+- Diffused across eight flows: 2 primary in full format (`response_node`, `planner_node_v3`) and 6 secondary in brief format (`react_setup_node`, `interests/proactive_task`, `scheduler/reminder_notification`, `voice/service`, `heartbeat/prompts`, `agents/services/fallback_response` sync + async).
+
+#### User correction (three levers)
+
+- **Lever 1** — edit/delete L3 source entries via existing CRUD; portrait recompiles next consolidation.
+- **Lever 2** — `POST /journals/portrait/feedback` (free-text + optional highlighted section). Creates an L0 entry with `source=user_correction`, then triggers a synchronous consolidation (~5–10 s) that re-weights L3 entries with the user signal pinned at top of the prompt.
+- **Lever 3** — `POST /journals/consolidate`. Bypasses cooldown; runs the standard consolidation pass on demand.
+- Portrait itself is intentionally **not directly editable**.
+
+#### API endpoints
+
+- `POST /journals/consolidate` — manual consolidation (lever 3).
+- `GET /journals/portrait` — read full + brief + `compiled_at`.
+- `POST /journals/portrait/feedback` — submit correction (lever 2).
+- `GET /journals/export` — now includes the compiled portrait under `portrait` key.
+- `PATCH /journals/{id}` — accepts `level` and `confidence` for manual overrides.
+
+#### Observability
+
+- 11 new Prometheus metrics in `infrastructure/observability/metrics_journals.py`: `journal_entries_total{action,theme,source}`, `journal_extraction_duration_seconds{outcome}`, `journal_zero_injection_age_days`, `journal_evidence_total{outcome}`, `journal_consolidation_promotions_total{from_level,to_level}`, `journal_level_distribution{level}`, `journal_dedup_actions_total`, `journal_portrait_compile_duration_seconds`, `journal_portrait_present_total{flow,format}`, `journal_portrait_age_hours`, `journal_portrait_feedback_total{outcome}`.
+
+#### Frontend
+
+- `JournalsSettings.tsx`: dedicated section "Comment LIA te perçoit" with full/brief tabs (read-only), 🚩 feedback dialog, 🔄 manual consolidation button.
+- Per-entry badges: confidence (low/medium/high), level (L0/L1/L2/L3), `uses` counter, `last_inj` date.
+- Group-by toggle (Theme | Level), filter "show only entries never used", `level` and `confidence` editable in create/edit dialogs.
+- New env var `NEXT_PUBLIC_JOURNAL_CONSOLIDATION_TIMEOUT_MS` (default 240 000 ms / 4 min) — configurable client timeout for the lever-3 button.
+
+#### Internationalization
+
+- ~38 new keys per locale (en / fr / de / es / it / zh) — confidence labels, level labels + descriptions, group-by, consolidate, portrait section, feedback dialog. Parity verified.
+
+#### Cleanup
+
+- Removed dead code: `journal_dedup_similarity_threshold` setting, `JOURNAL_EXTRACTION_RECENT_ENTRIES_FULL` constant, `archive_entry()` service method, `journal_merge_prompt.txt` orphan prompt. The historical write-time dedup guard (v1.12.1) was already retired in favor of mandatory dedup at consolidation (ADR-064 STEP 1, extended by ADR-079 active pairwise scan).
+- `.env.example` / `.env.prod.example` updated.
+
+#### GDPR
+
+- Account deletion (`users/account_deletion_service.py:_mark_user_deleted`) now scrubs the three portrait columns alongside existing user data.
+- Export endpoint enriched with the portrait payload.
+
+#### Tests
+
+- 50 new tests covering the stratified mechanism: 4 unit files (`test_models.py` extended, `test_portrait_builder.py`, `test_levels_promotions.py`, `test_self_evaluation.py`) and 1 integration file (`test_journal_full_cycle.py`, real Postgres). 86 unit tests + 8 integration tests passing in under 6 s.
+
+### Changed — Prompt engineering pass on the journal LLM calls
+
+- **Extraction prompt** (`journal_introspection_prompt.txt`):
+  - Added a `STEP 0` to the decision tree explicitly handling ambiguous / not-yet-actionable signals → `L0` instead of forcing a half-baked `L1`.
+  - Section 4 (abstraction levels) rewritten with three concrete `L0` examples and a "when in doubt → L0" rule.
+  - Quality gate broadened to two clauses: "(a) will change my future response" OR "(b) weak signal worth tracking".
+  - Self-audit (section 9) gains an "L0 sweep" step + a "downgrade fuzzy L1 to L0" check + a healthy distribution target across themes AND levels.
+- **Both prompts** (`journal_introspection_prompt.txt`, `journal_consolidation_prompt.txt`):
+  - Removed all language-specific examples (French / English mentions, "svp"/"stp", `"réunion"`, `"bon"`, `"concision et réponse ciblée"`, `"ton sobre face à la vulnérabilité"`). Replaced by language-agnostic equivalents — every input is now translated to English by the semantic pivot before reaching the LLM, so prompts must not anchor on a specific language.
+
+### Fixed
+
+- **Debug panel "Background Extraction" sub-section** — partial-update actions (where the LLM omits unchanged fields) used to display only the truncated UUID instead of the entry title/theme/mood. The backend now backfills the debug payload from the existing entry before streaming, so the panel reads `UPDATE 📓 Prefer concise replies` instead of `UPDATE 1ac9a75a`.
+- **Manual consolidation timeout** — the new `/journals/consolidate` button is now backed by a configurable client timeout (`NEXT_PUBLIC_JOURNAL_CONSOLIDATION_TIMEOUT_MS`, default 4 min) so heavy reasoning models don't trip a premature client cancel.
+
 ## [1.19.1] - 2026-05-05
 
 ### Added — DeepSeek V4 family + parameterizable provider base URLs

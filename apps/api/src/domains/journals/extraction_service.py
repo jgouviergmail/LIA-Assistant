@@ -36,15 +36,17 @@ from src.domains.journals.constants import (
     JOURNAL_EXTRACTION_CONTEXT_MESSAGES,
     JOURNAL_EXTRACTION_DEDUP_MIN_SCORE,
     JOURNAL_EXTRACTION_MESSAGE_MAX_CHARS,
-    JOURNAL_EXTRACTION_RECENT_ENTRIES_FULL,
     JOURNAL_EXTRACTION_RECENT_LIMIT,
     JOURNAL_EXTRACTION_SEMANTIC_LIMIT,
 )
 from src.domains.journals.models import JournalEntryMood, JournalEntrySource
-from src.domains.journals.schemas import ExtractedJournalEntry
+from src.domains.journals.schemas import ConsolidationParseResult, ExtractedJournalEntry
 from src.infrastructure.llm.factory import get_llm
 from src.infrastructure.llm.invoke_helpers import invoke_with_instrumentation
 from src.infrastructure.observability.logging import get_logger
+from src.infrastructure.observability.metrics_journals import (
+    journal_extraction_duration_seconds,
+)
 
 logger = get_logger(__name__)
 
@@ -118,6 +120,162 @@ def _get_analyst_persona_prompt() -> str:
     return str(load_prompt("journal_analyst_persona"))
 
 
+async def _maybe_build_inner_state_section(user_id: str) -> str:
+    """Build the 'inner state' section from the assistant's psyche (ADR-079, commit 3).
+
+    Reads ``PsycheState.last_appraisal`` (a JSONB blob holding valence, arousal,
+    mood_label, dominant emotions, quality, resonance) and renders it as a
+    compact prompt section so the journal LLM can ground its directives in
+    LIA's own affective state at the turn that just ended.
+
+    Returns an empty string when:
+    - Psyche feature is disabled (system or user level)
+    - The user has no psyche state yet (first interactions)
+    - Any error occurs (graceful degradation)
+
+    Args:
+        user_id: Owner user UUID as string.
+
+    Returns:
+        A "## YOUR INNER STATE THIS TURN" section or an empty string.
+    """
+    if not getattr(settings, "psyche_enabled", False):
+        return ""
+    try:
+        from sqlalchemy import select
+
+        from src.domains.psyche.models import PsycheState
+        from src.infrastructure.database.session import get_db_context
+
+        async with get_db_context() as db:
+            from src.domains.auth.models import User
+
+            user_result = await db.execute(
+                select(User.psyche_enabled).where(User.id == UUID(user_id))
+            )
+            user_psyche_enabled = user_result.scalar_one_or_none()
+            if not user_psyche_enabled:
+                return ""
+
+            state_result = await db.execute(
+                select(PsycheState.last_appraisal).where(PsycheState.user_id == UUID(user_id))
+            )
+            appraisal = state_result.scalar_one_or_none()
+
+        if not appraisal or not isinstance(appraisal, dict):
+            return ""
+
+        valence = appraisal.get("valence")
+        arousal = appraisal.get("arousal")
+        mood_label = appraisal.get("mood_label")
+        emotions = appraisal.get("emotions") or []
+        quality = appraisal.get("quality")
+        resonance = appraisal.get("resonance")
+
+        # Compact line — never reproduce raw values verbatim, just summarize
+        parts: list[str] = []
+        if mood_label:
+            parts.append(f"mood: {mood_label}")
+        if isinstance(valence, int | float):
+            parts.append(f"valence: {valence:+.2f}")
+        if isinstance(arousal, int | float):
+            parts.append(f"arousal: {arousal:+.2f}")
+        if isinstance(quality, int | float):
+            parts.append(f"self-quality: {quality:.2f}")
+        if isinstance(resonance, int | float):
+            parts.append(f"resonance: {resonance:.2f}")
+        emo_str = ""
+        if isinstance(emotions, list) and emotions:
+            emo_str = " | emotions: " + ", ".join(str(e) for e in emotions[:5])
+
+        if not parts and not emo_str:
+            return ""
+
+        return (
+            "## YOUR INNER STATE THIS TURN (your own psyche, not the user's)\n"
+            f"{' | '.join(parts)}{emo_str}\n"
+            "Use this to write situated reflections (e.g. 'I noticed I felt frustration "
+            "and may have been sharper than I intended — be more patient when this returns'). "
+            "Never attribute these states to the user. Never reference them in your reply."
+        )
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning(
+            "journal_inner_state_load_failed",
+            user_id=user_id,
+            error=str(exc),
+        )
+        return ""
+
+
+async def _build_previous_turn_directives_section(
+    user_id: str,
+    previous_turn_injected_ids: list[str],
+) -> str:
+    """Build the deferred self-evaluation section for the extraction prompt.
+
+    Loads the entries that were injected at turn T-1 and renders them as a
+    block the LLM can use to observe the user's reaction at turn T (visible
+    in the conversation excerpt) and signal `evidence_outcome` accordingly.
+
+    Returns an empty string when there is nothing to evaluate (e.g. conversation
+    reset, first turn, or all IDs disappeared between T-1 and T).
+    """
+    if not previous_turn_injected_ids:
+        return ""
+
+    try:
+        from src.infrastructure.database import get_db_context
+
+        async with get_db_context() as db:
+            from src.domains.journals.service import JournalService
+
+            service = JournalService(db)
+            entries = []
+            for entry_id_str in previous_turn_injected_ids:
+                try:
+                    entry_uuid = UUID(entry_id_str)
+                except ValueError:
+                    continue
+                entry = await service.repo.get_by_id(entry_uuid)
+                if entry and str(entry.user_id) == user_id:
+                    entries.append(entry)
+
+        if not entries:
+            return ""
+
+        lines = [
+            "## DIRECTIVES INJECTED AT THE PREVIOUS TURN",
+            (
+                "The directives below were injected into your previous response. "
+                "Look at the conversation above and consider the user's reaction "
+                "AT THE CURRENT TURN. For each directive that was clearly applied "
+                "and where you can read a signal in the user's reaction:"
+            ),
+            "- If the user pushed back, reformulated, or corrected → propose `update` with "
+            '`evidence_outcome="contradiction"` on that entry.',
+            "- If the user engaged smoothly, thanked you, or visibly benefited → propose `update` "
+            'with `evidence_outcome="evidence"`.',
+            "- If the directive was not relevant to what unfolded → leave it alone (no signal).",
+            "- The system increments the counters atomically; you only signal the outcome.",
+            "",
+        ]
+        for entry in entries:
+            hints_str = f" | hints: {', '.join(entry.search_hints)}" if entry.search_hints else ""
+            lines.append(
+                f"[id={entry.id} | conf={entry.confidence} "
+                f"| ev={entry.evidence_count}/co={entry.contradiction_count} "
+                f"| {entry.theme}{hints_str}] **{entry.title}** — {entry.content}"
+            )
+        return "\n".join(lines)
+    except Exception as exc:  # pragma: no cover — defensive
+        logger.warning(
+            "journal_previous_turn_directives_load_failed",
+            user_id=user_id,
+            error=str(exc),
+        )
+        return ""
+
+
 async def _maybe_build_health_context(user_id: str) -> str:
     """Return the Health Metrics context block for the journal prompt.
 
@@ -188,18 +346,23 @@ def _format_messages_for_extraction(messages: list[BaseMessage]) -> str:
     return "\n".join(lines)
 
 
-def _format_existing_entries_for_context(
-    entries: list[JournalEntry],
-    full_count: int = JOURNAL_EXTRACTION_RECENT_ENTRIES_FULL,
-) -> str:
+def _format_existing_entries_for_context(entries: list[JournalEntry]) -> str:
     """Format existing journal entries for the extraction prompt.
 
-    After semantic pre-filter, we only have ~13 entries max (10 semantic + 3 recent).
-    All entries are shown in full with IDs in headers (no separate ID table needed).
+    After semantic pre-filter, we have ~13 entries max (10 semantic + 3 recent).
+    All entries are shown in full with IDs in headers and the full epistemic
+    metadata so the LLM can reason about which directives have been validated,
+    contradicted, or never injected — and update them accordingly.
+
+    The metadata exposed:
+        - created: when the entry was first written
+        - last_inj: when it was last used in a prompt (or "never")
+        - uses: how many times it has been injected
+        - conf: epistemic status (low/medium/high)
+        - ev/co: evidence and contradiction counters from deferred self-evaluation
 
     Args:
         entries: Pre-filtered entries (semantic + recent, deduplicated)
-        full_count: Number of entries to show in full (all if <= this)
 
     Returns:
         Formatted entries string for prompt injection
@@ -208,26 +371,88 @@ def _format_existing_entries_for_context(
         return "No existing entries yet."
 
     entry_lines = []
-    for i, entry in enumerate(entries):
-        date_str = entry.created_at.strftime("%Y-%m-%d")
-        if i < full_count:
-            # Full content (all entries after pre-filter are shown in full)
-            hints_str = f" | hints: {', '.join(entry.search_hints)}" if entry.search_hints else ""
-            entry_lines.append(
-                f"[id={entry.id} | {date_str} | {entry.theme} | {entry.mood}{hints_str}] "
-                f"**{entry.title}** — {entry.content}"
-            )
-        else:
-            # Compact summary for overflow (unlikely with pre-filter but safe)
-            entry_lines.append(f"[id={entry.id} | {date_str} | {entry.theme}] {entry.title}")
+    for entry in entries:
+        created_str = entry.created_at.strftime("%Y-%m-%d")
+        last_inj_str = (
+            entry.last_injected_at.strftime("%Y-%m-%d") if entry.last_injected_at else "never"
+        )
+        hints_str = f" | hints: {', '.join(entry.search_hints)}" if entry.search_hints else ""
+        entry_lines.append(
+            f"[id={entry.id} | created={created_str} | last_inj={last_inj_str} "
+            f"| uses={entry.injection_count} | conf={entry.confidence} "
+            f"| ev={entry.evidence_count}/co={entry.contradiction_count} "
+            f"| level={entry.level} "
+            f"| {entry.theme} | {entry.mood}{hints_str}] "
+            f"**{entry.title}** — {entry.content}"
+        )
 
     return "\n".join(entry_lines)
+
+
+def _parse_consolidation_result(result_text: str) -> ConsolidationParseResult:
+    """Parse a consolidation LLM result into actions + compiled portraits.
+
+    The consolidation prompt may return either:
+    - A bare JSON array of actions (legacy format, pre-commit 3): backwards
+      compatible — portraits remain None.
+    - A JSON object ``{actions: [...], portrait_full: "...", portrait_brief: "..."}``
+      (commit 3+): the LLM produces the two compiled portrait formats in the
+      same call as the maintenance actions.
+
+    Args:
+        result_text: Raw LLM output
+
+    Returns:
+        ConsolidationParseResult with actions and (optional) portraits.
+    """
+    actions = _parse_journal_extraction_result(result_text)
+
+    # Try to also extract a JSON object with portrait fields. Best-effort —
+    # any failure keeps portraits as None and only the actions are applied.
+    cleaned = result_text.strip()
+    if cleaned.startswith("```"):
+        lines = cleaned.split("\n")
+        start_idx, end_idx = 0, len(lines)
+        for i, line in enumerate(lines):
+            if line.startswith("```") and i == 0:
+                start_idx = 1
+            elif line.startswith("```") and i > 0:
+                end_idx = i
+                break
+        cleaned = "\n".join(lines[start_idx:end_idx])
+    cleaned = re.sub(r"//.*$", "", cleaned, flags=re.MULTILINE)
+    cleaned = re.sub(r",\s*([\]}])", r"\1", cleaned)
+
+    portrait_full: str | None = None
+    portrait_brief: str | None = None
+    if cleaned.lstrip().startswith("{"):
+        try:
+            obj = json.loads(cleaned)
+            if isinstance(obj, dict):
+                pf = obj.get("portrait_full")
+                pb = obj.get("portrait_brief")
+                if isinstance(pf, str) and pf.strip():
+                    portrait_full = pf.strip()
+                if isinstance(pb, str) and pb.strip():
+                    portrait_brief = pb.strip()
+        except json.JSONDecodeError:
+            pass  # Object format malformed — ignore portraits, keep actions
+
+    return ConsolidationParseResult(
+        actions=actions,
+        portrait_full=portrait_full,
+        portrait_brief=portrait_brief,
+    )
 
 
 def _parse_journal_extraction_result(result_text: str) -> list[ExtractedJournalEntry]:
     """Parse LLM extraction result into ExtractedJournalEntry objects.
 
     Robust JSON parsing with fallback (same pattern as memory_extractor).
+    Supports BOTH formats:
+    - Bare JSON array of action objects (legacy / extraction prompt).
+    - JSON object ``{actions: [...], ...}`` (consolidation enriched format
+      from commit 3+) — extracts the ``actions`` field.
 
     Args:
         result_text: Raw LLM output
@@ -303,6 +528,16 @@ def _parse_journal_extraction_result(result_text: str) -> list[ExtractedJournalE
     # Try direct parsing first
     try:
         data = json.loads(cleaned)
+        # Enriched object format (commit 3+): extract the `actions` field
+        if isinstance(data, dict):
+            inner = data.get("actions")
+            if isinstance(inner, list):
+                return _parse_items(inner)
+            logger.warning(
+                "journal_extraction_object_missing_actions",
+                keys=list(data.keys())[:5],
+            )
+            return []
         if not isinstance(data, list):
             logger.warning(
                 "journal_extraction_result_not_list",
@@ -509,6 +744,7 @@ async def extract_journal_entry_background(
     parent_run_id: str | None = None,
     assistant_response: str | None = None,
     query_embedding: list[float] | None = None,
+    previous_turn_injected_ids: list[str] | None = None,
 ) -> int:
     """
     Background journal extraction from conversation.
@@ -530,6 +766,11 @@ async def extract_journal_entry_background(
         assistant_response: Assistant's response text for this turn. Passed
             explicitly because the state_update with the AIMessage has not
             been applied by the LangGraph reducer yet at scheduling time.
+        previous_turn_injected_ids: UUIDs of journal entries that were
+            injected at the PREVIOUS turn (T-1). Enables deferred self-evaluation:
+            the LLM observes how the user reacted in this conversation and
+            signals `evidence_outcome=evidence|contradiction` on the relevant
+            entries. Empty/None on conversation reset (gracefully skipped).
 
     Returns:
         Number of actions applied (create/update/delete)
@@ -656,9 +897,7 @@ async def extract_journal_entry_background(
                     )
 
         # Format pre-filtered entries for prompt context (all in full since pre-filtered)
-        existing_context = _format_existing_entries_for_context(
-            existing_entries, full_count=len(existing_entries)
-        )
+        existing_context = _format_existing_entries_for_context(existing_entries)
 
         # Build size warning
         usage_pct = (total_chars / max_total_chars * 100) if max_total_chars > 0 else 0
@@ -677,6 +916,18 @@ async def extract_journal_entry_background(
         # Health Metrics context — empty string unless the user opted in.
         health_context = await _maybe_build_health_context(user_id)
 
+        # Inner state — the assistant's own psyche at this turn (ADR-079, commit 3).
+        inner_state_section = await _maybe_build_inner_state_section(user_id)
+
+        # Deferred self-evaluation section (ADR-079).
+        # Lists the directives that were injected at the PREVIOUS turn so the LLM
+        # can observe how the user reacted (in the conversation it now sees) and
+        # signal `evidence_outcome=evidence|contradiction` on update actions.
+        previous_turn_directives_section = await _build_previous_turn_directives_section(
+            user_id=user_id,
+            previous_turn_injected_ids=previous_turn_injected_ids or [],
+        )
+
         # Build prompt
         prompt = _get_introspection_prompt().format(
             conversation=conversation,
@@ -687,6 +938,8 @@ async def extract_journal_entry_background(
             user_language=user_language,
             max_entry_chars=max_entry_chars,
             health_context=health_context,
+            inner_state_section=inner_state_section,
+            previous_turn_directives_section=previous_turn_directives_section,
         )
 
         # Add analyst persona (always injected, independent of conversational personality)
@@ -699,14 +952,29 @@ async def extract_journal_entry_background(
 
         llm = get_llm("journal_extraction")
         _llm_start = _time.time()
-        result = await invoke_with_instrumentation(
-            llm=llm,
-            llm_type="journal_extraction",
-            messages=prompt,
-            session_id=session_id,
-            user_id=user_id,
-        )
+        try:
+            result = await invoke_with_instrumentation(
+                llm=llm,
+                llm_type="journal_extraction",
+                messages=prompt,
+                session_id=session_id,
+                user_id=user_id,
+            )
+        except Exception:
+            try:
+                journal_extraction_duration_seconds.labels(outcome="error").observe(
+                    _time.time() - _llm_start
+                )
+            except Exception:  # pragma: no cover
+                pass
+            raise
         _llm_duration_ms = (_time.time() - _llm_start) * 1000
+        try:
+            journal_extraction_duration_seconds.labels(outcome="success").observe(
+                _llm_duration_ms / 1000.0
+            )
+        except Exception:  # pragma: no cover
+            pass
         result_content = result.content if isinstance(result.content, str) else str(result.content)
 
         # Persist token usage (use effective config, not defaults — admin overrides matter)
@@ -811,6 +1079,10 @@ async def extract_journal_entry_background(
                                 personality_code=personality_code,
                                 max_entry_chars=max_entry_chars,
                                 search_hints=action.search_hints,
+                                confidence=(
+                                    action.confidence.value if action.confidence else "medium"
+                                ),
+                                level=(action.level.value if action.level else "L1"),
                             )
                             applied_count += 1
 
@@ -824,6 +1096,12 @@ async def extract_journal_entry_background(
                                     mood=(action.mood.value if action.mood else None),
                                     max_entry_chars=max_entry_chars,
                                     search_hints=action.search_hints,
+                                    confidence=(
+                                        action.confidence.value if action.confidence else None
+                                    ),
+                                    evidence_outcome=action.evidence_outcome,
+                                    level=(action.level.value if action.level else None),
+                                    theme=(action.theme.value if action.theme else None),
                                 )
                                 applied_count += 1
 
@@ -854,27 +1132,49 @@ async def extract_journal_entry_background(
             actions_applied=applied_count,
         )
 
-        # Store debug results for the debug panel (consumed by streaming service)
+        # Store debug results for the debug panel (consumed by streaming service).
+        # For update/delete actions, the LLM often omits unchanged fields (title,
+        # content, theme, mood). Fall back to the existing entry's values so the
+        # debug panel renders something readable, not just the UUID prefix.
         if parent_run_id:
+            existing_by_id = {str(e.id): e for e in existing_entries}
+            debug_entries: list[dict[str, Any]] = []
+            for a in actions:
+                fb_title: str | None = None
+                fb_content: str | None = None
+                fb_theme: str | None = None
+                fb_mood: str | None = None
+                if a.action in ("update", "delete") and a.entry_id:
+                    existing = existing_by_id.get(a.entry_id)
+                    if existing is not None:
+                        fb_title = existing.title
+                        fb_content = existing.content
+                        fb_theme = existing.theme
+                        fb_mood = existing.mood
+
+                title = a.title if a.title else fb_title
+                content = a.content if a.content else fb_content
+                theme_value = (a.theme.value if a.theme else None) or fb_theme
+                mood_value = (a.mood.value if a.mood else None) or fb_mood
+
+                debug_entries.append(
+                    {
+                        "action": a.action,
+                        "theme": theme_value,
+                        "title": ((title[:30] + "…") if title and len(title) > 30 else title),
+                        "full_title": title,
+                        "content": content,
+                        "mood": mood_value,
+                        "entry_id": a.entry_id,
+                    }
+                )
+
             _store_extraction_debug(
                 parent_run_id,
                 {
                     "actions_parsed": len(actions),
                     "actions_applied": applied_count,
-                    "entries": [
-                        {
-                            "action": a.action,
-                            "theme": a.theme.value if a.theme else None,
-                            "title": (
-                                (a.title[:30] + "…") if a.title and len(a.title) > 30 else a.title
-                            ),
-                            "full_title": a.title,
-                            "content": a.content,
-                            "mood": a.mood.value if a.mood else None,
-                            "entry_id": a.entry_id,
-                        }
-                        for a in actions
-                    ],
+                    "entries": debug_entries,
                 },
             )
 

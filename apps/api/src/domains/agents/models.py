@@ -354,6 +354,14 @@ class MessagesState(TypedDict):
     # Contains: entries_found, entries_injected, total_chars_injected, entries list
     journal_planner_injection_debug: dict[str, Any] | None
 
+    # Personal Journals — deferred self-evaluation (T → T+1, ADR-079).
+    # Lists the entry UUIDs that were actually injected at the previous turn so
+    # that the next turn's extraction can observe the user's reaction and signal
+    # `evidence_outcome = evidence|contradiction` on the relevant entries.
+    # Reset gracefully on conversation reset (no IDs available → extraction skips
+    # the deferred-eval section silently).
+    injected_journal_ids: list[str] | None
+
     # Context Compaction: Intelligent history summarization (F4)
     # When conversation history exceeds a dynamic token threshold, the compaction node
     # summarizes old messages preserving critical identifiers (UUIDs, URLs, IDs).
@@ -533,6 +541,8 @@ def create_initial_state(
         # Journal Injection debug (debug panel)
         journal_injection_debug=None,  # Journal injection metrics for debug panel
         journal_planner_injection_debug=None,  # Journal planner injection metrics for debug panel
+        # Personal Journals deferred self-evaluation (ADR-079)
+        injected_journal_ids=None,  # IDs of journal entries injected at this turn
         # Context Compaction (F4)
         compaction_summary=None,  # Last compaction summary
         compaction_count=0,  # Compactions performed

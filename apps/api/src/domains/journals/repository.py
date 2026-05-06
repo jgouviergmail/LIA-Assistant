@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domains.journals.models import JournalEntry, JournalEntryStatus
 from src.infrastructure.observability.logging import get_logger
+from src.infrastructure.observability.metrics_journals import journal_entries_total
 
 logger = get_logger(__name__)
 
@@ -60,6 +61,12 @@ class JournalEntryRepository:
             source=entry.source,
             char_count=entry.char_count,
         )
+        try:
+            journal_entries_total.labels(
+                action="create", theme=entry.theme, source=entry.source
+            ).inc()
+        except Exception:  # pragma: no cover — metrics must never break writes
+            pass
 
         return entry
 
@@ -99,11 +106,19 @@ class JournalEntryRepository:
             theme=entry.theme,
             char_count=entry.char_count,
         )
+        try:
+            journal_entries_total.labels(
+                action="update", theme=entry.theme, source=entry.source
+            ).inc()
+        except Exception:  # pragma: no cover — metrics must never break writes
+            pass
 
         return entry
 
     async def delete_entry(self, entry: JournalEntry) -> None:
         """Delete a single entry."""
+        theme = entry.theme  # capture before delete (entry becomes detached)
+        source = entry.source
         await self.db.delete(entry)
         await self.db.flush()
 
@@ -112,6 +127,10 @@ class JournalEntryRepository:
             entry_id=str(entry.id),
             user_id=str(entry.user_id),
         )
+        try:
+            journal_entries_total.labels(action="delete", theme=theme, source=source).inc()
+        except Exception:  # pragma: no cover — metrics must never break writes
+            pass
 
     # =========================================================================
     # Specialized Queries
@@ -256,6 +275,39 @@ class JournalEntryRepository:
 
         return scored
 
+    async def get_by_level_for_user(
+        self,
+        user_id: UUID,
+        level: str,
+        limit: int = 20,
+    ) -> list[JournalEntry]:
+        """Get all active entries at a given abstraction level (commit 3 prep).
+
+        Used by the portrait builder to load L3 facets when compiling the user
+        model that LIA carries everywhere it speaks.
+
+        Args:
+            user_id: User UUID
+            level: Abstraction level (L0/L1/L2/L3)
+            limit: Max entries to return
+
+        Returns:
+            List of active entries at the requested level, ordered by created_at desc
+        """
+        result = await self.db.execute(
+            select(JournalEntry)
+            .where(
+                and_(
+                    JournalEntry.user_id == user_id,
+                    JournalEntry.status == JournalEntryStatus.ACTIVE.value,
+                    JournalEntry.level == level,
+                )
+            )
+            .order_by(JournalEntry.created_at.desc())
+            .limit(limit)
+        )
+        return list(result.scalars().all())
+
     async def get_recent_for_user(
         self,
         user_id: UUID,
@@ -363,6 +415,47 @@ class JournalEntryRepository:
             )
         )
         return result.scalar() or 0
+
+    async def compute_zero_injection_age_days_avg(self) -> float:
+        """Compute the global average age (in days) of active entries never injected.
+
+        This is the central effectiveness signal of the journal:
+        a high value means directives are accumulating without ever being used
+        in prompts — likely ill-formulated or off-topic.
+
+        Returns:
+            Average age in days (float). Returns 0.0 if no such entries exist.
+        """
+        from sqlalchemy import Float, cast
+
+        age_days_expr = cast(
+            func.extract("epoch", func.now() - JournalEntry.created_at) / 86400.0,
+            Float,
+        )
+        stmt = select(func.coalesce(func.avg(age_days_expr), 0.0)).where(
+            and_(
+                JournalEntry.status == JournalEntryStatus.ACTIVE.value,
+                JournalEntry.injection_count == 0,
+            )
+        )
+        result = await self.db.execute(stmt)
+        return float(result.scalar() or 0.0)
+
+    async def count_by_level_global(self) -> dict[str, int]:
+        """Get global counts of active entries grouped by abstraction level.
+
+        Used by the consolidation scheduler to refresh the
+        ``journal_level_distribution`` Prometheus gauge.
+
+        Returns:
+            Dict mapping level code (L0/L1/L2/L3) to count.
+        """
+        result = await self.db.execute(
+            select(JournalEntry.level, func.count(JournalEntry.id))
+            .where(JournalEntry.status == JournalEntryStatus.ACTIVE.value)
+            .group_by(JournalEntry.level)
+        )
+        return {str(row[0]): int(row[1]) for row in result.all()}
 
     async def delete_all_for_user(self, user_id: UUID) -> int:
         """
